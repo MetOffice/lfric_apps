@@ -469,21 +469,7 @@ contains
     type(modeldb_type), intent(inout) :: modeldb
     integer(tik)                      :: id
 
-#ifdef COUPLED
-    type( field_collection_type ), pointer :: depository => null()
-#endif
-
     if ( LPROF ) call start_timing(id, 'gungho_driver.finalise')
-
-#ifdef COUPLED
-    if (l_esm_couple) then
-       depository => modeldb%fields%get_field_collection("depository")
-       ! Ensure coupling fields are updated at the end of a cycle to ensure the values
-       ! stored in and recovered from checkpoint dumps are correct and reproducible
-       ! when (re)starting subsequent runs!
-       call cpl_fld_update(modeldb)
-    endif
-#endif
 
     ! Multifile io finalisation
     if( multifile_io ) then

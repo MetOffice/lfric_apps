@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: 88533c52381b6b01c4e03910f895ad8529fae522
+    source: /var/tmp/persistent/steve.mullerworth/both/checkpoint_coupled/core
+    ref:
 
 moci:
     source: git@github.com:MetOffice/moci.git

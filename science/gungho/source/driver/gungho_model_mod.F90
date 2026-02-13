@@ -275,6 +275,38 @@ contains
           call add_field( persistor%ckp_out, "random_seed", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
         end if
+        if(l_esm_couple) then
+          call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_w10", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_solar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_heatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_train", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tsnow", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsurf", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsub", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_evap", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_topmelt", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceheatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_sublimation", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceskint", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+        end if
     end if
     if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -283,6 +315,38 @@ contains
       end if
       if (stochastic_physics == stochastic_physics_um) then
         call add_field( persistor%ckp_inp, "random_seed", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+      end if
+      if(l_esm_couple) then
+        call add_field( persistor%ckp_inp, "lf_taux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tauy", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_w10", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_solar", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_heatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_train", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tsnow", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsurf", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsub", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_evap", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_topmelt", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceheatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_sublimation", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceskint", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_pensolar", mode=RESTARTING, operation="once", &
                         id_as_name=.true.)
       end if
     end if

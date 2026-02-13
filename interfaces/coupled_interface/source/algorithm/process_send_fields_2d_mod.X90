@@ -100,13 +100,18 @@ module process_send_fields_2d_mod
     call depository%get_field("r_ocean_fraction", r_ocean_fraction)
 
     ! Calculate the reciprocal of acc_step
-    ! If this is the first step after a restart then the division by 
+    ! If this is the first step after writing a checkpoint then the division by 
     ! acc_step has already been done in accumulate_send_fields before
     ! the field was written to the restart file so we set r_acc_step=1
     ! as we still need to divide by sea-ice fraction and copy values from
     ! depository field (dep_fld) to fld ready for coupling.
+    ! In this case acc_step will have been set to zero 
+    ! so we can use this as a test.
+
     call modeldb%values%get_value( 'accumulation_steps', acc_step )
-    if (modeldb%clock%get_step() /=  modeldb%clock%get_first_step() ) then
+    write(log_scratch_space,*) 'TG check: acc_step =', acc_step
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    if (acc_step > 1.1_r_def) then
        r_acc_step = 1.0_r_def/acc_step
     else
        r_acc_step = 1.0_r_def

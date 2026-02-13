@@ -71,6 +71,8 @@ module coupler_mod
   character(len=3), parameter  :: cpl_prefix = "lf_"
   ! Name of the first level of a multi-category field
   character(len=2), parameter  :: cpl_fixed_catno = "01"
+  ! Flag for whether a checkpoint has been written
+  logical :: checkpoint_written = .false.
 
   !routines
   public zero_coupling_send_fields, create_coupling_fields, &
@@ -368,7 +370,8 @@ module coupler_mod
       type is (field_type)
         field_ptr => field
         call accumulate_send_fields_2d(field_ptr, depository, acc_step, &
-                                       modeldb%clock, ldump_prep)
+                                       modeldb%clock, ldump_prep, &
+                                       checkpoint_written)
         ! Create a coupling external field
         call coupler_exchange_2d%initialise(field_ptr, local_index)
         call coupler_exchange_2d%set_time(modeldb%clock)
@@ -411,6 +414,8 @@ module coupler_mod
     if (ierror == 0) then
       acc_step = 0.0_r_def
     end if
+    ! Reset checkpoint written flag
+    checkpoint_written=.false.
 
     ! Send fields using 0d coupling (scalars)
     call iter%initialise(cpl_snd_0d)
@@ -449,6 +454,8 @@ module coupler_mod
     type( field_collection_type ), pointer       :: cpl_snd_2d
     ! Flag that indicates whether pre-dump preparation is required
     logical(l_def)                               :: ldump_prep
+    ! Logical for test of whether next step is coupling step
+    logical(l_def)                               :: coupling_next_step
     !pointer to a field (parent)
     class( field_parent_type ), pointer          :: field
     !pointer to a field
@@ -461,6 +468,13 @@ module coupler_mod
     character(str_def)                           :: name
     ! Number of accumulation steps
     real(r_def), pointer                         :: acc_step
+    ! External field used for sending data to the coupler
+    type(coupler_exchange_2d_type)               :: coupler_exchange_2d
+    ! Pointer to the coupling object
+    type(coupling_type), pointer                 :: coupling_ptr
+    ! Pointer to the index used for ordering coupled fields
+    integer(i_def), pointer                      :: local_index(:)
+
 
     depository => modeldb%fields%get_field_collection("depository")
     cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
@@ -470,6 +484,10 @@ module coupler_mod
     call modeldb%values%get_value( 'accumulation_steps', acc_step )
     acc_step = acc_step + 1.0_r_def
 
+    ! Extract the coupling object from the modeldb key-value pair collection
+    coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
+    local_index => coupling_ptr%get_local_index()
+
     ! We need to loop over each output field and ensure it gets updated
     call iter%initialise(cpl_snd_2d)
     do
@@ -478,12 +496,31 @@ module coupler_mod
       select type(field)
       type is (field_type)
         field_ptr => field
-        call accumulate_send_fields_2d(field_ptr, depository, acc_step, &
-                                       modeldb%clock, ldump_prep)
-        ! Write out the depository version of the field
-        name = trim(adjustl(field%get_name()))
-        call depository%get_field(trim(name), dep_fld)
-        call dep_fld%write_field(trim(name))
+        if(modeldb%clock%get_step() /= modeldb%clock%get_last_step() ) then
+          ! We need to test whether the next time step is a coupling timestep
+          ! but if we call this on the last time step then OASIS will
+          ! produce an error.
+          call coupler_exchange_2d%initialise(field_ptr, local_index)
+          call coupler_exchange_2d%set_time(modeldb%clock)
+          coupling_next_step = coupler_exchange_2d%is_coupling_time_next()
+          call coupler_exchange_2d%clear()
+        else
+          coupling_next_step = .true.
+        endif
+
+        if( coupling_next_step ) then
+          call accumulate_send_fields_2d(field_ptr, depository, acc_step, &
+                                       modeldb%clock, ldump_prep, &
+                                       checkpoint_written)
+          ! Write out the depository version of the field
+          name = trim(adjustl(field%get_name()))
+          call depository%get_field(trim(name), dep_fld)
+          call dep_fld%write_field(trim(name))
+       else
+          write(log_scratch_space, '(2A)' ) "PROBLEM cpl_fld_update: ", &
+                "Checkpoints must only be written at coupling frequencies" 
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
       class default
         write(log_scratch_space, '(2A)' ) "PROBLEM cpl_fld_update: field ", &
                          trim(field%get_name())//" is NOT field_type"
@@ -491,9 +528,11 @@ module coupler_mod
       end select
     end do
 
-    ! All fields have been updated and checkpointed,
+    ! All fields have been updated and will be checkpointed,
     ! so reset the accumulation step count
     acc_step = 0.0_r_def
+    ! Set checkpoint_written as accumulation has already been done
+    checkpoint_written = .true.
 
   end subroutine cpl_fld_update
 

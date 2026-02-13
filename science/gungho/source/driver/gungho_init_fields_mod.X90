@@ -72,6 +72,7 @@ module gungho_init_fields_mod
                                                  checkpoint_read_value
   use lfric_xios_write_mod,               only : write_checkpoint, &
                                                  checkpoint_write_value, &
+                                                 checkpoint_time, &
                                                  create_checkpoint_list, &
                                                  write_state
   use boundaries_config_mod,              only : limited_area
@@ -89,7 +90,8 @@ module gungho_init_fields_mod
   use ageofair_alg_mod,                   only : init_ageofair
   use transport_config_mod,               only : transport_ageofair
 #ifdef COUPLED
-  use coupler_mod,                      only : zero_coupling_send_fields
+  use coupler_mod,                      only : zero_coupling_send_fields, &
+                                               cpl_fld_update
 #endif
   use moist_dyn_factors_alg_mod,        only : moist_dyn_factors_alg
   use init_fd_prognostics_mod,          only : init_fd_prognostics_dump
@@ -1075,6 +1077,9 @@ subroutine create_model_data( modeldb,      &
 
     type( field_collection_type ), pointer :: fd_fields
     type( field_collection_type ), pointer :: prognostic_fields
+#ifdef COUPLED
+    type(field_collection_type), pointer :: depository
+#endif
 
     type( io_value_type ), pointer :: random_seed_io_value
     integer(i_def) :: i
@@ -1118,9 +1123,21 @@ subroutine create_model_data( modeldb,      &
         end do
         deallocate(ranseed)
       end if
+
       call split_complex_prognostics( prognostic_fields )
       call create_checkpoint_list( modeldb%clock, checkpoint_times, &
                                     end_of_run_checkpoint, all_checkpoint_times )
+#ifdef COUPLED
+      !TODO: Test that checkpoint timestep is at end of timestep before next coupling
+      if (l_esm_couple .and. checkpoint_time(modeldb%clock, all_checkpoint_times) ) then
+        depository => modeldb%fields%get_field_collection("depository")
+        ! Ensure coupling fields are updated at the end of a cycle to ensure the values
+        ! stored in and recovered from checkpoint dumps are correct and reproducible
+        ! when (re)starting subsequent runs!
+        call cpl_fld_update(modeldb)
+      endif
+#endif
+
       call write_checkpoint( prognostic_fields, modeldb%values, modeldb%clock, &
                               checkpoint_stem_name, all_checkpoint_times )
     end if

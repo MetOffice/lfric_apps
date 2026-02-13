@@ -279,6 +279,10 @@
   <field id="tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
   <field id="tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
   <field id="tile_lw_grey_albedo" name="tile_lw_grey_albedo" long_name="surface_tile_lw_grey_albedo" unit="1" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="tile_moisture_flux" name="tile_moisture_flux" long_name="tile_moisture_flux" unit="kg m-2 s-1"  domain_ref="face" axis_ref="surface_tiles"/>  
+  <field id="snowice_melt" name="snowice_melt" long_name="snowice_melt" unit="kg m-2 s-1"  domain_ref="face" axis_ref="surface_tiles"/>
+  <field id="surf_ht_flux" name="surf_ht_flux" long_name="surf_ht_flux" unit="W m-2"  domain_ref="face" axis_ref="surface_tiles"/>
+  <field id="snowice_sublimation" name="snowice_sublimation" long_name="snowice_sublimation" unit="kg m-2 s-1"  domain_ref="face" axis_ref="surface_tiles"/>
   <field id="screen_temperature" name="screen_temperature" long_name="screen_temperature_on_tiles" unit="K" domain_ref="face" axis_ref="surface_tiles" />
   <field id="time_since_transition" name="time_since_transition" long_name="time_since_decoupled_screen_transition" unit="s" domain_ref="face" />
   <field id="canopy_water" name="canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
@@ -288,6 +292,7 @@
   <field id="albedo_obs_scaling" name="albedo_obs_scaling" long_name="albedo_obs_scaling" unit="1" domain_ref="face" axis_ref="land_tile_rad_band" />
   <field id="sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
   <field id="sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" domain_ref="face" axis_ref="sea_ice_categories" />
+  <field id="sea_ice_pensolar" name="sea_ice_pensolar" long_name="sea_ice_pensolar" unit="W m-2"  domain_ref="face" axis_ref="sea_ice_categories"/>        
   <field id="sea_surf_temp_pert" name="sea_surf_temp_pert" long_name="sea_surface_temperature_perturbation" unit="K" domain_ref="face" />
   <field id="internal_flux" name="internal_flux" long_name="internal_flux" unit="W m-2" domain_ref="face" />
   <!-- orography fields -->
@@ -393,5 +398,31 @@
   <field id="frozen_soil_moisture" name="frozen_soil_moisture" long_name="mass_fraction_of_frozen_water_in_saturated_soil_moisture" unit="1" domain_ref="face" axis_ref="soil_levels" />
   <!-- energy correction -->
   <field id="temperature_correction_rate" name="temperature_correction_rate" long_name="temperature_rate_for_energy_correction" unit="K s-1" axis_ref="scalar_axis" />
+     <field id="lf_icefrc" name="lf_icefrc" long_name="lf_icefrc" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_icetck" name="lf_icetck" long_name="lf_icetck" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_icelayert" name="lf_icelayert" long_name="lf_icelayert" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_ocn_sst" name="lf_ocn_sst" long_name="lf_ocn_sst" unit="K" domain_ref="face" />
+     <field id="lf_taux" name="lf_taux" long_name="lf_taux" unit="m" domain_ref="face" />
+     <field id="lf_tauy" name="lf_tauy" long_name="lf_tauy" unit="m" domain_ref="face" />
+     <field id="lf_solar" name="lf_solar" long_name="lf_solar" unit="m" domain_ref="face" />
+     <field id="lf_heatflux" name="lf_heatflux" long_name="lf_heatflux" unit="m" domain_ref="face" />
+     <field id="lf_train" name="lf_train" long_name="lf_train" unit="m" domain_ref="face" />
+     <field id="lf_tsnow" name="lf_tsnow" long_name="lf_tsnow" unit="" domain_ref="face" />
+     <field id="lf_w10" name="lf_w10" long_name="lf_w10" unit="" domain_ref="face" />
+     <field id="lf_rsurf" name="lf_rsurf" long_name="lf_rsurf" unit="kg m-2 s-1" domain_ref="face" />
+     <field id="lf_rsub" name="lf_rsub" long_name="lf_rsub" unit="kg m-2 s-1" domain_ref="face" />
+     <field id="lf_evap" name="lf_evap" long_name="lf_evap" unit="kg m-2 s-1" domain_ref="face" />
+     <field id="lf_topmelt" name="lf_topmelt" long_name="lf_topmelt" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_iceheatflux" name="lf_iceheatflux" long_name="lf_iceheatflux" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_sublimation" name="lf_sublimation" long_name="lf_sublimation" unit="kg m-2 s-1" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_iceskint" name="lf_iceskint" long_name="lf_iceskint" unit="K" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_pensolar" name="lf_pensolar" long_name="lf_pensolar" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_conductivity" name="lf_conductivity" long_name="lf_conductivity" unit="W m-2 K-1" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_snow_depth" name="lf_snow_depth" long_name="snow depth on sea ice" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_pond_frac" name="lf_pond_frac" long_name="lf_pond_frac" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_pond_depth" name="lf_pond_depth" long_name="lf_pond_depth" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
+     <field id="lf_sunocean" name="lf_sunocean" long_name="lf_sunocean" unit="ms-1" domain_ref="face" />
+     <field id="lf_svnocean" name="lf_svnocean" long_name="lf_svnocean" unit="ms-1" domain_ref="face" />
+
 </field_group>
 </field_definition>
