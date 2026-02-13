@@ -23,10 +23,7 @@
                             'module load cray-mpich/8.1.27 ; '~
                             'module load lfric-cray/15.0.0/3.0+ || true ' %}
 
-{% set ex1a_coupled_cce = 'module unload xios/2701-h57fm7d || true ; ' ~
-                          'module load cpe/23.05 ; '~
-                          'module switch cce cce/15.0.0 ; '~
-                          'module load cray-mpich/8.1.27 ; '~
+{% set ex1a_coupled_cce = 'module unload xios/2701 || true ; ' ~
                           'module load cray-hdf5-parallel ; ' ~
                           'module load cray-netcdf-hdf5parallel ; ' ~
                           'module use /data/users/moci/modules_ngms/modules ; '~
