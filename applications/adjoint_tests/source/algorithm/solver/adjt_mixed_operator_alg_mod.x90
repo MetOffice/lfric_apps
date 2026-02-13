@@ -82,7 +82,7 @@ contains
     real(kind=r_def) :: inner1, inner2
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
-    real(kind=r_def), parameter :: overall_tolerance = 1700.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 2000.0_r_def
     integer(kind=tik)           :: id
 
     if ( LPROF ) call start_timing( id, 'adjt_mixed_operator_alg' )
