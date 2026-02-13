@@ -88,7 +88,7 @@ contains
     integer( kind=i_def ) :: ncells
     integer( tik )        :: id
 
-    if ( LPROF ) call start_timing( id, 'spectral_gwd_alg' )
+    if ( LPROF ) call start_timing( id, 'spectral_gwd' )
 
     call log_event( 'slow_physics: Running spectral gravity wave drag', LOG_LEVEL_DEBUG )
 
@@ -146,7 +146,7 @@ contains
 
     call um_sizes_init(1_i_def)
 
-    if ( LPROF ) call stop_timing( id, 'spectral_gwd_alg' )
+    if ( LPROF ) call stop_timing( id, 'spectral_gwd' )
 
     if (write_diag .and. use_xios_io) then
 

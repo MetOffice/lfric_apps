@@ -53,9 +53,9 @@ contains
     type( field_type ), pointer :: rb
     type( field_type ), pointer :: tio
     type( field_type ), pointer :: vo
-    integer( tik )              :: id
+    integer( tik )              :: id_chem, id_diags
 
-    if ( LPROF ) call start_timing( id, 'flexchem_alg' )
+    if ( LPROF ) call start_timing( id_chem, 'chemistry.flexchem' )
 
     call log_event( 'Running flexible chemistry scheme', LOG_LEVEL_INFO )
 
@@ -82,6 +82,9 @@ contains
                                               ) )
     end if
 
+    if ( LPROF ) call stop_timing( id_chem, 'chemistry.flexchem' )
+    if ( LPROF ) call start_timing( id_diags, 'diags.flexchem' )
+
     ! Diagnostics
     call h2o%write_field('chemistry__h2o')
     call co%write_field('chemistry__co')
@@ -97,7 +100,7 @@ contains
     call tio%write_field('chemistry__tio')
     call vo%write_field('chemistry__vo')
 
-    if ( LPROF ) call stop_timing( id, 'flexchem_alg' )
+    if ( LPROF ) call stop_timing( id_diags, 'diags.flexchem' )
 
   end subroutine flexchem_alg
 

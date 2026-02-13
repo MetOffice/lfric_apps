@@ -74,7 +74,7 @@ program jedi_tlm_tests
   character( str_def )                      :: forecast_length_str
   real( kind=r_def )                        :: dot_product_1
   real( kind=r_def )                        :: dot_product_2
-  real( kind=r_def ),             parameter :: absolute_tolerance = 1.0E-4_r_def
+  real( kind=r_def )                        :: absolute_tolerance
   real( kind=r_def )                        :: machine_tolerance
   real( kind=r_def )                        :: absolute_diff
   real( kind=r_def )                        :: relative_diff
@@ -148,7 +148,7 @@ program jedi_tlm_tests
   end if
 
   ! Compute <Mx,Mx>
-  dot_product_1 = inc%scaled_dot_product_with_itself()
+  dot_product_1 = real(inc%scaled_dot_product_with_itself(), r_def)
 
   ! Propagate via AD model
   call linear_model%forecastAD( inc, forecast_length )
@@ -158,13 +158,14 @@ program jedi_tlm_tests
   end if
 
   ! Compute <AMx,x>
-  dot_product_2 = inc%dot_product_with(inc_initial)
+  dot_product_2 = real(inc%dot_product_with(inc_initial), r_def)
 
   ! The two dot products should be nearly identical. The tolerance is included
   ! due to differences in order of operations and solver non-convergence.
   absolute_diff = abs( dot_product_1 - dot_product_2 )
   machine_tolerance = spacing( max( abs( dot_product_1 ), abs( dot_product_2 ) ) )
   relative_diff = absolute_diff / machine_tolerance
+  call jedi_lfric_settings_config%get_value( 'adjoint_test_tolerance', absolute_tolerance )
   if (absolute_diff > absolute_tolerance ) then
     call run%finalise_timers()  ! We still want timing info even if the test fails
     write( log_scratch_space, * ) "Adjoint test FAILED", &

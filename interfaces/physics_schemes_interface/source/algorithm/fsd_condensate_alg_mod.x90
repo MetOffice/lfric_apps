@@ -53,7 +53,7 @@ contains
     type( mesh_type), pointer   :: mesh
     integer(tik)                :: id
 
-    if ( LPROF ) call start_timing( id, 'fsd_condensate_alg' )
+    if ( LPROF ) call start_timing( id, 'cloud.fsd_condensate' )
 
     ! Unpack fields
     call cloud_fields%get_field('area_fraction', area_fraction)
@@ -79,7 +79,7 @@ contains
 
     nullify( mesh )
 
-    if ( LPROF ) call stop_timing( id, 'fsd_condensate_alg' )
+    if ( LPROF ) call stop_timing( id, 'cloud.fsd_condensate' )
 
   end subroutine fsd_condensate_alg
 
