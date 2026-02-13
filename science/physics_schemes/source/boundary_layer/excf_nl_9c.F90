@@ -655,7 +655,7 @@ real(kind=r_bl) ::                                                             &
                    ! Weight for vertical interpolation between model-levels
 
 integer ::                                                                     &
- i,j,                                                                          &
+ i,                                                                            &
                   ! Loop counter (horizontal field index).
  k,                                                                            &
                   ! Loop counter (vertical level index).
@@ -669,6 +669,8 @@ integer ::                                                                     &
                   ! Theta-level below the inversion
 
 ! 2D arrays for optimisation
+
+integer, parameter :: j = 1 ! Loop counter, horizontal - LFRic Parameter
 
 integer :: ntop(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),          &
                    ! top level of surf-driven K profile
@@ -765,7 +767,6 @@ end if
 !-----------------------------------------------------------------------
 ! 0.  Calculate top-of-b.l. velocity scales and Prandtl number.
 !-----------------------------------------------------------------------
-j = 1
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private(i, k, ii, jj, i_wt, c_ws, wstar3, pr_neut, pr_conv, w_m_neut,   &
 !$OMP  zeta_s_fac, sf_term, sf_shear_term, zeta_r_sq, ir_term, zr,             &
@@ -2660,7 +2661,7 @@ if (model_type == mt_single_column) then
 !$OMP end do
 
 
-  ! Note parallelised over j as k isn't independent
+  ! Note parallelised over i as k isn't independent
   do k = 1, bl_levels-1
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
