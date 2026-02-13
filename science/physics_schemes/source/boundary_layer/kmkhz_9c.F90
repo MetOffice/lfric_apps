@@ -1048,31 +1048,25 @@ j = 1
 !$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-    !do i = pdims%i_start, pdims%i_end
     ntml_prev(i,j) = 1
-    !end do
   end do
   do k = 1, bl_levels-1
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
       z_top(i,j,k) = z_uv(i,j,k+1)
       !------------------------------------------------------------
       !find NTML from previous TS (for accurate gradient adjustment
       !of profiles - also note that NTML le BL_LEVELS-1)
       !------------------------------------------------------------
       if ( zh_prev(i,j)  >=  z_uv(i,j,k+1) ) ntml_prev(i,j)=k
-      !end do
     end do
   end do
 
   k = bl_levels
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-    !do i = pdims%i_start, pdims%i_end
     z_top(i,j,k) = z_uv(i,j,k) + dzl(i,j,k)
-    !end do
   end do
 end do ! ii
-!$OMP end do NOWAIT
+!$OMP end do
 
 !-----------------------------------------------------------------------
 ! 1.2 Calculate SVL: conserved buoyancy-like variable
@@ -1080,14 +1074,12 @@ end do ! ii
 
 !$OMP do SCHEDULE(STATIC)
 do k = 1, bl_levels
-  !do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     sl(i,j,k)  = tl(i,j,k) + grcp * z_tq(i,j,k)
     svl(i,j,k) = sl(i,j,k) * ( one + c_virtual*qw(i,j,k) )
   end do
-  !end do
 end do
-!$OMP end do NOWAIT
+!$OMP end do
 
 !No halos
 if (l_noice_in_turb) then
@@ -1133,7 +1125,6 @@ end if ! test on l_noice_in_turb
 do k = 1, bl_levels
   km = max( 1, k-1 )
   kp = min( bl_levels, k+1 )
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ! If the Intel Compiler vs 12 is used, a job fails with segmentation
@@ -1152,17 +1143,15 @@ do k = 1, bl_levels
     sls_inc(i,j,k) = zero
     qls_inc(i,j,k) = zero
   end do ! i
-  !$OMP end do NOWAIT
-    !end do ! j
+  !$OMP end do
 end do ! k
 
-!$OMP BARRIER
+!!$OMP BARRIER
 
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do k = 2, bl_levels-1
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
 
       if ( etadot(i,j,k)  < - tiny(one) .and.                                &
             etadot(i,j,k-1)< - tiny(one) ) then
@@ -1191,12 +1180,10 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         end if  ! safe to calculate increments
       end if
 
-      !end do
     end do
   end do
 end do !ii
 !$OMP end do
-! do j = pdims%j_start, pdims%j_end
 ! Repeat for necessary parts of last 2 loops for water tracers
 if (l_wtrac) then
 !$OMP do SCHEDULE(STATIC)
@@ -1208,14 +1195,12 @@ if (l_wtrac) then
     end do ! k
   end do ! i_wt
 !$OMP end do
- !end do ! j
 
 ! Convert to dynamic
 !$OMP do SCHEDULE(DYNAMIC)
   do ii = pdims%i_start, pdims%i_end, bl_segment_size
     do k = 2, bl_levels-1
       do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-        !do i = pdims%i_start, pdims%i_end
 
         if ( etadot(i,j,k)  < - tiny(one) .and.                              &
               etadot(i,j,k-1)< - tiny(one) ) then
@@ -1241,14 +1226,12 @@ if (l_wtrac) then
             end do
           end if  ! safe to calculate increments
         end if
-        !end do
       end do
     end do !i
   end do !ii
 !$OMP end do
 end if   ! l_wtrac
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
     ! Non-turbulent fluxes are defined relative to the surface
@@ -1274,11 +1257,9 @@ do i = pdims%i_start, pdims%i_end
   fq_nt(i,j,1)  = zero
 
 end do
-!$OMP end do NOWAIT
-!end do
+!$OMP end do
 
 ! Repeat for necessary parts of last loop for water tracers
-   ! do j = pdims%j_start, pdims%j_end
 if (l_wtrac) then
 !$OMP do SCHEDULE(STATIC)
   do i_wt = 1, n_wtrac
@@ -1303,7 +1284,6 @@ end if
 
 do k = 1, bl_levels
   kp = k+1
-  !do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     rho_dz = rho_mix_tq(i,j,k) * dzl(i,j,k)
@@ -1328,8 +1308,7 @@ do k = 1, bl_levels
     ft_nt(i,j,kp)  = frad(i,j,kp) + fmic(i,j,kp,1) + fsubs(i,j,kp,1)
     fq_nt(i,j,kp)  =                fmic(i,j,kp,2) + fsubs(i,j,kp,2)
   end do ! i
-!$OMP end do NOWAIT
-!end do !j
+!$OMP end do
 end do ! k
 
 ! Repeat necessary parts of last loop for water tracer
@@ -1337,7 +1316,6 @@ if (l_wtrac) then
 !$OMP do SCHEDULE(STATIC)
   do i_wt = 1, n_wtrac
     do k = 1, bl_levels
-      !do j = pdims%j_start, pdims%j_end
       kp = k+1
       do i = pdims%i_start, pdims%i_end
         rho_dz = rho_mix_tq(i,j,k) * dzl(i,j,k)
@@ -1352,7 +1330,6 @@ if (l_wtrac) then
         wtrac_bl(i_wt)%fq_nt(i,j,kp)  =                                      &
                   fmic_wtrac(i,j,kp,i_wt) + fsubs_wtrac(i,j,kp,i_wt)
       end do ! i
-      !end do !j
     end do ! k
   end do   ! i_wt
 !$OMP end do
@@ -1364,10 +1341,8 @@ end if   ! l_wtrac
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1,pdims%i_end)
-    !do i = pdims%i_start, pdims%i_end
     unstable(i,j) = (fb_surf(i,j) >  zero)
     k_plume(i,j)  = -1
-    !end do
   end do
 
       !------------------------------------------------------------
@@ -1380,7 +1355,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
   do k = 1, bl_levels-1
     do i = ii, min(ii+bl_segment_size-1,pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
 
       if ( unstable(i,j) ) then
 
@@ -1396,14 +1370,11 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         end if
 
       end if
-      !end do
     end do
   end do
 
   do i = ii, min(ii+bl_segment_size-1,pdims%i_end)
-    !do i = pdims%i_start, pdims%i_end
     if (k_plume(i,j) == -1) k_plume(i,j)=1
-    !end do
   end do
 end do ! ii
 !$OMP end do
@@ -1421,7 +1392,6 @@ end do ! ii
 !-----------------------------------------------------------------------
 !      Initialise variables
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   cloud_base(i,j) = .false.
@@ -1431,7 +1401,6 @@ do i = pdims%i_start, pdims%i_end
   ntdsc(i,j)   = 0
 end do
 !$OMP end do
-!end do
 
 if ( .not. sc_diag_opt == sc_diag_all_rh_max ) then
 
@@ -1441,7 +1410,6 @@ if ( .not. sc_diag_opt == sc_diag_all_rh_max ) then
   do ii = pdims%i_start, pdims%i_end, bl_segment_size
     do k = 3, bl_levels-1
       do i = ii, min(ii+bl_segment_size-1,pdims%i_end)
-        !do i = pdims%i_start, pdims%i_end
 
         !-----------------------------------------------------------------
         !..Find cloud-base (where cloud here means CF > SC_CFTOL)
@@ -1558,8 +1526,7 @@ if ( .not. sc_diag_opt == sc_diag_all_rh_max ) then
             end if
           end if
         end if
-        !end do ! i
-      end do ! j
+      end do ! i
     end do ! k
   end do ! ii
 !$OMP end do
@@ -1578,8 +1545,6 @@ if ( sc_diag_opt == sc_diag_cu_rh_max .or.                                     &
 
   ! Options that diagnose the Sc-top using the max total-water RH method...
 
-  ! j-loop outermost to allow parallelisation (k-loop is sequential)
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ! Initialise max RH in the column to zero
@@ -1658,13 +1623,11 @@ if ( sc_diag_opt == sc_diag_cu_rh_max .or.                                     &
     end if ! ( ntdsc(i,j) > 0 )
   end do
   !$OMP end do NOWAIT
-  !end do
 
 else if ( sc_diag_opt == sc_diag_cu_relax ) then
 
   ! Diagnosed simply if significant cloud fraction at ZHPAR
   ! below the height threshold zmaxt_for_dsc
-  !do j = pdims%j_start, pdims%j_end
 
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
@@ -1683,13 +1646,11 @@ else if ( sc_diag_opt == sc_diag_cu_relax ) then
     end if
   end do
   !$OMP end do NOWAIT
-!end do
 
 else if ( sc_diag_opt == sc_diag_orig ) then
 
   ! Original code, only diagnosed if shallow cu or not l_param_conv
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( (l_param_conv .and.                                                 &
@@ -1707,15 +1668,13 @@ else if ( sc_diag_opt == sc_diag_orig ) then
       end if
     end if
   end do
-  ! !$OMP end do NOWAIT
   !$OMP end do
-!end do
 
 end if  ! test on sc_diag_opt
 
 if ( l_use_sml_dsc_fixes ) then
   ! Need to override "NOWAIT" on the previous blocks if going in here:
-  !$OMP BARRIER
+  !!$OMP BARRIER
   ! If conv_diag has diagnosed a SML rising significantly above cloud-base,
   ! abort any DSC diagnosis higher-up.
   ! This is because at present, diagnosing an elevated DSC-layer prompts
@@ -1727,7 +1686,6 @@ if ( l_use_sml_dsc_fixes ) then
   ! The code currently only permits us to have one DSC-layer in the column,
   ! so if we have a cloudy boundary-layer, we need to reserve the one possible
   ! DSC for the case where the cloudy SML-top decouples to make a DSC.
-!  do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( unstable(i,j) .and. (.not. cumulus(i,j)) .and. dsc(i,j) ) then
@@ -1746,7 +1704,6 @@ if ( l_use_sml_dsc_fixes ) then
     end if
   end do
   !$OMP end do NOWAIT
-!  end do
 end if  ! ( l_use_sml_dsc_fixes )
 
 !-----------------------------------------------------------------------
@@ -1756,7 +1713,6 @@ end if  ! ( l_use_sml_dsc_fixes )
 !-----------------------------------------------------------------------
 !     Initialise variables
 !------------------------------
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   k_cloud_dsct(i,j) = 0
@@ -1764,14 +1720,12 @@ do i = pdims%i_start, pdims%i_end
   df_inv_dsc(i,j) = zero
 end do
 !$OMP end do
-!end do
 
 if (l_new_kcloudtop) then
   !---------------------------------------------------------------------
   ! improved method of finding the k_cloud_dsct, the top of the mixed
   ! layer as seen by radiation
   !---------------------------------------------------------------------
-!do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(DYNAMIC)
   do ii = pdims%i_start, pdims%i_end, bl_segment_size
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -1837,7 +1791,6 @@ if (l_new_kcloudtop) then
     end do ! i
   end do ! ii
   !$OMP end do
-  !end do ! j
   !#####
 
 else
@@ -1845,7 +1798,6 @@ else
   ! original method of finding the k_cloud_dsct, the top of the mixed layer
   ! as seen by radiation, found to be resolution dependent
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(DYNAMIC)
   do ii = pdims%i_start, pdims%i_end, bl_segment_size
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -1900,7 +1852,6 @@ else
     end do ! i
   end do ! ii
   !$OMP end do
-  !end do ! j
 
 end if  ! test on l_new_kcloudtop
 
@@ -1912,7 +1863,6 @@ end if  ! test on l_new_kcloudtop
       ! representative of clear-air rad divergence and so subtract this
       ! `clear-air' part from the grid-level divergence.
       !-----------------------------------------------------------------
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -1959,7 +1909,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do !i
 end do !ii
 !$OMP end do
-!end do
 
 !-----------------------------------------------------------------------
 ! 2.4 Set NBDSC, the bottom level of the DSC layer.
@@ -1980,7 +1929,6 @@ end do !ii
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1,pdims%i_end)
-    !do i = pdims%i_start, pdims%i_end
     nbdsc(i,j) = ntdsc(i,j)+1
     if (dsc(i,j)) then
       ! The depth of the radiatively-cooled layer tends to be less
@@ -2002,7 +1950,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         nbdsc(i,j) = k+1     ! marks lowest level within ML
       end if
     end do ! k
-    !end do ! j
   end do ! i
 end do !ii
 !$OMP end do
@@ -2010,7 +1957,6 @@ end do !ii
 ! 2.5 Tidy up variables associated with decoupled layer
 !       NOTE that NTDSC ge 3 if non-zero
 !----------------------------------------------------------------------
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   ! Note that ZHSC-Z_UV(NTML+2) may = 0, so this test comes first!
@@ -2055,8 +2001,7 @@ do i = pdims%i_start, pdims%i_end
     df_inv_dsc(i,j)   = zero
   end if
 end do
-!$OMP end do NOWAIT
-!end do
+!$OMP end do
 
 !----------------------------------------------------------------------
 !2.6 If decoupled cloud-layer found test to see if it is, in fact,
@@ -2077,7 +2022,6 @@ if ( entr_smooth_dec == on .or. entr_smooth_dec == entr_taper_zh ) then
   ! ON  - taper off surface terms to zero for svl_diff between
   !       svl_coup and svl_coup_max; also ignore cumulus diags
   !-------------------------------------------------------------
-!do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     coupled(i,j)       = .false.
@@ -2109,10 +2053,8 @@ if ( entr_smooth_dec == on .or. entr_smooth_dec == entr_taper_zh ) then
     end if  ! dsc test
   end do
   !$OMP end do
-!end do
 
 else  ! entr_smooth_dec test
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     coupled(i,j)       = .false.
@@ -2127,20 +2069,17 @@ else  ! entr_smooth_dec test
     end if
   end do
   !$OMP end do
-    !end do
 
 end if  ! entr_smooth_dec test
 
 ! Store current values of ntml and ntdsc for water tracer use
 if (l_wtrac) then
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ntml_start(i,j)  = ntml(i,j)
     ntdsc_start(i,j) = ntdsc(i,j)
   end do
   !$OMP end do
-  !end do
 end if
 
 !-----------------------------------------------------------------------
@@ -2164,7 +2103,6 @@ end if
        ! marginally affected.  Conversely, it allows a subsiding
        ! inversion to fall more readily.
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -2553,7 +2491,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do !i
 end do !ii
 !$OMP end do
-!end do
 
 !$OMP end PARALLEL
 
@@ -2601,7 +2538,6 @@ end if
 ! 4.1 Calculate gradient adjustment terms
 !-----------------------------------------------------------------------
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private (i, ii, i_wt, k, kl, km, kp, kp2, kmax, wstar3, c_ws, w_m,      &
 !$OMP  pr_neut, w_h, k_cff, virt_factor, z_cbase , zdsc_cbase, dsl_ga,         &
@@ -2652,20 +2588,15 @@ do i = pdims%i_start, pdims%i_end
 
 end do
 !$OMP end do
-!end do
 
 ! Water tracers assume flux_grad  ==  Locketal2000
 if (l_wtrac) then
   do i_wt = 1, n_wtrac
-! !$OMP do SCHEDULE(STATIC)
-!     do j = pdims%j_start, pdims%j_end
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
       wtrac_bl(i_wt)%grad_q_adj(i,j) = zero
     end do
     !$OMP end do
-!     end do
-! !$OMP end do
   end do
 end if
 
@@ -2685,7 +2616,6 @@ end if
 
 !$OMP do SCHEDULE(STATIC)
 do k = 1, bl_levels
-  !do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     if (k  <=  ntml_prev(i,j)) then
       dsldz(i) = -grcp + grad_t_adj(i,j)
@@ -2723,7 +2653,6 @@ do k = 1, bl_levels
     end if
 
   end do
-  !end do
 end do
 !$OMP end do
 
@@ -2735,8 +2664,6 @@ end do
 ! First the SML
 !---------------
 
-
-! do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     cloud_base(i,j)= .false.
@@ -2765,8 +2692,6 @@ end do
 ! to use as first guess or lower limit
 !-----------------------------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   k_level(i,j) = ntml(i,j)
@@ -2782,8 +2707,6 @@ end do
 ! end do
 
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if ( cf_sml(i,j)  >   sc_cftol ) then
@@ -2804,8 +2727,6 @@ end do
 ! Find lowest level within ML with max CF
 !--------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   do k = min(bl_levels, ntml(i,j)+p1), 1, -1
@@ -2825,8 +2746,6 @@ end do ! I
 ! end do ! j
 
 
-
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
 
@@ -2879,8 +2798,6 @@ do i = pdims%i_start, pdims%i_end
 
 end do
 !$OMP end do NOWAIT
-!end do
-
 
 
 !-----------------------------------------------------------------------
@@ -2888,7 +2805,6 @@ end do
 !-----------------------------------------------------------------------
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   cloud_base(i,j) = .false.
@@ -2906,7 +2822,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-!end do
 
 
 !-------------------------------------------------------------
@@ -2915,7 +2830,6 @@ end do
 !-------------------------------------------------------------
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   k_level(i,j) = ntdsc(i,j)
@@ -2929,11 +2843,9 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-!end do
 
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if ( cf_dsc(i,j)  >   sc_cftol ) then
@@ -2947,7 +2859,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-!end do
 
 
 !--------------------------------------------------
@@ -2955,7 +2866,6 @@ end do
 !--------------------------------------------------
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   do k = min(bl_levels,ntdsc(i,j)+p1), 1, -1
@@ -2972,11 +2882,9 @@ do i = pdims%i_start, pdims%i_end
   end do ! K
 end do ! I
 !$OMP end do NOWAIT
-!end do ! J
 
 
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
 
@@ -3033,7 +2941,6 @@ do i = pdims%i_start, pdims%i_end
 
 end do !I
 !$OMP end do
-! end do !J
 
 
 !-----------------------------------------------------------------------
@@ -3051,7 +2958,6 @@ end do !I
 
 !$OMP do SCHEDULE(DYNAMIC)
 do k = 2, bl_levels
-  !do j = pdims%j_start, pdims%j_end
 
   ! This is to help vectorization
   do i = pdims%i_start, pdims%i_end
@@ -3106,7 +3012,6 @@ do k = 2, bl_levels
     db_noga_cld(i,j,k)  = db_noga_dry(i,j,k)*(one-cf_for_wb(i)) +            &
                           db_noga_cld(i,j,k)*cf_for_wb(i)
   end do
-  !end do
 end do
 !$OMP end do
 
@@ -3115,7 +3020,6 @@ end do
 !-----------------------------------------------------------------------
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   zeta_r_dsc(i,j) = zero
@@ -3140,7 +3044,6 @@ do i = pdims%i_start, pdims%i_end
   z_cld_dsc(i,j) = zero
 end do
 !$OMP end do
-!end do
 
 
 !-----------------------------------------------------------------------
@@ -3148,7 +3051,6 @@ end do
 !-----------------------------------------------------------------------
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
 
@@ -3171,7 +3073,6 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do
 ! No wait removal due to dimension change?
-!end do
 
 
 !-----------------------------------------------------------------------
@@ -3183,7 +3084,6 @@ end do
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do k = 1, bl_levels
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
       if ( k  <=  ntml(i,j)+1 ) then
         z_cld(i,j) = z_cld(i,j) +                                            &
                     cf(i,j,k) * one_half * dzl(i,j,k) +                       &
@@ -3214,7 +3114,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
                                   cff(i,j,k) * one_half * dzl(i,j,k)
         end if
       end if
-      !end do
     end do
   end do
 end do ! ii
@@ -3228,7 +3127,6 @@ end do ! ii
 !----------------------------------------------------------------------
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -3318,15 +3216,11 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do !i
 end do !ii
 !$OMP end do
-!end do
-
 
         !--------------------------
         ! Then the DSC layer
         !--------------------------
 
-
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -3442,15 +3336,12 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do
 end do
 !$OMP end do
-!end do
 
 
 !-----------------------------------------------------------------------
 ! 7.4 Next those terms which depend on the presence of buoyancy reversal
 !-----------------------------------------------------------------------
 
-
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -3547,8 +3438,6 @@ end do !ii
 !     Initialise variables
 !------------------------------
 
-
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   
@@ -3573,7 +3462,6 @@ if (l_new_kcloudtop) then
   ! in the upper half of the BL (ie, restrict search to `close' to ZH)
   !---------------------------------------------------------------------
 
-  ! do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(DYNAMIC)
   do ii = pdims%i_start, pdims%i_end, bl_segment_size
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -3629,7 +3517,6 @@ if (l_new_kcloudtop) then
     end do ! i
   end do ! ii
   !$OMP end do
-  !end do ! j
 
 
 else
@@ -3638,7 +3525,6 @@ else
   ! as seen by radiation, found to be resolution dependent
 
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(DYNAMIC)
   do ii = pdims%i_start, pdims%i_end, bl_segment_size
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -3693,7 +3579,6 @@ else
     end do ! i
   end do ! ii
   !$OMP end do
-!end do ! j
   
 
 end if  ! test on l_new_kcloudtop
@@ -3708,7 +3593,6 @@ end if  ! test on l_new_kcloudtop
       !-----------------------------------------------------------------
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
@@ -3756,7 +3640,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do !i
 end do !ii
 !$OMP end do
-!end do
 
 
 ! ------------------------------------------------------------------
@@ -3777,7 +3660,6 @@ end do !ii
 ! ------------------------------------------------------------------
 
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if ( k_cloud_top(i,j)  ==  0 ) k_cloud_top(i,j) = ntml(i,j)
@@ -3810,7 +3692,6 @@ end do
 if (l_wtrac) then
   do i_wt = 1, n_wtrac
 
-   ! do j = pdims%j_start, pdims%j_end
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
       fq_nt_zh_wtrac(i,j,i_wt) = fmic_wtrac(i,j,ntml(i,j)+2,i_wt)            &
@@ -3833,7 +3714,6 @@ end if
 !-----------------------------------------------------------------------
 
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   ntml_save(i,j) = ntml(i,j)  ! needed to identify changes
@@ -3841,7 +3721,6 @@ do i = pdims%i_start, pdims%i_end
   dsc_removed(i,j) = 0
 end do
 !$OMP end do NOWAIT
-!end do
 
 
 !$OMP end PARALLEL
@@ -3869,7 +3748,6 @@ call excf_nl_9c (                                                              &
    rhof2,rhofsc,f_ngstress,tke_nl,zdsc_base,nbdsc                              &
   )
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private (i, i_wt, k, kl, kp, c_ws, c_tke, w_m, tothf_efl, totqf_efl, &
 !$OMP  ml_tend, fa_tend, inv_tend, Prandtl, svl_lapse_rho,                     &
@@ -3899,13 +3777,11 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do
-!end do
 
 
 ! Repeat for water tracers
 if (l_wtrac) then
   do i_wt = 1, n_wtrac
-    ! do j = pdims%j_start, pdims%j_end
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
       if ( dsc(i,j) .and. .not. dsc_save(i,j) ) then
@@ -3921,8 +3797,6 @@ end if
 
 if ( l_use_sml_dsc_fixes ) then
 
-
-  ! do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( dsc_removed(i,j) == 1 ) then
@@ -3953,7 +3827,6 @@ if ( l_use_sml_dsc_fixes ) then
   ! Repeat for water tracers
   if (l_wtrac) then
     do i_wt = 1, n_wtrac
-      !do j = pdims%j_start, pdims%j_end
       !$OMP do SCHEDULE(STATIC)
       do i = pdims%i_start, pdims%i_end
         if ( dsc_removed(i,j) == 1 ) then
@@ -3967,14 +3840,12 @@ if ( l_use_sml_dsc_fixes ) then
         end if
       end do
       !$OMP end do
-      !end do
     end do
   end if
 
 else ! not l_use_sml_dsc_fixes
 
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( .not. dsc(i,j) .and. dsc_save(i,j) ) then
@@ -4001,14 +3872,12 @@ else ! not l_use_sml_dsc_fixes
     end if
   end do
   !$OMP end do
-  !end do
 
 
   ! Repeat for water tracers
   if (l_wtrac) then
     do i_wt = 1, n_wtrac
 
-      !do j = pdims%j_start, pdims%j_end
       !$OMP do SCHEDULE(STATIC)
       do i = pdims%i_start, pdims%i_end
         if ( .not. dsc(i,j) .and. dsc_save(i,j) ) then
@@ -4024,7 +3893,6 @@ else ! not l_use_sml_dsc_fixes
         end if
       end do
       !$OMP end do
-      !end do
 
     end do
   end if
@@ -4037,8 +3905,6 @@ end if ! not l_use_sml_dsc_fixes
 ! Calculate the non-turbulent fluxes at the DSC base
 ! ------------------------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   ft_nt_dscb(i,j) = ft_nt(i,j,1)
@@ -4080,8 +3946,6 @@ end do
 !..ie. the inversion is well-defined)
 !-----------------------------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
 
@@ -4177,7 +4041,6 @@ do i = pdims%i_start, pdims%i_end
   end if   ! test on SML_DISC_INV, etc
 end do
 !$OMP end do NOWAIT
-!end do
 
 
 !-----------------------------------------------------------------------
@@ -4194,7 +4057,6 @@ end if
 c_tke = 1.33_r_bl/(vkman*c_ws**two_thirds)
 
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
 
@@ -4339,15 +4201,12 @@ do i = pdims%i_start, pdims%i_end
 
 end do
 !$OMP end do NOWAIT
-!end do
 
 
 !-------------------------------------------------
 !..Second the decoupled mixed layer, if entraining
 !-------------------------------------------------
 
-
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
 
@@ -4444,8 +4303,6 @@ end do
 !..flux at the DSC base and the parametrized flux at the inversion
 !-----------------------------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
 
@@ -4504,8 +4361,6 @@ do i = pdims%i_start, pdims%i_end
 
 end do
 !$OMP end do NOWAIT
-!end do
-
 
 !-----------------------------------------------------------------------
 ! Specify QW entrainment fluxes
@@ -4519,8 +4374,6 @@ end do
 !    the inversion grid-level is physically within the BL)
 ! ------------------------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   fq_nt_dscb(i,j) = fq_nt(i,j,1)
@@ -4541,7 +4394,6 @@ end do
 ! Repeat for water tracers
 if (l_wtrac) then
   do i_wt = 1, n_wtrac
-    ! do j = pdims%j_start, pdims%j_end
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
       wtrac_bl(i_wt)%fq_nt_dscb(i,j) = wtrac_bl(i_wt)%fq_nt(i,j,1)
@@ -4566,8 +4418,6 @@ end if   ! l_wtrac
 ! microphysical and subsidence fluxes are correctly coupled.
 !-----------------------------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   moisten(i,j) = .false.
@@ -4661,7 +4511,6 @@ do i = pdims%i_start, pdims%i_end
 
 end do
 !$OMP end do
-!end do
 
 !$OMP end PARALLEL
 
@@ -4672,14 +4521,12 @@ if (l_wtrac) then
   allocate(z_uv_ntmlp1(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end))
 
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP  PARALLEL  do SCHEDULE(STATIC) DEFAULT(SHARED) private(i,k)
   do i = pdims%i_start, pdims%i_end
     k = ntml(i,j) + 1
     z_uv_ntmlp1(i,j) = z_uv(i,j,ntml(i,j)+1)
   end do
   !$OMP end PARALLEL do
-  !end do
 
 
   call calc_fqw_inv_wtrac(bl_levels, ntml, totqf_efl_meth1,                    &
@@ -4695,7 +4542,6 @@ end if   !l_wtrac
 !-----------------------------------------------------------------------
 ! Now decoupled layer
 !-----------------------------------------------------------------------
-!do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(SHARED)                            &
 !$OMP  private ( i, k, totqf_efl,  ml_tend, fa_tend, inv_tend)
 do i = pdims%i_start, pdims%i_end
@@ -4781,7 +4627,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end PARALLEL do
-!end do
 
 ! Repeat last block of code for water tracers
 if (l_wtrac) then
@@ -4803,7 +4648,6 @@ end if  ! l_wtrac
 
 if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
 
-  ! do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
@@ -4882,8 +4726,6 @@ end if  ! (BL_diag%l_tke)
 ! grid-level so only one element of these 3D arrays is used.
 !-----------------------------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   we_lim(i,j,1)    = zero
@@ -4903,8 +4745,6 @@ end do ! i
 ! end do ! j
 
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   kent(i,j)   = ntml(i,j)+1
@@ -4945,8 +4785,6 @@ end do
 !     timestep's ZH (code from SF_EXCH)
 !-----------------------------------------------------------------------
 
-
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if ( unstable(i,j) ) then
@@ -5011,7 +4849,6 @@ end do
 
 if (BL_diag%l_dzh) then
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ! fill unset values (rmdi<0) with zero
@@ -5023,11 +4860,9 @@ if (BL_diag%l_dzh) then
     end if
   end do
   !$OMP end do NOWAIT
-  !end do
 end if
 if (BL_diag%l_dscbase) then
 
-  ! do j = pdims%j_start, pdims%j_end
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
       if ( dsc(i,j) ) then
@@ -5042,7 +4877,6 @@ if (BL_diag%l_dscbase) then
 end if
 if (BL_diag%l_cldbase) then
 
-  ! do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( dsc(i,j) ) then
@@ -5057,7 +4891,6 @@ if (BL_diag%l_cldbase) then
 end if
 if (BL_diag%l_weparm_dsc) then
 
-  ! do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( dsc(i,j) ) then
@@ -5072,13 +4905,11 @@ if (BL_diag%l_weparm_dsc) then
 end if
 if (BL_diag%l_weparm) then
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     BL_diag%weparm(i,j)= we_parm(i,j)
   end do
   !$OMP end do NOWAIT
-  !end do
 
 end if
 
