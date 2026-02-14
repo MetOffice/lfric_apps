@@ -23,7 +23,7 @@ casim:
 
 jules:
     source: margaret.hendry@cazldf00006V.spice.sc.metoffice.gov.uk:/home/users/margaret.hendry/jules_fork/jules
-    ref: 818e2286d1dc0c0285acb76969f0e507b1ee8175
+    ref: e1f84c32f3da28089bc929b55d841542c5bd08cc
 
 lfric_apps:
     source:
@@ -31,7 +31,7 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: bbb3d8a69a2671df93859f617bbe336c6715476f
+    ref: 043ce64560bff8cdbd0b7e81c97be0c07294e3ad
 
 moci:
     source: git@github.com:MetOffice/moci.git

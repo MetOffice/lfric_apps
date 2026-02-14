@@ -21,7 +21,7 @@ module jules_physics_init_mod
                               z0_nvg_io, z0hm_nvg_io
   use jules_pftparm_config_mod, only :                                         &
                        fsmc_mod_io,     psi_close_io,     psi_open_io,         &
-                       a_wl_io,         a_ws_io,          aef_io,              &
+                       a_ws_io,         aef_io,                                &
                        act_jmax_io,     act_vcmax_io,     albsnc_max_io,       &
                        albsnc_min_io,   albsnf_max_io,    albsnf_maxl_io,      &
                        albsnf_maxu_io,  alpha_io,         alpha_elec_io,       &
@@ -221,7 +221,9 @@ contains
   !>          from the JULES code.
   !>        Other parameters and switches which are genuinely input variables,
   !>         via the LFRic namelists, are also set here for the JULES code.
-  subroutine jules_physics_init()
+  subroutine jules_physics_init(config)
+
+    use config_mod,     only: config_type
 
     ! JULES modules containing things that need setting
     use ancil_info, only: land_pts, nsurft, nmasst
@@ -297,6 +299,7 @@ contains
          ch_nvg, emis_nvg, gs_nvg, infil_nvg, vf_nvg, z0_nvg,               &
          check_jules_nvegparm
     use pftparm, only:                                                      &
+         print_nlist_jules_pftparm,                                         &
          a_wl, a_ws, albsnc_max, albsnc_min, albsnf_maxu, albsnf_maxl,      &
          alniru, alnir, alnirl, alparu, alpar, alparl, alpha, b_wl, c3,     &
          can_struct_a, catch0, dcatch_dlai, dgl_dm, dgl_dt, dqcrit,         &
@@ -310,6 +313,8 @@ contains
 
     implicit none
 
+    ! Model run working data set
+    type(config_type) :: config
     integer(kind=i_def) :: errorstatus = 0
 
     call log_event( 'jules_physics_init', LOG_LEVEL_INFO )
@@ -742,7 +747,7 @@ contains
     ! before copying to allocated array otherwise errors arise, which cannot
     ! be caught by check_jules_pftarm.
 
-    IF ( ALL ( [0, npft] /= SIZE(a_wl_io) ) )  errorstatus = 1
+!    IF ( ALL ( [0, npft] /= SIZE(a_wl_io) ) )  errorstatus = 1
     IF ( ALL ( [0, npft] /= SIZE(a_ws_io) ) )  errorstatus = 1
     IF ( ALL ( [0, npft] /= SIZE(act_jmax_io) ) )  errorstatus = 1
     IF ( ALL ( [0, npft] /= SIZE(act_vcmax_io) ) )  errorstatus = 1
@@ -866,7 +871,7 @@ contains
     c3 = int(c3_io, i_um)
     orient = int(orient_io, i_um)
 
-    a_wl = real(a_wl_io, r_um)
+    a_wl = real(config%jules_pftparm%a_wl_io(), r_um)
     a_ws = real(a_ws_io, r_um)
     albsnc_max = real(albsnc_max_io, r_um)
     albsnc_min = real(albsnc_min_io, r_um)
@@ -928,6 +933,8 @@ contains
     vint = real(vint_io, r_um)
     vsl = real(vsl_io, r_um)
     z0v = real(z0v_io, r_um)
+
+    call print_nlist_jules_pftparm()
 
     ! ----------------------------------------------------------------
     ! Settings which are specified on all surface tiles at once
