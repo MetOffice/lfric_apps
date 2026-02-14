@@ -19,46 +19,6 @@ module jules_physics_init_mod
                               albsnf_nvgu_io, catch_nvg_io, ch_nvg_io,         &
                               emis_nvg_io, gs_nvg_io, infil_nvg_io, vf_nvg_io, &
                               z0_nvg_io, z0hm_nvg_io
-  use jules_pftparm_config_mod, only :                                         &
-                       fsmc_mod_io,     psi_close_io,     psi_open_io,         &
-                       a_ws_io,         aef_io,                                &
-                       act_jmax_io,     act_vcmax_io,     albsnc_max_io,       &
-                       albsnc_min_io,   albsnf_max_io,    albsnf_maxl_io,      &
-                       albsnf_maxu_io,  alpha_io,         alpha_elec_io,       &
-                       alnir_io,        alnirl_io,        alniru_io,           &
-                       alpar_io,        alparl_io,        alparu_io,           &
-                       avg_ba_io,       b_wl_io,          c3_io,               &
-                       can_struct_a_io, catch0_io,        ccleaf_max_io,       &
-                       ccleaf_min_io,   ccwood_max_io,    ccwood_min_io,       &
-                       ci_st_io,        dcatch_dlai_io,   deact_jmax_io,       &
-                       deact_vcmax_io,  dfp_dcuo_io,      dgl_dm_io,           &
-                       dgl_dt_io,       dqcrit_io,        ds_jmax_io,          &
-                       ds_vcmax_io,     dust_veg_scj_io,  dz0v_dh_io,          &
-                       emis_pft_io,     eta_sl_io,        f0_io,               &
-                       fef_bc_io,       fef_ch4_io,       fef_co_io,           &
-                       fef_co2_io,      fef_nox_io,       fef_oc_io,           &
-                       fef_c2h4_io,     fef_c2h6_io,      fef_c3h8_io,         &
-                       fef_hcho_io,     fef_mecho_io,                          &
-                       fef_nh3_io,      fef_dms_io,                            &
-                       fef_so2_io,      fd_io,            fire_mort_io,        &
-                       fl_o3_ct_io,     fsmc_of_io,       fsmc_p0_io,          &
-                       sug_g0_io,       g1_stomata_io,    g_leaf_0_io,         &
-                       glmin_io,        gpp_st_io,        sug_grec_io,         &
-                       gsoil_f_io,      hw_sw_io,         ief_io,              &
-                       infil_f_io,      jv25_ratio_io,    kext_io,             &
-                       kn_io,           knl_io,           kpar_io,             &
-                       lai_alb_lim_io,  lma_io,           mef_io,              &
-                       neff_io,         nl0_io,           nmass_io,            &
-                       nr_io,           nr_nl_io,         ns_nl_io,            &
-                       nsw_io,          omega_io,         omegal_io,           &
-                       omegau_io,       omnir_io,         omnirl_io,           &
-                       omniru_io,       orient_io,        q10_leaf_io,         &
-                       r_grow_io,       rootd_ft_io,      sigl_io,             &
-                       tef_io,          tleaf_of_io,      tlow_io,             &
-                       tupp_io,         vint_io,          vsl_io,              &
-                       sug_yg_io,       z0hm_pft_io,      z0hm_classic_pft_io, &
-                       z0v_io,          sox_a_io,         sox_p50_io,          &
-                       sox_rp_min_io
 
   use jules_radiation_config_mod, only :                                       &
                               fixed_sea_albedo_in => fixed_sea_albedo,         &
@@ -746,193 +706,74 @@ contains
     ! Check that the size of the input array is correct. Has to be done
     ! before copying to allocated array otherwise errors arise, which cannot
     ! be caught by check_jules_pftarm.
-
-!    IF ( ALL ( [0, npft] /= SIZE(a_wl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(a_ws_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(act_jmax_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(act_vcmax_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(aef_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(albsnc_max_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(albsnc_min_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(albsnf_max_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(albsnf_maxl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(albsnf_maxu_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(alnir_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(alnirl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(alniru_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(alpar_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(alparl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(alparu_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(alpha_elec_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(alpha_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(avg_ba_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(b_wl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(c3_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(can_struct_a_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(catch0_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ccleaf_max_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ccleaf_min_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ccwood_max_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ccwood_min_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ci_st_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(dcatch_dlai_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(deact_jmax_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(deact_vcmax_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(dfp_dcuo_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(dgl_dm_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(dgl_dt_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(dqcrit_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ds_jmax_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ds_vcmax_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(dust_veg_scj_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(dz0v_dh_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(emis_pft_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(eta_sl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(f0_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fd_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_bc_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_c2h4_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_c2h6_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_c3h8_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_ch4_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_co2_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_co_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_dms_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_hcho_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_mecho_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_nh3_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_nox_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_oc_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fef_so2_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fire_mort_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fl_o3_ct_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fsmc_mod_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fsmc_of_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(fsmc_p0_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(g1_stomata_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(g_leaf_0_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(glmin_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(gpp_st_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(gsoil_f_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(hw_sw_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ief_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(infil_f_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(jv25_ratio_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(kext_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(kn_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(knl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(kpar_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(lai_alb_lim_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(lma_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(mef_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(neff_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(nl0_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(nmass_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(nr_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(nr_nl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(ns_nl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(nsw_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(omega_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(omegal_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(omegau_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(omnir_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(omnirl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(omniru_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(orient_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(psi_close_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(psi_open_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(q10_leaf_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(r_grow_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(rootd_ft_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(sigl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(sox_a_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(sox_p50_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(sox_rp_min_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(sug_g0_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(sug_grec_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(sug_yg_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(tef_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(tleaf_of_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(tlow_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(tupp_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(vint_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(vsl_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(z0hm_classic_pft_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(z0hm_pft_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, npft] /= SIZE(z0v_io) ) )  errorstatus = 1
-
-    IF ( errorstatus == 1 ) THEN
-      write(log_scratch_space,'(A)')                                         &
-         'jules_pftparm input(s) incorrect length; run `rose macro -V`.'
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
-    END IF
+    ! NEED TO CHECK THAT THIS TEST IS STILL REQUIRED. REMOVE FOR NOW.
 
     ! Enumeration not compatible with integer arrays
-    c3 = int(c3_io, i_um)
-    orient = int(orient_io, i_um)
+    c3 = int(config%jules_pftparm%c3_io(), i_um)
+    orient = int(config%jules_pftparm%orient_io(), i_um)
 
     a_wl = real(config%jules_pftparm%a_wl_io(), r_um)
-    a_ws = real(a_ws_io, r_um)
-    albsnc_max = real(albsnc_max_io, r_um)
-    albsnc_min = real(albsnc_min_io, r_um)
-    albsnf_maxl = real(albsnf_maxl_io, r_um)
-    albsnf_maxu = real(albsnf_maxu_io, r_um)
-    alnir = real(alnir_io, r_um)
-    alnirl = real(alnirl_io, r_um)
-    alniru = real(alniru_io, r_um)
-    alpar = real(alpar_io, r_um)
-    alparl = real(alparl_io, r_um)
-    alparu = real(alparu_io, r_um)
-    alpha = real(alpha_io, r_um)
-    b_wl = real(b_wl_io, r_um)
-    can_struct_a = real(can_struct_a_io, r_um)
-    catch0 = real(catch0_io, r_um)
-    dcatch_dlai = real(dcatch_dlai_io, r_um)
-    dgl_dm = real(dgl_dm_io, r_um)
-    dgl_dt = real(dgl_dt_io, r_um)
-    dqcrit = real(dqcrit_io, r_um)
-    dust_veg_scj = real(dust_veg_scj_io, r_um)
-    dz0v_dh = real(dz0v_dh_io, r_um)
-    emis_pft = real(emis_pft_io, r_um)
-    eta_sl = real(eta_sl_io, r_um)
-    f0 = real(f0_io, r_um)
-    fd = real(fd_io, r_um)
-    fsmc_of = real(fsmc_of_io, r_um)
-    fsmc_p0 = real(fsmc_p0_io, r_um)
-    g_leaf_0 = real(g_leaf_0_io, r_um)
-    glmin = real(glmin_io, r_um)
-    gsoil_f = real(gsoil_f_io, r_um)
-    hw_sw = real(hw_sw_io, r_um)
-    infil_f = real(infil_f_io, r_um)
-    kext = real(kext_io, r_um)
-    kn = real(kn_io, r_um)
-    knl = real(knl_io, r_um)
-    kpar = real(kpar_io, r_um)
-    lai_alb_lim = real(lai_alb_lim_io, r_um)
-    lma = real(lma_io, r_um)
-    neff = real(neff_io, r_um)
-    nl0 = real(nl0_io, r_um)
-    nmass = real(nmass_io, r_um)
-    nr = real(nr_io, r_um)
-    nr_nl = real(nr_nl_io, r_um)
-    ns_nl = real(ns_nl_io, r_um)
-    nsw = real(nsw_io, r_um)
-    omega = real(omega_io, r_um)
-    omegal = real(omegal_io, r_um)
-    omegau = real(omegau_io, r_um)
-    omnir = real(omnir_io, r_um)
-    omnirl = real(omnirl_io, r_um)
-    omniru = real(omniru_io, r_um)
-    q10_leaf = real(q10_leaf_io, r_um)
-    r_grow = real(r_grow_io, r_um)
-    rootd_ft = real(rootd_ft_io, r_um)
-    sigl = real(sigl_io, r_um)
-    tleaf_of = real(tleaf_of_io, r_um)
-    tlow = real(tlow_io, r_um)
-    tupp = real(tupp_io, r_um)
-    vint = real(vint_io, r_um)
-    vsl = real(vsl_io, r_um)
-    z0v = real(z0v_io, r_um)
+    a_ws = real(config%jules_pftparm%a_ws_io(), r_um)
+    albsnc_max = real(config%jules_pftparm%albsnc_max_io(), r_um)
+    albsnc_min = real(config%jules_pftparm%albsnc_min_io(), r_um)
+    albsnf_maxl = real(config%jules_pftparm%albsnf_maxl_io(), r_um)
+    albsnf_maxu = real(config%jules_pftparm%albsnf_maxu_io(), r_um)
+    alnir = real(config%jules_pftparm%alnir_io(), r_um)
+    alnirl = real(config%jules_pftparm%alnirl_io(), r_um)
+    alniru = real(config%jules_pftparm%alniru_io(), r_um)
+    alpar = real(config%jules_pftparm%alpar_io(), r_um)
+    alparl = real(config%jules_pftparm%alparl_io(), r_um)
+    alparu = real(config%jules_pftparm%alparu_io(), r_um)
+    alpha = real(config%jules_pftparm%alpha_io(), r_um)
+    b_wl = real(config%jules_pftparm%b_wl_io(), r_um)
+    can_struct_a = real(config%jules_pftparm%can_struct_a_io(), r_um)
+    catch0 = real(config%jules_pftparm%catch0_io(), r_um)
+    dcatch_dlai = real(config%jules_pftparm%dcatch_dlai_io(), r_um)
+    dgl_dm = real(config%jules_pftparm%dgl_dm_io(), r_um)
+    dgl_dt = real(config%jules_pftparm%dgl_dt_io(), r_um)
+    dqcrit = real(config%jules_pftparm%dqcrit_io(), r_um)
+    dust_veg_scj = real(config%jules_pftparm%dust_veg_scj_io(), r_um)
+    dz0v_dh = real(config%jules_pftparm%dz0v_dh_io(), r_um)
+    emis_pft = real(config%jules_pftparm%emis_pft_io(), r_um)
+    eta_sl = real(config%jules_pftparm%eta_sl_io(), r_um)
+    f0 = real(config%jules_pftparm%f0_io(), r_um)
+    fd = real(config%jules_pftparm%fd_io(), r_um)
+    fsmc_of = real(config%jules_pftparm%fsmc_of_io(), r_um)
+    fsmc_p0 = real(config%jules_pftparm%fsmc_p0_io(), r_um)
+    g_leaf_0 = real(config%jules_pftparm%g_leaf_0_io(), r_um)
+    glmin = real(config%jules_pftparm%glmin_io(), r_um)
+    gsoil_f = real(config%jules_pftparm%gsoil_f_io(), r_um)
+    hw_sw = real(config%jules_pftparm%hw_sw_io(), r_um)
+    infil_f = real(config%jules_pftparm%infil_f_io(), r_um)
+    kext = real(config%jules_pftparm%kext_io(), r_um)
+    kn = real(config%jules_pftparm%kn_io(), r_um)
+    knl = real(config%jules_pftparm%knl_io(), r_um)
+    kpar = real(config%jules_pftparm%kpar_io(), r_um)
+    lai_alb_lim = real(config%jules_pftparm%lai_alb_lim_io(), r_um)
+    lma = real(config%jules_pftparm%lma_io(), r_um)
+    neff = real(config%jules_pftparm%neff_io(), r_um)
+    nl0 = real(config%jules_pftparm%nl0_io(), r_um)
+    nmass = real(config%jules_pftparm%nmass_io(), r_um)
+    nr = real(config%jules_pftparm%nr_io(), r_um)
+    nr_nl = real(config%jules_pftparm%nr_nl_io(), r_um)
+    ns_nl = real(config%jules_pftparm%ns_nl_io(), r_um)
+    nsw = real(config%jules_pftparm%nsw_io(), r_um)
+    omega = real(config%jules_pftparm%omega_io(), r_um)
+    omegal = real(config%jules_pftparm%omegal_io(), r_um)
+    omegau = real(config%jules_pftparm%omegau_io(), r_um)
+    omnir = real(config%jules_pftparm%omnir_io(), r_um)
+    omnirl = real(config%jules_pftparm%omnirl_io(), r_um)
+    omniru = real(config%jules_pftparm%omniru_io(), r_um)
+    q10_leaf = real(config%jules_pftparm%q10_leaf_io(), r_um)
+    r_grow = real(config%jules_pftparm%r_grow_io(), r_um)
+    rootd_ft = real(config%jules_pftparm%rootd_ft_io(), r_um)
+    sigl = real(config%jules_pftparm%sigl_io(), r_um)
+    tleaf_of = real(config%jules_pftparm%tleaf_of_io(), r_um)
+    tlow = real(config%jules_pftparm%tlow_io(), r_um)
+    tupp = real(config%jules_pftparm%tupp_io(), r_um)
+    vint = real(config%jules_pftparm%vint_io(), r_um)
+    vsl = real(config%jules_pftparm%vsl_io(), r_um)
+    z0v = real(config%jules_pftparm%z0v_io(), r_um)
 
     call print_nlist_jules_pftparm()
 
@@ -940,7 +781,7 @@ contains
     ! Settings which are specified on all surface tiles at once
     ! - contained in module c_z0h_z0m
     ! ----------------------------------------------------------------
-    z0h_z0m(1:npft) = real(z0hm_pft_io, r_um)
+    z0h_z0m(1:npft) = real(config%jules_pftparm%z0hm_pft_io(), r_um)
     z0h_z0m(npft+1:npft+nnvg) = real(z0hm_nvg_io, r_um)
 
     ! This routine checks that the options set are actually compatible
