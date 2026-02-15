@@ -82,42 +82,18 @@ module jules_physics_init_mod
                               i_relayer_opt_original,                          &
                               i_relayer_opt_inverse
   use jules_surface_config_mod, only :                                         &
-                              all_tiles_in => all_tiles,                       &
                               all_tiles_off, all_tiles_on,                     &
-                              beta1_in => beta1, beta2_in => beta2,            &
-                              beta_cnv_bl_in => beta_cnv_bl,                   &
-                              cor_mo_iter_in => cor_mo_iter,                   &
                               cor_mo_iter_lim_oblen,                           &
                               cor_mo_iter_improved,                            &
-                              fwe_c3_in => fwe_c3, fwe_c4_in => fwe_c4,        &
-                              hleaf_in => hleaf, hwood_in => hwood,            &
-                              srf_ex_cnv_gust_in => srf_ex_cnv_gust,           &
-                              formdrag_in => formdrag, formdrag_none,          &
+                              formdrag_none,                                   &
                               formdrag_eff_z0, formdrag_dist_drag,             &
-                              fd_hill_option_in => fd_hill_option,             &
                               fd_hill_option_capped_lowhill,                   &
-                              fd_stability_dep_in => fd_stability_dep,         &
                               fd_stability_dep_none,                           &
                               fd_stability_dep_surf_ri,                        &
-                              i_modiscopt_in => i_modiscopt,                   &
                               i_modiscopt_on,                                  &
-                              iscrntdiag_in => iscrntdiag,                     &
                               iscrntdiag_decoupled_trans,                      &
-                              l_epot_corr_in => l_epot_corr,                   &
-                              l_land_ice_imp_in => l_land_ice_imp,             &
-                              l_mo_buoyancy_calc_in => l_mo_buoyancy_calc,     &
-                              anthrop_heat_option_in => anthrop_heat_option,   &
                               anthrop_heat_option_dukes,                       &
-                              anthrop_heat_option_flanner,                     &
-                              anthrop_heat_mean_in => anthrop_heat_mean,       &
-                              l_anthrop_heat_src_in => l_anthrop_heat_src,     &
-                              l_urban2t_in => l_urban2t,                       &
-                              l_vary_z0m_soil_in => l_vary_z0m_soil,           &
-                              orog_drag_param_in => orog_drag_param,           &
-                              l_flake_model_in => l_flake_model,               &
-                              l_elev_land_ice_in => l_elev_land_ice,           &
-                              l_elev_lw_down_in => l_elev_lw_down,             &
-                              l_point_data_in => l_point_data
+                              anthrop_heat_option_flanner
   use jules_vegetation_config_mod, only :                                      &
                               can_rad_mod_in => can_rad_mod,                   &
                               can_rad_mod_one, can_rad_mod_four,               &
@@ -498,39 +474,39 @@ contains
     ! ----------------------------------------------------------------
     ! JULES surface settings - contained in module jules_surface
     ! ----------------------------------------------------------------
-    anthrop_heat_mean  = real(anthrop_heat_mean_in, r_um)
-    select case (anthrop_heat_option_in)
+    anthrop_heat_mean  = real(config%jules_surface%anthrop_heat_mean(), r_um)
+    select case (config%jules_surface%anthrop_heat_option())
       case(anthrop_heat_option_dukes)
         anthrop_heat_option = dukes
       case(anthrop_heat_option_flanner)
         anthrop_heat_option = flanner
     end select
-    select case (all_tiles_in)
+    select case (config%jules_surface%all_tiles())
       case(all_tiles_off)
         all_tiles = 0
       case(all_tiles_on)
         all_tiles = 1
     end select
-    beta1       = real(beta1_in, r_um)
-    beta2       = real(beta2_in, r_um)
-    beta_cnv_bl = real(beta_cnv_bl_in, r_um)
-    select case (cor_mo_iter_in)
+    beta1       = real(config%jules_surface%beta1(), r_um)
+    beta2       = real(config%jules_surface%beta2(), r_um)
+    beta_cnv_bl = real(config%jules_surface%beta_cnv_bl(), r_um)
+    select case (config%jules_surface%cor_mo_iter())
       case(cor_mo_iter_lim_oblen)
         cor_mo_iter = Limit_ObukhovL
       case(cor_mo_iter_improved)
         cor_mo_iter = Improve_Initial_Guess
     end select
-    select case (fd_hill_option_in)
+    select case (config%jules_surface%fd_hill_option())
       case(fd_hill_option_capped_lowhill)
         fd_hill_option = capped_lowhill
     end select
-    select case (fd_stability_dep_in)
+    select case (config%jules_surface%fd_stability_dep())
       case(fd_stability_dep_none)
         fd_stability_dep = 0
       case(fd_stability_dep_surf_ri)
         fd_stability_dep = 1
     end select
-    select case (formdrag_in)
+    select case (config%jules_surface%formdrag())
       case(formdrag_none)
         formdrag = no_drag
       case(formdrag_eff_z0)
@@ -538,31 +514,33 @@ contains
       case(formdrag_dist_drag)
         formdrag = explicit_stress
     end select
-    fwe_c3       = real(fwe_c3_in, r_um)
-    fwe_c4       = real(fwe_c4_in, r_um)
-    hleaf        = real(hleaf_in, r_um)
-    hwood        = real(hwood_in, r_um)
+    fwe_c3       = real(config%jules_surface%fwe_c3(), r_um)
+    fwe_c4       = real(config%jules_surface%fwe_c4(), r_um)
+    hleaf        = real(config%jules_surface%hleaf(), r_um)
+    hwood        = real(config%jules_surface%hwood(), r_um)
     ! Awaiting advice from John Edwards regarding off or other allowed options
-    select case (i_modiscopt_in)
+    select case (config%jules_surface%i_modiscopt())
     case(i_modiscopt_on)
       i_modiscopt = 1
     end select
-    select case (iscrntdiag_in)
+    select case (config%jules_surface%iscrntdiag())
     case(iscrntdiag_decoupled_trans)
       iscrntdiag = ip_scrndecpl2
     end select
-    if (srf_ex_cnv_gust_in) srf_ex_cnv_gust = IP_SrfExWithCnv
-    l_epot_corr        = l_epot_corr_in
-    l_land_ice_imp     = l_land_ice_imp_in
-    l_mo_buoyancy_calc = l_mo_buoyancy_calc_in
-    l_anthrop_heat_src = l_anthrop_heat_src_in
-    l_urban2t          = l_urban2t_in
-    l_vary_z0m_soil    = l_vary_z0m_soil_in
-    l_flake_model      = l_flake_model_in
-    l_elev_land_ice    = l_elev_land_ice_in
-    l_elev_lw_down     = l_elev_lw_down_in
-    l_point_data       = l_point_data_in
-    orog_drag_param    = real(orog_drag_param_in, r_um)
+    if (config%jules_surface%srf_ex_cnv_gust()) THEN
+      srf_ex_cnv_gust = IP_SrfExWithCnv
+    end if
+    l_epot_corr        = config%jules_surface%l_epot_corr()
+    l_land_ice_imp     = config%jules_surface%l_land_ice_imp()
+    l_mo_buoyancy_calc = config%jules_surface%l_mo_buoyancy_calc()
+    l_anthrop_heat_src = config%jules_surface%l_anthrop_heat_src()
+    l_urban2t          = config%jules_surface%l_urban2t()
+    l_vary_z0m_soil    = config%jules_surface%l_vary_z0m_soil()
+    l_flake_model      = config%jules_surface%l_flake_model()
+    l_elev_land_ice    = config%jules_surface%l_elev_land_ice()
+    l_elev_lw_down     = config%jules_surface%l_elev_lw_down()
+    l_point_data       = config%jules_surface%l_point_data()
+    orog_drag_param    = real(config%jules_surface%orog_drag_param(), r_um)
     lake_water_conserve_method = use_elake_surft
 
     ! The minimum sea ice fraction
