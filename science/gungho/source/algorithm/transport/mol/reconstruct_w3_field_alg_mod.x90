@@ -178,7 +178,7 @@ contains
     integer(kind=i_def) :: remap_depth
     integer(tik)        :: id
 
-    if ( LPROF ) call start_timing( id, 'transport.w3_hori_recon' )
+    if ( LPROF ) call start_timing( id, 'mol.w3_hori_recon' )
 
     mesh => field_new%get_mesh()
     mesh_id = mesh%get_id()
@@ -238,7 +238,7 @@ contains
                                                      stencil_size) )
     end if
 
-    if ( LPROF ) call stop_timing( id, 'transport.w3_hori_recon' )
+    if ( LPROF ) call stop_timing( id, 'mol.w3_hori_recon' )
 
   end subroutine hori_w3_reconstruct_alg
 
@@ -271,7 +271,7 @@ contains
     integer(kind=i_def)              :: monotonicity
     integer(tik)                     :: id
 
-    if ( LPROF ) call start_timing( id, 'transport.w3_vert_recon' )
+    if ( LPROF ) call start_timing( id, 'mol.w3_vert_recon' )
 
     reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
     logspace = transport_metadata%get_log_space()
@@ -313,7 +313,7 @@ contains
 
     end if
 
-    if ( LPROF ) call stop_timing( id, 'transport.w3_vert_recon' )
+    if ( LPROF ) call stop_timing( id, 'mol.w3_vert_recon' )
 
   end subroutine vert_w3_reconstruct_alg
 

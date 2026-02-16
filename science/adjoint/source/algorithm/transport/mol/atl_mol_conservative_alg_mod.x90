@@ -113,7 +113,7 @@ module atl_mol_conservative_alg_mod
     type(flux_precomputations_type), pointer :: pert_wind_flux_precomp
     integer(tik)                             :: id
 
-    if ( LPROF ) call start_timing( id, 'atl_mol_conservative_alg' )
+    if ( LPROF ) call start_timing( id, 'atl_transport.mol_conservative' )
 
     ! ------------------------------------------------------------------------ !
     ! Extract transport objects and initialise temporary fields
@@ -381,8 +381,7 @@ module atl_mol_conservative_alg_mod
         end if
         if ( do_advective ) then
           call invoke( inc_X_minus_bY( adv_inc, dt_mol_substep, field_np1 ), &
-                       inc_X_plus_Y( field_n, field_np1 ),                   &
-                       setval_c( field_np1, 0.0_r_def ) )
+                       inc_X_plus_Y( field_n, field_np1 ) )
         end if
 
         call atl_advective_and_flux_alg(                                       &
@@ -399,8 +398,8 @@ module atl_mol_conservative_alg_mod
 
         ! Compute the field for this stage:
         ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
-        call invoke( setval_c( rhs_field, 0.0_r_def ),           &
-                     inc_X_plus_Y( field_np1, rk_field(stage) ), &
+        call invoke( setval_c( rhs_field, 0.0_r_def ),       &
+                     setval_x( field_np1, rk_field(stage) ), &
                      setval_c( rk_field(stage), 0.0_r_def ) )
 
       end do stage_loop
@@ -418,7 +417,7 @@ module atl_mol_conservative_alg_mod
     if ( allocated(rk_weights) ) deallocate(rk_weights)
     if ( allocated(stored_ls_field) ) deallocate(stored_ls_field)
 
-    if ( LPROF ) call stop_timing( id, 'atl_mol_conservative_alg' )
+    if ( LPROF ) call stop_timing( id, 'atl_transport.mol_conservative' )
 
   end subroutine atl_mol_conservative_alg
 

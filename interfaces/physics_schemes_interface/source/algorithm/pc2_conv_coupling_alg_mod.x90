@@ -73,9 +73,9 @@ contains
 
     type(mesh_type), pointer :: mesh => null()
     integer(i_def) :: ncells
-    integer(tik)   :: id_alg, id_xios
+    integer(tik)   :: id_alg, id_diags
 
-    if ( LPROF ) call start_timing( id_alg, 'pc2_conv_coupling_alg' )
+    if ( LPROF ) call start_timing( id_alg, 'cloud.pc2_conv' )
 
     call derived_fields%get_field('exner_in_wth', exner_wth)
     call derived_fields%get_field('theta_star', theta_star)
@@ -134,10 +134,10 @@ contains
       call invoke(inc_X_plus_Y(mr(imr_s), dms_conv))
     end if
 
-    if ( LPROF ) call stop_timing( id_alg, 'pc2_conv_coupling_alg' )
+    if ( LPROF ) call stop_timing( id_alg, 'cloud.pc2_conv' )
 
     if ( write_diag .and. use_xios_io ) then
-      if ( LPROF ) call start_timing( id_xios, 'pc2_conv_coupling_xios' )
+      if ( LPROF ) call start_timing( id_diags, 'diags.pc2_conv' )
       call dt_conv%write_field('cloud__dt_pc2_conv_coupling')
       call dmv_conv%write_field('cloud__dmv_pc2_conv_coupling')
       call dmcl_conv%write_field('cloud__dmcl_pc2_conv_coupling')
@@ -145,7 +145,7 @@ contains
       call dcfl_conv%write_field('cloud__dcfl_pc2_conv_coupling')
       call dcff_conv%write_field('cloud__dcff_pc2_conv_coupling')
       call dbcf_conv%write_field('cloud__dbcf_pc2_conv_coupling')
-      if ( LPROF ) call stop_timing( id_xios, 'pc2_conv_coupling_xios' )
+      if ( LPROF ) call stop_timing( id_diags, 'diags.pc2_conv' )
     end if
 
   end subroutine pc2_conv_coupling_alg
