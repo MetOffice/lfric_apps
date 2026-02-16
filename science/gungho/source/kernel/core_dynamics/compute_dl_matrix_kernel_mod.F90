@@ -169,6 +169,9 @@ contains
     real(kind=r_def)                             :: z
     real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
     real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
+    real(kind=r_def)                             :: wt
+    real(kind=r_def)                             :: j_v1(3), j_v2(3)
+    real(kind=r_def)                             :: factor(ndf_w2)
 
     integer(kind=i_def) :: ipanel
 
@@ -180,9 +183,30 @@ contains
     ndof_vol    = 2*element_order_h*(element_order_h+1)*(element_order_v+1)    &
                 + (element_order_h+1)*(element_order_h+1)*element_order_v
 
+
+     ! Only modify dofs corresponding to vertical part of w-basis
+     ! function (for lowest order: final two dofs).
+     ! Dofs are ordered:
+     !   a) Horizontal volume dofs
+     !   b) Vertical volume dofs
+     !   c) Horizontal face dofs
+     !   d) Vertical face dofs
+     ! So vertical dofs follow one of the two conditions:
+     !   b) df > ndof_vol_h .and. df <= ndof_vol
+     !   d) df > ndf_w2 - 2*ndof_face_v
+     ! So the check is as follows
+     do df = 1, ndf_w2
+       if ( (df > ndf_w2 - 2*ndof_face_v) .or. &
+            (df > ndof_vol_h .and. df <= ndof_vol) ) then
+         factor(df) = real(dt, r_def)
+       else
+         factor(df) = 0.0_r_def
+       end if
+    end do
+
+
     ! Loop over layers: Start from 1 as in this loop k is not an offset
     do k = 1, nlayers
-      ik = k + (cell-1)*nlayers
       ! Indirect the chi coord field here
       do df = 1, ndf_chi
         chi1_e(df) = chi1(map_chi(df) + k - 1)
@@ -192,64 +216,48 @@ contains
       call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
                                ipanel, basis_chi, diff_basis_chi, jac, dj)
 
+      ik = k + (cell-1)*nlayers
+      mm(ik, :, :) = 0.0_r_def
       ! Only use dofs corresponding to vertical part of basis function
-      do df2 = 1, ndf_w2
-        do df = 1, ndf_w2 ! Mass matrix is not symmetric for damping layer
-          mm(ik,df,df2) = 0.0_r_def
-          do qp2 = 1, nqp_v
-            do qp1 = 1, nqp_h
-              chi1_at_quad = 0.0_r_def
-              chi2_at_quad = 0.0_r_def
-              chi3_at_quad = 0.0_r_def
-              do dfc = 1,ndf_chi
-                chi1_at_quad = chi1_at_quad + chi1_e(dfc)*basis_chi(1,dfc,qp1,qp2)
-                chi2_at_quad = chi2_at_quad + chi2_e(dfc)*basis_chi(1,dfc,qp1,qp2)
-                chi3_at_quad = chi3_at_quad + chi3_e(dfc)*basis_chi(1,dfc,qp1,qp2)
-              end do
+      do qp2 = 1, nqp_v
+        do qp1 = 1, nqp_h
+          chi1_at_quad = 0.0_r_def
+          chi2_at_quad = 0.0_r_def
+          chi3_at_quad = 0.0_r_def
+          do dfc = 1,ndf_chi
+            chi1_at_quad = chi1_at_quad + chi1_e(dfc)*basis_chi(1,dfc,qp1,qp2)
+            chi2_at_quad = chi2_at_quad + chi2_e(dfc)*basis_chi(1,dfc,qp1,qp2)
+            chi3_at_quad = chi3_at_quad + chi3_e(dfc)*basis_chi(1,dfc,qp1,qp2)
+          end do
 
-              if (geometry == geometry_spherical) then
+          if (geometry == geometry_spherical) then
 
-                call chi2llr(chi1_at_quad,chi2_at_quad,chi3_at_quad, &
-                             ipanel, long_at_quad,lat_at_quad,r_at_quad)
-                z=r_at_quad - radius
+            call chi2llr(chi1_at_quad, chi2_at_quad, chi3_at_quad, &
+                         ipanel, long_at_quad, lat_at_quad, r_at_quad)
+            z = r_at_quad - radius
 
-                if (dl_type == dl_type_latitude) then
-                  mu_at_quad = damping_layer_func(z, dl_strength, &
-                                                  dl_base_height, domain_height, lat_at_quad)
-                else
-                  mu_at_quad = damping_layer_func(z, dl_strength, &
-                                                  dl_base_height, domain_height, 0.0_r_def)
-                end if
-              else
-                mu_at_quad = damping_layer_func(chi3_at_quad, dl_strength, &
-                                                dl_base_height, domain_height, 0.0_r_def)
-              end if
+            if (dl_type == dl_type_latitude) then
+              mu_at_quad = damping_layer_func(z, dl_strength, &
+                                              dl_base_height, domain_height, lat_at_quad)
+            else
+              mu_at_quad = damping_layer_func(z, dl_strength, &
+                                              dl_base_height, domain_height, 0.0_r_def)
+            end if
+          else
+            mu_at_quad = damping_layer_func(chi3_at_quad, dl_strength, &
+                                            dl_base_height, domain_height, 0.0_r_def)
+          end if
 
-              integrand = wqp_h(qp1) * wqp_v(qp2) *                          &
-                          dot_product(                                       &
-                          matmul(jac(:,:,qp1,qp2),basis_w2(:,df,qp1,qp2)),   &
-                          matmul(jac(:,:,qp1,qp2),basis_w2(:,df2,qp1,qp2)) ) &
-                          /dj(qp1,qp2)
+          wt = wqp_h(qp1) * wqp_v(qp2) / dj(qp1,qp2)
+          do df2 = 1, ndf_w2
+            j_v2 = matmul(jac(:,:,qp1,qp2),basis_w2(:,df2,qp1,qp2))
+            do df = 1, ndf_w2 ! Mass matrix is not symmetric for damping layer
+              j_v1 = matmul(jac(:,:,qp1,qp2),basis_w2(:,df,qp1,qp2))
 
-              ! Only modify dofs corresponding to vertical part of w-basis
-              ! function (for lowest order: final two dofs).
-              ! Dofs are ordered:
-              !   a) Horizontal volume dofs
-              !   b) Vertical volume dofs
-              !   c) Horizontal face dofs
-              !   d) Vertical face dofs
-              ! So vertical dofs follow one of the two conditions:
-              !   b) df > ndof_vol_h .and. df <= ndof_vol
-              !   d) df > ndf_w2 - 2*ndof_face_v
-              ! So the check is as follows
-              if ( (df > ndf_w2 - 2*ndof_face_v) .or. &
-                   (df > ndof_vol_h .and. df <= ndof_vol) ) then
-                mm(ik,df,df2) = mm(ik,df,df2)                            &
-                              + (1.0_r_def + real(dt, r_def)*mu_at_quad) &
-                                * integrand
-              else
-                mm(ik,df,df2) = mm(ik,df,df2) + integrand
-              end if
+              integrand = wt * dot_product( j_v1, j_v2 )
+              mm(ik,df,df2) = mm(ik,df,df2)                       &
+                            + (1.0_r_def + factor(df)*mu_at_quad) &
+                              * integrand
             end do
           end do
         end do
@@ -281,12 +289,12 @@ contains
     real(kind=r_def)                :: height_star
     ! Latitude over which to reduce damping height from dl_base_height
     ! chosen to reduce it to approximately dl_base_height/2
-    real(kind=r_def), parameter     :: taper_lat = 50.0_r_def
+    real(kind=r_def), parameter     :: taper_lat = 50.0_r_def*degrees_to_radians
 
-    if (abs(latitude) < taper_lat*degrees_to_radians) then
+    if (abs(latitude) < taper_lat) then
       height_star = domain_height + (height-domain_height)*cos(latitude)
     else
-      height_star = domain_height + (height-domain_height)*cos(taper_lat*degrees_to_radians)
+      height_star = domain_height + (height-domain_height)*cos(taper_lat)
     end if
 
     if (height_star >= dl_base_height) then
