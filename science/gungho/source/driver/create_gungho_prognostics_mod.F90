@@ -13,10 +13,6 @@
 !>          a 'prognostic_fields' field collection
 module create_gungho_prognostics_mod
 
-  use base_mesh_config_mod,           only : topology, &
-                                             topology_fully_periodic, &
-                                             geometry, &
-                                             geometry_planar
   use constants_mod,                  only : i_def, l_def, r_def
   use field_mod,                      only : field_type
   use field_parent_mod,               only : write_interface, read_interface, &
@@ -82,24 +78,18 @@ contains
     ord_v = element_order_v
 
     ! enable/disable legacy checkpointing
-    legacy = .false.
+    legacy = .true.
 
     call proc%apply(make_spec('theta', main%none, Wtheta, order_h=ord_h, &
                               order_v=ord_v, ckp=.true., legacy=legacy))
-
-    if (topology == topology_fully_periodic.and. &
-        geometry == geometry_planar) then
-      call proc%apply(make_spec('u', main%none, W2, order_h=ord_h, order_v=ord_v,&
-                              ckp=.true., legacy=.true.))
-    else
-      call proc%apply(make_spec('u', main%none, W2, order_h=ord_h, order_v=ord_v,&
+    call proc%apply(make_spec('u', main%none, W2, order_h=ord_h, order_v=ord_v,&
                               ckp=.true., legacy=legacy))
+    if (.not. legacy) then
       call proc%apply(make_spec('h_u', main%none, W2H, order_h=ord_h, &
-                                order_v=ord_v, ckp=.true., legacy=legacy))
+                                order_v=ord_v, ckp=.true.))
       call proc%apply(make_spec('v_u', main%none, W2V, order_h=ord_h, &
-                                order_v=ord_v, ckp=.true., legacy=legacy))
+                                order_v=ord_v, ckp=.true.))
     end if
-
     call proc%apply(make_spec('rho', main%none, W3, order_h=ord_h, &
                               order_v=ord_v, ckp=.true., legacy=legacy))
     call proc%apply(make_spec('exner', main%none, W3, order_h=ord_h, &

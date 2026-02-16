@@ -17,8 +17,7 @@ module gungho_setup_io_mod
                                        FILE_MODE_WRITE
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
                                        OPERATION_TIMESERIES, &
-                                       CONVENTION_CF,        &
-                                       CONVENTION_UGRID
+                                       CONVENTION_CF
   use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
   use log_mod,                   only: log_event, log_level_error, &
@@ -862,7 +861,7 @@ module gungho_setup_io_mod
                                                              io_mode=FILE_MODE_WRITE,               &
                                                              freq=time_point,                       &
                                                              field_group_id="checkpoint_fields",    &
-                                                             file_convention=CONVENTION_UGRID) )
+                                                             file_convention=CONVENTION_CF) )
 
         end do
       else
@@ -886,7 +885,7 @@ module gungho_setup_io_mod
                                                          io_mode=FILE_MODE_READ,          &
                                                          freq=ts_start - 1,               &
                                                          field_group_id="checkpoint_fields",    &
-                                                         file_convention=CONVENTION_UGRID ) )
+                                                         file_convention=CONVENTION_CF ) )
     end if
 
     ! Read checkpoint file as though it were start dump
@@ -899,7 +898,7 @@ module gungho_setup_io_mod
                                                          xios_id="lfric_checkpoint_read", &
                                                          io_mode=FILE_MODE_READ,          &
                                                          field_group_id="checkpoint_fields",    &
-                                                         file_convention=CONVENTION_UGRID ) )
+                                                         file_convention=CONVENTION_CF ) )
     end if
 
   end subroutine init_gungho_files
