@@ -11,11 +11,6 @@ module jules_physics_init_mod
   ! Other LFRic modules used
   use constants_mod,          only : r_um, i_um, i_def, r_def
   use jules_control_init_mod, only : n_sea_ice_tile, n_land_tile
-  use jules_nvegparm_config_mod, only :                                        &
-                              albsnc_nvg_io, albsnf_nvg_io, albsnf_nvgl_io,    &
-                              albsnf_nvgu_io, catch_nvg_io, ch_nvg_io,         &
-                              emis_nvg_io, gs_nvg_io, infil_nvg_io, vf_nvg_io, &
-                              z0_nvg_io, z0hm_nvg_io
   use jules_radiation_config_mod, only :                                       &
                               i_sea_alb_method_barker,                         &
                               i_sea_alb_method_jin,                            &
@@ -178,7 +173,7 @@ contains
     use nvegparm, only:                                                     &
          albsnc_nvg, albsnf_nvgu, albsnf_nvg, albsnf_nvgl, catch_nvg,       &
          ch_nvg, emis_nvg, gs_nvg, infil_nvg, vf_nvg, z0_nvg,               &
-         check_jules_nvegparm
+         check_jules_nvegparm, print_nlist_jules_nvegparm
     use pftparm, only:                                                      &
          print_nlist_jules_pftparm,                                         &
          a_wl, a_ws, albsnc_max, albsnc_min, albsnf_maxu, albsnf_maxl,      &
@@ -605,17 +600,17 @@ contains
     ! before copying to allocated array otherwise errors arise, which cannot
     ! be caught by check_jules_nvegparm.
 
-    IF ( ALL ( [0, nnvg] /= SIZE(albsnc_nvg_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvg_io)) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvgl_io) ) ) errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvgu_io) ) ) errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(catch_nvg_io) ) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(ch_nvg_io) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(emis_nvg_io) ) )    errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(gs_nvg_io) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(infil_nvg_io) ) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(vf_nvg_io) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(z0_nvg_io) ) )      errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%albsnc_nvg_io()) ) )  errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%albsnf_nvg_io())) )   errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%albsnf_nvgl_io()) ) ) errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%albsnf_nvgu_io()) ) ) errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%catch_nvg_io()) ) )   errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%ch_nvg_io()) ) )      errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%emis_nvg_io()) ) )    errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%gs_nvg_io()) ) )      errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%infil_nvg_io()) ) )   errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%vf_nvg_io()) ) )      errorstatus = 1
+    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%z0_nvg_io()) ) )      errorstatus = 1
 
     IF ( errorstatus == 1 ) THEN
       write(log_scratch_space,'(A)')                                         &
@@ -623,17 +618,17 @@ contains
       call log_event( log_scratch_space, LOG_LEVEL_ERROR)
     END IF
 
-    albsnc_nvg  = real(albsnc_nvg_io, r_um)
-    albsnf_nvg  = real(albsnf_nvg_io, r_um)
-    albsnf_nvgl = real(albsnf_nvgl_io, r_um)
-    albsnf_nvgu = real(albsnf_nvgu_io, r_um)
-    catch_nvg   = real(catch_nvg_io, r_um)
-    ch_nvg      = real(ch_nvg_io, r_um)
-    emis_nvg    = real(emis_nvg_io, r_um)
-    gs_nvg      = real(gs_nvg_io, r_um)
-    infil_nvg   = real(infil_nvg_io, r_um)
-    vf_nvg      = real(vf_nvg_io, r_um)
-    z0_nvg      = real(z0_nvg_io, r_um)
+    albsnc_nvg  = real(config%jules_nvegparm%albsnc_nvg_io(), r_um)
+    albsnf_nvg  = real(config%jules_nvegparm%albsnf_nvg_io(), r_um)
+    albsnf_nvgl = real(config%jules_nvegparm%albsnf_nvgl_io(), r_um)
+    albsnf_nvgu = real(config%jules_nvegparm%albsnf_nvgu_io(), r_um)
+    catch_nvg   = real(config%jules_nvegparm%catch_nvg_io(), r_um)
+    ch_nvg      = real(config%jules_nvegparm%ch_nvg_io(), r_um)
+    emis_nvg    = real(config%jules_nvegparm%emis_nvg_io(), r_um)
+    gs_nvg      = real(config%jules_nvegparm%gs_nvg_io(), r_um)
+    infil_nvg   = real(config%jules_nvegparm%infil_nvg_io(), r_um)
+    vf_nvg      = real(config%jules_nvegparm%vf_nvg_io(), r_um)
+    z0_nvg      = real(config%jules_nvegparm%z0_nvg_io(), r_um)
 
     ! ----------------------------------------------------------------
     ! JULES vegetation tile settigs - contained in module pftparm
@@ -710,14 +705,16 @@ contains
     vsl = real(config%jules_pftparm%vsl_io(), r_um)
     z0v = real(config%jules_pftparm%z0v_io(), r_um)
 
-    call print_nlist_jules_pftparm()
 
     ! ----------------------------------------------------------------
     ! Settings which are specified on all surface tiles at once
     ! - contained in module c_z0h_z0m
     ! ----------------------------------------------------------------
     z0h_z0m(1:npft) = real(config%jules_pftparm%z0hm_pft_io(), r_um)
-    z0h_z0m(npft+1:npft+nnvg) = real(z0hm_nvg_io, r_um)
+    z0h_z0m(npft+1:npft+nnvg) = real(config%jules_nvegparm%z0hm_nvg_io(), r_um)
+
+    call print_nlist_jules_pftparm()
+    call print_nlist_jules_nvegparm()
 
     ! This routine checks that the options set are actually compatible
     call check_jules_nvegparm(nnvg,npft) ! Also checks z0h_z0m(nnvg)
