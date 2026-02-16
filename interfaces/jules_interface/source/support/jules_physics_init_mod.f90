@@ -19,21 +19,10 @@ module jules_physics_init_mod
                               albsnf_nvgu_io, catch_nvg_io, ch_nvg_io,         &
                               emis_nvg_io, gs_nvg_io, infil_nvg_io, vf_nvg_io, &
                               z0_nvg_io, z0hm_nvg_io
-
   use jules_radiation_config_mod, only :                                       &
-                              fixed_sea_albedo_in => fixed_sea_albedo,         &
-                              l_hapke_soil_in => l_hapke_soil,                 &
-                              l_partition_albsoil_in => l_partition_albsoil,   &
-                              ratio_soilalb_in => ratio_albsoil,               &
-                              swdn_frac_albsoil_in => swdn_frac_albsoil,       &
-                              i_sea_alb_method_in => i_sea_alb_method,         &
                               i_sea_alb_method_barker,                         &
                               i_sea_alb_method_jin,                            &
-                              i_sea_alb_method_fixed,                          &
-                              l_niso_direct_in => l_niso_direct,               &
-                              l_sea_alb_var_chl_in => l_sea_alb_var_chl,       &
-                              l_spec_alb_bs_in => l_spec_alb_bs,               &
-                              l_albedo_obs_in => l_albedo_obs
+                              i_sea_alb_method_fixed
   use jules_sea_seaice_config_mod, only :                                      &
                               iseasurfalg_in => iseasurfalg,                   &
                               iseasurfalg_coare,                               &
@@ -166,9 +155,9 @@ contains
     use jules_radiation_mod, only: i_sea_alb_method,                        &
                                    l_embedded_snow, l_mask_snow_orog,       &
          l_spec_alb_bs, l_spec_albedo, l_spec_sea_alb, fixed_sea_albedo,    &
-         check_jules_radiation, l_niso_direct, l_sea_alb_var_chl,           &
-         l_albedo_obs, l_hapke_soil, l_partition_albsoil,                   &
-         ratio_albsoil, swdn_frac_albsoil
+         check_jules_radiation, print_nlist_jules_radiation,                &
+         l_niso_direct, l_sea_alb_var_chl, l_albedo_obs, l_hapke_soil,      &
+         l_partition_albsoil, ratio_albsoil, swdn_frac_albsoil
     use jules_science_fixes_mod, only: l_dtcanfix, l_fix_alb_ice_thick, &
          l_fix_albsnow_ts, ctile_orog_fix, l_fix_wind_snow,             &
          l_accurate_rho, l_fix_osa_chloro, l_fix_ustar_dust,            &
@@ -265,8 +254,8 @@ contains
     ! ----------------------------------------------------------------
     ! JULES radiation settings - contained in module jules_radiation
     ! ----------------------------------------------------------------
-    fixed_sea_albedo = real(fixed_sea_albedo_in, r_um)
-    select case (i_sea_alb_method_in)
+    fixed_sea_albedo = real(config%jules_radiation%fixed_sea_albedo(), r_um)
+    select case (config%jules_radiation%i_sea_alb_method())
       case(i_sea_alb_method_barker)
         i_sea_alb_method = 2
       case(i_sea_alb_method_jin)
@@ -274,20 +263,21 @@ contains
       case(i_sea_alb_method_fixed)
         i_sea_alb_method = 4
     end select
-    l_albedo_obs        = l_albedo_obs_in
+    l_albedo_obs        = config%jules_radiation%l_albedo_obs()
     l_embedded_snow     = .true.
-    l_hapke_soil        = l_hapke_soil_in
+    l_hapke_soil        = config%jules_radiation%l_hapke_soil()
     l_mask_snow_orog    = .true.
-    l_niso_direct       = l_niso_direct_in
-    l_partition_albsoil = l_partition_albsoil_in
-    l_sea_alb_var_chl   = l_sea_alb_var_chl_in
-    l_spec_alb_bs       = l_spec_alb_bs_in
+    l_niso_direct       = config%jules_radiation%l_niso_direct()
+    l_partition_albsoil = config%jules_radiation%l_partition_albsoil()
+    l_sea_alb_var_chl   = config%jules_radiation%l_sea_alb_var_chl()
+    l_spec_alb_bs       = config%jules_radiation%l_spec_alb_bs()
     l_spec_albedo       = .true.
     l_spec_sea_alb      = .true.
-    ratio_albsoil       = real(ratio_soilalb_in, r_um)
-    swdn_frac_albsoil   = real(swdn_frac_albsoil_in, r_um)
+    ratio_albsoil       = real(config%jules_radiation%ratio_albsoil(), r_um)
+    swdn_frac_albsoil   = real(config%jules_radiation%swdn_frac_albsoil(), r_um)
 
     ! Check the contents of the radiation parameters module
+    call print_nlist_jules_radiation()
     call check_jules_radiation()
 
     ! ----------------------------------------------------------------
