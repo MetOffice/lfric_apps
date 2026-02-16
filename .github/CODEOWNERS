@@ -11,7 +11,7 @@
 **/jules                     @iboutle                            # @MetOfficessdtesam
 **/lfricinputs               @mo-lottieturner                    # @mike-hobson
 **/lfric_atm                 @iboutle                            # @BShipway
-**/lfric_coupled             # @HengistPodd                      # @BShipway
+**/lfric_coupled             @HengistPodd                        # @BShipway
 **/lfricinputs               @mo-lottieturner                    # @mike-hobson
 **/linear_model              @cjohnson-pi @ss421 @matthewrmshin  # @tommbendall  # Also notifiy jedi team about linear changes.
 **/name_transport            @jameskent-metoffice                # @tommbendall
