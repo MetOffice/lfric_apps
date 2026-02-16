@@ -57,6 +57,8 @@
 {% do site_vars.update({"mesh_build": {"ex1a": "gnu_fast-debug-64bit",
                                        "azspice": "gnu_fast-debug-64bit"} }) %}
 
+{% do site_vars.update({"remote_init_family": {"ex1a": "EX1A_REMOTE_INIT"} }) %}
+
 {# Choose EX Host - default to random ab or cd #}
 {% if site_vars["ex_trustzone"] == "collab" %}
     {% do site_vars.update({"host_ex" : "ex"}) %}
@@ -82,10 +84,12 @@
     {% do site_vars.update({"node_type": "genoa"}) %}
     {% do site_vars.update({"node_cores": 192 }) %}
     {% do site_vars.update({"node_mem": 720}) %}
+    {% do site_vars.update({"crayhost": ":crayhost=exb"}) %}
 {% else %}
     {% do site_vars.update({"node_type": "milan"}) %}
     {% do site_vars.update({"node_cores": 128 }) %}
     {% do site_vars.update({"node_mem": 238}) %}
+    {% do site_vars.update({"crayhost": ""}) %}
 {% endif %}
 
 {% do site_vars.update({"lfricinputs_kgo_base": "$UMDIR/standard_jobs/lfricinputs/kgo"}) %}
