@@ -48,11 +48,9 @@ module jules_physics_init_mod
                               anthrop_heat_option_dukes,                       &
                               anthrop_heat_option_flanner
   use jules_vegetation_config_mod, only :                                      &
-                              can_rad_mod_in => can_rad_mod,                   &
                               can_rad_mod_one, can_rad_mod_four,               &
-                              can_rad_mod_five, can_rad_mod_six,               &
-                              l_limit_canhc_in => l_limit_canhc,               &
-                              l_spec_veg_z0_in => l_spec_veg_z0
+                              can_rad_mod_five, can_rad_mod_six
+
   ! UM modules used
   use jules_surface_types_mod, only : npft, nnvg, ntype, ncpft, nnpft
   use nlsizes_namelist_mod,    only : sm_levels, ntiles
@@ -175,7 +173,7 @@ contains
          l_moruses_storage_thin, check_jules_urban, print_nlist_jules_urban
     use jules_vegetation_mod, only: can_rad_mod, ilayers, l_vegcan_soilfx,  &
          photo_model, photo_collatz, stomata_model, stomata_jacobs,         &
-         check_jules_vegetation,                                            &
+         check_jules_vegetation, print_nlist_jules_vegetation,              &
          l_spec_veg_z0, l_limit_canhc, l_crop, l_triffid, l_phenol
     use nvegparm, only:                                                     &
          albsnc_nvg, albsnf_nvgu, albsnf_nvg, albsnf_nvgl, catch_nvg,       &
@@ -514,7 +512,7 @@ contains
     ! ----------------------------------------------------------------
     ! JULES vegatation settings - contained in module jules_vegetation
     ! ----------------------------------------------------------------
-    select case (can_rad_mod_in)
+    select case (config%jules_vegetation%can_rad_mod())
       case(can_rad_mod_one)
         can_rad_mod = 1
       case(can_rad_mod_four)
@@ -525,13 +523,14 @@ contains
         can_rad_mod = 6
     end select
     ilayers         = 10
-    l_limit_canhc   = l_limit_canhc_in
-    l_spec_veg_z0   = l_spec_veg_z0_in
+    l_limit_canhc   = config%jules_vegetation%l_limit_canhc()
+    l_spec_veg_z0   = config%jules_vegetation%l_spec_veg_z0()
     l_vegcan_soilfx = .true.
     photo_model     = photo_collatz
     stomata_model   = stomata_jacobs
 
     ! Check the contents of the vegetation parameters module
+    call print_nlist_jules_vegetation()
     call check_jules_vegetation()
 
     ! ----------------------------------------------------------------
