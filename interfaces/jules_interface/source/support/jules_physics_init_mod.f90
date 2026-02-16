@@ -11,9 +11,6 @@ module jules_physics_init_mod
   ! Other LFRic modules used
   use constants_mod,          only : r_um, i_um, i_def, r_def
   use jules_control_init_mod, only : n_sea_ice_tile, n_land_tile
-  use jules_hydrology_config_mod, only :                                       &
-                              l_hydrology_in => l_hydrology,                   &
-                              l_var_rainfrac_in => l_var_rainfrac
   use jules_nvegparm_config_mod, only :                                        &
                               albsnc_nvg_io, albsnf_nvg_io, albsnf_nvgl_io,    &
                               albsnf_nvgu_io, catch_nvg_io, ch_nvg_io,         &
@@ -127,9 +124,9 @@ contains
     use bl_option_mod, only: on
     use c_kappai, only: kappai, kappai_snow, kappa_seasurf
     use c_z0h_z0m, only: z0h_z0m
-    use jules_hydrology_mod, only: l_hydrology, check_jules_hydrology,   &
-                                   l_top, l_var_rainfrac, nfita, ti_max, &
-                                   ti_wetl, zw_max
+    use jules_hydrology_mod, only: check_jules_hydrology,                   &
+         print_nlist_jules_hydrology, l_hydrology, l_top, l_var_rainfrac,   &
+         nfita, ti_max, ti_wetl, zw_max
     use jules_irrig_mod, only: l_irrig_dmd
     use jules_radiation_mod, only: i_sea_alb_method,                        &
                                    l_embedded_snow, l_mask_snow_orog,       &
@@ -220,15 +217,16 @@ contains
     ! ----------------------------------------------------------------
     ! JULES hydrology settings - contained in module jules_hydrology
     ! ----------------------------------------------------------------
-    l_hydrology    = l_hydrology_in
+    l_hydrology    = config%jules_hydrology%l_hydrology()
     l_top          = .true.
-    l_var_rainfrac = l_var_rainfrac_in
+    l_var_rainfrac = config%jules_hydrology%l_var_rainfrac()
     nfita          = 30
     ti_max         = 10.0_r_um
     ti_wetl        = 1.5_r_um
     zw_max         = 6.0_r_um
 
     ! Check the contents of the hydrology parameters module
+    call print_nlist_jules_hydrology()
     call check_jules_hydrology()
 
     ! ----------------------------------------------------------------
