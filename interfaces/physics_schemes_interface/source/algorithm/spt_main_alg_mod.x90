@@ -229,14 +229,17 @@ module spt_main_alg_mod
   ! iterators in for loops
   integer(i_def) :: n,n_row, m
 
+  ! SPT calculations are performed at theta-levels (Wtheta points). To index the
+  ! "eta_theta_levels" array correctly at these points, set offset to 0
+  integer(kind=i_def), parameter :: lev_offset = 0
+
   ! Timestepping_config_mod scalar (for PSyclone to know data type)
   real(kind=r_second) :: timestepping_config_mod_dt
 
   ! Timing handle
-  integer(tik)   :: id
+  integer(tik)   :: id_alg, id_diags
 
-
-  if ( LPROF ) call start_timing( id, 'spt_main_alg' )
+  if ( LPROF ) call start_timing( id_alg, 'stoch_phys.spt' )
 
   timestepping_config_mod_dt = dt_timestep
 
@@ -299,10 +302,10 @@ module spt_main_alg_mod
   call invoke( setval_c(fp_spt, 0.0_r_def))
 
   ! Create forcing pattern for SPT
-  call stph_fp_main_alg(spt_level_bottom, spt_level_top,          &
-                        1, stph_n_max, stph_spectral_dim,         &
-                        spt_alpha, spt_power_law,                 &
-                        spt_spectral_coeffc, spt_spectral_coeffs, &
+  call stph_fp_main_alg(spt_level_bottom, spt_level_top, lev_offset, &
+                        1, stph_n_max, stph_spectral_dim,            &
+                        spt_alpha, spt_power_law,                    &
+                        spt_spectral_coeffc, spt_spectral_coeffs,    &
                         fp_spt)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -512,14 +515,16 @@ module spt_main_alg_mod
                 inc_X_plus_Y(dmv_stph, dmv_spt) )
   end if
 
+  if ( LPROF ) call stop_timing( id_alg, 'stoch_phys.spt' )
+
   ! Write fields to diagnostics if requested
   if (write_diag .and. use_xios_io) then
+    if ( LPROF ) call start_timing( id_diags, 'diags.stoch_phys' )
     call fp_spt%write_field('stochastic__fp_spt')
     call dtheta_spt%write_field('stochastic__dtheta_spt')
     call dmv_spt%write_field('stochastic__dmv_spt')
+    if ( LPROF ) call stop_timing( id_diags, 'diags.stoch_phys' )
   end if
-
-  if ( LPROF ) call stop_timing( id, 'spt_main_alg' )
 
   end subroutine spt_main_alg
 end module spt_main_alg_mod

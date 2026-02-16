@@ -14,6 +14,7 @@ module lfric2lfric_infrastructure_mod
 
   use add_mesh_map_mod,            only: assign_mesh_maps
   use blend_orography_alg_mod,     only: blend_orography
+  use check_configuration_mod,     only: get_required_stencil_depth
   use constants_mod,               only: str_def, r_def, i_def, l_def, r_second
   use create_mesh_mod,             only: create_extrusion, &
                                          create_mesh
@@ -21,7 +22,6 @@ module lfric2lfric_infrastructure_mod
   use driver_fem_mod,              only: init_fem
   use driver_io_mod,               only: init_io, &
                                          filelist_populator
-  use check_configuration_mod,     only: get_required_stencil_depth
   use extrusion_mod,               only: extrusion_type,         &
                                          uniform_extrusion_type, &
                                          prime_extrusion,        &
@@ -68,7 +68,7 @@ module lfric2lfric_infrastructure_mod
   use lfric2lfric_init_mesh_mod,   only: init_mesh
   use lfric2lfric_check_conf_mod,  only: lfric2lfric_check_configuration
   use lfric2lfric_file_init_mod,   only: init_lfric2lfric_dst_files, &
-                                          init_lfric2lfric_src_files
+                                         init_lfric2lfric_src_files
   use lfric2lfric_init_mod,        only: init_lfric2lfric
   use lfric2lfric_init_coupler_mod,only: lfric2lfric_init_coupler_src, &
                                          lfric2lfric_init_coupler_dst, &
@@ -93,11 +93,13 @@ module lfric2lfric_infrastructure_mod
                                         method_um_L120_99t_21s_40km,  &
                                         method_um_L140_122t_18s_40km, &
                                         method_um_L70_50t_20s_80km
-  use lfric2lfric_config_mod,     only: regrid_method_oasis,       &
+  use lfric2lfric_config_mod,     only: mode_ics, mode_lbc,        &
                                         regrid_method_lfric2lfric, &
                                         regrid_method_map,         &
-                                        source_geometry_spherical, &
-                                        source_geometry_planar
+                                        regrid_method_oasis,       &
+                                        source_geometry_planar,    &
+                                        source_geometry_spherical
+
 
   implicit none
 
@@ -120,12 +122,15 @@ contains
   !!                 checks the configuration namelist, initialises meshes,
   !!                 extrusions, XIOS contexts and files, field collections and
   !!                 fields.
-  !> @param [in,out] modeldb                 The structure holding model state
-  subroutine initialise_infrastructure( modeldb )
+  !> @param [in,out] modeldb       The structure holding model state
+  !> @param [in,out] oasis_clock   Clock for OASIS exchanges
+  subroutine initialise_infrastructure( modeldb, oasis_clock )
 
     implicit none
 
     type(modeldb_type),     intent(inout) :: modeldb
+    type(model_clock_type), allocatable, &
+                            intent(inout) :: oasis_clock
 
     ! Coordinate field
     type(field_type),             pointer :: chi(:)
@@ -133,12 +138,12 @@ contains
     type(field_type)                      :: surface_altitude_dst
     type(field_type)                      :: surface_altitude_src
     type(field_type)                      :: surface_altitude_src_on_dst
-    type(field_type), pointer             :: src_field
-    type(field_type), pointer             :: dst_field
+    type(field_type),             pointer :: src_field
+    type(field_type),             pointer :: dst_field
     type(inventory_by_mesh_type), pointer :: chi_inventory
     type(inventory_by_mesh_type), pointer :: panel_id_inventory
 
-    type(function_space_type), pointer  :: vector_space
+    type(function_space_type),    pointer :: vector_space
 
     !-----------------------
     ! Mesh Pointers
@@ -164,13 +169,12 @@ contains
     character(len=str_def)                 :: mesh_names(2)
     character(len=str_def),    allocatable :: twod_names(:)
     character(len=str_def)                 :: start_dump_filename
+    character(len=str_def)                 :: source_file_lbc
 
     ! lfric2lfric namelist parameters
-    integer(kind=i_def)     :: origin_domain
-    integer(kind=i_def)     :: target_domain
-
     integer(kind=i_def)     :: stencil_depth
     integer(kind=i_def)     :: source_geometry
+    integer(i_def)          :: mode
     integer(i_def)          :: regrid_method
     real(kind=r_def)        :: domain_bottom
     real(kind=r_def)        :: scaled_radius
@@ -187,21 +191,20 @@ contains
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
 
-    type(coupling_type), pointer :: coupling_ptr
-
-    type(field_collection_type), pointer   :: cpl_snd_2d
-    type(field_collection_type), pointer   :: cpl_rcv_2d
-    integer(i_def), pointer :: local_index(:)
-    type(coupler_exchange_2d_type) :: coupler_exchange_2d
-    integer(i_def) :: ierror
-    logical(l_def) :: is_running
+    type(coupling_type),         pointer :: coupling_ptr
+    type(field_collection_type), pointer :: cpl_snd_2d
+    type(field_collection_type), pointer :: cpl_rcv_2d
+    integer(kind=i_def),         pointer :: local_index(:)
+    type(coupler_exchange_2d_type)       :: coupler_exchange_2d
+    integer(kind=i_def)                  :: ierror
+    logical(kind=l_def)                  :: is_running
 
     !------------------------
     ! XIOS contexts
     !------------------------
     ! Pointer for subroutines used in init_io
-    procedure(filelist_populator), pointer  :: files_init_ptr
-    procedure(callback_clock_arg), pointer  :: before_close => null()
+    procedure(filelist_populator), pointer :: files_init_ptr
+    procedure(callback_clock_arg), pointer :: before_close
 
     ! Source context pointer and temporary context for setup
     type(lfric_xios_context_type)          :: tmp_io_context_src
@@ -227,13 +230,12 @@ contains
     ! Check lfric2lfric configuration settings are allowed
     call lfric2lfric_check_configuration( lfric2lfric_nml )
 
-    call lfric2lfric_nml%get_value( 'origin_domain', origin_domain )
+    call lfric2lfric_nml%get_value( 'mode', mode )
     call lfric2lfric_nml%get_value( 'regrid_method', regrid_method )
     call lfric2lfric_nml%get_value( 'destination_mesh_name', &
                                              mesh_names(dst) )
     call lfric2lfric_nml%get_value( 'source_mesh_name', &
                                              mesh_names(src) )
-    call lfric2lfric_nml%get_value( 'target_domain', target_domain )
     call lfric2lfric_nml%get_value( 'source_geometry', source_geometry )
     call files_nml%get_value( 'start_dump_filename', start_dump_filename )
     call finite_element_nml%get_value( 'element_order_h', element_order_h)
@@ -341,9 +343,8 @@ contains
     call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
 
     !-----------------------------------------------------------------------
-    ! Create the coordinates fields
-    !-----------------------------------------------------------------------
     ! Assign pointers to the correct meshes
+    !-----------------------------------------------------------------------
     mesh_src      => mesh_collection%get_mesh(trim(mesh_names(src)))
     twod_mesh_src => mesh_collection%get_mesh(trim(twod_names(src)))
     mesh_dst      => mesh_collection%get_mesh(trim(mesh_names(dst)))
@@ -379,23 +380,16 @@ contains
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context_dst)
 
-    ! Must call advance to align IO context clock with iodef and file
-    ! output frequency
-    call advance(io_context_dst, modeldb%clock)
-
     !=======================================================================
-    ! Initialise the clock
+    ! Initialise the OASIS clock
     !=======================================================================
-    ! lfric2lfric doesn't use a typical model clock. To make it more flexible,
-    ! fields (which can be multi-level and multi data) are broken down into
-    ! simple 2d fields, which are then passed through regridding. If Oasis is
-    ! being used, it can only provide one coupling per clock tick - so we
+    ! If Oasis is used, it can only provide one coupling per clock tick - so we
     ! introduce a pseudo clock, that ticks every coupling, rather than every
     ! timestep. We don't know how many 2d fields will be passed through the
-    ! coupler, yet, so set the upper limit to "huge" to support everything
-    modeldb%clock = model_clock_type(1_i_def, huge(1_i_def), &
+    ! coupler yet, so set the upper limit to "huge" to support everything
+    oasis_clock = model_clock_type(1_i_def, huge(1_i_def), &
                                         1.0_r_second, 0.0_r_second)
-    is_running = modeldb%clock%tick()
+    is_running = oasis_clock%tick()
 
     !=======================================================================
     ! Initialise destination orography
@@ -437,16 +431,13 @@ contains
     call panel_id_inventory%get_field(mesh_src, panel_id)
 
     ! Using correct chi and panel_id, initialise xios context for source mesh
+    nullify( before_close )
     call io_context_src%initialise_xios_context( modeldb%mpi%get_comm(), &
                                                  chi,                    &
                                                  panel_id,               &
                                                  modeldb%clock,          &
                                                  modeldb%calendar,       &
                                                  before_close            )
-
-    ! Must call advance to align IO context clock with iodef and file
-    ! output frequency
-    call advance(io_context_src, modeldb%clock)
 
     !=======================================================================
     ! Initialise source orography
@@ -470,9 +461,18 @@ contains
     !=======================================================================
     ! Create and initialise prognostic fields
     !=======================================================================
-    call init_lfric2lfric( modeldb, start_dump_filename,                    &
-                           source_collection_name, mesh_src, twod_mesh_src, &
-                           target_collection_name, mesh_dst, twod_mesh_dst )
+    if (mode == mode_ics) then
+      call init_lfric2lfric( modeldb, context_src, context_dst,               &
+                             start_dump_filename, mode,                       &
+                             source_collection_name, mesh_src, twod_mesh_src, &
+                             target_collection_name, mesh_dst, twod_mesh_dst )
+    else if (mode == mode_lbc) then
+      call lfric2lfric_nml%get_value( 'source_file_lbc', source_file_lbc )
+      call init_lfric2lfric( modeldb, context_src, context_dst,               &
+                             source_file_lbc, mode,                           &
+                             source_collection_name, mesh_src, twod_mesh_src, &
+                             target_collection_name, mesh_dst, twod_mesh_dst )
+    end if
 
     !=======================================================================
     ! Initialize variables for each regrid method
@@ -538,7 +538,7 @@ contains
       coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
       local_index => coupling_ptr%get_local_index()
       call coupler_exchange_2d%initialise(src_field, local_index)
-      call coupler_exchange_2d%set_time(modeldb%clock)
+      call coupler_exchange_2d%set_time(oasis_clock)
       call coupler_exchange_2d%copy_from_lfric(ierror)
       call coupler_exchange_2d%clear()
 
@@ -546,12 +546,12 @@ contains
       coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling_dst" )
       local_index => coupling_ptr%get_local_index()
       call coupler_exchange_2d%initialise(dst_field, local_index)
-      call coupler_exchange_2d%set_time(modeldb%clock)
+      call coupler_exchange_2d%set_time(oasis_clock)
       call coupler_exchange_2d%copy_to_lfric(ierror)
       call coupler_exchange_2d%clear()
 
       ! Done the first coupling - so advance the pseudo-clock
-      is_running = modeldb%clock%tick()
+      is_running = oasis_clock%tick()
 
       ! Copy the horizontally regridded src orography into dst orography mesh
       ! -----------------------------------------------------------

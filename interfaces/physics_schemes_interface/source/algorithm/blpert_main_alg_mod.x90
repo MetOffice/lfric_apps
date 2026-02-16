@@ -113,9 +113,9 @@ contains
     integer(i_def), parameter :: stencil_depth_edge = 1
     integer(i_def), parameter :: stencil_depth_buff = 1
     real(r_def) :: dt, auto_corr_coeff, tfac
-    integer(tik) :: id
+    integer(tik) :: id, id_diag
 
-    if ( LPROF ) call start_timing( id, 'blpert_main_alg' )
+    if ( LPROF ) call start_timing( id, 'stoch_phys.blpert' )
 
     nullify(vector_space, coarse_vector_space, mesh, coarse_mesh, &
             twod_mesh, coarse_twod_mesh, local_mesh, mesh_map,    &
@@ -308,15 +308,18 @@ contains
                  theta_star_surf, qv_star_surf, blpert_rand_fld, &
                  pert_lev_bot, pert_lev_top, tfac) )
 
+    if ( LPROF ) call stop_timing( id, 'stoch_phys.blpert' )
+
     !----------------------------------------------------------------!
     ! Write fields to diagnostics if requested
     !----------------------------------------------------------------!
     if (write_diag .and. use_xios_io) then
+      if ( LPROF ) call start_timing( id_diag, 'diags.blpert' )
       call dtheta_base%write_field('stochastic__dtheta_base_blpert')
       call dmv_base%write_field('stochastic__dmv_base_blpert')
-    end if
+      if ( LPROF ) call stop_timing( id_diag, 'diags.blpert' )
 
-    if ( LPROF ) call stop_timing( id, 'blpert_main_alg' )
+    end if
 
   end subroutine blpert_main_alg
 end module blpert_main_alg_mod
