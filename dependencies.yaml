@@ -23,15 +23,15 @@ casim:
 
 jules:
     source: git@github.com:MetOffice/jules.git
-    ref: 2025.12.1
+    ref: 69aaf4d8e5dcf4e0134aac006b183e591aeb94d7
 
 lfric_apps:
     source:
     ref:
 
 lfric_core:
-    source: cazld00001C:/var/tmp/persistent/mike.hobson/w/lfric_core
-    ref: fix_w2h_chkpnt
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 88533c52381b6b01c4e03910f895ad8529fae522
 
 moci:
     source: git@github.com:MetOffice/moci.git

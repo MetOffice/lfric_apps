@@ -25,14 +25,15 @@ module dycore_constants_mod
   use function_space_collection_mod,      only: function_space_collection
   use function_space_mod,                 only: function_space_type
   use inventory_by_mesh_mod,              only: inventory_by_mesh_type
-  use io_config_mod,                      only: subroutine_timers
   use log_mod,                            only: log_event, LOG_LEVEL_ERROR
   use mesh_collection_mod,                only: mesh_collection
   use mesh_mod,                           only: mesh_type
   use model_clock_mod,                    only: model_clock_type
   use operator_mod,                       only: operator_type
   use quadrature_xyoz_mod,                only: quadrature_xyoz_type
-  use timer_mod,                          only: timer
+  use timing_mod,                         only: start_timing, stop_timing, &
+                                                tik, LPROF
+
 
   ! Configuration
   use finite_element_config_mod,          only: element_order_h, &
@@ -102,6 +103,7 @@ contains
     type(field_type),             pointer :: panel_id
     type(quadrature_xyoz_type),   pointer :: qr
     type(function_space_type),    pointer :: w2_fs
+    integer(tik)                          :: id
 
     ! Initialise inventory if it hasn't been done so already
     if (.not. coriolis_inventory%is_initialised()) then
@@ -119,7 +121,7 @@ contains
       panel_id => get_panel_id(mesh_id)
       qr => get_qr_fe()
 
-      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
 
       call coriolis_inventory%add_operator(coriolis, w2_fs, w2_fs, mesh)
 
@@ -127,7 +129,7 @@ contains
                                                        chi, panel_id,          &
                                                        scaled_omega,           &
                                                        f_lat, qr) )
-      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.dycore' )
     end if
 
     ! Return constant
@@ -156,6 +158,7 @@ contains
     type(quadrature_xyoz_type),   pointer :: qr
     type(function_space_type),    pointer :: w2_fs
     type(function_space_type),    pointer :: wt_fs
+    integer(tik)                          :: id
 
     ! Initialise inventory if it hasn't been done so already
     if (.not. vert_coriolis_inventory%is_initialised()) then
@@ -174,7 +177,7 @@ contains
       panel_id => get_panel_id(mesh_id)
       qr => get_qr_fe()
 
-      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
 
       call vert_coriolis_inventory%add_operator(vert_coriolis, wt_fs, w2_fs, mesh)
 
@@ -182,7 +185,7 @@ contains
                                                             chi, panel_id,     &
                                                             scaled_omega,      &
                                                             f_lat, qr) )
-      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.dycore' )
     end if
 
     ! Return constant
@@ -209,6 +212,7 @@ contains
     type(field_type),             pointer :: geopotential
     type(field_type),             pointer :: chi(:)
     type(function_space_type),    pointer :: w3_fs
+    integer(tik)                          :: id
 
     ! Initialise inventory if it hasn't been done so already
     if (.not. geopotential_inventory%is_initialised()) then
@@ -224,7 +228,7 @@ contains
                                                 element_order_v, W3)
       chi => get_coordinates(mesh_id)
 
-      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
 
       call geopotential_inventory%add_field(geopotential, w3_fs, mesh)
 
@@ -240,7 +244,7 @@ contains
         call log_event( "Geopotential computation needs modifying "// &
                         "for standard W3 mapping", LOG_LEVEL_ERROR )
       end if
-      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.dycore' )
     end if
 
     ! Return constant
@@ -293,6 +297,7 @@ contains
     real(kind=r_def)                              :: const
     real(kind=r_second)                           :: dt
     type(operator_type),                  pointer :: coriolis
+    integer(tik)                                  :: id
 
     ! Check inventories are initialised
     if (.not. mm_w2_si_inventory%is_initialised()) then
@@ -371,7 +376,7 @@ contains
           panel_id => get_panel_id(mesh_id)
           qr => get_qr_fe()
 
-          if ( subroutine_timers ) call timer('runtime_constants.dycore')
+          if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
           call invoke( name = "compute_damping_layer_mass_matrix",             &
                        compute_dl_matrix_kernel_type(mm_w2_dl, chi, panel_id,  &
                                                      dl_base, dl_str,          &
@@ -381,7 +386,7 @@ contains
                                                      element_order_v,          &
                                                      dt_stored,                &
                                                      qr) )
-          if ( subroutine_timers ) call timer('runtime_constants.dycore')
+          if ( LPROF ) call stop_timing( id, 'runtime_constants.dycore' )
         else
           ! No damping layer, just copy the W2 mass matrix on this level
           mm_w2 => get_mass_matrix_fe(W2, mesh_id)
@@ -399,7 +404,7 @@ contains
           call mm_w2_dl_lagged_inventory%get_operator(mesh, mm_w2_dl_lagged)
         else
           ! We are going to need to create this matrix
-          if ( subroutine_timers ) call timer('runtime_constants.dycore')
+          if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
 
           if (w2_op_name == w2_lagged_damping_layer_matrix) then
             ! This is our target matrix, so store it
@@ -423,7 +428,7 @@ contains
             ! No lagged orography, just copy the W2 mass matrix on this level
             call invoke( operator_setval_x_kernel_type(mm_w2_dl_lagged, mm_w2_dl) )
           end if
-          if ( subroutine_timers ) call timer('runtime_constants.dycore')
+          if ( LPROF ) call stop_timing( id, 'runtime_constants.dycore' )
         end if
       end if
 
@@ -431,7 +436,7 @@ contains
       ! S.I. MATRIX
       ! ====================================================================== !
       if (w2_op_name == w2_si_matrix) then
-        if ( subroutine_timers ) call timer('runtime_constants.dycore')
+        if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
         call mm_w2_si_inventory%add_operator(mm_w2_si, fs, fs, mesh)
 
         if ( rotating ) then
@@ -449,8 +454,7 @@ contains
         call invoke( name = "set_w2_si_mass_matrix_with_damping_layer",        &
                      operator_x_plus_ay_kernel_type(mm_w2_si, mm_w2_dl_lagged, &
                                                     const, coriolis) )
-
-        if ( subroutine_timers ) call timer('runtime_constants.dycore')
+        if ( LPROF ) call stop_timing( id, 'runtime_constants.dycore' )
       end if
     end if
 
