@@ -54,7 +54,7 @@ def copy_extracted_files(dependency: str, extract_lists: dict, working: Path, cl
     run_command(copy_command)
 
 
-def extract_files(dependencies: dict, rose_meta: bool, extract_lists: dict, working: Path) -> None:
+def extract_files(dependencies: dict, rose_meta: str, extract_lists: dict, working: Path) -> None:
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
@@ -76,10 +76,10 @@ def extract_files(dependencies: dict, rose_meta: bool, extract_lists: dict, work
             clone_loc = working.parent / "scratch" / dependency
             clone_and_merge(dependency, sources, clone_loc, use_mirrors, mirror_loc)
 
-    if rose_meta:
-        copy_rose_meta(working, clone_loc)
-    else:
-        copy_extracted_files(dependency, extract_lists, working, clone_loc)
+        if rose_meta:
+            copy_rose_meta(working, clone_loc)
+        else:
+            copy_extracted_files(dependency, extract_lists, working, clone_loc)
 
 
 
@@ -105,7 +105,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-r",
         "--rose_meta",
-        type="str",
+        type=str,
         default="",
         help="Should be a repository in the dependencies file. If set, copy the "
         "dependencies rose-meta directory contents to working/../rose-meta. "
@@ -125,9 +125,9 @@ def main():
     dependencies: dict = load_yaml(args.dependencies)
 
     if args.rose_meta:
-        extract_files(dependencies, True, [], args.working)
+        extract_files(dependencies, args.rose_meta, [], args.working)
     else:
-        extract_files(dependencies, False, load_yaml(args.extract), args.working)
+        extract_files(dependencies, args.rose_meta, load_yaml(args.extract), args.working)
 
 
 if __name__ == "__main__":
