@@ -27,10 +27,6 @@ module jules_physics_init_mod
                               i_high_wind_drag_limited,                        &
                               i_high_wind_drag_reduced_v1,                     &
                               buddy_sea_on
-  use jules_soil_config_mod, only :                                            &
-                              l_dpsids_dsdz_in => l_dpsids_dsdz,               &
-                              l_soil_sat_down_in => l_soil_sat_down,           &
-                              l_vg_soil_in => l_vg_soil
   use jules_snow_config_mod, only :                                            &
                               i_basal_melting_opt_none,                        &
                               i_basal_melting_opt_instant,                     &
@@ -145,16 +141,16 @@ contains
          buddy_sea, cdn_hw_sea, cdn_max_sea, u_cdn_hw, u_cdn_max,           &
          i_high_wind_drag, ip_hwdrag_null, ip_hwdrag_limited,               &
          ip_hwdrag_reduced_v1
-    use jules_snow_mod, only: check_jules_snow, print_nlist_jules_snow,     &
+    use jules_snow_mod, only: check_jules_snow,                             &
          cansnowpft, nsmax, a_snow_et, b_snow_et, c_snow_et, can_clump,     &
          dzsnow, frac_snow_subl_melt, i_snow_cond_parm, l_et_metamorph,     &
          l_snow_infilt, l_snow_nocan_hc, l_snowdep_surf, lai_alb_lim_sn,    &
          n_lai_exposed, rho_snow_et_crit, rho_snow_fresh, snow_hcon,        &
          unload_rate_u, i_basal_melting_opt, i_grain_growth_opt,            &
          i_relayer_opt, graupel_options
-    use jules_soil_mod, only: dzsoil_io, l_dpsids_dsdz, l_soil_sat_down,    &
-         l_vg_soil, soilhc_method, check_jules_soil, confrac, cs_min, zsmc, &
-         zst, sm_levels
+    use jules_soil_mod, only: check_jules_soil, print_nlist_jules_soil,     &
+         dzsoil_io, l_dpsids_dsdz, l_soil_sat_down, l_vg_soil,              &
+         soilhc_method, confrac, cs_min, zsmc, zst, sm_levels
     use jules_soil_biogeochem_mod, only: const_ch4_cs,                      &
          check_jules_soil_biogeochem, diff_n_pft, bio_hum_cn, sorp,         &
          n_inorg_turnover, q10_soil, kaps_4pool, kaps, q10_ch4_cs,          &
@@ -384,7 +380,6 @@ contains
 
     ! Check the contents of the JULES snow parameters module
     ! This module sets some derived parameters
-    call print_nlist_jules_snow()
     call check_jules_snow()
 
     ! ----------------------------------------------------------------
@@ -393,9 +388,9 @@ contains
     ! The number of levels specified here needs to be consistent with
     ! sm_levels from jules_control_init
     dzsoil_io(1:sm_levels) = (/ 0.1_r_um, 0.25_r_um, 0.65_r_um, 2.0_r_um /)
-    l_dpsids_dsdz   = l_dpsids_dsdz_in
-    l_soil_sat_down = l_soil_sat_down_in
-    l_vg_soil       = l_vg_soil_in
+    l_dpsids_dsdz   = config%jules_soil%l_dpsids_dsdz()
+    l_soil_sat_down = config%jules_soil%l_soil_sat_down()
+    l_vg_soil       = config%jules_soil%l_vg_soil()
     soilhc_method   = 2
     confrac         = 0.3_r_um
     cs_min          = 1.0e-6_r_um
@@ -404,6 +399,7 @@ contains
 
     ! Check the contents of the JULES soil parameters module
     ! This module sets some derived parameters
+    call print_nlist_jules_soil()
     call check_jules_soil()
 
     ! ----------------------------------------------------------------
