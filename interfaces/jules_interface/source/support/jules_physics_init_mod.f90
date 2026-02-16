@@ -32,18 +32,10 @@ module jules_physics_init_mod
                               l_soil_sat_down_in => l_soil_sat_down,           &
                               l_vg_soil_in => l_vg_soil
   use jules_snow_config_mod, only :                                            &
-                              rho_snow_fresh_in => rho_snow_fresh,             &
-                              can_clump_in => can_clump,                       &
-                              cansnowpft_in => cansnowpft,                     &
-                              n_lai_exposed_in => n_lai_exposed,               &
-                              unload_rate_u_in => unload_rate_u,               &
-                              i_basal_melting_opt_in => i_basal_melting_opt,   &
                               i_basal_melting_opt_none,                        &
                               i_basal_melting_opt_instant,                     &
-                              i_grain_growth_opt_in => i_grain_growth_opt,     &
                               i_grain_growth_opt_marshall,                     &
                               i_grain_growth_opt_taillandier,                  &
-                              i_relayer_opt_in => i_relayer_opt,               &
                               i_relayer_opt_original,                          &
                               i_relayer_opt_inverse
   use jules_surface_config_mod, only :                                         &
@@ -153,9 +145,9 @@ contains
          buddy_sea, cdn_hw_sea, cdn_max_sea, u_cdn_hw, u_cdn_max,           &
          i_high_wind_drag, ip_hwdrag_null, ip_hwdrag_limited,               &
          ip_hwdrag_reduced_v1
-    use jules_snow_mod, only: cansnowpft, check_jules_snow, nsmax,          &
-         a_snow_et, b_snow_et, c_snow_et, can_clump, dzsnow,                &
-         frac_snow_subl_melt, i_snow_cond_parm, l_et_metamorph,             &
+    use jules_snow_mod, only: check_jules_snow, print_nlist_jules_snow,     &
+         cansnowpft, nsmax, a_snow_et, b_snow_et, c_snow_et, can_clump,     &
+         dzsnow, frac_snow_subl_melt, i_snow_cond_parm, l_et_metamorph,     &
          l_snow_infilt, l_snow_nocan_hc, l_snowdep_surf, lai_alb_lim_sn,    &
          n_lai_exposed, rho_snow_et_crit, rho_snow_fresh, snow_hcon,        &
          unload_rate_u, i_basal_melting_opt, i_grain_growth_opt,            &
@@ -352,24 +344,24 @@ contains
     a_snow_et              = 2.8e-6_r_um
     b_snow_et              = 0.042_r_um
     c_snow_et              = 0.046_r_um
-    can_clump(1:npft)      = real(can_clump_in, r_um)
-    cansnowpft(1:npft)     = cansnowpft_in(1:npft)
+    can_clump(1:npft)      = real(config%jules_snow%can_clump(), r_um)
+    cansnowpft(1:npft)     = config%jules_snow%cansnowpft()
     dzsnow(1:nsmax)        = (/ 0.04_r_um, 0.12_r_um, 0.34_r_um /)
     frac_snow_subl_melt    = 1
     graupel_options        = 2
-    select case (i_basal_melting_opt_in)
+    select case (config%jules_snow%i_basal_melting_opt())
       case(i_basal_melting_opt_none)
         i_basal_melting_opt = 0
       case(i_basal_melting_opt_instant)
         i_basal_melting_opt = 1
     end select
-    select case (i_grain_growth_opt_in)
+    select case (config%jules_snow%i_grain_growth_opt())
       case(i_grain_growth_opt_marshall)
         i_grain_growth_opt = 0
       case(i_grain_growth_opt_taillandier)
         i_grain_growth_opt = 1
     end select
-    select case (i_relayer_opt_in)
+    select case (config%jules_snow%i_relayer_opt())
       case(i_relayer_opt_original)
         i_relayer_opt = 0
       case(i_relayer_opt_inverse)
@@ -381,17 +373,18 @@ contains
     l_snow_nocan_hc        = .true.
     l_snowdep_surf         = .true.
     lai_alb_lim_sn(1:npft) = (/ 1.0_r_um, 1.0_r_um, 0.1_r_um, 0.1_r_um, 0.1_r_um /)
-    n_lai_exposed(1:npft)  = real(n_lai_exposed_in, r_um)
+    n_lai_exposed(1:npft)  = real(config%jules_snow%n_lai_exposed(), r_um)
     rho_snow_et_crit       = 150.0_r_um
-    rho_snow_fresh         = real(rho_snow_fresh_in, r_um)
+    rho_snow_fresh         = real(config%jules_snow%rho_snow_fresh(), r_um)
     snow_hcon              = 0.1495_r_um
-    unload_rate_u(1:npft)  = real(unload_rate_u_in, r_um)
+    unload_rate_u(1:npft)  = real(config%jules_snow%unload_rate_u(), r_um)
 
     ! Set the LFRic dimension
     snow_lev_tile = nsmax * n_land_tile
 
     ! Check the contents of the JULES snow parameters module
     ! This module sets some derived parameters
+    call print_nlist_jules_snow()
     call check_jules_snow()
 
     ! ----------------------------------------------------------------
