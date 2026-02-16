@@ -100,14 +100,6 @@ module jules_physics_init_mod
                               can_rad_mod_five, can_rad_mod_six,               &
                               l_limit_canhc_in => l_limit_canhc,               &
                               l_spec_veg_z0_in => l_spec_veg_z0
-  use jules_urban_config_mod, only :                                           &
-                             anthrop_heat_scale_in => anthrop_heat_scale,      &
-                             l_moruses_albedo_in => l_moruses_albedo,          &
-                             l_moruses_emissivity_in => l_moruses_emissivity,  &
-                             l_moruses_rough_in => l_moruses_rough,            &
-                             l_moruses_storage_in => l_moruses_storage,        &
-                             l_moruses_storage_thin_in => l_moruses_storage_thin
-
   ! UM modules used
   use jules_surface_types_mod, only : npft, nnvg, ntype, ncpft, nnpft
   use nlsizes_namelist_mod,    only : sm_levels, ntiles
@@ -157,6 +149,7 @@ contains
   !>          from the JULES code.
   !>        Other parameters and switches which are genuinely input variables,
   !>         via the LFRic namelists, are also set here for the JULES code.
+  !> @param[in] config   The config of the model run
   subroutine jules_physics_init(config)
 
     use config_mod,     only: config_type
@@ -582,12 +575,14 @@ contains
     ! JULES urban settings - contained in module jules_urban
     ! ----------------------------------------------------------------
 
-    anthrop_heat_scale     = anthrop_heat_scale_in
-    l_moruses_albedo       = l_moruses_albedo_in
-    l_moruses_emissivity   = l_moruses_emissivity_in
-    l_moruses_rough        = l_moruses_rough_in
-    l_moruses_storage      = l_moruses_storage_in
-    l_moruses_storage_thin = l_moruses_storage_thin_in
+    if ( config%jules_surface%l_urban2t() ) then
+      anthrop_heat_scale     = config%jules_urban%anthrop_heat_scale()
+      l_moruses_albedo       = config%jules_urban%l_moruses_albedo()
+      l_moruses_emissivity   = config%jules_urban%l_moruses_emissivity()
+      l_moruses_rough        = config%jules_urban%l_moruses_rough()
+      l_moruses_storage      = config%jules_urban%l_moruses_storage()
+      l_moruses_storage_thin = config%jules_urban%l_moruses_storage_thin()
+    end if
 
     call print_nlist_jules_urban()
     call check_jules_urban()
