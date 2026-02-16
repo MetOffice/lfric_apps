@@ -246,6 +246,7 @@ Simplified call tree for setting up I/O in LFRic_atm
 
 
 .. code-block:: rst
+  :class: small-code
 
   lfric_atm							(lfric_atm/lfric_atm.f90)
     │
@@ -277,8 +278,8 @@ Simplified call tree for setting up I/O in LFRic_atm
         │               │   │
         │               │   ├──persistor%init           		(gungho/driver/gungho_model_mod.F90)
         │               │   │
-        │               │   ├──process_gungho_prognostics(persistor)
-        │               │   │   │					(gungho/driver/create_gungho_prognostics_mod.F90)
+        │               │   ├──process_gungho_prognostics(persistor)	(gungho/driver/create_gungho_prognostics_mod.F90)
+        │               │   │   │
         │               │   │   └──persistor%apply(makespec())		(gungho/driver/gungho_model_mod.F90)
         │               │   │       │
         │               │   │       └──add_field			(components/lfric-xios/lfric_xios_metafile_mod.F90)
@@ -296,7 +297,8 @@ Simplified call tree for setting up I/O in LFRic_atm
         │
         └──create_model_data					(gungho/driver/gungho_init_fields_mod.X90)
             │
-            ├──field_mapper%init				(gungho/driver/field_mapper_mod.F90)          │
+            ├──field_mapper%init				(gungho/driver/field_mapper_mod.F90)
+            │
             └──create_gungho_prognostics			(gungho/driver/create_gungho_prognostics_mod.F90)
                 │
                 ├──creator%init					(gungho/driver/field_maker_mod.F90)
