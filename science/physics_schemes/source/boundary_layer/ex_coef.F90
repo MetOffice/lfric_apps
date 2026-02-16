@@ -565,7 +565,6 @@ end if
 if (l_use_var_fixes) then
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-   ! do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       turb_length(i,j,k) = lambda_min*rlambda_fac
     end do
@@ -623,28 +622,24 @@ if (Variable_RiC == on) then
     !--------------------------------------------
   case (sharpest)
 
-   ! do j = pdims%j_start, pdims%j_end
       !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
       !$OMP private( i )
       do i = pdims%i_start, pdims%i_end
         ricrit(i,j) = ricrit_sharp
       end do
       !$OMP end PARALLEL do
-   ! end do
 
     !--------------------------------------------
     ! LEM TAILS
     !--------------------------------------------
   case (lem_stability)
 
-    ! do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
       ricrit(i,j) = ric
     end do
     !$OMP end PARALLEL do
-    ! end do
 
     !--------------------------------------------
     ! SHARP over sea; longer tails over land
@@ -833,7 +828,6 @@ if (blending_option /= off) then
     end do
   end do
 !$OMP end PARALLEL do
-     ! end do
 end if
 !-----------------------------------------------------------------------
 ! 2.  Richardson Number based local mixing scheme
@@ -999,7 +993,6 @@ do k = 2, bl_levels
       end if
     end do
     !$OMP end PARALLEL do
-   ! end do
 
     !--------------------------------------------
     ! MESOSCALE MODEL TAILS
@@ -1055,7 +1048,6 @@ do k = 2, bl_levels
     !--------------------------------------------
   case (depth_based)
         ! long TAILS
-   ! do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
