@@ -24,32 +24,11 @@ module jules_physics_init_mod
                               i_sea_alb_method_jin,                            &
                               i_sea_alb_method_fixed
   use jules_sea_seaice_config_mod, only :                                      &
-                              iseasurfalg_in => iseasurfalg,                   &
                               iseasurfalg_coare,                               &
                               iseasurfalg_surf_div,                            &
-                              alpham_in => alpham,                             &
-                              dtice_in => dtice,                               &
-                              emis_sea_in => emis_sea,                         &
-                              emis_sice_in => emis_sice,                       &
-                              kappai_in => kappai,                             &
-                              kappai_snow_in => kappai_snow,                   &
-                              kappa_seasurf_in => kappa_seasurf,               &
-                              l_iceformdrag_lupkes_in => l_iceformdrag_lupkes, &
-                              l_stability_lupkes_in => l_stability_lupkes,     &
-                              l_sice_heatflux_in => l_sice_heatflux,           &
-                              l_10m_neut_in => l_10m_neut,                     &
-                              i_high_wind_drag_in => i_high_wind_drag,         &
                               i_high_wind_drag_null,                           &
                               i_high_wind_drag_limited,                        &
                               i_high_wind_drag_reduced_v1,                     &
-                              cdn_hw_sea_in => cdn_hw_sea,                     &
-                              cdn_max_sea_in => cdn_max_sea,                   &
-                              u_cdn_hw_in => u_cdn_hw,                         &
-                              u_cdn_max_in => u_cdn_max,                       &
-                              l_use_dtstar_sea_in => l_use_dtstar_sea,         &
-                              hcap_sea_in => hcap_sea,                         &
-                              beta_evap_in => beta_evap,                       &
-                              buddy_sea_in => buddy_sea,                       &
                               buddy_sea_on
   use jules_soil_config_mod, only :                                            &
                               l_dpsids_dsdz_in => l_dpsids_dsdz,               &
@@ -163,9 +142,10 @@ contains
          l_accurate_rho, l_fix_osa_chloro, l_fix_ustar_dust,            &
          correct_sea_only, l_fix_lake_ice_temperatures, l_fix_neg_snow
     use jules_sea_seaice_mod, only: nice, nice_use, iseasurfalg, emis_sea,  &
-         seasalinityfactor, ip_ss_surf_div, z0sice,                         &
-         z0h_z0m_sice, emis_sice, l_ctile, l_tstar_sice_new,                &
-         l_sice_heatflux, check_jules_sea_seaice, z0h_z0m_miz,              &
+         seasalinityfactor, ip_ss_surf_div, z0sice, z0h_z0m_sice,           &
+         emis_sice, l_ctile, l_tstar_sice_new, l_sice_heatflux,             &
+         check_jules_sea_seaice, print_nlist_jules_sea_seaice,              &
+         z0h_z0m_miz,                                                       &
          ip_ss_coare_mq, a_chrn_coare, b_chrn_coare, u10_max_coare,         &
          l_10m_neut, alpham, dtice, l_iceformdrag_lupkes,                   &
          l_stability_lupkes, l_use_dtstar_sea, hcap_sea, beta_evap,         &
@@ -284,21 +264,24 @@ contains
     ! JULES sea and sea-ice settings - contained in module jules_sea_seaice
     !                                   and c_kappai
     ! ----------------------------------------------------------------
-    kappai        = real(kappai_in, r_um)
-    kappai_snow   = real(kappai_snow_in, r_um)
-    kappa_seasurf = real(kappa_seasurf_in, r_um)
+    kappai        = real(config%jules_sea_seaice%kappai(), r_um)
+    kappai_snow   = real(config%jules_sea_seaice%kappai_snow(), r_um)
+    kappa_seasurf = real(config%jules_sea_seaice%kappa_seasurf(), r_um)
 
-    a_chrn_coare         = 0.0016_r_um
-    alpham               = real(alpham_in, r_um)
-    b_chrn_coare         = -0.0035_r_um
-    beta_evap            = real(beta_evap_in, r_um)
-    if (buddy_sea_in == buddy_sea_on) buddy_sea = on
-    cdn_hw_sea           = real(cdn_hw_sea_in, r_um)
-    cdn_max_sea          = real(cdn_max_sea_in, r_um)
-    dtice                = real(dtice_in, r_um)
-    emis_sea             = real(emis_sea_in, r_um)
-    emis_sice            = real(emis_sice_in, r_um)
-    select case (i_high_wind_drag_in)
+    a_chrn_coare  = 0.0016_r_um
+    alpham        = real(config%jules_sea_seaice%alpham(), r_um)
+    b_chrn_coare  = -0.0035_r_um
+    beta_evap     = real(config%jules_sea_seaice%beta_evap(), r_um)
+    select case (config%jules_sea_seaice%buddy_sea())
+    case( buddy_sea_on )
+      buddy_sea = on
+    end select
+    cdn_hw_sea    = real(config%jules_sea_seaice%cdn_hw_sea(), r_um)
+    cdn_max_sea   = real(config%jules_sea_seaice%cdn_max_sea(), r_um)
+    dtice         = real(config%jules_sea_seaice%dtice(), r_um)
+    emis_sea      = real(config%jules_sea_seaice%emis_sea(), r_um)
+    emis_sice     = real(config%jules_sea_seaice%emis_sice(), r_um)
+    select case ( config%jules_sea_seaice%i_high_wind_drag() )
       case(i_high_wind_drag_null)
         i_high_wind_drag = ip_hwdrag_null
       case(i_high_wind_drag_limited)
@@ -306,25 +289,27 @@ contains
       case(i_high_wind_drag_reduced_v1)
         i_high_wind_drag = ip_hwdrag_reduced_v1
     end select
-    select case (iseasurfalg_in)
+    select case ( config%jules_sea_seaice%iseasurfalg() )
       case(iseasurfalg_surf_div)
         iseasurfalg = ip_ss_surf_div
       case(iseasurfalg_coare)
         iseasurfalg = ip_ss_coare_mq
     end select
-    l_10m_neut           = l_10m_neut_in
+    l_10m_neut           = config%jules_sea_seaice%l_10m_neut()
     ! l_ctile is implicitly true by design of LFRic and should not be changed
     l_ctile              = .true.
-    l_iceformdrag_lupkes = l_iceformdrag_lupkes_in
-    l_stability_lupkes   = l_stability_lupkes_in
-    l_sice_heatflux      = l_sice_heatflux_in
+    l_iceformdrag_lupkes = config%jules_sea_seaice%l_iceformdrag_lupkes()
+    l_stability_lupkes   = config%jules_sea_seaice%l_stability_lupkes()
+    l_sice_heatflux      = config%jules_sea_seaice%l_sice_heatflux()
     ! Code has not been included to support this being false as configurations
     ! should be moving to the new code
-    l_use_dtstar_sea     = l_use_dtstar_sea_in
-    if (l_use_dtstar_sea) hcap_sea = real(hcap_sea_in, r_um)
+    l_use_dtstar_sea     = config%jules_sea_seaice%l_use_dtstar_sea()
+    if ( config%jules_sea_seaice%l_use_dtstar_sea() ) then
+      hcap_sea = real(config%jules_sea_seaice%hcap_sea(), r_um)
+    end if
     seasalinityfactor    = 0.98_r_um
-    u_cdn_hw             = real(u_cdn_hw_in, r_um)
-    u_cdn_max            = real(u_cdn_max_in, r_um)
+    u_cdn_hw             = real(config%jules_sea_seaice%u_cdn_hw(), r_um)
+    u_cdn_max            = real(config%jules_sea_seaice%u_cdn_max(), r_um)
     u10_max_coare        = 22.0_r_um
     z0h_z0m_miz          = 0.2_r_um
     z0h_z0m_sice         = 0.2_r_um
@@ -359,6 +344,7 @@ contains
     end if
 
     ! Check the contents of the sea_seaice parameters module
+    call print_nlist_jules_sea_seaice()
     call check_jules_sea_seaice()
 
     ! ----------------------------------------------------------------
