@@ -1,9 +1,10 @@
 import argparse
+import logging
 import os
 import yaml
 from pathlib import Path
+from shutil import copytree
 from get_git_sources import clone_and_merge, run_command
-import logging
 
 
 def load_yaml(fpath: Path) -> dict:
@@ -17,7 +18,43 @@ def load_yaml(fpath: Path) -> dict:
     return sources
 
 
-def extract_files(dependencies: dict, extract_lists: dict, working: Path) -> None:
+def copy_rose_meta(working: Path, clone_loc: Path) -> None:
+    """
+    Copy rose-meta contents from extracted dependency to working/../rose-meta
+    """
+
+    rose_meta_orig = clone_loc / "rose-meta"
+    rose_meta_dest = working.parent / "rose-meta"
+
+    for directory in rose_meta_orig.iterdir():
+        copytree(directory, rose_meta_dest / directory.name, dirs_exist_ok=True)
+
+
+def copy_extracted_files(dependency: str, extract_lists: dict, working: Path, clone_loc: Path) -> None:
+    """
+    Copy extracted files to the working dir based on extract list
+    """
+
+    files = extract_lists[dependency]
+
+    # make the working directory location
+    working_dir = working / dependency
+    working_dir.mkdir(parents=True, exist_ok=True)
+
+    # rsync extract files from clone loc to the working directory
+    copy_command = "rsync --include='**/' "
+    for extract_file in files:
+        if not extract_file:
+            continue
+        if Path(clone_loc / extract_file).is_dir():
+            extract_file = extract_file.rstrip("/")
+            extract_file += "/**"
+        copy_command += f"--include='{extract_file}' "
+    copy_command += f"--exclude='*' -avmq {clone_loc}/ {working_dir}"
+    run_command(copy_command)
+
+
+def extract_files(dependencies: dict, rose_meta: bool, extract_lists: dict, working: Path) -> None:
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
@@ -29,9 +66,8 @@ def extract_files(dependencies: dict, extract_lists: dict, working: Path) -> Non
     mirror_loc = Path(mirror_loc)
 
     for dependency, sources in dependencies.items():
-        if dependency not in extract_lists:
+        if dependency not in extract_lists and dependency != rose_meta:
             continue
-        files = extract_lists[dependency]
 
         # If the PHYSICS_ROOT environment variable is provided, then use sources there
         if "PHYSICS_ROOT" in os.environ and Path(os.environ["PHYSICS_ROOT"]).exists():
@@ -40,21 +76,11 @@ def extract_files(dependencies: dict, extract_lists: dict, working: Path) -> Non
             clone_loc = working.parent / "scratch" / dependency
             clone_and_merge(dependency, sources, clone_loc, use_mirrors, mirror_loc)
 
-        # make the working directory location
-        working_dir = working / dependency
-        working_dir.mkdir(parents=True, exist_ok=True)
+    if rose_meta:
+        copy_rose_meta(working, clone_loc)
+    else:
+        copy_extracted_files(dependency, extract_lists, working, clone_loc)
 
-        # rsync extract files from clone loc to the working directory
-        copy_command = "rsync --include='**/' "
-        for extract_file in files:
-            if not extract_file:
-                continue
-            if Path(clone_loc / extract_file).is_dir():
-                extract_file = extract_file.rstrip("/")
-                extract_file += "/**"
-            copy_command += f"--include='{extract_file}' "
-        copy_command += f"--exclude='*' -avmq {clone_loc}/ {working_dir}"
-        run_command(copy_command)
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,6 +102,15 @@ def parse_args() -> argparse.Namespace:
         default="./extract.yaml",
         help="Path to file containing extract lists",
     )
+    parser.add_argument(
+        "-r",
+        "--rose_meta",
+        type="str",
+        default="",
+        help="Should be a repository in the dependencies file. If set, copy the "
+        "dependencies rose-meta directory contents to working/../rose-meta. "
+        "If set, the extract file will be ignored, and just rose-metadata copied"
+    )
 
     args = parser.parse_args()
     args.working = Path(args.working)
@@ -87,10 +122,12 @@ def main():
 
     logging.basicConfig(level=logging.INFO)
 
-    extract_lists: dict = load_yaml(args.extract)
     dependencies: dict = load_yaml(args.dependencies)
 
-    extract_files(dependencies, extract_lists, args.working)
+    if args.rose_meta:
+        extract_files(dependencies, True, [], args.working)
+    else:
+        extract_files(dependencies, False, load_yaml(args.extract), args.working)
 
 
 if __name__ == "__main__":
