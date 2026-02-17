@@ -79,6 +79,7 @@ module transport_controller_mod
     integer(kind=i_def) :: outer
     logical(kind=l_def) :: cheap_update_step = .false.
     logical(kind=l_def) :: adaptive_splitting = .false.
+    logical(kind=l_def) :: make_tracers_advective = .false.
     integer(kind=i_def) :: reference_splitting = IMDI
     integer(kind=i_def) :: max_courant_num = 0
     logical(kind=l_def) :: dep_stencil_extent_computed = .false.
@@ -505,6 +506,7 @@ contains
     self%outer_set = .false.
     self%cheap_update_step = .false.
     self%adaptive_splitting = .false.
+    self%make_tracers_advective = .false.
     self%reference_splitting = IMDI
     self%dep_stencil_extent_computed = .false.
     call self%counter%finalise()
@@ -534,6 +536,7 @@ contains
 
     use transport_config_mod,           only: ffsl_unity_3d,                   &
                                               adjust_vhv_wind,                 &
+                                              adjust_tracer_equation,          &
                                               substep_transport,               &
                                               substep_transport_two,           &
                                               substep_transport_four,          &
@@ -660,23 +663,34 @@ contains
                   LOG_LEVEL_WARNING                                            &
           )
 
-          call log_event(                                                      &
-            'The Watkins algorithm failed to keep all reference fields ' //    &
-            'positive for the transport of tracers. This makes it ' //         &
-            'impossible to find sensible departure distances for (Flux ' //    &
-            'Form) Semi-Lagrangian transport. Stopping now to fail ' //        &
-            'gracefully.' // NEW_LINE('A') // NEW_LINE('A') //                 &
-            'This is a common way for the model to fail. Most likely the ' //  &
-            'transporting wind passed to the transport scheme has some ' //    &
-            'unphysical values, and the corresponding maximum Lipschitz ' //   &
-            'number exceeds 1 somewhere, so check these values in the log ' // &
-            'above, which may also indicate the geographical location of ' //  &
-            'the issue.' //                                                    &
-            NEW_LINE('A') // NEW_LINE('A') //                                  &
-            'If this failure has occurred in the first timestep, it can ' //   &
-            'signify issues with the initial conditions or ancillaries.',      &
-            LOG_LEVEL_ERROR                                                    &
-          )
+          if (adjust_tracer_equation) then
+            ! Use advective form for tracer transport instead of consistent form
+            call log_event(                                                    &
+              'Reference field for tracer transport is negative, so ' //       &
+              'making all tracers advective for this step. This will ' //      &
+              'make tracer transport non-conservative. ', LOG_LEVEL_INFO       &
+            )
+            self%make_tracers_advective = .true.
+          else
+            ! Fail gracefully
+            call log_event(                                                    &
+              'The Watkins algorithm failed to keep all reference fields ' //  &
+              'positive for the transport of tracers. This makes it ' //       &
+              'impossible to find sensible departure distances for (Flux ' //  &
+              'Form) Semi-Lagrangian transport. Stopping now to fail ' //      &
+              'gracefully.' // NEW_LINE('A') // NEW_LINE('A') //               &
+              'This is a common way for the model to fail. Most likely ' //    &
+              'the transporting wind passed to the transport scheme has ' //   &
+              'some unphysical values, and the corresponding maximum ' //      &
+              'Lipschitz number exceeds 1 somewhere, so check these ' //       &
+              'values in the log above, which may also indicate the ' //       &
+              'geographical location of the issue.' //                         &
+              NEW_LINE('A') // NEW_LINE('A') //                                &
+              'If this failure has occurred in the first timestep, it can ' // &
+              'signify issues with the initial conditions or ancillaries.',    &
+              LOG_LEVEL_ERROR                                                  &
+            )
+          end if
         end if
 
       else
@@ -710,7 +724,8 @@ contains
     ! Initialise counter
     if (self%outer_set) then
       call self%metadata%update_metadata(                                      &
-              self%outer, self%adaptive_splitting, self%reference_splitting    &
+              self%outer, self%adaptive_splitting, self%reference_splitting,   &
+              self%make_tracers_Advective                                      &
       )
       call self%counter%initialise(                                            &
               self%metadata, self%dt_substep, self%num_substeps, self%outer    &

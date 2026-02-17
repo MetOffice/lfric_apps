@@ -20,6 +20,8 @@ Core](https://github.com/MetOffice/lfric_core) repository.
 In development documentation for LFRic Apps is available at:
 [https://metoffice.github.io/lfric_apps](https://metoffice.github.io/lfric_apps)
 
+The LFRic Apps release schedule and deadlines can be viewed in the [milestones](https://github.com/metoffice/lfric_apps/milestones).
+
 Example standalone scientific suites for use with Met Office systems are
 available at:
 

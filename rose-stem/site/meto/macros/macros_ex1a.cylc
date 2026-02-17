@@ -74,16 +74,24 @@
         {% set lfric_nodes = possible_nodes %}
 
     {% endif %}
+    {% if site_vars["ex_trustzone"] == "collab" %}
+            -q=collab
+    {% else %}
             -q=normal
+    {% endif %}
             -l select={{ lfric_nodes +
                          ocean_nodes|int +
                          river_nodes|int +
-                         xios_nodes|int }}:coretype={{site_vars.node_type}}:mem={{site_vars.node_mem}}GB
+                         xios_nodes|int }}:coretype={{site_vars.node_type}}:mem={{site_vars.node_mem}}GB{{site_vars.crayhost}}
 {% endmacro %}
 
 
 {% macro shared_queue(cores) %}
+    {% if site_vars["ex_trustzone"] == "collab" %}
+            -q=collabshared
+    {% else %}
             -q=shared
+    {% endif %}
             -l ncpus={{ cores }}
 
 {% endmacro %}
