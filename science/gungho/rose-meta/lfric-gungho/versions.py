@@ -135,7 +135,6 @@ class vn30_t171(MacroUpgrade):
         self.add_setting(
             config, ["namelist:transport", "adjust_tracer_equation"], ".false."
         )
-
         return config, self.reports
 
 
@@ -146,7 +145,10 @@ class vn30_t214(MacroUpgrade):
     AFTER_TAG = "vn3.0_t214"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
         """Set segments configuration to true."""
-        self.change_setting_value(config, ["namelist:physics", "configure_segments"], ".true.")
+        self.change_setting_value(
+            config, ["namelist:physics", "configure_segments"], ".true."
+        )
 
         return config, self.reports
