@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 
 !> Test the vertical linear interpolation kernel
-module lfric2lfric_vertical_linear_interpolation_kernel_mod_test
+module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
 
   use constants_mod,                       only : r_def, i_def
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
@@ -23,12 +23,12 @@ module lfric2lfric_vertical_linear_interpolation_kernel_mod_test
 @Test
   subroutine test_all()
   
-    use lfric2lfric_vertical_linear_interpolation_kernel_mod, only: lfric2lfric_vertical_linear_interpolation_kernel_code
+    use lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod, only: lfric2lfric_vertical_linear_interp_linear_extrap_kernel_code
 
     implicit none
 
-    integer(kind=i_def)    :: nlayers
-    integer(kind=i_def)    :: ncell
+    integer(kind=i_def)               :: nlayers
+    integer(kind=i_def)               :: ncell
     integer(kind=i_def)               :: dim_space, dim_space_diff, nqp_h, nqp_v
     integer(kind=i_def), parameter    :: source_layers
     integer(kind=i_def), parameter    :: ndf_dest, ndf_source
@@ -39,8 +39,9 @@ module lfric2lfric_vertical_linear_interpolation_kernel_mod_test
     real(kind=r_single), allocatable  :: source_field(:)
     real(kind=r_single), allocatable  :: dest_heights(:)
     real(kind=r_single), allocatable  :: source_heights(:)
+    real(r_def), parameter            :: tol = 1.0e-12_r_def
 
-    nlayers  = 5_i_def
+    nlayers  = 3_i_def
     source_layers = 4_i_def
     call get_w3_m3x3_q3x3x3_size( ndf_source, undf_source,           &
                                   ncell,                    &
@@ -74,6 +75,17 @@ module lfric2lfric_vertical_linear_interpolation_kernel_mod_test
     (SHARKS_1E, SHARKS_2E, SHARKS_3E, SHARKS_4E),
     (SHARKS_1F, SHARKS_2F, SHARKS_3F, SHARKS_4F)
     /)
+    expected_field = (/&
+    (SHARKS_1A, SHARKS_2A, SHARKS_3A),
+    (SHARKS_1B, SHARKS_2B, SHARKS_3B),
+    (SHARKS_1C, SHARKS_2C, SHARKS_3C),
+    (0.5_r_def, 1.5_r_def, 2.5_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (SHARKS_1D, SHARKS_2D, SHARKS_3D),
+    (SHARKS_1E, SHARKS_2E, SHARKS_3E),
+    (SHARKS_1F, SHARKS_2F, SHARKS_3F)
+    /)
     source_heights = (/&
     (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
     (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
@@ -86,13 +98,34 @@ module lfric2lfric_vertical_linear_interpolation_kernel_mod_test
     (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def)    
     /)
     dest_heights = (/&
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
-    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
     /)
+
+    call lfric2lfric_vertical_linear_interp_linear_extrap_code_r_single(         &
+                                      nlayers,                            &
+                                      destination_field,                  &
+                                      source_field,                       &
+                                      source_layers,                      &
+                                      ncell,                              &
+                                      dest_heights,                       &
+                                      source_heights,                     &
+                                      ndf_dest,                           &
+                                      undf_dest,                          &
+                                      map_dest,                           &
+                                      ndf_source,                         &
+                                      undf_source,                        &
+                                      map_source)
+
+    @assertEqual(expected_field, destination_field, tol)
+
+  end subroutine test_all
+
+end module
