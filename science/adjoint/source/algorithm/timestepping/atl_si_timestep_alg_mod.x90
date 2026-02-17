@@ -44,6 +44,8 @@ module atl_si_timestep_alg_mod
   use rhs_alg_mod,                         only: rhs_alg
   use atl_rhs_alg_mod,                     only: atl_rhs_alg
   use gungho_transport_control_alg_mod,    only: gungho_transport_control_alg
+  use adj_solver_lookup_cache_mod,         only: adj_solver_lookup_cache_type
+  use adj_trans_lookup_cache_mod,          only: adj_trans_lookup_cache_type
   use atl_transport_control_alg_mod,       only: atl_transport_control_alg
   use si_operators_alg_mod,                only: compute_si_operators
   use semi_implicit_solver_alg_mod,        only: semi_implicit_solver_alg_step
@@ -112,6 +114,10 @@ module atl_si_timestep_alg_mod
 
     ! Moisture flag
     logical(l_def) :: use_moisture
+
+    ! Adjoint lookup tables
+    type(adj_solver_lookup_cache_type) :: adj_solver_lookup_cache
+    type(adj_trans_lookup_cache_type) :: adj_trans_lookup_cache
 
     contains
 
@@ -270,7 +276,10 @@ contains
       call set_bundle_scalar( 0.0_r_def, self%ls_mr_after_slow, nummr )
     end if
 
-    call self%adj_semi_implicit_solver%initialise(self%state)
+    call self%adj_solver_lookup_cache%initialise(u%get_mesh())
+    call self%adj_trans_lookup_cache%initialise(u%get_mesh())
+
+    call self%adj_semi_implicit_solver%initialise(self%state, self%adj_solver_lookup_cache)
 
     call log_event( "atl_si_timestep_type%init: initialised timestepping algorithm", LOG_LEVEL_INFO )
 
@@ -686,7 +695,8 @@ contains
                                       self%ls_state_n(igh_u),               &
                                       self%ls_mr_after_slow,                &
                                       modeldb%clock,                        &
-                                      outer ) ! advected_state finished with
+                                      outer,                                &
+                                      self%adj_trans_lookup_cache ) ! advected_state finished with
 
     end do outer_dynamics_loop
     !---------------------------------------------------------------------------
@@ -784,6 +794,9 @@ contains
     if (allocated(self%ls_mr_inc))           deallocate(self%ls_mr_inc)
     if (allocated(self%ls_mr_itns))          deallocate(self%ls_mr_itns)
     if (allocated(self%ls_moist_dyn_itns))   deallocate(self%ls_moist_dyn_itns)
+
+    call self%adj_solver_lookup_cache%finalise()
+    call self%adj_trans_lookup_cache%finalise()
 
     return
 

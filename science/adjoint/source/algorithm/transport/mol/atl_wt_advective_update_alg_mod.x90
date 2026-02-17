@@ -48,21 +48,23 @@ contains
 
   !=============================================================================
   !> @brief Compute advective update of a Wtheta field for adjoint app.
-  !> @param[in,out] rhs                 ACTIVE Change in Advective increment
-  !> @param[in]     adv_field           ACTIVE Change in Field to advect
-  !> @param[in]     wind                ACTIVE Change in Advecting wind field
-  !> @param[in]     ls_adv_field        Lin state for Field to advect
-  !> @param[in]     ls_wind             Lin state for Advecting wind field
-  !> @param[in]     dt                  Timestep
-  !> @param[in]     direction           Direction of the transport
-  !> @param[in]     transport_metadata  Contains transport configuration options
-  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine atl_wt_advective_update_alg( rhs, adv_field, wind,    &
-                                          ls_adv_field, ls_wind,   &
-                                          dt, direction,           &
-                                          transport_metadata, final_rk_stage )
+  !> @param[in,out] rhs                     ACTIVE Change in Advective increment
+  !> @param[in]     adv_field               ACTIVE Change in Field to advect
+  !> @param[in]     wind                    ACTIVE Change in Advecting wind field
+  !> @param[in]     ls_adv_field            Lin state for Field to advect
+  !> @param[in]     ls_wind                 Lin state for Advecting wind field
+  !> @param[in]     dt                      Timestep
+  !> @param[in]     direction               Direction of the transport
+  !> @param[in]     transport_metadata      Contains transport configuration options
+  !> @param[in]     final_rk_stage          Whether this is the last Runge-Kutta stage
+  !> @param[in]     adj_lookup_table_cache  Lookup table cache
+  subroutine atl_wt_advective_update_alg( rhs, adv_field, wind,               &
+                                          ls_adv_field, ls_wind,              &
+                                          dt, direction,                      &
+                                          transport_metadata, final_rk_stage, &
+                                          adj_lookup_table_cache )
 
-
+    use adj_trans_lookup_cache_mod,      only : adj_trans_lookup_cache_type
     use reference_element_mod,           only : reference_element_type
     use mesh_mod,                        only : mesh_type
     use adj_wt_advective_update_alg_mod, only : adj_hori_wt_update_alg
@@ -70,13 +72,14 @@ contains
 
     implicit none
 
-    type(field_type),              intent(inout) :: adv_field, wind
-    type(field_type),              intent(in)    :: ls_adv_field, ls_wind
-    type(field_type),              intent(inout) :: rhs
-    real(kind=r_def),              intent(in)    :: dt
-    integer(kind=i_def),           intent(in)    :: direction
-    type(transport_metadata_type), intent(in)    :: transport_metadata
-    logical(kind=l_def),           intent(in)    :: final_rk_stage
+    type(field_type),                  intent(inout) :: adv_field, wind
+    type(field_type),                  intent(in)    :: ls_adv_field, ls_wind
+    type(field_type),                  intent(inout) :: rhs
+    real(kind=r_def),                  intent(in)    :: dt
+    integer(kind=i_def),               intent(in)    :: direction
+    type(transport_metadata_type),     intent(in)    :: transport_metadata
+    logical(kind=l_def),               intent(in)    :: final_rk_stage
+    type(adj_trans_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     type(field_type)                       :: u_grad_f
     type(field_type)                       :: wind_v
@@ -134,7 +137,8 @@ contains
 
         ! Horizontal update
         call atl_hori_wt_update_alg( u_grad_f, wind_h, ls_wind_h, ls_adv_field, transport_metadata )
-        call adj_hori_wt_update_alg( u_grad_f, ls_wind_h, ls_wind_h, adv_field, transport_metadata )
+        call adj_hori_wt_update_alg( u_grad_f, ls_wind_h, ls_wind_h, adv_field, transport_metadata, &
+                                     adj_lookup_table_cache )
 
         call invoke( adj_split_w2_field_kernel_type(wind_h, wind_v, wind,          &
                                                     face_selector_ew,              &
@@ -143,7 +147,8 @@ contains
 
       case ( direction_h )
         call atl_hori_wt_update_alg( u_grad_f, wind, ls_wind, ls_adv_field, transport_metadata )
-        call adj_hori_wt_update_alg( u_grad_f, ls_wind, ls_wind, adv_field, transport_metadata )
+        call adj_hori_wt_update_alg( u_grad_f, ls_wind, ls_wind, adv_field, transport_metadata, &
+                                     adj_lookup_table_cache )
 
 
       case ( direction_v )
