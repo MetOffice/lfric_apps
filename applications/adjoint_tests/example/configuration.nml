@@ -226,7 +226,7 @@ ls_read_w2h=.false.,
 max_bl_stabilisation=0.75,
 n_bl_levels_to_stabilise=15,
 pert_option='file',
-transport_efficiency=.false.
+transport_efficiency=.true.
 /
 &logging
 log_to_rank_zero_only=.false.,
