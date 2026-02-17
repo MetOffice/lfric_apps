@@ -1284,9 +1284,9 @@ if ( l_converge_ga ) then
     do i = pdims%i_start, pdims%i_end
       ! Updated gradient-adjusted db is non-adjusted value + ga_fac times
       ! the original adjustment.
-      db_ga_dry_n(i,j,k) = db_noga_dry(i,j,k)                                &
+      db_ga_dry_n(i,j,k) = db_noga_dry(i,j,k)                                  &
         + ( db_ga_dry(i,j,k) - db_noga_dry(i,j,k) ) * ga_fac(i,j)
-      db_ga_cld_n(i,j,k) = db_noga_cld(i,j,k)                                &
+      db_ga_cld_n(i,j,k) = db_noga_cld(i,j,k)                                  &
         + ( db_ga_cld(i,j,k) - db_noga_cld(i,j,k) ) * ga_fac(i,j)
     end do
   end do
@@ -1310,7 +1310,7 @@ do ii = pdims%j_start, pdims%i_end, bl_segment_size
   do k = 2, bl_levels
     do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
       if (kstatus(i,j)) then
-        if ( (db_ga_dry_n(i,j,k) <=  zero) .or.                              &
+        if ( (db_ga_dry_n(i,j,k) <=  zero) .or.                                &
               (k >= ntml(i,j)) ) then
           kstatus(i,j)=.false.
           kwb0(i,j)=k
@@ -1532,19 +1532,19 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             z_ratio = z_pr/zinv_pr(i,j)
 
             if (flux_grad  ==  LockWhelan2006) then
-              khtop(i,j) = 3.6_r_bl * vkman * rho_mix(i,j,k) *v_ktop(i,j)    &
-                                * zinv_pr(i,j) * (z_ratio**3)                &
+              khtop(i,j) = 3.6_r_bl * vkman * rho_mix(i,j,k) *v_ktop(i,j)      &
+                                * zinv_pr(i,j) * (z_ratio**3)                  &
                                 * ( (one-z_ratio)*(one-z_ratio) )
-              f2 = rho_mix(i,j,k) * one_half * z_ratio                       &
+              f2 = rho_mix(i,j,k) * one_half * z_ratio                         &
                                         * 2.0_r_bl**( z_ratio**4 )
               if ( v_ksum(i,j)  >   zero ) then
-                fsc = rho_mix(i,j,k) * 3.5_r_bl*(v_ktop(i,j)/v_ksum(i,j))    &
+                fsc = rho_mix(i,j,k) * 3.5_r_bl*(v_ktop(i,j)/v_ksum(i,j))      &
                       * (z_ratio**3) * (one-z_ratio)
               end if
             else
               ! max to avoid rounding errors giving small negative numbers
-              khtop(i,j) = g1 * vkman * rho_mix(i,j,k) * v_ktop(i,j)         &
-                              * ((max(one - z_ratio,zero))**0.8_r_bl)        &
+              khtop(i,j) = g1 * vkman * rho_mix(i,j,k) * v_ktop(i,j)           &
+                              * ((max(one - z_ratio,zero))**0.8_r_bl)          &
                               * z_pr * z_ratio
             end if
           end if
@@ -1554,8 +1554,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             !--------------------------------
             ! include surface-driven profile
             !--------------------------------
-            khsurf(i,j) = vkman * rho_mix(i,j,k) *                           &
-                      w_h_top(i,j)*z_pr*( one - z_pr/z_inv(i,j) )            &
+            khsurf(i,j) = vkman * rho_mix(i,j,k) *                             &
+                      w_h_top(i,j)*z_pr*( one - z_pr/z_inv(i,j) )              &
                                        *( one - z_pr/z_inv(i,j) )
           end if
 
@@ -1566,42 +1566,42 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
           if ( z_tq(i,j,k)  <=  z_cbase(i,j) ) then
             ! Completely below cloud-base so use cloud-free formula
-            wb_scld = khsurf(i,j) * db_ga_dry_n(i,j,k) +                     &
+            wb_scld = khsurf(i,j) * db_ga_dry_n(i,j,k) +                       &
                       khtop(i,j) * db_noga_dry(i,j,k)
             if (flux_grad  ==  LockWhelan2006) then
-              wb_scld = wb_scld + ( g/rdz(i,j,k) ) *                         &
+              wb_scld = wb_scld + ( g/rdz(i,j,k) ) *                           &
                 ( btm(i,j,k-1)*wslng + bqm(i,j,k-1)*wqwng )
             end if
             wb_cld  = zero
           else if (z_tq(i,j,k-1)  >=  z_cbase(i,j)) then
             ! Completely above cloud-base so use cloudy formula
-            wb_cld = ( khsurf(i,j) * db_ga_cld_n(i,j,k) +                    &
+            wb_cld = ( khsurf(i,j) * db_ga_cld_n(i,j,k) +                      &
                         khtop(i,j)  * db_noga_cld(i,j,k) )
             if (flux_grad  ==  LockWhelan2006) then
-              wb_cld = wb_cld + ( g/rdz(i,j,k) ) * (                         &
-                        ( btm(i,j,k-1)*(one-cf_ml(i,j)) +                    &
-                          btm_cld(i,j,k-1)*cf_ml(i,j) )*wslng +              &
-                        ( bqm(i,j,k-1)*(one-cf_ml(i,j)) +                    &
+              wb_cld = wb_cld + ( g/rdz(i,j,k) ) * (                           &
+                        ( btm(i,j,k-1)*(one-cf_ml(i,j)) +                      &
+                          btm_cld(i,j,k-1)*cf_ml(i,j) )*wslng +                &
+                        ( bqm(i,j,k-1)*(one-cf_ml(i,j)) +                      &
                           bqm_cld(i,j,k-1)*cf_ml(i,j) )*wqwng )
             end if
             wb_scld = zero
           else
             ! cloud-base within this integration range
             ! so treat cloud and sub-cloud layer wb separately
-            wb_scld = khsurf(i,j) * db_ga_dry_n(i,j,k) +                     &
+            wb_scld = khsurf(i,j) * db_ga_dry_n(i,j,k) +                       &
                       khtop(i,j) * db_noga_dry(i,j,k)
-            wb_cld = ( khsurf(i,j) * db_ga_cld_n(i,j,k) +                    &
+            wb_cld = ( khsurf(i,j) * db_ga_cld_n(i,j,k) +                      &
                         khtop(i,j)  * db_noga_cld(i,j,k) )
             if (flux_grad  ==  LockWhelan2006) then
-              wb_scld = wb_scld + ( g/rdz(i,j,k) ) *                         &
+              wb_scld = wb_scld + ( g/rdz(i,j,k) ) *                           &
                 ( btm(i,j,k-1)*wslng + bqm(i,j,k-1)*wqwng )
-              wb_cld = wb_cld + ( g/rdz(i,j,k) ) * (                         &
-                        ( btm(i,j,k-1)*(one-cf_ml(i,j)) +                    &
-                          btm_cld(i,j,k-1)*cf_ml(i,j) )*wslng +              &
-                        ( bqm(i,j,k-1)*(one-cf_ml(i,j)) +                    &
+              wb_cld = wb_cld + ( g/rdz(i,j,k) ) * (                           &
+                        ( btm(i,j,k-1)*(one-cf_ml(i,j)) +                      &
+                          btm_cld(i,j,k-1)*cf_ml(i,j) )*wslng +                &
+                        ( bqm(i,j,k-1)*(one-cf_ml(i,j)) +                      &
                           bqm_cld(i,j,k-1)*cf_ml(i,j) )*wqwng )
             end if
-            cld_frac = (z_tq(i,j,k)-z_cbase(i,j))                            &
+            cld_frac = (z_tq(i,j,k)-z_cbase(i,j))                              &
                       /(z_tq(i,j,k)-z_tq(i,j,k-1))
             wb_cld  = cld_frac * wb_cld
             wb_scld = (one-cld_frac) * wb_scld
@@ -1610,7 +1610,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
           if ( dzrad_disc_opt == dzrad_1p5dz .and. k == ntop(i,j) ) then
             ! At top of Sc layer, only include the part of the integral
             ! that is below the radiatively-cooled cloud-top layer.
-            interp = ( z_inv(i,j) - dzrad(i,j) - z_tq(i,j,k-1) )             &
+            interp = ( z_inv(i,j) - dzrad(i,j) - z_tq(i,j,k-1) )               &
                     / ( z_tq(i,j,k) - z_tq(i,j,k-1) )
             wb_cld  = wb_cld  * interp
             wb_scld = wb_scld * interp
@@ -1847,13 +1847,13 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     ! (not clear precisely how to define this here: for now use
     !  KSURF calculated from ZH)
     !-----------------------------------------------------------
-    z_bot_lim(i,j)=z_uv(i,j,ksurf(i,j)+1)                                    &
+    z_bot_lim(i,j)=z_uv(i,j,ksurf(i,j)+1)                                      &
             + 0.1_r_bl * (z_uv(i,j,ksurf(i,j)+2)-z_uv(i,j,ksurf(i,j)+1))
     if ( l_converge_ga ) then
       ! Allow K-surf to go up to the Sc-top (increasing zsml_top within
       ! the cloud-top layer can still make the buoyancy fluxes below more
       ! negative because this reduces the gradient adjustment)
-      z_top_lim(i,j)=max( z_top_lim(i,j),                                    &
+      z_top_lim(i,j)=max( z_top_lim(i,j),                                      &
                           max( z_bot_lim(i,j), zhsc(i,j) ) )
       ! ksurf_iterate currently only true if test_well_mixed was true and
       ! decoupling was diagnosed
@@ -1870,7 +1870,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     else  ! ( .not. l_converge_ga )
       ! limit K-surf to below cloud-top radiatively cooled layer
       ! or original zh (held in z_top_lim) if no top-driven turbulence
-      z_top_lim(i,j)=max( z_top_lim(i,j),                                    &
+      z_top_lim(i,j)=max( z_top_lim(i,j),                                      &
                           max( z_bot_lim(i,j), zhsc(i,j) - dzrad(i,j) ) )
       ! Always use saturated wb above decoupled-layer cloud-base
       z_cbase(i,j) = zhsc(i,j) - zc_dsc(i,j)
@@ -1901,7 +1901,7 @@ if (kprof_cu == buoy_integ .or. kprof_cu == buoy_integ_low) then
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-    if ( cumulus(i,j) .and. .not. dsc(i,j) .and.                             &
+    if ( cumulus(i,j) .and. .not. dsc(i,j) .and.                               &
                             .not. ksurf_iterate(i,j)) then
       ! pure cumulus layer and necessary parameters not already set up
       ksurf_iterate(i,j)  = .true.
@@ -1910,7 +1910,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       z_bot_lim(i,j) = lcl_fac*z_lcl(i,j)  ! ...a fraction of the LCL and...
       z_top_lim(i,j) = z_lcl(i,j) + 1000.0_r_bl ! ...1km above the LCL
       ntop(i,j)=ntml(i,j)
-      do while ( z_uv(i,j,ntop(i,j)+1) <= z_top_lim(i,j) .and.               &
+      do while ( z_uv(i,j,ntop(i,j)+1) <= z_top_lim(i,j) .and.                 &
                   ntop(i,j)+1 < bl_levels-2 )
         ntop(i,j) = ntop(i,j) + 1  ! z_uv(ntop+1) > z_top_lim
       end do
@@ -1921,7 +1921,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       ! up depth of layer within which it is allowed:
       ! Start with ZSML_TOP at lower limit and work upwards
       !-----------------------------------------------------
-      z_inc(i,j)=(z_top_lim(i,j)-z_bot_lim(i,j))                             &
+      z_inc(i,j)=(z_top_lim(i,j)-z_bot_lim(i,j))                               &
                     / real(n_steps, r_bl)
       zsml_top(i,j) = z_bot_lim(i,j)
       wb_ratio(i,j) = dec_thres(i,j) - one ! to be < DEC_THRES
@@ -2668,11 +2668,11 @@ if (model_type == mt_single_column) then
       ! convert to m2/s-3
       if ( k <= ntop(i,j) ) then
         if ( k <= ksurf(i,j) ) then
-          gamma_wbs = ( (wbmix(i,j,ksurf(i,j))/z_tq(i,j,ksurf(i,j)))         &
+          gamma_wbs = ( (wbmix(i,j,ksurf(i,j))/z_tq(i,j,ksurf(i,j)))           &
                     - bflux_surf(i,j)  )*2.0_r_bl/z_tq(i,j,ksurf(i,j))
           wbmix(i,j,k) = bflux_surf(i,j) + gamma_wbs*z_uv(i,j,k)
 
-          gamma_wbs = ( (wbend(i,j,ksurf(i,j))/z_tq(i,j,ksurf(i,j)))         &
+          gamma_wbs = ( (wbend(i,j,ksurf(i,j))/z_tq(i,j,ksurf(i,j)))           &
                     - bflux_surf(i,j)  )*2.0_r_bl/z_tq(i,j,ksurf(i,j))
           wbend(i,j,k) =  bflux_surf(i,j) + gamma_wbs*z_uv(i,j,k)
         else
@@ -2712,7 +2712,7 @@ if ( entr_smooth_dec == on .or. entr_smooth_dec == entr_taper_zh ) then
   !cdir collapse
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
-    if ( cumulus(i,j) .or.                                                   &
+    if ( cumulus(i,j) .or.                                                     &
           ( dsc(i,j) .and. zdsc_base(i,j) < zh(i,j) ) ) then
       ! ignore SML `cloud-top' driven mixing
       zsml_base(i,j) = zh(i,j)
@@ -2744,7 +2744,7 @@ end if  ! test on entr_smooth_dec
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   zsml_top(i,j) = zh(i,j)
-  if (bl_res_inv /= off .and. dzh(i,j) > zero)                               &
+  if (bl_res_inv /= off .and. dzh(i,j) > zero)                                 &
                               zsml_top(i,j) = zh(i,j)+dzh(i,j)
 end do  ! loop over I
 !$OMP end do
@@ -2898,31 +2898,31 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
       zk_tq = z_tq(i,j,k-1)
 
-      if ( zk_uv  <   zh(i,j) .and.                                          &
+      if ( zk_uv  <   zh(i,j) .and.                                            &
             zk_uv  >   zsml_base(i,j) ) then
         z_pr  = zk_uv - zsml_base(i,j)
         zh_pr = zh(i,j) - zsml_base(i,j)
         z_ratio = z_pr/zh_pr
         if (flux_grad  ==  LockWhelan2006) then
 
-          rhokh_top(i,j,k) = 3.6_r_bl*vkman * rho_mix(i,j,k) * v_top(i,j)    &
-                              * zh_pr * (z_ratio**3)                         &
+          rhokh_top(i,j,k) = 3.6_r_bl*vkman * rho_mix(i,j,k) * v_top(i,j)      &
+                              * zh_pr * (z_ratio**3)                           &
                               * (( one - z_ratio )**2)
 
           if ( .not. coupled(i,j) ) then
-            rhof2(i,j,k)  = rho_mix(i,j,k) * one_half * z_ratio              &
+            rhof2(i,j,k)  = rho_mix(i,j,k) * one_half * z_ratio                &
                                         * 2.0_r_bl**( z_ratio**4 )
             if ( v_sum(i,j)  >   zero ) then
-              rhofsc(i,j,k) = 3.5_r_bl * rho_mix(i,j,k)                      &
-                              * (v_top(i,j)/v_sum(i,j))                      &
+              rhofsc(i,j,k) = 3.5_r_bl * rho_mix(i,j,k)                        &
+                              * (v_top(i,j)/v_sum(i,j))                        &
                               * (z_ratio**3) * (one-z_ratio)
             end if
           end if
 
         else  ! Not LockWhelan2006
           ! max to avoid rounding errors giving small negative numbers
-          rhokh_top(i,j,k) = rho_mix(i,j,k) * v_top(i,j) * g1 *              &
-            vkman * ((max(one - kh_sct_factor(i,j)*z_ratio,zero))**0.8_r_bl )&
+          rhokh_top(i,j,k) = rho_mix(i,j,k) * v_top(i,j) * g1 *                &
+            vkman * ((max(one - kh_sct_factor(i,j)*z_ratio,zero))**0.8_r_bl )  &
                                             * z_pr * z_ratio
         end if
 
@@ -2933,13 +2933,13 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       !   grounds that the change in shape arises with the
       !   inclusion of the other non-gradient terms.
       !-------------------------------------------------------
-      if ( zk_tq  <   zh(i,j) .and.                                          &
+      if ( zk_tq  <   zh(i,j) .and.                                            &
             zk_tq  >   zsml_base(i,j) ) then
         z_pr = zk_tq - zsml_base(i,j)
         zh_pr = zh(i,j) - zsml_base(i,j)
-        rhokm_top(i,j,k) = 0.75_r_bl * rho_wet_tq(i,j,k-1) * v_top(i,j) *    &
-              g1 * vkman *                                                   &
-              ( (max(one - km_sct_factor(i,j)*z_pr/zh_pr, zero))**0.8_r_bl ) &
+        rhokm_top(i,j,k) = 0.75_r_bl * rho_wet_tq(i,j,k-1) * v_top(i,j) *      &
+              g1 * vkman *                                                     &
+              ( (max(one - km_sct_factor(i,j)*z_pr/zh_pr, zero))**0.8_r_bl )   &
                                           * z_pr * z_pr / zh_pr
                                                   ! PRANDTL=0.75
         if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
@@ -2952,7 +2952,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       ! profiles for decoupled stratocumulus layers when
       ! one exists
       !-------------------------------------------------------------
-      if ( zk_uv  <   zhsc(i,j) .and.                                        &
+      if ( zk_uv  <   zhsc(i,j) .and.                                          &
               zk_uv  >   zdsc_base(i,j) ) then
         if (.not. scbase(i,j) ) then
           scbase(i,j) = .true.
@@ -2974,55 +2974,55 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
         if (flux_grad  ==  LockWhelan2006) then
 
-          rhokh_top(i,j,k) = 3.6_r_bl*vkman * rho_mix(i,j,k)                 &
-                            * v_top_dsc(i,j) * zh_pr * (z_ratio**3)          &
+          rhokh_top(i,j,k) = 3.6_r_bl*vkman * rho_mix(i,j,k)                   &
+                            * v_top_dsc(i,j) * zh_pr * (z_ratio**3)            &
                             * (( one - z_ratio )**2)
 
-          rhof2(i,j,k)  = rho_mix(i,j,k) * one_half * z_ratio                &
+          rhof2(i,j,k)  = rho_mix(i,j,k) * one_half * z_ratio                  &
                                         * 2.0_r_bl**( z_ratio**4 )
           if ( v_sum_dsc(i,j)  >   zero ) then
-            rhofsc(i,j,k) = 3.5_r_bl * rho_mix(i,j,k)                        &
-                              * (v_top_dsc(i,j)/v_sum_dsc(i,j))              &
+            rhofsc(i,j,k) = 3.5_r_bl * rho_mix(i,j,k)                          &
+                              * (v_top_dsc(i,j)/v_sum_dsc(i,j))                &
                               * (z_ratio**3) * (one-z_ratio)
           end if
 
         else  ! Not LockWhelan2006
           ! max to avoid rounding errors giving small negative numbers
-          rhokh_top(i,j,k) = rhokh_top(i,j,k) +                              &
-              rho_mix(i,j,k)*v_top_dsc(i,j)*g1*vkman*                        &
-                ( (max(one - kh_dsct_factor(i,j)*z_ratio,zero))**0.8_r_bl )  &
+          rhokh_top(i,j,k) = rhokh_top(i,j,k) +                                &
+              rho_mix(i,j,k)*v_top_dsc(i,j)*g1*vkman*                          &
+                ( (max(one - kh_dsct_factor(i,j)*z_ratio,zero))**0.8_r_bl )    &
                                             * z_pr * z_ratio
         end if
       end if
       !-------------------------------------------------------------
       ! Now momentum
       !-------------------------------------------------------------
-      if ( zk_tq  <   zhsc(i,j) .and.                                        &
+      if ( zk_tq  <   zhsc(i,j) .and.                                          &
             zk_tq  >   zdsc_base(i,j) ) then
         z_pr = zk_tq - zdsc_base(i,j)
         zh_pr = zhsc(i,j) - zdsc_base(i,j)
         ! max to avoid rounding errors giving small negative numbers
-        rhokm_dsct =                                                         &
-            0.75_r_bl*rho_wet_tq(i,j,k-1)*v_top_dsc(i,j)*g1*vkman*           &
-              ( (max(one - km_dsct_factor(i,j)*z_pr/zh_pr,zero))**0.8_r_bl ) &
+        rhokm_dsct =                                                           &
+            0.75_r_bl*rho_wet_tq(i,j,k-1)*v_top_dsc(i,j)*g1*vkman*             &
+              ( (max(one - km_dsct_factor(i,j)*z_pr/zh_pr,zero))**0.8_r_bl )   &
                                       * z_pr * z_pr / zh_pr
         if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
           ! save Km/timescale for TKE diag, completed in bdy_expl2
-          tke_nl(i,j,k) = tke_nl(i,j,k) +                                    &
+          tke_nl(i,j,k) = tke_nl(i,j,k) +                                      &
                           rhokm_dsct*c_tke*v_top_dsc(i,j)/dscdepth(i,j)
         end if
         rhokm_top(i,j,k) = rhokm_top(i,j,k) + rhokm_dsct
       end if
       if (BL_diag%l_tke .and. var_diags_opt == original_vars) then
         ! save 1/timescale for TKE diag, completed in bdy_expl2
-        if ( zk_tq  <   zsml_top(i,j) .and.                                  &
+        if ( zk_tq  <   zsml_top(i,j) .and.                                    &
               zk_tq  >   zsml_base(i,j) ) then
           BL_diag%tke(i,j,k) = c_tke*v_top(i,j)/zh(i,j)
         end if
-        if ( zk_tq  <   zhsc(i,j) .and.                                      &
+        if ( zk_tq  <   zhsc(i,j) .and.                                        &
               zk_tq  >   zdsc_base(i,j) ) then
           ! save 1/timescale for TKE diag, completed in bdy_expl2
-          BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                      &
+          BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                        &
                           c_tke*v_top_dsc(i,j)/dscdepth(i,j) )
         end if
       end if
@@ -3060,7 +3060,7 @@ if (flux_grad  ==  LockWhelan2006) then
 
           if (coupled(i,j)) then  !  coupled
             if ( entr_smooth_dec == entr_taper_zh ) then
-              wstar3 = (      svl_diff_frac(i,j)  * zhsc(i,j)                &
+              wstar3 = (      svl_diff_frac(i,j)  * zhsc(i,j)                  &
                         + (one-svl_diff_frac(i,j)) * zh(i,j)   ) *fb_surf(i,j)
             else
               wstar3 = zhsc(i,j) * fb_surf(i,j)
@@ -3087,12 +3087,12 @@ if (flux_grad  ==  LockWhelan2006) then
 
           !           Turbulent velocity scale for scalars
 
-          w_m_neut = ( v_s(i,j)*v_s(i,j)*v_s(i,j) + w_s_cubed_uv )           &
+          w_m_neut = ( v_s(i,j)*v_s(i,j)*v_s(i,j) + w_s_cubed_uv )             &
                                   **one_third
           w_h_uv = w_m_neut/pr_neut
 
           ! Also calc on TQ levels for W_M_TQ
-          w_m_neut = ( v_s(i,j)*v_s(i,j)*v_s(i,j) + w_s_cubed_tq )           &
+          w_m_neut = ( v_s(i,j)*v_s(i,j)*v_s(i,j) + w_s_cubed_tq )             &
                                   **one_third
           w_h_tq = w_m_neut/pr_neut
 
@@ -3105,11 +3105,11 @@ if (flux_grad  ==  LockWhelan2006) then
 
           ! Turbulent Prandtl number and velocity scale for scalars
 
-          Prandtl = pr_neut*                                                 &
-          ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +            &
-            (one/(c_ws*25.0_r_bl))*w_s_cubed_tq*w_m_neut ) /                 &
-          ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +            &
-            (one/(c_ws*25.0_r_bl))*(pr_neut/pr_conv)*w_s_cubed_tq*           &
+          Prandtl = pr_neut*                                                   &
+          ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +              &
+            (one/(c_ws*25.0_r_bl))*w_s_cubed_tq*w_m_neut ) /                   &
+          ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +              &
+            (one/(c_ws*25.0_r_bl))*(pr_neut/pr_conv)*w_s_cubed_tq*             &
             w_m_neut )
 
           w_m_tq = Prandtl * w_h_tq
@@ -3119,8 +3119,8 @@ if (flux_grad  ==  LockWhelan2006) then
             ! Calculate RHOKH(w_h,z/z_h)
             !---------------------------------------------------------
 
-            rhokh(i,j,k) = rho_mix(i,j,k) * w_h_uv * vkman * zk_uv *         &
-                                  ( one - ( zk_uv / zh(i,j) ) ) *            &
+            rhokh(i,j,k) = rho_mix(i,j,k) * w_h_uv * vkman * zk_uv *           &
+                                  ( one - ( zk_uv / zh(i,j) ) ) *              &
                                   ( one - ( zk_uv / zh(i,j) ) )
 
           end if
@@ -3129,20 +3129,20 @@ if (flux_grad  ==  LockWhelan2006) then
             ! Calculate RHOKM(w_m,z/z_h)
             !---------------------------------------------------------
 
-            rhokm(i,j,k) = rho_wet_tq(i,j,k-1)*w_m_tq*vkman*zk_tq *          &
-                                  ( one - ( zk_tq / zh(i,j) ) ) *            &
+            rhokm(i,j,k) = rho_wet_tq(i,j,k-1)*w_m_tq*vkman*zk_tq *            &
+                                  ( one - ( zk_tq / zh(i,j) ) ) *              &
                                   ( one - ( zk_tq / zh(i,j) ) )
 
             if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
               ! save Km/timescale for TKE diag, completed in bdy_expl2
-              tke_nl(i,j,k) = tke_nl(i,j,k) +                                &
+              tke_nl(i,j,k) = tke_nl(i,j,k) +                                  &
                                   rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
             end if
           end if
           if (BL_diag%l_tke .and. var_diags_opt == original_vars) then
             ! save 1/timescale for TKE diag, completed in bdy_expl2
             if ( zk_tq < zsml_top(i,j) ) then
-              BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                  &
+              BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                    &
                                         c_tke*w_m_tq/zh(i,j) )
             end if
           end if
@@ -3197,8 +3197,8 @@ else
 
             if (coupled(i,j)) then  !  coupled and cloudy
               if ( entr_smooth_dec == entr_taper_zh ) then
-                w_s_cubed_uv = c_ws                                          &
-                    * (      svl_diff_frac(i,j)  * zhsc(i,j)                 &
+                w_s_cubed_uv = c_ws                                            &
+                    * (      svl_diff_frac(i,j)  * zhsc(i,j)                   &
                       + (one-svl_diff_frac(i,j)) * zh(i,j)   ) * fb_surf(i,j)
               else
                 w_s_cubed_uv = c_ws * zhsc(i,j) * fb_surf(i,j)
@@ -3219,8 +3219,8 @@ else
 
             if (coupled(i,j)) then  !  coupled and cloudy
               if ( entr_smooth_dec == entr_taper_zh ) then
-                w_s_cubed_tq = c_ws                                          &
-                    * (      svl_diff_frac(i,j)  * zhsc(i,j)                 &
+                w_s_cubed_tq = c_ws                                            &
+                    * (      svl_diff_frac(i,j)  * zhsc(i,j)                   &
                       + (one-svl_diff_frac(i,j)) * zh(i,j)   ) * fb_surf(i,j)
               else
                 w_s_cubed_tq = c_ws * zhsc(i,j) * fb_surf(i,j)
@@ -3232,10 +3232,10 @@ else
 
           !           Turbulent velocity scale for momentum
 
-          w_m_uv = (v_s(i,j)*v_s(i,j)*v_s(i,j) + w_s_cubed_uv)               &
+          w_m_uv = (v_s(i,j)*v_s(i,j)*v_s(i,j) + w_s_cubed_uv)                 &
                                   **one_third
 
-          w_m_tq = (v_s(i,j)*v_s(i,j)*v_s(i,j) + w_s_cubed_tq)               &
+          w_m_tq = (v_s(i,j)*v_s(i,j)*v_s(i,j) + w_s_cubed_tq)                 &
                                   **one_third
 
           ! The calculations below involve v_s**4. In very rare circumstances
@@ -3247,11 +3247,11 @@ else
 
           !           Turbulent Prandtl number and velocity scale for scalars
 
-          Prandtl = pr_neut*                                                 &
-              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +        &
-              (one/(c_ws*25.0_r_bl))*w_s_cubed_uv*w_m_uv ) /                 &
-              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +        &
-              (one/(c_ws*25.0_r_bl))*(pr_neut/pr_conv)*w_s_cubed_uv*         &
+          Prandtl = pr_neut*                                                   &
+              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
+              (one/(c_ws*25.0_r_bl))*w_s_cubed_uv*w_m_uv ) /                   &
+              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
+              (one/(c_ws*25.0_r_bl))*(pr_neut/pr_conv)*w_s_cubed_uv*           &
               w_m_uv )
           w_h_uv = w_m_uv / Prandtl
 
@@ -3260,15 +3260,15 @@ else
             ! Calculate RHOKH(w_h,z/z_h)
             !---------------------------------------------------------
 
-            rhokh(i,j,k) = rho_mix(i,j,k) * w_h_uv * vkman * zk_uv *         &
-                ( one - kh_top_factor(i,j) * ( zk_uv / zh(i,j) ) ) *         &
+            rhokh(i,j,k) = rho_mix(i,j,k) * w_h_uv * vkman * zk_uv *           &
+                ( one - kh_top_factor(i,j) * ( zk_uv / zh(i,j) ) ) *           &
                 ( one - kh_top_factor(i,j) * ( zk_uv / zh(i,j) ) )
           else if ( kprof_cu == klcl_entr .and. cumulus(i,j) ) then
             if ( zk_uv < zsml_top(i,j) ) then
               ! Exponential decay from ZH but tends to zero
               !  at zsml_top
-              rhokh(i,j,k) = rhokh_lcl(i,j) *                                &
-                      exp(-(zk_uv-zh(i,j))/cu_depth_scale(i,j)) *            &
+              rhokh(i,j,k) = rhokh_lcl(i,j) *                                  &
+                      exp(-(zk_uv-zh(i,j))/cu_depth_scale(i,j)) *              &
                       (one-(zk_uv-zh(i,j))/(zsml_top(i,j)-zh(i,j)))
             end if
           end if
@@ -3277,25 +3277,25 @@ else
             ! Calculate RHOKM(w_m,z/z_h)
             !---------------------------------------------------------
 
-            rhokm(i,j,k) = rho_wet_tq(i,j,k-1)*w_m_tq*vkman* zk_tq *         &
-                ( one - km_top_factor(i,j) * ( zk_tq / zh(i,j) ) ) *         &
+            rhokm(i,j,k) = rho_wet_tq(i,j,k-1)*w_m_tq*vkman* zk_tq *           &
+                ( one - km_top_factor(i,j) * ( zk_tq / zh(i,j) ) ) *           &
                 ( one - km_top_factor(i,j) * ( zk_tq / zh(i,j) ) )
 
             if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
               ! save Km/timescale for TKE diag, completed in bdy_expl2
-              tke_nl(i,j,k) = tke_nl(i,j,k) +                                &
+              tke_nl(i,j,k) = tke_nl(i,j,k) +                                  &
                                   rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
             end if
           else if ( kprof_cu == klcl_entr .and. cumulus(i,j) ) then
             if ( zk_tq < zsml_top(i,j) ) then
               ! Exponential decay from ZH but tends to zero
               !  at zsml_top
-              rhokm(i,j,k) = prandtl_top(i,j) * rhokh_lcl(i,j) *             &
-                      exp(-(zk_tq-zh(i,j))/cu_depth_scale(i,j)) *            &
+              rhokm(i,j,k) = prandtl_top(i,j) * rhokh_lcl(i,j) *               &
+                      exp(-(zk_tq-zh(i,j))/cu_depth_scale(i,j)) *              &
                       (one-(zk_tq-zh(i,j))/(zsml_top(i,j)-zh(i,j)))
               if (BL_diag%l_tke .and. var_diags_opt==split_tke_and_inv) then
                 ! save Km/timescale for TKE diag, completed in bdy_expl2
-                tke_nl(i,j,k) = tke_nl(i,j,k) +                              &
+                tke_nl(i,j,k) = tke_nl(i,j,k) +                                &
                                     rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
               end if
             end if
@@ -3303,7 +3303,7 @@ else
           if (BL_diag%l_tke .and.  var_diags_opt == original_vars) then
             ! save 1/timescale for TKE diag, completed in bdy_expl2
             if ( zk_tq  <  zsml_top(i,j) ) then
-              BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                  &
+              BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                    &
                                         c_tke*w_m_tq/zh(i,j) )
             end if
           end if
@@ -3337,7 +3337,7 @@ if ( ng_stress  ==  BrownGrant97 .or.                                          &
           !---------------------------------------------------------
           ng_stress_calculate = .false.
 
-          if (ng_stress == BrownGrant97 .or.                                 &
+          if (ng_stress == BrownGrant97 .or.                                   &
               ng_stress == BrownGrant97_limited) then
             if ( zk_tq  >   0.1_r_bl*zh(i,j) ) then
               z_pr = zk_tq - 0.1_r_bl*zh(i,j)
@@ -3354,7 +3354,7 @@ if ( ng_stress  ==  BrownGrant97 .or.                                          &
             ! Outer layer calculation
             if (coupled(i,j)) then  !  coupled and cloudy
               if ( entr_smooth_dec == entr_taper_zh ) then
-                wstar3 = (      svl_diff_frac(i,j)  * zhsc(i,j)              &
+                wstar3 = (      svl_diff_frac(i,j)  * zhsc(i,j)                &
                           + (one-svl_diff_frac(i,j)) * zh(i,j) ) *fb_surf(i,j)
               else
                 wstar3 = zhsc(i,j) * fb_surf(i,j)
@@ -3366,9 +3366,9 @@ if ( ng_stress  ==  BrownGrant97 .or.                                          &
             ! Use the Holtslag and Boville velocity scale for
             ! non-gradient stress stability dependence, as in BG97
             w_m_hb_3 = v_s(i,j)*v_s(i,j)*v_s(i,j) + 0.6_r_bl*wstar3
-            f_ngstress(i,j,k) =(rho_wet_tq(i,j,k-1)/rhostar_gb(i,j))         &
-              * s_m * ( a_ngs * wstar3 / w_m_hb_3 )                          &
-                  * ( z_pr / zh_pr ) * ( one -  ( z_pr / zh_pr ) ) *         &
+            f_ngstress(i,j,k) =(rho_wet_tq(i,j,k-1)/rhostar_gb(i,j))           &
+              * s_m * ( a_ngs * wstar3 / w_m_hb_3 )                            &
+                  * ( z_pr / zh_pr ) * ( one -  ( z_pr / zh_pr ) ) *           &
                                       ( one -  ( z_pr / zh_pr ) )
           end if  ! ng_stress_calculate
         end if  ! fb_surf>0 and z<zh
