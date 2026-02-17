@@ -28,12 +28,12 @@ MODULE aviation_diags_alg_mod
   IMPLICIT NONE
 
 PRIVATE
-PUBLIC :: aviation_diags_alg
+PUBLIC :: aviation_diags_alg, write_horizontal_divergence_diagnostic
 
 CONTAINS
 
   ! Algorithm to calculate the section 20 aviation diagnostics.
-  SUBROUTINE aviation_diags_alg(plev_geopot, prognostic_fields)
+  SUBROUTINE aviation_diags_alg(plev_geopot)
 
     IMPLICIT NONE
 
@@ -41,8 +41,8 @@ CONTAINS
 
     ! We calculate the result from this input field.
     TYPE(field_type), INTENT(IN) :: plev_geopot
-    TYPE( field_collection_type ), POINTER, INTENT(IN) :: &
-            prognostic_fields => null()
+!    TYPE(field_collection_type), POINTER, INTENT(IN) :: prognostic_fields
+!    TYPE(field_collection_type), POINTER, INTENT(IN) :: fd_fields
 
 
     ! Local variables
@@ -67,7 +67,8 @@ CONTAINS
     INTEGER(I_DEF) :: i
 
 
-    call wind_uv_divergence(prognostic_fields)
+!    call wind_uv_divergence(prognostic_fields)
+!    call wind_uv_divergence(fd_fields)
 
 
     ! Check the request flags.
@@ -165,60 +166,241 @@ CONTAINS
 
   END SUBROUTINE aviation_diags_alg
 
-  SUBROUTINE wind_uv_divergence(prognostic_fields)
 
-    USE dg_matrix_vector_kernel_mod,    ONLY: dg_matrix_vector_kernel_type
-    USE r_tran_field_mod,               ONLY: r_tran_field_type
-    USE r_tran_operator_mod,            ONLY: r_tran_operator_type
+!#ifdef NOT_LIKE_THIS
+!  SUBROUTINE wind_uv_divergence(prognostic_fields)
+!!  SUBROUTINE wind_uv_divergence(fd_fields)
+!
+!    USE dg_matrix_vector_kernel_mod,    ONLY: dg_matrix_vector_kernel_type
+!    USE r_tran_field_mod,               ONLY: r_tran_field_type
+!    USE r_tran_operator_mod,            ONLY: r_tran_operator_type
+!    USE transport_enumerated_types_mod, ONLY: direction_h
+!    USE transport_constants_mod,        ONLY: get_directional_im3_div_r_tran
+!
+!    IMPLICIT NONE
+!
+!    TYPE( field_collection_type ), POINTER, INTENT(IN) :: prognostic_fields
+!!    TYPE( field_collection_type ), POINTER, INTENT(IN) :: fd_fields
+!
+!    ! single horizontal uv wind field
+!    TYPE( field_type ), POINTER :: wind_3d => null()
+!!    TYPE( field_type ), POINTER :: h_wind_in_w2h => null()
+!
+!    ! div operator for direction_h
+!    TYPE(r_tran_operator_type), POINTER :: div_op
+!
+!    ! result divergence field
+!    TYPE(r_tran_field_type) :: uv_div
+!
+!    LOGICAL(l_def) :: uv_div_flag
+!
+!
+!    ! requested for this time step?
+!    uv_div_flag = init_diag(uv_div, 'aviation__uv_wind_divergence')
+!    IF (.not. uv_div_flag) THEN
+!      return
+!    END IF
+!
+!
+!    ! get the wind field
+!    ! todo: make sure this is available
+!    CALL prognostic_fields%get_field('wind', wind_3d)
+!
+!    ! get the horizontal div operator matrix for this mesh
+!    div_op => get_directional_im3_div_r_tran(wind_3d%get_mesh_id(), direction_h)
+!
+!    ! multiply the wind by the div operator matrix to get the div
+!    CALL invoke(dg_matrix_vector_kernel_type(uv_div, wind_3d, div_op))
+!
+!    ! save it
+!    CALL uv_div%write_field()
+!
+!
+!
+!!    ! get the wind field
+!!    CALL fd_fields%get_field('h_wind', h_wind_in_w2h)
+!!
+!!    ! get the horizontal div operator matrix for this mesh
+!!    div_op => get_directional_im3_div_r_tran(wind%get_mesh_id(), direction_h)
+!!
+!!    ! multiply the wind by the div operator matrix to get the div
+!!    CALL invoke(dg_matrix_vector_kernel_type(div, wind, div_op))
+!!
+!!    ! save it
+!!    CALL div%write_field()
+!
+!
+!
+!
+!
+!!    ! wind u and v fields
+!!    TYPE( field_type ), POINTER :: u_wind => null()
+!!    TYPE( field_type ), POINTER :: v_wind => null()
+!!
+!!    ! div operator for each direction (todo: do we only need one?)
+!!    TYPE(r_tran_operator_type), POINTER :: u_div_op
+!!    TYPE(r_tran_operator_type), POINTER :: v_div_op
+!!
+!!    ! result u and v divergence fields
+!!    TYPE(r_tran_field_type) :: u_div, v_div
+!!!    TYPE(field_type) :: u_div, v_div
+!!    TYPE(field_type) :: uv_div
+!!
+!!    LOGICAL(l_def) :: uv_div_flag
+!!
+!!
+!!    ! requested for this time step?
+!!    uv_div_flag = init_diag(uv_div, 'aviation__uv_wind_divergence')
+!!    IF (.not. uv_div_flag) THEN
+!!      return
+!!    END IF
+!!
+!!
+!!    ! get the u and v wind fields
+!!    CALL prognostic_fields%get_field('u', u_wind)
+!!    CALL prognostic_fields%get_field('v', v_wind)
+!!
+!!    ! get and apply the horizontal div operator for this mesh, for u
+!!    u_div_op => get_directional_im3_div_r_tran(u_wind%get_mesh_id(), direction_h)
+!!    CALL invoke(dg_matrix_vector_kernel_type(u_div, u_wind, u_div_op))
+!!
+!!    ! and for v
+!!    v_div_op => get_directional_im3_div_r_tran(v_wind%get_mesh_id(), direction_h)
+!!    CALL invoke(dg_matrix_vector_kernel_type(v_div, v_wind, v_div_op))
+!!
+!!    ! add v to u and save it(?)
+!!    CALL invoke(X_plus_Y(uv_div, u_div, v_div))
+!!    CALL uv_div%write_field()
+!
+!
+!  END SUBROUTINE wind_uv_divergence
+!#endif
 
-    IMPLICIT NONE
+
+  !-------------------------------------------------------------------------------
+  !>  @brief    Handles divergence diagnostic processing
+  !!
+  !!  @details  Handles divergence diagnostic processing
+  !!
+  !!> @param[in] u_field     The u field
+  !!> @param[in] ts          Timestep
+  !!> @param[in] mesh        Mesh
+  !-------------------------------------------------------------------------------
+  ! TODO: where should this live?
+!  subroutine write_horizontal_divergence_diagnostic( &
+!          wind_3d, clock, mesh, element_order_h, element_order_v)
+  subroutine write_horizontal_divergence_diagnostic( &
+          wind_3d, clock, element_order_h, element_order_v)
+    use fs_continuity_mod,              only: W2H, W2v
+    use function_space_collection_mod,  only: function_space_collection
+    use model_clock_mod,                only: model_clock_type
+
+    use sci_geometric_constants_mod,    only: &
+      get_coordinates, get_face_selector_ew, get_face_selector_ns, &
+      get_panel_id
+
+    use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
+    use transport_constants_mod,        only: get_directional_im3_div
+    use transport_enumerated_types_mod, only: direction_h
+    use r_tran_operator_mod,            only: r_tran_operator_type
+
+    use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+
+    use mesh_mod,                       only: mesh_type
+    use integer_field_mod,              only: integer_field_type
+    use fs_continuity_mod,              only: W3
+    use initialise_diagnostics_mod,     only : diagnostic_to_be_sampled
+
+    use field_parent_mod,               only: write_interface
+    use lfric_xios_write_mod,           only: write_field_generic
+
+    use diagnostics_io_mod,             only : write_scalar_diagnostic
+    use sci_project_output_mod,         only: project_output
 
 
-    TYPE( field_collection_type ), POINTER, INTENT(IN) :: &
-            prognostic_fields => null()
+    implicit none
 
-    ! wind u and v fields
-    TYPE( field_type ), POINTER :: wind_u => null()
-    TYPE( field_type ), POINTER :: wind_v => null()
+    type(field_type),        intent(in)          :: wind_3d
+    class(model_clock_type), intent(in)          :: clock
+!    type(mesh_type),         intent(in), pointer :: mesh
 
-    ! div operator for each direction (todo: do we only need one?)
-    TYPE(r_tran_operator_type), POINTER :: u_div_op
-    TYPE(r_tran_operator_type), POINTER :: v_div_op
+    integer(kind=i_def), intent(in) :: element_order_h, element_order_v
 
-    ! result u and v divergence fields
-    TYPE(r_tran_field_type) :: u_div, v_div
-!    TYPE(field_type) :: u_div, v_div
-    TYPE(field_type) :: uv_div
+    type(mesh_type), pointer                     :: mesh => null()
 
-    LOGICAL(l_def) :: uv_div_flag
+    type(field_type)                     :: wind_h, wind_v
+    type(field_type)                     :: div_ml
+    type(field_type)                     :: div_pl(1)
+    type(field_type)                     :: div_pl1
+    type(field_type), pointer            :: chi(:)
+    type(r_tran_operator_type), pointer  :: div_op
+    type(field_type), pointer            :: panel_id
+!    integer(kind=i_def)                  :: element_order_h, element_order_v
+
+    type(integer_field_type), pointer :: face_selector_ew => null()
+    type(integer_field_type), pointer :: face_selector_ns => null()
+
+    procedure(write_interface), pointer  :: tmp_write_ptr
 
 
-    ! requested for this time step?
-    uv_div_flag = init_diag(uv_div, 'aviation__uv_wind_divergence')
-    IF (.not. uv_div_flag) THEN
+    if (.not. diagnostic_to_be_sampled('aviation__uv_wind_divergence')) then
       return
-    END IF
+    endif
 
 
-    ! get the u and v wind fields
-    CALL prognostic_fields%get_field('u', wind_u)
-    CALL prognostic_fields%get_field('v', wind_v)
+      ! Create the divergence diagnostic
+!      call divergence_diagnostic_alg( div_field, l2_norm, wind_3d, mesh )
 
-    ! get and apply the horizontal div operator for this mesh, for u
-    u_div_op => get_directional_im3_div_r_tran(&
-            u_wind%get_mesh_id(), direction_h)
-    CALL invoke(dg_matrix_vector_kernel_type(&
-            u_div, wind_u, u_div_op))
-
-    ! and for v
-    v_div_op => get_directional_im3_div_r_tran(v_wind%get_mesh_id(), direction_h)
-    CALL invoke(dg_matrix_vector_kernel_type(v_div, wind_v, v_div_op))
-
-    ! add v to u and save it(?)
-    CALL invoke(X_plus_Y(uv_div, u_div, v_div))
-    CALL uv_div%write_field()
+    ! get the horizontal div operator matrix for this mesh
+    div_op => get_directional_im3_div(wind_3d%get_mesh_id(), direction_h)
 
 
-  END SUBROUTINE wind_uv_divergence
+    ! Split the 3d wind into horizontal and vertical components
+    face_selector_ew => get_face_selector_ew(wind_3d%get_mesh_id())
+    face_selector_ns => get_face_selector_ns(wind_3d%get_mesh_id())
+
+    call wind_h%initialise( function_space_collection%get_fs( &
+        mesh, element_order_h, element_order_v, W2h ))
+    call wind_v%initialise( function_space_collection%get_fs( &
+        mesh, element_order_h, element_order_v, W2v ))
+
+    call invoke( split_w2_field_kernel_type( &
+        wind_h, wind_v, wind_3d, face_selector_ew, face_selector_ns ))
+
+    ! multiply the wind by the div operator matrix to get the div
+    CALL invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
+
+
+
+
+
+    ! Project the field to the output field
+
+    ! todo: which mesh should we use? this or the one passed in?
+    mesh     => div_ml%get_mesh()
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
+
+    call project_output( div_ml, div_pl, chi, panel_id, W3 )
+    div_pl1 = div_pl(1)
+
+
+
+
+
+    if (use_xios_io) then
+      !If using XIOS, we need to set a field I/O method appropriately
+      tmp_write_ptr => write_field_generic
+      call div_pl1%set_write_behaviour(tmp_write_ptr)
+    end if
+
+    call write_scalar_diagnostic( 'divergence', div_pl1, clock, mesh, .false. )
+
+    nullify(tmp_write_ptr)
+
+
+  end subroutine write_horizontal_divergence_diagnostic
+
+
 
 END MODULE aviation_diags_alg_mod
