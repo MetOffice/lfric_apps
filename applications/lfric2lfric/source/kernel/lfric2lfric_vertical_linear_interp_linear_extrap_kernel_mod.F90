@@ -13,7 +13,7 @@
 !!          This is a copy of prolong_scalar_weighted_kernel_mod, with a
 !!          modification to take into account multidata values in grid points
 
-module lfric2lfric_vertical_linear_interpolation_kernel_mod
+module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod
 
 use constants_mod,           only: i_def, r_double, r_single
 use kernel_mod,              only: kernel_type
@@ -27,7 +27,7 @@ implicit none
 
 private
 
-type, public, extends(kernel_type) :: lfric2lfric_vertical_linear_interpolation_kernel_type
+type, public, extends(kernel_type) :: lfric2lfric_vertical_linear_interp_linear_extrap_kernel_type
    private
    type(arg_type) :: meta_args(6) = (/                                         &
         arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
@@ -38,15 +38,15 @@ type, public, extends(kernel_type) :: lfric2lfric_vertical_linear_interpolation_
         arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_2)       &
         /)
   integer :: operates_on = CELL_COLUMN
-end type lfric2lfric_vertical_linear_interpolation_kernel_type
+end type lfric2lfric_vertical_linear_interp_linear_extrap_kernel_type
 
-public :: lfric2lfric_vertical_linear_interpolation_kernel_code
+public :: lfric2lfric_vertical_linear_interp_linear_extrap_kernel_code
 
   ! Generic interface for real32 and real64 types
-  interface lfric2lfric_vertical_linear_interpolation_kernel_code
+  interface lfric2lfric_vertical_linear_interp_linear_extrap_kernel_code
     module procedure  &
-      lfric2lfric_vertical_linear_interpolation_code_r_single !,                 &
-      !lfric2lfric_vertical_linear_interpolation_code_r_double
+      lfric2lfric_vertical_linear_interp_linear_extrap_code_r_single !,                 &
+      !lfric2lfric_vertical_linear_interp_linear_extrap_code_r_double
   end interface
 
 contains
@@ -71,7 +71,7 @@ contains
 
   ! R_SINGLE PRECISION
   ! ==================
-  subroutine lfric2lfric_vertical_linear_interpolation_code_r_single(         &
+  subroutine lfric2lfric_vertical_linear_interp_linear_extrap_code_r_single(         &
                                           nlayers,                            &
                                           destination_field,                  &
                                           source_field,                       &
@@ -150,14 +150,14 @@ contains
     end do
   end do
 
-  end subroutine lfric2lfric_vertical_linear_interpolation_code_r_single
+  end subroutine lfric2lfric_vertical_linear_interp_linear_extrap_code_r_single
 
   ! R_DOUBLE PRECISION
   ! ==================
-  !subroutine lfric2lfric_vertical_linear_interpolation_code_r_double                      &
+  !subroutine lfric2lfric_vertical_linear_interp_linear_extrap_code_r_double                      &
 
 !!!!!!! SHARKS COPY R SINGLE TO HERE, change real fields from r_single to r_double
 
- ! end subroutine lfric2lfric_vertical_linear_interpolation_code_r_double
+ ! end subroutine lfric2lfric_vertical_linear_interp_linear_extrap_code_r_double
 
-end module lfric2lfric_vertical_linear_interpolation_kernel_mod
+end module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod
