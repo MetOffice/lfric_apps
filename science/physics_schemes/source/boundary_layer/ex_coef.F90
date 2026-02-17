@@ -1373,7 +1373,7 @@ do k = 2, bl_levels
 
         if ( blending_option == blend_gridindep_fa .or.                        &
               blending_option == blend_cth_shcu_only ) then
-          if (zz <= zht) thens
+          if (zz <= zht) then
             weight_1dbl(i,j,k) =                                               &
               one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                   &
                 max( zero,                                                     &
