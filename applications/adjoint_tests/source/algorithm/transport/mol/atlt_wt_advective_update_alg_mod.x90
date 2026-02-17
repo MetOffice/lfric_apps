@@ -15,7 +15,7 @@ module atlt_wt_advective_update_alg_mod
   use finite_element_config_mod,           only : element_order_h,             &
                                                   element_order_v
   use fs_continuity_mod,                   only : W2h, W2v, Wtheta, W2
-  use constants_mod,                       only : i_def, r_def, l_def
+  use constants_mod,                       only : i_def, r_def, l_def, EPS
   use log_mod,                             only : log_event,       &
                                                   LOG_LEVEL_ERROR, &
                                                   LOG_LEVEL_INFO,  &
@@ -87,7 +87,6 @@ module atlt_wt_advective_update_alg_mod
     real(kind=r_def)            :: rhs_rhs_input_inner_prod
     real(kind=r_def)            :: adv_field_adv_field_input_inner_prod
     real(kind=r_def)            :: wind_wind_input_inner_prod
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
@@ -150,9 +149,9 @@ module atlt_wt_advective_update_alg_mod
                  x_innerproduct_x( wind_inner_prod, wind ) )
 
     ! Determining scale factors
-    rhs_sf = 1.0_r_def/(rhs_inner_prod + eps)
-    adv_field_sf = 1.0_r_def/(adv_field_inner_prod + eps)
-    wind_sf = 1.0_r_def/(wind_inner_prod + eps)
+    rhs_sf = 1.0_r_def/(rhs_inner_prod + EPS)
+    adv_field_sf = 1.0_r_def/(adv_field_inner_prod + EPS)
+    wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + rhs_inner_prod*rhs_sf
@@ -253,7 +252,6 @@ module atlt_wt_advective_update_alg_mod
     real(kind=r_def)            :: advective_advective_input_inner_prod
     real(kind=r_def)            :: wind_wind_input_inner_prod
     real(kind=r_def)            :: inner2
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
@@ -288,8 +286,8 @@ module atlt_wt_advective_update_alg_mod
                  x_innerproduct_x(wind_inner_prod, wind) )
 
     ! Determining scale factors
-    advective_sf = 1.0_r_def/(advective_inner_prod + eps)
-    wind_sf = 1.0_r_def/(wind_inner_prod + eps)
+    advective_sf = 1.0_r_def/(advective_inner_prod + EPS)
+    wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + advective_inner_prod*advective_sf
@@ -376,7 +374,6 @@ module atlt_wt_advective_update_alg_mod
     real(kind=r_def)            :: wind_wind_input_inner_prod
     real(kind=r_def)            :: field_field_input_inner_prod
     real(kind=r_def)            :: inner2
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
@@ -417,9 +414,9 @@ module atlt_wt_advective_update_alg_mod
                  x_innerproduct_x(field_inner_prod, field) )
 
     ! Determining scale factors
-    advective_sf = 1.0_r_def/(advective_inner_prod + eps)
-    wind_sf = 1.0_r_def/(wind_inner_prod + eps)
-    field_sf = 1.0_r_def/(field_inner_prod + eps)
+    advective_sf = 1.0_r_def/(advective_inner_prod + EPS)
+    wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
+    field_sf = 1.0_r_def/(field_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + advective_inner_prod*advective_sf

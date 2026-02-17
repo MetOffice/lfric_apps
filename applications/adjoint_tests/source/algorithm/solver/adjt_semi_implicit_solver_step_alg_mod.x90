@@ -7,7 +7,7 @@
 
 module adjt_semi_implicit_solver_step_alg_mod
 
-  use constants_mod,                    only: i_def, r_def, l_def, r_solver
+  use constants_mod,                    only: i_def, r_def, l_def, r_solver, EPS
   use log_mod,                          only: log_event,         &
                                               log_scratch_space, &
                                               LOG_LEVEL_INFO,    &
@@ -255,7 +255,6 @@ contains
     real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     integer(kind=i_def) :: i
 
@@ -311,17 +310,17 @@ contains
     end do
 
     ! Scaling factors are scaled up a bit to avoid numerical issues
-    state_sf(igh_u) = 1.0E4_r_def / (state_inner_prod(igh_u) + eps)
-    state_sf(igh_t) = 1.0E4_r_def / (state_inner_prod(igh_t) + eps)
-    state_sf(igh_d) = 1.0E4_r_def / (state_inner_prod(igh_d) + eps)
-    state_sf(igh_p) = 1.0E4_r_def / (state_inner_prod(igh_p) + eps)
-    rhs_sf(igh_u) = 1.0E4_r_def / (rhs_inner_prod(igh_u) + eps)
-    rhs_sf(igh_t) = 1.0E4_r_def / (rhs_inner_prod(igh_t) + eps)
-    rhs_sf(igh_d) = 1.0E4_r_def / (rhs_inner_prod(igh_d) + eps)
-    rhs_sf(igh_p) = 1.0E4_r_def / (rhs_inner_prod(igh_p) + eps)
-    moist_dyn_gas_law_sf = 1.0E4_r_def / (moist_dyn_gas_law_inner_prod + eps)
+    state_sf(igh_u) = 1.0E4_r_def / (state_inner_prod(igh_u) + EPS)
+    state_sf(igh_t) = 1.0E4_r_def / (state_inner_prod(igh_t) + EPS)
+    state_sf(igh_d) = 1.0E4_r_def / (state_inner_prod(igh_d) + EPS)
+    state_sf(igh_p) = 1.0E4_r_def / (state_inner_prod(igh_p) + EPS)
+    rhs_sf(igh_u) = 1.0E4_r_def / (rhs_inner_prod(igh_u) + EPS)
+    rhs_sf(igh_t) = 1.0E4_r_def / (rhs_inner_prod(igh_t) + EPS)
+    rhs_sf(igh_d) = 1.0E4_r_def / (rhs_inner_prod(igh_d) + EPS)
+    rhs_sf(igh_p) = 1.0E4_r_def / (rhs_inner_prod(igh_p) + EPS)
+    moist_dyn_gas_law_sf = 1.0E4_r_def / (moist_dyn_gas_law_inner_prod + EPS)
     do i = 1, nummr
-      mr_sf(i) = 1.0E4_r_def / (mr_inner_prod(i) + eps)
+      mr_sf(i) = 1.0E4_r_def / (mr_inner_prod(i) + EPS)
     end do
 
     inner1 = 0.0_r_def

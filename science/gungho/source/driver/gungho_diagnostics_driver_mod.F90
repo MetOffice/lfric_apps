@@ -217,13 +217,25 @@ contains
       call u_in_w2h%set_write_behaviour(tmp_write_ptr)
       call v_in_w2h%set_write_behaviour(tmp_write_ptr)
       if (modeldb%clock%is_initialisation()) then
-        call u_in_w2h%write_field("init_u_in_w2h")
-        call v_in_w2h%write_field("init_v_in_w2h")
-        call w_in_wth%write_field("init_w_in_wth")
+        if (diagnostic_to_be_sampled("init_u_in_w2h")) then
+          call u_in_w2h%write_field("init_u_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("init_v_in_w2h")) then
+          call v_in_w2h%write_field("init_v_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("init_w_in_wth")) then
+          call w_in_wth%write_field("init_w_in_wth")
+        end if
       else
-        call u_in_w2h%write_field("u_in_w2h")
-        call v_in_w2h%write_field("v_in_w2h")
-        call w_in_wth%write_field("w_in_wth")
+        if (diagnostic_to_be_sampled("u_in_w2h")) then
+          call u_in_w2h%write_field("u_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("v_in_w2h")) then
+          call v_in_w2h%write_field("v_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("w_in_wth")) then
+          call w_in_wth%write_field("w_in_wth")
+        end if
       end if
     else
       call write_vector_diagnostic('u', u, &
