@@ -9,7 +9,7 @@ module atlt_advective_and_flux_alg_mod
   use r_tran_field_mod,                    only : r_tran_field_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
-  use constants_mod,                       only : r_def, i_def, l_def
+  use constants_mod,                       only : r_def, i_def, l_def, EPS
   use log_mod,                             only : log_event,         &
                                                   log_scratch_space, &
                                                   LOG_LEVEL_INFO,    &
@@ -94,7 +94,6 @@ module atlt_advective_and_flux_alg_mod
     real(kind=r_def)            :: adv_inc_adv_inc_input_inner_prod
     real(kind=r_def)            :: density_density_input_inner_prod
     real(kind=r_def)            :: wind_wind_input_inner_prod
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
@@ -173,11 +172,11 @@ module atlt_advective_and_flux_alg_mod
                  x_innerproduct_x( wind_inner_prod, wind ) )
 
     ! Determining scale factors
-    mass_flux_1_sf = 1.0_r_def/(mass_flux_1_inner_prod + eps)
-    mass_flux_2_sf = 1.0_r_def/(mass_flux_2_inner_prod + eps)
-    adv_inc_sf = 1.0_r_def/(adv_inc_inner_prod + eps)
-    density_sf = 1.0_r_def/(density_inner_prod + eps)
-    wind_sf = 1.0_r_def/(wind_inner_prod + eps)
+    mass_flux_1_sf = 1.0_r_def/(mass_flux_1_inner_prod + EPS)
+    mass_flux_2_sf = 1.0_r_def/(mass_flux_2_inner_prod + EPS)
+    adv_inc_sf = 1.0_r_def/(adv_inc_inner_prod + EPS)
+    density_sf = 1.0_r_def/(density_inner_prod + EPS)
+    wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + mass_flux_1_inner_prod*mass_flux_1_sf

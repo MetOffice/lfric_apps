@@ -17,7 +17,6 @@ module atl_end_transport_step_alg_mod
   use fs_continuity_mod,              only: W2, W2H, W2V
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
-  use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event, LOG_LEVEL_ERROR
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
@@ -27,7 +26,6 @@ module atl_end_transport_step_alg_mod
   use r_tran_field_mod,               only: r_tran_field_type
   use r_tran_operator_mod,            only: r_tran_operator_type
   use split_transport_utils_mod,      only: get_num_split_steps
-  use timer_mod,                      only: timer
   use transport_config_mod,           only: cheap_update, &
                                             dry_field_name
   use transport_constants_mod,        only: get_directional_im3_div_r_tran
