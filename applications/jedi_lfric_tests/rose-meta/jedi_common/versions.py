@@ -165,3 +165,19 @@ class vn30_t132(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn30_t214(MacroUpgrade):
+    """Upgrade macro for ticket #214 by mark Hedley."""
+
+    BEFORE_TAG = "vn3.0_t132"
+    AFTER_TAG = "vn3.0_t214"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Set segments configuration to true."""
+        self.change_setting_value(
+            config, ["namelist:physics", "configure_segments"], ".true."
+        )
+
+        return config, self.reports

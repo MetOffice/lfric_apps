@@ -132,6 +132,19 @@
         "threads": 4,
     }) %}
 
+{% elif task_ns.conf_name == "tlm_tests_nwp_gal9-real_increment-4OMP-C12_MG" %}
+
+    {% do task_dict.update({
+        "app_name": "jedi_tlm_tests",
+        "opt_confs": ["nwp_gal9_c12", "rrt_equals_dt", "semi_strict_solver", "real_increment"],
+        "resolution": "C12_MG",
+        "ancil_resolution": "C12",
+        "DT": 1800,
+        "tsteps": 13,
+        "mpi_parts": 6,
+        "threads": 4,
+    }) %}
+
 {% elif task_ns.conf_name == "tlm_tests_nwp_gal9-1PE-4OMP-C12_MG" %}
 
     {% do task_dict.update({
@@ -260,6 +273,7 @@
         "tlm_tests_nwp_gal9-C12_MG_op",
         "tlm_tests_nwp_gal9-1PE-C12_MG",
         "tlm_tests_nwp_gal9-4OMP-C12_MG",
+        "tlm_tests_nwp_gal9-real_increment-4OMP-C12_MG",
         "tlm_tests_nwp_gal9-1PE-4OMP-C12_MG",
         "tlm_tests_nwp_gal9-dry-C12_MG",
         "tlm_tests_nwp_gal9-dry-4OMP-C12_MG",
