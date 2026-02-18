@@ -207,7 +207,7 @@ contains
                                                                wind,                             &
                                                                m3_inv ) )
 
-            lookup_w3h => adj_lookup_table_cache%get_lookup_w3h_adv_upd()
+            lookup_w3h => adj_lookup_table_cache%get_lookup_w3h_adv_upd(ls_wind%which_function_space())
             lookup_w3h_field => lookup_w3h%get_lookup_field()
             set_count_w3h_field => lookup_w3h%get_set_count_field()
             nindices = lookup_w3h%get_nindices()

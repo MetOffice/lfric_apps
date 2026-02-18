@@ -117,7 +117,7 @@ contains
     ! -------------------------------------------------------------------------!
     case ( scheme_split )
       call atl_split_transport_control(field_np1, field_n, ls_field_n, &
-                                       tl_transport_controller)
+                                       tl_transport_controller, adj_lookup_table_cache)
 
     case default
       call log_event('Trying to transport with unrecognised scheme', &

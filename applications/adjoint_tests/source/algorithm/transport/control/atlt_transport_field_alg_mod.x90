@@ -179,7 +179,7 @@ module atlt_transport_field_alg_mod
 
     ! Initialise values and call the tangent-linear alg.
     call invoke( setval_random( field_np1 ),             &
-                 setval_random( field_n),                &
+                 setval_random( field_n ),               &
                  setval_x( field_np1_input, field_np1 ), &
                  setval_x( field_n_input, field_n ),     &
                  setval_random( ls_field_n ) )
