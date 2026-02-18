@@ -186,7 +186,8 @@ contains
       ! Specify surface pressure
       p_surf = psp * EXP(                                                      &
           -scaled_radius*Nsq*u0/(2.0_r_def*gravity**2*kappa)                   &
-          * (u0 / scaled_radius + 2.0_r_def*scaled_omega) * (SIN(lat))**2      &
+          * (u0 / scaled_radius + 2.0_r_def*scaled_omega)                      &
+           * ((SIN(lat))**2 - 1.0_r_def)                                       &
           - Nsq*Phi_s/(gravity**2*kappa)                                       &
       )
 

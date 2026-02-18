@@ -170,7 +170,7 @@ contains
     class(dcmip_vortex_type), intent(in) :: self
     real(kind=r_def),         intent(in) :: chi_1, chi_2
 
-    real(kind=r_def), parameter :: h0 = 1500.0_r_def
+    real(kind=r_def), parameter :: h0 = 2000.0_r_def
     real(kind=r_def), parameter :: d = 250000.0_r_def
     real(kind=r_def), parameter :: lon_c = PI / 2.0_r_def
     real(kind=r_def), parameter :: lat_c = PI / 9.0_r_def
