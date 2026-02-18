@@ -21,13 +21,10 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -44,7 +41,6 @@ class vn30_t99(MacroUpgrade):
         # Commands From: rose-meta/lfric-lfric_atm
         """Set segmentation size for Gregory-Rowntree convection kernel"""
         self.add_setting(config, ["namelist:physics", "conv_gr_segment"], "16")
-
         return config, self.reports
 
 
@@ -124,7 +120,6 @@ class vn30_t146(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_surface", "l_point_data"], ".false."
         )
-
         return config, self.reports
 
 
@@ -137,7 +132,6 @@ class vn30_t135(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/socrates-radiation
         self.add_setting(config, ["namelist:cosp", "n_cosp_step"], "1")
-
         return config, self.reports
 
 
@@ -153,7 +147,6 @@ class vn30_t171(MacroUpgrade):
         self.add_setting(
             config, ["namelist:transport", "adjust_tracer_equation"], ".false."
         )
-
         return config, self.reports
 
 
@@ -169,5 +162,26 @@ class vn30_t214(MacroUpgrade):
         self.change_setting_value(
             config, ["namelist:physics", "configure_segments"], ".true."
         )
+
+
+class vn30_t108(MacroUpgrade):
+    """Upgrade macro for ticket #108 by Christine Johnson."""
+
+    BEFORE_TAG = "vn3.0_t214"
+    AFTER_TAG = "vn3.0_t108"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-linear
+        fixed_ls = self.get_setting_value(
+            config, ["namelist:linear", "fixed_ls"]
+        )
+        if ".true." in fixed_ls:
+            self.add_setting(
+                config, ["namelist:linear", "transport_efficiency"], ".true."
+            )
+        else:
+            self.add_setting(
+                config, ["namelist:linear", "transport_efficiency"], ".false."
+            )
 
         return config, self.reports

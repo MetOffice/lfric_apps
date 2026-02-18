@@ -96,16 +96,20 @@ module atlt_mol_conservative_alg_mod
     integer(kind=i_def)                                :: mesh_id
     type(transport_controller_type),           pointer :: pert_transport_controller
     type(transport_controller_type),           pointer :: ls_transport_controller
+    type(transport_controller_type),           pointer :: transport_controller
     type(field_type)                                   :: tctr_field_n
     type(function_space_type),                 pointer :: tctr_field_n_vs
     type(field_type)                                   :: tctr_field_n_inp
     type(r_tran_field_type), dimension(:), allocatable :: tctr_flux_inp
     type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp
     type(r_tran_field_type), dimension(:), allocatable :: fpc_pert_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp2
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_1_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_1_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_2_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_2_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_3_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_3_inp
     type(r_tran_field_type)                            :: wind_pc_h_inp
     type(r_tran_field_type)                            :: wind_pc_v_inp
     type(r_tran_field_type)                            :: wind_pc_3d_inp
@@ -117,6 +121,7 @@ module atlt_mol_conservative_alg_mod
 
     mesh_id = mesh%get_id()
     call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, tctr_field_n, tctr_field_n_vs )
+    transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
 
@@ -125,6 +130,12 @@ module atlt_mol_conservative_alg_mod
                                  tctr_field_n_inp,         &
                                  tctr_flux_inp,            &
                                  pert_transport_controller )
+    call init_flux_pc_fieldvals( mesh,                     &
+                                 1_i_def,                  &
+                                 fpc_ls_wind_ref_flux_inp2, &
+                                 dummy_ref_field_3_inp,    &
+                                 dummy_ref_mass_3_inp,     &
+                                 transport_controller )
     call init_flux_pc_fieldvals( mesh,                     &
                                  1_i_def,                  &
                                  fpc_ls_wind_ref_flux_inp, &
