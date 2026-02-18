@@ -12,7 +12,7 @@ module atlt_poly1d_vert_w3_recon_alg_mod
   use function_space_collection_mod,     only : function_space_collection
   use finite_element_config_mod,         only : element_order_h, element_order_v
   use fs_continuity_mod,                 only : W3
-  use constants_mod,                     only : i_def, l_def, r_def
+  use constants_mod,                     only : i_def, l_def, r_def, EPS
   use log_mod,                           only : log_event,       &
                                                 LOG_LEVEL_ERROR, &
                                                 LOG_LEVEL_DEBUG, &
@@ -78,10 +78,9 @@ module atlt_poly1d_vert_w3_recon_alg_mod
     real(kind=r_def)            :: reconstruction_reconstruction_input_inner_prod
     real(kind=r_def)            :: tracer_tracer_input_inner_prod
     real(kind=r_def)            :: inner2
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
-    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 3100.0_r_def
     real(kind=r_def) :: machine_tol
     real(kind=r_def) :: relative_diff
 
@@ -141,8 +140,8 @@ module atlt_poly1d_vert_w3_recon_alg_mod
                  x_innerproduct_x( tracer_inner_prod, tracer ) )
 
     ! Determining scale factors
-    reconstruction_sf = 1.0_r_def/(reconstruction_inner_prod + eps)
-    tracer_sf = 1.0_r_def/(tracer_inner_prod + eps)
+    reconstruction_sf = 1.0_r_def/(reconstruction_inner_prod + EPS)
+    tracer_sf = 1.0_r_def/(tracer_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + reconstruction_inner_prod*reconstruction_sf

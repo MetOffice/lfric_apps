@@ -13,6 +13,8 @@ information on the dependencies required to run any of the LFRic based
 applications including those found in LFRic Core.
 The :ref:`User Guide <user_guide_index>` describes the purpose of the 
 applications and how to use them.
+The :ref:`Science Guide <science_guide_index>` describes the various
+science schemes implemented and used in the modelling applications.
 The :ref:`Developer Guide <developer_guide_index>`
 contains guidance for those doing development of the applications themselves.
 

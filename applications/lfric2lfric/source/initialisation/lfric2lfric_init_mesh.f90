@@ -308,7 +308,6 @@ subroutine init_mesh( configuration,           &
                                    decomposition_dst,    &
                                    partitioner_dst )
 
-
     ! Read in all global meshes from input file
     !===========================================================
     if (mesh_file(dst) == mesh_file(src)) then
