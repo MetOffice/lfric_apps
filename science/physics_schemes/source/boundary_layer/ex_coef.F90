@@ -520,11 +520,10 @@ do k = 2, bl_levels
       end if
       zh_local(i,j) = z_uv(i,j,ntml_local(i,j)+1)
     end if
-    zh_local(i,j) = z_uv(i,j,ntml_local(i,j)+1)
-  end if
-end do  ! Loop over points
-  !$OMP end do NOWAIT
+  end do  ! Loop over points
+!$OMP end do NOWAIT
 end do  ! Loop over levels
+
 !$OMP end PARALLEL
 
 ! Save original diagnosis
@@ -857,7 +856,6 @@ if (sg_orog_mixing /= off) then
         BL_weight(i,j,k) = one_half*( one - tanh(4.0_r_bl*(zpr-one) ) )
       end if
     end do
-    !$OMP end PARALLEL do
   end do
 !$OMP end do NOWAIT
 end if
@@ -1175,81 +1173,71 @@ do k = 2, bl_levels
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
-    if (BL_diag%l_elm3d) BL_diag%elm3d(i,j,k)=elm(i,j,k)
-    if (ri(i,j,k)  >=  zero) then
-      !-----------------------------------------------------------
-      ! Note that we choose to include the Pr dependence such that
-      ! fm(Ri=0)=1 and decreases slower than func with increasing
-      ! Ri, due to GW activity, rather than have fh decrease
-      ! faster than func
-      !---------------------------------------------------------
-      fh = func(i,j) * r_pr_n
-      fm = fh * prandtl_number(i,j)
+      if (BL_diag%l_elm3d) BL_diag%elm3d(i,j,k)=elm(i,j,k)
+      if (ri(i,j,k)  >=  zero) then
+        !-----------------------------------------------------------
+        ! Note that we choose to include the Pr dependence such that
+        ! fm(Ri=0)=1 and decreases slower than func with increasing
+        ! Ri, due to GW activity, rather than have fh decrease
+        ! faster than func
+        !---------------------------------------------------------
+        fh = func(i,j) * r_pr_n
+        fm = fh * prandtl_number(i,j)
 
-    else   ! ri < 0
-      if (cbl_op == neut_cbl) then
-        ! Use neutral stability for unstable mixing
-        fm = one
-        fh = r_pr_n
-      else if (cbl_op == lem_std .or. cbl_op == lem_conven                   &
-                                 .or. cbl_op == lem_adjust) then
-        fm = sqrt(one-subc*ri(i,j,k))
-        fh = sqrt(one-subb*ri(i,j,k)) * r_pr_n
-      else
-        zfa=zht+1000.0_r_bl
-        if (zz <= zht) then
-          beta=beta_bl
-        else if (zz <= zfa) then
-          beta = beta_bl*(zfa-zz)/(zfa-zht) +                                &
-                  beta_fa*(zz-zht)/(zfa-zht)
+      else   ! ri < 0
+        if (cbl_op == neut_cbl) then
+          ! Use neutral stability for unstable mixing
+          fm = one
+          fh = r_pr_n
+        else if (cbl_op == lem_std .or. cbl_op == lem_conven                   &
+                                   .or. cbl_op == lem_adjust) then
+          fm = sqrt(one-subc*ri(i,j,k))
+          fh = sqrt(one-subb*ri(i,j,k)) * r_pr_n
         else
-          beta=beta_fa
+          !           ! UM_std
+          rtmri = (elm(i,j,k)/elh(i,j,k)) * sqrt ( -ri(i,j,k) )
+          fm = one - ( g0*ri(i,j,k) / ( one + dm*rtmri ) )
+          fh = (one - ( g0*ri(i,j,k) / ( one + dh*rtmri ) )) * r_pr_n
         end if
-        weight_1dbl(i,j,k) =                                                 &
-          one - tanh( beta*z_scale/delta_smag(i,j)) * max( zero,             &
-              min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
       end if
-    end if
 
-    !------------------------------------------------------------------
-    ! 4.0 Calculate exchange coefficients RHO*KM(K), RHO*KH(K)
-    !     both on TH-level K-1 at this stage (RHOKH will be interpolated
-    !     onto uv-levels and then be multiplied by ELH in BDY_EXPL2 if
-    !     local_fa is not "free_trop_layers")
-    !------------------------------------------------------------------
+      !------------------------------------------------------------------
+      ! 4.0 Calculate exchange coefficients RHO*KM(K), RHO*KH(K)
+      !     both on TH-level K-1 at this stage (RHOKH will be interpolated
+      !     onto uv-levels and then be multiplied by ELH in BDY_EXPL2 if
+      !     local_fa is not "free_trop_layers")
+      !------------------------------------------------------------------
 
-    if (l_subfilter_vert .or. l_subfilter_horiz) then
-      fm_3d(i,j,k)=fm
-      fh_3d(i,j,k)=fh
-    end if
-    if (BL_diag%l_fm) BL_diag%fm(i,j,k)=fm
-    if (BL_diag%l_fh) BL_diag%fh(i,j,k)=fh
+      if (l_subfilter_vert .or. l_subfilter_horiz) then
+        fm_3d(i,j,k)=fm
+        fh_3d(i,j,k)=fh
+      end if
+      if (BL_diag%l_fm) BL_diag%fm(i,j,k)=fm
+      if (BL_diag%l_fh) BL_diag%fh(i,j,k)=fh
 
-    rhokm(i,j,k) = rho_wet_tq(i,j,k-1) * elm(i,j,k) * elm(i,j,k)             &
-                                * dvdzm(i,j,k) * fm
-    if (l_mr_physics) then
-        ! Note "RHO" here is always wet density (RHO_WET_TQ) so
-        ! save multiplication of RHOKH to after interpolation
-      rhokh(i,j,k) =                elm(i,j,k) * dvdzm(i,j,k) * fh
-    else
-      !           ! UM_std
-      rtmri = (elm(i,j,k)/elh(i,j,k)) * sqrt ( -ri(i,j,k) )
-      fm = one - ( g0*ri(i,j,k) / ( one + dm*rtmri ) )
-      fh = (one - ( g0*ri(i,j,k) / ( one + dh*rtmri ) )) * r_pr_n
-    end if
-    ! If using the FA mixing length profile it is simplest to
-    ! interpolate the full KH profile, including elh (in bdy_expl2)
-    if (local_fa == free_trop_layers)                                        &
-                rhokh(i,j,k) = rhokh(i,j,k) * elh(i,j,k)
+      rhokm(i,j,k) = rho_wet_tq(i,j,k-1) * elm(i,j,k) * elm(i,j,k)             &
+                                  * dvdzm(i,j,k) * fm
+      if (l_mr_physics) then
+          ! Note "RHO" here is always wet density (RHO_WET_TQ) so
+          ! save multiplication of RHOKH to after interpolation
+        rhokh(i,j,k) =                elm(i,j,k) * dvdzm(i,j,k) * fh
+      else
+        rhokh(i,j,k) = rho_wet_tq(i,j,k-1) * elm(i,j,k) * dvdzm(i,j,k)         &
+                       * fh
+      end if
+      ! If using the FA mixing length profile it is simplest to
+      ! interpolate the full KH profile, including elh (in bdy_expl2)
+      if (local_fa == free_trop_layers)                                        &
+                  rhokh(i,j,k) = rhokh(i,j,k) * elh(i,j,k)
 
-    if (BL_diag%l_tke) then
-      rpr = fh / max(fm, tiny(one) )
-      tke_loc(i,j,k) = ( r_c_tke*elm(i,j,k)*dvdzm(i,j,k)*dvdzm(i,j,k)        &
-                         *(rhokm(i,j,k)/rho_wet_tq(i,j,k-1))                 &
-                         *max( one_half, min( 10.0_r_bl,                     &
-                         one - ri(i,j,k)*rpr ) )                             &
-                       )**two_thirds
-    end if
+      if (BL_diag%l_tke) then
+        rpr = fh / max(fm, tiny(one) )
+        tke_loc(i,j,k) = ( r_c_tke*elm(i,j,k)*dvdzm(i,j,k)*dvdzm(i,j,k)        &
+                           *(rhokm(i,j,k)/rho_wet_tq(i,j,k-1))                 &
+                           *max( one_half, min( 10.0_r_bl,                     &
+                           one - ri(i,j,k)*rpr ) )                             &
+                         )**two_thirds
+      end if
 
   end do !i
 !$OMP end do
