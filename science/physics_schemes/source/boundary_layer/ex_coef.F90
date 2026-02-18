@@ -510,7 +510,7 @@ do i = pdims%i_start, pdims%i_end
   ! initialise blending weight at top of BL to one
   weight_bltop(i,j)   = one
 end do
-!$OMP end do NOWAIT
+!$OMP end do
 
 !-----------------------------------------------------------------------
 ! Set-up a BL weighting function, =1 near the ground (ie in the BL)
@@ -541,7 +541,7 @@ if (local_fa == to_sharp_across_1km) then
       BL_weight(i,j,k) = one_half*(one - tanh(3.0_r_bl*(zpr-one) ) )
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP end do
 end if
 
 if (sg_orog_mixing /= off) then
@@ -560,7 +560,7 @@ if (sg_orog_mixing /= off) then
       end if
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP end do
 end if
 
 if (l_use_var_fixes) then
@@ -570,7 +570,7 @@ if (l_use_var_fixes) then
       turb_length(i,j,k) = lambda_min*rlambda_fac
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP end do
   if (blending_option == blend_cth_shcu_only) then
     ! use Smag mixing length as background length scale if smaller
     ! than lambda_min (ie ignore lambda_min for high res simulations)
@@ -580,7 +580,7 @@ if (l_use_var_fixes) then
         turb_length(i,j,k) = min( turb_length(i,j,k), sqrt(rmlmax2(i,j,k)) )
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP end do
   end if
 else
 !$OMP do SCHEDULE(STATIC)
@@ -589,7 +589,7 @@ else
       turb_length(i,j,k)=lambda_min
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP end do
 end if
 !-----------------------------------------------------------------------
 ! Set critical Richardson number
@@ -959,7 +959,7 @@ do k = 2, bl_levels
   case (lem_stability)
 
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                         &
-    !$OMP private( i )
+    !$OMP private( i, rifac )
     do i = pdims%i_start, pdims%i_end
       if ( ri(i,j,k) >= zero .and. ri(i,j,k)< ric ) then
         ! here func is essentially giving fh and the LEM stable
@@ -1000,7 +1000,7 @@ do k = 2, bl_levels
     !--------------------------------------------
   case (mes_tails)
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                         &
-    !$OMP private( i )
+    !$OMP private( i, fm, fm_louis, fm_sharpest, z_scale  )
     do i = pdims%i_start, pdims%i_end
           ! Louis function
       if (ri(i,j,k) >= zero) then
