@@ -822,6 +822,7 @@ contains
 
     ! General case for any splitting
     else
+
       call sum_hori_flux%initialise(w2h_fs)
       call sum_vert_flux%initialise(w2v_fs)
 
