@@ -897,8 +897,6 @@ real(kind=r_bl) :: interp, denom
 integer ::                                                                     &
  i,                                                                            &
                  ! Loop counter (horizontal field index).
- j,                                                                            &
-                 ! Offset counter in certain I loops.
  k,                                                                            &
                  ! Loop counter (vertical level index).
  kl,                                                                           &
@@ -911,6 +909,8 @@ integer ::                                                                     &
  k_rad_lim
                  ! limit on levels within which to search for
                  !   the max LW radiative cooling
+
+integer, parameter :: j = 1 ! Loop counter, horizontal - LFRic Parameter
 
 integer :: i_wt   ! Water tracer counter
 
@@ -1011,11 +1011,10 @@ end if
 
 dz_disc_min = one_half * timestep * 1.0e-4_r_bl
 
-j = 1
 !Start OpenMP parallel region
 
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private (i, ii, k, kp, kl, km, i_wt, w_curv_nm, w_del_nm, w_curv,    &
+!$OMP  private (i, ii, k, kp, kl, km, i_wt, w_curv_nm, w_del_nm, w_curv,       &
 !$OMP  r_d_eta, rho_dz, z_surf, sl_plume, qw_plume,  q_liq_parc, q_liq_env,    &
 !$OMP  t_parc, q_vap_parc, t_dens_parc, t_dens_env, dpar_bydz,  denv_bydz,     &
 !$OMP  z_rad_lim,  k_rad_lim, dflw_inv, dfsw_inv, dfsw_top, svl_plume,         &
@@ -1061,9 +1060,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end do
   end do
 
-  k = bl_levels
+  !k = bl_levels
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-    z_top(i,j,k) = z_uv(i,j,k) + dzl(i,j,k)
+    z_top(i,j,bl_levels) = z_uv(i,j,bl_levels) + dzl(i,j,bl_levels)
   end do
 end do ! ii
 !$OMP end do
@@ -1132,9 +1131,9 @@ do k = 1, bl_levels
     ! directive stop vectorization of this loop  when an Intel Compiler
     ! is used. Other compilers, for example Cray, should vectorise this
     ! loop automatically.    
-! #if defined (IFORT_VERSION)
-! !DIR$ NOVECTOR
-! #endif
+#if defined (IFORT_VERSION)
+!DIR$ NOVECTOR
+#endif
     w_grad(i,j,k) = (w(i,j,k)-w(i,j,km))*rdz(i,j,k)
     w_curv_nm = w(i,j,kp)-2.0_r_bl*w(i,j,k)+w(i,j,km)
     w_del_nm  = w(i,j,kp)-w(i,j,km)
@@ -1146,14 +1145,14 @@ do k = 1, bl_levels
   !$OMP end do
 end do ! k
 
-!!$OMP BARRIER
+!$OMP BARRIER
 
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do k = 2, bl_levels-1
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
 
-      if ( etadot(i,j,k)  < - tiny(one) .and.                                &
+      if ( etadot(i,j,k)  < - tiny(one) .and.                                  &
             etadot(i,j,k-1)< - tiny(one) ) then
           !-----------------------------------------------------------
           ! Only needed in subsidence regions
@@ -1173,9 +1172,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
           w(i,j,k+1) = zero
         else
           r_d_eta=1.0/(eta_theta_levels(k+1)-eta_theta_levels(k))
-          sls_inc(i,j,k) = - etadot(i,j,k) * r_d_eta                         &
+          sls_inc(i,j,k) = - etadot(i,j,k) * r_d_eta                           &
                                     * ( sl(i,j,k+1) - sl(i,j,k) )
-          qls_inc(i,j,k) = - etadot(i,j,k) * r_d_eta                         &
+          qls_inc(i,j,k) = - etadot(i,j,k) * r_d_eta                           &
                                     * ( qw(i,j,k+1) - qw(i,j,k) )
         end if  ! safe to calculate increments
       end if
@@ -1202,7 +1201,7 @@ if (l_wtrac) then
     do k = 2, bl_levels-1
       do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
 
-        if ( etadot(i,j,k)  < - tiny(one) .and.                              &
+        if ( etadot(i,j,k)  < - tiny(one) .and.                                &
               etadot(i,j,k-1)< - tiny(one) ) then
           !-----------------------------------------------------------
           ! Only needed in subsidence regions
@@ -1221,7 +1220,7 @@ if (l_wtrac) then
             km = kp-1
             r_d_eta=one/(eta_theta_levels(kp)-eta_theta_levels(km))
             do i_wt = 1, n_wtrac
-              qls_inc_wtrac(i,j,k,i_wt) = - etadot(i,j,k) * r_d_eta          &
+              qls_inc_wtrac(i,j,k,i_wt) = - etadot(i,j,k) * r_d_eta            &
                 * ( wtrac_bl(i_wt)%qw(i,j,kp) - wtrac_bl(i_wt)%qw(i,j,km) )
             end do
           end if  ! safe to calculate increments
@@ -1319,15 +1318,15 @@ if (l_wtrac) then
       kp = k+1
       do i = pdims%i_start, pdims%i_end
         rho_dz = rho_mix_tq(i,j,k) * dzl(i,j,k)
-        dfmic_wtrac(i,j,k,i_wt)  =                                           &
+        dfmic_wtrac(i,j,k,i_wt)  =                                             &
                   - wtrac_as(i_wt)%micro_tends(i,j,k) * rho_dz
         dfsubs_wtrac(i,j,k,i_wt) = - qls_inc_wtrac(i,j,k,i_wt) * rho_dz
 
-        fsubs_wtrac(i,j,kp,i_wt)=                                            &
+        fsubs_wtrac(i,j,kp,i_wt)=                                              &
                   fsubs_wtrac(i,j,k,i_wt) + dfsubs_wtrac(i,j,k,i_wt)
-        fmic_wtrac(i,j,kp,i_wt) =                                            &
+        fmic_wtrac(i,j,kp,i_wt) =                                              &
                   fmic_wtrac(i,j,k,i_wt)  + dfmic_wtrac(i,j,k,i_wt)
-        wtrac_bl(i_wt)%fq_nt(i,j,kp)  =                                      &
+        wtrac_bl(i_wt)%fq_nt(i,j,kp)  =                                        &
                   fmic_wtrac(i,j,kp,i_wt) + fsubs_wtrac(i,j,kp,i_wt)
       end do ! i
     end do ! k
@@ -1363,7 +1362,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
                 !reached z_surf
           k_plume(i,j)=k
         end if
-        if ( svl(i,j,k+1) >= svl(i,j,k)                                      &
+        if ( svl(i,j,k+1) >= svl(i,j,k)                                        &
                 .and. k_plume(i,j) == -1 ) then
                 !reached inversion
           k_plume(i,j)=k
@@ -1415,19 +1414,19 @@ if ( .not. sc_diag_opt == sc_diag_all_rh_max ) then
         !..Find cloud-base (where cloud here means CF > SC_CFTOL)
         !-----------------------------------------------------------------
 
-        if ( .not. cumulus(i,j) .and.                                        &
-              z_tq(i,j,k) < zmaxb_for_dsc .and.                               &
-              k  >   ntml(i,j)+1 .and. cf(i,j,k)  >   sc_cftol                &
-                              .and. .not. cloud_base(i,j)                    &
+        if ( .not. cumulus(i,j) .and.                                          &
+              z_tq(i,j,k) < zmaxb_for_dsc .and.                                &
+              k  >   ntml(i,j)+1 .and. cf(i,j,k)  >   sc_cftol                 &
+                              .and. .not. cloud_base(i,j)                      &
           !                                  not yet found cloud-base
                                         .and. .not. dsc(i,j) ) then
           !                                  not yet found a Sc layer
           cloud_base(i,j) = .true.
         end if
-        if ( cloud_base(i,j) .and. .not. dsc(i,j) .and.                      &
+        if ( cloud_base(i,j) .and. .not. dsc(i,j) .and.                        &
           !                 found cloud-base but not yet reached cloud-top
-                        cf(i,j,k+1) < sc_cftol .and.                          &
-                        z_tq(i,j,k) < zmaxt_for_dsc                           &
+                        cf(i,j,k+1) < sc_cftol .and.                           &
+                        z_tq(i,j,k) < zmaxt_for_dsc                            &
           !                 got to cloud-top below ZMAXT_FOR_DSC
                       ) then
           cloud_base(i,j) = .false.         ! reset CLOUD_BASE
@@ -1438,14 +1437,14 @@ if ( .not. sc_diag_opt == sc_diag_all_rh_max ) then
           ! Parcel descent in Section 4.0 below will determine depth
           ! of mixed layer.
           !----------------------------------------------------------
-          if ( (svl(i,j,k)-svl(i,j,k-1))                                     &
-                        /(z_tq(i,j,k)-z_tq(i,j,k-1))                          &
+          if ( (svl(i,j,k)-svl(i,j,k-1))                                       &
+                        /(z_tq(i,j,k)-z_tq(i,j,k-1))                           &
                                               <   max_svl_grad ) then
             dsc(i,j) = .true.
             ntdsc(i,j) = k
             zhsc(i,j)  = z_uv(i,j,ntdsc(i,j)+1)
-          else if ( (svl(i,j,k-1)-svl(i,j,k-2))                              &
-                        /(z_tq(i,j,k-1)-z_tq(i,j,k-2))                       &
+          else if ( (svl(i,j,k-1)-svl(i,j,k-2))                                &
+                        /(z_tq(i,j,k-1)-z_tq(i,j,k-2))                         &
                                             <   max_svl_grad ) then
             !---------------------------------------------------------
             ! Well-mixed layer with top at k-1 or k.  Check whether
@@ -1461,51 +1460,51 @@ if ( .not. sc_diag_opt == sc_diag_all_rh_max ) then
             ! environmental temperature.
             ! ------------------------------------------------------------
             if (t(i,j,k) >  tm) then
-              q_liq_parc = max( zero, ( qw_plume - qs(i,j,k) -               &
-                dqsdt(i,j,k)*                                                &
-                ( sl_plume-grcp*z_tq(i,j,k)-t(i,j,k) )                       &
+              q_liq_parc = max( zero, ( qw_plume - qs(i,j,k) -                 &
+                dqsdt(i,j,k)*                                                  &
+                ( sl_plume-grcp*z_tq(i,j,k)-t(i,j,k) )                         &
                                       ) *a_qs(i,j,k) )
-              q_liq_env = max( zero, ( qw(i,j,k) - qs(i,j,k)                 &
-                          -dqsdt(i,j,k)*( tl(i,j,k) - t(i,j,k) )             &
+              q_liq_env = max( zero, ( qw(i,j,k) - qs(i,j,k)                   &
+                          -dqsdt(i,j,k)*( tl(i,j,k) - t(i,j,k) )               &
                                       ) *a_qs(i,j,k) )
               ! add on the difference in the environment's ql as
               ! calculated by the partial condensation scheme (using
               ! some RH_CRIT value) and what it would be if
               ! RH_CRIT=1. This then imitates partial condensation in
               ! the parcel.
-              q_liq_parc = q_liq_parc + qcl(i,j,k) + qcf(i,j,k)              &
+              q_liq_parc = q_liq_parc + qcl(i,j,k) + qcf(i,j,k)                &
                               - q_liq_env
-              t_parc = sl_plume - grcp * z_tq(i,j,k) +                       &
+              t_parc = sl_plume - grcp * z_tq(i,j,k) +                         &
                                 lcrcp*q_liq_parc
             else
-              q_liq_parc = max( zero, ( qw_plume - qs(i,j,k) -               &
-                dqsdt(i,j,k)*                                                &
-                  ( sl_plume - grcp*z_tq(i,j,k)-t(i,j,k) )                   &
+              q_liq_parc = max( zero, ( qw_plume - qs(i,j,k) -                 &
+                dqsdt(i,j,k)*                                                  &
+                  ( sl_plume - grcp*z_tq(i,j,k)-t(i,j,k) )                     &
                                       ) *a_qs(i,j,k) )
-              q_liq_env = max( zero, ( qw(i,j,k) - qs(i,j,k)                 &
-                  -dqsdt(i,j,k)*( tl(i,j,k) - t(i,j,k) )                      &
+              q_liq_env = max( zero, ( qw(i,j,k) - qs(i,j,k)                   &
+                  -dqsdt(i,j,k)*( tl(i,j,k) - t(i,j,k) )                       &
                                       ) *a_qs(i,j,k) )
               ! add on difference in environment's ql between RH_CRIT and
               ! RH_CRIT=1
-              q_liq_parc = q_liq_parc + qcl(i,j,k) + qcf(i,j,k)              &
+              q_liq_parc = q_liq_parc + qcl(i,j,k) + qcf(i,j,k)                &
                               - q_liq_env
-              t_parc = sl_plume - grcp * z_tq(i,j,k) +                       &
+              t_parc = sl_plume - grcp * z_tq(i,j,k) +                         &
                                 lsrcp*q_liq_parc
             end if
             q_vap_parc=qw_plume - q_liq_parc
 
             t_dens_parc=t_parc*(one+c_virtual*q_vap_parc-q_liq_parc)
-            t_dens_env=t(i,j,k)*                                             &
+            t_dens_env=t(i,j,k)*                                               &
                         (one+c_virtual*q(i,j,k)-qcl(i,j,k)-qcf(i,j,k))
             ! find vertical gradients in parcel and environment SVL
             ! (using values from level below (K-1))
-            env_svl_km1(i,j) = t(i,j,k-1) * ( one+c_virtual*q(i,j,k-1)       &
+            env_svl_km1(i,j) = t(i,j,k-1) * ( one+c_virtual*q(i,j,k-1)         &
                   -qcl(i,j,k-1)-qcf(i,j,k-1) ) + grcp*z_tq(i,j,k-1)
-            dpar_bydz=(t_dens_parc+grcp*z_tq(i,j,k)-                         &
-                        env_svl_km1(i,j)) /                                  &
+            dpar_bydz=(t_dens_parc+grcp*z_tq(i,j,k)-                           &
+                        env_svl_km1(i,j)) /                                    &
                     (z_tq(i,j,k)-z_tq(i,j,k-1))
-            denv_bydz=(t_dens_env+grcp*z_tq(i,j,k)-                          &
-                        env_svl_km1(i,j))/                                   &
+            denv_bydz=(t_dens_env+grcp*z_tq(i,j,k)-                            &
+                        env_svl_km1(i,j))/                                     &
                     (z_tq(i,j,k)-z_tq(i,j,k-1))
 
             if ( denv_bydz >  1.25_r_bl*dpar_bydz ) then
@@ -1554,8 +1553,8 @@ if ( sc_diag_opt == sc_diag_cu_rh_max .or.                                     &
   do k = 1, bl_levels-1
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
-      if ( ( cumulus(i,j) .and. z_tq(i,j,k) > z_lcl(i,j) ) .or.              &
-            ( sc_diag_opt == sc_diag_all_rh_max .and. (.not. cumulus(i,j))    &
+      if ( ( cumulus(i,j) .and. z_tq(i,j,k) > z_lcl(i,j) ) .or.                &
+            ( sc_diag_opt == sc_diag_all_rh_max .and. (.not. cumulus(i,j))     &
               .and. k > ntml(i,j)+1 ) ) then
         ! If sc_diag_opt == sc_diag_cu_rh_max, only check cumulus points
         ! at heights above the LCL.
@@ -1612,7 +1611,7 @@ if ( sc_diag_opt == sc_diag_cu_rh_max .or.                                     &
       if ( rht_kp2 < rht_kp1 ) then
         ! RHt(k+1) lies between RHt(k) and RHt(k+2); compute fraction
         interp = (rht_kp1 - rht_kp2) / (rht_k - rht_kp2)
-        zhsc(i,j) = (one-interp) * z_uv(i,j,k+1)                             &
+        zhsc(i,j) = (one-interp) * z_uv(i,j,k+1)                               &
                   +      interp  * z_uv(i,j,kp2)
       else
         ! Rht(k+1) is a local minimum; can't construct k+1 as a fraction
@@ -1622,7 +1621,7 @@ if ( sc_diag_opt == sc_diag_cu_rh_max .or.                                     &
       end if
     end if ! ( ntdsc(i,j) > 0 )
   end do
-  !$OMP end do NOWAIT
+  !$OMP end do
 
 else if ( sc_diag_opt == sc_diag_cu_relax ) then
 
@@ -1634,9 +1633,9 @@ else if ( sc_diag_opt == sc_diag_cu_relax ) then
     k = ntpar(i,j)
     if ( cumulus(i,j) .and. k < bl_levels  ) then
             ! cumulus layer within BL_LEVELS
-      if ( z_tq(i,j,k) < zmaxt_for_dsc .and.                                 &
+      if ( z_tq(i,j,k) < zmaxt_for_dsc .and.                                   &
             ! cloud top below zmaxt_for_dsc
-            ( max( cf(i,j,k-1),cf(i,j,k),cf(i,j,k+1) ) > sc_cftol )           &
+            ( max( cf(i,j,k-1),cf(i,j,k),cf(i,j,k+1) ) > sc_cftol )            &
             ! cloud-top sufficiently cloudy
           ) then
         dsc(i,j)  = .true.
@@ -1653,13 +1652,13 @@ else if ( sc_diag_opt == sc_diag_orig ) then
 
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
-    if ( (l_param_conv .and.                                                 &
-            l_shallow(i,j) .and. ntpar(i,j)  <   bl_levels )                 &
+    if ( (l_param_conv .and.                                                   &
+            l_shallow(i,j) .and. ntpar(i,j)  <   bl_levels )                   &
             ! shallow cumulus layer within BL_LEVELS
-          .or. (.not. l_param_conv .and.                                      &
+          .or. (.not. l_param_conv .and.                                       &
               cumulus(i,j) .and. ntpar(i,j)  <   bl_levels ) ) then
             ! cumulus layer and inversion found
-      if ( cf(i,j,ntpar(i,j))  >   sc_cftol  .or.                            &
+      if ( cf(i,j,ntpar(i,j))  >   sc_cftol  .or.                              &
             cf(i,j,ntpar(i,j)+1)  >   sc_cftol ) then
           ! cloudy
         dsc(i,j)  = .true.
@@ -1674,7 +1673,7 @@ end if  ! test on sc_diag_opt
 
 if ( l_use_sml_dsc_fixes ) then
   ! Need to override "NOWAIT" on the previous blocks if going in here:
-  !!$OMP BARRIER
+  !$OMP BARRIER
   ! If conv_diag has diagnosed a SML rising significantly above cloud-base,
   ! abort any DSC diagnosis higher-up.
   ! This is because at present, diagnosing an elevated DSC-layer prompts
@@ -1874,10 +1873,10 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         k = k_cloud_dsct(i,j)+1
         if ( k  <   bl_levels ) then
           dflw_inv = dflw_over_cp(i,j,k)                                       &
-                      - dflw_over_cp(i,j,k+1)                                   &
+                      - dflw_over_cp(i,j,k+1)                                  &
                             * dzl(i,j,k)/dzl(i,j,k+1)
           dfsw_inv = dfsw_over_cp(i,j,k)                                       &
-                      - dfsw_over_cp(i,j,k+1)                                   &
+                      - dfsw_over_cp(i,j,k+1)                                  &
                             * dzl(i,j,k)/dzl(i,j,k+1)
         else
           dflw_inv = dflw_over_cp(i,j,k)
@@ -1889,11 +1888,11 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       df_inv_dsc(i,j) = dflw_inv + dfsw_inv
 
       df_dsct_over_cp(i,j) = frad_lw(i,j,k_cloud_dsct(i,j)+1)                  &
-                            - frad_lw(i,j,k_level(i,j))                         &
+                            - frad_lw(i,j,k_level(i,j))                        &
                             + dflw_inv
 
       dfsw_top = frad_sw(i,j,k_cloud_dsct(i,j)+1)                              &
-                - frad_sw(i,j,k_level(i,j))                                     &
+                - frad_sw(i,j,k_level(i,j))                                    &
                 + dfsw_inv
 
         !-----------------------------------------------------------
@@ -1940,7 +1939,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
       k = ntdsc(i,j)
       rho_dz = rho_mix_tq(i,j,k) * dzl(i,j,k)
-      svl_plume=svl(i,j,k-1)                                                 &
+      svl_plume=svl(i,j,k-1)                                                   &
           - ct_resid * dzl(i,j,k)*df_dsct_over_cp(i,j) / ( 50.0_r_bl*rho_dz )
     else
       svl_plume=zero
@@ -1960,7 +1959,7 @@ end do !ii
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   ! Note that ZHSC-Z_UV(NTML+2) may = 0, so this test comes first!
-  if (cumulus(i,j) .and. dsc(i,j))                                           &
+  if (cumulus(i,j) .and. dsc(i,j))                                             &
                     nbdsc(i,j) = max( nbdsc(i,j), ntml(i,j)+2 )
   if ( ntdsc(i,j)  >=  1 ) then
     if ( nbdsc(i,j) <   ntdsc(i,j)+1 ) then
@@ -1975,7 +1974,7 @@ do i = pdims%i_start, pdims%i_end
       !----------------------------------------------------------
       ! Indicates a layer of zero depth
       !----------------------------------------------------------
-      if ( ( sc_diag_opt==sc_diag_orig .or. sc_diag_opt==sc_diag_cu_relax )  &
+      if ( ( sc_diag_opt==sc_diag_orig .or. sc_diag_opt==sc_diag_cu_relax )    &
             .and. ntdsc(i,j) == ntpar(i,j) ) then
         !----------------------------------------------------------
         ! Indicates a Sc layer at the top of Cu: force mixing
@@ -2032,18 +2031,18 @@ if ( entr_smooth_dec == on .or. entr_smooth_dec == entr_taper_zh ) then
       ! - avoid ntdsc as can be within base of inversion
       !-------------------------------------------------------------
       svl_diff = zero
-      if ( ntdsc(i,j) >= 2 )                                                 &
+      if ( ntdsc(i,j) >= 2 )                                                   &
                 svl_diff = svl(i,j,ntdsc(i,j)-1) - svl(i,j,ntml(i,j))
       if ( svl_diff  < svl_coup_max ) then
         coupled(i,j) = .true.
-        svl_diff_frac(i,j) = one - max( zero,                                &
+        svl_diff_frac(i,j) = one - max( zero,                                  &
                               (svl_diff-svl_coup)/(svl_coup_max-svl_coup) )
                             ! to give 1 for svl_diff<svl_coup and
                             ! decrease linearly to 0 at svl_coup_max
         if ( entr_smooth_dec == entr_taper_zh ) then
           ! Adjust DSC depth smoothly from existing value to full height
           ! of the Sc-top as a function of coupling strength.
-          dscdepth(i,j) =      svl_diff_frac(i,j)  * zhsc(i,j)               &
+          dscdepth(i,j) =      svl_diff_frac(i,j)  * zhsc(i,j)                 &
                         + (one-svl_diff_frac(i,j)) * dscdepth(i,j)
         else
           ! Not using smooth height option; jump fully to Sc-top if coupled
@@ -2064,7 +2063,7 @@ else  ! entr_smooth_dec test
       ! Note this if test structure is required because if DSC is
       ! false then NTDSC = 0 and cannot be used to index SVL.
       !-----------------------------------------------------------
-      if ( svl(i,j,ntdsc(i,j)) - svl(i,j,ntml(i,j)) < svl_coup )             &
+      if ( svl(i,j,ntdsc(i,j)) - svl(i,j,ntml(i,j)) < svl_coup )               &
               coupled(i,j) = .true.
     end if
   end do
@@ -2188,7 +2187,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             if ( abs(quad_a)  >=  rbl_eps ) then
                   !   ...quadratic if QUAD_A /= 0
               dz_disc = ( quad_bm - sqrt( quad_bm*quad_bm                      &
-                                        - 4.0_r_bl*quad_a*quad_c )              &
+                                        - 4.0_r_bl*quad_a*quad_c )             &
                               ) / (2.0_r_bl*quad_a)
             else
                   !   ...linear if QUAD_A == 0
@@ -2351,11 +2350,11 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
           quad_a  = one_half*( svl_lapse - svl_lapse_base )
           quad_bm = svl(i,j,k+2) - svl(i,j,k)                                  &
-                - svl_lapse * ( z_tq(i,j,k+2)-z_uv(i,j,k+2) )                   &
-                - svl_lapse_base * ( z_uv(i,j,k+1)-z_tq(i,j,k) +                &
+                - svl_lapse * ( z_tq(i,j,k+2)-z_uv(i,j,k+2) )                  &
+                - svl_lapse_base * ( z_uv(i,j,k+1)-z_tq(i,j,k) +               &
                                                       dzl(i,j,k+1) )
           quad_c  = dzl(i,j,k+1)*( svl(i,j,k+1) - svl(i,j,k) -                 &
-                svl_lapse_base * (                                              &
+                svl_lapse_base * (                                             &
                 z_uv(i,j,k+1)-z_tq(i,j,k) + one_half*dzl(i,j,k+1) ) )
 
           if ( quad_bm  >   zero ) then
@@ -2368,7 +2367,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
               if ( abs(quad_a) >= rbl_eps ) then
                   !   ...quadratic if QUAD_A ne 0
                 dz_disc = ( quad_bm - sqrt( quad_bm*quad_bm                    &
-                                          - 4.0_r_bl*quad_a*quad_c )            &
+                                          - 4.0_r_bl*quad_a*quad_c )           &
                                 ) / (2.0_r_bl*quad_a)
               else
                   !   ...linear if QUAD_A = 0
@@ -2554,7 +2553,7 @@ do i = pdims%i_start, pdims%i_end
       ! the previous timestep (assumes T1_SD has not changed much,
       ! which in turn assumes the surface fluxes have not)
     if (flux_grad  ==  Locketal2000) then
-      grad_t_adj(i,j) = min( max_t_grad ,                                    &
+      grad_t_adj(i,j) = min( max_t_grad ,                                      &
                         a_grad_adj * t1_sd(i,j) / zh_prev(i,j) )
       grad_q_adj(i,j) = zero
     else if (flux_grad  ==  HoltBov1993) then
@@ -2565,7 +2564,7 @@ do i = pdims%i_start, pdims%i_end
       c_ws = 0.6_r_bl
       w_m =( v_s(i,j)**3 + c_ws*wstar3 )**one_third
 
-      grad_t_adj(i,j) = a_ga_hb93*(wstar3**one_third)*ftl(i,j,1)             &
+      grad_t_adj(i,j) = a_ga_hb93*(wstar3**one_third)*ftl(i,j,1)               &
                         / ( rhostar_gb(i,j)*w_m*w_m*zh_prev(i,j) )
       ! GRAD_Q_ADJ(I,j) = A_GA_HB93*(WSTAR3**one_third)*FQW(I,j,1)
       !                  / ( RHOSTAR_GB(I,j)*W_M*W_M*ZH_PREV(I,j) )
@@ -2579,9 +2578,9 @@ do i = pdims%i_start, pdims%i_end
       pr_neut = 0.75_r_bl
       w_h = ( ( v_s(i,j)**3+c_ws*wstar3 )**one_third )/ pr_neut
 
-      grad_t_adj(i,j) = a_ga_lw06 * ftl(i,j,1)                               &
+      grad_t_adj(i,j) = a_ga_lw06 * ftl(i,j,1)                                 &
                           / ( rhostar_gb(i,j)*w_h*zh_prev(i,j) )
-      grad_q_adj(i,j) = a_ga_lw06 * fqw(i,j,1)                               &
+      grad_q_adj(i,j) = a_ga_lw06 * fqw(i,j,1)                                 &
                           / ( rhostar_gb(i,j)*w_h*zh_prev(i,j) )
     end if
   end if  ! test on UNSTABLE
@@ -2627,25 +2626,25 @@ do k = 1, bl_levels
 !DIR$ NOFUSION
 !DIR$ VECTOR ALWAYS
   do i = pdims%i_start, pdims%i_end
-    virt_factor = one + c_virtual*q(i,j,k) - qcl(i,j,k) -                    &
+    virt_factor = one + c_virtual*q(i,j,k) - qcl(i,j,k) -                      &
                         qcf(i,j,k)
 
-    dqcldz(i,j,k) = -( dsldz(i)*dqsdt(i,j,k)                                 &
-                    + g*qs(i,j,k)/(r*t(i,j,k)*virt_factor) )                  &
+    dqcldz(i,j,k) = -( dsldz(i)*dqsdt(i,j,k)                                   &
+                    + g*qs(i,j,k)/(r*t(i,j,k)*virt_factor) )                   &
                     / ( one + lcrcp*dqsdt(i,j,k) )
-    dqcfdz(i,j,k) = -( dsldz(i)*dqsdt(i,j,k)                                 &
-                    + g*qs(i,j,k)/(r*t(i,j,k)*virt_factor) ) * fgf            &
+    dqcfdz(i,j,k) = -( dsldz(i)*dqsdt(i,j,k)                                   &
+                    + g*qs(i,j,k)/(r*t(i,j,k)*virt_factor) ) * fgf             &
                     / ( one + lsrcp*dqsdt(i,j,k) )
   end do
 
         ! limit calculation to greater than a small cloud fraction
 !DIR$ NOFUSION
   do i = pdims%i_start, pdims%i_end
-    if ( qcl(i,j,k) + qcf(i,j,k)  >   zero                                   &
+    if ( qcl(i,j,k) + qcf(i,j,k)  >   zero                                     &
           .and. cf(i,j,k)  >   1.0e-3_r_bl ) then
-      cfl(i,j,k) = cf(i,j,k) * qcl(i,j,k) /                                  &
+      cfl(i,j,k) = cf(i,j,k) * qcl(i,j,k) /                                    &
                     ( qcl(i,j,k) + qcf(i,j,k) )
-      cff(i,j,k) = cf(i,j,k) * qcf(i,j,k) /                                  &
+      cff(i,j,k) = cf(i,j,k) * qcf(i,j,k) /                                    &
                     ( qcl(i,j,k) + qcf(i,j,k) )
     else
       cfl(i,j,k) = zero
@@ -2697,7 +2696,7 @@ do i = pdims%i_start, pdims%i_end
   k_level(i,j) = ntml(i,j)
   if ( cf_sml(i,j)  >   sc_cftol ) then
     if ( .not. l_check_ntp1 )  k_level(i,j) = ntml(i,j)-1
-    do while ( cf(i,j,max(k_level(i,j),1))  >   sc_cftol                     &
+    do while ( cf(i,j,max(k_level(i,j),1))  >   sc_cftol                       &
                 .and. k_level(i,j)  >=  2 )
       k_level(i,j) = k_level(i,j) - 1
     end do
@@ -2710,7 +2709,7 @@ end do
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if ( cf_sml(i,j)  >   sc_cftol ) then
-    if ( k_level(i,j)  ==  1 .and.                                           &
+    if ( k_level(i,j)  ==  1 .and.                                             &
           cf(i,j,max(k_level(i,j),1))  >   sc_cftol) then
       z_cf_base(i,j) = zero
     else
@@ -2730,7 +2729,7 @@ end do
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   do k = min(bl_levels, ntml(i,j)+p1), 1, -1
-    if ( .not. cloud_base(i,j) .and.                                         &
+    if ( .not. cloud_base(i,j) .and.                                           &
           cf_sml(i,j)  >   sc_cftol ) then
             ! within cloudy boundary layer
       if ( k  ==  1) then
@@ -2756,13 +2755,13 @@ do i = pdims%i_start, pdims%i_end
       !--------------------------------------------------
 
   if ( cloud_base(i,j) .and. k_cbase(i,j) /= 0 ) then
-    z_cbase = z_tq(i,j,k_cbase(i,j)) -                                       &
-              qcl(i,j,k_cbase(i,j)) /                                        &
+    z_cbase = z_tq(i,j,k_cbase(i,j)) -                                         &
+              qcl(i,j,k_cbase(i,j)) /                                          &
               ( cf(i,j,k_cbase(i,j))*dqcldz(i,j,k_cbase(i,j)) )
     if ( dqcfdz(i,j,k_cbase(i,j))  >   zero ) then
-      z_cbase = min( z_cbase, z_tq(i,j,k_cbase(i,j)) -                       &
-              qcf(i,j,k_cbase(i,j)) /                                         &
-              ( cf(i,j,k_cbase(i,j))*dqcfdz(i,j,k_cbase(i,j)) )               &
+      z_cbase = min( z_cbase, z_tq(i,j,k_cbase(i,j)) -                         &
+              qcf(i,j,k_cbase(i,j)) /                                          &
+              ( cf(i,j,k_cbase(i,j))*dqcfdz(i,j,k_cbase(i,j)) )                &
                     )
     else
           !---------------------------------------------------------
@@ -2772,25 +2771,25 @@ do i = pdims%i_start, pdims%i_end
       !Initialise K_CFF = lowest level with ice cloud
       k_cff = k_cbase(i,j)
       if (k_cff > 1) then
-        do while ( cff(i,j,k_cff)  >   sc_cftol                              &
+        do while ( cff(i,j,k_cff)  >   sc_cftol                                &
           .and. k_cff  >   1 )
           k_cff = k_cff - 1
         end do
       end if
-      if ( cff(i,j,k_cff)  <=  sc_cftol .and.                                &
-                    k_cff  <   k_cbase(i,j) )                                &
+      if ( cff(i,j,k_cff)  <=  sc_cftol .and.                                  &
+                    k_cff  <   k_cbase(i,j) )                                  &
             k_cff = k_cff + 1
                 ! will want to raise K_CFF back up one level unless
                 ! level 1 is cloudy or no sig frozen cloud at all
-      z_cbase = min( z_cbase, z_top(i,j,k_cff) -                             &
-                dzl(i,j,k_cff)                                               &
+      z_cbase = min( z_cbase, z_top(i,j,k_cff) -                               &
+                dzl(i,j,k_cff)                                                 &
               * cff(i,j,k_cff)/cf(i,j,k_cff) )
     end if
         !------------------------------------------------------
         ! use cloud-base as seen by cloud scheme as lower limit
         ! and base of level NTML+1 as upper limit
         !------------------------------------------------------
-    z_cbase = min( z_uv(i,j,ntml(i,j)+1),                                    &
+    z_cbase = min( z_uv(i,j,ntml(i,j)+1),                                      &
                     max( z_cf_base(i,j), z_cbase) )
 
     zc(i,j) = z_ctop(i,j) - z_cbase
@@ -2836,7 +2835,7 @@ do i = pdims%i_start, pdims%i_end
   if ( cf_dsc(i,j)  >   sc_cftol ) then
       ! assume level NTDSC is cloudy so start from NTDSC-1
     if ( .not. l_check_ntp1 )  k_level(i,j) = max( 2, ntdsc(i,j) - 1 )
-    do while ( cf(i,j,k_level(i,j))  >   sc_cftol                            &
+    do while ( cf(i,j,k_level(i,j))  >   sc_cftol                              &
               .and. k_level(i,j)  >=  2 )
       k_level(i,j) = k_level(i,j) - 1
     end do
@@ -2849,7 +2848,7 @@ end do
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if ( cf_dsc(i,j)  >   sc_cftol ) then
-    if ( k_level(i,j)  ==  1 .and.                                           &
+    if ( k_level(i,j)  ==  1 .and.                                             &
           cf(i,j,max(k_level(i,j),1))  >   sc_cftol) then
       z_cf_base(i,j) = zero
     else
@@ -2869,7 +2868,7 @@ end do
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   do k = min(bl_levels,ntdsc(i,j)+p1), 1, -1
-    if ( .not. cloud_base(i,j) .and.                                         &
+    if ( .not. cloud_base(i,j) .and.                                           &
           cf_dsc(i,j)  >   sc_cftol ) then
             ! within cloudy boundary layer
       if ( k  ==  1) then
@@ -2893,19 +2892,19 @@ do i = pdims%i_start, pdims%i_end
     ! from in-cloud qcl in level K_CBASE
     !--------------------------------------------------
   if ( cloud_base(i,j) .and. k_cbase(i,j)  /= 0 ) then
-    z_cbase = z_tq(i,j,k_cbase(i,j)) -                                       &
-              qcl(i,j,k_cbase(i,j)) /                                        &
+    z_cbase = z_tq(i,j,k_cbase(i,j)) -                                         &
+              qcl(i,j,k_cbase(i,j)) /                                          &
               ( cf(i,j,k_cbase(i,j))*dqcldz(i,j,k_cbase(i,j)) )
     if ( dqcfdz(i,j,k_cbase(i,j))  >   zero ) then
-      z_cbase = min( z_cbase, z_tq(i,j,k_cbase(i,j)) -                       &
-            qcf(i,j,k_cbase(i,j)) /                                          &
-            ( cf(i,j,k_cbase(i,j))*dqcfdz(i,j,k_cbase(i,j)) )                &
+      z_cbase = min( z_cbase, z_tq(i,j,k_cbase(i,j)) -                         &
+            qcf(i,j,k_cbase(i,j)) /                                            &
+            ( cf(i,j,k_cbase(i,j))*dqcfdz(i,j,k_cbase(i,j)) )                  &
                     )
     else
       ! Initialise K_CFF
       k_cff = k_cbase(i,j)
       if (k_cff > 1) then
-        do while ( cff(i,j,k_cff)  >   sc_cftol                              &
+        do while ( cff(i,j,k_cff)  >   sc_cftol                                &
           .and. k_cff  >   1)
           k_cff = k_cff - 1
         end do
@@ -2914,20 +2913,20 @@ do i = pdims%i_start, pdims%i_end
         ! No adiabatic QCF gradient so find lowest level, K_CFF,
         ! with CFF>SC_CFTOL and assume cloud-base within that level
         !----------------------------------------------------------
-      if ( cff(i,j,k_cff)  <=  sc_cftol .and.                                &
-                    k_cff  <   k_cbase(i,j) )                                &
+      if ( cff(i,j,k_cff)  <=  sc_cftol .and.                                  &
+                    k_cff  <   k_cbase(i,j) )                                  &
             k_cff = k_cff + 1
               ! will want to raise K_CFF back up one level unless
               ! level 1 is cloudy or no sig frozen cloud at all
-      z_cbase = min( z_cbase, z_top(i,j,k_cff) -                             &
-                dzl(i,j,k_cff)                                               &
+      z_cbase = min( z_cbase, z_top(i,j,k_cff) -                               &
+                dzl(i,j,k_cff)                                                 &
                 * cff(i,j,k_cff)/cf(i,j,k_cff) )
     end if
       !------------------------------------------------------
       ! use cloud-base as seen by cloud scheme as lower limit
       ! and base of level NTDSC+1 as upper limit
       !------------------------------------------------------
-    z_cbase = min( z_uv(i,j,ntdsc(i,j)+1),                                   &
+    z_cbase = min( z_uv(i,j,ntdsc(i,j)+1),                                     &
                     max( z_cf_base(i,j) , z_cbase) )
 
     zc_dsc(i,j) = z_ctop(i,j) - z_cbase
@@ -2977,9 +2976,9 @@ do k = 2, bl_levels
     cf_for_wb(i) = zero
     z_cbase = zh(i,j)-zc(i,j)
     zdsc_cbase = zhsc(i,j)-zc_dsc(i,j)
-    if ( z_tq(i,j,k)  <=  zh(i,j) .and.                                      &
+    if ( z_tq(i,j,k)  <=  zh(i,j) .and.                                        &
           z_tq(i,j,k)  >=  z_cbase) cf_for_wb(i) = cf_sml(i,j)
-    if ( z_tq(i,j,k)  <=  zhsc(i,j) .and.                                    &
+    if ( z_tq(i,j,k)  <=  zhsc(i,j) .and.                                      &
           z_tq(i,j,k)  >=  zdsc_cbase) cf_for_wb(i) = cf_dsc(i,j)
   end do
 
@@ -2996,20 +2995,20 @@ do k = 2, bl_levels
       ! This is integrated in EXCF_NL, iterating the K profiles.
       ! Here the relevant integrated DB/DZ factors are calculated
       !----------------------------------------------------------
-    db_ga_dry(i,j,k) = - g *                                                 &
+    db_ga_dry(i,j,k) = - g *                                                   &
               ( btm(i,j,k-1)*dsl_ga + bqm(i,j,k-1)*dqw_ga )
-    db_noga_dry(i,j,k)  = - g *                                              &
+    db_noga_dry(i,j,k)  = - g *                                                &
               ( btm(i,j,k-1)*dsl + bqm(i,j,k-1)*dqw )
-    db_ga_cld(i,j,k) = - g *                                                 &
+    db_ga_cld(i,j,k) = - g *                                                   &
               ( btm_cld(i,j,k-1)*dsl_ga + bqm_cld(i,j,k-1)*dqw_ga )
-    db_noga_cld(i,j,k)  = - g *                                              &
+    db_noga_cld(i,j,k)  = - g *                                                &
               ( btm_cld(i,j,k-1)*dsl + bqm_cld(i,j,k-1)*dqw )
       !-------------------------------------------------------
       ! Weight cloud layer factors with cloud fraction
       !-------------------------------------------------------
-    db_ga_cld(i,j,k) = db_ga_dry(i,j,k)*(one-cf_for_wb(i)) +                 &
+    db_ga_cld(i,j,k) = db_ga_dry(i,j,k)*(one-cf_for_wb(i)) +                   &
                         db_ga_cld(i,j,k)*cf_for_wb(i)
-    db_noga_cld(i,j,k)  = db_noga_dry(i,j,k)*(one-cf_for_wb(i)) +            &
+    db_noga_cld(i,j,k)  = db_noga_dry(i,j,k)*(one-cf_for_wb(i)) +              &
                           db_noga_cld(i,j,k)*cf_for_wb(i)
   end do
 end do
@@ -3055,16 +3054,16 @@ end do
 do i = pdims%i_start, pdims%i_end
 
     ! use mixed-layer average of buoyancy parameters
-  bflux_surf(i,j) = one_half * g * (                                         &
-        (btm(i,j,1)+btm(i,j,ntml(i,j)))*ftl(i,j,1) +                          &
+  bflux_surf(i,j) = one_half * g * (                                           &
+        (btm(i,j,1)+btm(i,j,ntml(i,j)))*ftl(i,j,1) +                           &
         (bqm(i,j,1)+bqm(i,j,ntml(i,j)))*fqw(i,j,1) )
 
   if ( bflux_surf(i,j)  >   zero ) then
-    bflux_surf_sat(i,j) = one_half * g * (                                   &
-        (btm_cld(i,j,1)+btm_cld(i,j,ntml(i,j)))*ftl(i,j,1) +                  &
+    bflux_surf_sat(i,j) = one_half * g * (                                     &
+        (btm_cld(i,j,1)+btm_cld(i,j,ntml(i,j)))*ftl(i,j,1) +                   &
         (bqm_cld(i,j,1)+bqm_cld(i,j,ntml(i,j)))*fqw(i,j,1) )
-    if ( coupled(i,j) ) bflux_surf_sat(i,j) = one_half * g * (               &
-        (btm_cld(i,j,1)+btm_cld(i,j,ntdsc(i,j)))*ftl(i,j,1) +                 &
+    if ( coupled(i,j) ) bflux_surf_sat(i,j) = one_half * g * (                 &
+        (btm_cld(i,j,1)+btm_cld(i,j,ntdsc(i,j)))*ftl(i,j,1) +                  &
         (bqm_cld(i,j,1)+bqm_cld(i,j,ntdsc(i,j)))*fqw(i,j,1) )
   else
     bflux_surf_sat(i,j) = zero
@@ -3085,32 +3084,32 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do k = 1, bl_levels
     do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
       if ( k  <=  ntml(i,j)+1 ) then
-        z_cld(i,j) = z_cld(i,j) +                                            &
-                    cf(i,j,k) * one_half * dzl(i,j,k) +                       &
-                    min( cfl(i,j,k) * one_half * dzl(i,j,k) ,                &
+        z_cld(i,j) = z_cld(i,j) +                                              &
+                    cf(i,j,k) * one_half * dzl(i,j,k) +                        &
+                    min( cfl(i,j,k) * one_half * dzl(i,j,k) ,                  &
                             qcl(i,j,k) / dqcldz(i,j,k) )
         if ( dqcfdz(i,j,k)  >   zero) then
-          z_cld(i,j) = z_cld(i,j) +                                          &
-                    min( cff(i,j,k) * one_half * dzl(i,j,k) ,                &
+          z_cld(i,j) = z_cld(i,j) +                                            &
+                    min( cff(i,j,k) * one_half * dzl(i,j,k) ,                  &
                             qcf(i,j,k) / dqcfdz(i,j,k) )
         else
           z_cld(i,j) = z_cld(i,j) + cff(i,j,k) * one_half * dzl(i,j,k)
         end if
       end if
 
-      if ( dsc(i,j) .and. k <= ntdsc(i,j)+1 .and.                            &
-            ( coupled(i,j) .or.                                               &
+      if ( dsc(i,j) .and. k <= ntdsc(i,j)+1 .and.                              &
+            ( coupled(i,j) .or.                                                &
                   z_top(i,j,k) >= zhsc(i,j)-zc_dsc(i,j) ) ) then
-        z_cld_dsc(i,j) = z_cld_dsc(i,j) +                                    &
-                    cf(i,j,k) * one_half * dzl(i,j,k) +                       &
-                    min( cfl(i,j,k) * one_half * dzl(i,j,k) ,                &
+        z_cld_dsc(i,j) = z_cld_dsc(i,j) +                                      &
+                    cf(i,j,k) * one_half * dzl(i,j,k) +                        &
+                    min( cfl(i,j,k) * one_half * dzl(i,j,k) ,                  &
                             qcl(i,j,k) / dqcldz(i,j,k) )
         if ( dqcfdz(i,j,k)  >   zero) then
-          z_cld_dsc(i,j) = z_cld_dsc(i,j) +                                  &
-                    min( cff(i,j,k) * one_half * dzl(i,j,k) ,                &
+          z_cld_dsc(i,j) = z_cld_dsc(i,j) +                                    &
+                    min( cff(i,j,k) * one_half * dzl(i,j,k) ,                  &
                             qcf(i,j,k) / dqcfdz(i,j,k) )
         else
-          z_cld_dsc(i,j) = z_cld_dsc(i,j) +                                  &
+          z_cld_dsc(i,j) = z_cld_dsc(i,j) +                                    &
                                   cff(i,j,k) * one_half * dzl(i,j,k)
         end if
       end if
@@ -3168,7 +3167,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       dqcf = - cff_ml*qcf_ic_top(i,j)
 
       db_disc = g * ( btm(i,j,km)*dsl + bqm(i,j,km)*dqw +                      &
-                (lcrcp*btm(i,j,km) - etar*bqm(i,j,km)) * dqcl +                 &
+                (lcrcp*btm(i,j,km) - etar*bqm(i,j,km)) * dqcl +                &
                 (lsrcp*btm(i,j,km) - etar*bqm(i,j,km)) * dqcf   )
 
       if ( db_disc > 0.03_r_bl  ) then
@@ -3406,8 +3405,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         br_fback_dsc(i,j) = min( one, 10.0_r_bl*d_siems_dsc(i,j) )
 
         if ( entr_enhance_by_cu == Buoyrev_feedback                            &
-              .and. cumulus(i,j)                                                &
-              .and. d_siems_dsc(i,j) < 0.1_r_bl                                 &
+              .and. cumulus(i,j)                                               &
+              .and. d_siems_dsc(i,j) < 0.1_r_bl                                &
               .and. d_siems_dsc(i,j) > rbl_eps ) then
             ! Assume mixing from cumulus can enhance the
             ! buoyancy reversal feedback in regime 0<D<0.1.
@@ -3605,10 +3604,10 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         k = k_cloud_top(i,j)+1
         if ( k  <   bl_levels ) then
           dflw_inv = dflw_over_cp(i,j,k)                                       &
-                      - dflw_over_cp(i,j,k+1)                                   &
+                      - dflw_over_cp(i,j,k+1)                                  &
                             * dzl(i,j,k)/dzl(i,j,k+1)
           dfsw_inv = dfsw_over_cp(i,j,k)                                       &
-                      - dfsw_over_cp(i,j,k+1)                                   &
+                      - dfsw_over_cp(i,j,k+1)                                  &
                             * dzl(i,j,k)/dzl(i,j,k+1)
         else
           dflw_inv = dflw_over_cp(i,j,k)
@@ -3620,11 +3619,11 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       df_inv_sml(i,j) = dflw_inv + dfsw_inv
 
       df_top_over_cp(i,j) = frad_lw(i,j,k_cloud_top(i,j)+1)                    &
-                            - frad_lw(i,j,k_level(i,j))                         &
+                            - frad_lw(i,j,k_level(i,j))                        &
                             + dflw_inv
 
       dfsw_top = frad_sw(i,j,k_cloud_top(i,j)+1)                               &
-                - frad_sw(i,j,k_level(i,j))                                     &
+                - frad_sw(i,j,k_level(i,j))                                    &
                 + dfsw_inv
 
         !-----------------------------------------------------------
@@ -3664,11 +3663,11 @@ end do !ii
 do i = pdims%i_start, pdims%i_end
   if ( k_cloud_top(i,j)  ==  0 ) k_cloud_top(i,j) = ntml(i,j)
 
-  ft_nt_zh(i,j)   = frad(i,j,k_cloud_top(i,j)+1)                             &
+  ft_nt_zh(i,j)   = frad(i,j,k_cloud_top(i,j)+1)                               &
                         + df_inv_sml(i,j)
-  ft_nt_zh(i,j)   = ft_nt_zh(i,j)   + fmic(i,j,ntml(i,j)+2,1)                &
+  ft_nt_zh(i,j)   = ft_nt_zh(i,j)   + fmic(i,j,ntml(i,j)+2,1)                  &
                                     + fsubs(i,j,ntml(i,j),1)
-  fq_nt_zh(i,j)   = fmic(i,j,ntml(i,j)+2,2)                                  &
+  fq_nt_zh(i,j)   = fmic(i,j,ntml(i,j)+2,2)                                    &
                   + fsubs(i,j,ntml(i,j),2)
 
   ft_nt_zhsc(i,j) = zero
@@ -3676,11 +3675,11 @@ do i = pdims%i_start, pdims%i_end
   fq_nt_zhsc(i,j) = zero
   if ( dsc(i,j) ) then
     if ( k_cloud_dsct(i,j)  ==  0 ) k_cloud_dsct(i,j) = ntdsc(i,j)
-    ft_nt_zhsc(i,j) = frad(i,j,k_cloud_dsct(i,j)+1)                          &
+    ft_nt_zhsc(i,j) = frad(i,j,k_cloud_dsct(i,j)+1)                            &
                           + df_inv_dsc(i,j)
-    ft_nt_zhsc(i,j) = ft_nt_zhsc(i,j) + fmic(i,j,ntdsc(i,j)+2,1)             &
+    ft_nt_zhsc(i,j) = ft_nt_zhsc(i,j) + fmic(i,j,ntdsc(i,j)+2,1)               &
                                       + fsubs(i,j,ntdsc(i,j),1)
-    fq_nt_zhsc(i,j) = fmic(i,j,ntdsc(i,j)+2,2)                               &
+    fq_nt_zhsc(i,j) = fmic(i,j,ntdsc(i,j)+2,2)                                 &
                     + fsubs(i,j,ntdsc(i,j),2)
   end if
 end do
@@ -3694,12 +3693,12 @@ if (l_wtrac) then
 
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
-      fq_nt_zh_wtrac(i,j,i_wt) = fmic_wtrac(i,j,ntml(i,j)+2,i_wt)            &
+      fq_nt_zh_wtrac(i,j,i_wt) = fmic_wtrac(i,j,ntml(i,j)+2,i_wt)              &
                                   + fsubs_wtrac(i,j,ntml(i,j),i_wt)
 
       fq_nt_zhsc_wtrac(i,j,i_wt) = zero
       if ( dsc(i,j) ) then
-        fq_nt_zhsc_wtrac(i,j,i_wt) = fmic_wtrac(i,j,ntdsc(i,j)+2,i_wt)       &
+        fq_nt_zhsc_wtrac(i,j,i_wt) = fmic_wtrac(i,j,ntdsc(i,j)+2,i_wt)         &
                                       + fsubs_wtrac(i,j,ntdsc(i,j),i_wt)
       end if
     end do
@@ -3749,7 +3748,7 @@ call excf_nl_9c (                                                              &
   )
 
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private (i, i_wt, k, kl, kp, c_ws, c_tke, w_m, tothf_efl, totqf_efl, &
+!$OMP  private (i, i_wt, k, kl, kp, c_ws, c_tke, w_m, tothf_efl, totqf_efl,    &
 !$OMP  ml_tend, fa_tend, inv_tend, Prandtl, svl_lapse_rho,                     &
 !$OMP  recip_svl_lapse, rhok_inv, svl_lapse, svl_target, svl_flux)
 !-----------------------------------------------------------------------
@@ -3913,8 +3912,8 @@ do i = pdims%i_start, pdims%i_end
                         !    within the DSC layer
                         ! Interpolate non-turb flux to base
                         !    of DSC layer:
-    ft_nt_dscb(i,j) = ft_nt(i,j,k-1) +                                       &
-              (ft_nt(i,j,k)-ft_nt(i,j,k-1))                                  &
+    ft_nt_dscb(i,j) = ft_nt(i,j,k-1) +                                         &
+              (ft_nt(i,j,k)-ft_nt(i,j,k-1))                                    &
               *(zdsc_base(i,j)-z_uv(i,j,k-1))/dzl(i,j,k-1)
   end if
 end do
@@ -3958,11 +3957,11 @@ do i = pdims%i_start, pdims%i_end
   k=ntml(i,j)+1
 
     ! Only RHOKH_ENT is passed out of EXCFNL so recalculate WE:
-  we_parm(i,j) = rdz(i,j,k)*                                                 &
-                      ( rhokh_top_ent(i,j)+rhokh_surf_ent(i,j) )              &
+  we_parm(i,j) = rdz(i,j,k)*                                                   &
+                      ( rhokh_top_ent(i,j)+rhokh_surf_ent(i,j) )               &
                                                 / rho_mix(i,j,k)
 
-  if ( sml_disc_inv(i,j)  ==  1 .and. .not. coupled(i,j) .and.               &
+  if ( sml_disc_inv(i,j)  ==  1 .and. .not. coupled(i,j) .and.                 &
         (rhokh_top_ent(i,j)+rhokh_surf_ent(i,j))  >   zero ) then
 
     !-----------------------------------------------------------------
@@ -3970,16 +3969,16 @@ do i = pdims%i_start, pdims%i_end
     !-----------------------------------------------------------------
     !..linearly interpolate vertical velocity to ZH
     if ( zh(i,j)  >=  z_tq(i,j,k) ) then
-      w_ls(i,j) = w(i,j,k) + ( w(i,j,k+1) - w(i,j,k) )                       &
+      w_ls(i,j) = w(i,j,k) + ( w(i,j,k+1) - w(i,j,k) )                         &
                   * (zh(i,j)-z_tq(i,j,k)) * rdz(i,j,k+1)
     else
-      w_ls(i,j) = w(i,j,k) + ( w(i,j,k) - w(i,j,k-1) )                       &
+      w_ls(i,j) = w(i,j,k) + ( w(i,j,k) - w(i,j,k-1) )                         &
                   * (zh(i,j)-z_tq(i,j,k)) * rdz(i,j,k)
     end if
     w_ls(i,j) = min ( w_ls(i,j), zero )
       ! only interested in subsidence
 
-    zh_np1(i,j) = zh(i,j) +                                                  &
+    zh_np1(i,j) = zh(i,j) +                                                    &
                     timestep * ( we_parm(i,j) + w_ls(i,j) )
     zh_np1(i,j) = max( zh_np1(i,j), z_uv(i,j,k-1) )
     if ( zh_np1(i,j)  >   z_top(i,j,k+1) ) then
@@ -3987,7 +3986,7 @@ do i = pdims%i_start, pdims%i_end
         ! because the inversion cannot rise more than one level
         ! in a timestep.
       zh_np1(i,j) = z_top(i,j,k+1)
-      we_parm(i,j) =                                                         &
+      we_parm(i,j) =                                                           &
               (z_top(i,j,k+1) - zh(i,j))/timestep - w_ls(i,j)
     end if
     !-----------------------------------------------------------------
@@ -4005,18 +4004,18 @@ do i = pdims%i_start, pdims%i_end
 
         ! T_FRAC is fraction of timestep inversion is above
         ! the entrainment flux grid-level (at Z_UV(K))
-      t_frac(i,j) = (zh_np1(i,j)-z_uv(i,j,k)) /                              &
+      t_frac(i,j) = (zh_np1(i,j)-z_uv(i,j,k)) /                                &
                     (zh_np1(i,j)-zh(i,j))
         ! ZH_FRAC is the timestep-average fraction of mixed layer
         ! air in the inversion grid-level, level NTML+1
-      zh_frac(i,j) = one_half*t_frac(i,j)*(zh_np1(i,j)-z_uv(i,j,k) )         &
+      zh_frac(i,j) = one_half*t_frac(i,j)*(zh_np1(i,j)-z_uv(i,j,k) )           &
                       / dzl(i,j,k)
 
     else if ( zh_np1(i,j)  >=  z_uv(i,j,ntml(i,j)+1) ) then
         ! ZH always between half-levels NTML+1 and NTML+2
 
       t_frac(i,j) = one
-      zh_frac(i,j) = ( one_half*(zh(i,j)+zh_np1(i,j)) - z_uv(i,j,k) )        &
+      zh_frac(i,j) = ( one_half*(zh(i,j)+zh_np1(i,j)) - z_uv(i,j,k) )          &
                       / dzl(i,j,k)
 
     else
@@ -4071,7 +4070,7 @@ do i = pdims%i_start, pdims%i_end
 
     tothf_zh(i,j) = - we_rho(i,j)*dsl_sml(i,j) + ft_nt_zh(i,j)
       ! Linearly interpolate to entrainment flux grid-level
-    tothf_efl = ft_nt(i,j,1) + ftl(i,j,1) +                                  &
+    tothf_efl = ft_nt(i,j,1) + ftl(i,j,1) +                                    &
                 ( tothf_zh(i,j)-ft_nt(i,j,1)-ftl(i,j,1) )*zrzi(i,j)
       ! Ensure total heat flux gradient in inversion grid-level is
       ! consistent with inversion rising (ie. implies cooling in
@@ -4080,29 +4079,29 @@ do i = pdims%i_start, pdims%i_end
 
     ml_tend = -( tothf_zh(i,j)-ft_nt(i,j,1)-ftl(i,j,1) ) / zh(i,j)
     fa_tend = zero
-    if ( k+1  <=  bl_levels )                                                &
-        fa_tend = - ( ft_nt(i,j,k+2) - ft_nt(i,j,k+1) )                      &
+    if ( k+1  <=  bl_levels )                                                  &
+        fa_tend = - ( ft_nt(i,j,k+2) - ft_nt(i,j,k+1) )                        &
                     / dzl(i,j,k+1)
-    inv_tend =       zh_frac(i,j) * ml_tend                                  &
+    inv_tend =       zh_frac(i,j) * ml_tend                                    &
               + (one-zh_frac(i,j)) * fa_tend
     if (we_parm(i,j)+w_ls(i,j)  >=  zero) then
         ! Inversion moving up so inversion level should cool
         ! Ensure it does cool relative to ML
-      tothf_efl = min( tothf_efl,                                            &
+      tothf_efl = min( tothf_efl,                                              &
                         ft_nt(i,j,k+1)+inv_tend*dzl(i,j,k) )
         ! Ensure inversion level won't end up colder than
         ! NTML by end of timestep.
         ! Set INV_TEND to max allowable cooling rate, also
         ! allowing for change in ML_TEND arising from this change
         ! to TOTHF_EFL:
-      inv_tend = (sl(i,j,k-1)-sl(i,j,k))/timestep                            &
+      inv_tend = (sl(i,j,k-1)-sl(i,j,k))/timestep                              &
                   + (ft_nt(i,j,1)+ftl(i,j,1))/z_uv(i,j,k)
-      tothf_efl = max( tothf_efl,                                            &
-                        (ft_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                  &
+      tothf_efl = max( tothf_efl,                                              &
+                        (ft_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                   &
                             /(one+ dzl(i,j,k)/z_uv(i,j,k)) )
     else  ! WE_PARM+W_LS < 0
         ! Ensure inversion level does warm relative to ML
-      tothf_efl = max( tothf_efl,                                            &
+      tothf_efl = max( tothf_efl,                                              &
                         ft_nt(i,j,k+1)+inv_tend*dzl(i,j,k) )
     end if
       ! Turbulent entrainment flux is then the residual of the total
@@ -4115,30 +4114,30 @@ do i = pdims%i_start, pdims%i_end
     rhokh(i,j,k)     = max( rhokh(i,j,k), rhokh_surf_ent(i,j) )
 
     if (res_inv(i,j) == 1) then
-      Prandtl = min( rhokm(i,j,k)/(rbl_eps+rhokh_surf_ent(i,j)),             &
+      Prandtl = min( rhokm(i,j,k)/(rbl_eps+rhokh_surf_ent(i,j)),               &
                       pr_max )
       if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
         ! need velocity scale for TKE diagnostic
-        w_m = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                                 &
+        w_m = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                                   &
                   c_ws * zh(i,j) * fb_surf(i,j) ) ** one_third
       end if
 
       if (bl_res_inv == cosine_inv_flux) then
-        svl_lapse_rho = (svl(i,j,k)-svl(i,j,k-1)) /                          &
+        svl_lapse_rho = (svl(i,j,k)-svl(i,j,k-1)) /                            &
                         ( (z_tq(i,j,k)-z_tq(i,j,k-1))*rho_mix(i,j,k) )
         kl=k+1
-        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                       &
                     kl <= bl_levels )
-          recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                   &
+          recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                     &
                             max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
-          rhok_inv = rhokh_surf_ent(i,j) * svl_lapse_rho *                   &
-                  rho_mix(i,j,kl) * recip_svl_lapse *                         &
+          rhok_inv = rhokh_surf_ent(i,j) * svl_lapse_rho *                     &
+                  rho_mix(i,j,kl) * recip_svl_lapse *                          &
                   cos(one_half*pi*(z_uv(i,j,kl)-zh(i,j))/dzh(i,j))
           rhok_inv = min( rhok_inv, 1000.0_r_bl )
           rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
           ! rescale for KM on staggered grid
-          rhok_inv =  Prandtl * rhok_inv                                     &
-                      * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
+          rhok_inv =  Prandtl * rhok_inv                                       &
+                      * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))            &
                       * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
           rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
           if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
@@ -4148,45 +4147,45 @@ do i = pdims%i_start, pdims%i_end
           kl=kl+1
         end do
       else if (bl_res_inv == target_inv_profile) then
-        svl_lapse = (svl(i,j,k)-svl(i,j,k-1)) /                              &
+        svl_lapse = (svl(i,j,k)-svl(i,j,k-1)) /                                &
                     ( (z_tq(i,j,k)-z_tq(i,j,k-1)) )
         kp=k+1  ! kp marks the lowest level above the inversion
-        do while ( z_uv(i,j,kp) < zh(i,j)+dzh(i,j) .and.                     &
+        do while ( z_uv(i,j,kp) < zh(i,j)+dzh(i,j) .and.                       &
                     kp <= bl_levels )
           kp=kp+1
         end do
         svl_flux(k) = - rhokh_surf_ent(i,j) * svl_lapse
         kl=k+1
-        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                       &
                     kl <= bl_levels )
           ! assume a linear target svl profile within inversion
-          svl_target = svl(i,j,k-1) + (svl(i,j,kp)-svl(i,j,k-1)) *           &
+          svl_target = svl(i,j,k-1) + (svl(i,j,kp)-svl(i,j,k-1)) *             &
                                           (z_uv(i,j,kl)-zh(i,j)) / dzh(i,j)
           rho_dz = rho_mix_tq(i,j,kl) * dzl(i,j,kl)
-          svl_flux(kl) = svl_flux(kl-1) -                                    &
+          svl_flux(kl) = svl_flux(kl-1) -                                      &
                               (svl_target-svl(i,j,kl))*rho_dz/timestep
           kl=kl+1
         end do
         ! linearly extrapolate flux to inversion top
-        svl_flux(kp)=svl_flux(kp-1) + (svl_flux(kp-1)-svl_flux(kp-2))*       &
+        svl_flux(kp)=svl_flux(kp-1) + (svl_flux(kp-1)-svl_flux(kp-2))*         &
                               (zh(i,j)+dzh(i,j)-z_uv(i,j,kp-1))*rdz(i,j,kp-1)
         kl=k+1
-        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                       &
                     kl <= bl_levels )
           ! rescale svl_flux so as to have zero flux at the inversion top
           ! ie so svl_flux(kp)=0
-          svl_flux(kl) = svl_flux(k)*( one -                                 &
-                                    (svl_flux(kl)-svl_flux(k))/              &
+          svl_flux(kl) = svl_flux(k)*( one -                                   &
+                                    (svl_flux(kl)-svl_flux(k))/                &
                                     (svl_flux(kp)-svl_flux(k)) )
-          recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                   &
+          recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                     &
                             max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
           rhok_inv = - svl_flux(kl) * recip_svl_lapse
 
           rhok_inv = min( rhok_inv, 1000.0_r_bl )
           rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
           ! rescale for KM on staggered grid
-          rhok_inv =  Prandtl * rhok_inv                                     &
-                      * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
+          rhok_inv =  Prandtl * rhok_inv                                       &
+                      * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))            &
                       * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
           rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
           if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
@@ -4218,10 +4217,10 @@ do i = pdims%i_start, pdims%i_end
   totqf_zhsc(i,j) = zero
 
   k=ntdsc(i,j)+1
-  we_dsc_parm(i,j) = rdz(i,j,k)*rhokh_dsct_ent(i,j)                          &
+  we_dsc_parm(i,j) = rdz(i,j,k)*rhokh_dsct_ent(i,j)                            &
                                               / rho_mix(i,j,k)
 
-  if ( dsc_disc_inv(i,j)  ==  1                                              &
+  if ( dsc_disc_inv(i,j)  ==  1                                                &
                 .and. rhokh_dsct_ent(i,j)  >   zero ) then
 
     !-----------------------------------------------------------------
@@ -4229,16 +4228,16 @@ do i = pdims%i_start, pdims%i_end
     !-----------------------------------------------------------------
     !..interpolate vertical velocity to ZH
     if ( zhsc(i,j)  >=  z_tq(i,j,k) ) then
-      w_ls_dsc(i,j) = w(i,j,k) + ( w(i,j,k+1) - w(i,j,k) ) *                 &
+      w_ls_dsc(i,j) = w(i,j,k) + ( w(i,j,k+1) - w(i,j,k) ) *                   &
                         (zhsc(i,j)-z_tq(i,j,k)) * rdz(i,j,k+1)
     else
-      w_ls_dsc(i,j) = w(i,j,k) + ( w(i,j,k) - w(i,j,k-1) ) *                 &
+      w_ls_dsc(i,j) = w(i,j,k) + ( w(i,j,k) - w(i,j,k-1) ) *                   &
                         (zhsc(i,j)-z_tq(i,j,k)) * rdz(i,j,k)
     end if
     w_ls_dsc(i,j) = min ( w_ls_dsc(i,j), zero )
       ! only interested in subsidence
 
-    zhsc_np1(i,j) = zhsc(i,j) +                                              &
+    zhsc_np1(i,j) = zhsc(i,j) +                                                &
           timestep * ( we_dsc_parm(i,j) + w_ls_dsc(i,j) )
     zhsc_np1(i,j) = max( zhsc_np1(i,j), z_uv(i,j,k-1) )
     if ( zhsc_np1(i,j)  >   z_top(i,j,k+1) ) then
@@ -4246,7 +4245,7 @@ do i = pdims%i_start, pdims%i_end
         ! because the inversion cannot rise more than one level
         ! in a timestep.
       zhsc_np1(i,j) = z_top(i,j,k+1)
-      we_dsc_parm(i,j) =                                                     &
+      we_dsc_parm(i,j) =                                                       &
           (z_top(i,j,k+1) - zhsc(i,j))/timestep - w_ls_dsc(i,j)
     end if
     !-----------------------------------------------------------------
@@ -4259,17 +4258,17 @@ do i = pdims%i_start, pdims%i_end
       ntdsc(i,j) = ntdsc(i,j) + 1
       k = ntdsc(i,j)+1
       dsc_disc_inv(i,j) = 2
-      t_frac_dsc(i,j) = (zhsc_np1(i,j)-z_uv(i,j,k)) /                        &
+      t_frac_dsc(i,j) = (zhsc_np1(i,j)-z_uv(i,j,k)) /                          &
                         (zhsc_np1(i,j)-zhsc(i,j))
 
-      zhsc_frac(i,j) = one_half*t_frac_dsc(i,j)*                             &
+      zhsc_frac(i,j) = one_half*t_frac_dsc(i,j)*                               &
                         ( zhsc_np1(i,j)-z_uv(i,j,k) )/ dzl(i,j,k)
 
     else if ( zhsc_np1(i,j)  >   z_uv(i,j,ntdsc(i,j)+1) ) then
         ! ZHSC always between half-levels NTDSC+1 and NTDSC+2
 
       t_frac_dsc(i,j) = one
-      zhsc_frac(i,j) = ( one_half*(zhsc(i,j)+zhsc_np1(i,j))                  &
+      zhsc_frac(i,j) = ( one_half*(zhsc(i,j)+zhsc_np1(i,j))                    &
                                       - z_uv(i,j,k) )/ dzl(i,j,k)
 
     else
@@ -4289,7 +4288,7 @@ do i = pdims%i_start, pdims%i_end
 
     we_rho_dsc(i,j) = rho_mix(i,j,k) * we_dsc_parm(i,j)
       ! for z'/z_i' assume height of DSC base is fixed in time
-    zrzi_dsc(i,j) =( z_uv(i,j,k)-(zhsc(i,j)-dscdepth(i,j)) )                 &
+    zrzi_dsc(i,j) =( z_uv(i,j,k)-(zhsc(i,j)-dscdepth(i,j)) )                   &
                   /( dscdepth(i,j)+one_half*(zhsc_np1(i,j)-zhsc(i,j)) )
 
   end if   ! test on DSC_DISC_INV, etc
@@ -4315,9 +4314,9 @@ do i = pdims%i_start, pdims%i_end
     rhokh_top(i,j,k) = zero   ! apply entrainment explicitly
     rhokh(i,j,k)     = zero   !      "
 
-    tothf_zhsc(i,j) = - we_rho_dsc(i,j)*dsl_dsc(i,j)                         &
+    tothf_zhsc(i,j) = - we_rho_dsc(i,j)*dsl_dsc(i,j)                           &
                             + ft_nt_zhsc(i,j)
-    tothf_efl = ft_nt_dscb(i,j) +                                            &
+    tothf_efl = ft_nt_dscb(i,j) +                                              &
                 ( tothf_zhsc(i,j)-ft_nt_dscb(i,j) )*zrzi_dsc(i,j)
       ! Ensure total heat flux gradient in inversion grid-level is
       ! consistent with inversion rising (implies cooling in
@@ -4325,26 +4324,26 @@ do i = pdims%i_start, pdims%i_end
       ! (implies warming)
     ml_tend = - ( tothf_zhsc(i,j)-ft_nt_dscb(i,j) )/ dscdepth(i,j)
     fa_tend = zero
-    if ( k+1  <=  bl_levels )                                                &
-        fa_tend = - ( ft_nt(i,j,k+2) - ft_nt(i,j,k+1) )                      &
+    if ( k+1  <=  bl_levels )                                                  &
+        fa_tend = - ( ft_nt(i,j,k+2) - ft_nt(i,j,k+1) )                        &
                     / dzl(i,j,k+1)
-    inv_tend =       zhsc_frac(i,j) * ml_tend                                &
+    inv_tend =       zhsc_frac(i,j) * ml_tend                                  &
               + (one-zhsc_frac(i,j)) * fa_tend
 
     if (we_dsc_parm(i,j)+w_ls_dsc(i,j)  >=  zero) then
         ! Inversion moving up so inversion level should cool
         ! Ensure it does cool relative to ML
-      tothf_efl = min( tothf_efl,                                            &
+      tothf_efl = min( tothf_efl,                                              &
                         ft_nt(i,j,k+1)+inv_tend*dzl(i,j,k) )
         ! Ensure inversion level won't end up colder than
         ! NTDSC by end of timestep.
-      inv_tend = (sl(i,j,k-1)-sl(i,j,k))/timestep                            &
+      inv_tend = (sl(i,j,k-1)-sl(i,j,k))/timestep                              &
                   + ft_nt_dscb(i,j)/dscdepth(i,j)
-      tothf_efl = max( tothf_efl,                                            &
-                    (ft_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                     &
+      tothf_efl = max( tothf_efl,                                              &
+                    (ft_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                       &
                       /(one+ dzl(i,j,k)/dscdepth(i,j))   )
     else   ! WE_DSC_PARM+W_LS_DSC < 0
-      tothf_efl = max( tothf_efl,                                            &
+      tothf_efl = max( tothf_efl,                                              &
                         ft_nt(i,j,k+1)+inv_tend*dzl(i,j,k) )
     end if
       ! Turbulent entrainment flux is then the residual of the total
@@ -4382,8 +4381,8 @@ do i = pdims%i_start, pdims%i_end
                         !    within the DSC layer
                         ! Interpolate non-turb flux to base
                         !    of DSC layer:
-    fq_nt_dscb(i,j) = fq_nt(i,j,k-1) +                                       &
-              (fq_nt(i,j,k)-fq_nt(i,j,k-1))                                  &
+    fq_nt_dscb(i,j) = fq_nt(i,j,k-1) +                                         &
+              (fq_nt(i,j,k)-fq_nt(i,j,k-1))                                    &
               *(zdsc_base(i,j)-z_uv(i,j,k-1))/dzl(i,j,k-1)
   end if
 end do
@@ -4402,8 +4401,8 @@ if (l_wtrac) then
                         !    within the DSC layer
                         ! Interpolate non-turb flux to base
                         !    of DSC layer:
-        wtrac_bl(i_wt)%fq_nt_dscb(i,j) =  wtrac_bl(i_wt)%fq_nt(i,j,k-1) +    &
-              ( wtrac_bl(i_wt)%fq_nt(i,j,k)- wtrac_bl(i_wt)%fq_nt(i,j,k-1))  &
+        wtrac_bl(i_wt)%fq_nt_dscb(i,j) =  wtrac_bl(i_wt)%fq_nt(i,j,k-1) +      &
+              ( wtrac_bl(i_wt)%fq_nt(i,j,k)- wtrac_bl(i_wt)%fq_nt(i,j,k-1))    &
                 *(zdsc_base(i,j)-z_uv(i,j,k-1))/dzl(i,j,k-1)
       end if
     end do
@@ -4430,7 +4429,7 @@ do i = pdims%i_start, pdims%i_end
       ! inversion height
     totqf_zh(i,j) = - we_rho(i,j)*dqw_sml(i,j) + fq_nt_zh(i,j)
       ! Interpolate to entrainment flux-level below
-    totqf_efl = fq_nt(i,j,1) + fqw(i,j,1) +  zrzi(i,j) *                     &
+    totqf_efl = fq_nt(i,j,1) + fqw(i,j,1) +  zrzi(i,j) *                       &
                       ( totqf_zh(i,j) - fq_nt(i,j,1) - fqw(i,j,1) )
       ! Need to ensure the total QW flux gradient in inversion
       ! grid-level is consistent with inversion rising or falling.
@@ -4440,10 +4439,10 @@ do i = pdims%i_start, pdims%i_end
       ! If QW(K) is moister than ML then want opposite tendencies.
     ml_tend = - ( totqf_zh(i,j)-fq_nt(i,j,1)-fqw(i,j,1) ) /zh(i,j)
     fa_tend = zero
-    if ( k+1  <=  bl_levels )                                                &
-      fa_tend = - ( fq_nt(i,j,k+2)-fq_nt(i,j,k+1) )                          &
+    if ( k+1  <=  bl_levels )                                                  &
+      fa_tend = - ( fq_nt(i,j,k+2)-fq_nt(i,j,k+1) )                            &
                   / dzl(i,j,k+1)
-    inv_tend =       zh_frac(i,j) * ml_tend                                  &
+    inv_tend =       zh_frac(i,j) * ml_tend                                    &
               + (one-zh_frac(i,j)) * fa_tend
 
     if (we_parm(i,j)+w_ls(i,j) >=  zero) then
@@ -4459,10 +4458,10 @@ do i = pdims%i_start, pdims%i_end
     if ( moisten(i,j) ) then
         ! Ensure inversion level does moisten relative to ML
 
-      if (l_wtrac .and. totqf_efl < (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k)) )   &
+      if (l_wtrac .and. totqf_efl < (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k)) )     &
           totqf_efl_meth1(i,j) = 1         ! Store method
 
-      totqf_efl = max( totqf_efl,                                            &
+      totqf_efl = max( totqf_efl,                                              &
                       fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k) )
       if (we_parm(i,j)+w_ls(i,j)  >=  zero) then
           ! Ensure inversion level won't end up more moist than
@@ -4470,42 +4469,42 @@ do i = pdims%i_start, pdims%i_end
           ! Set INV_TEND to max allowable moistening rate, also
           ! allowing for change in ML_TEND arising from this change
           ! to TOTQF_EFL:
-        inv_tend = (qw(i,j,k-1)-qw(i,j,k))/timestep                          &
+        inv_tend = (qw(i,j,k-1)-qw(i,j,k))/timestep                            &
                     + (fq_nt(i,j,1)+fqw(i,j,1))/z_uv(i,j,k)
 
-        if (l_wtrac .and. totqf_efl >                                        &
-                      ( (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                 &
-                        /(one+ dzl(i,j,k)/z_uv(i,j,k)) ) )                    &
+        if (l_wtrac .and. totqf_efl >                                          &
+                      ( (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                   &
+                        /(one+ dzl(i,j,k)/z_uv(i,j,k)) ) )                     &
             totqf_efl_meth2(i,j) = 1       ! Store method
 
-        totqf_efl = min( totqf_efl,                                          &
-                      (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                   &
+        totqf_efl = min( totqf_efl,                                            &
+                      (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                     &
                         /(one+ dzl(i,j,k)/z_uv(i,j,k))   )
       end if
     else
-      if (l_wtrac .and. totqf_efl > (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k)) )   &
+      if (l_wtrac .and. totqf_efl > (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k)) )     &
         totqf_efl_meth1(i,j) = 1          ! Store method
 
-      totqf_efl = min( totqf_efl,                                            &
+      totqf_efl = min( totqf_efl,                                              &
                       fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k) )
       if (we_parm(i,j)+w_ls(i,j)  >=  zero) then
           ! Ensure inversion level won't end up drier than
           ! NTML by end of timestep.
           ! Set INV_TEND to max allowable drying rate:
-        inv_tend = (qw(i,j,k-1)-qw(i,j,k))/timestep                          &
+        inv_tend = (qw(i,j,k-1)-qw(i,j,k))/timestep                            &
                     + (fq_nt(i,j,1)+fqw(i,j,1))/z_uv(i,j,k)
 
-        if (l_wtrac .and. totqf_efl <                                        &
-                    ( (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                   &
-                        /(one+ dzl(i,j,k)/z_uv(i,j,k)) )  )                   &
+        if (l_wtrac .and. totqf_efl <                                          &
+                    ( (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                     &
+                        /(one+ dzl(i,j,k)/z_uv(i,j,k)) )  )                    &
           totqf_efl_meth2(i,j) = 1          ! Store method
 
-        totqf_efl = max( totqf_efl,                                          &
-                      (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                   &
+        totqf_efl = max( totqf_efl,                                            &
+                      (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                     &
                         /(one+ dzl(i,j,k)/z_uv(i,j,k))   )
       end if
     end if
-    fqw(i,j,k) = t_frac(i,j) *                                               &
+    fqw(i,j,k) = t_frac(i,j) *                                                 &
                       ( totqf_efl - fq_nt(i,j,k) )
   end if
 
@@ -4553,18 +4552,18 @@ do i = pdims%i_start, pdims%i_end
     k = ntdsc(i,j)+1
 
       ! Calculate total (turb+micro) QW flux at subgrid inversion
-    totqf_zhsc(i,j) = - we_rho_dsc(i,j)*dqw_dsc(i,j)                         &
+    totqf_zhsc(i,j) = - we_rho_dsc(i,j)*dqw_dsc(i,j)                           &
                         + fq_nt_zhsc(i,j)
       ! Interpolate to entrainment flux-level
-    totqf_efl = fq_nt_dscb(i,j) +                                            &
+    totqf_efl = fq_nt_dscb(i,j) +                                              &
               ( totqf_zhsc(i,j) - fq_nt_dscb(i,j) )*zrzi_dsc(i,j)
 
     ml_tend = - ( totqf_zhsc(i,j)-fq_nt_dscb(i,j) )/dscdepth(i,j)
     fa_tend = zero
-    if ( k+1  <=  bl_levels )                                                &
-        fa_tend = - ( fq_nt(i,j,k+2)-fq_nt(i,j,k+1) )                         &
+    if ( k+1  <=  bl_levels )                                                  &
+        fa_tend = - ( fq_nt(i,j,k+2)-fq_nt(i,j,k+1) )                          &
                     / dzl(i,j,k+1)
-    inv_tend =       zhsc_frac(i,j) * ml_tend                                &
+    inv_tend =       zhsc_frac(i,j) * ml_tend                                  &
               + (one-zhsc_frac(i,j)) * fa_tend
 
     if (we_dsc_parm(i,j)+w_ls_dsc(i,j) >=  zero) then
@@ -4579,46 +4578,46 @@ do i = pdims%i_start, pdims%i_end
 
     if ( moisten(i,j) ) then
 
-      if (l_wtrac .and. (totqf_efl < fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k)) )   &
+      if (l_wtrac .and. (totqf_efl < fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k)) )     &
           totqf_efl_meth1(i,j) = 1             ! Store method
 
-      totqf_efl = max( totqf_efl,                                            &
+      totqf_efl = max( totqf_efl,                                              &
                         fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k) )
       if (we_dsc_parm(i,j)+w_ls_dsc(i,j)  >=  zero) then
           ! Ensure inversion level won't end up more moist than
           ! NTDSC by end of timestep.
-        inv_tend = (qw(i,j,k-1)-qw(i,j,k))/timestep                          &
+        inv_tend = (qw(i,j,k-1)-qw(i,j,k))/timestep                            &
                     + fq_nt_dscb(i,j)/dscdepth(i,j)
 
-        if (l_wtrac .and. totqf_efl >                                        &
-                    (  (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                  &
-                        /(one+ dzl(i,j,k)/dscdepth(i,j)) ) )                  &
+        if (l_wtrac .and. totqf_efl >                                          &
+                    (  (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                    &
+                        /(one+ dzl(i,j,k)/dscdepth(i,j)) ) )                   &
             totqf_efl_meth2(i,j) = 1            ! Store method
 
-        totqf_efl = min( totqf_efl,                                          &
-                      (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                   &
+        totqf_efl = min( totqf_efl,                                            &
+                      (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                     &
                         /(one+ dzl(i,j,k)/dscdepth(i,j))   )
       end if
     else
-      if (l_wtrac .and. totqf_efl > (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k)) )   &
+      if (l_wtrac .and. totqf_efl > (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k)) )     &
           totqf_efl_meth1(i,j) = 1               ! Store method
 
-      totqf_efl = min( totqf_efl,                                            &
+      totqf_efl = min( totqf_efl,                                              &
                         fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k) )
       if (we_dsc_parm(i,j)+w_ls_dsc(i,j)  >=  zero) then
           ! Ensure inversion level won't end up drier than
           ! NTDSC by end of timestep.
           ! Set INV_TEND to max allowable drying rate:
-        inv_tend = (qw(i,j,k-1)-qw(i,j,k))/timestep                          &
+        inv_tend = (qw(i,j,k-1)-qw(i,j,k))/timestep                            &
                     + fq_nt_dscb(i,j)/dscdepth(i,j)
 
-        if (l_wtrac .and. totqf_efl <                                        &
-                    ( (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                   &
-                        /(one+ dzl(i,j,k)/dscdepth(i,j)))   )                 &
+        if (l_wtrac .and. totqf_efl <                                          &
+                    ( (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                     &
+                        /(one+ dzl(i,j,k)/dscdepth(i,j)))   )                  &
           totqf_efl_meth2(i,j) = 1             ! Store method
 
-        totqf_efl = max( totqf_efl,                                          &
-                      (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                   &
+        totqf_efl = max( totqf_efl,                                            &
+                      (fq_nt(i,j,k+1)+inv_tend*dzl(i,j,k))                     &
                         /(one+ dzl(i,j,k)/dscdepth(i,j))   )
       end if
     end if
@@ -4640,7 +4639,7 @@ if (l_wtrac) then
 end if  ! l_wtrac
 
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private (i, k, kp, w_var_inv, weight, tke_nl_rh, delta_tke,          &
+!$OMP  private (i, k, kp, w_var_inv, weight, tke_nl_rh, delta_tke,             &
 !$OMP  w_s_ent, w_s_cubed, w_m, wstar3, w_h)
 !-----------------------------------------------------------------------
 ! Estimate turbulent w-variance scale at discontinuous inversions
@@ -4676,9 +4675,9 @@ if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
       w_var_inv = 2.0_r_bl * (ftl(i,j,k)/rho_mix(i,j,k)) / dsl_sml(i,j)
       w_var_inv = w_var_inv * w_var_inv * rho_mix(i,j,k)
 
-      weight = ( z_uv(i,j,k) - z_tq(i,j,k-1) )                               &
+      weight = ( z_uv(i,j,k) - z_tq(i,j,k-1) )                                 &
               / ( z_tq(i,j,k) - z_tq(i,j,k-1) )
-      tke_nl_rh = (one-weight) * tke_nl(i,j,k)                               &
+      tke_nl_rh = (one-weight) * tke_nl(i,j,k)                                 &
                 +      weight  * tke_nl(i,j,kp)
 
       delta_tke = w_var_inv - tke_nl_rh
@@ -4697,9 +4696,9 @@ if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
       w_var_inv = 2.0_r_bl * (ftl(i,j,k)/rho_mix(i,j,k)) / dsl_dsc(i,j)
       w_var_inv = w_var_inv * w_var_inv * rho_mix(i,j,k)
 
-      weight = ( z_uv(i,j,k) - z_tq(i,j,k-1) )                               &
+      weight = ( z_uv(i,j,k) - z_tq(i,j,k-1) )                                 &
               / ( z_tq(i,j,k) - z_tq(i,j,k-1) )
-      tke_nl_rh = (one-weight) * tke_nl(i,j,k)                               &
+      tke_nl_rh = (one-weight) * tke_nl(i,j,k)                                 &
                 +      weight  * tke_nl(i,j,kp)
 
       delta_tke = w_var_inv - tke_nl_rh
@@ -4753,10 +4752,10 @@ do i = pdims%i_start, pdims%i_end
   if ( t_frac(i,j)  >   zero ) then
     w_s_ent = zero
     k = ntml(i,j)
-    if ( abs( dsl_sml(i,j) )  >=  rbl_eps ) w_s_ent =                        &
+    if ( abs( dsl_sml(i,j) )  >=  rbl_eps ) w_s_ent =                          &
         min( zero, -sls_inc(i,j,k) * dzl(i,j,k) /dsl_sml(i,j) )
       ! Only allow w_e to be reduced to zero!
-    we_lim(i,j,2) = rho_mix(i,j,k+1) *                                       &
+    we_lim(i,j,2) = rho_mix(i,j,k+1) *                                         &
                       max( zero, we_parm(i,j) + w_s_ent )
   else
     we_lim(i,j,2) = zero
@@ -4767,10 +4766,10 @@ do i = pdims%i_start, pdims%i_end
   if ( t_frac_dsc(i,j)  >   zero ) then
     w_s_ent = zero
     k = ntdsc(i,j)
-    if ( abs( dsl_dsc(i,j) )  >= rbl_eps ) w_s_ent =                         &
+    if ( abs( dsl_dsc(i,j) )  >= rbl_eps ) w_s_ent =                           &
         min( zero, -sls_inc(i,j,k) * dzl(i,j,k) /dsl_dsc(i,j) )
       ! Only allow w_e to be reduced to zero!
-    we_lim_dsc(i,j,2) = rho_mix(i,j,k) *                                     &
+    we_lim_dsc(i,j,2) = rho_mix(i,j,k) *                                       &
                       max( zero, we_dsc_parm(i,j) + w_s_ent )
   else
     we_lim_dsc(i,j,2) = zero
@@ -4791,12 +4790,12 @@ do i = pdims%i_start, pdims%i_end
     if (flux_grad  ==  Locketal2000) then
       w_s_cubed = 0.25_r_bl * zh(i,j) * fb_surf(i,j)
       if (w_s_cubed  >   zero) then
-        w_m  =                                                               &
+        w_m  =                                                                 &
         ( w_s_cubed + v_s(i,j) * v_s(i,j) * v_s(i,j) ) ** one_third
         t1_sd(i,j) = 1.93_r_bl * ftl(i,j,1) / (rhostar_gb(i,j) * w_m)
         q1_sd(i,j) = 1.93_r_bl * fqw(i,j,1) / (rhostar_gb(i,j) * w_m)
-        tv1_sd(i,j) = t(i,j,1) *                                             &
-          ( one + c_virtual*q(i,j,1) - qcl(i,j,1) - qcf(i,j,1) ) *           &
+        tv1_sd(i,j) = t(i,j,1) *                                               &
+          ( one + c_virtual*q(i,j,1) - qcl(i,j,1) - qcf(i,j,1) ) *             &
           ( bt(i,j,1)*t1_sd(i,j) + bq(i,j,1)*q1_sd(i,j) )
         t1_sd(i,j) = max ( zero , t1_sd(i,j) )
         q1_sd(i,j) = max ( zero , q1_sd(i,j) )
@@ -4806,7 +4805,7 @@ do i = pdims%i_start, pdims%i_end
           q1_sd(i,j) = zero
         end if
       end if
-      grad_t_adj(i,j) = min( max_t_grad ,                                    &
+      grad_t_adj(i,j) = min( max_t_grad ,                                      &
                         a_grad_adj * t1_sd(i,j) / zh(i,j) )
       grad_q_adj(i,j) = zero
     else if (flux_grad  ==  HoltBov1993) then
@@ -4816,7 +4815,7 @@ do i = pdims%i_start, pdims%i_end
       wstar3 = fb_surf(i,j) * zh(i,j)
       w_m =( v_s(i,j)**3 + 0.6_r_bl*wstar3 )**one_third
 
-      grad_t_adj(i,j) = a_ga_hb93*(wstar3**one_third)*ftl(i,j,1)             &
+      grad_t_adj(i,j) = a_ga_hb93*(wstar3**one_third)*ftl(i,j,1)               &
                         / ( rhostar_gb(i,j)*w_m*w_m*zh(i,j) )
       ! GRAD_Q_ADJ(I,j) = A_GA_HB93*(WSTAR3**one_third)*FQW(I,j,1)
       !                  / ( RHOSTAR_GB(I,j)*W_M*W_M*ZH(I,j) )
@@ -4829,9 +4828,9 @@ do i = pdims%i_start, pdims%i_end
       wstar3 = fb_surf(i,j) * zh(i,j)
       w_h =( ((4.0_r_bl/3.0_r_bl)*v_s(i,j))**3 + wstar3 )**one_third
 
-      grad_t_adj(i,j) = a_ga_lw06 * ftl(i,j,1)                               &
+      grad_t_adj(i,j) = a_ga_lw06 * ftl(i,j,1)                                 &
                           / ( rhostar_gb(i,j)*w_h*zh(i,j) )
-      grad_q_adj(i,j) = a_ga_lw06 * fqw(i,j,1)                               &
+      grad_q_adj(i,j) = a_ga_lw06 * fqw(i,j,1)                                 &
                           / ( rhostar_gb(i,j)*w_h*zh(i,j) )
     end if
   end if  ! test on UNSTABLE
