@@ -1,0 +1,333 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Tangent linear version of split_transport
+
+module tl_split_transport_mod
+
+  use constants_mod,                    only: i_def, r_tran
+  use r_tran_field_mod,                 only: r_tran_field_type
+  use log_mod,                          only: log_event, LOG_LEVEL_ERROR
+  use split_transport_utils_mod,        only: get_splitting_direction,         &
+                                              get_splitting_fraction,          &
+                                              get_num_split_steps
+  use split_transport_mod,              only: split_transport_field
+
+  ! Transport control infrastructure
+  use transport_controller_mod,         only: transport_controller_type
+  use tl_transport_controller_mod,      only: tl_transport_controller_type
+  use transport_counter_mod,            only: transport_counter_type
+  use transport_enumerated_types_mod,   only: direction_h,                     &
+                                              direction_v,                     &
+                                              split_method_null,               &
+                                              split_method_mol,                &
+                                              split_method_ffsl,               &
+                                              split_method_sl,                 &
+                                              equation_form_conservative,      &
+                                              equation_form_advective,         &
+                                              equation_form_consistent
+  use transport_metadata_mod,           only: transport_metadata_type
+
+  ! Algorithms
+  use end_of_transport_step_alg_mod,    only: end_of_conservative_step_alg,    &
+                                              end_of_consistent_step_alg,      &
+                                              end_of_advective_step_alg
+  use linear_config_mod,                only: transport_efficiency
+
+  implicit none
+
+  private
+
+  public :: tl_split_transport_control
+  public :: tl_split_transport_field
+
+contains
+
+  !=============================================================================
+  !> @brief Controls vertical/horizontal split transport.
+  !> @details Manages the vertical/horizontal splitting of the split transport
+  !!          scheme by choosing the splitting type and calling the individual
+  !!          vertical and horizontal split components.
+  !> @param[in,out] field_np1          ACTIVE Field to return at end
+  !> @param[in]     field_n            ACTIVE Field at the start
+  !> @param[in]     ls_field_n         PASSIVE LS Field at the start
+  !> @param[in,out] tl_transport_controller
+  !!                                   Encapsulating object containing the
+  !!                                   transport counter and precomputations
+  subroutine tl_split_transport_control(field_np1, field_n, ls_field_n, &
+                                        tl_transport_controller)
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),            intent(inout) :: field_np1
+    type(r_tran_field_type), target,    intent(in)    :: field_n
+    type(r_tran_field_type), target,    intent(in)    :: ls_field_n
+    type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
+
+    ! Internal variables
+    integer(kind=i_def)                      :: num_split_steps
+    integer(kind=i_def)                      :: split_step_count
+    type(r_tran_field_type), allocatable     :: ls_field_np1(:)
+    type(r_tran_field_type),         target  :: field_tmp
+    type(r_tran_field_type),         pointer :: field_ptr
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_counter_type),    pointer :: ls_transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(transport_controller_type), pointer :: pert_transport_controller
+    type(transport_controller_type), pointer :: ls_transport_controller
+    real(kind=r_tran)            :: dt_substep
+    integer(kind=i_def)          :: num_substeps
+
+    ! ------------------------------------------------------------------------ !
+    ! NONLINEAR (LS)
+    ! ------------------------------------------------------------------------ !
+
+    ls_transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
+    transport_metadata => ls_transport_controller%get_transport_metadata()
+    ls_transport_counter => ls_transport_controller%get_transport_counter()
+
+    ! Initialise fields
+    num_split_steps = get_num_split_steps(transport_metadata%get_splitting())
+    allocate(ls_field_np1(num_split_steps + 1))
+    do split_step_count = 1, num_split_steps + 1
+       call field_n%copy_field_properties(ls_field_np1(split_step_count))
+    end do
+
+    if ( .not. transport_efficiency ) then
+
+      ! When we have multiple split steps, we need an intermediate field for the
+      ! field at the start of each substep
+      ! field_ptr points to the field at the start of each split step
+      call invoke( setval_X(ls_field_np1(1), ls_field_n) )
+
+      if (num_split_steps > 1) then
+        call field_n%copy_field_properties(field_tmp)
+        call invoke( setval_X(field_tmp, ls_field_n) )
+        field_ptr => field_tmp
+      else
+        field_ptr => ls_field_n
+      end if
+
+      do split_step_count = 1, num_split_steps
+         call split_transport_field( ls_field_np1(split_step_count+1), &
+                                     field_ptr,                        &
+                                     ls_transport_controller           &
+         )
+
+        if (split_step_count < num_split_steps) then
+          call invoke( setval_X(field_tmp, ls_field_np1(split_step_count+1) ) )
+
+          ! Increment split step counter
+          call ls_transport_counter%inc_split_step_counter()
+        end if
+      end do
+
+    else
+       ! Assume that the linearisation state does not evolve during the split transport
+       do split_step_count = 1, num_split_steps + 1
+        call invoke( setval_X(ls_field_np1(split_step_count), ls_field_n) )
+      end do
+   end if
+
+   dt_substep = ls_transport_counter%get_dt_substep()
+   num_substeps = ls_transport_counter%get_num_substeps()
+   call ls_transport_counter%initialise(transport_metadata, dt_substep, num_substeps )
+
+    ! ------------------------------------------------------------------------ !
+    ! LINEAR
+    ! ------------------------------------------------------------------------ !
+
+    pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+    transport_counter => pert_transport_controller%get_transport_counter()
+
+    ! Initialise fields
+    num_split_steps = get_num_split_steps(transport_metadata%get_splitting())
+
+    ! When we have multiple split steps, we need an intermediate field for the
+    ! field at the start of each substeps
+    ! field_ptr points to the field at the start of each split step
+    if (num_split_steps > 1) then
+      call field_n%copy_field_properties(field_tmp)
+      call invoke( setval_X(field_tmp, field_n) )
+      field_ptr => field_tmp
+    else
+      field_ptr => field_n
+    end if
+
+    do split_step_count = 1, num_split_steps
+
+      call tl_split_transport_field(                             &
+           field_np1, field_ptr, ls_field_np1(split_step_count), &
+           tl_transport_controller                               &
+      )
+
+      if (split_step_count < num_split_steps) then
+        call invoke( setval_X(field_tmp, field_np1 ) )
+
+        ! Increment split step counter
+        call transport_counter%inc_split_step_counter()
+        call ls_transport_counter%inc_split_step_counter()
+      end if
+
+    end do
+
+    deallocate( ls_field_np1 )
+
+  end subroutine tl_split_transport_control
+
+  !=============================================================================
+  !> @brief Does either vertical or horizontal transport of a field.
+  !> @details Performs a vertical or horizontal transport step, solving the
+  !!          transport equation for a (multidata) field.
+  !> @param[in,out] field_np1          ACTIVE  Field to return at end
+  !> @param[in]     field_n            ACTIVE  Field at the start
+  !> @param[in]     ls_field_n         PASSIVE Field at the start
+  !> @param[in,out] tl_transport_controller
+  !!                                   Encapsulating object containing the
+  !!                                   transport counter and precomputations
+  subroutine tl_split_transport_field(field_np1, field_n, ls_field_n, tl_transport_controller)
+
+    use tl_mol_conservative_alg_mod,      only: tl_mol_conservative_alg
+    use tl_mol_advective_alg_mod,         only: tl_mol_advective_alg
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),            intent(inout) :: field_np1
+    type(r_tran_field_type),            intent(in)    :: field_n
+    type(r_tran_field_type),            intent(in)    :: ls_field_n
+    type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
+
+    ! Internal variables
+    integer(kind=i_def)                      :: method, direction
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(transport_controller_type), pointer :: pert_transport_controller
+
+    pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    transport_counter => pert_transport_controller%get_transport_counter()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+
+    ! -------------------------------------------------------------------------!
+    ! Set up method based on direction
+    ! -------------------------------------------------------------------------!
+    direction = get_splitting_direction(                                       &
+        transport_metadata%get_splitting(),                                    &
+        transport_counter%get_split_step_of_substep_counter()                  &
+    )
+
+    select case ( direction )
+    case ( direction_h )
+      method = transport_metadata%get_horizontal_method()
+    case ( direction_v )
+      method = transport_metadata%get_vertical_method()
+    case default
+      call log_event('Split transport direction not recognised', LOG_LEVEL_ERROR)
+    end select
+
+    ! -------------------------------------------------------------------------!
+    ! Choose method, and then choose equation
+    ! -------------------------------------------------------------------------!
+    select case ( method )
+
+    ! -------------------------------------------------------------------------!
+    ! Null step
+    ! -------------------------------------------------------------------------!
+    case ( split_method_null )
+       call log_event(                                                         &
+              'TL: Split method null not coded',                               &
+              LOG_LEVEL_ERROR                                                  &
+      )
+
+    ! -------------------------------------------------------------------------!
+    ! Method of Lines step
+    ! -------------------------------------------------------------------------!
+    case ( split_method_mol )
+      ! Choose form of transport equation
+      select case ( transport_metadata%get_equation_form() )
+      case ( equation_form_conservative )
+        call tl_mol_conservative_alg(                                          &
+                field_np1, field_n, ls_field_n, tl_transport_controller        &
+        )
+      case ( equation_form_advective )
+        call tl_mol_advective_alg(                                             &
+                field_np1, field_n, ls_field_n, tl_transport_controller        &
+        )
+      case ( equation_form_consistent )
+                call log_event(                                                &
+                'TL: MoL Consistent not coded yet',                            &
+                LOG_LEVEL_ERROR                                                &
+        )
+      case default
+        call log_event(                                                        &
+                'Trying to solve unrecognised form of transport equation',     &
+                LOG_LEVEL_ERROR                                                &
+        )
+
+      end select
+
+    ! -------------------------------------------------------------------------!
+    ! Flux-Form Semi-Lagrangian step
+    ! -------------------------------------------------------------------------!
+    case ( split_method_ffsl )
+      ! All equation forms have the same control method
+        call log_event(                                                        &
+                'TL: FFSL not coded yet',                                      &
+                LOG_LEVEL_ERROR                                                &
+        )
+    ! -------------------------------------------------------------------------!
+    ! Semi-Lagrangian step
+    ! -------------------------------------------------------------------------!
+    case ( split_method_sl )
+      ! Choose direction
+      select case ( direction )
+
+      case ( direction_h )
+        ! Horizontal SL only for advective form
+        if ( transport_metadata%get_equation_form() /= equation_form_advective ) then
+          call log_event(                                                      &
+                  'Horizontal semi-Lagrangian is only for advective form',     &
+                  LOG_LEVEL_ERROR                                              &
+          )
+        end if
+        call log_event(                                                        &
+                'TL: Horizontal SL not coded yet',                             &
+                LOG_LEVEL_ERROR                                                &
+        )
+
+      case ( direction_v )
+        ! Choose form of transport equation for vertical
+        select case ( transport_metadata%get_equation_form() )
+
+        case ( equation_form_conservative )
+              call log_event(                                                  &
+                'TL: Vertical SL conservative not coded yet',                  &
+                LOG_LEVEL_ERROR                                                &
+        )
+        case ( equation_form_advective )
+              call log_event(                                                  &
+                'TL: Vertical SL advective not coded yet',                     &
+                LOG_LEVEL_ERROR                                                &
+        )
+        case default
+          call log_event(                                                      &
+                  'Trying to solve unrecognised form of transport equation',   &
+                  LOG_LEVEL_ERROR                                              &
+          )
+        end select
+      end select
+
+    case default
+      call log_event(                                                          &
+              'Trying to transport with unrecognised scheme',                  &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end select
+
+  end subroutine tl_split_transport_field
+
+end module tl_split_transport_mod

@@ -245,20 +245,6 @@
         "log_level": "error",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C896_MG" %}
-
-    {% do task_dict.update({
-        "opt_confs": ["um_dump"],
-        "resolution": "C896_MG",
-        "DT": 240,
-        "tsteps": 120,
-        "mpi_parts": 4704,
-        "xios_nodes": 4,
-        "mpi_parts_xios" : 32,
-        "log_level": "info",
-        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
-    }) %}
-
 {% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
 
     {% do task_dict.update({
@@ -439,6 +425,25 @@
         "crun": 2,
         "mpi_parts": 6,
         "kgo_checks": ["checksum"],
+    }) %}
+
+{# Share Global Configurations - extended by Performance setups#}
+{% elif task_ns.conf_name.startswith("nwp_gal9-C896_MG") %}
+
+    {% do task_dict.update({
+        "CXI_MATCH_hybrid": true,
+        "opt_confs": ["um_dump"],
+        "resolution": "C896_MG",
+        "DT": 240,
+        "tsteps": 120,
+        "wallclock": 15,
+        "mpi_parts": 4704,
+        "xios_nodes": 4,
+        "mpi_parts_xios" : 128,
+        "log_level": "info",
+        "log_to_rank_zero_only": ".true.",
+        "memory_plot_ex": true,
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
 {# ###################################################################### #}
@@ -1158,5 +1163,26 @@
         {% do task_dict.update({"app_name": "lfric_atm"}) %}
     {% endif %}
 {% endif %}
+
+{# Extensions to the Shared Global Configurations - Performance setups#}
+{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_720t") %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump"],
+        "tsteps": 720,
+        "wallclock": 60,
+        "plot_str": "",
+        "restart_write": false,
+    }) %}
+{% endif %}
+
+{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_720t_opDiag") %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","oper_diags_hres"],
+    }) %}
+
+{% endif %}
+
 
 {% do LOG.debug("Finished in site/common/lfric_atm/tasks_lfric_atm.cylc") %}
