@@ -9,7 +9,7 @@ module atlt_mol_conservative_alg_mod
   use r_tran_field_mod,                    only : r_tran_field_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
-  use constants_mod,                       only : r_def, i_def, l_def
+  use constants_mod,                       only : r_def, i_def, l_def, EPS
   use copy_field_alg_mod,                  only : copy_field
   use log_mod,                             only : log_event,         &
                                                   log_scratch_space, &
@@ -91,22 +91,25 @@ module atlt_mol_conservative_alg_mod
     real(kind=r_def)            :: inner2
     real(kind=r_def)            :: field_np1_field_np1_input_inner_prod
     real(kind=r_def)            :: field_field_input_inner_prod
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Variables used to handle calculations for fields stored in tl_transport_controller
     integer(kind=i_def)                                :: mesh_id
     type(transport_controller_type),           pointer :: pert_transport_controller
     type(transport_controller_type),           pointer :: ls_transport_controller
+    type(transport_controller_type),           pointer :: transport_controller
     type(field_type)                                   :: tctr_field_n
     type(function_space_type),                 pointer :: tctr_field_n_vs
     type(field_type)                                   :: tctr_field_n_inp
     type(r_tran_field_type), dimension(:), allocatable :: tctr_flux_inp
     type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp
     type(r_tran_field_type), dimension(:), allocatable :: fpc_pert_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp2
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_1_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_1_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_2_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_2_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_3_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_3_inp
     type(r_tran_field_type)                            :: wind_pc_h_inp
     type(r_tran_field_type)                            :: wind_pc_v_inp
     type(r_tran_field_type)                            :: wind_pc_3d_inp
@@ -118,6 +121,7 @@ module atlt_mol_conservative_alg_mod
 
     mesh_id = mesh%get_id()
     call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, tctr_field_n, tctr_field_n_vs )
+    transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
 
@@ -126,6 +130,12 @@ module atlt_mol_conservative_alg_mod
                                  tctr_field_n_inp,         &
                                  tctr_flux_inp,            &
                                  pert_transport_controller )
+    call init_flux_pc_fieldvals( mesh,                     &
+                                 1_i_def,                  &
+                                 fpc_ls_wind_ref_flux_inp2, &
+                                 dummy_ref_field_3_inp,    &
+                                 dummy_ref_mass_3_inp,     &
+                                 transport_controller )
     call init_flux_pc_fieldvals( mesh,                     &
                                  1_i_def,                  &
                                  fpc_ls_wind_ref_flux_inp, &
@@ -182,8 +192,8 @@ module atlt_mol_conservative_alg_mod
                  x_innerproduct_x( field_inner_prod, field ) )
 
     ! Determining scale factors
-    field_np1_sf = 1.0_r_def/(field_np1_inner_prod + eps)
-    field_sf = 1.0_r_def/(field_inner_prod + eps)
+    field_np1_sf = 1.0_r_def/(field_np1_inner_prod + EPS)
+    field_sf = 1.0_r_def/(field_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + field_np1_inner_prod*field_np1_sf
