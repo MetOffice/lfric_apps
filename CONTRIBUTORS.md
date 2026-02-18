@@ -30,3 +30,4 @@
 | t00sa               | Sam Clarke-Green   | Met Office                       | 2026-01-20 |
 | ukmo-juan-castillo  | Juan M. Castillo   | Met Office                       | 2026-01-23 |
 | thomasmelvin        | Thomas Melvin      | Met Office                       | 2026-01-15 |
+| tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-01-16 |
