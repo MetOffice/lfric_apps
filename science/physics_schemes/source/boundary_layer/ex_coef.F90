@@ -606,8 +606,8 @@ if (local_fa == free_trop_layers) then
           turb_length(i,j,kl) = max( turb_length(i,j,kl),                    &
                       min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
         end do
-      end do
-    end if
+      end if
+    end do
   end do
 !$OMP end PARALLEL do
 end if
@@ -724,8 +724,10 @@ do k = 2, bl_levels
         z_scale = max( z_scale, zhpar(i,j) )
         zht     = max( zht, zhpar(i,j) )
       end if
+
       ! BL top includes decoupled stratocu layer, if it exists
       if (ntdsc(i,j) > 0) zht = max( zht, z_uv(i,j,ntdsc(i,j)+1) )
+
       ! Need to restrict z_scale to dsc depth within a dsc layer
       ! (given by turb_length) and to distance from dsc top below the
       ! dsc layer
@@ -833,9 +835,9 @@ if (local_fa == to_sharp_across_1km) then
   z_scale = 1000.0_r_bl
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-      do i = pdims%i_start, pdims%i_end
-        zpr = z_tq(i,j,k-1)/z_scale
-        BL_weight(i,j,k) = one_half*(one - tanh(3.0_r_bl*(zpr-one) ) )
+    do i = pdims%i_start, pdims%i_end
+      zpr = z_tq(i,j,k-1)/z_scale
+      BL_weight(i,j,k) = one_half*(one - tanh(3.0_r_bl*(zpr-one) ) )
     end do
   end do
 !$OMP end do NOWAIT
@@ -887,7 +889,7 @@ do k = 2, bl_levels
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
       if (ri(i,j,k) >= zero)                                                   &
-          func(i,j)=one / ( one + g0 * ri(i,j,k) )
+        func(i,j)=one / ( one + g0 * ri(i,j,k) )
     end do
     !$OMP end PARALLEL do
 
@@ -1110,28 +1112,27 @@ do k = 2, bl_levels
   if (sg_orog_mixing == extended_tail) then
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                         &
     !$OMP private( i, g0_orog )
-      do i = pdims%i_start, pdims%i_end
-        !-------------------------------------------------------
-        ! SBL tail dependent on subgrid orography
-        !  - use SHARPEST function but with variable coefficient
-        !    that reduces to sharpest both with height above
-        !    orography and as orography gets smaller
-        !-------------------------------------------------------
-        if ( sigma_h(i,j) > 0.1_r_bl ) then
-          ! Then additional near-surface orographic dependence
-          g0_orog = g0 / ( one +                                               &
-                           (sigma_h(i,j)/25.0_r_bl)*BL_weight(i,j,k) )
+    do i = pdims%i_start, pdims%i_end
+      !-------------------------------------------------------
+      ! SBL tail dependent on subgrid orography
+      !  - use SHARPEST function but with variable coefficient
+      !    that reduces to sharpest both with height above
+      !    orography and as orography gets smaller
+      !-------------------------------------------------------
+      if ( sigma_h(i,j) > 0.1_r_bl ) then
+        ! Then additional near-surface orographic dependence
+        g0_orog = g0 / ( one +                                               &
+                          (sigma_h(i,j)/25.0_r_bl)*BL_weight(i,j,k) )
 
-          if (ri(i,j,k) < one/g0_orog) then
-            func(i,j) = one - one_half * g0_orog * ri(i,j,k)
-          else
-            func(i,j) = one / ( 2.0_r_bl * g0_orog * ri(i,j,k) )
-          end if
-          func(i,j) = func(i,j)*func(i,j)
-
+        if (ri(i,j,k) < one/g0_orog) then
+          func(i,j) = one - one_half * g0_orog * ri(i,j,k)
+        else
+          func(i,j) = one / ( 2.0_r_bl * g0_orog * ri(i,j,k) )
         end if
-      end do
+        func(i,j) = func(i,j)*func(i,j)
 
+      end if
+    end do
     !$OMP end PARALLEL do
 
   end if
