@@ -181,3 +181,26 @@ class vn30_t214(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn30_t108(MacroUpgrade):
+    """Upgrade macro for ticket #108 by Christine Johnson."""
+
+    BEFORE_TAG = "vn3.0_t214"
+    AFTER_TAG = "vn3.0_t108"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-linear
+        fixed_ls = self.get_setting_value(
+            config, ["namelist:linear", "fixed_ls"]
+        )
+        if ".true." in fixed_ls:
+            self.add_setting(
+                config, ["namelist:linear", "transport_efficiency"], ".true."
+            )
+        else:
+            self.add_setting(
+                config, ["namelist:linear", "transport_efficiency"], ".false."
+            )
+
+        return config, self.reports

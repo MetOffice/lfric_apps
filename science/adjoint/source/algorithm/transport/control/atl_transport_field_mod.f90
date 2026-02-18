@@ -21,6 +21,7 @@ module atl_transport_field_mod
   use adj_trans_lookup_cache_mod,       only: adj_trans_lookup_cache_type
   use atl_mol_conservative_alg_mod,     only: atl_mol_conservative_alg
   use atl_mol_advective_alg_mod,        only: atl_mol_advective_alg
+  use atl_split_transport_mod,          only: atl_split_transport_control
   use transport_controller_mod,         only: transport_controller_type
   use tl_transport_controller_mod,      only: tl_transport_controller_type
   use transport_counter_mod,            only: transport_counter_type
@@ -115,8 +116,8 @@ contains
     ! Some split horizontal/vertical transport scheme
     ! -------------------------------------------------------------------------!
     case ( scheme_split )
-      call log_event('Split transport not implemented for tangent-linear app', &
-                      LOG_LEVEL_ERROR)
+      call atl_split_transport_control(field_np1, field_n, ls_field_n, &
+                                       tl_transport_controller)
 
     case default
       call log_event('Trying to transport with unrecognised scheme', &
