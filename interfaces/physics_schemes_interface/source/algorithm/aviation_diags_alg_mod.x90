@@ -289,8 +289,10 @@ CONTAINS
   ! TODO: where should this live?
 !  subroutine write_horizontal_divergence_diagnostic( &
 !          wind_3d, clock, mesh, element_order_h, element_order_v)
+!  subroutine write_horizontal_divergence_diagnostic( &
+!          wind_3d, clock, element_order_h, element_order_v)
   subroutine write_horizontal_divergence_diagnostic( &
-          wind_3d, clock, element_order_h, element_order_v)
+          wind, clock, element_order_h, element_order_v)
     use fs_continuity_mod,              only: W2H, W2v
     use function_space_collection_mod,  only: function_space_collection
     use model_clock_mod,                only: model_clock_type
@@ -301,7 +303,7 @@ CONTAINS
 
     use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
     use transport_constants_mod,        only: get_directional_im3_div
-    use transport_enumerated_types_mod, only: direction_h
+    use transport_enumerated_types_mod, only: direction_3d
     use r_tran_operator_mod,            only: r_tran_operator_type
 
     use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
@@ -320,7 +322,8 @@ CONTAINS
 
     implicit none
 
-    type(field_type),        intent(in)          :: wind_3d
+!    type(field_type),        intent(in)          :: wind_3d
+    type(field_type),        intent(in)          :: wind
     class(model_clock_type), intent(in)          :: clock
 !    type(mesh_type),         intent(in), pointer :: mesh
 
@@ -329,7 +332,7 @@ CONTAINS
     type(mesh_type), pointer                     :: mesh => null()
 
     type(field_type)                     :: wind_h, wind_v
-    type(field_type)                     :: div_ml
+    type(field_type)                     :: div_ml, div_ml_h, div_ml_v
     type(field_type)                     :: div_pl(1)
     type(field_type)                     :: div_pl1
     type(field_type), pointer            :: chi(:)
@@ -348,40 +351,68 @@ CONTAINS
     endif
 
 
+
       ! Create the divergence diagnostic
 !      call divergence_diagnostic_alg( div_field, l2_norm, wind_3d, mesh )
 
-    ! get the horizontal div operator matrix for this mesh
-    div_op => get_directional_im3_div(wind_3d%get_mesh_id(), direction_h)
+
+!
+!    ! get the horizontal div operator matrix for this mesh
+!    div_op => get_directional_im3_div(wind_3d%get_mesh_id(), direction_h)
+!
+!    ! Split the 3d wind into horizontal and vertical components
+!    face_selector_ew => get_face_selector_ew(wind_3d%get_mesh_id())
+!    face_selector_ns => get_face_selector_ns(wind_3d%get_mesh_id())
+!
+!    call wind_h%initialise( function_space_collection%get_fs( &
+!        mesh, element_order_h, element_order_v, W2h ))
+!    call wind_v%initialise( function_space_collection%get_fs( &
+!        mesh, element_order_h, element_order_v, W2v ))
+!
+!    call invoke( split_w2_field_kernel_type( &
+!        wind_h, wind_v, wind_3d, face_selector_ew, face_selector_ns ))
+!
+!    ! multiply the wind by the div operator matrix to get the div
+!    CALL invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
+!
+!    ! Project the field to the output field
+!
+!    ! todo: which mesh should we use? this or the one passed in?
+!    mesh     => div_ml%get_mesh()
+!    chi      => get_coordinates( mesh%get_id() )
+!    panel_id => get_panel_id( mesh%get_id() )
+!
+!    call project_output( div_ml, div_pl, chi, panel_id, W3 )
+!    div_pl1 = div_pl(1)
 
 
-    ! Split the 3d wind into horizontal and vertical components
-    face_selector_ew => get_face_selector_ew(wind_3d%get_mesh_id())
-    face_selector_ns => get_face_selector_ns(wind_3d%get_mesh_id())
 
-    call wind_h%initialise( function_space_collection%get_fs( &
+
+    ! get the 3d div operator matrix for this mesh
+    div_op => get_directional_im3_div(wind%get_mesh_id(), direction_3d)
+
+    ! multiply the wind by the div operator matrix to get the div
+    CALL invoke(dg_matrix_vector_kernel_type(div_ml, wind, div_op))
+
+    ! Split the 3d div into horizontal and vertical components
+    face_selector_ew => get_face_selector_ew(div_ml%get_mesh_id())
+    face_selector_ns => get_face_selector_ns(div_ml%get_mesh_id())
+
+    call div_ml_h%initialise( function_space_collection%get_fs( &
         mesh, element_order_h, element_order_v, W2h ))
-    call wind_v%initialise( function_space_collection%get_fs( &
+    call div_ml_v%initialise( function_space_collection%get_fs( &
         mesh, element_order_h, element_order_v, W2v ))
 
     call invoke( split_w2_field_kernel_type( &
-        wind_h, wind_v, wind_3d, face_selector_ew, face_selector_ns ))
+        div_ml_h, div_ml_v, div_ml, face_selector_ew, face_selector_ns ))
 
-    ! multiply the wind by the div operator matrix to get the div
-    CALL invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
-
-
-
-
-
-    ! Project the field to the output field
-
+    ! Project the h div to pressure levels
     ! todo: which mesh should we use? this or the one passed in?
-    mesh     => div_ml%get_mesh()
+    mesh     => div_ml_h%get_mesh()
     chi      => get_coordinates( mesh%get_id() )
     panel_id => get_panel_id( mesh%get_id() )
 
-    call project_output( div_ml, div_pl, chi, panel_id, W3 )
+    call project_output( div_ml_h, div_pl, chi, panel_id, W3 )
     div_pl1 = div_pl(1)
 
 
