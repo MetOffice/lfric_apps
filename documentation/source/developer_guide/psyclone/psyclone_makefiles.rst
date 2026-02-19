@@ -102,3 +102,25 @@ application at::
     ``transmute/`` directory (non-LFRic source or modules that are not
     targeted by the LFRic Core ``psyclone.mk`` file). Some applications will
     not have this .mk file.
+
+
+Modifying the PSyclone command(s)
+---------------------------------
+
+To assist with more flexible use of the PSyclone command(s) for the two DSL methods,
+PSyKAl and Transmute, a flag has been added to allow users to adjust the flags used
+with the command.
+The main options are still required by default, but options that could be adjustable
+per site, or potentially per file are being allowed, like compiler options.
+An example is the use of ``-l all``, which has caused issues with some compilers,
+such as Intel or Nvidia.
+
+* ``PSYCLONE_TRANSMUTE_EXTRAS`` - used by Transmute
+* ``PSYCLONE_PSYKAL_EXTRAS`` - used by PSyKAl
+
+This has not been expanded further, however a user should be able to override them at
+a site level, and a file level.
+For just a site level, this could be set in the build option in the site cylc file.
+Per file, which may be needed to preserve compiler clauses, and add optimisations in, a
+makefile will need to export privatised versions of these per file and imported into
+the application.
