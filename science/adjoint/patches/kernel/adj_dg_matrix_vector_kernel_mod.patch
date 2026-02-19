@@ -27,3 +27,21 @@
  
    contains
    subroutine adj_dg_matrix_vector_code_r_single(cell, nlayers, lhs, x, ncell_3d, matrix, ndf1, undf1, map1, ndf2, undf2, map2)
+@@ -56,7 +56,7 @@
+     do df1 = ndf1, 1, -1
+       i1 = map1(df1)
+       do idx = i1 + nl, i1, -1
+-        lhs(idx) = 0.0
++        lhs(idx) = 0.0_r_single
+       enddo
+     enddo
+ 
+@@ -97,7 +97,7 @@
+     do df1 = ndf1, 1, -1
+       i1 = map1(df1)
+       do idx = i1 + nl, i1, -1
+-        lhs(idx) = 0.0
++        lhs(idx) = 0.0_r_double
+       enddo
+     enddo
+ 

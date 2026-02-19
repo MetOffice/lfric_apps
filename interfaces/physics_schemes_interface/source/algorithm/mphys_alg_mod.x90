@@ -140,7 +140,7 @@ contains
     type(mesh_type), pointer :: mesh => null()
     integer(tik)             :: id
 
-    if ( LPROF ) call start_timing( id, 'mphys_alg' )
+    if ( LPROF ) call start_timing( id, 'microphysics.wb' )
 
     call log_event( 'slow_physics: Running Microphysics', LOG_LEVEL_DEBUG )
 
@@ -260,7 +260,7 @@ contains
     call microphysics_fields%get_field('dmv_mphys', dmv_mphys)
     call invoke(setval_X(dmv_mphys, dmr_mphys(imr_v)))
 
-    if ( LPROF ) call stop_timing( id, 'mphys_alg' )
+    if ( LPROF ) call stop_timing( id, 'microphysics.wb' )
 
     ! Output microphysics diagnostics
     if (write_diag .and. use_xios_io) then

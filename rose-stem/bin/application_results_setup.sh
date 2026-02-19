@@ -8,18 +8,16 @@
 
 # Prepare results location
 mkdir -p $TASK_OUTPUT_DIR/results/
+# Symbolic link to results directory, so all files can write to /work/results/
+ln -sf $TASK_OUTPUT_DIR/results $CYLC_TASK_WORK_DIR/results
+# Specific results directory symbolic link exceptions to support
+# `lfric_diag.nc`, `lfric_averages.nc` & `lfric_initial` across many tests
+# In general output files should target `name="results/fname"` in XIOS xml
+ln -sf $TASK_OUTPUT_DIR/results/lfric_diag.nc $CYLC_TASK_WORK_DIR/lfric_diag.nc
+ln -sf $TASK_OUTPUT_DIR/results/lfric_averages.nc $CYLC_TASK_WORK_DIR/lfric_averages.nc
+ln -sf $TASK_OUTPUT_DIR/results/lfric_initial.nc $CYLC_TASK_WORK_DIR/lfric_initial.nc
 if [ $LUSTRE_FILESYSTEM ]; then
   # Set Lustre striping to maximum for results (performance)
-  lfs setstripe -c -1 $TASK_OUTPUT_DIR/results/
+  lfs setstripe -c 32 -S 4m -p flash $TASK_OUTPUT_DIR/results/
+  lfs setstripe -c 32 -S 4m -p flash $CYLC_SUITE_SHARE_DIR/data/
 fi
-
-# Symbolic link for each potential output file,
-# from `work` to `results`
-# avoiding cp copy commands, as these are very
-# storage & wall clock intensive
-ln -sf $TASK_OUTPUT_DIR/results/lfric_diagnostics.nc $CYLC_TASK_WORK_DIR/lfric_diagnostics.nc
-ln -sf $TASK_OUTPUT_DIR/results/lfric_diag.nc $CYLC_TASK_WORK_DIR/lfric_diag.nc
-ln -sf $TASK_OUTPUT_DIR/results/lfric_ver.nc $CYLC_TASK_WORK_DIR/lfric_ver.nc
-ln -sf $TASK_OUTPUT_DIR/results/lfric_ver_tp0.nc $CYLC_TASK_WORK_DIR/lfric_ver_tp0.nc
-ln -sf $TASK_OUTPUT_DIR/results/lfric_initial.nc $CYLC_TASK_WORK_DIR/lfric_initial.nc
-ln -sf $TASK_OUTPUT_DIR/results/lfric_averages.nc $CYLC_TASK_WORK_DIR/lfric_averages.nc

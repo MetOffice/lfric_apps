@@ -5,7 +5,11 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/macros/macros_ex1a.cylc") %}
 
-{% set ex1a_cores_per_node = 128 %}
+{% if site_vars.node_type == "genoa" %}
+    {% set ex1a_cores_per_node = 192 %}
+{% else %}
+    {% set ex1a_cores_per_node = 128 %}
+{% endif %}
 {% set ex1a_socket_per_node = 2 %}
 
 {% macro normal_queue(mpi_ranks,
@@ -70,16 +74,24 @@
         {% set lfric_nodes = possible_nodes %}
 
     {% endif %}
+    {% if site_vars["ex_trustzone"] == "collab" %}
+            -q=collab
+    {% else %}
             -q=normal
+    {% endif %}
             -l select={{ lfric_nodes +
                          ocean_nodes|int +
                          river_nodes|int +
-                         xios_nodes|int }}
+                         xios_nodes|int }}:coretype={{site_vars.node_type}}:mem={{site_vars.node_mem}}GB{{site_vars.crayhost}}
 {% endmacro %}
 
 
 {% macro shared_queue(cores) %}
+    {% if site_vars["ex_trustzone"] == "collab" %}
+            -q=collabshared
+    {% else %}
             -q=shared
+    {% endif %}
             -l ncpus={{ cores }}
 
 {% endmacro %}

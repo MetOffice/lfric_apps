@@ -9,16 +9,16 @@
 # Fortran files
 *.f   text diff=fortran
 *.for text diff=fortran
-*.f90 text diff=fortran
-*.F90 text diff=fortran
-*.f95 text diff=fortran
-*.f03 text diff=fortran
-*.x90 text diff=fortran
-*.X90 text diff=fortran
-*.t90 text diff=fortran
-*.T90 text diff=fortran
-*.pf  text diff=fortran
-*.PF  text diff=fortran
+*.f90 text diff=fortran-free-form
+*.F90 text diff=fortran-free-form
+*.f95 text diff=fortran-free-form
+*.f03 text diff=fortran-free-form
+*.x90 text diff=fortran-free-form
+*.X90 text diff=fortran-free-form
+*.t90 text diff=fortran-free-form
+*.T90 text diff=fortran-free-form
+*.pf  text diff=fortran-free-form
+*.PF  text diff=fortran-free-form
 
 # Enable syntax highlighting for files with `.pf` extensions.
 #

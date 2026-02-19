@@ -14,14 +14,14 @@ module gungho_diagnostics_driver_mod
 
   use constants_mod,             only : i_def, r_def, str_def
   use boundaries_config_mod,     only : limited_area, output_lbcs
-  use diagnostic_alg_mod,        only : column_total_diagnostics_alg, &
-                                        calc_wbig_diagnostic_alg, &
+  use diagnostic_alg_mod,        only : column_total_diagnostics_alg,          &
+                                        calc_wbig_diagnostic_alg,              &
                                         pressure_diag_alg
-  use diagnostics_io_mod,        only : write_scalar_diagnostic, &
+  use diagnostics_io_mod,        only : write_scalar_diagnostic,               &
                                         write_vector_diagnostic
-  use diagnostics_calc_mod,      only : write_divergence_diagnostic, &
-                                        write_hydbal_diagnostic,     &
-                                        write_vorticity_diagnostic,  &
+  use diagnostics_calc_mod,      only : write_divergence_diagnostic,           &
+                                        write_hydbal_diagnostic,               &
+                                        write_vorticity_diagnostic,            &
                                         write_pv_diagnostic
   use initialise_diagnostics_mod, only : diagnostic_to_be_sampled
   use field_array_mod,           only : field_array_type
@@ -32,22 +32,22 @@ module gungho_diagnostics_driver_mod
   use field_parent_mod,          only : field_parent_type, write_interface
   use io_value_mod,              only : io_value_type, get_io_value
   use lfric_xios_write_mod,      only : write_field_generic
-  use formulation_config_mod,    only : use_physics,             &
-                                        moisture_formulation,    &
+  use formulation_config_mod,    only : use_physics,                           &
+                                        moisture_formulation,                  &
                                         moisture_formulation_dry
-  use fs_continuity_mod,         only : W3, Wtheta
+  use fs_continuity_mod,         only : W3, Wtheta, W2H, W0
   use integer_field_mod,         only : integer_field_type
-  use initialization_config_mod, only : ls_option,          &
-                                        ls_option_analytic, &
+  use initialization_config_mod, only : ls_option,                             &
+                                        ls_option_analytic,                    &
                                         ls_option_file
   use mesh_mod,                  only : mesh_type
   use moist_dyn_mod,             only : num_moist_factors
   use mr_indices_mod,            only : nummr, mr_names
-  use log_mod,                   only : log_event, &
+  use log_mod,                   only : log_event,                             &
                                         LOG_LEVEL_DEBUG
-  use sci_geometric_constants_mod,      &
-                                 only : get_panel_id, get_height_fe, &
-                                        get_height_fv, get_da_msl_proj
+  use sci_geometric_constants_mod,                                             &
+                                 only : get_panel_id,                          &
+                                        get_height_fe, get_da_msl_proj
   use io_config_mod,             only : use_xios_io, write_fluxes
   use timer_mod,                 only : timer
   use timing_mod,                only : start_timing, stop_timing, tik, LPROF
@@ -87,58 +87,56 @@ contains
     type(mesh_type),     intent(in),    pointer :: twod_mesh
     logical,             intent(in)             :: nodal_output_on_w3
 
-    type( field_collection_type ), pointer :: prognostic_fields => null()
-    type( field_collection_type ), pointer :: con_tracer_last_outer
-    type( field_collection_type ), pointer :: lbc_fields
-    type( field_collection_type ), pointer :: moisture_fields => null()
-    type( field_type ),            pointer :: mr(:) => null()
-    type( field_type ),            pointer :: moist_dyn(:) => null()
-    type( field_collection_type ), pointer :: derived_fields
+    type(field_collection_type), pointer :: prognostic_fields
+    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: lbc_fields
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_type),            pointer :: mr(:)
+    type(field_type),            pointer :: moist_dyn(:)
+    type(field_collection_type), pointer :: derived_fields
 
-    type( field_type), pointer :: theta => null()
-    type( field_type), pointer :: u => null()
-    type( field_type), pointer :: h_u => null()
-    type( field_type), pointer :: v_u => null()
-    type( field_type), pointer :: rho => null()
-    type( field_type), pointer :: exner => null()
-    type( field_type), pointer :: panel_id => null()
-    type( field_type), pointer :: height_w3 => null()
-    type( field_type), pointer :: height_wth => null()
-    type( field_type), pointer :: lbc_u => null()
-    type( field_type), pointer :: lbc_theta => null()
-    type( field_type), pointer :: lbc_rho => null()
-    type( field_type), pointer :: lbc_exner => null()
-    type( field_type), pointer :: lbc_m_v=> null()
-    type( field_type), pointer :: lbc_q=> null()
-    type( field_type), pointer :: u_in_w2h => null()
-    type( field_type), pointer :: v_in_w2h => null()
-    type( field_type), pointer :: w_in_wth => null()
-    type( field_type), pointer :: ageofair => null()
-    type( field_type), pointer :: exner_in_wth => null()
-    type( field_type), pointer :: dA => null()
+    type(field_type), pointer :: theta
+    type(field_type), pointer :: u
+    type(field_type), pointer :: h_u
+    type(field_type), pointer :: v_u
+    type(field_type), pointer :: rho
+    type(field_type), pointer :: exner
+    type(field_type), pointer :: panel_id
+    type(field_type), pointer :: height
+    type(field_type), pointer :: lbc_u
+    type(field_type), pointer :: lbc_theta
+    type(field_type), pointer :: lbc_rho
+    type(field_type), pointer :: lbc_exner
+    type(field_type), pointer :: lbc_m_v
+    type(field_type), pointer :: lbc_q
+    type(field_type), pointer :: u_in_w2h
+    type(field_type), pointer :: v_in_w2h
+    type(field_type), pointer :: w_in_wth
+    type(field_type), pointer :: ageofair
+    type(field_type), pointer :: exner_in_wth
+    type(field_type), pointer :: dA
 
-    type(field_array_type), pointer :: mr_array => null()
-    type(field_array_type), pointer :: moist_dyn_array => null()
+    type(field_array_type), pointer :: mr_array
+    type(field_array_type), pointer :: moist_dyn_array
 
     ! Iterator for field collection
     type(field_collection_iterator_type)  :: iterator
 
     ! A pointer used for retrieving fields from collections
     ! when iterating over them
-    class( field_parent_type ), pointer :: field_ptr  => null()
+    class(field_parent_type),   pointer :: field_ptr
+    procedure(write_interface), pointer :: tmp_write_ptr
+    type(io_value_type),        pointer :: temp_corr_io_value
 
-    type(io_value_type), pointer :: temp_corr_io_value
+    integer(kind=i_def)    :: i, fs
+    integer(kind=tik)      :: id
+    character(len=str_def) :: name, prefix, field_name
 
-    character(str_def) :: name
+    integer(kind=i_def),    allocatable :: fs_ids(:)
+    character(len=str_def), allocatable :: fs_names(:)
 
-    integer :: fs
-    integer :: element_order_h, element_order_v
-
-    procedure(write_interface), pointer  :: tmp_write_ptr => null()
-
-    integer :: i
-    integer(tik)  :: id
     if ( LPROF ) call start_timing( id, 'gungho_diagnostics_driver' )
+
     call log_event("Gungho: writing diagnostic output", LOG_LEVEL_DEBUG)
 
     ! Get pointers to field collections for use downstream
@@ -161,20 +159,6 @@ contains
     call prognostic_fields%get_field('rho', rho)
     call prognostic_fields%get_field('exner', exner)
 
-    ! Get element orders and get the finite element or finite volume height
-    element_order_h = theta%get_element_order_h()
-    element_order_v = theta%get_element_order_v()
-
-    if (element_order_h > 0 .or. element_order_v > 0) then
-      ! Get the finite element height
-      height_w3 => get_height_fe(W3, mesh%get_id())
-      height_wth => get_height_fe(Wtheta, mesh%get_id())
-    else
-      ! Get the finite volume height
-      height_w3 => get_height_fv(W3, mesh%get_id())
-      height_wth => get_height_fv(Wtheta, mesh%get_id())
-    end if
-
     ! Scalar fields
     call write_scalar_diagnostic('rho', rho, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
@@ -182,10 +166,31 @@ contains
                                  modeldb%clock, mesh, nodal_output_on_w3)
     call write_scalar_diagnostic('exner', exner, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('height_w3', height_w3, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('height_wth', height_wth, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
+
+    ! Write out heights of function space DoFs, if requested
+    allocate(fs_names(4))
+    allocate(fs_ids(4))
+    fs_names = (/ "w0 ", "w2h", "w3 ", "wth" /)  ! Spaces to align lengths
+    fs_ids = (/ W0, W2H, W3, Wtheta /)
+    if (use_xios_io) then
+      if (modeldb%clock%is_initialisation()) then
+        prefix = "init_"
+      else
+        prefix = ""
+      end if
+      tmp_write_ptr => write_field_generic
+      do i = 1, SIZE(fs_names)
+        field_name = trim(prefix)//"height_"//trim(fs_names(i))
+        fs = fs_ids(i)
+        if (diagnostic_to_be_sampled(trim(field_name))) then
+          height => get_height_fe(fs, mesh%get_id())
+          call height%set_write_behaviour(tmp_write_ptr)
+          call height%write_field(trim(field_name))
+        end if
+      end do
+    end if
+    deallocate(fs_names)
+    deallocate(fs_ids)
 
     if (transport_ageofair) then
       call con_tracer_last_outer%get_field('ageofair',ageofair)
@@ -212,13 +217,25 @@ contains
       call u_in_w2h%set_write_behaviour(tmp_write_ptr)
       call v_in_w2h%set_write_behaviour(tmp_write_ptr)
       if (modeldb%clock%is_initialisation()) then
-        call u_in_w2h%write_field("init_u_in_w2h")
-        call v_in_w2h%write_field("init_v_in_w2h")
-        call w_in_wth%write_field("init_w_in_wth")
+        if (diagnostic_to_be_sampled("init_u_in_w2h")) then
+          call u_in_w2h%write_field("init_u_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("init_v_in_w2h")) then
+          call v_in_w2h%write_field("init_v_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("init_w_in_wth")) then
+          call w_in_wth%write_field("init_w_in_wth")
+        end if
       else
-        call u_in_w2h%write_field("u_in_w2h")
-        call v_in_w2h%write_field("v_in_w2h")
-        call w_in_wth%write_field("w_in_wth")
+        if (diagnostic_to_be_sampled("u_in_w2h")) then
+          call u_in_w2h%write_field("u_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("v_in_w2h")) then
+          call v_in_w2h%write_field("v_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("w_in_wth")) then
+          call w_in_wth%write_field("w_in_wth")
+        end if
       end if
     else
       call write_vector_diagnostic('u', u, &
@@ -233,7 +250,7 @@ contains
 
     ! Moisture fields
     if ( moisture_formulation /= moisture_formulation_dry ) then
-      do i=1,nummr
+      do i = 1, nummr
         call write_scalar_diagnostic( trim(mr_names(i)), mr(i), &
                                       modeldb%clock, mesh, nodal_output_on_w3 )
       end do
@@ -276,12 +293,12 @@ contains
                                      modeldb%clock, mesh, nodal_output_on_w3)
         call write_vector_diagnostic('readlbc_h_u', h_u, &
                                      modeldb%clock, mesh, nodal_output_on_w3)
-      endif
-    endif
+      end if
+    end if
 
     ! Derived physics fields (only those on W3 or Wtheta)
     if (use_physics .and. use_xios_io .and. .not. modeldb%clock%is_initialisation()) then
-
+      field_ptr => null()
       call iterator%initialise(derived_fields)
       do
         if ( .not.iterator%has_next() ) exit
