@@ -9,7 +9,7 @@ module atlt_mol_advective_alg_mod
   use r_tran_field_mod,                    only : r_tran_field_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
-  use constants_mod,                       only : r_def, i_def, l_def
+  use constants_mod,                       only : r_def, i_def, l_def, EPS
   use log_mod,                             only : log_event,         &
                                                   log_scratch_space, &
                                                   LOG_LEVEL_INFO,    &
@@ -81,7 +81,6 @@ module atlt_mol_advective_alg_mod
     real(kind=r_def)            :: inner2
     real(kind=r_def)            :: field_np1_field_np1_input_inner_prod
     real(kind=r_def)            :: field_field_input_inner_prod
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Variables used to handle calculations for fields stored in tl_transport_controller
     integer(kind=i_def)                      :: mesh_id
@@ -144,8 +143,8 @@ module atlt_mol_advective_alg_mod
                  x_innerproduct_x( field_inner_prod, field ) )
 
     ! Determining scale factors
-    field_np1_sf = 1.0_r_def/(field_np1_inner_prod + eps)
-    field_sf = 1.0_r_def/(field_inner_prod + eps)
+    field_np1_sf = 1.0_r_def/(field_np1_inner_prod + EPS)
+    field_sf = 1.0_r_def/(field_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + field_np1_inner_prod*field_np1_sf

@@ -36,6 +36,7 @@
     <file_definition src="./file_def_diags_name.xml"/>
     <file_definition src="./file_def_diags_var_ops.xml"/>
     <file_definition src="./file_def_diags_oper_nwp_gl.xml"/>
+    <file_definition src="./file_def_initial_diags.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" time_counter="none">
