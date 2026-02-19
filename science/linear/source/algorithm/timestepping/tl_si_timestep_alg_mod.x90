@@ -396,7 +396,7 @@ contains
     real( kind=r_def )             :: mixed_solver_a_tol
     integer(tik)                   :: id
 
-    if ( LPROF ) call start_timing( id, 'tl_semi_implicit_timestep_alg' )
+    if ( LPROF ) call start_timing( id, 'tl_semi_implicit_timestep' )
 
     cast_dt = real(modeldb%clock%get_seconds_per_step(), r_def)
 
@@ -890,7 +890,7 @@ contains
 
     nullify( mm_wt, mm_vel, qr )
 
-    if ( LPROF ) call stop_timing( id, 'tl_semi_implicit_timestep_alg' )
+    if ( LPROF ) call stop_timing( id, 'tl_semi_implicit_timestep' )
 
   end subroutine tl_semi_implicit_alg_step
 

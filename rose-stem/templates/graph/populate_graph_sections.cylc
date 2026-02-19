@@ -21,6 +21,11 @@
 {% else %}
     {% set checksum_kgo = false %}
 {% endif %}
+{% if "rose_ana" in task_values["kgo_checks"] %}
+    {% set rose_ana_kgo = true %}
+{% else %}
+    {% set rose_ana_kgo = false %}
+{% endif %}
 {% if "fields" in task_values["kgo_checks"] %}
     {% set fields_kgo = true %}
 {% else %}
@@ -96,10 +101,18 @@
 {# Do we need to build an application? #}
 {# mesh builds covered above and everything else needs a build #}
 {% if task_ns.application != "mesh" %}
-    {% set application_build_task = "build_"~
-                                    task_ns.application~"_"~
-                                    task_ns.platform~"_"~
-                                    task_values["build_conf"] %}
+    {% if task_ns.application == "lfricinputs" %}
+        {% set application_build_task = "build_"~
+                                        task_ns.application~"_"~
+                                        task_values["app_name"]~"_"~
+                                        task_ns.platform~"_"~
+                                        task_values["build_conf"] %}
+    {% else %}
+        {% set application_build_task = "build_"~
+                                        task_ns.application~"_"~
+                                        task_ns.platform~"_"~
+                                        task_values["build_conf"] %}
+    {% endif %}
 {# If the task is the application build task then use the task dictionary #}
 {# Otherwise use an empty dict to be populated later #}
     {% if application_build_task not in tasks_to_run %}
@@ -210,7 +223,20 @@
             application_run_task,
             checksum_task~"?"]) %}
     {% endif %}
-
+    {% if rose_ana_kgo %}
+        {% set rose_ana_task = "rose_ana_"~
+                                task_ns.application~"_"~
+                                task_ns.conf_name~"_"~
+                                task_ns.platform~"_"~
+                                task_ns.compiler~"_"~
+                                task_ns.extras %}
+        {% if rose_ana_task not in tasks_to_run %}
+            {% do tasks_to_run.update({rose_ana_task: task_values}) %}
+        {% endif %}
+        {% do graph_sections.append([
+            application_run_task, rose_ana_task
+        ]) %}
+    {% endif %}
     {% if plot %}
         {% set plot_task = "plot_"~
                            task_ns.application~"_"~
@@ -273,8 +299,9 @@
     {% include "templates/graph/populate_graph_lfric_coupled.cylc" %}
 {% endif %}
 
-{# lfric2lfric graphs require generate_weights tasks before the application run #}
-{% if task_ns.application == "lfric2lfric" and task_ns.conf_name.startswith("oasis") %}
+{# lfric2lfric, lfric2um, and um2lfric graphs require generate_weights tasks before the application run #}
+{% if (task_ns.application == "lfric2lfric" and task_ns.conf_name.startswith("oasis")) or
+    (task_ns.application == "lfricinputs" and ("scintelapi" not in task_ns.conf_name)) %}
     {% include "templates/graph/populate_gen_weights_graph.cylc" %}
 {% endif %}
 

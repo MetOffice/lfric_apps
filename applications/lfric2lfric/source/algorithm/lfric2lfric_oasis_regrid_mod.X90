@@ -32,6 +32,7 @@ module lfric2lfric_oasis_regrid_mod
   use constants_mod,        only: i_def, r_def, l_def
   use fs_continuity_mod,    only: W3, Wtheta
   use driver_modeldb_mod,   only: modeldb_type
+  use model_clock_mod,      only: model_clock_type
 #ifdef MCT
   use coupling_mod,         only: coupling_type, &
                                   get_coupling_from_collection
@@ -60,16 +61,18 @@ contains
   !> @brief Perform regridding of a field collection using weight files
   !>        and OASIS
   !> @param[inout] modeldb         The structure that holds model state
+  !> @param[inout] clock           Clock for oasis time
   !> @param[out]   field_dst       Field in the destination mesh obtained
   !>                               after regridding the field in the
   !>                               source mesh
   !> @param[in]    field_src       Field in the source mesh
-  subroutine lfric2lfric_oasis_regrid(modeldb, field_dst, field_src)
+  subroutine lfric2lfric_oasis_regrid(modeldb, clock, field_dst, field_src)
 
 
     implicit none
 
     type(modeldb_type),         intent(inout) :: modeldb
+    type(model_clock_type),     intent(inout) :: clock
     type(field_type), pointer,  intent(inout) :: field_dst
     type(field_type), pointer,  intent(in)    :: field_src
 
@@ -124,7 +127,7 @@ contains
           coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
           local_index => coupling_ptr%get_local_index()
           call coupler_exchange_2d%initialise(src_field, local_index)
-          call coupler_exchange_2d%set_time(modeldb%clock)
+          call coupler_exchange_2d%set_time(clock)
           call coupler_exchange_2d%copy_from_lfric(ierror)
           call coupler_exchange_2d%clear()
 
@@ -133,7 +136,7 @@ contains
           coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling_dst" )
           local_index => coupling_ptr%get_local_index()
           call coupler_exchange_2d%initialise(dst_field, local_index)
-          call coupler_exchange_2d%set_time(modeldb%clock)
+          call coupler_exchange_2d%set_time(clock)
           call coupler_exchange_2d%copy_to_lfric(ierror)
           call coupler_exchange_2d%clear()
 
@@ -143,7 +146,7 @@ contains
                                                 dst_field, l, k))
 
           ! Update the coupling time
-          is_running = modeldb%clock%tick()
+          is_running = clock%tick()
 
         end do
       end do

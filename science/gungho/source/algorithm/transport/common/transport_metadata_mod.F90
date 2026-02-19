@@ -408,7 +408,11 @@ contains
   !> @param[in]     adaptive_splitting  Whether to use adaptive splitting. If
   !!                         true, sets the splitting to the splitting argument.
   !> @param[in]     splitting The splitting to use if adaptive_splitting is true
-  subroutine update_metadata(self, outer, adaptive_splitting, splitting)
+  !> @param[in]     make_tracers_advective Whether to set the equation form to be
+  !!                         advective when unable to compute departure points
+  !!                         for consistent tracers
+  subroutine update_metadata(self, outer, adaptive_splitting, splitting,       &
+                             make_tracers_advective)
 
     use timestepping_config_mod,    only: outer_iterations
     use transport_config_mod,       only: si_outer_transport,                  &
@@ -419,6 +423,7 @@ contains
                                           dry_field_name
     use transport_enumerated_types_mod,                                        &
                                     only: equation_form_advective,             &
+                                          equation_form_consistent,            &
                                           split_method_ffsl,                   &
                                           split_method_sl,                     &
                                           monotone_qm_pos,                     &
@@ -431,6 +436,7 @@ contains
     integer(kind=i_def),            intent(in)    :: outer
     logical(kind=l_def),            intent(in)    :: adaptive_splitting
     integer(kind=i_def),            intent(in)    :: splitting
+    logical(kind=l_def),            intent(in)    :: make_tracers_advective
 
     if (si_outer_transport /= si_outer_transport_none                          &
         .and. outer < outer_iterations                                         &
@@ -468,6 +474,12 @@ contains
 
     if (adaptive_splitting) then
       self%splitting = splitting
+    end if
+
+    if ( make_tracers_advective .and.                                          &
+         self%equation_form == equation_form_consistent ) then
+      ! Set equation form to be advective
+      self%equation_form = equation_form_advective
     end if
 
   end subroutine update_metadata
