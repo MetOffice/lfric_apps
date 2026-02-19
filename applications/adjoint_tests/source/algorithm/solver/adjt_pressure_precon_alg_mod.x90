@@ -155,7 +155,10 @@ contains
 
     call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner )
 
-    call create_adj_pressure_preconditioner( rhs, adj_lookup_table_cache, adj_pressure_operator, adj_pressure_preconditioner )
+    call create_adj_pressure_preconditioner( rhs,                    &
+                                             adj_lookup_table_cache, &
+                                             adj_pressure_operator,  &
+                                             adj_pressure_preconditioner )
 
     ! Size = 1 as only P field needed
     vector_x = r_solver_field_vector_type(1_i_def)
