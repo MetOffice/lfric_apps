@@ -129,6 +129,11 @@ module adj_solver_lookup_cache_mod
     type(adj_lookup_table_type),                   pointer :: lookup_ptr
 
     if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
+    if ((level < 1) .and. (level > self%multigrid_levels + 1)) then
+      write(log_scratch_space,*) "get_lookup_apply_hho: Requested level must be between 1 and ", &
+                                  self%multigrid_levels + 1, "but level = ", level
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
     nullify(lookup_ptr)
     lookup_ptr => self%lookup_apply_hho(level)
 
