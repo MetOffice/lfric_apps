@@ -104,7 +104,7 @@ contains
     use ancil_info, only: land_pts, nsurft, nmasst
     use bl_option_mod, only: on
     use c_kappai, only: kappai, kappai_snow, kappa_seasurf
-    use c_z0h_z0m, only: z0h_z0m
+    use c_z0h_z0m, only: c_z0h_z0m_print, c_z0h_z0m_check, z0h_z0m
     use jules_hydrology_mod, only: check_jules_hydrology,                   &
          print_nlist_jules_hydrology, l_hydrology, l_top, l_var_rainfrac,   &
          nfita, ti_max, ti_wetl, zw_max
@@ -715,9 +715,11 @@ contains
 
     call print_nlist_jules_pftparm()
     call print_nlist_jules_nvegparm()
+    call c_z0h_z0m_print()
 
     ! This routine checks that the options set are actually compatible
     call check_jules_nvegparm(nnvg,npft) ! Also checks z0h_z0m(nnvg)
+    call c_z0h_z0m_check(ntype)
     call check_compatible_options()
 
   end subroutine jules_physics_init
