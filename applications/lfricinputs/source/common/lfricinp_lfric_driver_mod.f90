@@ -284,7 +284,7 @@ subroutine load_configuration( lfric_nl, required_lfric_namelists, &
 ! Description:
 !  Reads lfric namelists and checks that all required namelists are present
 
-use configuration_mod, only: read_configuration, ensure_configuration
+use config_loader_mod, only: read_configuration, ensure_configuration
 
 implicit none
 

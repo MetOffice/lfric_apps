@@ -102,7 +102,7 @@ module set_blending_weights_kernel_mod_test
   subroutine tearDown( this )
 
     use boundaries_config_mod, only: boundaries_final
-    use configuration_mod,     only: final_configuration
+    use config_loader_mod,     only: final_configuration
 
     implicit none
 
