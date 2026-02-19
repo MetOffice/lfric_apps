@@ -588,7 +588,7 @@ if (local_fa == free_trop_layers) then
     subcrit = .false.
     do k = 3, bl_levels
 
-      if ( k > ntml_local(i,j)+1  .and.                                      &
+      if ( k > ntml_local(i,j)+1  .and.                                        &
            ! we know Ri(ntml_local(i,j)+2) > RiCrit
            ri(i,j,k) < ricrit(i,j) .and. .not. subcrit ) then
         kb      = k   ! first level of subcritical Ri in layer
@@ -602,7 +602,7 @@ if (local_fa == free_trop_layers) then
         !---------------------------------------------------------
         turb_length_layer   = z_uv(i,j,kt) - z_uv(i,j,kb-1)
         do kl = kb, kt
-          turb_length(i,j,kl) = max( turb_length(i,j,kl),                    &
+          turb_length(i,j,kl) = max( turb_length(i,j,kl),                      &
                       min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
         end do
       end if
@@ -687,12 +687,12 @@ do k = 2, bl_levels
 
     if (k  <=  k_log_layr) then
       vkz   = vkman * ( z_uv(i,j,k) - z_uv(i,j,k-1) )
-      f_log = log( ( z_uv(i,j,k) + z0m(i,j)   ) /                            &
+      f_log = log( ( z_uv(i,j,k) + z0m(i,j)   ) /                              &
                    ( z_uv(i,j,k-1) + z0m(i,j) ) )
       elm(i,j,k) = vkz / ( f_log + vkz/lambdam )
       elh(i,j,k) = vkz / ( f_log + vkz/lambdah )
       vkz   = vkman * ( z_tq(i,j,k) - z_tq(i,j,k-1) )
-      f_log = log( ( z_tq(i,j,k) + z0m(i,j)   ) /                            &
+      f_log = log( ( z_tq(i,j,k) + z0m(i,j)   ) /                              &
                    ( z_tq(i,j,k-1) + z0m(i,j) ) )
       elh_rho(i,j,k) = vkz / ( f_log + vkz/lambdah_rho )
     else
@@ -731,23 +731,23 @@ do k = 2, bl_levels
       ! (given by turb_length) and to distance from dsc top below the
       ! dsc layer
       if ( k-1 <= ntdsc(i,j) ) then
-        z_scale = min( z_scale,                                              &
+        z_scale = min( z_scale,                                                &
             max( turb_length(i,j,k), z_uv(i,j,ntdsc(i,j)+1)-zz ) )
       end if
 
       ! Finally calculate 1D BL weighting factor
-      if ( blending_option == blend_except_cu .and.                          &
+      if ( blending_option == blend_except_cu .and.                            &
            cumulus(i,j) .and. ntdsc(i,j) == 0) then
         ! pure cumulus layer so revert to 1D BL scheme
         weight_1dbl(i,j,k) = one
       else
 
-        if ( blending_option == blend_gridindep_fa .or.                      &
+        if ( blending_option == blend_gridindep_fa .or.                        &
              blending_option == blend_cth_shcu_only ) then
           if (zz <= zht) then
-            weight_1dbl(i,j,k) =                                             &
-             one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                  &
-               max( zero,                                                    &
+            weight_1dbl(i,j,k) =                                               &
+             one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                    &
+               max( zero,                                                      &
                  min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
             weight_bltop(i,j) = weight_1dbl(i,j,k)
           else ! above PBL
@@ -762,20 +762,20 @@ do k = 2, bl_levels
             !    quickly, hence within at most 1km of zht
             zfa=min( 2.0_r_bl*zht, zht+1000.0_r_bl )
             if (zz <= zfa ) then
-              weight_1dbl(i,j,k) = one + one_half *                          &
-                                   (weight_bltop(i,j) - one) *               &
+              weight_1dbl(i,j,k) = one + one_half *                            &
+                                   (weight_bltop(i,j) - one) *                 &
                                    ( one + cos(pi*(zz-zht)/(zfa-zht)) )
             else
               weight_1dbl(i,j,k) = one
             end if
-            if ( local_fa == free_trop_layers .and.                          &
+            if ( local_fa == free_trop_layers .and.                            &
                  ri(i,j,k) < ricrit(i,j) ) then
               ! Except in an elevated turbulent layer where we still use
               ! the standard blending weight
               z_scale = turb_length(i,j,k)
-              weight_1dbl(i,j,k) =                                           &
-               one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                &
-                max( zero,                                                   &
+              weight_1dbl(i,j,k) =                                             &
+               one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                  &
+                max( zero,                                                     &
                  min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
 
             end if
@@ -785,20 +785,20 @@ do k = 2, bl_levels
           if (zz <= zht) then
             beta=beta_bl
           else if (zz <= zfa) then
-            beta = beta_bl*(zfa-zz)/(zfa-zht) +                              &
+            beta = beta_bl*(zfa-zz)/(zfa-zht) +                                &
                    beta_fa*(zz-zht)/(zfa-zht)
           else
             beta=beta_fa
           end if
-          weight_1dbl(i,j,k) =                                               &
-           one - tanh( beta*z_scale/delta_smag(i,j)) * max( zero,            &
+          weight_1dbl(i,j,k) =                                                 &
+           one - tanh( beta*z_scale/delta_smag(i,j)) * max( zero,              &
                min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
         end if
       end if
 
-      elm(i,j,k) = elm(i,j,k)*weight_1dbl(i,j,k) +                           &
+      elm(i,j,k) = elm(i,j,k)*weight_1dbl(i,j,k) +                             &
                    sqrt(rneutml_sq(i,j,k-1))*(one-weight_1dbl(i,j,k))
-      elh(i,j,k) = elh(i,j,k)*weight_1dbl(i,j,k) +                           &
+      elh(i,j,k) = elh(i,j,k)*weight_1dbl(i,j,k) +                             &
                    sqrt(rneutml_sq(i,j,k-1))*(one-weight_1dbl(i,j,k))
     end do
 !$OMP end do
@@ -1119,7 +1119,7 @@ do k = 2, bl_levels
       !-------------------------------------------------------
       if ( sigma_h(i,j) > 0.1_r_bl ) then
         ! Then additional near-surface orographic dependence
-        g0_orog = g0 / ( one +                                               &
+        g0_orog = g0 / ( one +                                                 &
                           (sigma_h(i,j)/25.0_r_bl)*BL_weight(i,j,k) )
 
         if (ri(i,j,k) < one/g0_orog) then
