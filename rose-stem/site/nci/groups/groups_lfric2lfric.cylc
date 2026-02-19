@@ -8,12 +8,17 @@
 {# Azspice Groups #}
 {% do site_groups.update({
     "lfric2lfric_gadi_developer": [
-        "lfric2lfric_ral_seuk-C32_lam_MG_gadi_intel_fast-debug-64bit",
-        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_ral_seuk-C32_lam_MG_1cpu_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_ral_seuk-C32_lam_MG_4cpu_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_1cpu_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_4cpu_gadi_intel_fast-debug-64bit",
         "lfric2lfric_ral3-seuk_gadi_intel_fast-debug-64bit",
-        "lfric2lfric_clim_gal9-C24_C12_gadi_intel_fast-debug-64bit",
-        "lfric2lfric_oasis_clim_gal9-C24_C12_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_1cpu_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_6cpu_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_1cpu_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_6cpu_gadi_intel_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_gadi_intel_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_gadi_intel_fast-debug-64bit",
         "lfric2lfric_gadi_canned",
     ],
     "lfric2lfric_gadi_extra": [

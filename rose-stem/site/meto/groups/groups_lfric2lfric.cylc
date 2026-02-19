@@ -8,11 +8,15 @@
 {# Azspice Groups #}
 {% do site_groups.update({
     "lfric2lfric_azspice_developer": [
-        "lfric2lfric_ral_seuk-C32_lam_MG_azspice_gnu_fast-debug-64bit",
-        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_ral_seuk-C32_lam_MG_1cpu_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_ral_seuk-C32_lam_MG_4cpu_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_1cpu_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_4cpu_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_ral3-seuk_azspice_gnu_fast-debug-64bit",
-        "lfric2lfric_clim_gal9-C24_C12_azspice_gnu_fast-debug-64bit",
-        "lfric2lfric_oasis_clim_gal9-C24_C12_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_1cpu_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_6cpu_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_1cpu_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_6cpu_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_azspice_canned",
@@ -36,11 +40,15 @@
 {# EX1A Groups #}
 {% do site_groups.update({
     "lfric2lfric_ex1a_developer": [
-        "lfric2lfric_ral_seuk-C32_lam_MG_ex1a_cce_fast-debug-64bit",
-        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_ral_seuk-C32_lam_MG_1cpu_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_ral_seuk-C32_lam_MG_4cpu_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_1cpu_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_4cpu_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_ral3-seuk_ex1a_cce_fast-debug-64bit",
-        "lfric2lfric_clim_gal9-C24_C12_ex1a_cce_fast-debug-64bit",
-        "lfric2lfric_oasis_clim_gal9-C24_C12_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_1cpu_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_6cpu_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_1cpu_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_6cpu_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_ex1a_canned",
