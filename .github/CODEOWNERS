@@ -65,7 +65,7 @@ rose-stem/lib/                         @james-bruten-mo                    # @je
 rose-stem/bin/                         @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/common/            @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/macros/            @james-bruten-mo                    # @jennyhickson
-rose-stem/apps/                        # Mostly updated by macros, no codeowner
+rose-stem/apps                         # Mostly updated by macros, no codeowner
 **/versions.py                         @james-bruten-mo                    # @jennyhickson
 build/                                 @MetOffice/ssdteam @hiker
 **/*Makefile                           @MatthewHambley @hiker

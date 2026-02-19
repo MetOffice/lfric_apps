@@ -56,7 +56,7 @@ use bl_option_mod, only:                                                       &
     flux_grad, Locketal2000, HoltBov1993, LockWhelan2006, entr_smooth_dec,     &
     entr_taper_zh, kprof_cu, klcl_entr, buoy_integ, buoy_integ_low,            &
     max_cu_depth, bl_res_inv, a_ent_shr_nml,  a_ent_2, one_third, two_thirds,  &
-    l_reset_dec_thres, var_diags_opt, original_vars, split_tke_and_inv,        &
+    l_reset_dec_thres,                                                         &
     l_use_var_fixes, dzrad_disc_opt, dzrad_ntm1, dzrad_1p5dz,                  &
     num_sweeps_bflux, l_converge_ga, l_use_sml_dsc_fixes, zero, one, one_half
 use model_domain_mod, only: model_type, mt_single_column
@@ -2925,26 +2925,25 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             vkman * ((max(one - kh_sct_factor(i,j)*z_ratio,zero))**0.8_r_bl )  &
                                             * z_pr * z_ratio
         end if
-
-      end if
-      !-------------------------------------------------------
-      !   For LockWhelan2006, KM_TOP could be changed to match
-      !   the shape of KH_TOP.  This has not been done on the
-      !   grounds that the change in shape arises with the
-      !   inclusion of the other non-gradient terms.
-      !-------------------------------------------------------
-      if ( zk_tq  <   zh(i,j) .and.                                            &
-            zk_tq  >   zsml_base(i,j) ) then
-        z_pr = zk_tq - zsml_base(i,j)
-        zh_pr = zh(i,j) - zsml_base(i,j)
-        rhokm_top(i,j,k) = 0.75_r_bl * rho_wet_tq(i,j,k-1) * v_top(i,j) *      &
-              g1 * vkman *                                                     &
-              ( (max(one - km_sct_factor(i,j)*z_pr/zh_pr, zero))**0.8_r_bl )   &
-                                          * z_pr * z_pr / zh_pr
-                                                  ! PRANDTL=0.75
-        if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
-          ! save Km/timescale for TKE diag, completed in bdy_expl2
-          tke_nl(i,j,k)=rhokm_top(i,j,k)*c_tke*v_top(i,j)/zh(i,j)
+        !-------------------------------------------------------
+        !   For LockWhelan2006, KM_TOP could be changed to match
+        !   the shape of KH_TOP.  This has not been done on the
+        !   grounds that the change in shape arises with the
+        !   inclusion of the other non-gradient terms.
+        !-------------------------------------------------------
+        if ( zk_tq  <   zh(i,j) .and.                                          &
+             zk_tq  >   zsml_base(i,j) ) then
+          z_pr = zk_tq - zsml_base(i,j)
+          zh_pr = zh(i,j) - zsml_base(i,j)
+          rhokm_top(i,j,k) = 0.75_r_bl * rho_wet_tq(i,j,k-1) * v_top(i,j) *    &
+                g1 * vkman *                                                   &
+                ( (max(one - km_sct_factor(i,j)*z_pr/zh_pr, zero))**0.8_r_bl ) &
+                                           * z_pr * z_pr / zh_pr
+                                                    ! PRANDTL=0.75
+          if (BL_diag%l_tke) then
+            ! save Km/timescale for TKE diag, completed in bdy_expl2
+            tke_nl(i,j,k)=rhokm_top(i,j,k)*c_tke*v_top(i,j)/zh(i,j)
+          end if
         end if
       end if
       !-------------------------------------------------------------
@@ -2988,44 +2987,17 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
         else  ! Not LockWhelan2006
           ! max to avoid rounding errors giving small negative numbers
-          rhokh_top(i,j,k) = rhokh_top(i,j,k) +                                &
-              rho_mix(i,j,k)*v_top_dsc(i,j)*g1*vkman*                          &
-                ( (max(one - kh_dsct_factor(i,j)*z_ratio,zero))**0.8_r_bl )    &
-                                            * z_pr * z_ratio
+          rhokm_dsct =                                                         &
+             0.75_r_bl*rho_wet_tq(i,j,k-1)*v_top_dsc(i,j)*g1*vkman*            &
+                ( (max(one - km_dsct_factor(i,j)*z_pr/zh_pr,zero))**0.8_r_bl ) &
+                                        * z_pr * z_pr / zh_pr
+          if (BL_diag%l_tke) then
+            ! save Km/timescale for TKE diag, completed in bdy_expl2
+            tke_nl(i,j,k) = tke_nl(i,j,k) +                                    &
+                            rhokm_dsct*c_tke*v_top_dsc(i,j)/dscdepth(i,j)
+          end if
+          rhokm_top(i,j,k) = rhokm_top(i,j,k) + rhokm_dsct
         end if
-      end if
-      !-------------------------------------------------------------
-      ! Now momentum
-      !-------------------------------------------------------------
-      if ( zk_tq  <   zhsc(i,j) .and.                                          &
-            zk_tq  >   zdsc_base(i,j) ) then
-        z_pr = zk_tq - zdsc_base(i,j)
-        zh_pr = zhsc(i,j) - zdsc_base(i,j)
-        ! max to avoid rounding errors giving small negative numbers
-        rhokm_dsct =                                                           &
-            0.75_r_bl*rho_wet_tq(i,j,k-1)*v_top_dsc(i,j)*g1*vkman*             &
-              ( (max(one - km_dsct_factor(i,j)*z_pr/zh_pr,zero))**0.8_r_bl )   &
-                                      * z_pr * z_pr / zh_pr
-        if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
-          ! save Km/timescale for TKE diag, completed in bdy_expl2
-          tke_nl(i,j,k) = tke_nl(i,j,k) +                                      &
-                          rhokm_dsct*c_tke*v_top_dsc(i,j)/dscdepth(i,j)
-        end if
-        rhokm_top(i,j,k) = rhokm_top(i,j,k) + rhokm_dsct
-      end if
-      if (BL_diag%l_tke .and. var_diags_opt == original_vars) then
-        ! save 1/timescale for TKE diag, completed in bdy_expl2
-        if ( zk_tq  <   zsml_top(i,j) .and.                                    &
-              zk_tq  >   zsml_base(i,j) ) then
-          BL_diag%tke(i,j,k) = c_tke*v_top(i,j)/zh(i,j)
-        end if
-        if ( zk_tq  <   zhsc(i,j) .and.                                        &
-              zk_tq  >   zdsc_base(i,j) ) then
-          ! save 1/timescale for TKE diag, completed in bdy_expl2
-          BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                        &
-                          c_tke*v_top_dsc(i,j)/dscdepth(i,j) )
-        end if
-      end if
 
     end do
   end do
@@ -3133,17 +3105,11 @@ if (flux_grad  ==  LockWhelan2006) then
                                   ( one - ( zk_tq / zh(i,j) ) ) *              &
                                   ( one - ( zk_tq / zh(i,j) ) )
 
-            if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
-              ! save Km/timescale for TKE diag, completed in bdy_expl2
-              tke_nl(i,j,k) = tke_nl(i,j,k) +                                  &
-                                  rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
-            end if
-          end if
-          if (BL_diag%l_tke .and. var_diags_opt == original_vars) then
-            ! save 1/timescale for TKE diag, completed in bdy_expl2
-            if ( zk_tq < zsml_top(i,j) ) then
-              BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                    &
-                                        c_tke*w_m_tq/zh(i,j) )
+              if (BL_diag%l_tke) then
+                ! save Km/timescale for TKE diag, completed in bdy_expl2
+                tke_nl(i,j,k) = tke_nl(i,j,k) +                                &
+                                   rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
+              end if
             end if
           end if
         end if
@@ -3281,31 +3247,26 @@ else
                 ( one - km_top_factor(i,j) * ( zk_tq / zh(i,j) ) ) *           &
                 ( one - km_top_factor(i,j) * ( zk_tq / zh(i,j) ) )
 
-            if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
-              ! save Km/timescale for TKE diag, completed in bdy_expl2
-              tke_nl(i,j,k) = tke_nl(i,j,k) +                                  &
-                                  rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
-            end if
-          else if ( kprof_cu == klcl_entr .and. cumulus(i,j) ) then
-            if ( zk_tq < zsml_top(i,j) ) then
-              ! Exponential decay from ZH but tends to zero
-              !  at zsml_top
-              rhokm(i,j,k) = prandtl_top(i,j) * rhokh_lcl(i,j) *               &
-                      exp(-(zk_tq-zh(i,j))/cu_depth_scale(i,j)) *              &
-                      (one-(zk_tq-zh(i,j))/(zsml_top(i,j)-zh(i,j)))
-              if (BL_diag%l_tke .and. var_diags_opt==split_tke_and_inv) then
+              if (BL_diag%l_tke) then
                 ! save Km/timescale for TKE diag, completed in bdy_expl2
                 tke_nl(i,j,k) = tke_nl(i,j,k) +                                &
-                                    rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
+                                   rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
+              end if
+            else if ( kprof_cu == klcl_entr .and. cumulus(i,j) ) then
+              if ( zk_tq < zsml_top(i,j) ) then
+                ! Exponential decay from ZH but tends to zero
+                !  at zsml_top
+                rhokm(i,j,k) = prandtl_top(i,j) * rhokh_lcl(i,j) *             &
+                       exp(-(zk_tq-zh(i,j))/cu_depth_scale(i,j)) *             &
+                       (one-(zk_tq-zh(i,j))/(zsml_top(i,j)-zh(i,j)))
+                if (BL_diag%l_tke) then
+                  ! save Km/timescale for TKE diag, completed in bdy_expl2
+                  tke_nl(i,j,k) = tke_nl(i,j,k) +                              &
+                                     rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
+                end if
               end if
             end if
-          end if
-          if (BL_diag%l_tke .and.  var_diags_opt == original_vars) then
-            ! save 1/timescale for TKE diag, completed in bdy_expl2
-            if ( zk_tq  <  zsml_top(i,j) ) then
-              BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                    &
-                                        c_tke*w_m_tq/zh(i,j) )
-            end if
+
           end if
 
         end if

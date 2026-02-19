@@ -7,7 +7,7 @@
 
 module adjt_mixed_solver_alg_mod
 
-  use constants_mod,                    only: i_def, r_def, l_def, r_solver
+  use constants_mod,                    only: i_def, r_def, l_def, r_solver, EPS
   use log_mod,                          only: log_event,         &
                                               log_scratch_space, &
                                               LOG_LEVEL_INFO,    &
@@ -121,10 +121,9 @@ contains
     real(kind=r_def) :: p_sf, uv_sf, w_sf
     real(kind=r_def) :: p_p_inp_inner_prod, uv_uv_inp_inner_prod, w_w_inp_inner_prod
     real(kind=r_def) :: inner1, inner2
-    real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 1300.0_r_def
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
     integer(tik)                :: id
 
     if ( LPROF ) call start_timing( id, 'adjt_mixed_solver_alg' )
@@ -232,9 +231,9 @@ contains
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     ! Scaling factors are scaled up a bit to avoid numerical issues
-    p_sf = 1.0E4_r_def / (p_inner_prod + eps)
-    uv_sf = 1.0E4_r_def / (uv_inner_prod + eps)
-    w_sf = 1.0E4_r_def / (w_inner_prod + eps)
+    p_sf = 1.0E4_r_def / (p_inner_prod + EPS)
+    uv_sf = 1.0E4_r_def / (uv_inner_prod + EPS)
+    w_sf = 1.0E4_r_def / (w_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + p_inner_prod * p_sf
