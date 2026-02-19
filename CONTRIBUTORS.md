@@ -29,8 +29,5 @@
 | cjohnson-pi         | Christine Johnson  | Met Office                       | 2026-01-19 |
 | t00sa               | Sam Clarke-Green   | Met Office                       | 2026-01-20 |
 | ukmo-juan-castillo  | Juan M. Castillo   | Met Office                       | 2026-01-23 |
-<<<<<<< TBendall/StencilDepths
-=======
 | Adrian-Lock         | Adrian Lock        | Met Office                       | 2026-01-09 |
->>>>>>> main
 | thomasmelvin        | Thomas Melvin      | Met Office                       | 2026-01-15 |
