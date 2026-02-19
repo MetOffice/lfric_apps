@@ -14,6 +14,7 @@ against the size of the perturbation for different prognostic variables
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot_data(filename, axes, variable, color, shape):
@@ -37,12 +38,55 @@ def plot_data(filename, axes, variable, color, shape):
     norm_df = pd.DataFrame(norm_line, columns=['gamma', 'norm'])
 
     datafile.close()
+    
+    # Square root (as the read data is only the inner product and
+    # has not included the square root to give the norm)
+    norm_df['norm'] = np.sqrt(norm_df['norm'])
 
-    norm_df.plot.scatter(x='gamma', y='norm', loglog=True, xlim=(10**0, 10**5),
-                         ylim=(10**-5, 10**0), ax=axes, color=color,
-                         marker=shape)
+    # Normalise - to give a relative error
+    normalise = norm_df['norm'].iloc[4]
+    norm_df['norm'] = norm_df['norm'] / normalise
 
+    # Plot the data
+    if (CONFIG == 'nwp_gal9'):
+        ymin = 10**-2
+        ymax = 10**2
+        xmin = 10**-3
+        xmax = 10**1
+    elif (CONFIG == 'semi_implicit'):
+        ymin = 10**-2
+        ymax = 10**2
+        xmin = 10**-1
+        xmax = 10**4
+    elif (CONFIG == 'runge_kutta'):
+        ymin = 10**-3
+        ymax = 10**2
+        xmin = 10**-1
+        xmax = 10**4
+    else:
+        print(CONFIG+' not listed')
 
+    norm_df.plot.scatter(x='gamma', y='norm', loglog=True,
+                         xlim=(xmin, xmax),
+                         ylim=(ymin, ymax),
+                         ax=axes, color=color,
+                         marker=shape, label = variable)
+
+    # Check extremes
+    norm_min = norm_df['norm'].min()
+    norm_max = norm_df['norm'].max()
+    if (norm_min < ymin) :
+        print('Warning: Min value is'+ str(norm_min))
+    if (norm_max > ymax) :
+        print('Warning: Max value is'+ str(norm_max))
+    
+    # Plot the expected line
+    centre = norm_df['gamma'].iloc[4] 
+    expected_x = [10**-2 *centre, centre, 100* centre]
+    expected_y = [10**-2, 10**0, 100]
+    plt.plot(expected_x, expected_y)
+
+    
 def make_plot(directory, filename):
     '''
     Plot the data for the different prognostic variables, together with the
@@ -55,27 +99,25 @@ def make_plot(directory, filename):
     plot_data(directory + filename, axs, 'gamma_u', 'r', 'o')
     plot_data(directory + filename, axs, 'gamma_exner', 'b', 's')
     plot_data(directory + filename, axs, 'gamma_theta', 'g', '^')
-    plot_data(directory + filename, axs, 'gamma_total', 'black', 'x')
-    plot_data(directory + filename, axs, 'gamma_mr', 'm', '*')
+    plot_data(directory + filename, axs, 'gamma_mr', 'black', 'x')
 
-    expected_x = [10**0, 10**5]
-    expected_y = [10**-5, 10**0]
-    plt.plot(expected_x, expected_y)
-
-    plt.legend(['Expected gradient (linear)', 'density', 'momentum',
-                'exner pressure', 'potential temperature', 'total',
-                'moisture mixing ratios'],
-               loc='lower right')
+    plt.legend(loc='lower right')
     plt.xlabel('Gamma')
     plt.ylabel('Relative error')
     plt.title('Validity of the tangent linear model')
 
-    plt.show()
+    # To show the plot to the screen, uncommment plt.show()
+    #plt.show()
+
+    # Save the plot to a file
+    plt.savefig(directory + filename + "convergence_plot.png") 
 
 
 if __name__ == "__main__":
 
     DATA_DIRECTORY = os.getcwd()+'/'
     DATA_FILENAME = 'outfile'
+    CONFIG = os.getenv('CONFIG')
+    print(CONFIG)
 
     make_plot(DATA_DIRECTORY, DATA_FILENAME)

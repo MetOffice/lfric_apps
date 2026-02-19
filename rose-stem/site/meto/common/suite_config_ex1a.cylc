@@ -23,11 +23,11 @@
                             'module load cray-mpich/8.1.27 ; '~
                             'module load lfric-cray/15.0.0/3.0+ || true ' %}
 
-{% set ex1a_coupled_cce = 'module unload xios/2701-h57fm7d || true ; ' ~
+{% set ex1a_coupled_cce = 'module unload xios/2701 || true ; ' ~
                           'module load cray-hdf5-parallel ; ' ~
                           'module load cray-netcdf-hdf5parallel ; ' ~
                           'module use /data/users/moci/modules_ngms/modules ; '~
-                          'module load GC4-PrgEnv/2024-01-lfric_apps_coupled_port-cpe23.05/5548.lua ; '
+                          'module load GC6-PrgEnv/2026-01-lfric_apps_coupled_port-cpe23.05-mpich8.1.27/5889.lua ; '
                           'module load scitools' %}
 
 {% set ex1a_coupled_run = '. $BIG_DATA_DIR/ancils/lfric_coupled/ocean/ocean_ancil_GO8p0_CORE_forcing_eORCA025 ; ' ~
