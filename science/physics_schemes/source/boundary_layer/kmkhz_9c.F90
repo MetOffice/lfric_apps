@@ -1179,8 +1179,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         end if  ! safe to calculate increments
       end if
 
-    end do
-  end do
+    end do !i
+  end do !k
 end do !ii
 !$OMP end do
 ! Repeat for necessary parts of last 2 loops for water tracers
@@ -1272,7 +1272,6 @@ if (l_wtrac) then
   end do
 !$OMP end do
 end if
-! end do
 
 ! This is the most computational expensive loop of the subroutine. The
 ! following parallelisation obtains lower times than the ones obtained
@@ -2681,7 +2680,6 @@ end do
     end if
   end do
   !$OMP end do NOWAIT
-! end do
 
 
 !-----------------------------------------------------------------------
@@ -2703,7 +2701,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-! end do
 
 
 !$OMP do SCHEDULE(STATIC)
@@ -2719,7 +2716,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-! end do
 
 
 !--------------------------------------------------
@@ -2742,7 +2738,6 @@ do i = pdims%i_start, pdims%i_end
   end do ! K
 end do ! I
 !$OMP end do NOWAIT
-! end do ! j
 
 
 !$OMP do SCHEDULE(STATIC)
@@ -3071,7 +3066,6 @@ do i = pdims%i_start, pdims%i_end
 
 end do
 !$OMP end do
-! No wait removal due to dimension change?
 
 
 !-----------------------------------------------------------------------
@@ -3427,7 +3421,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do !i
 end do !ii
 !$OMP end do
-! end do
 
 
 !-----------------------------------------------------------------------
@@ -3445,7 +3438,6 @@ do i = pdims%i_start, pdims%i_end
   df_inv_sml(i,j) = zero
 end do
 !$OMP end do
-! end do
 
 
 if (l_new_kcloudtop) then
@@ -3684,7 +3676,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-! end do
 
 
 ! Repeat for water tracers
@@ -3703,7 +3694,6 @@ if (l_wtrac) then
       end if
     end do
     !$OMP end do NOWAIT
-    ! end do
 
   end do
 end if
@@ -3790,7 +3780,6 @@ if (l_wtrac) then
       end if
     end do
     !$OMP end do
-    ! end do
   end do
 end if
 
@@ -3820,7 +3809,6 @@ if ( l_use_sml_dsc_fixes ) then
     end if
   end do
   !$OMP end do
-  ! end do
 
 
   ! Repeat for water tracers
@@ -3918,7 +3906,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-! end do
 
 
 !-----------------------------------------------------------------------
@@ -4294,7 +4281,6 @@ do i = pdims%i_start, pdims%i_end
   end if   ! test on DSC_DISC_INV, etc
 end do
 !$OMP end do NOWAIT
-! end do
 
 
 !-----------------------------------------------------------------------
@@ -4387,7 +4373,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-! end do
 
 
 ! Repeat for water tracers
@@ -4407,7 +4392,6 @@ if (l_wtrac) then
       end if
     end do
     !$OMP end do
-    ! end do
 
   end do
 end if   ! l_wtrac
@@ -4712,7 +4696,6 @@ if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
 
   end do
   !$OMP end do NOWAIT
-  ! end do
 
 end if  ! (BL_diag%l_tke)
 
@@ -4741,7 +4724,6 @@ do i = pdims%i_start, pdims%i_end
   zrzi_dsc_tr(i,j,3)   = zero
 end do ! i
 !$OMP end do NOWAIT
-! end do ! j
 
 
 !$OMP do SCHEDULE(STATIC)
@@ -4776,7 +4758,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-! end do
 
 
 !-----------------------------------------------------------------------
@@ -4836,7 +4817,6 @@ do i = pdims%i_start, pdims%i_end
   end if  ! test on UNSTABLE
 end do
 !$OMP end do NOWAIT
-! end do
 
 
 ! (Note, water tracers assume flux_grad  =  Locketal2000 so no need to
@@ -4871,7 +4851,6 @@ if (BL_diag%l_dscbase) then
       end if
     end do
     !$OMP end do NOWAIT
-  ! end do
 
 end if
 if (BL_diag%l_cldbase) then
@@ -4885,7 +4864,6 @@ if (BL_diag%l_cldbase) then
     end if
   end do
   !$OMP end do NOWAIT
-  ! end do
 
 end if
 if (BL_diag%l_weparm_dsc) then
@@ -4899,7 +4877,6 @@ if (BL_diag%l_weparm_dsc) then
     end if
   end do
   !$OMP end do NOWAIT
-  ! end do
 
 end if
 if (BL_diag%l_weparm) then
