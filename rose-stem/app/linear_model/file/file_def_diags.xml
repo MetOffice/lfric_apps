@@ -1,0 +1,17 @@
+<file_definition>
+
+  <file id="lfric_diag" name="lfric_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+    <field_group id="dynamics_prognostics" operation="instant" freq_op="1ts">
+      <field field_ref="theta"/>
+      <field field_ref="m_v"/>
+      <field field_ref="m_cl"/>
+      <field field_ref="m_cf"/>
+      <field field_ref="m_r"/>
+      <field field_ref="rho"/>
+      <field field_ref="exner"/>
+      <field field_ref="u_in_w3" />
+      <field field_ref="v_in_w3" />
+    </field_group>
+  </file>
+
+</file_definition>

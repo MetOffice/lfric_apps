@@ -13,6 +13,10 @@ TRANSMUTE_INCLUDE_METHOD ?= specify_include
 # Set the DSL Method in use to collect the correct transformation files.
 DSL := transmute
 
+# Set default PSyclone transmute command additional options
+PSYCLONE_TRANSMUTE_EXTRAS ?= -l all
+#
+
 # Find the specific files we wish to pre-processed and PSyclone from physics source
 # Set our target dependency to the version of the file we are to generate after
 # the psycloning step.
@@ -54,9 +58,9 @@ psyclone: $(SOURCE_F_FILES)
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
 	echo PSyclone with file override script $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py on $<
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
-			-l all \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py \
 			-o $(SOURCE_DIR)/$*.f90 \
+			$(PSYCLONE_TRANSMUTE_EXTRAS) \
 			$<
 
 # Where a local optimisation script exists, use it.
@@ -65,9 +69,9 @@ $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $$(dir $$(OPTIMISATION_PATH_PSY)/$$(DSL)/$$*)local.py
 	echo PSyclone with local script $(dir $(OPTIMISATION_PATH_PSY)/$(DSL)/$*)local.py on $<
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
-			-l all \
 			-s $(dir $(OPTIMISATION_PATH_PSY)/$(DSL)/$*)local.py \
 			-o $(SOURCE_DIR)/$*.f90 \
+			$(PSYCLONE_TRANSMUTE_EXTRAS) \
 			$<
 
 # Where a global optimisation script exists, use it.
@@ -75,7 +79,7 @@ $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $$(dir $$(OPTIMISATION_PATH_PSY)/$$(DS
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/global.py
 	echo PSyclone with global script $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py on $<
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
-			-l all \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py \
 			-o $(SOURCE_DIR)/$*.f90 \
+			$(PSYCLONE_TRANSMUTE_EXTRAS) \
 			$<

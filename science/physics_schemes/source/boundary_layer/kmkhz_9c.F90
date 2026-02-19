@@ -57,8 +57,7 @@ use bl_option_mod, only:                                                       &
     a_grad_adj, max_t_grad, flux_grad, Locketal2000,                           &
     HoltBov1993, LockWhelan2006, entr_smooth_dec, entr_taper_zh,               &
     kprof_cu, l_use_sml_dsc_fixes, l_converge_ga,                              &
-    bl_res_inv, cosine_inv_flux, target_inv_profile, pr_max, var_diags_opt,    &
-    split_tke_and_inv, l_noice_in_turb,                                        &
+    bl_res_inv, cosine_inv_flux, target_inv_profile, pr_max, l_noice_in_turb,  &
     one_third, two_thirds, zero, one, one_half
 use conversions_mod, only: pi => pi_bl
 use cv_run_mod, only: l_param_conv
@@ -4108,82 +4107,99 @@ do i = pdims%i_start, pdims%i_end
         w_m = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                                   &
                   c_ws * zh(i,j) * fb_surf(i,j) ) ** one_third
       end if
+        ! Turbulent entrainment flux is then the residual of the total
+        ! flux and the net flux from other processes
+      ftl(i,j,k) =  t_frac(i,j) * ( tothf_efl - ft_nt(i,j,k) )
+    else   ! not specifying entrainment flux but KH
+        ! Include entrainment KH in K-profiles, if greater
+        ! (for COUPLED layers these will be zero)
+      rhokh_top(i,j,k) = max( rhokh_top(i,j,k), rhokh_top_ent(i,j) )
+      rhokh(i,j,k)     = max( rhokh(i,j,k), rhokh_surf_ent(i,j) )
 
-      if (bl_res_inv == cosine_inv_flux) then
-        svl_lapse_rho = (svl(i,j,k)-svl(i,j,k-1)) /                            &
-                        ( (z_tq(i,j,k)-z_tq(i,j,k-1))*rho_mix(i,j,k) )
-        kl=k+1
-        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                       &
-                    kl <= bl_levels )
-          recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                     &
-                            max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
-          rhok_inv = rhokh_surf_ent(i,j) * svl_lapse_rho *                     &
-                  rho_mix(i,j,kl) * recip_svl_lapse *                          &
-                  cos(one_half*pi*(z_uv(i,j,kl)-zh(i,j))/dzh(i,j))
-          rhok_inv = min( rhok_inv, 1000.0_r_bl )
-          rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
-          ! rescale for KM on staggered grid
-          rhok_inv =  Prandtl * rhok_inv                                       &
-                      * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))            &
-                      * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
-          rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
-          if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
-            ! save Km/timescale for TKE diag, completed in bdy_expl2
-            tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
-          end if
-          kl=kl+1
-        end do
-      else if (bl_res_inv == target_inv_profile) then
-        svl_lapse = (svl(i,j,k)-svl(i,j,k-1)) /                                &
-                    ( (z_tq(i,j,k)-z_tq(i,j,k-1)) )
-        kp=k+1  ! kp marks the lowest level above the inversion
-        do while ( z_uv(i,j,kp) < zh(i,j)+dzh(i,j) .and.                       &
-                    kp <= bl_levels )
-          kp=kp+1
-        end do
-        svl_flux(k) = - rhokh_surf_ent(i,j) * svl_lapse
-        kl=k+1
-        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                       &
-                    kl <= bl_levels )
-          ! assume a linear target svl profile within inversion
-          svl_target = svl(i,j,k-1) + (svl(i,j,kp)-svl(i,j,k-1)) *             &
-                                          (z_uv(i,j,kl)-zh(i,j)) / dzh(i,j)
-          rho_dz = rho_mix_tq(i,j,kl) * dzl(i,j,kl)
-          svl_flux(kl) = svl_flux(kl-1) -                                      &
-                              (svl_target-svl(i,j,kl))*rho_dz/timestep
-          kl=kl+1
-        end do
-        ! linearly extrapolate flux to inversion top
-        svl_flux(kp)=svl_flux(kp-1) + (svl_flux(kp-1)-svl_flux(kp-2))*         &
-                              (zh(i,j)+dzh(i,j)-z_uv(i,j,kp-1))*rdz(i,j,kp-1)
-        kl=k+1
-        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                       &
-                    kl <= bl_levels )
-          ! rescale svl_flux so as to have zero flux at the inversion top
-          ! ie so svl_flux(kp)=0
-          svl_flux(kl) = svl_flux(k)*( one -                                   &
-                                    (svl_flux(kl)-svl_flux(k))/                &
-                                    (svl_flux(kp)-svl_flux(k)) )
-          recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                     &
-                            max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
-          rhok_inv = - svl_flux(kl) * recip_svl_lapse
+      if (res_inv(i,j) == 1) then
+        Prandtl = min( rhokm(i,j,k)/(rbl_eps+rhokh_surf_ent(i,j)),             &
+                       pr_max )
+        if (BL_diag%l_tke) then
+          ! need velocity scale for TKE diagnostic
+          w_m = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                                 &
+                    c_ws * zh(i,j) * fb_surf(i,j) ) ** one_third
+        end if
 
-          rhok_inv = min( rhok_inv, 1000.0_r_bl )
-          rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
-          ! rescale for KM on staggered grid
-          rhok_inv =  Prandtl * rhok_inv                                       &
-                      * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))            &
-                      * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
-          rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
-          if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
-            ! save Km/timescale for TKE diag, completed in bdy_expl2
-            tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
-          end if
-          kl=kl+1
-        end do
-      end if  ! bl_res_inv option
-    end if  ! res_inv
-  end if  ! test on T_FRAC gt 0
+        if (bl_res_inv == cosine_inv_flux) then
+          svl_lapse_rho = (svl(i,j,k)-svl(i,j,k-1)) /                          &
+                          ( (z_tq(i,j,k)-z_tq(i,j,k-1))*rho_mix(i,j,k) )
+          kl=k+1
+          do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+                     kl <= bl_levels )
+            recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                   &
+                              max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
+            rhok_inv = rhokh_surf_ent(i,j) * svl_lapse_rho *                   &
+                   rho_mix(i,j,kl) * recip_svl_lapse *                         &
+                   cos(one_half*pi*(z_uv(i,j,kl)-zh(i,j))/dzh(i,j))
+            rhok_inv = min( rhok_inv, 1000.0_r_bl )
+            rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
+            ! rescale for KM on staggered grid
+            rhok_inv =  Prandtl * rhok_inv                                     &
+                       * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
+                       * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
+            rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
+            if (BL_diag%l_tke) then
+              ! save Km/timescale for TKE diag, completed in bdy_expl2
+              tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
+            end if
+            kl=kl+1
+          end do
+        else if (bl_res_inv == target_inv_profile) then
+          svl_lapse = (svl(i,j,k)-svl(i,j,k-1)) /                              &
+                      ( (z_tq(i,j,k)-z_tq(i,j,k-1)) )
+          kp=k+1  ! kp marks the lowest level above the inversion
+          do while ( z_uv(i,j,kp) < zh(i,j)+dzh(i,j) .and.                     &
+                     kp <= bl_levels )
+            kp=kp+1
+          end do
+          svl_flux(k) = - rhokh_surf_ent(i,j) * svl_lapse
+          kl=k+1
+          do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+                     kl <= bl_levels )
+            ! assume a linear target svl profile within inversion
+            svl_target = svl(i,j,k-1) + (svl(i,j,kp)-svl(i,j,k-1)) *           &
+                                            (z_uv(i,j,kl)-zh(i,j)) / dzh(i,j)
+            rho_dz = rho_mix_tq(i,j,kl) * dzl(i,j,kl)
+            svl_flux(kl) = svl_flux(kl-1) -                                    &
+                                (svl_target-svl(i,j,kl))*rho_dz/timestep
+            kl=kl+1
+          end do
+          ! linearly extrapolate flux to inversion top
+          svl_flux(kp)=svl_flux(kp-1) + (svl_flux(kp-1)-svl_flux(kp-2))*       &
+                                (zh(i,j)+dzh(i,j)-z_uv(i,j,kp-1))*rdz(i,j,kp-1)
+          kl=k+1
+          do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+                     kl <= bl_levels )
+            ! rescale svl_flux so as to have zero flux at the inversion top
+            ! ie so svl_flux(kp)=0
+            svl_flux(kl) = svl_flux(k)*( one -                                 &
+                                      (svl_flux(kl)-svl_flux(k))/              &
+                                      (svl_flux(kp)-svl_flux(k)) )
+            recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                   &
+                              max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
+            rhok_inv = - svl_flux(kl) * recip_svl_lapse
+
+            rhok_inv = min( rhok_inv, 1000.0_r_bl )
+            rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
+            ! rescale for KM on staggered grid
+            rhok_inv =  Prandtl * rhok_inv                                     &
+                       * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
+                       * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
+            rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
+            if (BL_diag%l_tke) then
+              ! save Km/timescale for TKE diag, completed in bdy_expl2
+              tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
+            end if
+            kl=kl+1
+          end do
+        end if  ! bl_res_inv option
+      end if  ! res_inv
+    end if  ! test on T_FRAC gt 0
 
 end do
 !$OMP end do NOWAIT
@@ -4629,8 +4645,7 @@ end if  ! l_wtrac
 ! Estimate turbulent w-variance scale at discontinuous inversions
 !-----------------------------------------------------------------------
 
-if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
-
+if (BL_diag%l_tke) then
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
