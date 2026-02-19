@@ -192,7 +192,11 @@ contains
       )
 
       ! Obtain vertical pressure given isothermal atmosphere
-      pressure = (p_surf * EXP( -gravity*(radius-scaled_radius) / (Rd*T0) ) / p_zero) ** kappa
+      pressure = (                                                             &
+          p_surf / p_zero * EXP(                                               &
+            -gravity*(radius-surface_height-scaled_radius) / (Rd*T0)           &
+          )                                                                    &
+      ) ** kappa
 
     case (test_constant_field)
       pressure = density_background

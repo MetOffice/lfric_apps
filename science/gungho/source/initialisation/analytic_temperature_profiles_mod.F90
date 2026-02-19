@@ -199,7 +199,7 @@ function analytic_temperature(chi, choice, surface_height) result(temperature)
     )
 
     ! Obtain vertical pressure given isothermal atmosphere
-    pressure = p_surf * EXP( -gravity*(radius-scaled_radius) / (Rd*T0) )
+    pressure = p_surf * EXP( -gravity*(radius-surface_height-scaled_radius) / (Rd*T0) )
 
     ! Obtain potential temperature
     exner = (pressure / p_zero) ** kappa
