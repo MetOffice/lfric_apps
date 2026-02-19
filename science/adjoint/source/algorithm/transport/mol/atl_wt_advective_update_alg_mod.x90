@@ -170,7 +170,6 @@ contains
   !> @param[in]     transport_metadata  Contains transport configuration options
   subroutine atl_hori_wt_update_alg(u_grad_f, wind, wind_dir, ls_field, transport_metadata)
 
-    use check_configuration_mod,          only : get_required_stencil_depth
     use poly1d_reconstruction_kernel_mod, only : poly1d_reconstruction_kernel_type
     use poly2d_reconstruction_kernel_mod, only : poly2d_reconstruction_kernel_type
     use polyh_wtheta_koren_kernel_mod,    only : polyh_wtheta_koren_kernel_type
@@ -223,7 +222,7 @@ contains
 
     ! Copy field to a large halo version
     call ls_field_big_halo%initialise( ls_field%get_function_space(), &
-                                       halo_depth = get_required_stencil_depth() )
+                                       halo_depth=mesh%get_halo_depth() )
     call invoke( setval_X( ls_field_big_halo, ls_field ) )
 
     ! Compute reconstruction on a Wtheta multidata field

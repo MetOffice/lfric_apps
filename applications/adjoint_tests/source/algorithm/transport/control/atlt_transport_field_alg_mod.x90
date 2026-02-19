@@ -27,13 +27,19 @@ module atlt_transport_field_alg_mod
   use setup_test_alg_mod,                  only : setup_test_tl_transport_controller
   use inner_from_controller_rdef_alg_mod,  only : flux_pc_ref_flux_prod_rdef,     &
                                                   flux_pc_ref_flux_inp_prod_rdef, &
+                                                  counter_flux_prod_rdef,         &
+                                                  counter_flux_inp_prod_rdef,     &
+                                                  counter_field_n_prod_rdef,      &
+                                                  counter_field_n_inp_prod_rdef,  &
                                                   wind_pc_dir_prod_rdef,          &
                                                   wind_pc_dir_inp_prod_rdef
   use init_from_controller_alg_mod,        only : init_flux_pc_fieldvals, &
-                                                  init_wind_pc_fieldvals
+                                                  init_wind_pc_fieldvals, &
+                                                  init_counter_fieldvals
   use transport_enumerated_types_mod,      only : direction_3d, &
                                                   direction_h,  &
                                                   direction_v
+  use fs_continuity_mod,                   only : W3
 
   implicit none
 
@@ -86,18 +92,25 @@ module atlt_transport_field_alg_mod
 
     ! Variables used to handle calculations for fields stored in tl_transport_controller
     integer(kind=i_def)                                :: mesh_id
+    type(transport_controller_type),           pointer :: transport_controller
     type(transport_controller_type),           pointer :: pert_transport_controller
     type(transport_controller_type),           pointer :: ls_transport_controller
     type(transport_metadata_type),             pointer :: transport_metadata
     type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp2
     type(r_tran_field_type), dimension(:), allocatable :: fpc_pert_wind_ref_flux_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_1_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_1_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_2_inp
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_2_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_3_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_3_inp
     type(r_tran_field_type)                            :: wind_pc_h_inp
     type(r_tran_field_type)                            :: wind_pc_v_inp
     type(r_tran_field_type)                            :: wind_pc_3d_inp
+    type(r_tran_field_type)                            :: tctr_field_n_inp
+    type(r_tran_field_type), dimension(:), allocatable :: tctr_flux_inp
+    type(function_space_type), pointer :: vector_space_w3_ptr
 
     ! Test parameters and variables
     real(kind=r_def),    parameter :: overall_tolerance = 1500.0_r_def
@@ -106,11 +119,16 @@ module atlt_transport_field_alg_mod
 
     mesh_id = mesh%get_id()
     call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, field_n, field_n_fs )
+    transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
     transport_metadata => pert_transport_controller%get_transport_metadata()
 
     ! Initialising fields
+    call init_counter_fieldvals( mesh,                    &
+                                 tctr_field_n_inp,        &
+                                 tctr_flux_inp,           &
+                                 pert_transport_controller )
     call init_flux_pc_fieldvals( mesh,                     &
                                  1_i_def,                  &
                                  fpc_ls_wind_ref_flux_inp, &
@@ -123,6 +141,12 @@ module atlt_transport_field_alg_mod
                                  dummy_ref_field_2_inp,      &
                                  dummy_ref_mass_2_inp,       &
                                  pert_transport_controller )
+    call init_flux_pc_fieldvals( mesh,                       &
+                                 1_i_def,                    &
+                                 fpc_ls_wind_ref_flux_inp2,  &
+                                 dummy_ref_field_3_inp,      &
+                                 dummy_ref_mass_3_inp,       &
+                                 transport_controller )
     call init_wind_pc_fieldvals( mesh,                     &
                                  wind_pc_h_inp,            &
                                  direction_h,              &
@@ -136,6 +160,11 @@ module atlt_transport_field_alg_mod
                                  direction_3d,             &
                                  pert_transport_controller )
 
+    vector_space_w3_ptr => function_space_collection%get_fs( &
+         mesh, element_order_h, element_order_v, W3 &
+         )
+    call field_n%initialise(vector_space = vector_space_w3_ptr)
+
     call field_n%copy_field_properties( field_np1 )
     call field_n%copy_field_properties( ls_field_n )
 
@@ -147,6 +176,7 @@ module atlt_transport_field_alg_mod
 
     ! Initialise values and call the tangent-linear alg.
     call invoke( setval_random( field_np1 ),             &
+                 setval_random( field_n),                &
                  setval_x( field_np1_input, field_np1 ), &
                  setval_x( field_n_input, field_n ),     &
                  setval_random( ls_field_n ) )
@@ -179,6 +209,7 @@ module atlt_transport_field_alg_mod
     call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_h )
     call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_v )
     call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_3d )
+    call counter_flux_prod_rdef( inner1, pert_transport_controller )
 
     ! Scaling fields
     call invoke( inc_a_times_X( field_np1_sf, field_np1 ), &
@@ -210,6 +241,7 @@ module atlt_transport_field_alg_mod
     call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_h, wind_pc_h_inp )
     call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_v, wind_pc_v_inp )
     call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_3d, wind_pc_3d_inp )
+    call counter_flux_inp_prod_rdef( inner2, pert_transport_controller, tctr_flux_inp )
 
     call tl_transport_controller%finalise()
     if ( allocated(fpc_ls_wind_ref_flux_inp) )   deallocate( fpc_ls_wind_ref_flux_inp )

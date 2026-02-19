@@ -37,7 +37,6 @@ def trans(psyir):
                 "sea_ice_pensolar",
                 "rhostar_2d",
                 "recip_l_mo_sea_2d",
-                "h_blend_orog_2d",
                 "t1_sd_2d",
                 "q1_sd_2d",
                 "surf_interp",

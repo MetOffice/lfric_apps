@@ -194,11 +194,22 @@
         "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9_oper-C224_MG_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9_debug-C224_MG_ex1a_cce_full-debug-32bit",
+        "lfric_atm_nwp_gal9_ls_and_jedi-C224_MG_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9-C896_MG_ex1a_cce_production-32bit",
         "lfric_atm_clim_gal9-C48_MG_ex1a_cce_production-32bit",
         "lfric_atm_ral_ex1a_weekly",
         "ex1a_omp_C192_cce",
         "ex1a_omp_gnu",
+    ],
+    "lfric_atm_ex1a_performance_check": [
+        "lfric_atm_ex1a_weekly",
+        "lfric_atm_nwp_gal9-C896_MG_720t_perfRun0_ex1a_cce_production-32bit",
+    ],
+    "lfric_atm_ex1a_performance_runstats": [
+        "lfric_atm_nwp_gal9-C896_MG_720t_perfRun1_ex1a_cce_production-32bit",
+        "lfric_atm_nwp_gal9-C896_MG_720t_perfRun2_ex1a_cce_production-32bit",
+        "lfric_atm_nwp_gal9-C896_MG_720t_perfRun3_ex1a_cce_production-32bit",
+        "lfric_atm_nwp_gal9-C896_MG_720t_perfRun4_ex1a_cce_production-32bit",
     ],
     "lfric_atm_ex1a_threaded": [
         "lfric_atm_nwp_gal9_2T-C48_MG_ex1a_cce_full-debug-32bit",
