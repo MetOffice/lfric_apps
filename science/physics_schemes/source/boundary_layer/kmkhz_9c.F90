@@ -1059,7 +1059,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end do
   end do
 
-  !k = bl_levels
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
     z_top(i,j,bl_levels) = z_uv(i,j,bl_levels) + dzl(i,j,bl_levels)
   end do
@@ -1310,10 +1309,10 @@ end do ! k
 
 ! Repeat necessary parts of last loop for water tracer
 if (l_wtrac) then
-!$OMP do SCHEDULE(STATIC)
   do i_wt = 1, n_wtrac
     do k = 1, bl_levels
       kp = k+1
+      !$OMP do SCHEDULE(STATIC)
       do i = pdims%i_start, pdims%i_end
         rho_dz = rho_mix_tq(i,j,k) * dzl(i,j,k)
         dfmic_wtrac(i,j,k,i_wt)  =                                             &
@@ -1327,9 +1326,9 @@ if (l_wtrac) then
         wtrac_bl(i_wt)%fq_nt(i,j,kp)  =                                        &
                   fmic_wtrac(i,j,kp,i_wt) + fsubs_wtrac(i,j,kp,i_wt)
       end do ! i
+      !$OMP end do
     end do ! k
   end do   ! i_wt
-!$OMP end do
 end if   ! l_wtrac
 
 !-----------------------------------------------------------------------
@@ -2797,7 +2796,6 @@ end do
 ! Second DSC layer
 !-----------------------------------------------------------------------
 
-
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   cloud_base(i,j) = .false.
@@ -2816,12 +2814,10 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do NOWAIT
 
-
 !-------------------------------------------------------------
 ! Find cloud-base as seen by cloud scheme, Z_CF_BASE,
 ! to use as first guess or lower limit and find cloud top.
 !-------------------------------------------------------------
-
 
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
@@ -2837,8 +2833,6 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do NOWAIT
 
-
-
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if ( cf_dsc(i,j)  >   sc_cftol ) then
@@ -2853,11 +2847,9 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do NOWAIT
 
-
 !--------------------------------------------------
 ! Find lowest level within ML with max CF
 !--------------------------------------------------
-
 
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
@@ -2875,8 +2867,6 @@ do i = pdims%i_start, pdims%i_end
   end do ! K
 end do ! I
 !$OMP end do NOWAIT
-
-
 
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
@@ -2934,7 +2924,6 @@ do i = pdims%i_start, pdims%i_end
 
 end do !I
 !$OMP end do
-
 
 !-----------------------------------------------------------------------
 ! 6. Calculate buoyancy flux factor used in the diagnosis of decoupling
@@ -3012,7 +3001,6 @@ end do
 ! 7. Calculate inputs for the top of b.l. entrainment parametrization
 !-----------------------------------------------------------------------
 
-
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   zeta_r_dsc(i,j) = zero
@@ -3038,11 +3026,9 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do
 
-
 !-----------------------------------------------------------------------
 ! 7.1 Calculate surface buoyancy flux
 !-----------------------------------------------------------------------
-
 
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
@@ -3766,7 +3752,6 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do
 
-
 ! Repeat for water tracers
 if (l_wtrac) then
   do i_wt = 1, n_wtrac
@@ -3809,7 +3794,6 @@ if ( l_use_sml_dsc_fixes ) then
   end do
   !$OMP end do
 
-
   ! Repeat for water tracers
   if (l_wtrac) then
     do i_wt = 1, n_wtrac
@@ -3828,7 +3812,6 @@ if ( l_use_sml_dsc_fixes ) then
       !$OMP end do
     end do
   end if
-
 else ! not l_use_sml_dsc_fixes
 
 
@@ -3863,7 +3846,6 @@ else ! not l_use_sml_dsc_fixes
   ! Repeat for water tracers
   if (l_wtrac) then
     do i_wt = 1, n_wtrac
-
       !$OMP do SCHEDULE(STATIC)
       do i = pdims%i_start, pdims%i_end
         if ( .not. dsc(i,j) .and. dsc_save(i,j) ) then
@@ -3879,7 +3861,6 @@ else ! not l_use_sml_dsc_fixes
         end if
       end do
       !$OMP end do
-
     end do
   end if
 
@@ -4027,7 +4008,6 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do NOWAIT
 
-
 !-----------------------------------------------------------------------
 !..Linearly interpolate between the known total (turb+rad+subs+micro)
 !..flux at the surface and the parametrized flux at the inversion
@@ -4040,7 +4020,6 @@ else
   c_ws = 0.25_r_bl
 end if
 c_tke = 1.33_r_bl/(vkman*c_ws**two_thirds)
-
 
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
@@ -4100,107 +4079,89 @@ do i = pdims%i_start, pdims%i_end
     rhokh(i,j,k)     = max( rhokh(i,j,k), rhokh_surf_ent(i,j) )
 
     if (res_inv(i,j) == 1) then
-      Prandtl = min( rhokm(i,j,k)/(rbl_eps+rhokh_surf_ent(i,j)),               &
-                      pr_max )
-      if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+      Prandtl = min( rhokm(i,j,k)/(rbl_eps+rhokh_surf_ent(i,j)),             &
+                     pr_max )
+      if (BL_diag%l_tke) then
         ! need velocity scale for TKE diagnostic
-        w_m = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                                   &
-                  c_ws * zh(i,j) * fb_surf(i,j) ) ** one_third
-      end if
-        ! Turbulent entrainment flux is then the residual of the total
-        ! flux and the net flux from other processes
-      ftl(i,j,k) =  t_frac(i,j) * ( tothf_efl - ft_nt(i,j,k) )
-    else   ! not specifying entrainment flux but KH
-        ! Include entrainment KH in K-profiles, if greater
-        ! (for COUPLED layers these will be zero)
-      rhokh_top(i,j,k) = max( rhokh_top(i,j,k), rhokh_top_ent(i,j) )
-      rhokh(i,j,k)     = max( rhokh(i,j,k), rhokh_surf_ent(i,j) )
-
-      if (res_inv(i,j) == 1) then
-        Prandtl = min( rhokm(i,j,k)/(rbl_eps+rhokh_surf_ent(i,j)),             &
-                       pr_max )
-        if (BL_diag%l_tke) then
-          ! need velocity scale for TKE diagnostic
-          w_m = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                                 &
+        w_m = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                                 &
                     c_ws * zh(i,j) * fb_surf(i,j) ) ** one_third
-        end if
+      end if
 
-        if (bl_res_inv == cosine_inv_flux) then
-          svl_lapse_rho = (svl(i,j,k)-svl(i,j,k-1)) /                          &
+      if (bl_res_inv == cosine_inv_flux) then
+        svl_lapse_rho = (svl(i,j,k)-svl(i,j,k-1)) /                          &
                           ( (z_tq(i,j,k)-z_tq(i,j,k-1))*rho_mix(i,j,k) )
-          kl=k+1
-          do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
-                     kl <= bl_levels )
-            recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                   &
-                              max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
-            rhok_inv = rhokh_surf_ent(i,j) * svl_lapse_rho *                   &
-                   rho_mix(i,j,kl) * recip_svl_lapse *                         &
-                   cos(one_half*pi*(z_uv(i,j,kl)-zh(i,j))/dzh(i,j))
-            rhok_inv = min( rhok_inv, 1000.0_r_bl )
-            rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
-            ! rescale for KM on staggered grid
-            rhok_inv =  Prandtl * rhok_inv                                     &
-                       * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
-                       * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
-            rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
-            if (BL_diag%l_tke) then
-              ! save Km/timescale for TKE diag, completed in bdy_expl2
-              tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
-            end if
-            kl=kl+1
-          end do
-        else if (bl_res_inv == target_inv_profile) then
-          svl_lapse = (svl(i,j,k)-svl(i,j,k-1)) /                              &
-                      ( (z_tq(i,j,k)-z_tq(i,j,k-1)) )
-          kp=k+1  ! kp marks the lowest level above the inversion
-          do while ( z_uv(i,j,kp) < zh(i,j)+dzh(i,j) .and.                     &
-                     kp <= bl_levels )
-            kp=kp+1
-          end do
-          svl_flux(k) = - rhokh_surf_ent(i,j) * svl_lapse
-          kl=k+1
-          do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
-                     kl <= bl_levels )
-            ! assume a linear target svl profile within inversion
-            svl_target = svl(i,j,k-1) + (svl(i,j,kp)-svl(i,j,k-1)) *           &
-                                            (z_uv(i,j,kl)-zh(i,j)) / dzh(i,j)
-            rho_dz = rho_mix_tq(i,j,kl) * dzl(i,j,kl)
-            svl_flux(kl) = svl_flux(kl-1) -                                    &
-                                (svl_target-svl(i,j,kl))*rho_dz/timestep
-            kl=kl+1
-          end do
-          ! linearly extrapolate flux to inversion top
-          svl_flux(kp)=svl_flux(kp-1) + (svl_flux(kp-1)-svl_flux(kp-2))*       &
-                                (zh(i,j)+dzh(i,j)-z_uv(i,j,kp-1))*rdz(i,j,kp-1)
-          kl=k+1
-          do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
-                     kl <= bl_levels )
-            ! rescale svl_flux so as to have zero flux at the inversion top
-            ! ie so svl_flux(kp)=0
-            svl_flux(kl) = svl_flux(k)*( one -                                 &
-                                      (svl_flux(kl)-svl_flux(k))/              &
-                                      (svl_flux(kp)-svl_flux(k)) )
-            recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                   &
-                              max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
-            rhok_inv = - svl_flux(kl) * recip_svl_lapse
+        kl=k+1
+        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+                    kl <= bl_levels )
+          recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                   &
+                            max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
+          rhok_inv = rhokh_surf_ent(i,j) * svl_lapse_rho *                   &
+                  rho_mix(i,j,kl) * recip_svl_lapse *                         &
+                  cos(one_half*pi*(z_uv(i,j,kl)-zh(i,j))/dzh(i,j))
+          rhok_inv = min( rhok_inv, 1000.0_r_bl )
+          rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
+          ! rescale for KM on staggered grid
+          rhok_inv =  Prandtl * rhok_inv                                     &
+                      * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
+                      * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
+          rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
+          if (BL_diag%l_tke) then
+            ! save Km/timescale for TKE diag, completed in bdy_expl2
+            tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
+          end if
+          kl=kl+1
+        end do
+      else if (bl_res_inv == target_inv_profile) then
+        svl_lapse = (svl(i,j,k)-svl(i,j,k-1)) /                              &
+                    ( (z_tq(i,j,k)-z_tq(i,j,k-1)) )
+        kp=k+1  ! kp marks the lowest level above the inversion
+        do while ( z_uv(i,j,kp) < zh(i,j)+dzh(i,j) .and.                     &
+                    kp <= bl_levels )
+          kp=kp+1
+        end do
+        svl_flux(k) = - rhokh_surf_ent(i,j) * svl_lapse
+        kl=k+1
+        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+                    kl <= bl_levels )
+          ! assume a linear target svl profile within inversion
+          svl_target = svl(i,j,k-1) + (svl(i,j,kp)-svl(i,j,k-1)) *           &
+                                          (z_uv(i,j,kl)-zh(i,j)) / dzh(i,j)
+          rho_dz = rho_mix_tq(i,j,kl) * dzl(i,j,kl)
+          svl_flux(kl) = svl_flux(kl-1) -                                    &
+                              (svl_target-svl(i,j,kl))*rho_dz/timestep
+          kl=kl+1
+        end do
+        ! linearly extrapolate flux to inversion top
+        svl_flux(kp)=svl_flux(kp-1) + (svl_flux(kp-1)-svl_flux(kp-2))*       &
+                              (zh(i,j)+dzh(i,j)-z_uv(i,j,kp-1))*rdz(i,j,kp-1)
+        kl=k+1
+        do while ( z_uv(i,j,kl) < zh(i,j)+dzh(i,j) .and.                     &
+                    kl <= bl_levels )
+          ! rescale svl_flux so as to have zero flux at the inversion top
+          ! ie so svl_flux(kp)=0
+          svl_flux(kl) = svl_flux(k)*( one -                                 &
+                                    (svl_flux(kl)-svl_flux(k))/              &
+                                    (svl_flux(kp)-svl_flux(k)) )
+          recip_svl_lapse = (z_tq(i,j,kl)-z_tq(i,j,kl-1))/                   &
+                            max( 0.01_r_bl, svl(i,j,kl)-svl(i,j,kl-1) )
+          rhok_inv = - svl_flux(kl) * recip_svl_lapse
 
-            rhok_inv = min( rhok_inv, 1000.0_r_bl )
-            rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
-            ! rescale for KM on staggered grid
-            rhok_inv =  Prandtl * rhok_inv                                     &
-                       * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
-                       * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
-            rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
-            if (BL_diag%l_tke) then
-              ! save Km/timescale for TKE diag, completed in bdy_expl2
-              tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
-            end if
-            kl=kl+1
-          end do
-        end if  ! bl_res_inv option
-      end if  ! res_inv
-    end if  ! test on T_FRAC gt 0
-
+          rhok_inv = min( rhok_inv, 1000.0_r_bl )
+          rhokh(i,j,kl) = max( rhokh(i,j,kl), rhok_inv )
+          ! rescale for KM on staggered grid
+          rhok_inv =  Prandtl * rhok_inv                                     &
+                      * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
+                      * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
+          rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
+          if (BL_diag%l_tke) then
+            ! save Km/timescale for TKE diag, completed in bdy_expl2
+            tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
+          end if
+          kl=kl+1
+        end do
+      end if  ! bl_res_inv option
+    end if  ! res_inv
+  end if  ! test on T_FRAC gt 0
 end do
 !$OMP end do NOWAIT
 
@@ -4507,7 +4468,6 @@ do i = pdims%i_start, pdims%i_end
     fqw(i,j,k) = t_frac(i,j) *                                                 &
                       ( totqf_efl - fq_nt(i,j,k) )
   end if
-
 end do
 !$OMP end do
 
@@ -4740,7 +4700,6 @@ do i = pdims%i_start, pdims%i_end
 end do ! i
 !$OMP end do NOWAIT
 
-
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   kent(i,j)   = ntml(i,j)+1
@@ -4773,7 +4732,6 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do NOWAIT
-
 
 !-----------------------------------------------------------------------
 ! 12. Update standard deviations and gradient adjustment to use this
@@ -4833,7 +4791,6 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do NOWAIT
 
-
 ! (Note, water tracers assume flux_grad  =  Locketal2000 so no need to
 ! update wtrac_bl%grad_q_adj as it is always zero)
 
@@ -4842,7 +4799,6 @@ end do
 !-----------------------------------------------------------------------
 
 if (BL_diag%l_dzh) then
-
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ! fill unset values (rmdi<0) with zero
@@ -4856,17 +4812,15 @@ if (BL_diag%l_dzh) then
   !$OMP end do NOWAIT
 end if
 if (BL_diag%l_dscbase) then
-
-    !$OMP do SCHEDULE(STATIC)
-    do i = pdims%i_start, pdims%i_end
-      if ( dsc(i,j) ) then
-        BL_diag%dscbase(i,j)= zhsc(i,j)-dscdepth(i,j)
-      else
-        BL_diag%dscbase(i,j)= rmdi
-      end if
-    end do
-    !$OMP end do NOWAIT
-
+  !$OMP do SCHEDULE(STATIC)
+  do i = pdims%i_start, pdims%i_end
+    if ( dsc(i,j) ) then
+      BL_diag%dscbase(i,j)= zhsc(i,j)-dscdepth(i,j)
+    else
+      BL_diag%dscbase(i,j)= rmdi
+    end if
+  end do
+  !$OMP end do NOWAIT
 end if
 if (BL_diag%l_cldbase) then
 
