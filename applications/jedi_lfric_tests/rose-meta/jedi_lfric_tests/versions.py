@@ -1,4 +1,4 @@
-import re
+ re
 import sys
 
 from metomi.rose.upgrade import MacroUpgrade
@@ -209,5 +209,19 @@ class vn30_t108(MacroUpgrade):
             self.add_setting(
                 config, ["namelist:linear", "transport_efficiency"], ".false."
             )
+
+        return config, self.reports
+
+
+class vn30_t99(MacroUpgrade):
+    """Upgrade macro for ticket #221 by Benjamin Went."""
+
+    BEFORE_TAG = "vn3.0_t108"
+    AFTER_TAG = "vn3.0_t221"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric_atm
+        """Set segmentation size for the Boundary Layer"""
+        self.add_setting(config, ["namelist:physics", "bl_segment"], "16")
 
         return config, self.reports
