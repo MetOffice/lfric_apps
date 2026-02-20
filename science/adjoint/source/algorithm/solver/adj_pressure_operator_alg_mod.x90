@@ -14,7 +14,7 @@ module adj_pressure_operator_alg_mod
   use constants_mod,                                   only: i_def, l_def, r_solver
   use log_mod,                                         only: log_event,         &
                                                              LOG_LEVEL_ERROR,   &
-                                                             LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
+                                                             LOG_LEVEL_DEBUG
   use boundaries_config_mod,                           only: limited_area
   use base_mesh_config_mod,                            only: topology, topology_non_periodic
 
@@ -28,9 +28,6 @@ module adj_pressure_operator_alg_mod
                                                              stop_timing, &
                                                              tik, LPROF
   use si_operators_alg_mod,                            only: get_helmholtz_operator
-
-  ! REMOVE
-  use print_ctor_values_field_mod,                     only: print_ctor_values_field
 
   implicit none
 
@@ -148,8 +145,6 @@ contains
                        setval_c( y_vec, 0.0_r_solver ) )
 
           ! Run adj_apply_helmholtz_operator kernel.
-          call print_ctor_values_field(x_vec, LOG_LEVEL_INFO, "x_vec")
-          call print_ctor_values_field(y_vec, LOG_LEVEL_INFO, "y_vec")
           lookup => self%adj_lookup_table_cache%get_lookup_apply_hho(self%level)
           lookup_field => lookup%get_lookup_field()
           set_counts_field => lookup%get_set_count_field()
