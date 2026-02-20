@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+
+  <context id = "gungho_atm">
+
+   <domain_definition comment="to be sized by the model">
+     <domain id="face" type="unstructured" comment="for dofs over faces of plane mesh"/>
+     <domain id="edge" type="unstructured" comment="for dofs over edges of plane mesh"/>
+     <domain id="node" type="unstructured" comment="for dofs over vertices of plane mesh"/>
+   </domain_definition>
+    
+   <axis_definition>
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
+    <axis id="radiation_levels" name="radiation_levels"/>
+    <axis id="monthly_climatology" name="monthly_climatology" n_glo="12"/>
+    <axis id="ls_axis" name="ls_axis" n_glo="7"/>
+   </axis_definition>
+
+   <grid_definition>
+    <grid id="node_grid">
+      <domain domain_ref="node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="full_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_edge_grid">
+      <domain domain_ref="edge"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="3D_monthly_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+      <axis axis_ref="monthly_climatology"/>
+    </grid>
+    <grid id="full_level_face_time_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+      <axis axis_ref="ls_axis"/>
+    </grid>
+    <grid id="half_level_face_time_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+      <axis axis_ref="ls_axis"/>
+    </grid>
+    <grid id="half_level_edge_time_grid">
+      <domain domain_ref="edge"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+      <axis axis_ref="ls_axis"/>
+    </grid>
+   </grid_definition>
+
+   <file_definition
+      type="one_file"
+      time_counter="none">
+
+     <file id="lfric_initial" name="lfric_initial" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+     </file>
+
+      <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
+
+      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="read_h_u" name="h_u" long_name="horizontal_wind" standard_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_grid" operation="instant" />
+        <field id="read_v_u" name="v_u" long_name="vertical_wind" standard_name="vertical_wind" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_rho" name="rho" long_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" operation="instant" />
+        <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" operation="instant" />
+        <field id="read_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_m_s" name="m_s" long_name="cloud_ice_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+      </file>
+
+        <!-- ANCIL FILES -->
+
+      <file id="orography_mean_ancil" name="orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+        <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+      </file>
+
+       <!-- LS files -->
+      <file id="ls" name="ls" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="ls_time" name="time" unit="seconds" operation="once" axis_ref="ls_axis" />
+        <field id="ls_theta_data" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_time_grid" operation="once" />
+        <field id="ls_m_v_data" name="m_v" long_name="m_v" standard_name="m_v" unit="kg/kg" grid_ref="full_level_face_time_grid" operation="once" />
+        <field id="ls_m_cl_data" name="m_cl" long_name="m_cl" standard_name="m_cl" unit="kg/kg" grid_ref="full_level_face_time_grid" operation="once" />
+        <field id="ls_m_s_data" name="m_s" long_name="m_s" standard_name="m_s" unit="kg/kg" grid_ref="full_level_face_time_grid" operation="once" />
+        <field id="ls_m_r_data" name="m_r" long_name="m_r" standard_name="m_r" unit="kg/kg" grid_ref="full_level_face_time_grid" operation="once" />
+        <field id="ls_rho_data" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_time_grid" operation="once"/>
+        <field id="ls_exner_data" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_time_grid" operation="once"/>
+        <!--<field id="ls_h_u_data" name="h_u" long_name="horiz wind" unit="m s-1" grid_ref="half_level_edge_time_grid" operation="once"/>-->
+        <!--<field id="ls_v_u_data" name="v_u" long_name="upward wind" standard_name="upward_wind" unit="K" grid_ref="full_level_face_time_grid" operation="once" />-->
+        <field id="ls_u_in_w3_data" name="u_in_w3" long_name="NS wind" unit="m s-1" grid_ref="half_level_face_time_grid" operation="once"/>
+        <field id="ls_v_in_w3_data" name="v_in_w3" long_name="EW wind" unit="m s-1" grid_ref="half_level_face_time_grid" operation="once"/>
+        <field id="ls_w_in_wth_data" name="w_in_wth" long_name="Upward wind" unit="m s-1" grid_ref="full_level_face_time_grid" operation="once"/>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

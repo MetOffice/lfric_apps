@@ -75,6 +75,7 @@ module ffsl_hori_alg_mod
                                               transport_overwrite_freq_all
   use check_configuration_mod,          only: check_any_eqn_consistent,        &
                                               get_required_stencil_depth
+  use io_config_mod,                    only: subroutine_timers
   use transport_config_mod,             only:                                  &
                                           panel_edge_treatment,                &
                                           panel_edge_treatment_extended_mesh,  &
@@ -430,7 +431,7 @@ contains
                                   remap_depth)
     else
       call field_big_halo%initialise( field_n%get_function_space(), &
-                                      halo_depth=get_required_stencil_depth() )
+                                      halo_depth=mesh%get_halo_depth() )
       call invoke( setval_x(field_big_halo, field_n) )
     end if
     ! Copy required as PSyclone doesn't allow the same field to be
@@ -715,7 +716,7 @@ contains
                                   remap_depth)
     else
       call field_big_halo%initialise( field_n%get_function_space(), &
-                                      halo_depth=get_required_stencil_depth() )
+                                      halo_depth=mesh%get_halo_depth() )
       call invoke( setval_x(field_big_halo, field_n) )
     end if
 
@@ -1074,8 +1075,8 @@ contains
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)
     else
-      call field_x_big_halo%initialise(field_fs, halo_depth=get_required_stencil_depth())
-      call field_y_big_halo%initialise(field_fs, halo_depth=get_required_stencil_depth())
+      call field_x_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
+      call field_y_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
       call invoke( setval_x(field_x_big_halo, field_x),                        &
                    setval_x(field_y_big_halo, field_y) )
     end if

@@ -57,8 +57,7 @@ use bl_option_mod, only:                                                       &
     a_grad_adj, max_t_grad, flux_grad, Locketal2000,                           &
     HoltBov1993, LockWhelan2006, entr_smooth_dec, entr_taper_zh,               &
     kprof_cu, l_use_sml_dsc_fixes, l_converge_ga,                              &
-    bl_res_inv, cosine_inv_flux, target_inv_profile, pr_max, var_diags_opt,    &
-    split_tke_and_inv, l_noice_in_turb,                                        &
+    bl_res_inv, cosine_inv_flux, target_inv_profile, pr_max, l_noice_in_turb,  &
     one_third, two_thirds, zero, one, one_half
 use conversions_mod, only: pi => pi_bl
 use cv_run_mod, only: l_param_conv
@@ -4165,7 +4164,7 @@ do j = pdims%j_start, pdims%j_end
       if (res_inv(i,j) == 1) then
         Prandtl = min( rhokm(i,j,k)/(rbl_eps+rhokh_surf_ent(i,j)),             &
                        pr_max )
-        if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+        if (BL_diag%l_tke) then
           ! need velocity scale for TKE diagnostic
           w_m = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                                 &
                     c_ws * zh(i,j) * fb_surf(i,j) ) ** one_third
@@ -4189,7 +4188,7 @@ do j = pdims%j_start, pdims%j_end
                        * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
                        * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
             rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
-            if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+            if (BL_diag%l_tke) then
               ! save Km/timescale for TKE diag, completed in bdy_expl2
               tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
             end if
@@ -4237,7 +4236,7 @@ do j = pdims%j_start, pdims%j_end
                        * rdz(i,j,kl) * (z_uv(i,j,kl)-z_uv(i,j,kl-1))           &
                        * rho_wet_tq(i,j,kl-1) / rho_mix(i,j,kl)
             rhokm(i,j,kl) = max( rhokm(i,j,kl), rhok_inv )
-            if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+            if (BL_diag%l_tke) then
               ! save Km/timescale for TKE diag, completed in bdy_expl2
               tke_nl(i,j,kl) = max( tke_nl(i,j,kl), rhok_inv*c_tke*w_m/zh(i,j))
             end if
@@ -4702,7 +4701,7 @@ end if  ! l_wtrac
 ! Estimate turbulent w-variance scale at discontinuous inversions
 !-----------------------------------------------------------------------
 
-if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+if (BL_diag%l_tke) then
 !$OMP do SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
