@@ -6,6 +6,7 @@
 !> @brief Module containing adjoint test for atl_advective_and_flux_alg
 module atlt_advective_and_flux_alg_mod
 
+  use adj_trans_lookup_cache_mod,          only : adj_trans_lookup_cache_type
   use r_tran_field_mod,                    only : r_tran_field_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
@@ -37,9 +38,10 @@ module atlt_advective_and_flux_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  mesh         The model mesh
-  !> @param[in]  model_clock  The model clock
-  subroutine atlt_advective_and_flux_alg( mesh, model_clock )
+  !> @param[in]  mesh                    The model mesh
+  !> @param[in]  model_clock             The model clock
+  !> @param[in]  adj_lookup_table_cache  Lookup table cache
+  subroutine atlt_advective_and_flux_alg( mesh, model_clock, adj_lookup_table_cache )
 
     use atl_advective_and_flux_alg_mod,      only : atl_advective_and_flux_alg
     use tl_advective_and_flux_alg_mod,       only : tl_advective_and_flux_alg
@@ -47,8 +49,9 @@ module atlt_advective_and_flux_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(model_clock_type),   intent(in) :: model_clock
+    type(mesh_type),          pointer, intent(in) :: mesh
+    type(model_clock_type),            intent(in) :: model_clock
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Arguments for tl and adj calls
     type(field_type)                       :: mass_flux_1
@@ -216,7 +219,8 @@ module atlt_advective_and_flux_alg_mod
                                      density, wind, ls_density, ls_wind, &
                                      direction, transport_metadata,      &
                                      final_rk_stage, dt,                 &
-                                     do_flux, do_advective )
+                                     do_flux, do_advective,              &
+                                     adj_lookup_table_cache )
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( mass_flux_1_mass_flux_1_input_inner_prod, &

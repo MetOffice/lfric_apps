@@ -7,6 +7,7 @@
 
 module adjt_semi_implicit_solver_step_alg_mod
 
+  use adj_solver_lookup_cache_mod,      only: adj_solver_lookup_cache_type
   use constants_mod,                    only: i_def, r_def, l_def, r_solver, EPS
   use log_mod,                          only: log_event,         &
                                               log_scratch_space, &
@@ -47,16 +48,18 @@ contains
   !> @brief Adjoint test for semi_implicit_solver_alg_mod subroutine step
   !> @details Does some setup, then calls the actual test via a private subroutine
   !!          twice with different flag values
-  !> @param[in,out] modeldb     Structure containing the model state
-  !> @param[in]     mesh        The model mesh
-  !> @param[in]     model_clock The model clock
-  subroutine adjt_semi_implicit_solver_step_alg( modeldb, mesh, model_clock )
+  !> @param[in,out] modeldb                 Structure containing the model state
+  !> @param[in]     mesh                    The model mesh
+  !> @param[in]     model_clock             The model clock
+  !> @param[in]     adj_lookup_table_cache  Lookup table cache
+  subroutine adjt_semi_implicit_solver_step_alg( modeldb, mesh, model_clock, adj_lookup_table_cache )
 
     implicit none
 
-    type(modeldb_type), target, intent(inout) :: modeldb
-    type(mesh_type), pointer,   intent(in)    :: mesh
-    type(model_clock_type),     intent(in)    :: model_clock
+    type(modeldb_type),         target, intent(inout) :: modeldb
+    type(mesh_type),           pointer, intent(in)    :: mesh
+    type(model_clock_type),             intent(in)    :: model_clock
+    type(adj_solver_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     ! Prognostic fields
     type(field_type), dimension(bundle_size) :: state
@@ -153,7 +156,7 @@ contains
 
     call compute_si_operators( ls_theta, ls_rho, ls_exner, &
                                model_clock, ls_moist_dyn )
-    call adj_semi_implicit_solver%initialise(rhs)
+    call adj_semi_implicit_solver%initialise(rhs, adj_lookup_table_cache)
 
     ! Set up moist_dyn_gas_law & mr
     call moist_dyn_gas_law%initialise(vector_space=vector_space_wtheta_ptr)
