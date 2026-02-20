@@ -11,7 +11,7 @@ module adj_solver_lookup_cache_mod
   use constants_mod,                   only: i_def, l_def
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
-                                             LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+                                             LOG_LEVEL_ERROR
 
   implicit none
 
@@ -34,9 +34,7 @@ module adj_solver_lookup_cache_mod
 
       procedure, public :: initialise => adj_solver_lookup_cache_init
       procedure, public :: get_lookup_apply_hho
-      procedure, public :: adj_solver_lookup_cache_assign
       procedure, public :: finalise => adj_solver_lookup_cache_final
-      generic,   public :: assignment(=) => adj_solver_lookup_cache_assign
 
   end type adj_solver_lookup_cache_type
 
@@ -73,8 +71,6 @@ module adj_solver_lookup_cache_mod
     type(r_solver_field_type)                         :: vector_x
     integer(kind=i_def)                               :: level
 
-    call log_event("adj_solver_lookup_cache_init starting", LOG_LEVEL_INFO)
-
     nullify(vector_space_w3_ptr)
 
     ! =========================================================================
@@ -108,8 +104,6 @@ module adj_solver_lookup_cache_mod
 
     self%is_initialised = .true._l_def
 
-    call log_event("adj_solver_lookup_cache_init complete", LOG_LEVEL_INFO)
-
   end subroutine adj_solver_lookup_cache_init
 
   !=============================================================================
@@ -132,8 +126,6 @@ module adj_solver_lookup_cache_mod
     ! Returns
     type(adj_lookup_table_type),                    pointer :: lookup_ptr
 
-    call log_event("get_lookup_apply_hho starting", LOG_LEVEL_INFO)
-
     if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
     if ((level < 1) .and. (level > self%multigrid_levels + 1)) then
       write(log_scratch_space,*) "get_lookup_apply_hho: Requested level must be between 1 and ", &
@@ -143,37 +135,7 @@ module adj_solver_lookup_cache_mod
     nullify(lookup_ptr)
     lookup_ptr => self%lookup_apply_hho(level)
 
-    call log_event("get_lookup_apply_hho complete", LOG_LEVEL_INFO)
-
   end function get_lookup_apply_hho
-
-  !=============================================================================
-  !> @brief   Assignment operator.
-  !> @details Implemented to avoid pointer aliasing preventing compiler optimisations.
-  subroutine adj_solver_lookup_cache_assign(dest, source)
-
-    implicit none
-
-    class(adj_solver_lookup_cache_type), intent(in)  :: source
-    class(adj_solver_lookup_cache_type), intent(out) :: dest
-
-    ! Internal variables
-    integer(kind=i_def)                              :: level
-
-    call log_event("adj_solver_lookup_cache_assign starting", LOG_LEVEL_INFO)
-
-    if (.not. source%is_initialised) call log_event("Source cache in copy assignment is not initialised", LOG_LEVEL_ERROR)
-
-    dest%multigrid_levels = source%multigrid_levels
-    allocate(dest%lookup_apply_hho(dest%multigrid_levels+1))
-    do level = 1_i_def, source%multigrid_levels + 1
-      dest%lookup_apply_hho(level) = source%lookup_apply_hho(level)
-    end do
-    dest%is_initialised = .true._l_def
-
-    call log_event("adj_solver_lookup_cache_assign complete", LOG_LEVEL_INFO)
-
-  end subroutine adj_solver_lookup_cache_assign
 
   !=============================================================================
   !> @brief Destructor.
@@ -188,16 +150,12 @@ module adj_solver_lookup_cache_mod
     ! Internal variables
     integer(kind=i_def)                                :: level
 
-    call log_event("adj_solver_lookup_cache_final starting", LOG_LEVEL_INFO)
-
     if (self%is_initialised) then
       do level = 1, self%multigrid_levels + 1
         call self%lookup_apply_hho(level)%finalise()
       end do
       if (allocated(self%lookup_apply_hho)) deallocate(self%lookup_apply_hho)
     end if
-
-    call log_event("adj_solver_lookup_cache_final complete", LOG_LEVEL_INFO)
 
   end subroutine adj_solver_lookup_cache_final
 

@@ -23,25 +23,18 @@
                             'module load cray-mpich/8.1.27 ; '~
                             'module load lfric-cray/15.0.0/3.0+ || true ' %}
 
-{% set ex1a_coupled_cce = 'module unload xios/2701-h57fm7d || true ; ' ~
+{% set ex1a_coupled_cce = 'module unload xios/2701 || true ; ' ~
                           'module load cray-hdf5-parallel ; ' ~
                           'module load cray-netcdf-hdf5parallel ; ' ~
                           'module use /data/users/moci/modules_ngms/modules ; '~
-                          'module load GC4-PrgEnv/2024-01-lfric_apps_coupled_port-cpe23.05/5548.lua ; '
+                          'module load GC6-PrgEnv/2026-01-lfric_apps_coupled_port-cpe23.05-mpich8.1.27/5889.lua ; '
                           'module load scitools' %}
 
 {% set ex1a_coupled_run = '. $BIG_DATA_DIR/ancils/lfric_coupled/ocean/ocean_ancil_GO8p0_CORE_forcing_eORCA025 ; ' ~
                           'DIAG_MEAN_PERIOD="INVALID_PERIOD"'%}
 
 {% set set_ulimit = 'ulimit -s unlimited -c unlimited; '~
-                    'ulimit -a ; ' ~
-                    'module load atp/3.15.2.1 ; ' ~
-                    'module load cray-dyninst/12.3.1.11 ; ' ~
-                    'module load cray-cti/2.18.2.25 ; ' ~
-                    'export ATP_ENABLED=1 ; ' ~
-                    'export PALS_LOCAL_LAUNCH=0' %}
-
-
+                    'ulimit -a '%}
 
 {% set ex1a_scitools = 'module load scitools/production-os47-1' %}
 {% set ex1a_tech = '' %}

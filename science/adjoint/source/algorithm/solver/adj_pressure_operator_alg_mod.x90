@@ -35,8 +35,8 @@ module adj_pressure_operator_alg_mod
 
   type, public, extends(abstract_hierarchical_linear_operator_type) :: adj_pressure_operator_type
   private
-     integer(kind=i_def)                :: level
-     type(adj_solver_lookup_cache_type) :: adj_lookup_table_cache
+     integer(kind=i_def)                         :: level
+     type(adj_solver_lookup_cache_type), pointer :: adj_lookup_table_cache_ptr
      contains
      procedure, public  :: apply => apply_adj_pressure_operator
      procedure, private :: apply_adj_pressure_operator
@@ -68,7 +68,7 @@ contains
 
     ! Temporaries required in operator application
     self%level = level
-    self%adj_lookup_table_cache = adj_lookup_table_cache
+    self%adj_lookup_table_cache_ptr => adj_lookup_table_cache
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
 
@@ -86,7 +86,7 @@ contains
 
     ! Deep copy of the contents of the adj_pressure_operator_type
     dest%level = source%level
-    dest%adj_lookup_table_cache = source%adj_lookup_table_cache
+    dest%adj_lookup_table_cache_ptr => source%adj_lookup_table_cache_ptr
 
   end subroutine adj_pressure_operator_assign
 
@@ -145,7 +145,7 @@ contains
                        setval_c( y_vec, 0.0_r_solver ) )
 
           ! Run adj_apply_helmholtz_operator kernel.
-          lookup => self%adj_lookup_table_cache%get_lookup_apply_hho(self%level)
+          lookup => self%adj_lookup_table_cache_ptr%get_lookup_apply_hho(self%level)
           lookup_field => lookup%get_lookup_field()
           set_counts_field => lookup%get_set_count_field()
           nindices = lookup%get_nindices()
@@ -186,7 +186,7 @@ contains
     class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
 
     allocate( coarse_operator, &
-              source = adj_pressure_operator_type(self%level + 1, self%adj_lookup_table_cache) )
+              source = adj_pressure_operator_type(self%level + 1, self%adj_lookup_table_cache_ptr) )
 
   end subroutine coarsen_adj_pressure_operator
 
@@ -196,8 +196,6 @@ contains
     implicit none
 
     type(adj_pressure_operator_type), intent(inout) :: self
-
-    call self%adj_lookup_table_cache%finalise()
 
   end subroutine destroy_adj_pressure_operator
 
