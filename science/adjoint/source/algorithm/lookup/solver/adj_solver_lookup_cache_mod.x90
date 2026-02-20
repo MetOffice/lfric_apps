@@ -11,7 +11,7 @@ module adj_solver_lookup_cache_mod
   use constants_mod,                   only: i_def, l_def
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
-                                             LOG_LEVEL_ERROR
+                                             LOG_LEVEL_ERROR, LOG_LEVEL_INFO
 
   implicit none
 
@@ -66,12 +66,14 @@ module adj_solver_lookup_cache_mod
 
     ! Arguments
     class(adj_solver_lookup_cache_type), intent(inout) :: self
-    type(mesh_type),              pointer, intent(in) :: mesh
+    type(mesh_type),            pointer, intent(in)    :: mesh
 
     ! Internal variables
     type(function_space_type),                pointer :: vector_space_w3_ptr
     type(r_solver_field_type)                         :: vector_x
     integer(kind=i_def)                               :: level
+
+    call log_event("adj_solver_lookup_cache_init starting", LOG_LEVEL_INFO)
 
     nullify(vector_space_w3_ptr)
 
@@ -106,6 +108,8 @@ module adj_solver_lookup_cache_mod
 
     self%is_initialised = .true._l_def
 
+    call log_event("adj_solver_lookup_cache_init complete", LOG_LEVEL_INFO)
+
   end subroutine adj_solver_lookup_cache_init
 
   !=============================================================================
@@ -123,10 +127,12 @@ module adj_solver_lookup_cache_mod
 
     ! Arguments
     class(adj_solver_lookup_cache_type), target, intent(in) :: self
-    integer(kind=i_def),                        intent(in) :: level
+    integer(kind=i_def),                         intent(in) :: level
 
     ! Returns
-    type(adj_lookup_table_type),                   pointer :: lookup_ptr
+    type(adj_lookup_table_type),                    pointer :: lookup_ptr
+
+    call log_event("get_lookup_apply_hho starting", LOG_LEVEL_INFO)
 
     if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
     if ((level < 1) .and. (level > self%multigrid_levels + 1)) then
@@ -136,6 +142,8 @@ module adj_solver_lookup_cache_mod
     end if
     nullify(lookup_ptr)
     lookup_ptr => self%lookup_apply_hho(level)
+
+    call log_event("get_lookup_apply_hho complete", LOG_LEVEL_INFO)
 
   end function get_lookup_apply_hho
 
@@ -152,6 +160,8 @@ module adj_solver_lookup_cache_mod
     ! Internal variables
     integer(kind=i_def)                              :: level
 
+    call log_event("adj_solver_lookup_cache_assign starting", LOG_LEVEL_INFO)
+
     if (.not. source%is_initialised) call log_event("Source cache in copy assignment is not initialised", LOG_LEVEL_ERROR)
 
     dest%multigrid_levels = source%multigrid_levels
@@ -160,6 +170,8 @@ module adj_solver_lookup_cache_mod
       dest%lookup_apply_hho(level) = source%lookup_apply_hho(level)
     end do
     dest%is_initialised = .true._l_def
+
+    call log_event("adj_solver_lookup_cache_assign complete", LOG_LEVEL_INFO)
 
   end subroutine adj_solver_lookup_cache_assign
 
@@ -176,12 +188,16 @@ module adj_solver_lookup_cache_mod
     ! Internal variables
     integer(kind=i_def)                                :: level
 
+    call log_event("adj_solver_lookup_cache_final starting", LOG_LEVEL_INFO)
+
     if (self%is_initialised) then
       do level = 1, self%multigrid_levels + 1
         call self%lookup_apply_hho(level)%finalise()
       end do
       if (allocated(self%lookup_apply_hho)) deallocate(self%lookup_apply_hho)
     end if
+
+    call log_event("adj_solver_lookup_cache_final complete", LOG_LEVEL_INFO)
 
   end subroutine adj_solver_lookup_cache_final
 
