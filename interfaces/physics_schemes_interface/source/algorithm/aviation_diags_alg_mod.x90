@@ -293,7 +293,7 @@ CONTAINS
 !          wind_3d, clock, element_order_h, element_order_v)
   subroutine write_horizontal_divergence_diagnostic( &
           wind, clock, main_mesh, element_order_h, element_order_v)
-    use fs_continuity_mod,              only: W2H, W2v
+    use fs_continuity_mod,              only: W2H, W2v, W3
     use function_space_collection_mod,  only: function_space_collection
     use model_clock_mod,                only: model_clock_type
 
@@ -310,7 +310,6 @@ CONTAINS
 
     use mesh_mod,                       only: mesh_type
     use integer_field_mod,              only: integer_field_type
-    use fs_continuity_mod,              only: W3
     use initialise_diagnostics_mod,     only : diagnostic_to_be_sampled
 
     use field_parent_mod,               only: write_interface
@@ -334,7 +333,7 @@ CONTAINS
     type(field_type)                     :: wind_h, wind_v
     type(field_type)                     :: div_ml, div_ml_h, div_ml_v
     type(field_type)                     :: div_pl(1)
-    type(field_type)                     :: div_pl1
+!    type(field_type)                     :: div_pl1
     type(field_type), pointer            :: chi(:)
     type(r_tran_operator_type), pointer  :: div_op
     type(field_type), pointer            :: panel_id
@@ -384,6 +383,11 @@ CONTAINS
         wind_h, wind_v, wind, face_selector_ew, face_selector_ns ))
 
 
+    ! what function space should div_ml be on?
+    call div_ml%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W3 ))
+
+
     ! multiply the wind by the div operator matrix to get the div
     CALL invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
 
@@ -400,40 +404,7 @@ CONTAINS
     panel_id => get_panel_id( p_div_mesh%get_id() )
 
     call project_output( div_ml, div_pl, chi, panel_id, W3 )
-    div_pl1 = div_pl(1)
-
-
-
-
-
-!   todo: this approach is wrong, we can't split the div because it's scalar not vector.
-!    ! get the 3d div operator matrix for this mesh
-!    div_op => get_directional_im3_div(wind%get_mesh_id(), direction_3d)
-!
-!    ! multiply the wind by the div operator matrix to get the div
-!    CALL invoke(dg_matrix_vector_kernel_type(div_ml, wind, div_op))
-!
-!    ! Split the 3d div into horizontal and vertical components
-!    face_selector_ew => get_face_selector_ew(div_ml%get_mesh_id())
-!    face_selector_ns => get_face_selector_ns(div_ml%get_mesh_id())
-!
-!    call div_ml_h%initialise( function_space_collection%get_fs( &
-!        mesh, element_order_h, element_order_v, W2h ))
-!    call div_ml_v%initialise( function_space_collection%get_fs( &
-!        mesh, element_order_h, element_order_v, W2v ))
-!
-!    call invoke( split_w2_field_kernel_type( &
-!        div_ml_h, div_ml_v, div_ml, face_selector_ew, face_selector_ns ))
-!
-!    ! Project the h div to pressure levels
-!    ! todo: which mesh should we use? this or the one passed in?
-!    mesh     => div_ml_h%get_mesh()
-!    chi      => get_coordinates( mesh%get_id() )
-!    panel_id => get_panel_id( mesh%get_id() )
-!
-!    call project_output( div_ml_h, div_pl, chi, panel_id, W3 )
 !    div_pl1 = div_pl(1)
-
 
 
 
@@ -441,11 +412,12 @@ CONTAINS
     if (use_xios_io) then
       !If using XIOS, we need to set a field I/O method appropriately
       tmp_write_ptr => write_field_generic
-      call div_pl1%set_write_behaviour(tmp_write_ptr)
+      call div_pl(1) % set_write_behaviour(tmp_write_ptr)
     end if
 
 !    call write_scalar_diagnostic( 'divergence', div_pl1, clock, mesh, .false. )
-    call write_scalar_diagnostic( 'divergence', div_pl1, clock, p_div_mesh, .false. )
+    call write_scalar_diagnostic( &
+        'divergence', div_pl(1), clock, p_div_mesh, .false. )
 
     nullify(tmp_write_ptr)
 
