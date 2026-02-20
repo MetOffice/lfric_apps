@@ -14,10 +14,8 @@ module lfric2lfric_driver_mod
   use field_collection_mod,     only: field_collection_type
   use lfric_xios_action_mod,    only: advance
   use lfric_xios_context_mod,   only: lfric_xios_context_type
-  use lfric_xios_read_mod,      only: read_checkpoint, &
-                                      read_state
-  use lfric_xios_write_mod,     only: write_checkpoint, &
-                                      write_state
+  use lfric_xios_read_mod,      only: read_state
+  use lfric_xios_write_mod,     only: write_state
   use log_mod,                  only: log_scratch_space, &
                                       log_event,         &
                                       log_level_info
@@ -120,9 +118,7 @@ contains
 
     ! Read fields and perform the regridding
     if (mode == mode_ics) then
-      call read_checkpoint(source_fields,      &
-                           start_timestep,     &
-                           start_dump_filename )
+      call read_state(source_fields, prefix='restart_')
 
       call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
                               target_fields, regrid_method)
@@ -132,8 +128,7 @@ contains
       call io_context%set_current()
 
       checkpoint_times(1) = modeldb%clock%seconds_from_steps(modeldb%clock%get_step())
-      call write_checkpoint(target_fields, modeldb%values, modeldb%clock, &
-                            checkpoint_stem_name, checkpoint_times)
+      call write_state(target_fields, prefix='checkpoint_')
 
     else if (mode == mode_lbc) then
       time_steps = modeldb%clock%get_last_step() - &
