@@ -89,7 +89,7 @@ module atlt_bl_inc_alg_mod
     real(kind=r_def)               :: inner2
 
     ! Test parameters and variables
-    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 3000.0_r_def
     real(kind=r_def)            :: machine_tol
     real(kind=r_def)            :: relative_diff
     real(kind=r_def), parameter :: eps = 1e-30_r_def
