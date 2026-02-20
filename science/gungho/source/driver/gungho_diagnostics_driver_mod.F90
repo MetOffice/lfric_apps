@@ -335,8 +335,13 @@ contains
 
 !    call write_horizontal_divergence_diagnostic( &
 !        u, modeldb%clock, mesh, element_order_h, element_order_v)
+
+!    call write_horizontal_divergence_diagnostic( &
+!        u, modeldb%clock, element_order_h, element_order_v)
+
     call write_horizontal_divergence_diagnostic( &
-        u, modeldb%clock, element_order_h, element_order_v)
+        u, modeldb%clock, mesh, element_order_h, element_order_v)
+
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
