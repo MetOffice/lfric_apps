@@ -1,0 +1,187 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_bl_inc_kernel
+module atlt_bl_inc_alg_mod
+
+  use sci_assign_field_random_range_alg_mod, &
+                                           only : assign_field_random_range
+  use sci_geometric_constants_mod,         only: get_face_selector_ew, &
+                                                 get_face_selector_ns
+  use integer_field_mod,                   only: integer_field_type
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_ERROR,   &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_INFO
+  use mesh_mod,                            only : mesh_type
+  use function_space_collection_mod,       only : function_space_collection
+  use finite_element_config_mod,           only : element_order_h, element_order_v
+  use fs_continuity_mod,                   only : W2, W3, Wtheta
+  use constants_mod,                       only : i_def, r_def
+  use quadrature_face_mod,                 only : quadrature_face_type
+  use quadrature_rule_gaussian_mod,        only : quadrature_rule_gaussian_type
+  use reference_element_mod,               only : reference_element_type
+  use planet_config_mod,                   only : cp
+  use adjoint_test_parameters_mod,         only : ls_theta_range, &
+                                                  ls_exner_range, &
+                                                  ls_md1_range,   &
+                                                  ls_md2_range,   &
+                                                  ls_md3_range
+  use timing_mod,                          only : start_timing, stop_timing, tik, LPROF
+
+  implicit none
+
+  public
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_bl_inc.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in] mesh        Mesh object
+  subroutine atlt_bl_inc_alg( mesh )
+
+   use tl_bl_inc_kernel_mod,      only : tl_bl_inc_kernel_type
+   use atl_bl_inc_kernel_mod,     only : atl_bl_inc_kernel_type
+   use linear_physics_config_mod, only : log_layer,            &
+                                         Blevs_m,              &
+                                         e_folding_levs_m,     &
+                                         u_land_m,             &
+                                         u_sea_m,              &
+                                         z_land_m,             &
+                                         z_sea_m,              &
+                                         L_0_m
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type( field_type) ::  u_inc
+    type( field_type) ::  u
+    type( field_type) ::  auv
+    type( field_type) ::  buv_inv
+    type(integer_field_type), pointer :: face_selector_ew => null()
+    type(integer_field_type), pointer :: face_selector_ns => null()
+
+    ! Copies of input fields used in inner products
+    type( field_type) ::  u_inc_input
+    type( field_type) ::  u_input
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_def)               :: ip1(2)
+    real(kind=r_def)               :: ip2(2)
+    real(kind=r_def)               :: sf(2)
+    real(kind=r_def)               :: inner1
+    real(kind=r_def)               :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 3000.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    integer(kind=tik) :: id
+
+    if ( LPROF ) call start_timing( id, 'atlt_bl_inc_alg' )
+
+    vector_space_wtheta_ptr => function_space_collection % get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w2_ptr => function_space_collection % get_fs( mesh, element_order_h, element_order_v, W2 )
+    vector_space_w3_ptr => function_space_collection % get_fs( mesh, element_order_h, element_order_v, W3 )
+
+    call auv % initialise( vector_space = vector_space_w2_ptr, name = 'auv' )
+    call buv_inv % initialise( vector_space = vector_space_w2_ptr, name = 'buv_inv' )
+
+    call u_inc % initialise( vector_space = vector_space_w2_ptr, name = 'u_inc' )
+    call u  % initialise( vector_space = vector_space_w2_ptr, name = 'u' )
+
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+    call u_inc % copy_field_properties( u_inc_input )
+    call u % copy_field_properties( u_input )
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random( u ),                                     &
+                 setval_x( u_input, u ),                                 &
+                 setval_random( u_inc ),                                 &
+                 setval_x( u_inc_input, u_inc ) )
+
+    ! LS init
+    call assign_field_random_range( auv, -1.0_r_def, 1.0_r_def )
+    call assign_field_random_range( buv_inv, 1.0_r_def, 2.0_r_def ) ! must avoid 0
+
+    ! < Mx, Mx >
+    call invoke ( tl_bl_inc_kernel_type( u_inc,                &
+                                         u,                    &
+                                         auv,buv_inv,          &
+                                         face_selector_ew,     &
+                                         face_selector_ns,     &
+                                         Blevs_m ) )
+    call invoke ( x_innerproduct_x( ip1(1), u_inc ), &
+                  x_innerproduct_x( ip1(2), u ) )
+
+    sf(1) = 1.0_r_def / (ip1(1) + eps)
+    sf(2) = 1.0_r_def / (ip1(2) + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + ip1(1) * sf(1)
+    inner1 = inner1 + ip1(2) * sf(2)
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( sf(1), u_inc ), &
+                 inc_a_times_X( sf(2), u ) )
+
+    ! < AMx, x >
+    call invoke ( atl_bl_inc_kernel_type( u_inc,                &
+                                          u,                    &
+                                          auv,buv_inv,          &
+                                          face_selector_ew,     &
+                                          face_selector_ns,     &
+                                          Blevs_m ) )
+
+    call invoke ( x_innerproduct_y( ip2(1), u_inc, u_inc_input ), &
+                  x_innerproduct_y( ip2(2), u, u_input ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + ip2(1)
+    inner2 = inner2 + ip2(2)
+
+    write( log_scratch_space, * ) 'atlt_bl_inc_alg: ad test for atl_bl_inc_kernel_type: ip1=', &
+      ip1(1) * sf(1), ip1(2) * sf(2)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) 'atlt_bl_inc_alg: ad test for atl_bl_inc_kernel_type: ip2=', ip2
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) 'atlt_bl_inc_alg: ad test for atl_bl_inc_kernel_type: s(ip1),s(ip2)=', &
+      inner1, inner2
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_bl_inc:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED tl_bl_inc:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    if ( LPROF ) call stop_timing( id, 'atlt_bl_inc_alg' )
+
+  end subroutine atlt_bl_inc_alg
+
+end module atlt_bl_inc_alg_mod
