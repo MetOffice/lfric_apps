@@ -103,11 +103,11 @@ subroutine tl_compute_aubu_code( nlayers,                 &
   do df = 1, 4
     do k = 0, BLevs_m
       if (k == 0) then
-        Auv(map_w2(df) + k) = Auv(map_w2(df) + k) + w2_rmultiplicity(map_w2(df)) * Q(map_w3(df3))
+        Auv(map_w2(df) + k) = w2_rmultiplicity(map_w2(df)) * Q(map_w3(df3))
       else ! 1 <= k <= BLevs_m
-        Auv(map_w2(df) + k) = Auv(map_w2(df) + k) + &
+        Auv(map_w2(df) + k) = &
           w2_rmultiplicity(map_w2(df) + k) * Q(map_w3(df3) + k) / (height_w2(map_w2(df) + k) -  height_w2(map_w2(df) + k - 1))
-        Buv_inv(map_w2(df) + k) = Buv_inv(map_w2(df) + k) + ( w2_rmultiplicity(map_w2(df) + k) * E(map_w3(df3) + k) ) / dt
+        Buv_inv(map_w2(df) + k) = ( w2_rmultiplicity(map_w2(df) + k) * E(map_w3(df3) + k) ) / dt
       end if
     end do ! k = 0, BLevs_m
   end do ! df = 1, 4

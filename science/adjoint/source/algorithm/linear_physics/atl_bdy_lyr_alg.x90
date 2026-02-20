@@ -101,7 +101,6 @@ subroutine atl_bdy_lyr_alg(modeldb, u_bl_inc, u, ls_state, dt)
 
   call u%copy_field_properties(auv)
   call u%copy_field_properties(buv_inv)
-  call invoke(setval_c(auv, 0.0_r_def), setval_c(buv_inv, 0.0_r_def))
 
   call invoke(tl_compute_qe_kernel_type(Q,                &
                                         E,                &
