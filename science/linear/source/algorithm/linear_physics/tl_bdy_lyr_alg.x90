@@ -101,7 +101,6 @@ subroutine tl_bdy_lyr_alg(modeldb, u_bl_inc, u, ls_state, dt)
 
   call ls_state(igh_d)%copy_field_properties(Q)
   call ls_state(igh_d)%copy_field_properties(E)
-  call invoke(setval_c(Q, 0.0_r_def), setval_c(E, 0.0_r_def))
 
   call u%copy_field_properties(auv)
   call u%copy_field_properties(buv_inv)

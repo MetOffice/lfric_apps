@@ -114,8 +114,7 @@ subroutine atl_physics_alg(modeldb,    &
 
   ! Adj of u_bl_inc_flux = u_bl_inc * dA
   call invoke( inc_x_times_y( u_bl_inc_flux, dA ),      &
-               inc_x_plus_y( u_bl_inc, u_bl_inc_flux ), &
-               setval_c( u_bl_inc_flux, 0.0_r_def ) )
+               inc_x_plus_y( u_bl_inc, u_bl_inc_flux ) )
 
   call atl_bdy_lyr_alg( modeldb, u_bl_inc, state_star(igh_u), &
                         ls_state, dt )
@@ -126,13 +125,11 @@ subroutine atl_physics_alg(modeldb,    &
 
   ! Adj of u_star_physical = u_star / dA
   call invoke( inc_x_divideby_y( u_star_physical, dA ), &
-               inc_x_plus_y( u_star, u_star_physical ), &
-               setval_c( u_star_physical, 0.0_r_def) )
+               inc_x_plus_y( u_star, u_star_physical ) )
 
   ! Adj of u_star = du + state(igh_u)
-  call invoke( inc_X_plus_Y( du, u_star ),           &
-               inc_X_plus_Y( state(igh_u), u_star ), &
-               setval_c( u_star, 0.0_r_def )  )
+  call invoke( inc_X_plus_Y( du, u_star ), &
+               inc_X_plus_Y( state(igh_u), u_star ) )
 
   ! Adj of call mass_matrix_solver_alg(du, rhsu_np1)
   call mass_matrix_solver_alg( rhsu_np1, du )
@@ -142,11 +139,7 @@ subroutine atl_physics_alg(modeldb,    &
 
   ! Adj of rhsu_np1 <- -rhs_np1(igh_u) + rhs_n(igh_u)
   call invoke( inc_X_plus_bY( rhs_np1(igh_u), -1.0_r_def, rhsu_np1 ), &
-               inc_X_plus_Y( rhs_n(igh_u), rhsu_np1 ),                &
-               setval_c( rhsu_np1, 0.0_r_def ) )
-
-  ! Adj of du <- 0
-  call invoke( setval_c( du, 0.0_r_def ) )
+               inc_X_plus_Y( rhs_n(igh_u), rhsu_np1 ) )
 
   if (LPROF) call stop_timing(id, 'atl_physics_alg')
 
