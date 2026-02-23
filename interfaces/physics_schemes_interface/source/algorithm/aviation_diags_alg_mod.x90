@@ -421,9 +421,7 @@ CONTAINS
 
     nullify(tmp_write_ptr)
 
-
   end subroutine write_horizontal_divergence_diagnostic
-
 
 
 END MODULE aviation_diags_alg_mod
