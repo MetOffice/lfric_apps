@@ -190,7 +190,15 @@
         <field field_ref="radiation__lw_net_surf_rts"/>
         <field field_ref="radiation__lw_up_clear_toa_rts"/>
         <field field_ref="processed__sw_aer_optical_depth_rts"/>
-    </field_group>        
+    </field_group>
+
+    <!-- Section 20 Aviation diagnostics -->
+    <field_group operation="instant" freq_op="3h">
+      <field field_ref="aviation__geopot_thickness_850"/>
+      <field field_ref="aviation__geopot_thickness_500"/>
+      <field field_ref="aviation__uv_wind_divergence"/>
+    </field_group>
+
   </file>    
   
   
