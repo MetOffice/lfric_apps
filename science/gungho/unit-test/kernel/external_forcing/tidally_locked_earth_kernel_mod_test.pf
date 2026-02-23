@@ -72,7 +72,7 @@ contains
                                     runge_kutta_method=runge_kutta_method_ssp3,         &
                                     spinup_period=0.0_r_second, spinup_alpha=.false.)
 
-    call init_chi_transforms(imdi,imdi)
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine set_up
 
