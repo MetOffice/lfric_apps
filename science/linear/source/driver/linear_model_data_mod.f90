@@ -39,6 +39,7 @@ module linear_model_data_mod
                                              pert_option_file,     &
                                              pert_option_zero,     &
                                              ls_read_w2h
+  use linear_physics_config_mod,      only : l_boundary_layer
   use linked_list_mod,                only : linked_list_type
   use log_mod,                        only : log_event,         &
                                              log_scratch_space, &
@@ -172,8 +173,9 @@ contains
                         imr=imr )
     end do
 
-    call setup_field( ls_fields, depository, prognostics, "ls_land_fraction", W3, &
-                      twod_mesh, checkpoint_restart_flag )
+    if (l_boundary_layer) &
+      call setup_field( ls_fields, depository, prognostics, "ls_land_fraction", W3, &
+                        twod_mesh, checkpoint_restart_flag )
 
   end subroutine linear_create_ls_analytic
 
@@ -248,8 +250,10 @@ contains
                       mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
     call setup_field( ls_fields, depository, prognostics, "ls_theta", Wtheta, &
                       mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
-    call setup_field( ls_fields, depository, prognostics, "ls_land_fraction", W3, &
-                      twod_mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+
+    if (l_boundary_layer) &
+      call setup_field( ls_fields, depository, prognostics, "ls_land_fraction", W3, &
+                        twod_mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
 
     if ( ls_read_w2h ) then
       call setup_field( ls_fields, depository, prognostics, "ls_h_u", W2h,      &
