@@ -6,6 +6,7 @@
 !> @brief Module containing adjoint test for atl_mol_conservative_alg
 module atlt_mol_conservative_alg_mod
 
+  use adj_trans_lookup_cache_mod,          only : adj_trans_lookup_cache_type
   use r_tran_field_mod,                    only : r_tran_field_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
@@ -56,9 +57,10 @@ module atlt_mol_conservative_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  mesh         The model mesh
-  !> @param[in]  model_clock  The model clock
-  subroutine atlt_mol_conservative_alg( mesh, model_clock )
+  !> @param[in]  mesh                    The model mesh
+  !> @param[in]  model_clock             The model clock
+  !> @param[in]  adj_lookup_table_cache  Lookup table cache
+  subroutine atlt_mol_conservative_alg( mesh, model_clock, adj_lookup_table_cache )
 
     use atl_mol_conservative_alg_mod,        only : atl_mol_conservative_alg
     use tl_mol_conservative_alg_mod,         only : tl_mol_conservative_alg
@@ -66,8 +68,9 @@ module atlt_mol_conservative_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(model_clock_type),   intent(in) :: model_clock
+    type(mesh_type),          pointer, intent(in) :: mesh
+    type(model_clock_type),            intent(in) :: model_clock
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Arguments for tl and adj calls
     type(field_type)                   :: field_np1
@@ -222,7 +225,8 @@ module atlt_mol_conservative_alg_mod
 
     ! Adjoint
     call atl_mol_conservative_alg( field_np1, field, ls_field, &
-                                   tl_transport_controller )
+                                   tl_transport_controller,    &
+                                   adj_lookup_table_cache )
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( field_np1_field_np1_input_inner_prod, &

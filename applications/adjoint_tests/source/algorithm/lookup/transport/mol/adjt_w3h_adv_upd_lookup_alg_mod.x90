@@ -145,7 +145,7 @@ module adjt_w3h_adv_upd_lookup_alg_mod
     adv_inc_adv_inc_inp_inner_prod = 0.0_r_def
     tracer_tracer_input_inner_prod = 0.0_r_def
 
-    lookup_w3h_adv_upd => adj_lookup_table_cache%get_lookup_w3h_adv_upd()
+    lookup_w3h_adv_upd => adj_lookup_table_cache%get_lookup_w3h_adv_upd(wind%which_function_space())
     lookup_w3h_adv_upd_field => lookup_w3h_adv_upd%get_lookup_field()
     set_count_w3h_adv_upd_field => lookup_w3h_adv_upd%get_set_count_field()
     nsets = lookup_w3h_adv_upd%get_nsets_max()

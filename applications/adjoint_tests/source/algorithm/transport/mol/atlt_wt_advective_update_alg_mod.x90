@@ -6,6 +6,7 @@
 !> @brief Module containing handwritten adjoint test for atl_wt_advective_update_alg_mod routines
 module atlt_wt_advective_update_alg_mod
 
+  use adj_trans_lookup_cache_mod,          only : adj_trans_lookup_cache_type
   use r_tran_field_mod,                    only : r_tran_field_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
@@ -43,7 +44,10 @@ module atlt_wt_advective_update_alg_mod
   !> Determined by testing the equality of inner products
   !> < Mx, Mx > and < AMx, x >, where M is the tangent linear
   !> and A is the adjoint.
-  subroutine atlt_wt_advective_update_alg( mesh, model_clock )
+  !> @param[in]  mesh                    The model mesh
+  !> @param[in]  model_clock             The model clock
+  !> @param[in]  adj_lookup_table_cache  Lookup table cache
+  subroutine atlt_wt_advective_update_alg( mesh, model_clock, adj_lookup_table_cache )
 
     use atl_wt_advective_update_alg_mod,     only : atl_wt_advective_update_alg
     use tl_wt_advective_update_alg_mod,      only : tl_wt_advective_update_alg
@@ -51,8 +55,9 @@ module atlt_wt_advective_update_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(model_clock_type),   intent(in) :: model_clock
+    type(mesh_type),          pointer, intent(in) :: mesh
+    type(model_clock_type),            intent(in) :: model_clock
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Arguments for tl and adj calls
     type(field_type)                       :: rhs
@@ -177,10 +182,11 @@ module atlt_wt_advective_update_alg_mod
     wind_wind_input_inner_prod = 0.0_r_def
 
     ! Adjoint
-    call atl_wt_advective_update_alg( rhs, adv_field, wind,    &
-                                      ls_adv_field, ls_wind,   &
-                                      dt, direction,           &
-                                      transport_metadata, final_rk_stage )
+    call atl_wt_advective_update_alg( rhs, adv_field, wind,               &
+                                      ls_adv_field, ls_wind,              &
+                                      dt, direction,                      &
+                                      transport_metadata, final_rk_stage, &
+                                      adj_lookup_table_cache )
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( rhs_rhs_input_inner_prod,             &

@@ -6,6 +6,7 @@
 !> @brief Module containing adjoint test for atl_transport_control_alg
 module atlt_transport_control_alg_mod
 
+  use adj_trans_lookup_cache_mod,          only : adj_trans_lookup_cache_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
   use constants_mod,                       only : r_def, i_def, l_def
@@ -34,16 +35,18 @@ module atlt_transport_control_alg_mod
 
   !=============================================================================
   !> @brief Adjoint test for atl_transport_control_alg
-  !> @param[in]  mesh         The model mesh
-  !> @param[in]  model_clock  The model clock
+  !> @param[in]  mesh                    The model mesh
+  !> @param[in]  model_clock             The model clock
+  !> @param[in]  adj_lookup_table_cache  Lookup table cache
   !>
-  subroutine atlt_transport_control_alg( mesh, model_clock )
+  subroutine atlt_transport_control_alg( mesh, model_clock, adj_lookup_table_cache )
 
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(model_clock_type),   intent(in) :: model_clock
+    type(mesh_type),          pointer, intent(in) :: mesh
+    type(model_clock_type),            intent(in) :: model_clock
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Passive arguments for tl and adj calls
     type(field_type)    :: ls_advected_fields(bundle_size)
@@ -102,7 +105,8 @@ module atlt_transport_control_alg_mod
                                            ls_wind_n,               &
                                            ls_mr_in,                &
                                            model_clock,             &
-                                           outer )
+                                           outer,                   &
+                                           adj_lookup_table_cache )
     end do
 
 
@@ -119,6 +123,7 @@ module atlt_transport_control_alg_mod
   !> @param[in]  ls_mr_in                 Linearisation state mixing ratios
   !> @param[in]  model_clock              The model clock
   !> @param[in]  outer                    The outer iteration variable
+  !> @param[in]  adj_lookup_table_cache   Lookup table cache
   !>
   subroutine run_atlt_transport_control_alg( vector_space_wtheta_ptr, &
                                              vector_space_w2_ptr,     &
@@ -128,7 +133,8 @@ module atlt_transport_control_alg_mod
                                              ls_wind_n,               &
                                              ls_mr_in,                &
                                              model_clock,             &
-                                             outer )
+                                             outer,                   &
+                                             adj_lookup_table_cache )
 
     use tl_transport_control_alg_mod,  only : tl_transport_control_alg
     use atl_transport_control_alg_mod, only : atl_transport_control_alg
@@ -145,6 +151,7 @@ module atlt_transport_control_alg_mod
     type(field_type),     dimension(:), intent(in) :: ls_mr_in
     type(model_clock_type),             intent(in) :: model_clock
     integer(kind=i_def),                intent(in) :: outer
+    type(adj_trans_lookup_cache_type),  intent(in) :: adj_lookup_table_cache
 
     ! Active arguments for tl and adj calls
     type(field_type) :: advection_inc(bundle_size)
@@ -367,7 +374,7 @@ module atlt_transport_control_alg_mod
                                     wind_np1, wind_n, mr_out, mr_in,  &
                                     ls_advected_fields,               &
                                     ls_wind_np1, ls_wind_n, ls_mr_in, &
-                                    model_clock, outer )
+                                    model_clock, outer, adj_lookup_table_cache )
 
     ! < AMx, x >
     ai_ai_inp_inner_prod = 0.0_r_def

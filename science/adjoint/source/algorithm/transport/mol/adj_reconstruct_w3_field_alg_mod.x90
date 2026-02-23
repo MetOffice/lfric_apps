@@ -12,8 +12,7 @@ module adj_reconstruct_w3_field_alg_mod
 
   use invoke_adj_poly1d_recon_lookup_mod,   only: invoke_adj_poly1d_recon_lookup
   use invoke_adj_poly2d_recon_lookup_mod,   only: invoke_adj_poly2d_recon_lookup
-  use adj_lookup_table_generators_alg_mod,  only: create_lookup_poly1d, &
-                                                  create_lookup_poly2d
+  use adj_trans_lookup_cache_mod,           only: adj_trans_lookup_cache_type
   use adj_lookup_table_mod,                 only: adj_lookup_table_type
   use integer_field_mod,                    only: integer_field_type
   use function_space_mod,                   only: function_space_type
@@ -39,23 +38,25 @@ contains
 
   !=============================================================================
   !> @brief Adjoint of reconstruction of a W3 field in the horizontal component of W2
-  !> @param[in,out] field_new           The resulting horizontal W2 field
-  !> @param[in,out] field_old           The input W3 field
-  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in,out] field_new               The resulting horizontal W2 field
+  !> @param[in,out] field_old               The input W3 field
+  !> @param[in]     transport_metadata      Contains transport configuration options
+  !> @param[in]     adj_lookup_table_cache  Lookup table cache
   subroutine adj_hori_w3_reconstruct_alg( field_new, field_old, &
-                                          transport_metadata )
+                                          transport_metadata, adj_lookup_table_cache )
 
     implicit none
 
-    type(r_tran_field_type),       intent(inout) :: field_new
-    type(r_tran_field_type),       intent(inout) :: field_old
-    type(transport_metadata_type), intent(in)    :: transport_metadata
+    type(r_tran_field_type),           intent(inout) :: field_new
+    type(r_tran_field_type),           intent(inout) :: field_old
+    type(transport_metadata_type),     intent(in)    :: transport_metadata
+    type(adj_trans_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
-    type(mesh_type),     pointer :: mesh
-    integer(kind=i_def)          :: mesh_id
-    integer(kind=i_def)          :: stencil_extent
-    integer(kind=i_def)          :: stencil_size
-    type(r_tran_field_type),    pointer :: flux_coeffs
+    type(mesh_type),         pointer :: mesh
+    integer(kind=i_def)              :: mesh_id
+    integer(kind=i_def)              :: stencil_extent
+    integer(kind=i_def)              :: stencil_size
+    type(r_tran_field_type), pointer :: flux_coeffs
 
     type(r_tran_field_type), target  :: remap_field, field_old_big_halo
     type(r_tran_field_type), pointer :: field_ptr
@@ -63,14 +64,14 @@ contains
     logical(kind=l_def) :: monotone
     integer(kind=i_def) :: remap_depth
 
-    type(adj_lookup_table_type)        :: lookup_poly
-    type(integer_field_type),  pointer :: lookup_poly_field
-    type(integer_field_type),  pointer :: num_sets_poly_field
-    integer(kind=i_def)                :: nsets
-    integer(kind=i_def)                :: nindices
+    type(adj_lookup_table_type), pointer :: lookup_poly
+    type(integer_field_type),    pointer :: lookup_poly_field
+    type(integer_field_type),    pointer :: num_sets_poly_field
+    integer(kind=i_def)                  :: nsets
+    integer(kind=i_def)                  :: nindices
 
     nullify(mesh, flux_coeffs, field_ptr, &
-            lookup_poly_field, num_sets_poly_field)
+            lookup_poly, lookup_poly_field, num_sets_poly_field)
 
     mesh => field_new%get_mesh()
     mesh_id = mesh%get_id()
@@ -111,10 +112,7 @@ contains
 
     else if ( oned_reconstruction ) then
       ! Use 1d flux reconstruction
-      ! Create lookup table for stencil application. Essentially a dry run
-      ! of the TL kernel.
-      call create_lookup_poly1d( lookup_poly, field_new, field_ptr, &
-                                 flux_coeffs, stencil_extent, fv_horizontal_order )
+      lookup_poly => adj_lookup_table_cache%get_lookup_poly1d()
       lookup_poly_field => lookup_poly%get_lookup_field()
       num_sets_poly_field => lookup_poly%get_set_count_field()
       nindices = lookup_poly%get_nindices()
@@ -128,10 +126,7 @@ contains
     else
       ! Use 2d flux reconstruction
       stencil_extent = fv_horizontal_order / 2_i_def
-      ! Create lookup table for stencil application. Essentially a dry run
-      ! of the TL kernel.
-      call create_lookup_poly2d( lookup_poly, field_new, field_old_big_halo, flux_coeffs, &
-                                 stencil_size, stencil_extent )
+      lookup_poly => adj_lookup_table_cache%get_lookup_poly2d(field_new%which_function_space())
       lookup_poly_field => lookup_poly%get_lookup_field()
       num_sets_poly_field => lookup_poly%get_set_count_field()
       nindices = lookup_poly%get_nindices()

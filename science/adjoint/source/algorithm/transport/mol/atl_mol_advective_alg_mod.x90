@@ -13,6 +13,7 @@ module atl_mol_advective_alg_mod
   use mesh_mod,                       only: mesh_type
 
   ! Algorithms and transport code
+  use adj_trans_lookup_cache_mod,     only: adj_trans_lookup_cache_type
   use advective_and_flux_alg_mod,     only: advective_and_flux_alg
   use atl_advective_and_flux_alg_mod, only: atl_advective_and_flux_alg
   use end_of_transport_step_alg_mod,  only: end_of_advective_step_alg
@@ -38,14 +39,14 @@ contains
 
   !=============================================================================
   !> @brief Adjoint of tangent linear advection of a field with the MOL scheme.
-  !> @param[in,out] field_np1   ACTIVE  Field at the end of the time step
-  !> @param[in]     field       ACTIVE  Field at the start of the transport step
-  !> @param[in]     ls_field    PASSIVE Field at the start of the transport step
-  !> @param[in]     direction   Direction of advection (vertical, horizontal, or 3d)
-  !> @param[in,out] tl_transport_controller
-  !!                            Object controlling transport
+  !> @param[in,out] field_np1                ACTIVE  Field at the end of the time step
+  !> @param[in]     field                    ACTIVE  Field at the start of the transport step
+  !> @param[in]     ls_field                 PASSIVE Field at the start of the transport step
+  !> @param[in]     direction                Direction of advection (vertical, horizontal, or 3d)
+  !> @param[in,out] tl_transport_controller  Object controlling transport
+  !> @param[in]     adj_lookup_table_cache   Lookup table cache
   subroutine atl_mol_advective_alg( field_np1, field, ls_field, &
-                                    tl_transport_controller )
+                                    tl_transport_controller, adj_lookup_table_cache )
 
     implicit none
 
@@ -53,6 +54,7 @@ contains
     type(field_type),                   intent(inout) :: field
     type(field_type),                   intent(in)    :: ls_field
     type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
+    type(adj_trans_lookup_cache_type),  intent(in)    :: adj_lookup_table_cache
 
     ! Internal variables
     integer(kind=i_def)                      :: stage, s, direction
@@ -253,7 +255,7 @@ contains
                 dummy, dummy, rhs, rhs_field, advecting_wind,                  &
                 stored_ls_field(ls_substep, ls_stage), ls_advecting_wind,      &
                 direction, transport_metadata, final_rk_stage, dt_mol_substep, &
-                .false., .true.                                                &
+                .false., .true., adj_lookup_table_cache                        &
         )
 
         do s = stage, 1, -1

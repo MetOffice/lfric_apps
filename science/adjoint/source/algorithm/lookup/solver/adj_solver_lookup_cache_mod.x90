@@ -34,9 +34,7 @@ module adj_solver_lookup_cache_mod
 
       procedure, public :: initialise => adj_solver_lookup_cache_init
       procedure, public :: get_lookup_apply_hho
-      procedure, public :: adj_solver_lookup_cache_assign
       procedure, public :: finalise => adj_solver_lookup_cache_final
-      generic,   public :: assignment(=) => adj_solver_lookup_cache_assign
 
   end type adj_solver_lookup_cache_type
 
@@ -66,7 +64,7 @@ module adj_solver_lookup_cache_mod
 
     ! Arguments
     class(adj_solver_lookup_cache_type), intent(inout) :: self
-    type(mesh_type),              pointer, intent(in) :: mesh
+    type(mesh_type),            pointer, intent(in)    :: mesh
 
     ! Internal variables
     type(function_space_type),                pointer :: vector_space_w3_ptr
@@ -87,18 +85,19 @@ module adj_solver_lookup_cache_mod
     else
        self%multigrid_levels=1
     end if
-    allocate(self%lookup_apply_hho(self%multigrid_levels))
+    ! Extra level needed for coarse operator
+    allocate(self%lookup_apply_hho(self%multigrid_levels + 1))
 
     if (l_multigrid) then
       call multigrid_function_space_chain%set_current(vector_space_w3_ptr%get_id())
     end if
 
-    do level = 1, self%multigrid_levels
+    do level = 1, self%multigrid_levels + 1
       call vector_x%initialise(vector_space_w3_ptr)
       call invoke(setval_c(vector_x, 0.0_r_solver))
       call create_lookup_apply_helmholtz_op(self%lookup_apply_hho(level), &
                                             vector_x)
-      if(l_multigrid) then
+      if((l_multigrid) .and. (level < self%multigrid_levels)) then
         vector_space_w3_ptr => multigrid_function_space_chain%get_next()
       end if
     end do
@@ -122,40 +121,21 @@ module adj_solver_lookup_cache_mod
 
     ! Arguments
     class(adj_solver_lookup_cache_type), target, intent(in) :: self
-    integer(kind=i_def),                        intent(in) :: level
+    integer(kind=i_def),                         intent(in) :: level
 
     ! Returns
-    type(adj_lookup_table_type),                   pointer :: lookup_ptr
+    type(adj_lookup_table_type),                    pointer :: lookup_ptr
 
     if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
+    if ((level < 1) .and. (level > self%multigrid_levels + 1)) then
+      write(log_scratch_space,*) "get_lookup_apply_hho: Requested level must be between 1 and ", &
+                                  self%multigrid_levels + 1, "but level = ", level
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
     nullify(lookup_ptr)
     lookup_ptr => self%lookup_apply_hho(level)
 
   end function get_lookup_apply_hho
-
-  !=============================================================================
-  !> @brief   Assignment operator.
-  !> @details Implemented to avoid pointer aliasing preventing compiler optimisations.
-  subroutine adj_solver_lookup_cache_assign(dest, source)
-
-    implicit none
-
-    class(adj_solver_lookup_cache_type), intent(in)  :: source
-    class(adj_solver_lookup_cache_type), intent(out) :: dest
-
-    ! Internal variables
-    integer(kind=i_def)                              :: level
-
-    if (.not. source%is_initialised) call log_event("Source cache in copy assignment is not initialised", LOG_LEVEL_ERROR)
-
-    dest%multigrid_levels = source%multigrid_levels
-    allocate(dest%lookup_apply_hho(dest%multigrid_levels))
-    do level = 1_i_def, source%multigrid_levels
-      dest%lookup_apply_hho(level) = source%lookup_apply_hho(level)
-    end do
-    dest%is_initialised = .true._l_def
-
-  end subroutine adj_solver_lookup_cache_assign
 
   !=============================================================================
   !> @brief Destructor.
@@ -171,7 +151,7 @@ module adj_solver_lookup_cache_mod
     integer(kind=i_def)                                :: level
 
     if (self%is_initialised) then
-      do level = 1, self%multigrid_levels
+      do level = 1, self%multigrid_levels + 1
         call self%lookup_apply_hho(level)%finalise()
       end do
       if (allocated(self%lookup_apply_hho)) deallocate(self%lookup_apply_hho)
