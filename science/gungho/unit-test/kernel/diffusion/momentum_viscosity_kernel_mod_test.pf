@@ -51,7 +51,7 @@ contains
         rehabilitate=.true.,               &
         vorticity_in_w1=.false. )
 
-    call init_chi_transforms(imdi,imdi)
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine setUp
 
