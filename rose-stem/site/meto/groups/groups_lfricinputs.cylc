@@ -46,6 +46,14 @@
         "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_full-debug-64bit",
     ],
+    "um2lfric_ex1a_nwp_gal9_N1280": [
+        "lfricinputs_um2lfric-nwp_gal9-N1280L70_C224L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N1280L70_C224L70_ex1a_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_nwp_gal9_C896": [
+        "lfricinputs_um2lfric-nwp_gal9-N1280L70_C896L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N1280L70_C896L70_ex1a_gnu_full-debug-64bit",
+    ],
 
     "um2lfric_azspice_nwp_gal9": [
         "um2lfric_azspice_nwp_gal9_C12",
@@ -208,6 +216,8 @@
     ],
     "um2lfric_ex1a_weekly": [
         "um2lfric_ex1a_nwp_gal9_C224",
+        "um2lfric_ex1a_nwp_gal9_N1280",
+        "um2lfric_ex1a_nwp_gal9_C896",
     ],
     "lfric2um_ex1a_developer": [
         "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit",
