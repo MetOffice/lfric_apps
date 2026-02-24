@@ -7,13 +7,14 @@
 **/adjoint_tests             @DrTVockerodtMO                     # @mo-joshuacolclough
 **/gravity_wave              @thomasmelvin                       # @cjohnson-pi
 **/gungho_model              @thomasmelvin                       # @BShipway
-**/jedi_lfric_tests          @ss421  @matthewrmshin              # @DavidSimonin
+**/jedi_lfric_tests          @MetOffice/r2o-sytems               # @DavidSimonin
 **/jules                     @iboutle                            # @MetOfficessdtesam
+**/lfric2lfric               @mo-lottieturner                    # @mike-hobson
 **/lfricinputs               @mo-lottieturner                    # @mike-hobson
 **/lfric_atm                 @iboutle                            # @BShipway
 **/lfric_coupled             @HengistPodd                        # @BShipway
 **/lfricinputs               @mo-lottieturner                    # @mike-hobson
-**/linear_model              @cjohnson-pi @ss421 @matthewrmshin  # @tommbendall  # Also notifiy jedi team about linear changes.
+**/linear_model              @cjohnson-pi @MetOffice/r2o-sytems  # @tommbendall  # Also notifiy jedi team about linear changes.
 **/name_transport            @jameskent-metoffice                # @tommbendall
 **/ngarch                    @christophermaynard                 # @jcsmeto
 **/shallow_water             @jameskent-metoffice                # @atb1995
@@ -22,7 +23,7 @@
 
 # Science
 **/adjoint                              @DrTVockerodtMO                     # @mo-joshuacolclough
-**/linear                               @cjohnson-pi  @ss421 @matthewrmshin # @tommbendall # Also notifiy jedi team about linear changes.
+**/linear                               @cjohnson-pi  @MetOffice/r2o-sytems # @tommbendall # Also notifiy jedi team about linear changes.
 science/shared/source/constants/        @iboutle                            # @BShipway
 
 **/gungho                               @thomasmelvin                       # @iboutle
@@ -53,7 +54,7 @@ science/physics_schemes/**/stochastic_physics           @wjtmo              # @a
 
 # Interfaces
 **/coupled_interface            @mike-hobson                        # @harry-shepherd
-**/jedi_lfric_interface         @ss421  @matthewrmshin              # @DavidSimonin
+**/jedi_lfric_interface         @MetOffice/r2o-sytems               # @DavidSimonin
 **/jules_interface              @iboutle                            # @MetOfficessdteam
 **/jules_interface/rose-meta    @maggiehendry
 **/physics_schemes_interface    @iboutle                            # @MetOfficessdteam
