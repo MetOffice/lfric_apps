@@ -92,7 +92,7 @@ contains
                                    horizontal_transport_predictor=.false., &
                                    vector_invariant=.false.)
 
-    call init_chi_transforms(imdi,imdi)
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine setUp
 
