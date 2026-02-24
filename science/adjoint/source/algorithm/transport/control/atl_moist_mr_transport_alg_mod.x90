@@ -15,6 +15,7 @@ module atl_moist_mr_transport_alg_mod
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
   use tl_transport_controller_mod,    only: tl_transport_controller_type
+  use adj_trans_lookup_cache_mod,     only: adj_trans_lookup_cache_type
   use transport_enumerated_types_mod, only: equation_form_advective, &
                                             equation_form_conservative
   use atl_transport_field_mod,        only: atl_transport_field
@@ -30,29 +31,30 @@ contains
 
   !=============================================================================
   !> @brief Central routine for adjoint transport of moisture fields.
-  !> @param[in,out] mr_out     ACTIVE  Perturbation to moisture mixing ratios
-  !> @param[in,out] mr_in      ACTIVE  Input perturbation state for moisture
-  !> @param[in]     ls_mr_in   PASSIVE Lin. state for moisture mixing ratios
-  !> @param[in]     nummr_to_transport Number of moisture species to transport
-  !> @param[in,out] tl_transport_controller
-  !!                           Object controlling transport
-  !> @param[in,out] transport_metadata
-  !!                           Contains the configuration options for
-  !!                           transporting these fields
+  !> @param[in,out] mr_out                   ACTIVE  Perturbation to moisture mixing ratios
+  !> @param[in,out] mr_in                    ACTIVE  Input perturbation state for moisture
+  !> @param[in]     ls_mr_in                 PASSIVE Lin. state for moisture mixing ratios
+  !> @param[in]     nummr_to_transport       Number of moisture species to transport
+  !> @param[in,out] tl_transport_controller  Object controlling transport
+  !> @param[in,out] transport_metadata       Contains the configuration options for
+  !!                                         transporting these fields
+  !> @param[in]     adj_lookup_table_cache   Lookup table cache
   subroutine atl_moist_mr_transport_alg( mr_out, mr_in, ls_mr_in, &
                                          nummr_to_transport,      &
                                          tl_transport_controller, &
-                                         transport_metadata )
+                                         transport_metadata,      &
+                                         adj_lookup_table_cache )
 
     implicit none
 
     ! Arguments
     type(field_type),                   intent(inout) :: mr_out(nummr)
     type(field_type),                   intent(inout) :: mr_in(nummr)
-    type(field_type),                      intent(in) :: ls_mr_in(nummr)
-    integer(kind=i_def),                   intent(in) :: nummr_to_transport
+    type(field_type),                   intent(in)    :: ls_mr_in(nummr)
+    integer(kind=i_def),                intent(in)    :: nummr_to_transport
     type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
     type(transport_metadata_type),      intent(inout) :: transport_metadata
+    type(adj_trans_lookup_cache_type),  intent(in)    :: adj_lookup_table_cache
 
     ! Internal variables
     integer(kind=i_def) :: imr
@@ -80,7 +82,8 @@ contains
       ! Simply transport all the mixing ratio fields as they are in Wtheta
       do imr = nummr_to_transport, 1, -1
         call atl_transport_field( mr_out(imr), mr_in(imr), ls_mr_in(imr), &
-                                  tl_transport_controller, transport_metadata )
+                                  tl_transport_controller, transport_metadata, &
+                                  adj_lookup_table_cache )
       end do
 
     ! ------------------------------------------------------------------------ !

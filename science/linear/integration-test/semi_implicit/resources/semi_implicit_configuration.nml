@@ -132,7 +132,7 @@ subroutine_counters=.false.,
 subroutine_timers=.true.,
 use_xios_io=.false.,
 write_conservation_diag=.false.,
-write_diag=.true.,
+write_diag=.false.,
 write_dump=.false.,
 write_fluxes=.false.,
 write_minmax_tseries=.false.,
@@ -140,6 +140,7 @@ write_minmax_tseries=.false.,
 &linear
 fixed_ls=.false.
 pert_option='random',
+transport_efficiency=.false.
 /
 &logging
 run_log_level='info',

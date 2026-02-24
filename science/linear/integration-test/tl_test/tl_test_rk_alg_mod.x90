@@ -251,6 +251,7 @@ module tl_test_rk_alg_mod
 
       ! Evolve the perturbation fields with the linear timestep. This
       ! gives p_x=L(gamma r_x)
+      call tl_rk_alg_final()
       call tl_rk_alg_init(mesh, p_u, p_rho, p_theta, p_exner, &
                           ls_u, ls_rho, ls_theta, ls_exner)
 
@@ -300,7 +301,6 @@ module tl_test_rk_alg_mod
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
       norm_diff = norm_rho + norm_theta + norm_exner + norm_u + norm_moist_dyn
-      norm_diff = sqrt(norm_diff)
 
       if (n == 2) then
         ! Compare results from first and second iteration

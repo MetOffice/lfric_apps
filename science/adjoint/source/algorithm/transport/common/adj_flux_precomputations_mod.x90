@@ -141,7 +141,7 @@ module adj_flux_precomputations_mod
 
     class(flux_precomputations_type), intent(inout) :: flux_pc
     integer(kind=i_def),              intent(in)    :: step
-    type(r_tran_field_type),          intent(in)    :: ref_flux
+    type(r_tran_field_type),          intent(inout) :: ref_flux
 
     ! Local variables
     integer(kind=i_def)                :: splitting

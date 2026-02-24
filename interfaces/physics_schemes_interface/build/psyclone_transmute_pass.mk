@@ -13,6 +13,10 @@ TRANSMUTE_INCLUDE_METHOD ?= specify_include
 # Set the DSL Method in use to collect the correct transformation files.
 DSL := transmute
 
+# Set default PSyclone transmute command additional options
+PSYCLONE_TRANSMUTE_EXTRAS ?= -l all
+#
+
 # Find the specific files we wish to pre-processed and PSyclone from physics source
 # Set our target dependency to the version of the file we are to generate after
 # the psycloning step.
@@ -35,6 +39,6 @@ psyclone_pass: $(SOURCE_F_FILES_PASS)
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90
 	echo PSyclone pass with no optimisation applied, OMP and Clauses removed on $<
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
-			-l all \
 			-o $(SOURCE_DIR)/$*.f90 \
+			$(PSYCLONE_TRANSMUTE_EXTRAS) \
 			$<
