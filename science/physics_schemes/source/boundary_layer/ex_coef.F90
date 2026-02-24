@@ -24,11 +24,10 @@ contains
 
 subroutine ex_coef (                                                           &
 ! in levels/logicals
- bl_levels,k_log_layr,nSCMDpkgs,L_SCMDiags, BL_diag,                           &
+ bl_levels, k_log_layr, BL_diag,                                               &
 ! in fields
- sigma_h,flandg,dbdz,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m,h_blend,zhpar,          &
- ntpar,ntml_nl,ntdsc,nbdsc,u_p,v_p,v_s,fb_surf,qw,tl,l_shallow_cth,rmlmax2,    &
- rneutml_sq, delta_smag,                                                       &
+ sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m,zhpar,ntpar,                 &
+ ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq, delta_smag,             &
 ! in/out fields
  cumulus,weight_1dbl,                                                          &
 ! out fields
@@ -39,18 +38,17 @@ subroutine ex_coef (                                                           &
 use atm_fields_bounds_mod, only: pdims, tdims, pdims_s
 use bl_diags_mod, only: strnewbldiag
 use bl_option_mod, only:  WeightLouisToLong, Variable_RiC, cbl_op,             &
-   sg_orog_mixing, ricrit_sharp, pr_max, l_lambdam2, l_full_lambdas,           &
+   sg_orog_mixing, ricrit_sharp, pr_max,                                       &
    local_fa,Prandtl,ishear_bl,L_SBLco,Muw_SBL,Mwt_SBL,sbl_op,                  &
-   LockMailhot2004, depth_based, lem_stability, lem_std, lem_conven,           &
+   LockMailhot2004, lem_stability, lem_std, lem_conven,                        &
    lem_adjust, cbl_mix_fac_nml,                                                &
    off, on, sharpest, sharp_sea_long_land, sharp_sea_mes_land,                 &
    louis_tails, sharp_sea_louis_land, long_tails, mes_tails, ritrans,          &
-   neut_cbl, equilibrium_sbl, lambda_min_nml, lambda_max_nml,                  &
+   neut_cbl, lambda_min_nml, lambda_max_nml,                                   &
    lambda_fac, beta_bl, beta_fa, rlinfac, linear0,                             &
    to_sharp_across_1km, ntml_level_corrn, free_trop_layers, two_thirds,        &
    blending_option, blend_except_cu, blend_gridindep_fa, blend_cth_shcu_only,  &
-   extended_tail, sg_shear_enh_lambda, l_use_var_fixes, var_diags_opt,         &
-   split_tke_and_inv, zero, one, one_half
+   extended_tail, zero, one, one_half
 use conversions_mod, only: pi => pi_bl
 use gen_phys_inputs_mod, only: l_mr_physics
 
@@ -63,8 +61,6 @@ use stochastic_physics_run_mod, only:                                          &
 use turb_diff_mod, only: l_subfilter_vert, l_subfilter_horiz
 
 use model_domain_mod, only: model_type, mt_single_column
-use s_scmop_mod,      only: default_streams,                                   &
-                            t_avg, d_sl, scmdiag_bl
 
 use yomhook, only: lhook, dr_hook
 use parkind1, only: jprb, jpim
@@ -98,20 +94,6 @@ real(kind=r_bl), intent(in) ::                                                 &
             bl_levels),                                                        &
                  ! in density on theta levels;
                  !    used in RHOKM so wet density
- dbdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                     &
-      2:bl_levels),                                                            &
-                 ! in Buoyancy gradient across lower
-                 !    interface of layer.
- u_p(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),           &
-                 ! in Westerly wind component horizontally
-                 !    interpolated to P-grid. (m/s)
- v_p(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),           &
-                 ! in Southerly wind component horizontally
-                 !    interpolated to P-grid. (m/s)
- qw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
-                 ! in Total water content (kg per kg air).
- tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
-                 ! in Liquid/frozen water temperature (K).
  rmlmax2(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),       &
                  ! in Square of asymptotic mixing length for Smagorinsky scheme
  z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels+1),        &
@@ -123,18 +105,11 @@ real(kind=r_bl), intent(in) ::                                                 &
                  ! in Height of top of initial parcel ascent
  z0m(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                     &
                  ! in Roughness length for momentum (m).
- h_blend(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
-                 ! in Blending height for effective
-                 !    roughness length scheme
  dvdzm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        2:bl_levels),                                                           &
                  ! in Modulus of wind shear.
  ri(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,2:bl_levels),          &
                  ! in Local Richardson number.
- v_s(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                     &
-                 ! in Surface friction velocity  (m/s)
- fb_surf(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
-                 ! in Surface buoyancy flux over density (m^2/s^3).
  flandg(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end),          &
                  ! in Land fraction on all tiles.
  rneutml_sq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),    &
@@ -145,13 +120,6 @@ real(kind=r_bl), intent(in) ::                                                 &
 logical, intent(in) ::                                                         &
   l_shallow_cth(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
                  ! in Flag to indicate shallow convection based on cl-top
-
-! Additional variables for SCM diagnostics which are dummy in full UM
-integer, intent(in) ::                                                         &
-  nSCMDpkgs      ! in No of SCM diagnostics packages
-
-logical, intent(in) ::                                                         &
-  L_SCMDiags(nSCMDpkgs) ! Logicals for SCM diagnostics packages
 
 ! Declaration of new BL diagnostics.
 type (strnewbldiag), intent(in out) :: BL_diag
@@ -216,7 +184,7 @@ real(kind=r_bl), intent(out) ::                                                &
 
 character(len=*), parameter ::  RoutineName = 'EX_COEF'
 
-real(kind=r_bl) :: eh,em,g0,dh,dm,a_lambda,r_c_tke
+real(kind=r_bl) :: eh,em,g0,dh,dm,r_c_tke
 real(kind=r_bl) :: subbmin,subbmax,subcmin,subcmax
 real(kind=r_bl) :: a_ri,b_ri
 
@@ -225,8 +193,6 @@ parameter (                                                                    &
                  ! Used in calc of stability function FH.
  em=4.0_r_bl,                                                                  &
                  ! Used in calc of stability function FM.
- a_lambda=2.0_r_bl,                                                            &
-                 ! used in calc of LAMBDA_EFF
  r_c_tke=one/0.41_r_bl                                                         &
                  ! used in calc of TKE (1/stress-energy ratio, see UMDP25)
            )
@@ -246,20 +212,6 @@ parameter (                                                                    &
                  ! Used in calc of unstability function FM.
            )
 
-!  Equilibrium SBL model constants
-real(kind=r_bl) ::    RtestMin
-integer :: gn,NGz,kMINh
-parameter (                                                                    &
- RtestMin=zero,                                                                &
-                 ! Threshold for Rtest
- gn=19,                                                                        &
-                 ! Size of "G"-tables (No. HonL values)
- NGz=90,                                                                       &
-                 ! No. z/h steps in each "G" integration
- kMINh=2                                                                       &
-                 ! Level of minimum SBL height (>=2)
-)
-
 !  Define local storage.
 real(kind=r_bl) ::                                                             &
  ricrit(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                  &
@@ -268,21 +220,6 @@ real(kind=r_bl) ::                                                             &
                  ! 2D variable for SBL stabiliy function options
  sharp(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
                  ! 2D variable for SHARP stabiliy function
- invMOsurf(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),               &
-                 ! Inverse of sfce M-O length
-                 ! Note: Inverse is used so that neutral conditions
-                 !       can be handled (M-O length --> infinity)
- zh_esbl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
-                 ! Ht of equilib SBL (sub-grid
- HLtab(gn),                                                                    &
-                 ! Lookup tables (Gx calcs
- GHsav(gn,NGz),gmsav(gn,NGz),                                                  &
-                 ! in equilib SBL scheme)
- THv_TQ(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
-        bl_levels),                                                            &
-                 ! Virtual potential temperature on theta levels
- THv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),           &
-                 ! THv_TQ interpolated to U,V levels
  prandtl_number(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),          &
                  ! = KM/KH (currently only calculated for stable)
  BL_weight(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                &
@@ -295,10 +232,6 @@ real(kind=r_bl) ::                                                             &
                  ! indexed as Ri (m)
  weight_bltop(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
                  ! weight_1dbl at the top of the PBL
-
-integer ::                                                                     &
- ntml_esbl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                 ! No. UV-levels inside equilibrium SBL
 
 logical ::                                                                     &
  topbl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
@@ -319,25 +252,12 @@ real(kind=r_bl) ::                                                             &
                  ! z/sigma_h
  rpr
                  ! !/Pr
-! Variables for boundary layer depth based formulation
-real(kind=r_bl) ::                                                             &
-  h_tkeb(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
-                 ! TKE budget based BL depth
-  MOsurf(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
-                 ! surface Obukhov length
-  diff_min(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
 
 real(kind=r_bl) ::                                                             &
- h_est,                                                                        &
- rifb,                                                                         &
-                  ! Bulk flux Richardson number
  pr_n,                                                                         &
                   ! neutral Prandtl number
- r_pr_n,                                                                       &
+ r_pr_n
                   ! 1 / neutral Prandtl number
- m_tau,m_buoy,                                                                 &
-                  ! Indices for implied stress and buoyancy flux profs
- ind,diff
 
 real(kind=r_bl) ::                                                             &
  subb, subc, subg, ric, ricinv, rifac
@@ -373,12 +293,7 @@ real(kind=r_bl) ::                                                             &
                  ! top of boundary layer mixing
  zfa,                                                                          &
                  ! height to use beta_fa in blendin
- lambda_eff      ! Effective mixing length used with effective
-                 ! roughness length scheme.
-
-!Equilibrium SBL model temporary real scalar variables
-real(kind=r_bl) ::                                                             &
- km, u1, zz
+ zz
 
 integer ::                                                                     &
  i,j,                                                                          &
@@ -388,38 +303,15 @@ integer ::                                                                     &
  kb, kt
                ! Base and top level of unstable Ri layers
 
-!Equilibrium SBL model temporary integer scalar variables
-integer ::                                                                     &
- kZtop,kZbot,gk,kG0,                                                           &
-               ! Temporary loop counters
- iERRSBL       ! SBLequil error status
-
-!Equilibrium SBL model logical variables
 logical ::                                                                     &
- GcalcDone,                                                                    &
-               ! Calculation of Gx values has been performed
- subcrit,                                                                      &
-               ! flag for being in a subcritical ri layer
- subgrid       ! Will perform subgrid SBL depth calculation
-
-!Switch to enable subgrid SBL depth diagnosis
-logical ::    sg_enabled
-parameter (sg_enabled=.true.)
-
-!Equilibrium SBL model SAVED variables
-save HLtab,GHsav,gmsav,GcalcDone
-
-!Equilibrium SBL model data statements
-data HLtab /0.0001_r_bl,0.001_r_bl,0.002_r_bl,0.005_r_bl,0.01_r_bl,0.02_r_bl,  &
-            0.05_r_bl,0.1_r_bl,0.2_r_bl,one_half,one,2.0_r_bl,5.0_r_bl,        &
-            10.0_r_bl,20.0_r_bl,50.0_r_bl,100.0_r_bl,200.0_r_bl,500.0_r_bl/
-data GcalcDone /.false./
+ subcrit       ! flag for being in a subcritical ri layer
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
 !-----------------------------------------------------------------------
 !   if stochastic physics random parameters is used set the parameter
 !   used to vary the stability function to a perturbed value, if not
@@ -443,7 +335,6 @@ dm=g0/em                 ! Used in calc of stability function FM.
 !---------------------------------------------------------------
 pr_n = one
 if (Prandtl == LockMailhot2004) pr_n = 0.7_r_bl
-if (sbl_op  ==  depth_based)    pr_n = 0.7_r_bl
 ! Use pr_n=0.7 if any LEM stability function selected
 if (sbl_op == lem_stability .or. cbl_op == lem_std                             &
                             .or. cbl_op == lem_conven                          &
@@ -496,7 +387,7 @@ ric = 0.25_r_bl
 ricinv = one/ric
 rlambda_fac=one/lambda_fac
 
-!$OMP PARALLEL DEFAULT(SHARED) private ( i, j, k, z_scale, zpr )
+!$OMP PARALLEL DEFAULT(SHARED) private ( i, j )
 !$OMP do SCHEDULE(STATIC)
 do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
@@ -504,104 +395,12 @@ do j = pdims%j_start, pdims%j_end
     ! 0. Initialise flag for having reached top of turbulently mixed layer
     !-----------------------------------------------------------------------
     topbl(i,j)     = .false.
-
     prandtl_number(i,j) = pr_n
     ! initialise blending weight at top of BL to one
     weight_bltop(i,j)   = one
   end do
 end do
 !$OMP end do NOWAIT
-!-----------------------------------------------------------------------
-! Set-up a BL weighting function, =1 near the ground (ie in the BL)
-!                                 =0 in the free troposphere
-! Rate and height at which transition occurs varys depending on choices:
-!-----------------------------------------------------------------------
-!$OMP do SCHEDULE(STATIC)
-do k = 1, bl_levels
-  do j = pdims%j_start, pdims%j_end
-    do i = pdims%i_start, pdims%i_end
-      BL_weight(i,j,k) = one
-    end do
-  end do
-end do
-!$OMP end do
-
-if (local_fa == to_sharp_across_1km) then
-  !---------------------------------------------------------
-  ! Additional code to allow the local Ri scheme to use
-  ! SHARPEST in the free atmosphere, ie above the BL top,
-  ! regardless of the tail option selected above.
-  ! Set Z_SCALE to 1km to mimic old value of BL_LEVELS,
-  !  gives BL_weight~0 by 2km, ~0.95 at 500m
-  !---------------------------------------------------------
-  z_scale = 1000.0_r_bl
-!$OMP do SCHEDULE(STATIC)
-  do k = 2, bl_levels
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        zpr = z_tq(i,j,k-1)/z_scale
-        BL_weight(i,j,k) = one_half*(one - tanh(3.0_r_bl*(zpr-one) ) )
-      end do
-    end do
-  end do
-!$OMP end do NOWAIT
-end if
-
-if (sg_orog_mixing /= off) then
-  !-----------------------------------------------------------------
-  ! Subgrid orographic height dependence for SBL tail (option 1)
-  ! or orographic dependence of mixing lengths, lambdam,h (opt 2)
-  ! Gives BL_weight~[1,0.95,0.5,0] at ZPR=[0,0.6,1,1.7]
-  !----------------------------------------------------------------
-!$OMP do SCHEDULE(STATIC)
-  do k = 2, bl_levels
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        if (sigma_h(i,j) > one ) then
-          zpr = z_tq(i,j,k-1)/sigma_h(i,j)
-          BL_weight(i,j,k) = one_half*( one -                                  &
-               tanh(4.0_r_bl*(zpr-one) ) )
-        end if
-      end do
-    end do
-  end do
-!$OMP end do NOWAIT
-end if
-
-if (l_use_var_fixes) then
-!$OMP do SCHEDULE(STATIC)
-  do k = 2, bl_levels
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        turb_length(i,j,k) = lambda_min*rlambda_fac
-      end do
-    end do
-  end do
-!$OMP end do NOWAIT
-  if (blending_option == blend_cth_shcu_only) then
-    ! use Smag mixing length as background length scale if smaller
-    ! than lambda_min (ie ignore lambda_min for high res simulations)
-!$OMP do SCHEDULE(STATIC)
-    do k = 2, bl_levels
-      do j = pdims%j_start, pdims%j_end
-        do i = pdims%i_start, pdims%i_end
-          turb_length(i,j,k) = min( turb_length(i,j,k), sqrt(rmlmax2(i,j,k)) )
-        end do
-      end do
-    end do
-!$OMP end do NOWAIT
-  end if
-else
-!$OMP do SCHEDULE(STATIC)
-  do k = 2, bl_levels
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        turb_length(i,j,k)=lambda_min
-      end do
-    end do
-  end do
-!$OMP end do NOWAIT
-end if
 !-----------------------------------------------------------------------
 ! Set critical Richardson number
 !-----------------------------------------------------------------------
@@ -699,20 +498,18 @@ if (l_subfilter_vert .or. l_subfilter_horiz) then
 end if
 
 !-----------------------------------------------------------------------
-!  1.1 Loop over levels calculating Richardson numbers.
+!  1.1 Use Richardson number profile to calculate BL depth, zh
 !-----------------------------------------------------------------------
-
 !$OMP PARALLEL DEFAULT(none) private(k,j,i)                                    &
 !$OMP SHARED(bl_levels,pdims,topbl,ri,ricrit,local_fa,ntml_local,zh_local,z_uv)
 do k = 2, bl_levels
 !$OMP do SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
-
       !------------------------------------------------------------------
-      ! 1.2 If either a stable layer (Ri>RiCrit) or the maximum BL
-      !     height has been reached, set boundary layer height (ZH_LOCAL) to
-      !     the height of the lower boundary of the current layer
+      ! If either a stable layer (Ri>RiCrit) or the maximum BL
+      ! height has been reached, set boundary layer height (ZH_LOCAL) to
+      ! the height of the lower boundary of the current layer
       !------------------------------------------------------------------
       if ( .not. topbl(i,j) .and.                                              &
            (ri(i,j,k) >  ricrit(i,j) .or. k == bl_levels) ) then
@@ -741,18 +538,17 @@ if (BL_diag%l_zhlocal) then
 end if
 
 !-----------------------------------------------------------------------
-! In CUMULUS layers the local scheme is capped at the LCL (given in
-! this case by NTML_NL).  Save local BL depth as SCM diagnostic.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-! If NTML_LOCAL is greater than the top of the parcel ascent (NTPAR)
-! for a cumulus-capped layer, shear driven mixing is allowed to
-! dominate (if ISHEAR_BL=1 selected)
+! 1.2 In CUMULUS layers the local scheme is capped at the LCL (given in
+!     this case by NTML_NL).
+!     If NTML_LOCAL is greater than the top of the parcel ascent (NTPAR)
+!     for a cumulus-capped layer, shear driven mixing is allowed to
+!     dominate (if ISHEAR_BL=1 selected)
 !-----------------------------------------------------------------------
 !$OMP PARALLEL DEFAULT(none)                                                   &
-!$OMP SHARED( pdims, ishear_bl, l_use_var_fixes, ntml_local, ntpar, cumulus,   &
-!$OMP         ntml_nl, zh_local, z_uv )                                        &
-!$OMP private( i, j )
+!$OMP SHARED( pdims, ishear_bl, ntml_local, ntpar, cumulus,                    &
+!$OMP         bl_levels, lambda_min, rlambda_fac,                              &
+!$OMP         turb_length, blending_option, rmlmax2)                           &
+!$OMP private( i, j, k )
 !$OMP do SCHEDULE(STATIC)
 do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
@@ -762,30 +558,37 @@ do j = pdims%j_start, pdims%j_end
   end do
 end do
 !$OMP end do
-
-if ( .not. l_use_var_fixes ) then
-  ! Use sub-cloud layer as local PBL depth (as for non-local).
-  ! Found to give large TKE and variances with new diagnostics
-  ! and isn't particularly justifiable
-!$OMP do SCHEDULE(STATIC)
-  do j = pdims%j_start, pdims%j_end
-    do i = pdims%i_start, pdims%i_end
-      if ( cumulus(i,j) ) then
-        ntml_local(i,j) = ntml_nl(i,j)
-        zh_local(i,j) = z_uv(i,j,ntml_local(i,j)+1)
-      end if
-    end do
-  end do
-!$OMP end do
-end if
-!$OMP end PARALLEL
 !-----------------------------------------------------------------------
 ! 1.3 Search for sub-critical layers above the PBL and set the
 !      mixing length to scale with these layer depths
 !-----------------------------------------------------------------------
+!$OMP do SCHEDULE(STATIC)
+do k = 2, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
+      turb_length(i,j,k) = lambda_min*rlambda_fac
+    end do
+  end do
+end do
+!$OMP end do NOWAIT
+if (blending_option == blend_cth_shcu_only) then
+  ! use Smag mixing length as background length scale if smaller
+  ! than lambda_min (ie ignore lambda_min for high res simulations)
+!$OMP do SCHEDULE(STATIC)
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
+        turb_length(i,j,k) = min( turb_length(i,j,k), sqrt(rmlmax2(i,j,k)) )
+      end do
+    end do
+  end do
+!$OMP end do NOWAIT
+end if
+!$OMP end PARALLEL
+
 if (local_fa == free_trop_layers) then
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
-!$OMP SHARED( pdims, bl_levels, ntml_local, ri, ricrit, z_uv, l_use_var_fixes, &
+!$OMP SHARED( pdims, bl_levels, ntml_local, ri, ricrit, z_uv,                  &
 !$OMP         turb_length, rlambda_fac, lambda_min )                           &
 !$OMP private( i, j, k, subcrit, kb, kt, kl, turb_length_layer )
   do j = pdims%j_start, pdims%j_end
@@ -806,17 +609,10 @@ if (local_fa == free_trop_layers) then
           ! turb_length(k) is held, with Ri(k), on th-level(k-1)
           !---------------------------------------------------------
           turb_length_layer   = z_uv(i,j,kt) - z_uv(i,j,kb-1)
-          if (l_use_var_fixes) then
-            do kl = kb, kt
-              turb_length(i,j,kl) = max( turb_length(i,j,kl),                  &
-                          min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
-            end do
-          else
-            do kl = kb, kt
-              turb_length(i,j,kl) = max( lambda_min*rlambda_fac,               &
-                          min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
-            end do
-          end if
+          do kl = kb, kt
+            turb_length(i,j,kl) = max( turb_length(i,j,kl),                    &
+                        min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
+          end do
         end if
 
       end do
@@ -851,94 +647,255 @@ if (blending_option /= off) then
 !$OMP end PARALLEL do
 end if
 !-----------------------------------------------------------------------
-! 2.  Richardson Number based local mixing scheme
+! 2.0 Loop over levels; calculate the mixing lengths
 !-----------------------------------------------------------------------
-! 2.0 Loop round "boundary" levels; calculate the stability-
-!     dependent turbulent mixing coefficients.
-!-----------------------------------------------------------------------
-! TKE budget based depth diagnosis
-
-! Starting with the definition of the flux Richardson
-! number, assuming similarity profiles for
-! stress and buoyancy flux, and vertically integrating
-! gives an expression for the stable boundary layer
-! depth which is based just on surface fluxes and
-! the wind speed change across the boundary layer.
-! ----------------------------------------------------
-
-if (sbl_op  ==  depth_based) then
-
-  ! Index for assumed buoyancy profile
-  m_buoy=one
-
-  ! Index for assumed stress profile
-  m_tau=one
-
-  ! Effective bulk flux Richardson number
-  rifb=0.3_r_bl
-
-  ind=m_buoy-m_tau+one
-
+do k = 2, bl_levels
+!$OMP  PARALLEL DEFAULT(none)                                                  &
+!$OMP  PRIVATE(z_scale,j,i,lambdam,lambdah,                                    &
+!$OMP  lambdah_rho,vkz,f_log,zz,zht,zfa,beta)                                  &
+!$OMP  SHARED(k,pdims,ri,ricrit,flandg,ntml_local,ntml_nl,z_tq,                &
+!$OMP  l_rp2,lambda_min,par_mezcla_rp,zh_local,turb_length,k_log_layr,         &
+!$OMP  z_uv,z0m,elm,elh,elh_rho,blending_option,cumulus,l_shallow_cth,zhpar,   &
+!$OMP  ntdsc,weight_1dbl,weight_bltop,delta_smag,rneutml_sq,BL_diag,local_fa)
+  !-----------------------------------------------------------------
+  ! 2.1 Calculate asymptotic mixing lengths LAMBDAM and LAMBDAH
+  !-----------------------------------------------------------------
+!$OMP do SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
+      if (l_rp2) then
+        lambdam = max ( lambda_min , par_mezcla_rp(rp_idx)*zh_local(i,j) )
+      else
+        lambdam = max ( lambda_min , lambda_fac*zh_local(i,j) )
+      end if
+      !-----------------------------------------------------------------
+      ! Reduce mixing lengths above BL
+      !-----------------------------------------------------------------
+      if (k >= ntml_local(i,j)+2) then
+        lambdam = lambda_min
+      end if
 
-      ! Set diff_min to a large initial value
-      diff_min(i,j)=1000.0_r_bl
+      lambdah = lambdam
+      lambdah_rho  = lambdah
 
-      ! Surface Obukhov length
-      MOsurf(i,j)= -v_s(i,j)*v_s(i,j)*v_s(i,j)                                 &
-                  /(vkman*fb_surf(i,j))
+      if ( local_fa == free_trop_layers ) then
+        lambdam = max( lambdam, lambda_fac*turb_length(i,j,k) )
+        lambdah = max( lambdah, lambda_fac*turb_length(i,j,k) )
+        ! lambdah_rho does not need to be recalculated under
+        ! local_fa option "free_trop_layers" as the full KH profile
+        ! will be interpolated in bdy_expl2
+      end if
+      !-----------------------------------------------------------------------
+      ! 2.2 Calculate mixing lengths ELH, ELM coincident with RI(K) and so
+      !     at Z_TQ(K-1)
+      !-----------------------------------------------------------------------
+      !  Incorporate log profile corrections to the vertical finite
+      !  differences into the definitions of ELM and ELH.
+      !  Note that ELH_RHO is calculated (on rho levels) for direct inclusion
+      !  in RHOKH and also (as elh) on theta levels for the unstable
+      !  stability functions and inclusion in RHOKH before interpolation
+      !  (under local_fa option "free_trop_layers").
+      !  To save computing logarithms for all K, the values of ELM and ELH
+      !  are unchanged for K > K_LOG_LAYR.
+
+      if (k  <=  k_log_layr) then
+        vkz   = vkman * ( z_uv(i,j,k) - z_uv(i,j,k-1) )
+        f_log = log( ( z_uv(i,j,k) + z0m(i,j)   ) /                            &
+                     ( z_uv(i,j,k-1) + z0m(i,j) ) )
+        elm(i,j,k) = vkz / ( f_log + vkz/lambdam )
+        elh(i,j,k) = vkz / ( f_log + vkz/lambdah )
+        vkz   = vkman * ( z_tq(i,j,k) - z_tq(i,j,k-1) )
+        f_log = log( ( z_tq(i,j,k) + z0m(i,j)   ) /                            &
+                     ( z_tq(i,j,k-1) + z0m(i,j) ) )
+        elh_rho(i,j,k) = vkz / ( f_log + vkz/lambdah_rho )
+      else
+        vkz = vkman * ( z_tq(i,j,k-1) + z0m(i,j) )
+        elm(i,j,k) = vkz / (one + vkz/lambdam )
+        elh(i,j,k) = vkz / (one + vkz/lambdah )
+        vkz = vkman * ( z_uv(i,j,k) + z0m(i,j) )
+        elh_rho(i,j,k) = vkz / (one + vkz/lambdah_rho )
+      end if
     end do
   end do
-
-  do k = 2, bl_levels
+!$OMP end do
+!----------------------------------------------------------------
+! 2.3 Blend mixing lengths between 1D and 3D Smagorinsky
+!----------------------------------------------------------------
+  if (blending_option /= off) then
+!$OMP do SCHEDULE(STATIC)
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
 
-            ! The wind speed change from level k to the surface
-        u1=sqrt(u_p(i,j,k)*u_p(i,j,k)+v_p(i,j,k)*v_p(i,j,k))
-
-            ! h_est is the estimate of the stable boundary layer
-            ! depth using the TKE based formula
-        h_est=vkman*MOsurf(i,j)*ind*rifb*u1/v_s(i,j)
-
-            ! Absolute difference between height and estimate
-        diff=abs(z_uv(i,j,k)-h_est)
-
-            ! If h_est is closer than the previous closest value
-            ! (diff_min) reset the h_tkeb to h_est
-
-        if (diff  <   diff_min(i,j)) then
-          diff_min(i,j)=diff
-          h_tkeb(i,j)=h_est
+        zz = z_tq(i,j,k-1)  ! height of rhokm(k)
+        ! turb_length is the greater of the local and non-local
+        ! BL depths up to that bl top
+        z_scale = max( zz, turb_length(i,j,k) )
+        ! zht = interface between BL and FA
+        zht = max( z_uv(i,j,ntml_nl(i,j)+1) , zh_local(i,j) )
+        ! Relevant scale in cumulus layers can be cloud top height, zhpar
+        if ( cumulus(i,j) .and. ( blending_option /= blend_cth_shcu_only .or.  &
+                                  l_shallow_cth(i,j) ) ) then
+          z_scale = max( z_scale, zhpar(i,j) )
+          zht     = max( zht, zhpar(i,j) )
+        end if
+        ! BL top includes decoupled stratocu layer, if it exists
+        if (ntdsc(i,j) > 0) zht = max( zht, z_uv(i,j,ntdsc(i,j)+1) )
+        ! Need to restrict z_scale to dsc depth within a dsc layer
+        ! (given by turb_length) and to distance from dsc top below the
+        ! dsc layer
+        if ( k-1 <= ntdsc(i,j) ) then
+          z_scale = min( z_scale,                                              &
+              max( turb_length(i,j,k), z_uv(i,j,ntdsc(i,j)+1)-zz ) )
         end if
 
+        ! Finally calculate 1D BL weighting factor
+        if ( blending_option == blend_except_cu .and.                          &
+             cumulus(i,j) .and. ntdsc(i,j) == 0) then
+          ! pure cumulus layer so revert to 1D BL scheme
+          weight_1dbl(i,j,k) = one
+        else
+
+          if ( blending_option == blend_gridindep_fa .or.                      &
+               blending_option == blend_cth_shcu_only ) then
+            if (zz <= zht) then
+              weight_1dbl(i,j,k) =                                             &
+               one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                  &
+                 max( zero,                                                    &
+                   min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
+              weight_bltop(i,j) = weight_1dbl(i,j,k)
+            else ! above PBL
+              ! Above the PBL top (at zht) increase weight to one smoothly
+              ! between zht and zfa in order to default to 1D BL when not
+              ! turbulent.  There is some arbitrariness here but:
+              ! a) we want to use a physical height, to avoid grid dependence
+              ! b) for shallow PBLs at high resolution it seems sensible to
+              !    get well (a PBL depth) above the resolved PBL before
+              !    reverting to 1D
+              ! c) for deep PBLs we still want to revert to 1D reasonably
+              !    quickly, hence within at most 1km of zht
+              zfa=min( 2.0_r_bl*zht, zht+1000.0_r_bl )
+              if (zz <= zfa ) then
+                weight_1dbl(i,j,k) = one + one_half *                          &
+                                     (weight_bltop(i,j) - one) *               &
+                                     ( one + cos(pi*(zz-zht)/(zfa-zht)) )
+              else
+                weight_1dbl(i,j,k) = one
+              end if
+              if ( local_fa == free_trop_layers .and.                          &
+                   ri(i,j,k) < ricrit(i,j) ) then
+                ! Except in an elevated turbulent layer where we still use
+                ! the standard blending weight
+                z_scale = turb_length(i,j,k)
+                weight_1dbl(i,j,k) =                                           &
+                 one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                &
+                  max( zero,                                                   &
+                   min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
+
+              end if
+            end if ! test on zz < zht
+          else
+            zfa=zht+1000.0_r_bl
+            if (zz <= zht) then
+              beta=beta_bl
+            else if (zz <= zfa) then
+              beta = beta_bl*(zfa-zz)/(zfa-zht) +                              &
+                     beta_fa*(zz-zht)/(zfa-zht)
+            else
+              beta=beta_fa
+            end if
+            weight_1dbl(i,j,k) =                                               &
+             one - tanh( beta*z_scale/delta_smag(i,j)) * max( zero,            &
+                 min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
+          end if
+        end if
+
+        elm(i,j,k) = elm(i,j,k)*weight_1dbl(i,j,k) +                           &
+                     sqrt(rneutml_sq(i,j,k-1))*(one-weight_1dbl(i,j,k))
+        elh(i,j,k) = elh(i,j,k)*weight_1dbl(i,j,k) +                           &
+                     sqrt(rneutml_sq(i,j,k-1))*(one-weight_1dbl(i,j,k))
+      end do
+    end do
+!$OMP end do
+  end if  ! test on blending_option
+!$OMP end PARALLEL
+end do  ! loop over levels
+!----------------------------------------------------------------
+! 3.0 Calculate stability functions
+!----------------------------------------------------------------
+! 3.1 Set-up a BL weighting function, =1 near the ground (ie in the BL)
+!                                     =0 in the free troposphere
+! Rate and height at which transition occurs varys depending on choices
+!-----------------------------------------------------------------------
+!$OMP PARALLEL DEFAULT(none) private( i, j, k, z_scale, zpr)                   &
+!$OMP SHARED( pdims, bl_levels, BL_weight, local_fa, z_tq, sg_orog_mixing,     &
+!$OMP         sigma_h)
+!$OMP do SCHEDULE(STATIC)
+do k = 1, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
+      BL_weight(i,j,k) = one
+    end do
+  end do
+end do
+!$OMP end do
+
+if (local_fa == to_sharp_across_1km) then
+  !---------------------------------------------------------
+  ! Additional code to allow the local Ri scheme to use
+  ! SHARPEST in the free atmosphere, ie above the BL top,
+  ! regardless of the tail option selected above.
+  ! Set Z_SCALE to 1km to mimic old value of BL_LEVELS,
+  ! gives BL_weight~0 by 2km, ~0.95 at 500m
+  !---------------------------------------------------------
+  z_scale = 1000.0_r_bl
+!$OMP do SCHEDULE(STATIC)
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
+        zpr = z_tq(i,j,k-1)/z_scale
+        BL_weight(i,j,k) = one_half*(one - tanh(3.0_r_bl*(zpr-one) ) )
       end do
     end do
   end do
+!$OMP end do NOWAIT
+end if
 
-end if   ! SBL_OP = Depth_based
-
+if (sg_orog_mixing /= off) then
+  !-----------------------------------------------------------------
+  ! Subgrid orographic height dependence for SBL tail (option 1)
+  ! or orographic dependence of mixing lengths, lambdam,h (opt 2)
+  ! Gives BL_weight~[1,0.95,0.5,0] at ZPR=[0,0.6,1,1.7]
+  !----------------------------------------------------------------
+!$OMP do SCHEDULE(STATIC)
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
+        if (sigma_h(i,j) > one ) then
+          zpr = z_tq(i,j,k-1)/sigma_h(i,j)
+          BL_weight(i,j,k) = one_half*( one - tanh(4.0_r_bl*(zpr-one) ) )
+        end if
+      end do
+    end do
+  end do
+!$OMP end do NOWAIT
+end if
+!$OMP end PARALLEL
 ! ----------------------------------------------------------------
-! Main loop over levels
+! 3.2 calculating stable stability function
 ! ----------------------------------------------------------------
-
+! Load up 2D array FUNC with selected stability function for Ri>=0
+!
+!  SBL_OP                 Option
+!
+!  Long_tails             Long tails
+!  Sharpest               SHARPEST function
+!  Sharp_sea_long_land    SHARPEST over sea ; Long tails over land
+!  Mes_tails              MESOSCALE model: Louis/SHARPEST blend
+!  Louis_tails            Louis function
+!  Sharp_sea_mes_land     SHARP over sea; Mes over land
+!  Sharp_sea_Louis_land   SHARP over sea; Louis over land
+! ----------------------------------------------------------------
 do k = 2, bl_levels
-  ! ----------------------------------------------------------------
-  ! Load up 2D array FUNC with selected stability function for Ri>=0
-
-  !  SBL_OP                 Option
-
-  !  Long_tails             Long tails
-  !  Sharpest               SHARPEST function
-  !  Sharp_sea_long_land    SHARPEST over sea ; Long tails over land
-  !  Mes_tails              MESOSCALE model: Louis/SHARPEST blend
-  !  Louis_tails            Louis function
-  !  Depth_based            Boundary layer depth based formulation
-  !  Sharp_sea_mes_land     SHARP over sea; Mes over land
-  !  Sharp_sea_Louis_land   SHARP over sea; Louis over land
-  ! ----------------------------------------------------------------
-
   select case (sbl_op)
 
     !--------------------------------------------
@@ -1062,19 +1019,6 @@ do k = 2, bl_levels
     end do
 
     !--------------------------------------------
-    ! long TAILS FOR use WITH DEPTH BASED SCHEME
-    !--------------------------------------------
-  case (depth_based)
-        ! long TAILS
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        if (ri(i,j,k) >= zero) then
-          func(i,j)=one / ( one + g0 * ri(i,j,k) )
-        end if
-      end do
-    end do
-
-    !--------------------------------------------
     ! SHARP TAILS OVER SEA; MES TAILS OVER LAND
     !--------------------------------------------
   case (sharp_sea_mes_land)
@@ -1152,9 +1096,8 @@ do k = 2, bl_levels
   end select ! SBL_OP
 
   !------------------------------------------------------------------
-  ! Additional code to allow the local Ri scheme to use
-  ! SHARPEST in the free atmosphere, ie above the BL top,
-  ! regardless of the tail option selected above.
+  ! Additional option to use SHARPEST in the free atmosphere, ie above
+  ! the BL top, regardless of the tail option selected above.
   !------------------------------------------------------------------
   if (local_fa == to_sharp_across_1km) then
 
@@ -1214,7 +1157,7 @@ do k = 2, bl_levels
 
   end if
   !---------------------------------------------------------------
-  ! Set stable Prandtl number (=KM/KH)
+  ! 3.3 Set stable Prandtl number (=KM/KH)
   !---------------------------------------------------------------
   if (sbl_op == lem_stability) then
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
@@ -1244,223 +1187,20 @@ do k = 2, bl_levels
     end do
 !$OMP end PARALLEL do
   end if
-
-!$OMP PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                               &
-!$OMP  private(z_scale,fm,j,i,lambdam,lambdah,lambda_eff,                      &
-!$OMP  lambdah_rho,vkz,f_log,zz,zht,zfa,beta,fh,rtmri,km,rpr)                  &
-!$OMP  SHARED(k,sbl_op,var_diags_opt,bl_levels,pdims,g0,ri,ricrit,             &
-!$OMP  flandg,ntml_local,ntml_nl,subb,dh,z_tq,                                 &
-!$OMP  BL_weight,sg_orog_mixing,sigma_h,pr_n,                                  &
-!$OMP  l_rp2,lambda_min,par_mezcla_rp,zh_local,                                &
-!$OMP  h_blend,turb_length,k_log_layr,                                         &
-!$OMP  z_uv,z0m,elm,elh,elh_rho,blending_option,cumulus,l_shallow_cth,zhpar,   &
-!$OMP  ntdsc,weight_1dbl,weight_bltop,delta_smag,rneutml_sq,BL_diag,           &
-!$OMP  r_pr_n,cbl_op,subc,dm,h_tkeb,v_s,MOsurf,rho_wet_tq,                     &
-!$OMP  l_subfilter_vert,l_subfilter_horiz,fm_3d,fh_3d,rhokm,tke_loc,           &
-!$OMP  dvdzm,l_mr_physics,rhokh,local_fa,fb_surf,func,prandtl_number)
-  do j = pdims%j_start, pdims%j_end
+!----------------------------------------------------------------
+! 3.4 Calculate (values of) stability functions FH, FM.
+!----------------------------------------------------------------
+!$OMP PARALLEL DEFAULT(none)                                                   &
+!$OMP SHARED( k, pdims,BL_diag,elm,elh,ri,func,prandtl_number,cbl_op,r_pr_n,   &
+!$OMP         l_subfilter_vert,l_subfilter_horiz,fm_3d,fh_3d,rhokm,rhokh,      &
+!$OMP         rho_wet_tq,dvdzm,l_mr_physics,local_fa,tke_loc,subb,subc,g0,dm,  &
+!$OMP         dh  )       &
+!$OMP PRIVATE( i, j, fm, fh, rtmri, rpr )
+!$OMP do SCHEDULE(STATIC)
+   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
-      !-----------------------------------------------------------------
-      ! 2.1 Calculate asymptotic mixing lengths LAMBDAM and LAMBDAH
-      !     (may be equal or LambdaM=2*LambdaH (operational setting)).
-      !-----------------------------------------------------------------
-      if (l_lambdam2) then
-        if (l_rp2) then
-          lambdam = max (lambda_min , 2*par_mezcla_rp(rp_idx)*zh_local(i,j))
-          lambdah = max (lambda_min , par_mezcla_rp(rp_idx)*zh_local(i,j))
-        else
-          lambdam = max (lambda_min , 0.30_r_bl*zh_local(i,j))
-          lambdah = max (lambda_min , 0.15_r_bl*zh_local(i,j))
-        end if
-      else
-        if (l_rp2) then
-          lambdam = max ( lambda_min , par_mezcla_rp(rp_idx)*zh_local(i,j) )
-        else
-          lambdam = max ( lambda_min , lambda_fac*zh_local(i,j) )
-        end if
-        lambdah = lambdam
-      end if
-
-      if (sg_orog_mixing == sg_shear_enh_lambda) then
-        !--------------------------------------------------------------
-        ! Use orographic mixing length for heat too, and reduce both
-        ! above sigma_h smoothly
-        ! NOTE: THIS CODE WILL not ENHANCE LAMBDAH because it only
-        ! gets used in bdy_expl2 where the calculation is redone as
-        ! standard - this was a mistake but is now operational in
-        ! the UKV!
-        !--------------------------------------------------------------
-        if (k >= ntml_local(i,j)+2) then
-          lambdam = lambda_min
-          lambdah = lambda_min
-        end if
-        lambdah    = max (lambdah,                                             &
-                            BL_weight(i,j,k)*a_lambda*h_blend(i,j) )
-        lambda_eff = max (lambdam,                                             &
-                            BL_weight(i,j,k)*a_lambda*h_blend(i,j) )
-      else
-        lambda_eff = max (lambdam, a_lambda*h_blend(i,j) )
-        !------------------------------------------------------------
-        ! Optionally reduce mixing length above local BL top
-        !------------------------------------------------------------
-        if (k >= ntml_local(i,j)+2 .and. .not. l_full_lambdas) then
-          lambdam = lambda_min
-          lambdah = lambda_min
-          if (z_tq(i,j,k-1) > a_lambda*h_blend(i,j))                           &
-                                            lambda_eff=lambda_min
-        end if
-        if ( k >= ntml_local(i,j)+2 .and. l_full_lambdas .and.                 &
-             local_fa == to_sharp_across_1km ) then
-            ! Weight lambda to lambda_min with height
-            ! Assuming only local_fa == to_sharp_across_1km will have
-            ! L_FULL_LAMBDAS. If other LOCAL_FA options are coded here
-            ! then changes must be included in section 5.3 of bdy_expl2
-
-          lambda_eff = lambda_eff * BL_weight(i,j,k)                           &
-                     + lambda_min*( one - BL_weight(i,j,k) )
-          lambdah    = lambdah * BL_weight(i,j,k)                              &
-                     + lambda_min*( one - BL_weight(i,j,k) )
-        end if
-      end if
-
-      lambdah_rho  = lambdah
-
-      if ( local_fa == free_trop_layers ) then
-        lambda_eff = max( lambda_eff, lambda_fac*turb_length(i,j,k) )
-        lambdah    = max( lambdah,    lambda_fac*turb_length(i,j,k) )
-        ! lambdah_rho does not need to be recalculated under
-        ! local_fa option "free_trop_layers" as the full KH profile
-        ! will be interpolated in bdy_expl2
-      end if
-      !-----------------------------------------------------------------------
-      ! 2.2 Calculate mixing lengths ELH, ELM coincident with RI(K) and so
-      !     at Z_TQ(K-1)
-      !-----------------------------------------------------------------------
-      !  Incorporate log profile corrections to the vertical finite
-      !  differences into the definitions of ELM and ELH.
-      !  Note that ELH_RHO is calculated (on rho levels) for direct inclusion
-      !  in RHOKH and also (as elh) on theta levels for the unstable
-      !  stability functions and inclusion in RHOKH before interpolation
-      !  (under local_fa option "free_trop_layers").
-      !  To save computing logarithms for all K, the values of ELM and ELH
-      !  are unchanged for K > K_LOG_LAYR.
-
-      if (k  <=  k_log_layr) then
-        vkz   = vkman * ( z_uv(i,j,k) - z_uv(i,j,k-1) )
-        f_log = log( ( z_uv(i,j,k) + z0m(i,j)   ) /                            &
-                     ( z_uv(i,j,k-1) + z0m(i,j) ) )
-        elm(i,j,k) = vkz / ( f_log + vkz/lambda_eff )
-        elh(i,j,k) = vkz / ( f_log + vkz/lambdah )
-        vkz   = vkman * ( z_tq(i,j,k) - z_tq(i,j,k-1) )
-        f_log = log( ( z_tq(i,j,k) + z0m(i,j)   ) /                            &
-                     ( z_tq(i,j,k-1) + z0m(i,j) ) )
-        elh_rho(i,j,k) = vkz / ( f_log + vkz/lambdah_rho )
-      else
-        vkz = vkman * ( z_tq(i,j,k-1) + z0m(i,j) )
-        elm(i,j,k) = vkz / (one + vkz/lambda_eff )
-        elh(i,j,k) = vkz / (one + vkz/lambdah )
-        vkz = vkman * ( z_uv(i,j,k) + z0m(i,j) )
-        elh_rho(i,j,k) = vkz / (one + vkz/lambdah_rho )
-      end if
-
-      if (blending_option /= off) then
-
-        zz = z_tq(i,j,k-1)  ! height of rhokm(k)
-        ! turb_length is the greater of the local and non-local
-        ! BL depths up to that bl top
-        z_scale = max( zz, turb_length(i,j,k) )
-        ! zht = interface between BL and FA
-        zht = max( z_uv(i,j,ntml_nl(i,j)+1) , zh_local(i,j) )
-        ! Relevant scale in cumulus layers can be cloud top height, zhpar
-        if ( cumulus(i,j) .and. ( blending_option /= blend_cth_shcu_only .or.  &
-                                  l_shallow_cth(i,j) ) ) then
-          z_scale = max( z_scale, zhpar(i,j) )
-          zht     = max( zht, zhpar(i,j) )
-        end if
-        ! BL top includes decoupled stratocu layer, if it exists
-        if (ntdsc(i,j) > 0) zht = max( zht, z_uv(i,j,ntdsc(i,j)+1) )
-        ! Need to restrict z_scale to dsc depth within a dsc layer
-        ! (given by turb_length) and to distance from dsc top below the
-        ! dsc layer
-        if ( k-1 <= ntdsc(i,j) ) then
-          z_scale = min( z_scale,                                              &
-              max( turb_length(i,j,k), z_uv(i,j,ntdsc(i,j)+1)-zz ) )
-        end if
-
-        ! Finally calculate 1D BL weighting factor
-        if ( blending_option == blend_except_cu .and.                          &
-             cumulus(i,j) .and. ntdsc(i,j) == 0) then
-          ! pure cumulus layer so revert to 1D BL scheme
-          weight_1dbl(i,j,k) = one
-        else
-
-          if ( blending_option == blend_gridindep_fa .or.                      &
-               blending_option == blend_cth_shcu_only ) then
-            if (zz <= zht) then
-              weight_1dbl(i,j,k) =                                             &
-               one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                  &
-                 max( zero,                                                    &
-                   min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
-              weight_bltop(i,j) = weight_1dbl(i,j,k)
-            else ! above PBL
-              ! Above the PBL top (at zht) increase weight to one smoothly
-              ! between zht and zfa in order to default to 1D BL when not
-              ! turbulent.  There is some arbitrariness here but:
-              ! a) we want to use a physical height, to avoid grid dependence
-              ! b) for shallow PBLs at high resolution it seems sensible to
-              !    get well (a PBL depth) above the resolved PBL before
-              !    reverting to 1D
-              ! c) for deep PBLs we still want to revert to 1D reasonably
-              !    quickly, hence within at most 1km of zht
-              zfa=min( 2.0_r_bl*zht, zht+1000.0_r_bl )
-              if (zz <= zfa ) then
-                weight_1dbl(i,j,k) = one + one_half *                          &
-                                     (weight_bltop(i,j) - one) *               &
-                                     ( one + cos(pi*(zz-zht)/(zfa-zht)) )
-              else
-                weight_1dbl(i,j,k) = one
-              end if
-              if ( local_fa == free_trop_layers .and.                          &
-                   ri(i,j,k) < ricrit(i,j) ) then
-                ! Except in an elevated turbulent layer where we still use
-                ! the standard blending weight
-                z_scale = turb_length(i,j,k)
-                weight_1dbl(i,j,k) =                                           &
-                 one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                &
-                  max( zero,                                                   &
-                   min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
-
-              end if
-            end if ! test on zz < zht
-          else
-            zfa=zht+1000.0_r_bl
-            if (zz <= zht) then
-              beta=beta_bl
-            else if (zz <= zfa) then
-              beta = beta_bl*(zfa-zz)/(zfa-zht) +                              &
-                     beta_fa*(zz-zht)/(zfa-zht)
-            else
-              beta=beta_fa
-            end if
-            weight_1dbl(i,j,k) =                                               &
-             one - tanh( beta*z_scale/delta_smag(i,j)) * max( zero,            &
-                 min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
-          end if
-        end if
-
-        elm(i,j,k) = elm(i,j,k)*weight_1dbl(i,j,k) +                           &
-                    sqrt(rneutml_sq(i,j,k-1))*(one-weight_1dbl(i,j,k))
-        elh(i,j,k) = elh(i,j,k)*weight_1dbl(i,j,k) +                           &
-                    sqrt(rneutml_sq(i,j,k-1))*(one-weight_1dbl(i,j,k))
-
-      end if  ! test on blending_option
 
       if (BL_diag%l_elm3d) BL_diag%elm3d(i,j,k)=elm(i,j,k)
-
-      !----------------------------------------------------------------
-      ! 2.4 Calculate (values of) stability functions FH, FM.
-      !----------------------------------------------------------------
-
       if (ri(i,j,k)  >=  zero) then
         !-----------------------------------------------------------
         ! Note that we choose to include the Pr dependence such that
@@ -1489,7 +1229,7 @@ do k = 2, bl_levels
       end if
 
       !------------------------------------------------------------------
-      ! 2.5_r_bl Calculate exchange coefficients RHO*KM(K), RHO*KH(K)
+      ! 4.0 Calculate exchange coefficients RHO*KM(K), RHO*KH(K)
       !     both on TH-level K-1 at this stage (RHOKH will be interpolated
       !     onto uv-levels and then be multiplied by ELH in BDY_EXPL2 if
       !     local_fa is not "free_trop_layers")
@@ -1517,7 +1257,7 @@ do k = 2, bl_levels
       if (local_fa == free_trop_layers)                                        &
                   rhokh(i,j,k) = rhokh(i,j,k) * elh(i,j,k)
 
-      if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+      if (BL_diag%l_tke) then
         rpr = fh / max(fm, tiny(one) )
         tke_loc(i,j,k) = ( r_c_tke*elm(i,j,k)*dvdzm(i,j,k)*dvdzm(i,j,k)        &
                            *(rhokm(i,j,k)/rho_wet_tq(i,j,k-1))                 &
@@ -1525,46 +1265,12 @@ do k = 2, bl_levels
                            one - ri(i,j,k)*rpr ) )                             &
                          )**two_thirds
       end if
-      ! -------------------------------------------
-      ! Boundary layer depth based formulation
-      ! -------------------------------------------
 
-      if (sbl_op  ==  depth_based .and.                                        &
-          fb_surf(i,j)  <=  zero) then
-        if (z_tq(i,j,k-1) < h_tkeb(i,j)) then
-
-            ! Formula for diffusion coefficient
-            ! see Beare et al 2006, Boundary layer Met.
-
-          km = v_s(i,j) * vkman * z_tq(i,j,k-1) *                              &
-                        ( (one-z_tq(i,j,k-1)/h_tkeb(i,j))**(1.5_r_bl) )        &
-                        /  (one + 4.7_r_bl*z_tq(i,j,k-1)/MOsurf(i,j))
-          rhokm(i,j,k)= rho_wet_tq(i,j,k-1) * km
-          if (l_mr_physics) then
-              ! Note "RHO" here is always wet density (RHO_WET_TQ) so
-              ! save multiplication of RHOKH to after interpolation
-            rhokh(i,j,k)= km*r_pr_n / elm(i,j,k)
-          else
-            rhokh(i,j,k) = rho_wet_tq(i,j,k-1)*km*r_pr_n /elm(i,j,k)
-          end if
-        else
-          rhokm(i,j,k)=zero
-          rhokh(i,j,k)=zero
-        end if
-
-      end if   !SBL_OP  ==  Depth_based
-
-    end do !I
+    end do !i
   end do !j
-!$OMP end PARALLEL do
+!$OMP end do
+!$OMP end PARALLEL
 end do ! bl_levels
-
-!-----------------------------------------------------------------------
-! 3.  Equilibrium Stable Boundary Layer (SBL) model.
-!-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-! Finish up
-!-----------------------------------------------------------------------
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 return

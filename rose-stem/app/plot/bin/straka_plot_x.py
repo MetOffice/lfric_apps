@@ -54,7 +54,7 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
 
     val_col = 'c' + str(component)
 
-    slice_fig = plt.figure(figsize=(15, 10))
+    slice_fig, ax = plt.subplots(figsize=(12, 5))
 
     # get min and max of x,y data for plot axes
     min_lev = min(levels)
@@ -99,18 +99,22 @@ def make_figure(plotpath, nx, ny, field, component, timestep):
     for i in range(nx):
         dz[i, :] = zi[0, i, :] - back
 
-    matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
-    cf = plt.contourf(x_i * r2d, y_i * r2d, np.round(dz, 10),
-                      cc, cmap=c_map, extend='min')
-    plt.axes().set_aspect(.8)
-    plt.axis([0, 16, 0, 5])
-    plt.xlabel("x (km)", fontsize=28)
-    plt.ylabel("z (km)", fontsize=28)
-    cb = plt.colorbar(cf,  cmap=c_map, fraction=0.011, pad=0.04)
+    cf = ax.contourf(x_i * r2d, y_i * r2d, np.round(dz, 10),
+                     cc, cmap=c_map, extend='min')
+    # Add contour lines -- solid for negative
+    _ = ax.contour(x_i * r2d, y_i * r2d, np.round(dz, 10), cc,
+                   colors='k', linewidths=0.5, linestyles='solid')
+
+    ax.set_xlabel("x (km)", fontsize=28)
+    ax.set_ylabel("z (km)", fontsize=28)
+    ax.set_xlim([0.0, 16.0])
+    ax.set_ylim([0.0, 5.0])
+    ax.set_xticks(np.arange(0, 18, 2))
+    ax.set_yticks(np.arange(0, 6, 1))
+    # Set tick label size
+    ax.tick_params(axis='both', which='major', labelsize=24)
+    cb = plt.colorbar(cf,  cmap=c_map, pad=0.04)
     cb.ax.tick_params(labelsize=24)
-    plt.xticks(np.arange(0, 18, 2))
-    plt.yticks(np.arange(0, 6, 1))
-    plt.tick_params(axis='both', labelsize=28)
 
     # Front position is symmetrized
     print(nx, np.min(dz), np.max(dz))

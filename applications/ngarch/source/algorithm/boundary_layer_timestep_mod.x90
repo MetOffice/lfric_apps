@@ -57,7 +57,7 @@ contains
                                          water_extraction, lake_evap,        &
                                          theta_star_surf, qv_star_surf,      &
                                          recip_l_mo_sea, rhostar,            &
-                                         h_blend_orog, t1_sd_2d, q1_sd_2d
+                                         t1_sd_2d, q1_sd_2d
     type( field_array_type ), pointer :: mr
 
     type(field_collection_type), pointer :: prognostic_fields,   &
@@ -121,7 +121,7 @@ contains
                         turbulence_fields, convection_fields, cloud_fields, &
                         surface_fields, soil_fields, snow_fields,           &
                         aerosol_fields, recip_l_mo_sea, rhostar,            &
-                        h_blend_orog, t1_sd_2d, q1_sd_2d )
+                        t1_sd_2d, q1_sd_2d )
 
     ! Call the algorithm
     call log_event( "Running BOUNDARY LAYER EXP", LOG_LEVEL_INFO )
@@ -136,7 +136,7 @@ contains
                      cloud_fields,                     &
                      surface_fields,                   &
                      recip_l_mo_sea, rhostar,          &
-                     h_blend_orog, t1_sd_2d, q1_sd_2d, &
+                     t1_sd_2d, q1_sd_2d, &
                      modeldb%clock )
 
     call log_event( "Running BOUNDARY LAYER IMP", LOG_LEVEL_INFO )
