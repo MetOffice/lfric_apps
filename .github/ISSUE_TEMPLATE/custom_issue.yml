@@ -6,7 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to help improve LFRic Apps.
+        Thanks for taking the time to help improve LFRic Apps. _If you are planning 
+        to work on this issue, then please assign yourself to it._
   - type: input
     id: linked-issues
     attributes:
