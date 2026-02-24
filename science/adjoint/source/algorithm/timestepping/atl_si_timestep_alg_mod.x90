@@ -24,6 +24,7 @@ module atl_si_timestep_alg_mod
                                                  l_stabilise_bl,           &
                                                  n_bl_levels_to_stabilise, &
                                                  max_bl_stabilisation
+  use linear_physics_config_mod,           only: l_boundary_layer
   use derived_config_mod,                  only: bundle_size
   use boundaries_config_mod,               only: limited_area
   use sci_fem_constants_mod,               only: get_mass_matrix_fe, get_qr_fe
@@ -53,6 +54,7 @@ module atl_si_timestep_alg_mod
   use derive_exner_from_eos_alg_mod,       only: derive_exner_from_eos
   use atl_derive_exner_from_eos_alg_mod,   only: atl_derive_exner_from_eos
   use update_prognostic_scalars_alg_mod,   only: update_prognostic_scalars_alg
+  use atl_physics_alg_mod,                 only: atl_physics_alg
   use mr_indices_mod,                      only: nummr
   use moist_dyn_mod,                       only: num_moist_factors, gas_law
   use field_indices_mod,                   only: igh_u, igh_t, igh_d, igh_p
@@ -77,6 +79,7 @@ module atl_si_timestep_alg_mod
     type(field_type), allocatable :: state2(:)
     type(field_type), allocatable :: state_copy(:)
     type(field_type), allocatable :: state_n(:)
+    type(field_type), allocatable :: state_star(:)
     type(field_type), allocatable :: state_after_slow(:)
     type(field_type), allocatable :: advected_state(:)
     type(field_type), allocatable :: mr_n(:)
@@ -88,6 +91,7 @@ module atl_si_timestep_alg_mod
     type(field_type), allocatable :: state_test(:)
     type(field_type), allocatable :: rhs_np1_test(:)
     type(field_type), allocatable :: rhs_np1_in(:)
+    type(field_type), allocatable :: rhs_phys(:)
 
     ! Linearisation state
     type(field_type), allocatable :: ls_state(:)
@@ -179,6 +183,7 @@ contains
     allocate(self%state_copy(bundle_size))
     allocate(self%state_n(bundle_size))
     allocate(self%state_after_slow(bundle_size))
+    allocate(self%state_star(bundle_size))
     allocate(self%advected_state(bundle_size))
     allocate(self%rhs_n(bundle_size))
     allocate(self%rhs_np1(bundle_size))
@@ -189,6 +194,7 @@ contains
     allocate(self%state_test(bundle_size))
     allocate(self%rhs_np1_test(bundle_size))
     allocate(self%rhs_np1_in(bundle_size))
+    allocate(self%rhs_phys(bundle_size))
 
     allocate(self%ls_state(bundle_size))
     allocate(self%ls_state_n(bundle_size))
@@ -231,6 +237,7 @@ contains
     call clone_bundle( self%state, self%state_test,       bundle_size )
     call clone_bundle( self%state, self%rhs_np1_test,     bundle_size )
     call clone_bundle( self%state, self%rhs_np1_in,       bundle_size )
+    call clone_bundle( self%state, self%rhs_phys,         bundle_size )
 
     call clone_bundle( self%state, self%ls_state,            bundle_size )
     call clone_bundle( self%state, self%ls_state_n,          bundle_size )
@@ -564,6 +571,7 @@ contains
     call set_bundle_scalar( 0.0_r_def, self%state_initial, bundle_size )
     call set_bundle_scalar( 0.0_r_def, self%rhs_n, bundle_size )
     call set_bundle_scalar( 0.0_r_def, self%rhs_np1, bundle_size )
+    call set_bundle_scalar( 0.0_r_def, self%rhs_phys, bundle_size )
     call set_bundle_scalar( 0.0_r_def, self%mr_after_slow, nummr )
     call set_bundle_scalar( 0.0_r_def, self%mr_n, nummr )
 
@@ -653,31 +661,72 @@ contains
                        setval_c( self%rhs_np1(igh_t), 0.0_r_def ) )
         end if
 
+        if (l_boundary_layer) call add_bundle(self%rhs_phys,self%rhs_np1,self%rhs_phys, bundle_size)
         call add_bundle( self%rhs_adv, self%rhs_np1, self%rhs_adv, bundle_size )
         call add_bundle( self%rhs_n, self%rhs_np1, self%rhs_n, bundle_size )
         call bundle_ax( -1.0_r_def, self%rhs_np1, self%rhs_np1, bundle_size )
 
-        call set_bundle_scalar( 0.0_r_def,self%state1,bundle_size )
-        call set_bundle_scalar( 0.0_r_def,self%state2,bundle_size )
+        if (inner > 1) then
 
-        call atl_rhs_alg( self%rhs_np1,                                &
-                          -varalpha*cast_dt,                           &
-                          self%state1,                                 &
-                          self%state2,                                 &
-                          moist_dyn,                                   &
-                          self%ls_state_itns(:,ls_outer,ls_inner),     &
-                          self%ls_moist_dyn_itns(:,ls_outer,ls_inner), &
-                          .true.,                                      &
-                          dlayer_on,                                   &
-                          modeldb%clock )
+          if (use_wavedynamics) then
 
-        call add_bundle( self%state,self%state2 ,self%state, bundle_size )
-        call add_bundle( self%state,self%state1 ,self%state, bundle_size )
+            call set_bundle_scalar( 0.0_r_def, self%state1, bundle_size )
+            call set_bundle_scalar( 0.0_r_def, self%state2, bundle_size )
+
+            call atl_rhs_alg( self%rhs_np1,                                &
+                              -varalpha*cast_dt,                           &
+                              self%state1,                                 &
+                              self%state2,                                 &
+                              moist_dyn,                                   &
+                              self%ls_state_itns(:,ls_outer,ls_inner),     &
+                              self%ls_moist_dyn_itns(:,ls_outer,ls_inner), &
+                              .true.,                                      &
+                              dlayer_on,                                   &
+                              modeldb%clock )
+
+            call add_bundle( self%state, self%state2, self%state, bundle_size )
+            call add_bundle( self%state, self%state1, self%state, bundle_size )
+
+          end if
+
+        end if
 
       end do inner_dynamics_loop
       !-------------------------------------------------------------------------
       ! End of inner (nonlinear, Coriolis) loop
       !-------------------------------------------------------------------------
+
+      if (l_boundary_layer) then
+        ! Linear boundary layer scheme is currently the only linear physics scheme
+        call atl_physics_alg( modeldb,                          &
+                              u,                                &
+                              self%state_star,                  &
+                              self%rhs_phys,                    &
+                              self%rhs_np1,                     &
+                              self%rhs_n,                       &
+                              self%state,                       &
+                              self%rhs_adv,                     &
+                              self%ls_state_itns(:,ls_outer,1), &
+                              mesh,                             &
+                              cast_dt )
+      end if ! l_boundary_layer
+
+      call set_bundle_scalar( 0.0_r_def, self%state1, bundle_size )
+      call set_bundle_scalar( 0.0_r_def, self%state2, bundle_size )
+
+      call atl_rhs_alg( self%rhs_np1,                                &
+                        -varalpha*cast_dt,                           &
+                        self%state1,                                 &
+                        self%state2,                                 &
+                        moist_dyn,                                   &
+                        self%ls_state_itns(:,ls_outer,1),            &
+                        self%ls_moist_dyn_itns(:,ls_outer,1),        &
+                        .true.,                                      &
+                        dlayer_on,                                   &
+                        modeldb%clock )
+
+      call add_bundle( self%state, self%state2, self%state, bundle_size )
+      call add_bundle( self%state, self%state1, self%state, bundle_size )
 
       call invoke( setval_c( self%theta_fv_inc, 0.0_r_def ),                         &
                    adj_dg_inc_matrix_vector_kernel_type( self%rhs_adv(igh_t),        &
@@ -769,6 +818,7 @@ contains
     if (allocated(self%state_n))          deallocate(self%state_n)
     if (allocated(self%state_initial))    deallocate(self%state_initial)
     if (allocated(self%state_after_slow)) deallocate(self%state_after_slow)
+    if (allocated(self%state_star))       deallocate(self%state_star)
     if (allocated(self%advected_state))   deallocate(self%advected_state)
     if (allocated(self%rhs_n))            deallocate(self%rhs_n)
     if (allocated(self%rhs_np1))          deallocate(self%rhs_np1)
@@ -779,6 +829,7 @@ contains
     if (allocated(self%state_test))       deallocate(self%state_test)
     if (allocated(self%rhs_np1_test))     deallocate(self%rhs_np1_test)
     if (allocated(self%rhs_np1_in))       deallocate(self%rhs_np1_in)
+    if (allocated(self%rhs_phys))         deallocate(self%rhs_phys)
 
     if (allocated(self%ls_state))            deallocate(self%ls_state)
     if (allocated(self%ls_state_itns))       deallocate(self%ls_state_itns)
