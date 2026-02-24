@@ -144,6 +144,7 @@ build: ALWAYS
 # Unit tests
 #
 
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(CORE_ROOT_DIR)/components/science/unit-test/support
 unit-tests/%: export IMPORT_PARTS = $(INTERNAL_DEPENDENCIES)
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-lfric2lfric/HEAD
