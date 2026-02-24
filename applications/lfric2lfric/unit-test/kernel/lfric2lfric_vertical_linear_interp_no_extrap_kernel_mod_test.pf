@@ -15,7 +15,6 @@ module lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod_test
 
   implicit none
 
-  private
   public:: test_all
 
   contains
