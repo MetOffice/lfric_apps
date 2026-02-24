@@ -28,14 +28,13 @@ module schur_backsub_kernel_mod
   ! Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: schur_backsub_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                       &
+    type(arg_type) :: meta_args(8) = (/                       &
          arg_type(GH_FIELD,    GH_REAL,    GH_INC,   W2h),    & ! lhs_h
          arg_type(GH_FIELD,    GH_REAL,    GH_WRITE, W2v),    & ! lhs_v
          arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W2),     & ! rhs
          arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W3),     & ! exner_inc
          arg_type(GH_OPERATOR, GH_REAL,    GH_READ,  W2, W3), & ! div
          arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W2),     & ! norm
-         arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W2),     & ! Hb_inv
          arg_type(GH_SCALAR,   GH_LOGICAL, GH_READ),          & ! lam
          arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W2)      & ! mask
          /)
@@ -90,7 +89,6 @@ subroutine schur_backsub_code(cell,              &
                               ncell_3d,          &
                               div,               &
                               norm,              &
-                              Hb_inv,            &
                               lam, mask,         &
                               ndfh, undfh, maph, &
                               ndfv, undfv, mapv, &
@@ -117,7 +115,6 @@ subroutine schur_backsub_code(cell,              &
   real(kind=r_solver), dimension(undfv),              intent(inout) :: lhs_v
   real(kind=r_solver), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: div
   real(kind=r_solver), dimension(undf1),              intent(in)    :: norm
-  real(kind=r_solver), dimension(undf1),              intent(in)    :: Hb_inv
   real(kind=r_solver), dimension(undf1),              intent(in)    :: rhs
   real(kind=r_solver), dimension(undf1),              intent(in)    :: mask
 
@@ -131,10 +128,11 @@ subroutine schur_backsub_code(cell,              &
   do df = 1, ndfh
     ih = maph(df)
     i1 = map1(df)
+    lhs_h(ih:ih+nl) = lhs_h(ih:ih+nl) + 0.5_r_solver*rhs(i1:i1+nl)
     do df2 = 1, ndf2
       i2 = map2(df2)
-      lhs_h(ih:ih+nl) = lhs_h(ih:ih+nl) + 0.5_r_solver*rhs(i1:i1+nl) &
-                      + div(ij:ij+nl, df, df2)*exner_inc(i2:i2+nl)*norm(i1:i1+nl)*Hb_inv(i1:i1+nl)
+      lhs_h(ih:ih+nl) = lhs_h(ih:ih+nl) &
+                      + div(ij:ij+nl, df, df2)*exner_inc(i2:i2+nl)*norm(i1:i1+nl)
     end do
   end do
 
@@ -149,7 +147,7 @@ subroutine schur_backsub_code(cell,              &
     do df2 = 1, ndf2
       i2 = map2(df2)
       lhs_v(iv:iv+nl) = lhs_v(iv:iv+nl) &
-                      + div(ij:ij+nl, ndfh + df, df2)*exner_inc(i2:i2+nl)*norm(i1:i1+nl)*Hb_inv(i1:i1+nl)
+                      + div(ij:ij+nl, ndfh + df, df2)*exner_inc(i2:i2+nl)*norm(i1:i1+nl)
     end do
   end do
 

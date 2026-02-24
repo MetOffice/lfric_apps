@@ -1,0 +1,160 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the mixed operator of the semi-implicit lhs
+module apply_mixed_wp_operator_kernel_mod_test
+
+  use constants_mod, only : i_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  @test( )
+  subroutine test_all( )
+
+    use apply_mixed_wp_operator_kernel_mod, only : apply_mixed_wp_operator_code
+
+    implicit none
+
+    real(r_solver), parameter :: tol = 1.0e-6_r_solver
+
+    ! Mesh
+    integer(i_def), parameter :: nlayers = 3
+    integer(i_def), parameter :: cell = 1
+    integer(i_def), parameter :: ncell = nlayers
+
+    ! Spaces
+    integer(i_def), parameter :: ndf_w2h = 2
+    integer(i_def), parameter :: ndf_w2v = 2
+    integer(i_def), parameter :: ndf_w2 = ndf_w2h+ndf_w2v
+    integer(i_def), parameter :: ndf_wt = 2
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: undf_w2h = ndf_w2h*nlayers
+    integer(i_def), parameter :: undf_w2v = nlayers + 1
+    integer(i_def), parameter :: undf_w2 = undf_w2h + undf_w2v
+    integer(i_def), parameter :: undf_wt = nlayers + 1
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
+
+    ! Maps
+    integer(i_def), dimension(ndf_w2h) :: map_w2h
+    integer(i_def), dimension(ndf_w2v) :: map_w2v
+    integer(i_def), dimension(ndf_w2)  :: map_w2
+    integer(i_def), dimension(ndf_wt)  :: map_wt
+    integer(i_def), dimension(ndf_w3)  :: map_w3
+
+    ! Operators
+    real(r_solver), dimension(ncell, ndf_w2, ndf_w2) :: Mu
+    real(r_solver), dimension(ncell, ndf_w2, ndf_wt) :: P2t
+    real(r_solver), dimension(ncell, ndf_w2, ndf_w3) :: Grad
+    real(r_solver), dimension(ncell, ndf_wt, ndf_w2) :: Pt2
+    real(r_solver), dimension(ncell, ndf_w3, ndf_w3) :: M3p
+    real(r_solver), dimension(ncell, ndf_w3, ndf_wt) :: P3t
+    real(r_solver), dimension(ncell, ndf_w3, ndf_w2) :: Q32
+
+    ! Fields
+    real(r_solver), dimension(undf_w2)  :: Nu
+    real(r_solver), dimension(undf_w2h) :: uv
+    real(r_solver), dimension(undf_w2v) :: Lw, w
+    real(r_solver), dimension(undf_wt)  :: invMt
+    real(r_solver), dimension(undf_w3)  :: p, Lp
+
+    integer(i_def) :: df, k
+    real(r_solver), dimension(undf_w2v) :: answer
+    real(r_solver)                      :: answer_p
+
+    map_w2h = (/ 1_i_def, 1_i_def + nlayers /)
+    map_w2v = (/ 1_i_def, 2_i_def /)
+    map_w2 = (/ 1_i_def, 1_i_def + nlayers, 1_i_def + 2*nlayers, 2_i_def + 2*nlayers /)
+    map_wt = (/ 1_i_def, 2_i_def /)
+    map_w3 = (/ 1_i_def /)
+
+    ! Set up operators
+    Mu = 0.0_r_solver
+
+    do df = 1,ndf_w2
+      Mu(:,df,df) = real(df,r_solver)
+      Grad(:,df,1) = (-1.0_r_solver)**df
+    end do
+
+    P2t(:,:,:) = 0.0_r_solver
+    P2t(:,3:4,:) = 0.5_r_solver
+    Pt2 = 0.0_r_solver
+    Pt2(:,1,3) = 7.0_r_solver
+    Pt2(:,2,4) = 9.0_r_solver
+    M3p = 0.5_r_solver
+    Q32 = 3.0_r_solver
+    P3t = 5.0_r_solver
+
+    ! Set up the fields
+    do k = 1, nlayers
+      uv(k) = 0.0_r_solver
+      uv(k+nlayers) = 1.0_r_solver
+    end do
+    w = (/0.0_r_solver, 3.0_r_solver, -2.0_r_solver, 0.0_r_solver /)
+    p(:) = 1.2_r_solver
+    Nu(:) = 2.0_r_solver
+    invMt(:) = 0.25_r_solver
+
+    ! Compute: (L_uv, L_w) =  Nu*(Mu*u - Proj*t - Grad*p)
+    !          L_p   = M3p*p - P3t*t + Q32*u
+    ! with t = -Mt^-1 * Pt2*u
+    call apply_mixed_wp_operator_code(cell,                       &
+                                      nlayers,                    &
+                                      Lw, Lp,                     &
+                                      uv, w, p,                   &
+                                      ncell, Pt2,                 &
+                                      invMt,                      &
+                                      ncell, Mu,                  &
+                                      ncell, P2t,                 &
+                                      ncell, Grad,                &
+                                      Nu,                         &
+                                      ncell, M3p,                 &
+                                      ncell, Q32,                 &
+                                      ncell, P3t,                 &
+                                      ndf_w2v, undf_w2v, map_w2v, &
+                                      ndf_w3, undf_w3, map_w3,    &
+                                      ndf_w2h, undf_w2h, map_w2h, &
+                                      ndf_wt, undf_wt, map_wt,    &
+                                      ndf_w2, undf_w2, map_w2)
+
+    ! The code below can be used to generate the answers required and
+    ! is kept to here to make altering the unit test following changes in the
+    ! kernel easier
+    !t(:) = 0.0_r_solver
+    !do k = 1, nlayers
+    !  t(k)   = t(k)   - Pt2(k,1,3)*w(k) - Pt2(k,1,4)*w(k+1)
+    !  t(k+1) = t(k+1) - Pt2(k,2,3)*w(k) - Pt2(k,2,4)*w(k+1)
+    !end do
+    !t(:) = invMt(:)*t(:)
+
+    !answer(:) = 0.0_r_solver
+    !do k = 0, nlayers - 1
+    !  do dfv = 1,ndf_w2v
+    !    u = (/ uv(1+k), uv(4+k), w(1+k), w(2+k) /)
+    !    df = ndf_w2h+dfv
+    !    answer(map_w2v(dfv)+k) = answer(map_w2v(dfv)+k) &
+    !                           + Nu(map_w2(df)+k)*(sum(Mu(k+1,df,:)*u)           &
+    !                                             - sum(P2t(k+1,df,:)*t(k+1:k+2)) &
+    !                                             - Grad(k+1,df,1)*p(1+k))
+    !  end do
+    !end do
+    !u = (/ uv(1), uv(4), w(1), w(2) /)
+    !answer_p = M3p(1,1,1)*p(1) - sum(P3t(1,1,:)*t(1:2)) + sum(Q32(1,1,:)*u(1:4))
+
+    answer = (/ 0.0_r_solver, 58.0_r_solver, -32.0_r_solver, 0.0_r_solver /)
+    @assertEqual(answer, Lw, tol)
+
+    answer_p = 72.6_r_solver
+    @assertEqual(answer_p, Lp(1), tol)
+
+  end subroutine test_all
+
+end module apply_mixed_wp_operator_kernel_mod_test

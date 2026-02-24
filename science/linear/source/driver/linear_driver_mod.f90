@@ -174,7 +174,7 @@ contains
     end if
 
     ! Instantiate the linearisation state
-    call linear_create_ls( modeldb, mesh )
+    call linear_create_ls( modeldb, mesh, twod_mesh)
 
     ! Initialise the fields stored in the model_data
     if ( init_option == init_option_fd_start_dump ) then

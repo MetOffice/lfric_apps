@@ -50,6 +50,11 @@
       <axis axis_ref="vert_axis_half_levels"/>
       <axis axis_ref="ls_axis"/>
     </grid>
+    <grid id="one_level_face_time_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="1"/>
+      <axis axis_ref="ls_axis"/>
+    </grid>
    </grid_definition>
 
    <field_definition prec="8" >
@@ -331,6 +336,7 @@
         <field id="ls_u_in_w3_data" name="u_in_w3" long_name="NS wind" unit="m s-1" grid_ref="half_level_face_time_grid" operation="once"/>
         <field id="ls_v_in_w3_data" name="v_in_w3" long_name="EW wind" unit="m s-1" grid_ref="half_level_face_time_grid" operation="once"/>
         <field id="ls_w_in_wth_data" name="w_in_wth" long_name="Upward wind" unit="m s-1" grid_ref="full_level_face_time_grid" operation="once"/>
+	      <field id="ls_land_fraction_data" name="land_area_fraction" long_name="land_area_fraction" unit="1" grid_ref="one_level_face_time_grid" operation="once" />
       </file>
 
     </file_definition>
