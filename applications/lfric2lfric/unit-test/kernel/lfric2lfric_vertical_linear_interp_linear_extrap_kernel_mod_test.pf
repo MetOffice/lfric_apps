@@ -149,7 +149,7 @@ module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
     real(kind=r_single), allocatable  :: source_heights(:)
     real(r_def), parameter            :: tol = 1.0e-12_r_def
 
-    nlayers  = 3_i_def
+    nlayers  = 5_i_def
     source_layers = 4_i_def
     call get_w3_m3x3_q3x3x3_size( ndf_source, undf_source,           &
                                   ncell,                    &

@@ -126,13 +126,13 @@ contains
 
       ! IF ( desired_r(j) > r_at_data(j,data_levels) ) THEN
       if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
-          > source_heights(DATALEVELS)) then
+          > source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
 
         ! If requested level is above top of model, do linear
         ! extrapolation using data on top and second top levels.
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(DATALEVELS)
-    
-  
+        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + source_top_df)
+
+
       data_out(j) = data_in(j,data_levels) + (desired_r(j)                     &
                   - r_at_data(j,data_levels)) * (data_in(j,data_levels)        &
                   - data_in(j,data_levels-1))/(r_at_data(j,data_levels)        &
@@ -140,18 +140,18 @@ contains
 
       ! ELSE IF (desired_r(j) == r_at_data(j,data_levels) ) THEN
       else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
-               == source_heights(DATALEVELS)) then
+               == source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
 
         ! data_out(j) = data_in(j,data_levels)
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(DATALEVELS)
+        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + source_top_df)
 
       ! IF ( desired_r(j) < r_at_data(j,1) ) THEN
       else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
-               < source_heights(map_source(df) + m*(source_top_df+1) + level_below(1))) then
+               < source_heights(map_source(df) + m*(source_top_df+1))) then
 
         ! If requested level is below bottom of model, do linear
         ! extrapolation using data on first and second levels.
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + 1)
+        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1))
 
       data_out(j) = data_in(j,1) + (desired_r(j)                               &
                   - r_at_data(j,1)) * (data_in(j,1)                            &
@@ -159,10 +159,10 @@ contains
 
       ! ELSE IF (desired_r(j) == r_at_data(j,1) ) THEN
       else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
-               == source_heights(map_source(df) + m*(source_top_df+1) + level_below(1))) then
+               == source_heights(map_source(df) + m*(source_top_df+1))) then
 
         ! data_out(j) = data_in(j,1)
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + 1)
+        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1))
      
       else
 

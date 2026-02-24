@@ -127,24 +127,33 @@ contains
       ! IF ( desired_r(j) >= r_at_data(j,data_levels) ) THEN
       !  data_out(j) = data_in(j,data_levels)
       if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
-          >= source_heights(DATALEVELS)) then
+          >= source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
 
         ! Top: Set to top input data
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(DATALEVELS)
+        destination_field(map_dest(df) + m*(dest_top_df+1) + kk)               &
+          = source_field(map_source(df) + m*(source_top_df+1) + source_top_df)
 
 
       ! ELSE IF ( desired_r(j) <= r_at_data(j,1) ) THEN
       !   data_out(j) = data_in(j,1)
       else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
-               <= source_heights(map_source(df) + m*(source_top_df+1) + level_below(1))) then
+               <= source_heights(map_source(df) + m*(source_top_df+1))) then
 
         ! Bottom: Set to bottom input data
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + 1)
+        destination_field(map_dest(df) + m*(dest_top_df+1) + kk)               &
+          = source_field(map_source(df) + m*(source_top_df+1))
 
       else
 
       ! Linearly interpolate 
-
+    ! data_out (j) = ( (desired_r(j) -                                           &
+    !                     r_at_data(j,level_below(j)) )                          &
+    !                     * data_in (j,level_below(j)+1)                         &
+    !                    -(desired_r(j) -                                        &
+    !                      r_at_data(j,level_below(j)+1)) *                      &
+    !                      data_in (j,level_below(j)) ) /                        &
+    !                   ( r_at_data(j,level_below(j)+1) -                        &
+    !                     r_at_data(j,level_below(j)) )
       ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) ) 
       !          / (sh(lb(kk)+1) - sh(lb(kk)))
       destination_field(map_dest(df) + m*(dest_top_df+1) + kk) =           &
