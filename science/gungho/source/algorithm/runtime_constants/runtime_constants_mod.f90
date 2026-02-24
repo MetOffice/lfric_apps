@@ -20,7 +20,6 @@ module runtime_constants_mod
   use mesh_mod,                only: mesh_type
   use model_clock_mod,         only: model_clock_type
   use multigrid_config_mod,    only: chain_mesh_tags
-  use timing_mod,              only: start_timing, stop_timing, tik, LPROF
   implicit none
 
   private
@@ -44,9 +43,6 @@ contains
     integer(kind=i_def)              :: i
     integer(kind=i_def), allocatable :: mg_mesh_ids(:)
     integer(kind=i_def)              :: num_mg_meshes
-    integer(tik)                     :: id
-
-    if ( LPROF ) call start_timing( id, 'runtime_constants_alg' )
 
     !==========================================================================!
     ! Turn all the meshes and coordinate fields into lists
@@ -79,8 +75,6 @@ contains
     ! @TODO: can this be moved to somewhere more in line with the other
     ! code structure
     call runge_kutta_init()
-
-    if ( LPROF ) call stop_timing( id, 'runtime_constants_alg' )
 
   end subroutine create_runtime_constants
 

@@ -663,7 +663,7 @@ contains
     real(r_def)                  :: tau_r
     integer(tik)                 :: id
 
-    if ( LPROF ) call start_timing( id, 'semi_implicit_timestep_alg' )
+    if ( LPROF ) call start_timing( id, 'semi_implicit_timestep' )
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
@@ -1156,7 +1156,7 @@ contains
 
     nullify( mm_wt, mm_vel )
 
-    if ( LPROF ) call stop_timing( id, 'semi_implicit_timestep_alg' )
+    if ( LPROF ) call stop_timing( id, 'semi_implicit_timestep' )
 
   end subroutine run_step
 

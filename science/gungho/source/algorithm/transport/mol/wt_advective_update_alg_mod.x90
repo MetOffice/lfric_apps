@@ -18,7 +18,6 @@
 !!                      size as an integer argument.
 module wt_advective_update_alg_mod
 
-  use check_configuration_mod,            only: get_required_stencil_depth
   use constants_mod,                      only: r_def, i_def, l_def, str_def,  &
                                                 r_tran
   use sci_geometric_constants_mod,        only: get_coordinates,               &
@@ -115,7 +114,7 @@ contains
     integer(kind=i_def) :: remap_depth
     integer(tik)        :: id
 
-    if ( LPROF ) call start_timing( id, 'transport.wt_hori_recon' )
+    if ( LPROF ) call start_timing( id, 'mol.wt_hori_recon' )
 
     mesh => wind%get_mesh()
     mesh_id = mesh%get_id()
@@ -133,7 +132,7 @@ contains
 
     ! Copy field to a large halo version
     call field_big_halo%initialise( field%get_function_space(), &
-                                    halo_depth = get_required_stencil_depth() )
+                                    halo_depth=mesh%get_halo_depth() )
     call invoke( setval_X( field_big_halo, field ) )
 
     ! Compute reconstruction on a Wtheta multidata field
@@ -197,7 +196,7 @@ contains
                                              wind,                 &
                                              wind_dir, stencil_extent))
 
-    if ( LPROF ) call stop_timing( id, 'transport.wt_hori_recon' )
+    if ( LPROF ) call stop_timing( id, 'mol.wt_hori_recon' )
 
   end subroutine hori_wt_update_alg
 
@@ -233,7 +232,7 @@ contains
     integer(kind=i_def)              :: monotonicity
     integer(tik)                     :: id
 
-    if ( LPROF ) call start_timing( id, 'transport.wt_vert_recon' )
+    if ( LPROF ) call start_timing( id, 'mol.wt_vert_recon' )
 
     reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
     logspace = transport_metadata%get_log_space()
@@ -270,7 +269,7 @@ contains
                                                logspace ) )
     end if
 
-    if ( LPROF ) call stop_timing( id, 'transport.wt_vert_recon' )
+    if ( LPROF ) call stop_timing( id, 'mol.wt_vert_recon' )
 
   end subroutine vert_wt_update_alg
 

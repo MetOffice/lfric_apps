@@ -16,7 +16,6 @@ module remap_on_extended_mesh_alg_mod
   use psykal_lite_transport_mod,     only: invoke_remap_on_extended_mesh_kernel_type
   use timing_mod,                    only: start_timing, stop_timing, tik, LPROF
   use function_space_mod,            only: function_space_type
-  use check_configuration_mod,       only: get_required_stencil_depth
   use transport_constants_mod,       only: get_extended_mesh_weights, &
                                            get_extended_mesh_indices, &
                                            ext_mesh_stencil_depth
@@ -76,7 +75,7 @@ contains
     ndata = fs%get_ndata()
 
     ! Ensure remapping depth is not larger than the halo depth
-    depth = min( depth_in, get_required_stencil_depth() )
+    depth = min( depth_in, mesh%get_halo_depth() )
     ! Both the field to be remapped and the remapped field need to be
     ! created with the full size halo. For the field to be remapped
     ! this is due to the interpolation parallel to a panel boundary

@@ -56,7 +56,7 @@ contains
     type( field_type ), intent(inout) :: grid_throughfall
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_soil_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.jules_soil' )
 
     ! 2D fields
     soil_moisture_content_flag = init_diag(soil_moisture_content, 'soil__soil_moisture_content')
@@ -72,7 +72,7 @@ contains
     ! Initialise field to that sea and sea-ice tiles have zero values
     if (throughfall_flag) call invoke(setval_c(throughfall, 0.0_r_def))
 
-    if ( LPROF ) call stop_timing( id, 'jules_soil_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.jules_soil' )
 
   end subroutine initialise_diags_for_jules_soil
 
@@ -128,7 +128,7 @@ contains
     type( field_type ), intent(inout) :: grid_throughfall
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_soil_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.jules_soil' )
 
     ! Prognostic fields
     call canopy_water%write_field('surface__canopy_water')
@@ -161,7 +161,7 @@ contains
     call surface_runoff%write_field('soil__surface_runoff')
     call sub_surface_runoff%write_field('soil__sub_surface_runoff')
 
-    if ( LPROF ) call stop_timing( id, 'jules_soil_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.jules_soil' )
 
   end subroutine output_diags_for_jules_soil
 end module jules_soil_diags_mod
