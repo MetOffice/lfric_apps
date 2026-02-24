@@ -126,7 +126,7 @@ contains
 
       ! IF ( desired_r(j) >= r_at_data(j,data_levels) ) THEN
       !  data_out(j) = data_in(j,data_levels)
-      if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
+      if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                    &
           >= source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
 
         ! Top: Set to top input data
@@ -136,7 +136,7 @@ contains
 
       ! ELSE IF ( desired_r(j) <= r_at_data(j,1) ) THEN
       !   data_out(j) = data_in(j,1)
-      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
+      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                    &
                <= source_heights(map_source(df) + m*(source_top_df+1))) then
 
         ! Bottom: Set to bottom input data

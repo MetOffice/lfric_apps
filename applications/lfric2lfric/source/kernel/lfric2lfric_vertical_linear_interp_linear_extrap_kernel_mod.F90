@@ -19,7 +19,7 @@ use constants_mod,           only: i_def, r_double, r_single
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type, CELL_COLUMN,                     &
                                    GH_FIELD, GH_INTEGER, GH_REAL,             &
-                                   GH_READ, GH_READWRITE, GH_SCALAR, W3,&
+                                   GH_READ, GH_READWRITE, GH_SCALAR, W3,      &
                                    ANY_DISCONTINUOUS_SPACE_1,                 &
                                    ANY_DISCONTINUOUS_SPACE_2
 
@@ -71,7 +71,7 @@ contains
 
   ! R_SINGLE PRECISION
   ! ==================
-  subroutine lfric2lfric_vertical_linear_interp_linear_extrap_code_r_single(         &
+  subroutine lfric2lfric_vertical_linear_interp_linear_extrap_code_r_single(  &
                                           nlayers,                            &
                                           destination_field,                  &
                                           source_field,                       &
@@ -125,40 +125,41 @@ contains
       ! EXTRAPOLATION METHOD - ! Linear extrapolation at top and bottom
 
       ! IF ( desired_r(j) > r_at_data(j,data_levels) ) THEN
-      if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
+      if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                  &
           > source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
 
         ! If requested level is above top of model, do linear
         ! extrapolation using data on top and second top levels.
         destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + source_top_df)
 
-
-      data_out(j) = data_in(j,data_levels) + (desired_r(j)                     &
-                  - r_at_data(j,data_levels)) * (data_in(j,data_levels)        &
-                  - data_in(j,data_levels-1))/(r_at_data(j,data_levels)        &
-                  - r_at_data(j,data_levels-1))
+      ! SHARKS
+      ! data_out(j) = data_in(j,data_levels) + (desired_r(j)                     &
+      !             - r_at_data(j,data_levels)) * (data_in(j,data_levels)        &
+      !             - data_in(j,data_levels-1))/(r_at_data(j,data_levels)        &
+      !             - r_at_data(j,data_levels-1))
 
       ! ELSE IF (desired_r(j) == r_at_data(j,data_levels) ) THEN
-      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
+      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                  &
                == source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
 
         ! data_out(j) = data_in(j,data_levels)
         destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + source_top_df)
 
       ! IF ( desired_r(j) < r_at_data(j,1) ) THEN
-      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
+      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                  &
                < source_heights(map_source(df) + m*(source_top_df+1))) then
 
         ! If requested level is below bottom of model, do linear
         ! extrapolation using data on first and second levels.
         destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1))
 
-      data_out(j) = data_in(j,1) + (desired_r(j)                               &
-                  - r_at_data(j,1)) * (data_in(j,1)                            &
-                  - data_in(j,2))/(r_at_data(j,1) - r_at_data(j,2))
+      ! SHARKS
+      ! data_out(j) = data_in(j,1) + (desired_r(j)                               &
+      !             - r_at_data(j,1)) * (data_in(j,1)                            &
+      !             - data_in(j,2))/(r_at_data(j,1) - r_at_data(j,2))
 
       ! ELSE IF (desired_r(j) == r_at_data(j,1) ) THEN
-      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)
+      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                  &
                == source_heights(map_source(df) + m*(source_top_df+1))) then
 
         ! data_out(j) = data_in(j,1)
