@@ -235,4 +235,4 @@ module lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod_test
 
   end subroutine test_all_with_extrap
 
-end module
+end module lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod_test
