@@ -48,7 +48,6 @@
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_ex1a_canned",
-        "lfric2lfric_ex1a_unit_tests",
     ],
     "lfric2lfric_ex1a_extra": [
         "lfric2lfric_ral3-uk_ex1a_cce_fast-debug-64bit",
@@ -65,7 +64,7 @@
         "lfric2lfric_canned_ex1a_cce_fast-debug-64bit",
     ],
     "lfric2lfric_ex1a_unit_tests": [
-        "lfric2lfric_unit_tests_ex1a_cce_64bit",
+        "lfric2lfric_unit_tests_ex1a_gnu_64bit",
     ],
     }) %}
 
@@ -90,7 +89,6 @@
     ],
     "lfric2lfric_unit_tests": [
         "lfric2lfric_azspice_unit_tests",
-        "lfric2lfric_ex1a_unit_tests",
     ],
     }) %}
 
@@ -109,7 +107,6 @@
 {# EX1A Extends #}
 {% do site_groups.ex1a_developer.extend(site_groups.lfric2lfric_ex1a_developer) %}
 {% do site_groups.ex1a.extend(site_groups.lfric2lfric_ex1a) %}
-{% do site_groups.ex1a_unit_tests.extend(site_groups.lfric2lfric_ex1a_unit_tests) %}
 {% do site_groups.ex1a_build.extend(site_groups.lfric2lfric_ex1a_build) %}
 
 {% do LOG.debug("Finished in site/meto/groups/groups_lfric2lfric.cylc") %}
