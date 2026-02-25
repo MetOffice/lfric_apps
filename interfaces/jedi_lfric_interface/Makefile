@@ -35,6 +35,8 @@ export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf yaxt yaxt_c
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+export EXTRA_ROSE_META = jules
+
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(APPS_ROOT_DIR)/science/gungho \
                                $(CORE_ROOT_DIR)/components/lfric-xios \

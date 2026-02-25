@@ -32,6 +32,9 @@ export IGNORE_DEPENDENCIES = c_shum_byteswap \
                              f_shum_is_denormal_mod
 
 
+export EXTRA_ROSE_META = jules
+
+
 # Note - socrates_interface must come before jules_interface as there are dependencies on each other.
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
