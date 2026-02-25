@@ -34,6 +34,7 @@ module jedi_id_linear_model_mod
   use jedi_base_linear_model_mod,    only : jedi_base_linear_model_type
   use jedi_lfric_duration_mod,       only : jedi_duration_type
   use jedi_lfric_linear_fields_mod,  only : variable_names, &
+                                            ls_variable_names, &
                                             create_linear_fields
   use jedi_lfric_wind_fields_mod,    only : create_scalar_winds, &
                                             setup_vector_wind
@@ -184,10 +185,10 @@ subroutine set_trajectory( self, jedi_state )
 
   ! Create field collection that contains the linear state fields
   ! without "ls_" prepended.
-  call create_linear_fields(jedi_state%geometry%get_mesh(), next_linear_state)
+  call create_linear_fields(jedi_state%geometry%get_mesh(), jedi_state%geometry%get_twod_mesh(), next_linear_state)
 
   ! Copy data from the input state into next_linear_state
-  call jedi_state%get_to_field_collection( variable_names, &
+  call jedi_state%get_to_field_collection( ls_variable_names, &
                                            next_linear_state )
 
   ! Create W2 wind, interpolate from scaler winds (W3/Wtheta) then

@@ -82,7 +82,7 @@
             -l select={{ lfric_nodes +
                          ocean_nodes|int +
                          river_nodes|int +
-                         xios_nodes|int }}:coretype={{site_vars.node_type}}:mem={{site_vars.node_mem}}GB
+                         xios_nodes|int }}:coretype={{site_vars.node_type}}:mem={{site_vars.node_mem}}GB{{site_vars.crayhost}}
 {% endmacro %}
 
 
