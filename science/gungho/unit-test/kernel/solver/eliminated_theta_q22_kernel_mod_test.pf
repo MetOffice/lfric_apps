@@ -8,7 +8,7 @@
 module eliminated_theta_q22_kernel_mod_test
 
   use, intrinsic :: iso_fortran_env, only : real64
-  use constants_mod, only : i_def, r_def, r_solver
+  use constants_mod, only : i_def, r_def, r_solver, imdi
   use funit
 
   implicit none
@@ -48,7 +48,7 @@ contains
              coord_system=coord_system_xyz,     &
              vorticity_in_w1=.false. )
 
-    call init_chi_transforms()
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine setUp
 
