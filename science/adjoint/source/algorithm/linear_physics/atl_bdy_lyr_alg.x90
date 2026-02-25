@@ -1,0 +1,141 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief (Adjoint of) given TL state(igh_u) compute TLM boundary layer increment u_bl_inc
+module atl_bdy_lyr_alg_mod
+
+  use constants_mod,                       only: r_def
+  use field_collection_mod,                only: field_collection_type
+  use integer_field_mod,                   only: integer_field_type
+  use driver_modeldb_mod,                  only: modeldb_type
+  use sci_geometric_constants_mod,         only: get_height_fe,        &
+                                                 get_face_selector_ew, &
+                                                 get_face_selector_ns
+  use sci_fem_constants_mod,               only: get_rmultiplicity_fe
+  use field_mod,                           only: field_type
+  use linear_physics_config_mod,           only: log_layer,        &
+                                                 Blevs_m,          &
+                                                 e_folding_levs_m, &
+                                                 u_land_m,         &
+                                                 u_sea_m,          &
+                                                 z_land_m,         &
+                                                 z_sea_m,          &
+                                                 L_0_m
+  use derived_config_mod,                  only: bundle_size
+  use field_indices_mod,                   only: igh_d
+  use timing_mod,                          only: start_timing, stop_timing, tik, LPROF
+  use mesh_mod,                            only: mesh_type
+  use fs_continuity_mod,                   only: W2, W3, Wtheta
+  use tl_compute_qe_kernel_mod,            only: tl_compute_qe_kernel_type
+  use tl_compute_aubu_kernel_mod,          only: tl_compute_aubu_kernel_type
+  use atl_bl_inc_kernel_mod,               only: atl_bl_inc_kernel_type
+
+  implicit none
+
+  private
+  public :: atl_bdy_lyr_alg
+
+contains
+
+!> @brief (Adjoint of) given TL state(igh_u) compute TLM boundary layer increment u_bl_inc
+!> @details The stages are:
+!>          1. Call tl_compute_qe_kernel_type: from LS, compute coefficients Q, E
+!>          2. Call tl_compute_aubu_kernel_type: from Q,E, compute coefficients Auv, Buv_inv
+!>          3. Call atl_bl_inc_kernel_type: (adjoint of) from state(igh_u) use coefficients Auv, Buv_inv to compute u_bl_inc
+!>          The TLM BL scheme is described in Var Scientific Documentation Paper 55,
+!>          https://wwwspice/~frva/VAR/view/var-2025.03.0/doc/VSDP55_1A.pdf
+!>          The original code is at https://wwwspice/~frva/VAR/view/var-2022.12.2/doc/PF_bdy_lyr.html
+!> @param[in,out] modeldb                Structure containing the model state
+!> @param[in,out] u_bl_inc               TLM boundary layer increment
+!> @param[in,out] u                      The current TL model prognostic u field, state(igh_u)
+!> @param[in]     ls_state               Lin state for Prognostic model state
+!> @param[in]     dt                     The TL model timestep length
+subroutine atl_bdy_lyr_alg(modeldb, u_bl_inc, u, ls_state, dt)
+
+  implicit none
+
+  type(modeldb_type), target, intent(inout) :: modeldb
+  type(field_type),           intent(inout) :: u_bl_inc
+  type(field_type),           intent(inout) :: u
+  type(field_type),   target, intent(in)    :: ls_state(bundle_size)
+  real(kind=r_def),           intent(in)    :: dt
+
+  type(mesh_type),          pointer :: mesh
+  type(field_type),         pointer :: height_w2
+  type(field_type),         pointer :: height_w3
+  type(field_type),         pointer :: height_wth
+  type(field_type),         pointer :: w2_rmultiplicity
+  type(integer_field_type), pointer :: face_selector_ew
+  type(integer_field_type), pointer :: face_selector_ns
+
+  type(field_collection_type), pointer :: ls_fields
+  type(field_type),            pointer :: ls_land_fraction
+
+  ! Coefficients computed from linearisation state
+  type(field_type) :: Q
+  type(field_type) :: E
+  type(field_type) :: auv
+  type(field_type) :: buv_inv
+
+  integer(kind=tik) :: id
+
+  if (LPROF) call start_timing(id, 'atl_bdy_lyr_alg')
+
+  ls_fields => modeldb%fields%get_field_collection('ls_fields')
+  call ls_fields%get_field('ls_land_fraction', ls_land_fraction)
+
+  mesh => u%get_mesh()
+  height_w2  => get_height_fe(W2, mesh%get_id())
+  height_w3  => get_height_fe(W3, mesh%get_id())
+  height_wth => get_height_fe(Wtheta, mesh%get_id())
+
+  w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
+
+  face_selector_ew => get_face_selector_ew(mesh%get_id())
+  face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+  call ls_state(igh_d)%copy_field_properties(Q)
+  call ls_state(igh_d)%copy_field_properties(E)
+
+  call u%copy_field_properties(auv)
+  call u%copy_field_properties(buv_inv)
+
+  call invoke(tl_compute_qe_kernel_type(Q,                &
+                                        E,                &
+                                        ls_state(igh_d),  &
+                                        height_w3,        &
+                                        height_wth,       &
+                                        ls_land_fraction, &
+                                        log_layer,        &
+                                        Blevs_m,          &
+                                        e_folding_levs_m, &
+                                        u_land_m,         &
+                                        u_sea_m,          &
+                                        z_land_m,         &
+                                        z_sea_m,          &
+                                        L_0_m))
+
+  call invoke(tl_compute_aubu_kernel_type(auv,              &
+                                          buv_inv,          &
+                                          Q,                &
+                                          E,                &
+                                          height_w2,        &
+                                          w2_rmultiplicity, &
+                                          dt,               &
+                                          Blevs_m))
+
+  call invoke(atl_bl_inc_kernel_type(u_bl_inc,         &
+                                     u,                &
+                                     auv,              &
+                                     buv_inv,          &
+                                     face_selector_ew, &
+                                     face_selector_ns, &
+                                     Blevs_m))
+
+  if (LPROF) call stop_timing(id, 'atl_bdy_lyr_alg')
+
+end subroutine atl_bdy_lyr_alg
+
+end module atl_bdy_lyr_alg_mod
