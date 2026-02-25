@@ -34,7 +34,7 @@ program solver
   use field_mod,               only: field_type
   use sci_field_vector_mod,    only: field_vector_type
   use solver_miniapp_alg_mod,  only: solver_miniapp_alg
-  use configuration_mod,       only: final_configuration
+  use config_loader_mod,       only: final_configuration
   use solver_miniapp_mod,      only: solver_required_namelists
   use log_mod,                 only: log_event,            &
                                      log_scratch_space,    &
