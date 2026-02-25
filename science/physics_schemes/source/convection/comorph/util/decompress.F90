@@ -38,7 +38,7 @@ type(cmpr_type), intent(in) :: cmpr
 ! Input data to be expanded (has convection scheme precision)
 real(kind=real_cvprec), intent(in) :: field_cmpr(cmpr%n_points)
 
-! Lower and upper bounds of of the full 2-D array (in case it has haloes)
+! Lower and upper bounds of of the full 2-D array (in case it has halos)
 integer, intent(in) :: lb(2), ub(2)
 ! Expanded output array (has host-model precision)
 real(kind=real_hmprec), intent(in out) :: field_full                           &

@@ -289,7 +289,7 @@ if ( tr_vars > 0 ) then
     ! this results in the bounds specs being lost and
     ! resetting the array lower-bounds to 1 in the pointer.
     ! Therefore, the above use of bounds specification is needed
-    ! in order to retain the knowledge of the haloes in the
+    ! in order to retain the knowledge of the halos in the
     ! array pointer.
   end do
 end if
@@ -305,7 +305,7 @@ if ( tr_ukca_actv > 0 ) then
     fields_np1 % tracers(i_tracer)%pt( lb(1):, lb(2):, lb(3): )                &
       => tracer_ukca(:,:,:,i_field)
     ! Use of bounds specification needed to retain the array
-    ! lower bounds in case of haloes; see the note above for
+    ! lower bounds in case of halos; see the note above for
     ! the free tracers super-array.
   end do
 

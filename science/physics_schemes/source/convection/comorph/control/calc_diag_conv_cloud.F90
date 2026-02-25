@@ -99,7 +99,7 @@ type(res_source_type), intent(in) :: dndraft_fallback_res_source               &
 ! ( 1, 1, k_bot_conv:k_top_conv )
 
 ! Full 3-D array of pressure
-! (and lower and upper bounds in case it has haloes)
+! (and lower and upper bounds in case it has halos)
 integer, intent(in) :: lb_p(3), ub_p(3)
 real(kind=real_hmprec), intent(in) :: pressure                                 &
                           ( lb_p(1):ub_p(1), lb_p(2):ub_p(2), lb_p(3):ub_p(3) )

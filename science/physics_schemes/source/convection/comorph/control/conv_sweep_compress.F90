@@ -68,7 +68,7 @@ logical, intent(in) :: l_last_level
 type(cmpr_type), intent(in) :: cmpr
 
 ! Structure containing pointers to model grid fields
-! (full 3-D arrays, possibly with haloes);
+! (full 3-D arrays, possibly with halos);
 ! contains model-level heights, pressures and dry-density
 type(grid_type), intent(in) :: grid
 

@@ -59,7 +59,7 @@ k_top_init = nz-1
 ! Need to call this to set newline character for error messages
 call set_dependent_constants
 
-! Array lower-bounds are just 1 (no haloes or anything).
+! Array lower-bounds are just 1 (no halos or anything).
 lb = [1,1,1]
 ub = [nx,ny,nz]
 

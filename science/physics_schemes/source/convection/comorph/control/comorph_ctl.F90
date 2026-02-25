@@ -309,7 +309,7 @@ end if
 
 ! Calculate the layer masses at all points, for conservation
 ! (note need to pass in the bounds of the full 3-D arrays,
-!  in case they have haloes).
+!  in case they have halos).
 lb_rho = lbound(grid%rho_dry)
 ub_rho = ubound(grid%rho_dry)
 lb_rs = lbound(grid%r_surf)

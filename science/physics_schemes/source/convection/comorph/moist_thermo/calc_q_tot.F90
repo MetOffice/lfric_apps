@@ -89,12 +89,12 @@ use comorph_constants_mod, only: real_hmprec,                                  &
 
 implicit none
 
-! Note: the array arguments below may have haloes, and in here
-! we don't care about the haloes.
+! Note: the array arguments below may have halos, and in here
+! we don't care about the halos.
 ! We need to pass in the bounds of each array to use in
 ! the declarations, to ensure the do loops pick out the same
 ! indices of the arrays regardless of whether or not they
-! have haloes.  The lower and upper bounds are passed in through the
+! have halos.  The lower and upper bounds are passed in through the
 ! argument list in the lb_* and ub_* integer arrays.  Those storing the
 ! bounds for 3D arrays must have 3 elements; one for each dimension
 ! of the array.
