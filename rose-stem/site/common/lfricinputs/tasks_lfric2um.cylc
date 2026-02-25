@@ -38,6 +38,22 @@
         "memory_plot_ex": true,
         "kgo_checks": "",
     }) %}
+{% elif task_ns.conf_name == "lfric2um-pseudolevels-C48L70_N48L70" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["pseudolevels"],
+        "resolution": "C48",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C48",
+        "source_grid_levs": "70",
+        "source_grid_type": "global",
+        "target_grid_res": "N48",
+        "target_grid_levs": "70",
+        "target_grid_type": "global",
+        "source_dump": "$BIG_DATA_DIR/start_dumps/basic-gal/yak/basic-gal_N96L70_C48L70.nc",
+        "namelist_src": "um_grid.nml",
+    }) %}
+
 {% elif task_ns.conf_name == "lfric2um-umlam-C48L70_N512L70" %}
 
     {% do task_dict.update({

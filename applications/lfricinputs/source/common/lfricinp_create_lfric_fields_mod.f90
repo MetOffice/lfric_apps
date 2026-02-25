@@ -106,24 +106,36 @@ do i=1, size(stash_list)
     select case (lfric_field_kind)
 
       case(w2h_field) ! Stashcodes that would map to W2h, i.e. winds
+        write(log_scratch_space, '(A,I0,A)')                                   &
+           "LFRic field kind code is ", lfric_field_kind, " or w2h_field"
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
         type_mesh => mesh
         fs_id = W2H
         ndata_64 = 1_int64
         ndata_first = .false.
 
       case(w3_field) ! Stashcodes that map to W3/rho
+        write(log_scratch_space, '(A,I0,A)')                                   &
+           "LFRic field kind code is ", lfric_field_kind, " or w3_field"
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
         type_mesh => mesh
         fs_id = W3
         ndata_64 = 1_int64
         ndata_first = .false.
 
       case(wtheta_field) ! Stashcodes that maps to Wtheta
+        write(log_scratch_space, '(A,I0,A)')                                   &
+           "LFRic field kind code is ", lfric_field_kind, " or wtheta_field"
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
         type_mesh => mesh
         fs_id = Wtheta
         ndata_64 = 1_int64
         ndata_first = .false.
 
       case(w3_field_2d) ! Stash that needs 2D mesh
+        write(log_scratch_space, '(A,I0,A)')                                   &
+           "LFRic field kind code is ", lfric_field_kind, " or w3_field_2d"
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
         type_mesh => twod_mesh
         fs_id = W3
         if ( get_stashmaster_item(stashcode, pseudt) == 0 ) then
@@ -132,13 +144,22 @@ do i=1, size(stash_list)
         else
           ! Get number of pseudo levels/ndata
           ndata_64 = lfricinp_get_num_pseudo_levels(um_grid, stashcode)
+          write(log_scratch_space, '(A,I0,A)')                                   &
+             "This field has ", ndata_64, " pseudo levels"
+          call log_event(log_scratch_space, LOG_LEVEL_INFO)
         end if
         ndata_first = .false.
 
       case(w3_soil_field) ! Soil fields
+        write(log_scratch_space, '(A,I0,A)')                                   &
+           "LFRic field kind code is ", lfric_field_kind, " or w3_soil_field"
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
         type_mesh => twod_mesh
         fs_id = W3
         ndata_64 = lfricinp_get_num_levels(um_file, stashcode)
+        write(log_scratch_space, '(A,I0,A)')                                   &
+            "This field has ", ndata_64, " levels"
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
         ndata_first = .true.
 
       case DEFAULT
@@ -162,6 +183,8 @@ do i=1, size(stash_list)
     call field % set_write_behaviour(tmp_write_ptr)
     call log_event("Add "//field_name//" to field collection", LOG_LEVEL_INFO)
     call field_collection % add_field(field)
+    call log_event("Added", LOG_LEVEL_INFO)
+
 
     nullify(tmp_read_ptr, tmp_write_ptr)
     nullify(vector_space)

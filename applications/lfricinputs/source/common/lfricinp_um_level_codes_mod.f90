@@ -17,7 +17,7 @@ use lfricinp_grid_type_mod, only: lfricinp_grid_type
 
 ! lfric modules
 use log_mod,  only : log_event, log_scratch_space,         &
-                     LOG_LEVEL_ERROR
+                     LOG_LEVEL_ERROR, LOG_LEVEL_INFO
 
 implicit none
 
@@ -145,10 +145,22 @@ implicit none
 type(lfricinp_grid_type), intent(in):: um_grid
 integer(kind=int64), intent(in) :: stashcode
 ! Result
-integer(kind=int64) :: num_pseudo_levels
+integer(kind=int64) :: num_pseudo_levels, last_pseudL_num, first_pseudL_num
+
 
 num_pseudo_levels = lfricinp_get_last_pseudo_level_num(um_grid, stashcode) - &
              lfricinp_get_first_pseudo_level_num(stashcode) + 1
+
+last_pseudL_num = lfricinp_get_last_pseudo_level_num(um_grid, stashcode)
+
+first_pseudL_num = lfricinp_get_first_pseudo_level_num(stashcode)
+write(log_scratch_space, '(A,I0)') &
+     "Last pseudo level number:", last_pseudL_num
+call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+write(log_scratch_space, '(A,I0)') &
+     "First pseudo level number:",first_pseudL_num
+call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 end function lfricinp_get_num_pseudo_levels
 
@@ -207,14 +219,29 @@ character(len=*), parameter :: routinename = &
      'lfricinp_get_last_pseudo_level_num'
 
 last_pseudo_level_code =  get_stashmaster_item(stashcode, pseudl)
+write(log_scratch_space, '(A,I0)') &
+     "Last pseudo level code is ", last_pseudo_level_code
+call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 select case(last_pseudo_level_code)
 case (7,9) ! ntypes == ntiles (lfricinputs doesn't support aggregate tile)
   last_pseudo_level_num = um_grid % num_surface_types
+  if (last_pseudo_level_num == -32768) then
+    last_pseudo_level_num = 9
+  end if
+  write(log_scratch_space, '(A,I0)') &
+       "Last pseudo level number is ", last_pseudo_level_num
+  call log_event(log_scratch_space, LOG_LEVEL_INFO)
 case (10)
   last_pseudo_level_num = um_grid%num_ice_cats
 case (11)
   last_pseudo_level_num = um_grid%num_snow_layers * um_grid%num_surface_types
+  if ( um_grid%num_snow_layers == -32768 .or. um_grid%num_surface_types == -32768 ) then
+    last_pseudo_level_num = 3 * 9
+  end if
+  write(log_scratch_space, '(A,I0)') &
+       "Last pseudo level number is ", last_pseudo_level_num
+  call log_event(log_scratch_space, LOG_LEVEL_INFO)
 case DEFAULT
   write(log_scratch_space, '(A,I0,A,I0)') &
        "Last pseudo_level code ", last_pseudo_level_code, &
@@ -223,6 +250,5 @@ case DEFAULT
 end select
 
 end function lfricinp_get_last_pseudo_level_num
-
 
 end module lfricinp_um_level_codes_mod
