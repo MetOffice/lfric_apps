@@ -46,6 +46,18 @@
         "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_full-debug-64bit",
     ],
+    "um2lfric_ex1a_nwp_gal9_N320": [
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C896L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C896L70_ex1a_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_nwp_gal9_N1280": [
+        "lfricinputs_um2lfric-nwp_gal9-N1280L70_C224L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N1280L70_C224L70_ex1a_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_nwp_gal9_C896": [
+        "lfricinputs_um2lfric-nwp_gal9-N1280L70_C896L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N1280L70_C896L70_ex1a_gnu_full-debug-64bit",
+    ],
 
     "um2lfric_azspice_nwp_gal9": [
         "um2lfric_azspice_nwp_gal9_C12",
@@ -108,6 +120,14 @@
     "um2lfric_ex1a_var_seukv_lam": [
         "lfricinputs_um2lfric-var_seuk_lam_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-var_seuk_lam_ex1a_gnu_full-debug-64bit",
+    ],
+    "lfric2um_ex1a_C224": [
+        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",
+    ],
+    "lfric2um_ex1a_C896": [
+        "lfricinputs_lfric2um-performance-C896L70_N1280L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-performance-C896L70_N1280L70_ex1a_gnu_fast-debug-64bit",
     ],
     }) %}
 
@@ -208,6 +228,9 @@
     ],
     "um2lfric_ex1a_weekly": [
         "um2lfric_ex1a_nwp_gal9_C224",
+        "um2lfric_ex1a_nwp_gal9_N320",
+        "um2lfric_ex1a_nwp_gal9_N1280",
+        "um2lfric_ex1a_nwp_gal9_C896",
     ],
     "lfric2um_ex1a_developer": [
         "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit",
@@ -219,8 +242,8 @@
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit",
     ],
     "lfric2um_ex1a_weekly": [
-        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit",
-        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",
+        "lfric2um_ex1a_C224",
+        "lfric2um_ex1a_C896",
     ],
     "scintelapi_ex1a_developer": [
         "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_fast-debug-64bit",
