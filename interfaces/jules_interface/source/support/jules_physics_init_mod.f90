@@ -121,7 +121,7 @@ module jules_physics_init_mod
 
   ! JULES modules used
   use cropparm,                 only: cropparm_alloc
-  use c_irrigation,             only: c_irrigation_alloc
+  use c_irrigation_mod,         only: c_irrigation_alloc
   use c_z0h_z0m,                only: c_z0h_z0m_alloc
   use jules_irrig_mod,          only: irrig_vars_alloc
   use metstats_mod,             only: metstats_allocate
