@@ -149,7 +149,7 @@ do ic = 1, n_points
     frac_ice_tmp                                                               &
       = half * prev_cf_conv(ic) * par_prev_cloudfracs(ic,i_frac_ice)           &
       + half * next_cf_conv(ic) * par_next_cloudfracs(ic,i_frac_ice)
-    ! We must have max(frac_liq,frac_ice) <= frac_bulk <= frac_liq+frac_ice
+    ! We must have MAX(frac_liq,frac_ice) <= frac_bulk <= frac_liq+frac_ice
     convcloud(ic,i_frac_bulk_conv)                                             &
       = max( min( convcloud(ic,i_frac_bulk_conv),                              &
                   convcloud(ic,i_frac_liq_conv) + frac_ice_tmp ),              &

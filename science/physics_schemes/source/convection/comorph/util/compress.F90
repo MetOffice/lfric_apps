@@ -33,7 +33,7 @@ implicit none
 ! Structure containing compression indices
 type(cmpr_type), intent(in) :: cmpr
 
-! Lower and upper bounds of the full 2-D array (in case it has halos)
+! Lower and upper bounds of the full 2-D array (in case it has haloes)
 integer, intent(in) :: lb(2), ub(2)
 
 ! Full 2-D array to be compressed

@@ -29,8 +29,7 @@ use comorph_constants_mod, only: real_hmprec, real_cvprec,                     &
                                  n_updraft_types, n_dndraft_types,             &
                                  l_updraft_fallback, l_dndraft_fallback,       &
                                  l_calc_mfw_cape,                              &
-                                 i_cfl_check, i_cfl_check_closure,             &
-                                 i_cfl_check_hybrid
+                                 i_cfl_closure, i_cfl_closure_none
 
 use cmpr_type_mod, only: cmpr_type
 use grid_type_mod, only: grid_type
@@ -201,7 +200,7 @@ logical :: l_output_fallback
 integer :: lb_p(3), ub_p(3)
 
 ! Loop counters
-integer :: k, i_type, i_layr
+integer :: k
 
 
 !--------------------------------------------------------------
@@ -224,7 +223,8 @@ call conv_genesis_ctl( max_points, ij_first, ij_last,                          &
                        grid, turb, cloudfracs, fields,                         &
                        layer_mass, virt_temp_n, l_init_poss,                   &
                        n_updraft_layers, updraft_par_gen,                      &
-                       n_dndraft_layers, dndraft_par_gen )
+                       n_dndraft_layers, dndraft_par_gen,                      &
+                       comorph_diags % genesis_diags )
 ! Note: the _par_gen arrays get allocated inside
 ! conv_genesis_ctl.
 
@@ -260,7 +260,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                          updraft_fields_2d,                                    &
                          comorph_diags % updraft,                              &
                          updraft_diags_super,                                  &
-      fallback_par_gen = updraft_fallback_par_gen )
+                         updraft_fallback_par_gen )
 
     ! If updraft fall-backs are on:
     if ( l_updraft_fallback ) then
@@ -281,7 +281,8 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                            updraft_fallback_res_source,                        &
                            updraft_fields_2d,                                  &
                            comorph_diags % updraft_fallback,                   &
-                           updraft_fallback_diags_super )
+                           updraft_fallback_diags_super,                       &
+                           updraft_fallback_par_gen )
 
     end if  ! ( l_updraft_fallback )
 
@@ -292,7 +293,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                                 updraft_fields_2d )
     end if
 
-  end if  ! ( n_updraft_types > 0 .and. n_updraft_layers > 0 )
+  end if  ! ( n_updraft_types > 0 .AND. n_updraft_layers > 0 )
 
   ! Allocate resolved-scale source term and fall-back
   ! mass-source arrays to minimal size if not used
@@ -336,7 +337,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                          dndraft_fields_2d,                                    &
                          comorph_diags % dndraft,                              &
                          dndraft_diags_super,                                  &
-      fallback_par_gen = dndraft_fallback_par_gen )
+                         dndraft_fallback_par_gen )
 
     ! If downdraft fall-backs are on:
     if ( l_dndraft_fallback ) then
@@ -357,7 +358,8 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                            dndraft_fallback_res_source,                        &
                            dndraft_fields_2d,                                  &
                            comorph_diags % dndraft_fallback,                   &
-                           dndraft_fallback_diags_super )
+                           dndraft_fallback_diags_super,                       &
+                           dndraft_fallback_par_gen )
 
     end if  ! ( l_dndraft_fallback )
 
@@ -368,7 +370,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                                 dndraft_fields_2d )
     end if
 
-  end if  ! ( n_dndraft_types > 0 .and. n_dndraft_layers > 0 )
+  end if  ! ( n_dndraft_types > 0 .AND. n_dndraft_layers > 0 )
 
   ! Allocate resolved-scale source term and fall-back
   ! mass-source arrays to minimal size if not used
@@ -410,8 +412,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
   !------------------------------------------------------------
 
   ! Currently the only closure available is a CFL-limiter
-  if ( i_cfl_check == i_cfl_check_closure .or.                                 &
-       i_cfl_check == i_cfl_check_hybrid ) then
+  if ( i_cfl_closure > i_cfl_closure_none ) then
     call conv_closure_ctl( n_updraft_layers, n_dndraft_layers,                 &
                            ij_first, ij_last,                                  &
                            n_fields_tot, cmpr_any, layer_mass,                 &
@@ -480,8 +481,9 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                                     dndraft_diags_super )
     ! 2D diagnostics
     if ( comorph_diags % dndraft_diags_2d % n_diags > 0 ) then
+      l_down = .true.
       call diags_2d_compute_means( n_dndraft_types, n_dndraft_layers,          &
-                                   ij_first, ij_last,                          &
+                                   ij_first, ij_last, l_down,                  &
                                    comorph_diags % dndraft_diags_2d,           &
                                    dndraft_fields_2d )
     end if
@@ -502,8 +504,9 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                                     updraft_diags_super )
     ! 2D diagnostics
     if ( comorph_diags % updraft_diags_2d % n_diags > 0 ) then
+      l_down = .false.
       call diags_2d_compute_means( n_updraft_types, n_updraft_layers,          &
-                                   ij_first, ij_last,                          &
+                                   ij_first, ij_last, l_down,                  &
                                    comorph_diags % updraft_diags_2d,           &
                                    updraft_fields_2d )
     end if
@@ -531,7 +534,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
   ! level-by-level.  Safest to deallocate them all together.
 
 
-else  ! ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 )
+else  ! ( n_updraft_layers > 0 .OR. n_dndraft_layers > 0 )
 
 
   ! Any calculations that need to be done even when there
@@ -547,19 +550,10 @@ else  ! ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 )
   deallocate( cmpr_any )
 
 
-end if  ! ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 )
+end if  ! ( n_updraft_layers > 0 .OR. n_dndraft_layers > 0 )
 
 
 ! Deallocate the initiating parcel property arrays
-do k = k_bot_conv, k_top_conv
-  do i_layr = 1, n_updraft_layers
-    do i_type = 1, n_updraft_types
-      if ( updraft_par_gen(i_type,i_layr,k) % cmpr % n_points > 0 ) then
-        call parcel_dealloc( updraft_par_gen(i_type,i_layr,k) )
-      end if
-    end do
-  end do
-end do
 deallocate( dndraft_par_gen )
 deallocate( updraft_par_gen )
 

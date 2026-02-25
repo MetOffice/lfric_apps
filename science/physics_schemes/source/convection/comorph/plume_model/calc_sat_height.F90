@@ -17,392 +17,384 @@ contains
 ! the parcel first reached saturation, based on the parcel
 ! properties before and after a level-step
 subroutine calc_sat_height(                                                    &
-             n_points, n_points_prev, n_points_next,                           &
-             n_points_buoy, n_sat, index_ic_sat,                               &
-             max_buoy_heights, n_buoy_vars, i_buoy,                            &
-             prev_pressure, par_prev_fields, par_next_fields,                  &
-             env_prev_virt_temp, env_next_virt_temp,                           &
-             linear_qs_super, i_next, i_sat, buoyancy_super,                   &
+             n_points, n_points_sublevs, l_mean_with_core, l_down, j_buoy,     &
+             prev_ss, next_ss, prev_tvl, next_tvl,                             &
+             par_prev_q_cl, par_next_q_cl,                                     &
+             i_next, i_sat, sublevs,                                           &
              i_core_sat )
 
-use comorph_constants_mod, only: real_cvprec, zero, one,                       &
-                     n_cond_species, i_cond_cl
-use fields_type_mod, only: i_temperature, i_q_vap,                             &
-                           i_qc_first, i_qc_last
-use set_cp_tot_mod, only: set_cp_tot
-use lat_heat_mod, only: lat_heat_incr, i_phase_change_evp
-use set_qsat_mod, only: set_qsat_liq
-use calc_virt_temp_mod, only: calc_virt_temp
-use linear_qs_mod, only: n_linear_qs_fields, i_ref_temp,                       &
-                         i_qsat_liq_ref, i_dqsatdt_liq
-use grid_type_mod, only: i_height
-use buoyancy_mod, only: i_prev
+use comorph_constants_mod, only: real_cvprec, zero, one, sqrt_min_float
+use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
+                       j_height, j_env_tv, j_mean_buoy, j_core_buoy, j_delta_tv
 
 implicit none
 
 ! Number of points
 integer, intent(in) :: n_points
-! Dimensions of par_prev super-array
-integer, intent(in) :: n_points_prev
-! Dimensions of par_next super-array
-integer, intent(in) :: n_points_next
-! Dimensions of buoyancy super-array
-integer, intent(in) :: n_points_buoy
+! Dimensions of sub-levels super-array
+integer, intent(in) :: n_points_sublevs
 
-! Number of points which have just hit saturation
-integer, intent(in) :: n_sat
-! Indices of those points
-integer, intent(in) :: index_ic_sat(n_sat)
+! Flag for parcel mean ascent with an accompanying core
+logical, intent(in) :: l_mean_with_core
 
-! Dimensions of the buoyancy super-array (may differ between
-! different calls to this routine)
-integer, intent(in) :: max_buoy_heights
-integer, intent(in) :: n_buoy_vars
-! Address of buoyancy fields in the super-array
-integer, intent(in) :: i_buoy
+! Flag for going down (downdrafts)
+logical, intent(in) :: l_down
 
-! Pressure at previous level
-real(kind=real_cvprec), intent(in) :: prev_pressure(n_points)
+! Address of buoyancy fields in the sub-levels super-array
+integer, intent(in) :: j_buoy
 
-! Super-arrays containing parcel properties at the previous and
-! next levels
-real(kind=real_cvprec), intent(in) :: par_prev_fields                          &
-                       ( n_points_prev, i_temperature:i_qc_last )
-real(kind=real_cvprec), intent(in) :: par_next_fields                          &
-                       ( n_points_next, i_temperature:i_qc_last )
+! Parcel supersaturation and virtual temperature we would've had
+! without any condensation, at previous and next level
+real(kind=real_cvprec), intent(in) :: prev_ss(n_points)
+real(kind=real_cvprec), intent(in) :: next_ss(n_points)
+real(kind=real_cvprec), intent(in) :: prev_tvl(n_points)
+real(kind=real_cvprec), intent(in) :: next_tvl(n_points)
 
-! Environment virtual temperatures at previous and next levels
-real(kind=real_cvprec), intent(in) :: env_prev_virt_temp                       &
-                                      ( n_points )
-real(kind=real_cvprec), intent(in) :: env_next_virt_temp                       &
-                                      ( n_points )
+! Parcel liquid-cloud content at prev and next
+real(kind=real_cvprec), intent(in) :: par_prev_q_cl(n_points)
+real(kind=real_cvprec), intent(in) :: par_next_q_cl(n_points)
 
-! Super-array containing qsat at a reference temperature,
-! and dqsat/dT, for linearised qsat calculations.
-! Valid at the "next" level
-real(kind=real_cvprec), intent(in) :: linear_qs_super                          &
-                            ( n_points, n_linear_qs_fields )
-
-! Address of next model-level interface in buoyancy_super
+! Address of next model-level interface in sublevs
 integer, intent(in out) :: i_next(n_points)
 ! Address of the newly found saturation height within the
-! buoyancy super-array
+! sub-levels super-array
 integer, intent(in out) :: i_sat(n_points)
 
-! Super-array storing the buoyancies of the parcel mean and core
+! Super-array storing parcel buoyancies and other properties
 ! at up to 4 sub-level heights within the current level-step:
 ! a) Start of the level-step
 ! b) End of the level-step
 ! c) Height where parcel mean properties first hit saturation
 ! d) Height where parcel core first hit saturation
-real(kind=real_cvprec), intent(in out) :: buoyancy_super                       &
-                ( n_points_buoy, n_buoy_vars, max_buoy_heights )
+real(kind=real_cvprec), intent(in out) :: sublevs                              &
+                ( n_points_sublevs, n_sublev_vars, max_sublevs )
 
 ! Address of the previously calculated parcel core saturation
-! height within the buoyancy super-array
+! height within the sublevs super-array
 ! (only passed in if this is a parcel mean ascent whose
 !  saturation height can be modified by a separate core ascent).
 integer, optional, intent(in out) :: i_core_sat(n_points)
 
-! Parcel heat capacity
-real(kind=real_cvprec) :: cp_tot(n_sat)
-
-! Parcel liquid-water-temperature, q_vap+q_cl, and pressure,
-! compressed onto saturated points
-real(kind=real_cvprec) :: par_templ(n_sat)
-real(kind=real_cvprec) :: par_q_vl(n_sat)
-real(kind=real_cvprec) :: par_pressure(n_sat)
-! Compressed condensed water species for virtual temperature calc
-real(kind=real_cvprec) :: par_q_cond(n_sat,n_cond_species)
-
-
-! Parcel virtual temperature and supersaturation we would've had
-! without any condensation
-real(kind=real_cvprec) :: prev_virt_temp_nocond(n_sat)
-real(kind=real_cvprec) :: next_virt_temp_nocond(n_sat)
-real(kind=real_cvprec) :: prev_ss(n_sat)
-real(kind=real_cvprec) :: next_ss(n_sat)
-
-! Height and parcel virtual temperature at saturation point
-real(kind=real_cvprec) :: sat_height(n_sat)
-real(kind=real_cvprec) :: sat_virt_temp(n_sat)
-
-! Interpolation weight
-real(kind=real_cvprec) :: interp
+! Number of points which have just hit saturation
+integer :: n_sat
+! Indices of those points
+integer :: index_ic_sat(n_points)
 
 ! Points where saturation height distinct from existing
 ! core saturation height
 integer :: n_new
-integer :: index_ic_new(n_sat)
+integer :: index_ic_new(n_points)
 
+! Height and parcel virtual temperatures at saturation height
+real(kind=real_cvprec) :: sat_height(n_points)
+real(kind=real_cvprec) :: sat_par_virt_temp(n_points)
+
+! Interpolation weight
+real(kind=real_cvprec) :: interp
 
 ! Loop counters
-integer :: ic, ic2, i_cond, i_field, i_lev
+integer :: ic, ic2, i_field, i_lev
 
 
-!----------------------------------------------------------------
-! 1) Compute previous parcel virtual temperature and
-!    supersaturation if condensate were evaporated
-!----------------------------------------------------------------
+!------------------------------------------------------------------------------
+! 1) Find saturation height properties for the current ascent
+!------------------------------------------------------------------------------
 
-! Compress previous parcel properties onto saturated points
-do ic2 = 1, n_sat
-  ic = index_ic_sat(ic2)
-  par_templ(ic2) = par_prev_fields(ic,i_temperature)
-  par_q_vl(ic2)  = par_prev_fields(ic,i_q_vap)
-  par_pressure(ic2) = prev_pressure(ic)
-end do
-do i_cond = 1, n_cond_species
-  do ic2 = 1, n_sat
-    par_q_cond(ic2,i_cond) = par_prev_fields(index_ic_sat(ic2),                &
-                                             i_qc_first-1+i_cond)
-  end do
-end do
-
-! Calculate total heat capacity of previous parcel
-call set_cp_tot( n_sat, n_sat, par_q_vl, par_q_cond, cp_tot )
-
-! Calculate liquid-water temperature of the parcel
-call lat_heat_incr( n_sat, n_sat, i_phase_change_evp,                          &
-                    cp_tot, par_templ,                                         &
-                    dq=par_q_cond(:,i_cond_cl) )
-
-! Add the liquid cloud to the vapour
-do ic2 = 1, n_sat
-  par_q_vl(ic2) = par_q_vl(ic2) + par_q_cond(ic2,i_cond_cl)
-  par_q_cond(ic2,i_cond_cl) = zero
-end do
-
-! Calculate virtual temperature
-call calc_virt_temp( n_sat, n_sat,                                             &
-                     par_templ, par_q_vl, par_q_cond,                          &
-                     prev_virt_temp_nocond )
-
-! Calculate supersaturation
-call set_qsat_liq( n_sat, par_templ, par_pressure, prev_ss )
-do ic2 = 1, n_sat
-  prev_ss(ic2) = par_q_vl(ic2) - prev_ss(ic2)
-end do
-
-
-!----------------------------------------------------------------
-! 2) Compute next parcel virtual temperature and
-!    supersaturation if condensate were evaporated
-!----------------------------------------------------------------
-
-! Compress next parcel properties onto saturated points
-do ic2 = 1, n_sat
-  ic = index_ic_sat(ic2)
-  par_templ(ic2) = par_next_fields(ic,i_temperature)
-  par_q_vl(ic2)  = par_next_fields(ic,i_q_vap)
-end do
-do i_cond = 1, n_cond_species
-  do ic2 = 1, n_sat
-    par_q_cond(ic2,i_cond) = par_next_fields(index_ic_sat(ic2),                &
-                                             i_qc_first-1+i_cond)
-  end do
-end do
-
-! Calculate total heat capacity of next parcel
-call set_cp_tot( n_sat, n_sat, par_q_vl, par_q_cond, cp_tot )
-
-! Calculate liquid-water temperature of the parcel
-call lat_heat_incr( n_sat, n_sat, i_phase_change_evp,                          &
-                    cp_tot, par_templ,                                         &
-                    dq=par_q_cond(:,i_cond_cl) )
-
-! Add the liquid cloud to the vapour
-do ic2 = 1, n_sat
-  par_q_vl(ic2) = par_q_vl(ic2) + par_q_cond(ic2,i_cond_cl)
-  par_q_cond(ic2,i_cond_cl) = zero
-end do
-
-! Calculate virtual temperature
-call calc_virt_temp( n_sat, n_sat,                                             &
-                     par_templ, par_q_vl, par_q_cond,                          &
-                     next_virt_temp_nocond )
-
-! Calculate supersaturation, using linearised qsat passed in
-do ic2 = 1, n_sat
-  ic = index_ic_sat(ic2)
-  next_ss(ic2) = par_q_vl(ic2)                                                 &
-     - ( linear_qs_super(ic,i_qsat_liq_ref)                                    &
-       + linear_qs_super(ic,i_dqsatdt_liq)                                     &
-         * ( par_templ(ic2) - linear_qs_super(ic,i_ref_temp) )  )
-end do
-
-
-!----------------------------------------------------------------
-! 3) Interpolate to find height where parcel RH reached 100%
-!----------------------------------------------------------------
-
-do ic2 = 1, n_sat
-  ic = index_ic_sat(ic2)
-
-  ! Fraction of the way through the level where SS is zero
-  interp = -prev_ss(ic2) / ( next_ss(ic2) - prev_ss(ic2) )
-
-  ! Interpolate height
-  sat_height(ic2)                                                              &
-         = (one-interp) * buoyancy_super(ic,i_height,i_prev)                   &
-         +      interp  * buoyancy_super(ic,i_height,i_next(ic))
-
-  ! Interpolate to estimate parcel virtual temperature at the
-  ! saturation height
-  sat_virt_temp(ic2)                                                           &
-         = (one-interp) * prev_virt_temp_nocond(ic2)                           &
-         +      interp  * next_virt_temp_nocond(ic2)
-
-end do
-
-do ic2 = 1, n_sat
-  ! Overwrite with just prev or next value in case where
-  ! SS doesn't change sign between prev and next
-  ! (should only happen occasionally due to rounding errors)
-  if ( prev_ss(ic2) * next_ss(ic2) >= zero ) then
-    ic = index_ic_sat(ic2)
-    if ( abs(next_ss(ic2)) < abs(prev_ss(ic2)) ) then
-      sat_height(ic2)    = buoyancy_super(ic,i_height,i_next(ic))
-      sat_virt_temp(ic2) = next_virt_temp_nocond(ic2)
-    else
-      sat_height(ic2)    = buoyancy_super(ic,i_height,i_prev)
-      sat_virt_temp(ic2) = prev_virt_temp_nocond(ic2)
-    end if
+! Find list of points which just crossed from subsaturated to
+! saturated, or vice-versa
+n_sat = 0
+do ic = 1, n_points
+  if ( par_prev_q_cl(ic) > zero .neqv. par_next_q_cl(ic) > zero ) then
+    n_sat = n_sat + 1
+    index_ic_sat(n_sat) = ic
   end if
 end do
 
-! Even when SS does change sign, rounding errors can still very
-! occasionally cause sat_height to fall a tiny bit outside its
-! allowed range; force it to be between prev height and next height!
-do ic2 = 1, n_sat
-  ic = index_ic_sat(ic2)
-  sat_height(ic2) = max( min( sat_height(ic2),                                 &
-                              buoyancy_super(ic,i_height,i_next(ic)) ),        &
-                         buoyancy_super(ic,i_height,i_prev) )
-end do
+if ( n_sat > 0 ) then
+  ! If any points just crossed saturation...
 
-! Modify calculation of saturation height in case where the
-! parcel core hit saturation before the mean, or remained
-! saturated for longer than the mean.
-! While the core is saturated, the mean must also contain
-! saturated air and so is considered to have the same saturation
-! height as the core.
-if ( present(i_core_sat) ) then
+  ! Interpolate to find height where parcel RH reached 100%
+  do ic2 = 1, n_sat
+    ic = index_ic_sat(ic2)
+
+    ! Fraction of the way through the level where SS is zero
+    interp = -prev_ss(ic) / ( next_ss(ic) - prev_ss(ic) )
+
+    ! Interpolate height
+    sat_height(ic) = (one-interp) * sublevs(ic,j_height,i_prev)                &
+                   +      interp  * sublevs(ic,j_height,i_next(ic))
+
+    ! Interpolate to estimate parcel virtual temperature at the
+    ! saturation height
+    sat_par_virt_temp(ic) = (one-interp) * prev_tvl(ic)                        &
+                          +      interp  * next_tvl(ic)
+  end do
 
   do ic2 = 1, n_sat
     ic = index_ic_sat(ic2)
-    ! If the core hit saturation at this level
-    if ( i_core_sat(ic) > 0 ) then
-
-      ! If going from subsaturated to saturated
-      if ( next_ss(ic2) > prev_ss(ic2) ) then
-        ! If the core hit saturation before the mean
-        if ( buoyancy_super(ic,i_height,i_core_sat(ic))                        &
-             <= sat_height(ic2) ) then
-          ! Reset saturation height for the mean same as core
-          i_sat(ic) = i_core_sat(ic)
-        end if
-        ! If going from saturated to subsaturated
+    ! Overwrite with just prev or next value in case where
+    ! SS doesn't change sign between prev and next
+    ! (should only happen occasionally due to rounding errors)
+    if ( prev_ss(ic) * next_ss(ic) >= zero ) then
+      if ( abs(next_ss(ic)) < abs(prev_ss(ic)) ) then
+        sat_height(ic)        = sublevs(ic,j_height,i_next(ic))
+        sat_par_virt_temp(ic) = next_tvl(ic)
       else
-        ! If the core became subsaturated after the mean
-        if ( buoyancy_super(ic,i_height,i_core_sat(ic))                        &
-             >= sat_height(ic2) ) then
-          ! Reset saturation height for the mean same as core
-          i_sat(ic) = i_core_sat(ic)
-        end if
+        sat_height(ic)        = sublevs(ic,j_height,i_prev)
+        sat_par_virt_temp(ic) = prev_tvl(ic)
       end if
-
-      if ( i_sat(ic) == i_core_sat(ic) ) then
-        ! If sat height has been reset to that of the core,
-        ! re-interpolate virt temp at sat_height
-        interp = ( buoyancy_super(ic,i_height,i_core_sat(ic))                  &
-                 - buoyancy_super(ic,i_height,i_prev) )                        &
-               / ( buoyancy_super(ic,i_height,i_next(ic))                      &
-                 - buoyancy_super(ic,i_height,i_prev) )
-        sat_virt_temp(ic2)                                                     &
-               = (one-interp) * prev_virt_temp_nocond(ic2)                     &
-               +      interp  * next_virt_temp_nocond(ic2)
-        sat_height(ic2)                                                        &
-               = buoyancy_super(ic,i_height,i_core_sat(ic))
-      end if
-
-    end if  ! ( i_core_sat(ic) > 0 )
-  end do  ! ic2 = 1, n_sat
-
-  ! Find points where new saturation height found and not reset
-  ! to the core saturation height
-  n_new = 0
-  do ic2 = 1, n_sat
-    ic = index_ic_sat(ic2)
-    if ( i_sat(ic) == 0 ) then
-      n_new = n_new + 1
-      index_ic_new(n_new) = ic
-      ! Compress sat_height onto "new" points
-      sat_height(n_new) = sat_height(ic2)
     end if
   end do
 
-else  ! ( present(i_core_sat) )
-
-  ! No separate core ascent; all sat points included in the list
-  n_new = n_sat
-  do ic2 = 1, n_sat
-    index_ic_new(ic2) = index_ic_sat(ic2)
-  end do
-
-end if    ! ( present(i_core_sat) )
-
-
-! Find level address of saturation height in buoyancy_super
-do ic2 = 1, n_new
-  ic = index_ic_new(ic2)
-  ! Find i_sat
-  i_sat(ic) = i_prev + 1
-  if ( i_next(ic) > i_prev + 1 ) then
-    do i_lev = i_prev+1, i_next(ic)-1
-      if ( sat_height(ic2) >=                                                  &
-           buoyancy_super(ic,i_height,i_lev) )                                 &
-         i_sat(ic) = i_lev + 1
+  ! Rounding errors can very occasionally cause sat_height to fall a tiny bit
+  ! outside its allowed range; force it to be between
+  ! prev height and next height!
+  if ( l_down ) then
+    ! Downdrafts: want    next_height < sat_height < prev_height
+    do ic2 = 1, n_sat
+      ic = index_ic_sat(ic2)
+      sat_height(ic) = min( max( sat_height(ic),                               &
+                                 sublevs(ic,j_height,i_next(ic)) ),            &
+                            sublevs(ic,j_height,i_prev) )
+    end do
+  else
+    ! Updrafts:   want    prev_height < sat_height < next_height
+    do ic2 = 1, n_sat
+      ic = index_ic_sat(ic2)
+      sat_height(ic) = max( min( sat_height(ic),                               &
+                                 sublevs(ic,j_height,i_next(ic)) ),            &
+                            sublevs(ic,j_height,i_prev) )
     end do
   end if
-  ! Shift all the data beyond this forward by 1 sub-level
-  do i_lev = i_next(ic), i_sat(ic), -1
-    do i_field = 1, n_buoy_vars
-      buoyancy_super(ic,i_field,i_lev+1)                                       &
-        = buoyancy_super(ic,i_field,i_lev)
-    end do
-  end do
-  ! Store height of the newly inserted saturation level
-  buoyancy_super(ic,i_height,i_sat(ic)) = sat_height(ic2)
-end do
 
-! Shift address of next model-level interface
-do ic2 = 1, n_new
-  ic = index_ic_new(ic2)
-  i_next(ic) = i_next(ic) + 1
-end do
-! Also shift address of core saturation height, if used
-if ( present(i_core_sat) ) then
+  ! Modify calculation of saturation height in case where the
+  ! parcel core hit saturation before the mean, or remained
+  ! saturated for longer than the mean.
+  ! While the core is saturated, the mean must also contain
+  ! saturated air and so is considered to have the same saturation
+  ! height as the core.
+  if ( l_mean_with_core .and. present(i_core_sat) ) then
+    do ic2 = 1, n_sat
+      ic = index_ic_sat(ic2)
+      if ( i_core_sat(ic) > 0 ) then
+        ! If the core hit saturation at this level
+
+        if ( l_down ) then
+          ! Going down
+          if ( next_ss(ic) > prev_ss(ic) ) then
+            if ( sublevs(ic,j_height,i_core_sat(ic)) >= sat_height(ic) ) then
+              ! Core reached saturation first
+              i_sat(ic) = i_core_sat(ic)
+            end if
+          else
+            if ( sublevs(ic,j_height,i_core_sat(ic)) <= sat_height(ic) ) then
+              ! Core stayed saturated for longer
+              i_sat(ic) = i_core_sat(ic)
+            end if
+          end if
+        else  ! ( .NOT. l_down )
+          ! Going up
+          if ( next_ss(ic) > prev_ss(ic) ) then
+            if ( sublevs(ic,j_height,i_core_sat(ic)) <= sat_height(ic) ) then
+              ! Core reached saturation first
+              i_sat(ic) = i_core_sat(ic)
+            end if
+          else
+            if ( sublevs(ic,j_height,i_core_sat(ic)) >= sat_height(ic) ) then
+              ! Core stayed saturated for longer
+              i_sat(ic) = i_core_sat(ic)
+            end if
+          end if
+        end if  ! ( .NOT. l_down )
+
+        if ( i_sat(ic) == i_core_sat(ic) ) then
+          ! If sat height has been reset to that of the core,
+          ! re-interpolate virt temp at sat_height
+          interp = ( sublevs(ic,j_height,i_core_sat(ic))                       &
+                   - sublevs(ic,j_height,i_prev) )                             &
+                 / ( sublevs(ic,j_height,i_next(ic))                           &
+                   - sublevs(ic,j_height,i_prev) )
+          sat_par_virt_temp(ic) = (one-interp) * prev_tvl(ic)                  &
+                                +      interp  * next_tvl(ic)
+          sat_height(ic) = sublevs(ic,j_height,i_core_sat(ic))
+        end if
+
+      end if  ! ( i_core_sat(ic) > 0 )
+    end do  ! ic2 = 1, n_sat
+
+    ! Find points where new saturation height found and NOT reset
+    ! to the core saturation height
+    n_new = 0
+    do ic2 = 1, n_sat
+      ic = index_ic_sat(ic2)
+      if ( i_sat(ic) == 0 ) then
+        n_new = n_new + 1
+        index_ic_new(n_new) = ic
+      end if
+    end do
+
+  else  ! ( .NOT. ( l_mean_with_core .AND. PRESENT(i_core_sat) ) )
+
+    ! No separate core ascent; all sat points included in the list
+    n_new = n_sat
+    do ic2 = 1, n_sat
+      index_ic_new(ic2) = index_ic_sat(ic2)
+    end do
+
+  end if  ! ( .NOT. ( l_mean_with_core .AND. PRESENT(i_core_sat) ) )
+
+
+  !----------------------------------------------------------------------------
+  ! 2) Store the required data in the sublevs super-array
+  !----------------------------------------------------------------------------
+
+  ! Find level address of saturation height in the sublevs array
+  ! and insert the data at saturation height
+  ! Height comparisons have opposite sign for updrafts and downdrafts
+  if ( l_down ) then
+    do ic2 = 1, n_new
+      ic = index_ic_new(ic2)
+      i_sat(ic) = i_prev + 1
+      if ( i_next(ic) > i_prev + 1 ) then
+        do i_lev = i_prev+1, i_next(ic)-1
+          if ( sat_height(ic) <= sublevs(ic,j_height,i_lev) ) then
+            i_sat(ic) = i_lev + 1
+          end if
+        end do
+      end if
+    end do
+  else
+    do ic2 = 1, n_new
+      ic = index_ic_new(ic2)
+      i_sat(ic) = i_prev + 1
+      if ( i_next(ic) > i_prev + 1 ) then
+        do i_lev = i_prev+1, i_next(ic)-1
+          if ( sat_height(ic) >= sublevs(ic,j_height,i_lev) ) then
+            i_sat(ic) = i_lev + 1
+          end if
+        end do
+      end if
+    end do
+  end if
+
   do ic2 = 1, n_new
     ic = index_ic_new(ic2)
-    if ( i_core_sat(ic) >= i_sat(ic) )                                         &
-                  i_core_sat(ic) = i_core_sat(ic) + 1
-  end do
-end if
 
-! Interpolate to get environment virt_temp at sat_height,
-! to find the virt_temp excess at sat_height.
-do ic2 = 1, n_sat
-  ic = index_ic_sat(ic2)
-  ! Interpolate sat between prev and next
-  interp = ( buoyancy_super(ic,i_height,i_sat(ic))                             &
-           - buoyancy_super(ic,i_height,i_prev) )                              &
-         / ( buoyancy_super(ic,i_height,i_next(ic))                            &
-           - buoyancy_super(ic,i_height,i_prev) )
-  buoyancy_super(ic,i_buoy,i_sat(ic)) = sat_virt_temp(ic2)                     &
-    - ( (one-interp) * env_prev_virt_temp(ic)                                  &
-      +      interp  * env_next_virt_temp(ic) )
-end do
+    ! Shift all the data beyond i_sat forward by 1 sub-level
+    do i_lev = i_next(ic), i_sat(ic), -1
+      do i_field = 1, n_sublev_vars
+        sublevs(ic,i_field,i_lev+1) = sublevs(ic,i_field,i_lev)
+      end do
+    end do
+
+    ! Shift address of next model-level interface
+    i_next(ic) = i_next(ic) + 1
+
+    ! Linearly interpolate all sublev fields to sat_height
+    ! (except for j_height and the buoyancies and vertical velocity excesses
+    !  which are set subsequently...)
+    interp = ( sat_height(ic)                  - sublevs(ic,j_height,i_prev) ) &
+           / ( sublevs(ic,j_height,i_next(ic)) - sublevs(ic,j_height,i_prev) )
+    do i_field = j_height+1, j_mean_buoy-1
+      sublevs(ic,i_field,i_sat(ic))                                            &
+        = (one-interp) * sublevs(ic,i_field,i_prev)                            &
+        +      interp  * sublevs(ic,i_field,i_next(ic))
+    end do
+
+    ! TEMPORARY CODE TO PRESERVE KGO; TO BE REMOVED SOON:
+    ! delta_tv is assumed constant over whole model-level;
+    ! remove bit-level changes due to interpolation
+    sublevs(ic,j_delta_tv,i_sat(ic)) = sublevs(ic,j_delta_tv,i_prev)
+
+    ! Store the found saturation height
+    sublevs(ic,j_height,i_sat(ic)) = sat_height(ic)
+
+  end do  ! ic2 = 1, n_new
+
+  ! Also shift address of core saturation height, if used
+  if ( l_mean_with_core .and. present(i_core_sat) ) then
+    do ic2 = 1, n_new
+      ic = index_ic_new(ic2)
+      if ( i_core_sat(ic) >= i_sat(ic) )  i_core_sat(ic) = i_core_sat(ic) + 1
+    end do
+  end if
+
+  ! Set buoyancy at saturation height using interpolated env Tv
+  do ic2 = 1, n_sat
+    ic = index_ic_sat(ic2)
+    !sublevs(ic,j_buoy,i_sat(ic)) = sat_par_virt_temp(ic)                      &
+    !                             - sublevs(ic,j_env_tv,i_sat(ic))
+    ! TEMPORARY CODE TO PRESERVE KGO
+    ! (re-do interpolation of env Tv to sat height; using the already
+    !  calculated value changes answers for CCE high optimisation)
+    interp = ( sublevs(ic,j_height,i_sat(ic))                                  &
+             - sublevs(ic,j_height,i_prev) )                                   &
+           / ( sublevs(ic,j_height,i_next(ic))                                 &
+             - sublevs(ic,j_height,i_prev) )
+    sublevs(ic,j_buoy,i_sat(ic)) = sat_par_virt_temp(ic)                       &
+      - ( (one-interp) * sublevs(ic,j_env_tv,i_prev)                           &
+        +      interp  * sublevs(ic,j_env_tv,i_next(ic)) )
+  end do
+
+end if  ! ( n_sat > 0 )
+
+
+! If this is a mean ascent following a core ascent...
+if ( l_mean_with_core .and. present(i_core_sat) ) then
+  ! We need to calculate the mean's virt_temp excess at the
+  ! core's saturation height, and vice-versa...
+
+  ! Find points where the core hit saturation (and the mean's
+  ! saturation height is not defined at the same height)
+  n_sat = 0
+  do ic = 1, n_points
+    if ( i_core_sat(ic) > 0 .and. ( .not. i_sat(ic) == i_core_sat(ic) ) ) then
+      n_sat = n_sat + 1
+      index_ic_sat(n_sat) = ic
+    end if
+  end do
+
+  ! If any points
+  if ( n_sat > 0 ) then
+    ! Interpolate mean buoyancy at core sat_height.
+    do ic2 = 1, n_sat
+      ic = index_ic_sat(ic2)
+      interp = ( sublevs(ic,j_height,i_core_sat(ic))                           &
+               - sublevs(ic,j_height,i_core_sat(ic)-1) )                       &
+             / ( sublevs(ic,j_height,i_core_sat(ic)+1)                         &
+               - sublevs(ic,j_height,i_core_sat(ic)-1) )
+      sublevs(ic,j_mean_buoy,i_core_sat(ic))                                   &
+        = (one-interp) * sublevs(ic,j_mean_buoy,i_core_sat(ic)-1)              &
+        +      interp  * sublevs(ic,j_mean_buoy,i_core_sat(ic)+1)
+    end do
+  end if
+
+  ! Find points where the mean hit saturation (and the core's
+  ! saturation height is not defined at the same height)
+  n_sat = 0
+  do ic = 1, n_points
+    if ( i_sat(ic) > 0 .and. ( .not. i_sat(ic) == i_core_sat(ic) ) ) then
+      n_sat = n_sat + 1
+      index_ic_sat(n_sat) = ic
+    end if
+  end do
+
+  ! If any points
+  if ( n_sat > 0 ) then
+    ! Interpolate core buoyancy at mean sat_height.
+    do ic2 = 1, n_sat
+      ic = index_ic_sat(ic2)
+      interp = ( sublevs(ic,j_height,i_sat(ic))                                &
+               - sublevs(ic,j_height,i_sat(ic)-1) )                            &
+             / ( sublevs(ic,j_height,i_sat(ic)+1)                              &
+               - sublevs(ic,j_height,i_sat(ic)-1) )
+      sublevs(ic,j_core_buoy,i_sat(ic))                                        &
+        = (one-interp) * sublevs(ic,j_core_buoy,i_sat(ic)-1)                   &
+        +      interp  * sublevs(ic,j_core_buoy,i_sat(ic)+1)
+    end do
+  end if
+
+end if  ! ( l_mean_with_core .AND. PRESENT(i_core_sat) )
 
 
 return

@@ -20,7 +20,7 @@ contains
 ! This is a temporary simple precip fraction increment calculation,
 ! pending implementation of precip fraction increments inside CoMorph
 subroutine conv_update_precfrac( i_call, qrain_star, qgraup_star,              &
-                                 frac_bulk_conv, q_prec_b4, precfrac_star )
+                                 cca, q_prec_b4, precfrac_star )
 
 use atm_fields_bounds_mod, only: tdims
 use calc_conv_incs_mod, only: i_call_save_before_conv, i_call_diff_to_get_incs
@@ -45,7 +45,7 @@ real(kind=real_umphys), intent(in) ::                                          &
 
 ! Convective bulk cloud fraction
 real(kind=real_umphys), intent(in) ::                                          &
-                    frac_bulk_conv ( tdims%i_start:tdims%i_end,                &
+                               cca ( tdims%i_start:tdims%i_end,                &
                                      tdims%j_start:tdims%j_end,                &
                                      1:tdims%k_end )
 
@@ -65,10 +65,10 @@ real(kind=real_umphys), intent(in out) ::                                      &
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(none) private( i, j, k )                                &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k )                                &
 !$OMP SHARED( i_call, l_mcr_qgraup, l_subgrid_graupel_frac, tdims,             &
 !$OMP         q_prec_b4, qrain_star, qgraup_star, precfrac_star,               &
-!$OMP         frac_bulk_conv, rain_area_min )
+!$OMP         cca, rain_area_min )
 
 ! Which call to this routine are we in?
 select case (i_call)
@@ -80,7 +80,7 @@ case (i_call_save_before_conv)
   ! (what counts as precip here depends on whether or not graupel
   !  is included in the precip fraction).
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -88,9 +88,9 @@ case (i_call_save_before_conv)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   else
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -98,7 +98,7 @@ case (i_call_save_before_conv)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
 
 case (i_call_diff_to_get_incs)
@@ -109,7 +109,7 @@ case (i_call_diff_to_get_incs)
   ! (what counts as precip here depends on whether or not graupel
   !  is included in the precip fraction).
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -119,7 +119,7 @@ case (i_call_diff_to_get_incs)
             precfrac_star(i,j,k)                                               &
               = ( q_prec_b4(i,j,k) * precfrac_star(i,j,k)                      &
                 + ( qrain_star(i,j,k)+qgraup_star(i,j,k) - q_prec_b4(i,j,k) )  &
-                  * frac_bulk_conv(i,j,k) )                                    &
+                  * cca(i,j,k) )                                               &
               / ( qrain_star(i,j,k) + qgraup_star(i,j,k) )
           end if
           if ( qrain_star(i,j,k)+qgraup_star(i,j,k) > 0.0 ) then
@@ -128,9 +128,9 @@ case (i_call_diff_to_get_incs)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   else
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -140,7 +140,7 @@ case (i_call_diff_to_get_incs)
             precfrac_star(i,j,k)                                               &
               = ( q_prec_b4(i,j,k) * precfrac_star(i,j,k)                      &
                 + ( qrain_star(i,j,k) - q_prec_b4(i,j,k) )                     &
-                  * frac_bulk_conv(i,j,k) )                                    &
+                  * cca(i,j,k) )                                               &
               / qrain_star(i,j,k)
           end if
           if ( qrain_star(i,j,k) > 0.0 ) then
@@ -149,12 +149,12 @@ case (i_call_diff_to_get_incs)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
 
-end select  ! case(i_call)
+end select  ! CASE(i_call)
 
-!$OMP end PARALLEL
+!$OMP END PARALLEL
 
 
 return

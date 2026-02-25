@@ -806,10 +806,13 @@ contains
     use cloudfracs_type_mod, only: cloudfracs_type, cloudfracs_nullify
     use comorph_diags_type_mod, only: comorph_diags_type
     use set_constants_from_um_mod, only: set_constants_from_um
-    use comorph_constants_mod, only: l_init_constants, l_turb_par_gen, &
-         l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup
-    use calc_conv_incs_mod, only: calc_conv_incs, i_call_save_before_conv, &
+    use comorph_constants_mod, only: l_init_constants, l_turb_par_gen,         &
+         l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,                            &
+         i_convcloud, i_convcloud_liqonly
+    use calc_conv_incs_mod, only: calc_conv_incs, i_call_save_before_conv,     &
          i_call_diff_to_get_incs
+    use calc_qcf2_incs_mod, ONLY: calc_qcf2_incs, i_call_combine_in_qcf2,      &
+         i_call_subtract_qcf, i_call_repartition
     use fracs_consistency_mod, only: fracs_consistency
     use conv_update_precfrac_mod, only: conv_update_precfrac
     use interp_turb_mod, only: interp_turb
@@ -1028,12 +1031,15 @@ contains
 
     ! profile fields from level 1 upwards
     real(r_um), dimension(row_length,rows,nlayers) ::                        &
-         rho_wet, rho_dry, z_rho, z_theta, cca_3d, rho_wet_tq,               &
+         rho_wet, rho_dry, z_rho, z_theta, rho_wet_tq,                       &
          rho_dry_tq, r_rho_levels,                                           &
          theta_conv, q_conv, qcl_conv, qcf_conv, dtheta_conv,                &
          qrain_conv, qcf2_conv, qgraup_conv, cf_liquid_conv, cf_frozen_conv, &
-         bulk_cf_conv, u_conv, v_conv, ccw_3d, dubydt_p,                     &
+         bulk_cf_conv, u_conv, v_conv, dubydt_p,                             &
          dvbydt_p, tnuc_new, cca_3d0, ccw_3d0
+
+    real(r_um), target :: cca_3d ( row_length, rows, nlayers )
+    real(r_um), target :: ccw_3d ( row_length, rows, nlayers )
 
     ! profile fields from level 0 upwards
     real(r_um), dimension(row_length,rows,0:nlayers) ::                      &
@@ -1081,9 +1087,6 @@ contains
     ! diagnostics calculated by CoMorph
     type(comorph_diags_type) :: comorph_diags
 
-    ! Flag for whether to update w
-    logical, parameter :: l_conv_inc_w = .false.
-
     ! Winds interpolated onto theta-levels
     real(kind=r_um), target :: u_th_n( row_length, rows, 1:nlayers-1)
     real(kind=r_um), target :: v_th_n( row_length, rows, 1:nlayers-1)
@@ -1091,7 +1094,7 @@ contains
     real(kind=r_um), target :: v_th_np1( row_length, rows, 1:nlayers-1)
     ! Note: these do not exist at the top theta-level.
 
-    real(kind=r_um), target, allocatable :: w_work(:,:,:)
+    real(kind=r_um), target :: w_work(row_length,rows,nlayers)
 
     ! Wind velocity components / ms-1
     real(kind=r_um) :: u_p(row_length,rows,nlayers)
@@ -1125,10 +1128,14 @@ contains
 
     ! Separate convective bulk cloud fraction
     ! (doesn't yet have a separate field in the UM)
-    real(kind=r_um), target :: frac_bulk_conv(row_length,rows,nlayers)
+    real(kind=r_um), target, allocatable :: frac_bulk_conv(:,:,:)
+
+    ! CCA used for calculating other diagnostics
+    ! (points to frac_bulk_conv if cca is liquid-only, or cca otherwise).
+    real(kind=r_um), pointer :: cca_bulk(:,:,:)
 
     ! "Effective" boundary-layer-top height
-    real(kind=r_um), target :: zh_eff       ( row_length, rows )
+    real(kind=r_um) :: zh_eff   ( row_length, rows )
     ! Resolved inversion thickness / m
     real(kind=r_um) :: dzh      ( row_length, rows )
     ! Surface-driven non-local BL-top height / m
@@ -1138,12 +1145,18 @@ contains
     ! Indicator for shear-dominated boundary-layers
     real(kind=r_um) :: bl_type_7( row_length, rows )
 
+    ! BL height up-to-which to homogenize convective tendencies inside comorph
+    real(kind=r_um), target :: zh_homog ( row_length, rows )
+
+    ! Model-level closest to zh_eff
+    integer :: k_zh_eff
+
     ! Arrays for turbulence fields interpolated onto rho-levels
     real(kind=r_um), target, allocatable :: w_var_rh(:,:,:)
     real(kind=r_um), target, allocatable :: fu_rh(:,:,:)
     real(kind=r_um), target, allocatable :: fv_rh(:,:,:)
     ! Turbulence lengthscale
-    real(kind=r_um), target, allocatable :: turb_len(:,:,:)
+    real(kind=r_um), target :: turb_len(row_length,rows,bl_levels)
 
     ! Sub-grid turbulent variance in vertical velocity
     real(kind=r_um) :: bl_w_var ( row_length, rows, 1:nlayers)
@@ -1960,20 +1973,7 @@ contains
     !    calculating convective increments needed elsewhere in the UM
     !----------------------------------------------------------------
 
-    if ( .not. l_conv_inc_w ) then
-      ! Allocate temporary array for w passed into comorph if not updating w
-      allocate( w_work( row_length, rows, 1:nlayers ) )
-    else
-      ! Minimal allocation if not used
-      allocate( w_work(1,1,1) )
-    end if
-
-    ! set r_w to zero. The predictor for w is not good, so better to use
-    ! start of timestep value for w
-    r_w = 0.0_r_def
-
-    call calc_conv_incs  ( i_call_save_before_conv,                            &
-                           l_conv_inc_w, z_theta, z_rho,                       &
+    call calc_conv_incs  ( i_call_save_before_conv, z_theta, z_rho,            &
                            u_p, v_p, u_conv, v_conv, w, w_work,                &
                            u_th_n, v_th_n, u_th_np1, v_th_np1,                 &
                            theta_conv, q_conv, qcl_conv, qcf_conv,             &
@@ -1997,14 +1997,11 @@ contains
       end do
     end do
 
-    ! Values of ccw0 input are (as treated by the UM) in-cloud
-    ! convective cloud-water = grid-mean q_cl_conv / cca.
-    ! But CoMorph works using the grid-mean convective cloud-water.
-    ! => Convert ccw0 to grid-mean
+    ! Transpose existing CCA and CCW
     do i = 1, row_length
       do k = 1, nlayers
-        cca_3d(i,1,k) = cca(map_wth(1,i) + k)
-        ccw_3d(i,1,k) = ccw(map_wth(1,i) + k) * cca(map_wth(1,i) + k)
+        cca_3d0(i,1,k) = cca(map_wth(1,i) + k)
+        ccw_3d0(i,1,k) = ccw(map_wth(1,i) + k)
       end do
     end do
 
@@ -2013,7 +2010,7 @@ contains
     ! The interpolation is not guaranteed to preserve consistency
     ! between the cloud fraction and cloud water fields.
     ! However, various things can go wrong within CoMorph if they
-    ! are inconsistent; especially the routine calc_env_partitions,
+    ! are inconsistent; especially the routine calc_env_regions,
     ! which attempts to calculate the internal properties of
     ! the in-cloud and clear sub-regions of the grid-box.
     ! E.g. a common problem is if qcf is large but CFF is small,
@@ -2026,7 +2023,7 @@ contains
         precfrac_star(i,1,k) = precfrac(map_wth(1,i)+k)
       end do
     end do
-    CALL fracs_consistency  ( qcl_conv, qcf_conv, qcf2_conv,                   &
+    call fracs_consistency  ( qcl_conv, qcf_conv, qcf2_conv,                   &
                               qrain_conv, qgraup_conv,                         &
                               cf_liquid_conv, cf_frozen_conv, bulk_cf_conv,    &
                               precfrac_star )
@@ -2036,6 +2033,26 @@ contains
     ! Use the PC2 option l_cloud_call_b4_conv to ensure the latest
     ! cloud fractions are actually calculated before this point.
 
+    if ( i_convcloud == i_convcloud_liqonly ) then
+      ! CCA / CCW contain liquid-only convective cloud.
+      ! Allocate separate array for bulk convective cloud fraction
+      allocate( frac_bulk_conv( row_length, rows, nlayers ) )
+      ! Point CCA used for computing other things at bulk conv cloud amount
+      cca_bulk => frac_bulk_conv
+    else
+      ! Minimal allocation when not used
+      allocate( frac_bulk_conv(1,1,1) )
+      ! Main CCA array already contains bulk convective cloud amount
+      cca_bulk => cca_3d
+    end if
+
+    ! Set convective cloud fields to zero above the top convection level
+    ! (comorph only sets them up to n_conv_levels)
+    cca_3d(:,:,n_conv_levels+1:nlayers) = 0.0_r_um
+    ccw_3d(:,:,n_conv_levels+1:nlayers) = 0.0_r_um
+    if ( i_convcloud == i_convcloud_liqonly )                                  &
+        frac_bulk_conv(:,:,n_conv_levels+1:nlayers) = 0.0_r_um
+
     ! If prognostic precip fraction is in use:
     if ( l_mcr_qrain .and. l_mcr_precfrac ) then
       ! Allocate array to store precip mixing ratio before convection
@@ -2043,7 +2060,7 @@ contains
       ! Save precip mass before convection, for use in updating precfrac later
       call conv_update_precfrac( i_call_save_before_conv,                      &
                                  qrain_conv, qgraup_conv,                      &
-                                 frac_bulk_conv, q_prec_b4, precfrac_star )
+                                 cca_bulk, q_prec_b4, precfrac_star )
     end if
 
     ! For conservation purposes on theta-levels, the bottom rho-level
@@ -2077,6 +2094,18 @@ contains
         ! disables convection within the shear-dominated layer.
         zh_eff(i,1) = max( zh_eff(i,1), zhsc(i,1) )
       end if
+      ! Find model-level straddling zh_eff
+      k_zh_eff = 0
+      do k = 1, nlayers-1
+        if ( zh_eff(i,1) >= z_rho(i,1,k) .and.                                 &
+             zh_eff(i,1) <  z_rho(i,1,k+1) ) then
+          k_zh_eff = k
+        end if
+      end do
+      ! Fully homogenize the model-level straddling the BL-top,
+      ! so round zh_eff up to the next rho-level
+      zh_homog(i,1) = z_rho(i,1,k_zh_eff+1)
+
     end do
 
     ! If using turbulence-based parcel perturbations, need to convert
@@ -2089,7 +2118,6 @@ contains
       allocate( w_var_rh ( row_length, rows, 1:bl_levels ) )
       allocate( fu_rh    ( row_length, rows, 1:bl_levels ) )
       allocate( fv_rh    ( row_length, rows, 1:bl_levels ) )
-      allocate( turb_len ( row_length, rows, 1:bl_levels ) )
 
       do i = 1, row_length
         do k = 1, bl_levels
@@ -2138,7 +2166,7 @@ contains
         end do
       end do
 
-      ! Calculate turb_len and a scaling factor applied to parcel initial radius
+      ! Calculate turbulence lengthscale used to set parcel initial radius
       call calc_turb_len( zh_eff, z_theta, z_rho, rho_wet_tq, qv_n,            &
                           rhokm, bl_w_var, ls_rain, ls_snow, w,                &
                           delta_x, delta_x,                                    &
@@ -2162,8 +2190,6 @@ contains
     ! along with cf_frozen if it is used).
     if ( ( .not. l_cv_cf ) .or.                                                &
          ! Ice-cloud is always on in the UM, so must be on in comorph
-         ( l_mcr_qcf2 .and. ( .not. ( l_cv_cf  .and. l_cv_snow ) ) ) .or.      &
-         ! UM 2nd ice category requires both "ice" and "snow" in comorph
          ( l_mcr_qrain .and. ( .not. l_cv_rain ) ) .or.                        &
          ! UM prognostic rain requires rain to be on in comorph
          ( l_mcr_qgraup .and. ( .not. l_cv_graup ) ) ) then
@@ -2200,8 +2226,13 @@ contains
       q_graup_work = 0.0_r_um
     end if
 
-    ! Initialise local array for bulk conv cloud fraction to zero
-    frac_bulk_conv = 0.0_r_um
+    if ( l_mcr_qcf2 .and. ( .not. l_cv_snow ) ) then
+      ! 2nd ice category switched on in the UM but not in comorph
+      ! Put all the ice-cloud mass in the qcf2 field to pass into comorph
+      call calc_qcf2_incs( i_call_combine_in_qcf2,                             &
+                           qcf_n, qcf2_n, qcf_conv, qcf2_conv,                 &
+                           qcf_inc, qcf2_inc )
+    end if
 
     !----------------------------------------------------------------
     ! 5) Assign pointers to fields to pass into comorph
@@ -2211,22 +2242,22 @@ contains
     ! but we pass them in via pointers contained in the derived-type
     ! structures grid, turb, cloudfracs, fields_n, fields_np1.
     ! This routine assigns the pointers to the arrays.
-    CALL assign_fields  ( z_theta, z_rho, p_theta_levels, p_rho_levels,        &
+    call assign_fields  ( z_theta, z_rho, p_theta_levels, p_rho_levels,        &
                           r_theta_levels,                                      &
                           rho_dry_tq, w_var_rh, ftl, fqw, fu_rh, fv_rh,        &
-                          turb_len, par_radius_amp_um, zh_eff,                 &
+                          turb_len, par_radius_amp_um, zh_homog,               &
                           cca_3d, ccw_3d, frac_bulk_conv,                      &
                           u_th_n, v_th_n, w, temperature_n,                    &
                           qv_n, qcl_n, qcf_n,                                  &
                           qcf2_n, qr_n, qgr_n,                                 &
                           cf_liquid_n, cf_frozen_n, bulk_cf_n,                 &
-                          u_th_np1, v_th_np1, r_w, theta_conv,                 &
+                          u_th_np1, v_th_np1, w_work, theta_conv,              &
                           q_conv, qcl_conv, qcf_conv,                          &
                           qcf2_conv, qrain_conv, qgraup_conv,                  &
                           cf_liquid_conv, cf_frozen_conv, bulk_cf_conv,        &
-                          precfrac_star, l_conv_inc_w,  l_temporary_snow,      &
+                          precfrac_star, l_temporary_snow,                     &
                           l_temporary_rain, l_temporary_graup,                 &
-                          w_work, q_snow_work, q_rain_work, q_graup_work,      &
+                          q_snow_work, q_rain_work, q_graup_work,              &
                           grid, turb, cloudfracs, fields_n, fields_np1 )
 
     if (l_tracer) then
@@ -2385,12 +2416,20 @@ contains
     if ( l_temporary_snow )   deallocate( q_snow_work )
     if ( l_temporary_rain )   deallocate( q_rain_work )
 
+    if ( l_mcr_qcf2 .and. ( .not. l_cv_snow ) ) then
+      ! 2nd ice category switched on in the UM but not in comorph
+      ! Subtract qcf off from qcf2 again
+      call calc_qcf2_incs( i_call_subtract_qcf,                                &
+                           qcf_n, qcf2_n, qcf_conv, qcf2_conv,                 &
+                           qcf_inc, qcf2_inc )
+    end if
+
     ! If prognostic precip fraction is in use:
     if ( l_mcr_qrain .and. l_mcr_precfrac ) then
       ! Update the precip fraction using the convective rain and graupel incs
       call conv_update_precfrac( i_call_diff_to_get_incs,                      &
                                  qrain_conv, qgraup_conv,                      &
-                                 frac_bulk_conv, q_prec_b4, precfrac_star )
+                                 cca_bulk, q_prec_b4, precfrac_star )
       ! Deallocate saved precip mass before convection, now we're done
       deallocate( q_prec_b4 )
     end if
@@ -2418,20 +2457,10 @@ contains
       precfrac(map_wth(1,i)+0) = precfrac(map_wth(1,i)+1)
     end do
 
-    ! CoMorph outputs grid-mean convective cloud-water, but the UM expects
-    ! ccw to be the in-cloud water-content.
-    ! => Convert to in-cloud value
-    do k = 1, nlayers
-      do i = 1, row_length
-        if ( ccw_3d(i,1,k) > 0.0_r_um ) ccw_3d(i,1,k) = ccw_3d(i,1,k) / cca_3d(i,1,k)
-      end do
-    end do
-
     ! If using turbulence-based parcel perturbations
     if ( l_turb_par_gen ) then
       ! Deallocate the interpolated momentum diffusivity and fluxes
       ! on rho-levels
-      deallocate( turb_len )
       deallocate( fv_rh )
       deallocate( fu_rh )
       deallocate( w_var_rh )
@@ -2441,15 +2470,14 @@ contains
     call comorph_conv_cloud_extras(                                            &
              n_conv_levels, rho_dry_tq, rho_wet_tq,                            &
              r_theta_levels, r_rho_levels,                                     &
-             cca_3d, ccw_3d, frac_bulk_conv,                                   &
-             cclwp0, ccb0, cct0, lcbase0, cca_3d0, ccw_3d0,                    &
-             cclwp, cca_2d_loc, lcca, ccb, cct, lcbase, lctop )
+             cca_3d, ccw_3d, cca_bulk,                                         &
+             cclwp, cca_2d_loc, lcca, ccb, cct, lcbase, lctop,                 &
+             cca_3d0, ccw_3d0, cclwp0, ccb0, cct0, lcbase0 )
 
     !----------------------------------------------------------------
     ! 10) Calculate convective increments required elsewhere in the UM
     !----------------------------------------------------------------
-    call calc_conv_incs  ( i_call_diff_to_get_incs,                            &
-                           l_conv_inc_w, z_theta, z_rho,                       &
+    call calc_conv_incs  ( i_call_diff_to_get_incs, z_theta, z_rho,            &
                            u_p, v_p, u_conv, v_conv, w, w_work,                &
                            u_th_n, v_th_n, u_th_np1, v_th_np1,                 &
                            theta_conv, q_conv, qcl_conv, qcf_conv,             &
@@ -2460,8 +2488,17 @@ contains
                            qcf2_inc, qrain_inc, qgraup_inc,                    &
                            cf_liquid_inc, cf_frozen_inc, bulk_cf_inc )
 
-    ! Deallocate temporary work array for w
-    deallocate( w_work )
+    if ( l_mcr_qcf2 .and. ( .not. l_cv_snow ) ) then
+      ! 2nd ice category switched on in the UM but not in comorph
+      ! Repartition the ice-cloud increment between crystals and aggregates.
+      call calc_qcf2_incs( i_call_repartition,                                 &
+                           qcf_n, qcf2_n, qcf_conv, qcf2_conv,                 &
+                           qcf_inc, qcf2_inc )
+    end if
+
+    ! Finished with array for bulk convective cloud amount
+    cca_bulk => null()
+    deallocate( frac_bulk_conv )
 
     ! single level convection diagnostics
     do i = 1, row_length
@@ -2682,8 +2719,8 @@ contains
     ! copy convective cloud fraction into prognostic array
     do k = 1, n_conv_levels
       do i = 1, row_length
-        cca(map_wth(1,i) + k) =  min(cca_3d(i,1,k), 1.0_r_um)
-        ccw(map_wth(1,i) + k) =  ccw_3d(i,1,k)
+        cca(map_wth(1,i) + k) =  min(cca_3d0(i,1,k), 1.0_r_um)
+        ccw(map_wth(1,i) + k) =  ccw_3d0(i,1,k)
       end do
     end do
 
