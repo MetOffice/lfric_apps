@@ -299,7 +299,7 @@ subroutine lw_code(nlayers, n_profile, &
   use radiation_config_mod, only: &
     i_cloud_ice_type_lw, i_cloud_liq_type_lw, &
     cloud_vertical_decorr, constant_droplet_effective_radius, &
-    liu_aparam, liu_bparam
+    liu_aparam, liu_bparam, lw_seg_limit
   use aerosol_config_mod, only: l_radaer,                    &
                                 sulphuric_strat_climatology, &
                                 easyaerosol_lw
@@ -427,7 +427,8 @@ subroutine lw_code(nlayers, n_profile, &
   logical        :: l_aerosol_mode
 
   ! Segmentation variables for threading call to Socrates
-  integer(i_def) :: max_threads, soc_lw_block, seg_start, seg_end
+  integer(i_def) :: max_threads, soc_lw_block, seg_start, seg_end, &
+                    ncols_per_thread, nblocks
 
   ! Set indexing
   wth_0 = map_wth(1,1)
@@ -581,12 +582,12 @@ subroutine lw_code(nlayers, n_profile, &
                          n_cloud_layer(twod_1:twod_last) == k )
     n_profile_list = size(profile_list)
     if (n_profile_list > 0) then
-      soc_lw_block = ceiling(real(n_profile_list)/max_threads)
-
-      ! The number of indices to run through per k step can become quite small
-      ! this check ensures that should the generated block exceed the length
-      ! of n_profile_list it is set to n_profile_list
-      soc_lw_block = min(soc_lw_block, n_profile_list)
+      ! Compute the number of columns per LW segment for each thread.
+      ! The maximum segment size is limited by lw_seg_limit to prevent
+      ! overly large blocks. This ensures better load balancing across threads.
+      ncols_per_thread = (n_profile_list + max_threads - 1) / max_threads
+      nblocks = ((ncols_per_thread + lw_seg_limit - 1) / lw_seg_limit) * max_threads
+      soc_lw_block = (n_profile_list + nblocks - 1) / nblocks
 
       !$OMP PARALLEL DEFAULT(SHARED)                                           &
       !$OMP PRIVATE(ll, seg_start, seg_end, n_profile_list_seg)
