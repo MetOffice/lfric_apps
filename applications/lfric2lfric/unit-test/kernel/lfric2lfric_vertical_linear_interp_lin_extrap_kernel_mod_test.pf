@@ -5,9 +5,9 @@
 !-----------------------------------------------------------------------------
 
 !> Test the vertical linear interpolation kernel
-module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
+module lfric2lfric_vertical_linear_interp_lin_extrap_kernel_mod_test
 
-  use constants_mod,                       only : r_def, i_def
+  use constants_mod,                       only : r_def, i_def, r_single, r_double
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
   use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap
 
@@ -15,9 +15,9 @@ module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
 
   implicit none
 
-  public:: test_all
+  public:: test_all, test_all_with_extrap
 
-  contains
+contains
 
 @Test
   subroutine test_all()
@@ -29,13 +29,14 @@ module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
     integer(kind=i_def)               :: nlayers
     integer(kind=i_def)               :: ncell
     integer(kind=i_def)               :: dim_space, dim_space_diff, nqp_h, nqp_v
-    integer(kind=i_def), parameter    :: source_layers
-    integer(kind=i_def), parameter    :: ndf_dest, ndf_source
-    integer(kind=i_def), parameter    :: undf_dest, undf_source
+    integer(kind=i_def)               :: source_layers
+    integer(kind=i_def)               :: ndf_dest, ndf_source
+    integer(kind=i_def)               :: undf_dest, undf_source
     integer(kind=i_def), allocatable  :: map_dest(:,:)
     integer(kind=i_def), allocatable  :: map_source(:,:)
     real(kind=r_single), allocatable  :: destination_field(:)
     real(kind=r_single), allocatable  :: source_field(:)
+    real(kind=r_single), allocatable  :: expected_field(:)
     real(kind=r_single), allocatable  :: dest_heights(:)
     real(kind=r_single), allocatable  :: source_heights(:)
     real(r_def), parameter            :: tol = 1.0e-12_r_def
@@ -59,6 +60,7 @@ module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
 
     ! allocate
     allocate(destination_field(undf_dest))
+    allocate(expected_field(undf_dest))
     allocate(source_field(undf_source))
     allocate(dest_heights(undf_dest))
     allocate(source_heights(undf_source))
@@ -137,13 +139,14 @@ module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
     integer(kind=i_def)               :: nlayers
     integer(kind=i_def)               :: ncell
     integer(kind=i_def)               :: dim_space, dim_space_diff, nqp_h, nqp_v
-    integer(kind=i_def), parameter    :: source_layers
-    integer(kind=i_def), parameter    :: ndf_dest, ndf_source
-    integer(kind=i_def), parameter    :: undf_dest, undf_source
+    integer(kind=i_def)               :: source_layers
+    integer(kind=i_def)               :: ndf_dest, ndf_source
+    integer(kind=i_def)               :: undf_dest, undf_source
     integer(kind=i_def), allocatable  :: map_dest(:,:)
     integer(kind=i_def), allocatable  :: map_source(:,:)
     real(kind=r_single), allocatable  :: destination_field(:)
     real(kind=r_single), allocatable  :: source_field(:)
+    real(kind=r_single), allocatable  :: expected_field(:)
     real(kind=r_single), allocatable  :: dest_heights(:)
     real(kind=r_single), allocatable  :: source_heights(:)
     real(r_def), parameter            :: tol = 1.0e-12_r_def
@@ -167,6 +170,7 @@ module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
 
     ! allocate
     allocate(destination_field(undf_dest))
+    allocate(expected_field(undf_dest))
     allocate(source_field(undf_source))
     allocate(dest_heights(undf_dest))
     allocate(source_heights(undf_source))
@@ -235,4 +239,4 @@ module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
 
   end subroutine test_all_with_extrap
 
-end module lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod_test
+end module lfric2lfric_vertical_linear_interp_lin_extrap_kernel_mod_test

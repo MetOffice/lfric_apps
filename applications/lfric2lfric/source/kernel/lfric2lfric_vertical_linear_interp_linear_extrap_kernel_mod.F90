@@ -19,9 +19,10 @@ use constants_mod,           only: i_def, r_double, r_single
 use kernel_mod,              only: kernel_type
 use argument_mod,            only: arg_type, CELL_COLUMN,                     &
                                    GH_FIELD, GH_INTEGER, GH_REAL,             &
-                                   GH_READ, GH_READWRITE, GH_SCALAR, W3,      &
+                                   GH_READ, GH_READWRITE, GH_SCALAR,          &
                                    ANY_DISCONTINUOUS_SPACE_1,                 &
                                    ANY_DISCONTINUOUS_SPACE_2
+use fs_continuity_mod,       only : W3
 
 implicit none
 
@@ -100,9 +101,9 @@ contains
     real(kind=r_single), intent(in), dimension(ndf_dest) :: dest_heights(undf_dest)
     real(kind=r_single), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
 
-    integer(kind=i_def) :: multidata, df, k, m, top_df, level_below(nlayers)
+    integer(kind=i_def) :: multidata, df, k, m, kk, top_df, level_below(nlayers), source_top_df, dest_top_df
 
-    ! Assume lowest order W3 or Wtheta space    
+    ! Assume lowest order W3 or Wtheta space
     df = 1
     ! Loop is 0 -> nlayers-1 for W3 fields, but 0 -> nlayers for Wtheta fields
     dest_top_df = nlayers - 2 + ndf_dest
@@ -164,12 +165,12 @@ contains
 
         ! data_out(j) = data_in(j,1)
         destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1))
-     
+
       else
 
-      ! Linearly interpolate 
+      ! Linearly interpolate
 
-      ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) ) 
+      ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
       !          / (sh(lb(kk)+1) - sh(lb(kk)))
       destination_field(map_dest(df) + m*(dest_top_df+1) + kk) =           &
                   ( (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)    &
