@@ -1,0 +1,242 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the vertical linear interpolation kernel
+module lfric2lfric_vertical_linear_interp_lin_extrap_kernel_mod_test
+
+  use constants_mod,                       only : r_def, i_def, r_single, r_double
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap
+
+  use funit
+
+  implicit none
+
+  public:: test_all, test_all_with_extrap
+
+contains
+
+@Test
+  subroutine test_all()
+  
+    use lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod, only: lfric2lfric_vertical_linear_interp_linear_extrap_kernel_code
+
+    implicit none
+
+    integer(kind=i_def)               :: nlayers
+    integer(kind=i_def)               :: ncell
+    integer(kind=i_def)               :: dim_space, dim_space_diff, nqp_h, nqp_v
+    integer(kind=i_def)               :: source_layers
+    integer(kind=i_def)               :: ndf_dest, ndf_source
+    integer(kind=i_def)               :: undf_dest, undf_source
+    integer(kind=i_def), allocatable  :: map_dest(:,:)
+    integer(kind=i_def), allocatable  :: map_source(:,:)
+    real(kind=r_single), allocatable  :: destination_field(:)
+    real(kind=r_single), allocatable  :: source_field(:)
+    real(kind=r_single), allocatable  :: expected_field(:)
+    real(kind=r_single), allocatable  :: dest_heights(:)
+    real(kind=r_single), allocatable  :: source_heights(:)
+    real(r_def), parameter            :: tol = 1.0e-12_r_def
+
+    nlayers  = 3_i_def
+    source_layers = 4_i_def
+    call get_w3_m3x3_q3x3x3_size( ndf_source, undf_source,           &
+                                  ncell,                    &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  source_layers )
+
+    call get_w3_m3x3_dofmap(map_source, 4_i_def)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_dest, undf_dest,           &
+                                  ncell,                    &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w3_m3x3_dofmap(map_dest, 5_i_def)
+
+    ! allocate
+    allocate(destination_field(undf_dest))
+    allocate(expected_field(undf_dest))
+    allocate(source_field(undf_source))
+    allocate(dest_heights(undf_dest))
+    allocate(source_heights(undf_source))
+    
+    source_field = (/&
+    (1.1_r_def, 2.3_r_def, 3.2_r_def, 4.1_r_def),
+    (1.1_r_def, 2.2_r_def, 3.1_r_def, 4.4_r_def),
+    (0.7_r_def, 2.3_r_def, 2.9_r_def, 4.0_r_def),
+    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
+    (1.4_r_def, 2.0_r_def, 3.4_r_def, 4.2_r_def),
+    (1.0_r_def, 2.4_r_def, 3.3_r_def, 4.4_r_def),
+    (1.1_r_def, 2.1_r_def, 3.3_r_def, 4.1_r_def)
+    /)
+    expected_field = (/&
+    (1.7_r_def,  2.75_r_def, 3.65_r_def),
+    (1.65_r_def, 2.65_r_def, 3.75_r_def),
+    (1.5_r_def,  2.6_r_def,  3.45_r_def),
+    (1.0_r_def,  2.0_r_def,  3.0_r_def),
+    (1.5_r_def,  2.5_r_def,  3.5_r_def),
+    (2.0_r_def,  3.0_r_def,  4.0_r_def),
+    (1.7_r_def,  2.7_r_def,  3.8_r_def),
+    (1.7_r_def,  2.85_r_def, 3.85_r_def),
+    (1.6_r_def,  2.7_r_def,  3.7_r_def)
+    /)
+    source_heights = (/&
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def)
+    /)
+    dest_heights = (/&
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def)
+    /)
+
+    call lfric2lfric_vertical_linear_interp_linear_extrap_code_r_single(         &
+                                      nlayers,                            &
+                                      destination_field,                  &
+                                      source_field,                       &
+                                      source_layers,                      &
+                                      ncell,                              &
+                                      dest_heights,                       &
+                                      source_heights,                     &
+                                      ndf_dest,                           &
+                                      undf_dest,                          &
+                                      map_dest,                           &
+                                      ndf_source,                         &
+                                      undf_source,                        &
+                                      map_source)
+
+    @assertEqual(expected_field, destination_field, tol)
+
+  end subroutine test_all
+
+@Test
+  subroutine test_all_with_extrap()
+  
+    use lfric2lfric_vertical_linear_interp_linear_extrap_kernel_mod, only: lfric2lfric_vertical_linear_interp_linear_extrap_kernel_code
+
+    implicit none
+
+    integer(kind=i_def)               :: nlayers
+    integer(kind=i_def)               :: ncell
+    integer(kind=i_def)               :: dim_space, dim_space_diff, nqp_h, nqp_v
+    integer(kind=i_def)               :: source_layers
+    integer(kind=i_def)               :: ndf_dest, ndf_source
+    integer(kind=i_def)               :: undf_dest, undf_source
+    integer(kind=i_def), allocatable  :: map_dest(:,:)
+    integer(kind=i_def), allocatable  :: map_source(:,:)
+    real(kind=r_single), allocatable  :: destination_field(:)
+    real(kind=r_single), allocatable  :: source_field(:)
+    real(kind=r_single), allocatable  :: expected_field(:)
+    real(kind=r_single), allocatable  :: dest_heights(:)
+    real(kind=r_single), allocatable  :: source_heights(:)
+    real(r_def), parameter            :: tol = 1.0e-12_r_def
+
+    nlayers  = 5_i_def
+    source_layers = 4_i_def
+    call get_w3_m3x3_q3x3x3_size( ndf_source, undf_source,           &
+                                  ncell,                    &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  source_layers )
+
+    call get_w3_m3x3_dofmap(map_source, 4_i_def)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_dest, undf_dest,           &
+                                  ncell,                    &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w3_m3x3_dofmap(map_dest, 5_i_def)
+
+    ! allocate
+    allocate(destination_field(undf_dest))
+    allocate(expected_field(undf_dest))
+    allocate(source_field(undf_source))
+    allocate(dest_heights(undf_dest))
+    allocate(source_heights(undf_source))
+    
+    source_field = (/&
+    (1.1_r_def, 2.3_r_def, 3.2_r_def, 4.1_r_def),
+    (1.1_r_def, 2.2_r_def, 3.1_r_def, 4.4_r_def),
+    (0.7_r_def, 2.3_r_def, 2.9_r_def, 4.0_r_def),
+    (0.5_r_def, 1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def, 4.5_r_def),
+    (1.4_r_def, 2.0_r_def, 3.4_r_def, 4.2_r_def),
+    (1.0_r_def, 2.4_r_def, 3.3_r_def, 4.4_r_def),
+    (1.1_r_def, 2.1_r_def, 3.3_r_def, 4.1_r_def)
+    /)
+    expected_field = (/&
+    (0.5_r_def,  1.7_r_def,  2.75_r_def, 3.65_r_def, 4.55_r_def),
+    (0.55_r_def, 1.65_r_def, 2.65_r_def, 3.75_r_def, 5.05_r_def),
+    (-0.1_r_def, 1.5_r_def,  2.6_r_def,  3.45_r_def, 4.55_r_def),
+    (0.0_r_def,  1.0_r_def,  2.0_r_def,  3.0_r_def,  4.0_r_def),
+    (0.5_r_def,  1.5_r_def,  2.5_r_def,  3.5_r_def,  4.5_r_def),
+    (1.0_r_def,  2.0_r_def,  3.0_r_def,  4.0_r_def,  5.0_r_def),
+    (1.1_r_def,  1.7_r_def,  2.7_r_def,  3.8_r_def,  4.6_r_def),
+    (0.3_r_def,  1.7_r_def,  2.85_r_def, 3.85_r_def, 4.95_r_def),
+    (0.6_r_def,  1.6_r_def,  2.7_r_def,  3.7_r_def,  4.5_r_def)
+    /)
+    source_heights = (/&
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def),
+    (1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def)
+    /)
+    dest_heights = (/&
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def),
+    (1.5_r_def, 2.5_r_def, 3.5_r_def)
+    /)
+
+    call lfric2lfric_vertical_linear_interp_linear_extrap_code_r_single(         &
+                                      nlayers,                            &
+                                      destination_field,                  &
+                                      source_field,                       &
+                                      source_layers,                      &
+                                      ncell,                              &
+                                      dest_heights,                       &
+                                      source_heights,                     &
+                                      ndf_dest,                           &
+                                      undf_dest,                          &
+                                      map_dest,                           &
+                                      ndf_source,                         &
+                                      undf_source,                        &
+                                      map_source)
+
+    @assertEqual(expected_field, destination_field, tol)
+
+  end subroutine test_all_with_extrap
+
+end module lfric2lfric_vertical_linear_interp_lin_extrap_kernel_mod_test
