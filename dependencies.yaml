@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:mo-rickywong/lfric_core.git
-    ref: FloatJacobian
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 87dce3c84575f8f84c55b59e27eb3ae205dd491e
 
 moci:
     source: git@github.com:MetOffice/moci.git
