@@ -56,6 +56,9 @@ contains
     use adjt_poly_adv_upd_lookup_alg_mod,           only : adjt_poly_adv_upd_lookup_alg
     use adjt_w3h_adv_upd_lookup_alg_mod,            only : adjt_w3h_adv_upd_lookup_alg
 
+    ! ./linear_physics
+    use atlt_bl_inc_alg_mod,                        only : atlt_bl_inc_alg
+
     ! Handwritten algorithm tests
     ! ./interpolation
     use adjt_interpolation_alg_mod,                 only : adjt_interp_w3wth_to_w2_alg, &
@@ -105,6 +108,9 @@ contains
     use adjt_mixed_solver_alg_mod,                  only : adjt_mixed_solver_alg
     use adjt_semi_implicit_solver_step_alg_mod,     only : adjt_semi_implicit_solver_step_alg
 
+    ! ./linear_physics
+    use atlt_bdy_lyr_alg_mod,                       only : atlt_bdy_lyr_alg
+
     ! ./timestepping
     use atlt_si_timestep_alg_mod,                   only : atlt_si_timestep_alg
 
@@ -147,6 +153,9 @@ contains
     ! ./core_dynamics
     call atlt_pressure_gradient_bd_alg( mesh )
 
+    ! ./linear_physics
+    call atlt_bl_inc_alg( mesh )
+
     ! ./inter_function_space
     call adjt_sci_convert_hdiv_field_alg( mesh, chi, panel_id )
 
@@ -168,26 +177,26 @@ contains
     call atlt_end_con_step_alg( mesh, modeldb%clock )
 
     ! ./transport/mol
-    call adjt_hori_w3_reconstruct_alg( mesh, modeldb%clock )
+    call adjt_hori_w3_reconstruct_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
     call atlt_vert_w3_reconstruct_alg( mesh, modeldb%clock )
-    call atlt_reconstruct_w3_field_alg( mesh, modeldb%clock )
+    call atlt_reconstruct_w3_field_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
     call atlt_hori_wt_update_alg( mesh, modeldb%clock )
     call atlt_vert_wt_update_alg( mesh, modeldb%clock )
-    call adjt_hori_wt_update_alg( mesh, modeldb%clock )
-    call atlt_wt_advective_update_alg( mesh, modeldb%clock )
-    call atlt_advective_and_flux_alg( mesh, modeldb%clock )
-    call atlt_mol_conservative_alg( mesh, modeldb%clock )
-    call atlt_mol_advective_alg( mesh, modeldb%clock )
+    call adjt_hori_wt_update_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_wt_advective_update_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_advective_and_flux_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_mol_conservative_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_mol_advective_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
 
     ! ./transport/control
-    call atlt_transport_field_alg( mesh, modeldb%clock )
-    call atlt_wind_transport_alg( mesh, modeldb%clock )
-    call atlt_moist_mr_transport_alg( mesh, modeldb%clock )
-    call atlt_theta_transport_alg( mesh, modeldb%clock )
+    call atlt_transport_field_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_wind_transport_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_moist_mr_transport_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_theta_transport_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
     call adjt_ls_wind_pert_rho_initialiser_alg( mesh, modeldb%clock )
     call adjt_pert_wind_ls_rho_initialiser_alg( mesh, modeldb%clock )
     call atlt_transport_controller_initialiser_alg( mesh, modeldb%clock )
-    call atlt_transport_control_alg( mesh, modeldb%clock )
+    call atlt_transport_control_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
 
     ! ./core_dynamics
     call atlt_rhs_alg( mesh, modeldb%clock )
@@ -195,12 +204,15 @@ contains
     call atlt_derive_exner_from_eos_alg( mesh )
     call atlt_moist_dyn_factors_alg( mesh )
 
+    ! ./linear_physics
+    call atlt_bdy_lyr_alg( modeldb, mesh )
+
     ! ./solver
-    call adjt_pressure_precon_alg( modeldb, mesh, modeldb%clock )
+    call adjt_pressure_precon_alg( modeldb, mesh, modeldb%clock, adj_solver_lookup_cache )
     call adjt_mixed_operator_alg( mesh, modeldb%clock )
-    call adjt_mixed_schur_preconditioner_alg( modeldb,  mesh, modeldb%clock )
-    call adjt_mixed_solver_alg( modeldb, mesh, modeldb%clock )
-    call adjt_semi_implicit_solver_step_alg( modeldb, mesh, modeldb%clock )
+    call adjt_mixed_schur_preconditioner_alg( modeldb,  mesh, modeldb%clock, adj_solver_lookup_cache )
+    call adjt_mixed_solver_alg( modeldb, mesh, modeldb%clock, adj_solver_lookup_cache )
+    call adjt_semi_implicit_solver_step_alg( modeldb, mesh, modeldb%clock, adj_solver_lookup_cache )
 
     ! ./timestepping
     call atlt_si_timestep_alg( modeldb, mesh, twod_mesh, 1 )

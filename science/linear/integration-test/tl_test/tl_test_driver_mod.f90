@@ -48,13 +48,13 @@ module tl_test_driver_mod
   use tl_test_rhs_alg_mod,                 only : test_rhs_alg
   use tl_test_semi_imp_alg_mod,            only : test_semi_imp_alg
   use tl_test_timesteps_alg_mod,           only : test_timesteps
+  use tl_test_timesteps_random_alg_mod,    only : test_timesteps_random
 
   implicit none
 
   private
-  public initialise,                  &
-         finalise,                    &
-         run_timesteps,               &
+  public run_timesteps,               &
+         run_timesteps_random,        &
          run_kinetic_energy_gradient, &
          run_advect_density_field,    &
          run_advect_theta_field,      &
@@ -72,93 +72,8 @@ module tl_test_driver_mod
 
   type(mesh_type), pointer :: mesh              => null()
   type(mesh_type), pointer :: twod_mesh         => null()
-  type(mesh_type), pointer :: aerosol_mesh      => null()
-  type(mesh_type), pointer :: aerosol_twod_mesh => null()
 
 contains
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief Sets up the required state in preparation for run.
-  !>@param [in]     program_name An identifier given to the model being run
-  !>@param [in,out] modeldb      The structure that holds model state
-  !>
-  subroutine initialise( program_name, modeldb, calendar )
-
-    implicit none
-
-    character(*),         intent(in)    :: program_name
-    type(modeldb_type),   intent(inout) :: modeldb
-    class(calendar_type), intent(in)    :: calendar
-
-    type(gungho_time_axes_type)     :: model_axes
-    type(io_value_type)             :: temp_corr_io_value
-    type(io_value_type)             :: random_seed_io_value
-    integer(i_def) :: random_seed_size
-    real(r_def), allocatable :: real_array(:)
-
-    call modeldb%values%initialise( 'values', 5 )
-
-    ! Initialise infrastructure and setup constants
-    !
-    call initialise_infrastructure( program_name, modeldb )
-
-    ! Add a place to store time axes in modeldb
-    call modeldb%values%add_key_value('model_axes', model_axes)
-
-    ! Get primary and 2D meshes for initialising model data
-    mesh => mesh_collection%get_mesh(prime_mesh_name)
-    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
-
-    ! Assume aerosol mesh is the same as dynamics mesh
-    aerosol_mesh => mesh
-    aerosol_twod_mesh => twod_mesh
-
-    ! gungho_init_field() expects these values to exist. The dependency of
-    ! the linear application tests on this procedure will hopefully be resolved
-    ! in the future, at which point this initialisation may be removed.
-    !
-    call temp_corr_io_value%init('temperature_correction_rate', [0.0_r_def])
-    call modeldb%values%add_key_value( 'temperature_correction_io_value', &
-                                       temp_corr_io_value )
-    call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
-    call modeldb%values%add_key_value( 'total_energy', 0.0_r_def )
-    call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
-    if ( stochastic_physics == stochastic_physics_um ) then
-      ! Random seed for stochastic physics
-      call random_seed(size = random_seed_size)
-      allocate(real_array(random_seed_size))
-      real_array(1:random_seed_size) = 0.0_r_def
-      call random_seed_io_value%init("random_seed", real_array)
-      call modeldb%values%add_key_value( 'random_seed_io_value', &
-                                         random_seed_io_value )
-      deallocate(real_array)
-    end if
-
-    ! Instantiate the fields stored in model_data
-    call create_model_data( modeldb,      &
-                            mesh,         &
-                            twod_mesh,    &
-                            aerosol_mesh, &
-                            aerosol_twod_mesh )
-
-    ! Instantiate the linearisation state
-    call linear_create_ls( modeldb, mesh )
-
-    ! Initialise the fields stored in the model_data prognostics. This needs
-    ! to be done before initialise_model.
-    call initialise_model_data( modeldb, mesh, twod_mesh )
-
-    ! Model configuration initialisation
-    call initialise_model( mesh,  &
-                           modeldb )
-
-    ! Initialise the linearisation state
-    call linear_init_ls( mesh, twod_mesh, modeldb )
-
-    ! Finalise model
-    call finalise_model(modeldb)
-
-  end subroutine initialise
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief Tests the tangent linear model for multiple timesteps
@@ -169,12 +84,35 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
     call test_timesteps( modeldb,   &
                          mesh,      &
                          twod_mesh, &
                          modeldb%clock )
 
   end subroutine run_timesteps
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !>@brief Tests the tangent linear model for multiple timesteps
+  !!       using prescribed random data for the initial conditions
+  !>@param [in,out] modeldb   The structure that holds model state
+  subroutine run_timesteps_random(modeldb)
+
+    implicit none
+
+    type(modeldb_type), intent(inout) :: modeldb
+
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    call test_timesteps_random( modeldb,   &
+                                mesh,      &
+                                twod_mesh, &
+                                modeldb%clock )
+
+  end subroutine run_timesteps_random
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !>@brief Tests the tangent linear model kinetic energy gradient kernel
@@ -184,6 +122,9 @@ contains
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
+
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     call test_kinetic_energy_gradient( modeldb, &
                                        mesh,    &
@@ -200,6 +141,9 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
     call test_advect_density_field( modeldb, &
                                     mesh,    &
                                     twod_mesh )
@@ -214,6 +158,9 @@ contains
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
+
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     call test_advect_theta_field( modeldb, &
                                   mesh,    &
@@ -230,6 +177,9 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
     call test_vorticity_advection( modeldb, &
                                    mesh,    &
                                    twod_mesh )
@@ -244,6 +194,9 @@ contains
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
+
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     call test_project_eos_pressure( modeldb, &
                                     mesh,    &
@@ -260,6 +213,9 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
     call test_sample_eos_pressure( modeldb, &
                                    mesh,    &
                                    twod_mesh )
@@ -274,6 +230,9 @@ contains
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
+
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     call test_hydrostatic( modeldb, &
                            mesh,    &
@@ -290,6 +249,9 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
     call test_pressure_gradient_bd( modeldb, &
                                     mesh,    &
                                     twod_mesh )
@@ -305,6 +267,8 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+
     call test_rk_alg( modeldb, &
                       mesh)
 
@@ -318,6 +282,9 @@ contains
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
+
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     call test_transport_control( modeldb, &
                                  mesh,    &
@@ -334,6 +301,9 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
     call test_semi_imp_alg( modeldb,   &
                             mesh,      &
                             twod_mesh )
@@ -348,6 +318,9 @@ contains
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
+
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     call test_rhs_alg( modeldb, &
                        mesh,    &
@@ -364,6 +337,9 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
     call test_rhs_project_eos( modeldb, &
                                mesh,    &
                                twod_mesh )
@@ -379,31 +355,13 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
+    mesh => mesh_collection%get_mesh(prime_mesh_name)
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
     call test_rhs_sample_eos( modeldb, &
                               mesh,    &
                               twod_mesh )
 
   end subroutine run_rhs_sample_eos
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !>@brief Tidies up after a run.
-  !>@param [in]     program_name An identifier given to the model being run
-  !>@param [in,out] modeldb      The structure that holds model state
-  subroutine finalise( program_name, modeldb )
-
-    implicit none
-
-    character(*),       intent(in)    :: program_name
-    type(modeldb_type), intent(inout) :: modeldb
-
-    call log_event( 'Finalising '//program_name//' ...', LOG_LEVEL_ALWAYS )
-
-    ! Destroy the fields stored in model_data
-    call finalise_model_data( modeldb )
-
-    ! Finalise infrastructure and constants
-    call finalise_infrastructure(modeldb)
-
-  end subroutine finalise
 
 end module tl_test_driver_mod

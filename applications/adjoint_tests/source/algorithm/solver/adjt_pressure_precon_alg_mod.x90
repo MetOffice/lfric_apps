@@ -7,6 +7,7 @@
 
 module adjt_pressure_precon_alg_mod
 
+  use adj_solver_lookup_cache_mod,      only: adj_solver_lookup_cache_type
   use constants_mod,                    only: i_def, r_def, l_def, r_solver, EPS
   use log_mod,                          only: log_event,         &
                                               log_scratch_space, &
@@ -53,16 +54,18 @@ contains
   !!          the result stored in the other, so we use three vectors to save on
   !!          variables. This differs from other adjoint tests as most adjoint
   !!          routines would increment one argument and set the other to zero.
-  !> @param[in,out] modeldb     Structure containing the model state
-  !> @param[in]     mesh        The model mesh
-  !> @param[in]     model_clock The model clock
-  subroutine adjt_pressure_precon_alg( modeldb, mesh, model_clock )
+  !> @param[in,out] modeldb                 Structure containing the model state
+  !> @param[in]     mesh                    The model mesh
+  !> @param[in]     model_clock             The model clock
+  !> @param[in]     adj_lookup_table_cache  Lookup table cache
+  subroutine adjt_pressure_precon_alg( modeldb, mesh, model_clock, adj_lookup_table_cache )
 
     implicit none
 
-    type(modeldb_type), target, intent(inout) :: modeldb
-    type(mesh_type), pointer,     intent(in)    :: mesh
-    type(model_clock_type),       intent(in)    :: model_clock
+    type(modeldb_type),         target, intent(inout) :: modeldb
+    type(mesh_type),           pointer, intent(in)    :: mesh
+    type(model_clock_type),             intent(in)    :: model_clock
+    type(adj_solver_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     ! Prognostic fields
     type(field_type),          dimension(bundle_size) :: rhs
@@ -152,7 +155,10 @@ contains
 
     call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner )
 
-    call create_adj_pressure_preconditioner( rhs, adj_pressure_operator, adj_pressure_preconditioner )
+    call create_adj_pressure_preconditioner( rhs,                    &
+                                             adj_lookup_table_cache, &
+                                             adj_pressure_operator,  &
+                                             adj_pressure_preconditioner )
 
     ! Size = 1 as only P field needed
     vector_x = r_solver_field_vector_type(1_i_def)

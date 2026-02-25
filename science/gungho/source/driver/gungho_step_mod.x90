@@ -122,11 +122,13 @@ module gungho_step_mod
            '(A,I0)' ) 'Start of timestep ', model_clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
-    call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
-    call modeldb%values%get_value( 'total_energy', total_energy )
-    call modeldb%values%get_value( 'total_energy_previous', &
-                                   total_energy_previous )
+    if ( encorr_usage /= encorr_usage_none .or. write_conservation_diag ) then
+      temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+      call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
+      call modeldb%values%get_value( 'total_energy', total_energy )
+      call modeldb%values%get_value( 'total_energy_previous', &
+           total_energy_previous )
+    end if
 
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
 
