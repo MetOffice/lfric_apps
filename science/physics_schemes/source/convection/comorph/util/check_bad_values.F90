@@ -31,7 +31,7 @@ use compress_mod, only: compress
 
 implicit none
 
-! Array lower and upper bounds (in case it has haloes)
+! Array lower and upper bounds (in case it has halos)
 integer, intent(in) :: lb(3), ub(3)
 
 ! Full 3-D field to be checked

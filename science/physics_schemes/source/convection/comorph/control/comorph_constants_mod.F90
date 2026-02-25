@@ -118,12 +118,12 @@ integer :: k_top_conv = 0
 ! ( 1:nx_full, 1:ny_full, k_bot_conv:k_top_conv ),
 ! even if the input environment profile arrays have different
 ! dimensions to this (which may well be correct, since the
-! input arrays may have haloes and/or boundary-condition points
+! input arrays may have halos and/or boundary-condition points
 ! where we don't want to call convection).
 ! The input and output array arguments are all passed in/out
 ! via derived type structures containing pointers to the actual
 ! 3D arrays.  This allows the convection code to not have to
-! specify their actual dimensions, so that haloes etc can be
+! specify their actual dimensions, so that halos etc can be
 ! added or removed in the host model without having to change
 ! the convection code.
 ! However, this means it is up to the calling routine to ensure

@@ -30,13 +30,13 @@ use comorph_constants_mod, only: real_hmprec,                                  &
 
 implicit none
 
-! Lower and upper bounds of the input array (in case it has haloes)
+! Lower and upper bounds of the input array (in case it has halos)
 integer, intent(in) :: lb_in(3), ub_in(3)
 ! Input array to be copied from
 real(kind=real_hmprec), intent(in) :: field_in                                 &
               ( lb_in(1):ub_in(1),   lb_in(2):ub_in(2),   lb_in(3):ub_in(3)   )
 
-! Lower and upper bounds of the output array (in case it has haloes)
+! Lower and upper bounds of the output array (in case it has halos)
 integer, intent(in) :: lb_out(3), ub_out(3)
 ! Output array to be copied into
 real(kind=real_hmprec), intent(in out) :: field_out                            &
@@ -75,13 +75,13 @@ implicit none
 ! Structure containing compression indices
 type(cmpr_type), intent(in) :: cmpr
 
-! Lower and upper bounds of the input array (in case it has haloes)
+! Lower and upper bounds of the input array (in case it has halos)
 integer, intent(in) :: lb_in(2), ub_in(2)
 ! Input array to be copied from
 real(kind=real_hmprec), intent(in) :: field_in                                 &
                                    ( lb_in(1):ub_in(1),   lb_in(2):ub_in(2)   )
 
-! Lower and upper bounds of the output array (in case it has haloes)
+! Lower and upper bounds of the output array (in case it has halos)
 integer, intent(in) :: lb_out(2), ub_out(2)
 ! Output array to be copied into
 real(kind=real_hmprec), intent(in out) :: field_out                            &

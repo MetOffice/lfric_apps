@@ -121,7 +121,7 @@ real(kind=real_cvprec), optional, intent(out) :: grid_half_super               &
                                                  (:,:)
 
 ! Bounds of the full arrays; needed for passing into
-! compress to get indexing right when they have haloes
+! compress to get indexing right when they have halos
 integer :: lb(3), ub(3)
 
 ! Compress height and pressure at the current full level k

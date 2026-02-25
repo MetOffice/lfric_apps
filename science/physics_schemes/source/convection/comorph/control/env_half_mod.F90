@@ -74,7 +74,7 @@ real(kind=real_hmprec), intent(in) :: virt_temp                                &
 ! Note: the array dimensions of virt_temp are known, because it
 ! is a local array within comorph.
 ! But wind_w is passed in from outside and may
-! or may not have haloes / BC points that we don't want to mess
+! or may not have halos / BC points that we don't want to mess
 ! with by mistake.  Hence it is passed in as a pointer,
 ! to ensure the full array bounds specs are passed in with it.
 

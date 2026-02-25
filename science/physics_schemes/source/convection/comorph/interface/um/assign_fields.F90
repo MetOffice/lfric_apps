@@ -317,7 +317,7 @@ grid % r_surf( lb(1):, lb(2): ) => r_theta_levels(:,:,0)
 ! this results in the bounds specs being lost and
 ! resetting the array lower-bounds to 1 in the pointer.
 ! Therefore, the above use of bounds specification is needed
-! in order to retain the knowledge of the haloes in the
+! in order to retain the knowledge of the halos in the
 ! array pointer.
 
 ! "Full" levels correspond to theta-levels

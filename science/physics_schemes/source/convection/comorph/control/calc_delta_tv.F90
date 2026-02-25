@@ -63,7 +63,7 @@ real(kind=real_hmprec), intent(in) :: layer_mass                               &
        ( nx_full, ny_full, k_bot_conv:k_top_conv )
 
 ! Structure containing pointers to model grid fields
-! (full 3-D arrays, possibly with haloes);
+! (full 3-D arrays, possibly with halos);
 ! contains model-level heights, pressures and dry-density
 type(grid_type), intent(in) :: grid
 
