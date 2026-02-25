@@ -380,6 +380,12 @@ contains
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context_dst)
 
+    if (mode == mode_ics) then
+      ! Must call advance to align IO context clock with iodef and file
+      ! output frequency
+      call advance(io_context_dst, modeldb%clock)
+    end if
+
     !=======================================================================
     ! Initialise the OASIS clock
     !=======================================================================
