@@ -15,7 +15,10 @@ echo "Compile directory: "$1
 
 cd $1
 
-ifort -O0 -g -debug all -check all -warn interface -traceback \
+# ifort -O0 -g -debug all -check all -warn interface -traceback \
+gfortran -O0 -g -Wall -ffpe-trap=invalid,zero -fbounds-check -Warray-bounds \
+         -fcheck-array-temporaries -finit-real=nan -fimplicit-none \
+         -std=f2008ts -Wtabs -fbacktrace \
       -o test_moist_proc.exe \
       \
       $comorph"/control/comorph_constants_mod.F90" \
@@ -25,6 +28,7 @@ ifort -O0 -g -debug all -check all -warn interface -traceback \
       $comorph"/control/set_dependent_constants.F90" \
       $comorph"/control/diag_type_mod.F90" \
       $comorph"/control/cmpr_type_mod.F90" \
+      $comorph"/util/compress.F90" \
       $comorph"/util/check_bad_values.F90" \
       $comorph"/util/brent_dekker_mod.F90" \
       \
@@ -36,9 +40,9 @@ ifort -O0 -g -debug all -check all -warn interface -traceback \
       $comorph"/moist_thermo/calc_virt_temp_dry.F90" \
       $comorph"/moist_thermo/calc_rho_dry.F90" \
       $comorph"/moist_thermo/sat_adjust.F90" \
+      $comorph"/moist_thermo/linear_qs_mod.F90" \
       \
       $comorph"/moist_proc/moist_proc_diags_type_mod.F90" \
-      $comorph"/moist_proc/linear_qs_mod.F90" \
       $comorph"/moist_proc/phase_change_coefs_mod.F90" \
       $comorph"/moist_proc/calc_phase_change_coefs.F90" \
       $comorph"/moist_proc/proc_incr.F90" \
