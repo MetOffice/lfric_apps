@@ -32,3 +32,4 @@
 | ukmo-juan-castillo  | Juan M. Castillo   | Met Office                       | 2026-01-23 |
 | Adrian-Lock         | Adrian Lock        | Met Office                       | 2026-01-09 |
 | thomasmelvin        | Thomas Melvin      | Met Office                       | 2026-01-15 |
+| tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-02-02 |
