@@ -26,7 +26,7 @@ use comorph_constants_mod, only: real_hmprec, nx_full, ny_full
 
 implicit none
 
-! Lower and upper bounds of the array (in case it has haloes)
+! Lower and upper bounds of the array (in case it has halos)
 integer, intent(in) :: lb(2), ub(2)
 ! Array to be initialised to zero
 real(kind=real_hmprec), intent(in out) :: field( lb(1):ub(1), lb(2):ub(2) )
@@ -54,7 +54,7 @@ use comorph_constants_mod, only: real_hmprec,                                  &
 
 implicit none
 
-! Lower and upper bounds of the array (in case it has haloes)
+! Lower and upper bounds of the array (in case it has halos)
 integer, intent(in) :: lb(3), ub(3)
 ! Array to be initialised to zero
 real(kind=real_hmprec), intent(in out) :: field                                &
@@ -91,7 +91,7 @@ implicit none
 ! Compression indices of points where initialisation is needed
 type(cmpr_type), intent(in) :: cmpr
 
-! Lower and upper bounds of the array (in case it has haloes)
+! Lower and upper bounds of the array (in case it has halos)
 integer, intent(in) :: lb(2), ub(2)
 ! Array to be initialised to zero
 real(kind=real_hmprec), intent(in out) :: field( lb(1):ub(1), lb(2):ub(2) )

@@ -59,7 +59,7 @@ integer, intent(in) :: index_ic( ij_first : ij_last,                           &
 type(cmpr_type), intent(in) :: cmpr_any
 
 ! 3-D array of pressure on thermodynamic levels
-! (and lower and upper bounds of the array, in case it has haloes)
+! (and lower and upper bounds of the array, in case it has halos)
 integer, intent(in) :: lb_p(3), ub_p(3)
 real(kind=real_hmprec), intent(in) :: pressure                                 &
                           ( lb_p(1):ub_p(1), lb_p(2):ub_p(2), lb_p(3):ub_p(3) )

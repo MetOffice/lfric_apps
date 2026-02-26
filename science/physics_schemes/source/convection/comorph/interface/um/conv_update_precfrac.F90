@@ -19,7 +19,8 @@ contains
 ! increments to rain and graupel.
 ! This is a temporary simple precip fraction increment calculation,
 ! pending implementation of precip fraction increments inside CoMorph
-subroutine conv_update_precfrac( i_call, qrain_star, qgraup_star,              &
+subroutine conv_update_precfrac( i_call, n_conv_levels,                        &
+                                 qrain_star, qgraup_star,                      &
                                  cca, q_prec_b4, precfrac_star )
 
 use atm_fields_bounds_mod, only: tdims
@@ -32,6 +33,9 @@ implicit none
 ! Integer switch indicating whether this is the call to save fields before
 ! convection, or subtract the values before from after to get increments
 integer, intent(in) :: i_call
+
+! Highest model-level where convection is allowed
+integer, intent(in) :: n_conv_levels
 
 ! Latest updated rain and graupel mixing-ratios
 real(kind=real_umphys), intent(in) ::                                          &
@@ -66,7 +70,8 @@ integer :: i, j, k
 
 
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k )                                &
-!$OMP SHARED( i_call, l_mcr_qgraup, l_subgrid_graupel_frac, tdims,             &
+!$OMP SHARED( i_call, l_mcr_qgraup, l_subgrid_graupel_frac,                    &
+!$OMP         tdims, n_conv_levels,                                            &
 !$OMP         q_prec_b4, qrain_star, qgraup_star, precfrac_star,               &
 !$OMP         cca, rain_area_min )
 
@@ -81,7 +86,7 @@ case (i_call_save_before_conv)
   !  is included in the precip fraction).
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
 !$OMP DO SCHEDULE(STATIC)
-    do k = 1, tdims%k_end
+    do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
           q_prec_b4(i,j,k) = qrain_star(i,j,k) + qgraup_star(i,j,k)
@@ -91,7 +96,7 @@ case (i_call_save_before_conv)
 !$OMP END DO NOWAIT
   else
 !$OMP DO SCHEDULE(STATIC)
-    do k = 1, tdims%k_end
+    do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
           q_prec_b4(i,j,k) = qrain_star(i,j,k)
@@ -110,7 +115,7 @@ case (i_call_diff_to_get_incs)
   !  is included in the precip fraction).
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
 !$OMP DO SCHEDULE(STATIC)
-    do k = 1, tdims%k_end
+    do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
           ! Where convection has produced precip...
@@ -131,7 +136,7 @@ case (i_call_diff_to_get_incs)
 !$OMP END DO NOWAIT
   else
 !$OMP DO SCHEDULE(STATIC)
-    do k = 1, tdims%k_end
+    do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
           ! Where convection has produced precip...

@@ -2046,19 +2046,12 @@ contains
       cca_bulk => cca_3d
     end if
 
-    ! Set convective cloud fields to zero above the top convection level
-    ! (comorph only sets them up to n_conv_levels)
-    cca_3d(:,:,n_conv_levels+1:nlayers) = 0.0_r_um
-    ccw_3d(:,:,n_conv_levels+1:nlayers) = 0.0_r_um
-    if ( i_convcloud == i_convcloud_liqonly )                                  &
-        frac_bulk_conv(:,:,n_conv_levels+1:nlayers) = 0.0_r_um
-
     ! If prognostic precip fraction is in use:
     if ( l_mcr_qrain .and. l_mcr_precfrac ) then
       ! Allocate array to store precip mixing ratio before convection
       allocate( q_prec_b4(row_length, rows, nlayers))
       ! Save precip mass before convection, for use in updating precfrac later
-      call conv_update_precfrac( i_call_save_before_conv,                      &
+      call conv_update_precfrac( i_call_save_before_conv, n_conv_levels,       &
                                  qrain_conv, qgraup_conv,                      &
                                  cca_bulk, q_prec_b4, precfrac_star )
     end if
@@ -2427,7 +2420,7 @@ contains
     ! If prognostic precip fraction is in use:
     if ( l_mcr_qrain .and. l_mcr_precfrac ) then
       ! Update the precip fraction using the convective rain and graupel incs
-      call conv_update_precfrac( i_call_diff_to_get_incs,                      &
+      call conv_update_precfrac( i_call_diff_to_get_incs, n_conv_levels,       &
                                  qrain_conv, qgraup_conv,                      &
                                  cca_bulk, q_prec_b4, precfrac_star )
       ! Deallocate saved precip mass before convection, now we're done

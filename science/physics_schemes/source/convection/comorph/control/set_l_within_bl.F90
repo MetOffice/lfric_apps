@@ -38,7 +38,7 @@ integer, intent(in) :: k
 
 ! Full 3-D array of heights of the model-level interfaces
 ! above the surface (and its array bounds, so we index
-! it right if it has haloes)
+! it right if it has halos)
 integer, intent(in) :: lb_h(3), ub_h(3)
 real(kind=real_hmprec), intent(in) :: height_half                              &
                           ( lb_h(1):ub_h(1), lb_h(2):ub_h(2), lb_h(3):ub_h(3) )

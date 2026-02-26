@@ -37,8 +37,9 @@ program test_moist_proc
 
 use test_moist_proc_sizes, only: n_points, n_levels
 use comorph_constants_mod, only: real_cvprec, n_cond_species, cond_params,     &
-                     zero, one, half, gravity, cp_dry, R_dry, pi,              &
-                     name_length, i_cond_cl, i_cond_cf, melt_temp
+                                 zero, one, half, gravity, cp_dry, R_dry, pi,  &
+                                 name_length, i_cond_cl, i_cond_cf, melt_temp, &
+                                 nx_full, ny_full, k_top_conv
 use set_dependent_constants_mod, only: set_dependent_constants
 use linear_qs_mod, only: n_linear_qs_fields, i_ref_temp,                       &
                          i_qsat_liq_ref, i_qsat_ice_ref,                       &
@@ -126,7 +127,6 @@ integer :: i_diag, i_super, n_diags
 character(len=name_length) :: parent_name
 
 ! Work variables
-real(kind=real_cvprec) :: exner_ratio(n_points)
 real(kind=real_cvprec) :: lapse_rate
 real(kind=real_cvprec) :: interp
 real(kind=real_cvprec) :: qs(n_points)
@@ -165,6 +165,12 @@ integer :: k_first, k_last, dk, k_half_prev, k_half_next
 ! Loop counters
 integer :: ic, k, i_cond, n, m
 
+
+! These need to be set before calling set_dependent_constants,
+! even though not used in this test:
+nx_full = 1
+ny_full = 1
+k_top_conv = 1
 
 ! Setup constants
 call set_dependent_constants()
@@ -344,11 +350,7 @@ do n = 1, 2
   ! Adjust temperature down to first half-level
   call dry_adiabat( n_points, n_points,                                        &
                     pressure_full(:,1), pressure_half(:,1),                    &
-                    par_q_vap, par_q_cond, exner_ratio )
-  do ic = 1, n_points
-    par_temperature(ic) = par_temperature(ic)                                  &
-                          * exner_ratio(ic)
-  end do
+                    par_q_vap, par_q_cond, par_temperature )
 
   ! Set parcel vertical length-scale
   do ic = 1, n_points
@@ -462,11 +464,7 @@ do n = 1, 2
         call dry_adiabat( n_points, n_points,                                  &
                           pressure_half(:,k_half_prev),                        &
                           pressure_half(:,k_half_next),                        &
-                          par_q_vap, par_q_cond, exner_ratio )
-        do ic = 1, n_points
-          par_temperature(ic) = par_temperature(ic)                            &
-                                * exner_ratio(ic)
-        end do
+                          par_q_vap, par_q_cond, par_temperature )
 
         ! Calculate factor delta_t / ( rho_dry vert_len )
         call calc_rho_dry( n_points,                                           &
@@ -512,7 +510,7 @@ do n = 1, 2
                par_wind_u, par_wind_v, par_wind_w,                             &
                par_temperature, par_q_vap, par_q_cond,                         &
                flux_cond, cmpr, k, call_string, l_diags,                       &
-               moist_proc_diags, n_diags, par_diags_super )
+               moist_proc_diags, n_points, n_diags, par_diags_super )
 
       else  ! ( n == 1 )
         ! Single-column form
@@ -537,9 +535,7 @@ do n = 1, 2
                             pressure_half(ic,k_half_prev),                     &
                             pressure_half(ic,k_half_next),                     &
                             par_q_vap(ic), par_q_cond_1,                       &
-                            exner_ratio(ic) )
-          par_temperature(ic) = par_temperature(ic)                            &
-                                * exner_ratio(ic)
+                            par_temperature(ic) )
 
           ! Set dry-density
           call calc_rho_dry( 1,                                                &
@@ -580,7 +576,7 @@ do n = 1, 2
                  par_temperature(ic), par_q_vap(ic),                           &
                  par_q_cond_1,                                                 &
                  flux_cond_1, cmpr, k, call_string, l_diags,                   &
-                 moist_proc_diags, n_diags, par_diags_super_1 )
+                 moist_proc_diags, 1, n_diags, par_diags_super_1 )
 
           ! Copy the updated single-point super-array fields
           ! back into their original super-arrays

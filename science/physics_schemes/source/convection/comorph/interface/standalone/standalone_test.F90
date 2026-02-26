@@ -95,8 +95,8 @@ real(kind=real_hmprec), target :: conv_cloud                                   &
 
 ! Environment profiles
 ! (declared here using super-arrays, but split into a handful
-!  of separate arrays so that different haloes can be applied
-!  to each, to check that the handling of haloes in CoMorph
+!  of separate arrays so that different halos can be applied
+!  to each, to check that the handling of halos in CoMorph
 !  works OK)
 real(kind=real_hmprec), target :: winds_super                                  &
         ( nx_full, ny_full, 1:k_top_conv, 6 )

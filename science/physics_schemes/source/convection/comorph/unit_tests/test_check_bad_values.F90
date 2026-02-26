@@ -45,8 +45,7 @@ type(cmpr_type) :: cmpr
 ! Lower and upper bounds of the test array
 integer :: lb(3), ub(3)
 
-real(kind=real_hmprec), parameter :: zero = 0.0_real_hmprec
-real(kind=real_hmprec), parameter :: one  = 1.0_real_hmprec
+real(kind=real_hmprec) :: tmp
 
 integer :: i, j, k, ic
 
@@ -59,7 +58,7 @@ k_top_init = nz-1
 ! Need to call this to set newline character for error messages
 call set_dependent_constants
 
-! Array lower-bounds are just 1 (no haloes or anything).
+! Array lower-bounds are just 1 (no halos or anything).
 lb = [1,1,1]
 ub = [nx,ny,nz]
 
@@ -67,7 +66,7 @@ ub = [nx,ny,nz]
 do k = 1, nz
   do j = 1, ny
     do i = 1, nx
-      field(i,j,k) = zero
+      field(i,j,k) = 0.0_real_hmprec
     end do
   end do
 end do
@@ -90,7 +89,7 @@ l_positive = .true.
 
 ! Test whether routine can detect negative values
 do k = 1, nz
-  field(k,k,k) = -one
+  field(k,k,k) = -1.0_real_hmprec
 end do
 field_name = "field_with_negative"
 call check_bad_values_3d( lb, ub, field, where_string,                         &
@@ -104,8 +103,9 @@ call check_bad_values_cmpr( cmpr, k, field_cmpr, where_string,                 &
                             field_name, l_positive )
 
 ! Test whether routine can detect div-by-zero
+tmp = 0.0_real_hmprec
 do k = 1, nz
-  field(k,k,k) = one / zero
+  field(k,k,k) = 1.0_real_hmprec / tmp
 end do
 field_name = "field_with_div_by_zero"
 call check_bad_values_3d( lb, ub, field, where_string,                         &
@@ -120,8 +120,9 @@ call check_bad_values_cmpr( cmpr, k, field_cmpr, where_string,                 &
 
 
 ! Test whether routine can detect SQRT(negative)
+tmp = -1.0_real_hmprec
 do k = 1, nz
-  field(k,k,k) = sqrt(-one)
+  field(k,k,k) = sqrt(tmp)
 end do
 field_name = "field_with_sqrt_negative"
 call check_bad_values_3d( lb, ub, field, where_string,                         &

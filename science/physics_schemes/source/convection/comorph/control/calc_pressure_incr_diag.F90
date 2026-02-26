@@ -40,7 +40,7 @@ implicit none
 ! Structure storing i,j indices of point
 type(cmpr_type), intent(in) :: cmpr
 
-! Lower and upper bounds of the 3-D arrays, in case they have haloes
+! Lower and upper bounds of the 3-D arrays, in case they have halos
 integer, intent(in) :: lb_p(3), ub_p(3)
 integer, intent(in) :: lb_d(3), ub_d(3)
 

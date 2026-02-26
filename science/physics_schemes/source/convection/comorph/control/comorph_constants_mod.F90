@@ -118,12 +118,12 @@ integer :: k_top_conv = 0
 ! ( 1:nx_full, 1:ny_full, k_bot_conv:k_top_conv ),
 ! even if the input environment profile arrays have different
 ! dimensions to this (which may well be correct, since the
-! input arrays may have haloes and/or boundary-condition points
+! input arrays may have halos and/or boundary-condition points
 ! where we don't want to call convection).
 ! The input and output array arguments are all passed in/out
 ! via derived type structures containing pointers to the actual
 ! 3D arrays.  This allows the convection code to not have to
-! specify their actual dimensions, so that haloes etc can be
+! specify their actual dimensions, so that halos etc can be
 ! added or removed in the host model without having to change
 ! the convection code.
 ! However, this means it is up to the calling routine to ensure
@@ -684,14 +684,7 @@ real(kind=real_cvprec) :: wind_w_fac = 1.0_real_cvprec
 ! Options for how to calculate convective cloud fraction:
 ! 0 - Use old buoyancy-based w estimate as-per comorph A
 integer, parameter :: i_cf_conv_coma = 0
-! 1 - Use the mass-flux divided by the interactive parcel w
-integer, parameter :: i_cf_conv_w_inter = 1
-! 2 - Use the mass-flux divided by a fixed assumed updraft velocity
-!     (given by wind_w_fac)
-integer, parameter :: i_cf_conv_w_fixed = 2
-! 3 - Diagnose the updraft velocity based on the parcel buoyancy,
-!     assuming the parcel stays at terminal velocity
-integer, parameter :: i_cf_conv_w_buoy = 3
+! other options to be added...
 ! The switch:
 integer :: i_cf_conv = i_cf_conv_coma
 

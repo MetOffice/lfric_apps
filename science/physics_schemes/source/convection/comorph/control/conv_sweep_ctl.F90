@@ -133,7 +133,7 @@ logical, intent(in) :: l_fallback
 logical, intent(in) :: l_output_fallback
 
 ! Structure containing pointers to model grid fields
-! (full 3-D arrays, possibly with haloes);
+! (full 3-D arrays, possibly with halos);
 ! contains model-level heights, pressures and dry-density
 type(grid_type), intent(in) :: grid
 
