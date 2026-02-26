@@ -1,4 +1,4 @@
-{% set gadi_base = 'module load /g/data/access/ngm/modules/envs/lfric/202510/oneapi-openmpi' %}
+{% set gadi_base = 'module load /g/data/access/ngm/modules/envs/lfric/202603/oneapi-openmpi' %}
 {% set gadi_base_coupled = 'module load /g/data/access/ngm/modules/envs/lfric-coupled/202511/oneapi-openmpi' %}
 
 {% set gadi_plot = 'module load /g/data/access/ngm/modules/analysis3/21.10' %}
@@ -79,11 +79,16 @@
     [[GADI_EXPORT-SOURCE]]
         platform=localhost
         pre-script="module load python3/3.12.1"
-        post-script="sed -i -e 's/FFLAGS_WARNINGS           = -warn all -warn errors -gen-interfaces nosource/FFLAGS_WARNINGS           = -warn all -gen-interfaces nosource/' $SOURCE_ROOT/lfric_core/infrastructure/build/fortran/ifort.mk"
         [[[environment]]]
             hostname = 'gadi.nci.org.au'
             SITE = 'nci'
             PLATFORM_SYNC = false
+
+    [[export-source]]
+        pre-script="""
+                   module load python3/3.12.1
+                   module load python3-as-python
+                   """
 
     [[GADI_SCRIPTS]]
         inherit=GADI_BASE
