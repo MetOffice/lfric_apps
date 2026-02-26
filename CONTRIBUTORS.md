@@ -33,3 +33,4 @@
 | Adrian-Lock         | Adrian Lock        | Met Office                       | 2026-01-09 |
 | thomasmelvin        | Thomas Melvin      | Met Office                       | 2026-01-15 |
 | tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-02-02 |
+| DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
