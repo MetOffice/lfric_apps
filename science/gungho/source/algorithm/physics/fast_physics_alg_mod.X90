@@ -226,12 +226,16 @@ contains
 
 #ifdef UM_PHYSICS
 
-    ! Initialise convective cloud fields to zero
-    ! (both comorph and implicit BL may update them only at some grid-points)
-    call convection_fields%get_field('cca', cca)
-    call convection_fields%get_field('ccw', ccw)
-    call invoke( setval_c(cca, 0.0_r_def),                                   &
-                 setval_c(ccw, 0.0_r_def) )
+    if ( cv_scheme == cv_scheme_comorph ) then
+      ! Initialise convective cloud fields to zero (both comorph and implicit
+      ! BL forced_cu code may update them only at some grid-points).
+      ! This is needed if using comorph or forced_cu==forced_cu_cca (at present
+      ! forced_cu_cca is enforced in um_physics_init_mod if using comorph).
+      call convection_fields%get_field('cca', cca)
+      call convection_fields%get_field('ccw', ccw)
+      call invoke( setval_c(cca, 0.0_r_def),                                   &
+                   setval_c(ccw, 0.0_r_def) )
+    end if
 
     ! Balance cloud before the rest of fast physics
     if (cloud_call_b4_conv) then

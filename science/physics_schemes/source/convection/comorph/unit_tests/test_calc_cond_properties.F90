@@ -18,7 +18,8 @@
 ! a time.
 program test_calc_cond_properties
 
-use comorph_constants_mod, only: real_cvprec, params_rain, q_activate, zero
+use comorph_constants_mod, only: real_cvprec, params_rain, q_activate, zero,   &
+                                 nx_full, ny_full, k_top_conv
 use set_dependent_constants_mod, only: set_dependent_constants
 
 use calc_cond_properties_mod, only: calc_cond_properties,                      &
@@ -70,6 +71,12 @@ integer :: index_ic(n_points)
 ! Loop counter
 integer :: ic
 
+
+! These need to be set before calling set_dependent_constants,
+! even though not used in this test:
+nx_full = 1
+ny_full = 1
+k_top_conv = 1
 
 ! Setup constants
 call set_dependent_constants()

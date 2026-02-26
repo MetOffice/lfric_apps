@@ -15,15 +15,19 @@ echo "Compile directory: "$1
 
 cd $1
 
-ifort -O0 -g -debug all -check all -warn interface -traceback \
+# ifort -O0 -g -debug all -check all -warn interface -traceback \
+gfortran -O0 -g -Wall -ffpe-trap=invalid,zero -fbounds-check -Warray-bounds \
+         -fcheck-array-temporaries -finit-real=nan -fimplicit-none \
+         -std=f2008ts -Wtabs -fbacktrace \
       -o test_calc_cond_properties.exe \
       \
+      $comorph"/control/comorph_constants_mod.F90" \
       $comorph"/interface/standalone/raise_error.F90" \
+      $comorph"/control/set_dependent_constants.F90" \
+      $comorph"/control/diag_type_mod.F90" \
       $comorph"/util/brent_dekker_mod.F90" \
       \
-      $comorph"/control/comorph_constants_mod.F90" \
-      $comorph"/control/set_dependent_constants.F90" \
-      \
+      $comorph"/moist_proc/moist_proc_diags_type_mod.F90" \
       $comorph"/moist_proc/fall_out.F90" \
       \
       $comorph"/microphysics/set_cond_radius.F90" \
