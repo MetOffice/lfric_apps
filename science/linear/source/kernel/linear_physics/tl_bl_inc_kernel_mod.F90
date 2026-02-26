@@ -152,10 +152,10 @@ subroutine tl_bl_inc_code( nlayers,                 &
 
     ! Solve for u_inc
     u_out(BLevs_m) = a0(BLevs_m) * u_rhs(BLevs_m)
-    u_inc(map_w2(df) + BLevs_m - 1) = u_out(BLevs_m)
+    u_inc(map_w2(df) + BLevs_m - 1) = u_inc(map_w2(df) + BLevs_m - 1) + u_out(BLevs_m)
     do k = BLevs_m - 1, 1, -1
       u_out(k) = a0(k) * (u_rhs(k) - a1(k) * u_out(k + 1))
-      u_inc(map_w2(df) + k - 1) = u_out(k)
+      u_inc(map_w2(df) + k - 1) = u_inc(map_w2(df) + k - 1) + u_out(k)
     end do
 
   end do ! Loop over horizontal W2 DoFs

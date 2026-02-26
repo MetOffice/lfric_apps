@@ -132,7 +132,8 @@ subroutine atl_bdy_lyr_alg(modeldb, u_bl_inc, u, ls_state, dt)
                                      buv_inv,          &
                                      face_selector_ew, &
                                      face_selector_ns, &
-                                     Blevs_m))
+                                     Blevs_m),         &
+              setval_c(u_bl_inc, 0.0_r_def))
 
   if (LPROF) call stop_timing(id, 'atl_bdy_lyr_alg')
 

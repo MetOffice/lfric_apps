@@ -139,15 +139,11 @@ subroutine atl_bl_inc_code( nlayers,                 &
     ! (Adjoint of) solve for u_inc and transform to upper triangular form
     do k = 1, Blevs_m - 1
       u_out(k) = u_out(k) + u_inc(map_w2(df) + k - 1)
-      u_inc(map_w2(df) + k - 1) = 0.0_r_def
-
       u_out(k + 1) = u_out(k + 1) + (-a0(k) * a1(k) * u_out(k))
       u_rhs(k) = a0(k) * u_out(k)
     end do
 
     u_out(Blevs_m) = u_out(Blevs_m) + u_inc(map_w2(df) + Blevs_m - 1)
-    u_inc(map_w2(df) + Blevs_m - 1) = 0.0_r_def
-
     u_rhs(Blevs_m) = a0(Blevs_m) * u_out(Blevs_m)
 
     do k = Blevs_m, 2, -1

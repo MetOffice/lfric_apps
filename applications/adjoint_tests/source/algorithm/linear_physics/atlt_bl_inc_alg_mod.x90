@@ -133,8 +133,8 @@ module atlt_bl_inc_alg_mod
     call invoke ( x_innerproduct_x( ip1(1), u_inc ), &
                   x_innerproduct_x( ip1(2), u ) )
 
-    sf(1) = 1000.0_r_def / (ip1(1) + EPS)
-    sf(2) = 1000.0_r_def / (ip1(2) + EPS)
+    sf(1) = 1.0_r_def / (ip1(1) + EPS)
+    sf(2) = 1.0_r_def / (ip1(2) + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + ip1(1) * sf(1)
@@ -163,9 +163,6 @@ module atlt_bl_inc_alg_mod
       ip1(1), ip1(2)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) 'atlt_bl_inc_alg: ad test for atl_bl_inc_kernel_type: ip2=', ip2
-    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-    write( log_scratch_space, * ) 'atlt_bl_inc_alg: ad test for atl_bl_inc_kernel_type: s(ip1),s(ip2)=', &
-      inner1, inner2
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     ! Test the inner-product values for equality, allowing for the precision of the active variables
