@@ -1,1 +1,1 @@
-./../../meto-ex1a/psykal/global.py
+../../meto-ex1a/psykal/global.py
