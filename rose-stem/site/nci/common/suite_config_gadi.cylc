@@ -3,6 +3,12 @@
 
 {% set gadi_plot = 'module load /g/data/access/ngm/modules/analysis3/21.10' %}
 
+[scheduler]
+    [[events]]
+        # Load newer python to run handlers
+        shutdown handlers = "module load python3/3.12.1; suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+        stall handlers = "module load python3/3.12.1; suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+
 [runtime]
     [[GADI_BASE]]
         platform=gadi
