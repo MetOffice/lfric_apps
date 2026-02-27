@@ -123,7 +123,7 @@ contains
                                                  field_src, l, k))
 
           ! send the layer via OASIS
-          ! Extract the version that was actaully placed in the collection
+          ! Extract the version that was actually placed in the collection
           coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
           local_index => coupling_ptr%get_local_index()
           call coupler_exchange_2d%initialise(src_field, local_index)
@@ -132,7 +132,7 @@ contains
           call coupler_exchange_2d%clear()
 
           ! receive the layer via OASIS
-          ! Extract the version that was actaully placed in the collection
+          ! Extract the version that was actually placed in the collection
           coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling_dst" )
           local_index => coupling_ptr%get_local_index()
           call coupler_exchange_2d%initialise(dst_field, local_index)
