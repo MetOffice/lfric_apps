@@ -23,6 +23,9 @@
             "tech-tests_memory": [1, "GB"],
             "tech-tests_cpus": 1,
         },
+        "lfric_atm": {
+            "wallclock": 39,
+        },
     },
     "epic": {
         "memory": [50, "GB"],
@@ -40,6 +43,9 @@
             "tech-tests_wallclock": 15,
             "tech-tests_memory": [6, "GB"],
             "tech-tests_cpus": 1,
+        },
+        "lfric_atm": {
+            "wallclock": 39,
         },
     },
     }) %}
