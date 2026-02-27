@@ -6,8 +6,8 @@
 [scheduler]
     [[events]]
         # Load newer python to run handlers
-        shutdown handlers = "module load python3/3.12.1; suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
-        stall handlers = "module load python3/3.12.1; suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+        shutdown handlers = "module load /g/data/access/ngm/modules/envs/lfric/202603/oneapi-openmpi; envrun suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+        stall handlers = "module load /g/data/access/ngm/modules/envs/lfric/202603/oneapi-openmpi; envrun suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
 
 [runtime]
     [[GADI_BASE]]
