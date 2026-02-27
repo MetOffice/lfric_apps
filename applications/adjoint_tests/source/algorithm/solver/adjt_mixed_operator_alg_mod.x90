@@ -7,7 +7,7 @@
 
 module adjt_mixed_operator_alg_mod
 
-  use constants_mod,                    only: i_def, r_def, l_def, r_solver, EPS
+  use constants_mod,                    only: i_def, r_def, l_def, r_solver
   use log_mod,                          only: log_event,         &
                                               log_scratch_space, &
                                               LOG_LEVEL_DEBUG,   &
@@ -82,7 +82,8 @@ contains
     real(kind=r_def) :: inner1, inner2
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
-    real(kind=r_def), parameter :: overall_tolerance = 2000.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
     integer(kind=tik)           :: id
 
     if ( LPROF ) call start_timing( id, 'adjt_mixed_operator_alg' )
@@ -166,9 +167,9 @@ contains
     write(log_scratch_space, *) "w inner product = ", w_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-    p_sf = 1.0_r_def / (p_inner_prod + EPS)
-    uv_sf = 1.0_r_def / (uv_inner_prod + EPS)
-    w_sf = 1.0_r_def / (w_inner_prod + EPS)
+    p_sf = 1.0_r_def / (p_inner_prod + eps)
+    uv_sf = 1.0_r_def / (uv_inner_prod + eps)
+    w_sf = 1.0_r_def / (w_inner_prod + eps)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + p_inner_prod * p_sf

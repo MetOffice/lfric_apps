@@ -9,7 +9,7 @@
 !> @brief Module containing adjoint test for scaled_matrix_vector_kernel
 module adjt_scaled_matrix_vector_alg_mod
 
-  use constants_mod,                 only: i_def, r_def, l_def, r_solver, EPS
+  use constants_mod,                 only: i_def, r_def, l_def, r_solver
   use field_mod,                     only: field_type
   use finite_element_config_mod,     only: element_order_h, element_order_v
   use fs_continuity_mod,             only: W2, W3, Wtheta
@@ -77,6 +77,7 @@ module adjt_scaled_matrix_vector_alg_mod
     real(kind=r_def)            :: machine_tolerance
     real(kind=r_def)            :: relative_diff
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Setup
 
@@ -127,7 +128,7 @@ module adjt_scaled_matrix_vector_alg_mod
     write(log_scratch_space, *) "vector inner product = ", vector_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-    vector_sf = 1.0_r_def / (vector_inner_prod + EPS)
+    vector_sf = 1.0_r_def / (vector_inner_prod + eps)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + vector_inner_prod * vector_sf

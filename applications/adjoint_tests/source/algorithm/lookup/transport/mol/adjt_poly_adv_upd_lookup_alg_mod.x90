@@ -18,7 +18,7 @@ module adjt_poly_adv_upd_lookup_alg_mod
   use integer_field_mod,             only : integer_field_type, &
                                             integer_field_proxy_type
   use fs_continuity_mod,             only : W2H, Wtheta
-  use constants_mod,                 only : i_def, r_def, r_tran, l_def, EPS
+  use constants_mod,                 only : i_def, r_def, r_tran, l_def
   use log_mod,                       only : log_event, &
                                             LOG_LEVEL_ERROR, &
                                             LOG_LEVEL_INFO,  &
@@ -81,6 +81,7 @@ module adjt_poly_adv_upd_lookup_alg_mod
     real(kind=r_def)             :: advective_advective_input_inner_prod
     real(kind=r_def)             :: reconstruction_reconstruction_input_inner_prod
     real(kind=r_tran)            :: inner2
+    real(kind=r_tran), parameter :: eps = 1.0e-30_r_tran
 
     ! Test variables
     real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
@@ -124,8 +125,8 @@ module adjt_poly_adv_upd_lookup_alg_mod
                  x_innerproduct_x( reconstruction_inner_prod, reconstruction) )
 
     ! Determining scale factors
-    advective_sf = 1.0_r_tran/( real( advective_inner_prod, r_tran ) + EPS )
-    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + EPS )
+    advective_sf = 1.0_r_tran/( real( advective_inner_prod, r_tran ) + eps )
+    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + eps )
 
     inner1 = 0.0_r_tran
     inner1 = inner1 + real( advective_inner_prod, r_tran )*advective_sf

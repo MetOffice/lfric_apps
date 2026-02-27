@@ -18,6 +18,7 @@
 !!                      size as an integer argument.
 module reconstruct_w3_field_alg_mod
 
+  use check_configuration_mod,        only: get_required_stencil_depth
   use sci_combine_multidata_field_kernel_mod, &
                                       only: combine_multidata_field_kernel_type
   use constants_mod,                  only: r_def, i_def, l_def, str_def
@@ -196,7 +197,7 @@ contains
 
     ! Copy field to a large halo version
     call field_old_big_halo%initialise( field_old%get_function_space(), &
-                                        halo_depth=mesh%get_halo_depth() )
+                                        halo_depth = get_required_stencil_depth() )
     call invoke( setval_X( field_old_big_halo, field_old ) )
 
     monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)

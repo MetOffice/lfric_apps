@@ -8,7 +8,7 @@
 
 module inner_from_controller_rdef_alg_mod
 
-  use constants_mod,                       only : i_def, l_def, r_def, EPS
+  use constants_mod,                       only : i_def, l_def, r_def
   use field_mod,                           only : field_type
   use r_tran_field_mod,                    only : r_tran_field_type
   use transport_controller_mod,            only : transport_controller_type
@@ -72,6 +72,7 @@ module inner_from_controller_rdef_alg_mod
     type(flux_precomputations_type),       pointer :: flux_pc
     type(r_tran_field_type),               pointer :: ref_flux_ptr
     real(kind=r_def)                               :: flux_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     integer(kind=i_def)                            :: step
     integer(kind=i_def)                            :: num_steps
     integer(kind=i_def)                            :: mesh_id_from_idx
@@ -87,7 +88,7 @@ module inner_from_controller_rdef_alg_mod
       flux_inner_prod = 0.0_r_def
       if ( ref_flux_ptr%is_initialised() ) then
         call invoke( x_innerproduct_x( flux_inner_prod, ref_flux_ptr ) )
-        flux_sf = 1.0_r_def/(flux_inner_prod + EPS)
+        flux_sf = 1.0_r_def/(flux_inner_prod + eps)
         inner = inner + flux_inner_prod*flux_sf
         write(log_scratch_space, *) "Flux precomputations ref_flux(step = ", step, ") inner prod = ", &
                                     flux_inner_prod
@@ -163,6 +164,7 @@ module inner_from_controller_rdef_alg_mod
     type(flux_precomputations_type),       pointer :: flux_pc
     type(r_tran_field_type),               pointer :: ref_field_ptr
     real(kind=r_def)                               :: field_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     integer(kind=i_def)                            :: step
     integer(kind=i_def)                            :: num_steps
     integer(kind=i_def)                            :: mesh_id_from_idx
@@ -179,7 +181,7 @@ module inner_from_controller_rdef_alg_mod
       field_inner_prod = 0.0_r_def
       if ( ref_field_ptr%is_initialised() ) then
         call invoke( x_innerproduct_x( field_inner_prod, ref_field_ptr ) )
-        field_sf = 1.0_r_def/(field_inner_prod + EPS)
+        field_sf = 1.0_r_def/(field_inner_prod + eps)
         inner = inner + field_inner_prod*field_sf
         write(log_scratch_space, *) "Flux precomputations ref_field(step = ", step, ") inner prod = ", &
                                     field_inner_prod
@@ -254,6 +256,7 @@ module inner_from_controller_rdef_alg_mod
     type(flux_precomputations_type),       pointer :: flux_pc
     type(r_tran_field_type),               pointer :: ref_mass_ptr
     real(kind=r_def)                               :: mass_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     integer(kind=i_def)                            :: step
     integer(kind=i_def)                            :: num_steps
     integer(kind=i_def)                            :: mesh_id_from_idx
@@ -270,7 +273,7 @@ module inner_from_controller_rdef_alg_mod
       mass_inner_prod = 0.0_r_def
       if ( ref_mass_ptr%is_initialised() ) then
         call invoke( x_innerproduct_x( mass_inner_prod, ref_mass_ptr ) )
-        mass_sf = 1.0_r_def/(mass_inner_prod + EPS)
+        mass_sf = 1.0_r_def/(mass_inner_prod + eps)
         inner = inner + mass_inner_prod*mass_sf
         write(log_scratch_space, *) "Flux precomputations ref_mass(step = ", step, ") inner prod = ", &
                                     mass_inner_prod
@@ -342,6 +345,7 @@ module inner_from_controller_rdef_alg_mod
     type(transport_counter_type),          pointer :: transport_counter
     type(r_tran_field_type),               pointer :: flux_ptr
     real(kind=r_def)                               :: flux_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     integer(kind=i_def)                            :: step
     integer(kind=i_def)                            :: num_steps
     real(kind=r_def)                               :: flux_inner_prod
@@ -354,7 +358,7 @@ module inner_from_controller_rdef_alg_mod
       flux_inner_prod = 0.0_r_def
       if ( flux_ptr%is_initialised() ) then
         call invoke( x_innerproduct_x( flux_inner_prod, flux_ptr ) )
-        flux_sf = 1.0_r_def/(flux_inner_prod + EPS)
+        flux_sf = 1.0_r_def/(flux_inner_prod + eps)
         inner = inner + flux_inner_prod*flux_sf
         write(log_scratch_space, *) "Transport counter flux(step = ", step, ") inner prod = ", &
                                     flux_inner_prod
@@ -421,6 +425,7 @@ module inner_from_controller_rdef_alg_mod
     type(transport_counter_type),          pointer :: transport_counter
     type(r_tran_field_type),               pointer :: field_n_ptr
     real(kind=r_def)                               :: field_n_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     real(kind=r_def)                               :: field_n_inner_prod
 
     transport_counter => transport_controller%get_transport_counter()
@@ -429,7 +434,7 @@ module inner_from_controller_rdef_alg_mod
     if ( field_n_ptr%is_initialised() ) then
       field_n_inner_prod = 0.0_r_def
       call invoke( x_innerproduct_x( field_n_inner_prod, field_n_ptr ) )
-      field_n_sf = 1.0_r_def/(field_n_inner_prod + EPS)
+      field_n_sf = 1.0_r_def/(field_n_inner_prod + eps)
       inner = inner + field_n_inner_prod*field_n_sf
       write(log_scratch_space, *) "Transport counter field_n inner prod = ", &
                                   field_n_inner_prod
@@ -494,6 +499,7 @@ module inner_from_controller_rdef_alg_mod
     type(wind_precomputations_type),       pointer :: wind_pc
     type(r_tran_field_type),               pointer :: wind_ptr
     real(kind=r_def)                               :: wind_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     real(kind=r_def)                               :: wind_inner_prod
 
     wind_pc => transport_controller%get_wind_precomputations()
@@ -502,7 +508,7 @@ module inner_from_controller_rdef_alg_mod
     if ( wind_ptr%is_initialised() ) then
       wind_inner_prod = 0.0_r_def
       call invoke( x_innerproduct_x( wind_inner_prod, wind_ptr ) )
-      wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
+      wind_sf = 1.0_r_def/(wind_inner_prod + eps)
       inner = inner + wind_inner_prod*wind_sf
       write(log_scratch_space, *) "Wind precomputations(delta_t = ", delta_t, ") inner prod = ", &
                                   wind_inner_prod
@@ -573,6 +579,7 @@ module inner_from_controller_rdef_alg_mod
     type(wind_precomputations_type),       pointer :: wind_pc
     type(r_tran_field_type),               pointer :: wind_ptr
     real(kind=r_def)                               :: wind_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     real(kind=r_def)                               :: wind_inner_prod
 
     wind_pc => transport_controller%get_wind_precomputations()
@@ -581,7 +588,7 @@ module inner_from_controller_rdef_alg_mod
     if ( wind_ptr%is_initialised() ) then
       wind_inner_prod = 0.0_r_def
       call invoke( x_innerproduct_x( wind_inner_prod, wind_ptr ) )
-      wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
+      wind_sf = 1.0_r_def/(wind_inner_prod + eps)
       inner = inner + wind_inner_prod*wind_sf
       write(log_scratch_space, *) "Wind precomputations(direction = ", direction, ") inner prod = ", &
                                   wind_inner_prod
@@ -645,6 +652,7 @@ module inner_from_controller_rdef_alg_mod
     ! Internal variables
     type(r_tran_field_type),               pointer :: ref_field_ptr
     real(kind=r_def)                               :: ref_field_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     real(kind=r_def)                               :: ref_field_inner_prod
 
     ref_field_ptr => transport_controller%get_ref_field()
@@ -652,7 +660,7 @@ module inner_from_controller_rdef_alg_mod
     if ( ref_field_ptr%is_initialised() ) then
       ref_field_inner_prod = 0.0_r_def
       call invoke( x_innerproduct_x( ref_field_inner_prod, ref_field_ptr ) )
-      ref_field_sf = 1.0_r_def/(ref_field_inner_prod + EPS)
+      ref_field_sf = 1.0_r_def/(ref_field_inner_prod + eps)
       inner = inner + ref_field_inner_prod*ref_field_sf
       write(log_scratch_space, *) "Transport controller ref_field inner prod = ", &
                                   ref_field_inner_prod
@@ -711,6 +719,7 @@ module inner_from_controller_rdef_alg_mod
     ! Internal variables
     type(r_tran_field_type),               pointer :: wind_ptr
     real(kind=r_def)                               :: wind_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     real(kind=r_def)                               :: wind_inner_prod
 
     wind_ptr => transport_controller%get_wind_npdt( delta_t )
@@ -718,7 +727,7 @@ module inner_from_controller_rdef_alg_mod
     if ( wind_ptr%is_initialised() ) then
       wind_inner_prod = 0.0_r_def
       call invoke( x_innerproduct_x( wind_inner_prod, wind_ptr ) )
-      wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
+      wind_sf = 1.0_r_def/(wind_inner_prod + eps)
       inner = inner + wind_inner_prod*wind_sf
       write(log_scratch_space, *) "Transport controller wind(delta_t = ", delta_t, ") inner prod = ", &
                                   wind_inner_prod
@@ -777,6 +786,7 @@ module inner_from_controller_rdef_alg_mod
     ! Internal variables
     type(r_tran_field_type),               pointer :: wind_ptr
     real(kind=r_def)                               :: wind_sf
+    real(kind=r_def),                    parameter :: eps = 1.0e-30_r_def
     real(kind=r_def)                               :: wind_inner_prod
 
     wind_ptr => transport_controller%get_transporting_wind()
@@ -784,7 +794,7 @@ module inner_from_controller_rdef_alg_mod
     if ( wind_ptr%is_initialised() ) then
       wind_inner_prod = 0.0_r_def
       call invoke( x_innerproduct_x( wind_inner_prod, wind_ptr ) )
-      wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
+      wind_sf = 1.0_r_def/(wind_inner_prod + eps)
       inner = inner + wind_inner_prod*wind_sf
       write(log_scratch_space, *) "Transport controller transporting_wind inner prod = ", &
                                   wind_inner_prod

@@ -21,7 +21,6 @@ module tl_transport_field_mod
                                               equation_form_advective
   use tl_mol_conservative_alg_mod,      only: tl_mol_conservative_alg
   use tl_mol_advective_alg_mod,         only: tl_mol_advective_alg
-  use tl_split_transport_mod,           only: tl_split_transport_control
   use transport_controller_mod,         only: transport_controller_type
   use tl_transport_controller_mod,      only: tl_transport_controller_type
   use transport_counter_mod,            only: transport_counter_type
@@ -122,8 +121,10 @@ contains
     ! Some split horizontal/vertical transport scheme
     ! -------------------------------------------------------------------------!
     case ( scheme_split )
-       call tl_split_transport_control(field_np1, field_n, ls_field_n, &
-                                       tl_transport_controller)
+      call log_event(                                                          &
+              'Split transport not implemented for tangent-linear app',        &
+              LOG_LEVEL_ERROR                                                  &
+      )
 
     case default
       call log_event(                                                          &

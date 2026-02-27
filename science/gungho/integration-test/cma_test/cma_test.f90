@@ -19,6 +19,7 @@ program cma_test
 
   use, intrinsic :: iso_fortran_env,  only : real64
 
+  use check_configuration_mod,        only : get_required_stencil_depth
   use cma_test_algorithm_mod,         only : cma_test_init,                  &
                                              test_cma_apply_mass_p,          &
                                              test_cma_apply_mass_v,          &
@@ -131,7 +132,7 @@ program cma_test
   type(namelist_type), pointer :: base_mesh_nml
   type(namelist_type), pointer :: planet_nml
 
-  integer(i_def)     :: stencil_depth(1)
+  integer(i_def)     :: stencil_depth
   character(str_def) :: file_prefix
   character(str_def) :: prime_mesh_name
   real(r_def)        :: radius
@@ -293,7 +294,7 @@ program cma_test
                                                 domain_height,    &
                                                 scaled_radius ) )
 
-  stencil_depth = 2
+  stencil_depth = get_required_stencil_depth()
   check_partitions = .false.
 
   call init_mesh( config,                     &

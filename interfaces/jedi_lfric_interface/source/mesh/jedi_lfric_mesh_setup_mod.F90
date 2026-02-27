@@ -10,7 +10,6 @@ module jedi_lfric_mesh_setup_mod
   use add_mesh_map_mod,        only: assign_mesh_maps
   use base_mesh_config_mod,    only: GEOMETRY_SPHERICAL, &
                                      GEOMETRY_PLANAR
-  use check_configuration_mod, only: get_required_stencil_depth
   use config_mod,              only: config_type
   use constants_mod,           only: str_def, i_def, l_def, r_def
   use create_mesh_mod,         only: create_mesh
@@ -66,7 +65,7 @@ contains
     integer(i_def),       parameter :: one_layer = 1_i_def
     integer(i_def)                  :: geometry
     integer(i_def)                  :: extrusion_method
-    integer(i_def),     allocatable :: stencil_depths(:)
+    integer(i_def)                  :: stencil_depth
     integer(i_def)                  :: number_of_layers
     integer(i_def)                  :: i
     real(r_def)                     :: domain_bottom
@@ -126,18 +125,14 @@ contains
     !-------------------------------------------------------------------------
     ! 1.2 Create the required meshes
     !-------------------------------------------------------------------------
-
-    allocate(stencil_depths(size(base_mesh_names)))
-    call get_required_stencil_depth( stencil_depths, base_mesh_names, &
-                                     configuration )
-
+    stencil_depth = 2
     apply_partition_check = .false.
     call init_mesh( config,                  &
                     mpi_obj%get_comm_rank(), &
                     mpi_obj%get_comm_size(), &
                     base_mesh_names,         &
                     extrusion,               &
-                    stencil_depths,          &
+                    stencil_depth,           &
                     apply_partition_check )
 
     allocate( twod_names, source=base_mesh_names )
@@ -147,11 +142,6 @@ contains
     call create_mesh( base_mesh_names, extrusion_2d, &
                       alt_name=twod_names )
     call assign_mesh_maps(twod_names)
-
-    deallocate(twod_names)
-    deallocate(stencil_depths)
-    deallocate(extrusion)
-    if (allocated(extrusion_2d)) deallocate(extrusion_2d)
 
   end subroutine initialise_mesh
 

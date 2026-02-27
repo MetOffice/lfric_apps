@@ -16,7 +16,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     use fs_continuity_mod,                    only : name_from_functionspace
     use finite_element_config_mod,            only : element_order_h, &
                                                      element_order_v
-    use constants_mod,                        only : i_def, r_def, r_tran, EPS
+    use constants_mod,                        only : i_def, r_def, r_tran
     use log_mod,                              only : log_event,       &
                                                      LOG_LEVEL_ERROR, &
                                                      LOG_LEVEL_INFO,  &
@@ -84,6 +84,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     real(kind=r_def)                    :: reconstruction_reconstruction_input_inner_prod
     real(kind=r_def)                    :: tracer_tracer_input_inner_prod
     real(kind=r_tran)                   :: inner2
+    real(kind=r_tran),        parameter :: eps = 1.0e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_tran),        parameter :: overall_tolerance = 1500.0_r_tran
@@ -130,8 +131,8 @@ module adjt_poly2d_recon_lookup_alg_mod
                  x_innerproduct_x( tracer_inner_prod, tracer ) )
 
     ! Determining scale factors
-    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + EPS )
-    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + EPS )
+    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + eps )
+    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + eps )
 
     inner1 = 0.0_r_tran
     inner1 = inner1 + real( reconstruction_inner_prod, r_tran )*reconstruction_sf

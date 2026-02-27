@@ -1,9 +1,0 @@
-<file_definition>
-
-  <!-- This file contains orography ancil data -->
-  <!-- ANCIL FILES -->
-  <file id="orography_mean_ancil" name="orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
-    <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
-  </file>
-
-</file_definition>

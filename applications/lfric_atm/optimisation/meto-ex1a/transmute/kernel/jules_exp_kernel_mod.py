@@ -1,8 +1,8 @@
-# -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+##############################################################################
+# (c) Crown copyright 2025 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-# -----------------------------------------------------------------------------
+##############################################################################
 '''
 Bespoke PSyclone transformation script for jules_imp_kernel_mod.
 '''
@@ -21,11 +21,10 @@ omp_transform_par_do = OMPLoopTrans(
 
 SAFE_IMPURE_CALLS = ["qsat_mix"]
 
-
 def trans(psyir):
     '''
     PSyclone function call, run through psyir object,
-    each schedule (or subroutine) and apply OMP paralleldo transformations
+    each schedul e(or subroutine) and apply OMP paralleldo transformations
     to each loop in jules_imp_kernel_mod.
     '''
 
@@ -37,6 +36,7 @@ def trans(psyir):
                 "sea_ice_pensolar",
                 "rhostar_2d",
                 "recip_l_mo_sea_2d",
+                "h_blend_orog_2d",
                 "t1_sd_2d",
                 "q1_sd_2d",
                 "surf_interp",
@@ -81,6 +81,7 @@ def trans(psyir):
                 impure_calls = [c for c in loop.walk(Call) if not c.is_pure]
                 for call in impure_calls:
                     if call.routine.symbol.name in SAFE_IMPURE_CALLS:
+                        print(call.routine.name)
                         call.routine.symbol.is_pure = True
                 omp_transform_par_do.apply(loop, options)
 
@@ -88,7 +89,5 @@ def trans(psyir):
                 logging.warning(
                     "Could not transform because:\n %s", err)
 
-# Ignore loops setting these as order dependent:
-#   land_field l ainfo%land_index sea_pts ainfo%sea_index
-#   ainfo%sice_pts_ncat ainfo%sice_index_ncat
-# Ignore as calls subroutine: qsat_mix
+#Ignore loops setting these as order dependent: land_field l ainfo%land_index sea_pts ainfo%sea_index ainfo%sice_pts_ncat ainfo%sice_index_ncat
+#Ignore as calls subroutine: qsat_mix

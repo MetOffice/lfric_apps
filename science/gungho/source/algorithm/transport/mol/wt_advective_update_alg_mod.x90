@@ -18,6 +18,7 @@
 !!                      size as an integer argument.
 module wt_advective_update_alg_mod
 
+  use check_configuration_mod,            only: get_required_stencil_depth
   use constants_mod,                      only: r_def, i_def, l_def, str_def,  &
                                                 r_tran
   use sci_geometric_constants_mod,        only: get_coordinates,               &
@@ -132,7 +133,7 @@ contains
 
     ! Copy field to a large halo version
     call field_big_halo%initialise( field%get_function_space(), &
-                                    halo_depth=mesh%get_halo_depth() )
+                                    halo_depth = get_required_stencil_depth() )
     call invoke( setval_X( field_big_halo, field ) )
 
     ! Compute reconstruction on a Wtheta multidata field
