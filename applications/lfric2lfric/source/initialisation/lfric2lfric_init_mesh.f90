@@ -29,6 +29,8 @@ module lfric2lfric_init_mesh_mod
   use check_local_mesh_mod,        only: check_local_mesh
   use create_mesh_mod,             only: create_mesh
   use extrusion_mod,               only: extrusion_type
+  use global_mesh_collection_mod,  only: global_mesh_collection
+  use global_mesh_mod,             only: global_mesh_type
   use load_global_mesh_mod,        only: load_global_mesh
   use load_local_mesh_mod,         only: load_local_mesh
   use load_local_mesh_maps_mod,    only: load_local_mesh_maps
@@ -46,7 +48,6 @@ module lfric2lfric_init_mesh_mod
                                          create_local_mesh_maps, &
                                          create_local_mesh
   use runtime_partition_lfric_mod, only: get_partition_parameters
-  use global_mesh_collection_mod,  only: global_mesh_collection
 
   ! Lfric2lfric modules
   use lfric2lfric_config_mod,      only: regrid_method_map,                   &
@@ -124,9 +125,12 @@ subroutine init_mesh( configuration,           &
   integer(kind=i_def)              :: mesh_selection(2)
 
   ! Local variables
-  integer(kind=i_def)                 :: i
-  character(len=str_max_filename)     :: mesh_file(2)
-  integer(kind=i_def)                 :: stencil_depths(2)
+  integer(kind=i_def)              :: i
+  character(len=str_max_filename)  :: mesh_file(2)
+  integer(kind=i_def)              :: stencil_depths(2)
+
+  type(global_mesh_type), pointer  :: global_mesh_src
+  type(global_mesh_type), pointer  :: global_mesh_dst
 
   procedure(partitioner_interface), pointer :: partitioner_src => null()
   procedure(partitioner_interface), pointer :: partitioner_dst => null()
@@ -316,6 +320,12 @@ subroutine init_mesh( configuration,           &
       call load_global_mesh( mesh_file(dst), mesh_names(dst) )
       call load_global_mesh( mesh_file(src), mesh_names(src) )
     endif
+
+    global_mesh_dst => global_mesh_collection%get_global_mesh(mesh_names(dst))
+    global_mesh_src => global_mesh_collection%get_global_mesh(mesh_names(src))
+
+    call global_mesh_dst%set_partition_nmeshes(.false.)
+    call global_mesh_src%set_partition_nmeshes(.false.)
 
     ! Partition the global meshes
     !===========================================================
