@@ -70,7 +70,6 @@ contains
 
     type( field_type ), pointer :: cf_bulk => null()
     type( field_type ), pointer :: cf_liquid => null()
-    type( field_type ), pointer :: rh_crit => null()
 
     ! Temporary unpacked fields from collection aerosol_fields
     type( field_type ), pointer :: n_nuc_sol => null()
@@ -139,9 +138,8 @@ contains
 
     type( field_type ), pointer :: cf_bulk_aero            => null()
     type( field_type ), pointer :: cf_liquid_aero          => null()
-    type( field_type ), pointer :: rh_crit_aero            => null()
     type( field_type ), pointer :: cloud_drop_no_conc_aero => null()
-    type( field_type ), target  :: cf_bulk_coarse, cf_liquid_coarse, rh_crit_coarse, cloud_drop_no_conc_coarse
+    type( field_type ), target  :: cf_bulk_coarse, cf_liquid_coarse, cloud_drop_no_conc_coarse
     type( field_type )          :: mr_ice
     integer(tik)                :: id_alg, id_diags
 
@@ -210,28 +208,23 @@ contains
       ! Unpack fields from cloud_fields
       call cloud_fields%get_field('bulk_fraction', cf_bulk)
       call cloud_fields%get_field('liquid_fraction', cf_liquid)
-      call cloud_fields%get_field('rh_crit', rh_crit)
       call aerosol_fields%get_field('cloud_drop_no_conc', cloud_drop_no_conc)
       ! Initialise coarse aerosol fields
       aerosol_mesh => exner_in_wth%get_mesh()
       wth_aero => function_space_collection%get_fs( aerosol_mesh, 0, 0, WTHETA )
       call cf_bulk_coarse%initialise(vector_space = wth_aero)
       call cf_liquid_coarse%initialise(vector_space = wth_aero)
-      call rh_crit_coarse%initialise(vector_space = wth_aero)
       call cloud_drop_no_conc_coarse%initialise(vector_space = wth_aero)
       call map_scalar_intermesh(cf_bulk_coarse, cf_bulk)
       call map_scalar_intermesh(cf_liquid_coarse, cf_liquid)
-      call map_scalar_intermesh(rh_crit_coarse, rh_crit)
       call map_scalar_intermesh(cloud_drop_no_conc_coarse, cloud_drop_no_conc)
       cf_bulk_aero => cf_bulk_coarse
       cf_liquid_aero => cf_liquid_coarse
-      rh_crit_aero => rh_crit_coarse
       cloud_drop_no_conc_aero => cloud_drop_no_conc_coarse
     else
       ! Unpack fields from cloud_fields
       call cloud_fields%get_field('bulk_fraction', cf_bulk_aero)
       call cloud_fields%get_field('liquid_fraction', cf_liquid_aero)
-      call cloud_fields%get_field('rh_crit', rh_crit_aero)
       call aerosol_fields%get_field('cloud_drop_no_conc', cloud_drop_no_conc_aero)
     end if
 
@@ -257,7 +250,6 @@ contains
                                             exner_in_wth,                      &
                                             cf_bulk_aero,                      &
                                             cf_liquid_aero,                    &
-                                            rh_crit_aero,                      &
                                             mr_n(imr_v),                       &
                                             mr_ice,                            &
                                             n_nuc_sol,                         &

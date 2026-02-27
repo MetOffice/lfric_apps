@@ -6,6 +6,7 @@
 !> @brief Module containing adjoint test for atl_wind_transport_alg
 module atlt_wind_transport_alg_mod
 
+  use adj_trans_lookup_cache_mod,          only : adj_trans_lookup_cache_type
   use r_tran_field_mod,                    only : r_tran_field_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
@@ -48,9 +49,10 @@ module atlt_wind_transport_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  mesh         The model mesh
-  !> @param[in]  model_clock  The model clock
-  subroutine atlt_wind_transport_alg( mesh, model_clock )
+  !> @param[in]  mesh                    The model mesh
+  !> @param[in]  model_clock             The model clock
+  !> @param[in]  adj_lookup_table_cache  Lookup table cache
+  subroutine atlt_wind_transport_alg( mesh, model_clock, adj_lookup_table_cache )
 
     use tl_wind_transport_alg_mod,          only : tl_wind_transport_alg
     use atl_wind_transport_alg_mod,         only : atl_wind_transport_alg
@@ -58,8 +60,9 @@ module atlt_wind_transport_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(model_clock_type),   intent(in) :: model_clock
+    type(mesh_type),          pointer, intent(in) :: mesh
+    type(model_clock_type),            intent(in) :: model_clock
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Arguments for tl and adj calls
     type(field_type)                       :: rhs_u
@@ -194,8 +197,9 @@ module atlt_wind_transport_alg_mod
     wn_wn_inp_inner_prod = 0.0_r_def
 
     ! Adjoint
-    call atl_wind_transport_alg( rhs_u, wind_n, ls_wind_n, &
-                                 tl_transport_controller, transport_metadata )
+    call atl_wind_transport_alg( rhs_u, wind_n, ls_wind_n,                    &
+                                 tl_transport_controller, transport_metadata, &
+                                 adj_lookup_table_cache )
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( ru_ru_inp_inner_prod, &

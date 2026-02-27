@@ -5,7 +5,11 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/common/suite_config_ex1a.cylc") %}
 
+{% if site_vars.ex_trustzone == "collab" %}
+{% set ex1a_base = 'module use /projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
+{% else %}
 {% set ex1a_base = 'module use /common/internal/spack/releases/2025.10.1/ngms' %}
+{% endif %}
 
 {% set ex1a_compiler_gnu =  'module switch cpe/22.11 cpe/23.05 ; ' ~
                             'module load PrgEnv-gnu ; '~
@@ -19,11 +23,11 @@
                             'module load cray-mpich/8.1.27 ; '~
                             'module load lfric-cray/15.0.0/3.0+ || true ' %}
 
-{% set ex1a_coupled_cce = 'module unload xios/2701-h57fm7d || true ; ' ~
+{% set ex1a_coupled_cce = 'module unload xios/2701 || true ; ' ~
                           'module load cray-hdf5-parallel ; ' ~
                           'module load cray-netcdf-hdf5parallel ; ' ~
                           'module use /data/users/moci/modules_ngms/modules ; '~
-                          'module load GC4-PrgEnv/2024-01-lfric_apps_coupled_port-cpe23.05/5548.lua ; '
+                          'module load GC6-PrgEnv/2026-01-lfric_apps_coupled_port-cpe23.05-mpich8.1.27/5889.lua ; '
                           'module load scitools' %}
 
 {% set ex1a_coupled_run = '. $BIG_DATA_DIR/ancils/lfric_coupled/ocean/ocean_ancil_GO8p0_CORE_forcing_eORCA025 ; ' ~
@@ -48,6 +52,9 @@
             ROSE_LAUNCHER = 'mpiexec'
             OMP_STACKSIZE=1g
 
+    [[EX1A_WEIGHTS]]
+        inherit = EX1A_BASE
+
     [[EX1A_BUILD]]
         [[[environment]]]
             TRANSMUTE_INCLUDE_METHOD = specify_include
@@ -60,7 +67,9 @@
     [[EX1A_RUN]]
         [[[environment]]]
             {# BIG_DATA_DIR holds ancils and dump files #}
-{% if site_vars["host_ex"] == "exz" %}
+{% if site_vars["ex_trustzone"] == "collab" %}
+            BIG_DATA_DIR = '/data/users/lfricadmin.mon/data'
+{% elif site_vars["host_ex"] == "exz" %}
             BIG_DATA_DIR = '/common/internal/lfricdir/data'
 {% else %}
             BIG_DATA_DIR = '/data/users/lfricadmin/data'
@@ -176,11 +185,28 @@
                      module list 2>&1
                      """
 
+    [[EX1A_SCRIPTS]]
+        inherit = EX1A_TECH
+
     [[EX1A_EXPORT-SOURCE]]
         inherit=METO_ORIG
         [[[environment]]]
+{% if site_vars["ex_trustzone"] == "collab" %}
+            PLATFORM_SYNC = false
+{% else %}
             hostname = $(rose host-select {{site_vars.host_ex}})
             PLATFORM_SYNC = true
+{% endif %}
+
+    [[EX1A_REMOTE_INIT]]
+        inherit = EX1A_BASE
+        [[[directives]]]
+{% if site_vars["ex_trustzone"] == "collab" %}
+            -q = collabshared
+{% else %}
+            -q = shared
+{% endif %}
+            -l ncpus=1
 
     [[EX1A_HOUSEKEEPING]]
         inherit=EX1A_TECH_BASE

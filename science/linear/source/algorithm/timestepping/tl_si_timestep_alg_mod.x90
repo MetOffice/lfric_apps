@@ -30,6 +30,7 @@ module tl_si_timestep_alg_mod
                                          l_stabilise_bl,           &
                                          n_bl_levels_to_stabilise, &
                                          max_bl_stabilisation
+  use linear_physics_config_mod,   only: l_boundary_layer
   use mixed_solver_config_mod,     only: guess_np1,                            &
                                          reference_reset_time
   use timestepping_config_mod,     only: alpha,                                &
@@ -95,6 +96,8 @@ module tl_si_timestep_alg_mod
 
   use map_physics_fields_alg_mod,  only: map_physics_fields_alg
 
+  use tl_physics_alg_mod,          only: tl_physics_alg
+
   ! Moisture species
   use mr_indices_mod,              only: nummr, imr_v, imr_cl
   use moist_dyn_mod,               only: num_moist_factors, gas_law
@@ -121,6 +124,7 @@ module tl_si_timestep_alg_mod
   type( field_type ), allocatable :: state_initial(:)
   type( field_type ), allocatable :: state_n(:)
   type( field_type ), allocatable :: state_after_slow(:)
+  type( field_type ), allocatable :: state_star(:)
   type( field_type ), allocatable :: advected_state(:)
   type( field_type ), allocatable :: mr_n(:)
   type( field_type ), allocatable :: mr_inc(:)
@@ -128,6 +132,7 @@ module tl_si_timestep_alg_mod
   type( field_type ), allocatable :: rhs_n(:)
   type( field_type ), allocatable :: rhs_np1(:)
   type( field_type ), allocatable :: rhs_adv(:)
+  type( field_type ), allocatable :: rhs_phys(:)
 
   ! Linearisation state
   type( field_type ), allocatable :: ls_state(:)
@@ -218,10 +223,12 @@ contains
       allocate(state_initial(bundle_size))
       allocate(state_n(bundle_size))
       allocate(state_after_slow(bundle_size))
+      allocate(state_star(bundle_size))
       allocate(advected_state(bundle_size))
       allocate(rhs_n(bundle_size))
       allocate(rhs_np1(bundle_size))
       allocate(rhs_adv(bundle_size))
+      allocate(rhs_phys(bundle_size))
       allocate(mr_n(nummr))
       allocate(mr_after_slow(nummr))
       allocate(mr_inc(nummr))
@@ -271,6 +278,7 @@ contains
     call clone_bundle(state, rhs_n,            bundle_size)
     call clone_bundle(state, rhs_np1,          bundle_size)
     call clone_bundle(state, rhs_adv,          bundle_size)
+    call clone_bundle(state, rhs_phys,         bundle_size)
 
     call clone_bundle(state, ls_state,            bundle_size)
     call clone_bundle(state, ls_state_n,          bundle_size)
@@ -696,6 +704,8 @@ contains
                      moist_dyn, ls_state_n, ls_moist_dyn_itns(:, 1,1),  &
                      .false., .false., model_clock=modeldb%clock )
 
+    call invoke(setval_c( rhs_np1(igh_u), 0.0_r_def ))
+
     call copy_bundle(state_after_slow, advected_state,  bundle_size)
     if ( .not. si_momentum_equation ) then
       ! Predictor of the wind field (u-beta*dt*rhs) to be advected if using
@@ -738,6 +748,38 @@ contains
                    dg_inc_matrix_vector_kernel_type(rhs_adv(igh_t), &
                                                     theta_fv_inc, mm_wt) )
 
+      ! Previously tl_rhs_alg was called within each inner loop.
+      ! It still is called there for inner_iterations > 1.
+      ! For the first inner loop, it needs to be called before entering.
+      ! This is because rhs_np1 is used to calculate u_star in tl_bdy_lyr_alg.
+      if (use_wavedynamics) then
+        call tl_rhs_alg( rhs_np1,                             &
+                         -varalpha*cast_dt,                   &
+                         state,                               &
+                         state,                               &
+                         moist_dyn,                           &
+                         ls_state_itns( :, ls_outer, 1 ),     &
+                         ls_moist_dyn_itns( :, ls_outer, 1 ), &
+                         .true.,                              &
+                         dlayer_on,                           &
+                         modeldb%clock )
+      end if
+
+      if (l_boundary_layer) then
+        ! Linear boundary layer scheme is currently the only linear physics scheme
+        call tl_physics_alg( modeldb,                     &
+                             u,                           &
+                             state_star,                  &
+                             rhs_phys,                    &
+                             rhs_np1,                     &
+                             rhs_n,                       &
+                             state,                       &
+                             rhs_adv,                     &
+                             ls_state_itns(:,ls_outer,1), &
+                             mesh,                        &
+                             cast_dt )
+      end if ! l_boundary_layer
+
       if (use_wavedynamics) then
 
         ! Use advective update to guess n+1 level scalar fieldsgv .
@@ -761,16 +803,19 @@ contains
           !--------------------------------------------------------------------
           ! Compute the time-level n+1 dynamics terms
           !--------------------------------------------------------------------
-          call tl_rhs_alg(rhs_np1,                                  &
-                          -varalpha*cast_dt,                        &
-                          state,                                    &
-                          state,                                    &
-                          moist_dyn,                                &
-                          ls_state_itns(:, ls_outer, ls_inner),     &
-                          ls_moist_dyn_itns(:, ls_outer, ls_inner), &
-                          .true.,                                   &
-                          dlayer_on,                                &
-                          modeldb%clock)
+          ! Only call tl_rhs_alg if inner > 1 as for inner===1 it is already called early (see comment above)
+          if (inner > 1) then
+            call tl_rhs_alg(rhs_np1,                                  &
+                            -varalpha*cast_dt,                        &
+                            state,                                    &
+                            state,                                    &
+                            moist_dyn,                                &
+                            ls_state_itns(:, ls_outer, ls_inner),     &
+                            ls_moist_dyn_itns(:, ls_outer, ls_inner), &
+                            .true.,                                   &
+                            dlayer_on,                                &
+                            modeldb%clock)
+          end if
 
           !--------------------------------------------------------------------
           ! Compute the LAM LBCs and RHS
@@ -787,6 +832,7 @@ contains
           !--------------------------------------------------------------------
           call bundle_axpy(-1.0_r_def, rhs_np1, rhs_n, rhs_np1, bundle_size)
           call add_bundle(rhs_np1, rhs_adv, rhs_np1, bundle_size)
+          if (l_boundary_layer) call add_bundle(rhs_np1, rhs_phys, rhs_np1, bundle_size)
 
           if ( limited_area ) then
             call log_event( "No limited area for Tangent linear", LOG_LEVEL_ERROR )
@@ -909,10 +955,12 @@ contains
     if (allocated(state_initial))    deallocate(state_initial)
     if (allocated(state_n))          deallocate(state_n)
     if (allocated(state_after_slow)) deallocate(state_after_slow)
+    if (allocated(state_star))       deallocate(state_star)
     if (allocated(advected_state))   deallocate(advected_state)
     if (allocated(rhs_n))            deallocate(rhs_n)
     if (allocated(rhs_np1))          deallocate(rhs_np1)
     if (allocated(rhs_adv))          deallocate(rhs_adv)
+    if (allocated(rhs_phys))         deallocate(rhs_phys)
     if (allocated(mr_n))             deallocate(mr_n)
     if (allocated(mr_after_slow))    deallocate(mr_after_slow)
     if (allocated(mr_inc))           deallocate(mr_inc)

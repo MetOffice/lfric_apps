@@ -19,7 +19,7 @@ module adj_pressure_operator_alg_mod
   use base_mesh_config_mod,                            only: topology, topology_non_periodic
 
   use invoke_adj_a_h_o_lookup_kernel_mod,              only: invoke_adj_a_h_o_lookup_kernel
-  use adj_lookup_table_generators_alg_mod,             only: create_lookup_apply_helmholtz_op
+  use adj_solver_lookup_cache_mod,                     only: adj_solver_lookup_cache_type
   use adj_lookup_table_mod,                            only: adj_lookup_table_type
   use integer_field_mod,                               only: integer_field_type
 
@@ -35,7 +35,8 @@ module adj_pressure_operator_alg_mod
 
   type, public, extends(abstract_hierarchical_linear_operator_type) :: adj_pressure_operator_type
   private
-     integer(kind=i_def) :: level
+     integer(kind=i_def)                         :: level
+     type(adj_solver_lookup_cache_type), pointer :: adj_lookup_table_cache_ptr
      contains
      procedure, public  :: apply => apply_adj_pressure_operator
      procedure, private :: apply_adj_pressure_operator
@@ -53,18 +54,21 @@ module adj_pressure_operator_alg_mod
 contains
 
   !> @brief Construct new instance of type.
-  !> @param[in] level The mesh level the space is on
-  function adj_pressure_operator_constructor(level) result(self)
+  !> @param[in] level                   The mesh level the space is on
+  !> @param[in] adj_lookup_table_cache  The lookup table cache
+  function adj_pressure_operator_constructor(level, adj_lookup_table_cache) result(self)
 
     implicit none
 
-    integer(kind=i_def), intent(in)  :: level
-    type(adj_pressure_operator_type) :: self
+    integer(kind=i_def),                        intent(in) :: level
+    type(adj_solver_lookup_cache_type), target, intent(in) :: adj_lookup_table_cache
+    type(adj_pressure_operator_type)                       :: self
 
     call log_event( 'Constructing adjoint pressure_operator...', LOG_LEVEL_DEBUG )
 
     ! Temporaries required in operator application
     self%level = level
+    self%adj_lookup_table_cache_ptr => adj_lookup_table_cache
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
 
@@ -82,6 +86,7 @@ contains
 
     ! Deep copy of the contents of the adj_pressure_operator_type
     dest%level = source%level
+    dest%adj_lookup_table_cache_ptr => source%adj_lookup_table_cache_ptr
 
   end subroutine adj_pressure_operator_assign
 
@@ -105,10 +110,10 @@ contains
     logical(kind=l_def)            :: lam_mesh
 
     ! Lookup table
-    type(adj_lookup_table_type)       :: lookup
-    type(integer_field_type), pointer :: lookup_field
-    type(integer_field_type), pointer :: set_counts_field
-    integer(kind=i_def)               :: nindices
+    type(adj_lookup_table_type), pointer :: lookup
+    type(integer_field_type),    pointer :: lookup_field
+    type(integer_field_type),    pointer :: set_counts_field
+    integer(kind=i_def)                  :: nindices
 
     integer(tik)                      :: id
 
@@ -140,8 +145,7 @@ contains
                        setval_c( y_vec, 0.0_r_solver ) )
 
           ! Run adj_apply_helmholtz_operator kernel.
-          ! Generate adjoint lookup table for stencil operation. Dry run of the TL code, horizontal only.
-          call create_lookup_apply_helmholtz_op( lookup, x_vec )
+          lookup => self%adj_lookup_table_cache_ptr%get_lookup_apply_hho(self%level)
           lookup_field => lookup%get_lookup_field()
           set_counts_field => lookup%get_set_count_field()
           nindices = lookup%get_nindices()
@@ -182,7 +186,7 @@ contains
     class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
 
     allocate( coarse_operator, &
-              source = adj_pressure_operator_type(self%level + 1) )
+              source = adj_pressure_operator_type(self%level + 1, self%adj_lookup_table_cache_ptr) )
 
   end subroutine coarsen_adj_pressure_operator
 

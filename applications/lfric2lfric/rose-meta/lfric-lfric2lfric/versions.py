@@ -21,13 +21,10 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -44,7 +41,6 @@ class vn30_t99(MacroUpgrade):
         # Commands From: rose-meta/lfric-lfric_atm
         """Set segmentation size for Gregory-Rowntree convection kernel"""
         self.add_setting(config, ["namelist:physics", "conv_gr_segment"], "16")
-
         return config, self.reports
 
 
@@ -123,6 +119,71 @@ class vn30_t146(MacroUpgrade):
         )
         self.add_setting(
             config, ["namelist:jules_surface", "l_point_data"], ".false."
+        )
+        return config, self.reports
+
+
+class vn30_t135(MacroUpgrade):
+    """Upgrade macro for ticket #135 by James Manners."""
+
+    BEFORE_TAG = "vn3.0_t146"
+    AFTER_TAG = "vn3.0_t135"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/socrates-radiation
+        self.add_setting(config, ["namelist:cosp", "n_cosp_step"], "1")
+        return config, self.reports
+
+
+class vn30_t171(MacroUpgrade):
+    """Upgrade macro for ticket #171 by James Kent."""
+
+    BEFORE_TAG = "vn3.0_t135"
+    AFTER_TAG = "vn3.0_t171"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add adjust_tracer_equation to transport namelist
+        self.add_setting(
+            config, ["namelist:transport", "adjust_tracer_equation"], ".false."
+        )
+        return config, self.reports
+
+
+class vn30_t48(MacroUpgrade):
+    """Upgrade macro for ticket #48 by Juan M Castillo."""
+
+    BEFORE_TAG = "vn3.0_t171"
+    AFTER_TAG = "vn3.0_t48"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric2lfric
+        self.add_setting(config, ["namelist:lfric2lfric", "mode"], "'ics'")
+        self.add_setting(
+            config,
+            ["namelist:lfric2lfric", "source_file_lbc"],
+            "'source_file_lbc'",
+        )
+        self.add_setting(
+            config,
+            ["namelist:lfric2lfric", "weight_file_lbc"],
+            "'weight_file_lbc'",
+        )
+
+        return config, self.reports
+
+
+class vn30_t214(MacroUpgrade):
+    """Upgrade macro for ticket #214 by mark Hedley."""
+
+    BEFORE_TAG = "vn3.0_t48"
+    AFTER_TAG = "vn3.0_t214"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Set segments configuration to true."""
+        self.change_setting_value(
+            config, ["namelist:physics", "configure_segments"], ".true."
         )
 
         return config, self.reports
