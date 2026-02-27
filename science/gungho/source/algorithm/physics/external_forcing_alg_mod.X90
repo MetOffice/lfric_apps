@@ -365,7 +365,7 @@ contains
 
           if (test == test_horizontal_mountain) then
             ! For the horizontal mountain test we use a different p_zero and p_cutoff
-            tau = 200.0_r_def
+            tau = 100.0_r_def
             p_cutoff = 30500.0_r_def
           else if (test == test_breaking_gw) then
             ! For the horizontal mountain test we use a different p_zero and p_cutoff
