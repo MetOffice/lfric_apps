@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: cazld000038:/data/users/erica.neininger/Git_Repos/MyForks/LFRic_efnp
-    ref:
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: core3.1
 
 moci:
     source: git@github.com:MetOffice/moci.git
