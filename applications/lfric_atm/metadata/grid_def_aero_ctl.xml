@@ -4,6 +4,5 @@
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="monthly_climatology"/>
-    <scalar scalar_ref="frt"/>
   </grid>
 </grid_definition>

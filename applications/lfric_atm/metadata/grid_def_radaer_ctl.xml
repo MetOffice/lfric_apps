@@ -3,15 +3,12 @@
   <grid id="var_full_face_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
-    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="var_face">
     <domain domain_ref="face"/>
-    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="var_face_aod_wavel">
     <domain domain_ref="face"/>
     <axis axis_ref="aod_wavel"/>
-    <scalar scalar_ref="frt"/>
   </grid>
 </grid_definition>
