@@ -27,7 +27,6 @@
         "lfric_atm_nwp_gal9-pert-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_casim-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_coma9-C12_azspice_gnu_fast-debug-32bit",
-        "lfric_atm_nwp_comorph_dev-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal9_mol-C12_azspice_gnu_fast-debug-32bit",
     ],
     "lfric_atm_nwp_azspice": [

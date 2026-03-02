@@ -56,6 +56,9 @@ contains
     use adjt_poly_adv_upd_lookup_alg_mod,           only : adjt_poly_adv_upd_lookup_alg
     use adjt_w3h_adv_upd_lookup_alg_mod,            only : adjt_w3h_adv_upd_lookup_alg
 
+    ! ./linear_physics
+    use atlt_bl_inc_alg_mod,                        only : atlt_bl_inc_alg
+
     ! Handwritten algorithm tests
     ! ./interpolation
     use adjt_interpolation_alg_mod,                 only : adjt_interp_w3wth_to_w2_alg, &
@@ -105,6 +108,9 @@ contains
     use adjt_mixed_solver_alg_mod,                  only : adjt_mixed_solver_alg
     use adjt_semi_implicit_solver_step_alg_mod,     only : adjt_semi_implicit_solver_step_alg
 
+    ! ./linear_physics
+    use atlt_bdy_lyr_alg_mod,                       only : atlt_bdy_lyr_alg
+
     ! ./timestepping
     use atlt_si_timestep_alg_mod,                   only : atlt_si_timestep_alg
 
@@ -146,6 +152,9 @@ contains
 
     ! ./core_dynamics
     call atlt_pressure_gradient_bd_alg( mesh )
+
+    ! ./linear_physics
+    call atlt_bl_inc_alg( mesh )
 
     ! ./inter_function_space
     call adjt_sci_convert_hdiv_field_alg( mesh, chi, panel_id )
@@ -194,6 +203,9 @@ contains
     call adjt_compute_vorticity_alg( mesh )
     call atlt_derive_exner_from_eos_alg( mesh )
     call atlt_moist_dyn_factors_alg( mesh )
+
+    ! ./linear_physics
+    call atlt_bdy_lyr_alg( modeldb, mesh )
 
     ! ./solver
     call adjt_pressure_precon_alg( modeldb, mesh, modeldb%clock, adj_solver_lookup_cache )

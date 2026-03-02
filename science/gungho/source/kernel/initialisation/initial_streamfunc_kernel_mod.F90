@@ -20,6 +20,12 @@ use fs_continuity_mod,         only : W1
 use kernel_mod,                only : kernel_type
 use initial_wind_config_mod,   only : profile
 
+use base_mesh_config_mod,      only: geometry, topology, &
+                                     geometry_planar,    &
+                                     geometry_spherical
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius
+
 implicit none
 
 private
@@ -108,9 +114,6 @@ subroutine initial_streamfunc_code(nlayers,                         &
                                    )
 
   use analytic_streamfunction_profiles_mod, only: analytic_streamfunction
-  use base_mesh_config_mod,                 only: geometry,           &
-                                                  geometry_planar,    &
-                                                  geometry_spherical
   use sci_chi_transform_mod,                only: chi2llr
   use sci_coordinate_jacobian_mod,          only: coordinate_jacobian, &
                                                   coordinate_jacobian_inverse
@@ -169,7 +172,11 @@ subroutine initial_streamfunc_code(nlayers,                         &
     end do
 
 
-    call coordinate_jacobian(ndf_chi,        &
+    call coordinate_jacobian(coord_system,   &
+                             geometry,       &
+                             topology,       &
+                             scaled_radius,  &
+                             ndf_chi,        &
                              nqp_h,          &
                              nqp_v,          &
                              chi_1_cell,     &

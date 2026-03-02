@@ -225,6 +225,9 @@ max_bl_stabilisation=0.75,
 n_bl_levels_to_stabilise=15,
 pert_option='file',
 /
+&linear_physics
+l_boundary_layer=.false.,
+/
 &logging
 log_to_rank_zero_only=.false.,
 run_log_level='debug',
