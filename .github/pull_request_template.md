@@ -63,7 +63,7 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 
 ## PSyclone Approval
 
-- [ ] If you have edited any PSyclone-related code (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code) then please contact the [TCD Team](toolscollabdevteam@metoffice.gov.uk)
+- [ ] If you have edited any PSyclone-related code (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code) then please contact the [TCD Team](mailto:ToolsCollabDevTeam@metoffice.gov.uk)
 
 # Sci/Tech Review
 

@@ -8,6 +8,7 @@
 {# Azspice Groups #}
 {% do site_groups.update({
     "adjoint_tests_azspice_developer": [
+    	"adjoint_tests_nwp_gal9-C12_MG_azspice_gnu_production-32bit",
         "adjoint_tests_nwp_gal9-C12_MG_azspice_gnu_fast-debug-64bit-rsolver64",
         "adjoint_tests_nwp_gal9-C12_MG_azspice_gnu_full-debug-64bit-rsolver64",
         "adjoint_tests_nwp_gal9-C12_MG-varying_LS_azspice_gnu_fast-debug-64bit-rsolver64",
@@ -20,7 +21,7 @@
         "adjoint_tests_canned_azspice_gnu_fast-debug-64bit-rsolver64",
     ],
     "adjoint_tests_azspice_build": [
-        "build_adjoint_tests_azspice_gnu_fast-debug-64bit",
+        "build_adjoint_tests_azspice_gnu_production-32bit",
         "build_adjoint_tests_azspice_gnu_full-debug-64bit",
     ],
     })  %}
@@ -30,6 +31,7 @@
     "adjoint_tests_ex1a_developer": [
         "adjoint_tests_nwp_gal9-C12_MG_ex1a_gnu_fast-debug-64bit-rsolver64",
         "adjoint_tests_nwp_gal9-C12_MG_ex1a_gnu_full-debug-64bit-rsolver64",
+    	"adjoint_tests_nwp_gal9-C12_MG_ex1a_gnu_production-32bit",
         "adjoint_tests_ex1a_canned",
     ],
     "adjoint_tests_ex1a": [
@@ -39,7 +41,7 @@
         "adjoint_tests_canned_ex1a_gnu_fast-debug-64bit-rsolver64",
     ],
     "adjoint_tests_ex1a_build": [
-        "build_adjoint_tests_ex1a_gnu_fast-debug-64bit",
+        "build_adjoint_tests_ex1a_gnu_production-32bit",
         "build_adjoint_tests_ex1a_gnu_full-debug-64bit",
     ],
     })  %}

@@ -1,0 +1,86 @@
+<!-- TODO : #325 Define fields to initialise for lfric2lfric miniapp -->
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- File definition for LFRic checkpoint read  -->
+  <context id = "lfric2lfric_source">
+
+    <!-- Include axis definitions -->
+    <axis_definition src="./axis_def_main.xml"/>
+    <axis_definition src="./axis_def_urban1t.xml"/>
+
+    <!-- Include grid definitions -->
+    <grid_definition src="./grid_def_main.xml"/>
+
+    <!-- Include file definitions -->
+    <file_definition type="one_file" par_access="collective">
+      <file id="lfric_lbc_read" name="lfric_lbc_read" mode="read" output_freq="18h" convention="UGRID" cyclic="false" enabled=".FALSE.">
+        <field id="u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" operation="once" domain_ref="face" axis_ref="vert_axis_half_levels"/>
+        <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="once" domain_ref="face" axis_ref="vert_axis_full_levels"/>
+        <field id="zh" name="zh" long_name="boundary_layer_depth" standard_name="atmosphere_boundary_layer_thickness" unit="m" operation="once" domain_ref="face"/>
+        <field id="u10m" name="u10m" long_name="eastward_wind_at_10m" unit="m s-1" operation="once" domain_ref="face"/>
+        <field id="v10m" name="v10m" long_name="northward_wind_at_10m" unit="m s-1" operation="once" domain_ref="face"/>
+        <field id="tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" operation="once" domain_ref="face" axis_ref="surface_tiles"/>
+      </file>
+    </file_definition>
+
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+      <!-- This file contains orography ancil data -->
+      <!-- ANCIL FILES -->
+      <file id="src_orography_mean_ancil" name="src_orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+      </file>
+    </file_definition>
+
+  </context>
+
+  <!-- File definition for LFRic checkpoint write -->
+  <context id = "lfric2lfric_destination">
+
+    <!-- Include axis definitions -->
+    <axis_definition src="./axis_def_main.xml"/>
+    <axis_definition src="./axis_def_urban1t.xml"/>
+
+    <!-- Include grid definitions -->
+    <grid_definition src="./grid_def_main.xml"/>
+
+    <!-- Include file definitions -->
+    <file_definition type="one_file" par_access="collective" output_freq="3h" time_counter="instant">
+      <file id="lfric_lbc_write" name="lfric_lbc_write" mode="write" convention="UGRID" cyclic="false" enabled=".FALSE.">
+        <field id="lbc_u_in_w3" name="lbc_u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" operation="instant" domain_ref="face" axis_ref="vert_axis_half_levels"/>
+        <field id="lbc_theta" name="lbc_theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="face" axis_ref="vert_axis_full_levels"/>
+        <field id="lbc_zh" name="lbc_zh" long_name="boundary_layer_depth" standard_name="atmosphere_boundary_layer_thickness" unit="m" operation="instant" domain_ref="face" />
+        <field id="lbc_u10m" name="lbc_u10m" long_name="eastward_wind_at_10m" unit="m s-1" operation="instant" domain_ref="face" />
+        <field id="lbc_v10m" name="lbc_v10m" long_name="northward_wind_at_10m" unit="m s-1" operation="instant" domain_ref="face" />
+        <field id="lbc_tile_temperature" name="lbc_tile_temperature" long_name="surface_tile_temperature" unit="K" operation="instant" domain_ref="face" axis_ref="surface_tiles"/>
+      </file>
+    </file_definition>
+
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+      <!-- This file contains orography ancil data -->
+      <!-- ANCIL FILES -->
+      <file id="dst_orography_mean_ancil" name="dst_orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+      </file>
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >false</variable>
+        <variable id = "using_oasis" type = "bool">false</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+        <variable id = "oasis_codes_id" type="string" >lfric2lfric lfric2lfric</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

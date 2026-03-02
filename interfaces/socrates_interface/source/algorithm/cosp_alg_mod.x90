@@ -93,7 +93,7 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
 
   ! Unpacked fields from collections
   type( field_type ), pointer :: rho_in_wth          => null()
-  type( field_type ), pointer :: lit_fraction        => null()
+  type( field_type ), pointer :: lit_fraction_cosp   => null()
   type( field_type ), pointer :: liquid_fraction     => null()
   type( field_type ), pointer :: frozen_fraction     => null()
   type( field_type ), pointer :: sigma_ml
@@ -130,7 +130,7 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
   ! Unpack fields from collections
   call derived_fields%get_field('rho_in_wth', rho_in_wth)
 
-  call radiation_fields%get_field('lit_fraction', lit_fraction)
+  call radiation_fields%get_field('lit_fraction_cosp', lit_fraction_cosp)
 
   call cloud_fields%get_field('liquid_fraction', liquid_fraction)
   call cloud_fields%get_field('frozen_fraction', frozen_fraction)
@@ -203,7 +203,7 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
     conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number, &
     sigma_ml, sigma_mi, cloud_drop_no_conc, &
     ls_rain_3d, conv_rain_3d, conv_snow_3d, &
-    lit_fraction, rand_seed, n_cloud_layer, &
+    lit_fraction_cosp, rand_seed, n_cloud_layer, &
     n_subcol_gen, &
     cosp_x1r, cosp_x2r, cosp_x1g, cosp_x2g, cosp_x4g, &
     sunlit_mask, &

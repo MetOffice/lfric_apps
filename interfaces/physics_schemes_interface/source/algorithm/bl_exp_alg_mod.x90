@@ -66,7 +66,6 @@ contains
   !>@param[in,out] surface_fields      Fields for surface scheme
   !>@param[in]     recip_l_mo_sea      Inverse Obukhov length over sea only
   !>@param[in]     rhostar             Surface density
-  !>@param[in      h_blend_orog        Orographic blending height
   !>@param[in]     t1_sd_2d            StDev of level 1 temperature
   !>@param[in]     q1_sd_2d            StDev of level 1 humidity
   !>@param[in]     model_clock         Time in the model
@@ -75,8 +74,7 @@ contains
                         microphysics_fields, dmr_mphys, orography_fields, &
                         turbulence_fields, convection_fields,             &
                         cloud_fields, surface_fields,                     &
-                        recip_l_mo_sea,                                   &
-                        rhostar, h_blend_orog, t1_sd_2d, q1_sd_2d,        &
+                        recip_l_mo_sea, rhostar, t1_sd_2d, q1_sd_2d,      &
                         model_clock)
 
     use bl_exp_kernel_mod, only: bl_exp_kernel_type
@@ -100,7 +98,6 @@ contains
 
     type( field_type ), intent( in )     :: recip_l_mo_sea
     type( field_type ), intent( in )     :: rhostar
-    type( field_type ), intent( in )     :: h_blend_orog
     type( field_type ), intent( in )     :: t1_sd_2d
     type( field_type ), intent( in )     :: q1_sd_2d
 
@@ -380,7 +377,7 @@ contains
                                     cumulus, tile_fraction, sd_orog,           &
                                     peak_to_trough_orog, silhouette_area_orog, &
                                     tile_temperature, rhostar, recip_l_mo_sea, &
-                                    h_blend_orog, t1_sd_2d, q1_sd_2d,          &
+                                    t1_sd_2d, q1_sd_2d,                        &
                                     dtl_mphys, dmt_mphys, sw_heating_rate,     &
                                     lw_heating_rate, cf_bulk, cf_liquid,       &
                                     rh_crit, tnuc, tnuc_nlcl,                  &
