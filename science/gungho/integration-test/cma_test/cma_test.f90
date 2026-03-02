@@ -19,7 +19,6 @@ program cma_test
 
   use, intrinsic :: iso_fortran_env,  only : real64
 
-  use check_configuration_mod,        only : get_required_stencil_depth
   use cma_test_algorithm_mod,         only : cma_test_init,                  &
                                              test_cma_apply_mass_p,          &
                                              test_cma_apply_mass_v,          &
@@ -30,8 +29,8 @@ program cma_test
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
   use config_mod,                     only : config_type
-  use constants_mod,                  only : i_def, r_def, i_def, l_def,  &
-                                             r_solver, pi, str_def, imdi, &
+  use constants_mod,                  only : i_def, r_def, i_def, l_def, imdi, &
+                                             r_solver, pi, str_def,            &
                                              str_max_filename
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
@@ -127,7 +126,7 @@ program cma_test
 
   character(str_max_filename) :: file_prefix
 
-  integer(i_def)     :: stencil_depth
+  integer(i_def)     :: stencil_depth(1)
   character(str_def) :: prime_mesh_name
   real(r_def)        :: radius
   real(r_def)        :: scaled_radius
@@ -281,7 +280,7 @@ program cma_test
                                                 domain_height,    &
                                                 scaled_radius ) )
 
-  stencil_depth = get_required_stencil_depth()
+  stencil_depth = 2
   check_partitions = .false.
 
   call init_mesh( config,                     &

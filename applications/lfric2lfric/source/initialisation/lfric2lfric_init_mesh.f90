@@ -66,25 +66,26 @@ contains
 !===============================================================================
 !> @brief  Generates mesh(es) from mesh input file(s) on a given extrusion.
 !>
-!> @param[in] config          Application configuration object.
-!>                            This configuration object should contain the
-!>                            following defined namelist objects:
-!>                              * partititioning
-!> @param[in] local_rank      The MPI rank of this process.
-!> @param[in] total_ranks     Total number of MPI ranks in this job.
-!> @param[in] mesh_names      Mesh names to load from the mesh input file(s).
-!> @param[in] extrusion       Extrusion object to be applied to meshes.
-!> @param[in] stencil_depth   Required stencil depth for the application.
-!> @param[in] regrid_method   Apply check for even partitions with the
-!>                            configured partition strategy if the
-!>                            regridding method is 'map'.
-!>                            (unpartitioned mesh input only)
+!> @param[in] config             Application configuration object.
+!>                               This configuration object should contain the
+!>                               following defined namelist objects:
+!>                                 * partititioning
+!> @param[in] local_rank         The MPI rank of this process.
+!> @param[in] total_ranks        Total number of MPI ranks in this job.
+!> @param[in] mesh_names         Mesh names to load from the mesh input file(s).
+!> @param[in] extrusion          Extrusion object to be applied to meshes.
+!> @param[in] stencil_depths_in  Required stencil depth for the application
+!!                               for each mesh.
+!> @param[in] regrid_method      Apply check for even partitions with the
+!>                               configured partition strategy if the
+!>                               regridding method is 'map'.
+!>                               (unpartitioned mesh input only)
 !===============================================================================
 subroutine init_mesh( config,                  &
                       local_rank, total_ranks, &
                       mesh_names,              &
                       extrusion,               &
-                      stencil_depth,           &
+                      stencil_depths_in,       &
                       regrid_method )
 
   use partitioning_nml_iterator_mod, only: partitioning_nml_iterator_type
@@ -99,7 +100,7 @@ subroutine init_mesh( config,                  &
   integer(kind=i_def),   intent(in) :: total_ranks
   character(len=*),      intent(in) :: mesh_names(2)
   class(extrusion_type), intent(in) :: extrusion
-  integer(kind=i_def),   intent(in) :: stencil_depth
+  integer(kind=i_def),   intent(in) :: stencil_depths_in(:)
   integer(kind=i_def),   intent(in) :: regrid_method
 
   ! Parameters
@@ -125,7 +126,9 @@ subroutine init_mesh( config,                  &
   integer(kind=i_def)              :: mesh_selection(2)
 
   ! Local variables
+  integer(kind=i_def)                 :: i
   character(len=str_max_filename)     :: mesh_file(2)
+  integer(kind=i_def)                 :: stencil_depths(2)
 
   procedure(partitioner_interface), pointer :: partitioner_src => null()
   procedure(partitioner_interface), pointer :: partitioner_dst => null()
@@ -168,6 +171,22 @@ subroutine init_mesh( config,                  &
     write( log_scratch_space, '(A)' )                                &
          'When using LFRic intermesh maps, source and destination '//&
          'meshes should be extracted from the same file.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+
+  ! Set up stencil depths
+  if ( size(stencil_depths) == 1 ) then
+    ! Single stencil depth specified, apply to all meshes
+    do i = 1, size(mesh_names)
+      stencil_depths(i) = stencil_depths_in(1)
+    end do
+  else if ( size(stencil_depths) == size(mesh_names) ) then
+    ! Stencil depths specified per mesh
+    stencil_depths(:) = stencil_depths_in(:)
+  else
+    write(log_scratch_space, '(A)')                      &
+        'Number of stencil depths specified does not '// &
+        'match number of requested meshes.'
     call log_event(log_scratch_space, log_level_error)
   end if
 
@@ -229,8 +248,8 @@ subroutine init_mesh( config,                  &
     ! meshes are suitable for the supplied application
     ! configuration.
     !===========================================================
-    call check_local_mesh( config,        &
-                           stencil_depth, &
+    call check_local_mesh( config,         &
+                           stencil_depths, &
                            mesh_names )
 
     ! Load and assign mesh maps.
@@ -287,7 +306,6 @@ subroutine init_mesh( config,                  &
                                    decomposition_dst,    &
                                    partitioner_dst )
 
-
     ! Read in all global meshes from input file
     !===========================================================
     if (mesh_file(dst) == mesh_file(src)) then
@@ -302,15 +320,15 @@ subroutine init_mesh( config,                  &
     call create_local_mesh( mesh_names(dst:dst),           &
                             local_rank, total_ranks,       &
                             decomposition_dst,             &
-                            stencil_depth,                 &
-                            generate_inner_halos(dst),    &
+                            stencil_depths,                &
+                            generate_inner_halos(dst),     &
                             partitioner_dst )
 
     call create_local_mesh( mesh_names(src:src),           &
                             local_rank, total_ranks,       &
                             decomposition_src,             &
-                            stencil_depth,                 &
-                            generate_inner_halos(src),    &
+                            stencil_depths,                &
+                            generate_inner_halos(src),     &
                             partitioner_src )
 
     ! Read in the global intergrid mesh mappings,

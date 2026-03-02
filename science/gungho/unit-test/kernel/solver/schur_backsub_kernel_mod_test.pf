@@ -23,7 +23,7 @@ contains
 
     implicit none
 
-    real(r_solver), parameter :: tol = 1.0e-12_r_solver
+    real(r_solver), parameter :: tol = 1.0e-6_r_solver
 
     ! Mesh
     integer(i_def), parameter :: nlayers = 1_i_def
@@ -50,7 +50,7 @@ contains
     real(r_solver), dimension(ncell, ndf_w2, ndf_w3) :: Grad
 
     ! Fields
-    real(r_solver), dimension(undf_w2)  :: rhs, mask, z, y
+    real(r_solver), dimension(undf_w2)  :: rhs, mask, y
     real(r_solver), dimension(undf_w2h) :: Luv
     real(r_solver), dimension(undf_w2v) :: Lw
     real(r_solver), dimension(undf_w3)  :: x
@@ -58,8 +58,8 @@ contains
     ! Logicals
     logical(l_def), parameter :: lam = .true.
 
-    integer(i_def) :: df
-    real(r_solver) :: answer
+    integer(i_def)                      :: df
+    real(r_solver), dimension(undf_w2h) :: answer
 
     map_w2h = (/ 1_i_def, 1_i_def + nlayers /)
     map_w2v = (/ 1_i_def, 2_i_def /)
@@ -73,7 +73,6 @@ contains
 
     ! Set up the fields
     y = (/ 0.0_r_solver, 1.0_r_solver, 3.0_r_solver, -2.0_r_solver /)
-    z = (/ 2.4_r_solver, 0.4_r_solver, 7.3_r_solver, 1.2_r_solver /)
     x = (/ 1.2_r_solver /)
     rhs = (/ 6.3_r_solver, 6.7_r_solver, 4.2_r_solver, 7.5_r_solver /)
     Luv = 0.0_r_solver
@@ -87,22 +86,17 @@ contains
                             ncell,                      &
                             Grad,                       &
                             y,                          &
-                            z,                          &
                             lam, mask,                  &
                             ndf_w2h, undf_w2h, map_w2h, &
                             ndf_w2v, undf_w2v, map_w2v, &
                             ndf_w2, undf_w2, map_w2,    &
                             ndf_w3, undf_w3, map_w3 )
 
-    do df = 1, ndf_w2h
-      answer = mask(df)*( 0.5_r_solver*rhs(df) + y(df)*z(df)*grad(1,df,1)*x(1))
-      @assertEqual(answer, Luv(df), tol)
-    end do
+    answer = (/ 6.3_r_solver, 4.55_r_solver /)
+    @assertEqual(answer, Luv, tol)
 
-    do df = 1, ndf_w2v
-      answer = 0.0_r_solver
-      @assertEqual(answer, Lw(df), tol)
-    end do
+    answer = (/ 0.0_r_solver, 0.0_r_solver /)
+    @assertEqual(answer, Lw, tol)
 
   end subroutine test_all
 

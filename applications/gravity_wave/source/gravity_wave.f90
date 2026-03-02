@@ -46,6 +46,7 @@ program gravity_wave
   call init_comm( program_name, modeldb )
   call init_config( filename, gravity_wave_required_namelists, &
                     config=modeldb%config )
+
   deallocate( filename )
 
   call init_logger( modeldb%mpi%get_comm(), program_name )

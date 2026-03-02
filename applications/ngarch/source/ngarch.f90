@@ -65,6 +65,7 @@ program ngarch
   call init_comm( application_name, modeldb )
   call init_config( filename, ngarch_required_namelists, &
                     config=modeldb%config )
+
   deallocate( filename )
 
   call init_logger( modeldb%mpi%get_comm(), application_name )

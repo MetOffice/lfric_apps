@@ -51,6 +51,7 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
   type( field_type ), pointer :: lit_fraction       => null()
   type( field_type ), pointer :: cos_zenith_angle_rts   => null()
   type( field_type ), pointer :: lit_fraction_rts       => null()
+  type( field_type ), pointer :: lit_fraction_cosp      => null()
   type( field_type ), pointer :: stellar_irradiance_rts => null()
   type( field_type ), pointer :: sin_stellar_declination_rts => null()
   type( field_type ), pointer :: stellar_eqn_of_time_rts => null()
@@ -75,6 +76,7 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
     call radiation_fields%get_field('lit_fraction',lit_fraction)
     call radiation_fields%get_field('cos_zenith_angle_rts',cos_zenith_angle_rts)
     call radiation_fields%get_field('lit_fraction_rts',lit_fraction_rts)
+    call radiation_fields%get_field('lit_fraction_cosp',lit_fraction_cosp)
     call radiation_fields%get_field('stellar_irradiance_rts', &
                                     stellar_irradiance_rts)
     call radiation_fields%get_field('sin_stellar_declination_rts', &
@@ -97,6 +99,7 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
     call invoke( illuminate_kernel_type( &
                  cos_zenith_angle, lit_fraction, &
                  cos_zenith_angle_rts, lit_fraction_rts, &
+                 lit_fraction_cosp, &
                  stellar_irradiance_rts, &
                  sin_stellar_declination_rts, &
                  stellar_eqn_of_time_rts, &
