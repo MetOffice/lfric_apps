@@ -916,8 +916,8 @@ call btq_int (                                                                 &
 !-----------------------------------------------------------------------
 ! Calculate lapse rates
 !-----------------------------------------------------------------------
-!$OMP  PARALLEL DEFAULT(SHARED) private(ii, i, k, weight1,  weight2,           &
-!$OMP  weight3, zpr, dzv, dzu, l, slope, dsldzm_ga,                            &
+!$OMP  PARALLEL DEFAULT(SHARED) private(ii, i, k, l, il, jl, weight1, weight2, &
+!$OMP  weight3, zpr, dzv, dzu, slope, dsldzm_ga,                               &
 !$OMP  qs_tl, frac_sat, frac_dry, frac_edg, frac_lev, qc_tot, bt_rh, bq_rh,    &
 !$OMP  seg_slice_start, seg_slice_end, bl_segment_range)
 !$OMP do SCHEDULE(STATIC)
@@ -2622,7 +2622,7 @@ end do
 ! 5.6.1 Calculate explicit surface fluxes of U and V on
 !       P-grid for convection scheme
 !-----------------------------------------------------------------------
-!$OMP PARALLEL DEFAULT(none)  private(i,l)                                     &
+!$OMP PARALLEL DEFAULT(none)  private(i,l,il,jl)                               &
 !$OMP SHARED(pdims,uw0,rhokm,u_p,u_0_px,vw0,v_p,v_0_px,wstar,wthvs,            &
 !$OMP        non_local_bl,cu_over_orog,cumulus,fb_surf,zh,g,bt,l_param_conv,   &
 !$OMP        ntml,ntml_nl,ntml_local,formdrag,tau_fd_x,tau_fd_y,ntdsc,BL_diag, &
