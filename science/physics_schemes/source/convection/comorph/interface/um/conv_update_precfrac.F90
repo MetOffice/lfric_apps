@@ -21,7 +21,7 @@ contains
 ! pending implementation of precip fraction increments inside CoMorph
 subroutine conv_update_precfrac( i_call, n_conv_levels,                        &
                                  qrain_star, qgraup_star,                      &
-                                 cca, q_prec_b4, precfrac_star )
+                                 cca_bulk, q_prec_b4, precfrac_star )
 
 use atm_fields_bounds_mod, only: tdims
 use calc_conv_incs_mod, only: i_call_save_before_conv, i_call_diff_to_get_incs
@@ -49,7 +49,7 @@ real(kind=real_umphys), intent(in) ::                                          &
 
 ! Convective bulk cloud fraction
 real(kind=real_umphys), intent(in) ::                                          &
-                               cca ( tdims%i_start:tdims%i_end,                &
+                          cca_bulk ( tdims%i_start:tdims%i_end,                &
                                      tdims%j_start:tdims%j_end,                &
                                      1:tdims%k_end )
 
@@ -73,7 +73,7 @@ integer :: i, j, k
 !$OMP SHARED( i_call, l_mcr_qgraup, l_subgrid_graupel_frac,                    &
 !$OMP         tdims, n_conv_levels,                                            &
 !$OMP         q_prec_b4, qrain_star, qgraup_star, precfrac_star,               &
-!$OMP         cca, rain_area_min )
+!$OMP         cca_bulk, rain_area_min )
 
 ! Which call to this routine are we in?
 select case (i_call)
@@ -124,7 +124,7 @@ case (i_call_diff_to_get_incs)
             precfrac_star(i,j,k)                                               &
               = ( q_prec_b4(i,j,k) * precfrac_star(i,j,k)                      &
                 + ( qrain_star(i,j,k)+qgraup_star(i,j,k) - q_prec_b4(i,j,k) )  &
-                  * cca(i,j,k) )                                               &
+                  * cca_bulk(i,j,k) )                                          &
               / ( qrain_star(i,j,k) + qgraup_star(i,j,k) )
           end if
           if ( qrain_star(i,j,k)+qgraup_star(i,j,k) > 0.0 ) then
@@ -145,7 +145,7 @@ case (i_call_diff_to_get_incs)
             precfrac_star(i,j,k)                                               &
               = ( q_prec_b4(i,j,k) * precfrac_star(i,j,k)                      &
                 + ( qrain_star(i,j,k) - q_prec_b4(i,j,k) )                     &
-                  * cca(i,j,k) )                                               &
+                  * cca_bulk(i,j,k) )                                          &
               / qrain_star(i,j,k)
           end if
           if ( qrain_star(i,j,k) > 0.0 ) then

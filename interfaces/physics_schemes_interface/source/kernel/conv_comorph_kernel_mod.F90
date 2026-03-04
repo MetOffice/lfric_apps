@@ -782,7 +782,7 @@ contains
 !$  use omp_lib, only : omp_get_max_threads
 
     !---------------------------------------
-    ! UM modules containing switches or global constants
+    ! Physics modules containing switches or global constants
     !---------------------------------------
     use bl_option_mod, only: max_tke
     use cloud_inputs_mod, only: l_pc2_homog_conv_pressure
@@ -1127,7 +1127,7 @@ contains
     real(kind=r_um), allocatable :: q_prec_b4(:,:,:)
 
     ! Separate convective bulk cloud fraction
-    ! (doesn't yet have a separate field in the UM)
+    ! (doesn't yet have a separate field in LFRic)
     real(kind=r_um), target, allocatable :: frac_bulk_conv(:,:,:)
 
     ! CCA used for calculating other diagnostics
@@ -1182,13 +1182,12 @@ contains
     character(len=*), parameter :: routinename = "conv_comorph_kernel"
 
     ! Flags for treating condensed water species diagnostically when
-    ! they are off in the UM but on in CoMorph
+    ! they are off in LFRic but on in CoMorph
     logical :: l_temporary_rain
     logical :: l_temporary_snow
     logical :: l_temporary_graup
 
-    ! Work arrays for water species if they are on in CoMorph
-    ! but off in the UM
+    ! Work arrays for water species if they are on in CoMorph but off in LFRic
     real(kind=r_um), target, allocatable :: q_rain_work(:,:,:)
     real(kind=r_um), target, allocatable :: q_snow_work(:,:,:)
     real(kind=r_um), target, allocatable :: q_graup_work(:,:,:)
@@ -1228,13 +1227,16 @@ contains
          det_up, det_down, pres_inc_env
 
     !-----------------------------------------------------------------------
-    ! Mapping of LFRic fields into UM variables
+    ! Mapping of LFRic fields into CoMorph 3D arrays
     !-----------------------------------------------------------------------
-    ! For the initial implementation we pass each individual column
-    ! of data to an array sized (1,1,k) to match the UMs (i,j,k) data
-    ! layout.
-    ! assuming map_wth(1) points to level 0
-    ! and map_w3(1) points to level 1
+    ! LFRic stores fields in 1D arrays, with each block of "nlayers"
+    ! neighbouring points corresponding to a model-column.
+    ! CoMorph expects 3D arrays, with the vertical dimension outermost.
+    ! So need to transpose and expand the LFRic fields for input to CoMorph.
+    ! Not using the 2nd horizontal dimension (j), so just setting the
+    ! j-index to 1 in all CoMorph inputs.  In LFRic:
+    !   map_wth(1) points to level 0
+    !   map_w3(1)  points to level 1
     !-----------------------------------------------------------------------
     do i = 1, row_length
       do k = 0, nlayers
@@ -1370,7 +1372,7 @@ contains
       end do
     end if
 
-    ! Map tracer fields to UM tracer array
+    ! Map LFRic tracer fields to a tracer super-array
     if ( outer == outer_iterations .and. l_tracer ) then
 
       allocate(tot_tracer( row_length, 1, nlayers, ntra_fld ))
@@ -1944,7 +1946,7 @@ contains
 
     ! Currently unused but needed for Comorph-B
     if (prog_tnuc) then
-      ! Use tnuc from LFRic and map onto tnuc_new for UM to be passed to conv
+      ! Use tnuc from LFRic and map onto tnuc_new for input to CoMorph
       do i = 1, row_length
         do k = 1, nlayers
           tnuc_new(i,1,k) = real(tnuc(map_wth(1,i) + k),kind=r_um) + zerodegc
@@ -1954,7 +1956,7 @@ contains
 
     !----------------------------------------------------------------
     ! 1) Set timestepping, segmenting, array-dimension and moist
-    !    thermodynamics constants for CoMorph consistent with the UM
+    !    thermodynamics constants for CoMorph consistent with LFRic
     !----------------------------------------------------------------
 
     ! Set stuff in the CoMorph constants module, if not already set:
@@ -1970,7 +1972,7 @@ contains
 
     !----------------------------------------------------------------
     ! 2) Save values of fields before convection, for use in
-    !    calculating convective increments needed elsewhere in the UM
+    !    calculating convective increments needed elsewhere in LFRic
     !----------------------------------------------------------------
 
     call calc_conv_incs  ( i_call_save_before_conv, z_theta, z_rho,            &
@@ -2177,25 +2179,25 @@ contains
     ! 4) Initialise temporary arrays needed by comorph
     !----------------------------------------------------------------
 
-    ! Throw an error if any water species are switched on in the UM but
+    ! Throw an error if any water species are switched on in LFRic but
     ! switched off in comorph, since in this case comorph will not
     ! transport them consistently (e.g. qcf2 needs to be transported
     ! along with cf_frozen if it is used).
     if ( ( .not. l_cv_cf ) .or.                                                &
-         ! Ice-cloud is always on in the UM, so must be on in comorph
+         ! Ice-cloud is always on in LFRic, so must be on in comorph
          ( l_mcr_qrain .and. ( .not. l_cv_rain ) ) .or.                        &
-         ! UM prognostic rain requires rain to be on in comorph
+         ! LFRic prognostic rain requires rain to be on in comorph
          ( l_mcr_qgraup .and. ( .not. l_cv_graup ) ) ) then
-      ! UM prognostic graupel requires graupel to be on in comorph
+      ! LFRic prognostic graupel requires graupel to be on in comorph
       call raise_fatal( routinename,                                           &
          "At least one condensed water species is switched "  //               &
-         "on in the UM but switched off in CoMorph." //newline//               &
+         "on in LFRic but switched off in CoMorph."  //newline//               &
          "Code has not yet been implemented to handle this "  //               &
          "combination consistently." )
     end if
 
     ! Temporary fields needed for water species if they are switched
-    ! on in comorph, but switched off in the UM...
+    ! on in comorph, but switched off in LFRic...
     l_temporary_rain = l_cv_rain .and. (.not. l_mcr_qrain)
     l_temporary_snow = l_cv_snow .and. (.not. l_mcr_qcf2)
     l_temporary_graup = l_cv_graup .and. (.not. l_mcr_qgraup)
@@ -2220,7 +2222,7 @@ contains
     end if
 
     if ( l_mcr_qcf2 .and. ( .not. l_cv_snow ) ) then
-      ! 2nd ice category switched on in the UM but not in comorph
+      ! 2nd ice category switched on in LFRic but not in comorph
       ! Put all the ice-cloud mass in the qcf2 field to pass into comorph
       call calc_qcf2_incs( i_call_combine_in_qcf2,                             &
                            qcf_n, qcf2_n, qcf_conv, qcf2_conv,                 &
@@ -2272,7 +2274,7 @@ contains
     ! contained in the derived-type structure comorph_diags.
 
     ! Always request the CAPE diagnostic, as it can be used by
-    ! other parts of the UM, regardless of whether it is
+    ! other parts of LFRic, regardless of whether it is
     ! requested as an output diagostic.
     ! Request the mass-flux-weighted CAPE, not straight CAPE,
     ! since CAPE itself can be noisy / not representative
@@ -2354,7 +2356,7 @@ contains
     if ( l_tracer )  deallocate( fields_np1 % tracers )
 
     !----------------------------------------------------------------
-    ! 9) Conversions of output fields back into UM "format"
+    ! 9) Conversions of output fields back into LFRic "format"
     !----------------------------------------------------------------
 
     ! Restore bottom level of z_rho, ready for whatever comes next...
@@ -2371,8 +2373,8 @@ contains
     end do
 
     ! If any condensed water species are on in CoMorph but off
-    ! in the UM, scatter any mixing-ratio of these species produced
-    ! into the UM's equivalent fields
+    ! in LFRic, scatter any mixing-ratio of these species produced
+    ! into LFRic's equivalent fields
     if ( l_temporary_rain ) then
       ! Add rain to the liquid cloud if prognostic rain is off
       do k = 1, nlayers
@@ -2410,7 +2412,7 @@ contains
     if ( l_temporary_rain )   deallocate( q_rain_work )
 
     if ( l_mcr_qcf2 .and. ( .not. l_cv_snow ) ) then
-      ! 2nd ice category switched on in the UM but not in comorph
+      ! 2nd ice category switched on in LFRic but not in comorph
       ! Subtract qcf off from qcf2 again
       call calc_qcf2_incs( i_call_subtract_qcf,                                &
                            qcf_n, qcf2_n, qcf_conv, qcf2_conv,                 &
@@ -2468,7 +2470,7 @@ contains
              cca_3d0, ccw_3d0, cclwp0, ccb0, cct0, lcbase0 )
 
     !----------------------------------------------------------------
-    ! 10) Calculate convective increments required elsewhere in the UM
+    ! 10) Calculate convective increments required elsewhere in LFRic
     !----------------------------------------------------------------
     call calc_conv_incs  ( i_call_diff_to_get_incs, z_theta, z_rho,            &
                            u_p, v_p, u_conv, v_conv, w, w_work,                &
@@ -2482,7 +2484,7 @@ contains
                            cf_liquid_inc, cf_frozen_inc, bulk_cf_inc )
 
     if ( l_mcr_qcf2 .and. ( .not. l_cv_snow ) ) then
-      ! 2nd ice category switched on in the UM but not in comorph
+      ! 2nd ice category switched on in LFRic but not in comorph
       ! Repartition the ice-cloud increment between crystals and aggregates.
       call calc_qcf2_incs( i_call_repartition,                                 &
                            qcf_n, qcf2_n, qcf_conv, qcf2_conv,                 &

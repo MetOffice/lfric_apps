@@ -14,7 +14,7 @@ implicit none
 
 contains
 
-! UM qsat functions for mixing ratios
+! qsat functions for mixing ratios
 
 !----------------------------------------------------------------
 ! Returns saturation mixing ratio with respect to liquid at all

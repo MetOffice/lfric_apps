@@ -130,8 +130,8 @@ end if  ! ( i_convcloud == i_convcloud_mph )
 do ic = 1, n_points
   if ( sat_height(ic) > zero ) then
 
-    if ( par_prev_cloudfracs(ic,i_frac_liq) == zero .and.                      &
-         par_next_cloudfracs(ic,i_frac_liq) > zero ) then
+    if ( ( .not. par_prev_cloudfracs(ic,i_frac_liq) > zero ) .and.             &
+                 par_next_cloudfracs(ic,i_frac_liq) > zero ) then
 
       interp = ( next_height(ic) - sat_height(ic) )                            &
              / ( next_height(ic) - prev_height(ic) )
@@ -141,7 +141,7 @@ do ic = 1, n_points
       convcloud(ic,i_q_cl_conv)     = interp * next_q_cl_conv(ic)
 
     else if ( par_prev_cloudfracs(ic,i_frac_liq) > zero .and.                  &
-              par_next_cloudfracs(ic,i_frac_liq) == zero ) then
+      ( .not. par_next_cloudfracs(ic,i_frac_liq) > zero ) ) then
 
       interp = ( sat_height(ic) - prev_height(ic) )                            &
              / ( next_height(ic) - prev_height(ic) )

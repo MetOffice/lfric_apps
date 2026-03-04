@@ -20,9 +20,7 @@ subroutine calc_init_mass( n_points, nc, index_ic, n_conv_types, i_region,     &
                            layer_mass_k, next_height, virt_temp_next_cmpr,     &
                            frac_r_t, init_mass_t, Nsq )
 
-use comorph_constants_mod, only: real_cvprec, min_delta, min_float,            &
-                                 zero, one, two,                               &
-                                 third, sqrt_min_delta, newline,               &
+use comorph_constants_mod, only: real_cvprec, min_delta, zero, one, newline,   &
                                  gravity, par_gen_mass_fac
 use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
                        j_height, j_mean_buoy

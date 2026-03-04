@@ -25,7 +25,7 @@ subroutine calc_mean_q_cl_with_core( n_points, n_points_super, n_fields_tot,   &
                                      core_q_cl,                                &
                                      core_mean_ratio, par_mean_fields )
 
-use comorph_constants_mod, only: real_cvprec, zero, one, sqrt_min_delta,       &
+use comorph_constants_mod, only: real_cvprec, one, sqrt_min_delta,             &
                                  l_cv_cloudfrac, i_mean_q_cl,                  &
                                  i_mean_q_cl_full
 use fields_type_mod, only: i_temperature, i_q_vap, i_q_cl, i_q_cf,             &

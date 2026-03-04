@@ -112,7 +112,7 @@ type(parcel_type), allocatable, intent(in out) ::                              &
 ! These are OUT, but need intent inout so that their
 ! non-allocated status is known on input.
 
-! Structure storing diagnostics and assocaited meta-data
+! Structure storing diagnostics and associated meta-data
 type(genesis_diags_type), intent(in out) :: genesis_diags
 
 

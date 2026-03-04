@@ -16,7 +16,7 @@ implicit none
 contains
 
 ! Routine to assign pointers (held in comorph's derived-type structures)
-! to the corresponding UM fields, to pass them into comorph
+! to the corresponding host-model fields, to pass them into comorph
 subroutine assign_fields( z_theta, z_rho, p_layer_centres, p_layer_boundaries, &
                           r_theta_levels,                                      &
                           rho_dry_th, w_var_rh, ftl, fqw, fu_rh, fv_rh,        &
@@ -277,7 +277,7 @@ real(kind=real_umphys), allocatable, target, intent(in) :: q_graup_work(:,:,:)
 
 
 ! Comorph derived-type structures containing pointers, to be assigned
-! to the relevant UM fields by this routine...
+! to the relevant host-model fields by this routine...
 
 ! Structure storing pointers to the model-grid fields and dry-rho
 type(grid_type), intent(in out) :: grid
@@ -376,7 +376,7 @@ case ( i_convcloud_bulkonly )
 
   ! CoMorph will output only a single bulk convective cloud fraction
   ! and a single bulk convective water content (liquid+ice).
-  ! Pass these into the UM's corresponding 2 prognostics
+  ! Pass these into the host-model's corresponding 2 prognostics
   cloudfracs % frac_bulk_conv => cca
   cloudfracs % q_c_conv       => ccw
 
@@ -396,12 +396,12 @@ case ( i_convcloud_mph )
 
   ! CoMorph wants to output separate liquid and ice
   ! convective cloud fields.
-  ! But the UM doesn't yet have these fields, so throw a wobbly
+  ! But the host-model doesn't yet have these fields, so throw a wobbly
   call raise_fatal( routinename,                                               &
          "Calling the CoMorph convection scheme with "        //               &
          "separate convective liquid and ice cloud " //newline//               &
-         "fields, but the UM currently only supports a "      //               &
-         "single convective cloud fraction field." )
+         "fields, but the host-model currently only supports "//               &
+         "a single convective cloud fraction field." )
 
 end select
 
@@ -430,7 +430,7 @@ fields_np1 % temperature => theta_star
 
 ! Water species...
 
-! Vapour and liquid are always on in both the UM and CoMorph
+! Vapour and liquid are always on in both the host-model and CoMorph
 fields_n % q_vap => m_v
 fields_n % q_cl => m_cl
 fields_np1 % q_vap => q_star
@@ -438,24 +438,24 @@ fields_np1 % q_cl => qcl_star
 
 ! Species that are optional in comorph...
 
-! Ice-cloud (always in use in the UM)
-! Which UM field maps onto CoMorph's q_cf depends on UM's 2nd ice category
+! Ice-cloud (always in use in the host-model)
+! Which UM field maps onto CoMorph's q_cf depends on 2nd ice category setting
 if ( l_cv_cf ) then
   if ( l_mcr_qcf2 ) then
-    ! The UM has 2nd ice category switched on
-    ! In this case, CoMorph's q_cf corresponds to the UM's qcf2 (crystals)
+    ! The model has 2nd ice category switched on
+    ! In this case, CoMorph's q_cf corresponds to the model's qcf2 (crystals)
     fields_n % q_cf => m_cf2
     fields_np1 % q_cf => qcf2_star
   else
-    ! The UM has 2nd ice category switched off
-    ! CoMorph's q_cf maps onto the UM's qcf
+    ! The model has 2nd ice category switched off
+    ! CoMorph's q_cf maps onto the model's qcf
     fields_n % q_cf => m_cf
     fields_np1 % q_cf => qcf_star
   end if
 end if
 
-! Species that are optional in the UM; if in use in comorph, point to
-! the UM's prognostic array if the species is in use in the UM too,
+! Species that are optional in the host-model; if in use in comorph, point to
+! the model's prognostic array if the species is in use in the model too,
 ! or point to a temporary work array if not....
 l_error = .false.
 
@@ -465,8 +465,8 @@ if ( l_cv_snow ) then
     fields_n % q_snow => q_snow_work
     fields_np1 % q_snow => q_snow_work
   else if ( l_mcr_qcf2 ) then
-    ! The UM has 2nd ice category switched on;
-    ! In this case, comorph's q_snow corresponds to the UM's qcf (aggregates)
+    ! The host-model has 2nd ice category switched on; in this case,
+    ! comorph's q_snow corresponds to the host-model's qcf (aggregates)
     fields_n % q_snow => m_cf
     fields_np1 % q_snow => qcf_star
   else
@@ -503,7 +503,7 @@ end if
 if ( l_error ) then
   call raise_fatal( routinename,                                               &
          "At least one water species field expected by comorph is "         // &
-         "not available in the UM (snow, rain or graupel)." )
+         "not available in the host-model (snow, rain or graupel)." )
 end if
 
 

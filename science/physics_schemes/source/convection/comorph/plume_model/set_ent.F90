@@ -24,14 +24,13 @@ subroutine set_ent( n_points, n_fields_tot, max_points,                        &
                     layer_mass_step, sum_massflux,                             &
                     ent_mass_d, core_ent_ratio )
 
-use comorph_constants_mod, only: real_cvprec, min_float, zero, one,            &
+use comorph_constants_mod, only: real_cvprec, min_float, one,                  &
                                  ent_coef, comorph_timestep,                   &
                                  core_ent_fac, l_core_ent_cmr,                 &
                                  i_cfl_local, i_cfl_local_all,                 &
                                  i_cfl_local_nobl
 use fields_type_mod, only: i_temperature, i_q_vap
 use grid_type_mod, only: n_grid, i_height, i_pressure
-use env_half_mod, only: n_env_half
 use parcel_type_mod, only: n_par, i_massflux_d, i_radius
 use calc_rho_dry_mod, only: calc_rho_dry
 

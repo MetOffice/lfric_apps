@@ -18,7 +18,7 @@ contains
 !
 ! The rest of comorph treats tracers as generic passively-transported
 ! scalars; any calculations that are specific to the actual variables
-! represented by the tracers in the UM should be done in here
+! represented by the tracers in the host-model should be done in here
 ! (e.g. scavenging of aerosol and chemistry fields by convective precip).
 !
 subroutine tracer_source( n_points, n_points_super,                            &

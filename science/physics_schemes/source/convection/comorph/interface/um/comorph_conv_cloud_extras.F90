@@ -17,9 +17,8 @@ contains
 
 
 ! Subroutine to calculate convective cloud base and top
-! model-levels and other UM convective cloud fields, based on
-! the 3-D convective cloud amount and liquid water output
-! by CoMorph
+! model-levels and other host-model convective cloud fields, based on
+! the 3-D convective cloud amount and liquid water output by CoMorph
 subroutine comorph_conv_cloud_extras(                                          &
              n_conv_levels, rho_dry_th, rho_wet_th,                            &
              r_theta_levels, r_rho_levels,                                     &
@@ -213,7 +212,7 @@ do k = 1, n_conv_levels
       ! Take max of conv cloud areas
       cca0(i,j,k) = max( cca0(i,j,k), cca(i,j,k) )
       ! Convert the prognostic and diagnostic ccw to in-cloud water contents,
-      ! as expected by the rest of the UM
+      ! as expected by the rest of the host-model
       if ( ccw0(i,j,k) > 0.0 )  ccw0(i,j,k) = ccw0(i,j,k) / cca0(i,j,k)
       if ( ccw(i,j,k)  > 0.0 )  ccw(i,j,k)  = ccw(i,j,k)  / cca(i,j,k)
     end do
