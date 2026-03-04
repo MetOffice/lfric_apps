@@ -9,7 +9,7 @@
 module conv_diag_comp_6a_mod
 
 use um_types, only: r_bl
-use constants_mod, only: r_um  
+use constants_mod, only: r_um
 
 implicit none
 
