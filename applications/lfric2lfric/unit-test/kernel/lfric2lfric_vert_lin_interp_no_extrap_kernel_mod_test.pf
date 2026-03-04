@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 
 !> Test the vertical linear interpolation kernel
-module lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod_test
+module lfric2lfric_vert_lin_interp_no_extrap_kernel_mod_test
 
   use constants_mod,                       only : r_def, i_def, r_single, r_double
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
@@ -22,7 +22,7 @@ contains
 @Test
   subroutine test_all()
 
-    use lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod, only: lfric2lfric_vertical_linear_interp_no_extrap_kernel_code
+    use lfric2lfric_vert_lin_interp_no_extrap_kernel_mod, only: lfric2lfric_vert_lin_interp_no_extrap_kernel_code
 
     implicit none
 
@@ -110,7 +110,7 @@ contains
     1.5_r_single, 2.5_r_single, 3.5_r_single            &
     /), (/ 3, 3, 3 /))
 
-    call lfric2lfric_vertical_linear_interp_no_extrap_code_r_single(         &
+    call lfric2lfric_vert_lin_interp_no_extrap_code_r_single(         &
                                       nlayers,                            &
                                       destination_field,                  &
                                       source_field,                       &
@@ -132,7 +132,7 @@ contains
 @Test
   subroutine test_all_with_extrap()
 
-    use lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod, only: lfric2lfric_vertical_linear_interp_no_extrap_kernel_code
+    use lfric2lfric_vert_lin_interp_no_extrap_kernel_mod, only: lfric2lfric_vert_lin_interp_no_extrap_kernel_code
 
     implicit none
 
@@ -217,7 +217,7 @@ contains
     0.5_r_single,  1.5_r_single, 2.5_r_single, 3.5_r_single,  4.5_r_single    &
     /), (/ 5, 3, 3 /))
 
-    call lfric2lfric_vertical_linear_interp_no_extrap_code_r_single(  &
+    call lfric2lfric_vert_lin_interp_no_extrap_code_r_single(  &
                                       nlayers,                        &
                                       destination_field,              &
                                       source_field,                   &
@@ -236,4 +236,4 @@ contains
 
   end subroutine test_all_with_extrap
 
-end module lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod_test
+end module lfric2lfric_vert_lin_interp_no_extrap_kernel_mod_test

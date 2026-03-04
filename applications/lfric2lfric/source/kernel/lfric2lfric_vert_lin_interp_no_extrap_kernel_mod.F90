@@ -13,7 +13,7 @@
 !!          This is a copy of prolong_scalar_weighted_kernel_mod, with a
 !!          modification to take into account multidata values in grid points
 
-module lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod
+module lfric2lfric_vert_lin_interp_no_extrap_kernel_mod
 
 use constants_mod,           only: i_def, r_double, r_single
 use kernel_mod,              only: kernel_type
@@ -28,8 +28,8 @@ implicit none
 
 private
 
-type, public, extends(kernel_type) :: lfric2lfric_vertical_linear_interp_no_extrap_kernel_type
-   private
+type, public, extends(kernel_type) :: lfric2lfric_vert_lin_interp_no_extrap_kernel_type
+
    type(arg_type) :: meta_args(6) = (/                                         &
         arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
         arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), &
@@ -39,15 +39,15 @@ type, public, extends(kernel_type) :: lfric2lfric_vertical_linear_interp_no_extr
         arg_type(GH_FIELD,  GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_2)       &
         /)
   integer :: operates_on = CELL_COLUMN
-end type lfric2lfric_vertical_linear_interp_no_extrap_kernel_type
+end type lfric2lfric_vert_lin_interp_no_extrap_kernel_type
 
-public :: lfric2lfric_vertical_linear_interp_no_extrap_kernel_code
+public :: lfric2lfric_vert_lin_interp_no_extrap_kernel_code
 
   ! Generic interface for real32 and real64 types
-  interface lfric2lfric_vertical_linear_interp_no_extrap_kernel_code
+  interface lfric2lfric_vert_lin_interp_no_extrap_kernel_code
     module procedure  &
-      lfric2lfric_vertical_linear_interp_no_extrap_code_r_single !,                 &
-      !lfric2lfric_vertical_linear_interp_no_extrap_code_r_double
+      lfric2lfric_vert_lin_interp_no_extrap_code_r_single !,   &
+      !lfric2lfric_vert_lin_interp_no_extrap_code_r_double
   end interface
 
 contains
@@ -72,19 +72,19 @@ contains
 
   ! R_SINGLE PRECISION
   ! ==================
-  subroutine lfric2lfric_vertical_linear_interp_no_extrap_code_r_single(         &
-                                          nlayers,                            &
-                                          destination_field,                  &
-                                          source_field,                       &
-                                          source_layers,                      &
-                                          ncell,                              &
-                                          dest_heights,                       &
-                                          source_heights,                     &
-                                          ndf_dest,                           &
-                                          undf_dest,                          &
-                                          map_dest,                           &
-                                          ndf_source,                         &
-                                          undf_source,                        &
+  subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(  &
+                                          nlayers,                 &
+                                          destination_field,       &
+                                          source_field,            &
+                                          source_layers,           &
+                                          ncell,                   &
+                                          dest_heights,            &
+                                          source_heights,          &
+                                          ndf_dest,                &
+                                          undf_dest,               &
+                                          map_dest,                &
+                                          ndf_source,              &
+                                          undf_source,             &
                                           map_source)
 
     implicit none
@@ -101,7 +101,7 @@ contains
     real(kind=r_single), intent(in), dimension(ndf_dest) :: dest_heights(undf_dest)
     real(kind=r_single), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
 
-    integer(kind=i_def) :: multidata, df, k, m, kk, top_df, level_below(nlayers), source_top_df, dest_top_df
+    integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers), source_top_df, dest_top_df
 
     ! Assume lowest order W3 or Wtheta space
     df = 1
@@ -113,7 +113,7 @@ contains
 
   do kk= 0, dest_top_df
     do k= 0, source_top_df
-      if ( (source_heights(k) > dest_heights(kk)) .AND.                       &
+      if ( (source_heights(k) > dest_heights(kk)) .AND.            &
            (level_below(kk) == source_layers) ) THEN
         level_below(kk) = k-1
           ! potential optimisation: start from level_below(kk-1)
@@ -127,11 +127,11 @@ contains
 
       ! IF ( desired_r(j) >= r_at_data(j,data_levels) ) THEN
       !  data_out(j) = data_in(j,data_levels)
-      if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                    &
+      if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)         &
           >= source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
 
         ! Top: Set to top input data
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk)               &
+        destination_field(map_dest(df) + m*(dest_top_df+1) + kk)    &
           = source_field(map_source(df) + m*(source_top_df+1) + source_top_df)
 
 
@@ -147,13 +147,13 @@ contains
       else
 
       ! Linearly interpolate
-    ! data_out (j) = ( (desired_r(j) -                                           &
-    !                     r_at_data(j,level_below(j)) )                          &
-    !                     * data_in (j,level_below(j)+1)                         &
-    !                    -(desired_r(j) -                                        &
-    !                      r_at_data(j,level_below(j)+1)) *                      &
-    !                      data_in (j,level_below(j)) ) /                        &
-    !                   ( r_at_data(j,level_below(j)+1) -                        &
+    ! data_out (j) = ( (desired_r(j) -                                &
+    !                     r_at_data(j,level_below(j)) )               &
+    !                     * data_in (j,level_below(j)+1)              &
+    !                    -(desired_r(j) -                             &
+    !                      r_at_data(j,level_below(j)+1)) *           &
+    !                      data_in (j,level_below(j)) ) /             &
+    !                   ( r_at_data(j,level_below(j)+1) -             &
     !                     r_at_data(j,level_below(j)) )
       ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
       !          / (sh(lb(kk)+1) - sh(lb(kk)))
@@ -170,14 +170,14 @@ contains
     end do
   end do
 
-  end subroutine lfric2lfric_vertical_linear_interp_no_extrap_code_r_single
+  end subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single
 
   ! R_DOUBLE PRECISION
   ! ==================
-  !subroutine lfric2lfric_vertical_linear_interp_no_extrap_code_r_double                      &
+  !subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double
 
 !!!!!!! SHARKS COPY R SINGLE TO HERE, change real fields from r_single to r_double
 
- ! end subroutine lfric2lfric_vertical_linear_interp_no_extrap_code_r_double
+  !end subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double
 
-end module lfric2lfric_vertical_linear_interp_no_extrap_kernel_mod
+end module lfric2lfric_vert_lin_interp_no_extrap_kernel_mod
