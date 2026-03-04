@@ -52,10 +52,10 @@ subroutine parcel_dyn( n_points, n_points_prev, n_points_next,                 &
                        core_mean_ratio )
 
 use comorph_constants_mod, only: real_cvprec, newline,                         &
-                                 zero, one, n_cond_species, n_tracers,         &
+                                 zero, n_cond_species, n_tracers,              &
                                  i_check_bad_values_cmpr, i_check_bad_none,    &
                                  name_length,                                  &
-                                 wind_w_fac, w_min,                            &
+                                 wind_w_fac,                                   &
                                  l_par_core, l_cv_cf, l_cv_cloudfrac,          &
                                  l_tracer_scav,                                &
                                  par_vert_len_fac,                             &
@@ -71,7 +71,7 @@ use cmpr_type_mod, only: cmpr_type
 
 use linear_qs_mod, only: linear_qs_set_ref,                                    &
                          n_linear_qs_fields, i_ref_temp
-use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
+use sublevs_mod, only: max_sublevs, n_sublev_vars,                             &
                        j_mean_buoy, j_core_buoy, j_env_tv,                     &
                        j_mean_wex, j_core_wex
 use plume_model_diags_type_mod, only: plume_model_diags_type

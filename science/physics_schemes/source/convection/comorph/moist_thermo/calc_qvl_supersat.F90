@@ -19,8 +19,7 @@ subroutine calc_qvl_supersat( n_points, n_points_super,                        &
                               pressure, temperature, q_vap, q_cond,            &
                               qvl_supersat, virt_temp_noliq, linear_qs )
 
-use comorph_constants_mod, only: real_cvprec, zero, one,                       &
-                                 n_cond_species, i_cond_cl
+use comorph_constants_mod, only: real_cvprec, zero, n_cond_species, i_cond_cl
 use linear_qs_mod, only: n_linear_qs_fields, i_ref_temp, i_qsat_liq_ref,       &
                          i_dqsatdT_liq
 use set_cp_tot_mod, only: set_cp_tot

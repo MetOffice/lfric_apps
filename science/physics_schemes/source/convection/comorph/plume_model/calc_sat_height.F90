@@ -23,7 +23,7 @@ subroutine calc_sat_height(                                                    &
              i_next, i_sat, sublevs,                                           &
              i_core_sat )
 
-use comorph_constants_mod, only: real_cvprec, zero, one, sqrt_min_float
+use comorph_constants_mod, only: real_cvprec, zero, one
 use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
                        j_height, j_env_tv, j_mean_buoy, j_core_buoy, j_delta_tv
 

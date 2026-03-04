@@ -45,8 +45,7 @@ subroutine homog_conv_bl( n_points_top, n_conv_types, n_conv_layers,           &
                           par_bl_top_massflux, par_bl_top_fields,              &
                           res_source )
 
-use comorph_constants_mod, only: real_cvprec, real_hmprec,                     &
-                                 zero, one, two, half,                         &
+use comorph_constants_mod, only: real_cvprec, real_hmprec, zero, one,          &
                                  nx_full, ny_full, k_bot_conv, k_top_conv,     &
                                  n_cond_species, n_cond_species_liq,           &
                                  L_con_0, L_sub_0,                             &

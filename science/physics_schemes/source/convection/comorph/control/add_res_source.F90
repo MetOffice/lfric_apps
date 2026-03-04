@@ -21,8 +21,7 @@ subroutine add_res_source( n_points_super, n_points_res, n_fields_tot,         &
                            res_source_fields,                                  &
                            fields_k_super, layer_mass_k )
 
-use comorph_constants_mod, only: real_cvprec, min_float,                       &
-                                 comorph_timestep, nx_full
+use comorph_constants_mod, only: real_cvprec, comorph_timestep, nx_full
 use cmpr_type_mod, only: cmpr_type
 use res_source_type_mod, only: n_res, i_ent, i_det
 

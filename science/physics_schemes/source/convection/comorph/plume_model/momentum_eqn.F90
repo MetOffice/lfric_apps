@@ -22,7 +22,7 @@ subroutine momentum_eqn( n_points, n_fields_tot, l_res_source, l_down,         &
                          env_k_winds, par_next_winds, par_w_drag,              &
                          res_source_fields )
 
-use comorph_constants_mod, only: real_cvprec, zero, one, two,                  &
+use comorph_constants_mod, only: real_cvprec, zero, one,                       &
                                  three_over_eight, half,                       &
                                  comorph_timestep, drag_coef_par, wavedrag_fac,&
                                  l_homog_conv_bl
@@ -113,7 +113,7 @@ real(kind=real_cvprec) :: drag_fac(n_points)
 real(kind=real_cvprec) :: reaction_term(n_points)
 
 ! Increment to each parcel wind component
-real(kind=real_cvprec) :: dwindp ( n_points, i_wind_u:i_wind_w )
+real(kind=real_cvprec) :: dwindp ( n_points, i_wind_u:i_wind_v )
 
 ! Parcel wind minus environment wind (vector magnitude)
 real(kind=real_cvprec) :: wind_ex(n_points)
@@ -126,15 +126,6 @@ real(kind=real_cvprec) :: interp
 
 ! Loop counters
 integer :: ic, i_field, i_lev
-
-
-! Initialise parcel wind increments to zero
-! (no explicit wind increments added yet, but will be added here)
-do i_field = i_wind_u, i_wind_w
-  do ic = 1, n_points
-    dwindp(ic,i_field) = zero
-  end do
-end do
 
 
 ! PRESSURE DRAG ON THE PARCEL
@@ -212,8 +203,8 @@ do i_field = i_wind_u, i_wind_v
     ! this is a bug and will make the CMT sensitive to grid orientation.
 
     ! Compute increment to parcel wind (accounting for any explicit increments)
-    dwindp(ic,i_field) = dwindp(ic,i_field)                                    &
-             - alpha * ( par_next_winds(ic,i_field) + dwindp(ic,i_field)       &
+    dwindp(ic,i_field) =                                                       &
+             - alpha * ( par_next_winds(ic,i_field)                            &
                        - env_k_winds(ic,i_field) )                             &
                      / ( one + alpha * reaction_term(ic) )
 
@@ -222,7 +213,7 @@ do i_field = i_wind_u, i_wind_v
 end do  ! i_field = i_wind_u, i_wind_v
 
 ! Update parcel winds with explicit increments + horizontal drag increments
-do i_field = i_wind_u, i_wind_w
+do i_field = i_wind_u, i_wind_v
   do ic = 1, n_points
     par_next_winds(ic,i_field) = par_next_winds(ic,i_field)                    &
                                + dwindp(ic,i_field)
@@ -231,7 +222,7 @@ end do
 
 ! If resolved-scale source terms are needed
 if ( l_res_source .and. present(res_source_fields) ) then
-  do i_field = i_wind_u, i_wind_w
+  do i_field = i_wind_u, i_wind_v
     do ic = 1, n_points
       ! Add contribution to the resolved momentum source terms due to the
       ! reaction force from the drag on the parcel

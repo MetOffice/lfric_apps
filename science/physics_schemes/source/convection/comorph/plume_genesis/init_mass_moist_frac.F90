@@ -48,13 +48,12 @@ subroutine init_mass_moist_frac( n_points, n_points_super,                     &
                                  updraft_par_gen, dndraft_par_gen,             &
                                  genesis_diags, diags_super )
 
-use comorph_constants_mod, only: real_cvprec, name_length,                     &
-                                 zero, one, two,                               &
+use comorph_constants_mod, only: real_cvprec, name_length, zero,               &
                                  n_updraft_types, n_dndraft_types,             &
                                  n_cond_species, i_cond_cl,                    &
-                                 l_homog_conv_bl, min_delta, sqrt_min_float,   &
+                                 l_homog_conv_bl, min_delta,                   &
                                  max_ent_frac_up, max_ent_frac_dn,             &
-                                 par_gen_core_fac, l_turb_par_gen,             &
+                                 par_gen_core_fac,                             &
                                  i_cfl_local, i_cfl_local_none,                &
                                  i_check_bad_values_cmpr, i_check_bad_none
 
