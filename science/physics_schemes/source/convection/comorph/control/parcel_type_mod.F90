@@ -695,7 +695,7 @@ do ic = 1, parcel_a % cmpr % n_points
   end if
 end do
 
-! Add the massflux of parcel a onto parcel_m
+! Add the massflux of parcel_a onto parcel_m
 do ic = 1, parcel_a % cmpr % n_points
   ic2 = index_ic(ic)
   parcel_m % par_super(ic2,i_massflux_d)                                       &
