@@ -139,11 +139,21 @@ subroutine init_mesh( configuration,           &
   ! Extract and check configuration variables
   !============================================================================
   ! Read partitioning namelist for source and destination meshes
+  if (.not. configuration%namelist_exists('partitioning', 'source')) then
+    write( log_scratch_space, '(A)' )                                     &
+         'Source mesh partitioning namelist (partitioning:source) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
   src_partitioning_nml  => configuration%get_namelist('partitioning', &
                                                       'source')
   call src_partitioning_nml%get_value( 'generate_inner_halos', &
                                         generate_inner_halos(src) )
 
+  if (.not. configuration%namelist_exists('partitioning', 'destination')) then
+    write( log_scratch_space, '(A)' )                                          &
+         'Destination mesh partitioning namelist (partitioning:destination) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
   dst_partitioning_nml  => configuration%get_namelist('partitioning', &
                                                       'destination')
   call dst_partitioning_nml%get_value( 'generate_inner_halos', &
@@ -324,14 +334,16 @@ subroutine init_mesh( configuration,           &
                             decomposition_dst,             &
                             stencil_depths,                &
                             generate_inner_halos(dst),     &
-                            partitioner_dst )
+                            partitioner_dst,               &
+                            enforce_constraints = .false. )
 
     call create_local_mesh( mesh_names(src:src),           &
                             local_rank, total_ranks,       &
                             decomposition_src,             &
                             stencil_depths,                &
                             generate_inner_halos(src),     &
-                            partitioner_src )
+                            partitioner_src,               &
+                            enforce_constraints = .false. )
 
     ! Read in the global intergrid mesh mappings,
     ! then create the associated local mesh maps
