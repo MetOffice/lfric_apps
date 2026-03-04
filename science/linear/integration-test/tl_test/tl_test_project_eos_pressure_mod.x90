@@ -195,7 +195,6 @@ module tl_test_project_eos_pressure_mod
       call invoke( X_minus_Y( diff, n2_exner, n1_exner ),   &
                    inc_X_minus_Y( diff, p_exner ),          &
                    X_innerproduct_X( norm_diff, diff ) )
-      norm_diff = sqrt(norm_diff)
 
       write( log_scratch_space, '(A, E32.12, A, E32.12)' ) &
              'gamma = ', gamma , ' norm = ', norm_diff

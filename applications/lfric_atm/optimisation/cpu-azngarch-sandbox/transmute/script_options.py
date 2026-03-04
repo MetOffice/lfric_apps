@@ -1,1 +1,1 @@
-meto-ex1a/transmute/script_options.py
+../../../../../applications/lfric_atm/optimisation/meto-ex1a/transmute/script_options.py

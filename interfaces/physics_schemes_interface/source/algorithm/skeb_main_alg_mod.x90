@@ -296,6 +296,10 @@ module skeb_main_alg_mod
   ! Iterators in for loops
   integer(i_def) :: m, n, n_row, stencil_extent
 
+  ! SKEB calculations are performed at cell centres (W3 points). To index the
+  ! "eta_theta_levels" array correctly at these points, set offset to 1
+  integer(kind=i_def), parameter :: lev_offset = 1
+
   ! Timing handle
   integer(tik)   :: id_skeb, id_diags
 
@@ -381,10 +385,10 @@ module skeb_main_alg_mod
   end if
 
   !!!!!! 1.b call stph_fp_main to create forcing pattern for SKEB
-  call stph_fp_main_alg(skeb_level_bottom-1_i_def, skeb_level_top-1_i_def, &
-                        stph_n_min, stph_n_max, stph_spectral_dim,         &
-                        skeb_alpha, skeb_power_law,                        &
-                        skeb_spectral_coeffc, skeb_spectral_coeffs,        &
+  call stph_fp_main_alg(skeb_level_bottom-1_i_def, skeb_level_top-1_i_def,     &
+                        lev_offset, stph_n_min, stph_n_max, stph_spectral_dim, &
+                        skeb_alpha, skeb_power_law,                            &
+                        skeb_spectral_coeffc, skeb_spectral_coeffs,            &
                         fp_skeb)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

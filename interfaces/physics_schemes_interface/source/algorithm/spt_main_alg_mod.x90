@@ -229,6 +229,10 @@ module spt_main_alg_mod
   ! iterators in for loops
   integer(i_def) :: n,n_row, m
 
+  ! SPT calculations are performed at theta-levels (Wtheta points). To index the
+  ! "eta_theta_levels" array correctly at these points, set offset to 0
+  integer(kind=i_def), parameter :: lev_offset = 0
+
   ! Timestepping_config_mod scalar (for PSyclone to know data type)
   real(kind=r_second) :: timestepping_config_mod_dt
 
@@ -298,10 +302,10 @@ module spt_main_alg_mod
   call invoke( setval_c(fp_spt, 0.0_r_def))
 
   ! Create forcing pattern for SPT
-  call stph_fp_main_alg(spt_level_bottom, spt_level_top,          &
-                        1, stph_n_max, stph_spectral_dim,         &
-                        spt_alpha, spt_power_law,                 &
-                        spt_spectral_coeffc, spt_spectral_coeffs, &
+  call stph_fp_main_alg(spt_level_bottom, spt_level_top, lev_offset, &
+                        1, stph_n_max, stph_spectral_dim,            &
+                        spt_alpha, spt_power_law,                    &
+                        spt_spectral_coeffc, spt_spectral_coeffs,    &
                         fp_spt)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

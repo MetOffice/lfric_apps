@@ -21,7 +21,7 @@ module adjt_end_transport_step_alg_mod
   use model_clock_mod,                     only : model_clock_type
   use finite_element_config_mod,           only : element_order_h, &
                                                   element_order_v
-  use fs_continuity_mod,                   only : W2
+  use fs_continuity_mod,                   only : W2, W2V
   use function_space_collection_mod,       only : function_space_collection
   use setup_test_alg_mod,                  only : setup_test_tl_transport_controller
   use init_from_controller_alg_mod,        only : init_counter_fieldvals
@@ -78,6 +78,7 @@ module adjt_end_transport_step_alg_mod
 
     ! Variables for initialising fields
     type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w2v_ptr
 
     ! Inner products
     real(kind=r_tran)            :: inner1
@@ -108,13 +109,16 @@ module adjt_end_transport_step_alg_mod
 
     vector_space_w2_ptr => function_space_collection%get_fs(                 &
         mesh, element_order_h, element_order_v, W2                           &
-    )
+        )
+    vector_space_w2v_ptr => function_space_collection%get_fs( &
+        mesh, element_order_h, element_order_v, W2V)
 
+    ! Assume that the last split step is in W2V (for VHV splitting)
     call sum_flux%initialise( vector_space = vector_space_w2_ptr )
-    call flux_last_step%initialise( vector_space = vector_space_w2_ptr )
+    call flux_last_step%initialise( vector_space = vector_space_w2v_ptr )
 
     call sum_flux_input%initialise( vector_space = vector_space_w2_ptr )
-    call flux_last_step_input%initialise( vector_space = vector_space_w2_ptr )
+    call flux_last_step_input%initialise( vector_space = vector_space_w2v_ptr )
 
     sum_flux_inner_prod = 0.0_r_def
     flux_last_step_inner_prod = 0.0_r_def
