@@ -147,6 +147,8 @@ def trans(psyir):
                 # check if it is not a known timing call, which should be
                 # ignored for spanning a parallel section.
                 for routine_grandchild in routine_child.walk(Reference):
+                    # In case the node does not have a name property
+                    # else PSyclone could crash
                     try:
                         if str(routine_grandchild.name) in timer_routine_names:
                             # Start node remains None.
@@ -175,6 +177,8 @@ def trans(psyir):
             elif isinstance(routine_children[index], IfBlock):
                 for routine_grandchild in \
                         routine_children[index].walk(Reference):
+                    # In case the node does not have a name property
+                    # else PSyclone could crash
                     try:
                         if str(routine_grandchild.name) in timer_routine_names:
                             # Start node remains None.
