@@ -141,7 +141,7 @@ do i_field = 1, n_fields_2d
        i_field == i_ccb_massflux_d ) then
     ! Those fields which are mass-fluxes or convective area fraction must be
     ! scaled by the convective closure scaling.  The other fields are
-    ! invarient to the closure scaling
+    ! invariant to the closure scaling
 
     ! Loop over convection layers, types and points
     do i_layr = 1, n_conv_layers

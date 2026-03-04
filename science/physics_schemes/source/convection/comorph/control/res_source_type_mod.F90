@@ -194,7 +194,7 @@ integer :: ic, i_field
 n_fields_tot = n_fields
 if ( l_tracer )  n_fields_tot = n_fields_tot + n_tracers
 
-! Initialise entrainement and detrainment
+! Initialise entrainment and detrainment
 do i_field = 1, n_res
   do ic = 1, res_source % cmpr % n_points
     res_source % res_super(ic,i_field) = zero
