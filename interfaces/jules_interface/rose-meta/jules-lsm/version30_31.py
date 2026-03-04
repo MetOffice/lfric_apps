@@ -81,6 +81,9 @@ class vn30_t146(MacroUpgrade):
         self.add_setting(config, ["namelist:jules_surface", "hleaf"], "5.7e4")
         self.add_setting(config, ["namelist:jules_surface", "hwood"], "1.1e4")
         self.add_setting(
+            config, ["namelist:jules_surface", "'iscrntdiag'"], "decoupled_trans"
+        )
+        self.add_setting(
             config, ["namelist:jules_surface", "i_modiscopt"], "'on'"
         )
         self.add_setting(
