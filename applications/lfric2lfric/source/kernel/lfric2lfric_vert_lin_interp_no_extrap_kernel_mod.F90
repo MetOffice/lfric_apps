@@ -41,7 +41,7 @@ type, public, extends(kernel_type) :: lfric2lfric_vert_lin_interp_no_extrap_kern
   integer :: operates_on = CELL_COLUMN
 end type lfric2lfric_vert_lin_interp_no_extrap_kernel_type
 
-public :: lfric2lfric_vert_lin_interp_no_extrap_kernel_code
+public :: lfric2lfric_vert_lin_interp_no_extrap_kernel_code, lfric2lfric_vert_lin_interp_no_extrap_code_r_single!, lfric2lfric_vert_lin_interp_no_extrap_code_r_double
 
   ! Generic interface for real32 and real64 types
   interface lfric2lfric_vert_lin_interp_no_extrap_kernel_code

@@ -22,7 +22,7 @@ contains
 @Test
   subroutine test_all()
 
-    use lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod, only: lfric2lfric_vert_lin_interp_lin_extrap_kernel_code
+    use lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod, only: lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
 
     implicit none
 
@@ -34,11 +34,11 @@ contains
     integer(kind=i_def)               :: undf_dest, undf_source
     integer(kind=i_def), allocatable  :: map_dest(:,:)
     integer(kind=i_def), allocatable  :: map_source(:,:)
-    real(kind=r_single), allocatable  :: destination_field(:,:,:)
-    real(kind=r_single), allocatable  :: source_field(:,:,:)
-    real(kind=r_single), allocatable  :: expected_field(:,:,:)
-    real(kind=r_single), allocatable  :: dest_heights(:,:,:)
-    real(kind=r_single), allocatable  :: source_heights(:,:,:)
+    real(kind=r_single), allocatable  :: destination_field(:)
+    real(kind=r_single), allocatable  :: source_field(:)
+    real(kind=r_single), allocatable  :: expected_field(:)
+    real(kind=r_single), allocatable  :: dest_heights(:)
+    real(kind=r_single), allocatable  :: source_heights(:)
     real(kind=r_single), parameter    :: tol = 1.0e-12_r_single
 
     nlayers  = 3_i_def
@@ -55,11 +55,11 @@ contains
     call get_w3_m3x3_dofmap(map_dest, 5_i_def)
 
     ! allocate
-    ! allocate(destination_field(undf_dest))
-    allocate(expected_field(3,3,3))
-    allocate(source_field(4,3,3))
-    allocate(dest_heights(3,3,3))
-    allocate(source_heights(4,3,3))
+    allocate(destination_field(undf_dest))
+    allocate(expected_field(undf_dest))
+    allocate(source_field(undf_source))
+    allocate(dest_heights(undf_dest))
+    allocate(source_heights(undf_source))
 
     source_field = reshape ((/&
     1.1_r_single, 2.3_r_single, 3.2_r_single, 4.1_r_single,   &
@@ -71,7 +71,7 @@ contains
     1.4_r_single, 2.0_r_single, 3.4_r_single, 4.2_r_single,   &
     1.0_r_single, 2.4_r_single, 3.3_r_single, 4.4_r_single,   &
     1.1_r_single, 2.1_r_single, 3.3_r_single, 4.1_r_single    &
-    /), (/ 4, 3, 3 /))
+    /), (/ undf_source /))
     expected_field = reshape ((/&
     1.7_r_single,  2.75_r_single, 3.65_r_single,   &
     1.65_r_single, 2.65_r_single, 3.75_r_single,   &
@@ -82,7 +82,7 @@ contains
     1.7_r_single,  2.7_r_single,  3.8_r_single,    &
     1.7_r_single,  2.85_r_single, 3.85_r_single,   &
     1.6_r_single,  2.7_r_single,  3.7_r_single     &
-    /), (/ 3, 3, 3 /))
+    /), (/ undf_dest /))
     source_heights = reshape ((/&
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single,   &
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single,   &
@@ -93,7 +93,7 @@ contains
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single,   &
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single,   &
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single    &
-    /), (/ 4, 3, 3 /))
+    /), (/ undf_source /))
     dest_heights = reshape ((/&
     1.5_r_single, 2.5_r_single, 3.5_r_single,   &
     1.5_r_single, 2.5_r_single, 3.5_r_single,   &
@@ -104,7 +104,7 @@ contains
     1.5_r_single, 2.5_r_single, 3.5_r_single,   &
     1.5_r_single, 2.5_r_single, 3.5_r_single,   &
     1.5_r_single, 2.5_r_single, 3.5_r_single    &
-    /), (/ 3, 3, 3 /))
+    /), (/ undf_dest /))
 
     call lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
                                       nlayers,                  &
@@ -128,7 +128,7 @@ contains
 @Test
   subroutine test_all_with_extrap()
 
-    use lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod, only: lfric2lfric_vert_lin_interp_lin_extrap_kernel_code
+    use lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod, only: lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
 
     implicit none
 
@@ -140,11 +140,11 @@ contains
     integer(kind=i_def)               :: undf_dest, undf_source
     integer(kind=i_def), allocatable  :: map_dest(:,:)
     integer(kind=i_def), allocatable  :: map_source(:,:)
-    real(kind=r_single), allocatable  :: destination_field(:,:,:)
-    real(kind=r_single), allocatable  :: source_field(:,:,:)
-    real(kind=r_single), allocatable  :: expected_field(:,:,:)
-    real(kind=r_single), allocatable  :: dest_heights(:,:,:)
-    real(kind=r_single), allocatable  :: source_heights(:,:,:)
+    real(kind=r_single), allocatable  :: destination_field(:)
+    real(kind=r_single), allocatable  :: source_field(:)
+    real(kind=r_single), allocatable  :: expected_field(:)
+    real(kind=r_single), allocatable  :: dest_heights(:)
+    real(kind=r_single), allocatable  :: source_heights(:)
     real(kind=r_single), parameter    :: tol = 1.0e-12_r_single
 
     nlayers  = 5_i_def
@@ -161,11 +161,11 @@ contains
     call get_w3_m3x3_dofmap(map_dest, 5_i_def)
 
     ! allocate
-    ! allocate(destination_field(undf_dest))
-    allocate(expected_field(5,3,3))
-    allocate(source_field(4,3,3))
-    allocate(dest_heights(5,3,3))
-    allocate(source_heights(4,3,3))
+    allocate(destination_field(undf_dest))
+    allocate(expected_field(undf_dest))
+    allocate(source_field(undf_source))
+    allocate(dest_heights(undf_dest))
+    allocate(source_heights(undf_source))
 
     source_field = reshape ((/&
     1.1_r_single, 2.3_r_single, 3.2_r_single, 4.1_r_single,   &
@@ -177,7 +177,7 @@ contains
     1.4_r_single, 2.0_r_single, 3.4_r_single, 4.2_r_single,   &
     1.0_r_single, 2.4_r_single, 3.3_r_single, 4.4_r_single,   &
     1.1_r_single, 2.1_r_single, 3.3_r_single, 4.1_r_single    &
-    /), (/ 4, 3, 3 /))
+    /), (/ undf_source /))
     expected_field = reshape ((/&
     0.5_r_single,  1.7_r_single,  2.75_r_single, 3.65_r_single, 4.55_r_single, &
     0.55_r_single, 1.65_r_single, 2.65_r_single, 3.75_r_single, 5.05_r_single, &
@@ -188,7 +188,7 @@ contains
     1.1_r_single,  1.7_r_single,  2.7_r_single,  3.8_r_single,  4.6_r_single,  &
     0.3_r_single,  1.7_r_single,  2.85_r_single, 3.85_r_single, 4.95_r_single, &
     0.6_r_single,  1.6_r_single,  2.7_r_single,  3.7_r_single,  4.5_r_single   &
-    /), (/ 5, 3, 3 /))
+    /), (/ undf_dest /))
     source_heights = reshape ((/&
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single,   &
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single,   &
@@ -199,7 +199,7 @@ contains
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single,   &
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single,   &
     1.0_r_single, 2.0_r_single, 3.0_r_single, 4.0_r_single    &
-    /), (/ 4, 3, 3 /))
+    /), (/ undf_source /))
     dest_heights = reshape ((/&
     0.5_r_single,  1.5_r_single, 2.5_r_single, 3.5_r_single,  4.5_r_single,   &
     0.5_r_single,  1.5_r_single, 2.5_r_single, 3.5_r_single,  4.5_r_single,   &
@@ -210,7 +210,7 @@ contains
     0.5_r_single,  1.5_r_single, 2.5_r_single, 3.5_r_single,  4.5_r_single,   &
     0.5_r_single,  1.5_r_single, 2.5_r_single, 3.5_r_single,  4.5_r_single,   &
     0.5_r_single,  1.5_r_single, 2.5_r_single, 3.5_r_single,  4.5_r_single    &
-    /), (/ 5, 3, 3 /))
+    /), (/ undf_dest /))
 
     call lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
                                       nlayers,                  &
