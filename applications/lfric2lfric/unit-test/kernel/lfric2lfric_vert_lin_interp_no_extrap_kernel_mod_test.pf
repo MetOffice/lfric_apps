@@ -15,12 +15,12 @@ module lfric2lfric_vert_lin_interp_no_extrap_kernel_mod_test
 
   implicit none
 
-  public:: test_all, test_all_with_extrap
+  public:: test_all_r_single, test_all_with_extrap_r_single
 
 contains
 
 @Test
-  subroutine test_all()
+  subroutine test_all_r_single()
 
     use lfric2lfric_vert_lin_interp_no_extrap_kernel_mod, only: lfric2lfric_vert_lin_interp_no_extrap_code_r_single
 
@@ -123,10 +123,10 @@ contains
 
     @assertEqual(expected_field, destination_field, tol)
 
-  end subroutine test_all
+  end subroutine test_all_r_single
 
 @Test
-  subroutine test_all_with_extrap()
+  subroutine test_all_with_extrap_r_single()
 
     use lfric2lfric_vert_lin_interp_no_extrap_kernel_mod, only: lfric2lfric_vert_lin_interp_no_extrap_code_r_single
 
@@ -229,6 +229,6 @@ contains
 
     @assertEqual(expected_field, destination_field, tol)
 
-  end subroutine test_all_with_extrap
+  end subroutine test_all_with_extrap_r_single
 
 end module lfric2lfric_vert_lin_interp_no_extrap_kernel_mod_test

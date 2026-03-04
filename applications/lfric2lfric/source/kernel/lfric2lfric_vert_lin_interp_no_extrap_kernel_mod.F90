@@ -111,8 +111,8 @@ contains
     ! Number of multidata values per grid cell
     multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
-  do kk= 0, dest_top_df
-    do k= 0, source_top_df
+  do kk = 1, dest_top_df
+    do k = 1, source_top_df
       if ( (source_heights(k) > dest_heights(kk)) .AND.            &
            (level_below(kk) == source_layers) ) THEN
         level_below(kk) = k-1
@@ -122,7 +122,7 @@ contains
   end do
 
   do m = 0, multidata
-    do kk=0, dest_top_df
+    do kk = 1, dest_top_df
       ! EXTRAPOLATION METHOD - ! No linear extrapolation at top or bottom
 
       ! IF ( desired_r(j) >= r_at_data(j,data_levels) ) THEN

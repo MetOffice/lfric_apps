@@ -98,7 +98,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_source)  :: map_source(ndf_source)
     real(kind=r_single), intent(inout), dimension(ndf_dest) :: destination_field(undf_dest)
     real(kind=r_single), intent(in), dimension(ndf_source)  :: source_field(undf_source)
-    real(kind=r_single), intent(in), dimension(ndf_dest) :: dest_heights(undf_dest)
+    real(kind=r_single), intent(in), dimension(ndf_dest)    :: dest_heights(undf_dest)
     real(kind=r_single), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
 
     integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers), source_top_df, dest_top_df
@@ -111,8 +111,8 @@ contains
     ! Number of multidata values per grid cell
     multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
-  do kk= 0, dest_top_df
-    do k= 0, source_top_df
+  do kk = 1, dest_top_df
+    do k = 1, source_top_df
       if ( (source_heights(k) > dest_heights(kk)) .AND.                       &
            (level_below(kk) == source_layers) ) THEN
         level_below(kk) = k-1
@@ -122,7 +122,7 @@ contains
   end do
 
   do m = 0, multidata
-    do kk=0, dest_top_df
+    do kk = 1, dest_top_df
       ! EXTRAPOLATION METHOD - ! Linear extrapolation at top and bottom
 
       ! IF ( desired_r(j) > r_at_data(j,data_levels) ) THEN
