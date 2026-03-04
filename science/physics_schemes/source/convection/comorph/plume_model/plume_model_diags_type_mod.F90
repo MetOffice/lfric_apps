@@ -53,6 +53,18 @@ type :: plume_model_diags_type
   ! Moist process diagnostics
   type(moist_proc_diags_type) :: moist_proc
 
+  ! Ratio between core and mean parcel properties, used for detrainment calc.
+  type(diag_type) :: core_mean_ratio
+
+  ! Parcel core entrainment from the environment over total entrainment
+  type(diag_type) :: core_ent_ratio
+
+  ! Estimated overshoot height of detrained air
+  type(diag_type) :: h_over_det
+
+  ! Divergence entrainment dry-mass
+  type(diag_type) :: div_ent_mass_d
+
   ! Entrained dry-mass and air properties
   type(diag_type) :: ent_mass_d
   type(fields_diags_type) :: ent_fields
@@ -60,9 +72,6 @@ type :: plume_model_diags_type
   ! Detrained dry-mass and air properties
   type(diag_type) :: det_mass_d
   type(fields_diags_type) :: det_fields
-
-  ! Ratio between core and mean parcel properties, used for detrainment calc.
-  type(diag_type) :: core_mean_ratio
 
   ! Note: conv_level_step does not directly populate the full 3-D
   ! arrays of these diagnostics; rather it calculates the
@@ -84,9 +93,9 @@ contains
 ! plume_model_diags structure / store a list of pointers to them
 !----------------------------------------------------------------
 ! Note: this routine gets called twice
-!   1st call (l_count_diags = .true.):
+!   1st call (l_count_diags = .TRUE.):
 !     Check whether each diag is requested and count how many
-!   2nd call (l_count_diags = .false.):
+!   2nd call (l_count_diags = .FALSE.):
 !     Set other properties for requested diags, and assign
 !     pointers from active diags list.
 subroutine plume_model_diags_assign( parent_name, l_count_diags, doms,         &
@@ -184,6 +193,30 @@ if ( plume_model_diags % moist_proc % n_diags > 0                              &
                                 i_diag, i_super )
 end if
 
+! Ratio between core and mean parcel properties
+diag_name = trim(adjustl(parent_name)) // "_core_mean_ratio"
+call diag_assign( diag_name, l_count_diags, doms,                              &
+                  plume_model_diags % core_mean_ratio,                         &
+                  plume_model_diags % list, i_diag, i_super )
+
+! Parcel core entrainment from the environment over total entrainment
+diag_name = trim(adjustl(parent_name)) // "_core_ent_ratio"
+call diag_assign( diag_name, l_count_diags, doms,                              &
+                  plume_model_diags % core_ent_ratio,                          &
+                  plume_model_diags % list, i_diag, i_super )
+
+! Estimated overshoot height of detrained air
+diag_name = trim(adjustl(parent_name)) // "_h_over_det"
+call diag_assign( diag_name, l_count_diags, doms,                              &
+                  plume_model_diags % h_over_det,                              &
+                  plume_model_diags % list, i_diag, i_super )
+
+! Divergence entrainment dry-mass
+diag_name = trim(adjustl(parent_name)) // "_div_ent_mass_d"
+call diag_assign( diag_name, l_count_diags, doms,                              &
+                  plume_model_diags % div_ent_mass_d,                          &
+                  plume_model_diags % list, i_diag, i_super )
+
 ! Entrained and detrained mass and air properties
 diag_name = trim(adjustl(parent_name)) // "_ent_mass_d"
 call diag_assign( diag_name, l_count_diags, doms,                              &
@@ -203,12 +236,6 @@ call fields_diags_assign( diag_name, l_count_diags, doms,                      &
                           plume_model_diags % det_fields,                      &
                           plume_model_diags % list,                            &
                           i_diag, i_super, l_mean_true )
-
-! Ratio between core and mean parcel properties
-diag_name = trim(adjustl(parent_name)) // "_core_mean_ratio"
-call diag_assign( diag_name, l_count_diags, doms,                              &
-                  plume_model_diags % core_mean_ratio,                         &
-                  plume_model_diags % list, i_diag, i_super )
 
 
 ! Increment parent active diagnostics counter
@@ -231,7 +258,9 @@ if ( l_count_diags ) then
   ! super-array even if not requested for output...
   if ( plume_model_diags % moist_proc % n_diags > 0 .or.                       &
        plume_model_diags % delta_t % flag .or.                                 &
-       plume_model_diags % core_mean_ratio % flag ) then
+       plume_model_diags % core_mean_ratio % flag .or.                         &
+       plume_model_diags % core_ent_ratio % flag .or.                          &
+       plume_model_diags % h_over_det % flag ) then
     plume_model_diags % massflux_d_k % flag = .true.
   end if
 
@@ -246,7 +275,7 @@ if ( l_count_diags ) then
     plume_model_diags % det_mass_d % flag = .true.
   end if
 
-  ! Note: the 2nd sweep with l_count_diags=.false. will now
+  ! Note: the 2nd sweep with l_count_diags=.FALSE. will now
   ! account for flag when setting super-array addresses
   ! in diag_assign.
 
@@ -268,6 +297,11 @@ else  ! ( l_count_diags )
   ! Set to true for dry-mass-flux
   if ( plume_model_diags % massflux_d_k % flag ) then
     i_super = plume_model_diags % massflux_d_k % i_super
+    plume_model_diags % l_weight(i_super) = .true.
+  end if
+  ! Set to true for divergence entrainment (needs to be summed, not averaged)
+  if ( plume_model_diags % div_ent_mass_d % flag ) then
+    i_super = plume_model_diags % div_ent_mass_d % i_super
     plume_model_diags % l_weight(i_super) = .true.
   end if
   ! Set to true for entrained dry-mass

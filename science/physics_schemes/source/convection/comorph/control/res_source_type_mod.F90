@@ -9,10 +9,12 @@
 
 module res_source_type_mod
 
-use comorph_constants_mod, only: real_cvprec
+use comorph_constants_mod, only: real_cvprec, name_length
 use cmpr_type_mod, only: cmpr_type
 
 implicit none
+
+save
 
 ! Module contains the type definition for a derived type
 ! structure containing the convective resolved-scale
@@ -20,6 +22,10 @@ implicit none
 ! convection is active.
 !
 ! Also contains subroutines to allocate and deallocate the fields
+
+! Flag indicating whether the variables contained in this
+! module have been set
+logical :: l_init_res_source_type_mod = .false.
 
 !----------------------------------------------------------------
 ! Structure to store resolved-scale sources/sinks of mass and
@@ -53,14 +59,41 @@ end type res_source_type
 
 
 ! Number of fields in the res_super array
-integer, parameter :: n_res = 2
+integer :: n_res = 0
 
 ! Addresses of entrainment & detrainment in the res_super array
-integer, parameter :: i_ent = 1
-integer, parameter :: i_det = 2
+integer :: i_ent = 0
+integer :: i_det = 0
+
+! Name of each field, for error reporting
+character(len=name_length), allocatable :: res_source_names(:)
 
 
 contains
+
+
+!----------------------------------------------------------------
+! Subroutine to set the address of each field in the super-array
+!----------------------------------------------------------------
+subroutine res_source_set_addresses()
+
+implicit none
+
+! Set flag to indicate that we don't need to call this routine again!
+l_init_res_source_type_mod = .true.
+
+! Entrainment and detrainment rates always used
+i_ent = 1
+i_det = 2
+n_res = 2
+
+! Set field names for error reporting
+allocate( res_source_names(n_res) )
+res_source_names(i_ent) = "ent_mass_d"
+res_source_names(i_det) = "det_mass_d"
+
+return
+end subroutine res_source_set_addresses
 
 
 !----------------------------------------------------------------
@@ -124,7 +157,7 @@ deallocate( res_source % convcloud_super )
 ! Deallocate source term super-array
 deallocate( res_source % fields_super )
 
-! Deallocate entrainment, detrainment and cloud array
+! Deallocate entrainment and detrainment
 deallocate( res_source % res_super )
 
 ! Deallocate compression list indices
@@ -161,7 +194,7 @@ integer :: ic, i_field
 n_fields_tot = n_fields
 if ( l_tracer )  n_fields_tot = n_fields_tot + n_tracers
 
-! Initialise entrainement, detrainment and convective cloud
+! Initialise entrainement and detrainment
 do i_field = 1, n_res
   do ic = 1, res_source % cmpr % n_points
     res_source % res_super(ic,i_field) = zero
@@ -186,6 +219,90 @@ end if
 
 return
 end subroutine res_source_init_zero
+
+
+!----------------------------------------------------------------
+! Subroutine to compress resolved-scale source-terms within the existing
+! arrays, to put them on a new, shorter compression list
+!----------------------------------------------------------------
+subroutine res_source_compress( n_fields_tot, n_points_new, index_ic,          &
+                                res_source )
+
+use cloudfracs_type_mod, only: n_convcloud
+
+implicit none
+
+! Total number of fields, including tracers if needed
+integer, intent(in) :: n_fields_tot
+
+! Number of points in the new shorter compression list
+integer, intent(in) :: n_points_new
+
+! Resolved-scale source-term structure whose fields need to be compressed
+type(res_source_type), intent(in out) :: res_source
+
+! Indices for transferring data from the old to the new compression list
+integer, intent(in) :: index_ic( n_points_new )
+
+! Loop counters
+integer :: ic, ic2, ic_first, i_field
+
+! See if any points need to be moved
+ic_first = 0
+over_n_points: do ic2 = 1, n_points_new
+  ! Search until we find at least one point whose index changes
+  ! then exit the loop.
+  if ( .not. index_ic(ic2) == ic2 ) then
+    ! Save the index of the first point to move
+    ic_first = ic2
+    exit over_n_points
+  end if
+end do over_n_points
+
+! If any points need to be moved
+if ( ic_first > 0 ) then
+
+  ! For each super-array, loop through the points that need
+  ! to be moved (only from ic_first onwards) and use index_ic to
+  ! transfer the data to its new location.
+
+  ! Indices of points in the full 2-D grid
+  do ic2 = ic_first, n_points_new
+    ic = index_ic(ic2)
+    res_source % cmpr % index_i(ic2) = res_source % cmpr % index_i(ic)
+    res_source % cmpr % index_j(ic2) = res_source % cmpr % index_j(ic)
+  end do
+
+  ! Fields stored in the res super-array
+  do i_field = 1, n_res
+    do ic2 = ic_first, n_points_new
+      res_source % res_super(ic2,i_field)                                      &
+        = res_source % res_super(index_ic(ic2),i_field)
+    end do
+  end do
+
+  ! Fields stored in the fields super-array
+  do i_field = 1, n_fields_tot
+    do ic2 = ic_first, n_points_new
+      res_source % fields_super(ic2,i_field)                                   &
+        = res_source % fields_super(index_ic(ic2),i_field)
+    end do
+  end do
+
+  ! Convective cloud fields
+  if ( n_convcloud > 0 ) then
+    do i_field = 1, n_convcloud
+      do ic2 = ic_first, n_points_new
+        res_source % convcloud_super(ic2,i_field)                              &
+          = res_source % convcloud_super(index_ic(ic2),i_field)
+      end do
+    end do
+  end if
+
+end if  ! ( ic_first > 0 )
+
+return
+end subroutine res_source_compress
 
 
 !----------------------------------------------------------------
@@ -360,7 +477,7 @@ if ( l_tracer )  n_fields_tot = n_fields_tot + n_tracers
 ! Need to use the input index list index_ic to transfer
 ! data from the _a compression list to the _m compression list.
 
-! Entrainment, detrainment and cloud
+! Entrainment and detrainment
 do i_field = 1, n_res
   do ic = 1, res_source_a % cmpr % n_points
     res_source_m % res_super( index_ic(ic), i_field )                          &
@@ -419,8 +536,6 @@ integer, intent(in) :: k
 ! we are, for constructing error message if bad value found.
 character(len=name_length), intent(in) :: where_string
 
-! Name of individual field
-character(len=name_length) :: field_name
 ! Flag for whether field is positive-only
 logical :: l_positive
 
@@ -428,24 +543,20 @@ logical :: l_positive
 integer :: i_field
 
 
-! All source terms can be positive or negative
-l_positive = .false.
-
-! Check entrained and detrained mass fields
-field_name = "ent_mass_d"
-call check_bad_values_cmpr( res_source % cmpr, k,                              &
-                            res_source % res_super(:,i_ent),                   &
-                            where_string, field_name, l_positive)
-field_name = "det_mass_d"
-call check_bad_values_cmpr( res_source % cmpr, k,                              &
-                            res_source % res_super(:,i_det),                   &
-                            where_string, field_name, l_positive)
+! Check fields in the res_super array
+l_positive = .true.
+do i_field = 1, n_res
+  call check_bad_values_cmpr( res_source % cmpr, k,                            &
+                              res_source % res_super(:,i_field),               &
+                              where_string, res_source_names(i_field),         &
+                              l_positive)
+end do
 
 ! Check source terms for primary fields
+l_positive = .false.
 do i_field = 1, n_fields_tot
   call check_bad_values_cmpr( res_source % cmpr, k,                            &
-                              res_source % fields_super                        &
-                                           (:,i_field),                        &
+                              res_source % fields_super(:,i_field),            &
                               where_string, field_names(i_field),              &
                               l_positive )
 end do
@@ -458,10 +569,8 @@ if ( n_convcloud > 0 ) then
 
   do i_field = 1, n_convcloud
     call check_bad_values_cmpr( res_source % cmpr, k,                          &
-                                res_source % convcloud_super                   &
-                                             (:,i_field),                      &
-                                where_string,                                  &
-                                convcloud_names(i_field),                      &
+                                res_source % convcloud_super(:,i_field),       &
+                                where_string, convcloud_names(i_field),        &
                                 l_positive )
   end do
 

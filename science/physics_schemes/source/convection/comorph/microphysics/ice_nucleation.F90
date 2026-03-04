@@ -148,7 +148,7 @@ if ( nc_frz > 0 ) then
   l_added_where_none = .false.
   over_nc_frz: do ic2 = 1, nc_frz
     ic = index_ic_frz(ic2)
-    if ( q_ice(ic) == zero ) then
+    if ( .not. q_ice(ic) > zero ) then
       l_added_where_none = .true.
       exit over_nc_frz
     end if

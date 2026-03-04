@@ -109,7 +109,7 @@ case (i_par_cloudfrac_mph)
     end if
   end do
 
-end select  ! case(i_par_cloudfrac)
+end select  ! CASE(i_par_cloudfrac)
 
 
 return
