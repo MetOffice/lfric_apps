@@ -63,6 +63,9 @@ module gungho_driver_mod
                                           stochastic_physics,    &
                                           stochastic_physics_um
   use io_value_mod,                only : io_value_type
+  use time_config_mod,             only : timestep_start
+  use timing_mod,                  only : start_timing, stop_timing, &
+                                          tik, LPROF
 
 #ifdef UM_PHYSICS
   use variable_fields_mod,         only : update_variable_fields
@@ -130,6 +133,7 @@ contains
     character(len=*), parameter :: io_context_name = "gungho_atm"
     integer(i_def) :: random_seed_size
     real(r_def), allocatable :: real_array(:)
+    integer(tik)   :: id
 
 #ifdef UM_PHYSICS
     type( field_collection_type ), pointer :: field_collection_ptr
@@ -140,6 +144,8 @@ contains
     nullify( field_collection_ptr, soil_fields, snow_fields, surface_fields )
 #endif
 
+    call log_event('Initialising gungho', LOG_LEVEL_INFO)
+    if ( LPROF ) call start_timing(id, 'gungho_driver.initialise')
     ! Initialise infrastructure and setup constants
     call initialise_infrastructure( io_context_name, modeldb )
 
@@ -270,6 +276,7 @@ contains
 #endif
 
     nullify(mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh)
+    if ( LPROF ) call stop_timing(id, 'gungho_driver.initialise')
 
   end subroutine initialise
 
@@ -286,6 +293,8 @@ contains
 
     type(mesh_type), pointer :: mesh      => null()
     type(mesh_type), pointer :: twod_mesh => null()
+    integer(kind=i_def)      :: ts_start, rc
+    integer(tik)             :: tid_first, tid_rest
 
 #if defined(COUPLED) || defined(UM_PHYSICS)
     type( field_collection_type ), pointer :: depository => null()
@@ -302,7 +311,17 @@ contains
 
     type( field_collection_type ), pointer :: surface_fields
     type( field_collection_type ), pointer :: ancil_fields
+#endif
 
+    read(timestep_start,*,iostat=rc)  ts_start
+    if ( LPROF ) then
+      if ( modeldb%clock%get_step() == ts_start ) then
+        call start_timing(tid_first, 'gungho_driver.first_timestep')
+      else
+        call start_timing(tid_rest, 'gungho_driver.timestep')
+      end if
+    end if
+#ifdef UM_PHYSICS
     nullify( surface_fields, ancil_fields )
 
     regrid_operation => map_scalar_intermesh
@@ -427,6 +446,14 @@ contains
 
     nullify(mesh, twod_mesh)
 
+    if ( LPROF ) then
+      if ( modeldb%clock%get_step() == ts_start ) then
+        call stop_timing(tid_first, 'gungho_driver.first_timestep')
+      else
+        call stop_timing(tid_rest, 'gungho_driver.timestep')
+      end if
+    end if
+
   end subroutine step
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -440,10 +467,15 @@ contains
 
     character(*), intent(in)          :: program_name
     type(modeldb_type), intent(inout) :: modeldb
+    integer(tik)                      :: id
 
 #ifdef COUPLED
     type( field_collection_type ), pointer :: depository => null()
+#endif
 
+    if ( LPROF ) call start_timing(id, 'gungho_driver.finalise')
+
+#ifdef COUPLED
     if (l_esm_couple) then
        depository => modeldb%fields%get_field_collection("depository")
        ! Ensure coupling fields are updated at the end of a cycle to ensure the values
@@ -467,6 +499,9 @@ contains
 
     ! Finalise infrastructure and constants
     call finalise_infrastructure(modeldb)
+
+    call log_event('gungho finalised', LOG_LEVEL_INFO)
+    if ( LPROF ) call stop_timing(id, 'gungho_driver.finalise')
 
   end subroutine finalise
 

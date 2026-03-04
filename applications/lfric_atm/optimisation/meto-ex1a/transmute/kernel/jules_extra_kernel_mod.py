@@ -1,8 +1,8 @@
-##############################################################################
-# (c) Crown copyright 2025 Met Office. All rights reserved.
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-##############################################################################
+# -----------------------------------------------------------------------------
 '''
 Bespoke PSyclone transformation script for jules_extra_kernel_mod.
 '''
@@ -63,4 +63,6 @@ def trans(psyir):
                 logging.warning(
                     "Could not transform because:\n %s", err)
 
-#Ignore loops setting these as order dependent: land_pts l ainfo%land_index soil_pts ainfo%soil_index lice_pts ainfo%lice_index
+# Ignore loops setting these as order dependent:
+#    land_pts l ainfo%land_index soil_pts
+#    ainfo%soil_index lice_pts ainfo%lice_index
