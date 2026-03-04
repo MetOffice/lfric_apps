@@ -36,7 +36,7 @@ use grid_type_mod, only: n_grid, i_height
 use fields_type_mod, only: i_wind_u, i_wind_w, i_tracers,                      &
                            i_temperature, i_q_vap, i_qc_first, i_qc_last,      &
                            field_positive, field_names
-use subregion_mod, only: n_regions, i_dry, i_icr, i_mph, i_liq
+use subregion_mod, only: n_regions
 use parcel_type_mod, only: n_par, i_radius, i_edge_virt_temp
 use cmpr_type_mod, only: cmpr_type
 

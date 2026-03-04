@@ -246,7 +246,7 @@ integer :: k_next
 ! while "next" refers to the updated variables at the end of
 ! each level-step.
 ! Therefore, k_next is set to subscript the fields defined on the
-! next model-level interface / half-level (rho-level in UM-speak).
+! next model-level interface / half-level.
 
 ! Flag for when reached the last model-level
 ! (any remaining parcels must fully detrain when this is true)

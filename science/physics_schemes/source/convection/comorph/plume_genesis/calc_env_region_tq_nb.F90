@@ -40,8 +40,7 @@ subroutine calc_env_region_tq_nb( n_points, n_points_super,                    &
                                   dtv_dt, dtv_dqv, dtv_dqc,                    &
                                   frac_r, temperature_r, q_vap_r )
 
-use comorph_constants_mod, only: real_cvprec, zero, one,                       &
-                                 min_delta, sqrt_min_delta, sqrt_min_float,    &
+use comorph_constants_mod, only: real_cvprec, zero, one, min_delta,            &
                                  n_cond_species, n_cond_species_liq,           &
                                  cond_params, i_sg_homog, i_sg_frac_liq,       &
                                  i_sg_frac_ice, i_sg_frac_prec,                &

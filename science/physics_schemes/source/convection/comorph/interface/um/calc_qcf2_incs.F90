@@ -19,9 +19,9 @@ integer, parameter :: i_call_repartition = 3
 
 contains
 
-! Routine handles the 2 UM ice mass variables on input / output to comorph
-! when comorph is using just 1 ice variable and the UM is using 2 separate
-! fields for "ice" and "snow".
+! Routine handles the 2 host-model ice mass variables on input / output to
+! comorph when comorph is using just 1 ice variable and the host-model is
+! using 2 separate fields for "ice" and "snow".
 subroutine calc_qcf2_incs( i_call,                                             &
                            m_cf, m_cf2, qcf_star, qcf2_star, qcf_inc, qcf2_inc)
 

@@ -21,7 +21,8 @@ export OMP_NUM_THREADS=2
 #ifort -O0 -g -debug all -check all -warn interface -traceback \
 #      -init=snan,arrays -init=huge -check bounds -check shape \
 #      -parallel -qopenmp \
-gfortran -O0 -g -Wall -ffpe-trap=invalid,zero -fbounds-check -Warray-bounds \
+gfortran -O0 -g -Wall -Wextra \
+         -ffpe-trap=invalid,zero -fbounds-check -Warray-bounds \
          -fcheck-array-temporaries -finit-real=nan -fimplicit-none \
          -std=f2008ts -Wtabs -fbacktrace -fopenmp \
     -o test_comorph.exe \

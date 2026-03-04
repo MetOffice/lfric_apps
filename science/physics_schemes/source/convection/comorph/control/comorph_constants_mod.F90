@@ -562,7 +562,7 @@ real(kind=real_cvprec) :: rho_rim = 600.0_real_cvprec
 ! n(T) = n0 exp( fac_tdep_n ( T - Tmelt ) )
 ! ( but limited above Tmelt and below T_homnuc)
 real(kind=real_cvprec) :: fac_tdep_n = -one/8.18_real_cvprec
-! set to 1/8.18 K-1, consistent with the UM microphysics.
+! set to 1/8.18 K-1, consistent with the Wilson-Ballard microphysics.
 
 ! Ice nucleation
 ! Homogeneous freezing temperature / K

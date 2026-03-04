@@ -310,9 +310,9 @@ do i_diag = 1, diags_2d % n_diags
         ! Take min over all layers (ignoring zeros!)
         do i_layr = 1, n_conv_layers
           do ij = ij_first, ij_last
-            if ( diag_mean1(ij,i_type) == zero ) then
+            if ( .not. diag_mean1(ij,i_type) > zero ) then
               diag_mean1(ij,i_type) = fields_2d(ij,i_field,i_type,i_layr)
-            else if ( .not. fields_2d(ij,i_field,i_type,i_layr) == zero ) then
+            else if ( fields_2d(ij,i_field,i_type,i_layr) > zero ) then
               diag_mean1(ij,i_type) = min( diag_mean1(ij,i_type),              &
                                          fields_2d(ij,i_field,i_type,i_layr) )
             end if
@@ -383,9 +383,9 @@ do i_diag = 1, diags_2d % n_diags
         ! Take min over all types (ignoring zeros!)
         do i_type = 1, n_conv_types
           do ij = ij_first, ij_last
-            if ( diag_mean2(ij) == zero ) then
+            if ( .not. diag_mean2(ij) > zero ) then
               diag_mean2(ij) = diag_mean1(ij,i_type)
-            else if ( .not. diag_mean1(ij,i_type) == zero ) then
+            else if ( diag_mean1(ij,i_type) > zero ) then
               diag_mean2(ij) = min( diag_mean2(ij), diag_mean1(ij,i_type) )
             end if
           end do

@@ -78,7 +78,7 @@ integer :: ic
 l_any_activate = .false.
 do ic = 1, n_points
   ! If zero condensed water mixing ratio present
-  if ( q_cond(ic) == zero ) then
+  if ( .not. q_cond(ic) > zero ) then
     ! If at or above liquid saturation point
     if ( q_vap(ic) >= qsat_liq_ref(ic)                                         &
                     + dqsatdT_liq(ic)                                          &

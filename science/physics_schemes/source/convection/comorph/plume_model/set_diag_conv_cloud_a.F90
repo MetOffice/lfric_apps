@@ -26,7 +26,7 @@ subroutine set_diag_conv_cloud_a( n_points, n_points_env, n_points_res,        &
                                   sublevs, i_next, i_sat,                      &
                                   convcloud_super )
 
-use comorph_constants_mod, only: real_cvprec, zero, half, one,                 &
+use comorph_constants_mod, only: real_cvprec, zero, half,                      &
                                  gravity, cf_conv_fac,                         &
                                  wind_w_buoy_fac, w_min, l_cv_cloudfrac
 use fields_type_mod, only: n_fields, i_temperature,                            &

@@ -14,10 +14,10 @@ implicit none
 contains
 
 ! Subroutine to set switches and constants in comorph based on the
-! settings in the UM.  This overrides comorph's default settings.
+! settings in the host-model.  This overrides comorph's default settings.
 subroutine set_constants_from_um( n_conv_levels, ntra_fld, i_tr_vars )
 
-! UM settings and constants used from the various UM modules
+! host-model settings and constants used from the various modules
 use timestep_mod, only: um_timestep => timestep
 use nlsizes_namelist_mod, only: row_length, rows, bl_levels
 use cloud_inputs_mod, only: i_cld_vn
@@ -118,7 +118,7 @@ k_top_init = bl_levels - 1
 n_tracers = ntra_fld
 
 ! For now, force CoMorph's cloud-fraction switch to be
-! consistent with whether or not PC2 is on in the UM.
+! consistent with whether or not PC2 is on in the host-model.
 ! If used, the cloud fractions are treated as primary
 ! prognostic fields within CoMorph.
 l_cv_cloudfrac = ( i_cld_vn == i_cld_pc2 )
@@ -131,12 +131,12 @@ l_cv_cloudfrac = ( i_cld_vn == i_cld_pc2 )
 ! in which the cloud fractions are treated as diagnostic
 ! inputs instead of primary fields.
 
-! The UM does not account for the effect of moisture on R/cp,
+! The model does not account for the effect of moisture on R/cp,
 ! so set switch to use approximation R/cp = R_dry/cp_dry
 l_approx_dry_adiabat = .true.
 
 #if !defined(LFRIC)
-! If the UM is running in spherical coordinates without the
+! If the model is running in spherical coordinates without the
 ! shallow atmosphere approximation, set spherical coordinates
 ! switch for conservation
 l_spherical_coord = .not. ( cartesian_grid .or. l_shallow )
@@ -169,7 +169,7 @@ rho_ice = real( um_rho_ice, real_cvprec )
 ! Set specific heat capacities of the water species;
 ! this determines how the actual latent heats vary with
 ! temperature.
-! In its latent heating calculations, the UM neglects
+! In its latent heating calculations, the host-model neglects
 ! both the temperature dependence of the latent heats, and the
 ! dependence of the heat capacity on the amount of water in the
 ! parcel (due to each water phase having a different heat
@@ -177,7 +177,7 @@ rho_ice = real( um_rho_ice, real_cvprec )
 ! reproduced in CoMorph by setting the heat capacities of all
 ! 3 water phases equal to eachother.
 if ( l_mr_physics ) then
-  ! If using mixing-ratio physics, UM-consistent setting is
+  ! If using mixing-ratio physics, consistent setting is
   ! for all 3 heat capacities to be zero
   cp_vap = zero
   cp_liq = zero
@@ -185,7 +185,7 @@ if ( l_mr_physics ) then
   ! Yields dT = L_ref/cp_dry dq
   ! where dq is a mixing-ratio increment.
 else
-  ! Otherwise, UM-consistent setting is
+  ! Otherwise, consistent setting is
   ! for all 3 heat capacities to be equal to that of dry air
   cp_vap = real( cp, real_cvprec )
   cp_liq = real( cp, real_cvprec )
@@ -199,7 +199,7 @@ end if
 ! Liquid and ice cloud exist in the liquid and ice cloud fractions
 params_cl % i_sg = i_sg_frac_liq
 params_cf % i_sg = i_sg_frac_ice
-! UM's 2nd ice category also resides in the ice-cloud fraction if used
+! 2nd ice category also resides in the ice-cloud fraction if used
 params_snow % i_sg = i_sg_frac_ice
 
 if ( l_mcr_precfrac ) then
@@ -220,7 +220,7 @@ end if
 
 ! Set list of flags for whether tracers are allowed to go negative
 allocate( tracer_positive(n_tracers) )
-! Nearly all UM tracers are not allowed to have negative values:
+! Nearly all tracers are not allowed to have negative values:
 do i_field = 1, n_tracers
   tracer_positive(i_field) = .true.
 end do
@@ -239,16 +239,16 @@ end if
 ! Number of downdraughts types
 n_dndraft_types = n_dndraft_types_um
 
-! Scale default parcel radius factor by tuning knob from the UM
+! Scale default parcel radius factor by tuning knob from the namelist
 par_gen_radius_fac = par_gen_radius_fac * real( par_radius_knob, real_cvprec )
 
 ! Switch controlling how parcel radius evolves with height in the plume
 par_radius_evol_method = par_radius_evol_method_um
 
-! Overwrite turbulent parcel perturbation factor with UM value
+! Overwrite turbulent parcel perturbation factor with namelist value
 par_gen_pert_fac = real( par_gen_pert_fac_um, real_cvprec )
 
-! Overwrite neutrally-buoyant moisture perturbation with UM value
+! Overwrite neutrally-buoyant moisture perturbation with namelist value
 par_gen_rhpert = real( par_gen_rhpert_um, real_cvprec )
 
 ! Overwrite parameter controlling parcel core dilution

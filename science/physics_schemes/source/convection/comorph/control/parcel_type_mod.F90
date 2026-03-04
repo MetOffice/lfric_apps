@@ -609,8 +609,7 @@ end subroutine parcel_init_zero
 subroutine parcel_combine( l_tracer, l_down, index_ic,                         &
                            parcel_a, parcel_m )
 
-use comorph_constants_mod, only: real_cvprec, zero, one, min_float,            &
-                                 n_tracers, l_par_core
+use comorph_constants_mod, only: real_cvprec, zero, one, n_tracers, l_par_core
 use fields_type_mod, only: n_fields, i_temperature, i_q_vap,                   &
                            i_qc_first, i_qc_last
 use calc_virt_temp_mod, only: calc_virt_temp
@@ -757,7 +756,7 @@ if ( l_par_core ) then
       ! (this code can use core properties from parcel m with zero mass-flux,
       !  which is wrong; fix this soon...)
       if ( core_a_virt_temp(ic) <= core_m_virt_temp(ic2) .or.                  &
-           core_m_virt_temp(ic2) == zero ) then
+           ( .not. core_m_virt_temp(ic2) > zero ) ) then
         weight_core_a(ic) = one
         weight_core_m(ic) = zero
       else
@@ -766,8 +765,8 @@ if ( l_par_core ) then
       end if
       ! Choose least negatively buoyant edge for downdrafts
       if ( parcel_a%par_super(ic,i_edge_virt_temp) >                           &
-           parcel_m%par_super(ic2,i_edge_virt_temp)                            &
-           .or. parcel_m%par_super(ic2,i_edge_virt_temp) == zero ) then
+           parcel_m%par_super(ic2,i_edge_virt_temp) .or.                       &
+           ( .not. parcel_m%par_super(ic2,i_edge_virt_temp) > zero ) ) then
         parcel_m % par_super(ic2,i_edge_virt_temp)                             &
           = parcel_a % par_super(ic,i_edge_virt_temp)
       end if
@@ -780,7 +779,7 @@ if ( l_par_core ) then
       ! (this code can use core properties from parcel m with zero mass-flux,
       !  which is wrong; fix this soon...)
       if ( core_a_virt_temp(ic) >= core_m_virt_temp(ic2) .or.                  &
-           core_m_virt_temp(ic2) == zero ) then
+           ( .not. core_m_virt_temp(ic2) > zero ) ) then
         weight_core_a(ic) = one
         weight_core_m(ic) = zero
       else
@@ -789,8 +788,8 @@ if ( l_par_core ) then
       end if
       ! Choose least positively buoyant edge for downdrafts
       if ( parcel_a%par_super(ic,i_edge_virt_temp) <                           &
-           parcel_m%par_super(ic2,i_edge_virt_temp)                            &
-           .or. parcel_m%par_super(ic2,i_edge_virt_temp) == zero ) then
+           parcel_m%par_super(ic2,i_edge_virt_temp) .or.                       &
+           ( .not. parcel_m%par_super(ic2,i_edge_virt_temp) > zero ) ) then
         parcel_m % par_super(ic2,i_edge_virt_temp)                             &
           = parcel_a % par_super(ic,i_edge_virt_temp)
       end if

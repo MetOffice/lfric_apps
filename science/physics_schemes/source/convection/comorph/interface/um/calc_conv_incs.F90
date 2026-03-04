@@ -417,7 +417,7 @@ case (i_call_diff_to_get_incs)
 
   if ( l_conv_inc_w ) then
 
-    ! Vertical winds; add to the UM's w increment field based on the
+    ! Vertical winds; add to the host-model's w increment field based on the
     ! increment that comorph applied to the work w field
     ! (which was initialised to start-of-timestep w earlier).
 !$OMP DO SCHEDULE(STATIC)

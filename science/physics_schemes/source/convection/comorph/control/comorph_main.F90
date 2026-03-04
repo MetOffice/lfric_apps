@@ -36,7 +36,7 @@ use grid_type_mod, only: grid_type
 use turb_type_mod, only: turb_type
 use cloudfracs_type_mod, only: cloudfracs_type
 use fields_type_mod, only: fields_type
-use parcel_type_mod, only: parcel_type, parcel_dealloc
+use parcel_type_mod, only: parcel_type
 use res_source_type_mod, only: res_source_type
 use comorph_diags_type_mod, only: comorph_diags_type
 use draft_diags_type_mod, only: draft_diags_super_type,                        &

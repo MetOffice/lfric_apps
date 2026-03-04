@@ -24,7 +24,7 @@ subroutine comorph_ctl( l_tracer, n_segments,                                  &
 use comorph_constants_mod, only: real_hmprec, l_init_constants, name_length,   &
                                  nx_full, ny_full,                             &
                                  k_bot_conv, k_top_conv, k_top_init,           &
-                                 n_tracers, l_cv_rain,                         &
+                                 n_tracers,                                    &
                                  l_turb_par_gen, i_check_bad_values_3d,        &
                                  i_check_turb_consistent, i_check_bad_none
 
@@ -112,8 +112,8 @@ type(fields_type), intent(in out) :: fields_n
 type(fields_type), intent(in out) :: fields_np1
 
 ! Note: all the input primary fields need to be on the same
-! levels.  In the UM, u,v are on different levels (rho-levels)
-! to the rest of the primary fields (theta-levels).
+! levels.  In many models, u,v are on staggered grids compared
+! to the rest of the primary fields.
 ! They will need to be interpolated before input and output to
 ! this routine.
 
@@ -185,9 +185,6 @@ integer :: lb_2(3), ub_2(3)
 
 ! String indicating where in the code bad-value checks are done
 character(len=name_length) :: where_string
-
-! Flag passed into bad value checker for fields that are always positive-only
-logical, parameter :: l_positive_true = .true.
 
 ! Loop counters
 integer :: i_seg, i_field, i_diag

@@ -14,11 +14,10 @@ implicit none
 
 contains
 
-! Subroutine to interpolate UM turbulence fields onto the
-! model-levels where CoMorph expects them to be defined.
+! Subroutine to interpolate turbulence fields on staggered vertical
+! grids onto the model-levels where CoMorph expects them to be defined.
 ! This entails interpolating the momentum diffusivity,
-! turbulent vertical velocity variance and wind-stresses
-! onto rho-levels
+! turbulent vertical velocity variance and wind-stresses onto rho-levels
 subroutine interp_turb(                                                        &
                   z_rho, z_theta,                                              &
                   bl_w_var, fb_surf, zh, u_s, taux_p, tauy_p,                  &

@@ -16,11 +16,10 @@ module comorph_um_namelist_mod
   !   namelist in the CNTLATM control file
   !
   ! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file belongs in section: convection_comorph
+  ! This file belongs in section: convection_comorph
   !
   ! Code Description:
   !   Language: FORTRAN 90
-  !   This code is written to UMDP3 programming standards.
   !
 
 use missing_data_mod,       only: rmdi, imdi
@@ -42,7 +41,7 @@ logical :: l_core_ent_cmr = .false.       ! include core/mean factor in
 logical :: l_resdep_precipramp = .false.  ! Include grid-length dependence
                                           ! in the parcel radius precip ramp
 logical :: l_conv_inc_w = .false.         ! Switch to apply vertical velocity
-                                          ! increments from comorph to the UM.
+                                          ! increments from comorph.
 
 !==============================================================================
 ! Integer options in CoMorph namelist
@@ -153,7 +152,6 @@ real(kind=real_umphys) :: rho_rim = rmdi
 ! n(T) = n0 exp( fac_tdep_n ( T - Tmelt ) )
 ! ( but limited above Tmelt and below T_homnuc)
 real(kind=real_umphys) :: r_fac_tdep_n = rmdi
-! set to 8.18 K, consistent with the UM microphysics.
 
 ! Heterogeneous nucleation temeprature / K
 ! Gradual freezing starts below this
@@ -173,7 +171,6 @@ real(kind=real_umphys) :: col_eff_coef = rmdi
 
 !------------------------------------------------------------------------------
 ! Define namelist &Run_Comorph read in from CNTLATM control file.
-! Changes made to this list will affect both the Full UM and the SCM
 !------------------------------------------------------------------------------
 
 namelist/Run_Comorph/                                                          &
