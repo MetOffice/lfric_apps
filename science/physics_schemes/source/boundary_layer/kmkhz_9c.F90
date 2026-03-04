@@ -1128,7 +1128,7 @@ do k = 1, bl_levels
     ! fault when the following loop is vectorised. Thus the following
     ! directive stop vectorization of this loop  when an Intel Compiler
     ! is used. Other compilers, for example Cray, should vectorise this
-    ! loop automatically.    
+    ! loop automatically.
 #if defined (IFORT_VERSION)
 !DIR$ NOVECTOR
 #endif
@@ -3409,7 +3409,6 @@ end do !ii
 
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
-  
   k_cloud_top(i,j) = 0
   df_top_over_cp(i,j) = zero
   df_inv_sml(i,j) = zero
