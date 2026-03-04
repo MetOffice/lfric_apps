@@ -56,10 +56,10 @@ contains
 
     ! allocate
     ! allocate(destination_field(undf_dest))
-    ! allocate(expected_field(undf_dest))
-    ! allocate(source_field(undf_source))
-    ! allocate(dest_heights(undf_dest))
-    ! allocate(source_heights(undf_source))
+    allocate(expected_field(3,3,3))
+    allocate(source_field(4,3,3))
+    allocate(dest_heights(3,3,3))
+    allocate(source_heights(4,3,3))
 
     source_field = reshape ((/&
     1.1_r_single, 2.3_r_single, 3.2_r_single, 4.1_r_single,   &
@@ -162,10 +162,10 @@ contains
 
     ! allocate
     ! allocate(destination_field(undf_dest))
-    ! allocate(expected_field(undf_dest))
-    ! allocate(source_field(undf_source))
-    ! allocate(dest_heights(undf_dest))
-    ! allocate(source_heights(undf_source))
+    allocate(expected_field(5,3,3))
+    allocate(source_field(4,3,3))
+    allocate(dest_heights(5,3,3))
+    allocate(source_heights(4,3,3))
 
     source_field = reshape ((/&
     1.1_r_single, 2.3_r_single, 3.2_r_single, 4.1_r_single,   &
