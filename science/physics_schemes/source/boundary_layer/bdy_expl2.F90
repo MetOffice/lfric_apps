@@ -801,10 +801,6 @@ integer ::                                                                     &
 integer, parameter :: j = 1 ! Array dimension, LFRic Parameter
 
 integer ::                                                                     &
- pdims_omp_block, pdims_seg_block,                                             &
-                  ! for pdims open-mp blocking
- tdims_omp_block, tdims_seg_block,                                             &
-                  ! for tdims open mp blocking
  ii,                                                                           &
                   ! for indexing over open-mp block                                                           &
  seg_slice_start, seg_slice_end,                                               &
@@ -1080,38 +1076,36 @@ case (i_interp_local_cf_dbdz)
   ! dbdz despite strong static stability.
 
   ! Calculate total-water supersaturation qw - qsat(Tl), on theta-levels
+  !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels
-    !$OMP do SCHEDULE(STATIC)
-    do ii = tdims%i_start, tdims%i_end, bl_segment_size
-      seg_slice_start  = ii
-      seg_slice_end = MIN(((ii+bl_segment_size)-1), tdims%i_end)
-      bl_segment_range = (seg_slice_end - seg_slice_start) + 1
+    !do ii = tdims%i_start, tdims%i_end, bl_segment_size
+      !seg_slice_start  = ii
+      !seg_slice_end = MIN(((ii+bl_segment_size)-1), tdims%i_end)
+      !bl_segment_range = (seg_slice_end - seg_slice_start) + 1
 
-      ! Calculate qsat(Tl)...
-      if ( l_mr_physics ) then
-        call qsat_mix(qs_tl(seg_slice_start:seg_slice_end,:),                  &
-                      tl(seg_slice_start:seg_slice_end,:,k),                   &
-                      p_theta_levels(seg_slice_start:seg_slice_end,:,k),       &
-                      bl_segment_range,                                        &
-                      tdims%j_len )
-      else
-        call qsat(qs_tl(seg_slice_start:seg_slice_end,:),                      &
-                  tl(seg_slice_start:seg_slice_end,:,k),                       &
-                  p_theta_levels(seg_slice_start:seg_slice_end,:,k),           &
-                  bl_segment_range,                                            &
-                  tdims%j_len )
-      end if
-    end do ! ii
-    !$OMP end do
+    ! Calculate qsat(Tl)...
+    if ( l_mr_physics ) then
+      call qsat_mix(qs_tl,                  &
+                    tl(:,:,k),                   &
+                    p_theta_levels(:,:,k),       &
+                    tdims%i_len )
+    else
+      call qsat(qs_tl,                      &
+                tl(:,j,k),                       &
+                p_theta_levels(:,j,k),           &
+                tdims%i_len)
+    end if
+    ! end do ! ii
+    ! !$OMP end do
     ! ...then subtract from qw to get supersaturation, and multiply by
     !    1/(1 + Lc/cp dqsat/dT)
     !    in order to compare with values of qcl+qcf.
-    !$OMP do SCHEDULE(STATIC)
+    !! $OMP do SCHEDULE(STATIC)
     do i = tdims%i_start, tdims%i_end
       supersat(i,j,k) = a_qs(i,j,k) * ( qw(i,j,k) - qs_tl(i,j) )
     end do !i
-    !$OMP end do
   end do !k
+  !$OMP end do
 
   ! Calculate dbdz on rho-levels, so between th-levels k-1 and k
 !$OMP do SCHEDULE(STATIC)
@@ -1589,9 +1583,9 @@ else if (idyndiag == DynDiag_Ribased ) then
   !  level to which Ri really is close to neutral
   !---------------------------------------------------------------
 !$OMP do SCHEDULE(STATIC)
-  do ii = pdims%i_start, pdims%i_end, pdims_omp_block
+  do ii = pdims%i_start, pdims%i_end, bl_segment_size
     do k = 2, bl_levels
-      do i = ii, min(((ii+pdims_omp_block)-1),pdims%i_end)
+      do i = ii, min(((ii+bl_segment_size)-1),pdims%i_end)
         if ( .not. topbl(i,j) .and.                                            &
           (ri_ga(i,j,k) >  RiCrit_sharp .or. k > bl_levels-1) ) then
           topbl(i,j) = .true.
