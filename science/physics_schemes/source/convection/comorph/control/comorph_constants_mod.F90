@@ -320,11 +320,6 @@ logical, parameter :: l_turb_par_gen = .true.
 ! relative to the grid-mean profile.
 logical, parameter :: l_homog_conv_bl = .true.
 
-! Flag for converting precip that falls out of the parcel into
-! cloud-water, in order to let the large-scale microphysics
-! decide how much autoconversion to do instead.
-logical, parameter :: l_precip_to_cloud = .false.
-
 ! Options for local CFL limiting during the parcel ascent / descent:
 ! No CFL limit
 integer, parameter :: i_cfl_local_none = 0

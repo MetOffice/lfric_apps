@@ -265,7 +265,7 @@ integer :: index_ic_dn(n_points)
 ! Character string for error messages
 character(len=name_length) :: call_string
 type(cmpr_type) :: cmpr_check
-logical :: l_positive
+logical, parameter :: l_positive = .TRUE.
 character(len=name_length) :: field_name
 
 ! Loop counters
