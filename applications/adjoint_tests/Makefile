@@ -25,7 +25,6 @@ export PSYCLONE_CONFIG_FILE := $(PROJECT_DIR)/build/psyclone.cfg
 export BUILD_ADJ_TESTS   := TRUE
 export PSYAD_CONFIG_FILE := $(PSYCLONE_CONFIG_FILE)
 
-
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/science \
