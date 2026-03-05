@@ -29,9 +29,8 @@ subroutine add_region_parcel( n_points, nc, index_ic,                          &
 
 use comorph_constants_mod, only: real_cvprec, par_gen_core_fac, l_par_core
 use fields_type_mod, only: n_fields, i_temperature, i_q_vap,                   &
-                           i_qc_first, i_qc_last
+                           i_qc_first
 use parcel_type_mod, only: n_par, i_massflux_d
-use calc_virt_temp_mod, only: calc_virt_temp
 
 implicit none
 
@@ -61,9 +60,6 @@ real(kind=real_cvprec), intent(in out) :: par_mean                             &
 real(kind=real_cvprec), intent(in out) :: par_core                             &
                                           ( n_points, n_fields )
 
-! Virtual temperature of unperturbed parcel fields
-real(kind=real_cvprec) :: virt_temp(nc)
-
 ! Loop counters
 integer :: ic, ic2, i_field
 
@@ -74,13 +70,6 @@ do ic2 = 1, nc
   ic = index_ic(ic2)
   par_super(ic,i_massflux_d) = par_super(ic,i_massflux_d) + init_mass(ic2)
 end do
-
-! Calculate virtual temperature of the unperturbed parcel fields
-call calc_virt_temp( nc, n_points,                                             &
-                     fields_par(:,i_temperature),                              &
-                     fields_par(:,i_q_vap),                                    &
-                     fields_par(:,i_qc_first:i_qc_last),                       &
-                     virt_temp )
 
 ! Store mass-flux-weighted contribution in the
 ! parcel mean-fields array
