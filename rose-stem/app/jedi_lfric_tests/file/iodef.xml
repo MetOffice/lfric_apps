@@ -329,7 +329,6 @@
 
        <!-- LS files -->
       <file id="ls" name="ls" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
-       <field_group read_access=".TRUE.">
         <field id="ls_time" name="time" unit="seconds" operation="once" axis_ref="ls_axis" />
         <field id="ls_theta_data" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_time_grid" operation="once" />
         <field id="ls_m_v_data" name="m_v" long_name="m_v" standard_name="m_v" unit="kg/kg" grid_ref="full_level_face_time_grid" operation="once" />
@@ -344,7 +343,6 @@
         <field id="ls_v_in_w3_data" name="v_in_w3" long_name="EW wind" unit="m s-1" grid_ref="half_level_face_time_grid" operation="once"/>
         <field id="ls_w_in_wth_data" name="w_in_wth" long_name="Upward wind" unit="m s-1" grid_ref="full_level_face_time_grid" operation="once"/>
 	<field id="ls_land_fraction_data" name="land_area_fraction" long_name="land_area_fraction" unit="1" grid_ref="one_level_face_time_grid" operation="once" />
-       </field_group>
       </file>
 
     </file_definition>

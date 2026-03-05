@@ -182,17 +182,13 @@
      </file>
 
   <file id="emiss_bc_biofuel_ancil" name="emiss_bc_biofuel_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_bc_bf_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_bc_biofuel_data" name="emissions_BC_biofuel" long_name="BC biofuel surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_bc_fossil_ancil" name="emiss_bc_fossil_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_bc_ff_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_bc_fossil_data" name="emissions_BC_fossil" long_name="BC fossil fuel surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_bc_biomass_ancil" name="emiss_bc_biomass_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
@@ -203,17 +199,13 @@
   </file>
 
   <file id="emiss_bc_biomass_hi_ancil" name="emiss_bc_biomass_hi_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_bc_bb_hi_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_bc_biomass_high_data" name="emissions_BC_biomass_high" long_name="BC biomass high-level emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_bc_biomass_lo_ancil" name="emiss_bc_biomass_lo_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_bc_bb_lo_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_bc_biomass_low_data" name="emissions_BC_biomass_low" long_name="BC biomass low-level emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_dms_land_ancil" name="emiss_dms_land_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
@@ -238,17 +230,13 @@
   </file>
 
   <file id="emiss_om_biofuel_ancil" name="emiss_om_biofuel_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_om_bf_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_om_biofuel_data" name="emissions_OC_biofuel" long_name="OC biofuel surf emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_om_fossil_ancil" name="emiss_om_fossil_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_om_ff_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_om_fossil_data" name="emissions_OC_fossil" long_name="OC fossil fuel surf emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_om_biomass_ancil" name="emiss_om_biomass_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
@@ -259,24 +247,18 @@
   </file>
 
   <file id="emiss_om_biomass_hi_ancil" name="emiss_om_biomass_hi_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_om_bb_hi_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_om_biomass_high_data" name="emissions_OC_biomass_high" long_name="OC biomass high-level emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_om_biomass_lo_ancil" name="emiss_om_biomass_lo_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_om_bb_lo_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_om_biomass_low_data" name="emissions_OC_biomass_low" long_name="OC biomass low-level emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_so2_low_ancil" name="emiss_so2_low_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group read_access=".TRUE.">
     <field id="em_so2_lo_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
     <field id="emiss_so2_low_data" name="emissions_SO2_all_low_kgSO2" long_name="SO2 low level emissions" unit="kg(SO2) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
-   </field_group>
   </file>
 
   <file id="emiss_so2_high_ancil" name="emiss_so2_high_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
