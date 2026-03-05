@@ -21,9 +21,10 @@ export PSYCLONE_TRANSFORMATION ?= minimum
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 # Use custom PSyclone configuration.
-ADJT_CONFIG_FILE := $(PROJECT_DIR)/build/psyclone.cfg
+export PSYCLONE_CONFIG_FILE := $(PROJECT_DIR)/build/psyclone.cfg
 export BUILD_ADJ_TESTS   := TRUE
-export PSYAD_CONFIG_FILE := $(ADJT_CONFIG_FILE)
+export PSYAD_CONFIG_FILE := $(PSYCLONE_CONFIG_FILE)
+
 
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
@@ -134,8 +135,7 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
 	          SOURCE_DIR=source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH) \
-	          PSYCLONE_CONFIG_FILE=$(ADJT_CONFIG_FILE)
+	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)
