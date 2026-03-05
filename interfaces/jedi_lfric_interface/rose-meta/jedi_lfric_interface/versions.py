@@ -32,7 +32,8 @@ class vnXX_txxx(MacroUpgrade):
         return config, self.reports
 """
 
-class vn32_t322(MacroUpgrade):
+
+class vn31_t322(MacroUpgrade):
     """Upgrade macro for ticket #322 by Terence Vockerodt."""
 
     BEFORE_TAG = "vn3.1"
