@@ -3196,7 +3196,6 @@ end do !ii
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-  ! do i = pdims%i_start, pdims%i_end
     if ( dsc(i,j) ) then
 
       qcl_ic_top(i,j) = zero
@@ -3558,7 +3557,6 @@ end if  ! test on l_new_kcloudtop
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-! do i = pdims%i_start, pdims%i_end
 
     if ( k_cloud_top(i,j)  >   0 ) then
       dflw_inv = zero
