@@ -34,7 +34,7 @@ class vn32_t322(MacroUpgrade):
     """Upgrade macro for ticket #322 by Terence Vockerodt."""
 
     BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.2_t322"
+    AFTER_TAG = "vn3.1_t322"
 
     def upgrade(self, config, meta_config=None):
         # Set computation of annexed dofs to true for adjoint
