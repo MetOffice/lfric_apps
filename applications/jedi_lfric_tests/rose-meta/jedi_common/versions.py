@@ -20,14 +20,27 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
+
+
+class vn32_t322(MacroUpgrade):
+    """Upgrade macro for ticket #322 by Terence Vockerodt."""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t322"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-adjoint
+        # Set computation of annexed dofs to true for adjoint
+        self.add_setting(
+            config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".true."
+        )
+
+        return config, self.reports
