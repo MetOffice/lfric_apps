@@ -52,6 +52,9 @@ element_order_h=0,
 element_order_v=0,
 rehabilitate=.true.,
 /
+&formulation
+use_multires_coupling=.false.,
+/
 &io
 file_convention='UGRID',
 /
@@ -67,4 +70,13 @@ scaling_factor=1.0,
 /
 &time
 calendar_type='gregorian',
+/
+&transport
+dep_pt_stencil_extent=3,
+ffsl_inner_order=0,
+ffsl_outer_order=1,
+fv_horizontal_order=2,
+operators='fv',
+panel_edge_high_order=.false.,
+panel_edge_treatment='none',
 /
