@@ -192,11 +192,13 @@ real(kind=r_bl) :: r_sq, rbt, at ,                                             &
  gamma2_uv      ! gamma1 and gamma2 shifted to u or v points
 
 integer ::                                                                     &
- i,j,                                                                          &
+ i,                                                                            &
                 ! LOCAL Loop counter (horizontal field index).
  k          ! LOCAL Loop counter (vertical level index).
 
-integer :: ii, tdims_seg_block ! omp blocking variables
+integer :: ii ! omp blocking index
+
+integer, parameter :: j = 1 ! Array bound, LFRic Parameter
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -205,9 +207,6 @@ real(kind=jprb)               :: zhook_handle
 character(len=*), parameter :: RoutineName='BDY_IMPL4'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
-tdims_seg_block = min(bl_segment_size, tdims%i_len)
-j = 1
 
 !$OMP  PARALLEL DEFAULT(SHARED) private(i,k,ii,at,rbt,gamma1_uv,             &
 !$OMP  gamma2_uv,r_sq)
@@ -232,11 +231,11 @@ if ( .not. l_correct ) then
     ftl(i,j,1)   = r_sq * ftl(i,j,1)
     fqw(i,j,2)   = r_sq * fqw(i,j,2)
     ftl(i,j,2)   = r_sq * ftl(i,j,2)
-    dqw(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                &
+    dqw(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                  &
         ( fqw(i,j,2) - fqw(i,j,1) ) + dqw_nt(i,j,1) )
-    dtl(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                &
+    dtl(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                  &
         ( ftl(i,j,2) - ftl(i,j,1) ) + dtl_nt(i,j,1) )
-    at = -dtrdz_charney_grid(i,j,1) *                                        &
+    at = -dtrdz_charney_grid(i,j,1) *                                          &
               gamma1(i,j)*rhokh(i,j,2)*rdz_charney_grid(i,j,2)
     rbt = 1.0_r_bl / ( 1.0_r_bl - at*( 1.0_r_bl + ct_ctq(i,j,2) ) )
     dqw(i,j,1) = rbt*(dqw(i,j,1) - at*dqw(i,j,2) )
@@ -263,9 +262,9 @@ end do
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
-do ii = tdims%j_start, tdims%i_end, tdims_seg_block
+do ii = tdims%j_start, tdims%i_end, bl_segment_size
   do k = 2, bl_levels
-    do i = ii, min(ii+tdims_seg_block-1,tdims%i_end)
+    do i = ii, min(ii+bl_segment_size-1,tdims%i_end)
       dtl(i,j,k) = dtl(i,j,k) - ct_ctq(i,j,k)*dtl(i,j,k-1)
       tl(i,j,k) = tl(i,j,k) + dtl(i,j,k)
       dqw(i,j,k) = dqw(i,j,k) - ct_ctq(i,j,k)*dqw(i,j,k-1)
@@ -284,8 +283,8 @@ if ( BL_diag%l_ftl ) then
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = tdims%i_start, tdims%i_end
-        ftl_star(i,j,k) = gamma2(i,j)*ftl(i,j,k)                             &
-              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)              &
+        ftl_star(i,j,k) = gamma2(i,j)*ftl(i,j,k)                               &
+              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
                           * (dtl(i,j,k)-dtl(i,j,k-1))
       end do
     end do
@@ -295,8 +294,8 @@ if ( BL_diag%l_ftl ) then
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = tdims%i_start, tdims%i_end
-        ftl(i,j,k) = ftl_star(i,j,k)+gamma2(i,j)*ftl(i,j,k)                  &
-              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)              &
+        ftl(i,j,k) = ftl_star(i,j,k)+gamma2(i,j)*ftl(i,j,k)                    &
+              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
                           * (dtl(i,j,k)-dtl(i,j,k-1))
       end do
     end do
@@ -312,8 +311,8 @@ if ( BL_diag%l_fqw ) then
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = tdims%i_start, tdims%i_end
-        fqw_star(i,j,k) = gamma2(i,j)*fqw(i,j,k)                             &
-              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)              &
+        fqw_star(i,j,k) = gamma2(i,j)*fqw(i,j,k)                               &
+              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
               * (dqw(i,j,k)-dqw(i,j,k-1))
       end do
     end do ! bl_levels
@@ -324,8 +323,8 @@ if ( BL_diag%l_fqw ) then
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = tdims%i_start, tdims%i_end
-        fqw(i,j,k) = fqw_star(i,j,k)+gamma2(i,j)*fqw(i,j,k)                  &
-              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)              &
+        fqw(i,j,k) = fqw_star(i,j,k)+gamma2(i,j)*fqw(i,j,k)                    &
+              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
                 * (dqw(i,j,k)-dqw(i,j,k-1))
       end do
     end do ! bl_levels
