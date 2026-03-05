@@ -59,12 +59,6 @@ type :: plume_model_diags_type
   ! Parcel core entrainment from the environment over total entrainment
   type(diag_type) :: core_ent_ratio
 
-  ! Estimated overshoot height of detrained air
-  type(diag_type) :: h_over_det
-
-  ! Divergence entrainment dry-mass
-  type(diag_type) :: div_ent_mass_d
-
   ! Entrained dry-mass and air properties
   type(diag_type) :: ent_mass_d
   type(fields_diags_type) :: ent_fields
@@ -205,18 +199,6 @@ call diag_assign( diag_name, l_count_diags, doms,                              &
                   plume_model_diags % core_ent_ratio,                          &
                   plume_model_diags % list, i_diag, i_super )
 
-! Estimated overshoot height of detrained air
-diag_name = trim(adjustl(parent_name)) // "_h_over_det"
-call diag_assign( diag_name, l_count_diags, doms,                              &
-                  plume_model_diags % h_over_det,                              &
-                  plume_model_diags % list, i_diag, i_super )
-
-! Divergence entrainment dry-mass
-diag_name = trim(adjustl(parent_name)) // "_div_ent_mass_d"
-call diag_assign( diag_name, l_count_diags, doms,                              &
-                  plume_model_diags % div_ent_mass_d,                          &
-                  plume_model_diags % list, i_diag, i_super )
-
 ! Entrained and detrained mass and air properties
 diag_name = trim(adjustl(parent_name)) // "_ent_mass_d"
 call diag_assign( diag_name, l_count_diags, doms,                              &
@@ -259,8 +241,7 @@ if ( l_count_diags ) then
   if ( plume_model_diags % moist_proc % n_diags > 0 .or.                       &
        plume_model_diags % delta_t % flag .or.                                 &
        plume_model_diags % core_mean_ratio % flag .or.                         &
-       plume_model_diags % core_ent_ratio % flag .or.                          &
-       plume_model_diags % h_over_det % flag ) then
+       plume_model_diags % core_ent_ratio % flag ) then
     plume_model_diags % massflux_d_k % flag = .true.
   end if
 
@@ -297,11 +278,6 @@ else  ! ( l_count_diags )
   ! Set to true for dry-mass-flux
   if ( plume_model_diags % massflux_d_k % flag ) then
     i_super = plume_model_diags % massflux_d_k % i_super
-    plume_model_diags % l_weight(i_super) = .true.
-  end if
-  ! Set to true for divergence entrainment (needs to be summed, not averaged)
-  if ( plume_model_diags % div_ent_mass_d % flag ) then
-    i_super = plume_model_diags % div_ent_mass_d % i_super
     plume_model_diags % l_weight(i_super) = .true.
   end if
   ! Set to true for entrained dry-mass
