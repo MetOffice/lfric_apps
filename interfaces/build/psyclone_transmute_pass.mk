@@ -36,6 +36,7 @@ psyclone_pass: $(SOURCE_F_FILES_PASS)
 # PSyclone files back into f90 files.
 # Where no optimisation script exists, don't use it.
 #
+#
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90
 	echo PSyclone pass with no optimisation applied, OMP and Clauses removed on $<
 	psyclone \
