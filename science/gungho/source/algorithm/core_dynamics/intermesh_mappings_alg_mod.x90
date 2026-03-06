@@ -341,10 +341,9 @@ contains
       end if
 
     else
-      if ( present(lowest_order_flag) .and. lowest_order_flag ) then
-        recovery_order_arg = recovery_order_constant
-      else
-        recovery_order_arg = recovery_order
+      recovery_order_arg = recovery_order
+      if (present(lowest_order_flag)) then
+        if (lowest_order_flag) recovery_order_arg = recovery_order_constant
       end if
       if (ndata > 1) then
         if (present(source_mask)) then
