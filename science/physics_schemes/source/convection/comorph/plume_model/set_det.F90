@@ -329,7 +329,7 @@ if ( l_par_core ) then
     ! this loop are consistent with this.
     ! Note: if updrafts hit the model-lid, we just raise a fatal error
     ! at the end of this subroutine.
-    !IF ( l_last_level .AND. l_down ) THEN
+    !IF ( l_last_level .AND. (.NOT. l_to_full_level) .AND. l_down ) THEN
     !  DO ic = 1, n_points
     !    IF ( i_lev == i_next(ic) ) THEN
     !      frac(ic) = zero
