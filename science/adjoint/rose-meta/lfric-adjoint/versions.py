@@ -59,7 +59,7 @@ class vn31_t322(MacroUpgrade):
           )
         else:
           source = re.sub(
-              r"(namelist:aerosol)",
+              r".namelist:aerosol.",
               r"namelist:adjoint" + "\n" + " (namelist:aerosol)",
               source,
           )
