@@ -683,11 +683,6 @@ integer, parameter :: i_cf_conv_coma = 0
 ! The switch:
 integer :: i_cf_conv = i_cf_conv_coma
 
-! Switch to make the diagnosed convective cloud fraction depend
-! on parcel buoyancy.  Can be used when not using the
-! w-equation, but still want to make the convective fraction
-! bigger (smaller) when slower (more rapid) ascent is expected.
-logical, parameter :: l_cf_conv_buoy = .true.
 ! Tuning constant for buoyancy-dependent convective fraction:
 ! Assuming w' = fac * sqrt( buoyancy * radius )
 real(kind=real_cvprec) :: wind_w_buoy_fac = 1.0_real_cvprec
