@@ -40,9 +40,40 @@ class vn31_t322(MacroUpgrade):
     AFTER_TAG = "vn3.1_t322"
 
     def upgrade(self, config, meta_config=None):
-        # Set computation of annexed dofs to true for adjoint
-        self.add_setting(
-            config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".true."
+        # Adds new namelist entry alphabetically
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
         )
+
+        # Insert adjoint above aerosol except for these exceptions
+        exception_exec_names = ["jedi_forecast", "jedi_forecast_pseudo"]
+        exec_name = self.get_setting_value(
+            config, ["env", "EXEC_NAME"]
+        )
+        if exec_name in exception_exec_names :
+          source = re.sub(
+              r"namelist:base_mesh",
+              r"namelist:adjoint" + "\n" + " namelist:base_mesh",
+              source,
+          )
+        else:
+          source = re.sub(
+              r"(namelist:aerosol)",
+              r"namelist:adjoint" + "\n" + " (namelist:aerosol)",
+              source,
+          )
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
+
+        # Set computation of annexed dofs to true for adjoint, false for adjoint_tests
+        if exec_name == "adjoint_tests":
+          self.add_setting(
+              config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".false."
+          )
+        else:
+          self.add_setting(
+              config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".true."
+          )
 
         return config, self.reports

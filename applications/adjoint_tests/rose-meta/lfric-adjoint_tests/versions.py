@@ -31,18 +31,3 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
-
-
-class vn31_t322(MacroUpgrade):
-    """Upgrade macro for ticket #322 by Terence Vockerodt."""
-
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t322"
-
-    def upgrade(self, config, meta_config=None):
-        # Set computation of annexed dofs to false for adjoint_tests
-        self.add_setting(
-            config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".false."
-        )
-
-        return config, self.reports
