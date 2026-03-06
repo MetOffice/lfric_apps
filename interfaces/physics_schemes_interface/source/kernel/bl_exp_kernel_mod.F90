@@ -746,9 +746,6 @@ contains
         ! computational vertical velocity
         etadot(i,1,k) = velocity_w2v(map_wth(1,i) + k) / z_theta(i,1,nlayers)
       end do
-      ! surface currents
-      u_0_p(i,1) = 0.0_r_bl
-      v_0_p(i,1) = 0.0_r_bl
     end do
 
     do i = 1, seg_len
