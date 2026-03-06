@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: 2026.03.1
+    source: git@github.com:cjohnson-pi/lfric_core.git
+    ref: stretching
 
 moci:
     source: git@github.com:MetOffice/moci.git
