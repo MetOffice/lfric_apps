@@ -212,7 +212,7 @@ class vn30_t182(MacroUpgrade):
                 ".true.",
             )
             self.add_setting(
-                config, ["namelist:linear_physics", "Blevs_m"], "15"
+                config, ["namelist:linear_physics", "blevs_m"], "15"
             )
             self.add_setting(
                 config, ["namelist:linear_physics", "e_folding_levs_m"], "10"
