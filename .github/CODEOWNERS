@@ -72,7 +72,7 @@ build/                                 @MetOffice/ssdteam @hiker
 **/*Makefile                           @MatthewHambley @hiker
 **/*.mk                                @MatthewHambley @hiker
 **/optimisation                        @christophermaynard                 # HPC Optimisation Team
-interfaces/build                       @christophermaynard @MatthewHambley # HPC Optimisation Team
+interfaces/build/*.mk                  @MatthewHambley
 
 # Other areas
 documentation                           # @MetOffice/ssdteam
