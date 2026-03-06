@@ -24,7 +24,7 @@ module pmsl_alg_mod
   use planet_constants_mod, only: recip_kappa_def
   use planet_config_mod, only: p_zero
   use um_domain_init_mod, only: n_iter_pmsl
-  use physics_config_mod, only: halo_size => pmsl_halo
+  use physics_config_mod, only: pmsl_halo_calcs
 
   implicit none
   private
@@ -87,7 +87,7 @@ contains
 
     real(kind=r_def), parameter :: upperheight=2000.0_r_def
     integer(kind=i_def), parameter :: sten_size = 1
-    integer(kind=i_def) :: sten_size_big
+    integer(kind=i_def) :: sten_size_big, max_halo_depth, counter
 
     if ( subroutine_timers ) call timer('pmsl_alg')
 
@@ -127,10 +127,18 @@ contains
       call pmsl%copy_field_properties(f_vg)
       call pmsl%copy_field_properties(f_ug)
 
+      ! Determine the maximum halo depth available if we are going to compute
+      ! into it
+      if (pmsl_halo_calcs) then
+        max_halo_depth = twod_mesh%get_halo_depth()
+      else
+        max_halo_depth = 1
+      end if
+
       vector_space => function_space_collection % get_fs(twod_mesh, 0, 0, W3)
-      call exner_m%initialise(vector_space, halo_depth=(halo_size+1))
-      call f_func%initialise(vector_space, halo_depth=(halo_size+1))
-      call exner_sm%initialise(vector_space, halo_depth=(halo_size+1))
+      call exner_m%initialise(vector_space, halo_depth=max_halo_depth)
+      call f_func%initialise(vector_space, halo_depth=max_halo_depth)
+      call exner_sm%initialise(vector_space, halo_depth=max_halo_depth)
 
       dx_at_w2 => get_dx_at_w2(theta_wth%get_mesh_id())
       panel_id => get_panel_id(theta_wth%get_mesh_id())
@@ -146,24 +154,33 @@ contains
 
       mesh => exner_w3%get_mesh()
       vector_space => function_space_collection % get_fs(mesh, 0, 0, Wtheta)
-      call height_wth_halo%initialise(vector_space, halo_depth=(halo_size+1))
+      call height_wth_halo%initialise(vector_space, halo_depth=max_halo_depth)
       vector_space => function_space_collection % get_fs(mesh, 0, 0, W2)
-      call dx_at_w2_halo%initialise(vector_space, halo_depth=(halo_size+1))
+      call dx_at_w2_halo%initialise(vector_space, halo_depth=max_halo_depth)
       call invoke(setval_X(height_wth_halo, height_wth), &
                   setval_X(dx_at_w2_halo, dx_at_w2) )
 
-      do n = 1, n_iter_pmsl/(halo_size+1)
-        do m = halo_size,0,-1
+      ! Iterative solver for exner - this loops to depth 'm' in the halo
+      ! thus only requiring a halo exchange once every m iterations
+      ! Larger m values will thus to more computation but fewer halo exchanges
+      counter = 0
+      outer: do n = 1, n_iter_pmsl/max_halo_depth+1
+        do m = max_halo_depth-1,0,-1
           sten_size_big = m+sten_size
-          ! Solve for new PMSL value
+          ! Solve for new PMSL value (exner_sm) to depth m in the halo
           call invoke(pmsl_solve_kernel_type(dx_at_w2_halo, f_func, exner_m, &
                                              sten_size_big, height_wth_halo, &
                                              exner_sm, m) )
 
-          ! Set old value to new value
+          ! Set old value (exner_m) to new value (exner_sm),
+          ! copying clean field to depth m in halo
           call invoke(pmsl_copy_kernel_type(exner_sm, exner_m, m))
+
+          ! Exit if we're done
+          counter = counter + 1
+          if (counter == n_iter_pmsl) exit outer
         end do
-      end do
+      end do outer
 
       ! Convert exner to PMSL
       call invoke(inc_X_powreal_a(exner_m, recip_kappa_def), &
