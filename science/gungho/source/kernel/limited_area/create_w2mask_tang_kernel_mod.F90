@@ -147,7 +147,7 @@ subroutine create_w2mask_tang_code( nlayers,      &
                                             query_value_ns, &
                                             query_value_ew, &
                                             mask_value
-  real(kind=r_def), parameter            :: tol = 1.0e-9_r_def
+  real(kind=r_def), parameter            :: tol = 1.0e-15_r_def
   logical(kind=l_def)                    :: ew_innerbox, &
                                             ns_innerbox, &
                                             ew_outerbox, &
