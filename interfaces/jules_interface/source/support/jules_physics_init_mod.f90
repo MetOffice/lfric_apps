@@ -175,7 +175,7 @@ contains
          ch_nvg, emis_nvg, gs_nvg, infil_nvg, vf_nvg, z0_nvg,               &
          check_jules_nvegparm, print_nlist_jules_nvegparm
     use pftparm, only:                                                      &
-         print_nlist_jules_pftparm,                                         &
+         print_nlist_jules_pftparm, check_jules_pftparm,                    &
          a_wl, a_ws, albsnc_max, albsnc_min, albsnf_maxu, albsnf_maxl,      &
          alniru, alnir, alnirl, alparu, alpar, alparl, alpha, b_wl, c3,     &
          can_struct_a, catch0, dcatch_dlai, dgl_dm, dgl_dt, dqcrit,         &
@@ -467,7 +467,6 @@ contains
     fwe_c4       = real(config%jules_surface%fwe_c4(), r_um)
     hleaf        = real(config%jules_surface%hleaf(), r_um)
     hwood        = real(config%jules_surface%hwood(), r_um)
-    ! Awaiting advice from John Edwards regarding off or other allowed options
     select case (config%jules_surface%i_modiscopt())
     case(i_modiscopt_on)
       i_modiscopt = 1
@@ -718,7 +717,8 @@ contains
     call c_z0h_z0m_print()
 
     ! This routine checks that the options set are actually compatible
-    call check_jules_nvegparm(nnvg,npft) ! Also checks z0h_z0m(nnvg)
+    call check_jules_pftparm(npft,nnpft)
+    call check_jules_nvegparm(nnvg,npft)
     call c_z0h_z0m_check(ntype)
     call check_compatible_options()
 

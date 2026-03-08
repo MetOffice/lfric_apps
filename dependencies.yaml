@@ -23,7 +23,7 @@ casim:
 
 jules:
     source: margaret.hendry@cazldf00006V.spice.sc.metoffice.gov.uk:/home/users/margaret.hendry/jules_fork/jules
-    ref: e1f84c32f3da28089bc929b55d841542c5bd08cc
+    ref: 136b591c458c86c7197ddc5e99b41f2f93b3c856
 
 lfric_apps:
     source:
