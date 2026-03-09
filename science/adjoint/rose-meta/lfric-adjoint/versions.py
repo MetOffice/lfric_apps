@@ -51,6 +51,7 @@ class vn31_t322(MacroUpgrade):
           exec_name = self.get_setting_value(
               config, ["env", "EXEC_NAME"]
           )
+          print(f"exec_name = {exec_name}, source = {source}")
           if exec_name in exception_exec_names :
             source = re.sub(
                 r"namelist:base_mesh",
