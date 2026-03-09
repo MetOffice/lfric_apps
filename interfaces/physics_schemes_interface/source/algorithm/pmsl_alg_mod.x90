@@ -65,7 +65,6 @@ contains
     ! Define PMSL field
     type( field_type ) :: pmsl, pmsl_unsmooth, t_at_mean_sea_level
     type( field_type ) :: f_vg, f_ug, exner_m, f_func, exner_sm
-    type( field_type ) :: height_wth_halo, dx_at_w2_halo
 
     ! Internal variables
 
@@ -153,14 +152,6 @@ contains
                                          f_ug, sten_size, panel_id, sten_size, &
                                          f_func) )
 
-      mesh => exner_w3%get_mesh()
-      vector_space => function_space_collection % get_fs(mesh, 0, 0, Wtheta)
-      call height_wth_halo%initialise(vector_space, halo_depth=max_halo_depth)
-      vector_space => function_space_collection % get_fs(mesh, 0, 0, W2)
-      call dx_at_w2_halo%initialise(vector_space, halo_depth=max_halo_depth)
-      call invoke(setval_X(height_wth_halo, height_wth), &
-                  setval_X(dx_at_w2_halo, dx_at_w2) )
-
       ! Iterative solver for exner - this loops to depth 'm' in the halo
       ! thus only requiring a halo exchange once every m iterations
       ! Larger m values will thus to more computation but fewer halo exchanges
@@ -169,8 +160,8 @@ contains
         do m = max_halo_depth-1,0,-1
           sten_size_big = m+sten_size
           ! Solve for new PMSL value (exner_sm) to depth m in the halo
-          call invoke(pmsl_solve_kernel_type(dx_at_w2_halo, f_func, exner_m, &
-                                             sten_size_big, height_wth_halo, &
+          call invoke(pmsl_solve_kernel_type(dx_at_w2, f_func, exner_m, &
+                                             sten_size_big, height_wth, &
                                              exner_sm, m) )
 
           ! Set old value (exner_m) to new value (exner_sm),

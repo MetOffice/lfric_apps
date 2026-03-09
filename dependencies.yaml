@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: 2026.03.1
+    source: cazcron1:/home/users/ian.boutle/git_core/core3.1_pmsl
+    ref: 
 
 moci:
     source: git@github.com:MetOffice/moci.git
