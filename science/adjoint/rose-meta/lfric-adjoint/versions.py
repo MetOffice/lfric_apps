@@ -67,7 +67,7 @@ class vn31_t322(MacroUpgrade):
             config, ["file:configuration.nml", "source"], source
         )
 
-        # We don't want to modify optional configs
+        # We don't want to directly modify optional configs
         if exec_name != "${APP_NAME}":
           # Set computation of annexed dofs to true for adjoint, false for adjoint_tests
           if exec_name == "adjoint_tests":
