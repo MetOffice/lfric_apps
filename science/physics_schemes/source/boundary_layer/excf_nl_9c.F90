@@ -1145,8 +1145,8 @@ if (model_type == mt_single_column) then
       wbmix(i,j,k) = zero  ! WB if were diag as well-mixed
       wbend(i,j,k) = zero  ! WB after dec diag
       wbend_sml(i,j,k) = zero ! WB after ksurf_iterate
-    end do
-  end do
+    end do ! k 
+  end do ! i
 !$OMP end do
 end if ! model_type
 
@@ -1185,9 +1185,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     !cdir collapse
     do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
       if ( z_tq(i,j,k-1)  <   0.1_r_bl*zh(i,j) ) ksurf(i,j) = k
-    end do
-  end do
-end do
+    end do ! i
+  end do ! k
+end do ! ii
 !$OMP end do
 
 ! Set flags for iterating wb integral to calculate depth of mixing,
@@ -1316,9 +1316,9 @@ do ii = pdims%j_start, pdims%i_end, bl_segment_size
           kwb0(i,j)=k
         end if
       end if
-    end do
-  end do
-end do
+    end do ! ii
+  end do ! k
+end do ! i
 !$OMP end do
 
 ! ----------------------------------------------------------------------
@@ -1636,8 +1636,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
       end if ! test_well_mixed(i,j) 
     end do ! i
-end do ! k
-end do
+  end do ! k
+end do ! ii
 !$OMP end do
 
 ! ----------------------------------------------------------------------
@@ -1804,8 +1804,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       end if   ! test on WB_RATIO le DEC_THRES
     end if   ! testing for well-mixed layer (TEST_WELL_MIXED)
 
-  end do ! I
-end do ! I
+  end do ! i
+end do ! ii
 !$OMP end do
 
 ! Set water tracer fields in the same manner as water in last loop
@@ -1886,8 +1886,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     wb_ratio(i,j) = dec_thres(i,j) - one ! to be < DEC_THRES
 
   end if ! ksurf_iterate(i,j)
-  end do
-end do
+  end do ! i
+end do ! ii
 !$OMP end do
 
 ! ----------------------------------------------------------------------
@@ -2107,7 +2107,7 @@ do n_sweep = 1, num_sweeps_bflux
         i1=ind_todo_i(ic)-(j1-1)*pdims%i_end
         wb_ratio(i1,j1) = wbn_int(i1,j1)/wbp_int(i1,j1)
       end do ! ic c_len_i
-    end do
+    end do ! jj
 !$OMP end do
 
   end do  ! loop stepping up through ML (N_steps)
@@ -2154,7 +2154,7 @@ do ii = pdims%i_start, pdims%i_end,bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     ntml_new(i,j) = 2
     status_ntml(i,j)=.true.
-  end do
+  end do ! i
 
   do k = 2, bl_levels-2
     !cdir collapse
@@ -2196,9 +2196,9 @@ do ii = pdims%i_start, pdims%i_end,bl_segment_size
 
       end if  ! ksurf_iterate(i,j) .and. status_ntml(i,j)
 
-    end do
-  end do
-end do
+    end do ! i
+  end do ! k
+end do ! ii
 !$OMP end do
 
 ! ----------------------------------------------------------------------
@@ -2365,7 +2365,7 @@ do i = pdims%i_start, pdims%i_end
   else
     to_do(l) = .false.
   end if
-end do
+end do ! i
 !$OMP end do
 
 !$OMP MASTER
@@ -2576,7 +2576,7 @@ do n_sweep = 1, num_sweeps_bflux
           end if ! K
         end do ! ic c_len_i
       end do ! K
-    end do
+    end do ! jj
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
@@ -2656,8 +2656,8 @@ if (model_type == mt_single_column) then
         ! So only add the SML contribution back on if they do not overlap.
         wbend(i,j,k) = wbend(i,j,k) + wbend_sml(i,j,k)
       end if
-    end do
-  end do
+    end do ! i
+  end do ! k
 !$OMP end do
 
 
@@ -2680,9 +2680,9 @@ if (model_type == mt_single_column) then
           wbend(i,j,k)=wbend(i,j,k)*rdz(i,j,k)
         end if
       end if
-    end do
+    end do ! i
     !$OMP end do
-  end do
+  end do ! k
 
 
 !$OMP do SCHEDULE(STATIC)
@@ -2695,8 +2695,8 @@ if (model_type == mt_single_column) then
       if ( k >=  ntop(i,j)+1 .and. k <= ntml(i,j)+1 ) then
         wbmix(i,j,k) = wb_dzrad_int(i,j)/dzrad(i,j)
       end if
-    end do
-  end do
+    end do ! i
+  end do ! k
 !$OMP end do
 end if ! model_type
 
