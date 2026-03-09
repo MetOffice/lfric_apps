@@ -45,33 +45,24 @@ class vn31_t322(MacroUpgrade):
         source = self.get_setting_value(
             config, ["file:configuration.nml", "source"]
         )
-        exec_name = self.get_setting_value(
-            config, ["env", "EXEC_NAME"]
+        if "namelist:adjoint" not in source:
+            # Insert adjoint to configuration
+            for line in source.split("\n"):
+                namelist = line.strip("()")
+                namelist = namelist.strip()
+                if "namelist:adjoint" < namelist:
+                    source = re.sub(
+                        line,
+                        rf" namelist:adjoint\n{line}",
+                        source,
+                    )
+                    break
+            self.change_setting_value(
+                config, ["file:configuration.nml", "source"], source
+            )
+        # Default value
+        self.add_setting(
+            config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".true."
         )
-        if ("namelist:adjoint" not in source) or (exec_name != "${APP_NAME}"):
-          # Insert adjoint above aerosol except for these exceptions
-          exception_exec_names = ["jedi_forecast", "jedi_forecast_pseudo"]
-
-          print(f"exec_name = {exec_name}, source = {source}")
-          if exec_name in exception_exec_names :
-            source = re.sub(
-                r"namelist:base_mesh",
-                r"namelist:adjoint" + "\n" + "  namelist:base_mesh",
-                source,
-            )
-          else:
-            source = re.sub(
-                r".namelist:aerosol.",
-                r" namelist:adjoint" + "\n" + " (namelist:aerosol)",
-                source,
-            )
-          self.change_setting_value(
-              config, ["file:configuration.nml", "source"], source
-          )
-
-          # Default value
-          self.add_setting(
-              config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".true."
-          )
 
         return config, self.reports
