@@ -2942,7 +2942,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
               ( (max(one - km_sct_factor(i,j)*z_pr/zh_pr, zero))**0.8_r_bl )   &
                                           * z_pr * z_pr / zh_pr
                                                   ! PRANDTL=0.75
-        if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+        if (BL_diag%l_tke) then
           ! save Km/timescale for TKE diag, completed in bdy_expl2
           tke_nl(i,j,k)=rhokm_top(i,j,k)*c_tke*v_top(i,j)/zh(i,j)
         end if
@@ -3006,27 +3006,13 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             0.75_r_bl*rho_wet_tq(i,j,k-1)*v_top_dsc(i,j)*g1*vkman*             &
               ( (max(one - km_dsct_factor(i,j)*z_pr/zh_pr,zero))**0.8_r_bl )   &
                                       * z_pr * z_pr / zh_pr
-        if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+        if (BL_diag%l_tke) then
           ! save Km/timescale for TKE diag, completed in bdy_expl2
           tke_nl(i,j,k) = tke_nl(i,j,k) +                                      &
                           rhokm_dsct*c_tke*v_top_dsc(i,j)/dscdepth(i,j)
         end if
         rhokm_top(i,j,k) = rhokm_top(i,j,k) + rhokm_dsct
       end if
-      if (BL_diag%l_tke .and. var_diags_opt == original_vars) then
-        ! save 1/timescale for TKE diag, completed in bdy_expl2
-        if ( zk_tq  <   zsml_top(i,j) .and.                                    &
-              zk_tq  >   zsml_base(i,j) ) then
-          BL_diag%tke(i,j,k) = c_tke*v_top(i,j)/zh(i,j)
-        end if
-        if ( zk_tq  <   zhsc(i,j) .and.                                        &
-              zk_tq  >   zdsc_base(i,j) ) then
-          ! save 1/timescale for TKE diag, completed in bdy_expl2
-          BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                        &
-                          c_tke*v_top_dsc(i,j)/dscdepth(i,j) )
-        end if
-      end if
-
     end do
   end do
 end do
@@ -3133,17 +3119,10 @@ if (flux_grad  ==  LockWhelan2006) then
                                   ( one - ( zk_tq / zh(i,j) ) ) *              &
                                   ( one - ( zk_tq / zh(i,j) ) )
 
-            if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+            if (BL_diag%l_tke) then
               ! save Km/timescale for TKE diag, completed in bdy_expl2
               tke_nl(i,j,k) = tke_nl(i,j,k) +                                  &
                                   rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
-            end if
-          end if
-          if (BL_diag%l_tke .and. var_diags_opt == original_vars) then
-            ! save 1/timescale for TKE diag, completed in bdy_expl2
-            if ( zk_tq < zsml_top(i,j) ) then
-              BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                    &
-                                        c_tke*w_m_tq/zh(i,j) )
             end if
           end if
         end if
@@ -3281,7 +3260,7 @@ else
                 ( one - km_top_factor(i,j) * ( zk_tq / zh(i,j) ) ) *           &
                 ( one - km_top_factor(i,j) * ( zk_tq / zh(i,j) ) )
 
-            if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
+            if (BL_diag%l_tke) then
               ! save Km/timescale for TKE diag, completed in bdy_expl2
               tke_nl(i,j,k) = tke_nl(i,j,k) +                                  &
                                   rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
@@ -3293,18 +3272,11 @@ else
               rhokm(i,j,k) = prandtl_top(i,j) * rhokh_lcl(i,j) *               &
                       exp(-(zk_tq-zh(i,j))/cu_depth_scale(i,j)) *              &
                       (one-(zk_tq-zh(i,j))/(zsml_top(i,j)-zh(i,j)))
-              if (BL_diag%l_tke .and. var_diags_opt==split_tke_and_inv) then
+              if (BL_diag%l_tke) then
                 ! save Km/timescale for TKE diag, completed in bdy_expl2
                 tke_nl(i,j,k) = tke_nl(i,j,k) +                                &
                                     rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
               end if
-            end if
-          end if
-          if (BL_diag%l_tke .and.  var_diags_opt == original_vars) then
-            ! save 1/timescale for TKE diag, completed in bdy_expl2
-            if ( zk_tq  <  zsml_top(i,j) ) then
-              BL_diag%tke(i,j,k) = max( BL_diag%tke(i,j,k),                    &
-                                        c_tke*w_m_tq/zh(i,j) )
             end if
           end if
 
