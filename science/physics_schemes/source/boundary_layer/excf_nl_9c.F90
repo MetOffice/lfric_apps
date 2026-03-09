@@ -3272,6 +3272,12 @@ else
               rhokm(i,j,k) = prandtl_top(i,j) * rhokh_lcl(i,j) *               &
                       exp(-(zk_tq-zh(i,j))/cu_depth_scale(i,j)) *              &
                       (one-(zk_tq-zh(i,j))/(zsml_top(i,j)-zh(i,j)))
+              if (BL_diag%l_tke) then
+                ! save Km/timescale for TKE diag, completed in bdy_expl2
+                tke_nl(i,j,k) = tke_nl(i,j,k) +                              &
+                                    rhokm(i,j,k)*c_tke*w_m_tq/zh(i,j)
+              end if
+            end if
           end if
         end if
       end do
