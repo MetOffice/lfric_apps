@@ -77,9 +77,7 @@
 
       <!-- File definition for checkpoint write timeseries output -->
       <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE." timeseries="both">
-       <field_group read_access=".TRUE.">
         <field_group group_ref="um2lfric_lbc_fields" />
-       </field_group>
       </file>
 
     </file_definition>
