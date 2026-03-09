@@ -1,0 +1,86 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the assembly of a W2h field from a W2hb field
+!>
+module assemble_w2h_from_w2hb_kernel_mod_test
+
+  use constants_mod, only : i_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  @Test
+  subroutine test_all( )
+
+    use assemble_w2h_from_w2hb_kernel_mod, only: assemble_w2h_from_w2hb_code
+
+    implicit none
+
+    real(r_solver), parameter :: tol = 1.0e-6_r_solver
+
+    integer(i_def), parameter :: ncells = 2
+    integer(i_def), parameter :: nlayers = 1
+    integer(i_def), parameter :: ndf_w2h = 2
+    integer(i_def), parameter :: undf_w2h = ndf_w2h*nlayers
+    integer(i_def), parameter :: ndf_w2hb = 2
+    integer(i_def), parameter :: undf_w2hb = ndf_w2hb*nlayers*ncells
+
+    integer(i_def), dimension( ndf_w2h,  ncells ) :: map_w2h
+    integer(i_def), dimension( ndf_w2hb, ncells ) :: map_w2hb
+
+    real(r_solver), dimension( undf_w2h )  :: field_w2h
+    real(r_solver), dimension( undf_w2hb ) :: field_w2hb
+    real(r_solver), dimension( undf_w2h )  :: answer
+
+    integer(i_def) :: cell
+
+    ! Assume a biperiodic mesh with two cells
+    ! Locations of W2 dofs
+    ! |---|---|
+    ! 1   2   1
+    ! |---|---|
+    map_w2h(:,1) = (/ 1, nlayers+1 /)
+    map_w2h(:,2) = (/ nlayers+1, 1 /)
+    !
+    ! Locations of W2b dofs
+    ! |---|---|
+    ! |1 2|3 4|
+    ! |---|---|
+    map_w2hb(:,1) = (/ 1, nlayers+1 /)
+    map_w2hb(:,2) = (/ 2*nlayers+1, 3*nlayers+1 /)
+
+    field_w2h = (/ 3.0_r_solver, 4.0_r_solver /)
+
+    field_w2hb = (/ 1.0_r_solver, 2.0_r_solver, 3.0_r_solver, 4.0_r_solver /)
+
+    do cell = 1, ncells
+      call assemble_w2h_from_w2hb_code( nlayers,         &
+                                        field_w2h,       &
+                                        field_w2hb,      &
+                                        ndf_w2h,         &
+                                        undf_w2h,        &
+                                        map_w2h(:,cell), &
+                                        ndf_w2hb,        &
+                                        undf_w2hb,       &
+                                        map_w2hb(:,cell) &
+                                        )
+    end do
+
+    ! field_w2h should equal it's initial value plus the two
+    ! adjacent w2hb values
+    answer = (/ 8.0_r_solver, 9.0_r_solver /)
+
+    @assertEqual(answer, field_w2h, tol)
+
+  end subroutine test_all
+
+end module assemble_w2h_from_w2hb_kernel_mod_test
