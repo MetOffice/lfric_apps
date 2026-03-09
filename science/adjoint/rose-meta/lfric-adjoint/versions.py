@@ -67,14 +67,16 @@ class vn31_t322(MacroUpgrade):
             config, ["file:configuration.nml", "source"], source
         )
 
-        # Set computation of annexed dofs to true for adjoint, false for adjoint_tests
-        if exec_name == "adjoint_tests":
-          self.add_setting(
-              config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".false."
-          )
-        else:
-          self.add_setting(
-              config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".true."
-          )
+        # We don't want to modify optional configs
+        if exec_name != "${APP_NAME}":
+          # Set computation of annexed dofs to true for adjoint, false for adjoint_tests
+          if exec_name == "adjoint_tests":
+            self.add_setting(
+                config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".false."
+            )
+          else:
+            self.add_setting(
+                config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".true."
+            )
 
         return config, self.reports
