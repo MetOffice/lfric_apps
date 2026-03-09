@@ -45,7 +45,7 @@ class vn31_t322(MacroUpgrade):
             config, ["env", "EXEC_NAME"]
         )
         # To prevent macro upgrade errors, we edit the adjoint_tests config manually
-        do_not_upgrade = ["adjoint_tests"]
+        do_not_upgrade = ["adjoint_tests", "${APP_NAME}"]
         if exec_name not in do_not_upgrade:
           # Adds new namelist entry alphabetically
           source = self.get_setting_value(
