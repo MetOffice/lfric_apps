@@ -41,18 +41,16 @@ class vn31_t322(MacroUpgrade):
     AFTER_TAG = "vn3.1_t322"
 
     def upgrade(self, config, meta_config=None):
-        exec_name = self.get_setting_value(
-            config, ["env", "EXEC_NAME"]
+        # Adds new namelist entry alphabetically
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
         )
-        # To prevent macro upgrade errors, we edit the adjoint_tests config manually
-        do_not_upgrade = ["adjoint_tests", "${APP_NAME}"]
-        if exec_name not in do_not_upgrade:
-          # Adds new namelist entry alphabetically
-          source = self.get_setting_value(
-              config, ["file:configuration.nml", "source"]
-          )
+        if ("namelist:adjoint" not in source) and (source != ""):
           # Insert adjoint above aerosol except for these exceptions
           exception_exec_names = ["jedi_forecast", "jedi_forecast_pseudo"]
+          exec_name = self.get_setting_value(
+              config, ["env", "EXEC_NAME"]
+          )
           if exec_name in exception_exec_names :
             source = re.sub(
                 r"namelist:base_mesh",
