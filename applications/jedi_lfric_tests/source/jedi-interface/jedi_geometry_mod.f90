@@ -94,7 +94,6 @@ contains
 !>
 subroutine initialise( self, mpi_comm, configuration )
   ! Access config directly until modeldb ready
-  use driver_mesh_mod,           only: init_mesh
   use driver_config_mod,         only: init_config
   use jedi_lfric_mesh_setup_mod, only: initialise_mesh
   use jedi_lfric_tests_mod,      only: jedi_lfric_tests_required_namelists

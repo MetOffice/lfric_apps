@@ -35,7 +35,7 @@
 program jedi_tlm_tests
 
   use cli_mod,                      only : parse_command_line
-  use constants_mod,                only : PRECISION_REAL, i_def, str_def, r_def
+  use constants_mod,                only : PRECISION_REAL, i_def, str_def, r_def, l_def
   use field_collection_mod,         only : field_collection_type
   use log_mod,                      only : log_event, log_scratch_space, &
                                            LOG_LEVEL_ALWAYS, LOG_LEVEL_ERROR, &
@@ -71,6 +71,8 @@ program jedi_tlm_tests
   integer( kind=i_def )                     :: model_communicator
   type( jedi_duration_type )                :: forecast_length
   type( namelist_type ),            pointer :: jedi_lfric_settings_config
+  type( namelist_type ),            pointer :: jedi_increment_config
+  logical( kind=l_def )                     :: real_increment
   character( str_def )                      :: forecast_length_str
   real( kind=r_def )                        :: dot_product_1
   real( kind=r_def )                        :: dot_product_2
@@ -110,6 +112,12 @@ program jedi_tlm_tests
   ! Create geometry
   call geometry%initialise( model_communicator, configuration )
 
+  ! Create inc_initial, either from file or random
+  call inc_initial%initialise( geometry, configuration )
+  jedi_increment_config => configuration%get_namelist('jedi_increment')
+  call jedi_increment_config%get_value( 'initialise_via_read', real_increment )
+  if (.not. real_increment) call inc_initial%random()
+
   ! Create state
   call state%initialise( geometry, configuration )
 
@@ -126,10 +134,6 @@ program jedi_tlm_tests
   call pseudo_model%forecast( state, forecast_length, pp_traj )
 
   ! ---- Perform the adjoint test
-
-  ! Create inc_initial and randomise
-  call inc_initial%initialise( geometry, configuration )
-  call inc_initial%random()
 
   ! Check the norm is not zero
   if (inc_initial%norm() <= 0.0_r_def) then
@@ -148,7 +152,7 @@ program jedi_tlm_tests
   end if
 
   ! Compute <Mx,Mx>
-  dot_product_1 = inc%scaled_dot_product_with_itself()
+  dot_product_1 = real(inc%scaled_dot_product_with_itself(), r_def)
 
   ! Propagate via AD model
   call linear_model%forecastAD( inc, forecast_length )
@@ -158,7 +162,7 @@ program jedi_tlm_tests
   end if
 
   ! Compute <AMx,x>
-  dot_product_2 = inc%dot_product_with(inc_initial)
+  dot_product_2 = real(inc%dot_product_with(inc_initial), r_def)
 
   ! The two dot products should be nearly identical. The tolerance is included
   ! due to differences in order of operations and solver non-convergence.

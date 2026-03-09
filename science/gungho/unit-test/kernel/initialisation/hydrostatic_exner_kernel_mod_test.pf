@@ -148,7 +148,7 @@ contains
                                  perturb_init=.false., perturb_magnitude=0,   &
                                  perturb_seed=0 )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
     nlayers=3
     call get_w0_m3x3_q3x3x3_size( this%ndf_w0, this%undf_w0, ncells, &

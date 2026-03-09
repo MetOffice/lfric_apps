@@ -25,6 +25,7 @@ module adj_semi_implicit_solver_alg_mod
   use adj_pressure_precon_alg_mod,            only: adj_pressure_preconditioner_type
   use multigrid_preconditioner_alg_mod,       only: multigrid_preconditioner_type
   use pressure_operator_alg_mod,              only: pressure_operator_type
+  use adj_solver_lookup_cache_mod,            only: adj_solver_lookup_cache_type
   use adj_pressure_operator_alg_mod,          only: adj_pressure_operator_type
   use sci_null_preconditioner_alg_mod,        only: null_preconditioner_type
   use sci_preconditioner_mod,                 only: abstract_preconditioner_type
@@ -89,9 +90,11 @@ contains
   !> @details Called by init method of this module, but also by
   !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
   !> @param[in]  state                           Prognostic state for the adjoint pressure preconditioner
+  !> @param[in]  adj_lookup_table_cache          The lookup table cache
   !> @param[out] adj_pressure_operator_out       Output adjoint (Helmholtz) pressure operator
   !> @param[out] adj_pressure_preconditioner_out Output adjoint (Helmholtz) pressure preconditioner
-  subroutine create_adj_pressure_preconditioner( state, adj_pressure_operator_out, adj_pressure_preconditioner_out )
+  subroutine create_adj_pressure_preconditioner( state, adj_lookup_table_cache, &
+                                                 adj_pressure_operator_out, adj_pressure_preconditioner_out )
 
     use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
                                              preconditioner_none,                        &
@@ -102,6 +105,7 @@ contains
 
     ! Prognostic fields
     type(field_type), dimension(bundle_size), intent(in) :: state
+    type(adj_solver_lookup_cache_type),       intent(in) :: adj_lookup_table_cache
 
     ! Output adjoint operator and preconditioner for (Helmholtz) pressure problem
     type(adj_pressure_operator_type),                 intent(out) :: adj_pressure_operator_out
@@ -110,7 +114,11 @@ contains
     ! Vertical pressure preconditioner
     type(adj_pressure_preconditioner_type) :: adj_helmholtz_preconditioner
 
-    adj_pressure_operator_out = adj_pressure_operator_type(level=1_i_def)
+    integer(kind=i_def) :: level
+
+    level = 1_i_def
+
+    adj_pressure_operator_out = adj_pressure_operator_type(level, adj_lookup_table_cache)
 
     call log_event( "adj_semi_implicit_solver_type%create_adj_pressure_preconditioner: starting", LOG_LEVEL_INFO )
 
@@ -256,16 +264,19 @@ contains
 
   !> @brief Initialisation procedure for the adjoint semi-implicit solver
   !> @param[in] state Prognostic state for the solver
-  subroutine initialise( self, state )
+  subroutine initialise( self, state, adj_lookup_table_cache )
 
     implicit none
 
     ! Arguments
-    class(adj_semi_implicit_solver_type),     intent(inout) :: self
-    type(field_type), dimension(bundle_size), intent(in)    :: state
+    class(adj_semi_implicit_solver_type),       intent(inout) :: self
+    type(field_type), dimension(bundle_size),   intent(in)    :: state
+    type(adj_solver_lookup_cache_type),         intent(in)    :: adj_lookup_table_cache
 
-    self%adj_pressure_operator = adj_pressure_operator_type(level=1_i_def)
-    call create_adj_pressure_preconditioner( state, self%adj_pressure_operator, self%adj_pressure_preconditioner )
+    call create_adj_pressure_preconditioner( state,                      &
+                                             adj_lookup_table_cache,     &
+                                             self%adj_pressure_operator, &
+                                             self%adj_pressure_preconditioner )
     call create_adj_pressure_solver( self%adj_pressure_operator, self%adj_pressure_preconditioner, self%adj_pressure_solver )
     call create_adj_mixed_preconditioner( state, self%adj_pressure_solver, self%adj_mixed_preconditioner )
     call create_adj_mixed_solver( self%adj_mixed_preconditioner, self%adj_mixed_operator, self%adj_mixed_solver )
