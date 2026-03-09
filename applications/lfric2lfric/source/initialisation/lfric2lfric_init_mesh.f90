@@ -43,6 +43,7 @@ module lfric2lfric_init_mesh_mod
   use partition_mod,               only: partitioner_interface
   use runtime_partition_mod,       only: mesh_cubedsphere,       &
                                          mesh_planar,            &
+                                         mesh_lfric2lfric_lbc,   &
                                          create_local_mesh_maps, &
                                          create_local_mesh
   use runtime_partition_lfric_mod, only: get_partition_parameters
@@ -53,7 +54,8 @@ module lfric2lfric_init_mesh_mod
                                          source_geometry_spherical,           &
                                          destination_geometry_spherical,      &
                                          source_topology_fully_periodic,      &
-                                         destination_topology_fully_periodic
+                                         destination_topology_fully_periodic, &
+                                         mode_ics, mode_lbc
 
   implicit none
 
@@ -122,6 +124,7 @@ subroutine init_mesh( configuration,           &
   integer(kind=i_def)              :: geometry(2)
   integer(kind=i_def)              :: topology(2)
   integer(kind=i_def)              :: mesh_selection(2)
+  integer(kind=i_def)              :: mode
 
   ! Local variables
   integer(kind=i_def)                 :: i
@@ -166,6 +169,7 @@ subroutine init_mesh( configuration,           &
                                    geometry(src) )
   call lfric2lfric_nml%get_value( 'source_topology', &
                                    topology(src) )
+  call lfric2lfric_nml%get_value( 'mode', mode )
 
   if ( regrid_method == regrid_method_map .and. &
      trim(meshfile_prefix(src)) /= trim(meshfile_prefix(dst)) ) then
@@ -285,9 +289,15 @@ subroutine init_mesh( configuration,           &
       call log_event( "Setting up cubed-sphere partition mesh(es)", &
                       log_level_debug )
     else
-      mesh_selection(dst) = mesh_planar
-      call log_event( "Setting up planar partition mesh(es)", &
-                      log_level_debug )
+      if (mode == mode_lbc) then
+        mesh_selection(dst) = mesh_lfric2lfric_lbc
+        call log_event( "Setting up planar lbc partition mesh(es)", &
+                        log_level_debug )
+      else
+        mesh_selection(dst) = mesh_planar
+        call log_event( "Setting up planar partition mesh(es)", &
+                        log_level_debug )
+      end if
     end if
 
     call log_event( "Setting up partition mesh(es)", log_level_info )
