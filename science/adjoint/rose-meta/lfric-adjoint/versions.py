@@ -45,12 +45,13 @@ class vn31_t322(MacroUpgrade):
         source = self.get_setting_value(
             config, ["file:configuration.nml", "source"]
         )
-        if ("namelist:adjoint" not in source) and (source != ""):
+        exec_name = self.get_setting_value(
+            config, ["env", "EXEC_NAME"]
+        )
+        if ("namelist:adjoint" not in source) or (exec_name != "${APP_NAME}"):
           # Insert adjoint above aerosol except for these exceptions
           exception_exec_names = ["jedi_forecast", "jedi_forecast_pseudo"]
-          exec_name = self.get_setting_value(
-              config, ["env", "EXEC_NAME"]
-          )
+
           print(f"exec_name = {exec_name}, source = {source}")
           if exec_name in exception_exec_names :
             source = re.sub(
