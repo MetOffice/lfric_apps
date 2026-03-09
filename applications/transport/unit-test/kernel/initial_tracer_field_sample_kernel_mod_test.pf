@@ -82,7 +82,7 @@ contains
                                  f_lon_deg=0.0_r_def, perturb_init=.false., &
                                  perturb_magnitude=0, perturb_seed=0 )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
   end subroutine setUp
 

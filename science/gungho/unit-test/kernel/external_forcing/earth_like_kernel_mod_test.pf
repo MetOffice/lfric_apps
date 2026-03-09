@@ -8,7 +8,7 @@
 !>
 module earth_like_kernel_mod_test
 
-  use constants_mod,       only : i_def, r_def, r_second, PI
+  use constants_mod,       only : i_def, r_def, r_second, PI, imdi
   use coord_transform_mod, only : llr2xyz
   use funit
 
@@ -76,7 +76,7 @@ contains
                                     runge_kutta_method=runge_kutta_method_ssp3,         &
                                     spinup_period=0.0_r_second, spinup_alpha=.false.)
 
-    call init_chi_transforms()
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine set_up
 
@@ -99,7 +99,6 @@ contains
   @test
   subroutine test_all()
 
-use planet_config_mod, only : scaled_radius
     use, intrinsic :: iso_fortran_env, only : real64
     use earth_like_kernel_mod, only : earth_like_code
 

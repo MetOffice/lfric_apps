@@ -112,7 +112,7 @@ contains
                                            profile_data=profile_data,             &
                                            profile_heights=profile_heights )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
   end subroutine set_up
 

@@ -6,8 +6,8 @@ test_field='theta',
 
 &jedi_geometry
 io_calender_start='2018-04-14T21:00:00',
-io_path_inc_read='/data/users/lfric/data/jedi-lfric/Ticket354/pert_fields/lfric_diag',
-io_path_state_read='/data/users/lfric/data/jedi-lfric/Ticket354/ls_fields/jedi_trajectory',
+io_path_inc_read='/data/users/lfricadmin/data/jedi-lfric/Ticket354/pert_fields/lfric_diag',
+io_path_state_read='/data/users/lfricadmin/data/jedi-lfric/Ticket354/ls_fields/jedi_trajectory',
 io_path_state_write='write_file',
 io_setup_increment=.true.,
 io_time_step='P0DT1H0M0S',
@@ -96,7 +96,7 @@ stretching_height=17507.0,
 stretching_method='smooth',
 /
 &files
-ancil_directory='/data/users/lfric/data/ancils/basic-gal/yak/C12',
+ancil_directory='/data/users/lfricadmin/data/ancils/basic-gal/yak/C12',
 checkpoint_stem_name='',
 diag_stem_name='',
 orography_mean_ancil_path='orography/gmted_ramp2/qrparm.orog',

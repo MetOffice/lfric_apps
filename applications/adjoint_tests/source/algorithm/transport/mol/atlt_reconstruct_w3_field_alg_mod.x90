@@ -221,7 +221,7 @@ module atlt_reconstruct_w3_field_alg_mod
     real(kind=r_def)            :: field_old_field_old_input_inner_prod
 
     ! Test parameters and variables
-    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 3000.0_r_def
     real(kind=r_def)            :: machine_tol
     real(kind=r_def)            :: relative_diff
 

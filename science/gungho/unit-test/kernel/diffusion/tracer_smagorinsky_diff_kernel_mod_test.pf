@@ -6,7 +6,7 @@
 
 module tracer_smagorinsky_diff_kernel_mod_test
 
-  use constants_mod,                 only : i_def, r_def
+  use constants_mod,                 only : i_def, r_def, imdi
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size,     &
                                                   get_wtheta_m3x3_q3x3x3_size
   use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap,          &
@@ -64,7 +64,7 @@ contains
         rehabilitate=.true.,               &
         vorticity_in_w1=.false. )
 
-    call init_chi_transforms()
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine setUp
 
