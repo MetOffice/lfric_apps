@@ -366,7 +366,7 @@ contains
             mesh, coord_order, coord_order, Wchi                               &
         )
         do i = 1, 3
-          call chi_trgt(1)%initialise(wchi_fs)
+          call chi_trgt(i)%initialise(wchi_fs)
         end do
         call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
         chi_ptr => chi_trgt
@@ -576,7 +576,7 @@ contains
             mesh, coord_order, coord_order, Wchi                               &
         )
         do i = 1, 3
-          call chi_trgt(1)%initialise(wchi_fs)
+          call chi_trgt(i)%initialise(wchi_fs)
         end do
         call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
         chi_ptr => chi_trgt
@@ -771,7 +771,7 @@ contains
           mesh, coord_order, coord_order, Wchi                                 &
       )
       do i = 1, 3
-        call chi_trgt(1)%initialise(wchi_fs)
+        call chi_trgt(i)%initialise(wchi_fs)
       end do
       call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
       chi_ptr => chi_trgt
@@ -884,7 +884,7 @@ contains
             mesh, coord_order, coord_order, Wchi                               &
         )
         do i = 1, 3
-          call chi_trgt(1)%initialise(wchi_fs)
+          call chi_trgt(i)%initialise(wchi_fs)
         end do
         call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
         chi_ptr => chi_trgt
@@ -1001,7 +1001,7 @@ contains
             mesh, coord_order, coord_order, Wchi                               &
         )
         do i = 1, 3
-          call chi_trgt(1)%initialise(wchi_fs)
+          call chi_trgt(i)%initialise(wchi_fs)
         end do
         call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
         chi_ptr => chi_trgt
