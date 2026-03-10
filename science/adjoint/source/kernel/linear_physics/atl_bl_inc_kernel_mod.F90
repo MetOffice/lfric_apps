@@ -34,7 +34,7 @@ module atl_bl_inc_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ, W2),                           & ! Buv_inv
          arg_type(GH_FIELD, GH_INTEGER, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! face_selector_ew
          arg_type(GH_FIELD, GH_INTEGER, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! face_selector_ew
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                            & ! Blevs_m
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                            & ! blevs_m
     /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -60,7 +60,7 @@ contains
 !! @param[in]     Buv_inv           Inverse of coefficient for TLM boundary layer
 !! @param[in]     face_selector_ew  2D field indicating which W/E faces to loop over in this column
 !! @param[in]     face_selector_ns  2D field indicating which N/S faces to loop over in this column
-!! @param[in]     Blevs_m           Number of levels in momentum boundary layer
+!! @param[in]     blevs_m           Number of levels in momentum boundary layer
 !! @param[in]     ndf_w2            Number of degrees of freedom per cell for w2 space
 !! @param[in]     undf_w2           Number of unique degrees of freedom for w2 space
 !! @param[in]     map_w2            Dofmap for the cell at the base of the column for w2
@@ -74,7 +74,7 @@ subroutine atl_bl_inc_code( nlayers,                 &
                             Buv_inv,                 &
                             face_selector_ew,        &
                             face_selector_ns,        &
-                            Blevs_m,                 &
+                            blevs_m,                 &
                             ndf_w2, undf_w2, map_w2, &
                             ndf_w3_2d, undf_w3_2d, map_w3_2d )
 
@@ -119,19 +119,19 @@ subroutine atl_bl_inc_code( nlayers,                 &
     a1(1) = -Auv(map_w2(df) + 1) / Buv_inv(map_w2(df) + 1)
     a2(1) = 0.0_r_def
 
-    do k = 2, BLevs_m - 1
+    do k = 2, blevs_m - 1
       a0(k) = 1.0_r_def + (Auv(map_w2(df) + k) + Auv(map_w2(df) + k - 1)) / Buv_inv(map_w2(df) + k)
       a1(k) = -Auv(map_w2(df) + k) / Buv_inv(map_w2(df) + k)
       a2(k) = -Auv(map_w2(df) + k - 1) / Buv_inv(map_w2(df) + k)
     end do
 
-    a0(BLevs_m) = 1.0_r_def + Auv(map_w2(df) + BLevs_m - 1) / Buv_inv(map_w2(df) + BLevs_m)
-    a1(BLevs_m) = 0.0_r_def
-    a2(BLevs_m) = -Auv(map_w2(df) + BLevs_m - 1) / Buv_inv(map_w2(df) + BLevs_m)
+    a0(blevs_m) = 1.0_r_def + Auv(map_w2(df) + blevs_m - 1) / Buv_inv(map_w2(df) + blevs_m)
+    a1(blevs_m) = 0.0_r_def
+    a2(blevs_m) = -Auv(map_w2(df) + blevs_m - 1) / Buv_inv(map_w2(df) + blevs_m)
 
     a0(1) = 1.0_r_def / a0(1)
 
-    do k = 2, BLevs_m
+    do k = 2, blevs_m
       factor_u(k) = a2(k) * a0(k - 1)
       a0(k) = 1.0_r_def / (a0(k) - factor_u(k) * a1(k - 1))
     end do
