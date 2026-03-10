@@ -22,16 +22,16 @@ casim:
     ref: 2026.03.2
 
 jules:
-    source: git@github.com:MetOffice/jules.git
-    ref: 2026.03.2
+    source: git@github.com:james-bruten-mo/jules.git
+    ref: lfric_jules_metadata
 
 lfric_apps:
     source:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: 2026.03.2
+    source: git@github.com:james-bruten-mo/lfric_core.git
+    ref: lfric_jules_metadata
 
 moci:
     source: git@github.com:MetOffice/moci.git
