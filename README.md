@@ -1,7 +1,7 @@
 # LFRic Apps
 
 Welcome to LFRic Apps!
-
+edit
 This repository is home to the LFRic-based science applications and libraries such as
 the Momentum&reg; Atmosphere model application and the GungHo dynamical core.
 
