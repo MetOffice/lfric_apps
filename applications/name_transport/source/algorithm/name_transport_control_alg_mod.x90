@@ -8,6 +8,7 @@
 module name_transport_control_alg_mod
 
   use constants_mod,                     only: i_def, r_def, l_def, str_def
+  use driver_modeldb_mod,                only: modeldb_type
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
   use function_space_mod,                only: function_space_type
@@ -182,26 +183,27 @@ contains
   !!          by transporting rho (if required), and tracer_con. The
   !!          transporting wind field is prescribed, but may be updated if a
   !!          time-varying profile has been specified.
-  !> @param[in]     model_clock        Time within the model
+  !> @param[in]     modeldb            Model state
   !> @param[in,out] wind               The transporting wind field
   !> @param[in,out] tracer_con         Tracer field to transport conservatively
   !> @param[in,out] rho                Dry density field to transport
   !> @param[in]     transport_density  Whether to transport the density field
-  subroutine name_transport_step( model_clock, wind, tracer_con, &
+  subroutine name_transport_step( modeldb, wind, tracer_con, &
                                   rho, transport_density )
 
     use init_gungho_prognostics_alg_mod,  only: init_u_field
-    use model_clock_mod,                  only: model_clock_type
     use sci_mass_matrix_solver_alg_mod,   only: mass_matrix_solver_alg
     use theta_transport_alg_mod,          only: theta_transport_alg
     use transport_field_mod,              only: transport_field
 
     implicit none
 
+    ! Configuration
+    type(modeldb_type), intent(in) :: modeldb
+
     ! Arguments
-    class(model_clock_type), intent(in)    :: model_clock
-    type(field_type),        intent(inout) :: wind, rho, tracer_con
-    logical(kind=l_def),     intent(in)    :: transport_density
+    type(field_type),    intent(inout) :: wind, rho, tracer_con
+    logical(kind=l_def), intent(in)    :: transport_density
 
     real(kind=r_def) :: current_time
     real(kind=r_def) :: cast_dt
@@ -213,17 +215,17 @@ contains
     type(transport_controller_type)          :: transport_controller
 
     ! Update the transporting wind field
-    cast_dt = real(model_clock%get_seconds_per_step(), r_def)
+    cast_dt = real(modeldb%model_clock%get_seconds_per_step(), r_def)
     if ( time_varying_wind ) then
-      current_time = model_clock%get_step() * cast_dt
-      call init_u_field(wind, current_time)
+      current_time = modeldb%model_clock%get_step() * cast_dt
+      call init_u_field(modeldb%config, wind, current_time)
     end if
 
     ! Get mesh from wind
     primary_mesh => wind%get_mesh()
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise( model_clock, rho, wind )
+    call transport_controller%initialise( modeldb%model_clock, rho, wind )
 
     ! Transport dry density
     if (transport_density) then

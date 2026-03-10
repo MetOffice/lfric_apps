@@ -11,24 +11,20 @@
 !>
 module initial_u_kernel_mod
 
-  use argument_mod,            only : arg_type, func_type,       &
-                                      GH_FIELD, GH_SCALAR,       &
-                                      GH_INC, GH_READ,           &
-                                      GH_REAL, ANY_SPACE_9,      &
-                                      ANY_DISCONTINUOUS_SPACE_3, &
-                                      GH_BASIS, GH_DIFF_BASIS,   &
+  use argument_mod,            only : arg_type, func_type,         &
+                                      GH_FIELD, GH_SCALAR,         &
+                                      GH_INC, GH_READ, GH_INTEGER, &
+                                      GH_REAL, ANY_SPACE_9,        &
+                                      ANY_DISCONTINUOUS_SPACE_3,   &
+                                      GH_BASIS, GH_DIFF_BASIS,     &
                                       CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,           only : r_def, i_def, PI
   use fs_continuity_mod,       only : W2
   use kernel_mod,              only : kernel_type
 
-  use base_mesh_config_mod,      only: geometry, topology, &
-                                       geometry_spherical
-  use finite_element_config_mod, only: coord_system
-  use initial_wind_config_mod,   only: profile_sin_uv, profile,      &
-                                       sbr_angle_lat, sbr_angle_lon, &
-                                       u0, v0, shear, wavelength
-  use planet_config_mod,         only: scaled_radius
+  ! Configuration parameters
+  use base_mesh_config_mod,    only: geometry_spherical
+  use initial_wind_config_mod, only: profile_sin_uv
 
   implicit none
 
@@ -46,9 +42,23 @@ module initial_u_kernel_mod
          arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &
          arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
-         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &
-         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &
-         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! time
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! domain_max_x
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! domain_max_y
+
+         ! Namelist configuration variables
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                         &! geometry
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                         &! topology
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                         &! coord_system
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                         &! profile
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! scaled_radius
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! sbr_angle_lat
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! sbr_angle_lon
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! u0
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! v0
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! shear
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! wavelength
+
          /)
     type(func_type) :: meta_funcs(2) = (/                                   &
          func_type(W2,          GH_BASIS),                                  &
@@ -77,6 +87,17 @@ contains
   !! @param[in] time Time (timestep multiplied by dt)
   !! @param[in] domain_max_x Domain maximum x-coordinate.
   !! @param[in] domain_max_y Domain maximum y-coordinate.
+  !! @param[in] geometry       Suggestions?
+  !! @param[in] topology       Suggestions?
+  !! @param[in] coord_system   "
+  !! @param[in] profile        "
+  !! @param[in] scaled_radius  "
+  !! @param[in] sbr_angle_lat  "
+  !! @param[in] sbr_angle_lon  "
+  !! @param[in] u0             "
+  !! @param[in] v0             "
+  !! @param[in] shear          "
+  !! @param[in] wavelength     "
   !! @param[in] ndf Number of degrees of freedom per cell for W2
   !! @param[in] undf Total number of degrees of freedom for W2
   !! @param[in] map Dofmap for the cell at the base of the column for W2
@@ -102,6 +123,13 @@ contains
                             time,                            &
                             domain_max_x,                    &
                             domain_max_y,                    &
+
+                            ! Configuration variables
+                            geometry, topology, coord_system, &
+                            profile, scaled_radius,           &
+                            sbr_angle_lat, sbr_angle_lon,     &
+                            u0, v0, shear, wavelength
+
                             ndf, undf, map, basis,           &
                             ndf_chi, undf_chi,               &
                             map_chi, chi_basis,              &
@@ -110,10 +138,10 @@ contains
                             nqp_h, nqp_v, wqp_h, wqp_v       &
                             )
 
-  use analytic_wind_profiles_mod, only : analytic_wind
-  use sci_chi_transform_mod,      only : chi2llr
-  use sci_coordinate_jacobian_mod, only : coordinate_jacobian
-  use coord_transform_mod,        only : sphere2cart_vector
+  use analytic_wind_profiles_mod,  only: analytic_wind
+  use sci_chi_transform_mod,       only: chi2llr
+  use sci_coordinate_jacobian_mod, only: coordinate_jacobian
+  use coord_transform_mod,         only: sphere2cart_vector
 
   implicit none
 
@@ -141,6 +169,16 @@ contains
   real(kind=r_def), dimension(nqp_h), intent(in)        :: wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in)        :: wqp_v
 
+  ! Configuration variables
+  integer(i_def) :: geometry
+  integer(i_def) :: topology
+  integer(i_def) :: coord_system
+  integer(i_def) :: profile
+  real(r_def)    :: scaled_radius
+  real(r_def)    :: sbr_angle_lat, sbr_angle_lon
+  real(r_def)    :: u0, v0
+  real(r_def)    :: shear
+  real(r_def)    :: wavelength
 
   integer(kind=i_def), parameter :: n_options = 3
   real(kind=r_def)               :: opt_args(n_options)
@@ -149,7 +187,7 @@ contains
   integer(kind=i_def)                          :: df, k, qp1, qp2
   real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jacobian
-  real(kind=r_def), dimension(ndf_chi)     :: chi_1_cell, &
+  real(kind=r_def), dimension(ndf_chi)         :: chi_1_cell, &
                                                   chi_2_cell, &
                                                   chi_3_cell
   real(kind=r_def), dimension(3)               :: u_physical, u_spherical, coords, llr

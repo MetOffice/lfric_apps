@@ -10,6 +10,7 @@ module init_gungho_prognostics_alg_mod
   use log_mod,                         only: log_event,         &
                                              LOG_LEVEL_ERROR,   &
                                              LOG_LEVEL_INFO
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, radians_to_degrees
   use domain_mod,                      only: domain_type
   use extrusion_config_mod,            only: planet_radius
@@ -22,8 +23,7 @@ module init_gungho_prognostics_alg_mod
   use sci_fem_constants_mod,           only: get_inverse_mass_matrix_fe, &
                                              get_inverse_mass_matrix_fv, &
                                              get_qr_fe, get_qr_fv
-  use base_mesh_config_mod,            only: geometry,           &
-                                             geometry_spherical, &
+  use base_mesh_config_mod,            only: geometry_spherical, &
                                              geometry_planar
   use formulation_config_mod,          only: eos_method,              &
                                              eos_method_sampled,      &
@@ -38,9 +38,6 @@ module init_gungho_prognostics_alg_mod
                                              method_projected, &
                                              method_balanced
   use initial_wind_config_mod,         only: smp_init_wind,                   &
-                                             sbr_angle_lat, sbr_angle_lon,    &
-                                             u0, v0,                          &
-                                             profile,                         &
                                              profile_sbr_streamfunction,      &
                                              profile_dcmip301_streamfunction, &
                                              profile_div_free_reversible,     &
@@ -96,14 +93,17 @@ module init_gungho_prognostics_alg_mod
 contains
 
   !> @details This routine initialises the wind field.
+  !> @param[in]     config     Configuration
   !> @param[in,out] u          Wind velocity field
   !> @param[in]     time       time, used for setting analytic profiles
-  subroutine init_u_field(u, time)
+  subroutine init_u_field(config, u, time)
 
     implicit none
 
-    type(field_type), intent(inout) :: u
-    real(kind=r_def), intent(in)    :: time
+    type(config_type), intent(in) :: config
+
+    type(field_type),  intent(inout) :: u
+    real(kind=r_def),  intent(in)    :: time
 
     type(mesh_type), pointer            :: mesh => null()
     type(field_type)                    :: r_u, r_psi, psi
@@ -116,6 +116,23 @@ contains
     real(kind=r_def)    :: domain_max_y
     integer(kind=i_def) :: element_order_h
     integer(kind=i_def) :: element_order_v
+
+    integer(kind=i_def) :: geometry, topology, coord_system, profile
+    real(kind=r_def)    :: scaled_radius, sbr_angle_lat, sbr_angle_lon
+    real(kind=r_def)    :: u0, v0, shear, wavelength
+
+    ! Configuration variables
+    geometry      = config%base_mesh%geometry()
+    topology      = config%base_mesh%topology()
+    coord_system  = config%finite_element%config_system()
+    profile       = config%initial_wind%profile()
+    scaled_radius = config%planet%scaled_radius()
+    sbr_angle_lat = config%initial_wind%sbr_angle_lat()
+    sbr_angle_lon = config%initial_wind%sbr_angle_lon()
+    shear         = config%initial_wind%shear()
+    wavelength    = config%initial_wind%wavelength
+    u0            = config%initial_wind%u0()
+    v0            = config%initial_wind%v0()
 
     mesh => u%get_mesh()
     element_order_h = u%get_element_order_h()
@@ -202,11 +219,15 @@ contains
 
         call log_event("Initialise u with projection", LOG_LEVEL_INFO)
         call r_u%initialise( vector_space =  u%get_function_space() )
-        call invoke( name = "get_u_from_projection",                       &
-                     setval_c( u, 0.0_r_def ), setval_c( r_u, 0.0_r_def ), &
-                     initial_u_kernel_type( r_u, chi, panel_id, time,      &
-                                            domain_max_x, domain_max_y,    &
-                                            qr ),                          &
+        call invoke( name = "get_u_from_projection",                          &
+                     setval_c( u, 0.0_r_def ), setval_c( r_u, 0.0_r_def ),    &
+                     initial_u_kernel_type( r_u, chi, panel_id, time,         &
+                                            domain_max_x, domain_max_y,       &
+                                            geometry, topology, coord_system, &
+                                            profile, scaled_radius,           &
+                                            sbr_angle_lat, sbr_angle_lon,     &
+                                            u0, v0, shear, wavelength,        &
+                                            qr ),                             &
                      enforce_bc_kernel_type( r_u ) )
         call mass_matrix_solver_alg(u, r_u)
       end if

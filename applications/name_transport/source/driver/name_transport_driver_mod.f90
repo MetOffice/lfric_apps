@@ -292,7 +292,8 @@ contains
     call name_transport_prerun_setup( num_base_meshes )
 
     ! Initialise prognostic variables
-    call name_transport_init_fields_alg( mesh, wind, density, tracer_con )
+    call name_transport_init_fields_alg( modeldb%config, mesh, wind, &
+                                         density, tracer_con )
 
     ! Initialise all transport-only control algorithm
     call name_transport_init( density, tracer_con )
@@ -358,7 +359,7 @@ contains
   !============================================================================
   !> @brief Performs a time step of the name_transport app.
   !>
-  subroutine step_name_transport( model_clock )
+  subroutine step_name_transport( modeldb )
 
     use base_mesh_config_mod,     only: prime_mesh_name
     use io_config_mod,            only: diagnostic_frequency, &
@@ -368,7 +369,10 @@ contains
 
     implicit none
 
-    class(model_clock_type), intent(in) :: model_clock
+    type(modeldb_type),       intent(in) :: modeldb
+
+!    type(config_type),       intent(in) :: config
+!    class(model_clock_type), intent(in) :: model_clock
 
     type(mesh_type), pointer :: mesh
     integer(tik)             :: id
@@ -391,7 +395,7 @@ contains
     if ( LPROF ) call start_timing( id, 'name_transport_step' )
 
     ! Transport field
-    call name_transport_step( model_clock, wind, tracer_con, &
+    call name_transport_step( modeldb%config, model_clock, wind, tracer_con, &
                               density, transport_density )
 
     if ( LPROF ) call stop_timing( id, 'name_transport_step' )

@@ -10,6 +10,7 @@
 
 module name_transport_init_fields_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: r_def, i_def, radians_to_degrees
   use domain_mod,                        only: domain_type
   use field_mod,                         only: field_type
@@ -39,17 +40,21 @@ contains
 
   !-----------------------------------------------------------------------------
   !> @brief Initialisation of prognostic fields for the name_transport miniapp.
+  !> @param[in]     config            Configuration
   !> @param[in]     mesh              Mesh to initialise variables on
   !> @param[in,out] wind              Transporting wind field (W2)
   !> @param[in,out] density           Density field (in W3)
   !> @param[in,out] tracer_con        Conservative tracer field (in W3)
   !-----------------------------------------------------------------------------
-  subroutine name_transport_init_fields_alg( mesh,         &
-                                             wind,         &
-                                             density,      &
+  subroutine name_transport_init_fields_alg( config,  &
+                                             mesh,    &
+                                             wind,    &
+                                             density, &
                                              tracer_con )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(mesh_type), pointer, intent(in)    :: mesh
@@ -101,7 +106,7 @@ contains
                                              domain_max_x, qr ) )
 
     ! Compute initial wind
-    call init_u_field( wind, initial_time )
+    call init_u_field(config, wind, initial_time)
 
     ! ======================================================================== !
     ! Set I/O behaviours for diagnostic output

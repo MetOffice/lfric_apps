@@ -7,6 +7,7 @@
 
 module transport_control_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, r_def, l_def, str_def, r_tran
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
@@ -249,11 +250,11 @@ contains
   !> @param[in,out] wt_aerosol         Tracer in Wtheta on coarse mesh to transport advectively
   !> @param[in,out] aerosol_wind       Transporting wind field on the coarse mesh
   !> @param[in]     nummr_to_transport Number of moisture species to transport
-  subroutine transport_step( model_clock, wind,        &
-                             rho, theta, tracer_con,   &
-                             tracer_adv, constant, mr, &
-                             w2_vector, w3_aerosol,    &
-                             wt_aerosol, aerosol_wind, &
+  subroutine transport_step( config, model_clock, wind, &
+                             rho, theta, tracer_con,    &
+                             tracer_adv, constant, mr,  &
+                             w2_vector, w3_aerosol,     &
+                             wt_aerosol, aerosol_wind,  &
                              nummr_to_transport )
 
     use sci_field_bundle_builtins_mod,    only: clone_bundle, copy_bundle
@@ -272,6 +273,9 @@ contains
     use wind_transport_alg_mod,           only: wind_transport_alg
 
     implicit none
+
+    ! Configuration
+    type(config_type), intent(in) :: config
 
     ! Arguments
     class(model_clock_type), intent(in)    :: model_clock
@@ -307,7 +311,7 @@ contains
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
     if ( time_varying_wind ) then
       current_time = model_clock%get_step() * cast_dt
-      call init_u_field(wind, current_time)
+      call init_u_field(config, wind, current_time)
       call map_w2_intermesh( aerosol_wind, wind )
     end if
 

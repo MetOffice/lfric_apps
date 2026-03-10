@@ -12,9 +12,9 @@ module gw_init_fields_alg_mod
                                                LOG_LEVEL_INFO,    &
                                                LOG_LEVEL_TRACE,   &
                                                LOG_LEVEL_ERROR
+  use config_mod,                        only: config_type
   use constants_mod,                     only: r_def, i_def, &
                                                radians_to_degrees
-
   use sci_mass_matrix_solver_alg_mod,    only: mass_matrix_solver_alg
   use sci_geometric_constants_mod,       only: get_coordinates, &
                                                get_panel_id
@@ -49,16 +49,19 @@ module gw_init_fields_alg_mod
 contains
   !> @details An algorithm for initialising prognostic fields for
   !>          all solvers.
+  !> @param[in]    config       Configuration
   !> @param[inout] prognostics  The prognostic variables
   !>                            (wind buoyancy and pressure)
-  subroutine gw_init_fields_alg( wind, pressure, buoyancy )
+  subroutine gw_init_fields_alg(config, wind, pressure, buoyancy )
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     ! Prognostic fields
-    type( field_type ), intent(inout)           :: wind
-    type( field_type ), intent(inout)           :: pressure
-    type( field_type ), intent(inout)           :: buoyancy
+    type( field_type ), intent(inout) :: wind
+    type( field_type ), intent(inout) :: pressure
+    type( field_type ), intent(inout) :: buoyancy
 
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
@@ -76,6 +79,23 @@ contains
 
     real(kind=r_def) :: domain_max_x
     real(kind=r_def) :: domain_max_y
+
+    integer(kind=i_def) :: geometry, topology, coord_system, profile
+    real(kind=r_def)    :: scaled_radius, sbr_angle_lat, sbr_angle_lon
+    real(kind=r_def)    :: u0, v0, shear, wavelength
+
+    ! Configuration variables
+    geometry      = config%base_mesh%geometry()
+    topology      = config%base_mesh%topology()
+    coord_system  = config%finite_element%config_system()
+    profile       = config%initial_wind%profile()
+    scaled_radius = config%planet%scaled_radius()
+    sbr_angle_lat = config%initial_wind%sbr_angle_lat()
+    sbr_angle_lon = config%initial_wind%sbr_angle_lon()
+    shear         = config%initial_wind%shear()
+    wavelength    = config%initial_wind%wavelength
+    u0            = config%initial_wind%u0()
+    v0            = config%initial_wind%v0()
 
     ! Get references out of the prognostic collection for the prognostic
     ! variables
@@ -110,6 +130,10 @@ contains
                  setval_c( pressure, 0.0_r_def ), &
                  initial_u_kernel_type( r_u, chi, panel_id, initial_time, &
                                         domain_max_x, domain_max_y,       &
+                                        geometry, topology, coord_system, &
+                                        profile, scaled_radius,           &
+                                        sbr_angle_lat, sbr_angle_lon,     &
+                                        u0, v0, shear, wavelength,        &
                                         qr ) )
     call mass_matrix_solver_alg(wind, r_u)
 

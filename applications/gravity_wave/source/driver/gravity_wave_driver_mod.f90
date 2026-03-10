@@ -121,7 +121,7 @@ contains
           "buoyancy",modeldb%clock%get_step()-1,"")) )
 
   else                                      ! No check point to start from
-     call gw_init_fields_alg(wind, pressure, buoyancy)
+     call gw_init_fields_alg(modeldb%config, wind, pressure, buoyancy)
   end if
 
   ! Initialise the gravity-wave model
