@@ -41,7 +41,8 @@ contains
   !> @param [in]    config        The geometry configuration
   !> @param [inout] mpi_obj       The mpi communicator
   !> @param [in]    alt_mesh_name The name of an alternative mesh_name to setup
-  subroutine initialise_mesh( mesh_name, configuration, config, mpi_obj, alt_mesh_name )
+  subroutine initialise_mesh( mesh_name, configuration, config, mpi_obj, &
+                              alt_mesh_name )
 
     implicit none
 
