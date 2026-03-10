@@ -36,7 +36,6 @@ module atl_end_transport_step_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use adj_flux_precomputations_mod,   only: adj_initialise_step
 
-
   implicit none
 
   private
@@ -221,13 +220,17 @@ contains
 
     if (.not. final_split_step) then
       flux_ptr => transport_counter%get_flux( step )
-      call invoke( inc_X_plus_Y( flux, flux_ptr ), &
-                   setval_c( flux_ptr, 0.0_r_tran ) )
+      call invoke( inc_X_plus_Y( flux, flux_ptr ) )
     end if
 
     ! Combine fluxes from each part of the calculation
     call invoke( inc_X_plus_Y( flux_pert_wind, flux ), &
                  inc_X_plus_Y( flux_ls_wind, flux ) )
+
+    if (.not. final_split_step) then
+      flux_ptr => transport_counter%get_flux( step )
+      call invoke( setval_c( flux_ptr, 0.0_r_tran ) )
+    end if
 
   end subroutine atl_end_conservative_step_alg
 

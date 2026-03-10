@@ -172,7 +172,7 @@ contains
     character(len=str_def)                 :: source_file_lbc
 
     ! lfric2lfric namelist parameters
-    integer(kind=i_def)     :: stencil_depth
+    integer(kind=i_def)     :: stencil_depth(1)
     integer(kind=i_def)     :: source_geometry
     integer(i_def)          :: mode
     integer(i_def)          :: regrid_method
@@ -317,7 +317,7 @@ contains
     !-----------------------------------------------------------------------
     ! Create the required meshes
     !-----------------------------------------------------------------------
-    stencil_depth = get_required_stencil_depth()
+    stencil_depth = 2
     call init_mesh( modeldb%configuration,       &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &

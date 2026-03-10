@@ -13,7 +13,7 @@
 program algorithm_test
 
   use add_mesh_map_mod,        only: assign_mesh_maps
-  use configuration_mod,       only: final_configuration, &
+  use config_loader_mod,       only: final_configuration, &
                                      read_configuration
   use constants_mod,           only: i_def, r_def, str_def, l_def
   use create_mesh_mod,         only: create_extrusion, create_mesh
@@ -69,7 +69,7 @@ program algorithm_test
   logical(l_def) :: apply_partition_check
 
   integer(i_def) :: geometry
-  integer(i_def) :: stencil_depth
+  integer(i_def) :: stencil_depth(1)
   integer(i_def) :: method
   integer(i_def) :: number_of_layers
   real(r_def)    :: domain_bottom

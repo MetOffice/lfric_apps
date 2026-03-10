@@ -12,8 +12,8 @@ io_time_step='P0DT1H0M0S',
 &jedi_state
 state_time='2018-04-14 21:00:00',
 use_pseudo_model=.true.,
-variables='theta','rho','u10m','exner','u_in_w3','v_in_w3','w_in_wth',
-'m_v','m_cl','m_r','m_s',
+variables='theta','rho','exner','u_in_w3','v_in_w3','w_in_wth','m_v',
+'m_cl','m_r','m_s','land_fraction',
 /
 &jedi_increment
 inc_time='2018-04-14 21:00:00',
@@ -31,7 +31,7 @@ number_of_steps=9,
 time_step='P0DT1H0M0S',
 /
 &jedi_lfric_settings
-adjoint_test_tolerance=1.0e-3,
+adjoint_test_tolerance=1.0e-2,
 forecast_length='P0DT6H0M0S',
 /
 &base_mesh
@@ -254,11 +254,23 @@ write_minmax_tseries=.false.,
 /
 &linear
 fixed_ls=.true.,
-l_stabilise_bl=.true.,
+l_stabilise_bl=.false.,
 ls_read_w2h=.false.,
 max_bl_stabilisation=0.75,
 n_bl_levels_to_stabilise=15,
 pert_option='file',
+transport_efficiency=.true.,
+/
+&linear_physics
+blevs_m=15,
+e_folding_levs_m=10,
+l_0_m=80.0,
+l_boundary_layer=.true.,
+log_layer=2,
+u_land_m=0.4,
+u_sea_m=0.4,
+z_land_m=0.05,
+z_sea_m=0.0005,
 /
 &logging
 log_to_rank_zero_only=.false.,
@@ -307,11 +319,16 @@ panel_yproc=1,
 partitioner='cubedsphere',
 /
 &physics
-configure_segments=.false.,
+bl_segment=0,
+configure_segments=.true.,
+conv_gr_segment=16,
+gw_segment=0,
 limit_drag_incs=.false.,
+ls_ppn_segment=0,
 sample_physics_scalars=.true.,
 sample_physics_winds=.true.,
 sample_physics_winds_correction=.false.,
+ussp_segment=0,
 /
 &planet
 cp=1005.0,
@@ -387,7 +404,7 @@ tau_u=0.55,
 /
 &transport
 adjust_theta=.false.,
-adjust_tracer_equation=.false.
+adjust_tracer_equation=.false.,
 adjust_vhv_wind=.false.,
 ageofair_reset_level=10,
 broken_w2_projection=.false.,

@@ -26,7 +26,7 @@ module atl_advective_and_flux_alg_mod
   use vertical_mass_flux_kernel_mod,       only: vertical_mass_flux_kernel_type
   use atl_w3h_advective_update_kernel_mod, only: atl_w3h_advective_update_kernel_type
   use invoke_adj_w3h_adv_upd_lookup_mod,   only: invoke_adj_w3h_adv_upd_lookup_kernel_type
-  use adj_lookup_table_generators_alg_mod, only: create_lookup_w3h_adv_upd
+  use adj_trans_lookup_cache_mod,          only: adj_trans_lookup_cache_type
   use adj_lookup_table_mod,                only: adj_lookup_table_type
   use integer_field_mod,                   only: integer_field_type
   use atl_w3v_advective_update_kernel_mod, only: atl_w3v_advective_update_kernel_type
@@ -53,39 +53,42 @@ contains
   !============================================================================!
   !> @brief Computes the tangent linear flux F and advective increment
   !> @details Compute the tangent linear mass flux and advective increment
-  !> @param[in,out] mass_flux_1         ACTIVE: mass flux to compute from
-  !!                                    linear wind and perturbation field
-  !> @param[in,out] mass_flux_2         ACTIVE: mass flux to compute from
-  !!                                    perturbation wind and linear field
-  !> @param[in,out] adv_inc             ACTIVE: advective increment to compute
-  !> @param[in,out] density             ACTIVE: W3 field to transport
-  !> @param[in,out] wind                ACTIVE: transporting wind field
-  !> @param[in]     ls_density          PASSIVE: linearisation transported field
-  !> @param[in]     ls_wind             PASSIVE: linearisation transporting wind
-  !> @param[in]     direction           Direction of the transport
-  !> @param[in]     transport_metadata  Contains transport configuration options
-  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  !> @param[in]     dt                  Advection time step
-  !> @param[in]     do_flux             Flag to compute mass_flux = wind*density
-  !> @param[in]     do_advective        Flag to compute adv_inc = wind.grad(density)
+  !> @param[in,out] mass_flux_1             ACTIVE: mass flux to compute from
+  !!                                        linear wind and perturbation field
+  !> @param[in,out] mass_flux_2             ACTIVE: mass flux to compute from
+  !!                                        perturbation wind and linear field
+  !> @param[in,out] adv_inc                 ACTIVE: advective increment to compute
+  !> @param[in,out] density                 ACTIVE: W3 field to transport
+  !> @param[in,out] wind                    ACTIVE: transporting wind field
+  !> @param[in]     ls_density              PASSIVE: linearisation transported field
+  !> @param[in]     ls_wind                 PASSIVE: linearisation transporting wind
+  !> @param[in]     direction               Direction of the transport
+  !> @param[in]     transport_metadata      Contains transport configuration options
+  !> @param[in]     final_rk_stage          Whether this is the last Runge-Kutta stage
+  !> @param[in]     dt                      Advection time step
+  !> @param[in]     do_flux                 Flag to compute mass_flux = wind*density
+  !> @param[in]     do_advective            Flag to compute adv_inc = wind.grad(density)
+  !> @param[in]     adj_lookup_table_cache  Lookup table cache
   subroutine atl_advective_and_flux_alg( mass_flux_1, mass_flux_2, adv_inc,  &
                                          density, wind, ls_density, ls_wind, &
                                          direction, transport_metadata,      &
                                          final_rk_stage, dt,                 &
-                                         do_flux, do_advective )
+                                         do_flux, do_advective,              &
+                                         adj_lookup_table_cache )
 
     implicit none
 
-    type(field_type),              intent(inout) :: mass_flux_1, mass_flux_2
-    type(field_type),              intent(inout) :: density, wind
-    type(field_type),              intent(in)    :: ls_density, ls_wind
-    type(field_type),              intent(inout) :: adv_inc
-    integer(kind=i_def),           intent(in)    :: direction
-    type(transport_metadata_type), intent(in)    :: transport_metadata
-    logical(kind=l_def),           intent(in)    :: final_rk_stage
-    real(kind=r_def),              intent(in)    :: dt
-    logical(kind=l_def),           intent(in)    :: do_flux
-    logical(kind=l_def),           intent(in)    :: do_advective
+    type(field_type),                  intent(inout) :: mass_flux_1, mass_flux_2
+    type(field_type),                  intent(inout) :: density, wind
+    type(field_type),                  intent(in)    :: ls_density, ls_wind
+    type(field_type),                  intent(inout) :: adv_inc
+    integer(kind=i_def),               intent(in)    :: direction
+    type(transport_metadata_type),     intent(in)    :: transport_metadata
+    logical(kind=l_def),               intent(in)    :: final_rk_stage
+    real(kind=r_def),                  intent(in)    :: dt
+    logical(kind=l_def),               intent(in)    :: do_flux
+    logical(kind=l_def),               intent(in)    :: do_advective
+    type(adj_trans_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     ! Internal variables
     type(field_type)             :: adv_inc_1, adv_inc_2
@@ -102,13 +105,13 @@ contains
     type(operator_type), pointer       :: m3_inv
     integer(kind=i_def), parameter     :: stencil_depth = 1
 
-    type(adj_lookup_table_type)        :: lookup_w3h
-    type(integer_field_type),  pointer :: lookup_w3h_field
-    type(integer_field_type),  pointer :: set_count_w3h_field
-    integer(kind=i_def)                :: nsets
-    integer(kind=i_def)                :: nindices
+    type(adj_lookup_table_type), pointer :: lookup_w3h
+    type(integer_field_type),    pointer :: lookup_w3h_field
+    type(integer_field_type),    pointer :: set_count_w3h_field
+    integer(kind=i_def)                  :: nsets
+    integer(kind=i_def)                  :: nindices
 
-    nullify(mesh, recon_fs, m3_inv, lookup_w3h_field, set_count_w3h_field)
+    nullify(mesh, recon_fs, m3_inv, lookup_w3h, lookup_w3h_field, set_count_w3h_field)
 
     mesh => density%get_mesh()
 
@@ -204,10 +207,7 @@ contains
                                                                wind,                             &
                                                                m3_inv ) )
 
-            ! Lookup table adjoint solution. Creation of lookup table is essentially
-            ! a dry-run of the TL code.
-            call create_lookup_w3h_adv_upd( lookup_w3h, adv_inc_1, reconstruction_field, &
-                                            wind, m3_inv, stencil_depth )
+            lookup_w3h => adj_lookup_table_cache%get_lookup_w3h_adv_upd(ls_wind%which_function_space())
             lookup_w3h_field => lookup_w3h%get_lookup_field()
             set_count_w3h_field => lookup_w3h%get_set_count_field()
             nindices = lookup_w3h%get_nindices()
@@ -246,8 +246,9 @@ contains
 
         end if
 
-        call atl_reconstruct_w3_field_alg( reconstruction_field, density, ls_density, &
-                                           direction, transport_metadata, final_rk_stage )
+        call atl_reconstruct_w3_field_alg( reconstruction_field, density, ls_density,     &
+                                           direction, transport_metadata, final_rk_stage, &
+                                           adj_lookup_table_cache )
 
       case ( Wtheta )
         if ( do_flux ) then
@@ -255,8 +256,9 @@ contains
         end if
 
         if ( do_advective ) then
-          call atl_wt_advective_update_alg( adv_inc, density, wind, ls_density, ls_wind, &
-                                            dt, direction, transport_metadata, final_rk_stage )
+          call atl_wt_advective_update_alg( adv_inc, density, wind, ls_density, ls_wind,       &
+                                            dt, direction, transport_metadata, final_rk_stage, &
+                                            adj_lookup_table_cache )
         end if
 
       case default

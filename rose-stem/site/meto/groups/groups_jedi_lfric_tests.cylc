@@ -22,6 +22,7 @@
         "jedi_lfric_tests_tlm_tests_nwp_gal9-C12_MG_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-1PE-C12_MG_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-4OMP-C12_MG_azspice_gnu_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_nwp_gal9-real_increment-4OMP-C12_MG_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-1PE-4OMP-C12_MG_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-dry-C12_MG_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-dry-1PE-C12_MG_azspice_gnu_fast-debug-64bit",
@@ -63,6 +64,7 @@
         "jedi_lfric_tests_tlm_tests_nwp_gal9-C12_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-1PE-C12_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-4OMP-C12_MG_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_nwp_gal9-real_increment-4OMP-C12_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-1PE-4OMP-C12_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-dry-C12_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-dry-1PE-C12_MG_ex1a_cce_fast-debug-64bit",
@@ -74,6 +76,11 @@
     "jedi_lfric_tests_op_ex1a_developer": [
         "jedi_lfric_tests_tlm_forecast_tl_nwp_gal9-C12_MG_op_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-C12_MG_op_ex1a_cce_fast-debug-64bit",
+    ],
+    "jedi_lfric_tests_ex1a_weekly": [
+        "jedi_lfric_tests_tlm_tests_nwp_gal9-4OMP-C224_MG_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_nwp_gal9-real_increment-4OMP-C224_MG_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_nwp_gal9-strict_solver-4OMP-C224_MG_ex1a_cce_fast-debug-64bit-rsolver64",
     ],
     "jedi_lfric_tests_ex1a": [
         "jedi_lfric_tests_ex1a_developer",
@@ -95,6 +102,9 @@
         "jedi_lfric_tests_azspice_developer",
         "jedi_lfric_tests_ex1a_developer",
         "jedi_lfric_tests_integration_tests",
+    ],
+    "jedi_lfric_tests_weekly": [
+        "jedi_lfric_tests_ex1a_weekly",
     ],
     "jedi_lfric_tests": [
         "jedi_lfric_tests_developer",

@@ -191,7 +191,7 @@ contains
                             aerosol_twod_mesh )
 
     ! Instantiate the linearisation state
-    call linear_create_ls_analytic( modeldb, mesh )
+    call linear_create_ls_analytic( modeldb, mesh, twod_mesh )
 
     ! 4. Initialise the model
 

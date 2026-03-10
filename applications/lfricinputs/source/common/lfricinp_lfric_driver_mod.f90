@@ -132,7 +132,7 @@ integer(i_def) :: i
 
 character(str_def) :: prime_mesh_name
 
-integer(i_def) :: stencil_depth
+integer(i_def) :: stencil_depth(1)
 integer(i_def) :: geometry
 real(r_def)    :: domain_bottom
 real(r_def)    :: scaled_radius
@@ -284,7 +284,7 @@ subroutine load_configuration( lfric_nl, required_lfric_namelists, &
 ! Description:
 !  Reads lfric namelists and checks that all required namelists are present
 
-use configuration_mod, only: read_configuration, ensure_configuration
+use config_loader_mod, only: read_configuration, ensure_configuration
 
 implicit none
 

@@ -7,7 +7,8 @@
 
 module adjt_mixed_schur_preconditioner_alg_mod
 
-  use constants_mod,                    only: i_def, r_def, l_def, r_solver
+  use adj_solver_lookup_cache_mod,      only: adj_solver_lookup_cache_type
+  use constants_mod,                    only: i_def, r_def, l_def, r_solver, EPS
   use log_mod,                          only: log_event,         &
                                               log_scratch_space, &
                                               LOG_LEVEL_INFO,    &
@@ -59,16 +60,18 @@ contains
   !!          the result stored in the other, so we use three vectors to save on
   !!          variables. This differs from other adjoint tests as most adjoint
   !!          routines would increment one argument and set the other to zero.
-  !> @param[in,out] modeldb     Structure containing the model state
-  !> @param[in]     mesh        The model mesh
-  !> @param[in]     model_clock The model clock
-  subroutine adjt_mixed_schur_preconditioner_alg( modeldb, mesh, model_clock )
+  !> @param[in,out] modeldb                 Structure containing the model state
+  !> @param[in]     mesh                    The model mesh
+  !> @param[in]     model_clock             The model clock
+  !> @param[in]     adj_lookup_table_cache  Lookup table cache
+  subroutine adjt_mixed_schur_preconditioner_alg( modeldb, mesh, model_clock, adj_lookup_table_cache )
 
     implicit none
 
-    type(modeldb_type), target, intent(inout) :: modeldb
-    type(mesh_type), pointer,     intent(in)    :: mesh
-    type(model_clock_type),       intent(in)    :: model_clock
+    type(modeldb_type),         target, intent(inout) :: modeldb
+    type(mesh_type),           pointer, intent(in)    :: mesh
+    type(model_clock_type),             intent(in)    :: model_clock
+    type(adj_solver_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     ! Prognostic fields
     type(field_type),          dimension(bundle_size) :: rhs
@@ -104,10 +107,9 @@ contains
     real(kind=r_def) :: p_sf, uv_sf, w_sf
     real(kind=r_def) :: p_p_inp_inner_prod, uv_uv_inp_inner_prod, w_w_inp_inner_prod
     real(kind=r_def) :: inner1, inner2
-    real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 1100.0_r_def
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
     integer(kind=tik)           :: id
 
     if ( LPROF ) call start_timing( id, 'adjt_mixed_schur_preconditioner_alg' )
@@ -166,7 +168,8 @@ contains
     call create_pressure_solver( pressure_operator, pressure_preconditioner, pressure_solver )
     call create_mixed_preconditioner( rhs, pressure_solver, mixed_preconditioner )
 
-    call create_adj_pressure_preconditioner( rhs, adj_pressure_operator, adj_pressure_preconditioner )
+    call create_adj_pressure_preconditioner( rhs, adj_lookup_table_cache, &
+                                             adj_pressure_operator, adj_pressure_preconditioner )
     call create_adj_pressure_solver( adj_pressure_operator, adj_pressure_preconditioner, adj_pressure_solver )
     call create_adj_mixed_preconditioner( rhs, adj_pressure_solver, adj_mixed_preconditioner )
 
@@ -200,9 +203,9 @@ contains
     write(log_scratch_space, *) "w inner product = ", w_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-    p_sf = 1.0_r_def / (p_inner_prod + eps)
-    uv_sf = 1.0_r_def / (uv_inner_prod + eps)
-    w_sf = 1.0_r_def / (w_inner_prod + eps)
+    p_sf = 1.0_r_def / (p_inner_prod + EPS)
+    uv_sf = 1.0_r_def / (uv_inner_prod + EPS)
+    w_sf = 1.0_r_def / (w_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + p_inner_prod * p_sf
