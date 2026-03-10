@@ -40,6 +40,16 @@ program adjoint_tests
 
   logical :: lsubroutine_timers
 
+  integer, allocatable :: seed(:)
+  integer :: seed_size
+
+  call random_seed(size = seed_size)
+  allocate(seed(seed_size))
+
+  seed = 0
+
+  call random_seed(put = seed)
+
   call parse_command_line( filename )
   modeldb%mpi => global_mpi
 

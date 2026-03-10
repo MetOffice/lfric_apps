@@ -11,7 +11,7 @@
 program jedi_lfric_time_test
 
   use config_mod,                      only : config_type
-  use configuration_mod,               only : final_configuration, &
+  use config_loader_mod,               only : final_configuration, &
                                               read_configuration
   use constants_mod,                   only : i_def, r_def, l_def
   use halo_comms_mod,                  only : initialise_halo_comms, &

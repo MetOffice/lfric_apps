@@ -13,7 +13,7 @@
 program algorithm_test
 
   use add_mesh_map_mod,        only: assign_mesh_maps
-  use configuration_mod,       only: final_configuration, &
+  use config_loader_mod,       only: final_configuration, &
                                      read_configuration
   use config_mod,              only: config_type
   use constants_mod,           only: i_def, r_def, str_def, l_def
