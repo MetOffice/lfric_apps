@@ -52,6 +52,11 @@
         <axis axis_ref="vert_axis_half_levels"/>
         <axis axis_ref="ls_axis"/>
       </grid>
+      <grid id="one_level_face_ls_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="1"/>
+        <axis axis_ref="ls_axis"/>
+      </grid>
     </grid_definition>
 
   </context>
