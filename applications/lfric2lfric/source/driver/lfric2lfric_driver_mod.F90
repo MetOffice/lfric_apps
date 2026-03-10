@@ -33,6 +33,7 @@ module lfric2lfric_driver_mod
   use lfric2lfric_config_mod,         only: mode_ics, mode_lbc
   use lfric2lfric_infrastructure_mod, only: initialise_infrastructure, &
                                             context_dst, context_src,  &
+                                            context_lbc,               &
                                             source_collection_name,    &
                                             target_collection_name
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
@@ -153,7 +154,7 @@ contains
 
         is_running = modeldb%clock%tick()
 
-        call modeldb%io_contexts%get_io_context(context_dst, io_context)
+        call modeldb%io_contexts%get_io_context(context_lbc, io_context)
         call io_context%set_current()
         call advance(io_context, modeldb%clock)
 

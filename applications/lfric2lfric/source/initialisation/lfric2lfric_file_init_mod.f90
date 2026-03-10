@@ -33,7 +33,8 @@ module lfric2lfric_file_init_mod
   implicit none
 
   private
-  public :: init_lfric2lfric_src_files, init_lfric2lfric_dst_files
+  public :: init_lfric2lfric_src_files, init_lfric2lfric_dst_files, &
+            init_lfric2lfric_lbc_files
 
   contains
 
@@ -151,14 +152,6 @@ module lfric2lfric_file_init_mod
                                     io_mode=FILE_MODE_WRITE,          &
                                     freq=checkpoint_frequency )       )
         end if
-      else if (mode == mode_lbc) then
-        ! Setup lbc writing context information
-        call files_list%insert_item(                                &
-            lfric_xios_file_type( "lfric2lfric_lbc",                &
-                                  xios_id="lfric_lbc_write",        &
-                                  io_mode=FILE_MODE_WRITE,          &
-                                  operation=OPERATION_TIMESERIES,   &
-                                  freq=diagnostic_frequency ) )
       endif
 
       ! Setup orography ancillary file
@@ -175,5 +168,32 @@ module lfric2lfric_file_init_mod
     endif
 
   end subroutine init_lfric2lfric_dst_files
+
+  !> @brief   Sets up lbc I/O configuration.
+  !> @details Initialises the file list for the lbc I/O context, using
+  !!          the checkpoint_stem_name extracted from the `files` namelist.
+  !> @param [out]        files_list    The list of I/O files.
+  !> @param [in,out]     modeldb       Required by init_io.
+  subroutine init_lfric2lfric_lbc_files( files_list, modeldb )
+
+    implicit none
+
+    type(linked_list_type),        intent(out)   :: files_list
+    type(modeldb_type), optional,  intent(inout) :: modeldb
+
+
+    if( use_xios_io ) then
+
+      ! Setup lbc writing context information
+      call files_list%insert_item(                                &
+          lfric_xios_file_type( "lfric2lfric_lbc",                &
+                                xios_id="lfric_lbc_write",        &
+                                io_mode=FILE_MODE_WRITE,          &
+                                operation=OPERATION_TIMESERIES,   &
+                                freq=diagnostic_frequency ) )
+
+    endif
+
+  end subroutine init_lfric2lfric_lbc_files
 
 end module lfric2lfric_file_init_mod

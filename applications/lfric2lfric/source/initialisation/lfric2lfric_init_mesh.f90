@@ -38,8 +38,10 @@ module lfric2lfric_init_mesh_mod
                                          log_level_error,   &
                                          log_level_debug
   use namelist_collection_mod,     only: namelist_collection_type
+  use namelist_item_mod,           only: namelist_item_type
   use namelist_mod,                only: namelist_type
   use panel_decomposition_mod,     only: panel_decomposition_type
+  use partitioning_config_mod,     only: panel_decomposition_auto
   use partition_mod,               only: partitioner_interface
   use runtime_partition_mod,       only: mesh_cubedsphere,       &
                                          mesh_planar,            &
@@ -108,11 +110,14 @@ subroutine init_mesh( configuration,           &
 
   integer(kind=i_def), parameter :: dst = 1
   integer(kind=i_def), parameter :: src = 2
+  integer(kind=i_def), parameter :: lbc = 3
 
   ! Namelist variables
   type(namelist_type), pointer :: lfric2lfric_nml      => null()
   type(namelist_type), pointer :: src_partitioning_nml => null()
   type(namelist_type), pointer :: dst_partitioning_nml => null()
+  type(namelist_type), pointer :: dummy_partitioning_nml => null()
+  type(namelist_item_type)     :: dummy_members(1)
 
   ! partitioning namelist variables
   logical(l_def)                   :: generate_inner_halos(2)
@@ -133,9 +138,11 @@ subroutine init_mesh( configuration,           &
 
   procedure(partitioner_interface), pointer :: partitioner_src => null()
   procedure(partitioner_interface), pointer :: partitioner_dst => null()
+  procedure(partitioner_interface), pointer :: partitioner_lbc => null()
 
   class(panel_decomposition_type), allocatable :: decomposition_src, &
-                                                  decomposition_dst
+                                                  decomposition_dst, &
+                                                  decomposition_lbc
 
 
   !============================================================================
@@ -243,6 +250,10 @@ subroutine init_mesh( configuration,           &
     else
       call load_local_mesh( mesh_file(dst), mesh_names(dst) )
 
+      if (mode == mode_lbc) then
+        call load_local_mesh( mesh_file(dst), mesh_names(lbc) )
+      end if
+
       call log_event( 'Using pre-partitioned mesh file:', log_level_info )
       call log_event( '   '//trim(mesh_file(src)), log_level_info )
       call log_event( "Loading local mesh(es)", log_level_info )
@@ -289,13 +300,13 @@ subroutine init_mesh( configuration,           &
       call log_event( "Setting up cubed-sphere partition mesh(es)", &
                       log_level_debug )
     else
+      mesh_selection(dst) = mesh_planar
+      call log_event( "Setting up planar partition mesh(es)", &
+                      log_level_debug )
+
       if (mode == mode_lbc) then
-        mesh_selection(dst) = mesh_lfric2lfric_lbc
+        mesh_selection(lbc) = mesh_lfric2lfric_lbc
         call log_event( "Setting up planar lbc partition mesh(es)", &
-                        log_level_debug )
-      else
-        mesh_selection(dst) = mesh_planar
-        call log_event( "Setting up planar partition mesh(es)", &
                         log_level_debug )
       end if
     end if
@@ -312,11 +323,32 @@ subroutine init_mesh( configuration,           &
                                    decomposition_src,    &
                                    partitioner_src )
 
-    call get_partition_parameters( dst_partitioning_nml, &
-                                   mesh_selection(dst),  &
-                                   total_ranks,          &
-                                   decomposition_dst,    &
-                                   partitioner_dst )
+    if (mode == mode_lbc) then
+      ! Create a dummy partition namelist to partition the destination mesh,
+      ! which by default will be set to 'auto'
+      call dummy_members(1)%initialise('panel_decomposition', &
+                                        panel_decomposition_auto)
+      call dummy_partitioning_nml%initialise('partitioning', &
+                                 dummy_members, 'boundaries')
+
+      call get_partition_parameters( dummy_partitioning_nml, &
+                                     mesh_selection(dst),    &
+                                     total_ranks,            &
+                                     decomposition_dst,      &
+                                     partitioner_dst )
+
+      call get_partition_parameters( dst_partitioning_nml, &
+                                     mesh_selection(lbc),  &
+                                     total_ranks,          &
+                                     decomposition_lbc,    &
+                                     partitioner_lbc )
+    else
+      call get_partition_parameters( dst_partitioning_nml, &
+                                     mesh_selection(dst),  &
+                                     total_ranks,          &
+                                     decomposition_dst,    &
+                                     partitioner_dst )
+    end if
 
     ! Read in all global meshes from input file
     !===========================================================
@@ -324,6 +356,9 @@ subroutine init_mesh( configuration,           &
       call load_global_mesh( mesh_file(dst), mesh_names )
     else
       call load_global_mesh( mesh_file(dst), mesh_names(dst) )
+      if (mode == mode_lbc) then
+        call load_global_mesh( mesh_file(dst), mesh_names(lbc) )
+      end if
       call load_global_mesh( mesh_file(src), mesh_names(src) )
     endif
 
@@ -335,6 +370,15 @@ subroutine init_mesh( configuration,           &
                             stencil_depths,                &
                             generate_inner_halos(dst),     &
                             partitioner_dst )
+
+    if (mode == mode_lbc) then
+      call create_local_mesh( mesh_names(lbc:lbc),         &
+                              local_rank, total_ranks,     &
+                              decomposition_lbc,           &
+                              stencil_depths,              &
+                              generate_inner_halos(dst),   &
+                              partitioner_lbc )
+    end if
 
     call create_local_mesh( mesh_names(src:src),           &
                             local_rank, total_ranks,       &

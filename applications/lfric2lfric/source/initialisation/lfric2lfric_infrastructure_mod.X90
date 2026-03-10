@@ -49,7 +49,8 @@ module lfric2lfric_infrastructure_mod
   use log_mod,                     only: log_event,         &
                                          log_scratch_space, &
                                          log_level_error,   &
-                                         log_level_debug
+                                         log_level_debug,   &
+                                         log_level_info
   use mesh_mod,                    only: mesh_type
   use mesh_collection_mod,         only: mesh_collection
   use model_clock_mod,             only: model_clock_type
@@ -68,7 +69,8 @@ module lfric2lfric_infrastructure_mod
   use lfric2lfric_init_mesh_mod,   only: init_mesh
   use lfric2lfric_check_conf_mod,  only: lfric2lfric_check_configuration
   use lfric2lfric_file_init_mod,   only: init_lfric2lfric_dst_files, &
-                                         init_lfric2lfric_src_files
+                                         init_lfric2lfric_src_files, &
+                                         init_lfric2lfric_lbc_files
   use lfric2lfric_init_mod,        only: init_lfric2lfric
   use lfric2lfric_init_coupler_mod,only: lfric2lfric_init_coupler_src, &
                                          lfric2lfric_init_coupler_dst, &
@@ -109,6 +111,7 @@ module lfric2lfric_infrastructure_mod
   ! Source and destination XIOS context names
   character(len=*), public, parameter  :: context_dst = "lfric2lfric_destination"
   character(len=*), public, parameter  :: context_src = "lfric2lfric_source"
+  character(len=*), public, parameter  :: context_lbc = "lfric2lfric_boundaries"
 
   ! Source and destination field collection names
   character(len=*), public, parameter  :: source_collection_name = "source_fields"
@@ -152,6 +155,8 @@ contains
     type(mesh_type),     pointer :: twod_mesh_src
     type(mesh_type),     pointer :: mesh_dst
     type(mesh_type),     pointer :: twod_mesh_dst
+    type(mesh_type),     pointer :: mesh_lbc
+    type(mesh_type),     pointer :: twod_mesh_lbc
     type(mesh_type),     pointer :: orography_twod_mesh
     type(mesh_type),     pointer :: orography_mesh
 
@@ -166,10 +171,10 @@ contains
     type(namelist_type), pointer :: finite_element_nml
 
     ! Namelist parameters
-    character(len=str_def)                 :: mesh_names(2)
-    character(len=str_def),    allocatable :: twod_names(:)
-    character(len=str_def)                 :: start_dump_filename
-    character(len=str_def)                 :: source_file_lbc
+    character(len=str_def), allocatable :: mesh_names(:)
+    character(len=str_def), allocatable :: twod_names(:)
+    character(len=str_def)              :: start_dump_filename
+    character(len=str_def)              :: source_file_lbc
 
     ! lfric2lfric namelist parameters
     integer(kind=i_def)     :: stencil_depth(1)
@@ -190,6 +195,7 @@ contains
 
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
+    integer(kind=i_def), parameter :: lbc = 3
 
     type(coupling_type),         pointer :: coupling_ptr
     type(field_collection_type), pointer :: cpl_snd_2d
@@ -208,8 +214,10 @@ contains
 
     ! Source context pointer and temporary context for setup
     type(lfric_xios_context_type)          :: tmp_io_context_src
+    type(lfric_xios_context_type)          :: tmp_io_context_lbc
     type(lfric_xios_context_type), pointer :: io_context_src
     type(lfric_xios_context_type), pointer :: io_context_dst
+    type(lfric_xios_context_type), pointer :: io_context_lbc
     type(linked_list_type),        pointer :: file_list
 
 
@@ -230,10 +238,28 @@ contains
     ! Check lfric2lfric configuration settings are allowed
     call lfric2lfric_check_configuration( lfric2lfric_nml )
 
-    call lfric2lfric_nml%get_value( 'mode', mode )
     call lfric2lfric_nml%get_value( 'regrid_method', regrid_method )
-    call lfric2lfric_nml%get_value( 'destination_mesh_name', &
-                                             mesh_names(dst) )
+    call lfric2lfric_nml%get_value( 'mode', mode )
+
+    if (mode == mode_ics) then
+      allocate(mesh_names(2))
+      call lfric2lfric_nml%get_value( 'destination_mesh_name', &
+                                               mesh_names(dst) )
+    else if (mode == mode_lbc) then
+      allocate(mesh_names(3))
+      call lfric2lfric_nml%get_value( 'destination_mesh_name', &
+                                               mesh_names(lbc) )
+      ! The name of the destination mesh is the name of the lbc mesh
+      ! without the suffix '-lbc'
+      i = index(mesh_names(lbc), '-lbc', .true.)
+      if (i > 0) then
+        mesh_names(dst) = mesh_names(lbc)(:i-1)
+      else
+        mesh_names(dst) = mesh_names(lbc)
+      end if
+      call log_event('JMCS Mesh name: ' // mesh_names(dst), &
+                   log_level_info)
+    end if
     call lfric2lfric_nml%get_value( 'source_mesh_name', &
                                              mesh_names(src) )
     call lfric2lfric_nml%get_value( 'source_geometry', source_geometry )
@@ -349,6 +375,10 @@ contains
     twod_mesh_src => mesh_collection%get_mesh(trim(twod_names(src)))
     mesh_dst      => mesh_collection%get_mesh(trim(mesh_names(dst)))
     twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
+    if (mode == mode_lbc) then
+      mesh_lbc      => mesh_collection%get_mesh(trim(mesh_names(lbc)))
+      twod_mesh_lbc => mesh_collection%get_mesh(trim(twod_names(lbc)))
+    end if
 
     ! Log this change
     call log_event('Source mesh set to: ' // mesh_names(src),         &
@@ -359,6 +389,12 @@ contains
                    log_level_debug)
     call log_event('Destination 2D mesh set to: ' // twod_names(dst), &
                    log_level_debug)
+    if (mode == mode_lbc) then
+      call log_event('LBC mesh set to: ' // mesh_names(lbc),          &
+                     log_level_debug)
+      call log_event('LBC 2D mesh set to: ' // twod_names(lbc),       &
+                     log_level_debug)
+    end if
 
     !=======================================================================
     ! Setup I/O system
@@ -458,6 +494,37 @@ contains
       call init_altitude( orography_twod_mesh, surface_altitude_src )
     end if
 
+    if (mode == mode_lbc) then
+      !-----------------------------------------------------------------------
+      ! Create the IO context for lbc files
+      !-----------------------------------------------------------------------
+      ! Because the source lbc are not the same as the 'prime mesh', we have
+      ! to initialise the lbc context manually with the desired mesh
+
+      ! Add the lbc context to modeldb and return a pointer to it
+      call tmp_io_context_lbc%initialise(context_lbc)
+      call modeldb%io_contexts%add_context(tmp_io_context_lbc)
+      call modeldb%io_contexts%get_io_context(context_lbc, io_context_lbc)
+
+      ! Get the file list of context and populate
+      file_list => io_context_lbc%get_filelist()
+      call init_lfric2lfric_lbc_files( file_list, modeldb )
+
+      ! Get panel_id and chi from correct mesh
+      call chi_inventory%get_field_array(mesh_lbc, chi)
+      call panel_id_inventory%get_field(mesh_lbc, panel_id)
+
+      ! Using correct chi and panel_id, initialise xios context for lbc mesh
+      nullify( before_close )
+      call io_context_lbc%initialise_xios_context( modeldb%mpi%get_comm(), &
+                                                   chi,                    &
+                                                   panel_id,               &
+                                                   modeldb%clock,          &
+                                                   modeldb%calendar,       &
+                                                   before_close            )
+      call io_context_src%set_current()
+    end if
+
     !=======================================================================
     ! Create and initialise prognostic fields
     !=======================================================================
@@ -468,10 +535,10 @@ contains
                              target_collection_name, mesh_dst, twod_mesh_dst )
     else if (mode == mode_lbc) then
       call lfric2lfric_nml%get_value( 'source_file_lbc', source_file_lbc )
-      call init_lfric2lfric( modeldb, context_src, context_dst,               &
+      call init_lfric2lfric( modeldb, context_src, context_lbc,               &
                              source_file_lbc, mode,                           &
                              source_collection_name, mesh_src, twod_mesh_src, &
-                             target_collection_name, mesh_dst, twod_mesh_dst )
+                             target_collection_name, mesh_lbc, twod_mesh_lbc )
     end if
 
     !=======================================================================
@@ -493,9 +560,15 @@ contains
                                        element_order_h, element_order_v, &
                                        modeldb)
         ! Destination fields
-        call lfric2lfric_init_coupler_dst(twod_mesh_dst, "coupling_dst", &
-                                       element_order_h, element_order_v, &
-                                       modeldb)
+        if (mode == mode_ics) then
+          call lfric2lfric_init_coupler_dst(twod_mesh_dst, "coupling_dst", &
+                                         element_order_h, element_order_v, &
+                                         modeldb)
+        else if (mode == mode_lbc) then
+          call lfric2lfric_init_coupler_dst(twod_mesh_lbc, "coupling_dst", &
+                                         element_order_h, element_order_v, &
+                                         modeldb)
+        end if
 
         ! Finish coupling definition
         call lfric2lfric_end_coupler_init(modeldb, "coupling")
