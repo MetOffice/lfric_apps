@@ -141,6 +141,9 @@ fixed_ls=.false.
 pert_option='random',
 transport_efficiency=.false.
 /
+&linear_physics
+l_boundary_layer=.false.,
+/
 &logging
 run_log_level='info',
 /

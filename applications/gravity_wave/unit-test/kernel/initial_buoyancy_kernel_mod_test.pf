@@ -77,7 +77,7 @@ contains
                               p_zero=100000.0_r_def, &
                               scaling_factor=1.0_r_def )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
   end subroutine set_up
 
