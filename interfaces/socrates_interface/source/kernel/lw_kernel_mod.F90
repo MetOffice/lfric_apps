@@ -7,21 +7,22 @@
 
 module lw_kernel_mod
 
-use argument_mod,      only : arg_type, &
-                              GH_FIELD, &
-                              GH_REAL, GH_INTEGER, &
-                              GH_READ, GH_WRITE, GH_READWRITE, &
-                              DOMAIN, &
-                              ANY_DISCONTINUOUS_SPACE_1, &
-                              ANY_DISCONTINUOUS_SPACE_2, &
-                              ANY_DISCONTINUOUS_SPACE_3, &
-                              ANY_DISCONTINUOUS_SPACE_4, &
-                              ANY_DISCONTINUOUS_SPACE_5, &
-                              ANY_DISCONTINUOUS_SPACE_6, &
-                              ANY_DISCONTINUOUS_SPACE_7
-use fs_continuity_mod, only : Wtheta
-use constants_mod,     only : r_def, i_def
-use kernel_mod,        only : kernel_type
+use argument_mod,        only : arg_type, &
+                                GH_FIELD, &
+                                GH_REAL, GH_INTEGER, &
+                                GH_READ, GH_WRITE, GH_READWRITE, &
+                                DOMAIN, &
+                                ANY_DISCONTINUOUS_SPACE_1, &
+                                ANY_DISCONTINUOUS_SPACE_2, &
+                                ANY_DISCONTINUOUS_SPACE_3, &
+                                ANY_DISCONTINUOUS_SPACE_4, &
+                                ANY_DISCONTINUOUS_SPACE_5, &
+                                ANY_DISCONTINUOUS_SPACE_6, &
+                                ANY_DISCONTINUOUS_SPACE_7
+use fs_continuity_mod,   only : Wtheta
+use constants_mod,       only : r_def, i_def
+use kernel_mod,          only : kernel_type
+use tuning_segments_mod, only : lw_seg_limit_size
 
 implicit none
 
@@ -299,7 +300,7 @@ subroutine lw_code(nlayers, n_profile, &
   use radiation_config_mod, only: &
     i_cloud_ice_type_lw, i_cloud_liq_type_lw, &
     cloud_vertical_decorr, constant_droplet_effective_radius, &
-    liu_aparam, liu_bparam, lw_seg_limit
+    liu_aparam, liu_bparam
   use aerosol_config_mod, only: l_radaer,                    &
                                 sulphuric_strat_climatology, &
                                 easyaerosol_lw
@@ -429,6 +430,8 @@ subroutine lw_code(nlayers, n_profile, &
   ! Segmentation variables for threading call to Socrates
   integer(i_def) :: max_threads, soc_lw_block, seg_start, seg_end, &
                     ncols_per_thread, nblocks
+  
+  write(*,*) 'lw_seg_limit_size = ', lw_seg_limit_size
 
   ! Set indexing
   wth_0 = map_wth(1,1)
@@ -583,10 +586,11 @@ subroutine lw_code(nlayers, n_profile, &
     n_profile_list = size(profile_list)
     if (n_profile_list > 0) then
       ! Compute the number of columns per LW segment for each thread.
-      ! The maximum segment size is limited by lw_seg_limit to prevent
+      ! The maximum segment size is limited by lw_seg_limit_size to prevent
       ! overly large blocks. This ensures better load balancing across threads.
       ncols_per_thread = (n_profile_list + max_threads - 1) / max_threads
-      nblocks = ((ncols_per_thread + lw_seg_limit - 1) / lw_seg_limit) * max_threads
+      nblocks = ((ncols_per_thread + lw_seg_limit_size - 1) / lw_seg_limit_size) &
+                * max_threads
       soc_lw_block = (n_profile_list + nblocks - 1) / nblocks
 
       !$OMP PARALLEL DEFAULT(SHARED)                                           &

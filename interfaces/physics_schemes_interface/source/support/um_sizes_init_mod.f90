@@ -40,8 +40,12 @@ contains
                                  u_i_length, u_j_length, &
                                  v_i_length, v_j_length
     use tuning_segments_mod, only: bl_segment_size, precip_segment_size, &
-                                   ussp_seg_size, gw_seg_size
-    use physics_config_mod,  only : ls_ppn_segment, gw_segment, bl_segment, ussp_segment, configure_segments
+                                   ussp_seg_size, gw_seg_size, &
+                                   sw_seg_limit_size, lw_seg_limit_size
+    use physics_config_mod,  only : ls_ppn_segment, gw_segment, &
+                                    bl_segment, ussp_segment, &
+                                    configure_segments, &
+                                    sw_segment_limit, lw_segment_limit
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
 
     implicit none
@@ -134,12 +138,44 @@ contains
           ussp_seg_size = row_length
 
       end select
+      select case (sw_segment_limit)
+        case (:-1)
+          write(log_scratch_space,'(A)') &
+                'Invalid value: specified sw segment limit is -ve.'
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+        case (1:)
+          ! Set the value from the namelist
+          sw_seg_limit_size = sw_segment_limit
+
+        case default
+          ! Default behaviour is to set to row_length
+          sw_seg_limit_size = row_length
+
+      end select
+      select case (lw_segment_limit)
+        case (:-1)
+          write(log_scratch_space,'(A)') &
+                'Invalid value: specified lw segment limit is -ve.'
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+        case (1:)
+          ! Set the value from the namelist
+          lw_seg_limit_size = lw_segment_limit
+
+        case default
+          ! Default behaviour is to set to row_length
+          lw_seg_limit_size = row_length
+
+      end select
     else
       ! Default behaviour is to set to row_length
       precip_segment_size = row_length
       bl_segment_size     = row_length
       gw_seg_size         = row_length
       ussp_seg_size       = row_length
+      sw_seg_limit_size   = row_length
+      lw_seg_limit_size   = row_length
     end if
 
     ! Compute lengths in i and j direction. This is the earliest place that they
