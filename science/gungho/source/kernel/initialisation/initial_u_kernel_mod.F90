@@ -38,15 +38,13 @@ module initial_u_kernel_mod
   !>
   type, public, extends(kernel_type) :: initial_u_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                                     &
-         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
+    type(arg_type) :: meta_args(17) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &! rhs
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &! chi
+         arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &! panel_id
          arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! time
          arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! domain_max_x
-         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! domain_max_y
-
-         ! Namelist configuration variables
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! domain_max_y
          arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                         &! geometry
          arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                         &! topology
          arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                         &! coord_system
@@ -54,11 +52,10 @@ module initial_u_kernel_mod
          arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! scaled_radius
          arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! sbr_angle_lat
          arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! sbr_angle_lon
-         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! u0
-         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! v0
-         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! shear
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! u0
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! v0
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                            &! shear
          arg_type(GH_SCALAR,  GH_REAL, GH_READ)                             &! wavelength
-
          /)
     type(func_type) :: meta_funcs(2) = (/                                   &
          func_type(W2,          GH_BASIS),                                  &
@@ -128,7 +125,7 @@ contains
                             geometry, topology, coord_system, &
                             profile, scaled_radius,           &
                             sbr_angle_lat, sbr_angle_lon,     &
-                            u0, v0, shear, wavelength
+                            u0, v0, shear, wavelength,        &
 
                             ndf, undf, map, basis,           &
                             ndf_chi, undf_chi,               &

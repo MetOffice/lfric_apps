@@ -215,9 +215,9 @@ contains
     type(transport_controller_type)          :: transport_controller
 
     ! Update the transporting wind field
-    cast_dt = real(modeldb%model_clock%get_seconds_per_step(), r_def)
+    cast_dt = real(modeldb%clock%get_seconds_per_step(), r_def)
     if ( time_varying_wind ) then
-      current_time = modeldb%model_clock%get_step() * cast_dt
+      current_time = modeldb%clock%get_step() * cast_dt
       call init_u_field(modeldb%config, wind, current_time)
     end if
 
@@ -225,7 +225,7 @@ contains
     primary_mesh => wind%get_mesh()
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise( modeldb%model_clock, rho, wind )
+    call transport_controller%initialise( modeldb%clock, rho, wind )
 
     ! Transport dry density
     if (transport_density) then

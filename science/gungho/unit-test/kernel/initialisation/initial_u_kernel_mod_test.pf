@@ -46,27 +46,27 @@ module initial_u_kernel_mod_test
     procedure test_all
   end type initial_u_test_type
 
-  integer(i_def), parameter :: element_order_h = 0
-  integer(i_def), parameter :: element_order_v = 0
+!  integer(i_def), parameter :: element_order_h = 0
+!  integer(i_def), parameter :: element_order_v = 0
 
   real(r_def), parameter :: u0             = 0.0_r_def
   real(r_def), parameter :: v0             = 0.0_r_def
   real(r_def), parameter :: sbr_angle_lat  = 0.0_r_def
   real(r_def), parameter :: sbr_angle_lon  = 0.0_r_def
-  real(r_def), parameter :: wind_time_period = 10.0_r_def
-  real(r_def), parameter :: nl_constant = 1.0_r_def
+! real(r_def), parameter :: wind_time_period = 10.0_r_def
+!  real(r_def), parameter :: nl_constant = 1.0_r_def
   real(r_def), parameter :: shear = 1.0_r_def
   real(r_def), parameter :: wavelength = 1.0_r_def
-  real(r_def), parameter :: profile_data_u(1) = (/ 0.0_r_def /)
-  real(r_def), parameter :: profile_data_v(1) = (/ 0.0_r_def /)
-  real(r_def), parameter :: profile_data_w(1) = (/ 0.0_r_def /)
-  real(r_def), parameter :: profile_heights_uv(1) = (/ 0.0_r_def /)
-  real(r_def), parameter :: profile_heights_w(1)  = (/ 0.0_r_def /)
+!  real(r_def), parameter :: profile_data_u(1) = (/ 0.0_r_def /)
+!  real(r_def), parameter :: profile_data_v(1) = (/ 0.0_r_def /)
+!  real(r_def), parameter :: profile_data_w(1) = (/ 0.0_r_def /)
+!  real(r_def), parameter :: profile_heights_uv(1) = (/ 0.0_r_def /)
+!  real(r_def), parameter :: profile_heights_w(1)  = (/ 0.0_r_def /)
 
   real(r_def), parameter :: scaled_radius = 1.0_r_def ! Wasn't set originally
 
-  integer(i_def), parameter :: profile_size_uv = 1
-  integer(i_def), parameter :: profile_size_w  = 1
+!  integer(i_def), parameter :: profile_size_uv = 1
+!  integer(i_def), parameter :: profile_size_w  = 1
 
 contains
 
@@ -166,12 +166,12 @@ contains
     real(kind=r_def) :: domain_max_x = 18000.00_r_def
     real(kind=r_def) :: domain_max_y = 6000.00_r_def
 
-    integer :: i, j, k, cell
+    integer :: k, cell
 
-    integer(i_def)              :: nlayers, ncells, nqp_h, nqp_v
-    integer(i_def)              :: ndf_w0, ndf_w2, ndf_w3
-    integer(i_def)              :: dim_space, dim_space_diff
-    integer(i_def)              :: undf_w0, undf_w2, undf_w3
+    integer(i_def) :: nlayers, ncells, nqp_h, nqp_v
+    integer(i_def) :: ndf_w0, ndf_w2, ndf_w3
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: undf_w0, undf_w2, undf_w3
 
     ! Dofmaps
     integer(i_def), allocatable :: map_w0(:,:)

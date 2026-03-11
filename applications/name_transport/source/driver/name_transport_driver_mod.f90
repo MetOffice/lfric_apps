@@ -369,10 +369,7 @@ contains
 
     implicit none
 
-    type(modeldb_type),       intent(in) :: modeldb
-
-!    type(config_type),       intent(in) :: config
-!    class(model_clock_type), intent(in) :: model_clock
+    type(modeldb_type), intent(in) :: modeldb
 
     type(mesh_type), pointer :: mesh
     integer(tik)             :: id
@@ -389,13 +386,13 @@ contains
     write(log_scratch_space, '("/", A, "\ ")') repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     write( log_scratch_space, '(A,I0)' ) &
-      'Start of timestep ', model_clock%get_step()
+      'Start of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     if ( LPROF ) call start_timing( id, 'name_transport_step' )
 
     ! Transport field
-    call name_transport_step( modeldb%config, model_clock, wind, tracer_con, &
+    call name_transport_step( modeldb, wind, tracer_con, &
                               density, transport_density )
 
     if ( LPROF ) call stop_timing( id, 'name_transport_step' )
@@ -407,20 +404,20 @@ contains
     call log_field_minmax( LOG_LEVEL_INFO, 'tracer_con', tracer_con )
 
     write( log_scratch_space, &
-           '(A,I0)' ) 'End of timestep ', model_clock%get_step()
+           '(A,I0)' ) 'End of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write(log_scratch_space, '("\", A, "/ ")') repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     ! Output wind, density and tracer values
-    if ( (mod( model_clock%get_step(), diagnostic_frequency ) == 0) &
+    if ( (mod( modeldb%clock%get_step(), diagnostic_frequency ) == 0) &
          .and. write_diag ) then
-      call write_vector_diagnostic( 'u', wind, model_clock, &
+      call write_vector_diagnostic( 'u', wind, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_con', tracer_con, model_clock, &
+      call write_scalar_diagnostic( 'tracer_con', tracer_con, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
       if (transport_density) then
-        call write_scalar_diagnostic( 'rho', density, model_clock, &
+        call write_scalar_diagnostic( 'rho', density, modeldb%clock, &
                                       mesh, nodal_output_on_w3 )
       end if
     end if

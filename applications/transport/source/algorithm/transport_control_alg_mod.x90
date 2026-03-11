@@ -7,8 +7,9 @@
 
 module transport_control_alg_mod
 
-  use config_mod,                        only: config_type
-  use constants_mod,                     only: i_def, r_def, l_def, str_def, r_tran
+  use constants_mod,                     only: i_def, r_def, l_def, str_def, &
+                                               r_tran
+  use driver_modeldb_mod,                only: modeldb_type
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
   use flux_precomputations_alg_mod,      only: flux_precomputations_type
@@ -140,9 +141,10 @@ contains
     use_w2_vector = .false.
 
     ! Set up configs using namelist entries
-    do config = 1, profile_size
+    do config=1, profile_size
 
-      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(config)),' transport metadata'
+      write(log_scratch_space,'(3A)') &
+          'Setting up ',trim(field_names(config)),' transport metadata'
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
       transport_metadata = transport_metadata_type( field_names(config),             &
@@ -237,7 +239,7 @@ contains
   !!          transporting rho, theta, tracer and moisture mixing ratios. The
   !!          transporting wind field is prescribed, but may be updated if a
   !!          time-varying profile has been specified.
-  !> @param[in]     model_clock        Time within the model
+  !> @param[in]     modeldb            Model state
   !> @param[in,out] wind               The transporting wind field
   !> @param[in,out] rho                Dry density field to transport
   !> @param[in,out] theta              Pot. temperature field to transport
@@ -250,7 +252,7 @@ contains
   !> @param[in,out] wt_aerosol         Tracer in Wtheta on coarse mesh to transport advectively
   !> @param[in,out] aerosol_wind       Transporting wind field on the coarse mesh
   !> @param[in]     nummr_to_transport Number of moisture species to transport
-  subroutine transport_step( config, model_clock, wind, &
+  subroutine transport_step( modeldb, wind,             &
                              rho, theta, tracer_con,    &
                              tracer_adv, constant, mr,  &
                              w2_vector, w3_aerosol,     &
@@ -275,15 +277,14 @@ contains
     implicit none
 
     ! Configuration
-    type(config_type), intent(in) :: config
+    type(modeldb_type), intent(in) :: modeldb
 
     ! Arguments
-    class(model_clock_type), intent(in)    :: model_clock
-    type(field_type),        intent(inout) :: wind, rho, theta, w2_vector
-    type(field_type),        intent(inout) :: tracer_con, tracer_adv, constant
-    type(field_type),        intent(inout) :: w3_aerosol, wt_aerosol, aerosol_wind
-    type(field_type),        intent(inout) :: mr(nummr)
-    integer(kind=i_def),     intent(in)    :: nummr_to_transport
+    type(field_type),    intent(inout) :: wind, rho, theta, w2_vector
+    type(field_type),    intent(inout) :: tracer_con, tracer_adv, constant
+    type(field_type),    intent(inout) :: w3_aerosol, wt_aerosol, aerosol_wind
+    type(field_type),    intent(inout) :: mr(nummr)
+    integer(kind=i_def), intent(in)    :: nummr_to_transport
 
     real(kind=r_def) :: current_time
     real(kind=r_def) :: cast_dt
@@ -308,10 +309,10 @@ contains
     !>       of seconds since the origin of the clock then the clock should
     !>       tell it.
     !>
-    cast_dt = real(model_clock%get_seconds_per_step(), r_def)
+    cast_dt = real(modeldb%clock%get_seconds_per_step(), r_def)
     if ( time_varying_wind ) then
-      current_time = model_clock%get_step() * cast_dt
-      call init_u_field(config, wind, current_time)
+      current_time = modeldb%clock%get_step() * cast_dt
+      call init_u_field(modeldb%config, wind, current_time)
       call map_w2_intermesh( aerosol_wind, wind )
     end if
 
@@ -324,12 +325,11 @@ contains
     call map_rho_intermesh(aerosol_reference_rho, rho)
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise(                                      &
-            model_clock, rho, wind                                             &
-    )
-    call aerosol_transport_controller%initialise(                              &
-            model_clock, aerosol_reference_rho, aerosol_wind                   &
-    )
+    call transport_controller%initialise( modeldb%clock, rho, wind )
+
+    call aerosol_transport_controller%initialise( modeldb%clock, &
+                                                  aerosol_reference_rho, &
+                                                  aerosol_wind )
 
     ! Transport dry density
     call log_event( "Transporting density...", LOG_LEVEL_INFO)

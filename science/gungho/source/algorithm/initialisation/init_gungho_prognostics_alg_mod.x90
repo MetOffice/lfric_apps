@@ -124,13 +124,13 @@ contains
     ! Configuration variables
     geometry      = config%base_mesh%geometry()
     topology      = config%base_mesh%topology()
-    coord_system  = config%finite_element%config_system()
+    coord_system  = config%finite_element%coord_system()
     profile       = config%initial_wind%profile()
     scaled_radius = config%planet%scaled_radius()
     sbr_angle_lat = config%initial_wind%sbr_angle_lat()
     sbr_angle_lon = config%initial_wind%sbr_angle_lon()
     shear         = config%initial_wind%shear()
-    wavelength    = config%initial_wind%wavelength
+    wavelength    = config%initial_wind%wavelength()
     u0            = config%initial_wind%u0()
     v0            = config%initial_wind%v0()
 
