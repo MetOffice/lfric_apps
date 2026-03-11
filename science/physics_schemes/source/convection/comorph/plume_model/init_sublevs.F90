@@ -141,13 +141,17 @@ end if
 ! due to compensating subsidence...
 do ic = 1, n_points
 
-  ! Now compute the new value at the current level-step.
-  ! This is the subsided value of Tv from the next full-level
-  ! minus the value at level k,
-  ! * dt * massflux / layer-mass
-  ! We also scale by the implicitness weight alpha_detrain.
-  ! (the input delta_tv stores the Tv difference divided by layer-mass,
-  !  scaled by dt * alpha_detrain)
+  ! Now store the new value at the current level-step.
+  ! This is given by:
+  ! dTv_sub = ( ( Tv(k+1) (dry-adiabatically adjusted to k)  -  Tv(k) )
+  !           / ( rho dz ) )
+  !         * dt * alpha_detrain * mass-flux
+  !
+  ! where alpha_detrain is the implicitness weight used in the detrainment,
+  ! usually set to 1.0
+  !
+  ! The input "delta_tv" stores the above, except for the final multiplying
+  ! factor of the mass-flux at the current height, so scale by mass-flux here.
   ! Note we want the mass-flux at next, whereas sum_massflux_det is at prev,
   ! so scaling up by ratio next/prev mass-fluxes to account for entrainment.
   sublevs(ic,j_delta_tv,i_next(ic)) = delta_tv(ic)                             &
