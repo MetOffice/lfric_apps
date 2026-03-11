@@ -721,6 +721,8 @@ contains
         radiation_placement == radiation_placement_slow) then
       call radiation_fields%get_field('dtheta_rad', dtheta_rad)
       call radiation_fields%get_field('dmv_pc2_rad', dmv_pc2_rad)
+      ncells = mesh%get_last_edge_cell()
+      call um_sizes_init(ncells)
       call radiation_alg( dtheta_rad, theta, exner, mr_n, moist_dyn,           &
                           pressure_in_wth, temperature_in_wth,                 &
                           derived_fields, radiation_fields, cloud_fields,      &
@@ -735,6 +737,7 @@ contains
                           conv_liquid_fraction, conv_frozen_fraction,          &
                           conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number,&
                           dt)
+      call um_sizes_init(1_i_def)
       radiation_done = .true. ! Collect this increment later on
       call tile_lw_albedo%field_final()
       call tile_lwinc_albedo%field_final()
