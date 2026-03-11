@@ -652,7 +652,7 @@ contains
         if (.not. bundle_is_zero( mixed_solver_a_tol, self%state, bundle_size )) then
           call self%adj_semi_implicit_solver%step( self%state, self%rhs_np1, &
                                                    moist_dyn(gas_law), mr,   &
-                                                   .false., first_iteration=(inner==1) )
+                                                   first_iteration=(inner==1) )
         end if
 
         ! Accelerators for inner loop convergence
