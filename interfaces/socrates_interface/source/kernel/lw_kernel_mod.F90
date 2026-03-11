@@ -431,8 +431,6 @@ subroutine lw_code(nlayers, n_profile, &
   integer(i_def) :: max_threads, soc_lw_block, seg_start, seg_end, &
                     ncols_per_thread, nblocks
   
-  write(*,*) 'lw_seg_limit_size = ', lw_seg_limit_size
-
   ! Set indexing
   wth_0 = map_wth(1,1)
   wth_1 = map_wth(1,1)+1
