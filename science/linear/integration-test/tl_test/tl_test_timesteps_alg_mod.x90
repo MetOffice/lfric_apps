@@ -44,7 +44,7 @@ module tl_test_timesteps_alg_mod
                                             method,               &
                                             method_rk
   use time_config_mod,                only: timestep_start, timestep_end
-  use tl_test_convergence_rate_check, only: convergence_rate_check
+  use tl_test_convergence_rate_check, only: array_convergence_rate_check
   use validity_test_config_mod,       only: number_gamma_values,     &
                                             update_ls_frequency
   use moist_dyn_factors_alg_mod,      only: moist_dyn_factors_alg
@@ -52,7 +52,6 @@ module tl_test_timesteps_alg_mod
 
   implicit none
 
-  private convergence_pass_string
   public test_timesteps
 
   contains
@@ -120,8 +119,12 @@ module tl_test_timesteps_alg_mod
     real(r_def) :: denom_u, denom_rho, denom_exner, denom_theta, denom_mr
     real(r_def) :: denom_mr_tmp
     real(r_def) :: denom_total
+    integer(i_def), parameter :: n_variables = 5
+    real(r_def) :: array_norm(n_variables), array_norm_prev(n_variables)
+    character(str_def) :: array_names(n_variables)
 
-    real(r_def), parameter :: tol = 9.e-1_r_def
+    real(r_def), parameter :: tol = 3.e-1_r_def
+    real(r_def), parameter :: indiv_tol = 1.2_r_def
 
     integer(i_def)   :: n, i, t
     character(len=4) :: pass_str
@@ -212,24 +215,32 @@ module tl_test_timesteps_alg_mod
       function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
     call clone_bundle(mr, diff_mr, nummr)
 
-    call invoke( assign_field_random_kernel_type( r_u, 1.0_r_def ) ,     &
-                 assign_field_random_kernel_type( r_rho, 1.0_r_def ) ,   &
-                 assign_field_random_kernel_type( r_theta, 1.0_r_def ) , &
-                 assign_field_random_kernel_type( r_exner, 1.0_r_def ) )
+    ! Set the 'random data' to be the perturbation
+    call invoke( name = "copy_fields_to_state",   &
+                 setval_X(r_u, u    ), &
+                 setval_X(r_exner, exner    ), &
+                 setval_X(r_theta, theta), &
+                 setval_X(r_rho, rho  ) )
 
+    ! Overwrite the moisture fields with potential temperature
     do i = 1, nummr
-      call invoke( assign_field_random_kernel_type( r_mr(i), 1.0_r_def ) )
+      call invoke( &
+           setval_X( r_mr(i), theta ), &
+           inc_a_times_X( 0.000001_r_def, r_mr(i) ), &
+           setval_X( ls_mr(i), ls_theta ), &
+           inc_a_times_X( 0.000001_r_def, ls_mr(i) ))
     end do
+    call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
 
-    gamma_u = 1.e4_r_def
-    gamma_theta = 1.e2_r_def
-    gamma_rho = 1.e0_r_def
-    gamma_exner = 6.5e-1_r_def
+    gamma_u = 6.5_r_def
+    gamma_theta = 6.5_r_def
+    gamma_rho = 6.5_r_def
+    gamma_exner = 6.5_r_def
 
-    if ( use_moisture ) then
-      gamma_mr = 1.e-1_r_def
+   if ( use_moisture ) then
+      gamma_mr = 6.5_r_def
     else
-      gamma_mr = 0.0_r_def
+      gamma_mr = 0._r_def
     end if
 
     do n = 1, number_gamma_values
@@ -277,6 +288,10 @@ module tl_test_timesteps_alg_mod
 !------------------------------------------------------------------------
 !  Nonlinear model run with perturbed state
 !------------------------------------------------------------------------
+        write(log_scratch_space,'(A, I2)') &
+              "Perturbed Nonlinear, timestep: ", t
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
         call invoke( setval_X( u, n1_u ),         &
                      setval_X( theta, n1_theta ), &
                      setval_X( rho, n1_rho ),     &
@@ -314,6 +329,10 @@ module tl_test_timesteps_alg_mod
 !------------------------------------------------------------------------
 !  Linear model run
 !------------------------------------------------------------------------
+        write(log_scratch_space,'(A, I2)') &
+              "Linear, timestep: ", t
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
         call invoke( setval_X( u, p_u ),         &
                      setval_X( theta, p_theta ), &
                      setval_X( rho, p_rho ),     &
@@ -337,6 +356,7 @@ module tl_test_timesteps_alg_mod
           call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
         endif
 
+        call finalise_linear_model()
         call initialise_linear_model( mesh,  &
                                       modeldb )
 
@@ -359,6 +379,10 @@ module tl_test_timesteps_alg_mod
 !------------------------------------------------------------------------
 !  Nonlinear model run with un-perturbed state
 !------------------------------------------------------------------------
+        write(log_scratch_space,'(A, I2)') &
+              "Unperturbed NonLinear, timestep: ", t
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
         call invoke( setval_X( u, n2_u ),          &
                      setval_X( theta, n2_theta ),  &
                      setval_X( rho, n2_rho ),      &
@@ -385,6 +409,10 @@ module tl_test_timesteps_alg_mod
                      setval_X( n2_theta, theta ),  &
                      setval_X( n2_rho, rho ),      &
                      setval_X( n2_exner, exner ) )
+
+        do i = 1, nummr
+          call invoke( setval_X( n2_mr(i), mr(i) ) )
+        end do
 
         do i = 1, nummr
           call invoke( setval_X( ls_mr(i), mr(i) ) )
@@ -417,159 +445,66 @@ module tl_test_timesteps_alg_mod
           norm_mr = norm_mr + norm_mr_tmp
       end do
 
-      norm_diff = norm_rho + norm_theta + norm_exner + norm_u + norm_mr
-      norm_diff = sqrt( norm_diff )
-      norm_u = sqrt( norm_u )
-      norm_rho= sqrt( norm_rho )
-      norm_theta = sqrt( norm_theta )
-      norm_exner = sqrt( norm_exner )
-      norm_mr = sqrt( norm_mr )
+      array_norm(1) = norm_u
+      array_norm(2) = norm_rho
+      array_norm(3) = norm_theta
+      array_norm(4) = norm_mr
+      array_norm(5) = norm_exner
+      array_names(1) = 'norm_u'
+      array_names(2) = 'norm_rho'
+      array_names(3) = 'norm_theta'
+      array_names(4) = 'norm_mr'
+      array_names(5) = 'norm_exner'
 
-      call invoke( X_innerproduct_X( denom_u, p_u ) )
-      call invoke( X_innerproduct_X( denom_rho, p_rho ) )
-      call invoke( X_innerproduct_X( denom_exner, p_exner ) )
-      call invoke( X_innerproduct_X( denom_theta, p_theta ) )
+      if (n == 2) then
+        call array_convergence_rate_check( array_norm, array_norm_prev, &
+             array_names, n_variables, label, tol=tol, indiv_tol=indiv_tol )
+      end if
 
-      denom_mr=0.0_r_def
-      do i = 1, nummr
-        call invoke( &
-          X_innerproduct_X( denom_mr_tmp, p_mr(i) ) )
-          denom_mr = denom_mr + denom_mr_tmp
-      end do
-
-      denom_total = denom_rho + denom_theta + denom_exner + denom_u + denom_mr
-      denom_total = sqrt( denom_total )
-      denom_u = sqrt( denom_u )
-      denom_rho = sqrt( denom_rho )
-      denom_theta = sqrt( denom_theta )
-      denom_exner = sqrt( denom_exner )
-      denom_mr = sqrt( denom_mr )
+      array_norm_prev = array_norm
 
 !----------------------------------------------------------------------------
 !   Print values out to enable plotting a graph
 !----------------------------------------------------------------------------
+
       write( log_scratch_space,                  &
-            '( A, E32.12, A, E32.12 )' )         &
-             ' gamma_total = ' , gamma_u,        &
-             ' norm = ' , norm_diff / denom_total
+            '(A, E32.12, A, E32.12)' )           &
+             ' gamma_rho = ' , gamma_rho,        &
+             ' norm = ' , norm_rho
 
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
       write( log_scratch_space,                  &
             '(A, E32.12, A, E32.12)' )           &
-             ' gamma_rho = ' , gamma_u,          &
-             ' norm = ' , norm_rho / denom_rho
+             ' gamma_exner = ' , gamma_exner,    &
+             ' norm = ' , norm_exner
 
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
       write( log_scratch_space,                  &
             '(A, E32.12, A, E32.12)' )           &
-             ' gamma_exner = ' , gamma_u,        &
-             ' norm = ' , norm_exner / denom_exner
-
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-      write( log_scratch_space,                  &
-            '(A, E32.12, A, E32.12)' )           &
-             ' gamma_theta = ' , gamma_u,        &
-             ' norm = ' , norm_theta / denom_theta
+             ' gamma_theta = ' , gamma_theta,    &
+             ' norm = ' , norm_theta
 
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
       write( log_scratch_space,                  &
             '(A, E32.12, A, E32.12)' )           &
              ' gamma_u = ' , gamma_u,            &
-             ' norm = ' , norm_u / denom_u
+             ' norm = ' , norm_u
 
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
       write( log_scratch_space,                   &
             '(A, E32.12, A, E32.12)' )            &
-             ' gamma_mr = ' , gamma_u,            &
-             ' norm = ' , norm_mr / denom_mr
+             ' gamma_mr = ' , gamma_mr,           &
+             ' norm = ' , norm_mr
 
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-!----------------------------------------------------------------------------
-!   Test that gives a PASS or FAIL
-!----------------------------------------------------------------------------
-      if (n == 2) then
-
-        pass_str = "PASS"
-
-        write( log_scratch_space, '(A)' ) &
-               "TL Test: " // trim(label)
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-        write( log_scratch_space, '(A)' ) "Total "
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-        call convergence_pass_string( norm_diff, norm_diff_prev, pass_str, tol )
-
-        write( log_scratch_space, '(A)' ) "Theta "
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-        call convergence_pass_string( norm_theta, norm_theta_prev, pass_str, tol )
-
-        write( log_scratch_space, '(A)' ) "Rho "
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-        call convergence_pass_string( norm_rho, norm_rho_prev, pass_str, tol )
-
-        write( log_scratch_space, '(A)' ) "Exner "
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-        call convergence_pass_string( norm_exner, norm_exner_prev, pass_str, tol )
-
-        write( log_scratch_space, '(A)' ) "u "
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-        call convergence_pass_string( norm_u, norm_u_prev, pass_str, tol )
-
-        if ( use_moisture ) then
-          write( log_scratch_space, '(A)' ) "mr "
-          call log_event( log_scratch_space, LOG_LEVEL_INFO )
-          call convergence_pass_string( norm_mr, norm_mr_prev, pass_str, tol )
-        end if
-
-        write( log_scratch_space,'("   test",A32," : ",A4)' ) trim(label), pass_str
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-      end if
-
-      norm_diff_prev = norm_diff
-      norm_rho_prev = norm_rho
-      norm_theta_prev = norm_theta
-      norm_exner_prev = norm_exner
-      norm_u_prev = norm_u
-      norm_mr_prev = norm_mr
 
     end do ! Loop over values of gamma
 
   end subroutine test_timesteps
-
-  !> @brief   Test the convergence rate.
-  !> @details If the convergence rate is not close to 4, within the
-  !!          specified tolerance, then change the pass string to FAIL.
-  !> @param[in] norm_diff       Current norm
-  !> @param[in] norm_diff_prev  Previous norm
-  !> @param[inout] pass_str     Pass string (either PASS or FAIL)
-  !> @param[in] tol             Test Tolerance
-  subroutine convergence_pass_string( norm_diff, norm_diff_prev, pass_str, tol )
-    implicit none
-
-    real(r_def),           intent(in)    :: norm_diff, norm_diff_prev
-    character(len=4),      intent(inout) :: pass_str
-    real(r_def),           intent(in)    :: tol
-
-    real(r_def) :: conv_rate
-    conv_rate =  norm_diff_prev / norm_diff
-
-    conv_rate =  norm_diff_prev / norm_diff
-    write( log_scratch_space, '(A, E16.8)') &
-        "Convergence rate: ", conv_rate
-    call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-    if ( abs( conv_rate - 4.0_r_def ) >= tol ) then
-      pass_str = "FAIL"
-    endif
-
-  end subroutine convergence_pass_string
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Converts a string to a timestep number.

@@ -10,6 +10,7 @@
 !
 module jedi_run_mod
 
+  use config_mod,              only : config_type
   use constants_mod,           only : i_def, l_def, str_def
   use namelist_collection_mod, only : namelist_collection_type
 
@@ -21,6 +22,7 @@ type, public :: jedi_run_type
   private
   character(str_def)             :: jedi_run_name
   type(namelist_collection_type) :: configuration
+  type(config_type)              :: config
   logical(kind=l_def)            :: timers_finalised
 
 contains
@@ -33,6 +35,9 @@ contains
 
   !> Get a pointer to the stored configuration.
   procedure, public ::  get_configuration
+
+  !> Get a pointer to the stored config
+  procedure, public ::  get_config
 
   !> Just finalise subroutine timing; to get useful timing statistics from failed adjoint tests
   procedure, public ::  finalise_timers
@@ -90,7 +95,9 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
   use driver_collections_mod,        only: init_collections
   use driver_config_mod,             only: init_config
   use driver_log_mod,                only: init_logger
-  use driver_timer_mod,              only: init_timers
+  use namelist_mod,                  only: namelist_type
+  use timing_mod,                    only: init_timing
+  use io_config_mod,                 only: timer_output_path
   use jedi_lfric_tests_mod,          only: jedi_lfric_tests_required_namelists
   use lfric_mpi_mod,                 only: lfric_comm_type
 
@@ -101,23 +108,30 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
   integer(i_def),                 intent(in)    :: model_communicator
 
   type(lfric_comm_type)                         :: lfric_comm
+  type(namelist_type), pointer                  :: io_nml
+  logical                                       :: lsubroutine_timers
+
 
   ! Initialise the configuration
   call self%configuration%initialise( self%jedi_run_name, table_len=10 )
+  call self%config%initialise( self%jedi_run_name )
 
   ! Initialise the model communicator to setup global_mpi
   call init_internal_comm( model_communicator )
 
   ! Setup the config which is curently global
   call init_config( filename, jedi_lfric_tests_required_namelists, &
-                    self%configuration )
+                    configuration=self%configuration,              &
+                    config=self%config )
 
   ! Initialise the logger
   call lfric_comm%set_comm_mpi_val(model_communicator)
   call init_logger( lfric_comm, self%jedi_run_name )
 
-  ! Initialise subroutine timers
-  call init_timers( self%jedi_run_name )
+  ! Initialise timing wrapper
+  io_nml => self%configuration%get_namelist('io')
+  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
+  call init_timing( lfric_comm, lsubroutine_timers, trim(self%jedi_run_name), timer_output_path )
   self%timers_finalised = .false.
 
   ! Initialise collections
@@ -137,17 +151,30 @@ function get_configuration(self) result(configuration)
 
 end function get_configuration
 
+!> @brief Get pointer to the stored configuration
+!>
+!> @return config  A pointer to the configuration
+function get_config(self) result(config)
+
+  class( jedi_run_type ), target, intent(inout) :: self
+
+  type( config_type ), pointer :: config
+
+  config => self%config
+
+end function get_config
+
 !> @brief    Just finalise subroutine timing; to get useful timing statistics from failed adjoint tests
 !>
 subroutine finalise_timers(self)
 
-  use driver_timer_mod, only: final_timers
+  use timing_mod,       only: final_timing
 
   implicit none
 
   class(jedi_run_type), intent(inout) :: self
 
-  call final_timers( self%jedi_run_name )
+  call final_timing( self%jedi_run_name )
   self%timers_finalised = .true.
 
 end subroutine finalise_timers
@@ -159,7 +186,7 @@ subroutine finalise(self)
   use driver_collections_mod,        only: final_collections
   use driver_config_mod,             only: final_config
   use driver_log_mod,                only: final_logger
-  use driver_timer_mod,              only: final_timers
+  use timing_mod,                    only: final_timing
   use jedi_lfric_comm_mod,           only: final_external_comm, &
                                            final_internal_comm
   use lfric_mpi_mod,                 only: destroy_comm
@@ -172,7 +199,7 @@ subroutine finalise(self)
   call final_collections()
 
   ! Finalise subroutine timers
-  if (.not. self%timers_finalised) call final_timers( self%jedi_run_name )
+  if (.not. self%timers_finalised) call final_timing( self%jedi_run_name )
 
   ! Finalise logger
   call final_logger(self%jedi_run_name)

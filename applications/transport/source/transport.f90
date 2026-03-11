@@ -16,13 +16,14 @@ program transport
   use driver_log_mod,          only: init_logger, final_logger
   use driver_modeldb_mod,      only: modeldb_type
   use driver_time_mod,         only: init_time, final_time
-  use driver_timer_mod,        only: init_timers, final_timers
   use lfric_mpi_mod,           only: global_mpi
   use log_mod,                 only: log_event,       &
                                      log_level_trace, &
                                      log_scratch_space
   use namelist_collection_mod, only: namelist_collection_type
-
+  use namelist_mod,            only: namelist_type
+  use timing_mod,              only: init_timing, final_timing
+  use io_config_mod,           only: timer_output_path
   use transport_mod,        only: transport_required_namelists
   use transport_driver_mod, only: initialise_transport, &
                                   step_transport,       &
@@ -33,14 +34,21 @@ program transport
   type(modeldb_type) :: modeldb
   character(*), parameter   :: program_name = "transport"
   character(:), allocatable :: filename
+  type(namelist_type), pointer :: io_nml
+  logical                      :: lsubroutine_timers
 
   call parse_command_line( filename )
 
-  call modeldb%configuration%initialise( program_name, table_len=10 )
   modeldb%mpi => global_mpi
+
   call init_comm( program_name, modeldb )
+
+  call modeldb%configuration%initialise( program_name, table_len=10 )
+  call modeldb%config%initialise( program_name )
+
   call init_config( filename, transport_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration,    &
+                    config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), program_name )
 
   call log_event( 'Miniapp will run with default precision set as:', &
@@ -50,7 +58,10 @@ program transport
   write(log_scratch_space, '("        i_def kind = ", I0)') kind(1_i_def)
   call log_event( log_scratch_space , log_level_trace )
 
-  call init_timers( program_name )
+  io_nml => modeldb%configuration%get_namelist('io')
+  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
+  call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers, program_name, timer_output_path )
+  nullify( io_nml )
   call init_collections()
   call init_time( modeldb )
   deallocate( filename )
@@ -68,7 +79,7 @@ program transport
 
   call final_time( modeldb )
   call final_collections()
-  call final_timers( program_name )
+  call final_timing( program_name )
   call final_logger( program_name )
   call final_config()
   call final_comm( modeldb )
