@@ -37,10 +37,11 @@ program transport
 
   call parse_command_line( filename )
 
-  call modeldb%config%initialise( program_name )
-
   modeldb%mpi => global_mpi
+
   call init_comm( program_name, modeldb )
+
+  call modeldb%config%initialise( program_name )
 
   call init_config( filename, transport_required_namelists, &
                     config=modeldb%config )

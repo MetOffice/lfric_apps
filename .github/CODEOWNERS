@@ -1,7 +1,7 @@
-# This CODEOWNERS file includes a primary codeowner and a deputy for each section. 
+# This CODEOWNERS file includes a primary codeowner and a deputy for each section.
 # Codeowners who are not in a comment will be automatically notified of changes
 # to the listed files. All codeowners listed are valid points of contact
-# for discussing changes and seeking approval for work. 
+# for discussing changes and seeking approval for work.
 
 # Applications
 **/adjoint_tests             @DrTVockerodtMO                     # @mo-joshuacolclough
@@ -67,7 +67,7 @@ rose-stem/bin/                         @james-bruten-mo                    # @je
 rose-stem/site/meto/common/            @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/macros/            @james-bruten-mo                    # @jennyhickson
 rose-stem/apps                         # Mostly updated by macros, no codeowner
-**/versions.py                         @james-bruten-mo                    # @jennyhickson
+**/rose-meta/**/version*.py            @james-bruten-mo                    # @jennyhickson
 build/                                 @MetOffice/ssdteam @hiker
 **/*Makefile                           @MatthewHambley @hiker
 **/*.mk                                @MatthewHambley @hiker

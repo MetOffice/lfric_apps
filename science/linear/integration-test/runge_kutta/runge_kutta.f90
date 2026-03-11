@@ -10,7 +10,6 @@
 !!         corresponding nonlinear code.
 program runge_kutta
 
-  use config_loader_mod,      only: read_configuration, final_configuration
   use driver_collections_mod, only: init_collections, final_collections
   use driver_time_mod,        only: init_time, final_time
   use driver_comm_mod,        only: init_comm, final_comm
