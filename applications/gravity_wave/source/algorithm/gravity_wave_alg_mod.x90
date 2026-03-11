@@ -523,11 +523,11 @@ contains
     real(kind=r_def) :: const1, const2
     integer(tik)     :: id
 
-    dt                = modeldb%config%timestepping%dt()
-    bvf_square        = modeldb%config%initial_temperature%bvf_square()
-    limited_area      = modeldb%config%boundaries%limited_area()
-
     if ( LPROF ) call start_timing( id, 'gravity_wave_alg')
+
+    dt           = modeldb%config%timestepping%dt()
+    bvf_square   = modeldb%config%initial_temperature%bvf_square()
+    limited_area = modeldb%config%boundaries%limited_area()
 
     !=== Do a single timestep ==============================================!
     mesh => wind%get_mesh()

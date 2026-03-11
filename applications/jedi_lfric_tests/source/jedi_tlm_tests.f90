@@ -105,7 +105,7 @@ program jedi_tlm_tests
   config => run%get_config()
 
   ! Get the forecast length
-  forecast_length_str =  config%jedi_lfric_settings%forecast_length()
+  forecast_length_str = config%jedi_lfric_settings%forecast_length()
   call forecast_length%init(forecast_length_str)
 
   ! Create geometry
@@ -167,7 +167,7 @@ program jedi_tlm_tests
   absolute_diff = abs( dot_product_1 - dot_product_2 )
   machine_tolerance = spacing( max( abs( dot_product_1 ), abs( dot_product_2 ) ) )
   relative_diff = absolute_diff / machine_tolerance
-  absolute_tolerance =  config%jedi_lfric_settings%adjoint_test_tolerance()
+  absolute_tolerance = config%jedi_lfric_settings%adjoint_test_tolerance()
   if (absolute_diff > absolute_tolerance ) then
     call run%finalise_timers()  ! We still want timing info even if the test fails
     write( log_scratch_space, * ) "Adjoint test FAILED", &

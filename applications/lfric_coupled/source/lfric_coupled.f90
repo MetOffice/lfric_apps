@@ -39,8 +39,8 @@ program lfric_coupled
   character(*), parameter   :: cpl_component_name = "lfric"
   character(:), allocatable :: filename
 
-  character(str_max_filename)  :: timer_output_path
-  logical(l_def)               :: subroutine_timers
+  character(str_max_filename) :: timer_output_path
+  logical(l_def)              :: subroutine_timers
 
   call parse_command_line( filename )
 

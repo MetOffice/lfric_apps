@@ -147,7 +147,6 @@ subroutine initialise( self, jedi_geometry, config_filename )
   nl_time_step_str               = self%modeldb%config%jedi_linear_model%nl_time_step()
   forecast_length_str            = self%modeldb%config%jedi_lfric_settings%forecast_length()
 
-
   if (incremental_wind_interpolation) then
     allocate (incremental_wind_transform_type :: self%wind_transform)
   else

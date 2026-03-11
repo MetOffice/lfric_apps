@@ -82,7 +82,7 @@ program jedi_tlm_forecast_tl
   config => jedi_run%get_config()
 
   ! Get the forecast length
-  forecast_length_str =  config%jedi_lfric_settings%forecast_length()
+  forecast_length_str = config%jedi_lfric_settings%forecast_length()
   call forecast_length%init(forecast_length_str)
 
   ! Create geometry

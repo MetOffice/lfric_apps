@@ -159,8 +159,7 @@ call initialise_halo_comms( comm )
 
 call config%initialise( program_name_arg )
 
-call load_configuration( lfric_nl_fname, required_lfric_namelists, &
-                         config=config )
+call load_configuration( lfric_nl_fname, required_lfric_namelists, config )
 
 ! Initialise logging system
 call init_logger( comm, program_name )
@@ -270,8 +269,7 @@ end subroutine lfricinp_initialise_lfric
 
 !------------------------------------------------------------------
 
-subroutine load_configuration( lfric_nl, required_lfric_namelists, &
-                               config )
+subroutine load_configuration( lfric_nl, required_lfric_namelists, config )
 
 ! Description:
 !  Reads lfric namelists and checks that all required namelists are present

@@ -1,5 +1,0 @@
-geometry_planar, topology_fully_periodic
-
-geometry_spherical, topology_non_periodic
-
-geometry_spherical, topology_fully_periodic
