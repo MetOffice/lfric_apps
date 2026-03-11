@@ -8,6 +8,22 @@
 
 file-extensions= ["f90", "F90", "X90", "x90", "pf"]          #check these file types
 
-select = ["S101"]
+select = ["S101", "PORT011"]
 
 output-format = "grouped"                #group results by file
+
+
+# "./interfaces/coupled_interface/source/algorithm/process_send_fields_2d_mod.X90" = ["S101"]
+
+# "./interfaces/socrates_interface*" = ["S101"]
+# "../coupled_interface/*" = ["S101"]
+
+
+# "./interfaces/coupled_interface/* = ["S101"]
+
+
+# "../socrates_interface/*" = ["S101"]
+# "physics_schemes_interface/*" = ["S101"]
+# "jules_interface/*" = ["S101"]
+# "jedi_lfric_interface/*" = ["S101"]
+

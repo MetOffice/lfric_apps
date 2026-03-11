@@ -5,9 +5,7 @@
 ##############################################################################
 
 [check]
-
-file-extensions= ["f90", "F90", "X90", "x90", "pf"]          #check these file types
-
-select = ["S101"]
-
+file-extensions= ["f90", "F90", "X90", "x90", "pf"]    #check these file types
+select = ["S101", "PORT011"]
 output-format = "grouped"                #group results by file
+

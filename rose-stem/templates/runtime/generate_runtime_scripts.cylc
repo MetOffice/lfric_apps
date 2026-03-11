@@ -47,8 +47,6 @@
 
         inherit={{inherit.str|upper}}
         script="rose task-run --app-key=check_fortitude_linter"
-        [[[environment]]]
-            FORTITUDE_SUBDIRS = applications,science
 
 {% elif "extract_checker" in task %}
 

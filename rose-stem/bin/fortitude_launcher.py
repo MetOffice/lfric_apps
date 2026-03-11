@@ -11,7 +11,6 @@ Fail if any style changes required.
 """
 
 import sys
-import os
 import subprocess
 import argparse
 from pathlib import Path
@@ -43,45 +42,38 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     source_path: Path = Path(args.source)
-    print(source_path) #remove
-
-    subdirs_env: str = os.environ.get("FORTITUDE_SUBDIRS")
-    subdirs: list[str] = subdirs_env.split(",")
 
     failed_apps: dict[str, str] = {}
 
-   #for top_dir in ["applications", "science"]: #remove
-    for top_dir in subdirs:
-        top_level_path: Path = source_path/top_dir
-        print(top_level_path) #remove
-        applications: list[Path] = list(top_level_path.iterdir())
-        print(applications) #remove
-        for app in applications:
-            app_name: str = app.name
+    for top_dir_path in source_path.iterdir():   #e.g. applications,science,interfaces
+        if not top_dir_path.is_dir():  # don't try to loop over files
+            continue
+        for app_path in top_dir_path.iterdir():   #e.g. adjoint_tests, adjoint, coupled_interface
+            if not app_path.is_dir():
+                continue
+            app_name: str = app_path.name
             print(f"Running on {app_name}\n")
-            app_path: Path = app
             config_path: Path = app_path/"fortitude.toml"
-            print(app_path) #remove
-            print(config_path) #remove
             if not config_path.exists():
                 print("Using universal config (toml) file."
-                      " (Some apps use their own config file.)")
+                  " (Some apps use their own config file.)")
                 config_path: Path = (source_path / "rose-stem" / "app" / "check_fortitude_linter" / "file" / "fortitude.toml")
             result: subprocess.CompletedProcess[str] = launch_fortitude(config_path, app_path)
             if result.returncode:
                 # prints the app run on if there are errors of any kind
-                print(f"Checking: {app} \n", file=sys.stderr)
+                print(f"Checking: {app_name} \n", file=sys.stderr)
                 if not result.stderr:
                     # prints if no other/config errors are found
-                    print("Found lint errors:", file=sys.stderr)
+                       print("Found lint errors:", file=sys.stderr)
                     # prints the lint errors
-                    print(result.stdout, file=sys.stderr)
+                       print(result.stdout, file=sys.stderr)
                 if result.stderr:
                     # prints if there are other/config errors
-                    print("Found non-lint errors: \n", file=sys.stderr)
+                       print("Found non-lint errors: \n", file=sys.stderr)
                     # prints the other/config errors
-                    print(result.stderr, "\n\n\n", file=sys.stderr)
+                       print(result.stderr, "\n\n\n", file=sys.stderr)
                 failed_apps[app_name] = result.stderr
+
 
     if failed_apps:
         error_message: str = ""
