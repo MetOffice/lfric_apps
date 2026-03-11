@@ -111,7 +111,7 @@ contains
     type( field_type ), intent(inout) :: ustar_implicit
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'bl_imp_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.bl_imp' )
 
     ! Genuine turbulence diagnostics
     ! 3D fields in wtheta space
@@ -147,7 +147,7 @@ contains
     tauy_flag = init_diag(tauy, 'turbulence__tauy', activate=.true.)
     ustar_implicit_flag = init_diag(ustar_implicit, 'surface__ustar_implicit', activate=.true.)
 
-    if ( LPROF ) call stop_timing( id, 'bl_imp_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.bl_imp' )
 
   end subroutine initialise_diags_for_bl_imp
 
@@ -284,7 +284,7 @@ contains
     logical( l_def ) :: ignore
     integer( tik )   :: id
 
-    if ( LPROF ) call start_timing( id, 'bl_imp_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.bl_imp' )
 
     ! Output prognostic fields
     if (samp_diag('aerosol__murk')) call murk%write_field('aerosol__murk')
@@ -450,7 +450,7 @@ contains
       if (dew_point_land_flag) call dew_point_land%write_field()
     end if
 
-    if ( LPROF ) call stop_timing( id, 'bl_imp_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.bl_imp' )
 
   end subroutine output_diags_for_bl_imp
 end module bl_imp_diags_mod

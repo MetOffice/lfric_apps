@@ -14,6 +14,7 @@ module jedi_geometry_mod
   use, intrinsic :: iso_fortran_env, only : real64
 
   use calendar_mod,                  only : calendar_type
+  use config_mod,                    only : config_type
   use constants_mod,                 only : i_def, l_def, str_def, &
                                             r_second, i_timestep
   use extrusion_mod,                 only : extrusion_type, TWOD
@@ -92,9 +93,8 @@ contains
 
 !> @brief    Initialiser for jedi_geometry_type
 !>
-subroutine initialise( self, mpi_comm, configuration )
+subroutine initialise( self, mpi_comm, configuration, config )
   ! Access config directly until modeldb ready
-  use driver_mesh_mod,           only: init_mesh
   use driver_config_mod,         only: init_config
   use jedi_lfric_mesh_setup_mod, only: initialise_mesh
   use jedi_lfric_tests_mod,      only: jedi_lfric_tests_required_namelists
@@ -104,6 +104,7 @@ subroutine initialise( self, mpi_comm, configuration )
   class( jedi_geometry_type ), intent(inout) :: self
   integer( kind=i_def ),          intent(in) :: mpi_comm
   type(namelist_collection_type), intent(in) :: configuration
+  type(config_type),              intent(in) :: config
 
   ! Local
   type(mesh_type), pointer     :: mesh
@@ -121,7 +122,7 @@ subroutine initialise( self, mpi_comm, configuration )
 
   ! Setup mesh
   mpi_obj = self%get_mpi_comm()
-  call initialise_mesh( self%mesh_name, configuration, mpi_obj )
+  call initialise_mesh( self%mesh_name, configuration, config, mpi_obj )
 
   geometry_configuration => configuration%get_namelist('jedi_geometry')
   ! Setup the IO

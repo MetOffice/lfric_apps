@@ -13,7 +13,7 @@ module atlt_poly_adv_update_alg_mod
   use function_space_collection_mod, only : function_space_collection
   use finite_element_config_mod,     only : element_order_h, element_order_v
   use fs_continuity_mod,             only : W2H, Wtheta
-  use constants_mod,                 only : i_def, r_def, r_tran
+  use constants_mod,                 only : i_def, r_def, r_tran, EPS
   use log_mod,                       only : log_event,       &
                                             LOG_LEVEL_ERROR, &
                                             LOG_LEVEL_INFO,  &
@@ -61,7 +61,6 @@ module atlt_poly_adv_update_alg_mod
     real(kind=r_def)             :: advective_advective_input_inner_prod
     real(kind=r_def)             :: wind_wind_input_inner_prod
     real(kind=r_tran)            :: inner2
-    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
 
     ! Test variables
     real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
@@ -103,8 +102,8 @@ module atlt_poly_adv_update_alg_mod
                  x_innerproduct_x( wind_inner_prod, wind ) )
 
     ! Determining scale factors
-    advective_sf = 1.0_r_tran/( real( advective_inner_prod, r_tran ) + eps )
-    wind_sf = 1.0_r_tran/( real( wind_inner_prod, r_tran ) + eps )
+    advective_sf = 1.0_r_tran/( real( advective_inner_prod, r_tran ) + EPS )
+    wind_sf = 1.0_r_tran/( real( wind_inner_prod, r_tran ) + EPS )
 
     inner1 = 0.0_r_tran
     inner1 = inner1 + real( advective_inner_prod, r_tran )*advective_sf

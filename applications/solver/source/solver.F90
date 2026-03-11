@@ -12,6 +12,7 @@
 program solver
 
   use add_mesh_map_mod,        only: assign_mesh_maps
+  use config_mod,              only: config_type
   use constants_mod,           only: i_def, r_def, PRECISION_REAL, str_def
   use convert_to_upper_mod,    only: convert_to_upper
   use cli_mod,                 only: parse_command_line
@@ -34,7 +35,7 @@ program solver
   use field_mod,               only: field_type
   use sci_field_vector_mod,    only: field_vector_type
   use solver_miniapp_alg_mod,  only: solver_miniapp_alg
-  use configuration_mod,       only: final_configuration
+  use config_loader_mod,       only: final_configuration
   use solver_miniapp_mod,      only: solver_required_namelists
   use log_mod,                 only: log_event,            &
                                      log_scratch_space,    &
@@ -46,7 +47,6 @@ program solver
   use namelist_collection_mod, only: namelist_collection_type
   use namelist_mod,            only: namelist_type
   use sci_checksum_alg_mod,    only: checksum_alg
-
 
   !------------------------------------
   ! Configuration modules
@@ -60,6 +60,7 @@ program solver
 
   character(:), allocatable :: filename
   type(namelist_collection_type), SAVE :: configuration
+  type(config_type),              SAVE :: config
 
   integer(i_def) :: total_ranks, local_rank
   type(lfric_comm_type) :: comm
@@ -86,7 +87,7 @@ program solver
 
   character(str_def) :: prime_mesh_name
 
-  integer(i_def) :: stencil_depth
+  integer(i_def) :: stencil_depth(1)
   integer(i_def) :: geometry
   integer(i_def) :: method
   integer(i_def) :: number_of_layers
@@ -117,9 +118,13 @@ program solver
   local_rank  = global_mpi%get_comm_rank()
 
   call configuration%initialise( program_name, table_len=10 )
+  call config%initialise( program_name )
+
   call init_config( filename, solver_required_namelists, &
-                    configuration )
+                    configuration=configuration,         &
+                    config=config )
   call init_logger( comm, program_name )
+
   call init_collections()
 
   deallocate( filename )
@@ -185,7 +190,7 @@ program solver
   !-----------------------------------------------------------------------
   stencil_depth = 1
   check_partitions = .false.
-  call init_mesh( configuration,              &
+  call init_mesh( config,                     &
                   local_rank, total_ranks,    &
                   base_mesh_names, extrusion, &
                   stencil_depth, check_partitions )

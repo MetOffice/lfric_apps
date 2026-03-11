@@ -155,7 +155,7 @@ contains
     procedure(write_interface), pointer :: write_behaviour => null()
     integer(tik)                        :: id
 
-    if ( LPROF ) call start_timing( id, 'external_forcing_alg' )
+    if ( LPROF ) call start_timing( id, 'external_forcing' )
 
     mesh => theta%get_mesh()
     height_wth => get_height_fv( Wtheta, mesh%get_id() )
@@ -451,14 +451,13 @@ contains
     end if
 #endif
 
+    if ( LPROF ) call stop_timing( id, 'external_forcing' )
     !
     ! Write out diagnostics (if available)
     !
     if (write_diag .and. use_xios_io) then
       call write_forcing_diagnostics(du_forcing=du_forcing, output_wind_inc=wind_forcing_done)
     end if
-
-    if ( LPROF ) call stop_timing( id, 'external_forcing_alg' )
 
   end subroutine external_forcing_alg
 

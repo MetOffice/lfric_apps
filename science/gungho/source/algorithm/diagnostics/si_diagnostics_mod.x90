@@ -79,7 +79,7 @@ contains
     logical(l_def) :: ignore
     integer(tik)   :: id
 
-    if ( LPROF ) call start_timing( id, 'si_diagnostics' )
+    if ( LPROF ) call start_timing( id, 'diags.dynamics' )
 
     ! Slow physics timestep theta increments
     ! Difference between state at time step n (X_n) and X_after_slow
@@ -237,7 +237,7 @@ contains
       if (dw_solv_flag) call dw_solv%write_field()
     end if
 
-    if ( LPROF ) call stop_timing( id, 'si_diagnostics' )
+    if ( LPROF ) call stop_timing( id, 'diags.dynamics' )
 
   end subroutine output_diags_for_si
 

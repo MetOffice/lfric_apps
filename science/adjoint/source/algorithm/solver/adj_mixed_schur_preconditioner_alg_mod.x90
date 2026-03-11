@@ -135,7 +135,7 @@ contains
     integer(tik)              :: id_precon, id_solve
 
     if ( LPROF ) call start_timing( id_precon, &
-                                    'adj_mixed_schur_preconditioner_alg' )
+                                    'adj_mixed_solver.schur_precon' )
 
     select type(x)
       type is(r_solver_field_vector_type)
@@ -171,9 +171,9 @@ contains
 
     ! Solve pressure system
     call log_event( 'Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG )
-    if ( LPROF ) call start_timing( id_solve, 'adj_mixed_schur_solve' )
+    if ( LPROF ) call start_timing( id_solve, 'adj_schur_precon.pressure_solver' )
     call self%adj_pressure_solver%apply( self%pressure_x, self%pressure_b )
-    if ( LPROF ) call stop_timing( id_solve, 'adj_mixed_schur_solve' )
+    if ( LPROF ) call stop_timing( id_solve, 'adj_schur_precon.pressure_solver' )
 
     ! STEP 1: Build RHS for Helmholtz system
 
@@ -196,7 +196,7 @@ contains
     end select
 
     if ( LPROF ) call stop_timing( id_precon, &
-                                   'adj_mixed_schur_preconditioner_alg' )
+                                   'adj_mixed_solver.schur_precon' )
 
   end subroutine apply_adj_mixed_schur_preconditioner
 
@@ -221,7 +221,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ns
     integer(tik)                      :: id
 
-    if ( LPROF ) call start_timing( id, 'adj_mixed_schur_rhs' )
+    if ( LPROF ) call start_timing( id, 'adj_schur_precon.rhs' )
 
     ! Options coded:
     ! element_order_h= 0
@@ -304,7 +304,7 @@ contains
       call log_event( "adj_build_pressure_rhs: .not. split_w not coded", LOG_LEVEL_ERROR )
     end if
 
-    if ( LPROF ) call stop_timing( id, 'adj_mixed_schur_rhs' )
+    if ( LPROF ) call stop_timing( id, 'adj_schur_precon.rhs' )
 
   end subroutine adj_build_pressure_rhs
 
@@ -328,7 +328,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ns
     integer(tik)                      :: id
 
-    if ( LPROF ) call start_timing( id, 'adj_schur_back_substitute' )
+    if ( LPROF ) call start_timing( id, 'adj_schur_precon.back_sub' )
 
     exner_inc => self%pressure_x%get_field_from_position(1)
 
@@ -375,7 +375,7 @@ contains
                                                        Hb_lumped_inv ),           &
                  setval_c(u_inc, 0.0_r_solver) )
 
-    if ( LPROF ) call stop_timing( id, 'adj_schur_back_substitute' )
+    if ( LPROF ) call stop_timing( id, 'adj_schur_precon.back_sub' )
 
   end subroutine adj_back_substitute
 

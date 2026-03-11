@@ -48,7 +48,7 @@ contains
         tau_west_spectral_gwd, tau_north_spectral_gwd
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'spectral_gwd_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.spectral_gwd' )
 
     ! 3D fields in wtheta space
     tau_east_spectral_gwd_flag = init_diag(tau_east_spectral_gwd, 'spectral_gwd__tau_east_spectral_gwd')
@@ -56,7 +56,7 @@ contains
     tau_west_spectral_gwd_flag = init_diag(tau_west_spectral_gwd, 'spectral_gwd__tau_west_spectral_gwd')
     tau_north_spectral_gwd_flag = init_diag(tau_north_spectral_gwd, 'spectral_gwd__tau_north_spectral_gwd')
 
-    if ( LPROF ) call stop_timing( id, 'spectral_gwd_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.spectral_gwd' )
 
   end subroutine initialise_diags_for_spectral_gwd
 
@@ -76,7 +76,7 @@ contains
                                          tau_north_spectral_gwd
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'spectral_gwd_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.spectral_gwd' )
 
     ! Prognostic fields
     call du_spectral_gwd%write_field('spectral_gwd__du_spectral_gwd')
@@ -90,7 +90,7 @@ contains
     if (tau_west_spectral_gwd_flag) call tau_west_spectral_gwd%write_field()
     if (tau_north_spectral_gwd_flag) call tau_north_spectral_gwd%write_field()
 
-    if ( LPROF ) call stop_timing( id, 'spectral_gwd_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.spectral_gwd' )
 
   end subroutine output_diags_for_spectral_gwd
 end module spectral_gwd_diags_mod

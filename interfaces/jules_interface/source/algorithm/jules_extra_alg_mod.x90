@@ -150,7 +150,7 @@ contains
     integer( kind=i_def ) :: ncells
     integer( tik )        :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_extra_alg' )
+    if ( LPROF ) call start_timing( id, 'jules.extra' )
 
     ! Unpack precipitation fields
     call microphysics_fields%get_field('ls_rain', ls_rain)
@@ -269,7 +269,7 @@ contains
 
     call um_sizes_init(1_i_def)
 
-    if ( LPROF ) call stop_timing( id, 'jules_extra_alg' )
+    if ( LPROF ) call stop_timing( id, 'jules.extra' )
 
     if (use_xios_io .and. write_diag) then
 

@@ -79,9 +79,9 @@ contains
     type( field_type ), pointer :: liquid_fraction      => null()
     type( field_type ), pointer :: frozen_fraction      => null()
     type( field_type ), pointer :: bulk_fraction        => null()
-    integer( tik )              :: id_alg, id_xios
+    integer( tik )              :: id_alg, id_diags
 
-    if ( LPROF ) call start_timing( id_alg, 'pc2_rad_response_alg' )
+    if ( LPROF ) call start_timing( id_alg, 'cloud.pc2_radiation' )
 
     ! Unpack fields
     call cloud_fields%get_field('liquid_fraction', liquid_fraction)
@@ -124,16 +124,16 @@ contains
     ! N.B. We are not updating the variables that came in, just
     !      providing increments that need to be added on later.
 
-    if ( LPROF ) call stop_timing( id_alg, 'pc2_rad_response_alg' )
+    if ( LPROF ) call stop_timing( id_alg, 'cloud.pc2_radiation' )
 
     if ( write_diag .and. use_xios_io ) then
-      if ( LPROF ) call start_timing( id_xios, 'pc2_rad_response_xios' )
+      if ( LPROF ) call start_timing( id_diags, 'diags.pc2_radiation' )
       call dtheta_pc2_inc%write_field('cloud__dtheta_pc2_rad')
       call dmv_pc2_inc%write_field('cloud__dmv_pc2_rad')
       call dmcl_pc2_inc%write_field('cloud__dmcl_pc2_rad')
       call dcfl_pc2_inc%write_field('cloud__dcfl_pc2_rad')
       call dbcf_pc2_inc%write_field('cloud__dbcf_pc2_rad')
-      if ( LPROF ) call stop_timing( id_xios, 'pc2_rad_response_xios' )
+      if ( LPROF ) call stop_timing( id_diags, 'diags.pc2_radiation' )
     end if
 
   end subroutine pc2_rad_response_alg

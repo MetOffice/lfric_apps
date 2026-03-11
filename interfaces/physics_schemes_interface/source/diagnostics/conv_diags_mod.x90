@@ -160,7 +160,7 @@ contains
     logical(l_def) :: ignore
     integer(tik)   :: id
 
-    if ( LPROF ) call start_timing( id, 'conv_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.conv' )
 
     ! Convective diagnostics - 2d
     deep_in_col_flag = init_diag(deep_in_col, 'convection__deep_in_col')
@@ -302,7 +302,7 @@ contains
       call invoke( setval_c(shallow_in_col, 0.0_r_def) )
     end if
 
-    if ( LPROF ) call stop_timing( id, 'conv_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.conv' )
 
   end subroutine initialise_diags_for_conv
 
@@ -436,7 +436,7 @@ contains
                                        dmv_conv_noshal
     integer( tik )  :: id
 
-    if ( LPROF ) call start_timing( id, 'conv_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.conv' )
 
     ! Prognostic fields
     call cca%write_field('convection__cca')
@@ -508,7 +508,7 @@ contains
     if (dth_conv_noshal_flag) call dth_conv_noshal%write_field()
     if (dmv_conv_noshal_flag) call dmv_conv_noshal%write_field()
 
-    if ( LPROF ) call stop_timing( id, 'conv_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.conv' )
 
   end subroutine output_diags_for_conv
 end module conv_diags_mod

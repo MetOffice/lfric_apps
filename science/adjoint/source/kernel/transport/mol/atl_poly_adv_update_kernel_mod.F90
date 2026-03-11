@@ -152,10 +152,7 @@ subroutine atl_poly_adv_update_code( nlayers,           &
   real(kind=r_tran)                         :: ls_dtdy
 
 
-  uv = 0.0_r_tran
-  v_dot_n(:) = 1.0_r_tran
-  v_dot_n(1) = -1.0_r_tran
-  v_dot_n(nfaces) = -1.0_r_tran
+  v_dot_n = (/ -1.0_r_tran, 1.0_r_tran, 1.0_r_tran, -1.0_r_tran /)
   opposite(:) = -1
   missing_neighbour(:) = .false.
 
@@ -186,9 +183,7 @@ subroutine atl_poly_adv_update_code( nlayers,           &
   uv_dir(1,k) = 0.25_r_tran * wind_dir(k + map_w2(1) - 1) + 0.25_r_tran * wind_dir(k + map_w2(3) - 1)
   uv_dir(2,k) = 0.25_r_tran * wind_dir(k + map_w2(2) - 1) + 0.25_r_tran * wind_dir(k + map_w2(4) - 1)
 
-  direction_dofs(:) = 1
-  direction_dofs(2) = 2
-  direction_dofs(4) = 2
+  direction_dofs(:) = (/ 1, 2, 1, 2 /)
 
   do df = 1, nfaces, 1
     do k = 0, nlayers, 1
@@ -206,39 +201,33 @@ subroutine atl_poly_adv_update_code( nlayers,           &
   do k = nlayers, 0, -1
     ls_dtdx = ls_tracer(e,k) - ls_tracer(w,k)
     ls_dtdy = ls_tracer(n,k) - ls_tracer(s,k)
-    uv(1,k) = uv(1,k) + ls_dtdx * advective(map_wt(1) + k)
-    uv(2,k) = uv(2,k) - ls_dtdy * advective(map_wt(1) + k)
+    uv(1,k) = ls_dtdx * advective(map_wt(1) + k)
+    uv(2,k) = -ls_dtdy * advective(map_wt(1) + k)
     advective(map_wt(1) + k) = 0.0_r_tran
   enddo
 
   k = nlayers
   wind(k + map_w2(2) - 1) = wind(k + map_w2(2) - 1) + 0.25_r_tran * uv(2,k)
   wind(k + map_w2(4) - 1) = wind(k + map_w2(4) - 1) + 0.25_r_tran * uv(2,k)
-  uv(2,k) = 0.0_r_tran
   wind(k + map_w2(1) - 1) = wind(k + map_w2(1) - 1) + 0.25_r_tran * uv(1,k)
   wind(k + map_w2(3) - 1) = wind(k + map_w2(3) - 1) + 0.25_r_tran * uv(1,k)
-  uv(1,k) = 0.0_r_tran
 
   do k = nlayers - 1, 1, -1
     wind(k + map_w2(2)) = wind(k + map_w2(2)) + 0.25_r_tran * uv(2,k)
     wind(k + map_w2(4)) = wind(k + map_w2(4)) + 0.25_r_tran * uv(2,k)
     wind(k + map_w2(2) - 1) = wind(k + map_w2(2) - 1) + 0.25_r_tran * uv(2,k)
     wind(k + map_w2(4) - 1) = wind(k + map_w2(4) - 1) + 0.25_r_tran * uv(2,k)
-    uv(2,k) = 0.0_r_tran
     wind(k + map_w2(1)) = wind(k + map_w2(1)) + 0.25_r_tran * uv(1,k)
     wind(k + map_w2(3)) = wind(k + map_w2(3)) + 0.25_r_tran * uv(1,k)
     wind(k + map_w2(1) - 1) = wind(k + map_w2(1) - 1) + 0.25_r_tran * uv(1,k)
     wind(k + map_w2(3) - 1) = wind(k + map_w2(3) - 1) + 0.25_r_tran * uv(1,k)
-    uv(1,k) = 0.0_r_tran
   enddo
 
   k = 0
   wind(map_w2(2)) = wind(map_w2(2)) + 0.25_r_tran * uv(2,k)
   wind(map_w2(4)) = wind(map_w2(4)) + 0.25_r_tran * uv(2,k)
-  uv(2,k) = 0.0_r_tran
   wind(map_w2(1)) = wind(map_w2(1)) + 0.25_r_tran * uv(1,k)
   wind(map_w2(3)) = wind(map_w2(3)) + 0.25_r_tran * uv(1,k)
-  uv(1,k) = 0.0_r_tran
 
 end subroutine atl_poly_adv_update_code
 

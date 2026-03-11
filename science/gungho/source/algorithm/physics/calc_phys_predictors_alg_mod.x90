@@ -77,7 +77,7 @@ subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
     type( field_type ) :: du, dtheta, rhsu_np1, w_in_w3_star
     integer( tik )     :: id
 
-    if ( LPROF ) call start_timing( id, 'calc_phys_predictors' )
+    if ( LPROF ) call start_timing( id, 'dynamics.phys_predictors' )
 
     call derived_fields%get_field('theta_star', theta_star)
     call derived_fields%get_field('u_star', u_star)
@@ -137,7 +137,7 @@ subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
                            u_star)
     call w_in_w3_star%field_final()
 
-    if ( LPROF ) call stop_timing( id, 'calc_phys_predictors' )
+    if ( LPROF ) call stop_timing( id, 'dynamics.phys_predictors' )
 
   end subroutine calc_phys_predictors_alg
 

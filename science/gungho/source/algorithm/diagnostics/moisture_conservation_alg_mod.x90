@@ -78,7 +78,7 @@ contains
     type(mesh_type), pointer :: shifted_mesh => null()
     integer(tik)             :: id
 
-    if ( LPROF ) call start_timing( id, 'moisture_conservation_alg' )
+    if ( LPROF ) call start_timing( id, 'diags.moisture_conservation' )
 
     element_order_h = rho_d%get_element_order_h()
     element_order_v = rho_d%get_element_order_v()
@@ -127,7 +127,7 @@ contains
 
 
     nullify( chi, panel_id, w3_fs, w3_fs, mesh, shifted_mesh, chi_shifted )
-    if ( LPROF ) call stop_timing( id, 'moisture_conservation_alg' )
+    if ( LPROF ) call stop_timing( id, 'diags.moisture_conservation' )
 
   end subroutine moisture_conservation_alg
 

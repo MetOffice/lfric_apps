@@ -262,7 +262,7 @@ contains
        grid_surface_temperature, grid_latent_heat, grid_sublimation
   integer( tik )     :: id
 
-  if ( LPROF ) call start_timing( id, 'jules_imp_diags' )
+  if ( LPROF ) call start_timing( id, 'diags.jules_imp' )
 
   ! Output prognostic fields - always output these on 2nd loop
   if (loop == 2) then
@@ -342,7 +342,7 @@ contains
 
   end if
 
-  if ( LPROF ) call stop_timing( id, 'jules_imp_diags' )
+  if ( LPROF ) call stop_timing( id, 'diags.jules_imp' )
 
   end subroutine output_diags_for_jules_imp
 end module jules_imp_diags_mod

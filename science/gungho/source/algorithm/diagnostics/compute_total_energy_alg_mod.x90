@@ -123,7 +123,7 @@ contains
     integer(kind=i_def) :: element_order_h, element_order_v
     integer(tik)        :: id
 
-    if ( LPROF ) call start_timing( id, 'compute_total_energy' )
+    if ( LPROF ) call start_timing( id, 'diags.total_energy' )
 
     geopotential => get_geopotential( mesh%get_id() )
     surface_geopotential = planet_radius*gravity
@@ -245,7 +245,7 @@ contains
 
     nullify( geopotential )
 
-    if ( LPROF ) call stop_timing( id, 'compute_total_energy' )
+    if ( LPROF ) call stop_timing( id, 'diags.total_energy' )
 
   end subroutine compute_total_energy_alg
 
