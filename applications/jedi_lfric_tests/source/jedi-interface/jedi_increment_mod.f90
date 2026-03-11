@@ -146,11 +146,11 @@ subroutine initialise_via_configuration( self, geometry, config )
   character(str_def)              :: inc_time_str
   character(str_def), allocatable :: variables(:)
 
+  ! 1. Setup from configuration
   inc_time_str        = config%jedi_increment%inc_time()
   variables           = config%jedi_increment%variables()
   initialise_via_read = config%jedi_increment%initialise_via_read()
 
-  ! 1. Setup from configuration
   call self%inc_time%init( inc_time_str )
   call setup_field_meta_data( self%field_meta_data, variables )
 

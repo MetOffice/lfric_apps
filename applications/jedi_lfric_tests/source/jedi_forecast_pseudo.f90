@@ -49,8 +49,8 @@ program jedi_forecast_pseudo
 
   character(:), allocatable  :: filename
   integer(i_def)             :: model_communicator
-  type( jedi_duration_type ) :: forecast_length
-  character( str_def )       :: forecast_length_str
+  type(jedi_duration_type)   :: forecast_length
+  character(str_def)         :: forecast_length_str
 
   character(*), parameter :: program_name = "jedi_forecast_pseudo"
 

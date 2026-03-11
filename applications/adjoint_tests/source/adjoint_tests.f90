@@ -38,6 +38,16 @@ program adjoint_tests
   logical(l_def)              :: subroutine_timers
   character(str_max_filename) :: timer_output_path
 
+  integer, allocatable :: seed(:)
+  integer :: seed_size
+
+  call random_seed(size = seed_size)
+  allocate(seed(seed_size))
+
+  seed = 0
+
+  call random_seed(put = seed)
+
   call parse_command_line( filename )
 
   modeldb%mpi => global_mpi

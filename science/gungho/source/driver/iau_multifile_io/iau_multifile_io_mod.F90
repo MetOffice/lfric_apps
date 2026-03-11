@@ -54,6 +54,7 @@ module iau_multifile_io_mod
   public :: setup_step_multifile_io
   public :: step_multifile_io
   public :: finalise_multifile_io
+
   private :: init_iau_incs_io
   private :: context_init
 
@@ -163,7 +164,7 @@ contains
 
     character(str_def) :: context_name
 
-    model_clock => modeldb % clock
+    model_clock => modeldb%clock
 
     multifile_start_timestep = calc_iau_ts_num (model_clock, iau_time)
     multifile_stop_timestep  = multifile_start_timestep + 1_i_def

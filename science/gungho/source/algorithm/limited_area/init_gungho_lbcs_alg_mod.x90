@@ -364,8 +364,8 @@ module init_gungho_lbcs_alg_mod
 
     implicit none
 
-    type(config_type),            intent(in)    :: config
-    type(field_collection_type),  intent(inout) :: lbc_fields
+    type(config_type),           intent(in)    :: config
+    type(field_collection_type), intent(inout) :: lbc_fields
 
     type(field_type), pointer :: lbc_rho_r2
     type(field_type), pointer :: lbc_rho
@@ -404,7 +404,7 @@ module init_gungho_lbcs_alg_mod
              lbc_u, mesh, w3_lbc_mask )
 
     prime_mesh_name = config%base_mesh%prime_mesh_name()
-    lbc_eos_height =  config%boundaries%lbc_eos_height()
+    lbc_eos_height  = config%boundaries%lbc_eos_height()
 
     write(log_scratch_space,'(A)') &
       'Recovering exner, and mixing ratios for LBCs.'

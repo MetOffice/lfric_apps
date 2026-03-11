@@ -152,7 +152,7 @@ subroutine state_initialiser_read( self,     &
 
   ! Initialise the Atlas field emulators via the modeldb or the
   ! io_collection
-   use_pseudo_model = config%jedi_state%use_pseudo_model()
+  use_pseudo_model = config%jedi_state%use_pseudo_model()
 
   if ( use_pseudo_model ) then
     ! We are not running the non-linear model so read the model fields from

@@ -76,8 +76,8 @@ program lfric_atm
 
   call init_logger( modeldb%mpi%get_comm(), application_name )
 
-  subroutine_timers =  modeldb%config%io%subroutine_timers()
-  timer_output_path =  modeldb%config%io%timer_output_path()
+  subroutine_timers = modeldb%config%io%subroutine_timers()
+  timer_output_path = modeldb%config%io%timer_output_path()
 
   call init_timing( modeldb%mpi%get_comm(), subroutine_timers, &
                     application_name, timer_output_path )

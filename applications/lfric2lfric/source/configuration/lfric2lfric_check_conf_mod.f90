@@ -50,9 +50,9 @@ module lfric2lfric_check_conf_mod
     integer(kind=i_def) :: regrid_method
 
     ! Extract target and origin domains from config namelist
-    origin_domain =  config%lfric2lfric%origin_domain()
-    target_domain =  config%lfric2lfric%target_domain()
-    regrid_method =  config%lfric2lfric%regrid_method()
+    origin_domain = config%lfric2lfric%origin_domain()
+    target_domain = config%lfric2lfric%target_domain()
+    regrid_method = config%lfric2lfric%regrid_method()
 
     ! Check our origin and target domains are compatible, currently the
     ! interpolations NOT allowed are lam => lbc and lam => global
