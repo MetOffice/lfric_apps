@@ -21,6 +21,9 @@ module skeb_main_alg_mod
     ! use collections
     use function_space_collection_mod, only: function_space_collection
     use mesh_collection_mod,           only: mesh_collection
+    ! Physical constants
+    use planet_constants_mod, only: planet_radius
+
     ! xios output and timers
     use io_config_mod, only: write_diag, use_xios_io
     use timing_mod,    only: start_timing, stop_timing, tik, LPROF
@@ -38,8 +41,6 @@ module skeb_main_alg_mod
 
     private
 
-    ! Logical controlling whether spectral coeffs need calculating
-    logical(kind=l_def), save :: initialize_skeb_spectral_coeffs = .true.
     logical(kind=l_def ) :: du_rot_skeb_flag
     logical(kind=l_def ) :: dv_rot_skeb_flag
     logical(kind=l_def ) :: du_div_skeb_flag
@@ -56,7 +57,7 @@ module skeb_main_alg_mod
     real(kind=r_def), parameter :: TWOP_P1 = 2.0_r_def*P + 1.0_r_def
     real(kind=r_def), parameter :: FOUR_ON_VAR = 48.0_r_def
 
-    public skeb_main_alg
+    public skeb_main_alg, skeb_init_power_law
 
  contains
   !>@brief Run the Stochastic Kinetic Energy Backscatter (SKEB)
@@ -176,9 +177,6 @@ module skeb_main_alg_mod
   ! extract u and v from SKEB winds for diagnostics
   use physics_mappings_alg_mod,      only: map_physics_winds
 
-  ! Physical constants
-  use planet_constants_mod, only: planet_radius
-
   use sci_enforce_upper_bound_kernel_mod, only: enforce_upper_bound_kernel_type
   use enforce_crit_kernel_mod, only: enforce_crit_kernel_type
 
@@ -282,7 +280,7 @@ module skeb_main_alg_mod
   type( field_type ) :: field_w2
 
   ! time decorrelation parameter
-  real(kind=r_def), save :: skeb_alpha
+  real(kind=r_def) :: skeb_alpha
 
   ! Convective resolution factor to modulate conv mask
   real(kind=r_def) :: convective_resolution_factor
@@ -290,13 +288,13 @@ module skeb_main_alg_mod
   ! scaling total dissipation by br/total_backscatter
   real(kind=r_def) :: factor_psif, max_backscatter, crit_backscatter
   ! parameters for the power law and decorrelation time alpha
-  real(kind=r_def) :: gamma, dt, spl_coeff
+  real(kind=r_def) :: dt
 
   ! mesh_id
   integer(kind=i_def) :: mesh_id
 
   ! Iterators in for loops
-  integer(i_def) :: m, n, n_row, stencil_extent
+  integer(i_def) :: n, stencil_extent
 
   ! SKEB calculations are performed at cell centres (W3 points). To index the
   ! "eta_theta_levels" array correctly at these points, set offset to 1
@@ -327,58 +325,13 @@ module skeb_main_alg_mod
                setval_c(fp_skeb, 0.0_r_def) )
 
   dt = real(clock%get_seconds_per_step(), r_def)
+  skeb_alpha=1-exp(-dt/skeb_decorrelation_time)
+
+  write(10,'(A,Z18)')'SDM skeb_alpha ',skeb_alpha
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  1)  Create Forcing Pattern  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  ! Initialize spectral coefficients for the forcing pattern
-  if (initialize_skeb_spectral_coeffs) then
-    ! set them to zero
-    skeb_spectral_coeffc = 0.0_r_def
-    skeb_spectral_coeffs = 0.0_r_def
-    skeb_power_law = 0.0_r_def
-
-    !!!!!! 1.a compute power law
-
-    ! compute alpha for temporal decorrelation
-    skeb_alpha=1-exp(-dt/skeb_decorrelation_time)
-
-    ! This power law is what Glenn Shutts observed in the CRM simulations
-    ! (see Berner et al., 2009: J. Atmos. Sci, pp 603-626)
-    gamma = 0.0_r_def
-    do n = stph_n_min, stph_n_max
-      gamma = gamma + (n+1)*(2*n+1)*n**(TWOP_P1)
-    end do
-    gamma = gamma/skeb_alpha
-
-    ! Below we calculate the power law which is given as
-    ! g(n) = spl_coeff * n^p
-    ! where
-    ! spl_coeff = SQRT([4 * Pi * a^2 * skeb_total_backscatter]/[dt * var * gamma])
-    ! var is the variance of random numbers [-0.5; 0.5] = 1/12
-    ! tested by 1000 cases of random arrays of size = 1e9
-    ! note: (4/var) is pre-calculated as FOUR_ON_VAR = 48
-
-    ! Set n_row as the summatory of n
-    n_row = 0
-    ! add up those scales below the minimum wavenumber to the
-    ! row iterator
-    do n = 1, stph_n_min-1
-      n_row = n_row + n
-    end do
-
-    ! Build power law
-    spl_coeff = planet_radius * sqrt(FOUR_ON_VAR*pi*skeb_total_backscatter/  &
-                  (dt*gamma))
-    do n = stph_n_min, stph_n_max
-      n_row = n_row + n
-      do m = 0, n
-        skeb_power_law(n_row + m) = spl_coeff * n**P
-      end do
-    end do
-    initialize_skeb_spectral_coeffs = .false.
-  end if
 
   !!!!!! 1.b call stph_fp_main to create forcing pattern for SKEB
   call stph_fp_main_alg(skeb_level_bottom-1_i_def, skeb_level_top-1_i_def,     &
@@ -697,4 +650,61 @@ module skeb_main_alg_mod
   end if ! end if write_diags and use_xios
 
   end subroutine skeb_main_alg
+
+  subroutine skeb_init_power_law(skeb_power_law, clock)
+    use stochastic_physics_config_mod, only: skeb_decorrelation_time, &
+                                             skeb_total_backscatter,  &
+                                             stph_n_min, stph_n_max
+
+    real(r_def), intent(out) :: skeb_power_law(:)
+    class(clock_type), intent(in)   :: clock
+
+    ! time decorrelation parameter
+    real(kind=r_def) :: skeb_alpha
+    real(kind=r_def) :: gamma, dt, spl_coeff
+
+    ! Iterators in for loops
+    integer(i_def) :: m, n, n_row
+
+    skeb_power_law = 0.0_r_def
+
+    ! compute alpha for temporal decorrelation
+    dt = real(clock%get_seconds_per_step(), r_def)
+    skeb_alpha=1-exp(-dt/skeb_decorrelation_time)
+
+    ! This power law is what Glenn Shutts observed in the CRM simulations
+    ! (see Berner et al., 2009: J. Atmos. Sci, pp 603-626)
+    gamma = 0.0_r_def
+    do n = stph_n_min, stph_n_max
+      gamma = gamma + (n+1)*(2*n+1)*n**(TWOP_P1)
+    end do
+    gamma = gamma/skeb_alpha
+
+    ! Below we calculate the power law which is given as
+    ! g(n) = spl_coeff * n^p
+    ! where
+    ! spl_coeff = SQRT([4 * Pi * a^2 * skeb_total_backscatter]/[dt * var * gamma])
+    ! var is the variance of random numbers [-0.5; 0.5] = 1/12
+    ! tested by 1000 cases of random arrays of size = 1e9
+    ! note: (4/var) is pre-calculated as FOUR_ON_VAR = 48
+
+    ! Set n_row as the summatory of n
+    n_row = 0
+    ! add up those scales below the minimum wavenumber to the
+    ! row iterator
+    do n = 1, stph_n_min-1
+      n_row = n_row + n
+    end do
+
+    ! Build power law
+    spl_coeff = planet_radius * sqrt(FOUR_ON_VAR*pi*skeb_total_backscatter/  &
+                  (dt*gamma))
+    do n = stph_n_min, stph_n_max
+      n_row = n_row + n
+      do m = 0, n
+        skeb_power_law(n_row + m) = spl_coeff * n**P
+      end do
+    end do
+
+  end subroutine skeb_init_power_law
 end module skeb_main_alg_mod

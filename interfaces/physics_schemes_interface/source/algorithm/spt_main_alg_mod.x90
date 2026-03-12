@@ -22,15 +22,13 @@ module spt_main_alg_mod
     ! wtheta -> w0 bottom DoF -> wtheta
     use function_space_collection_mod, only: function_space_collection
     use function_space_mod,            only: function_space_type
+    use extrusion_config_mod, only: planet_radius
 
     implicit none
 
     private
 
-    ! Logical controlling whether spectral coeffs need calculating
-    logical(kind=l_def), save :: initialize_spt_spectral_coeffs = .true.
-
-    public spt_main_alg
+    public spt_main_alg, spt_init_power_law
 
  contains
   !>@brief Run the Stochastic Perturbation of Tendencies (SPT)
@@ -137,7 +135,7 @@ module spt_main_alg_mod
   ! Physical constants
   use planet_constants_mod, only: recip_kappa_def, lcrcp
   use planet_config_mod, only: p_zero
-  use extrusion_config_mod, only: planet_radius
+
 
   implicit none
   !!!! Arguments
@@ -224,13 +222,13 @@ module spt_main_alg_mod
   type( mesh_type ), pointer :: mesh => null()
 
   ! Scalars
-  real(kind=r_def), save :: spt_alpha
+  real(kind=r_def) :: spt_alpha
   ! Scalars for power law & 1AR
-  real(kind=r_def) :: beta,gamma,Lbeta,sigma,dt
+  real(kind=r_def) :: dt
   ! Physics scalars
   real(kind=r_def) :: mlcrcp
   ! iterators in for loops
-  integer(i_def) :: n,n_row, m
+  integer(i_def) :: n
 
   ! SPT calculations are performed at theta-levels (Wtheta points). To index the
   ! "eta_theta_levels" array correctly at these points, set offset to 0
@@ -242,6 +240,9 @@ module spt_main_alg_mod
   ! Timing handle
   integer(tik)   :: id_alg, id_diags
 
+  ! SDM
+  real(r_def) :: chksum
+
   if ( LPROF ) call start_timing( id_alg, 'stoch_phys.spt' )
 
   timestepping_config_mod_dt = dt_timestep
@@ -249,49 +250,11 @@ module spt_main_alg_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  1)  Create Forcing pattern  ||
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  ! Initialize spectral coefficients for the forcing pattern
-  if (initialize_spt_spectral_coeffs) then
-    ! set them to zero
-    spt_spectral_coeffc = 0.0_r_def
-    spt_spectral_coeffs = 0.0_r_def
-    spt_power_law= 0.0_r_def
-
-    !!!!!! 1.a compute power law
-
-    ! compute alpha for temporal decorrelation,
-    ! first get timestep from clock
-    dt = real(clock%get_seconds_per_step(), r_def)
-    spt_alpha=1-exp(-dt/spt_decorrelation_time)
-
-    ! Compute spatial decorrelation for 500km
-    ! Maybe move 500 to namelist (hardwired in UM)
-    Lbeta = 500e3_r_def !Original value eq 500e3
-    beta  = 0.5_r_def*(Lbeta/planet_radius)**2.0_r_def
-
-    ! Compute Tau, add zonal one by hand
-    ! (as done in UM)
-    gamma=1.0_r_def/(2.0_r_def-spt_alpha)
-    do n=1,stph_n_max
-      gamma=gamma+(2*n + 1)/(1-0.5_r_def*spt_alpha)*exp(-2*beta*n*(n+1))
-    end do
-
-    ! Compute sigma
-    sigma=1.0_r_def/sqrt(12.0_r_def)
-
-    !Define the power law over all stph_spectral_dim
-    !for simplicity (thus repeating same values)
-    !on the single line
-    n_row = 0
-    do n = 1, stph_n_max
-      n_row = n_row + n
-      do m = 0,n
-        spt_power_law( n_row + m )=exp(-beta*n*(n+1))/(sigma*sqrt(gamma))
-      end do
-    end do
-
-    initialize_spt_spectral_coeffs = .false.
-  end if
+  ! compute alpha for temporal decorrelation,
+  ! first get timestep from clock
+  dt = real(clock%get_seconds_per_step(), r_def)
+  spt_alpha=1-exp(-dt/spt_decorrelation_time)
+  write(10,'(A,Z18)')'SDM spt_alpha ',spt_alpha
 
   !!!!!! 1.b get meshes and 2D field and call stph_fp_main
 
@@ -506,7 +469,10 @@ module spt_main_alg_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  9)  Add increments to the flow and diagnostics  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+  call invoke( X_innerproduct_X(chksum, dtheta_spt) )
+  write(10,'(A,Z18)')'SDM checksum dtheta_spt ',chksum
+  call invoke( X_innerproduct_X(chksum, dmv_spt) )
+  write(10,'(A,Z18)')'SDM checksum dmv_spt ',chksum
   ! Add SPT increments to the stochastic physics increments
   if (spt_add_increments) then
     call invoke(inc_X_plus_Y(dtheta_stph, dtheta_spt), &
@@ -525,4 +491,51 @@ module spt_main_alg_mod
   end if
 
   end subroutine spt_main_alg
+
+  subroutine spt_init_power_law(spt_power_law, clock)
+    use stochastic_physics_config_mod, only: spt_decorrelation_time, stph_n_max
+
+    real(r_def), intent(out) :: spt_power_law(:)
+    class(clock_type), intent(in)   :: clock
+
+    real(kind=r_def) :: spt_alpha
+    ! Scalars for power law & 1AR
+    real(kind=r_def) :: beta, gamma, Lbeta, sigma, dt
+    ! iterators in for loops
+    integer(i_def) :: n, n_row, m
+
+    spt_power_law = 0.0_r_def
+
+    ! compute alpha for temporal decorrelation,
+    ! first get timestep from clock
+    dt = real(clock%get_seconds_per_step(), r_def)
+    spt_alpha=1-exp(-dt/spt_decorrelation_time)
+
+    ! Compute spatial decorrelation for 500km
+    ! Maybe move 500 to namelist (hardwired in UM)
+    Lbeta = 500e3_r_def !Original value eq 500e3
+    beta  = 0.5_r_def*(Lbeta/planet_radius)**2.0_r_def
+
+    ! Compute Tau, add zonal one by hand
+    ! (as done in UM)
+    gamma=1.0_r_def/(2.0_r_def-spt_alpha)
+    do n=1,stph_n_max
+      gamma=gamma+(2*n + 1)/(1-0.5_r_def*spt_alpha)*exp(-2*beta*n*(n+1))
+    end do
+
+    ! Compute sigma
+    sigma=1.0_r_def/sqrt(12.0_r_def)
+
+    !Define the power law over all stph_spectral_dim
+    !for simplicity (thus repeating same values)
+    !on the single line
+    n_row = 0
+    do n = 1, stph_n_max
+      n_row = n_row + n
+      do m = 0,n
+        spt_power_law( n_row + m )=exp(-beta*n*(n+1))/(sigma*sqrt(gamma))
+      end do
+    end do
+  end subroutine spt_init_power_law
+
 end module spt_main_alg_mod

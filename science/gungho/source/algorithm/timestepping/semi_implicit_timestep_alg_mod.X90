@@ -302,6 +302,9 @@ contains
     real( r_def )    :: dt
     real( r_def )    :: dtemp_encorr
 
+    ! SDM
+    integer(i_def) :: i
+
     ! Get pointers to field collections for use downstream
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
     model_clock => modeldb%clock
@@ -353,12 +356,40 @@ contains
       call get_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
                            spt_spectral_coeffs, spt_power_law)
     end if
-
     if (use_skeb) then
       call get_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
                            skeb_spectral_coeffs, skeb_power_law)
     end if
-
+    if (use_spt) then
+    write(10,*)'SDM start spt values:'
+    write(10,*)'SDM spt_spectral_coeffc:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,spt_spectral_coeffc(i)
+    end do
+    write(10,*)'SDM spt_spectral_coeffs:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,spt_spectral_coeffs(i)
+    end do
+    write(10,*)'SDM power_law:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,spt_power_law(i)
+    end do
+    endif
+    if (use_skeb) then
+    write(10,*)'SDM start skeb values:'
+    write(10,*)'SDM skeb_spectral_coeffc:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,skeb_spectral_coeffc(i)
+    end do
+    write(10,*)'SDM skeb_spectral_coeffs:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,skeb_spectral_coeffs(i)
+    end do
+    write(10,*)'SDM power_law:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,skeb_power_law(i)
+    end do
+    end if
     ! Run the timestep
     call run_step(self, modeldb,                              &
                   u, rho, theta, exner, mr, moist_dyn,        &
@@ -379,6 +410,36 @@ contains
                   skeb_power_law,                             &
                   mesh, twod_mesh)
 
+    if (use_spt) then
+    write(10,*)'SDM end spt values:'
+    write(10,*)'SDM spt_spectral_coeffc:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,spt_spectral_coeffc(i)
+    end do
+    write(10,*)'SDM spt_spectral_coeffs:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,spt_spectral_coeffs(i)
+    end do
+    write(10,*)'SDM power_law:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,spt_power_law(i)
+    end do
+    end if
+    if (use_skeb) then
+    write(10,*)'SDM end skeb values:'
+    write(10,*)'SDM skeb_spectral_coeffc:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,skeb_spectral_coeffc(i)
+    end do
+    write(10,*)'SDM skeb_spectral_coeffs:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,skeb_spectral_coeffs(i)
+    end do
+    write(10,*)'SDM power_law:'
+    do i=1,275,30
+      write(10,'(i5,Z18)')i,skeb_power_law(i)
+    end do
+    end if
     if (use_spt) then
       call put_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
                            spt_spectral_coeffs, spt_power_law)
