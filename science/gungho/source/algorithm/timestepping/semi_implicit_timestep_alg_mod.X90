@@ -297,8 +297,12 @@ contains
     type(io_value_array)  :: spt_io_value_type(spt_array_count)
     type(io_value_array)  :: skeb_io_value_type(skeb_array_count)
 
-    real(r_def), allocatable :: spt_array(:,:)
-    real(r_def), allocatable :: skeb_array(:,:)
+    real(r_def), allocatable :: spt_spectral_coeffc(:)
+    real(r_def), allocatable :: spt_spectral_coeffs(:)
+    real(r_def), allocatable :: spt_power_law(:)
+    real(r_def), allocatable :: skeb_spectral_coeffc(:)
+    real(r_def), allocatable :: skeb_spectral_coeffs(:)
+    real(r_def), allocatable :: skeb_power_law(:)
 
     type( io_value_type ), pointer :: temp_corr_io_value
     real( r_def )    :: dt
@@ -354,21 +358,13 @@ contains
     dtemp_encorr = dt * temp_corr_io_value%data(1)
 
     if (use_spt) then
-      !allocate(spt_io_value_type(spt_array_count))
-      allocate(spt_array(spt_array_count, stph_spectral_dim))
-      do i = 1, spt_array_count
-        spt_io_value_type(i)%ptr => get_io_value(modeldb%values, spt_array_names(i))
-        spt_array(i,:) = spt_io_value_type(i)%ptr%data
-      end do
+      call get_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
+                           spt_spectral_coeffs, spt_power_law)
     end if
 
     if (use_skeb) then
-      !allocate(skeb_io_value_type(skeb_array_count))
-      allocate(skeb_array(skeb_array_count, stph_spectral_dim))
-      do i = 1, spt_array_count
-        skeb_io_value_type(i)%ptr => get_io_value(modeldb%values, skeb_array_names(i))
-        skeb_array(i,:) = skeb_io_value_type(i)%ptr%data
-      end do
+      call get_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
+                           skeb_spectral_coeffs, skeb_power_law)
     end if
 
     ! Run the timestep
@@ -385,23 +381,22 @@ contains
                   snow_fields, chemistry_fields,              &
                   aerosol_fields, stph_fields, lbc_fields,    &
                   model_clock, dtemp_encorr,                  &
-                  spt_array(1,:), spt_array(2,:), spt_array(3,:),   &
-                  skeb_array(1,:), skeb_array(2,:), skeb_array(3,:),&
+                  spt_spectral_coeffc, spt_spectral_coeffs,   &
+                  spt_power_law,                              &
+                  skeb_spectral_coeffc, skeb_spectral_coeffs, &
+                  skeb_power_law,                             &
                   mesh, twod_mesh)
 
     if (use_spt) then
-      do i = 1, spt_array_count
-        spt_io_value_type(i)%ptr%data = spt_array(i,:)
-      end do
-      deallocate(spt_array)
+      call put_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
+                           spt_spectral_coeffs, spt_power_law)
     end if
 
     if (use_skeb) then
-      do i = 1, spt_array_count
-        skeb_io_value_type(i)%ptr%data = skeb_array(i,:)
-      end do
-      deallocate(skeb_array)
+      call put_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
+                           skeb_spectral_coeffs, skeb_power_law)
     end if
+
 
     nullify(      model_clock, mesh,                          &
                   prognostic_fields, moisture_fields,         &
@@ -1335,4 +1330,70 @@ contains
     end if
 
   end subroutine conditional_collection_copy
+
+  !> Get some stochastic physics variables out of modeldb
+  !> @param[in]  modeldb Holds the model state
+  !> @param[in]  array_names List of names that reference values
+  !> @param[out] spectral_coeffc Spectral coefficients
+  !> @param[out] spectral_coeffs Spectral coefficients
+  !> @param[out] power_law       Power law
+
+  subroutine get_stph_values(modeldb, array_names, spectral_coeffc, &
+                             spectral_coeffs, power_law)
+
+    type(modeldb_type),       intent(in)  :: modeldb
+    character(*),             intent(in)  :: array_names(:)
+
+    real(r_def), allocatable, intent(out) :: spectral_coeffc(:)
+    real(r_def), allocatable, intent(out) :: spectral_coeffs(:)
+    real(r_def), allocatable, intent(out) :: power_law(:)
+
+    type(io_value_type), pointer :: stph_io_value_type
+
+    allocate(spectral_coeffc(stph_spectral_dim))
+    allocate(spectral_coeffs(stph_spectral_dim))
+    allocate(power_law(stph_spectral_dim))
+
+    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
+    spectral_coeffc = stph_io_value_type%data
+    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
+    spectral_coeffs = stph_io_value_type%data
+    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
+    power_law = stph_io_value_type%data
+  end subroutine get_stph_values
+
+  !> Put some stochastic physics values into modeldb and deallocate
+  !> holding variables
+  !> @param[in]  modeldb Holds the model state
+  !> @param[in]  array_names List of names that reference values
+  !> @param[in,out] spectral_coeffc Spectral coefficients
+  !> @param[in,out] spectral_coeffs Spectral coefficients
+  !> @param[in,out] power_law       Power law
+
+  subroutine put_stph_values(modeldb, array_names, spectral_coeffc, &
+                             spectral_coeffs, power_law)
+
+    type(modeldb_type),       intent(in)  :: modeldb
+    character(*),             intent(in)  :: array_names(:)
+
+    real(r_def), allocatable, intent(inout) :: spectral_coeffc(:)
+    real(r_def), allocatable, intent(inout) :: spectral_coeffs(:)
+    real(r_def), allocatable, intent(inout) :: power_law(:)
+
+    type(io_value_type), pointer :: stph_io_value_type
+
+    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
+    stph_io_value_type%data = spectral_coeffc
+    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
+    stph_io_value_type%data = spectral_coeffs
+    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
+    stph_io_value_type%data = power_law
+
+    deallocate(spectral_coeffc)
+    deallocate(spectral_coeffs)
+    deallocate(power_law)
+
+  end subroutine put_stph_values
+
+
 end module semi_implicit_timestep_alg_mod
