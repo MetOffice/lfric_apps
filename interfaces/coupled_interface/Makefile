@@ -28,6 +28,7 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
 
+include $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(PROJECT_DIR)/build/import.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
@@ -106,7 +107,7 @@ unit-tests/%: export PROJECT = $(PROJECT_NAME)
 unit-tests/%: export SOURCE_DIR = source
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-test
-unit-tests: unit-tests/run
+unit-tests: extract_meta unit-tests/run
 
 
 ##############################################################################

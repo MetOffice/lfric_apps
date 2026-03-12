@@ -49,6 +49,7 @@ default: build unit-tests integration-tests
 documentation doc docs: document-uml document-latex document-api
 	$(Q)echo > /dev/null
 
+include $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
@@ -119,6 +120,10 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=source
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting External Rose Metadata)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Generating $(PROJECT) namelist loaders)
 	$(call MESSAGE,=========================================================)
@@ -155,7 +160,7 @@ unit-tests/%: export PROJECT = $(PROJECT_NAME)
 unit-tests/%: export SOURCE_DIR = source/kernel
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-test
-unit-tests: unit-tests/run
+unit-tests: extract_meta unit-tests/run
 
 
 ##############################################################################

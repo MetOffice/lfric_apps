@@ -52,6 +52,7 @@ default: unit-tests integration-tests
 documentation doc docs: document-api
 	$(Q)echo > /dev/null
 
+include $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
@@ -107,7 +108,7 @@ unit-tests/%: export PROJECT = gungho
 unit-tests/%: export SOURCE_DIR = source
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: unit-tests/run
+unit-tests: extract_meta unit-tests/run
 
 ###############################################################################
 # Integration tests
@@ -121,7 +122,7 @@ integration-tests/%: export PROJECT       = gungho
 integration-tests/%: export SOURCE_DIR    = source
 integration-tests/%: export TEST_DIR      = integration-test
 integration-tests/%: export WORKING_DIR  := $(WORKING_DIR)/integration-tests
-integration-tests: integration-tests/run
+integration-tests: extract_meta integration-tests/run
 
 ###############################################################################
 # Clean
