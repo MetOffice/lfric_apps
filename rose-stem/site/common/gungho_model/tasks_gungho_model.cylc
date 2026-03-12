@@ -51,7 +51,7 @@
         "opt_confs": ["baroclinic"],
         "resolution": "C48_MG",
         "DT": 3600,
-        "threads": 2,
+        "threads": 1,
         "mpi_parts": 12,
         "panel_decomp": "custom",
         "xproc": 2,

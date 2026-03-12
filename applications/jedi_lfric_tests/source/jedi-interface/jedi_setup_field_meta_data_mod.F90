@@ -108,6 +108,9 @@ module jedi_setup_field_meta_data_mod
       case ( "u10m" )
         function_space = W3
         is_2d = .true.
+      case ( "land_fraction" )
+        function_space = W3
+        is_2d = .true.
       case default
         write ( log_scratch_space, '(4A)' )                          &
                 "jedi_setup_field_meta_data_mod::get_field_info:: ", &
