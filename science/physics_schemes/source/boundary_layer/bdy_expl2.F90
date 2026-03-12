@@ -901,8 +901,8 @@ call btq_int (                                                                 &
 !-----------------------------------------------------------------------
 ! Calculate lapse rates
 !-----------------------------------------------------------------------
-$OMP  PARALLEL DEFAULT(SHARED) private(ii, i, k, l, il, jl, weight1, weight2, &
-!$OMP  weight3, zpr, dzv, dzu, l, slope, dsldzm_ga,                           &
+!$OMP  PARALLEL DEFAULT(SHARED) private(ii, i, k, l, il, jl, weight1, weight2, &
+!$OMP  weight3, zpr, dzv, dzu, slope, dsldzm_ga,                               &
 !$OMP  qs_tl, frac_sat, frac_dry, frac_edg, frac_lev, qc_tot, bt_rh, bq_rh )
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
@@ -946,26 +946,25 @@ if (.not. l_use_surf_in_ri) then
 !$OMP end do
 
 else ! l_use_surf_in_ri = true
-!! $OMP do SCHEDULE(STATIC)
-  ! do j = pdims%j_start, pdims%j_end
-  if (l_noice_in_turb) then
-    ! use qsat_wat
-    if ( l_mr_physics ) then
-      call qsat_wat_mix(qssurf(:,j),tstar(:,j),pstar(:,j),pdims%i_len)
-                                                                    ! No halos
-    else
-      call qsat_wat(qssurf(:,j),tstar(:,j),pstar(:,j),pdims%i_len) ! No halos
-    end if
-  else ! l_noice_in_turb
-    ! use qsat
-    if ( l_mr_physics ) then
-      call qsat_mix(qssurf(:,j),tstar(:,j),pstar(:,j),pdims%i_len) ! No halos
-    else
-      call qsat(qssurf(:,j),tstar(:,j),pstar(:,j),pdims%i_len) ! No halos
-    end if
-  end if ! l_noice_in_turb
-!   end do ! j
-! !$OMP end do NOWAIT
+  !$OMP do SCHEDULE(STATIC)
+  do i = pdims%i_start, pdims%i_end
+    if (l_noice_in_turb) then
+      ! use qsat_wat
+      if ( l_mr_physics ) then
+        call qsat_wat_mix(qssurf(i,j),tstar(i,j),pstar(i,j))    ! No halos
+      else
+        call qsat_wat(qssurf(i,j),tstar(i,j),pstar(i,j))        ! No halos
+      end if
+    else ! l_noice_in_turb
+      ! use qsat
+      if ( l_mr_physics ) then
+        call qsat_mix(qssurf(i,j),tstar(i,j),pstar(i,j))        ! No halos
+      else
+        call qsat(qssurf(i,j),tstar(i,j),pstar(i,j))            ! No halos
+      end if
+    end if ! l_noice_in_turb
+  end do
+  !$OMP end do
   k=1
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
@@ -1061,10 +1060,8 @@ case (i_interp_local_cf_dbdz)
     ! ...then subtract from qw to get supersaturation, and multiply by
     !    1/(1 + Lc/cp dqsat/dT)
     !    in order to compare with values of qcl+qcf.
-    do j = tdims%j_start, tdims%j_end
-      do i = tdims%i_start, tdims%i_end
-        supersat(i,j,k) = a_qs(i,j,k) * ( qw(i,j,k) - qs_tl(i,j) )
-      end do
+    do i = tdims%i_start, tdims%i_end
+      supersat(i,j,k) = a_qs(i,j,k) * ( qw(i,j,k) - qs_tl(i,j) )
     end do
   end do
 !$OMP end do
@@ -1600,7 +1597,6 @@ else if (idyndiag == DynDiag_Ribased ) then
         end if
       end if ! Cu over sea
 
-      end do
     end do
 !$OMP end do
 
@@ -1626,7 +1622,6 @@ else if (idyndiag == DynDiag_Ribased ) then
         end if
       end if ! Cu over sea
 
-      end do
     end do
 !$OMP end do
 
@@ -2085,7 +2080,7 @@ if (BL_diag%l_tke) then
 !$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
 !$OMP  SHARED(BL_diag, tke_nl, tke_loc, rho_wet_tq, weight_1dbl,               &
 !$OMP         tke_diag_fac, bl_levels, pdims)                                  &
-!$OMP  private(i, j, k)
+!$OMP  private(i, k)
   do k = 2, bl_levels
     do i = pdims%i_start, pdims%i_end
 
@@ -2180,7 +2175,7 @@ if (BL_diag%l_tke) then
     ! to the microphysics turbulence call
 
 !$OMP PARALLEL DEFAULT(none) private(k,i)                                      &
-!$OMP SHARED(tdims, bl_levels,pdims,BL_diag,bl_w_var,var_diags_opt)
+!$OMP SHARED(tdims, bl_levels,pdims,BL_diag,bl_w_var)
 
 !$OMP do SCHEDULE(STATIC)
     do k = 2, tdims%k_end+1
@@ -2664,17 +2659,19 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
   ! level 2 needs special treatment because of the surface
 
 !$OMP PARALLEL DEFAULT(SHARED)                                                 &
-!$OMP private(k,i,km,kp,sh,exner,sgm,qsw_arr,weight1,weight2,weight3,var_fac,  &
+!$OMP private(k,i,km,kp,sh,exner,sgm,weight1,weight2,weight3,var_fac,          &
 !$OMP         sl_var,qw_var,sl_qw,delta_x)
   k = 2
-
-  if ( l_mr_physics ) then
-    call qsat_wat_mix(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),tdims%i_len)
-  else
-    call qsat_wat(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),tdims%i_len)
-  end if
-  !$OMP do SCHEDULE(STATIC)
-
+!$OMP do SCHEDULE(STATIC)
+  do i = tdims%i_start, tdims%i_end
+    if ( l_mr_physics ) then
+      call qsat_wat_mix(qsw_arr(i),tl(i,j,k-1),p_theta_levels(i,j,k-1))
+    else
+      call qsat_wat(qsw_arr(i),tl(i,j,k-1),p_theta_levels(i,j,k-1))
+    end if
+  end do
+!$OMP end do
+!$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start, tdims%i_end
     ! calculate the variance
     sl_var = zero
@@ -2716,10 +2713,10 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
     sgm(i) = sqrt ( max( sgm(i), zero ) )
 
   end do !i
-  !$OMP end do
+!$OMP end do
 
   if (i_rhcpt == rhcpt_tke_based) then
-    !$OMP do SCHEDULE(STATIC)
+!$OMP do SCHEDULE(STATIC)
     do i = tdims%i_start, tdims%i_end
       ! calculate rhcrit, with appropriate limits
       ! calculate grid-box size, just take surface for simplicity
@@ -2736,21 +2733,22 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
       rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),               &
                     one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
     end do !i
-    !$OMP end do
+!$OMP end do
   end if
 
   ! remaining bl levels use proper interpolation
 
   do k = 3, bl_levels-1
-
-    if ( l_mr_physics ) then
-      call qsat_wat_mix(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),           &
-                        tdims%i_len)
-    else
-      call qsat_wat(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),tdims%i_len)
-    end if
 !$OMP do SCHEDULE(STATIC)
-
+    do i = tdims%i_start, tdims%i_end
+      if ( l_mr_physics ) then
+        call qsat_wat_mix(qsw_arr(i),tl(i,j,k-1),p_theta_levels(i,j,k-1))
+      else
+        call qsat_wat(qsw_arr(i),tl(i,j,k-1),p_theta_levels(i,j,k-1))
+      end if
+    end do
+!$OMP end do
+!$OMP do SCHEDULE(STATIC)
     do i = tdims%i_start, tdims%i_end
       ! calculate the variance
       sl_var = zero
