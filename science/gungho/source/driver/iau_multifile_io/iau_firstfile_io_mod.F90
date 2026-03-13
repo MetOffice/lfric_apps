@@ -9,7 +9,7 @@
 module iau_firstfile_io_mod
 
   use calendar_mod,              only: calendar_type
-  use constants_mod,             only: str_def, str_max_filename, l_def
+  use constants_mod,             only: str_def, l_def
   use driver_modeldb_mod,        only: modeldb_type
   use field_collection_mod,      only: field_collection_type
   use field_mod,                 only: field_type
@@ -91,7 +91,7 @@ contains
 
     !set up file list
     file_list => io_context%get_filelist()
-    multifile_fields  => modeldb%fields%get_field_collection(iau_incs)
+    multifile_fields => modeldb%fields%get_field_collection(iau_incs)
 
     if ( use_xios_io) then
 
