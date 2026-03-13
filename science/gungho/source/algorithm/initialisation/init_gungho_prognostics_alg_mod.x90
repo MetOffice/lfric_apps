@@ -18,16 +18,14 @@ module init_gungho_prognostics_alg_mod
   use sci_geometric_constants_mod,     only: get_coordinates, &
                                              get_panel_id,    &
                                              get_height_fe,   &
-                                             get_height_fv
+                                             get_height_fv,   &
+                                             get_dA_at_w2
   use sci_fem_constants_mod,           only: get_inverse_mass_matrix_fe, &
                                              get_inverse_mass_matrix_fv, &
                                              get_qr_fe, get_qr_fv
   use base_mesh_config_mod,            only: geometry,           &
                                              geometry_spherical, &
                                              geometry_planar
-  use finite_element_config_mod,       only: coord_space,        &
-                                             coord_space_wchi,   &
-                                             coord_order
   use formulation_config_mod,          only: eos_method,              &
                                              eos_method_sampled,      &
                                              eos_method_projected,    &
@@ -108,11 +106,12 @@ contains
     type(field_type), intent(inout) :: u
     real(kind=r_def), intent(in)    :: time
 
-    type(mesh_type), pointer            :: mesh => null()
+    type(mesh_type), pointer            :: mesh
     type(field_type)                    :: r_u, r_psi, psi
-    type(field_type),           pointer :: chi(:) => null()
-    type(field_type),           pointer :: panel_id => null()
-    type(quadrature_xyoz_type), pointer :: qr => null()
+    type(field_type),           pointer :: chi(:)
+    type(field_type),           pointer :: panel_id
+    type(field_type),           pointer :: dA_at_w2
+    type(quadrature_xyoz_type), pointer :: qr
 
     type(domain_type)   :: domain
     real(kind=r_def)    :: domain_max_x
@@ -150,18 +149,13 @@ contains
         call log_event('Sampling initial wind only implemented for planar geometry', &
                        LOG_LEVEL_ERROR)
       end if
-      if ( coord_space /= coord_space_wchi .and. coord_order /= 1 ) then
-        call log_event(                                                        &
-          'Sampling initial wind is only implemented for coordinates in ' //   &
-          'the linear Wchi space', LOG_LEVEL_ERROR                             &
-        )
-      end if
       if ( profile == profile_pw_linear ) then
         call sample_init_u_alg( u )
       else
+        dA_at_w2 => get_dA_at_w2(mesh%get_id())
         call invoke( name = "get_u_from_sampling", &
                      setval_c( u, 0.0_r_def ),     &
-                     sample_initial_u_kernel_type( u, chi, u0, v0 ) )
+                     sample_initial_u_kernel_type( u, dA_at_w2, u0, v0 ) )
       end if
     else
 
