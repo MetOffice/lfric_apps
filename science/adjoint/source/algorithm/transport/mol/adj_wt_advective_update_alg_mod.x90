@@ -17,9 +17,7 @@ module adj_wt_advective_update_alg_mod
   use mesh_mod,                             only : mesh_type
 
   use invoke_adj_poly1d_recon_lookup_mod,   only : invoke_adj_poly1d_recon_lookup
-  use adj_lookup_table_generators_alg_mod,  only : create_lookup_poly1d, &
-                                                   create_lookup_poly2d, &
-                                                   create_lookup_poly_adv_upd
+  use adj_trans_lookup_cache_mod,           only : adj_trans_lookup_cache_type
   use adj_lookup_table_mod,                 only : adj_lookup_table_type
   use integer_field_mod,                    only : integer_field_type
 
@@ -48,20 +46,23 @@ contains
 
   !=============================================================================
   !> @brief Compute the adjoint of horizontal advective update of a Wtheta field.
-  !> @param[in,out] u_grad_f            Horizontal part of u.grad(f)
-  !> @param[in]     ls_wind             Linearisation state wind field
-  !> @param[in]     wind_dir            Wind field used to determine direction in kernel
-  !> @param[in,out] field               Wtheta field to advect
-  !> @param[in]     transport_metadata  Contains transport configuration options
-  subroutine adj_hori_wt_update_alg( u_grad_f, ls_wind, wind_dir, field, transport_metadata )
+  !> @param[in,out] u_grad_f                Horizontal part of u.grad(f)
+  !> @param[in]     ls_wind                 Linearisation state wind field
+  !> @param[in]     wind_dir                Wind field used to determine direction in kernel
+  !> @param[in,out] field                   Wtheta field to advect
+  !> @param[in]     transport_metadata      Contains transport configuration options
+  !> @param[in]     adj_lookup_table_cache  Lookup table cache
+  subroutine adj_hori_wt_update_alg( u_grad_f, ls_wind, wind_dir, field, &
+                                     transport_metadata, adj_lookup_table_cache )
 
     implicit none
 
-    type(r_tran_field_type),       intent(inout) :: u_grad_f
-    type(r_tran_field_type),       intent(in)    :: ls_wind
-    type(r_tran_field_type),       intent(in)    :: wind_dir
-    type(r_tran_field_type),       intent(inout) :: field
-    type(transport_metadata_type), intent(in)    :: transport_metadata
+    type(r_tran_field_type),           intent(inout) :: u_grad_f
+    type(r_tran_field_type),           intent(in)    :: ls_wind
+    type(r_tran_field_type),           intent(in)    :: wind_dir
+    type(r_tran_field_type),           intent(inout) :: field
+    type(transport_metadata_type),     intent(in)    :: transport_metadata
+    type(adj_trans_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     type(r_tran_field_type)          :: h_reconstruction
     type(r_tran_field_type), pointer :: adv_coeffs
@@ -79,15 +80,16 @@ contains
     logical(kind=l_def) :: monotone
     integer(kind=i_def) :: remap_depth
 
-    type(adj_lookup_table_type)        :: lookup_poly
-    type(adj_lookup_table_type)        :: lookup_poly_adv
-    type(integer_field_type),  pointer :: lookup_poly_field
-    type(integer_field_type),  pointer :: num_sets_poly_field
-    integer(kind=i_def)                :: nsets
-    integer(kind=i_def)                :: nindices
+    type(adj_lookup_table_type), pointer :: lookup_poly
+    type(adj_lookup_table_type), pointer :: lookup_poly_adv
+    type(integer_field_type),    pointer :: lookup_poly_field
+    type(integer_field_type),    pointer :: num_sets_poly_field
+    integer(kind=i_def)                  :: nsets
+    integer(kind=i_def)                  :: nindices
 
-    nullify(lookup_poly_field, num_sets_poly_field, mesh, &
-            field_ptr, multidata_fs, adv_coeffs)
+    nullify(lookup_poly, lookup_poly_adv,           &
+            lookup_poly_field, num_sets_poly_field, &
+            mesh, field_ptr, multidata_fs, adv_coeffs)
 
     mesh => ls_wind%get_mesh()
     mesh_id = mesh%get_id()
@@ -132,8 +134,7 @@ contains
     stencil_extent = 1_i_def
 
     ! Invoke lookup table kernel for adj_poly_adv_update.
-    call create_lookup_poly_adv_upd( lookup_poly_adv, u_grad_f, h_reconstruction, &
-                                     ls_wind, stencil_extent )
+    lookup_poly_adv => adj_lookup_table_cache%get_lookup_poly_adv_upd()
     lookup_poly_field => lookup_poly_adv%get_lookup_field()
     num_sets_poly_field => lookup_poly_adv%get_set_count_field()
     nindices = lookup_poly_adv%get_nindices()
@@ -150,10 +151,7 @@ contains
     else
       if ( oned_reconstruction ) then
         ! Use 1d reconstruction
-        ! create lookup table for stencil application. essentially a dry run
-        ! of the tl kernel.
-        call create_lookup_poly1d( lookup_poly, h_reconstruction, field_ptr, &
-                                   adv_coeffs, stencil_extent, fv_horizontal_order )
+        lookup_poly => adj_lookup_table_cache%get_lookup_poly1d()
         lookup_poly_field => lookup_poly%get_lookup_field()
         num_sets_poly_field => lookup_poly%get_set_count_field()
         nindices = lookup_poly%get_nindices()
@@ -164,10 +162,7 @@ contains
                                             stencil_extent)
       else
         ! Use 2d reconstruction
-        ! Create lookup table for stencil application. Essentially a dry run
-        ! of the TL kernel.
-        call create_lookup_poly2d( lookup_poly, h_reconstruction, field_big_halo, &
-                                   adv_coeffs, stencil_size, stencil_extent )
+        lookup_poly => adj_lookup_table_cache%get_lookup_poly2d(h_reconstruction%which_function_space())
         lookup_poly_field => lookup_poly%get_lookup_field()
         num_sets_poly_field => lookup_poly%get_set_count_field()
         nindices = lookup_poly%get_nindices()

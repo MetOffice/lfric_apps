@@ -1,8 +1,8 @@
 import sys
 
-from metomi.rose.upgrade import MacroUpgrade
+from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version22_30 import *
+from .version30_31 import *
 
 
 class UpgradeError(Exception):
@@ -33,11 +33,11 @@ class vnXX_txxx(MacroUpgrade):
 """
 
 
-class vn30_t238(MacroUpgrade):
+class vn31_t238(MacroUpgrade):
     """Upgrade macro for ticket #238 by Thomas Bendall."""
 
-    BEFORE_TAG = "vn3.0"
-    AFTER_TAG = "vn3.0_t238"
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t238"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-driver
@@ -56,11 +56,11 @@ class vn30_t238(MacroUpgrade):
         return config, self.reports
 
 
-class vn30_t180(MacroUpgrade):
+class vn31_t180(MacroUpgrade):
     """Upgrade macro for ticket #180 by Thomas Bendall."""
 
-    BEFORE_TAG = "vn3.0_t238"
-    AFTER_TAG = "vn3.0_t180"
+    BEFORE_TAG = "vn3.1_t238"
+    AFTER_TAG = "vn3.1_t180"
 
     def upgrade(self, config, meta_config=None):
         # Get values

@@ -25,6 +25,9 @@ module init_gungho_prognostics_alg_mod
   use base_mesh_config_mod,            only: geometry,           &
                                              geometry_spherical, &
                                              geometry_planar
+  use finite_element_config_mod,       only: coord_space,        &
+                                             coord_space_wchi,   &
+                                             coord_order
   use formulation_config_mod,          only: eos_method,              &
                                              eos_method_sampled,      &
                                              eos_method_projected,    &
@@ -146,6 +149,12 @@ contains
       if ( geometry /= geometry_planar ) then
         call log_event('Sampling initial wind only implemented for planar geometry', &
                        LOG_LEVEL_ERROR)
+      end if
+      if ( coord_space /= coord_space_wchi .and. coord_order /= 1 ) then
+        call log_event(                                                        &
+          'Sampling initial wind is only implemented for coordinates in ' //   &
+          'the linear Wchi space', LOG_LEVEL_ERROR                             &
+        )
       end if
       if ( profile == profile_pw_linear ) then
         call sample_init_u_alg( u )

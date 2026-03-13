@@ -14,14 +14,14 @@ module gungho_diagnostics_driver_mod
 
   use constants_mod,             only : i_def, r_def, str_def
   use boundaries_config_mod,     only : limited_area, output_lbcs
-  use diagnostic_alg_mod,        only : column_total_diagnostics_alg, &
-                                        calc_wbig_diagnostic_alg, &
+  use diagnostic_alg_mod,        only : column_total_diagnostics_alg,          &
+                                        calc_wbig_diagnostic_alg,              &
                                         pressure_diag_alg
-  use diagnostics_io_mod,        only : write_scalar_diagnostic, &
+  use diagnostics_io_mod,        only : write_scalar_diagnostic,               &
                                         write_vector_diagnostic
-  use diagnostics_calc_mod,      only : write_divergence_diagnostic, &
-                                        write_hydbal_diagnostic,     &
-                                        write_vorticity_diagnostic,  &
+  use diagnostics_calc_mod,      only : write_divergence_diagnostic,           &
+                                        write_hydbal_diagnostic,               &
+                                        write_vorticity_diagnostic,            &
                                         write_pv_diagnostic
   use initialise_diagnostics_mod, only : diagnostic_to_be_sampled
   use field_array_mod,           only : field_array_type
@@ -32,24 +32,25 @@ module gungho_diagnostics_driver_mod
   use field_parent_mod,          only : field_parent_type, write_interface
   use io_value_mod,              only : io_value_type, get_io_value
   use lfric_xios_write_mod,      only : write_field_generic
-  use formulation_config_mod,    only : use_physics,             &
-                                        moisture_formulation,    &
+  use formulation_config_mod,    only : use_physics,                           &
+                                        moisture_formulation,                  &
                                         moisture_formulation_dry
   use fs_continuity_mod,         only : W3, Wtheta, W2H, W0
   use integer_field_mod,         only : integer_field_type
-  use initialization_config_mod, only : ls_option,          &
-                                        ls_option_analytic, &
+  use initialization_config_mod, only : ls_option,                             &
+                                        ls_option_analytic,                    &
                                         ls_option_file
   use mesh_mod,                  only : mesh_type
   use moist_dyn_mod,             only : num_moist_factors
   use mr_indices_mod,            only : nummr, mr_names
-  use log_mod,                   only : log_event, &
+  use log_mod,                   only : log_event,                             &
                                         LOG_LEVEL_DEBUG
-  use sci_geometric_constants_mod,      &
-                                 only : get_panel_id, &
+  use sci_geometric_constants_mod,                                             &
+                                 only : get_panel_id,                          &
                                         get_height_fe, get_da_msl_proj
-  use io_config_mod,             only : subroutine_timers, use_xios_io, write_fluxes
+  use io_config_mod,             only : use_xios_io, write_fluxes
   use timer_mod,                 only : timer
+  use timing_mod,                only : start_timing, stop_timing, tik, LPROF
   use transport_config_mod,      only : transport_ageofair
   use driver_modeldb_mod,        only : modeldb_type
 
@@ -123,17 +124,18 @@ contains
 
     ! A pointer used for retrieving fields from collections
     ! when iterating over them
-    class(field_parent_type),   pointer :: field_ptr => null()
+    class(field_parent_type),   pointer :: field_ptr
     procedure(write_interface), pointer :: tmp_write_ptr
     type(io_value_type),        pointer :: temp_corr_io_value
 
     integer(kind=i_def)    :: i, fs
+    integer(kind=tik)      :: id
     character(len=str_def) :: name, prefix, field_name
 
     integer(kind=i_def),    allocatable :: fs_ids(:)
     character(len=str_def), allocatable :: fs_names(:)
 
-    if ( subroutine_timers ) call timer('gungho_diagnostics_driver')
+    if ( LPROF ) call start_timing( id, 'gungho_diagnostics_driver' )
 
     call log_event("Gungho: writing diagnostic output", LOG_LEVEL_DEBUG)
 
@@ -215,13 +217,25 @@ contains
       call u_in_w2h%set_write_behaviour(tmp_write_ptr)
       call v_in_w2h%set_write_behaviour(tmp_write_ptr)
       if (modeldb%clock%is_initialisation()) then
-        call u_in_w2h%write_field("init_u_in_w2h")
-        call v_in_w2h%write_field("init_v_in_w2h")
-        call w_in_wth%write_field("init_w_in_wth")
+        if (diagnostic_to_be_sampled("init_u_in_w2h")) then
+          call u_in_w2h%write_field("init_u_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("init_v_in_w2h")) then
+          call v_in_w2h%write_field("init_v_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("init_w_in_wth")) then
+          call w_in_wth%write_field("init_w_in_wth")
+        end if
       else
-        call u_in_w2h%write_field("u_in_w2h")
-        call v_in_w2h%write_field("v_in_w2h")
-        call w_in_wth%write_field("w_in_wth")
+        if (diagnostic_to_be_sampled("u_in_w2h")) then
+          call u_in_w2h%write_field("u_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("v_in_w2h")) then
+          call v_in_w2h%write_field("v_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("w_in_wth")) then
+          call w_in_wth%write_field("w_in_wth")
+        end if
       end if
     else
       call write_vector_diagnostic('u', u, &
@@ -284,7 +298,7 @@ contains
 
     ! Derived physics fields (only those on W3 or Wtheta)
     if (use_physics .and. use_xios_io .and. .not. modeldb%clock%is_initialisation()) then
-
+      field_ptr => null()
       call iterator%initialise(derived_fields)
       do
         if ( .not.iterator%has_next() ) exit
@@ -336,8 +350,7 @@ contains
       call write_divergence_diagnostic( u, modeldb%clock, mesh )
       call write_hydbal_diagnostic( theta, moist_dyn, exner, mesh )
     end if
-
-    if ( subroutine_timers ) call timer('gungho_diagnostics_driver')
+    if ( LPROF ) call stop_timing( id, 'gungho_diagnostics_driver' )
   end subroutine gungho_diagnostics_driver
 
 end module gungho_diagnostics_driver_mod
