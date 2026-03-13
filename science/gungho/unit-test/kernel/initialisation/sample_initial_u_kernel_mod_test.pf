@@ -81,7 +81,7 @@ contains
     integer(i_def) :: k
 
     nlayers = 3
-    ndf_w2 = 2
+    ndf_w2 = 6
     undf_w2 = 5*nlayers + 1
 
     ! Allocate arrays
