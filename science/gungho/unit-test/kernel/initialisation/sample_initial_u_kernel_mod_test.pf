@@ -94,8 +94,8 @@ contains
 
     ! Set face areas
     dA_data(:) = (/                                                            &
-      dy*dz, dy*dz, dy*dz, dx*dz, dx*dz, dx*dy,                                &
-      dy*dz, dy*dz, dy*dz, dx*dz, dx*dz, dx*dy,                                &
+      dy*dz, dy*dz, dy*dz, dx*dz, dx*dz, dx*dz,                                &
+      dy*dz, dy*dz, dy*dz, dx*dz, dx*dz, dx*dz,                                &
       dx*dy, dx*dy, dx*dy, dx*dy                                               &
     /)
 
