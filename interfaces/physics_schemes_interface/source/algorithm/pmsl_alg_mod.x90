@@ -153,7 +153,7 @@ contains
 
       ! Iterative solver for exner - this loops to depth 'm' in the halo
       ! thus only requiring a halo exchange once every m iterations
-      ! Larger m values will thus to more computation but fewer halo exchanges
+      ! Larger m values will thus do more computation but fewer halo exchanges
       counter = 0
       outer: do n = 1, n_iter_pmsl/max_halo_depth+1
         do m = max_halo_depth-1,0,-1
