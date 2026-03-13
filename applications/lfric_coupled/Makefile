@@ -227,6 +227,7 @@ unit-tests/%: export SOURCE_DIR = source
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-test
 unit-tests: extract_meta unit-tests/run
+unit-tests/build: extract_meta unit-tests/build
 
 
 ##############################################################################

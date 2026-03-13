@@ -82,8 +82,8 @@ unit-tests/%: export PROJECT       = linear
 unit-tests/%: export SOURCE_DIR    = source
 unit-tests/%: export TEST_DIR      = unit-test
 unit-tests/%: export WORKING_DIR  := $(WORKING_DIR)/unit-tests
-
 unit-tests: extract_meta unit-tests/run
+unit-tests/build: extract_meta unit-tests/build
 
 
 ##############################################################################
@@ -103,6 +103,7 @@ integration-tests/%: export SOURCE_DIR    = source
 integration-tests/%: export TEST_DIR      = integration-test
 integration-tests/%: export WORKING_DIR  := $(WORKING_DIR)/integration-tests
 integration-tests: extract_meta integration-tests/run
+integration-tests/build: extract_meta integration-tests/build
 
 ##############################################################################
 # Clean
