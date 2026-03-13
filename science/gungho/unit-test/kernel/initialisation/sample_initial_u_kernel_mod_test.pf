@@ -65,6 +65,8 @@ contains
     real(r_def), parameter :: dx = 6000.0_r_def
     real(r_def), parameter :: dy = 1000.0_r_def
     real(r_def), parameter :: dz = 2000.0_r_def
+    real(r_def), parameter :: u0 = 7.0_r_def
+    real(r_def), parameter :: v0 = 5.0_r_def
 
     real(r_def), allocatable :: dA_data(:)
     real(r_def), allocatable :: wind_data(:)
