@@ -165,7 +165,7 @@ contains
 
     ! We keep the surface_altitude as an optional argument since it is
     ! not needed for miniapps that only want analytic orography
-    type(field_type),  optional, intent(in) :: surface_altitude_w0
+    type(field_type),  optional, intent(in) :: surface_altitude
 
     ! Local variables
     type(field_type),    pointer :: chi(:)
@@ -295,7 +295,7 @@ contains
       chi_in_proxy(2) = chi_in(2)%get_proxy()
       chi_in_proxy(3) = chi_in(3)%get_proxy()
       panel_id_proxy = panel_id%get_proxy()
-      sfc_alt_proxy = surface_altitude_w0%get_proxy()
+      sfc_alt_proxy = surface_altitude%get_proxy()
 
       undf_chi = chi_proxy(1)%vspace%get_undf()
       ndf_chi  = chi_proxy(1)%vspace%get_ndf()
