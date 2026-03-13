@@ -133,7 +133,6 @@
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
-        "panel_decomp": "lfric2lfric_lbc",
     }) %}
 
 {% elif task_ns.conf_name == "canned" %}
