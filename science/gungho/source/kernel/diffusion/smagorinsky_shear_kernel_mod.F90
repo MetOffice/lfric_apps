@@ -14,7 +14,7 @@ module smagorinsky_shear_kernel_mod
                                 GH_READ, GH_WRITE,           &
                                 STENCIL, CROSS, CELL_COLUMN, &
                                 ANY_DISCONTINUOUS_SPACE_9
-  use constants_mod,     only : r_def, i_def
+  use constants_mod,     only : r_def, i_def, EPS
   use fs_continuity_mod, only : W2, W3, Wtheta
   use kernel_mod,        only : kernel_type
 
@@ -126,7 +126,6 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
   real(kind=r_def), dimension(0:nlayers-1,4) :: idx_w2
   real(kind=r_def), dimension(0:nlayers-1) :: dz_w3, idz_w3, idz_w3_2
   real(kind=r_def), dimension(1:nlayers-1) :: idz_wth
-  real(kind=r_def), parameter              :: smallp=1.0e-14_r_def
 
   integer(kind=i_def) :: true_stencil_map(ndf_w2,map_w2_stencil_size)
   integer(kind=i_def) :: stencil_cell
@@ -265,13 +264,13 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
   k = 0
   ! ssq12: (du/dy + dv/dx)^2 on 1st w3 level
   ! To be averaged to wth/theta level later
-  ssq12k = ( ( idx_w2(k,2) * (u_n(true_stencil_map(1,1) + k) - vec_dir(1,3)*u_n(true_stencil_map(1,3) + k) ) +   &
+  ssq12k = ( ( idx_w2(k,2) * (u_n(true_stencil_map(1,1) + k) - vec_dir(1,3)*u_n(true_stencil_map(1,3) + k) ) -   &
             idx_w2(k,1) * (u_n(true_stencil_map(2,1) + k) - vec_dir(2,2)*u_n(true_stencil_map(2,2) + k) ) )**2 + &
-            ( idx_w2(k,2) * (u_n(true_stencil_map(3,1) + k) - vec_dir(3,3)*u_n(true_stencil_map(3,3) + k) ) +    &
+            ( idx_w2(k,2) * (u_n(true_stencil_map(3,1) + k) - vec_dir(3,3)*u_n(true_stencil_map(3,3) + k) ) -    &
             idx_w2(k,3) * (vec_dir(2,4)*u_n(true_stencil_map(2,4) + k) - u_n(true_stencil_map(2,1) + k) ) )**2 + &
-            ( idx_w2(k,4) * (vec_dir(1,5)*u_n(true_stencil_map(1,5) + k) - u_n(true_stencil_map(1,1) + k) ) +    &
+            ( idx_w2(k,4) * (vec_dir(1,5)*u_n(true_stencil_map(1,5) + k) - u_n(true_stencil_map(1,1) + k) ) -    &
             idx_w2(k,1) * (u_n(true_stencil_map(4,1) + k) - vec_dir(4,2)*u_n(true_stencil_map(4,2) + k) ) )**2 + &
-            ( idx_w2(k,4) * (vec_dir(3,5)*u_n(true_stencil_map(3,5) + k) - u_n(true_stencil_map(3,1) + k) ) +    &
+            ( idx_w2(k,4) * (vec_dir(3,5)*u_n(true_stencil_map(3,5) + k) - u_n(true_stencil_map(3,1) + k) ) -    &
             idx_w2(k,3) * (vec_dir(4,4)*u_n(true_stencil_map(4,4) + k) - u_n(true_stencil_map(4,1) + k) ) )**2 ) / 4
 
   ! Set lowest level to 0
@@ -299,8 +298,8 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
 
     ! ssq22: 2 * backward difference (dv/dy)^2 averaged to wth
     ssq22 = 2.0_r_def * (                                                      &
-            weight_pl_w3 * idy2(k) * (u_n(true_stencil_map(4,1) + k) - u_n(true_stencil_map(2,1) + k) )**2 + &
-            weight_min_w3 * idy2(km) * (u_n(true_stencil_map(4,1) + km) - u_n(true_stencil_map(2,1) + km) )**2 )
+            weight_pl_w3 * idy2(k) * (-u_n(true_stencil_map(4,1) + k) + u_n(true_stencil_map(2,1) + k) )**2 + &
+            weight_min_w3 * idy2(km) * (-u_n(true_stencil_map(4,1) + km) + u_n(true_stencil_map(2,1) + km) )**2 )
 
     ! ssq33: 2 * backward difference (dw/dz)^2 averaged to wth
     ssq33 = 2.0_r_def * (                                                      &
@@ -316,20 +315,20 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
 
     ! ssq23: (dw/dy + dv/dz)^2 averaged to wth
     ! ssq32 = ssq23
-    ssq23 = ( ( idx_w2(k,4) * (u_n(true_stencil_map(5,5) + k) - u_n(true_stencil_map(5,1) + k) ) +  &
+    ssq23 = ( ( idx_w2(k,4) * (u_n(true_stencil_map(5,5) + k) - u_n(true_stencil_map(5,1) + k) ) -  &
             idz_wth(k) * (u_n(true_stencil_map(4,1) + k) - u_n(true_stencil_map(4,1) + km) ) )**2 + &
-            ( idx_w2(k,2) * (u_n(true_stencil_map(5,1) + k) - u_n(true_stencil_map(5,3) + k) ) +    &
+            ( idx_w2(k,2) * (u_n(true_stencil_map(5,1) + k) - u_n(true_stencil_map(5,3) + k) ) -    &
             idz_wth(k) * (u_n(true_stencil_map(2,1) + k) - u_n(true_stencil_map(2,1) + km) ) )**2 ) / 2
 
     ! ssq12: (du/dy + dv/dx)^2 on w3 level k
     ! ssq21 = ssq12
-    ssq12up = ( ( idx_w2(k,2) * (u_n(true_stencil_map(1,1) + k) - vec_dir(1,3)*u_n(true_stencil_map(1,3) + k) ) +  &
+    ssq12up = ( ( idx_w2(k,2) * (u_n(true_stencil_map(1,1) + k) - vec_dir(1,3)*u_n(true_stencil_map(1,3) + k) ) -  &
               idx_w2(k,1) * (u_n(true_stencil_map(2,1) + k) - vec_dir(2,2)*u_n(true_stencil_map(2,2) + k) ) )**2 + &
-              ( idx_w2(k,2) * (u_n(true_stencil_map(3,1) + k) - vec_dir(3,3)*u_n(true_stencil_map(3,3) + k) ) +    &
+              ( idx_w2(k,2) * (u_n(true_stencil_map(3,1) + k) - vec_dir(3,3)*u_n(true_stencil_map(3,3) + k) ) -    &
               idx_w2(k,3) * (vec_dir(2,4)*u_n(true_stencil_map(2,4) + k) - u_n(true_stencil_map(2,1) + k) ) )**2 + &
-              ( idx_w2(k,4) * (vec_dir(1,5)*u_n(true_stencil_map(1,5) + k) - u_n(true_stencil_map(1,1) + k) ) +    &
+              ( idx_w2(k,4) * (vec_dir(1,5)*u_n(true_stencil_map(1,5) + k) - u_n(true_stencil_map(1,1) + k) ) -    &
               idx_w2(k,1) * (u_n(true_stencil_map(4,1) + k) - vec_dir(4,2)*u_n(true_stencil_map(4,2) + k) ) )**2 + &
-              ( idx_w2(k,4) * (vec_dir(3,5)*u_n(true_stencil_map(3,5) + k) - u_n(true_stencil_map(3,1) + k) ) +    &
+              ( idx_w2(k,4) * (vec_dir(3,5)*u_n(true_stencil_map(3,5) + k) - u_n(true_stencil_map(3,1) + k) ) -    &
               idx_w2(k,3) * (vec_dir(4,4)*u_n(true_stencil_map(4,4) + k) - u_n(true_stencil_map(4,1) + k) ) )**2 ) / 4
 
     ! average ssq21 to wth level k
@@ -345,7 +344,7 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
     ! the extra factor of 2 in the diagnonal terms comes from the fact
     ! that they should be (2*du/dx)^2, not 2*(du/dx)^2
 
-    sum_sij = ssq11 + ssq22 + ssq33 + ssq13 + ssq23 + ssq12 + smallp
+    sum_sij = ssq11 + ssq22 + ssq33 + ssq13 + ssq23 + ssq12 + EPS
 
     shear(map_wt(1) + k) = SQRT(sum_sij)
 
