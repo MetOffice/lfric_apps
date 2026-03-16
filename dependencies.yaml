@@ -22,7 +22,7 @@ casim:
     ref: 2026.03.2
 
 jules:
-    source: git@github.com:jules/jules.git
+    source: git@github.com:MetOffice/jules.git
     ref: 2026.03.2
 
 lfric_apps:
