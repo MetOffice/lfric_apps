@@ -392,7 +392,7 @@ contains
       call derived_fields%get_field('theta_star', theta_star)
       call derived_fields%get_field('u_star', u_star)
       call smagorinsky_alg(dtheta, du, mr, theta_star, u_star, &
-                           derived_fields, rho, dt)
+                           derived_fields, rho, dt, clock)
     end if
 
     call print_field_stats_alg(dtheta, LOG_LEVEL_INFO, printmin=-20.0_r_def, &

@@ -52,7 +52,8 @@ contains
                               method        = method_3d_smag,    &
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
-                              leonard_kl    = 4.0_r_def )
+                              leonard_kl    = 4.0_r_def,     &
+                              conservative_diffusion = .false. )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &

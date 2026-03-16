@@ -91,6 +91,7 @@ contains
     use extrusion_config_mod,          only: planet_radius
     use field_parent_mod,              only: write_interface
     use lfric_xios_write_mod,          only: write_field_generic
+    use mixing_config_mod,             only: max_diff_factor
 
     implicit none
 
@@ -154,7 +155,7 @@ contains
 
     ! Calculate maximum diffusion coefficient allowed in this run for
     ! stability based on UMDP 28 equation 32: max_diff = dx^2/(8*dt)
-    diffusion_const = 0.125_r_def / dt_stored
+    diffusion_const = 0.125_r_def * max_diff_factor / dt_stored
 
     call r_squared_w2%initialise( vector_space = w2_k0_fs )
     call r_squared_wth%initialise( vector_space = wtheta_k0_fs )
