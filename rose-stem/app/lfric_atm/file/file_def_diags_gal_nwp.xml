@@ -1,7 +1,7 @@
 <file_definition>
 
   <!-- Diagnostic fields - Daily - mean/min/max -->
-  <file id="lfric_diagnostics" name="lfric_diagnostics" output_freq="1d" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_diagnostics" name="results/lfric_diagnostics" output_freq="1d" convention="UGRID" enabled=".TRUE.">
     <!-- 2D fields averaged every timestep -->
     <field_group operation="average" freq_op="1ts" prec="4">
       <field field_ref="processed__pstar"/>

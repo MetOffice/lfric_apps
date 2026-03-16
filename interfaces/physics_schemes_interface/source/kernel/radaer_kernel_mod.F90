@@ -1139,7 +1139,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aod_ukca_ait_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aod_ukca_ait_sol( map_aod_wavel(i) + k ) = aod_ukca_this_mode_um(i,k)
+          aod_ukca_ait_sol( map_aod_wavel(i) + k - 1 ) =                       &
+                                                     aod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1147,7 +1148,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aaod_ukca_ait_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aaod_ukca_ait_sol( map_aod_wavel(i)+k ) = aaod_ukca_this_mode_um(i,k)
+          aaod_ukca_ait_sol( map_aod_wavel(i) + k - 1 ) =                      &
+                                                    aaod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1224,7 +1226,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aod_ukca_acc_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aod_ukca_acc_sol( map_aod_wavel(i) + k ) = aod_ukca_this_mode_um(i,k)
+          aod_ukca_acc_sol( map_aod_wavel(i) + k - 1 ) =                       &
+                                                     aod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1232,7 +1235,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aaod_ukca_acc_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aaod_ukca_acc_sol( map_aod_wavel(i)+k ) = aaod_ukca_this_mode_um(i,k)
+          aaod_ukca_acc_sol( map_aod_wavel(i) + k - 1 ) =                      &
+                                                    aaod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1309,7 +1313,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aod_ukca_cor_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aod_ukca_cor_sol( map_aod_wavel(i) + k ) = aod_ukca_this_mode_um(i,k)
+          aod_ukca_cor_sol( map_aod_wavel(i) + k - 1 ) =                       &
+                                                     aod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1317,7 +1322,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aaod_ukca_cor_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aaod_ukca_cor_sol( map_aod_wavel(i)+k ) = aaod_ukca_this_mode_um(i,k)
+          aaod_ukca_cor_sol( map_aod_wavel(i) + k - 1 ) =                      &
+                                                    aaod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1394,7 +1400,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aod_ukca_ait_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aod_ukca_ait_ins( map_aod_wavel(i) + k ) = aod_ukca_this_mode_um(i,k)
+          aod_ukca_ait_ins( map_aod_wavel(i) + k - 1 ) =                       &
+                                                     aod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1402,7 +1409,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aaod_ukca_ait_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aaod_ukca_ait_ins( map_aod_wavel(i)+k ) = aaod_ukca_this_mode_um(i,k)
+          aaod_ukca_ait_ins( map_aod_wavel(i) + k - 1 ) =                      &
+                                                    aaod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1479,7 +1487,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aod_ukca_acc_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aod_ukca_acc_ins( map_aod_wavel(i) + k ) = aod_ukca_this_mode_um(i,k)
+          aod_ukca_acc_ins( map_aod_wavel(i) + k - 1 ) =                       &
+                                                     aod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1487,7 +1496,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aaod_ukca_acc_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aaod_ukca_acc_ins( map_aod_wavel(i)+k ) = aaod_ukca_this_mode_um(i,k)
+          aaod_ukca_acc_ins( map_aod_wavel(i) + k - 1 ) =                      &
+                                                    aaod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1564,7 +1574,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aod_ukca_cor_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aod_ukca_cor_ins( map_aod_wavel(i) + k ) = aod_ukca_this_mode_um(i,k)
+          aod_ukca_cor_ins( map_aod_wavel(i) + k - 1 ) =                       &
+                                                     aod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
@@ -1572,7 +1583,8 @@ subroutine radaer_code( nlayers,                                               &
     if ( .not. associated( aaod_ukca_cor_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, row_length
-          aaod_ukca_cor_ins( map_aod_wavel(i)+k ) = aaod_ukca_this_mode_um(i,k)
+          aaod_ukca_cor_ins( map_aod_wavel(i) + k - 1 ) =                      &
+                                                    aaod_ukca_this_mode_um(i,k)
         end do
       end do
     end if
