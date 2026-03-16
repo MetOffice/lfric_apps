@@ -1,7 +1,7 @@
 <file_definition>
 
   <!-- Diagnostic output file for NAME model on global runs -->
-  <file id="lfric_name" name="lfric_name" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_name" name="results/lfric_name" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
     <field_group operation="instant" freq_op="3h" prec="4">
       <field field_ref="u_in_w3"/>                      <!-- 3D, Field Name: wind (u-cpt) -->
       <field field_ref="v_in_w3"/>                      <!-- 3D, Field Name: wind (v-cpt) -->

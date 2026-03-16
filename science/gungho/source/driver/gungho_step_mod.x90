@@ -57,6 +57,8 @@ module gungho_step_mod
   use compute_total_energy_alg_mod,   only : compute_total_energy_alg
   use compute_total_mass_alg_mod,     only : compute_total_mass_alg
   use sci_field_minmax_alg_mod,       only : log_field_minmax
+  use timing_mod,                     only : start_timing, stop_timing, &
+                                             tik, LPROF
 
   implicit none
 
@@ -110,6 +112,9 @@ module gungho_step_mod
 
     real( r_def )    :: dt
     logical( l_def ) :: use_moisture
+    integer( tik )   :: id
+
+    if ( LPROF ) call start_timing( id, 'gungho_timestep' )
 
     write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
@@ -117,11 +122,13 @@ module gungho_step_mod
            '(A,I0)' ) 'Start of timestep ', model_clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
-    call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
-    call modeldb%values%get_value( 'total_energy', total_energy )
-    call modeldb%values%get_value( 'total_energy_previous', &
-                                   total_energy_previous )
+    if ( encorr_usage /= encorr_usage_none .or. write_conservation_diag ) then
+      temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+      call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
+      call modeldb%values%get_value( 'total_energy', total_energy )
+      call modeldb%values%get_value( 'total_energy_previous', &
+           total_energy_previous )
+    end if
 
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
 
@@ -220,6 +227,7 @@ module gungho_step_mod
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    if ( LPROF ) call stop_timing( id, 'gungho_timestep' )
 
   end subroutine gungho_step
 
