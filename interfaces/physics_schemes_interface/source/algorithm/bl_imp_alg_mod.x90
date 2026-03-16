@@ -44,6 +44,8 @@ module bl_imp_alg_mod
                                            blpert_type_theta_star, &
                                            blpert_type_theta_and_moist
 
+  use sci_field_minmax_alg_mod, only: log_field_minmax
+
   implicit none
 
   private
@@ -372,6 +374,16 @@ contains
                 inc_X_times_Y(du_bl, dA),                                      &
                 inc_X_times_Y(dissip, dA) )
 
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'u_star', u_star)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'u_physics', u_physics)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'u_physics_star', u_physics_star)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'dissip', dissip)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'tau_w2', tau_w2)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'wind10m_w2', wind10m_w2)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'wind10m_neut_w2', wind10m_neut_w2)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'pseudotau_w2', pseudotau_w2)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'du_bl', du_bl)
+
     call u_physics_star%field_final()
 
     if (fric_heating) then
@@ -414,6 +426,27 @@ contains
     ncells = mesh%get_last_edge_cell()
     call um_sizes_init(ncells)
 
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'theta', theta)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'exner_in_wth', exner_in_wth)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr_n(imr_v)', mr_n(imr_v))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr_n(imr_cl)', mr_n(imr_cl))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mrn_ice', mrn_ice)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'theta_star', theta_star)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'height_w3', height_w3)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'height_wth', height_wth)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'dt_conv', dt_conv)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr(imr_v)', mr(imr_v))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr(imr_cl)', mr(imr_cl))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr_ice', mr_ice)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'dtrdz_tq_bl', dtrdz_tq_bl)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'rdz_w3', rdz_w3)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'blend_height_tq', blend_height_tq)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'bl_type_ind', bl_type_ind)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'rhokh', rhokh)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'fqw', fqw)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'ftl', ftl)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'diss_u', diss_u)
+
     do loop = 1,2
       ! Call the implicit scheme for scalars
       call invoke(bl_imp_kernel_type( loop, theta, exner_in_wth, mr_n(imr_v),  &
@@ -448,7 +481,70 @@ contains
                                        zh_nonloc, zh, zhsc, bl_type_ind, dqw,  &
                                        dtl, dqw_nt, dtl_nt, qw, tl, ct_ctq,    &
                                        fqw_star, ftl_star ) )
+      call log_field_minmax(LOG_LEVEL_DEBUG, 'diss_u', diss_u)
     end do !loop
+
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dqw', dqw)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dtl', dtl)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dqw_nt', dqw_nt)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dtl_nt', dtl_nt)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'qw', qw)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'tl', tl)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'ct_ctq', ct_ctq)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dqw1', dqw1)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dtl1', dtl1)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'ct_ctq1', ct_ctq1)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'wetrho_in_wth', wetrho_in_wth)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'exner', exner)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'ntml', ntml)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'cumulus', cumulus)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'dtheta_bl', dtheta_bl)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'diss_u', diss_u)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'diss_v', diss_v)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'dt_conv', dt_conv)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr(imr_v)', mr(imr_v))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr(imr_cl)', mr(imr_cl))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr(imr_ci)', mr(imr_ci))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mr(imr_s)', mr(imr_s))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'cf_area', cf_area)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'cf_fro', cf_fro)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'cf_liq', cf_liq)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'cf_bulk', cf_bulk)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'cca', cca)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'ccw', ccw)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'rh_crit', rh_crit)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'dsldzm', dsldzm)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'mix_len_bm', mix_len_bm)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'wvar', wvar)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'gradrinr', gradrinr)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'tau_dec_bm', tau_dec_bm)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'tau_hom_bm', tau_hom_bm)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'tau_mph_bm', tau_mph_bm)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'rhokh', rhokh)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'bq_bl', bq_bl)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'bt_bl', bt_bl)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'fqw', fqw)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'ftl', ftl)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'dtrdz_tq_bl', dtrdz_tq_bl)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'rdz_w3', rdz_w3)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'thetal_inc_leonard', thetal_inc_leonard)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'mt_inc_leonard', mt_inc_leonard)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'z_lcl', z_lcl)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'inv_depth', inv_depth)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'qcl_at_inv_top', qcl_at_inv_top)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'zh_nonloc', zh_nonloc)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'zh', zh)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'zhsc', zhsc)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'bl_type_ind', bl_type_ind)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dqw', dqw)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dtl', dtl)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dqw_nt', dqw_nt)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'dtl_nt', dtl_nt)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'qw', qw)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'tl', tl)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'ct_ctq', ct_ctq)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'fqw_star', fqw_star)
+    ! call log_field_minmax(LOG_LEVEL_DEBUG, 'ftl_star', ftl_star)
 
     call um_sizes_init(1_i_def)
 

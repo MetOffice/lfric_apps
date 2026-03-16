@@ -263,6 +263,7 @@ contains
     type(field_type),              pointer :: rho_d_latest_ptr
     type(field_type),              target  :: rho_d_latest_trgt
     type(r_tran_field_type),       pointer :: flux_this_outer
+    type(r_tran_field_type)                :: tr_and_bdf2_flux
 
     type(mesh_type),               pointer :: aerosol_mesh
     type(function_space_type),     pointer :: aerosol_w2_fs
@@ -367,6 +368,12 @@ contains
       flux_this_outer => flux_precomputations%get_total_ref_flux()
       call invoke( inc_X_plus_Y(total_dry_flux, flux_this_outer) )
 
+    else if (stepper_name == stepper_bdf2 .and. outer < bdf2_outer_iterations) then
+      flux_precomputations => transport_controller%get_flux_precomputations()
+      flux_this_outer => flux_precomputations%get_total_ref_flux()
+      call tr_and_bdf2_flux%initialise(total_dry_flux%get_function_space())
+      call invoke( X_plus_Y(tr_and_bdf2_flux, total_dry_flux, flux_this_outer) )
+
     else if (stepper_name == stepper_tr .and. outer == tr_outer_iterations) then
       flux_precomputations => transport_controller%get_flux_precomputations()
       flux_this_outer => flux_precomputations%get_total_ref_flux()
@@ -443,7 +450,11 @@ contains
                 stepper_name=stepper_siqn                                      &
         )
         ! Copy dry density flux for the whole timestep into flux precomputations
-        call transport_controller%initialise_flux_precomputations(total_dry_flux)
+        if (outer < bdf2_outer_iterations) then
+          call transport_controller%initialise_flux_precomputations(tr_and_bdf2_flux)
+        else
+          call transport_controller%initialise_flux_precomputations(total_dry_flux)
+        end if
       end if
 
       if (present(adv_tracer_all_outer)                                        &
@@ -482,7 +493,7 @@ contains
     ! Transport fields which aren't needed in fast physics, and therefore
     ! only need transporting on the final outer iteration
 
-    if ( outer == outer_iterations                                             &
+    if ( outer == max_outer                                                    &
          .and. moisture_formulation /= moisture_formulation_dry ) then
 
       ! ---------------------------------------------------------------------- !

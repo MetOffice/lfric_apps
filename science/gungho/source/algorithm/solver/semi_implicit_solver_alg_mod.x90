@@ -614,6 +614,7 @@ contains
   !> @brief An algorithm for timestepping the semi-implicit equations.
   !> @param[in,out] state               Prognostic model state
   !> @param[in,out] rhs                 Residuals
+  !> @param[in,out] dry_flux_solver     Solver contributions to dry flux
   !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics
   !!                                    factors
   !> @param[in]     mr                  Mixing ratio array
@@ -622,6 +623,7 @@ contains
   !> @param[in]     first_iteration     Flag for first inner iteration
   !> @param[in]     stepper_name        Enumerator for timestepper
   subroutine semi_implicit_solver_alg_step(state, rhs,                         &
+                                           dry_flux_solver,                    &
                                            moist_dyn_gas_law,                  &
                                            mr, write_moisture_diag,            &
                                            first_iteration, stepper_name)
@@ -659,6 +661,7 @@ contains
     ! Prognostic fields
     type(field_type),    intent(inout) :: state(bundle_size)
     type(field_type),    intent(inout) :: rhs(bundle_size)
+    type(field_type),    intent(inout) :: dry_flux_solver
     type(field_type),    intent(in)    :: moist_dyn_gas_law
     type(field_type),    intent(in)    :: mr(nummr)
     logical(kind=l_def), intent(in)    :: write_moisture_diag
@@ -673,6 +676,7 @@ contains
     ! For analytic elimination of rho and theta
     type(field_type)                      :: rhs_rdef, inc_theta
     type(field_type)                      :: rho_guess
+    type(field_type)                      :: f_star_rdef
 
     type(r_solver_field_type)             :: rhs_rsol(bundle_size)
     type(r_solver_field_type)             :: div_u
@@ -695,6 +699,7 @@ contains
     type(r_solver_operator_type), pointer :: q2t_op
     type(r_solver_operator_type), pointer :: q3t_op
     real(kind=r_solver)                   :: tau_r_dt
+    real(kind=r_def)                      :: tau_r_dt_rdef
     real(kind=r_solver)                   :: gamma
     integer(kind=i_def)                   :: mesh_id
     type(integer_field_type),     pointer :: face_selector_ew
@@ -890,6 +895,7 @@ contains
     case (stepper_bdf2)
       tau_r_dt = real(-dt, kind=r_solver)
     end select
+    tau_r_dt_rdef = real(-tau_r_dt, kind=r_def)
 
     div => get_im3_div_r_solver(mesh_id)
     rho_at_u => get_rho_at_u()
@@ -901,6 +907,18 @@ contains
         dg_matrix_vector_kernel_type(div_u, f_star, div),                      &
         aX_plus_Y(inc_rho_rsol, tau_r_dt, div_u, rhs_rsol(igh_d))              &
     )
+
+    ! TODO: to remove
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'solver: F_star', f_star)
+
+    call f_star_rdef%initialise( vector_space = rhs(igh_u)%get_function_space() )
+    call copy_field(f_star, f_star_rdef)
+    call invoke(                                                               &
+        inc_X_plus_bY(dry_flux_solver, tau_r_dt_rdef, f_star_rdef)             &
+    )
+
+    ! TODO: to remove
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'solver: dry_flux_solver', dry_flux_solver)
 
     ! Compute theta increment since solver does not provide one
     ptheta2 => get_ptheta2(stepper_name)

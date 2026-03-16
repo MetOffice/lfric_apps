@@ -515,6 +515,8 @@ contains
         flux_ptr => flux
       end if
 
+      call self%set_total_ref_flux(flux_ptr)
+
       ! Split flux into horizontal and vertical components ---------------------
       w2_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2)
       if (splitting /= splitting_none) then
@@ -537,7 +539,7 @@ contains
         do j = 1, num_split_steps
           step_idx = (i - 1_i_def) * num_split_steps + j
           direction = get_splitting_direction(splitting, j)
-          factor = get_splitting_factor(splitting, j)
+          factor = get_splitting_factor(splitting, j) / real(num_substeps, r_tran)
 
           select case (direction)
           case (direction_3d)
