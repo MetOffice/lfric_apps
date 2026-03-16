@@ -40,6 +40,8 @@ module swe_transport_control_alg_mod
                                                momentum_form,          &
                                                momentum_form_momentum, &
                                                momentum_form_vector_invariant
+  use timing_mod,                        only: start_timing, stop_timing, &
+                                               tik, LPROF
   use transport_config_mod,              only: cheap_update
   use transport_controller_mod,          only: transport_controller_type
   use transport_metadata_mod,            only: transport_metadata_type
@@ -147,8 +149,6 @@ contains
     use operator_mod,                    only: operator_type
     use transport_field_mod,             only: transport_field
     use wind_transport_alg_mod,          only: wind_transport_alg
-    use io_config_mod,                   only: subroutine_timers
-    use timer_mod,                       only: timer
 
     implicit none
 
@@ -200,8 +200,9 @@ contains
     ! Quadrature
     type(quadrature_xyoz_type)          :: qr
     type(quadrature_rule_gaussian_type) :: quadrature_rule
+    integer(tik)                        :: id_cont
 
-    if ( subroutine_timers ) call timer('swe_transport_control_alg_step')
+    if ( LPROF ) call start_timing( id_cont, 'swe_transport_control_alg_step' )
 
     ! ------------------------------------------------------------------------ !
     ! Pre-transport initialisation tasks
@@ -365,7 +366,7 @@ contains
 
     call transport_controller%finalise()
 
-    if ( subroutine_timers ) call timer('swe_transport_control_alg_step')
+    if ( LPROF ) call stop_timing( id_cont, 'swe_transport_control_alg_step' )
 
   end subroutine swe_transport_control_alg_step
 
@@ -391,8 +392,6 @@ contains
                                        model_clock )
 
     use transport_field_mod,             only: transport_field
-    use io_config_mod,                   only: subroutine_timers
-    use timer_mod,                       only: timer
     use transport_enumerated_types_mod,  only: equation_form_conservative, &
                                                equation_form_advective,    &
                                                equation_form_consistent
@@ -420,8 +419,9 @@ contains
     ! Parameters for transport runtime
     integer(i_def), parameter :: outer = 1
     logical(l_def), parameter :: cheap_update_flag = .false.
+    integer(tik)              :: id_swe_tracer
 
-    if ( subroutine_timers ) call timer('swe_transport_control_alg_step')
+    if ( LPROF ) call start_timing( id_swe_tracer, 'swe_tracer_transport_alg' )
 
     ! Initialise the main transport controller ---------------------------------
     call transport_controller%initialise(model_clock, mass_n, wind_n, wind_np1)
@@ -513,7 +513,7 @@ contains
 
     call transport_controller%finalise()
 
-    if ( subroutine_timers ) call timer('swe_tracer_transport_alg')
+    if ( LPROF ) call stop_timing( id_swe_tracer, 'swe_tracer_transport_alg' )
 
   end subroutine swe_tracer_transport_alg
 

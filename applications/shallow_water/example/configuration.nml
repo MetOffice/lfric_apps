@@ -178,6 +178,7 @@ tau_u              = 0.0
 &transport
 adjust_theta=.false.
 adjust_theta_above=0.0
+adjust_tracer_equation=.false.
 adjust_vhv_wind=.false.
 broken_w2_projection = .true.
 calculate_detj = 'upwind'

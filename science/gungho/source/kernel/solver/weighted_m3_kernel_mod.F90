@@ -21,6 +21,10 @@ module weighted_m3_kernel_mod
   use fs_continuity_mod,       only: W3
   use kernel_mod,              only: kernel_type
 
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -139,7 +143,8 @@ subroutine weighted_m3_code(cell, nlayers, ncell_3d,            &
       chi2_e(df) = chi2(loc)
       chi3_e(df) = chi3(loc)
     end do
-    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
+    call coordinate_jacobian(coord_system, geometry, topology, scaled_radius, &
+                             ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,   &
                              ipanel, basis_chi, diff_basis_chi, jac, dj)
 
     ik = 1 + k + (cell-1)*nlayers

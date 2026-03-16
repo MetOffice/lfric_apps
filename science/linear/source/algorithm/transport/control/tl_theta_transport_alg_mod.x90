@@ -17,7 +17,6 @@ module tl_theta_transport_alg_mod
   use log_mod,                         only: log_event,       &
                                              LOG_LEVEL_ERROR
   use operator_mod,                    only: operator_type
-  use timer_mod,                       only: timer
   use timestepping_config_mod,         only: time_method => method, &
                                              method_semi_implicit
   use tl_transport_field_mod,          only: tl_transport_field

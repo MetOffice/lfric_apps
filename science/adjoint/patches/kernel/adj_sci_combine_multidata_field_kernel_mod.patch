@@ -34,7 +34,78 @@
  
    contains
    subroutine adj_combine_multidata_field_code_r_single(nlayers, field_out, n, field1_in, n1, field2_in, n2, ndata_first, ndf, &
-@@ -133,4 +133,4 @@
+@@ -49,15 +49,15 @@
+ 
+     if (ndata_first) then
+       do k = nlayers - 1, 0, -1
+-        ij = k * n + map(1)
+         ij = k * n + n1 + map(1)
+         do df = n2 - 1, 0, -1
+           field2_in(map_2(1) + k * n2 + df) = field2_in(map_2(1) + k * n2 + df) + field_out(ij + df)
+-          field_out(ij + df) = 0.0
++          field_out(ij + df) = 0.0_r_single
+         enddo
++        ij = k * n + map(1)
+         do df = n1 - 1, 0, -1
+           field1_in(map_1(1) + k * n1 + df) = field1_in(map_1(1) + k * n1 + df) + field_out(ij + df)
+-          field_out(ij + df) = 0.0
++          field_out(ij + df) = 0.0_r_single
+         enddo
+       enddo
+     else
+@@ -65,14 +65,14 @@
+         ij = df * nlayers + n1 * nlayers - nlayers + map(1)
+         do k = nlayers - 1, 0, -1
+           field2_in(map_2(1) + (df - 1) * nlayers + k) = field2_in(map_2(1) + (df - 1) * nlayers + k) + field_out(ij + k)
+-          field_out(ij + k) = 0.0
++          field_out(ij + k) = 0.0_r_single
+         enddo
+       enddo
+       do df = n1, 1, -1
+         ij = df * nlayers - nlayers + map(1)
+         do k = nlayers - 1, 0, -1
+           field1_in(map_1(1) + (df - 1) * nlayers + k) = field1_in(map_1(1) + (df - 1) * nlayers + k) + field_out(ij + k)
+-          field_out(ij + k) = 0.0
++          field_out(ij + k) = 0.0_r_single
+         enddo
+       enddo
+     end if
+@@ -103,15 +103,15 @@
+ 
+     if (ndata_first) then
+       do k = nlayers - 1, 0, -1
+-        ij = k * n + map(1)
+         ij = k * n + n1 + map(1)
+         do df = n2 - 1, 0, -1
+           field2_in(map_2(1) + k * n2 + df) = field2_in(map_2(1) + k * n2 + df) + field_out(ij + df)
+-          field_out(ij + df) = 0.0
++          field_out(ij + df) = 0.0_r_double
+         enddo
++        ij = k * n + map(1)
+         do df = n1 - 1, 0, -1
+           field1_in(map_1(1) + k * n1 + df) = field1_in(map_1(1) + k * n1 + df) + field_out(ij + df)
+-          field_out(ij + df) = 0.0
++          field_out(ij + df) = 0.0_r_double
+         enddo
+       enddo
+     else
+@@ -119,18 +119,18 @@
+         ij = df * nlayers + n1 * nlayers - nlayers + map(1)
+         do k = nlayers - 1, 0, -1
+           field2_in(map_2(1) + (df - 1) * nlayers + k) = field2_in(map_2(1) + (df - 1) * nlayers + k) + field_out(ij + k)
+-          field_out(ij + k) = 0.0
++          field_out(ij + k) = 0.0_r_double
+         enddo
+       enddo
+       do df = n1, 1, -1
+         ij = df * nlayers - nlayers + map(1)
+         do k = nlayers - 1, 0, -1
+           field1_in(map_1(1) + (df - 1) * nlayers + k) = field1_in(map_1(1) + (df - 1) * nlayers + k) + field_out(ij + k)
+-          field_out(ij + k) = 0.0
++          field_out(ij + k) = 0.0_r_double
+         enddo
+       enddo
+     end if
  
    end subroutine adj_combine_multidata_field_code_r_double
  
