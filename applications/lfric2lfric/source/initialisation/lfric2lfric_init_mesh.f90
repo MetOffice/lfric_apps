@@ -40,16 +40,17 @@ module lfric2lfric_init_mesh_mod
   use namelist_collection_mod,     only: namelist_collection_type
   use namelist_item_mod,           only: namelist_item_type
   use namelist_mod,                only: namelist_type
-  use panel_decomposition_mod,     only: panel_decomposition_type
+  use panel_decomposition_mod,     only: lfric2lfric_lbc_decomposition_type, &
+                                         panel_decomposition_type
   use partitioning_config_mod,     only: panel_decomposition_auto
-  use partition_mod,               only: partitioner_interface
+  use partition_mod,               only: partitioner_lfric2lfric_lbc, &
+                                         partitioner_interface
   use runtime_partition_mod,       only: mesh_cubedsphere,       &
                                          mesh_planar,            &
                                          mesh_lfric2lfric_lbc,   &
                                          create_local_mesh_maps, &
                                          create_local_mesh
   use runtime_partition_lfric_mod, only: get_partition_parameters
-  use global_mesh_collection_mod,  only: global_mesh_collection
 
   ! Lfric2lfric modules
   use lfric2lfric_config_mod,      only: regrid_method_map,                   &
@@ -333,11 +334,10 @@ subroutine init_mesh( configuration,           &
                                    partitioner_src )
 
     if (read_lbc_mesh) then
-      call get_partition_parameters( dst_partitioning_nml, &
-                                     mesh_selection(lbc),  &
-                                     total_ranks,          &
-                                     decomposition_lbc,    &
-                                     partitioner_lbc )
+      decomposition_lbc = lfric2lfric_lbc_decomposition_type()
+      partitioner_lbc => partitioner_lfric2lfric_lbc
+      call log_event( "Using lfric2lfric lbc mesh partitioner ", &
+                      log_level_debug )
     end if
 
     call get_partition_parameters( dst_partitioning_nml, &
