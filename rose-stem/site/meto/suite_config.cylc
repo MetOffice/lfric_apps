@@ -7,7 +7,7 @@
 
     [[METO_ORIG]]
 {% if site_vars["ex_trustzone"] == "collab" %}
-        inherit = EX1A_SCRIPTS
+        inherit = EX1A_REMOTE_INIT
 {% else %}
         pre-script = "module load scitools"
         platform = {{ROSE_ORIG_HOST}}
