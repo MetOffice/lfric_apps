@@ -22,8 +22,8 @@ casim:
     ref: 2026.03.2
 
 jules:
-    source: git@github.com:james-bruten-mo/jules.git
-    ref: lfric_jules_metadata
+    source: git@github.com:jules/jules.git
+    ref: 2026.03.2
 
 lfric_apps:
     source:
