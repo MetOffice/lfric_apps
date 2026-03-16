@@ -114,7 +114,7 @@ contains
              wavelength=wavelength,                 &
              wind_time_period=wind_time_period )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
   end subroutine setUp
 

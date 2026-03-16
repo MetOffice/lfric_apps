@@ -1,0 +1,25 @@
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
+
+# Block merges to the stable branch via pull requests
+
+name: Block PR to Stable
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - stable
+
+jobs:
+  block-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block merge to stable branch
+        run: |
+          echo "::error::Direct merges to the stable branch are not allowed."
+          echo "::error::Please target a different branch for your pull request."
+          exit 1

@@ -211,6 +211,7 @@ log_space = .true., .false., .false.
 enforce_min_value=.false.,.false.,.false.
 max_vert_cfl_calc='uniform'
 min_value=0.0,0.0,-99999999.0,0.0
+adjust_tracer_equation=.false.
 adjust_vhv_wind=.false.
 calculate_detj='upwind',
 cap_density_predictor = 0.01

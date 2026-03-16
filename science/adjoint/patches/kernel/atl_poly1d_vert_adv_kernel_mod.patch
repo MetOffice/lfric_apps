@@ -33,64 +33,156 @@
  &ndf_wt, undf_wt, map_wt, ndf_w2v, undf_w2v, map_w2v, ndf_c, undf_c, map_c)
      integer(kind=i_def), intent(in) :: nlayers
      integer(kind=i_def), intent(in) :: ndf_wt
-@@ -61,7 +61,6 @@
+@@ -61,75 +61,96 @@
      real(kind=r_def) :: dpdz
      real(kind=r_def) :: ls_dpdz
      real(kind=r_def) :: safe_ls_tracer
 -    real(kind=r_def) :: eps
      real(kind=r_def), dimension(0:nlayers) :: ls_log_tracer
-     real(kind=r_def) :: tmp1
-     real(kind=r_def) :: tmp2
-@@ -84,7 +83,7 @@
-         itmp3 = FLOOR(tmp2)
-         stencil(p + 1) = -itmp3 + k + p
-       enddo
--      upwind = INT(0.5 * SIGN(1.0, ls_wind(k + map_w2v(1))) + 0.5, i_def)
-+      upwind = INT(0.5_r_def * SIGN(1.0_r_def, ls_wind(k + map_w2v(1))) + 0.5_r_def, i_def)
-       upwind_offset = upwind * use_upwind
-       stencil = stencil - upwind_offset
-       kmin = stencil(1)
-@@ -106,30 +105,41 @@
-       if (kmax > 0) then
-         stencil = -kmax + stencil
-       end if
+-    real(kind=r_def) :: tmp1
+-    real(kind=r_def) :: tmp2
+-    integer(kind=i_def) :: i
+-    integer(kind=i_def) :: itmp3
+ 
+-    dpdz = 0.0_r_def
+     ij = map_wt(1)
+-    if (logspace) then
+-      do k = 0, nlayers, 1
+-        ls_log_tracer(k) = LOG(MAX(eps, ABS(ls_tracer(ij + k))))
+-      enddo
 +
-+      ! ARP - calculate passive ls_dpdz first.
++    ! For logspace the nonlinear term is:
++    ! dp_{j}/dz = p_j * sum_i a_i * log( p_i)
++    ! The tl term is then:
++    ! dp_{j}/dz = ls_p_j * sum_i a_i * p_i / ls_p_i !
++    !           + p_j * sum_i a_i * log( ls_p_i )
++
++    ! Compute log of tracer. This code should only be used for a positive
++    ! quantity, but adding in the abs ensures no errors are thrown
++    ! if negative numbers are passed through in redundant calculations
++    ! in the halos
++    if ( logspace ) then
++      do k = 0, nlayers
++        ls_log_tracer(k) = log(max(EPS,abs(ls_tracer(ij+k))))
++      end do
+     end if
+-    vertical_order = MIN(global_order, nlayers - 1)
+-    use_upwind = MOD(vertical_order, 2)
++
++    ! Ensure that we reduce the order if there are only a few layers
++    vertical_order = min(global_order, nlayers-1)
++
++    ! If order is odd then we are using an upwind stencil -> use_upwind = 1
++    ! For even orders it is zero
++    use_upwind = mod(vertical_order, 2_i_def)
++
++    ! Compute dtracer/dz using precomputed weights
+     do k = nlayers - 1, 1, -1
+-      do p = 0, vertical_order, 1
+-        tmp1 = REAL(vertical_order, r_def)
+-        tmp2 = 0.5 * tmp1
+-        itmp3 = FLOOR(tmp2)
+-        stencil(p + 1) = -itmp3 + k + p
+-      enddo
+-      upwind = INT(0.5 * SIGN(1.0, ls_wind(k + map_w2v(1))) + 0.5, i_def)
+-      upwind_offset = upwind * use_upwind
+-      stencil(:) = -upwind_offset + stencil(:)
+-      kmin = stencil(1)
+-      do i = 2, vertical_order + 1, 1
+-        if (stencil(i) < kmin) then
+-          kmin = stencil(i)
+-        end if
+-      enddo
+-      if (kmin < 0) then
+-        stencil(:) = -kmin + stencil(:)
+-      end if
+-      kmax = stencil(1)
+-      do i = 2, vertical_order + 1, 1
+-        if (stencil(i) > kmax) then
+-          kmax = stencil(i)
+-        end if
+-      enddo
+-      kmax = kmax - nlayers
+-      if (kmax > 0) then
+-        stencil(:) = -kmax + stencil(:)
+-      end if
++
++      ! Compute the stencil of points required
++      do p = 0, vertical_order
++        stencil(p+1) = k - floor(real(vertical_order,r_def)/2.0_r_def) + p
++      end do
++
++      ! Adjust the stencil based upon the wind sign for upwind (odd order)
++      ! reconstructions only.
++      ! if wind > 0 -> upwind_offset = 1
++      ! if wind < 0 -> upwind_offset = 0
++      upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,ls_wind(map_w2v(1)+k))),i_def)
++      upwind_offset = use_upwind*upwind
++      stencil = stencil - upwind_offset
++
++      ! Adjust stencil near boundaries to avoid going out of bounds
++      kmin = minval(stencil(1:vertical_order+1))
++      if ( kmin < 0 ) stencil = stencil - kmin
++      kmax = maxval(stencil(1:vertical_order+1)) - nlayers
++      if ( kmax > 0 ) stencil = stencil - kmax
++
++      ! Compute the derivative and the advective update
++      dpdz = 0.0_r_def
        ls_dpdz = 0.0_r_def
-+      if (logspace) then
-+        do p = vertical_order + 1, 1, -1
+-      dpdz = dpdz + advective(map_wt(1) + k) * ls_wind(k + map_w2v(1))
+-      wind(k + map_w2v(1)) = wind(k + map_w2v(1)) + ls_dpdz * advective(map_wt(1) + k)
+-      if (logspace) then
+-        safe_ls_tracer = SIGN(MAX(eps, ABS(ls_tracer(ij + k))), ls_tracer(ij + k))
+-        ls_dpdz = ls_dpdz * safe_ls_tracer
+-        tracer(ij + k) = tracer(ij + k) + ls_dpdz * dpdz
+-        dpdz = dpdz * safe_ls_tracer
++      safe_ls_tracer = 1.0_r_def
++      if ( logspace ) then
++        ! dp/dz = p * d(log(p))/dz
++        do p = 1, vertical_order + 1
 +          ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
 +          ls_dpdz = ls_dpdz + coeff(ik)*ls_log_tracer(stencil(p))
 +        end do
++        safe_ls_tracer = sign(max(EPS,abs(ls_tracer(ij + k))), ls_tracer(ij + k))
 +      else
-+        do p = vertical_order + 1, 1, -1
++        do p = 1, vertical_order + 1
 +          ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
 +          ls_dpdz = ls_dpdz + coeff(ik)*ls_tracer(ij + stencil(p))
 +        end do
 +      end if
-       dpdz = dpdz + advective(map_wt(1) + k) * ls_wind(k + map_w2v(1))
-       wind(k + map_w2v(1)) = wind(k + map_w2v(1)) + ls_dpdz * advective(map_wt(1) + k)
 +
-       if (logspace) then
-         safe_ls_tracer = SIGN(MAX(eps, ABS(ls_tracer(ij + k))), ls_tracer(ij + k))
--        ls_dpdz = ls_dpdz * safe_ls_tracer
-         tracer(ij + k) = tracer(ij + k) + ls_dpdz * dpdz
-         dpdz = dpdz * safe_ls_tracer
++      dpdz = dpdz + ls_wind(map_w2v(1)+k) * advective(map_wt(1)+ k)
++      wind(map_w2v(1)+k) = wind(map_w2v(1)+k) + advective(map_wt(1)+ k) * ls_dpdz * safe_ls_tracer
++
++      if ( logspace ) then
++        ! dp/dz = p * d(log(p))/dz
++        tracer(ij + k) = tracer(ij + k) + dpdz * ls_dpdz
++        dpdz = safe_ls_tracer * dpdz
          do p = vertical_order + 1, 1, -1
-           ik = global_order * upwind_offset + k * ndata + p + upwind_offset + map_c(1) - 1
+-          ik = global_order * upwind_offset + k * ndata + p + upwind_offset + map_c(1) - 1
 -          ls_dpdz = ls_dpdz + coeff(ik) * ls_log_tracer(stencil(p))
-           tracer(ij + stencil(p)) = tracer(ij + stencil(p)) + coeff(ik) * dpdz / SIGN(MAX(eps, ABS(ls_tracer(ij + stencil(p)))), &
- &ls_tracer(ij + stencil(p)))
-         enddo
+-          tracer(ij + stencil(p)) = tracer(ij + stencil(p)) + coeff(ik) * dpdz / SIGN(MAX(eps, ABS(ls_tracer(ij + stencil(p)))), &
+-&ls_tracer(ij + stencil(p)))
+-        enddo
++          ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
++          tracer(ij + stencil(p)) = tracer(ij + stencil(p)) + coeff(ik) * dpdz / &
++            ! This is a safe version of ls_tracer
++            sign(max(EPS,abs(ls_tracer(ij + stencil(p)))), ls_tracer(ij + stencil(p)))
++        end do
++
        else
          do p = vertical_order + 1, 1, -1
-           ik = global_order * upwind_offset + k * ndata + p + upwind_offset + map_c(1) - 1
+-          ik = global_order * upwind_offset + k * ndata + p + upwind_offset + map_c(1) - 1
 -          ls_dpdz = ls_dpdz + coeff(ik) * ls_tracer(ij + stencil(p))
++          ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
            tracer(ij + stencil(p)) = tracer(ij + stencil(p)) + coeff(ik) * dpdz
-         enddo
+-        enddo
++        end do
        end if
-       dpdz = 0.0
-     enddo
+-      dpdz = 0.0
+-    enddo
++      dpdz = 0.0_r_def
++    end do
  
 -  end subroutine adj_poly1d_vert_adv_code
 +  end subroutine atl_poly1d_vert_adv_code

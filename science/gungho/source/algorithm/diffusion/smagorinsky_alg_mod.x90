@@ -21,7 +21,7 @@ module smagorinsky_alg_mod
   use mesh_collection_mod,       only: mesh_collection
   use model_clock_mod,           only: model_clock_type
   use mr_indices_mod,            only: nummr, imr_v, imr_cl
-  use timer_mod,                 only: timer
+  use timing_mod,                only: start_timing, stop_timing, tik, LPROF
 
   ! Pointers to objects
   use sci_fem_constants_mod,     only: get_rmultiplicity_fv
@@ -128,8 +128,9 @@ subroutine smagorinsky_alg(                                                    &
     real(kind=r_def),    parameter :: one_third = 1.0_r_def / 3.0_r_def
 
     logical(kind=l_def) :: use_moisture
+    integer(kind=tik)   :: id
 
-    if ( subroutine_timers ) call timer("smagorinsky_alg")
+    if ( LPROF ) call start_timing( id, 'smagorinsky' )
 
     call log_event( 'Applying Smagorinsky mixing', LOG_LEVEL_DEBUG )
 
@@ -302,7 +303,7 @@ subroutine smagorinsky_alg(                                                    &
       call moisture_conservation_alg(rho, mr, 'After mixing')
     end if
 
-    if ( subroutine_timers ) call timer("smagorinsky_alg")
+    if ( LPROF ) call stop_timing( id, 'smagorinsky' )
 
   end subroutine smagorinsky_alg
 
