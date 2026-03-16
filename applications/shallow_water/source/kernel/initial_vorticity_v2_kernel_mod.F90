@@ -25,12 +25,13 @@ module initial_vorticity_v2_kernel_mod
   use kernel_mod,              only: kernel_type
   use sci_coordinate_jacobian_mod, only: coordinate_jacobian, &
                                          coordinate_jacobian_inverse
-  use base_mesh_config_mod,    only: geometry,           &
-                                     geometry_spherical, &
-                                     f_lat
   use rotation_vector_mod,     only: rotation_vector_fplane,  &
                                      rotation_vector_sphere
-  use planet_config_mod,       only: scaled_omega
+
+  use base_mesh_config_mod,      only: geometry, topology, &
+                                       geometry_spherical, f_lat
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius, scaled_omega
 
   implicit none
 
@@ -165,7 +166,11 @@ subroutine initial_vorticity_v2_code(nlayers, r_q, curl_u, geopot,      &
                                 rotation_vector)
   end if
 
-  call coordinate_jacobian(ndf_chi,        &
+  call coordinate_jacobian(coord_system,   &
+                           geometry,       &
+                           topology,       &
+                           scaled_radius,  &
+                           ndf_chi,        &
                            nqp_h,          &
                            nqp_v,          &
                            chi_1_e,        &

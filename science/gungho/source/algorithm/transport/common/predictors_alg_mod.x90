@@ -22,6 +22,8 @@ module predictors_alg_mod
   use field_mod,                  only: field_type
   use model_clock_mod,            only: model_clock_type
   use operator_mod,               only: operator_type
+  use timing_mod,                 only: start_timing, stop_timing, &
+                                        tik, LPROF
 
   ! Configurations
   use derived_config_mod,         only: bundle_size
@@ -79,9 +81,13 @@ contains
     real(kind=r_def) :: df_min
     real(kind=r_def) :: df_max
     real(kind=r_def) :: cast_dt
+    ! Timing identifier
+    integer(tik)     :: id
 
     ! Divergence operator
     type(operator_type), pointer :: im3_div => null()
+
+    if ( LPROF ) call start_timing( id, "dynamics.transport_predictors")
 
     ! Predictor of the wind field (u-beta*dt*rhs)
     if ( .not. si_momentum_equation ) then
@@ -132,6 +138,8 @@ contains
 
       nullify( im3_div )
     end if
+
+    if ( LPROF ) call stop_timing( id, "dynamics.transport_predictors")
 
   end subroutine predictors_alg
 

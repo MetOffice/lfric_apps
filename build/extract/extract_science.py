@@ -1,35 +1,12 @@
 import argparse
-import subprocess
 import os
-import tempfile
 import yaml
-from shutil import rmtree
 from pathlib import Path
-from typing import Dict, List
+from get_git_sources import clone_and_merge, run_command
+import logging
 
 
-def run_command(command):
-    """
-    Run a subprocess command and check output
-    Inputs:
-        - command, str with command to run
-    """
-    command = command.split()
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        timeout=120,
-        shell=False,
-        check=False,
-    )
-    if result.returncode:
-        raise RuntimeError(
-            f"The command '{command}' failed with error:\n\n{result.stderr}"
-        )
-
-
-def load_yaml(fpath: Path) -> Dict:
+def load_yaml(fpath: Path) -> dict:
     """
     Read in the dependencies.yaml file
     """
@@ -40,55 +17,44 @@ def load_yaml(fpath: Path) -> Dict:
     return sources
 
 
-def clone_dependency(values: Dict, temp_dep: Path) -> None:
-    """
-    Clone the physics dependencies into a temporary directory
-    """
-
-    source = values["source"]
-    ref = values["ref"]
-
-    commands = (
-        f"git -C {temp_dep} init",
-        f"git -C {temp_dep} remote add origin {source}",
-        f"git -C {temp_dep} fetch origin {ref}",
-        f"git -C {temp_dep} checkout FETCH_HEAD"
-    )
-    for command in commands:
-        run_command(command)
-
-
-def extract_files(dependency: str, values: Dict, files: List[str], working: Path):
+def extract_files(dependencies: dict, extract_lists: dict, working: Path) -> None:
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
     Then delete the temporary directory
     """
 
-    tempdir = Path(tempfile.mkdtemp())
-    if (
-        "PHYSICS_ROOT" not in os.environ
-        or not Path(os.environ["PHYSICS_ROOT"]).exists()
-    ):
-        temp_dep = tempdir / dependency
-        temp_dep.mkdir(parents=True)
-        clone_dependency(values, temp_dep)
-    else:
-        temp_dep = Path(os.environ["PHYSICS_ROOT"]) / dependency
+    mirror_loc = os.getenv("MIRROR_LOC", "")
+    use_mirrors = bool(mirror_loc)
+    mirror_loc = Path(mirror_loc)
 
-    working_dep = working / dependency
+    for dependency, sources in dependencies.items():
+        if dependency not in extract_lists:
+            continue
+        files = extract_lists[dependency]
 
-    # make the working directory location
-    working_dep.mkdir(parents=True)
+        # If the PHYSICS_ROOT environment variable is provided, then use sources there
+        if "PHYSICS_ROOT" in os.environ and Path(os.environ["PHYSICS_ROOT"]).exists():
+            clone_loc = Path(os.environ["PHYSICS_ROOT"]) / dependency
+        else:
+            clone_loc = working.parent / "scratch" / dependency
+            clone_and_merge(dependency, sources, clone_loc, use_mirrors, mirror_loc)
 
-    for extract_file in files:
-        source_file = temp_dep / extract_file
-        dest_file = working_dep / extract_file
-        run_command(f"mkdir -p {dest_file.parents[0]}")
-        copy_command = f"cp -r {source_file} {dest_file}"
+        # make the working directory location
+        working_dir = working / dependency
+        working_dir.mkdir(parents=True, exist_ok=True)
+
+        # rsync extract files from clone loc to the working directory
+        copy_command = "rsync --include='**/' "
+        for extract_file in files:
+            if not extract_file:
+                continue
+            if Path(clone_loc / extract_file).is_dir():
+                extract_file = extract_file.rstrip("/")
+                extract_file += "/**"
+            copy_command += f"--include='{extract_file}' "
+        copy_command += f"--exclude='*' -avmq {clone_loc}/ {working_dir}"
         run_command(copy_command)
-
-    rmtree(tempdir)
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,34 +67,30 @@ def parse_args() -> argparse.Namespace:
         "-d",
         "--dependencies",
         default="./dependencies.yaml",
-        help="The dependencies file for the apps working copy.",
+        help="The dependencies file for the apps working copy",
     )
-    parser.add_argument(
-        "-w", "--working", default=".", help="Location to perform extract steps in."
-    )
+    parser.add_argument("-w", "--working", default=".", help="Build location")
     parser.add_argument(
         "-e",
         "--extract",
         default="./extract.yaml",
         help="Path to file containing extract lists",
     )
-    return parser.parse_args()
+
+    args = parser.parse_args()
+    args.working = Path(args.working)
+    return args
 
 
 def main():
     args: argparse.Namespace = parse_args()
 
-    extract_lists: Dict = load_yaml(args.extract)
-    dependencies: Dict = load_yaml(args.dependencies)
+    logging.basicConfig(level=logging.INFO)
 
-    for dependency in dependencies:
-        if dependency in extract_lists:
-            extract_files(
-                dependency,
-                dependencies[dependency],
-                extract_lists[dependency],
-                Path(args.working),
-            )
+    extract_lists: dict = load_yaml(args.extract)
+    dependencies: dict = load_yaml(args.dependencies)
+
+    extract_files(dependencies, extract_lists, args.working)
 
 
 if __name__ == "__main__":
