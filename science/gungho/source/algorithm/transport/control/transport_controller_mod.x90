@@ -40,9 +40,6 @@ module transport_controller_mod
   ! Pointers to other objects
   use sci_geometric_constants_mod,    only: get_face_selector_ew,              &
                                             get_face_selector_ns
-  use dycore_constants_mod,           only: stepper_siqn,                      &
-                                            stepper_tr,                        &
-                                            stepper_bdf2
   use transport_constants_mod,        only: get_detj_at_w3_r_tran
 
   ! Transport objects
@@ -154,10 +151,8 @@ contains
   !!                               the transporting wind is the *difference*
   !!                               in wind from the previous step, rather than
   !!                               the full transport wind.
-  !> @param[in] stepper_name       Optional, enumerator for timestepper, used to
-  !!                               determine the transporting wind
   subroutine initialise(self, model_clock, ref_field_rdef, wind_n_rdef,        &
-                        wind_np1_rdef, outer, cheap_update_step, stepper_name)
+                        wind_np1_rdef, outer, cheap_update_step)
 
     use split_transport_utils_mod,      only: get_dry_config,                  &
                                               get_splitting_name
@@ -179,7 +174,6 @@ contains
     type(field_type),       optional, intent(in)    :: wind_np1_rdef
     integer(kind=i_def),    optional, intent(in)    :: outer
     logical(kind=l_def),    optional, intent(in)    :: cheap_update_step
-    integer(kind=i_def),    optional, intent(in)    :: stepper_name
 
     ! Internal variables
     type(r_tran_field_type)            :: wind_flux
@@ -207,7 +201,6 @@ contains
     real(kind=r_tran)      :: min_lipschitz, max_lipschitz_3d
     real(kind=r_tran)      :: max_lipschitz, max_lipschitz_alt
     integer(kind=i_def)    :: mesh_id
-    integer(kind=i_def)    :: stepper
     integer(kind=i_def)    :: watkins_fail, watkins_min
     integer(kind=i_def)    :: splitting_alt
     logical(kind=l_def)    :: perform_watkins
@@ -225,24 +218,8 @@ contains
     if (present(cheap_update_step)) then
       self%cheap_update_step = cheap_update_step
     end if
-    if (present(stepper_name)) then
-      stepper = stepper_name
-    else
-      stepper = stepper_siqn
-    end if
 
-    select case (stepper)
-    case (stepper_siqn)
-      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
-    case (stepper_tr)
-      gamma = 1.0_r_tran - 0.5_r_tran * SQRT(2.0_r_tran)
-      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
-      dt_rtran = 2.0_r_tran * gamma * dt_rtran
-    case (stepper_bdf2)
-      gamma = 1.0_r_tran - 0.5_r_tran * SQRT(2.0_r_tran)
-      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
-      dt_rtran = (1.0_r_tran - 2.0_r_tran * gamma) * dt_rtran
-    end select
+    dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
 
     self%reference_splitting = splitting(get_dry_config())
 
@@ -287,14 +264,9 @@ contains
 
     ! standard semi-implicit transport wind: average of wind_n and wind_np1
     else if (present(wind_np1_rdef)) then
-      select case (stepper)
-      case (stepper_siqn, stepper_tr)
-        call invoke( X_plus_Y(self%transporting_wind, self%wind_np1_rtran,     &
-                              self%wind_n_rtran),                              &
-                     inc_a_times_X(0.5_r_tran, self%transporting_wind) )
-      case (stepper_bdf2)
-        call invoke( setval_X(self%transporting_wind, self%wind_np1_rtran) )
-      end select
+      call invoke( X_plus_Y(self%transporting_wind, self%wind_np1_rtran,       &
+                            self%wind_n_rtran),                                &
+                   inc_a_times_X(0.5_r_tran, self%transporting_wind) )
 
     else
       call invoke( setval_X(self%transporting_wind, self%wind_n_rtran) )
