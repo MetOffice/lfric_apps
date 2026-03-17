@@ -449,6 +449,7 @@ contains
       if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
       if (vis_no_precip_flag) call visibility_no_precip%write_field()
       if (vis_with_precip_flag) call visibility_with_precip%write_field()
+      if (vis_with_dust_flag) call visibility_with_dust%write_field()
       if (fog_fraction_flag) call fog_fraction%write_field()
       if (fog_fraction_ssi_flag) call fog_fraction_ssi%write_field()
       if (fog_fraction_land_flag) call fog_fraction_land%write_field()
