@@ -355,11 +355,11 @@
   <field id="blpert_rand_fld" name="blpert_rand_fld" long_name="blpert_random_number" unit="1" domain_ref="face" />
   <field id="blpert_flag" name="blpert_flag" long_name="blpert_perturbed_flag" unit="1" domain_ref="face" />
   <field id="random_seed" name="random_seed" long_name="random_seed_for_stochastic_physics" unit="1" grid_ref="random_seed_grid" />
-  <field id="spt_spectral_coeffc" name="spt_spectral_coeffc" long_name="spt_spectral_coefficientc_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
-  <field id="spt_spectral_coeffs" name="spt_spectral_coeffs" long_name="spt_spectral_coefficients_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
+  <field id="spt_spectral_coeffc" name="spt_spectral_coeffc" long_name="spt_real_spectral_coefficients_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
+  <field id="spt_spectral_coeffs" name="spt_spectral_coeffs" long_name="spt_imaginary_spectral_coefficients_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
   <field id="spt_power_law" name="spt_power_law" long_name="spt_power_law_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
-  <field id="skeb_spectral_coeffc" name="skeb_spectral_coeffc" long_name="skeb_spectral_coefficientc_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
-  <field id="skeb_spectral_coeffs" name="skeb_spectral_coeffs" long_name="skeb_spectral_coefficients_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
+  <field id="skeb_spectral_coeffc" name="skeb_spectral_coeffc" long_name="skeb_real_spectral_coefficients_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
+  <field id="skeb_spectral_coeffs" name="skeb_spectral_coeffs" long_name="skeb_imaginary_spectral_coefficients_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
   <field id="skeb_power_law" name="skeb_power_law" long_name="skeb_power_law_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
   <!-- snow fields -->
   <field id="tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
