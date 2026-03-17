@@ -47,6 +47,7 @@
 program jedi_id_tlm_tests
 
   use cli_mod,                      only : parse_command_line
+  use config_mod,                   only : config_type
   use constants_mod,                only : PRECISION_REAL, i_def, str_def, r_def
   use field_collection_mod,         only : field_collection_type
   use log_mod,                      only : log_event, log_scratch_space, &
@@ -81,6 +82,8 @@ program jedi_id_tlm_tests
 
   ! Local
   type( namelist_collection_type ), pointer :: configuration
+  type( config_type ),              pointer :: config
+
   character(:),                 allocatable :: filename
   integer( kind=i_def )                     :: model_communicator
   type( jedi_duration_type )                :: forecast_length
@@ -115,6 +118,7 @@ program jedi_id_tlm_tests
 
   ! Get the configuration
   configuration => run%get_configuration()
+  config        => run%get_config()
 
   ! Get the forecast length
   jedi_lfric_settings_config => configuration%get_namelist('jedi_lfric_settings')
@@ -122,7 +126,7 @@ program jedi_id_tlm_tests
   call forecast_length%init(forecast_length_str)
 
   ! Create geometry
-  call geometry%initialise( model_communicator, configuration )
+  call geometry%initialise( model_communicator, configuration, config )
 
   ! Create state
   call state%initialise( geometry, configuration )
