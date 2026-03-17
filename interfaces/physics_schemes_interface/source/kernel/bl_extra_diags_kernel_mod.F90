@@ -377,10 +377,11 @@ contains
 
       end if ! vis with precip
 
-      ! todo: get acc_1ins_du and cor_ins_du here.
       ! Visivility at 1.5m with dust
+      ! todo: make params available here.
       if ( .not. associated(visibility_with_dust, empty_real_data) ) then
         call vis_dust( vis_no_precip,                                          &
+                       t1p5m,                                                  &
                        acc_ins_du,                                             &
                        cor_ins_du,                                             &
                        vis_with_dust )
