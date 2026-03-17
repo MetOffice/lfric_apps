@@ -198,7 +198,6 @@ contains
     type(function_space_type), pointer :: w3_2d_fs
 
     real(kind=r_tran)      :: dt_rtran, dt_one
-    real(kind=r_tran)      :: gamma
     real(kind=r_tran)      :: min_lipschitz, max_lipschitz_3d
     real(kind=r_tran)      :: max_lipschitz, max_lipschitz_alt
     integer(kind=i_def)    :: mesh_id
@@ -208,7 +207,7 @@ contains
     logical(kind=l_def)    :: fixed_multiple_substeps
     logical(kind=l_def)    :: logged_lipschitz
     character(len=str_def) :: splitting_name
-    integer(tik)        :: id
+    integer(kind=tik)      :: id
 
     if ( LPROF ) call start_timing( id, 'transport.controller_init' )
 
