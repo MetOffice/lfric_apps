@@ -4,24 +4,13 @@
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
 
-! Calculate contribution of precipitation to extinction for visibility.
+! Calculate contribution of dust to extinction for visibility.
 
 ! Description:
-!   Process fields of precipitation intensity to give scattering coefft
-!   in 1/metres. This is added to an input visibility to give a total.
-!   Calculated at a single model level or level within surface layer
-!   e.g. screen height (1.5m)
+!   tbd
 
 ! Documentation:
-!   Forecasting Research Scientific Paper NO.4
-!   Diagnosis of visibility in the UK Met Office Mesoscale Model
-!   and the use of a visibility analysis to constrain initial
-!   conditions.  SP Ballard, BJ Wright, BW Golding    1992
-!     NIMROD diagnostic:
-!   Wright, B. J., 1997: Improvements to the Nimrod Visibility
-!     Analysis/Forecast System. FR-Div. Tech. Rep., No. 217.
-!   Wright, B. J., 1997: A New Visibility Analysis/Forecast System
-!     for Nimrod. Met. Office FR Tech Rep., No. 222.
+!   tbd
 
 ! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: atmos_service_visibility
@@ -32,26 +21,14 @@ module vis_precip_mod
 
 implicit none
 
-
-
-
 ! Note: The UM blends TWO dust mmr variables;
 ! the ground emission and the general dust tracking.
 ! It blends them according to the pws_dustmmr1_em ratio.
 
-
-! todo: do we want to add the visibility with or without precip?
-
-
-! todo: discuss these omimtted variables from vis_precip, which are always 1:
-! p_field (Number of points in field)
-! points (Number of gridpoints being processed)
-! k1stpt (First gridpoint processed within complete field)
-
-
-! Based on the UM's pws_vis2_diag, with pws_dustmmr1_em set to zero.
 character(len=*), parameter, private :: ModuleName = 'VIS__MOD'
 contains
+
+! Based on the UM's pws_vis2_diag, with pws_dustmmr1_em set to zero.
 subroutine vis_dust(                                                   &
             t1p5m,                                                     &
             vis_no_precip,                                             &
