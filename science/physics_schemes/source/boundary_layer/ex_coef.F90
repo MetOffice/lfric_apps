@@ -406,22 +406,18 @@ end do
 ! Set critical Richardson number
 !-----------------------------------------------------------------------
 if (l_rp2) then
-
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ricrit(i,j) = ricrit_rp(rp_idx)
   end do
   !$OMP end do
-
 else
-
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ! Default critical Ri for Long_tails and Louis
     ricrit(i,j) = one
   end do
   !$OMP end do
-
 end if
 !$OMP end PARALLEL
 
@@ -474,7 +470,6 @@ if (Variable_RiC == on) then
         end if
       end if
     end do
-
     !$OMP end PARALLEL do
 
   end select ! SBL_OP
@@ -954,8 +949,9 @@ do k = 2, bl_levels
     ! MESOSCALE MODEL TAILS
     !--------------------------------------------
   case (mes_tails)
+    z_scale = 200.0_r_bl
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                         &
-    !$OMP private( i, fm, fm_louis, fm_sharpest, z_scale  )
+    !$OMP private( i, fm, fm_louis, fm_sharpest )
     do i = pdims%i_start, pdims%i_end
           ! Louis function
       if (ri(i,j,k) >= zero) then
@@ -973,7 +969,6 @@ do k = 2, bl_levels
       fm_sharpest = fm * fm
           ! Linear weighting function giving Louis
           ! at z=0, SHARPEST above Z_SCALE
-      z_scale = 200.0_r_bl
       if ( z_tq(i,j,k-1)  >=  z_scale ) then
         func(i,j) = fm_sharpest
       else
