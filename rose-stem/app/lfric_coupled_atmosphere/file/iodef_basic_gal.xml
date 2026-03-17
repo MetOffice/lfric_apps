@@ -448,6 +448,7 @@
 	<field id="surface__vis_prob_5km" name="vis_prob_5km" long_name="probability_visibility_below_5km_at_screen_level" unit="1" domain_ref="face" />
 	<field id="surface__visibility_no_precip" name="visibility_no_precip" long_name="visibility_excluding precipitation_at_screen_level" unit="m" domain_ref="face" />
 	<field id="surface__visibility_with_precip" name="visibility_with_precip" long_name="visibility_including_precipitation_at_screen_level" unit="m" domain_ref="face" />
+	<field id="surface__visibility_with_dust" name="visibility_with_dust" long_name="visibility_including_dust_at_screen_level" unit="m" domain_ref="face" />
 	<field id="surface__tile_heat_flux" name="tile_heat_flux" long_name="surface_sensible_heat_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles"/>
 	<field id="surface__tile_moisture_flux" name="tile_moisture_flux" long_name="surface_moisture_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles"/>
         <field id="surface__latent_heat" name="latent_heat" long_name="surface_upward_latent_heat_flux" unit="W m-2" domain_ref='face' axis_ref="surface_tiles" />

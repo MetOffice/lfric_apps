@@ -161,6 +161,8 @@ contains
     type( field_type ), pointer :: ns_mphys => null()
 
     type( field_type ), pointer :: murk => null()
+    type( field_type ), pointer :: acc_ins_du => null()
+    type( field_type ), pointer :: cor_ins_du => null()
 
     type( field_type ), pointer :: cf_area    => null()
     type( field_type ), pointer :: cf_fro     => null()
@@ -281,6 +283,8 @@ contains
     call microphysics_fields%get_field('ns_mphys', ns_mphys)
 
     call aerosol_fields%get_field('murk', murk)
+    call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+    call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
 
     ! Unpack the convection
     call convection_fields%get_field('dt_conv', dt_conv)
@@ -522,6 +526,7 @@ contains
                                    mr(imr_v), mr(imr_cl), mr(imr_s),           &
                                    mr(imr_r),                                  &
                                    nr_mphys, ns_mphys, murk,                   &
+                                   acc_ins_du, cor_ins_du,                     &
                                    cf_bulk, cf_area, cf_liq, cf_fro,           &
                                    dtheta_bl, exner_in_wth, dt_conv,           &
                                    t1p5m, q1p5m, qcl1p5m,                      &

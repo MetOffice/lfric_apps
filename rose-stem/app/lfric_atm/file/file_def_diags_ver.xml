@@ -16,6 +16,7 @@
       <field field_ref="surface__fog_fraction"/>
       <field field_ref="surface__visibility_no_precip"/>
       <field field_ref="surface__visibility_with_precip"/>
+      <field field_ref="surface__visibility_with_dust"/>
       <field field_ref="surface__grid_surface_temperature"/>
       <field field_ref="cloud__cloud_amount_maxrnd"/>
       <field field_ref="cloud__ceilometer_cloud_amount_maxrnd"/>
@@ -50,6 +51,7 @@
       <field field_ref="surface__fog_fraction"/>
       <field field_ref="surface__visibility_no_precip"/>
       <field field_ref="surface__visibility_with_precip"/>
+      <field field_ref="surface__visibility_with_dust"/>
       <field field_ref="surface__grid_surface_temperature"/>
       <field field_ref="cloud__cloud_amount_maxrnd"/>
       <field field_ref="cloud__ceilometer_cloud_amount_maxrnd"/>

@@ -26,7 +26,7 @@ module bl_extra_diags_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_extra_diags_kernel_type
     private
-    type(arg_type) :: meta_args(41) = (/                                  &
+    type(arg_type) :: meta_args(44) = (/                                  &
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! rho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! wetrho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! heat_flux_bl
@@ -37,6 +37,8 @@ module bl_extra_diags_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! nr_mphys
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! ns_mphys
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! murk
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! acc_ins_du
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! cor_ins_du
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! zh
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! t1p5m
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! q1p5m
@@ -67,7 +69,8 @@ module bl_extra_diags_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! dew_point_ssi
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! dew_point_land
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! visibility_with_precip
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! visibility_no_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! visibility_no_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! visibility_with_dust
                                       /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -91,6 +94,9 @@ contains
   !> @param[in]     mr                     Rain  mixing ratio
   !> @param[in]     nr_mphys               Rain number mixing ratio
   !> @param[in]     ns_mphys               Snow number mixing ratio
+  !> @param[in]     murk                   ???
+  !> @param[in]     acc_ins_du             Accumulated <something> dust
+  !> @param[in]     cor_ins_du             Coarse <something> dust
   !> @param[in]     zh                     Boundary layer depth
   !> @param[in]     t1p5m                  Diagnostic: 1.5m temperature
   !> @param[in]     q1p5m                  Diagnostic: 1.5m specific humidity
@@ -122,6 +128,7 @@ contains
   !> @param[in,out] dew_point_land         Dew point temperature over land
   !> @param[in,out] visibility_with_precip Visibility with precip included
   !> @param[in,out] visibility_no_precip   Visibility without including precip
+  !> @param[in,out] visibility_with_dust   Visibility with dust included
   !> @param[in]     ndf_w3                 Number of degrees of freedom per cell for density space
   !> @param[in]     undf_w3                Number unique of degrees of freedom  for density space
   !> @param[in]     map_w3                 Dofmap for the cell at the base of the column for density space
@@ -140,6 +147,7 @@ contains
                                   exner_in_wth,             &
                                   mci, mr,                  &
                                   nr_mphys, ns_mphys, murk, &
+                                  acc_ins_du, cor_ins_du,   &
                                   zh,                       &
                                   t1p5m, q1p5m, qcl1p5m,    &
                                   t1p5m_ssi, q1p5m_ssi,     &
@@ -161,6 +169,7 @@ contains
                                   dew_point_land,           &
                                   visibility_with_precip,   &
                                   visibility_no_precip,     &
+                                  visibility_with_dust,     &
                                   ndf_w3,                   &
                                   undf_w3,                  &
                                   map_w3,                   &
@@ -182,6 +191,7 @@ contains
     use planet_config_mod,    only : p_zero, kappa, gravity, cp
     use planet_constants_mod, only : vkman, c_virtual
     use vis_precip_mod,       only : vis_precip
+    use vis_dust_mod,         only : vis_dust
     use visbty_constants_mod, only : n_vis_thresh, vis_thresh
     use visbty_mod,           only : visbty
     use variable_precision,   only : wp
@@ -208,6 +218,8 @@ contains
     real(kind=r_def), intent(in), dimension(undf_wth)   :: nr_mphys
     real(kind=r_def), intent(in), dimension(undf_wth)   :: ns_mphys
     real(kind=r_def), intent(in), dimension(undf_wth)   :: murk
+    real(kind=r_def), intent(in), dimension(undf_wth)   :: acc_ins_du
+    real(kind=r_def), intent(in), dimension(undf_wth)   :: cor_ins_du
     real(kind=r_def), intent(in), dimension(undf_2d)    :: zh
     real(kind=r_def), intent(in), dimension(undf_2d)    :: bl_weight_1dbl
     real(kind=r_def), intent(in), dimension(undf_2d)    :: ls_rain_2d
@@ -228,6 +240,7 @@ contains
     real(kind=r_def), intent(inout), pointer :: dew_point_ssi(:), dew_point_land(:)
     real(kind=r_def), intent(inout), pointer :: visibility_with_precip(:)
     real(kind=r_def), intent(inout), pointer :: visibility_no_precip(:)
+    real(kind=r_def), intent(inout), pointer :: visibility_with_dust(:)
 
     real(kind=r_def), parameter :: one_third   = 1.0_r_def/3.0_r_def
 
@@ -250,7 +263,8 @@ contains
     ! single level real fields calculated
     real(r_um), dimension(row_length,rows) ::                                &
          beta_ls_rain, beta_ls_snow, beta_c_rain, beta_c_snow,               &
-         vis, vis_ls_precip, vis_c_precip, vis_no_precip, dew_pnt
+         vis, vis_ls_precip, vis_c_precip, vis_no_precip, dew_pnt,           &
+         vis_with_dust
 
     real(r_um), dimension(row_length,rows,0:1) :: snownumber, rainnumber
 
@@ -300,6 +314,7 @@ contains
     ! map main input fields
     if (.not. associated(visibility_no_precip, empty_real_data)   .or.       &
         .not. associated(visibility_with_precip, empty_real_data) .or.       &
+        .not. associated(visibility_with_dust, empty_real_data) .or.       &
         .not. associated(fog_fraction, empty_real_data)           .or.       &
         .not. associated(fog_fraction_ssi, empty_real_data)       .or.       &
         .not. associated(fog_fraction_land, empty_real_data)      .or.       &
@@ -373,6 +388,20 @@ contains
         visibility_with_precip(map_2d(1)) = vis(1,1)
 
       end if ! vis with precip
+
+      ! Visivility at 1.5m with dust
+      ! todo: make params available here.
+      if ( .not. associated(visibility_with_dust, empty_real_data) ) then
+        call vis_dust( vis_no_precip,                                          &
+                       t1p5m,                                                  &
+                       p_star,                                                 &
+                       acc_ins_du,                                             &
+                       cor_ins_du,                                             &
+                       vis_with_dust,                                                    &
+                       vis)
+        visibility_with_dust(map_2d(1)) = vis_with_dust(1,1)
+      end if ! vis with dust
+
     end if ! any vis
 
     ! fog fraction
