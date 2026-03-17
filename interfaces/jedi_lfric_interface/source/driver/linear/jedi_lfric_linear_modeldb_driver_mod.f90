@@ -119,6 +119,7 @@ contains
     ! 1. Initialise modeldb field collections, configuration and mpi.
     modeldb%mpi => mpi_obj
     call modeldb%configuration%initialise( modeldb_name, table_len=10 )
+    call modeldb%config%initialise( modeldb_name )
 
     call modeldb%values%initialise('values', 5)
 
@@ -139,7 +140,8 @@ contains
     call modeldb%io_contexts%initialise(modeldb_name, table_len=100)
 
     call init_config( filename, gungho_required_namelists, &
-                      modeldb%configuration )
+                      configuration=modeldb%configuration, &
+                      config=modeldb%config )
 
     ! 2. Setup some model modeldb%values and initialise infrastructure
     call modeldb%values%add_key_value( 'temperature_correction_rate', 0.0_r_def )
