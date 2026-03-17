@@ -351,10 +351,12 @@ contains
 
 #ifdef UM_PHYSICS
     if (use_spt) then
+      ! Get spectral coefficients and power law from the model database
       call get_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
                            spt_spectral_coeffs, spt_power_law)
     end if
     if (use_skeb) then
+      ! Get spectral coefficients and power law from the model database
       call get_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
                            skeb_spectral_coeffs, skeb_power_law)
     end if
@@ -382,11 +384,13 @@ contains
 
 #ifdef UM_PHYSICS
     if (use_spt) then
+      ! Put spectral coefficients and power law back into model database
       call put_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
                            spt_spectral_coeffs, spt_power_law)
     end if
 
     if (use_skeb) then
+      ! Put spectral coefficients and power law back into model database
       call put_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
                            skeb_spectral_coeffs, skeb_power_law)
     end if
