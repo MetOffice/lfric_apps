@@ -181,13 +181,13 @@ def trans(psyir):
                     # else PSyclone could crash
                     try:
                         if str(routine_grandchild.name) in timer_routine_names:
-                            # Start node remains None.
+                            # End node remains None.
                             end_node = None
                             break
                         else:
-                            # Set the start node to the index and keep checking
+                            # Set the end node to the index and keep checking
                             # grandchildren for calls that invalidate.
-                            # If all are valid, start_node still equals index.
+                            # If all are valid, end_node still equals index + 1.
                             end_node = index + 1
                     except ValueError:  # noqa: E722
                         continue
