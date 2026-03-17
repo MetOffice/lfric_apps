@@ -148,10 +148,6 @@ contains
           ! Set the value from the namelist
           sw_seg_limit_size = sw_segment_limit
 
-        case default
-          ! Default behaviour is to set to row_length
-          sw_seg_limit_size = row_length
-
       end select
       select case (lw_segment_limit)
         case (:-1)
@@ -162,10 +158,6 @@ contains
         case (1:)
           ! Set the value from the namelist
           lw_seg_limit_size = lw_segment_limit
-
-        case default
-          ! Default behaviour is to set to row_length
-          lw_seg_limit_size = row_length
 
       end select
     else
