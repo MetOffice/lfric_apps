@@ -44,7 +44,8 @@ module jules_physics_init_mod
                               anthrop_heat_option_flanner
   use jules_vegetation_config_mod, only :                                      &
                               can_rad_mod_one, can_rad_mod_four,               &
-                              can_rad_mod_five, can_rad_mod_six
+                              can_rad_mod_five, can_rad_mod_six,               &
+                              photo_model_collatz
 
   ! UM modules used
   use jules_surface_types_mod, only : npft, nnvg, ntype, ncpft, nnpft
@@ -176,14 +177,16 @@ contains
          check_jules_nvegparm, print_nlist_jules_nvegparm
     use pftparm, only:                                                      &
          print_nlist_jules_pftparm, check_jules_pftparm,                    &
-         a_wl, a_ws, albsnc_max, albsnc_min, albsnf_maxu, albsnf_maxl,      &
-         alniru, alnir, alnirl, alparu, alpar, alparl, alpha, b_wl, c3,     &
-         can_struct_a, catch0, dcatch_dlai, dgl_dm, dgl_dt, dqcrit,         &
-         dz0v_dh, emis_pft, eta_sl, f0, fd, fsmc_of, fsmc_p0,               &
-         g_leaf_0, glmin, gsoil_f, hw_sw, infil_f, kext, kn, knl, kpar,     &
-         lai_alb_lim, lma, neff, nl0, nmass, nr, nr_nl, ns_nl, nsw, omega,  &
-         omegal, omegau, omnir, omnirl, omniru, orient, q10_leaf, r_grow,   &
-         rootd_ft, sigl, tleaf_of, tlow, tupp, vint, vsl, z0v, dust_veg_scj
+         a_wl, a_ws, act_jmax, act_vcmax, albsnc_max, albsnc_min,           &
+         albsnf_maxl, albsnf_maxu, alnir, alnirl, alniru, alpar, alparl,    &
+         alparu, alpha, alpha_elec, b_wl, c3, can_struct_a, catch0,         &
+         dcatch_dlai, deact_jmax, deact_vcmax, dgl_dm, dgl_dt, dqcrit,      &
+         ds_jmax, ds_vcmax, dust_veg_scj, dz0v_dh, emis_pft, eta_sl, f0,    &
+         fd, fsmc_of, fsmc_p0, g_leaf_0, glmin, gsoil_f, hw_sw, infil_f,    &
+         jv25_ratio, kext, kn, knl, kpar, lai_alb_lim, lma, neff, nl0,      &
+         nmass, nr, nr_nl, ns_nl, nsw, omega, omegal, omegau, omnir,        &
+         omnirl, omniru, orient, q10_leaf, r_grow, rootd_ft, sigl,          &
+         tleaf_of, tlow, tupp, vint, vsl, z0v
 
     use check_compatible_options_mod, only: check_compatible_options
 
@@ -475,7 +478,7 @@ contains
     case(iscrntdiag_decoupled_trans)
       iscrntdiag = ip_scrndecpl2
     end select
-    if (config%jules_surface%srf_ex_cnv_gust()) THEN
+    if (config%jules_surface%srf_ex_cnv_gust()) then
       srf_ex_cnv_gust = IP_SrfExWithCnv
     end if
     l_epot_corr        = config%jules_surface%l_epot_corr()
@@ -504,7 +507,7 @@ contains
     call check_jules_surface()
 
     ! ----------------------------------------------------------------
-    ! JULES vegatation settings - contained in module jules_vegetation
+    ! JULES vegetation settings - contained in module jules_vegetation
     ! ----------------------------------------------------------------
     select case (config%jules_vegetation%can_rad_mod())
       case(can_rad_mod_one)
@@ -520,7 +523,10 @@ contains
     l_limit_canhc   = config%jules_vegetation%l_limit_canhc()
     l_spec_veg_z0   = config%jules_vegetation%l_spec_veg_z0()
     l_vegcan_soilfx = .true.
-    photo_model     = photo_collatz
+    select case (config%jules_vegetation%photo_model())
+      case(photo_model_collatz)
+        photo_model = photo_collatz
+    end select
     stomata_model   = stomata_jacobs
 
     ! Check the contents of the vegetation parameters module
@@ -599,23 +605,23 @@ contains
     ! before copying to allocated array otherwise errors arise, which cannot
     ! be caught by check_jules_nvegparm.
 
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%albsnc_nvg_io()) ) )  errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%albsnf_nvg_io())) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%albsnf_nvgl_io()) ) ) errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%albsnf_nvgu_io()) ) ) errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%catch_nvg_io()) ) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%ch_nvg_io()) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%emis_nvg_io()) ) )    errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%gs_nvg_io()) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%infil_nvg_io()) ) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%vf_nvg_io()) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(config%jules_nvegparm%z0_nvg_io()) ) )      errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%albsnc_nvg_io()) ) )  errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%albsnf_nvg_io())) )   errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%albsnf_nvgl_io()) ) ) errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%albsnf_nvgu_io()) ) ) errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%catch_nvg_io()) ) )   errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%ch_nvg_io()) ) )      errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%emis_nvg_io()) ) )    errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%gs_nvg_io()) ) )      errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%infil_nvg_io()) ) )   errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%vf_nvg_io()) ) )      errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%z0_nvg_io()) ) )      errorstatus = 1
 
-    IF ( errorstatus == 1 ) THEN
+    if ( errorstatus == 1 ) then
       write(log_scratch_space,'(A)')                                         &
          'jules_nvegparm input(s) incorrect length; run `rose macro -V`.'
       call log_event( log_scratch_space, LOG_LEVEL_ERROR)
-    END IF
+    end if
 
     albsnc_nvg  = real(config%jules_nvegparm%albsnc_nvg_io(), r_um)
     albsnf_nvg  = real(config%jules_nvegparm%albsnf_nvg_io(), r_um)
@@ -643,6 +649,8 @@ contains
 
     a_wl = real(config%jules_pftparm%a_wl_io(), r_um)
     a_ws = real(config%jules_pftparm%a_ws_io(), r_um)
+    act_jmax = real(config%jules_pftparm%act_jmax_io(), r_um)
+    act_vcmax = real(config%jules_pftparm%act_vcmax_io(), r_um)
     albsnc_max = real(config%jules_pftparm%albsnc_max_io(), r_um)
     albsnc_min = real(config%jules_pftparm%albsnc_min_io(), r_um)
     albsnf_maxl = real(config%jules_pftparm%albsnf_maxl_io(), r_um)
@@ -654,13 +662,18 @@ contains
     alparl = real(config%jules_pftparm%alparl_io(), r_um)
     alparu = real(config%jules_pftparm%alparu_io(), r_um)
     alpha = real(config%jules_pftparm%alpha_io(), r_um)
+    alpha_elec = real(config%jules_pftparm%alpha_elec_io(), r_um)
     b_wl = real(config%jules_pftparm%b_wl_io(), r_um)
     can_struct_a = real(config%jules_pftparm%can_struct_a_io(), r_um)
     catch0 = real(config%jules_pftparm%catch0_io(), r_um)
     dcatch_dlai = real(config%jules_pftparm%dcatch_dlai_io(), r_um)
+    deact_jmax = real(config%jules_pftparm%deact_jmax_io(), r_um)
+    deact_vcmax = real(config%jules_pftparm%deact_vcmax_io(), r_um)
     dgl_dm = real(config%jules_pftparm%dgl_dm_io(), r_um)
     dgl_dt = real(config%jules_pftparm%dgl_dt_io(), r_um)
     dqcrit = real(config%jules_pftparm%dqcrit_io(), r_um)
+    ds_jmax = real(config%jules_pftparm%ds_jmax_io(), r_um)
+    ds_vcmax = real(config%jules_pftparm%ds_vcmax_io(), r_um)
     dust_veg_scj = real(config%jules_pftparm%dust_veg_scj_io(), r_um)
     dz0v_dh = real(config%jules_pftparm%dz0v_dh_io(), r_um)
     emis_pft = real(config%jules_pftparm%emis_pft_io(), r_um)
@@ -674,6 +687,7 @@ contains
     gsoil_f = real(config%jules_pftparm%gsoil_f_io(), r_um)
     hw_sw = real(config%jules_pftparm%hw_sw_io(), r_um)
     infil_f = real(config%jules_pftparm%infil_f_io(), r_um)
+    jv25_ratio = real(config%jules_pftparm%jv25_ratio_io(), r_um)
     kext = real(config%jules_pftparm%kext_io(), r_um)
     kn = real(config%jules_pftparm%kn_io(), r_um)
     knl = real(config%jules_pftparm%knl_io(), r_um)
@@ -703,7 +717,6 @@ contains
     vint = real(config%jules_pftparm%vint_io(), r_um)
     vsl = real(config%jules_pftparm%vsl_io(), r_um)
     z0v = real(config%jules_pftparm%z0v_io(), r_um)
-
 
     ! ----------------------------------------------------------------
     ! Settings which are specified on all surface tiles at once
