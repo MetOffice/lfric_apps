@@ -269,6 +269,7 @@ contains
     type( field_type ) :: scale_dep_wind_gust
     type( field_type ) :: visibility_with_precip
     type( field_type ) :: visibility_no_precip
+    type( field_type ) :: visibility_with_dust
     type( field_type ) :: fog_fraction
     type( field_type ) :: fog_fraction_ssi
     type( field_type ) :: fog_fraction_land
@@ -395,6 +396,7 @@ contains
     scale_dep_wind_gust_flag = init_diag(scale_dep_wind_gust, 'surface__scale_dep_wind_gust')
     vis_no_precip_flag = init_diag(visibility_no_precip, 'surface__visibility_no_precip')
     vis_with_precip_flag = init_diag(visibility_with_precip, 'surface__visibility_with_precip')
+    vis_with_dust_flag = init_diag(visibility_with_dust, 'surface__visibility_with_dust')
     fog_fraction_flag = init_diag(fog_fraction, 'surface__fog_fraction')
     fog_fraction_ssi_flag = init_diag(fog_fraction_ssi, 'surface__fog_fraction_ssi')
     fog_fraction_land_flag = init_diag(fog_fraction_land, 'surface__fog_fraction_land')
@@ -405,6 +407,11 @@ contains
 
     ! visibility_with_precip requires visibility_no_precip
     if (vis_with_precip_flag .and. .not. vis_no_precip_flag) then
+      ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
+    end if
+
+    ! visibility_with_dust requires visibility_no_precip
+    if (vis_with_dust_flag .and. .not. vis_no_precip_flag) then
       ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
     end if
 
@@ -435,12 +442,14 @@ contains
                                                dew_point, dew_point_ssi,       &
                                                dew_point_land,                 &
                                                visibility_with_precip,         &
-                                               visibility_no_precip ) )
+                                               visibility_no_precip            &
+                                               visibility_with_dust ) )
 
       if (wind_gust_flag) call wind_gust%write_field()
       if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
       if (vis_no_precip_flag) call visibility_no_precip%write_field()
       if (vis_with_precip_flag) call visibility_with_precip%write_field()
+      if (vis_with_dust_flag) call visibility_with_dust%write_field()
       if (fog_fraction_flag) call fog_fraction%write_field()
       if (fog_fraction_ssi_flag) call fog_fraction_ssi%write_field()
       if (fog_fraction_land_flag) call fog_fraction_land%write_field()

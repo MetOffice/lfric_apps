@@ -161,6 +161,7 @@ contains
                                   dew_point_land,           &
                                   visibility_with_precip,   &
                                   visibility_no_precip,     &
+                                  visibility_with_dust,     &
                                   ndf_w3,                   &
                                   undf_w3,                  &
                                   map_w3,                   &
@@ -228,6 +229,7 @@ contains
     real(kind=r_def), intent(inout), pointer :: dew_point_ssi(:), dew_point_land(:)
     real(kind=r_def), intent(inout), pointer :: visibility_with_precip(:)
     real(kind=r_def), intent(inout), pointer :: visibility_no_precip(:)
+    real(kind=r_def), intent(inout), pointer :: visibility_with_dust(:)
 
     real(kind=r_def), parameter :: one_third   = 1.0_r_def/3.0_r_def
 
@@ -300,6 +302,7 @@ contains
     ! map main input fields
     if (.not. associated(visibility_no_precip, empty_real_data)   .or.       &
         .not. associated(visibility_with_precip, empty_real_data) .or.       &
+        .not. associated(visibility_with_dust, empty_real_data) .or.       &
         .not. associated(fog_fraction, empty_real_data)           .or.       &
         .not. associated(fog_fraction_ssi, empty_real_data)       .or.       &
         .not. associated(fog_fraction_land, empty_real_data)      .or.       &
@@ -373,6 +376,18 @@ contains
         visibility_with_precip(map_2d(1)) = vis(1,1)
 
       end if ! vis with precip
+
+      ! Visivility at 1.5m with dust
+      ! todo: make params available here.
+      if ( .not. associated(visibility_with_dust, empty_real_data) ) then
+        call vis_dust( vis_no_precip,                                          &
+                       t1p5m,                                                  &
+                       acc_ins_du,                                             &
+                       cor_ins_du,                                             &
+                       vis_with_dust )
+        visibility_with_dust(map_2d(1)) = vis_with_dust(1,1)
+      end if ! vis with dust
+
     end if ! any vis
 
     ! fog fraction
