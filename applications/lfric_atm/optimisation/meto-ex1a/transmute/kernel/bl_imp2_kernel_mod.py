@@ -1,21 +1,19 @@
-##############################################################################
-# Copyright (c) 2025,  Met Office, on behalf of HMSO and Queen's Printer
-# For further details please refer to the file LICENCE.original which you
-# should have received as part of this distribution.
-##############################################################################
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
 '''
-A global script to add OpenMP to loops present in the file provided.
-This script imports a SCRIPT_OPTIONS_DICT which can be used to override
-small aspects of this script per file it is applied to.
-Overrides currently include:
-* Options list for transformations
-* safe pure calls for loops over calls which can be parallelised
+Custom script for bl_imp2_kernel_mod, where we cannot effectively add OMP
+around all of the outer loops as it causes KGO issues with full and fast debug.
+Instead if it is placed around the i loop, over the seg len loop range, we
+maximise the parallelism, whilst preserving KGOs.
 '''
 
 import logging
 from psyclone.transformations import (
     TransformationError)
-from psyclone.psyir.nodes import Loop, Literal
+from psyclone.psyir.nodes import Loop
 from transmute_psytrans.transmute_functions import (
     match_lhs_assignments,
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC
@@ -59,7 +57,7 @@ def trans(psyir):
 
     # Work through each loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
-        if (loop.variable.name == 'i'):
+        if loop.variable.name == 'i':
             # Check if any eligible variables appear on the LHS of
             # assignment expressions; these lead to false dependency
             # errors in the parallel loop transformation that can be

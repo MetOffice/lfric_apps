@@ -1,15 +1,14 @@
-##############################################################################
-# Copyright (c) 2025,  Met Office, on behalf of HMSO and Queen's Printer
-# For further details please refer to the file LICENCE.original which you
-# should have received as part of this distribution.
-##############################################################################
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
 '''
-A global script to add OpenMP to loops present in the file provided.
-This script imports a SCRIPT_OPTIONS_DICT which can be used to override
-small aspects of this script per file it is applied to.
-Overrides currently include:
-* Options list for transformations
-* safe pure calls for loops over calls which can be parallelised
+Custom script for bl_exp_kernel_mod, where we cannot effectively add OMP
+around all of the outer loops.
+A k loop has a low number of iterations, requiring the parallelism to be
+pushed down onto the i loop.
+A custom function, check_literals assists this.
 '''
 
 import logging
@@ -35,16 +34,15 @@ def check_literals(node):
     if int(literals[1].value) > 1:
         # Return False if there is one
         return False
-    else:
-        # Return True if there isn't one, indicating an appropriate loop
-        return True
+    # Return True if there isn't one, indicating an appropriate loop
+    return True
 
 
 def trans(psyir):
     '''
     PSyclone function call, run through psyir object,
     each schedule (or subroutine) and apply paralleldo transformations
-    to each loop.
+    to each loop, adjusting according to loop ranges.
     '''
 
     # Variables that appear on the left-hand side of assignments
@@ -121,7 +119,7 @@ def trans(psyir):
             if check_literals(loop) and not ancestor:
                 safe_to_transform = True
 
-        elif (loop.variable.name == 'i'):
+        elif loop.variable.name == 'i':
             # If there is an ancestor, we generally don't want to
             # unless that ancestor was not ideal to thread over
             if ancestor:
@@ -130,7 +128,7 @@ def trans(psyir):
             else:
                 safe_to_transform = True
 
-        elif (loop.variable.name == 'l'):
+        else:  # (loop.variable.name == 'l')
             if not ancestor:
                 safe_to_transform = True
 
