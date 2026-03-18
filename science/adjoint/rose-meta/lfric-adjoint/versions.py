@@ -31,3 +31,17 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
+class vn31_t(MacroUpgrade):
+    """Upgrade macro for ticket #221 by Benjamin Went."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric_atm
+        """Set segmentation size for the Boundary Layer"""
+        self.add_setting(config, ["namelist:physics", "bl_segment"], "16")
+
+        return config, self.reports
