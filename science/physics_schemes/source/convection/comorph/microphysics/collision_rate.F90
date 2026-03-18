@@ -162,7 +162,7 @@ do ic = 1, n_points
   wf_diff = wf_cond_2(ic) - wf_cond_1(ic)
   w_col(ic) = sqrt( wf_diff * wf_diff                                          &
                   + coef_wf_spread_sq * wf_cond_1(ic) * wf_cond_2(ic) )
-  ! This formula just yields abs( wf_2 - wf_1 ) in the limit
+  ! This formula just yields ABS( wf_2 - wf_1 ) in the limit
   ! that one species' fall-speed is much greater than the other.
   ! The extra term scaled by coef_wf_spread is an approximation to
   ! prevent us getting zero relative velocity when the mean
@@ -173,7 +173,7 @@ end do
 
 ! Calculate collection efficiency; parameterised as:
 !
-! col_eff = exp( -col_eff_coef (r_col/w_col)
+! col_eff = EXP( -col_eff_coef (r_col/w_col)
 !                              ( 1/tau_1 + 1/tau_2 ) )
 !
 ! where r_col/w_col is the timescale for the collision
@@ -287,7 +287,7 @@ if ( real(nc,real_cvprec) > cmpr_thresh * real(n_points,real_cvprec) ) then
                        area_coef_1, area_coef_2,                               &
                        dq_col )
 
-else  ! ( real(nc,real_cvprec) <= cmpr_thresh * real(n_points,real_cvprec) )
+else  ! ( REAL(nc,real_cvprec) <= cmpr_thresh * REAL(n_points,real_cvprec) )
   ! If only a minority of points have both species present...
 
   ! Do a compressed call...
@@ -335,7 +335,7 @@ else  ! ( real(nc,real_cvprec) <= cmpr_thresh * real(n_points,real_cvprec) )
   ! Deallocate
   deallocate( args_cmpr )
 
-end if  ! ( real(nc,real_cvprec) <= cmpr_thresh * real(n_points,real_cvprec) )
+end if  ! ( REAL(nc,real_cvprec) <= cmpr_thresh * REAL(n_points,real_cvprec) )
 
 
 return

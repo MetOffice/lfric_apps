@@ -553,7 +553,7 @@ do k = k_bot_conv, k_top_conv
                n_diags_super, l_reverse, fields_diags1,                        &
                diags_super_mean2 % super )
       end if  ! ( fields_diags1 % n_diags > 0 )
-    end if  ! ( present( fields_diags1 ) )
+    end if  ! ( PRESENT( fields_diags1 ) )
 
     if ( present( fields_diags2 ) ) then
       if ( fields_diags2 % n_diags > 0 ) then
@@ -586,7 +586,7 @@ do k = k_bot_conv, k_top_conv
                n_diags_super, l_reverse, fields_diags2,                        &
                diags_super_mean2 % super )
       end if  ! ( fields_diags2 % n_diags > 0 )
-    end if  ! ( present( fields_diags2 ) )
+    end if  ! ( PRESENT( fields_diags2 ) )
 
 
     !--------------------------------------------------------------

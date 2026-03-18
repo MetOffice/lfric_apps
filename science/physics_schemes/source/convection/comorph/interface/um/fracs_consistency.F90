@@ -82,7 +82,7 @@ real(kind=real_umphys), parameter :: qc_incloud_max = 5.0e-3  ! 5 g kg-1
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(none) private( i, j, k, qcl, qcf, qc )                  &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, qcl, qcf, qc )                  &
 !$OMP SHARED( l_mcr_qcf2, tdims,                                               &
 !$OMP         cf_liquid_star, cf_frozen_star, bulk_cf_star,                    &
 !$OMP         qcl_star, qcf_star, qcf2_star,                                   &
@@ -96,7 +96,7 @@ integer :: i, j, k
 if ( l_mcr_qcf2 ) then
   ! Version of checks with 2nd ice category
 
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -112,12 +112,12 @@ if ( l_mcr_qcf2 ) then
       end do
     end do
   end do
-!$OMP end do
+!$OMP END DO
 
-else  ! .not. l_mcr_qcf2
+else  ! .NOT. l_mcr_qcf2
   ! Version of checks with no 2nd ice category
 
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -133,18 +133,18 @@ else  ! .not. l_mcr_qcf2
       end do
     end do
   end do
-!$OMP end do
+!$OMP END DO
 
-end if  ! .not. l_mcr_qcf2
+end if  ! .NOT. l_mcr_qcf2
 
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do k = 1, tdims%k_end
   do j = tdims%j_start, tdims%j_end
     do i = tdims%i_start, tdims%i_end
       ! Also check that the bulk cloud fraction lies between
       ! its allowed limits for minimum and maximum overlap
       ! between the liquid and ice clouds:
-      ! max( CFL, CFF )  <=  CF_bulk  <=  CFL + CFF.
+      ! MAX( CFL, CFF )  <=  CF_bulk  <=  CFL + CFF.
       bulk_cf_star(i,j,k) = min( max(                                          &
         max( cf_liquid_star(i,j,k), cf_frozen_star(i,j,k) ),                   &
                                       bulk_cf_star(i,j,k)   ),                 &
@@ -152,7 +152,7 @@ do k = 1, tdims%k_end
     end do
   end do
 end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
 ! If using prognostic precip fraction, check that the in-precip-fraction
 ! value of qrain doesn't become implausibly large.  Increase
@@ -160,7 +160,7 @@ end do
 if ( l_mcr_precfrac ) then
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
     ! Graupel included in the prognostic precip fraction as well as rain
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -170,10 +170,10 @@ if ( l_mcr_precfrac ) then
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   else
     ! Only rain included in the prognostic precip fraction
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -183,11 +183,11 @@ if ( l_mcr_precfrac ) then
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
 end if
 
-!$OMP end PARALLEL
+!$OMP END PARALLEL
 
 
 return

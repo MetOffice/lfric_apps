@@ -7,7 +7,7 @@
 ! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: convection_comorph
 
-module interp_diag_conv_cloud_mod
+module interp_diag_conv_cloud_a_mod
 
 implicit none
 
@@ -17,14 +17,14 @@ contains
 ! properties from the previous and next model-level interfaces
 ! (where the parcel properties are held) onto the intervening
 ! full model-level.
-subroutine interp_diag_conv_cloud( n_points, n_points_res,                     &
-                                   n_points_prev, n_points_next,               &
-                                   prev_height, next_height, sat_height,       &
-                                   prev_cf_conv, next_cf_conv,                 &
-                                   prev_q_cl_conv, next_q_cl_conv,             &
-                                   prev_q_cf_conv, next_q_cf_conv,             &
-                                   par_prev_cloudfracs, par_next_cloudfracs,   &
-                                   convcloud )
+subroutine interp_diag_conv_cloud_a( n_points, n_points_res,                   &
+                                     n_points_prev, n_points_next,             &
+                                     prev_height, next_height, sat_height,     &
+                                     prev_cf_conv, next_cf_conv,               &
+                                     prev_q_cl_conv, next_q_cl_conv,           &
+                                     prev_q_cf_conv, next_q_cf_conv,           &
+                                     par_prev_cloudfracs, par_next_cloudfracs, &
+                                     convcloud )
 
 use comorph_constants_mod, only: real_cvprec, zero, half,                      &
                                  i_convcloud, i_convcloud_mph
@@ -33,6 +33,7 @@ use cloudfracs_type_mod, only: i_frac_liq, i_frac_ice, i_frac_bulk,            &
                                i_frac_liq_conv, i_frac_ice_conv,               &
                                i_frac_bulk_conv,                               &
                                i_q_cl_conv, i_q_cf_conv
+use raise_error_mod, only: raise_fatal
 
 implicit none
 
@@ -79,6 +80,14 @@ real(kind=real_cvprec) :: frac_ice_tmp
 integer :: ic
 
 
+if ( .not. ( i_frac_liq_conv > 0 .and. i_frac_bulk_conv > 0 .and.              &
+             i_q_cl_conv > 0 ) ) then
+  call raise_fatal( "INTERP_DIAG_CONV_CLOUD_A",                                &
+                    "Trying to call old convective cloud amount "           // &
+                    "calculation with a required field missing "            // &
+                    "(i_cf_conv=0 and i_convcloud=1 are not compatible)" )
+end if
+
 ! Find mean convective cloud properties between prev and next
 ! Note:grid-mean fraction of convective cloud = convective fraction
 ! * in-convection cloud-fraction
@@ -121,8 +130,8 @@ end if  ! ( i_convcloud == i_convcloud_mph )
 do ic = 1, n_points
   if ( sat_height(ic) > zero ) then
 
-    if ( par_prev_cloudfracs(ic,i_frac_liq) == zero .and.                      &
-         par_next_cloudfracs(ic,i_frac_liq) > zero ) then
+    if ( ( .not. par_prev_cloudfracs(ic,i_frac_liq) > zero ) .and.             &
+                 par_next_cloudfracs(ic,i_frac_liq) > zero ) then
 
       interp = ( next_height(ic) - sat_height(ic) )                            &
              / ( next_height(ic) - prev_height(ic) )
@@ -132,7 +141,7 @@ do ic = 1, n_points
       convcloud(ic,i_q_cl_conv)     = interp * next_q_cl_conv(ic)
 
     else if ( par_prev_cloudfracs(ic,i_frac_liq) > zero .and.                  &
-              par_next_cloudfracs(ic,i_frac_liq) == zero ) then
+      ( .not. par_next_cloudfracs(ic,i_frac_liq) > zero ) ) then
 
       interp = ( sat_height(ic) - prev_height(ic) )                            &
              / ( next_height(ic) - prev_height(ic) )
@@ -149,7 +158,7 @@ do ic = 1, n_points
     frac_ice_tmp                                                               &
       = half * prev_cf_conv(ic) * par_prev_cloudfracs(ic,i_frac_ice)           &
       + half * next_cf_conv(ic) * par_next_cloudfracs(ic,i_frac_ice)
-    ! We must have max(frac_liq,frac_ice) <= frac_bulk <= frac_liq+frac_ice
+    ! We must have MAX(frac_liq,frac_ice) <= frac_bulk <= frac_liq+frac_ice
     convcloud(ic,i_frac_bulk_conv)                                             &
       = max( min( convcloud(ic,i_frac_bulk_conv),                              &
                   convcloud(ic,i_frac_liq_conv) + frac_ice_tmp ),              &
@@ -160,6 +169,6 @@ end do
 
 
 return
-end subroutine interp_diag_conv_cloud
+end subroutine interp_diag_conv_cloud_a
 
-end module interp_diag_conv_cloud_mod
+end module interp_diag_conv_cloud_a_mod

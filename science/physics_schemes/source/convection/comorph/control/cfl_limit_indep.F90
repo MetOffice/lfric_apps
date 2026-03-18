@@ -25,8 +25,9 @@ subroutine cfl_limit_indep( n_conv_types, n_conv_layers,                       &
                             scaling )
 
 use comorph_constants_mod, only: real_cvprec, real_hmprec, zero,               &
-                     nx_full, ny_full, k_bot_conv, k_top_conv,                 &
-                     max_cfl, comorph_timestep, sqrt_min_float
+                                 nx_full, ny_full, k_bot_conv, k_top_conv,     &
+                                 max_cfl, comorph_timestep, sqrt_min_float,    &
+                                 i_cfl_closure, i_cfl_closure_mass_q
 use cmpr_type_mod, only: cmpr_type
 use fields_type_mod, only: fields_type, i_q_vap, i_qc_last
 use res_source_type_mod, only: res_source_type, i_ent
@@ -113,44 +114,46 @@ do k = k_bot_conv, k_top_conv
                                               sqrt_min_float ) ) )
           end do
 
-          ! Apply limit to avoid creating negative values for
-          ! water species
-          do i_field = i_q_vap, i_qc_last
-            do ic = 1, res_source(i_type,i_layr,k) % cmpr % n_points
-              ! If resolved-scale source term is negative
-              if ( res_source(i_type,i_layr,k)                                 &
-                   % fields_super(ic,i_field) < zero ) then
-                ! Extract i,j coordinates of the current point
-                i = res_source(i_type,i_layr,k) % cmpr % index_i(ic)
-                j = res_source(i_type,i_layr,k) % cmpr % index_j(ic)
-                ij = nx_full*(j-1)+i
+          if ( i_cfl_closure == i_cfl_closure_mass_q ) then
+            ! Apply limit to avoid creating negative values for
+            ! water species
+            do i_field = i_q_vap, i_qc_last
+              do ic = 1, res_source(i_type,i_layr,k) % cmpr % n_points
+                ! If resolved-scale source term is negative
+                if ( res_source(i_type,i_layr,k)                               &
+                     % fields_super(ic,i_field) < zero ) then
+                  ! Extract i,j coordinates of the current point
+                  i = res_source(i_type,i_layr,k) % cmpr % index_i(ic)
+                  j = res_source(i_type,i_layr,k) % cmpr % index_j(ic)
+                  ij = nx_full*(j-1)+i
 
-                ! Extract grid-mean water species value,
-                ! filtering out any spurious negative values
-                q_cmpr = max( real( fields_np1%list(i_field)%pt(i,j,k),        &
-                                    real_cvprec ), zero )
+                  ! Extract grid-mean water species value,
+                  ! filtering out any spurious negative values
+                  q_cmpr = max( real( fields_np1%list(i_field)%pt(i,j,k),      &
+                                      real_cvprec ), zero )
 
-                ! Calculate water-mass removed and water-mass available
-                q_removed = -comorph_timestep                                  &
-                   * res_source(i_type,i_layr,k) % fields_super(ic,i_field)
-                q_available = max_cfl * q_cmpr * layer_mass_cmpr(ij)
+                  ! Calculate water-mass removed and water-mass available
+                  q_removed = -comorph_timestep                                &
+                     * res_source(i_type,i_layr,k) % fields_super(ic,i_field)
+                  q_available = max_cfl * q_cmpr * layer_mass_cmpr(ij)
 
-                ! Apply CFL limit if removal term exceeds available term
-                if ( q_removed > q_available ) then
-                  scaling(ij,i_type,i_layr) = min( scaling(ij,i_type,i_layr),  &
-                                                   q_available / q_removed )
+                  ! Apply CFL limit if removal term exceeds available term
+                  if ( q_removed > q_available ) then
+                    scaling(ij,i_type,i_layr) = min( scaling(ij,i_type,i_layr),&
+                                                     q_available / q_removed )
+                  end if
+
                 end if
-
-              end if
+              end do
             end do
-          end do
+          end if  ! ( i_cfl_closure == i_cfl_closure_mass_q )
 
         end if  ! ( res_source(i_type,i_layr,k) % cmpr % n_points > 0 )
 
       end do
     end do
 
-  end if  ! ( cmpr_any(k) % n_points > 0 ) then
+  end if  ! ( cmpr_any(k) % n_points > 0 ) THEN
 end do  ! k = k_bot_conv, k_top_conv
 
 
@@ -174,8 +177,9 @@ subroutine cfl_limit_indep_fallback( n_conv_types, n_conv_layers,              &
                                      scaling )
 
 use comorph_constants_mod, only: real_cvprec, real_hmprec, zero,               &
-                     nx_full, ny_full, k_bot_conv, k_top_conv,                 &
-                     max_cfl, comorph_timestep, sqrt_min_float
+                                 nx_full, ny_full, k_bot_conv, k_top_conv,     &
+                                 max_cfl, comorph_timestep, sqrt_min_float,    &
+                                 i_cfl_closure, i_cfl_closure_mass_q
 use cmpr_type_mod, only: cmpr_type
 use res_source_type_mod, only: res_source_type, i_ent
 use parcel_type_mod, only: parcel_type, i_massflux_d
@@ -334,88 +338,92 @@ do k = k_bot_conv, k_top_conv
 
         ! 2) Calculate limiting of removal of water species to
         !    avoid creating negative mixing ratios.
-        do i_field = i_q_vap, i_qc_last
+        if ( i_cfl_closure == i_cfl_closure_mass_q ) then
+          do i_field = i_q_vap, i_qc_last
 
-          ! Add contribution from primary draft
-          if ( res_source(i_type,i_layr,k) % cmpr % n_points > 0 ) then
-            do ic = 1, res_source(i_type,i_layr,k) % cmpr % n_points
-              i = res_source(i_type,i_layr,k) % cmpr % index_i(ic)
-              j = res_source(i_type,i_layr,k) % cmpr % index_j(ic)
-              ij = nx_full*(j-1)+i
-              sum_ent(ij) = sum_ent(ij)                                        &
-                          + res_source(i_type,i_layr,k)                        &
-                            % fields_super(ic,i_field)
-            end do
-          end if
-
-          ! Add contribution from fall-back flow
-          if ( fallback_res_source(i_type,i_layr,k) % cmpr %n_points > 0 ) then
-            do ic = 1, fallback_res_source(i_type,i_layr,k) % cmpr % n_points
-              i = fallback_res_source(i_type,i_layr,k) % cmpr % index_i(ic)
-              j = fallback_res_source(i_type,i_layr,k) % cmpr % index_j(ic)
-              ij = nx_full*(j-1)+i
-              sum_ent(ij) = sum_ent(ij)                                        &
-                          + fallback_res_source(i_type,i_layr,k)               &
-                            % fields_super(ic,i_field)
-            end do
-          end if
-
-          ! Apply limit using sum of water source terms, and
-          ! reset sum_ent to zero ready for next level:
-          ! a) at primary draft points
-          if ( res_source(i_type,i_layr,k) % cmpr % n_points > 0 ) then
-            do ic = 1, res_source(i_type,i_layr,k) % cmpr % n_points
-              ! If net sink of water
-              if ( sum_ent(ij) < 0 ) then
+            ! Add contribution from primary draft
+            if ( res_source(i_type,i_layr,k) % cmpr % n_points > 0 ) then
+              do ic = 1, res_source(i_type,i_layr,k) % cmpr % n_points
                 i = res_source(i_type,i_layr,k) % cmpr % index_i(ic)
                 j = res_source(i_type,i_layr,k) % cmpr % index_j(ic)
                 ij = nx_full*(j-1)+i
+                sum_ent(ij) = sum_ent(ij)                                      &
+                            + res_source(i_type,i_layr,k)                      &
+                              % fields_super(ic,i_field)
+              end do
+            end if
 
-                q_cmpr = max( real( fields_np1%list(i_field)%pt(i,j,k),        &
-                                    real_cvprec ), zero )
-
-                ! Calculate water-mass removed and water-mass available
-                q_removed = -comorph_timestep * sum_ent(ij)
-                q_available = max_cfl * q_cmpr * layer_mass_cmpr(ij)
-
-                ! Apply CFL limit if removal term exceeds available term
-                if ( q_removed > q_available ) then
-                  scaling(ij,i_type,i_layr) = min( scaling(ij,i_type,i_layr),  &
-                                                   q_available / q_removed )
-                end if
-
-              end if
-              sum_ent(ij) = zero
-            end do
-          end if
-          ! b) at fall-back flow points
-          if ( fallback_res_source(i_type,i_layr,k) % cmpr %n_points > 0 ) then
-            do ic = 1, fallback_res_source(i_type,i_layr,k) % cmpr % n_points
-              ! If net sink of water
-              if ( sum_ent(ij) < 0 ) then
+            ! Add contribution from fall-back flow
+            if ( fallback_res_source(i_type,i_layr,k) % cmpr                   &
+                 % n_points > 0 ) then
+              do ic = 1, fallback_res_source(i_type,i_layr,k) % cmpr % n_points
                 i = fallback_res_source(i_type,i_layr,k) % cmpr % index_i(ic)
                 j = fallback_res_source(i_type,i_layr,k) % cmpr % index_j(ic)
                 ij = nx_full*(j-1)+i
+                sum_ent(ij) = sum_ent(ij)                                      &
+                            + fallback_res_source(i_type,i_layr,k)             &
+                              % fields_super(ic,i_field)
+              end do
+            end if
 
-                q_cmpr = max( real( fields_np1%list(i_field)%pt(i,j,k),        &
-                                    real_cvprec ), zero )
+            ! Apply limit using sum of water source terms, and
+            ! reset sum_ent to zero ready for next level:
+            ! a) at primary draft points
+            if ( res_source(i_type,i_layr,k) % cmpr % n_points > 0 ) then
+              do ic = 1, res_source(i_type,i_layr,k) % cmpr % n_points
+                i = res_source(i_type,i_layr,k) % cmpr % index_i(ic)
+                j = res_source(i_type,i_layr,k) % cmpr % index_j(ic)
+                ij = nx_full*(j-1)+i
+                ! If net sink of water
+                if ( sum_ent(ij) < 0 ) then
 
-                ! Calculate water-mass removed and water-mass available
-                q_removed = -comorph_timestep * sum_ent(ij)
-                q_available = max_cfl * q_cmpr * layer_mass_cmpr(ij)
+                  q_cmpr = max( real( fields_np1%list(i_field)%pt(i,j,k),      &
+                                      real_cvprec ), zero )
 
-                ! Apply CFL limit if removal term exceeds available term
-                if ( q_removed > q_available ) then
-                  scaling(ij,i_type,i_layr) = min( scaling(ij,i_type,i_layr),  &
-                                                   q_available / q_removed )
+                  ! Calculate water-mass removed and water-mass available
+                  q_removed = -comorph_timestep * sum_ent(ij)
+                  q_available = max_cfl * q_cmpr * layer_mass_cmpr(ij)
+
+                  ! Apply CFL limit if removal term exceeds available term
+                  if ( q_removed > q_available ) then
+                    scaling(ij,i_type,i_layr) = min( scaling(ij,i_type,i_layr),&
+                                                     q_available / q_removed )
+                  end if
+
                 end if
+                sum_ent(ij) = zero
+              end do
+            end if
+            ! b) at fall-back flow points
+            if ( fallback_res_source(i_type,i_layr,k) % cmpr                   &
+                 % n_points > 0 ) then
+              do ic = 1, fallback_res_source(i_type,i_layr,k) % cmpr % n_points
+                i = fallback_res_source(i_type,i_layr,k) % cmpr % index_i(ic)
+                j = fallback_res_source(i_type,i_layr,k) % cmpr % index_j(ic)
+                ij = nx_full*(j-1)+i
+                ! If net sink of water
+                if ( sum_ent(ij) < 0 ) then
 
-              end if
-              sum_ent(ij) = zero
-            end do
-          end if
+                  q_cmpr = max( real( fields_np1%list(i_field)%pt(i,j,k),      &
+                                      real_cvprec ), zero )
 
-        end do  ! i_field = i_q_vap, i_qc_last
+                  ! Calculate water-mass removed and water-mass available
+                  q_removed = -comorph_timestep * sum_ent(ij)
+                  q_available = max_cfl * q_cmpr * layer_mass_cmpr(ij)
+
+                  ! Apply CFL limit if removal term exceeds available term
+                  if ( q_removed > q_available ) then
+                    scaling(ij,i_type,i_layr) = min( scaling(ij,i_type,i_layr),&
+                                                     q_available / q_removed )
+                  end if
+
+                end if
+                sum_ent(ij) = zero
+              end do
+            end if
+
+          end do  ! i_field = i_q_vap, i_qc_last
+        end if  ! ( i_cfl_closure == i_cfl_closure_mass_q )
 
       end do  ! i_type = 1, n_conv_types
     end do  ! i_layr = 1, n_conv_layers
