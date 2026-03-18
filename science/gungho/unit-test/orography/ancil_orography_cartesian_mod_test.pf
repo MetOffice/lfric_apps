@@ -33,7 +33,7 @@ contains
     use extrusion_config_mod,      only : method_uniform,       &
                                           stretching_method_linear
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_finite_element_config, &
                                           feign_base_mesh_config, &
                                           feign_extrusion_config
@@ -61,6 +61,8 @@ contains
     call feign_finite_element_config(                       &
                          cellshape=cellshape_quadrilateral, &
                          coord_order=0_i_def,               &
+                         coord_order_multigrid=1_i_def,     &
+                         coord_space=coord_space_wchi,      &
                          coord_system=coord_system_xyz,     &
                          element_order_h=0_i_def,           &
                          element_order_v=0_i_def,           &
@@ -108,6 +110,7 @@ contains
     real(r_def), allocatable :: srf_alt_w0(:)
     real(r_def), allocatable :: multipl_w0_sl(:)
     real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+    real(r_def), allocatable :: chi1_in(:), chi2_in(:), chi3_in(:)
 
     real(r_def) :: answer
 
@@ -155,6 +158,9 @@ contains
     allocate( chi1(undf_wchi) )
     allocate( chi2(undf_wchi) )
     allocate( chi3(undf_wchi) )
+    allocate( chi1_in(undf_wchi) )
+    allocate( chi2_in(undf_wchi) )
+    allocate( chi3_in(undf_wchi) )
     allocate( srf_alt_w3(undf_w3_sl) )
     allocate( srf_alt_w0(undf_w0_sl) )
     allocate( multipl_w0_sl(undf_w0_sl) )
@@ -172,6 +178,11 @@ contains
     ! This generates the w0 surface_altitude
     srf_alt_w3(:)=0.0_r_def
     srf_alt_w3(5)=400.0_r_def
+
+    chi1_in(:) = chi1(:)
+    chi2_in(:) = chi2(:)
+    chi3_in(:) = chi3(:)
+
     do cell = 1, ncells
 
       call average_w3_to_w0_code(1,                  &
@@ -195,6 +206,9 @@ contains
                                      chi1,               &
                                      chi2,               &
                                      chi3,               &
+                                     chi1_in,            &
+                                     chi2_in,            &
+                                     chi3_in,            &
                                      panel_id,           &
                                      srf_alt_w0,         &
                                      domain_surface,     &
@@ -237,6 +251,9 @@ contains
     deallocate( chi1 )
     deallocate( chi2 )
     deallocate( chi3 )
+    deallocate( chi1_in )
+    deallocate( chi2_in )
+    deallocate( chi3_in )
     deallocate( panel_id )
     deallocate( basis_w0_on_wchi )
 
