@@ -266,7 +266,7 @@ contains
     ! --------------------------------------------------------------------------
 
     call semi_implicit_solver_alg_step( state, rhs, moist_dyn_gas_law, mr, &
-                                        .false., first_iteration )
+                                        first_iteration )
 
     ! --------------------------------------------------------------------------
     ! Compute <Mx,Mx>

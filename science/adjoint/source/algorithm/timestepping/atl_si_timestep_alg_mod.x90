@@ -530,7 +530,7 @@ contains
                                                 self%ls_rhs_np1(:,outer,inner),                          &
                                                 self%ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                                                 self%ls_mr_itns(:,next_outer,next_inner),                &
-                                                .false., first_iteration=(inner==1) )
+                                                first_iteration=(inner==1) )
             ! If not already done, update factors for moist dynamics
             if (.not. guess_np1 .and. self%use_moisture) then
               call moist_dyn_factors_alg( self%ls_moist_dyn_itns(:,next_outer,next_inner), &
@@ -652,7 +652,7 @@ contains
         if (.not. bundle_is_zero( mixed_solver_a_tol, self%state, bundle_size )) then
           call self%adj_semi_implicit_solver%step( self%state, self%rhs_np1, &
                                                    moist_dyn(gas_law), mr,   &
-                                                   .false., first_iteration=(inner==1) )
+                                                   first_iteration=(inner==1) )
         end if
 
         ! Accelerators for inner loop convergence

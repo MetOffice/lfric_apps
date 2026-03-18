@@ -111,6 +111,7 @@ module semi_implicit_timestep_alg_mod
   use sci_mass_matrix_solver_alg_mod, &
                                   only: mass_matrix_solver_alg
   use moist_dyn_factors_alg_mod,  only: moist_dyn_factors_alg
+  use moisture_conservation_alg_mod, only: moisture_conservation_alg
   use update_prognostic_scalars_alg_mod, &
                                   only: update_prognostic_scalars_alg
   use mixing_alg_mod,             only: mixing_alg
@@ -617,6 +618,7 @@ contains
 
     ! Moisture field to transport
     type( field_type ),       pointer :: mr_to_adv(:)
+    type( field_type ) :: rho_after_transport
 
     type( field_type ) :: dcfl_tot, dcff_tot, dbcf_tot, &
                           dcfl_adv, dcff_adv, dbcf_adv
@@ -1012,14 +1014,27 @@ contains
                                 outer == outer_iterations .and. &
                                 inner == inner_iterations .and. &
                                 self%use_moisture
+          if (write_moisture_diag) then
+            ! Calculate transported density
+            call self%state(igh_d)%copy_field_properties(rho_after_transport)
+            call invoke(X_plus_Y(rho_after_transport, &
+                                 self%state_after_slow(igh_d), &
+                                 self%rhs_adv(igh_d)))
+            call moisture_conservation_alg(rho_after_transport, mr, &
+                                           'Before solve')
+          end if
           !--------------------------------------------------------------------
           ! Solve semi-implicit system: A*inc = rhs, and incement state by inc
           !--------------------------------------------------------------------
           call semi_implicit_solver_alg_step( self%state, self%rhs_np1, &
                                               moist_dyn(gas_law),       &
                                               mr,                       &
-                                              write_moisture_diag,      &
                                               first_iteration=(inner==1) )
+
+          if (write_moisture_diag) then
+            call moisture_conservation_alg(self%state(igh_d), mr, &
+                                           'After solve')
+          end if
 
           ! If not already done update factors for moist dynamics
           if ( .not. guess_np1 .and. self%use_moisture ) &

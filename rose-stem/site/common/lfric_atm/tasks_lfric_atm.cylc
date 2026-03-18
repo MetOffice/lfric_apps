@@ -421,7 +421,7 @@
 {% elif task_ns.conf_name == "nwp_gal9_debug-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","no_diags"],
+        "opt_confs": ["um_dump","no_diags","cons_diag"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 4,
