@@ -33,7 +33,7 @@ module tl_compute_aubu_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ, W2),     &  ! height_w2
          arg_type(GH_FIELD, GH_REAL, GH_READ, W2),     &  ! w2_rmultiplicity
          arg_type(GH_SCALAR, GH_REAL,    GH_READ ),  & ! dt
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ )   & ! Blevs_m
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ )   & ! blevs_m
      /)
    integer :: operates_on = CELL_COLUMN
   contains
@@ -59,7 +59,7 @@ contains
 !! @param[in]     height_w2        Height of w2 space levels above the surface
 !! @param[in]     w2_rmultiplicity Reciprocal of multiplicity for W2
 !! @param[in]     dt               TLM time step
-!! @param[in]     Blevs_m          Number of levels in momentum boundary layer
+!! @param[in]     blevs_m          Number of levels in momentum boundary layer
 !! @param[in]     ndf_w2           Number of degrees of freedom per cell for w2 space
 !! @param[in]     undf_w2          Number of unique degrees of freedom for w2 space
 !! @param[in]     map_w2           Dofmap for the cell at the base of the column for w2
@@ -74,7 +74,7 @@ subroutine tl_compute_aubu_code( nlayers,                 &
                                  height_w2,               &
                                  w2_rmultiplicity,        &
                                  dt,                      &
-                                 Blevs_m,                 &
+                                 blevs_m,                 &
                                  ndf_w2, undf_w2, map_w2, &
                                  ndf_w3, undf_w3, map_w3)
 
@@ -87,13 +87,13 @@ subroutine tl_compute_aubu_code( nlayers,                 &
   integer(kind=i_def),                     intent(in)    :: undf_w2, ndf_w2
   integer(kind=i_def), dimension(ndf_w2),  intent(in)    :: map_w2
   real(kind=r_def),    dimension(undf_w2), intent(in)    :: w2_rmultiplicity
-  real(kind=r_def),    dimension(undf_w2), intent(inout) :: Auv !(0:BLevs_m)
+  real(kind=r_def),    dimension(undf_w2), intent(inout) :: Auv !(0:blevs_m)
   real(kind=r_def),    dimension(undf_w2), intent(inout) :: Buv_inv ! Use inverse of Buv as this is what is averaged
-  real(kind=r_def),    dimension(undf_w3), intent(in)    :: Q ! (0:BLevs_m)
-  real(kind=r_def),    dimension(undf_w3), intent(in)    :: E ! (BLevs_m)
+  real(kind=r_def),    dimension(undf_w3), intent(in)    :: Q ! (0:blevs_m)
+  real(kind=r_def),    dimension(undf_w3), intent(in)    :: E ! (blevs_m)
   real(kind=r_def),    dimension(undf_w2), intent(in)    :: height_w2
   real(kind=r_def),                        intent(in)    :: dt
-  integer(kind=i_def),                     intent(in)    :: Blevs_m
+  integer(kind=i_def),                     intent(in)    :: blevs_m
 
   ! Internal variables
   integer(kind=i_def) :: df, df3, k
@@ -101,15 +101,15 @@ subroutine tl_compute_aubu_code( nlayers,                 &
   df3 = 1
 
   do df = 1, 4
-    do k = 0, BLevs_m
+    do k = 0, blevs_m
       if (k == 0) then
         Auv(map_w2(df) + k) = w2_rmultiplicity(map_w2(df)) * Q(map_w3(df3))
-      else ! 1 <= k <= BLevs_m
+      else ! 1 <= k <= blevs_m
         Auv(map_w2(df) + k) = &
           w2_rmultiplicity(map_w2(df) + k) * Q(map_w3(df3) + k) / (height_w2(map_w2(df) + k) -  height_w2(map_w2(df) + k - 1))
         Buv_inv(map_w2(df) + k) = ( w2_rmultiplicity(map_w2(df) + k) * E(map_w3(df3) + k) ) / dt
       end if
-    end do ! k = 0, BLevs_m
+    end do ! k = 0, blevs_m
   end do ! df = 1, 4
 
 end subroutine tl_compute_aubu_code

@@ -52,6 +52,7 @@ program gungho_model
 
   call modeldb%configuration%initialise( application_name, &
                                          table_len=10 )
+  call modeldb%config%initialise( application_name )
   call modeldb%values%initialise( 'values', 5 )
 
   ! Create the depository, prognostics and diagnostics field collections
@@ -75,7 +76,8 @@ program gungho_model
   call init_comm( application_name, modeldb )
 
   call init_config( filename, gungho_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration, &
+                    config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), application_name )
   io_nml => modeldb%configuration%get_namelist('io')
   call io_nml%get_value('subroutine_timers', lsubroutine_timers)

@@ -39,11 +39,14 @@ program gravity_wave
   call parse_command_line( filename )
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
+  call modeldb%config%initialise( program_name )
 
   modeldb%mpi => global_mpi
   call init_comm( program_name, modeldb )
   call init_config( filename, gravity_wave_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration,       &
+                    config=modeldb%config )
+
   deallocate( filename )
 
   call init_logger( modeldb%mpi%get_comm(), program_name )
