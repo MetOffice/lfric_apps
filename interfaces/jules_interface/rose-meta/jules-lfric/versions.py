@@ -181,7 +181,7 @@ class vn30_t205(MacroUpgrade):
         jules_pftparm["vsl_io"] = "29.81,18.15,40.96,10.24,23.15"
 
         # Add new switch and related parameters for photosynthesis model
-        # (vn5.5_t864)
+        # (from JULES vn5.5_t864)
         jules_pftparm["act_jmax_io"] = ",".join(["50.0e3"] * npft)
         jules_pftparm["act_vcmax_io"] = ",".join(["72.0e3"] * npft)
         jules_pftparm["alpha_elec_io"] = ",".join(["0.4"] * npft)
@@ -191,12 +191,23 @@ class vn30_t205(MacroUpgrade):
         jules_pftparm["ds_vcmax_io"] = ",".join(["649.0"] * npft)
         jules_pftparm["jv25_ratio_io"] = ",".join(["1.97"] * npft)
 
+        # Parameters related to l_bvoc_emis (from UM vn10.1_t605)
+        jules_pftparm["ief_io"] = "25.0,8.00,16.00,24.00,20.00"
+        jules_pftparm["tef_io"] = "1.2,2.4,0.8,1.2,0.8"
+        jules_pftparm["mef_io"] = "0.9,1.8,0.6,0.9,0.57"
+        jules_pftparm["aef_io"] = "0.43,0.87,0.29,0.43,0.20"
+        jules_pftparm["ci_st_io"] = "33.46,33.46,34.26,29.98,34.26"
+        jules_pftparm["gpp_st_io"] = "1.29E-07,2.58E-08,2.07E-07,3.42E-07,1.68E-007"
         for item, values in jules_pftparm.items():
             self.add_setting(config, ["namelist:jules_pftparm", item], values)
 
         # Add photosynthesis model switch (vn5.5_t864)
         self.add_setting(
             config, ["namelist:jules_vegetation", "photo_model"], "'collatz'"
+        )
+        # Add switch to calculate BVOC emissions
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_bvoc_emis"], ".false."
         )
 
 

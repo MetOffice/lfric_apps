@@ -514,6 +514,7 @@ urban=6,
 /
 &jules_vegetation
 can_rad_mod='six',
+l_bvoc_emis=.false.,
 l_limit_canhc=.true.,
 l_spec_veg_z0=.true.,
 photo_model='collatz',

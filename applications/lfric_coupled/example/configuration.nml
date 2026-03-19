@@ -350,8 +350,10 @@ l_moruses_storage=.false.
 /
 &jules_vegetation
 can_rad_mod='four',
+l_bvoc_emis=.false.,
 l_limit_canhc=.false.,
 l_spec_veg_z0=.false.,
+photo_model='collatz',
 /
 &logging
 run_log_level='info',
