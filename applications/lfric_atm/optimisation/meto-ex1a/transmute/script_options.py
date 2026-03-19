@@ -55,3 +55,25 @@ SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
         ]
     }
 }
+
+SCRIPT_OPTIONS_DICT["bl_imp_kernel_mod"+str(FILE_EXTEN)] = {
+
+    "options": {
+        "node-type-check": False,
+        "ignore_dependencies_for": [
+            "ct_ctq_wth",
+            "dqw_nt_wth",
+            "dqw_wth",
+            "dtl_nt_wth",
+            "dtl_wth",
+            "qw_wth",
+            "tl_wth",
+            "dqw1_2d",
+            "dtl1_2d",
+            "ct_ctq1_2d",
+            "heat_flux_bl",
+            "moist_flux_bl",
+            "dtl1_2d"
+        ]
+    }
+}
