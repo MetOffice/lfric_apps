@@ -99,6 +99,8 @@ module um_physics_init_mod
                                         falliceshear_method_constant,         &
                                         falliceshear_method_off,              &
                                         subgrid_qv, ice_width_in => ice_width,&
+                                    l_ensure_max_in_cloud_pc2_in               &
+                                      => l_ensure_max_in_cloud_pc2,            &
                                     i_pc2_erosion_numerics_in                  &
                                       => i_pc2_erosion_numerics,               &
                                     dbsdtbs_turb_0_in => dbsdtbs_turb_0,       &
@@ -161,6 +163,8 @@ module um_physics_init_mod
                                         cic_input_in => cic_input,           &
                                         c_r_correl_in => c_r_correl,         &
                                         l_proc_fluxes_in => l_proc_fluxes,   &
+                                        l_improve_precfrac_checks_in         &
+                                          => l_improve_precfrac_checks,      &
                                         l_mcr_precfrac_in => l_mcr_precfrac, &
                                    i_update_precfrac_in => i_update_precfrac,&
                                    i_update_precfrac_homog,                  &
@@ -348,7 +352,7 @@ contains
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
          i_pc2_checks_cld_frac_method, l_ensure_min_in_cloud_qcf,          &
-         i_pc2_init_logic, dbsdtbs_turb_0,                                 &
+         l_ensure_max_in_cloud_pc2, i_pc2_init_logic, dbsdtbs_turb_0,      &
          i_pc2_erosion_method, i_pc2_homog_g_method, i_pc2_init_method,    &
          check_run_cloud, i_pc2_erosion_numerics,                          &
          cloud_pc2_tol, cloud_pc2_tol_2,                                   &
@@ -435,7 +439,8 @@ contains
         l_mcr_qgraup, casim_max_sed_length, fixed_number, wvarfac,           &
         l_orograin, l_orogrime, l_orograin_block,                            &
         fcrit, nsigmasf, nscalesf, l_progn_tnuc, mp_czero, mp_tau_lim,       &
-        l_proc_fluxes, l_subgrid_graupel_frac, l_mcr_precfrac,               &
+        l_proc_fluxes, l_improve_precfrac_checks, l_subgrid_graupel_frac,    &
+        l_mcr_precfrac,                                                      &
         i_update_precfrac, i_homog_areas, i_sg_correl, heavy_rain_evap_fac
     use mphys_psd_mod, only: x1g, x2g, x4g, x1gl, x2gl, x4gl
     use mphys_switches, only: set_mphys_switches,            &
@@ -1105,6 +1110,7 @@ contains
         i_pc2_conv_coupling          = 3
         i_pc2_erosion_method         = pc2eros_hybrid_sidesonly
         l_ensure_min_in_cloud_qcf    = .false.
+        l_ensure_max_in_cloud_pc2    = l_ensure_max_in_cloud_pc2_in
         select case(pc2_init_logic)
           case(pc2_init_logic_original)
             i_pc2_init_logic = pc2init_logic_original
@@ -1246,6 +1252,8 @@ contains
           case ( i_update_precfrac_correl )
             i_update_precfrac = i_sg_correl
           end select
+          ! Switch for extra checks on precip fraction
+          l_improve_precfrac_checks = l_improve_precfrac_checks_in
         end if
 
         select case (graupel_scheme)

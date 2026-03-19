@@ -16,7 +16,7 @@ contains
 
 subroutine pc2_checks(                                                         &
 !   Pressure related fields
- p_theta_levels,                                                               &
+ p_theta_levels, p_rho_levels,                                                 &
 !   Prognostic Fields
  t, cf, cfl, cff, q, qcl, qcf,                                                 &
 !   Logical control
@@ -25,6 +25,7 @@ subroutine pc2_checks(                                                         &
  row_length, rows, model_levels, offx, offy, halo_i, halo_j, qcf2, wtrac)
 
 use mphys_inputs_mod,   only: l_casim, l_mcr_qcf2
+use atm_fields_bounds_mod, only: pdims_s
 
 use mphys_ice_mod,         only: thomo
 use planet_constants_mod,  only: lcrcp, lfrcp, lsrcp, r, repsilon
@@ -40,7 +41,8 @@ use pc2_constants_mod,     only: cloud_rounding_tol,                           &
 use yomhook,               only: lhook, dr_hook
 use parkind1,              only: jprb, jpim
 use cloud_inputs_mod,      only: i_pc2_checks_cld_frac_method,                 &
-                                 l_ensure_min_in_cloud_qcf
+                                 l_ensure_min_in_cloud_qcf,                    &
+                                 l_ensure_max_in_cloud_pc2
 use science_fixes_mod,     only: l_pc2_checks_sdfix
 
 use qsat_mod, only: qsat_wat, qsat_wat_mix
@@ -82,11 +84,15 @@ implicit none
 integer, intent(in) ::                                                         &
  row_length, rows, model_levels, offx, offy, halo_i, halo_j
 
+!    pressure at all points (Pa) - theta-levels and rho-levels
 real(kind=real_umphys), intent(in) ::                                          &
  p_theta_levels(1-offx:row_length+offx,                                        &
                 1-offy:rows+offy,                                              &
                      1:model_levels)
-!    pressure at all points (Pa)
+real(kind=real_umphys), intent(in) ::                                          &
+ p_rho_levels  ( pdims_s%i_start:pdims_s%i_end,                                &
+                 pdims_s%j_start:pdims_s%j_end,                                &
+                 pdims_s%k_start:pdims_s%k_end )
 
 logical, intent(in) ::                                                         &
  l_mixing_ratio
@@ -173,6 +179,20 @@ real(kind=real_umphys) ::                                                      &
        1:rows)
 !       Saturated specific humidity for dry bulb temperature T
 
+! Max allowed in-cloud condensate mixing-ratio divided by cloud-fraction
+! (max in-cloud condensate = qc_max * CF)
+! Used to compute a corresponding minimum allowed cloud-fraction
+! imposed as a safety check to avoid advection creating
+! clouds with zero fraction but non-zero mixing-ratio
+real(kind=real_umphys) :: qc_max ( row_length, rows, model_levels )
+
+! Dimensionless factor scaling the max allowed in-cloud condensate
+! We impose  qc/cf < qc_max_fac * q_tot * cf
+real(kind=real_umphys), parameter :: qc_max_fac = 10.0
+              ! gives 5 g kg-1 when CF = 0.05 and q_tot = 10 g kg-1
+! Smallest non-zero number, used to avoid div-by-zero
+real(kind=real_umphys), parameter :: min_float = tiny(qc_max)
+
 ! Water tracer to water ratios
 real(kind=real_umphys), allocatable :: ratio_q(:,:,:,:)   ! For q
 real(kind=real_umphys), allocatable :: ratio_qcl(:,:,:,:) ! For qcl
@@ -204,9 +224,9 @@ if (l_wtrac) then
   allocate(ratio_q(row_length,rows,model_levels,n_wtrac))
   allocate(ratio_qcl(row_length,rows,model_levels,n_wtrac))
   do i_wt = 1, n_wtrac
-!$OMP  PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                              &
+!$OMP  PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC)                              &
 !$OMP  SHARED(i_wt, model_levels, rows, row_length, ratio_q, ratio_qcl,        &
-!$OMP  wtrac, q, qcl) private(i, j, k)
+!$OMP  wtrac, q, qcl) PRIVATE(i, j, k)
     do k = 1,model_levels
       do j = 1, rows
         do i = 1, row_length
@@ -217,14 +237,77 @@ if (l_wtrac) then
         end do
       end do
     end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
   end do
 end if
+
+if ( l_ensure_max_in_cloud_pc2 ) then
+  ! Compute max allowed in-cloud water-content.
+  ! Make this scale with the grid-mean total-water content
+
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k )                                &
+!$OMP SHARED( l_mcr_qcf2, row_length, rows, model_levels,                      &
+!$OMP         qc_max, q, qcl, qcf, qcf2, cf, p_rho_levels )
+
+!$OMP DO SCHEDULE(STATIC)
+  do k = 1, model_levels
+    ! Sum condensate species that are always used (ignoring negative values)
+    do j = 1, rows
+      do i = 1, row_length
+        qc_max(i,j,k) = max( q(i,j,k),   0.0 )                                 &
+                      + max( qcl(i,j,k), 0.0 )                                 &
+                      + max( qcf(i,j,k), 0.0 )
+      end do
+    end do
+    if ( l_mcr_qcf2 ) then
+      ! Add on optional 2nd ice category (ignoring negative values)
+      do j = 1, rows
+        do i = 1, row_length
+          qc_max(i,j,k) = qc_max(i,j,k) + max( qcf2(i,j,k), 0.0 )
+        end do
+      end do
+    end if
+    ! Apply dimensionless scaling factor and tiny min limit to avoid div-by-zero
+    do j = 1, rows
+      do i = 1, row_length
+        qc_max(i,j,k) = max( qc_max(i,j,k) * qc_max_fac, min_float )
+      end do
+    end do
+  end do  ! k = 1, model_levels
+!$OMP END DO
+
+  ! Setting qc_max to scale with q_total seems to unduly over-restrict in-cloud
+  ! ice contents at upper-levels, where typical ratios of qc / q_vap are
+  ! bigger (especially where deep convection is detraining high concentrations
+  ! of ice into otherwise very dry air).
+  ! To avoid this, replace qc_max with its vertical mean over the layers
+  ! below (just a way of not making it so much smaller higher-up,
+  ! without introducing additional ad-hoc thresholds).
+!$OMP DO SCHEDULE(STATIC)
+  do j = 1, rows
+    do k = 2, model_levels-1
+      do i = 1, row_length
+        qc_max(i,j,k) = ( qc_max(i,j,k-1)                                      &
+                          * ( p_rho_levels(i,j,1) - p_rho_levels(i,j,k) )      &
+                        + qc_max(i,j,k)                                        &
+                          * ( p_rho_levels(i,j,k) - p_rho_levels(i,j,k+1) )    &
+                        ) / ( p_rho_levels(i,j,1) - p_rho_levels(i,j,k+1) )
+      end do
+    end do
+    do i = 1, row_length
+      qc_max(i,j,model_levels) = qc_max(i,j,model_levels-1)
+    end do
+  end do
+!$OMP END DO
+
+!$OMP END PARALLEL
+
+end if  ! ( l_ensure_max_in_cloud_pc2 )
 
 ! Loop round levels to be processed
 ! Levels_do1:
 
-!$OMP  PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC) private(i, j, k, al,       &
+!$OMP  PARALLEL DO DEFAULT(SHARED) SCHEDULE(STATIC) PRIVATE(i, j, k, al,       &
 !$OMP  alpha, sd, cfl_old, qsl_t, i_wt)
 do k = 1,model_levels
 
@@ -263,13 +346,55 @@ do k = 1,model_levels
       sd=al*(qsl_t(i,j)-q(i,j,k))
 
       ! ----------------------------------------------------------------------
-      !  3. Checks are applied here for liquid cloud
+      !  3. Optionally impose max limits on in-cloud water contents
+      ! ----------------------------------------------------------------------
+      ! We do this check first as the checks on the cloud-fractions being
+      ! sensible need to be done afterwards.
+      ! Impose a minimum limit on the cloud-fractions so-as to enforce
+      ! a consistent maximum limit on the in-cloud condensed water contents.
+      ! We make the max in-cloud water content scale with cloud-fraction,
+      ! so-as to mainly affect "noise" present in very small cloud amounts,
+      ! while leaving genuine occurences of high water contents alone.
+      ! We impose:
+      !  qc/cf < qc_max * cf
+      ! => cf^2 > qc / qc_max
+      ! The checks don't make sense if the condensed water masses
+      ! have gone negative, so we treat negative values as zeros here.
+      ! Note: this check also removes instances of
+      ! frac < 0 which SL advection can create.
+      ! Also note that if the condensed water contents get unreasonably
+      ! large, this check can create instances of cloud-fractions > 1,
+      ! but any such instances will be removed by subequent checks.
+      if ( l_ensure_max_in_cloud_pc2 ) then
+        cfl(i,j,k) = max( cfl(i,j,k),                                          &
+                          sqrt( max(qcl(i,j,k),0.0)/qc_max(i,j,k) ) )
+        if ( l_mcr_qcf2 ) then
+          ! Include 2nd ice category
+          cff(i,j,k) = max( cff(i,j,k),                                        &
+                            sqrt( ( max(qcf(i,j,k),0.0)                        &
+                                  + max(qcf2(i,j,k),0.0) )/qc_max(i,j,k) ) )
+          cf(i,j,k)  = max( cf(i,j,k),                                         &
+                            sqrt( ( max(qcl(i,j,k),0.0)                        &
+                                  + max(qcf(i,j,k),0.0)                        &
+                                  + max(qcf2(i,j,k),0.0) )/qc_max(i,j,k) ) )
+        else
+          ! qcl and qcf only
+          cff(i,j,k) = max( cff(i,j,k),                                        &
+                            sqrt( max(qcf(i,j,k),0.0)/qc_max(i,j,k) ) )
+          cf(i,j,k)  = max( cf(i,j,k),                                         &
+                            sqrt( ( max(qcl(i,j,k),0.0)                        &
+                                  + max(qcf(i,j,k),0.0) )/qc_max(i,j,k) ) )
+        end if
+      end if  ! ( l_ensure_max_in_cloud_pc2 )
+
+      ! ----------------------------------------------------------------------
+      !  4. Checks are applied here for liquid cloud
       ! ----------------------------------------------------------------------
 
       ! Earlier versions checked whether saturation deficit is zero (or less
       ! than zero). If so, then the liquid cloud fraction was forced to one.
       ! This check has been suspended for numerical reasons.
-      !            if (SD  <=  0.0 .or. CFL(i,j,k)  >   1.0) then
+      !            IF (SD  <=  0.0 .OR. CFL(i,j,k)  >   1.0) THEN
 
       ! Instead, check simply whether input values of liquid cloud fraction
       ! are, or are between, zero and one. If not, adjust them to zero or one.
@@ -422,7 +547,7 @@ do k = 1,model_levels
       end if
 
       ! ----------------------------------------------------------------------
-      !  4. Check that ice content and ice cloud fraction are sensible.
+      !  5. Check that ice content and ice cloud fraction are sensible.
       ! ----------------------------------------------------------------------
 
       ! Check whether ice content is zero (or less than zero). If so then
@@ -479,6 +604,8 @@ do k = 1,model_levels
 
         if ((qcf(i,j,k) +qcf2(i,j,k))> 0.0 .and. cff(i,j,k) == 0.0) then
           cff(i,j,k) = (qcf(i,j,k)+qcf2(i,j,k)) * one_over_qcf0
+          ! Don't allow this check to make cff > 1.
+          cff(i,j,k) = min( cff(i,j,k), 1.0 )
           !             CF is not adjusted here but is checked below
         end if
 
@@ -525,6 +652,8 @@ do k = 1,model_levels
 
         if (qcf(i,j,k) > 0.0 .and. cff(i,j,k) == 0.0) then
           cff(i,j,k) = qcf(i,j,k) * one_over_qcf0
+          ! Don't allow this check to make cff > 1.
+          cff(i,j,k) = min( cff(i,j,k), 1.0 )
           !             CF is not adjusted here but is checked below
         end if
 
@@ -539,7 +668,7 @@ do k = 1,model_levels
       end if ! l_mcr_qcf2
 
       ! ----------------------------------------------------------------------
-      !  5. Check that total cloud fraction is sensible.
+      !  6. Check that total cloud fraction is sensible.
       ! ----------------------------------------------------------------------
 
       ! Total cloud fraction must be bounded by
@@ -557,7 +686,7 @@ do k = 1,model_levels
       end if
 
       ! ----------------------------------------------------------------------
-      !  6. Homogeneous nucleation.
+      !  7. Homogeneous nucleation.
       ! ----------------------------------------------------------------------
 
       ! This process is switched off for runs with CASIM as it is dealt with
@@ -588,7 +717,7 @@ do k = 1,model_levels
   end do !j
 
 end do !k
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 if (l_wtrac) then
 

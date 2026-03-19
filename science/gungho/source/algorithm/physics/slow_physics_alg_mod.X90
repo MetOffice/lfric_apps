@@ -1138,6 +1138,7 @@ contains
                     inc_X_plus_Y(theta_updated,dtheta) )
         call pc2_checks_alg( mr,                & ! Current state IN
                              theta_updated,     & ! Current state IN
+                             exner,             & ! Current state IN
                              derived_fields,    & ! Current state IN
                              cloud_fields,      & ! Current state IN
                              dtheta_pc2_checks, & ! Increments OUT

@@ -11,7 +11,7 @@ use argument_mod,      only: arg_type,          &
                              GH_FIELD, GH_REAL, &
                              GH_READ, GH_WRITE, &
                              CELL_COLUMN
-use fs_continuity_mod, only: WTHETA
+use fs_continuity_mod, only: WTHETA, W3
 use kernel_mod,        only: kernel_type
 
 implicit none
@@ -25,7 +25,7 @@ private
 
 type, public, extends(kernel_type) :: pc2_checks_kernel_type
   private
-  type(arg_type) :: meta_args(17) = (/                &
+  type(arg_type) :: meta_args(18) = (/                &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! mv_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ml_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! mi_wth
@@ -35,6 +35,7 @@ type, public, extends(kernel_type) :: pc2_checks_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! bcf_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),     & ! exner_w3
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dtheta_response
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dmv_response_wth
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dmcl_response_wth
@@ -68,6 +69,7 @@ contains
 !> @param[in]     bcf_wth              Bulk cloud fraction
 !> @param[in]     theta_wth            Potential temperature field
 !> @param[in]     exner_wth            Exner pressure in potential temperature space
+!> @param[in]     exner_w3             Exner pressure in w3 space
 !> @param[in,out] dtheta_response_wth  Change in theta
 !> @param[in,out] dmv_response_wth     Change in water vapour
 !> @param[in,out] dmcl_response_wth    Change in liquid water content
@@ -82,6 +84,13 @@ contains
 !!                                      for potential temperature space
 !> @param[in]     map_wth              Dofmap for the cell at the base of the column
 !!                                      for potential temperature space
+!> @param[in]     ndf_w3               Number of degrees of freedom per cell
+!!                                      for density space
+!> @param[in]     undf_w3              Number unique of degrees of freedom
+!!                                      for density space
+!> @param[in]     map_w3               Dofmap for the cell at the base of the
+!!                                      column for density space
+
 
 subroutine pc2_checks_code( nlayers,                   &
                                            ! Atm fields
@@ -94,6 +103,7 @@ subroutine pc2_checks_code( nlayers,                   &
                             bcf_wth,                   &
                             theta_wth,                 &
                             exner_wth,                 &
+                            exner_w3,                  &
                                            ! Responses
                             dtheta_response_wth,       &
                             dmv_response_wth,          &
@@ -104,7 +114,8 @@ subroutine pc2_checks_code( nlayers,                   &
                             dcff_response_wth,         &
                             dbcf_response_wth,         &
                                            ! Other
-                            ndf_wth, undf_wth, map_wth )
+                            ndf_wth, undf_wth, map_wth,                        &
+                            ndf_w3,  undf_w3,  map_w3 )
 
     use constants_mod, only: r_def, i_def, r_um, i_um
 
@@ -125,8 +136,8 @@ subroutine pc2_checks_code( nlayers,                   &
     ! Arguments
 
     integer(kind=i_def), intent(in) :: nlayers
-    integer(kind=i_def), intent(in) :: ndf_wth
-    integer(kind=i_def), intent(in) :: undf_wth
+    integer(kind=i_def), intent(in) :: ndf_wth, ndf_w3
+    integer(kind=i_def), intent(in) :: undf_wth, undf_w3
 
     real(kind=r_def), intent(in),  dimension(undf_wth) :: mv_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: ml_wth
@@ -137,8 +148,10 @@ subroutine pc2_checks_code( nlayers,                   &
     real(kind=r_def), intent(in),  dimension(undf_wth) :: cff_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: theta_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: exner_wth
+    real(kind=r_def), intent(in),  dimension(undf_w3)  :: exner_w3
 
     integer(kind=i_def), intent(in), dimension(ndf_wth) :: map_wth
+    integer(kind=i_def), intent(in), dimension(ndf_w3)  :: map_w3
 
     ! The changes to the fields as a result
     real(kind=r_def), intent(inout), dimension(undf_wth) :: dtheta_response_wth
@@ -153,7 +166,8 @@ subroutine pc2_checks_code( nlayers,                   &
     real(r_um), dimension(row_length,rows,model_levels) :: &
                   qv_work, qcl_work, qcf_work,             &
                   cfl_work, cff_work, bcf_work,            &
-                  t_work, theta_work, pressure, qcf2_work
+                  t_work, theta_work, qcf2_work,           &
+                  p_theta_levels, p_rho_levels
 
     integer(i_um) :: k
 
@@ -174,7 +188,10 @@ subroutine pc2_checks_code( nlayers,                   &
                         exner_wth(map_wth(1) + k)
 
       ! Pressure at centre of theta levels
-      pressure(1,1,k) = p_zero*(exner_wth(map_wth(1) + k))     &
+      p_theta_levels(1,1,k) = p_zero*(exner_wth(map_wth(1) + k))               &
+                                **(1.0_r_um/kappa)
+      ! pressure at layer boundaries
+      p_rho_levels(1,1,k)   = p_zero*(exner_w3(map_w3(1) + k-1))               &
                                 **(1.0_r_um/kappa)
 
       ! Moist prognostics
@@ -190,7 +207,7 @@ subroutine pc2_checks_code( nlayers,                   &
 
     end do
 
-    call pc2_checks( pressure,                                 &
+    call pc2_checks( p_theta_levels, p_rho_levels,             &
                      t_work, bcf_work, cfl_work, cff_work,     &
                      qv_work, qcl_work, qcf_work, l_mr_physics,&
                      row_length, rows, model_levels,           &

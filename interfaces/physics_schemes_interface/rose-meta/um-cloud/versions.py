@@ -31,3 +31,17 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn31_t243(MacroUpgrade):
+    # Upgrade macro for Issue #243 by Mike Whitall
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t243"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+
+        nml = "namelist:cloud"
+        self.add_setting(config, [nml,"l_ensure_max_in_cloud_pc2"], ".false.")
+
+        return config, self.reports

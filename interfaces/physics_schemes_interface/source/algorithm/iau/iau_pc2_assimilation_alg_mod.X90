@@ -33,6 +33,7 @@ module iau_pc2_assimilation_alg_mod
   !>@param[in,out]  cloud_fields       Fields for cloud scheme
   !>@param[in]      theta              Potential temperature
   !>@param[in]      theta_earlier      Copy of potential temperature before incrementing
+  !>@param[in]      exner              Exner pressure on w3 space
   !>@param[in]      exner_wth          Exner pressure on wtheta space
   !>@param[in]      exner_earlier_wth  Copy of exner pressure on wtheta before incrementing
   !>@param[in]      m_v                Vapour mass mixing ratio
@@ -44,7 +45,7 @@ module iau_pc2_assimilation_alg_mod
   !>@param[in]      m_g                Graupel mixing ratio
   !>@param[in]      mg_earlier         Copy of graupel mixing ratio before incrementing
   !>@param[in]      dt                 Timestep length (s)
-  subroutine iau_pc2_assimilation( exner_wth,exner_earlier_wth,             &
+  subroutine iau_pc2_assimilation( exner, exner_wth,exner_earlier_wth,      &
                                    theta, theta_earlier,                    &
                                    m_v, mv_earlier ,                        &
                                    m_cl, mcl_earlier,                       &
@@ -60,6 +61,7 @@ module iau_pc2_assimilation_alg_mod
     type( field_collection_type ), intent(inout) :: cloud_fields
     type( field_type ),            intent(inout) :: theta
     type( field_type ),            intent(in)    :: theta_earlier
+    type( field_type ),            intent(in)    :: exner
     type( field_type ),            intent(in)    :: exner_wth
     type( field_type ),            intent(in)    :: exner_earlier_wth
     type( field_type ),            intent(inout) :: m_v
@@ -167,6 +169,7 @@ module iau_pc2_assimilation_alg_mod
                                          bcf,                   &
                                          theta,                 &
                                          exner_wth,             &
+                                         exner,                 &
                                          ! Responses
                                          theta_inc_wth,         &
                                          mv_inc_wth,            &
