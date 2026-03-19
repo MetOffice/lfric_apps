@@ -35,3 +35,5 @@
 | tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-02-02 |
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
 | ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
+| mo-lucy-gordon      | Lucy Gordon        | Met Office                       | 2026-03-11 |
+| iboutle             | Ian Boutle         | Met Office                       | 2026-03-04 |
