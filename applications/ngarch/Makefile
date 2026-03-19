@@ -21,6 +21,8 @@ export PSYCLONE_TRANSFORMATION ?= minimum
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 export EXTRA_ROSE_META = jules
+export META_DIR = $(WORKING_DIR)/../rose-meta
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
 # Note - socrates_interface must come before jules_interface as there are dependencies on each other.
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \

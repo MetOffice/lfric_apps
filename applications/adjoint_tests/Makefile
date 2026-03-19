@@ -26,6 +26,8 @@ export BUILD_ADJ_TESTS   := TRUE
 export PSYAD_CONFIG_FILE := $(PSYCLONE_CONFIG_FILE)
 
 export EXTRA_ROSE_META = jules
+export META_DIR = $(WORKING_DIR)/../rose-meta
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \

@@ -18,13 +18,12 @@ def load_yaml(fpath: Path) -> dict:
     return sources
 
 
-def copy_rose_meta(working: Path, clone_loc: Path) -> None:
+def copy_rose_meta(rose_meta_dest: Path, clone_loc: Path) -> None:
     """
     Copy rose-meta contents from extracted dependency to working/../rose-meta
     """
 
     rose_meta_orig = clone_loc / "rose-meta"
-    rose_meta_dest = working.parent / "rose-meta"
 
     for directory in rose_meta_orig.iterdir():
         copytree(directory, rose_meta_dest / directory.name, dirs_exist_ok=True)
@@ -54,7 +53,7 @@ def copy_extracted_files(dependency: str, extract_lists: dict, working: Path, cl
     run_command(copy_command)
 
 
-def extract_files(dependencies: dict, rose_meta: str, extract_lists: dict, working: Path) -> None:
+def extract_files(dependencies: dict, rose_meta: str, extract_lists: dict, working: Path, meta: Path) -> None:
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
@@ -77,7 +76,7 @@ def extract_files(dependencies: dict, rose_meta: str, extract_lists: dict, worki
             clone_and_merge(dependency, sources, clone_loc, use_mirrors, mirror_loc)
 
         if rose_meta:
-            copy_rose_meta(working, clone_loc)
+            copy_rose_meta(meta, clone_loc)
         else:
             copy_extracted_files(dependency, extract_lists, working, clone_loc)
 
@@ -97,6 +96,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("-w", "--working", default=".", help="Build location")
     parser.add_argument(
+        "-m",
+        "--meta_dir",
+        default=None,
+        help="Path to store externally extracted rose-meta. Used if --rose-meta set. "
+        "Defaults to args.working/../rose-meta"
+    )
+    parser.add_argument(
         "-e",
         "--extract",
         default="./extract.yaml",
@@ -114,6 +120,10 @@ def parse_args() -> argparse.Namespace:
 
     args = parser.parse_args()
     args.working = Path(args.working)
+    if args.meta_dir is None:
+        args.meta_dir = args.working.parent / "rose-meta"
+    else:
+        args.meta_dir = Path(args.meta_dir)
     return args
 
 
@@ -125,9 +135,9 @@ def main():
     dependencies: dict = load_yaml(args.dependencies)
 
     if args.rose_meta:
-        extract_files(dependencies, args.rose_meta, [], args.working)
+        extract_files(dependencies, args.rose_meta, [], args.working, args.meta_dir)
     else:
-        extract_files(dependencies, args.rose_meta, load_yaml(args.extract), args.working)
+        extract_files(dependencies, args.rose_meta, load_yaml(args.extract), args.working, args.meta_dir)
 
 
 if __name__ == "__main__":

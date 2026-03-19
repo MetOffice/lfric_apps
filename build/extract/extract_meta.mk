@@ -8,6 +8,7 @@
 #
 # The following environment variables are used for input:
 #   WORKING_DIR : Directory to hold working copies of source.
+#   META_DIR: Directory to save extracted external metadata
 #   APPS_ROOT_DIR: Location of apps clone
 #   EXTRA_ROSE_META: List of repos to extract metadata from
 #
@@ -21,4 +22,5 @@ extract_meta:
 			-r $$REPO \
 			-d $(APPS_ROOT_DIR)/dependencies.yaml \
 			-w $(WORKING_DIR) \
+			-m $(META_DIR) \
 		; done
