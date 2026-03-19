@@ -20,6 +20,7 @@
 program jedi_forecast
 
   use cli_mod,                      only : parse_command_line
+  use config_mod,                   only : config_type
   use constants_mod,                only : PRECISION_REAL, i_def, str_def
   use field_collection_mod,         only : field_collection_type
   use log_mod,                      only : log_event, log_scratch_space, &
@@ -47,6 +48,7 @@ program jedi_forecast
 
   ! Local
   type( namelist_collection_type ), pointer :: configuration
+  type( config_type ),              pointer :: config
   character(:), allocatable                 :: filename
   integer( i_def )                          :: model_communicator
   type( jedi_duration_type )                :: forecast_length
@@ -76,6 +78,7 @@ program jedi_forecast
 
   ! Get the configuration
   configuration => jedi_run%get_configuration()
+  config => jedi_run%get_config()
 
   ! Get the forecast length
   jedi_lfric_settings_config => configuration%get_namelist('jedi_lfric_settings')
@@ -83,7 +86,7 @@ program jedi_forecast
   call forecast_length%init(forecast_length_str)
 
   ! Create geometry
-  call jedi_geometry%initialise( model_communicator, configuration )
+  call jedi_geometry%initialise( model_communicator, configuration, config )
 
   ! Create state (requires the configuration file name to setup the modeldb)
   call jedi_state%initialise( jedi_geometry, configuration, filename )
