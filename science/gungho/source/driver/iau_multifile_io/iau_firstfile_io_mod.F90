@@ -9,7 +9,7 @@
 module iau_firstfile_io_mod
 
   use calendar_mod,              only: calendar_type
-  use constants_mod,             only: str_def, l_def
+  use constants_mod,             only: str_def, str_max_filename, l_def
   use driver_modeldb_mod,        only: modeldb_type
   use field_collection_mod,      only: field_collection_type
   use field_mod,                 only: field_type
@@ -22,7 +22,6 @@ module iau_firstfile_io_mod
   use linked_list_mod,           only: linked_list_type
   use mesh_collection_mod,       only: mesh_collection
   use mesh_mod,                  only: mesh_type
-  use namelist_mod,              only: namelist_type
   use sci_geometric_constants_mod, only: get_chi_inventory, &
                                          get_panel_id_inventory
   use step_calendar_mod,         only: step_calendar_type
@@ -58,10 +57,6 @@ contains
     type(lfric_xios_context_type), pointer :: io_context
     type(linked_list_type),        pointer :: file_list
     type(field_collection_type),   pointer :: multifile_fields
-    type(namelist_type),           pointer :: time_nml
-    type(namelist_type),           pointer :: base_mesh_nml
-    type(namelist_type),           pointer :: files_nml
-    type(namelist_type),           pointer :: io_nml
 
     class(calendar_type), allocatable :: tmp_calendar
 
@@ -69,8 +64,6 @@ contains
     character(str_def) :: time_start
     character(str_def) :: prime_mesh_name
     character(str_def) :: context_name
-    character(str_def) :: iau_addinf_path
-    character(str_def) :: iau_bcorr_path
 
     logical(l_def) :: use_xios_io
 
@@ -81,17 +74,10 @@ contains
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
-    time_nml      => modeldb%configuration%get_namelist('time')
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    files_nml     => modeldb%configuration%get_namelist('files')
-    io_nml        => modeldb%configuration%get_namelist('io')
-
-    call time_nml%get_value('calendar_origin', time_origin)
-    call time_nml%get_value('calendar_start', time_start)
-    call base_mesh_nml%get_value('prime_mesh_name', prime_mesh_name)
-    call files_nml%get_value('iau_addinf_path', iau_addinf_path)
-    call files_nml%get_value('iau_bcorr_path', iau_bcorr_path)
-    call io_nml%get_value('use_xios_io', use_xios_io)
+    time_origin     = modeldb%config%time%calendar_origin()
+    time_start      = modeldb%config%time%calendar_start()
+    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
+    use_xios_io     = modeldb%config%io%use_xios_io()
 
     ! get filename and set up context name for this file
     context_name = "multifile_context_" // trim(iau_incs_path)

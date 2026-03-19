@@ -10,6 +10,7 @@ module gungho_init_prognostics_driver_mod
   use log_mod,                          only: log_event,         &
                                               LOG_LEVEL_ERROR,   &
                                               LOG_LEVEL_INFO
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_def, i_def
   use init_gungho_prognostics_alg_mod,  only: init_u_field,      &
                                               init_theta_field,  &
@@ -41,12 +42,15 @@ module gungho_init_prognostics_driver_mod
 contains
 
   !> @details A subroutine for initialising prognostic fields for gungho
+  !> @param[in]     config Configuration
   !> @param[in,out] prognostic_fields the collection of prognostics
   !> @param[in,out] mr Field bundle containing the moisture mixing ratios
   !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
-  subroutine init_gungho_prognostics(prognostic_fields, mr, moist_dyn)
+  subroutine init_gungho_prognostics(config, prognostic_fields, mr, moist_dyn)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type( field_collection_type ), intent(inout) :: prognostic_fields
@@ -72,7 +76,7 @@ contains
 
     initial_time = 0.0_r_def
 
-    call init_u_field( u , initial_time )
+    call init_u_field(config, u, initial_time)
 
     ! Initialise potential temperature and water vapour
     call set_bundle_scalar(0.0_r_def, mr, nummr)

@@ -39,7 +39,6 @@ module name_transport_driver_mod
   use mesh_mod,                           only: mesh_type
   use mesh_collection_mod,                only: mesh_collection
   use model_clock_mod,                    only: model_clock_type
-  use namelist_mod,                       only: namelist_type
   use runtime_constants_mod,              only: create_runtime_constants
   use sci_checksum_alg_mod,               only: checksum_alg
   use sci_geometric_constants_mod,        only: get_chi_inventory,      &
@@ -124,38 +123,22 @@ contains
     logical(kind=l_def) :: write_diag
     logical(kind=l_def) :: use_xios_io
 
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: extrusion_nml
-    type(namelist_type), pointer :: planet_nml
-    type(namelist_type), pointer :: io_nml
-
     integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
 
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-
-    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
-    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
-    planet_nml      => modeldb%configuration%get_namelist('planet')
-    io_nml          => modeldb%configuration%get_namelist('io')
-
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-    call extrusion_nml%get_value( 'method', method )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
-    call io_nml%get_value( 'nodal_output_on_w3', nodal_output_on_w3 )
-    call io_nml%get_value( 'write_diag', write_diag )
-    call io_nml%get_value( 'use_xios_io', use_xios_io )
-
-    base_mesh_nml   => null()
-    extrusion_nml   => null()
-    planet_nml      => null()
-    io_nml          => null()
+    prime_mesh_name    = modeldb%config%base_mesh%prime_mesh_name()
+    geometry           = modeldb%config%base_mesh%geometry()
+    prepartitioned     = modeldb%config%base_mesh%prepartitioned()
+    method             = modeldb%config%extrusion%method()
+    domain_height      = modeldb%config%extrusion%domain_height()
+    number_of_layers   = modeldb%config%extrusion%number_of_layers()
+    scaled_radius      = modeldb%config%planet%scaled_radius()
+    nodal_output_on_w3 = modeldb%config%io%nodal_output_on_w3()
+    write_diag         = modeldb%config%io%write_diag()
+    use_xios_io        = modeldb%config%io%use_xios_io()
 
     !-----------------------------------------------------------------------
     ! Initialise infrastructure
@@ -238,9 +221,9 @@ contains
     ! 1.3a Initialise prime/2d meshes
     ! ---------------------------------------------------------
     allocate(stencil_depths(num_base_meshes))
-    call get_required_stencil_depth(                                           &
-        stencil_depths, base_mesh_names, modeldb%configuration                 &
-    )
+    call get_required_stencil_depth( stencil_depths,  &
+                                     base_mesh_names, &
+                                     modeldb%config )
 
     apply_partition_check = .false.
 
@@ -309,7 +292,8 @@ contains
     call name_transport_prerun_setup( num_base_meshes )
 
     ! Initialise prognostic variables
-    call name_transport_init_fields_alg( mesh, wind, density, tracer_con )
+    call name_transport_init_fields_alg( modeldb%config, mesh, wind, &
+                                         density, tracer_con )
 
     ! Initialise all transport-only control algorithm
     call name_transport_init( density, tracer_con )
@@ -375,7 +359,7 @@ contains
   !============================================================================
   !> @brief Performs a time step of the name_transport app.
   !>
-  subroutine step_name_transport( model_clock )
+  subroutine step_name_transport( modeldb )
 
     use base_mesh_config_mod,     only: prime_mesh_name
     use io_config_mod,            only: diagnostic_frequency, &
@@ -385,7 +369,7 @@ contains
 
     implicit none
 
-    class(model_clock_type), intent(in) :: model_clock
+    type(modeldb_type), intent(in) :: modeldb
 
     type(mesh_type), pointer :: mesh
     integer(tik)             :: id
@@ -402,13 +386,13 @@ contains
     write(log_scratch_space, '("/", A, "\ ")') repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     write( log_scratch_space, '(A,I0)' ) &
-      'Start of timestep ', model_clock%get_step()
+      'Start of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     if ( LPROF ) call start_timing( id, 'name_transport_step' )
 
     ! Transport field
-    call name_transport_step( model_clock, wind, tracer_con, &
+    call name_transport_step( modeldb, wind, tracer_con, &
                               density, transport_density )
 
     if ( LPROF ) call stop_timing( id, 'name_transport_step' )
@@ -420,20 +404,20 @@ contains
     call log_field_minmax( LOG_LEVEL_INFO, 'tracer_con', tracer_con )
 
     write( log_scratch_space, &
-           '(A,I0)' ) 'End of timestep ', model_clock%get_step()
+           '(A,I0)' ) 'End of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write(log_scratch_space, '("\", A, "/ ")') repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     ! Output wind, density and tracer values
-    if ( (mod( model_clock%get_step(), diagnostic_frequency ) == 0) &
+    if ( (mod( modeldb%clock%get_step(), diagnostic_frequency ) == 0) &
          .and. write_diag ) then
-      call write_vector_diagnostic( 'u', wind, model_clock, &
+      call write_vector_diagnostic( 'u', wind, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_con', tracer_con, model_clock, &
+      call write_scalar_diagnostic( 'tracer_con', tracer_con, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
       if (transport_density) then
-        call write_scalar_diagnostic( 'rho', density, model_clock, &
+        call write_scalar_diagnostic( 'rho', density, modeldb%clock, &
                                       mesh, nodal_output_on_w3 )
       end if
     end if
