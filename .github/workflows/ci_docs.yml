@@ -1,0 +1,31 @@
+# ------------------------------------------------------------------------------
+#  (c) Crown copyright Met Office. All rights reserved.
+#  The file LICENCE, distributed with this code, contains details of the terms
+#  under which the code may be used.
+# ------------------------------------------------------------------------------
+
+name: Documentation
+run-name: Docs Build and Deploy - ${{ github.ref_name }}
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'documentation/**'
+      - '.github/workflows/**'       
+
+concurrency:
+  group: ${{ github.workflow }}-${{github.ref}}
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+      name: Build Docs
+      uses: ./.github/workflows/ru_build-docs.yml
+
+  deploy-docs:
+      name: Deploy Docs
+      needs: [ build-docs ]
+      uses: ./.github/workflows/ru_deploy-docs.yml
+

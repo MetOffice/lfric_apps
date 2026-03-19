@@ -10,7 +10,6 @@ module gravity_wave_infrastructure_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
   use driver_modeldb_mod,         only : modeldb_type
-  use check_configuration_mod,    only : get_required_stencil_depth
   use constants_mod,              only : i_def,           &
                                          PRECISION_REAL,  &
                                          r_def, r_second, &
@@ -81,7 +80,8 @@ contains
     logical(l_def) :: prepartitioned
     logical        :: apply_partition_check
 
-    integer(i_def) :: stencil_depth
+    integer(i_def) :: stencil_depth(1)
+
     integer(i_def) :: geometry
     integer(i_def) :: method
     integer(i_def) :: number_of_layers
@@ -191,7 +191,7 @@ contains
     !=======================================================================
     ! 1.3 Initialise mesh objects and assign InterGrid maps
     !=======================================================================
-    stencil_depth = get_required_stencil_depth()
+    stencil_depth = 2
     apply_partition_check = .false.
     if ( .not. prepartitioned .and. l_multigrid ) then
       apply_partition_check = .true.
@@ -237,6 +237,9 @@ contains
 
     nullify(chi_inventory, panel_id_inventory)
     deallocate(base_mesh_names)
+    deallocate(twod_names)
+    deallocate(extrusion)
+    deallocate(extrusion_2d)
 
   end subroutine initialise_infrastructure
 

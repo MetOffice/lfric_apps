@@ -52,24 +52,29 @@ contains
 
   !=============================================================================
   !> @brief Reconstruct a W3 field at W2 points for adjoint app.
-  !> @param[in,out] field_new           ACTIVE  Reconstructed field at W2 points
-  !> @param[in,out] field_old           ACTIVE  Initial W3 field
-  !> @param[in]     ls_field_old        PASSIVE Initial W3 field
-  !> @param[in]     direction           Splitting direction (h, v, or 3d) to
-  !!                                    compute reconstruction
-  !> @param[in]     transport_metadata  Contains transport configuration options
-  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine atl_reconstruct_w3_field_alg( field_new, field_old, ls_field_old, &
-                                           direction, transport_metadata, final_rk_stage )
+  !> @param[in,out] field_new               ACTIVE  Reconstructed field at W2 points
+  !> @param[in,out] field_old               ACTIVE  Initial W3 field
+  !> @param[in]     ls_field_old            PASSIVE Initial W3 field
+  !> @param[in]     direction               Splitting direction (h, v, or 3d) to
+  !!                                        compute reconstruction
+  !> @param[in]     transport_metadata      Contains transport configuration options
+  !> @param[in]     final_rk_stage          Whether this is the last Runge-Kutta stage
+  !> @param[in]     adj_lookup_table_cache  Lookup table cache
+  subroutine atl_reconstruct_w3_field_alg( field_new, field_old, ls_field_old,            &
+                                           direction, transport_metadata, final_rk_stage, &
+                                           adj_lookup_table_cache )
+
+    use adj_trans_lookup_cache_mod,           only: adj_trans_lookup_cache_type
 
     implicit none
 
-    type(field_type),              intent(inout) :: field_old
-    type(field_type),              intent(in)    :: ls_field_old
-    type(field_type),              intent(inout) :: field_new
-    integer(kind=i_def),           intent(in)    :: direction
-    type(transport_metadata_type), intent(in)    :: transport_metadata
-    logical(kind=l_def),           intent(in)    :: final_rk_stage
+    type(field_type),                  intent(inout) :: field_old
+    type(field_type),                  intent(in)    :: ls_field_old
+    type(field_type),                  intent(inout) :: field_new
+    integer(kind=i_def),               intent(in)    :: direction
+    type(transport_metadata_type),     intent(in)    :: transport_metadata
+    logical(kind=l_def),               intent(in)    :: final_rk_stage
+    type(adj_trans_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     type(mesh_type),              pointer :: mesh
     type(field_type)                      :: field_new_h, field_new_v
@@ -119,11 +124,11 @@ contains
                                             ls_field_old, transport_metadata, &
                                             final_rk_stage )
           call adj_hori_w3_reconstruct_alg( field_new_h, field_old, &
-                                            transport_metadata )
+                                            transport_metadata, adj_lookup_table_cache )
 
         case ( direction_h )
           call adj_hori_w3_reconstruct_alg( field_new, field_old, &
-                                            transport_metadata )
+                                            transport_metadata, adj_lookup_table_cache )
         case ( direction_v )
           call atl_vert_w3_reconstruct_alg( field_new, field_old, &
                                             ls_field_old, transport_metadata, &

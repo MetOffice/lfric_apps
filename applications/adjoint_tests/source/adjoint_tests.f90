@@ -24,17 +24,23 @@ program adjoint_tests
   use log_mod,                 only : log_event,       &
                                       log_level_trace, &
                                       log_scratch_space
+  use timing_mod,               only: init_timing, final_timing
+  use io_config_mod,            only: timer_output_path
+  use namelist_mod,             only: namelist_type
 
   implicit none
 
   ! Model run working data set
   type (modeldb_type) :: modeldb
 
-  character(*), parameter   :: application_name = "adjoint_tests"
-  character(:), allocatable :: filename
+  character(*), parameter      :: application_name = "adjoint_tests"
+  character(:), allocatable    :: filename
+
+  type(namelist_type), pointer :: io_nml
+
+  logical :: lsubroutine_timers
 
   call parse_command_line( filename )
-
   modeldb%mpi => global_mpi
 
   call modeldb%configuration%initialise( application_name, table_len=10 )
@@ -61,6 +67,13 @@ program adjoint_tests
   call init_config( filename, gungho_required_namelists, &
                     modeldb%configuration )
   call init_logger( modeldb%mpi%get_comm(), application_name )
+
+  io_nml => modeldb%configuration%get_namelist('io')
+  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
+  call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers, &
+                    application_name, timer_output_path )
+  nullify( io_nml )
+
   call init_collections()
   call init_time( modeldb )
   deallocate( filename )
@@ -77,6 +90,7 @@ program adjoint_tests
 
   call final_time( modeldb )
   call final_collections()
+  call final_timing( application_name )
   call final_logger( application_name )
   call final_config()
   call final_comm( modeldb )
