@@ -197,11 +197,11 @@ contains
       apply_partition_check = .true.
     end if
 
-    call init_mesh( modeldb%configuration,        &
-                    modeldb%mpi%get_comm_rank(),  &
-                    modeldb%mpi%get_comm_size(),  &
-                    base_mesh_names,              &
-                    extrusion, stencil_depth,     &
+    call init_mesh( modeldb%config,              &
+                    modeldb%mpi%get_comm_rank(), &
+                    modeldb%mpi%get_comm_size(), &
+                    base_mesh_names,             &
+                    extrusion, stencil_depth,    &
                     apply_partition_check )
 
     allocate( twod_names, source=base_mesh_names )

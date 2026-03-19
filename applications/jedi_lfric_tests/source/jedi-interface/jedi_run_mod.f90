@@ -10,6 +10,7 @@
 !
 module jedi_run_mod
 
+  use config_mod,              only : config_type
   use constants_mod,           only : i_def, l_def, str_def
   use namelist_collection_mod, only : namelist_collection_type
 
@@ -21,6 +22,7 @@ type, public :: jedi_run_type
   private
   character(str_def)             :: jedi_run_name
   type(namelist_collection_type) :: configuration
+  type(config_type)              :: config
   logical(kind=l_def)            :: timers_finalised
 
 contains
@@ -33,6 +35,9 @@ contains
 
   !> Get a pointer to the stored configuration.
   procedure, public ::  get_configuration
+
+  !> Get a pointer to the stored config
+  procedure, public ::  get_config
 
   !> Just finalise subroutine timing; to get useful timing statistics from failed adjoint tests
   procedure, public ::  finalise_timers
@@ -109,13 +114,15 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
 
   ! Initialise the configuration
   call self%configuration%initialise( self%jedi_run_name, table_len=10 )
+  call self%config%initialise( self%jedi_run_name )
 
   ! Initialise the model communicator to setup global_mpi
   call init_internal_comm( model_communicator )
 
   ! Setup the config which is curently global
   call init_config( filename, jedi_lfric_tests_required_namelists, &
-                    self%configuration )
+                    configuration=self%configuration,              &
+                    config=self%config )
 
   ! Initialise the logger
   call lfric_comm%set_comm_mpi_val(model_communicator)
@@ -143,6 +150,19 @@ function get_configuration(self) result(configuration)
   configuration => self%configuration
 
 end function get_configuration
+
+!> @brief Get pointer to the stored configuration
+!>
+!> @return config  A pointer to the configuration
+function get_config(self) result(config)
+
+  class( jedi_run_type ), target, intent(inout) :: self
+
+  type( config_type ), pointer :: config
+
+  config => self%config
+
+end function get_config
 
 !> @brief    Just finalise subroutine timing; to get useful timing statistics from failed adjoint tests
 !>
