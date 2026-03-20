@@ -42,6 +42,6 @@ class vn31_t382(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-lfric_atm
         """Set segmentation size for the Boundary Layer"""
-        self.add_setting(config, ["namelist:physics", "bl_segment"], "16")
+        self.change_setting_value(config, ["namelist:physics", "bl_segment"], "16")
 
         return config, self.reports
