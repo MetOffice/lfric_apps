@@ -24,3 +24,5 @@ clean:
 	@echo "***** Removing, $(BUILDDIR) directory *****"
 	@rm -rf $(BUILDDIR)
 
+lint:
+	sphinx-lint --d "horizontal-tab" --max-line-length 80 "$(SOURCEDIR)"

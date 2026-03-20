@@ -2,31 +2,33 @@
 
 Welcome to LFRic Apps!
 
-This repository is home to the LFRic-based science applications and libraries such as
-the Momentum&reg; Atmosphere model application and the GungHo dynamical core.
+This repository is home to the LFRic-based science applications and libraries
+such as the Momentum&reg; Atmosphere model application and the GungHo dynamical
+core.
 
-LFRic applications are based on the infrastructure developed in the [LFRic
-Core](https://github.com/MetOffice/lfric_core) repository.
+LFRic applications are based on the infrastructure developed in the
+[LFRic Core](https://github.com/MetOffice/lfric_core) repository.
 
-|           |                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|:repeat: CI| [![Documentation](https://github.com/MetOffice/lfric_apps/actions/workflows/ci_docs.yml/badge.svg)](https://github.com/MetOffice/lfric_apps/actions/workflows/ci_docs.yml)                                                                                                                                                                                                                                                                |
-|:speech_balloon: Community| [![Static Badge](https://img.shields.io/badge/GitHub-discussions-gold)](https://github.com/MetOffice/simulation-systems/discussions/categories/lfric)                                                                                                                                                                                                                                                                                     |
-|:package: Repo | [![GitHub License](https://img.shields.io/github/license/metoffice/lfric_apps)](https://github.com/MetOffice/lfric_apps?tab=BSD-3-Clause-1-ov-file#readme) [![GitHub Release](https://img.shields.io/github/v/release/metoffice/lfric_apps?color=purple)](https://github.com/MetOffice/lfric_apps/releases) ![GitHub commits since latest release (branch)](https://img.shields.io/github/commits-since/metoffice/lfric_apps/latest/main) |
-|           |                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+|                            |                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :repeat: CI                | [![Documentation](https://github.com/MetOffice/lfric_apps/actions/workflows/ci_docs.yml/badge.svg)](https://github.com/MetOffice/lfric_apps/actions/workflows/ci_docs.yml)                                                                                                                                                                                                                                                                |
+| :speech_balloon: Community | [![Static Badge](https://img.shields.io/badge/GitHub-discussions-gold)](https://github.com/MetOffice/simulation-systems/discussions/categories/lfric)                                                                                                                                                                                                                                                                                     |
+| :package: Repo             | [![GitHub License](https://img.shields.io/github/license/metoffice/lfric_apps)](https://github.com/MetOffice/lfric_apps?tab=BSD-3-Clause-1-ov-file#readme) [![GitHub Release](https://img.shields.io/github/v/release/metoffice/lfric_apps?color=purple)](https://github.com/MetOffice/lfric_apps/releases) ![GitHub commits since latest release (branch)](https://img.shields.io/github/commits-since/metoffice/lfric_apps/latest/main) |
+|                            |                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## Getting Started
 
 In development documentation for LFRic Apps is available at:
 [https://metoffice.github.io/lfric_apps](https://metoffice.github.io/lfric_apps)
 
-The LFRic Apps release schedule and deadlines can be viewed in the [milestones](https://github.com/metoffice/lfric_apps/milestones).
+The LFRic Apps release schedule and deadlines can be viewed in the
+[milestones](https://github.com/metoffice/lfric_apps/milestones).
 
 Example standalone scientific suites for use with Met Office systems are
 available at:
 
-* [u-dn674 - MetOffice Azure SPICE](https://code.metoffice.gov.uk/trac/roses-u/browser/d/n/6/7/4/trunk)
-* [u-dn704 - MetOffice EX HPC](https://code.metoffice.gov.uk/trac/roses-u/browser/d/n/7/0/4/trunk)
+- [u-dn674 - MetOffice Azure SPICE](https://code.metoffice.gov.uk/trac/roses-u/browser/d/n/6/7/4/trunk)
+- [u-dn704 - MetOffice EX HPC](https://code.metoffice.gov.uk/trac/roses-u/browser/d/n/7/0/4/trunk)
 
 These both run a low resolution LFRic Atm NWP GAL9 job and are setup to run
 using git sources. Advice on switching a suite from using fcm to git sources is
@@ -64,3 +66,49 @@ Questions are encouraged in the Simulation Systems
 
 Please be aware of and follow the Simulation Systems
 [AI Policy.](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html)
+
+## Virtual Environment for Sanity Checks
+
+Dependencies for documentation builds and Fortran/Python linting are defined in
+`pyproject.toml`. You can use either `uv` or `venv` + `pip`; on Met Office
+systems, `venv` + `pip` is recommended to ensure packages come from the Met
+Office Artifactory.
+
+### Option 1: `venv` + `pip`
+
+```bash
+# Create virtual environment
+python3.12 -m venv .venv
+# Install dependencies
+.venv/bin/pip install ".[dev,docs]"
+# Activate virtual environment
+source .venv/bin/activate
+```
+
+### Option 2: `uv`
+
+```bash
+uv sync --all-extras
+source .venv/bin/activate
+```
+
+### Check and Build Documentation
+
+```bash
+cd documentation
+make lint           # Lint Restructured text
+make clean html     # build Sphinx documentation
+```
+
+### Lint Fortran
+
+```bash
+fortitude check [DIR]
+```
+
+### Check/Format Python
+
+```bash
+ruff check --preview [DIR]
+ruff format --check --preview [DIR]
+```
