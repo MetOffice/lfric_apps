@@ -42,7 +42,7 @@ contains
 
     use feign_config_mod,          only : feign_finite_element_config
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
 
     implicit none
 
@@ -51,6 +51,8 @@ contains
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
              coord_order=0_i_def,               &
+             coord_order_multigrid=1_i_def,     &
+             coord_space=coord_space_wchi,      &
              coord_system=coord_system_xyz,     &
              element_order_h=1_i_def,           &
              element_order_v=1_i_def,           &

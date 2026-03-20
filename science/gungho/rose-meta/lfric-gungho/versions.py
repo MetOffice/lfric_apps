@@ -31,3 +31,66 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
+class vn31_t238(MacroUpgrade):
+    """Upgrade macro for ticket #238 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t238"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-driver
+        self.add_setting(
+            config, ["namelist:finite_element", "coord_space"], "'Wchi'"
+        )
+        coord_order = self.get_setting_value(
+            config, ["namelist:finite_element", "coord_order"]
+        )
+        self.add_setting(
+            config,
+            ["namelist:finite_element", "coord_order_multigrid"],
+            coord_order,
+        )
+
+        return config, self.reports
+
+
+class vn31_t180(MacroUpgrade):
+    """Upgrade macro for ticket #180 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t238"
+    AFTER_TAG = "vn3.1_t180"
+
+    def upgrade(self, config, meta_config=None):
+        # Get values
+        n_orog_smooth = self.get_setting_value(
+            config, ["namelist:initialization", "n_orog_smooth"]
+        )
+        w0_mapping = self.get_setting_value(
+            config, ["namelist:initialization", "w0_orography_mapping"]
+        )
+        coord_order = self.get_setting_value(
+            config, ["namelist:finite_element", "coord_order"]
+        )
+
+        # Add new settings
+        self.add_setting(
+            config, ["namelist:orography", "n_orog_smooth"], n_orog_smooth
+        )
+        self.add_setting(
+            config, ["namelist:orography", "w0_multigrid_mapping"], w0_mapping
+        )
+        self.add_setting(
+            config, ["namelist:orography", "orography_order"], coord_order
+        )
+
+        # Remove old settings
+        self.remove_setting(
+            config, ["namelist:initialization", "n_orog_smooth"]
+        )
+        self.remove_setting(
+            config, ["namelist:initialization", "w0_orography_mapping"]
+        )
+
+        return config, self.reports

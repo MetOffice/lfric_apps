@@ -46,7 +46,7 @@ contains
                                            feign_idealised_config,      &
                                            feign_initial_tracer_field_config
     use finite_element_config_mod,  only : cellshape_quadrilateral, &
-                                           coord_system_xyz
+                                           coord_system_xyz, coord_space_wchi
     use idealised_config_mod,       only : test_slotted_cylinder
 
     implicit none
@@ -65,6 +65,8 @@ contains
     call feign_finite_element_config(               &
                  cellshape=cellshape_quadrilateral, &
                  coord_order=0_i_def,               &
+                 coord_order_multigrid=1_i_def,     &
+                 coord_space=coord_space_wchi,      &
                  coord_system=coord_system_xyz,     &
                  element_order_h=0_i_def,           &
                  element_order_v=0_i_def,           &

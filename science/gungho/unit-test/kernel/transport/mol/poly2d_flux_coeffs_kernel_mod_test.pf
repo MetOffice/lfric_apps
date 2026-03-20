@@ -31,7 +31,8 @@ contains
     use base_mesh_config_mod,      only: geometry_planar,    &
                                          topology_fully_periodic
     use finite_element_config_mod, only: coord_system_xyz, &
-                                         cellshape_quadrilateral
+                                         cellshape_quadrilateral, &
+                                         coord_space_wchi
     use sci_chi_transform_mod,     only: init_chi_transforms
 
     implicit none
@@ -45,6 +46,8 @@ contains
                                  fplane=.false., f_lat_deg=0.0_r_def )
     call  feign_finite_element_config( cellshape = cellshape_quadrilateral, &
                                        coord_order = 1, &
+                                       coord_order_multigrid = 1, &
+                                       coord_space = coord_space_wchi, &
                                        coord_system = coord_system_xyz, &
                                        element_order_h = 0, &
                                        element_order_v = 0, &

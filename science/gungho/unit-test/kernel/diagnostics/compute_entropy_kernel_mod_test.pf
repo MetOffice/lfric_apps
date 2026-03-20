@@ -46,7 +46,7 @@ contains
   subroutine setUp( this )
 
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_finite_element_config
     use sci_chi_transform_mod,     only : init_chi_transforms
 
@@ -57,6 +57,8 @@ contains
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
              coord_order=0_i_def,               &
+             coord_order_multigrid=1_i_def,     &
+             coord_space=coord_space_wchi,      &
              coord_system=coord_system_xyz,     &
              element_order_h=0_i_def,           &
              element_order_v=0_i_def,           &

@@ -77,6 +77,8 @@ start_dump_filename='final_pert',
 &finite_element
 cellshape='quadrilateral',
 coord_order=1,
+coord_order_multigrid=1,
+coord_space='Wtheta',
 coord_system='native',
 element_order_h=0,
 element_order_v=0,
@@ -155,11 +157,9 @@ init_option='fd_start_dump',
 lbc_option='none',
 ls_option='file',
 model_eos_height=100,
-n_orog_smooth=0,
 read_w2h_wind=.true.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
-w0_orography_mapping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_density
@@ -266,6 +266,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='ancil',
+orography_order=1,
+n_orog_smooth=0,
+w0_multigrid_mapping=.false.
 /
 &partitioning
 generate_inner_halos=.false.,
