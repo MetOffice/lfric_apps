@@ -118,6 +118,7 @@ class vn30_t205(MacroUpgrade):
     AFTER_TAG = "vn3.0_t205"
 
     def upgrade(self, config, meta_config=None):
+        RMDI = str(-(2 ** 30))
         npft = int(
             self.get_setting_value(
                 config, ["namelist:jules_surface_types", "npft"]
@@ -197,17 +198,105 @@ class vn30_t205(MacroUpgrade):
         jules_pftparm["mef_io"] = "0.9,1.8,0.6,0.9,0.57"
         jules_pftparm["aef_io"] = "0.43,0.87,0.29,0.43,0.20"
         jules_pftparm["ci_st_io"] = "33.46,33.46,34.26,29.98,34.26"
-        jules_pftparm["gpp_st_io"] = "1.29E-07,2.58E-08,2.07E-07,3.42E-07,1.68E-007"
+        jules_pftparm["gpp_st_io"] = (
+            "1.29E-07,2.58E-08,2.07E-07,3.42E-07,1.68E-007"
+        )
+        # Parameters related to l_inferno (from JULES vn4.4_t136)
+        jules_pftparm["fef_co2"] = "1631,1576,1576,1654,1576"
+        jules_pftparm["fef_co"] = "100,106,106,64,106"
+        jules_pftparm["fef_ch4"] = "6.8,4.8,4.8,2.4,4.8"
+        jules_pftparm["fef_nox"] = "2.55,3.24,3.24,2.49,3.24"
+        jules_pftparm["fef_so2"] = "0.40,0.40,0.40,0.48,0.40"
+        jules_pftparm["fef_oc"] = "4.3,9.1,9.1,3.2,9.1"
+        jules_pftparm["fef_bc"] = "0.56,0.56,0.56,0.47,0.56"
+        jules_pftparm["ccleaf_min"] = "0.8,0.8,0.8,0.8,0.8"
+        jules_pftparm["ccleaf_max"] = "1.0,1.0,1.0,1.0,1.0"
+        jules_pftparm["ccwood_min"] = "0.0,0.0,0.0,0.0,0.0"
+        jules_pftparm["ccwood_max"] = "0.4,0.4,0.4,0.4,0.4"
+        jules_pftparm["avg_ba"] = "0.6E6,0.6E6,1.4E6,1.4E6,1.2E6"
+        # Parameters related to l_inferno (from JULES vn7.8_t1579)
+        jules_pftparm["fef_c2h4_io"] = (
+            "1.11E+00,1.54E+00,8.30E-01,1.99E+00,8.30E-01"
+        )
+        jules_pftparm["fef_c2h6_io"] = (
+            "8.80E-01,9.70E-01,4.20E-01,1.01E+00,4.20E-01"
+        )
+        jules_pftparm["fef_c3h8_io"] = (
+            "5.30E-01,2.90E-01,1.30E-01,3.12E-01,1.30E-01"
+        )
+        jules_pftparm["fef_hcho_io"] = (
+            "2.40E+00,1.75E+00,1.23E+00,2.95E+00,1.23E+00"
+        )
+        jules_pftparm["fef_mecho_io"] = (
+            "2.26E+00,8.10E-01,8.40E-01,2.02E+00,8.40E-01"
+        )
+        jules_pftparm["fef_nh3_io"] = (
+            "1.33E+00,2.50E+00,8.90E-01,2.14E+00,8.90E-01"
+        )
+        jules_pftparm["fef_dms_io"] = (
+            "2.00E-03,2.00E-03,8.00E-03,1.92E-02,8.00E-03"
+        )
+
+        # Parameters related to l_o3_damage (value from JULES configurations)
+        jules_pftparm["dfp_dcuo_io"] = "0.04,0.02,0.25,0.13,0.03"
+        jules_pftparm["fl_o3_ct_io"] = "1.6,1.6,5.0,5.0,1.6"
+
+        # Parameters related to l_trif_fire (from JULES vn5.3_t872)
+        jules_pftparm["fire_mort_io"] = ",".join(["1.0"] * npft)
+
+        # Parameters related to Medlyn stomata model (from JULES vn5.3_t766)
+        jules_pftparm["g1_stomata_io"] = ",".join(["2.0"] * npft)
+
+        # Parameters related to SOX stomata model (from JULES vn7.4_t1491)
+        jules_pftparm["sox_a_io"] = ",".join(["0.0"] * npft)
+        jules_pftparm["sox_p50_io"] = ",".join(["0.0"] * npft)
+        jules_pftparm["sox_rp_min_io"] = ",".join(["0.0"] * npft)
+
+        # Parameters related to l_use_pft_psi (from JULES vn4.8_t541)
+        jules_pftparm["psi_close_io"] = ",".join(["-1.5E6"]*npft)
+        jules_pftparm["psi_open_io"] = ",".join(["-0.033E6"]*npft)
+
+        # Parameters related to l_sugar (from JULES vn7.3_t1344)
+        jules_pftparm["sug_grec_io"] = ",".join(["1.0"]*npft)
+        jules_pftparm["sug_g0_io"] = ",".join(["1.0"]*npft)
+        jules_pftparm["sug_yg_io"] = ",".join(["1.0"]*npft)
+
+        # Remaining parameters added with missing data as no other information
+        jules_pftparm["albsnf_max_io"] = ",".join([RMDI]*npft)
+        jules_pftparm["fsmc_mod_io"]   = ",".join([RMDI]*npft)
+
         for item, values in jules_pftparm.items():
             self.add_setting(config, ["namelist:jules_pftparm", item], values)
 
-        # Add photosynthesis model switch (vn5.5_t864)
+        # Add jules_radiation switches related to added pftparms
+        self.add_setting(
+            config, ["namelist:jules_radiation", "l_spec_albedo"], ".true."
+        )
+
+        # Add jules_vegetation switches related to added pftparms
         self.add_setting(
             config, ["namelist:jules_vegetation", "photo_model"], "'collatz'"
         )
-        # Add switch to calculate BVOC emissions
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "stomata_model"], "'jacobs'"
+        )
         self.add_setting(
             config, ["namelist:jules_vegetation", "l_bvoc_emis"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_inferno"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_o3_damage"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_sugar"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_trif_fire"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_use_pft_psi"], ".false."
         )
 
 

@@ -317,6 +317,7 @@ l_niso_direct=.true.,
 l_partition_albsoil=.true.,
 l_sea_alb_var_chl=.true.,
 l_spec_alb_bs=.false.,
+l_spec_albedo=.true.,
 ratio_albsoil=2.0,
 swdn_frac_albsoil=0.5,
 /
@@ -406,6 +407,7 @@ l_bvoc_emis=.false.,
 l_limit_canhc=.true.,
 l_spec_veg_z0=.true.,
 photo_model='collatz',
+stomata_model='jacobs',
 /
 &logging
 log_to_rank_zero_only=.false.,

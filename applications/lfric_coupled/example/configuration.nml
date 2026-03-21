@@ -264,6 +264,7 @@ l_hapke_soil=.false.
 l_partition_albsoil=.false.
 l_sea_alb_var_chl=.true.,
 l_spec_alb_bs=.true.,
+l_spec_albedo=.true.,
 !!ratio_albsoil=2.0
 !!swdn_frac_albsoil=0.5
 /
@@ -354,6 +355,7 @@ l_bvoc_emis=.false.,
 l_limit_canhc=.false.,
 l_spec_veg_z0=.false.,
 photo_model='collatz',
+stomata_model='jacobs',
 /
 &logging
 run_log_level='info',

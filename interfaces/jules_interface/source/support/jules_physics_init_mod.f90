@@ -45,7 +45,7 @@ module jules_physics_init_mod
   use jules_vegetation_config_mod, only :                                      &
                               can_rad_mod_one, can_rad_mod_four,               &
                               can_rad_mod_five, can_rad_mod_six,               &
-                              photo_model_collatz
+                              photo_model_collatz, stomata_model_jacobs
 
   ! UM modules used
   use jules_surface_types_mod, only : npft, nnvg, ntype, ncpft, nnpft
@@ -170,8 +170,9 @@ contains
     use jules_vegetation_mod, only:                                         &
          check_jules_vegetation, print_nlist_jules_vegetation,              &
          can_rad_mod, ilayers, photo_model, photo_collatz, stomata_model,   &
-         stomata_jacobs, l_bvoc_emis, l_crop, l_limit_canhc, l_phenol,      &
-         l_spec_veg_z0, l_triffid, l_vegcan_soilfx
+         stomata_jacobs, l_bvoc_emis, l_crop, l_inferno, l_limit_canhc,     &
+         l_o3_damage, l_phenol, l_spec_veg_z0, l_sugar, l_trif_fire,        &
+         l_triffid, l_use_pft_psi, l_vegcan_soilfx
     use nvegparm, only:                                                     &
          albsnc_nvg, albsnf_nvgu, albsnf_nvg, albsnf_nvgl, catch_nvg,       &
          ch_nvg, emis_nvg, gs_nvg, infil_nvg, vf_nvg, z0_nvg,               &
@@ -179,15 +180,20 @@ contains
     use pftparm, only:                                                      &
          print_nlist_jules_pftparm, check_jules_pftparm,                    &
          a_wl, a_ws, act_jmax, act_vcmax, aef, albsnc_max, albsnc_min,      &
-         albsnf_maxl, albsnf_maxu, alnir, alnirl, alniru, alpar, alparl,    &
-         alparu, alpha, alpha_elec, b_wl, c3, can_struct_a, catch0, ci_st,  &
-         dcatch_dlai, deact_jmax, deact_vcmax, dgl_dm, dgl_dt, dqcrit,      &
-         ds_jmax, ds_vcmax, dust_veg_scj, dz0v_dh, emis_pft, eta_sl, f0,    &
-         fd, fsmc_of, fsmc_p0, g_leaf_0, glmin, gpp_st, gsoil_f, hw_sw,     &
-         ief, infil_f, jv25_ratio, kext, kn, knl, kpar, lai_alb_lim, lma,   &
-         mef, neff, nl0, nmass, nr, nr_nl, ns_nl, nsw, omega, omegal,       &
-         omegau, omnir, omnirl, omniru, orient, q10_leaf, r_grow, rootd_ft, &
-         sigl, tef, tleaf_of, tlow, tupp, vint, vsl, z0v
+         albsnf_max, albsnf_maxl, albsnf_maxu, alnir, alnirl, alniru,       &
+         alpar, alparl, alparu, alpha, alpha_elec, avg_ba, b_wl, c3,        &
+         can_struct_a, catch0, ccleaf_max, ccleaf_min, ccwood_max,          &
+         ccwood_min, ci_st, dcatch_dlai, deact_jmax, deact_vcmax, dfp_dcuo, &
+         dgl_dm, dgl_dt, dqcrit, ds_jmax, ds_vcmax, dust_veg_scj, dz0v_dh,  &
+         emis_pft, eta_sl, f0, fd, fef_bc, fef_c2h4, fef_c2h6, fef_c3h8,    &
+         fef_ch4, fef_co, fef_co2, fef_dms, fef_hcho, fef_mecho, fef_nh3,   &
+         fef_nox, fef_oc, fef_so2, fire_mort, fl_o3_ct, fsmc_mod, fsmc_of,  &
+         fsmc_p0, g1_stomata, g_leaf_0, glmin, gpp_st, gsoil_f, hw_sw, ief, &
+         infil_f, jv25_ratio, kext, kn, knl, kpar, lai_alb_lim, lma, mef,   &
+         neff, nl0, nmass, nr, nr_nl, ns_nl, nsw, omega, omegal, omegau,    &
+         omnir, omnirl, omniru, orient, psi_close, psi_open, q10_leaf,      &
+         r_grow, rootd_ft, sigl, sox_a, sox_p50, sox_rp_min, sug_g0,        &
+         sug_grec, sug_yg, tef, tleaf_of, tlow, tupp, vint, vsl, z0v
 
     use check_compatible_options_mod, only: check_compatible_options
 
@@ -234,7 +240,7 @@ contains
     l_partition_albsoil = config%jules_radiation%l_partition_albsoil()
     l_sea_alb_var_chl   = config%jules_radiation%l_sea_alb_var_chl()
     l_spec_alb_bs       = config%jules_radiation%l_spec_alb_bs()
-    l_spec_albedo       = .true.
+    l_spec_albedo       = config%jules_radiation%l_spec_albedo()
     l_spec_sea_alb      = .true.
     ratio_albsoil       = real(config%jules_radiation%ratio_albsoil(), r_um)
     swdn_frac_albsoil   = real(config%jules_radiation%swdn_frac_albsoil(), r_um)
@@ -522,14 +528,22 @@ contains
     end select
     ilayers         = 10
     l_bvoc_emis     = config%jules_vegetation%l_bvoc_emis()
+    l_inferno       = config%jules_vegetation%l_inferno()
     l_limit_canhc   = config%jules_vegetation%l_limit_canhc()
+    l_o3_damage     = config%jules_vegetation%l_o3_damage()
     l_spec_veg_z0   = config%jules_vegetation%l_spec_veg_z0()
+    l_sugar         = config%jules_vegetation%l_sugar()
+    l_trif_fire     = config%jules_vegetation%l_trif_fire()
+    l_use_pft_psi   = config%jules_vegetation%l_use_pft_psi()
     l_vegcan_soilfx = .true.
     select case (config%jules_vegetation%photo_model())
       case(photo_model_collatz)
         photo_model = photo_collatz
     end select
-    stomata_model   = stomata_jacobs
+    select case (config%jules_vegetation%stomata_model())
+      case(stomata_model_jacobs)
+        stomata_model = stomata_jacobs
+    end select
 
     ! Check the contents of the vegetation parameters module
     call print_nlist_jules_vegetation()
@@ -656,6 +670,7 @@ contains
     aef = real(config%jules_pftparm%aef_io(), r_um)
     albsnc_max = real(config%jules_pftparm%albsnc_max_io(), r_um)
     albsnc_min = real(config%jules_pftparm%albsnc_min_io(), r_um)
+    albsnf_max = real(config%jules_pftparm%albsnf_max_io(), r_um)
     albsnf_maxl = real(config%jules_pftparm%albsnf_maxl_io(), r_um)
     albsnf_maxu = real(config%jules_pftparm%albsnf_maxu_io(), r_um)
     alnir = real(config%jules_pftparm%alnir_io(), r_um)
@@ -666,13 +681,20 @@ contains
     alparu = real(config%jules_pftparm%alparu_io(), r_um)
     alpha = real(config%jules_pftparm%alpha_io(), r_um)
     alpha_elec = real(config%jules_pftparm%alpha_elec_io(), r_um)
+    avg_ba = real(config%jules_pftparm%avg_ba_io(), r_um)
     b_wl = real(config%jules_pftparm%b_wl_io(), r_um)
+    c3 = real(config%jules_pftparm%c3_io(), r_um)
     can_struct_a = real(config%jules_pftparm%can_struct_a_io(), r_um)
     catch0 = real(config%jules_pftparm%catch0_io(), r_um)
+    ccleaf_max = real(config%jules_pftparm%ccleaf_max_io(), r_um)
+    ccleaf_min = real(config%jules_pftparm%ccleaf_min_io(), r_um)
+    ccwood_max = real(config%jules_pftparm%ccwood_max_io(), r_um)
+    ccwood_min = real(config%jules_pftparm%ccwood_min_io(), r_um)
     ci_st = real(config%jules_pftparm%ci_st_io(), r_um)
     dcatch_dlai = real(config%jules_pftparm%dcatch_dlai_io(), r_um)
     deact_jmax = real(config%jules_pftparm%deact_jmax_io(), r_um)
     deact_vcmax = real(config%jules_pftparm%deact_vcmax_io(), r_um)
+    dfp_dcuo = real(config%jules_pftparm%dfp_dcuo_io(), r_um)
     dgl_dm = real(config%jules_pftparm%dgl_dm_io(), r_um)
     dgl_dt = real(config%jules_pftparm%dgl_dt_io(), r_um)
     dqcrit = real(config%jules_pftparm%dqcrit_io(), r_um)
@@ -684,8 +706,26 @@ contains
     eta_sl = real(config%jules_pftparm%eta_sl_io(), r_um)
     f0 = real(config%jules_pftparm%f0_io(), r_um)
     fd = real(config%jules_pftparm%fd_io(), r_um)
+    fef_bc = real(config%jules_pftparm%fef_bc_io(), r_um)
+    fef_c2h4 = real(config%jules_pftparm%fef_c2h4_io(), r_um)
+    fef_c2h6 = real(config%jules_pftparm%fef_c2h6_io(), r_um)
+    fef_c3h8 = real(config%jules_pftparm%fef_c3h8_io(), r_um)
+    fef_ch4 = real(config%jules_pftparm%fef_ch4_io(), r_um)
+    fef_co = real(config%jules_pftparm%fef_co_io(), r_um)
+    fef_co2 = real(config%jules_pftparm%fef_co2_io(), r_um)
+    fef_dms = real(config%jules_pftparm%fef_dms_io(), r_um)
+    fef_hcho = real(config%jules_pftparm%fef_hcho_io(), r_um)
+    fef_mecho = real(config%jules_pftparm%fef_mecho_io(), r_um)
+    fef_nh3 = real(config%jules_pftparm%fef_nh3_io(), r_um)
+    fef_nox = real(config%jules_pftparm%fef_nox_io(), r_um)
+    fef_oc = real(config%jules_pftparm%fef_oc_io(), r_um)
+    fef_so2 = real(config%jules_pftparm%fef_so2_io(), r_um)
+    fire_mort = real(config%jules_pftparm%fire_mort_io(), r_um)
+    fl_o3_ct = real(config%jules_pftparm%fl_o3_ct_io(), r_um)
+    fsmc_mod = real(config%jules_pftparm%fsmc_mod_io(), r_um)
     fsmc_of = real(config%jules_pftparm%fsmc_of_io(), r_um)
     fsmc_p0 = real(config%jules_pftparm%fsmc_p0_io(), r_um)
+    g1_stomata = real(config%jules_pftparm%g1_stomata_io(), r_um)
     g_leaf_0 = real(config%jules_pftparm%g_leaf_0_io(), r_um)
     glmin = real(config%jules_pftparm%glmin_io(), r_um)
     gpp_st = real(config%jules_pftparm%gpp_st_io(), r_um)
@@ -714,10 +754,19 @@ contains
     omnir = real(config%jules_pftparm%omnir_io(), r_um)
     omnirl = real(config%jules_pftparm%omnirl_io(), r_um)
     omniru = real(config%jules_pftparm%omniru_io(), r_um)
+    orient = real(config%jules_pftparm%orient_io(), r_um)
+    psi_close = real(config%jules_pftparm%psi_close_io(), r_um)
+    psi_open = real(config%jules_pftparm%psi_open_io(), r_um)
     q10_leaf = real(config%jules_pftparm%q10_leaf_io(), r_um)
     r_grow = real(config%jules_pftparm%r_grow_io(), r_um)
     rootd_ft = real(config%jules_pftparm%rootd_ft_io(), r_um)
     sigl = real(config%jules_pftparm%sigl_io(), r_um)
+    sox_a = real(config%jules_pftparm%sox_a_io(), r_um)
+    sox_p50 = real(config%jules_pftparm%sox_p50_io(), r_um)
+    sox_rp_min = real(config%jules_pftparm%sox_rp_min_io(), r_um)
+    sug_g0 = real(config%jules_pftparm%sug_g0_io(), r_um)
+    sug_grec = real(config%jules_pftparm%sug_grec_io(), r_um)
+    sug_yg = real(config%jules_pftparm%sug_yg_io(), r_um)
     tef = real(config%jules_pftparm%tef_io(), r_um)
     tleaf_of = real(config%jules_pftparm%tleaf_of_io(), r_um)
     tlow = real(config%jules_pftparm%tlow_io(), r_um)
