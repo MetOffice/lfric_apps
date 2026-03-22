@@ -6,7 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this bug report!
+        Thanks for taking the time to fill out this bug report! _If you are planning 
+        to work on this issue, then please assign yourself to it._
   - type: dropdown
     id: version
     attributes:
