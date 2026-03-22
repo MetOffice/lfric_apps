@@ -40,10 +40,21 @@ program adjoint_tests
 
   logical :: lsubroutine_timers
 
+  integer, allocatable :: seed(:)
+  integer :: seed_size
+
+  call random_seed(size = seed_size)
+  allocate(seed(seed_size))
+
+  seed = 0
+
+  call random_seed(put = seed)
+
   call parse_command_line( filename )
   modeldb%mpi => global_mpi
 
   call modeldb%configuration%initialise( application_name, table_len=10 )
+  call modeldb%config%initialise( application_name )
 
   call modeldb%values%initialise('values', 5)
 
@@ -65,7 +76,8 @@ program adjoint_tests
   call init_comm( application_name, modeldb )
 
   call init_config( filename, gungho_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration, &
+                    config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), application_name )
 
   io_nml => modeldb%configuration%get_namelist('io')

@@ -1,9 +1,8 @@
-import re
 import sys
 
-from metomi.rose.upgrade import MacroUpgrade
+from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version22_30 import *
+from .version30_31 import *
 
 
 class UpgradeError(Exception):
@@ -21,101 +20,24 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
+
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
+
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
+
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
 
 
-class vn30_t146(MacroUpgrade):
-    """Upgrade macro for ticket #146 by Maggie Hendry."""
-
-    BEFORE_TAG = "vn3.0"
-    AFTER_TAG = "vn3.0_t146"
-
-    def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/jules-lfric
-        # Add jules_model_environment_lfric namelist
-        source = self.get_setting_value(
-            config, ["file:configuration.nml", "source"]
-        )
-        source = re.sub(
-            r"namelist:jules_hydrology",
-            r"namelist:jules_hydrology)"
-            + "\n"
-            + " (namelist:jules_model_environment_lfric",
-            source,
-        )
-        self.change_setting_value(
-            config, ["file:configuration.nml", "source"], source
-        )
-        self.add_setting(
-            config,
-            ["namelist:jules_model_environment_lfric", "l_jules_parent"],
-            "'lfric'",
-        )
-        # Add jules_surface namelist items
-        self.add_setting(
-            config,
-            ["namelist:jules_surface", "all_tiles"],
-            "'off'",
-        )
-        self.add_setting(config, ["namelist:jules_surface", "beta1"], "0.83")
-        self.add_setting(config, ["namelist:jules_surface", "beta2"], "0.93")
-        self.add_setting(
-            config, ["namelist:jules_surface", "beta_cnv_bl"], "0.04"
-        )
-        self.add_setting(
-            config,
-            ["namelist:jules_surface", "fd_hill_option"],
-            "'capped_lowhill'",
-        )
-        self.add_setting(config, ["namelist:jules_surface", "fwe_c3"], "0.5")
-        self.add_setting(
-            config, ["namelist:jules_surface", "fwe_c4"], "20000.0"
-        )
-        self.add_setting(config, ["namelist:jules_surface", "hleaf"], "5.7e4")
-        self.add_setting(config, ["namelist:jules_surface", "hwood"], "1.1e4")
-        self.add_setting(
-            config, ["namelist:jules_surface", "i_modiscopt"], "'on'"
-        )
-        self.add_setting(
-            config, ["namelist:jules_surface", "l_epot_corr"], ".true."
-        )
-        self.add_setting(
-            config, ["namelist:jules_surface", "l_land_ice_imp"], ".true."
-        )
-        self.add_setting(
-            config, ["namelist:jules_surface", "l_mo_buoyancy_calc"], ".true."
-        )
-        self.add_setting(
-            config, ["namelist:jules_surface", "orog_drag_param"], "0.15"
-        )
-        self.add_setting(
-            config, ["namelist:jules_surface", "l_flake_model"], ".false."
-        )
-        self.add_setting(
-            config, ["namelist:jules_surface", "l_elev_land_ice"], ".false."
-        )
-        self.add_setting(
-            config, ["namelist:jules_surface", "l_elev_lw_down"], ".false."
-        )
-        self.add_setting(
-            config, ["namelist:jules_surface", "l_point_data"], ".false."
-        )
-
-        return config, self.reports
-
-
-class vn30_t205(MacroUpgrade):
+class vn31_t205(MacroUpgrade):
     # Upgrade macro for #205 by Maggie Hendry
 
-    BEFORE_TAG = "vn3.0_t146"
-    AFTER_TAG = "vn3.0_t205"
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t205"
 
     def upgrade(self, config, meta_config=None):
         RMDI = str(-(2 ** 30))
@@ -202,18 +124,18 @@ class vn30_t205(MacroUpgrade):
             "1.29E-07,2.58E-08,2.07E-07,3.42E-07,1.68E-007"
         )
         # Parameters related to l_inferno (from JULES vn4.4_t136)
-        jules_pftparm["fef_co2"] = "1631,1576,1576,1654,1576"
-        jules_pftparm["fef_co"] = "100,106,106,64,106"
-        jules_pftparm["fef_ch4"] = "6.8,4.8,4.8,2.4,4.8"
-        jules_pftparm["fef_nox"] = "2.55,3.24,3.24,2.49,3.24"
-        jules_pftparm["fef_so2"] = "0.40,0.40,0.40,0.48,0.40"
-        jules_pftparm["fef_oc"] = "4.3,9.1,9.1,3.2,9.1"
-        jules_pftparm["fef_bc"] = "0.56,0.56,0.56,0.47,0.56"
-        jules_pftparm["ccleaf_min"] = "0.8,0.8,0.8,0.8,0.8"
-        jules_pftparm["ccleaf_max"] = "1.0,1.0,1.0,1.0,1.0"
-        jules_pftparm["ccwood_min"] = "0.0,0.0,0.0,0.0,0.0"
-        jules_pftparm["ccwood_max"] = "0.4,0.4,0.4,0.4,0.4"
-        jules_pftparm["avg_ba"] = "0.6E6,0.6E6,1.4E6,1.4E6,1.2E6"
+        jules_pftparm["fef_co2_io"] = "1631,1576,1576,1654,1576"
+        jules_pftparm["fef_co_io"] = "100,106,106,64,106"
+        jules_pftparm["fef_ch4_io"] = "6.8,4.8,4.8,2.4,4.8"
+        jules_pftparm["fef_nox_io"] = "2.55,3.24,3.24,2.49,3.24"
+        jules_pftparm["fef_so2_io"] = "0.40,0.40,0.40,0.48,0.40"
+        jules_pftparm["fef_oc_io"] = "4.3,9.1,9.1,3.2,9.1"
+        jules_pftparm["fef_bc_io"] = "0.56,0.56,0.56,0.47,0.56"
+        jules_pftparm["ccleaf_min_io"] = "0.8,0.8,0.8,0.8,0.8"
+        jules_pftparm["ccleaf_max_io"] = "1.0,1.0,1.0,1.0,1.0"
+        jules_pftparm["ccwood_min_io"] = "0.0,0.0,0.0,0.0,0.0"
+        jules_pftparm["ccwood_max_io"] = "0.4,0.4,0.4,0.4,0.4"
+        jules_pftparm["avg_ba_io"] = "0.6E6,0.6E6,1.4E6,1.4E6,1.2E6"
         # Parameters related to l_inferno (from JULES vn7.8_t1579)
         jules_pftparm["fef_c2h4_io"] = (
             "1.11E+00,1.54E+00,8.30E-01,1.99E+00,8.30E-01"
@@ -253,17 +175,17 @@ class vn30_t205(MacroUpgrade):
         jules_pftparm["sox_rp_min_io"] = ",".join(["0.0"] * npft)
 
         # Parameters related to l_use_pft_psi (from JULES vn4.8_t541)
-        jules_pftparm["psi_close_io"] = ",".join(["-1.5E6"]*npft)
-        jules_pftparm["psi_open_io"] = ",".join(["-0.033E6"]*npft)
+        jules_pftparm["psi_close_io"] = ",".join(["-1.5E6"] * npft)
+        jules_pftparm["psi_open_io"] = ",".join(["-0.033E6"] * npft)
 
         # Parameters related to l_sugar (from JULES vn7.3_t1344)
-        jules_pftparm["sug_grec_io"] = ",".join(["1.0"]*npft)
-        jules_pftparm["sug_g0_io"] = ",".join(["1.0"]*npft)
-        jules_pftparm["sug_yg_io"] = ",".join(["1.0"]*npft)
+        jules_pftparm["sug_grec_io"] = ",".join(["1.0"] * npft)
+        jules_pftparm["sug_g0_io"] = ",".join(["1.0"] * npft)
+        jules_pftparm["sug_yg_io"] = ",".join(["1.0"] * npft)
 
         # Remaining parameters added with missing data as no other information
-        jules_pftparm["albsnf_max_io"] = ",".join([RMDI]*npft)
-        jules_pftparm["fsmc_mod_io"]   = ",".join([RMDI]*npft)
+        jules_pftparm["albsnf_max_io"] = ",".join([RMDI] * npft)
+        jules_pftparm["fsmc_mod_io"] = ",".join([RMDI] * npft)
 
         for item, values in jules_pftparm.items():
             self.add_setting(config, ["namelist:jules_pftparm", item], values)
@@ -299,5 +221,4 @@ class vn30_t205(MacroUpgrade):
             config, ["namelist:jules_vegetation", "l_use_pft_psi"], ".false."
         )
 
-
-return config, self.reports
+        return config, self.reports

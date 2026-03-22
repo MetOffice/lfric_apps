@@ -225,7 +225,6 @@ contains
     use matrix_vector_kernel_mod,        only: matrix_vector_kernel_type
     use sci_average_w2b_to_w2_kernel_mod, &
                                          only: average_w2b_to_w2_kernel_type
-    use sci_w3_to_w2_average_kernel_mod, only: w3_to_w2_average_kernel_type
     use sci_w3_to_w2_correction_kernel_mod, &
                                          only: w3_to_w2_correction_kernel_type
     use timing_mod,                      only: start_timing, stop_timing, &
@@ -239,6 +238,8 @@ contains
     type( field_type )                   :: r_u
     type( field_type )                   :: u_broken
     type( field_type )                   :: u_lat_w2, u_lon_w2, u_up_w2
+    type( field_type )                   :: u_lat_large, u_lon_large
+    type( field_type )                   :: u_correction
     type( field_type ),          pointer :: rmultiplicity_w2
     type( field_type ),          pointer :: displacement
     type( field_type ),          pointer :: chi(:)
@@ -246,6 +247,7 @@ contains
     type( operator_type ),       pointer :: u_lon_map
     type( operator_type ),       pointer :: u_lat_map
     type( operator_type ),       pointer :: u_up_map
+    type( function_space_type ), pointer :: w2_fs
     type( function_space_type ), pointer :: w2b_fs
 
     type( mesh_type ), pointer :: mesh
@@ -255,44 +257,7 @@ contains
 
     mesh => u%get_mesh()
 
-    if (sample_physics_winds .and. sample_physics_winds_correction) then
-
-      chi => get_coordinates(mesh%get_id())
-      rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
-      panel_id => get_panel_id(mesh%get_id())
-      call u_lon_w2%initialise( u%get_function_space() )
-      call u_lat_w2%initialise( u%get_function_space() )
-      call u_up_w2%initialise( u%get_function_space() )
-
-      call invoke( setval_c(u_lon_w2, 0.0_r_def),                              &
-                   setval_c(u_lat_w2, 0.0_r_def),                              &
-                   setval_c(u_up_w2, 0.0_r_def),                               &
-                   w3_to_w2_average_kernel_type(u_lon_w2, u_lon,               &
-                                                rmultiplicity_w2),             &
-                   w3_to_w2_average_kernel_type(u_lat_w2, u_lat,               &
-                                                rmultiplicity_w2),             &
-                   w3_to_w2_average_kernel_type(u_up_w2, u_up,                 &
-                                                rmultiplicity_w2) )
-
-      ! Apply correction
-      if (geometry == geometry_spherical .and. topology == topology_fully_periodic) then
-        displacement => get_w3_to_w2_displacement(mesh%get_id())
-        ! Correct horizontal winds
-        ! Vertical wind not needed for horizontal W2 DoFs, so don't correct
-        call invoke( w3_to_w2_correction_kernel_type(u_lon_w2, u_lon, 1,       &
-                                                     displacement,             &
-                                                     panel_id, 1),             &
-                     w3_to_w2_correction_kernel_type(u_lat_w2, u_lat, 1,       &
-                                                     displacement,             &
-                                                     panel_id, 1) )
-      end if
-
-      ! Convert from physical wind components into computational wind
-      call invoke( convert_phys_to_hdiv_kernel_type(u, u_lon_w2, u_lat_w2,     &
-                                                    u_up_w2, chi, panel_id,    &
-                                                    geometry) )
-
-    else if (sample_physics_winds) then
+    if (sample_physics_winds) then
 
       w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2broken)
       rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
@@ -308,6 +273,44 @@ contains
                    dg_inc_matrix_vector_kernel_type(u_broken, u_lat, u_lat_map), &
                    dg_inc_matrix_vector_kernel_type(u_broken, u_up, u_up_map),   &
                    average_w2b_to_w2_kernel_type(u, u_broken, rmultiplicity_w2) )
+
+      if (sample_physics_winds_correction                                      &
+          .and. geometry == geometry_spherical                                 &
+          .and. topology == topology_fully_periodic) then
+
+        w2_fs => u%get_function_space()
+        call u_lon_w2%initialise( w2_fs )
+        call u_lat_w2%initialise( w2_fs )
+        call u_up_w2%initialise( w2_fs )
+        call u_correction%initialise( w2_fs )
+        call u_lon_large%initialise( u_lon%get_function_space(), halo_depth=2 )
+        call u_lat_large%initialise( u_lat%get_function_space(), halo_depth=2 )
+
+        displacement => get_w3_to_w2_displacement(mesh%get_id())
+        chi => get_coordinates(mesh%get_id())
+        panel_id => get_panel_id(mesh%get_id())
+
+        call invoke( setval_c(u_lon_w2, 0.0_r_def),                            &
+                     setval_c(u_lat_w2, 0.0_r_def),                            &
+                     setval_c(u_up_w2, 0.0_r_def),                             &
+                     ! Copy u_lon and u_lat to fields with appropriate depth
+                     setval_X(u_lon_large, u_lon),                             &
+                     setval_X(u_lat_large, u_lat),                             &
+                     ! Correct horizontal wind components (but not vertical)
+                     w3_to_w2_correction_kernel_type(u_lon_w2, u_lon_large, 1, &
+                                                     displacement,             &
+                                                     panel_id, 1),             &
+                     w3_to_w2_correction_kernel_type(u_lat_w2, u_lat_large, 1, &
+                                                     displacement,             &
+                                                     panel_id, 1),             &
+                     ! Convert components to HDiv field
+                     convert_phys_to_hdiv_kernel_type(u_correction,            &
+                                                      u_lon_w2, u_lat_w2,      &
+                                                      u_up_w2, chi, panel_id,  &
+                                                      geometry),               &
+                     ! Increment wind with correction field
+                     inc_X_plus_Y(u, u_correction) )
+      end if
 
     else
 

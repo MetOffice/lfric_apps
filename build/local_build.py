@@ -20,7 +20,6 @@ import yaml
 import logging
 from pathlib import Path
 from extract.get_git_sources import clone_and_merge
-import shutil
 
 
 def subprocess_run(command):

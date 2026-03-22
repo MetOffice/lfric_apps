@@ -19,7 +19,6 @@ program cma_test
 
   use, intrinsic :: iso_fortran_env,  only : real64
 
-  use check_configuration_mod,        only : get_required_stencil_depth
   use cma_test_algorithm_mod,         only : cma_test_init,                  &
                                              test_cma_apply_mass_p,          &
                                              test_cma_apply_mass_v,          &
@@ -29,7 +28,8 @@ program cma_test
                                              test_cma_add,                   &
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
-  use constants_mod,                  only : i_def, r_def, i_def, l_def, &
+  use config_mod,                     only : config_type
+  use constants_mod,                  only : i_def, r_def, i_def, l_def, imdi, &
                                              r_solver, pi, str_def
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
@@ -40,7 +40,7 @@ program cma_test
   use function_space_mod,             only : function_space_type
   use halo_comms_mod,                 only : initialise_halo_comms, &
                                              finalise_halo_comms
-  use configuration_mod,              only : read_configuration, &
+  use config_loader_mod,              only : read_configuration, &
                                              ensure_configuration
   use driver_collections_mod,         only : init_collections, final_collections
   use driver_mesh_mod,                only : init_mesh
@@ -125,12 +125,13 @@ program cma_test
 
   ! Namelist and configuration variables
   type(namelist_collection_type), save :: configuration
+  type(config_type),              save :: config
 
   type(namelist_type), pointer :: extrusion_nml
   type(namelist_type), pointer :: base_mesh_nml
   type(namelist_type), pointer :: planet_nml
 
-  integer(i_def)     :: stencil_depth
+  integer(i_def)     :: stencil_depth(1)
   character(str_def) :: file_prefix
   character(str_def) :: prime_mesh_name
   real(r_def)        :: radius
@@ -232,6 +233,7 @@ program cma_test
   end select
 
   call configuration%initialise( program_name, table_len=10 )
+  call config%initialise( program_name )
 
   deallocate(program_name)
   deallocate(test_flag)
@@ -243,7 +245,9 @@ program cma_test
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   allocate( success_map(size(required_configuration)) )
-  call read_configuration( filename, configuration )
+  call read_configuration( filename,                    &
+                           configuration=configuration, &
+                           config=config )
 
   okay = ensure_configuration( required_configuration, success_map )
   if (.not. okay) then
@@ -289,9 +293,10 @@ program cma_test
                                                 domain_height,    &
                                                 scaled_radius ) )
 
-  stencil_depth = get_required_stencil_depth()
+  stencil_depth = 2
   check_partitions = .false.
-  call init_mesh( configuration,              &
+
+  call init_mesh( config,                     &
                   local_rank, total_ranks,    &
                   base_mesh_names, extrusion, &
                   stencil_depth, check_partitions )
@@ -307,7 +312,8 @@ program cma_test
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
-  call init_chi_transforms(mesh_collection)
+  call init_chi_transforms(geometry_spherical, imdi, &
+                           mesh_collection=mesh_collection)
 
   ! Work out grid spacing, which should be of order 1
   mesh => mesh_collection%get_mesh(prime_mesh_name)

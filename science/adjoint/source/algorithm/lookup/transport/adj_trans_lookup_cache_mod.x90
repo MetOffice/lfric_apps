@@ -9,7 +9,8 @@ module adj_trans_lookup_cache_mod
 
   use adj_lookup_table_mod,            only: adj_lookup_table_type
   use constants_mod,                   only: i_def, l_def
-  use fs_continuity_mod,               only: W3, Wtheta
+  use fs_continuity_mod,               only: W3, Wtheta, &
+                                             W2, W2H
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
                                              LOG_LEVEL_ERROR
@@ -33,10 +34,14 @@ module adj_trans_lookup_cache_mod
       type(adj_lookup_table_type)                            :: lookup_poly_adv_upd
 
       !> Lookup table for adj_w3h_advective_update_kernel.
-      type(adj_lookup_table_type)                            :: lookup_w3h_adv_upd
+      !> First index is on W2, second on W2H.
+      type(adj_lookup_table_type), allocatable, dimension(:) :: lookup_w3h_adv_upd
 
       !> Number of function spaces for lookup_poly2d.
       integer(kind=i_def)                                    :: n_fs_poly2d
+
+      !> Number of function spaces for lookup_w3h_adv_upd.
+      integer(kind=i_def)                                    :: n_fs_w3h_adv_upd
 
       !> Flag to state whether or not cache is initialised
       logical(kind=l_def)                                    :: is_initialised = .false._l_def
@@ -67,7 +72,6 @@ module adj_trans_lookup_cache_mod
     use constants_mod,                       only: r_tran
     use finite_element_config_mod,           only: element_order_h, &
                                                    element_order_v
-    use fs_continuity_mod,                   only: W2, W2H
     use function_space_mod,                  only: function_space_type
     use function_space_collection_mod,       only: function_space_collection
     use mesh_mod,                            only: mesh_type
@@ -225,32 +229,42 @@ module adj_trans_lookup_cache_mod
     ! =========================================================================
     ! Creating lookup_w3h_adv_upd
     ! =========================================================================
+    self%n_fs_w3h_adv_upd = 2_i_def
+    allocate(self%lookup_w3h_adv_upd(self%n_fs_w3h_adv_upd))
     m3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
     ndata = 6_i_def
 
-    vector_space_w3_md_ptr => function_space_collection%get_fs(                &
-        mesh, element_order_h, element_order_v, W3, ndata, ndata_first=.false. &
-    )
-    vector_space_w3_ptr => function_space_collection%get_fs(                   &
-        mesh, element_order_h, element_order_v, W3                             &
-    )
-    vector_space_w2_ptr => function_space_collection%get_fs(                   &
-        mesh, element_order_h, element_order_v, W2                             &
-    )
+    do fspace_iterator = 1_i_def, self%n_fs_w3h_adv_upd
+      if (fspace_iterator == 1_i_def) then
+        fspace_enum = W2
+      else
+        fspace_enum = W2H
+      end if
 
-    call advective%initialise(vector_space=vector_space_w3_ptr, name='advective')
-    call tracer%initialise(vector_space=vector_space_w3_md_ptr, name='tracer')
-    call wind%initialise(vector_space=vector_space_w2_ptr, name='wind')
+      vector_space_w3_md_ptr => function_space_collection%get_fs(                &
+          mesh, element_order_h, element_order_v, W3, ndata, ndata_first=.false. &
+      )
+      vector_space_w3_ptr => function_space_collection%get_fs(                   &
+          mesh, element_order_h, element_order_v, W3                             &
+      )
+      vector_space_fs_ptr => function_space_collection%get_fs( &
+        mesh, element_order_h, element_order_v, fspace_enum &
+      )
 
-    call invoke(setval_c(advective, 0.0_r_tran), &
-                setval_c(tracer, 0.0_r_tran),    &
-                setval_c(wind, 0.0_r_tran))
-    call create_lookup_w3h_adv_upd(self%lookup_w3h_adv_upd, &
-                                   advective,               &
-                                   tracer,                  &
-                                   wind,                    &
-                                   m3_inv,                  &
-                                   stencil_extent)
+      call advective%initialise(vector_space=vector_space_w3_ptr, name='advective')
+      call tracer%initialise(vector_space=vector_space_w3_md_ptr, name='tracer')
+      call wind%initialise(vector_space=vector_space_fs_ptr, name='wind')
+
+      call invoke(setval_c(advective, 0.0_r_tran), &
+                  setval_c(tracer, 0.0_r_tran),    &
+                  setval_c(wind, 0.0_r_tran))
+      call create_lookup_w3h_adv_upd(self%lookup_w3h_adv_upd(fspace_iterator),  &
+                                     advective,                                 &
+                                     tracer,                                    &
+                                     wind,                                      &
+                                     m3_inv,                                    &
+                                     stencil_extent)
+    end do
 
     self%is_initialised = .true._l_def
 
@@ -338,20 +352,35 @@ module adj_trans_lookup_cache_mod
   !=============================================================================
   !> @brief Return a pointer to the w3h_adv_upd lookup table.
   !> @param [in]     self           Lookup table cache
+  !> @param [in]     fspace_enum    Function space enumerator
   !> @return         lookup_ptr     The lookup table
-  function get_lookup_w3h_adv_upd(self) result(lookup_ptr)
+  function get_lookup_w3h_adv_upd(self, fspace_enum) result(lookup_ptr)
 
     implicit none
 
     ! Arguments
     class(adj_trans_lookup_cache_type), target, intent(in) :: self
+    integer(kind=i_def),                        intent(in) :: fspace_enum
+
+    ! Internal variables
+    integer(kind=i_def)                                    :: fspace_index
 
     ! Returns
     type(adj_lookup_table_type),                   pointer :: lookup_ptr
 
     if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
     nullify(lookup_ptr)
-    lookup_ptr => self%lookup_w3h_adv_upd
+    fspace_index = 0_i_def
+    select case(fspace_enum)
+      case (W2)
+        fspace_index = 1_i_def
+      case (W2H)
+        fspace_index = 2_i_def
+      case default
+        write(log_scratch_space, *) "Invalid functionspace chosen for get_lookup_w3h_adv_upd, must be W2 or W2H"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+    lookup_ptr => self%lookup_w3h_adv_upd(fspace_index)
 
   end function get_lookup_w3h_adv_upd
 
@@ -374,8 +403,11 @@ module adj_trans_lookup_cache_mod
         call self%lookup_poly2d(fspace_index)%finalise()
       end do
       call self%lookup_poly_adv_upd%finalise()
-      call self%lookup_w3h_adv_upd%finalise()
+      do fspace_index = 1_i_def, self%n_fs_w3h_adv_upd
+        call self%lookup_w3h_adv_upd(fspace_index)%finalise()
+      end do
       if (allocated(self%lookup_poly2d)) deallocate(self%lookup_poly2d)
+      if (allocated(self%lookup_w3h_adv_upd)) deallocate(self%lookup_w3h_adv_upd)
     end if
 
   end subroutine adj_trans_lookup_cache_final
