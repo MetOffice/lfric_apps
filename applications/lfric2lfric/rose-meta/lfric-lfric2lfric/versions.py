@@ -31,3 +31,24 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn31_t192(MacroUpgrade):
+    """Upgrade macro for ticket #192 by Juan M. Castillo."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t192"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric2lfric
+        self.rename_setting(
+            config,
+            ["namelist:partitioning(source)", "mesh_type"],
+            ["namelist:partitioning(source)", "mesh_target"],
+        )
+        self.rename_setting(
+            config,
+            ["namelist:partitioning(destination)", "mesh_type"],
+            ["namelist:partitioning(destination)", "mesh_target"],
+        )
+
+        return config, self.reports

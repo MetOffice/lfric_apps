@@ -158,6 +158,17 @@ subroutine init_mesh( config, configuration,   &
     end if
   end do
 
+  if (.not. associated(src_partitioning_nml)) then
+    write( log_scratch_space, '(A)' )                                     &
+         'Source mesh partitioning namelist (partitioning:source) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+  if (.not. associated(dst_partitioning_nml)) then
+    write( log_scratch_space, '(A)' )                                          &
+         'Destination mesh partitioning namelist (partitioning:destination) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+
   generate_inner_halos(src) = src_partitioning_nml%generate_inner_halos()
   generate_inner_halos(dst) = dst_partitioning_nml%generate_inner_halos()
 
@@ -189,12 +200,12 @@ subroutine init_mesh( config, configuration,   &
   end if
 
   ! Set up stencil depths
-  if ( size(stencil_depths) == 1 ) then
+  if ( size(stencil_depths_in) == 1 ) then
     ! Single stencil depth specified, apply to all meshes
     do i = 1, size(mesh_names)
       stencil_depths(i) = stencil_depths_in(1)
     end do
-  else if ( size(stencil_depths) == size(mesh_names) ) then
+  else if ( size(stencil_depths_in) == size(mesh_names) ) then
     ! Stencil depths specified per mesh
     stencil_depths(:) = stencil_depths_in(:)
   else
@@ -204,6 +215,14 @@ subroutine init_mesh( config, configuration,   &
     call log_event(log_scratch_space, log_level_error)
   end if
 
+  ! Check stencil depths are valid
+  do i = 1, size(stencil_depths)
+    if (stencil_depths(i) < 0_i_def) then
+      write(log_scratch_space,'(A)') &
+        'Standard partitioned meshes must support a not -ve stencil_depth'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+  end do
 
   !===========================================================================
   ! Create local mesh objects:
