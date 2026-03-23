@@ -92,6 +92,7 @@
 	<field field_ref="snow__snow_layer_ice_mass" />
 	<field field_ref="forcing__dtheta_force" />
 	<field field_ref="forcing__dt_force" />
+	<field field_ref="surface__visibility_no_precip" />
       </file>
 
       <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">

@@ -17,7 +17,7 @@
 
 ! Code description:
 !   This code is written to UMDP3 standards.
-module vis_precip_mod
+module vis_dust_mod
 
 implicit none
 
@@ -110,4 +110,4 @@ subroutine vis_dust(                                                   &
   return
 
 end subroutine vis_dust
-end module vis_precip_mod
+end module vis_dust_mod
