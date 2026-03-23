@@ -218,7 +218,7 @@ contains
 
     ! For jules_exp_alg
     ! not required for standalone, but required for boundary layer
-    type( field_type ) :: recip_l_mo_sea, rhostar, h_blend_orog
+    type( field_type ) :: recip_l_mo_sea, rhostar
     type( field_type ) :: t1_sd_2d, q1_sd_2d
 
     ! For jules_imp_alg
@@ -288,7 +288,7 @@ contains
                        turbulence_fields, convection_fields, cloud_fields, &
                        surface_fields, soil_fields, snow_fields,           &
                        aerosol_fields, recip_l_mo_sea, rhostar,            &
-                       h_blend_orog, t1_sd_2d, q1_sd_2d)
+                       t1_sd_2d, q1_sd_2d)
 
     ! Fields set up for jules_imp
     ! ncells is set to 1 after jules_exp so needs to be reset

@@ -22,6 +22,10 @@ module rhs_project_eos_kernel_mod
   use fs_continuity_mod, only : W3, Wtheta
   use kernel_mod,        only : kernel_type
 
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -168,7 +172,8 @@ subroutine rhs_project_eos_code(nlayers,                                 &
       chi2_e(df) = chi2(map_chi(df) + k)
       chi3_e(df) = chi3(map_chi(df) + k)
     end do
-    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
+    call coordinate_jacobian(coord_system, geometry, topology, scaled_radius, &
+                             ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,   &
                              ipanel, chi_basis, chi_diff_basis, jac, dj)
     do df = 1, ndf_wt
       theta_vd_e(df) = theta(map_wt(df) + k) * moist_dyn_gas(map_wt(df) + k)

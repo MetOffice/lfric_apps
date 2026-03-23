@@ -85,22 +85,42 @@ module jules_physics_init_mod
                               i_relayer_opt_original,                          &
                               i_relayer_opt_inverse
   use jules_surface_config_mod, only :                                         &
+                              all_tiles_in => all_tiles,                       &
+                              all_tiles_off, all_tiles_on,                     &
+                              beta1_in => beta1, beta2_in => beta2,            &
+                              beta_cnv_bl_in => beta_cnv_bl,                   &
                               cor_mo_iter_in => cor_mo_iter,                   &
                               cor_mo_iter_lim_oblen,                           &
                               cor_mo_iter_improved,                            &
+                              fwe_c3_in => fwe_c3, fwe_c4_in => fwe_c4,        &
+                              hleaf_in => hleaf, hwood_in => hwood,            &
                               srf_ex_cnv_gust_in => srf_ex_cnv_gust,           &
                               formdrag_in => formdrag, formdrag_none,          &
                               formdrag_eff_z0, formdrag_dist_drag,             &
+                              fd_hill_option_in => fd_hill_option,             &
+                              fd_hill_option_capped_lowhill,                   &
                               fd_stability_dep_in => fd_stability_dep,         &
                               fd_stability_dep_none,                           &
                               fd_stability_dep_surf_ri,                        &
+                              i_modiscopt_in => i_modiscopt,                   &
+                              i_modiscopt_on,                                  &
+                              iscrntdiag_in => iscrntdiag,                     &
+                              iscrntdiag_decoupled_trans,                      &
+                              l_epot_corr_in => l_epot_corr,                   &
+                              l_land_ice_imp_in => l_land_ice_imp,             &
+                              l_mo_buoyancy_calc_in => l_mo_buoyancy_calc,     &
                               anthrop_heat_option_in => anthrop_heat_option,   &
                               anthrop_heat_option_dukes,                       &
                               anthrop_heat_option_flanner,                     &
                               anthrop_heat_mean_in => anthrop_heat_mean,       &
                               l_anthrop_heat_src_in => l_anthrop_heat_src,     &
                               l_urban2t_in => l_urban2t,                       &
-                              l_vary_z0m_soil_in => l_vary_z0m_soil
+                              l_vary_z0m_soil_in => l_vary_z0m_soil,           &
+                              orog_drag_param_in => orog_drag_param,           &
+                              l_flake_model_in => l_flake_model,               &
+                              l_elev_land_ice_in => l_elev_land_ice,           &
+                              l_elev_lw_down_in => l_elev_lw_down,             &
+                              l_point_data_in => l_point_data
   use jules_vegetation_config_mod, only :                                      &
                               can_rad_mod_in => can_rad_mod,                   &
                               can_rad_mod_one, can_rad_mod_four,               &
@@ -215,14 +235,18 @@ contains
          q10_ch4_npp, q10_ch4_resps, const_ch4_npp, const_ch4_resps,        &
          t0_ch4, ch4_cpow, tau_ch4, k2_ch4, rho_ch4, q10_mic_ch4, cue_ch4,  &
          mu_ch4, frz_ch4, alpha_ch4, ch4_cpow, ev_ch4, q10_ev_ch4
-    use jules_surface_mod, only: l_epot_corr, cor_mo_iter, iscrntdiag,      &
-         srf_ex_cnv_gust, Limit_ObukhovL, ip_scrndecpl2, IP_SrfExWithCnv,   &
-         fd_stability_dep, orog_drag_param, check_jules_surface,            &
-         Improve_Initial_Guess, formdrag, beta_cnv_bl, fd_hill_option,      &
-         i_modiscopt, l_land_ice_imp, no_drag, effective_z0,                &
-         capped_lowhill, explicit_stress, l_anthrop_heat_src, l_urban2t,    &
-         l_vary_z0m_soil, l_mo_buoyancy_calc, anthrop_heat_option, dukes,   &
-         flanner, anthrop_heat_mean
+    use jules_surface_mod, only:                                            &
+         check_jules_surface, print_nlist_jules_surface, all_tiles,         &
+         cor_mo_iter, Limit_ObukhovL, Improve_Initial_Guess, beta_cnv_bl,   &
+         fd_hill_option, capped_lowhill,                                    &
+         fd_stability_dep, orog_drag_param,                                 &
+         formdrag, no_drag, effective_z0, explicit_stress, i_modiscopt,     &
+         iscrntdiag, ip_scrndecpl2, srf_ex_cnv_gust, IP_SrfExWithCnv,       &
+         l_anthrop_heat_src, anthrop_heat_option, dukes, flanner,           &
+         anthrop_heat_mean, l_urban2t, l_epot_corr, l_land_ice_imp,         &
+         l_mo_buoyancy_calc, l_vary_z0m_soil, beta1, beta2, fwe_c3, fwe_c4, &
+         hwood, hleaf, l_flake_model, l_elev_land_ice, l_elev_lw_down,      &
+         l_point_data
     use jules_rivers_mod, only: lake_water_conserve_method, use_elake_surft
     use jules_urban_mod, only: anthrop_heat_scale, l_moruses_albedo,        &
          l_moruses_emissivity, l_moruses_rough, l_moruses_storage,          &
@@ -472,21 +496,32 @@ contains
     ! ----------------------------------------------------------------
     ! JULES surface settings - contained in module jules_surface
     ! ----------------------------------------------------------------
-    anthrop_heat_mean  = anthrop_heat_mean_in
+    anthrop_heat_mean  = real(anthrop_heat_mean_in, r_um)
     select case (anthrop_heat_option_in)
       case(anthrop_heat_option_dukes)
         anthrop_heat_option = dukes
       case(anthrop_heat_option_flanner)
         anthrop_heat_option = flanner
     end select
-    beta_cnv_bl     = 0.04_r_um
+    select case (all_tiles_in)
+      case(all_tiles_off)
+        all_tiles = 0
+      case(all_tiles_on)
+        all_tiles = 1
+    end select
+    beta1       = real(beta1_in, r_um)
+    beta2       = real(beta2_in, r_um)
+    beta_cnv_bl = real(beta_cnv_bl_in, r_um)
     select case (cor_mo_iter_in)
       case(cor_mo_iter_lim_oblen)
         cor_mo_iter = Limit_ObukhovL
       case(cor_mo_iter_improved)
         cor_mo_iter = Improve_Initial_Guess
     end select
-    fd_hill_option  = capped_lowhill
+    select case (fd_hill_option_in)
+      case(fd_hill_option_capped_lowhill)
+        fd_hill_option = capped_lowhill
+    end select
     select case (fd_stability_dep_in)
       case(fd_stability_dep_none)
         fd_stability_dep = 0
@@ -501,16 +536,31 @@ contains
       case(formdrag_dist_drag)
         formdrag = explicit_stress
     end select
-    i_modiscopt        = 1
-    iscrntdiag         = ip_scrndecpl2
+    fwe_c3       = real(fwe_c3_in, r_um)
+    fwe_c4       = real(fwe_c4_in, r_um)
+    hleaf        = real(hleaf_in, r_um)
+    hwood        = real(hwood_in, r_um)
+    ! Awaiting advice from John Edwards regarding off or other allowed options
+    select case (i_modiscopt_in)
+    case(i_modiscopt_on)
+      i_modiscopt = 1
+    end select
+    select case (iscrntdiag_in)
+    case(iscrntdiag_decoupled_trans)
+      iscrntdiag = ip_scrndecpl2
+    end select
     if (srf_ex_cnv_gust_in) srf_ex_cnv_gust = IP_SrfExWithCnv
-    l_epot_corr        = .true.
-    l_land_ice_imp     = .true.
-    l_mo_buoyancy_calc = .true.
+    l_epot_corr        = l_epot_corr_in
+    l_land_ice_imp     = l_land_ice_imp_in
+    l_mo_buoyancy_calc = l_mo_buoyancy_calc_in
     l_anthrop_heat_src = l_anthrop_heat_src_in
     l_urban2t          = l_urban2t_in
     l_vary_z0m_soil    = l_vary_z0m_soil_in
-    orog_drag_param    = 0.15_r_um
+    l_flake_model      = l_flake_model_in
+    l_elev_land_ice    = l_elev_land_ice_in
+    l_elev_lw_down     = l_elev_lw_down_in
+    l_point_data       = l_point_data_in
+    orog_drag_param    = real(orog_drag_param_in, r_um)
     lake_water_conserve_method = use_elake_surft
 
     ! The minimum sea ice fraction
@@ -522,6 +572,7 @@ contains
     endif
 
     ! Check the contents of the JULES surface parameters module
+    call print_nlist_jules_surface()
     call check_jules_surface()
 
     ! ----------------------------------------------------------------

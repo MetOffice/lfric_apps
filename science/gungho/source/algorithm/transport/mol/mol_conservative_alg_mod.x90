@@ -15,7 +15,8 @@ module mol_conservative_alg_mod
   use operator_mod,                   only: operator_type
   use r_tran_field_mod,               only: r_tran_field_type
   use r_tran_operator_mod,            only: r_tran_operator_type
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
 
   ! Algorithms and transport code
   use advective_and_flux_alg_mod,     only: advective_and_flux_alg
@@ -39,7 +40,6 @@ module mol_conservative_alg_mod
   ! Configuration
   use base_mesh_config_mod,           only: topology, topology_non_periodic
   use boundaries_config_mod,          only: limited_area, transport_boundary_depth
-  use io_config_mod,                  only: subroutine_timers
   use transport_config_mod,           only: runge_kutta_method, &
                                             dry_field_name,     &
                                             operators,          &
@@ -96,8 +96,9 @@ module mol_conservative_alg_mod
     type(transport_metadata_type),   pointer :: transport_metadata
     type(wind_precomputations_type), pointer :: wind_precomputations
     type(flux_precomputations_type), pointer :: flux_precomputations
+    integer(tik)                             :: id
 
-    if ( subroutine_timers ) call timer('transport.mol_conservative')
+    if ( LPROF ) call start_timing( id, 'transport.mol_conservective' )
 
     ! ------------------------------------------------------------------------ !
     ! Extract pre-existing objects and initialise temporary fields
@@ -273,7 +274,7 @@ module mol_conservative_alg_mod
     if ( allocated(rk_field) ) deallocate(rk_field)
     if ( allocated(rk_weights) ) deallocate(rk_weights)
 
-    if ( subroutine_timers ) call timer('transport.mol_conservative')
+    if ( LPROF ) call stop_timing( id, 'transport.mol_conservective' )
 
   end subroutine mol_conservative_alg
 
