@@ -33,20 +33,20 @@ contains
 !> @param[in] lat           Latitude
 !> @param[in] lon           Longitude
 !> @return    theta_eq      Equilibrium theta
-function deep_hot_jupiter_equilibrium_theta(exner, lat, lon) result(theta_eq)
+function deep_hot_jupiter_equilibrium_theta(exner, lat, lon, height) result(theta_eq)
 
   implicit none
 
   ! Arguments
-  real(kind=r_def), intent(in)    :: exner, lat, lon
+  real(kind=r_def), intent(in)    :: exner, lat, lon, height
 
   ! Local variables
   real(kind=r_def)                :: t_night, t_day
   real(kind=r_def)                :: t_eq, theta_eq ! Equilibrium temperature and theta theta
 
   ! Calculate night and day side temperature model variables
-  t_night = night_side_temp(exner)
-  t_day = day_side_temp(exner)
+  t_night = night_side_temp(exner, height)
+  t_day = day_side_temp(exner, height)
 
   ! Calculate equilibrium temperature according to equation 29 in Mayne et. al. 2014
   if (lon >= -1.0_r_def*pi/2.0_r_def .and. lon <= pi/2.0_r_def) then
@@ -66,18 +66,20 @@ end function deep_hot_jupiter_equilibrium_theta
 !> @brief Function to calculate the Newton relaxation frequency for deep hot Jupiter idealised test case.
 !> @param[in] exner                       Exner pressure
 !> @return    jupiter_like_frequency      Newton cooling relaxation frequency
-function deep_hot_jupiter_newton_frequency(exner) result(jupiter_like_frequency)
+function deep_hot_jupiter_newton_frequency(exner, height) result(jupiter_like_frequency)
 
   implicit none
 
   ! Arguments
-  real(kind=r_def), intent(in) :: exner
+  real(kind=r_def), intent(in) :: exner, height
 
   ! Parameters
   real(kind=r_def), parameter :: p_low = 1.0_r_def, p_high = 1.0e6_r_def
+  real(kind=r_def), parameter :: h_low = 2833333.3333333246_r_def
+  real(kind=r_def), parameter :: h_high = 10166666.666666657_r_def
 
   ! Local variables
-  real(kind=r_def) :: pressure, log_sigma
+  real(kind=r_def) :: pressure, log_sigma, log_height
   real(kind=r_def) :: jupiter_like_frequency
 
   ! Calculate pressure from exner function
@@ -103,26 +105,47 @@ function deep_hot_jupiter_newton_frequency(exner) result(jupiter_like_frequency)
                                )
   end if
 
+  if (height <= h_low) then
+    jupiter_like_frequency = 0.0_r_def
+  else
+    if (height >= h_high) then
+      log_height = log10(h_high / h_high)
+    else
+      log_height = log10(height / h_high)
+    end if
+    jupiter_like_frequency = 1.0_r_def /                                       &
+                               (10.0_r_def **                                  &
+                                 ( 3.64394335_r_def                            &
+                                  -2.87608751_r_def * log_height               &
+                                  -2.86451016_r_def * log_height ** 2_i_def    &
+                                  -4.75955392_r_def * log_height ** 3_i_def    &
+                                  -1.79012627_r_def * log_height ** 4_i_def    &
+                                 )                                             &
+                               )
+  end if
+
 end function deep_hot_jupiter_newton_frequency
 
 !> @brief Function to calculate the day side temperature model variable
 !> @param[in] exner         Exner pressure
 !> @return    t_day         Day side temperature model variable
-function day_side_temp(exner) result(t_day)
+function day_side_temp(exner, height) result(t_day)
 
    implicit none
 
    ! Arguments
-   real(kind=r_def), intent(in) :: exner
+   real(kind=r_def), intent(in) :: exner, height
 
    ! Parameters
    real(kind=r_def), parameter :: p_low = 100.0_r_def, p_high = 1.0e6_r_def
    real(kind=r_def), parameter :: t_low = 1000.0_r_def, alpha = 0.015_r_def
    real(kind=r_def), parameter :: beta = -120.0_r_def
+   real(kind=r_def), parameter :: h_low = 2833333.3333333246_r_def
+   real(kind=r_def), parameter :: h_high = 10166666.666666657_r_def
 
    ! Local variables
    real(kind=r_def) :: pressure
-   real(kind=r_def) :: log_sigma, t_day_active, t_day
+   real(kind=r_def) :: log_sigma, t_day_active, t_day, log_height
 
    pressure = pressure_from_exner(exner)
 
@@ -146,6 +169,26 @@ function day_side_temp(exner) result(t_day)
                   - 0.30295925_r_def * log_sigma ** 9_i_def   &
                   - 0.011122316_r_def * log_sigma ** 10_i_def
 
+   t_day_active = 1472.54953055_r_def                             &
+                  - 914.84910908_r_def * log_height               &
+                  - 4044.50450399_r_def * log_height ** 2_i_def   &
+                  - 46661.40133367_r_def * log_height ** 3_i_def  &
+                  - 151726.31073172_r_def * log_height ** 4_i_def &
+                  - 212226.27106508_r_def * log_height ** 5_i_def &
+                  - 103025.85275778_r_def * log_height ** 6_i_def &
+                  + 76045.06760483_r_def * log_height ** 7_i_def  &
+                  + 130484.591677_r_def * log_height ** 8_i_def   &
+                  + 67447.93469777_r_def * log_height ** 9_i_def  &
+                  + 12652.67901629_r_def * log_height ** 10_i_def
+
+   if (height <= h_low) then
+     log_height = log10(h_low / h_high)
+   else if (height >= h_high) then
+     log_height = log10(h_high / h_high)
+   else
+     log_height = log10(height / h_high)
+   end if
+
    if (pressure >= p_high) then
      t_day = t_day_active + beta * (1.0_r_def - exp(log10(p_high / pressure)))
    else if (pressure < p_low) then
@@ -159,21 +202,23 @@ end function day_side_temp
 !> @brief Function to calculate the night side temperature model variable
 !> @param[in] exner         Exner pressure
 !> @return    t_night       Night side temperature model variable
-function night_side_temp(exner) result(t_night)
+function night_side_temp(exner, height) result(t_night)
 
    implicit none
 
    ! Arguments
-   real(kind=r_def), intent(in) :: exner
+   real(kind=r_def), intent(in) :: exner, height
 
    ! Parameters
    real(kind=r_def), parameter :: p_low = 100.0_r_def, p_high = 1.0e6_r_def
    real(kind=r_def), parameter :: t_low = 250.0_r_def, alpha = 0.10_r_def
    real(kind=r_def), parameter :: beta = 100.0_r_def
+   real(kind=r_def), parameter :: h_low = 2833333.3333333246_r_def
+   real(kind=r_def), parameter :: h_high = 10166666.666666657_r_def
 
    ! Local variables
    real(kind=r_def) :: pressure
-   real(kind=r_def) :: log_sigma, t_night_active, t_night
+   real(kind=r_def) :: log_sigma, t_night_active, t_night, log_height
 
    pressure = pressure_from_exner(exner)
 
@@ -183,6 +228,14 @@ function night_side_temp(exner) result(t_night)
      log_sigma = log10(p_low / 1.0e5_r_def)
    else
      log_sigma = log10(pressure / 1.0e5_r_def)
+   end if
+
+   if (height <= h_low) then
+     log_height = log10(h_low / h_high)
+   else if (height >= h_high) then
+     log_height = log10(h_high / h_high)
+   else
+     log_height = log10(height / h_high)
    end if
 
    t_night_active = 1388.2145_r_def                             &
@@ -196,6 +249,18 @@ function night_side_temp(exner) result(t_night)
                     - 3.8771634_r_def * log_sigma ** 8_i_def    &
                     - 0.38413901_r_def * log_sigma ** 9_i_def   &
                     - 0.015089084_r_def * log_sigma ** 10_i_def
+
+   t_night_active = 4.75005073e+02_r_def                             &
+                    - 1.01193721e+03_r_def * log_height              &
+                    - 4.04473813e+03_r_def * log_height ** 2_i_def   &
+                    - 2.55283488e+04_r_def * log_height ** 3_i_def   &
+                    - 3.11509239e+02_r_def * log_height ** 4_i_def   &
+                    + 2.39572339e+05_r_def * log_height ** 5_i_def   &
+                    + 6.49490069e+05_r_def * log_height ** 6_i_def   &
+                    + 8.34823729e+05_r_def * log_height ** 7_i_def   &
+                    + 5.92344403e+05_r_def * log_height ** 8_i_def   &
+                    + 2.23944130e+05_r_def * log_height ** 9_i_def   &
+                    + 3.53447897e+04_r_def * log_height ** 10_i_def
 
    if (pressure >= p_high) then
      t_night = t_night_active + beta * (1.0_r_def - exp(log10(p_high / pressure)))
