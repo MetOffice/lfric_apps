@@ -99,8 +99,9 @@ module um_physics_init_mod
                                         falliceshear_method_constant,         &
                                         falliceshear_method_off,              &
                                         subgrid_qv, ice_width_in => ice_width,&
-                                    l_ensure_max_in_cloud_pc2_in               &
-                                      => l_ensure_max_in_cloud_pc2,            &
+                                        cloud_call_b4_conv,                    &
+                                        l_ensure_max_in_cloud_pc2_in           &
+                                          => l_ensure_max_in_cloud_pc2,        &
                                     i_pc2_erosion_numerics_in                  &
                                       => i_pc2_erosion_numerics,               &
                                     dbsdtbs_turb_0_in => dbsdtbs_turb_0,       &
@@ -359,7 +360,7 @@ contains
          forced_cu_fac, i_pc2_conv_coupling, allicetdegc, starticetkelvin, &
          ent_coef_bm, ez_max_bm, i_bm_ez_opt, l_bm_sigma_s_grad,           &
          l_bm_tweaks, max_sigmas, min_sigx_ft, turb_var_fac_bm,            &
-         l_pc2_homog_conv_pressure,                                        &
+         l_pc2_homog_conv_pressure, l_cloud_call_b4_conv,                  &
          i_bm_ez_orig, i_bm_ez_subcrit, i_bm_ez_entpar
     use cloud_config_mod, only: cld_fsd_hill
     use comorph_um_namelist_mod, only: ass_min_radius, autoc_opt,            &
@@ -1078,6 +1079,8 @@ contains
       CASE ( i_bm_ez_opt_entpar )
         i_bm_ez_opt = i_bm_ez_entpar
       END SELECT
+
+      l_cloud_call_b4_conv = cloud_call_b4_conv
 
       ! Used by radiation to determine convective cloud, so potentially needed
       ! with any cloud scheme

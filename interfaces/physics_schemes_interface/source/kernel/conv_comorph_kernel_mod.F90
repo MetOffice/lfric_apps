@@ -774,8 +774,8 @@ contains
                                 fldname_n_cor_ins,                             &
                                 fldname_cor_ins_du
 
-    use aerosol_config_mod,        only: glomap_mode,               &
-                                         glomap_mode_dust_and_clim, &
+    use aerosol_config_mod,        only: glomap_mode,                          &
+                                         glomap_mode_dust_and_clim,            &
                                          glomap_mode_ukca
 
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
@@ -785,13 +785,15 @@ contains
     ! UM modules containing switches or global constants
     !---------------------------------------
     use bl_option_mod, only: max_tke
-    use cloud_inputs_mod, only: l_pc2_homog_conv_pressure
-    use cv_run_mod, only: l_mom,                                          &
-                          l_conv_prog_dtheta, l_conv_prog_dq,             &
+    use cloud_inputs_mod, only: l_pc2_homog_conv_pressure,                     &
+                                l_cloud_call_b4_conv,                          &
+                                l_ensure_max_in_cloud_pc2
+    use cv_run_mod, only: l_mom,                                               &
+                          l_conv_prog_dtheta, l_conv_prog_dq,                  &
                           tau_conv_prog_dtheta, tau_conv_prog_dq
     use jules_surface_mod, only: srf_ex_cnv_gust, IP_SrfExWithCnv
-    use mphys_inputs_mod, only: l_mcr_qgraup, l_mcr_qrain, l_mcr_precfrac, &
-         l_mcr_qcf2
+    use mphys_inputs_mod, only: l_mcr_qgraup, l_mcr_qrain, l_mcr_qcf2,         &
+                                l_mcr_precfrac, l_improve_precfrac_checks, 
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels
     use planet_constants_mod, only: p_zero, kappa, planet_radius, g
     use timestep_mod, only: timestep
@@ -2008,28 +2010,28 @@ contains
       end do
     end do
 
-    ! The "latest" (_star) fields used by convection are values
-    ! interpolated to departure points by SL advection.
-    ! The interpolation is not guaranteed to preserve consistency
-    ! between the cloud fraction and cloud water fields.
-    ! However, various things can go wrong within CoMorph if they
-    ! are inconsistent; especially the routine calc_env_partitions,
-    ! which attempts to calculate the internal properties of
-    ! the in-cloud and clear sub-regions of the grid-box.
-    ! E.g. a common problem is if qcf is large but CFF is small,
-    ! the in-cloud qcf can get implausibly large, which can
-    ! cause the phase-change calculations to yield nonsense.
-    ! Therefore, apply safety checks to the cloud-fractions
-    ! before passing them into convection...
     do i = 1, row_length
       do k = 1, nlayers
         precfrac_star(i,1,k) = precfrac(map_wth(1,i)+k)
       end do
     end do
-    CALL fracs_consistency  ( qcl_conv, qcf_conv, qcf2_conv,                   &
+
+    ! The "latest" (_star) fields used by convection are values
+    ! interpolated to departure points by SL advection.
+    ! The interpolation is not guaranteed to preserve consistency
+    ! between the cloud fraction and cloud water fields.
+    ! However, various things can go wrong within CoMorph if they
+    ! are inconsistent.
+    ! Therefore, apply safety checks to the cloud-fractions
+    ! before passing them into convection...
+    if ( ( .not. (l_cloud_call_b4_conv .and. l_ensure_max_in_cloud_pc2) ) .or. &
+         ( l_mcr_precfrac .and. ( .not. l_improve_precfrac_checks ) ) ) then
+      ! Don't need to do this if similar checks already switched on elsewhere
+      CALL fracs_consistency( qcl_conv, qcf_conv, qcf2_conv,                   &
                               qrain_conv, qgraup_conv,                         &
                               cf_liquid_conv, cf_frozen_conv, bulk_cf_conv,    &
                               precfrac_star )
+    end if
 
     ! Note: if not using PC2, the cloud-fraction _star fields do exist
     ! but are just set to values after slow_physics
