@@ -231,7 +231,7 @@ logical :: l_subgrid_graupel_frac = .false.
 ! b) Avoid wrong application of the check where precip-mass is negative
 ! c) Reset precip-fraction to zero where precip-mass is zero.
 ! d) Extra call to the checking routine before convection if needed
-logical :: l_improve_precfrac_checks = .FALSE.
+logical :: l_improve_precfrac_checks = .false.
 
 ! Apply microphysics increments to the precip fluxes as well as prognostics
 ! on level k (fixes a numerical problem where most of the rain or graupel

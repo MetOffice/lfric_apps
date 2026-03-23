@@ -1095,7 +1095,7 @@ contains
       call cld_alg( self%dtheta_cld, mr,                                     &
                     self%state(igh_t), self%state(igh_p), self%state(igh_d), &
                     derived_fields, turbulence_fields,                       &
-                    cloud_fields, convection_fields,                         &
+                    cloud_fields, microphysics_fields, convection_fields,    &
                     self%state_n(igh_t), self%mr_n,                          &
                     model_clock%get_step(), cast_dt, .false. )
       call invoke(inc_X_plus_Y(self%state(igh_t), self%dtheta_cld))

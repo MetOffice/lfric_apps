@@ -228,7 +228,7 @@ contains
       call cld_alg( dtheta, mr,                                              &
                     theta_star, exner, rho,                                  &
                     derived_fields, turbulence_fields,                       &
-                    cloud_fields, convection_fields,                         &
+                    cloud_fields, microphysics_fields, convection_fields,    &
                     theta, mr_n,                                             &
                     clock%get_step(), dt, .true. )
       ! Add the cloud balancing increment to theta_star so that BL and conv
