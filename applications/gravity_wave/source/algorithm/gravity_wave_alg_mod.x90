@@ -65,7 +65,6 @@ module gravity_wave_alg_mod
 
   use field_indices_mod,              only: igw_u, igw_p, igw_b
 
-  use copy_field_alg_mod,             only: copy_field
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
 
@@ -615,14 +614,14 @@ contains
 
     ! Solve mixed system
     call log_event( "Gravity Wave: mixed solve:", LOG_LEVEL_INFO )
-    call copy_field( rdef_rhs_n%vector(igw_u), rhs_n%vector(igw_u))
-    call copy_field( rdef_rhs_n%vector(igw_p), rhs_n%vector(igw_p))
-    call copy_field( rdef_rhs_n%vector(igw_b), rhs_n%vector(igw_b))
+    call invoke( real_to_real_x( rhs_n%vector(igw_u), rdef_rhs_n%vector(igw_u)), &
+                 real_to_real_x( rhs_n%vector(igw_p), rdef_rhs_n%vector(igw_p)), &
+                 real_to_real_x( rhs_n%vector(igw_b), rdef_rhs_n%vector(igw_b)) )
     call state_inc%set_scalar(0.0_r_def)
     call gw_mixed_solver%apply(state_inc, rhs_n)
-    call copy_field( state_inc%vector(igw_u), rdef_state_inc%vector(igw_u))
-    call copy_field( state_inc%vector(igw_p), rdef_state_inc%vector(igw_p))
-    call copy_field( state_inc%vector(igw_b), rdef_state_inc%vector(igw_b))
+    call invoke( real_to_real_x( rdef_state_inc%vector(igw_u), state_inc%vector(igw_u)), &
+                 real_to_real_x( rdef_state_inc%vector(igw_p), state_inc%vector(igw_p)), &
+                 real_to_real_x( rdef_state_inc%vector(igw_b), state_inc%vector(igw_b)) )
     call state%axpy(1.0_r_def,rdef_state_inc)
 
     ! Return fields

@@ -13,7 +13,6 @@ module compute_sl_coefficients_alg_mod
   ! Constants and types
   use constants_mod,                            only: i_def, l_def
   use r_tran_field_mod,                         only: r_tran_field_type
-  use copy_field_alg_mod,                       only: copy_field
   use field_mod,                                only: field_type
   use integer_field_mod,                        only: integer_field_type
   use function_space_mod,                       only: function_space_type
@@ -71,7 +70,7 @@ contains
     mesh => coeffs(1)%get_mesh()
     height_rdef => get_height_fv( Wtheta, mesh%get_id() )
     call height%initialise( vector_space = height_rdef%get_function_space() )
-    call copy_field( height_rdef, height )
+    call invoke( real_to_real_x( height, height_rdef ) )
 
     select case (order)
     case (vertical_sl_order_cubic)
