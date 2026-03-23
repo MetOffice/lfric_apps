@@ -660,8 +660,9 @@ contains
     ! NEED TO CHECK THAT THIS TEST IS STILL REQUIRED. REMOVE FOR NOW.
 
     ! Enumeration not compatible with integer arrays
-    c3 = int(config%jules_pftparm%c3_io(), i_um)
-    orient = int(config%jules_pftparm%orient_io(), i_um)
+    c3       = int(config%jules_pftparm%c3_io(), i_um)
+    fsmc_mod = int(config%jules_pftparm%fsmc_mod_io(), i_um)
+    orient   = int(config%jules_pftparm%orient_io(), i_um)
 
     a_wl = real(config%jules_pftparm%a_wl_io(), r_um)
     a_ws = real(config%jules_pftparm%a_ws_io(), r_um)
@@ -683,7 +684,6 @@ contains
     alpha_elec = real(config%jules_pftparm%alpha_elec_io(), r_um)
     avg_ba = real(config%jules_pftparm%avg_ba_io(), r_um)
     b_wl = real(config%jules_pftparm%b_wl_io(), r_um)
-    c3 = real(config%jules_pftparm%c3_io(), r_um)
     can_struct_a = real(config%jules_pftparm%can_struct_a_io(), r_um)
     catch0 = real(config%jules_pftparm%catch0_io(), r_um)
     ccleaf_max = real(config%jules_pftparm%ccleaf_max_io(), r_um)
@@ -722,7 +722,6 @@ contains
     fef_so2 = real(config%jules_pftparm%fef_so2_io(), r_um)
     fire_mort = real(config%jules_pftparm%fire_mort_io(), r_um)
     fl_o3_ct = real(config%jules_pftparm%fl_o3_ct_io(), r_um)
-    fsmc_mod = real(config%jules_pftparm%fsmc_mod_io(), r_um)
     fsmc_of = real(config%jules_pftparm%fsmc_of_io(), r_um)
     fsmc_p0 = real(config%jules_pftparm%fsmc_p0_io(), r_um)
     g1_stomata = real(config%jules_pftparm%g1_stomata_io(), r_um)
@@ -754,7 +753,6 @@ contains
     omnir = real(config%jules_pftparm%omnir_io(), r_um)
     omnirl = real(config%jules_pftparm%omnirl_io(), r_um)
     omniru = real(config%jules_pftparm%omniru_io(), r_um)
-    orient = real(config%jules_pftparm%orient_io(), r_um)
     psi_close = real(config%jules_pftparm%psi_close_io(), r_um)
     psi_open = real(config%jules_pftparm%psi_open_io(), r_um)
     q10_leaf = real(config%jules_pftparm%q10_leaf_io(), r_um)
@@ -788,7 +786,7 @@ contains
 
     ! This routine checks that the options set are actually compatible
     call check_jules_pftparm(npft,nnpft)
-    call check_jules_nvegparm(nnvg,npft)
+    call check_jules_nvegparm(nnvg)
     call c_z0h_z0m_check(ntype)
     call check_compatible_options()
 
