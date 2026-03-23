@@ -185,7 +185,6 @@ module tl_test_advect_density_field_mod
       call invoke( X_minus_Y( diff, n2_advection_inc, n1_advection_inc ), &
                    inc_X_minus_Y( diff, p_advection_inc ),                &
                    X_innerproduct_X( norm_diff, diff ) )
-      norm_diff = sqrt(norm_diff)
 
       write( log_scratch_space, '(A, E32.12, A, E32.12)' ) &
              'gamma = ', gamma_u, ' norm = ', norm_diff
