@@ -25,21 +25,29 @@ implicit none
 ! the ground emission and the general dust tracking.
 ! It blends them according to the pws_dustmmr1_em ratio.
 
-character(len=*), parameter, private :: ModuleName = 'VIS__MOD'
+character(len=*), parameter, private :: ModuleName = 'VIS_DUST_MOD'
 contains
 
 ! Based on the UM's pws_vis2_diag, with pws_dustmmr1_em set to zero.
 subroutine vis_dust(                                                   &
-            t1p5m,                                                     &
             vis_no_precip,                                             &
+            t1p5m,                                                     &
+            p_star,                                                    &
             acc_ins_du,                                                &
             cor_ins_du,                                                &
-            vis_with_dust)
+            vis_with_dust,                                             &
+            vis_overall)
 
   !--------
   ! Modules
   !--------
   use um_types, only: real_umphys
+  use visbty_constants_mod, only: lnliminalcontrast, recipvisair
+  use planet_constants_mod, only: planet_radius
+  use yomhook, only: lhook, dr_hook
+  use parkind1, only: jprb, jpim
+  use constants_mod, only : r_um
+
 
   implicit none
 
@@ -55,6 +63,9 @@ subroutine vis_dust(                                                   &
   ! 1.5m temperature
   real(kind=real_umphys), intent(in) :: t1p5m(1)
 
+  ! Surface Pressure
+  real(r_um), intent(in) :: p_star(1)
+
   ! Accumulated dust, ~= UM's dust_div1.
   real(kind=real_umphys), intent(in) :: acc_ins_du(1)
 
@@ -63,15 +74,39 @@ subroutine vis_dust(                                                   &
 
   ! Result, visibility with dust.
   real(kind=real_umphys), intent(inout) :: vis_with_dust(1)
-                                        
+
+  ! Overall visibility.
+  real(kind=real_umphys), intent(out) :: vis_overall(1)
+  
+
   !-------
   ! Locals
   !-------
   
+  ! extinction in clean air
+  REAL(KIND=real_umphys) :: beta_air      
+
+  ! specific extinction coeffs at 550nm for each bin
   REAL(KIND=real_umphys) :: k_ext(2)
-                        ! specific extinction coeffs at 550nm for each bin
+
+  ! air density
+  REAL(KIND=real_umphys) :: rho
+
+  ! extinction due to dust
+  REAL(KIND=real_umphys) :: beta_dust
+
+  ! running total of the extinction
+  REAL(KIND=real_umphys) :: beta_tot
+
+
+                        
   DATA k_ext(1), k_ext(2) / 700.367, 141.453 /
 
+  integer(kind=jpim), parameter :: zhook_in  = 0
+  integer(kind=jpim), parameter :: zhook_out = 1
+  real(kind=jprb)               :: zhook_handle
+
+  character(len=*), parameter :: RoutineName='VIS_DUST'
 
   ! tracing
   if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
@@ -79,31 +114,30 @@ subroutine vis_dust(                                                   &
   ! no bounds check necessary?
   
 
-  ! Calculate the extinction in clean air from RecipVisAir
-  beta_air = -LnLiminalContrast * RecipVisAir
+  ! Calculate the extinction in clean air from recipvisair
+  beta_air = -lnliminalcontrast * recipvisair
+
 
   ! Calculate the extinction due to dust
-  rho = pstar(1) / (t1p5m(i,j) * r)
+  rho = p_star(1) / (t1p5m(1) * planet_radius)
 
-  beta_dust(i,j)= rho * ( acc_ins_du(i,j)*k_ext(1) +                          &
-                          cor_ins_du(i,j)*k_ext(2) )
+  beta_dust = rho * ( acc_ins_du(1)*k_ext(1) + cor_ins_du(1)*k_ext(2) )
 
   ! Calculate visibility fields
 
   !   Invert visibility to calculate total extinction
-  beta_tot(i,j) = -LnLiminalContrast / vis_no_precip(i,j)
+  beta_tot = -lnliminalcontrast / vis_no_precip(1)
 
   !   Add the extinction from dust to the total
-  beta_tot(i,j) = beta_tot(i,j) + beta_dust(i,j)
-
+  beta_tot = beta_tot + beta_dust
 
 
   !   Invert back to get visibilities
-  pws_1p5m_vis_tot(i,j)  = -LnLiminalContrast / beta_tot(i,j)
+  vis_overall(1)  = -lnliminalcontrast / beta_tot
 
 
   !   Include small contribution from air to limit vis model's max value
-  pws_1p5m_vis_dust(i,j) = -LnLiminalContrast / (beta_dust(i,j) + beta_air)
+  vis_with_dust(1) = -lnliminalcontrast / (beta_dust + beta_air)
 
 
   if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

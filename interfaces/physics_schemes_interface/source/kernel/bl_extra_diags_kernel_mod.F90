@@ -191,6 +191,7 @@ contains
     use planet_config_mod,    only : p_zero, kappa, gravity, cp
     use planet_constants_mod, only : vkman, c_virtual
     use vis_precip_mod,       only : vis_precip
+    use vis_dust_mod,         only : vis_dust
     use visbty_constants_mod, only : n_vis_thresh, vis_thresh
     use visbty_mod,           only : visbty
     use variable_precision,   only : wp
@@ -393,9 +394,11 @@ contains
       if ( .not. associated(visibility_with_dust, empty_real_data) ) then
         call vis_dust( vis_no_precip,                                          &
                        t1p5m,                                                  &
+                       p_star,                                                 &
                        acc_ins_du,                                             &
                        cor_ins_du,                                             &
-                       vis_with_dust )
+                       vis_with_dust,                                                    &
+                       vis)
         visibility_with_dust(map_2d(1)) = vis_with_dust(1,1)
       end if ! vis with dust
 

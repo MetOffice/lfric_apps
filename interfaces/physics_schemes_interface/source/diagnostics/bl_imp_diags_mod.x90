@@ -46,6 +46,7 @@ module bl_imp_diags_mod
   logical( l_def ) :: pseudotauy_flag
   logical( l_def ) :: vis_no_precip_flag
   logical( l_def ) :: vis_with_precip_flag
+  logical( l_def ) :: vis_with_dust_flag
   logical( l_def ) :: fog_fraction_flag
   logical( l_def ) :: fog_fraction_ssi_flag
   logical( l_def ) :: fog_fraction_land_flag
