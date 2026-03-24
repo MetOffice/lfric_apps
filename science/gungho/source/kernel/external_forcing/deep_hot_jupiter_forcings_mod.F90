@@ -91,11 +91,11 @@ function deep_hot_jupiter_newton_frequency(height) result(jupiter_like_frequency
     end if
     jupiter_like_frequency = 1.0_r_def /                                       &
                                (10.0_r_def **                                  &
-                                 ( 3.64394335_r_def                            &
-                                  -6.62243624_r_def * log_height               &
-                                  -15.18734102_r_def * log_height ** 2_i_def   &
-                                  -58.10497483_r_def * log_height ** 3_i_def   &
-                                  -50.32067069_r_def * log_height ** 4_i_def   &
+                                 ( 3.64396238_r_def                            &
+                                  -6.62330063_r_def * log_height               &
+                                  -15.19454913_r_def * log_height ** 2_i_def   &
+                                  -58.13043383_r_def * log_height ** 3_i_def   &
+                                  -50.34836486_r_def * log_height ** 4_i_def   &
                                  )                                             &
                                )
   end if
@@ -133,18 +133,17 @@ function day_side_temp(exner, height) result(t_day)
      log_height = log10(height / h_high)
    end if
 
-   t_day_active = 1.47254953e+03_r_def                            &
-                  - 2.10651792e+03_r_def * log_height             &
-                  - 2.14435508e+04_r_def * log_height ** 2_i_def  &
-                  - 5.69645726e+05_r_def * log_height ** 3_i_def  &
-                  - 4.26504534e+06_r_def * log_height ** 4_i_def  &
-                  - 1.37365473e+07_r_def * log_height ** 5_i_def  &
-                  - 1.53546652e+07_r_def * log_height ** 6_i_def  &
-                  + 2.60964163e+07_r_def * log_height ** 7_i_def  &
-                  + 1.03106190e+08_r_def * log_height ** 8_i_def  &
-                  + 1.22718448e+08_r_def * log_height ** 9_i_def  &
-                  + 5.30077509e+07_r_def * log_height ** 10_i_def
-
+   t_day_active = 1.47255194e+03_r_def                            &
+                  - 2.10792942e+03_r_def * log_height             &
+                  - 2.14940583e+04_r_def * log_height ** 2_i_def  &
+                  - 5.70631448e+05_r_def * log_height ** 3_i_def  &
+                  - 4.27527770e+06_r_def * log_height ** 4_i_def  &
+                  - 1.37981342e+07_r_def * log_height ** 5_i_def  &
+                  - 1.55828322e+07_r_def * log_height ** 6_i_def  &
+                  + 2.55667194e+07_r_def * log_height ** 7_i_def  &
+                  + 1.02354499e+08_r_def * log_height ** 8_i_def  &
+                  + 1.22122184e+08_r_def * log_height ** 9_i_def  &
+                  + 5.28052053e+07_r_def * log_height ** 10_i_def
 
    if (pressure >= p_high) then
      t_day = t_day_active + beta * (1.0_r_def - exp(log10(p_high / pressure)))
@@ -187,17 +186,17 @@ function night_side_temp(exner, height) result(t_night)
      log_height = log10(height / h_high)
    end if
 
-   t_night_active = 4.75005073e+02_r_def                             &
-                    - 2.33007153e+03_r_def * log_height              &
-                    - 2.14447894e+04_r_def * log_height ** 2_i_def   &
-                    - 3.11651909e+05_r_def * log_height ** 3_i_def   &
-                    - 8.75656317e+03_r_def * log_height ** 4_i_def   &
-                    + 1.55065476e+07_r_def * log_height ** 5_i_def   &
-                    + 9.67980585e+07_r_def * log_height ** 6_i_def   &
-                    + 2.86486793e+08_r_def * log_height ** 7_i_def   &
-                    + 4.68058136e+08_r_def * log_height ** 8_i_def   &
-                    + 4.07456154e+08_r_def * log_height ** 9_i_def   &
-                    + 1.48075187e+08_r_def * log_height ** 10_i_def
+   t_night_active = 4.75007738e+02_r_def                             &
+                    - 2.33169450e+03_r_def * log_height              &
+                    - 2.15104001e+04_r_def * log_height ** 2_i_def   &
+                    - 3.12941407e+05_r_def * log_height ** 3_i_def   &
+                    - 2.19075899e+04_r_def * log_height ** 4_i_def   &
+                    + 1.54282163e+07_r_def * log_height ** 5_i_def   &
+                    + 9.65080096e+07_r_def * log_height ** 6_i_def   &
+                    + 2.85808438e+08_r_def * log_height ** 7_i_def   &
+                    + 4.67082601e+08_r_def * log_height ** 8_i_def   &
+                    + 4.06668435e+08_r_def * log_height ** 9_i_def   &
+                    + 1.47801814e+08_r_def * log_height ** 10_i_def
 
    if (pressure >= p_high) then
      t_night = t_night_active + beta * (1.0_r_def - exp(log10(p_high / pressure)))
