@@ -132,7 +132,7 @@
 {% elif task_ns.conf_name == "exo-dhj-C24_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["deep-hot-jupiter", "io_clim"],
+        "opt_confs": ["deep-hot-jupiter", "io_clim_daily"],
         "resolution": "C24_MG",
         "DT": 30,
         "mpi_parts": 54,
@@ -147,7 +147,7 @@
 {% elif task_ns.conf_name == "exo-dhj-C48_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["deep-hot-jupiter", "io_clim"],
+        "opt_confs": ["deep-hot-jupiter", "io_clim_daily"],
         "resolution": "C48_MG",
         "DT": 30,
         "mpi_parts": 216,
