@@ -25,6 +25,7 @@
 module lfric2lfric_init_mesh_mod
 
   use add_mesh_map_mod,            only: assign_mesh_maps
+  use config_mod,                  only: config_type
   use constants_mod,               only: i_def, l_def, str_max_filename
   use check_local_mesh_mod,        only: check_local_mesh
   use create_mesh_mod,             only: create_mesh
@@ -82,17 +83,21 @@ contains
 !>                                   regridding method is 'map'.
 !>                                   (unpartitioned mesh input only)
 !===============================================================================
-subroutine init_mesh( configuration,           &
+subroutine init_mesh( config, configuration,   &
                       local_rank, total_ranks, &
                       mesh_names,              &
                       extrusion,               &
                       stencil_depths_in,       &
                       regrid_method )
 
+  use partitioning_nml_iterator_mod, only: partitioning_nml_iterator_type
+  use partitioning_nml_mod,          only: partitioning_nml_type
+
   implicit none
 
   ! Arguments
-  type(namelist_collection_type) :: configuration
+  type(namelist_collection_type), intent(in) :: configuration
+  type(config_type),              intent(in) :: config
 
   integer(kind=i_def),   intent(in) :: local_rank
   integer(kind=i_def),   intent(in) :: total_ranks
@@ -109,8 +114,10 @@ subroutine init_mesh( configuration,           &
 
   ! Namelist variables
   type(namelist_type), pointer :: lfric2lfric_nml      => null()
-  type(namelist_type), pointer :: src_partitioning_nml => null()
-  type(namelist_type), pointer :: dst_partitioning_nml => null()
+
+  type(partitioning_nml_type), pointer :: partitioning
+  type(partitioning_nml_type), pointer :: src_partitioning_nml
+  type(partitioning_nml_type), pointer :: dst_partitioning_nml
 
   ! partitioning namelist variables
   logical(l_def)                   :: generate_inner_halos(2)
@@ -134,23 +141,39 @@ subroutine init_mesh( configuration,           &
   class(panel_decomposition_type), allocatable :: decomposition_src, &
                                                   decomposition_dst
 
+  type(partitioning_nml_iterator_type) :: iter
 
   !============================================================================
   ! Extract and check configuration variables
   !============================================================================
-  ! Read partitioning namelist for source and destination meshes
-  src_partitioning_nml  => configuration%get_namelist('partitioning', &
-                                                      'source')
-  call src_partitioning_nml%get_value( 'generate_inner_halos', &
-                                        generate_inner_halos(src) )
+  call iter%initialise(config%partitioning)
+  do while (iter%has_next())
 
-  dst_partitioning_nml  => configuration%get_namelist('partitioning', &
-                                                      'destination')
-  call dst_partitioning_nml%get_value( 'generate_inner_halos', &
-                                        generate_inner_halos(dst) )
+    partitioning => iter%next()
+
+    if (trim(partitioning%get_profile_name()) == 'source') then
+      src_partitioning_nml => partitioning
+    else if (trim(partitioning%get_profile_name()) == 'destination') then
+      dst_partitioning_nml => partitioning
+    end if
+  end do
+
+  if (.not. associated(src_partitioning_nml)) then
+    write( log_scratch_space, '(A)' )                                     &
+         'Source mesh partitioning namelist (partitioning:source) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+  if (.not. associated(dst_partitioning_nml)) then
+    write( log_scratch_space, '(A)' )                                          &
+         'Destination mesh partitioning namelist (partitioning:destination) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+
+  generate_inner_halos(src) = src_partitioning_nml%generate_inner_halos()
+  generate_inner_halos(dst) = dst_partitioning_nml%generate_inner_halos()
 
   ! Read lfric2lfric namelist
-  lfric2lfric_nml    => configuration%get_namelist('lfric2lfric')
+  lfric2lfric_nml => configuration%get_namelist('lfric2lfric')
 
   call lfric2lfric_nml%get_value( 'prepartitioned_meshes', &
                                    prepartitioned )
@@ -177,12 +200,12 @@ subroutine init_mesh( configuration,           &
   end if
 
   ! Set up stencil depths
-  if ( size(stencil_depths) == 1 ) then
+  if ( size(stencil_depths_in) == 1 ) then
     ! Single stencil depth specified, apply to all meshes
     do i = 1, size(mesh_names)
       stencil_depths(i) = stencil_depths_in(1)
     end do
-  else if ( size(stencil_depths) == size(mesh_names) ) then
+  else if ( size(stencil_depths_in) == size(mesh_names) ) then
     ! Stencil depths specified per mesh
     stencil_depths(:) = stencil_depths_in(:)
   else
@@ -192,6 +215,14 @@ subroutine init_mesh( configuration,           &
     call log_event(log_scratch_space, log_level_error)
   end if
 
+  ! Check stencil depths are valid
+  do i = 1, size(stencil_depths)
+    if (stencil_depths(i) < 0_i_def) then
+      write(log_scratch_space,'(A)') &
+        'Standard partitioned meshes must support a not -ve stencil_depth'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+  end do
 
   !===========================================================================
   ! Create local mesh objects:
@@ -250,7 +281,7 @@ subroutine init_mesh( configuration,           &
     ! meshes are suitable for the supplied application
     ! configuration.
     !===========================================================
-    call check_local_mesh( configuration,  &
+    call check_local_mesh( config,         &
                            stencil_depths, &
                            mesh_names )
 
