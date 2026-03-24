@@ -69,6 +69,7 @@ contains
 !> @param[in,out] dtheta       Potential temperature increment data
 !> @param[in]     theta        Potential temperature data
 !> @param[in]     exner_in_wth The Exner pressure in Wtheta
+!> @param[in]     height_wth   Height at Wtheta points
 !> @param[in]     chi_1        First component of the chi coordinate field
 !> @param[in]     chi_2        Second component of the chi coordinate field
 !> @param[in]     chi_3        Third component of the chi coordinate field
@@ -149,7 +150,7 @@ subroutine deep_hot_jupiter_code(nlayers,                    &
 
     theta_eq = deep_hot_jupiter_equilibrium_theta(exner, lat, lon, height)
 
-    newton_frequency = deep_hot_jupiter_newton_frequency(exner, height)
+    newton_frequency = deep_hot_jupiter_newton_frequency(height)
 
     dtheta_dt = newton_frequency * (theta_eq - theta(map_wth(1) + k))
 

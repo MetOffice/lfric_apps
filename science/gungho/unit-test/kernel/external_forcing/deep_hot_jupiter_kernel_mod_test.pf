@@ -244,7 +244,7 @@ contains
                                 undf_pid=undf_w3,                   &
                                 map_pid=map_w3(:,cell)              &
                               )
-    answer_dtheta = 1080.37082614347614_r_def
+    answer_dtheta = 1090.1449994687637_r_def
     tol = 10.0_r_def * spacing(answer_dtheta) ! Factor of 10 here to
                                               ! accommodate for variation
                                               ! between compute platforms
