@@ -158,6 +158,17 @@ subroutine init_mesh( config, configuration,   &
     end if
   end do
 
+  if (.not. associated(src_partitioning_nml)) then
+    write( log_scratch_space, '(A)' )                                     &
+         'Source mesh partitioning namelist (partitioning:source) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+  if (.not. associated(dst_partitioning_nml)) then
+    write( log_scratch_space, '(A)' )                                          &
+         'Destination mesh partitioning namelist (partitioning:destination) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+
   generate_inner_halos(src) = src_partitioning_nml%generate_inner_halos()
   generate_inner_halos(dst) = dst_partitioning_nml%generate_inner_halos()
 
