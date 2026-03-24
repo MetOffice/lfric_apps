@@ -263,6 +263,7 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
 
   k = 0
   ! ssq12: (du/dy + dv/dx)^2 on 1st w3 level
+  ! N.B. v points in negative direction, hence minus sign
   ! To be averaged to wth/theta level later
   ssq12k = ( ( idx_w2(k,2) * (u_n(true_stencil_map(1,1) + k) - vec_dir(1,3)*u_n(true_stencil_map(1,3) + k) ) -   &
             idx_w2(k,1) * (u_n(true_stencil_map(2,1) + k) - vec_dir(2,2)*u_n(true_stencil_map(2,2) + k) ) )**2 + &
@@ -297,6 +298,7 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
             weight_min_w3 * idx2(km) * (u_n(true_stencil_map(3,1) + km) - u_n(true_stencil_map(1,1) + km) )**2 )
 
     ! ssq22: 2 * backward difference (dv/dy)^2 averaged to wth
+    ! N.B. v points in negative direction, hence minus sign
     ssq22 = 2.0_r_def * (                                                      &
             weight_pl_w3 * idy2(k) * (-u_n(true_stencil_map(4,1) + k) + u_n(true_stencil_map(2,1) + k) )**2 + &
             weight_min_w3 * idy2(km) * (-u_n(true_stencil_map(4,1) + km) + u_n(true_stencil_map(2,1) + km) )**2 )
@@ -314,6 +316,7 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
             idx_w2(k,3) * (u_n(true_stencil_map(5,4) + k) - u_n(true_stencil_map(5,1) + k) ) )**2 ) / 2
 
     ! ssq23: (dw/dy + dv/dz)^2 averaged to wth
+    ! N.B. v points in negative direction, hence minus sign
     ! ssq32 = ssq23
     ssq23 = ( ( idx_w2(k,4) * (u_n(true_stencil_map(5,5) + k) - u_n(true_stencil_map(5,1) + k) ) -  &
             idz_wth(k) * (u_n(true_stencil_map(4,1) + k) - u_n(true_stencil_map(4,1) + km) ) )**2 + &
@@ -321,6 +324,7 @@ subroutine smagorinsky_shear_code( nlayers,                                 &
             idz_wth(k) * (u_n(true_stencil_map(2,1) + k) - u_n(true_stencil_map(2,1) + km) ) )**2 ) / 2
 
     ! ssq12: (du/dy + dv/dx)^2 on w3 level k
+    ! N.B. v points in negative direction, hence minus sign
     ! ssq21 = ssq12
     ssq12up = ( ( idx_w2(k,2) * (u_n(true_stencil_map(1,1) + k) - vec_dir(1,3)*u_n(true_stencil_map(1,3) + k) ) -  &
               idx_w2(k,1) * (u_n(true_stencil_map(2,1) + k) - vec_dir(2,2)*u_n(true_stencil_map(2,2) + k) ) )**2 + &
