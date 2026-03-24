@@ -112,6 +112,7 @@ contains
       end do
 
       ! Set up the land fraction from the input data
+      ! Double precision version used for accurate calculation of ice fractions below
       tot_land = min(sum(tile_fraction(map_tile(1):map_tile(1)+n_land_tile-1)),1.0_r_def)
       tot_land_r_um = min(sum(real(tile_fraction(map_tile(1):map_tile(1)+n_land_tile-1), r_um)),1.0_r_um)
       if (tot_land < 1.0_r_def .and. &
@@ -135,7 +136,7 @@ contains
             tot_land_r_um < 1.0_r_um) then
           tile_fraction(map_tile(1)+i-1) = (                                   &
               sea_ice_fraction(map_sice(1)+i_sice-1)                           &
-              * REAL(1.0_r_um - tot_land_r_um, r_def)                          &
+              * real(1.0_r_um - tot_land_r_um, r_def)                          &
           )
         else
           tile_fraction(map_tile(1)+i-1) = 0.0_r_def
