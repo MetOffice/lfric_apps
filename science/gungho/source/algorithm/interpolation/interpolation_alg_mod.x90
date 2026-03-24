@@ -177,7 +177,8 @@ module interpolation_alg_mod
     ! Compute wind on W2
     ! Based on set_wind in map_fd_prognostics_alg_mod with sample_physics_winds=.true.
     ! Maps computed here to remove dependency on physical_op_constants_mod which requires sample_physics_winds=.true.
-    call invoke( compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id), &
+    call invoke( compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id, &
+                             mesh%is_geometry_planar(), mesh%is_topology_periodic()), &
                  setval_c(u_in_w2, 0.0_r_def), &
                  dg_matrix_vector_kernel_type(u_broken, u_in_w3, u_map), &
                  dg_inc_matrix_vector_kernel_type(u_broken, v_in_w3, v_map), &
