@@ -26,7 +26,7 @@ module init_ancils_mod
   use fs_continuity_mod,              only : W3, WTheta
   use pure_abstract_field_mod,        only : pure_abstract_field_type
   use lfric_xios_time_axis_mod,       only : time_axis_type
-  use jules_control_init_mod,         only : n_land_tile
+  use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
   use jules_physics_init_mod,         only : snow_lev_tile
   use jules_surface_types_mod,        only : npft
   use dust_parameters_mod,            only : ndiv
@@ -40,7 +40,8 @@ module init_ancils_mod
                                              init_option_fd_start_dump, &
                                              snow_source,               &
                                              snow_source_surf,          &
-                                             sea_ice_source,        &
+                                             sea_ice_source,            &
+                                             sea_ice_source_start_dump, &
                                              sea_ice_source_surf
   use aerosol_config_mod,             only : glomap_mode,               &
                                              glomap_mode_climatology,   &
@@ -239,7 +240,7 @@ contains
     end if
 
     !=====  SEA ICE ANCILS  =====
-    if (.not. l_couple_sea_ice) then
+    if (sea_ice_source /= sea_ice_source_start_dump) then
       if (sea_ice_source == sea_ice_source_surf) then
         call sea_ice_time_axis%initialise("sea_ice_time", file_id="sea_ice_ancil", &
                                         interp_flag=.false., pop_freq="daily", &
@@ -250,10 +251,12 @@ contains
       end if
       if (.not. amip_ice_thick) then
         call setup_ancil_field("sea_ice_thickness", depository, ancil_fields, &
-                  mesh, twod_mesh, twod=.true., time_axis=sea_ice_time_axis)
+                  mesh, twod_mesh, twod=.true., ndata=n_sea_ice_tile,         &
+                  time_axis=sea_ice_time_axis)
       end if
       call setup_ancil_field("sea_ice_fraction", depository, ancil_fields, &
-                mesh, twod_mesh, twod=.true., time_axis=sea_ice_time_axis)
+                mesh, twod_mesh, twod=.true., ndata=n_sea_ice_tile,        &
+                time_axis=sea_ice_time_axis)
       call ancil_times_list%insert_item(sea_ice_time_axis)
     endif
 
