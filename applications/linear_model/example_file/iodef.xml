@@ -365,7 +365,7 @@
 
       <variable_group id = "parameters" >
         <variable id = "using_server" type = "bool" >true</variable>
-        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
         <variable id = "print_file" type="bool">true</variable>
       </variable_group>
     </variable_definition>
