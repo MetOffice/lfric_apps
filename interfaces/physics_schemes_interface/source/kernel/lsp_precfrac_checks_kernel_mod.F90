@@ -59,20 +59,20 @@ contains
 !> @param[in]     mr_wth               Rain mass mixing ratio
 !> @param[in]     mg_wth               Graupel mass mixing ratio
 !> @param[in,out] precfrac_wth         Prognostic precip fraction
-!> @param[in]     ndf_wth              Degrees of freedom per cell; wth space
-!> @param[in]     undf_wth             Unique of degrees of freedom; wth space
-!> @param[in]     map_wth              Dofmap  celofl at column base; wth space
 !> @param[in]     ndf_w3               Degrees of freedom per cell; w3 space
 !> @param[in]     undf_w3              Unique of degrees of freedom; w3 space
 !> @param[in]     map_w3               Dofmap  celofl at column base; w3 space
+!> @param[in]     ndf_wth              Degrees of freedom per cell; wth space
+!> @param[in]     undf_wth             Unique of degrees of freedom; wth space
+!> @param[in]     map_wth              Dofmap  celofl at column base; wth space
 
 subroutine lsp_precfrac_checks_code( nlayers,                                  &
                                      exner_w3,                                 &
                                      mv_wth, ml_wth, mi_wth,                   &
                                      ms_wth, mr_wth, mg_wth,                   &
                                      precfrac_wth,                             &
-                                     ndf_wth, undf_wth, map_wth,               &
-                                     ndf_w3,  undf_w3,  map_w3 )
+                                     ndf_w3,  undf_w3,  map_w3,                &
+                                     ndf_wth, undf_wth, map_wth )
 
     use constants_mod,           only: r_def, i_def, r_um, i_um
 
@@ -86,12 +86,12 @@ subroutine lsp_precfrac_checks_code( nlayers,                                  &
 
     ! Arguments
 
-    integer(kind=i_def), intent(in) :: ndf_wth
-    integer(kind=i_def), intent(in) :: undf_wth
-    integer(kind=i_def), intent(in), dimension(ndf_wth) :: map_wth
     integer(kind=i_def), intent(in) :: ndf_w3
     integer(kind=i_def), intent(in) :: undf_w3
     integer(kind=i_def), intent(in), dimension(ndf_w3)  :: map_w3
+    integer(kind=i_def), intent(in) :: ndf_wth
+    integer(kind=i_def), intent(in) :: undf_wth
+    integer(kind=i_def), intent(in), dimension(ndf_wth) :: map_wth
 
     integer(kind=i_def), intent(in) :: nlayers
 
