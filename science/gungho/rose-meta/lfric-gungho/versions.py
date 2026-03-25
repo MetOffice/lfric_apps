@@ -40,7 +40,7 @@ class vn31_t378(MacroUpgrade):
 
     def upgrade(self, config, meta_config=None):
         self.add_setting(
-            config, ["namelist:mixing", "conservation_diffusion"], ".false."
+            config, ["namelist:mixing", "conservative_diffusion"], ".false."
         )
         self.add_setting(
             config, ["namelist:mixing", "max_diff_factor"], "1.0"
