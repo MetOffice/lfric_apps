@@ -589,10 +589,10 @@ subroutine lw_code(nlayers, n_profile, &
       ! Compute the number of columns per LW segment for each thread.
       ! The maximum segment size is limited by lw_seg_limit_size to prevent
       ! overly large blocks. This ensures better load balancing across threads.
-      ncols_per_thread = (n_profile_list + max_threads - 1) / max_threads
-      nblocks = ((ncols_per_thread + lw_seg_limit_size - 1) / lw_seg_limit_size) &
+      ncols_per_thread = ceiling(real(n_profile_list) / real(max_threads))
+      nblocks = ceiling(real(ncols_per_thread) / real(lw_seg_limit_size)) &
                 * max_threads
-      soc_lw_block = (n_profile_list + nblocks - 1) / nblocks
+      soc_lw_block = ceiling(real(n_profile_list) / real(nblocks))
 
       !$OMP PARALLEL DEFAULT(SHARED)                                           &
       !$OMP PRIVATE(ll, seg_start, seg_end, n_profile_list_seg)
