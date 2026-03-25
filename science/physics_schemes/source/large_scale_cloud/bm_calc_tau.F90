@@ -82,16 +82,16 @@ integer, intent(in) :: bl_levels
 
 real, intent(in) ::  qcf(tdims_l%i_start:tdims_l%i_end,                        &
                          tdims_l%j_start:tdims_l%j_end,                        &
-                         tdims_l%k_start:tdims_l%k_end)
+                                         tdims_l%k_end)
 !                    snow content (kg per kg air)
 real, intent(in) ::  qcf2(tdims_l%i_start:tdims_l%i_end,                       &
                          tdims_l%j_start:tdims_l%j_end,                        &
-                         tdims_l%k_start:tdims_l%k_end)
+                                         tdims_l%k_end)
 !                    Cloud ice content (kg per kg air)
 
 real, intent(in) ::  cff(tdims_l%i_start:tdims_l%i_end,                        &
                          tdims_l%j_start:tdims_l%j_end,                        &
-                         tdims_l%k_start:tdims_l%k_end)
+                                         tdims_l%k_end)
 !                    Cloud ice fraction
 
 real, intent(in) ::  icenumber(tdims_l%i_start:tdims_l%i_end,                  &
@@ -105,17 +105,17 @@ real, intent(in) ::  snownumber(tdims_l%i_start:tdims_l%i_end,                 &
 
 real, intent(in) ::  q(tdims_l%i_start:tdims_l%i_end,                          &
                        tdims_l%j_start:tdims_l%j_end,                          &
-                       tdims_l%k_start:tdims_l%k_end)
+                                       tdims_l%k_end)
 !                    Specific humidity (kg/kg)
 
 real, intent(in) ::  theta(tdims_s%i_start:tdims_s%i_end,                      &
                            tdims_s%j_start:tdims_s%j_end,                      &
-                           tdims_s%k_start:tdims_s%k_end)
+                                           tdims_s%k_end)
 !                    Potential temperature (K)
 
 real, intent(in) ::  exner_theta(tdims_s%i_start:tdims_s%i_end,                &
                                  tdims_s%j_start:tdims_s%j_end,                &
-                                 tdims_s%k_start:tdims_s%k_end)
+                                                 tdims_s%k_end)
 !                    Exner on theta levels
 
 real, intent(in) ::  bl_w_var(tdims%i_start : tdims%i_end,                     &
