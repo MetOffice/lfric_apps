@@ -914,7 +914,7 @@ contains
     !--------------------------------------------------------------------
     call mixing_alg(mr, state(igh_t),                             &
                     state(igh_u), derived_fields,                 &
-                    state(igh_d), cast_dt )
+                    state(igh_d), cast_dt, modeldb%clock )
 
     ! Update derived variables for time level n+1
     if (use_moisture) then
