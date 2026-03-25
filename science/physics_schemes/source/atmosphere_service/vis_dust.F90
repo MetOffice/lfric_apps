@@ -46,7 +46,7 @@ subroutine vis_dust(                                                   &
   use planet_constants_mod, only: planet_radius
   use yomhook, only: lhook, dr_hook
   use parkind1, only: jprb, jpim
-  use constants_mod, only : r_um
+  use constants_mod, only : r_def, r_um
 
 
   implicit none
@@ -61,30 +61,30 @@ subroutine vis_dust(                                                   &
   real(kind=real_umphys), intent(in) :: vis_no_precip(1)
 
   ! 1.5m temperature
-  real(kind=real_umphys), intent(in) :: t1p5m(1)
+  real(kind=r_def), intent(in) :: t1p5m(1)
 
   ! Surface Pressure
   real(r_um), intent(in) :: p_star(1)
 
   ! Accumulated dust, ~= UM's dust_div1.
-  real(kind=real_umphys), intent(in) :: acc_ins_du(1)
+  real(kind=r_def), intent(in) :: acc_ins_du(1)
 
   ! Coarse dust, ~= UM's dust_div2.
-  real(kind=real_umphys), intent(in) :: cor_ins_du(1)
+  real(kind=r_def), intent(in) :: cor_ins_du(1)
 
   ! Result, visibility with dust.
   real(kind=real_umphys), intent(inout) :: vis_with_dust(1)
 
   ! Overall visibility.
   real(kind=real_umphys), intent(out) :: vis_overall(1)
-  
+
 
   !-------
   ! Locals
   !-------
-  
+
   ! extinction in clean air
-  REAL(KIND=real_umphys) :: beta_air      
+  REAL(KIND=real_umphys) :: beta_air
 
   ! specific extinction coeffs at 550nm for each bin
   REAL(KIND=real_umphys) :: k_ext(2)
@@ -99,7 +99,7 @@ subroutine vis_dust(                                                   &
   REAL(KIND=real_umphys) :: beta_tot
 
 
-                        
+
   DATA k_ext(1), k_ext(2) / 700.367, 141.453 /
 
   integer(kind=jpim), parameter :: zhook_in  = 0
@@ -110,9 +110,9 @@ subroutine vis_dust(                                                   &
 
   ! tracing
   if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-  
+
   ! no bounds check necessary?
-  
+
 
   ! Calculate the extinction in clean air from recipvisair
   beta_air = -lnliminalcontrast * recipvisair
