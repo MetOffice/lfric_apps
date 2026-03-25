@@ -35,7 +35,6 @@ module jedi_lfric_nl_modeldb_driver_mod
                                            log_scratch_space, &
                                            LOG_LEVEL_TRACE,   &
                                            LOG_LEVEL_ERROR
-  use namelist_mod,                 only : namelist_type
 
   implicit none
 
@@ -66,8 +65,7 @@ contains
 
     ! 1. Initialise modeldb field collections, configuration and mpi.
     modeldb%mpi => mpi_obj
-    call modeldb%configuration%initialise( modeldb_name, table_len=10 )
-
+    call modeldb%config%initialise( modeldb_name )
     call modeldb%values%initialise('values', table_len = 5)
 
     ! 2. Create the depository, prognostics and diagnostics field collections
@@ -89,7 +87,7 @@ contains
     call modeldb%io_contexts%initialise(modeldb_name, table_len=100)
 
     call init_config( filename, gungho_required_namelists, &
-                      modeldb%configuration )
+                      config=modeldb%config )
 
     ! 3. Initialise the clock and calendar
     call init_time( modeldb )
