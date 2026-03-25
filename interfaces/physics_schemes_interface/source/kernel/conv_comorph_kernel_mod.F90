@@ -793,7 +793,7 @@ contains
                           tau_conv_prog_dtheta, tau_conv_prog_dq
     use jules_surface_mod, only: srf_ex_cnv_gust, IP_SrfExWithCnv
     use mphys_inputs_mod, only: l_mcr_qgraup, l_mcr_qrain, l_mcr_qcf2,         &
-                                l_mcr_precfrac, l_improve_precfrac_checks, 
+                                l_mcr_precfrac, l_improve_precfrac_checks
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels
     use planet_constants_mod, only: p_zero, kappa, planet_radius, g
     use timestep_mod, only: timestep
