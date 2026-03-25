@@ -164,6 +164,8 @@ si_tolerance=1.0e-1,
 split_w=.true.,
 /
 &mixing
+conservative_diffusion=.false.,
+max_diff_factor=1.0,
 smagorinsky=.false.,
 viscosity=.false.,
 viscosity_mu=0.0,

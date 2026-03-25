@@ -31,3 +31,18 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn31_t238(MacroUpgrade):
+    """Upgrade macro for ticket #378 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t378"
+
+    def upgrade(self, config, meta_config=None):
+        self.add_setting(
+            config, ["namelist:mixing", "conservation_diffusion"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "max_diff_factor"], "1.0"
+        )
+        return config, self.reports
