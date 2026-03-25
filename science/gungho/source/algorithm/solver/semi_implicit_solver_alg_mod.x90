@@ -489,14 +489,16 @@ contains
   !>
   !> @param[in,out] state               Prognostic model state
   !> @param[in,out] rhs                 Residuals
+  !> @param[in,out] dry_flux_solver     Solver contributions to dry flux
   !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics factors
   !> @param[in]     mr                  Mixing ratio array
   !> @param[in]     write_moisture_diag Flag to control output of moisture
   !!                                    conservation diagnostics
   !> @param[in]     first_iteration     Flag for first inner iteration
   subroutine semi_implicit_solver_alg_step(state, rhs,              &
-                                           moist_dyn_gas_law,       &
-                                           mr, write_moisture_diag, &
+                                           dry_flux_solver,         &
+                                           moist_dyn_gas_law, mr,   &
+                                           write_moisture_diag,     &
                                            first_iteration)
 
     use solver_constants_mod,          only: get_normalisation_r_solver, &
@@ -532,6 +534,7 @@ contains
     ! Prognostic fields
     type( field_type ), dimension(bundle_size), intent( inout ) :: state
     type( field_type ), dimension(bundle_size), intent( inout ) :: rhs
+    type( field_type ),                         intent( inout ) :: dry_flux_solver
     type( field_type ),                         intent( in )    :: moist_dyn_gas_law
     type( field_type ), dimension(nummr),       intent( in )    :: mr
     logical( kind=l_def ),                      intent( in )    :: write_moisture_diag
@@ -544,9 +547,11 @@ contains
 
     ! For analytic elimination of rho and theta
     type( field_type ) :: rhs_rdef,  &
-                          inc_theta
+                          inc_theta, &
+                          f_star_rdef
 
     type( field_type ) :: rho_guess
+    real( kind=r_def ) :: tau_r_dt_rdef
 
     type( r_solver_field_type ), dimension(bundle_size) :: rhs_rsol
     type( r_solver_field_type ) :: div_u,          &
@@ -716,6 +721,13 @@ contains
                  dg_matrix_vector_kernel_type( div_u, f_star, div ),       &
                  aX_plus_Y(inc_rho_rsol, tau_r_dt, div_u, rhs_rsol(igh_d)) &
                )
+
+    call f_star_rdef%initialise( vector_space = rhs(igh_u)%get_function_space() )
+    call copy_field(f_star, f_star_rdef)
+    tau_r_dt_rdef = real(tau_r*dt, kind=r_def)
+    call invoke(                                                               &
+        inc_X_plus_bY(dry_flux_solver, tau_r_dt_rdef, f_star_rdef)             &
+    )
 
     ! Compute theta increment since solver does not provide one
     ptheta2 => get_ptheta2()

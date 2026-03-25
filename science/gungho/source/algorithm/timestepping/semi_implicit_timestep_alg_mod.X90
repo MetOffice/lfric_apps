@@ -46,7 +46,8 @@ module semi_implicit_timestep_alg_mod
                                         use_wavedynamics,         &
                                         moisture_formulation,     &
                                         moisture_formulation_dry, &
-                                        exner_from_eos
+                                        exner_from_eos,           &
+                                        conservative_moisture_correction
   use io_config_mod,              only: write_conservation_diag, write_diag,  &
                                         use_xios_io, diagnostic_frequency,    &
                                         checkpoint_read
@@ -66,6 +67,7 @@ module semi_implicit_timestep_alg_mod
                                         blend_frequency_final
   use finite_element_config_mod,  only: element_order_h, &
                                         element_order_v
+  use sci_field_minmax_alg_mod,   only: log_field_minmax
 
   ! PSyKAl PSyclone kernels
   use matrix_vector_kernel_mod,   only: matrix_vector_kernel_type
@@ -115,6 +117,8 @@ module semi_implicit_timestep_alg_mod
   use mixing_alg_mod,             only: mixing_alg
   use si_diagnostics_mod,         only: output_diags_for_si
   use predictors_alg_mod,         only: predictors_alg
+  use solver_moist_correction_alg_mod,                                         &
+                                  only: solver_moist_correction_alg
 
   ! LAM
   use limited_area_lbc_alg_mod,   only: lam_solver_lbc, &
@@ -616,6 +620,8 @@ contains
 
     ! Moisture field to transport
     type( field_type ),       pointer :: mr_to_adv(:)
+    type( field_type )                :: dry_flux_solver
+    type( field_type )                :: rho_star
 
     type( field_type ) :: dcfl_tot, dcff_tot, dbcf_tot, &
                           dcfl_adv, dcff_adv, dbcf_adv
@@ -637,7 +643,7 @@ contains
                                              ! during the spinup period
 
     ! Density field used for moisture conservation diagnostics and predictor
-    logical(kind=l_def) :: write_moisture_diag
+    logical(kind=l_def) :: write_moisture_diag, do_moist_correction
 
     ! Fields after slow physics to be advected (i.e. field_n + slow phys inc)
     type( field_collection_type ) :: adv_tracer_all_outer_after_slow
@@ -684,6 +690,9 @@ contains
       mm_wt  => get_mass_matrix_fe(Wtheta, mesh%get_id())
       mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
     end if
+
+    call rho_star%initialise(rho%get_function_space())
+    call dry_flux_solver%initialise(u%get_function_space())
 
     !--------------------------------------------------------------------
     ! Copy prognostic field data to state arrays
@@ -825,6 +834,8 @@ contains
     outer_dynamics_loop: do outer = 1,outer_iterations
 
       if (use_wavedynamics) then
+        call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
+
         call gungho_transport_control_alg(                                     &
                 self%rhs_adv, self%advected_state, self%state(igh_u),          &
                 self%state_n(igh_u), mr, mr_to_adv, model_clock,               &
@@ -1005,6 +1016,7 @@ contains
           ! Solve semi-implicit system: A*inc = rhs, and incement state by inc
           !--------------------------------------------------------------------
           call semi_implicit_solver_alg_step( self%state, self%rhs_np1, &
+                                              dry_flux_solver,          &
                                               moist_dyn(gas_law),       &
                                               mr,                       &
                                               write_moisture_diag,      &
@@ -1040,12 +1052,26 @@ contains
                                  moisture_formulation, prime_mesh_name)
 
             end if
-          endif
-
+          end if
         end do inner_dynamics_loop
         !--------------------------------------------------------------------
         ! End of Inner (nonlinear, coriolis) loop
         !--------------------------------------------------------------------
+
+        do_moist_correction = (                                                &
+          conservative_moisture_correction .and. self%use_moisture             &
+          .and. outer == outer_iterations                                      &
+        )
+        if (do_moist_correction) then
+          call log_field_minmax(LOG_LEVEL_INFO, 'mr_v_bef_correct', mr(1))
+          call invoke(                                                         &
+              X_plus_Y(rho_star, self%rhs_adv(igh_d), self%state_n(igh_d))     &
+          )
+          call solver_moist_correction_alg(                                    &
+              mr, self%state(igh_d), rho_star, dry_flux_solver                 &
+          )
+          call log_field_minmax(LOG_LEVEL_INFO, 'mr_v_aft_correct', mr(1))
+        end if
 
       else ! when use_wavedynamics=false, just add physics increments here
 
