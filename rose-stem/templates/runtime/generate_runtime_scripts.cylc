@@ -104,7 +104,7 @@
 {% elif "local_build_test" in task %}
     {# Test the local_build script by building gungho_model #}
 
-    {% if "launch_platform" in site_vars and site_vars.launch_platform == "azspice" %}
+    {% if "launch_platform" in site_vars and site_vars.launch_platform in ["azspice", "ex1a"] %}
         {% set local_build_inherit = "SCRIPTS,"~site_vars["scripts_platform"]|upper~"_BUILD_GNU" %}
     {% else %}
         {% set local_build_inherit = "SCRIPTS,"~site_vars["scripts_platform"]|upper~"_BUILD_INTEL" %}
