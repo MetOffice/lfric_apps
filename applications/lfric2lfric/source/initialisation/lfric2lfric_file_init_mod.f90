@@ -26,7 +26,6 @@ module lfric2lfric_file_init_mod
                                     src_orography_mean_ancil_path, &
                                     mode_ics, mode_lbc
   use linked_list_mod,        only: linked_list_type
-  use namelist_mod,           only: namelist_type
   use orography_config_mod,   only: orog_init_option,    &
                                     orog_init_option_ancil
 
@@ -50,22 +49,18 @@ module lfric2lfric_file_init_mod
     type(linked_list_type),        intent(out)   :: files_list
     type(modeldb_type), optional,  intent(inout) :: modeldb
 
-    type(namelist_type),    pointer :: lfric2lfric_nml
-    type(namelist_type),    pointer :: files_nml
-
     integer(kind=i_def)             :: mode
     character(len=str_max_filename) :: start_dump_filename
     character(len=str_max_filename) :: source_file_lbc
     character(len=str_max_filename) :: src_ancil_fname
 
-    if( use_xios_io ) then
+    if ( use_xios_io ) then
 
-      lfric2lfric_nml    => modeldb%configuration%get_namelist('lfric2lfric')
-      call lfric2lfric_nml%get_value( 'mode', mode )
+      mode = modeldb%config%lfric2lfric%mode()
 
-      files_nml    => modeldb%configuration%get_namelist('files')
       if (mode == mode_ics) then
-        call files_nml%get_value( 'start_dump_filename', start_dump_filename )
+
+        start_dump_filename = modeldb%config%files%start_dump_filename()
 
         ! Setup checkpoint reading context information
         call files_list%insert_item(                               &
@@ -74,7 +69,8 @@ module lfric2lfric_file_init_mod
                                   io_mode=FILE_MODE_READ )         )
 
       else if (mode == mode_lbc) then
-        call lfric2lfric_nml%get_value( 'source_file_lbc', source_file_lbc )
+
+        source_file_lbc = modeldb%config%lfric2lfric%source_file_lbc()
 
         ! Setup lbc source reading context information
         call files_list%insert_item(                               &
@@ -83,7 +79,7 @@ module lfric2lfric_file_init_mod
                                   io_mode=FILE_MODE_READ,          &
                                   operation=OPERATION_TIMESERIES,  &
                                   freq=diagnostic_frequency) )
-      endif
+      end if
 
       ! Setup orography ancillary file
       if ( orog_init_option == orog_init_option_ancil ) then
@@ -96,7 +92,7 @@ module lfric2lfric_file_init_mod
                                            io_mode=FILE_MODE_READ ) )
       end if
 
-    endif
+    end if
 
   end subroutine init_lfric2lfric_src_files
 
@@ -113,8 +109,6 @@ module lfric2lfric_file_init_mod
     type(modeldb_type), optional,  intent(inout) :: modeldb
 
     ! Local variables
-    type(namelist_type),    pointer :: lfric2lfric_nml
-    type(namelist_type),    pointer :: files_nml
     integer(kind=i_def),  parameter :: checkpoint_frequency = 1_i_def
 
     integer(kind=i_def)             :: mode
@@ -122,15 +116,14 @@ module lfric2lfric_file_init_mod
     character(len=str_max_filename) :: checkpoint_stem_name
     character(len=str_max_filename) :: diag_stem_name
 
-    if( use_xios_io ) then
+    if ( use_xios_io ) then
 
-      lfric2lfric_nml    => modeldb%configuration%get_namelist('lfric2lfric')
-      call lfric2lfric_nml%get_value( 'mode', mode )
+      mode = modeldb%config%lfric2lfric%mode()
 
-      files_nml    => modeldb%configuration%get_namelist('files')
       ! Set up diagnostic writing info
-      if( write_diag ) then
-        call files_nml%get_value( 'diag_stem_name', diag_stem_name )
+      if ( write_diag ) then
+
+        diag_stem_name = modeldb%config%files%diag_stem_name()
 
         ! Setup diagnostic output file
         call files_list%insert_item(                         &
@@ -138,12 +131,14 @@ module lfric2lfric_file_init_mod
                                   xios_id="lfric_diag",      &
                                   io_mode=FILE_MODE_WRITE,   &
                                   freq=diagnostic_frequency) )
-      endif
+      end if
 
       if (mode == mode_ics) then
+
         ! Setup checkpoint writing context information
         if ( checkpoint_write ) then
-          call files_nml%get_value( 'checkpoint_stem_name', checkpoint_stem_name )
+
+          checkpoint_stem_name = modeldb%config%files%checkpoint_stem_name()
 
           call files_list%insert_item(                                &
               lfric_xios_file_type( trim( checkpoint_stem_name ),     &
@@ -152,6 +147,7 @@ module lfric2lfric_file_init_mod
                                     freq=checkpoint_frequency )       )
         end if
       else if (mode == mode_lbc) then
+
         ! Setup lbc writing context information
         call files_list%insert_item(                                &
             lfric_xios_file_type( "lfric2lfric_lbc",                &
@@ -159,20 +155,21 @@ module lfric2lfric_file_init_mod
                                   io_mode=FILE_MODE_WRITE,          &
                                   operation=OPERATION_TIMESERIES,   &
                                   freq=diagnostic_frequency ) )
-      endif
+      end if
 
       ! Setup orography ancillary file
       if ( orog_init_option == orog_init_option_ancil ) then
+
         ! Set orography ancil filename from namelist
         write(dst_ancil_fname,'(A)') trim(dst_ancil_directory)//'/'// &
                                      trim(dst_orography_mean_ancil_path)
-        call files_list%insert_item( lfric_xios_file_type(                     &
-                                           trim(dst_ancil_fname),              &
-                                           xios_id="dst_orography_mean_ancil", &
-                                           io_mode=FILE_MODE_READ ) )
+        call files_list%insert_item( lfric_xios_file_type(               &
+                                     trim(dst_ancil_fname),              &
+                                     xios_id="dst_orography_mean_ancil", &
+                                     io_mode=FILE_MODE_READ ) )
       end if
 
-    endif
+    end if
 
   end subroutine init_lfric2lfric_dst_files
 

@@ -38,7 +38,7 @@ psyclone_pass: $(SOURCE_F_FILES_PASS)
 #
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90
 	echo PSyclone pass with no optimisation applied, OMP and Clauses removed on $<
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
+	psyclone \
 			-o $(SOURCE_DIR)/$*.f90 \
 			$(PSYCLONE_TRANSMUTE_EXTRAS) \
 			$<
