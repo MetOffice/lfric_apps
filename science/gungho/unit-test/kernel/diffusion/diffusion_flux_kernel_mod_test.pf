@@ -1,0 +1,147 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the diffusion flux kernel.
+!>
+module diffusion_flux_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: diffusion_flux_kernel_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: diffusion_flux_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type diffusion_flux_kernel_test_type
+
+contains
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use diffusion_flux_kernel_mod, only : diffusion_flux_code
+
+    implicit none
+
+    class(diffusion_flux_kernel_test_type), intent(inout) :: this
+
+    integer(kind=i_def)              :: nlayers
+    integer(kind=i_def)              :: ndf_w3, undf_w3
+    integer(kind=i_def), allocatable :: map_w3(:)
+    integer(kind=i_def)              :: ndf_w2h, undf_w2h
+    integer(kind=i_def), allocatable :: map_w2h(:)
+    integer(kind=i_def)              :: ndf_w2, undf_w2
+    integer(kind=i_def), allocatable :: map_w2(:)
+    real(kind=r_def),    allocatable :: flux(:)
+    real(kind=r_def),    allocatable :: flux_answer(:)
+    real(kind=r_def),    allocatable :: rmultiplicity(:)
+    real(kind=r_def),    allocatable :: tracer(:)
+    real(kind=r_def),    allocatable :: visc(:)
+    real(kind=r_def),    allocatable :: rho(:)
+    real(kind=r_def),    allocatable :: dx_at_w2(:)
+    real(kind=r_def),    allocatable :: dA_at_w2(:)
+
+    real(kind=r_def),      parameter :: tol = 1.0e-6_r_def
+
+    ! Sizes of arrays
+    nlayers = 4
+    ndf_w3 = 1
+    undf_w3 = nlayers * ndf_w3
+    ndf_w2h = 4
+    undf_w2h = nlayers * ndf_w2h
+    ndf_w2 = 6
+    undf_w2 = undf_w2h + nlayers + 1
+
+    ! Allocate arrays
+    allocate(map_w3(ndf_w3))
+    allocate(map_w2h(ndf_w2h))
+    allocate(map_w2(ndf_w2))
+    allocate(flux(undf_w2h))
+    allocate(flux_answer(undf_w2h))
+    allocate(rmultiplicity(undf_w2h))
+    allocate(tracer(undf_w3))
+    allocate(visc(undf_w2h))
+    allocate(rho(undf_w2h))
+    allocate(dx_at_w2(undf_w2))
+    allocate(dA_at_w2(undf_w2))
+
+    ! Set DoF maps
+    map_w3(1) = 1
+    map_w2h(:) = (/ 1, 1+nlayers, 1+2*nlayers, 1+3*nlayers /)
+    map_w2(:) = (/                                                             &
+        1, 1+nlayers, 1+2*nlayers, 1+3*nlayers, 1+4*nlayers, 2+4*nlayers       &
+    /)
+
+    ! Set initial values
+    rmultiplicity(:) = 0.5_r_def
+    tracer(:) = (/ 10.0_r_def, 20.0_r_def, 30.0_r_def, 40.0_r_def /)
+    visc(:) = (/                                                               &
+        1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def,                            &
+        1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def,                            &
+        1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def,                            &
+        1.0_r_def, 2.0_r_def, 3.0_r_def, 4.0_r_def                             &
+    /)
+    rho(:) = (/                                                                &
+        0.1_r_def, 0.2_r_def, 0.3_r_def, 0.4_r_def,                            &
+        0.1_r_def, 0.2_r_def, 0.3_r_def, 0.4_r_def,                            &
+        0.1_r_def, 0.2_r_def, 0.3_r_def, 0.4_r_def,                            &
+        0.1_r_def, 0.2_r_def, 0.3_r_def, 0.4_r_def                             &
+    /)
+    dx_at_w2(:) = (/                                                           &
+        100.0_r_def, 200.0_r_def, 300.0_r_def, 400.0_r_def,                    &
+        100.0_r_def, 200.0_r_def, 300.0_r_def, 400.0_r_def,                    &
+        100.0_r_def, 200.0_r_def, 300.0_r_def, 400.0_r_def,                    &
+        100.0_r_def, 200.0_r_def, 300.0_r_def, 400.0_r_def,                    &
+        1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def                             &
+    /)
+    dA_at_w2(:) = (/                                                           &
+        1000.0_r_def, 2000.0_r_def, 3000.0_r_def, 4000.0_r_def,                &
+        1000.0_r_def, 2000.0_r_def, 3000.0_r_def, 4000.0_r_def,                &
+        1000.0_r_def, 2000.0_r_def, 3000.0_r_def, 4000.0_r_def,                &
+        1000.0_r_def, 2000.0_r_def, 3000.0_r_def, 4000.0_r_def,                &
+        1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def                             &
+    /)
+    flux(:) = 0.0_r_def
+
+    ! Expected answer
+    flux_answer(:) = (/                                                        &
+        0.0_r_def,  80.0_r_def,  270.0_r_def, 0.0_r_def,                       &
+        0.0_r_def, -80.0_r_def, -270.0_r_def, 0.0_r_def,                       &
+        0.0_r_def, -80.0_r_def, -270.0_r_def, 0.0_r_def,                       &
+        0.0_r_def,  80.0_r_def,  270.0_r_def, 0.0_r_def                        &
+    /)
+
+    call diffusion_flux_code(                                                  &
+        nlayers,                                                               &
+        flux, tracer, visc, rho, dx_at_w2, dA_at_w2, rmultiplicity,            &
+        ndf_w2h, undf_w2h, map_w2h,                                            &
+        ndf_w3, undf_w3, map_w3,                                               &
+        ndf_w2, undf_w2, map_w2                                                &
+    )
+
+    @assertEqual(flux, flux_answer, tol)
+
+    deallocate(map_w3)
+    deallocate(map_w2h)
+    deallocate(map_w2)
+    deallocate(flux)
+    deallocate(flux_answer)
+    deallocate(rmultiplicity)
+    deallocate(tracer)
+    deallocate(visc)
+    deallocate(rho)
+    deallocate(dx_at_w2)
+    deallocate(dA_at_w2)
+
+  end subroutine test_all
+
+end module diffusion_flux_kernel_mod_test
