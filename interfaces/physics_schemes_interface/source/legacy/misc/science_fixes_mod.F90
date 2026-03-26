@@ -92,6 +92,8 @@ logical :: l_fix_ukca_h2dd_x = .false.    ! Review in May 2019
 logical :: l_fix_neg_pvol_wat = .false.    ! Review in Jan 2020
 ! ticket #3245
 logical :: l_fix_ukca_h2so4_ystore = .false. ! Review Oct 2020
+! issue #61
+logical :: l_fix_ukca_n2o5_h2o = .false. ! Review June 2028
 ! ticket #4501
 logical :: l_fix_pc2_cnv_mix_phase = .false. ! Review Dec 2021
 ! ticket #5031
@@ -149,7 +151,7 @@ namelist/temp_fixes/                                                           &
         l_fix_improve_drydep, l_fix_drydep_so2_water,                          &
         l_fix_ukca_h2dd_x, l_fix_neg_pvol_wat,                                 &
         l_fix_pc2_cnv_mix_phase,                                               &
-        l_fix_ukca_h2so4_ystore, l_fix_tidy_rainfracs,                         &
+        l_fix_ukca_h2so4_ystore, l_fix_ukca_n2o5_h2o, l_fix_tidy_rainfracs,    &
         l_fix_incloud_qcf, l_fix_mcr_frac_ice,                                 &
         l_fix_ukca_offox_h2o_fac, l_fix_ukca_cloud_frac, l_fix_gr_autoc,       &
         l_fix_ukca_activate_vert_rep, l_fix_ukca_activate_pdf,                 &
@@ -475,6 +477,15 @@ if (.not.  l_fix_ukca_h2so4_ystore) then
   call ereport(RoutineName, ErrorStatus, CMessage)
 end if
 
+if (.not. l_fix_ukca_n2o5_h2o) then
+  ErrorStatus = -100
+  cmessage    =                                                       newline//&
+  'model run excludes a change from issue #61 as'//                   newline//&
+  ' l_fix_ukca_n2o5_h2o=.false. .'//                                  newline//&
+  ' this will disable stratflag n2o5+h2o filtering for b85 and h04 reactions.'
+  call ereport(RoutineName, ErrorStatus, CMessage)
+end if
+
 if (.not. l_fix_pc2_cnv_mix_phase ) then
   ErrorStatus = -100
   cmessage    =                                                       newline//&
@@ -755,6 +766,9 @@ write(lineBuffer,'(A,L1)') 'l_fix_neg_pvol_wat', l_fix_neg_pvol_wat
 call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,'(A,L1)') 'l_fix_ukca_h2so4_ystore',                          &
                             l_fix_ukca_h2so4_ystore
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,'(A,L1)') 'l_fix_ukca_n2o5_h2o',                              &
+                            l_fix_ukca_n2o5_h2o
 call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,'(A,L1)') ' l_fix_pc2_cnv_mix_phase = ',                      &
                              l_fix_pc2_cnv_mix_phase
