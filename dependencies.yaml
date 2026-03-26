@@ -50,5 +50,5 @@ socrates-spectral:
     ref: 2026.03.2
 
 ukca:
-    source: git@github.com:MetOffice/ukca.git
-    ref: 2026.03.2
+    source: git@github.com:theabro/ukca.git
+    ref: um14.1_hetchem_fixes
