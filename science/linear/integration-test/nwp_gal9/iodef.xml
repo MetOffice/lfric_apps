@@ -10,7 +10,7 @@
      <domain id="edge" type="unstructured" comment="for dofs over edges of plane mesh"/>
      <domain id="node" type="unstructured" comment="for dofs over vertices of plane mesh"/>
    </domain_definition>
-    
+
    <axis_definition>
     <axis id="vert_axis_half_levels" name="half_levels"/>
     <axis id="vert_axis_full_levels" name="full_levels"/>
@@ -115,7 +115,7 @@
 
       <variable_group id = "parameters" >
         <variable id = "using_server" type = "bool" >true</variable>
-        <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
+        <variable id = "info_level" type = "int" >50</variable>
         <variable id = "print_file" type="bool">true</variable>
       </variable_group>
     </variable_definition>
