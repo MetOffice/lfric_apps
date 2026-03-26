@@ -141,7 +141,6 @@ subroutine smagorinsky_alg(                                                    &
     call dtheta%initialise( theta%get_function_space() )
     call derived_fields%get_field('visc_h', visc_h)
     call derived_fields%get_field('visc_m', visc_m)
-    call derived_fields%get_field('rho_in_wth', rho_in_wth)
 
     height_w1 => get_height_fv(W1, mesh%get_id())
     height_w2 => get_height_fv(W2, mesh%get_id())
@@ -150,12 +149,6 @@ subroutine smagorinsky_alg(                                                    &
     panel_id => get_panel_id(mesh%get_id())
 
     call invoke( setval_c(du, 0.0_r_def) )
-
-    if (.not. density_weighted) then
-      call rho_one%initialise(rho_in_wth%get_function_space())
-      call invoke( setval_c(rho_one, 1.0_r_def) )
-      rho_in_wth => rho_one
-    end if
 
     ! ======================================================================== !
     ! Get mixing coefficients
@@ -225,12 +218,27 @@ subroutine smagorinsky_alg(                                                    &
 
       call visc_w2h%initialise(w2h_sh_fs)
       call rho_in_w2h%initialise(w2h_sh_fs)
+      call derived_fields%get_field('rho_in_wth', rho_in_wth)
 
+      ! Get density at W2H points
+      if (density_weighted) then
+        call invoke(                                                           &
+            setval_c(rho_in_w2h, 0.0_r_def),                                   &
+            w3_to_w2_average_kernel_type(rho_in_w2h, rho_in_wth, rmult)        &
+        )
+      else
+        ! Set rho to 1 everywhere if not using density weighting
+        call rho_one%initialise(rho_in_wth%get_function_space())
+        call invoke(                                                           &
+            setval_c(rho_one, 1.0_r_def),                                      &
+            setval_c(rho_in_w2h, 1.0_r_def)                                    &
+        )
+        rho_in_wth => rho_one
+      end if
+
+      ! Obtain viscosity at W2H points
       call invoke(                                                             &
-          setval_c(rho_in_w2h, 0.0_r_def),                                     &
           setval_c(visc_w2h, 0.0_r_def),                                       &
-          ! Obtain viscosity and rho at W2H points
-          w3_to_w2_average_kernel_type(rho_in_w2h, rho_in_wth, rmult),         &
           w3_to_w2_average_kernel_type(visc_w2h, visc_h, rmult)                &
       )
       visc_h_ptr => visc_w2h
@@ -293,8 +301,10 @@ subroutine smagorinsky_alg(                                                    &
   !> @param[in,out] increment   The diffusion increment for the tracer
   !> @param[in]     tracer      The tracer field to be diffused
   !> @param[in]     visc_h      The horizontal viscosity field
-  !> @param[in]     rho_in_w2h  The density field at W2H points
-  !> @param[in]     rho_in_wth  The density field at Wtheta points
+  !> @param[in]     rho_in_w2h  The density field at W2H points. Unused if not
+  !!                            using conservative diffusion.
+  !> @param[in]     rho_in_wth  The density field at Wtheta points. Unused if
+  !!                            not using conservative diffusion.
   subroutine smagorinsky_tracer_alg(                                           &
       increment, tracer, visc_h, rho_in_w2h, rho_in_wth                        &
   )
