@@ -44,7 +44,7 @@ module cap_diffusion_coeff_kernel_mod
 contains
 
   !> @brief Caps the diffusion coefficient to ensure stability
-  !> @param[in]     nlayers    The number of layers (in the shifted mesh)
+  !> @param[in]     nlayers    The number of layers
   !> @param[in,out] visc       Diffusion coefficient to be capped
   !> @param[in]     cap        Field in Wtheta to cap to
   !> @param[in]     ndf_wt     Number of degrees of freedom per cell for Wtheta
