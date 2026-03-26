@@ -100,10 +100,12 @@
 
        <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_swe_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
        <field id="restart_geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" operation="instant" domain_ref="checkpoint_W3" />
        <field id="restart_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" operation="instant" domain_ref="checkpoint_Wtheta" />
        <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
        <field id="restart_q" name="q" long_name="potential vorticity" standard_name="potential vorticity" unit="m-1 s-1" operation="instant" domain_ref="checkpoint_W3" />
+       </field_group>
       </file>
 
       <file id="lfric_diag" name="lfric_swe_diag" output_freq="10ts" convention="UGRID" enabled=".TRUE.">

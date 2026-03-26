@@ -324,6 +324,7 @@
 
       <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="checkpoint_Wtheta" />
 	<field id="restart_exner" name="exner" long_name="exner_pressure" unit="1" operation="instant" domain_ref="checkpoint_W3" />
 	<field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" operation="instant" domain_ref="checkpoint_W3" />
@@ -334,6 +335,7 @@
 	<field id="restart_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
 	<field id="restart_m_s" name="m_s" long_name="m_s" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
 	<field id="restart_m_g" name="m_g" long_name="m_g" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
+       </field_group>
       </file>
 
       <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
@@ -362,6 +364,7 @@
       <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
       <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
 	<!-- aquaplanet fields -->
+       <field_group read_access=".TRUE.">
 	<field id="read_ew_wind_in_w3" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
 	<field id="read_ns_wind_in_w3" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
 	<field id="read_upward_wind_in_wtheta" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
@@ -379,10 +382,12 @@
 	<field id="read_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" operation="instant" />
 	<field id="read_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="instant" />
 	<field id="read_ozone" name="ozone" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="instant" />
+       </field_group>
       </file>
 
       <!-- ancillary files to read -->
       <file id="orography_ancil" name="orography_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="surface_altitude" name="surface_altitude" long_name="surface_altitude" unit="m" operation="once" domain_ref="face"/>
 	<field id="sd_orog" name="m01s00i034" long_name="standard_deviation_of_orography" unit="1" operation="once" domain_ref="face"/>
 	<field id="grad_xx_orog" name="m01s00i035" long_name="orographic_gradient_XX_component" unit="1" operation="once" domain_ref="face"/>
@@ -390,44 +395,60 @@
 	<field id="grad_yy_orog" name="m01s00i037" long_name="orographic_gradient_YY_component" unit="1" operation="once" domain_ref="face"/>
 	<field id="peak_to_trough_orog" name="m01s00i018" long_name="half_of_peak_to_trough_ht_of_orog" unit="1" operation="once" domain_ref="face"/>
 	<field id="silhouette_area_orog" name="m01s00i017" long_name="silhouette_orographic_roughness" unit="1" operation="once" domain_ref="face"/>
+       </field_group>
       </file>
 
       <file id="land_area_ancil" name="land_area_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="land_area_fraction" name="land_area_fraction" long_name="land_area_fraction" unit="1" operation="once" domain_ref="face"/>
+       </field_group>
       </file>
 
       <file id="sea_ancil" name="sea_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="sea_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
 	<field id="chloro_sea_data" name="mass_concentration_of_chlorophyll_a_in_sea_water" long_name="Mass concentration of chlorophyll A in sea water" unit="kg m-3" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+       </field_group>
       </file>
 
       <file id="sst_ancil" name="sst_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="sst_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
 	<field id="tstar_sea_data" name="surface_temperature" long_name="Sea surface temperature" unit="K" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+       </field_group>
       </file>
 
       <file id="sea_ice_ancil" name="sea_ice_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="sea_ice_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
 	<field id="sea_ice_thickness_data" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
 	<field id="sea_ice_fraction_data" name="sea_ice_area_fraction" long_name="sea_ice_fraction" unit="1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+       </field_group>
       </file>
 
       <file id="albedo_vis_ancil" name="albedo_vis_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="albedo_vis_time" name="time" unit="days" operation="once" axis_ref="monthly_climatology"/>
 	<field id="albedo_obs_vis_data" name="surface_diffuse_albedo_of_photosynthetically_active_radiation_assuming_no_snow" long_name="surface_diffuse_albedo_of_photosynthetically_active_radiation_assuming_no_snow" unit="1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+       </field_group>
       </file>
 
       <file id="albedo_nir_ancil" name="albedo_nir_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="albedo_nir_time" name="time" unit="days" operation="once" axis_ref="monthly_climatology"/>
 	<field id="albedo_obs_nir_data" name="surface_diffuse_albedo_of_near_infra_red_radiation_assuming_no_snow" long_name="surface_diffuse_albedo_of_near_infra_red_radiation_assuming_no_snow" unit="1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+       </field_group>
       </file>
 
       <file id="hydtop_ancil" name="hydtop_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="mean_topog_index" name="m01s00i274" long_name="mean_topographic_index" unit="1" operation="once" domain_ref="face" />
 	<field id="stdev_topog_index" name="m01s00i275" long_name="standard_deviation_in_topographic_index" unit="1" operation="once" domain_ref="face" />
+       </field_group>
       </file>
 
       <file id="soil_ancil" name="soil_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="soil_albedo" name="soil_albedo" long_name="soil_albedo" unit="1" operation="once" domain_ref="face"/>
 	<field id="soil_carbon_content" name="soil_carbon_content" long_name="soil_carbon_content" unit="kgC m-2" operation="once" domain_ref="face"/>
 	<field id="soil_thermal_cond" name="soil_thermal_conductivity" long_name="soil_thermal_conductivity" unit="Wm-1K-1" operation="once" domain_ref="face"/>
@@ -438,26 +459,34 @@
 	<field id="soil_thermal_cap" name="soil_thermal_capacity" long_name="soil_thermal_capacity" unit="J K-1 m-3" operation="once" domain_ref="face" />
 	<field id="soil_suction_sat" name="soil_suction_at_saturation" long_name="soil_suction_at_saturation" unit="1" operation="once" domain_ref="face" />
 	<field id="clapp_horn_b" name="m01s00i207" long_name="exponent_for_soil_moisture_functions" unit="1" operation="once" domain_ref="face" />
+       </field_group>
       </file>
 
       <file id="surface_frac_ancil" name="surface_frac_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="land_tile_fraction" name="m01s00i216" long_name="fractions_of_vegetation_types" unit="1" operation="once" domain_ref="face" axis_ref="land_tiles"/>
+       </field_group>
       </file>
 
       <file id="plant_func_ancil" name="plant_func_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="plant_func_time" name="month_number" unit="months" operation="once" axis_ref="monthly_climatology"/>
 	<field id="canopy_height_data" name="canopy_height" long_name="canopy_height" unit="1" operation="once" grid_ref="pft_monthly_grid"/>
 	<field id="leaf_area_index_data" name="leaf_area_index" long_name="leaf_area_index" unit="1" operation="once" grid_ref="pft_monthly_grid"/>
+       </field_group>
       </file>
 
       <file id="ozone_ancil" name="ozone_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="ozone_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
 	<field id="ozone_data" name="mass_fraction_of_ozone_in_air" long_name="mass_fraction_of_ozone_in_air" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </field_group>
       </file>
 
       <!-- The following dust fields will need adding here when available in the ancillary file: acc_sol_du, cor_sol_du, n_acc_ins, acc_ins_du, n_cor_ins, cor_ins_du -->
       <!-- Note that variable names have changed in code and will need to changed in the ancillary file in future,  e.g. OC to OM-->
       <file id="aerosols_ancil" name="aerosols_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
         <field id="aerosols_time" name="time" unit="days" operation="once" axis_ref="monthly_climatology"/>
         <field id="n_ait_sol_data" name="AiSo___103" long_name="aitken_mode_soluble_number" unit="particle molecule-1" operation="instant" grid_ref="3D_monthly_grid"/>
         <field id="ait_sol_su_data" name="AiSoSU_104" long_name="aitken_mode_soluble_h2so4_mmr" unit="kg kg-1" operation="instant" grid_ref="3D_monthly_grid"/>
@@ -476,6 +505,7 @@
         <field id="n_ait_ins_data" name="AiIn___119" long_name="aitken_mode_insoluble_number" unit="particle molecule-1" operation="instant" grid_ref="3D_monthly_grid"/>
         <field id="ait_ins_bc_data" name="AiInBC_120" long_name="aitken_mode_insoluble_black_carbon_mmr" unit="kg kg-1" operation="instant" grid_ref="3D_monthly_grid"/>
         <field id="ait_ins_om_data" name="AiInOC_121" long_name="aitken_mode_insoluble_organic_matter_mmr" unit="kg kg-1" operation="instant" grid_ref="3D_monthly_grid"/>
+       </field_group>
       </file>
 
     </file_definition>

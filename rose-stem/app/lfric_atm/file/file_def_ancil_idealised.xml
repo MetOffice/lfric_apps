@@ -2,6 +2,7 @@
 
   <!-- Ancillary files applicable to idealised setups -->
   <file id="gas_mmr_ancil" name="gas_mmr_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+   <field_group read_access=".TRUE.">
     <field id="ch4" name="ch4" long_name="mass_fraction_of_methane_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
     <field id="co" name="co" long_name="mass_fraction_of_carbon_monoxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
     <field id="co2" name="co2" long_name="mass_fraction_of_carbon_dioxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
@@ -16,10 +17,13 @@
     <!-- <field id="rb" name="rb" long_name="mass_fraction_of_rubidium_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" /> -->
     <!-- <field id="tio" name="tio" long_name="mass_fraction_of_titanium_oxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" /> -->
     <!-- <field id="vo" name="vo" long_name="mass_fraction_of_vanadium_oxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" /> -->
+   </field_group>
   </file>
 
   <file id="int_flux_ancil" name="int_flux_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+   <field_group read_access=".TRUE.">
     <field id="internal_flux" name="internal_flux" long_name="internal_flux" unit="W m-2" operation="once" domain_ref="face" />
+   </field_group>
   </file>
 
 </file_definition>

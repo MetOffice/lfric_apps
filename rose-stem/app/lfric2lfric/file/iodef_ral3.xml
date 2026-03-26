@@ -17,6 +17,7 @@
 
       <!-- File definition for LFRic checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 
          <!-- Atmosphere fields -->
         <field id="restart_upward_wind" name="upward_wind" long_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" />
@@ -76,7 +77,7 @@
         <field id="restart_lbc_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
         <field id="restart_lbc_m_r" name="m_r" long_name="m_r" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
         <field id="restart_lbc_m_cf" name="m_cf" long_name="m_cf" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
-
+      </field_group>
       </file>
     </file_definition>
   </context>
