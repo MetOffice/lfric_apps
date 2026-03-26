@@ -40,7 +40,6 @@ program jedi_lfric_time_test
                                               finalise_logging,   &
                                               LOG_LEVEL_ERROR,    &
                                               LOG_LEVEL_INFO
-  use namelist_collection_mod,         only : namelist_collection_type
 
   implicit none
 
@@ -52,8 +51,7 @@ program jedi_lfric_time_test
 
   character(:), allocatable :: filename
 
-  type(namelist_collection_type), save :: configuration
-  type(config_type),              save :: config
+  type(config_type), save :: config
 
   ! Variables used for parsing command line arguments
   integer(i_def)   :: length, status, nargs
@@ -173,12 +171,9 @@ program jedi_lfric_time_test
   end select
 
   ! Setup configuration, and initialise tests
-  call configuration%initialise( program_name, table_len=10 )
   call config%initialise( program_name )
 
-  call read_configuration( filename,                    &
-                           configuration=configuration, &
-                           config=config )
+  call read_configuration( filename, config=config )
 
   call test_jedi_interface_init()
 
