@@ -14,6 +14,10 @@ module adj_interpolation_alg_mod
   use adj_dg_matrix_vector_kernel_mod,           only: adj_dg_matrix_vector_kernel_type
   use adj_dg_inc_matrix_vector_kernel_mod,       only: adj_dg_inc_matrix_vector_kernel_type
   use adj_sci_average_w2b_to_w2_kernel_mod,      only: adj_average_w2b_to_w2_kernel_type
+  use base_mesh_config_mod,                      only: geometry_planar,         &
+                                                       geometry_spherical,      &
+                                                       topology_fully_periodic, &
+                                                       topology_non_periodic
   use invoke_adj_cvt_hdiv_field_kernel_mod,      only: invoke_adj_convert_hdiv_field_kernel
   use constants_mod,                             only: i_def, r_def
   use sci_fem_constants_mod,                     only: get_rmultiplicity_fe
@@ -126,6 +130,8 @@ module adj_interpolation_alg_mod
     ! Local
     integer(kind=i_def)                :: element_order_h
     integer(kind=i_def)                :: element_order_v
+    integer(kind=i_def)                :: geometry
+    integer(kind=i_def)                :: topology
     type(field_type)                   :: u_broken
     type(field_type),          pointer :: w2_rmultiplicity
     type(field_type),          pointer :: chi(:)
@@ -152,6 +158,16 @@ module adj_interpolation_alg_mod
     wtheta_fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                   element_order_v, Wtheta)
     w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
+    if (mesh%is_geometry_planar()) then
+      geometry = geometry_planar
+    else if (mesh%is_geometry_spherical()) then
+      geometry = geometry_spherical
+    end if
+    if (mesh%is_topology_non_periodic()) then
+      topology = topology_non_periodic
+    else if (mesh%is_topology_periodic()) then
+      topology = topology_fully_periodic
+    end if
 
     ! Set up intermediate fields
     call u_map%initialise(w2b_fs, w3_fs)
@@ -162,7 +178,7 @@ module adj_interpolation_alg_mod
     ! Adjoint of compute wind on W2
     call invoke( setval_c(u_broken, 0.0_r_def), &
                  compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id, &
-                               mesh%is_geometry_planar(), mesh%is_topology_periodic()), &
+                                                                 geometry, topology), &
                  adj_average_w2b_to_w2_kernel_type(u_in_w2, u_broken, w2_rmultiplicity), &
                  adj_dg_inc_matrix_vector_kernel_type(u_broken, w_in_wth, w_map), &
                  adj_dg_inc_matrix_vector_kernel_type(u_broken, v_in_w3, v_map), &
