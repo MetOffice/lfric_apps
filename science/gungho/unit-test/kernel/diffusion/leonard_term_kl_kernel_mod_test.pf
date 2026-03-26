@@ -54,6 +54,7 @@ contains
                               leonard_term  = .false.,           &
                               leonard_kl    = 4.0_r_def,         &
                               conservative_diffusion = .false.,  &
+                              density_weighted = .false.,        &
                               max_diff_factor = 1.0_r_def )
 
     call feign_finite_element_config(      &
