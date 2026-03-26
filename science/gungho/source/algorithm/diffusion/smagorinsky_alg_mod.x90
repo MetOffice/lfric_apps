@@ -55,7 +55,8 @@ module smagorinsky_alg_mod
   use io_config_mod,             only: subroutine_timers,                      &
                                        write_conservation_diag
   use mixing_config_mod,         only: mix_factor, conservative_diffusion,     &
-                                       smag_l_calc, smag_l_calc_use_geo
+                                       smag_l_calc, smag_l_calc_use_geo,       &
+                                       density_weighted
   use section_choice_config_mod, only: boundary_layer, boundary_layer_um
 
   implicit none
@@ -119,7 +120,6 @@ subroutine smagorinsky_alg(                                                    &
 
     type(function_space_type), pointer :: w2h_sh_fs
 
-    ! TODO: temporarily override impact of rho
     type(field_type), target :: rho_one
 
     ! Stencil depth for the Smagorinsky diffusion kernel
@@ -151,10 +151,11 @@ subroutine smagorinsky_alg(                                                    &
 
     call invoke( setval_c(du, 0.0_r_def) )
 
-    ! TODO :Temporarily override impact of rho
-    call rho_one%initialise(rho_in_wth%get_function_space())
-    call invoke( setval_c(rho_one, 1.0_r_def) )
-    rho_in_wth => rho_one
+    if (.not. density_weighted) then
+      call rho_one%initialise(rho_in_wth%get_function_space())
+      call invoke( setval_c(rho_one, 1.0_r_def) )
+      rho_in_wth => rho_one
+    end if
 
     ! ======================================================================== !
     ! Get mixing coefficients
@@ -185,9 +186,8 @@ subroutine smagorinsky_alg(                                                    &
         dz_wth => get_dz_at_wtheta(mesh%get_id())
         call delta_geo%initialise(delta%get_function_space())
 
-        ! TODO: could this constant be stored?
         call invoke(                                                           &
-            setval_X(delta_geo, dz_wth),                                       &
+            setval_X(delta_geo, delta),                                        &
             inc_X_powint_n(delta_geo, 2),                                      &
             inc_X_times_Y(delta_geo, dz_wth),                                  &
             inc_X_powreal_a(delta_geo, one_third)                              &

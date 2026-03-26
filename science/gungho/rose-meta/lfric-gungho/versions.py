@@ -43,6 +43,9 @@ class vn31_t378(MacroUpgrade):
             config, ["namelist:mixing", "conservative_diffusion"], ".false."
         )
         self.add_setting(
+            config, ["namelist:mixing", "density_weighted"], ".true."
+        )
+        self.add_setting(
             config, ["namelist:mixing", "max_diff_factor"], "1.0"
         )
         return config, self.reports

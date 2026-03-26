@@ -98,8 +98,6 @@ tolerance=1.0e-6,
 
 
 &mixing
-  conservative_diffusion=.false.,
-  max_diff_factor=1.0,
   viscosity = .false.
   viscosity_mu = 0.0
   smagorinsky = .false.

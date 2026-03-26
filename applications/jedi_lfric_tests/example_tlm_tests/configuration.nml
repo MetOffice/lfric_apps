@@ -292,9 +292,7 @@ si_tolerance=1.0e-3,
 split_w=.true.,
 /
 &mixing
-conservative_diffusion=.false.,
 leonard_term=.false.,
-max_diff_factor=1.0,
 smagorinsky=.false.,
 viscosity=.false.,
 viscosity_mu=0.0,
