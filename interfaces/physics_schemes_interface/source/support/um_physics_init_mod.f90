@@ -102,6 +102,8 @@ module um_physics_init_mod
                                         cloud_call_b4_conv,                    &
                                         l_ensure_max_in_cloud_pc2_in           &
                                           => l_ensure_max_in_cloud_pc2,        &
+                                        l_pc2_checks_cfffix_in                 &
+                                          => l_pc2_checks_cfffix,              &
                                     i_pc2_erosion_numerics_in                  &
                                       => i_pc2_erosion_numerics,               &
                                     dbsdtbs_turb_0_in => dbsdtbs_turb_0,       &
@@ -477,7 +479,7 @@ contains
          l_fix_dyndiag, l_fix_pc2_cnv_mix_phase, l_fix_riming,              &
          l_fix_tidy_rainfracs, l_fix_zh, l_fix_incloud_qcf,                 &
          l_fix_mcr_frac_ice, l_fix_gr_autoc, l_improve_cv_cons,             &
-         l_pc2_checks_sdfix
+         l_pc2_checks_sdfix, l_pc2_checks_cfffix
     use solinc_data, only: l_skyview
     use stochastic_physics_run_mod, only: a_ent_1_rp, a_ent_shr_rp,         &
          a_ent_shr_rp_max, alnir_rp, alpar_rp, cbl_mix_fac_rp, cs_rp,       &
@@ -1114,6 +1116,7 @@ contains
         i_pc2_erosion_method         = pc2eros_hybrid_sidesonly
         l_ensure_min_in_cloud_qcf    = .false.
         l_ensure_max_in_cloud_pc2    = l_ensure_max_in_cloud_pc2_in
+        l_pc2_checks_cfffix          = l_pc2_checks_cfffix_in
         select case(pc2_init_logic)
           case(pc2_init_logic_original)
             i_pc2_init_logic = pc2init_logic_original

@@ -132,6 +132,8 @@ logical :: l_fix_ukca_hygroscopicities = .false.
 logical :: l_fix_ukca_water_content = .false.
 ! ticket #7232
 logical :: l_fix_level_indexing_bimodal = .false. ! Review October 2024
+! ticket #243
+LOGICAL :: l_pc2_checks_cfffix = .FALSE.
 !------------------------------------------------
 
 namelist/temp_fixes/                                                           &
@@ -156,7 +158,8 @@ namelist/temp_fixes/                                                           &
         l_fix_true_latlon, l_use_q1p5m_in_cape_diag, l_pc2_checks_sdfix,       &
         i_fix_mphys_drop_settle, l_improve_cv_cons, l_improve_aero_drydep,     &
         l_enforce_f03_compliance, l_fix_ukca_hygroscopicities,                 &
-        l_fix_ukca_water_content, l_fix_level_indexing_bimodal
+        l_fix_ukca_water_content, l_fix_level_indexing_bimodal,                &
+        l_pc2_checks_cfffix
 
 ! -----------------------------------------------------------
 ! -----------------------------------------------------------
@@ -682,6 +685,16 @@ if (.not. l_fix_level_indexing_bimodal) then
   call ereport(RoutineName, ErrorStatus, CMessage)
 end if
 
+IF (.NOT. l_pc2_checks_cfffix ) THEN
+  ErrorStatus = -100
+  cmessage    = 'Model run excludes a change from ticket #XXXX as'//  newline//&
+  'l_pc2_checks_cfffix = .FALSE.'//                                   newline//&
+  'This means it is possible for a check to create ice fraction'//    newline//&
+  '(where problems up-stream have spuriously created ice mass with'// newline//&
+  'no fraction) to wrongly make ice-cloud fractions greater than one.'
+  CALL ereport(RoutineName, ErrorStatus, CMessage)
+END IF
+
 ! -----------------------------------------------------------
 ! -----------------------------------------------------------
 
@@ -804,6 +817,8 @@ call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,'(A,L1)') ' l_fix_level_indexing_bimodal =',                  &
                              l_fix_level_indexing_bimodal
 call umPrint(lineBuffer,src=ModuleName)
+WRITE(lineBuffer,'(A,L1)') ' l_pc2_checks_cfffix = ', l_pc2_checks_cfffix
+CALL umPrint(lineBuffer,src=ModuleName)
 
 call umPrint('- - - - - - end of namelist - - - - - -', src=ModuleName)
 
