@@ -25,11 +25,11 @@ jobs:
         name: Install Python packages
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install sphinx==8.1.0 pydata-sphinx-theme==0.16.1 sphinx-sitemap==2.6.0 sphinx_design==0.6.1
+          python3 -m pip install .[docs]
       - id: sphinx
         name: Build Sphinx HTML docs
         working-directory: ./documentation
-        run: make html
+        run: make clean html
       - id: permissions
         name: Set permissions
         run: |
