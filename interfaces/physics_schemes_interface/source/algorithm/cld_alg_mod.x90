@@ -12,14 +12,14 @@ module cld_alg_mod
   use integer_field_mod,             only: integer_field_type
   use field_collection_mod,          only: field_collection_type
   use mr_indices_mod,                only: nummr, imr_v, imr_cl, imr_ci,  &
-                                           imr_r, imr_s, imr_g
+                                           imr_r, imr_s
   use sci_enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
   use io_config_mod,                 only: write_conservation_diag,       &
                                            write_diag, use_xios_io,       &
                                            diagnostic_frequency
   use timing_mod,                    only: start_timing, stop_timing, &
                                            tik, LPROF
-  use microphysics_config_mod,       only: microphysics_casim, l_mcr_precfrac
+  use microphysics_config_mod,       only: microphysics_casim
   use cloud_config_mod,              only: scheme,                        &
                                            scheme_smith,                  &
                                            scheme_bimodal,                &
@@ -57,27 +57,24 @@ contains
   !>@param[in]     derived_fields    (in)     Group of derived fields
   !>@param[in]     turbulence_fields (in)     Fields for turbulence scheme
   !>@param[in]     cloud_fields      (in,out) Fields for cloud scheme
-  !>@param[in]   microphysics_fields (in,out) Fields for microphysics scheme
   !>@param[in]     convection_fields (in)     Fields from convection scheme
   !>@param[in]     theta_n           (in)     theta at start of timestep
   !>@param[in]     mr_n              (in)     mixing ratios at start of timestep
   !>@param[in]     dt                (in)     Timestep length
   !>@param[in]     step              (in)     Timestep
-  subroutine cld_alg(theta_inc, mr, theta, exner, rho,                         &
-                     derived_fields, turbulence_fields,                        &
-                     cloud_fields, microphysics_fields, convection_fields,     &
+  subroutine cld_alg(theta_inc, mr, theta, exner, rho,         &
+                     derived_fields, turbulence_fields,        &
+                     cloud_fields, convection_fields,          &
                      theta_n, mr_n, step, dt, call_b4_conv)
 
     use smith_kernel_mod, only: smith_kernel_type
     use bm_kernel_mod,    only: bm_kernel_type
-    use lsp_precfrac_checks_kernel_mod, only: lsp_precfrac_checks_kernel_type
 
     implicit none
 
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: turbulence_fields
     type( field_collection_type ), intent(in) :: cloud_fields
-    type( field_collection_type ), intent(in) :: microphysics_fields
     type( field_collection_type ), intent(in) :: convection_fields
 
     type( field_type ), intent( inout ) :: theta_inc, mr(nummr)
@@ -108,8 +105,6 @@ contains
     type( integer_field_type ), pointer :: ntml => null()
     type( integer_field_type ), pointer :: cumulus => null()
     type( field_type ), pointer :: rh_crit => null()
-
-    type( field_type ), pointer :: precfrac => null()
 
     type( field_type ), pointer :: dsldzm      => null()
     type( field_type ), pointer :: mix_len_bm  => null()
@@ -255,23 +250,6 @@ contains
                                theta_inc, name_ext )  ! OUT
 
       call invoke( inc_X_plus_Y(theta_inc, dtheta_pc2_inc_pres) )
-
-    end if
-
-    if ( l_mcr_precfrac ) then
-
-      ! Get prognostic precip fraction
-      call microphysics_fields%get_field('precfrac', precfrac)
-
-      ! Sanity-checks on the prognostic precip fraction
-      call invoke( lsp_precfrac_checks_kernel_type( exner,                     &
-                                                    mr(imr_v),                 &
-                                                    mr(imr_cl),                &
-                                                    mr(imr_ci),                &
-                                                    mr(imr_s),                 &
-                                                    mr(imr_r),                 &
-                                                    mr(imr_g),                 &
-                                                    precfrac ) )
 
     end if
 
