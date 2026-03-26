@@ -91,15 +91,15 @@ contains
                                            profile_data=profile_data,             &
                                            profile_heights=profile_heights )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 

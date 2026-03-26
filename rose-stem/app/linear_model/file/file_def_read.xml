@@ -1,0 +1,19 @@
+  <file_definition
+      type="one_file"
+      time_counter="none">
+
+      <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
+
+      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="read_h_u" name="h_u" long_name="horizontal_wind" standard_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_grid" operation="instant" />
+        <field id="read_v_u" name="v_u" long_name="vertical_wind" standard_name="vertical_wind" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_rho" name="rho" long_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" operation="instant" />
+        <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" operation="instant" />
+        <field id="read_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_m_s" name="m_s" long_name="snow_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+      </file>
+
+      </file_definition>

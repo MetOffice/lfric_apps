@@ -46,7 +46,7 @@ module atlas_field_interface_mod
   use field_mod,                     only : field_type, field_proxy_type
   use field_parent_mod,              only : field_parent_type
   use fs_continuity_mod,             only : W3, Wtheta, name_from_functionspace
-  use constants_mod,                 only : i_def, str_def, l_def
+  use constants_mod,                 only : i_def, str_def, l_def, r_def
 
   implicit none
 
@@ -394,7 +394,7 @@ subroutine copy_to_lfric( self, return_code )
     atlas_ij = self%map_horizontal(ij)
     lfric_ij = (ij-1)*n_vertical_lfric
     field_proxy%data(lfric_ij+lfric_kstart:lfric_ij+n_vertical_lfric) &
-      = self%atlas_data(atlas_kstart:atlas_kend:atlas_kdirection,atlas_ij)
+      = real(self%atlas_data(atlas_kstart:atlas_kend:atlas_kdirection,atlas_ij), r_def)
   end do
 
   ! Fill missing data if required
@@ -410,7 +410,7 @@ subroutine copy_to_lfric( self, return_code )
       atlas_ij = self%map_horizontal(ij)
       lfric_ij = (ij-1)*n_vertical_lfric
       field_proxy%data(lfric_ij+1) &
-          = self%atlas_data(atlas_kstart,atlas_ij)
+          = real(self%atlas_data(atlas_kstart,atlas_ij), r_def)
     end do
   end if
 
@@ -466,7 +466,7 @@ subroutine copy_from_lfric_ad(self)
     lfric_ij = (ij-1)*n_vertical_lfric
     field_proxy%data(lfric_ij+lfric_kstart:lfric_ij+n_vertical_lfric) &
         = field_proxy%data(lfric_ij+lfric_kstart:lfric_ij+n_vertical_lfric) &
-        + self%atlas_data(atlas_kstart:atlas_kend:atlas_kdirection,atlas_ij)
+        + real(self%atlas_data(atlas_kstart:atlas_kend:atlas_kdirection,atlas_ij), r_def)
   end do
 
   ! Initialise out of scope variable to zero

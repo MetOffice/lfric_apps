@@ -10,8 +10,6 @@
 !!         implicit algorithm, using the Taylor remainder convergence test.
 module tl_test_semi_imp_alg_mod
 
-  use sci_assign_field_random_kernel_mod, &
-                                      only: assign_field_random_kernel_type
   use constants_mod,                  only: i_def, r_def, str_def
   use field_array_mod,                only: field_array_type
   use field_mod,                      only: field_type
@@ -39,7 +37,7 @@ module tl_test_semi_imp_alg_mod
   use timestep_method_mod,            only: timestep_method_type
   use moist_dyn_factors_alg_mod,      only: moist_dyn_factors_alg
   use tl_moist_dyn_factors_alg_mod,   only: tl_moist_dyn_factors_alg
-  use tl_test_convergence_rate_check, only: convergence_rate_check
+  use tl_test_convergence_rate_check, only: array_convergence_rate_check
 
   implicit none
 
@@ -128,9 +126,12 @@ module tl_test_semi_imp_alg_mod
     real(r_def) :: gamma_mr
     real(r_def) :: norm_u, norm_rho, norm_exner, norm_theta
     real(r_def) :: norm_mr, norm_mr_tmp
-    real(r_def) :: norm_diff, norm_diff_prev
+    integer(i_def), parameter :: n_variables = 5
+    real(r_def) :: array_norm(n_variables), array_norm_prev(n_variables)
+    character(str_def) :: array_names(n_variables)
 
-    real(r_def), parameter :: tol = 5.e-1_r_def
+    real(r_def), parameter :: tol = 5.e-2_r_def
+    real(r_def), parameter :: indiv_tol = 5.e-1_r_def
     real(r_def), parameter :: dtemp_encorr = 0.0_r_def
 
     integer :: n, i
@@ -173,12 +174,14 @@ module tl_test_semi_imp_alg_mod
     aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
     stph_fields => modeldb%fields%get_field_collection("stph_fields")
     lbc_fields => modeldb%fields%get_field_collection("lbc_fields")
-    ! Input
+
+    ! Linearisation State
     call ls_fields%get_field('ls_u', ls_u)
     call ls_fields%get_field('ls_rho', ls_rho)
     call ls_fields%get_field('ls_theta', ls_theta)
     call ls_fields%get_field('ls_exner', ls_exner)
 
+    ! Perturbation
     call prognostic_fields%get_field('u', u)
     call prognostic_fields%get_field('rho', rho)
     call prognostic_fields%get_field('theta', theta)
@@ -228,15 +231,29 @@ module tl_test_semi_imp_alg_mod
     call clone_bundle(mr, b_mr, nummr)
     call clone_bundle(mr, diff_mr, nummr)
 
-    call invoke( assign_field_random_kernel_type( r_u, 1.0_r_def ) ,     &
-                 assign_field_random_kernel_type( r_rho, 1.0_r_def ) ,   &
-                 assign_field_random_kernel_type( r_theta, 1.0_r_def ) , &
-                 assign_field_random_kernel_type( r_exner, 1.0_r_def ) )
+    ! Set the 'random data' to be the perturbation
+    call invoke( name = "copy_fields_to_state",   &
+                 setval_X(r_u, u    ), &
+                 setval_X(r_exner, exner    ), &
+                 setval_X(r_theta, theta), &
+                 setval_X(r_rho, rho  ) )
 
+    ! Overwrite the moisture fields with potential temperature
+    !
+    ! Note: The perturbation fields are read in from file. However the
+    ! moisture perturbation fields have values close to zero (especially
+    ! at upper levels) and this gives an inaccurate linearisation test. Using
+    ! potential temperature is an easy fix to create a realistic 'random'
+    ! field using real data that has mostly non-zero values.
     do i = 1, nummr
-      call invoke( assign_field_random_kernel_type( r_mr(i), 1.0_r_def ) )
+      call invoke( &
+           setval_X( r_mr(i), theta ), &
+           inc_a_times_X( 0.000001_r_def, r_mr(i) ), &
+           setval_X( ls_mr(i), ls_theta ), &
+           inc_a_times_X( 0.000001_r_def, ls_mr(i) ))
     end do
 
+    ! Set the prognostic fields to be the linearisation state
     call invoke( setval_X( u, ls_u ),                     &
                  setval_X( theta, ls_theta ),             &
                  setval_X( rho, ls_rho ),                 &
@@ -247,7 +264,9 @@ module tl_test_semi_imp_alg_mod
     end do
     do i = 1, nummr
       call invoke( setval_X( mr(i), ls_mr(i) ) )
-    end do
+   end do
+
+    call moist_dyn_factors_alg(moist_dyn, mr)
 
     ! Clean up solvers left over from previous tests, as semi-implicit
     ! method will create new solvers which cause double-allocates
@@ -274,15 +293,15 @@ module tl_test_semi_imp_alg_mod
       call invoke( setval_X( b_mr(i), mr(i) ) )
     end do
 
-    gamma_u = 1.e4_r_def
-    gamma_theta = 1.e2_r_def
-    gamma_rho = 8.0e-1_r_def
-    gamma_exner = 6.5e-1_r_def
+    gamma_u = 6.5_r_def
+    gamma_theta = 6.5_r_def
+    gamma_rho = 6.5_r_def
+    gamma_exner = 6.5_r_def
 
     if ( moisture_formulation == moisture_formulation_dry ) then
       gamma_mr = 0.0_r_def
     else
-      gamma_mr = 1.e-2_r_def
+      gamma_mr = 6.5_r_def
     end if
 
     do n=1,2
@@ -328,6 +347,8 @@ module tl_test_semi_imp_alg_mod
 
       ! Evolve the perturbation fields with the linear timestep. This
       ! gives p_x=L(gamma r_x)
+      call final_si_operators()
+      call tl_semi_implicit_alg_final()
       call tl_semi_implicit_alg_init(mesh, p_u, p_rho, p_theta, p_exner,     &
                                      p_mr, ls_u, ls_rho, ls_theta, ls_exner, &
                                      ls_mr, ls_moist_dyn)
@@ -365,35 +386,24 @@ module tl_test_semi_imp_alg_mod
           norm_mr = norm_mr + norm_mr_tmp
       end do
 
-      write( log_scratch_space, &
-            '(A, E32.12, A, E32.12 )' ) &
-             ' norm_u = ' ,   norm_u,   &
-             ' norm_rho = ' , norm_rho
-
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-      write( log_scratch_space, &
-            '(A, E32.12, A, E32.12 )' ) &
-             ' norm_mr = ' , norm_mr,   &
-             ' norm_exner = ' , norm_exner
-
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-      write( log_scratch_space, &
-            '(A, E32.12 )' )     &
-             ' norm_theta = ' , norm_theta
-
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-      norm_diff = norm_rho + norm_theta + norm_exner + norm_u + norm_mr
-      norm_diff = sqrt(norm_diff)
+      array_norm(1) = norm_u
+      array_norm(2) = norm_rho
+      array_norm(3) = norm_theta
+      array_norm(4) = norm_mr
+      array_norm(5) = norm_exner
+      array_names(1) = 'norm_u'
+      array_names(2) = 'norm_rho'
+      array_names(3) = 'norm_theta'
+      array_names(4) = 'norm_mr'
+      array_names(5) = 'norm_exner'
 
       if (n == 2) then
-        call convergence_rate_check( norm_diff, norm_diff_prev, &
-                                     label, tol=tol )
+        call array_convergence_rate_check( array_norm, array_norm_prev, &
+             array_names, n_variables, label, tol=tol, indiv_tol=indiv_tol )
       end if
 
-      norm_diff_prev = norm_diff
+      array_norm_prev = array_norm
+
     end do
 
   end subroutine test_semi_imp_alg

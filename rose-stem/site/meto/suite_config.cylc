@@ -6,8 +6,12 @@
 {% do LOG.debug("Entered site/meto/suite_config.cylc") %}
 
     [[METO_ORIG]]
+{% if site_vars["ex_trustzone"] == "collab" %}
+        inherit = EX1A_SCRIPTS
+{% else %}
         pre-script = "module load scitools"
         platform = {{ROSE_ORIG_HOST}}
+{% endif %}
 
     {# Family for lfric_coupled rivers/ocean 1st step builds #}
     [[METO_FCM_MAKE]]
