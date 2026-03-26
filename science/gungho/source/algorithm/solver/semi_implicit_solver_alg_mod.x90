@@ -524,7 +524,6 @@ contains
     use sci_enforce_bc_kernel_mod,     only: enforce_bc_kernel_type
     use sci_mass_matrix_solver_alg_mod, &
                                        only: mass_matrix_solver_alg
-    use sci_psykal_light_mod,          only: invoke_inc_rdefX_plus_rsolverY
     use sci_field_minmax_alg_mod,      only: log_field_minmax
 
     implicit none
@@ -569,6 +568,10 @@ contains
                                                ptheta2,     &
                                                q2t_op,      &
                                                q3t_op
+    type( field_type ) :: inc_uvw_rdef,   &
+                          inc_exner_rdef, &
+                          inc_theta_rdef, &
+                          inc_rho_rdef
     real( kind=r_solver ) :: tau_r_dt
     integer( kind=i_def ) :: mesh_id
     type(integer_field_type), pointer :: face_selector_ew
@@ -735,10 +738,18 @@ contains
     call invoke( X_minus_Y( inc_theta_rsol, rhs_rsol(igh_t), rhs_tmp) )
 
     ! Finally we need to add r_solver increments to the r_def state field
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_u), inc_uvw_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_p), inc_exner_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_t), inc_theta_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_d), inc_rho_rsol )
+    call state(igh_u)%copy_field_properties(inc_uvw_rdef)
+    call state(igh_p)%copy_field_properties(inc_exner_rdef)
+    call state(igh_t)%copy_field_properties(inc_theta_rdef)
+    call state(igh_d)%copy_field_properties(inc_rho_rdef)
+    call invoke( real_to_real_x(inc_uvw_rdef, inc_uvw_rsol),     &
+                 inc_X_plus_Y(state(igh_u), inc_uvw_rdef),       &
+                 real_to_real_x(inc_exner_rdef, inc_exner_rsol), &
+                 inc_X_plus_Y(state(igh_p), inc_exner_rdef),     &
+                 real_to_real_x(inc_theta_rdef, inc_theta_rsol), &
+                 inc_X_plus_Y(state(igh_t), inc_theta_rdef),     &
+                 real_to_real_x(inc_rho_rdef, inc_rho_rsol),     &
+                 inc_X_plus_Y(state(igh_d), inc_rho_rdef) )
 
     if ( write_moisture_diag )  &
       call moisture_conservation_alg( state(igh_d), mr, 'After solve' )
