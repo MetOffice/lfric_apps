@@ -394,7 +394,7 @@ do k = 1,model_levels
       ! Earlier versions checked whether saturation deficit is zero (or less
       ! than zero). If so, then the liquid cloud fraction was forced to one.
       ! This check has been suspended for numerical reasons.
-      !            IF (SD  <=  0.0 .OR. CFL(i,j,k)  >   1.0) THEN
+      !            if (sd  <=  0.0 .or. cfl(i,j,k)  >   1.0) then
 
       ! Instead, check simply whether input values of liquid cloud fraction
       ! are, or are between, zero and one. If not, adjust them to zero or one.
