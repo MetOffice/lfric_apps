@@ -116,18 +116,19 @@ subroutine lsp_precfrac_checks_code( nlayers,                                  &
     do k = 1, nlayers
 
       ! Pressure at layer boundaries
-      p_rho_levels(1,1,k) = p_zero * exner_w3(map_w3(1)+k-1)**(1.0_r_um/kappa)
+      p_rho_levels(1,1,k) = p_zero * real( exner_w3(map_w3(1)+k-1), r_um )     &
+                                     **(1.0_r_um/kappa)
 
       ! Water species masses
-      q(1,1,k)      = mv_wth(map_wth(1)+k)
-      qcl(1,1,k)    = ml_wth(map_wth(1)+k)
-      qcf2(1,1,k)   = mi_wth(map_wth(1)+k)
-      qcf(1,1,k)    = ms_wth(map_wth(1)+k)
-      qrain(1,1,k)  = mr_wth(map_wth(1)+k)
-      qgraup(1,1,k) = mg_wth(map_wth(1)+k)
+      q(1,1,k)      = real( mv_wth(map_wth(1)+k), r_um )
+      qcl(1,1,k)    = real( ml_wth(map_wth(1)+k), r_um )
+      qcf2(1,1,k)   = real( mi_wth(map_wth(1)+k), r_um )
+      qcf(1,1,k)    = real( ms_wth(map_wth(1)+k), r_um )
+      qrain(1,1,k)  = real( mr_wth(map_wth(1)+k), r_um )
+      qgraup(1,1,k) = real( mg_wth(map_wth(1)+k), r_um )
 
       ! Input value of prognostic precip fraction
-      precfrac(1,1,k) = precfrac_wth(map_wth(1)+k)
+      precfrac(1,1,k) = real( precfrac_wth(map_wth(1)+k), r_um )
 
     end do
 
@@ -139,7 +140,7 @@ subroutine lsp_precfrac_checks_code( nlayers,                                  &
     ! Recast back to LFRic space
     do k = 1, nlayers
       ! Updated value of prognostic precip fraction
-      precfrac_wth(map_wth(1)+k) = precfrac(1,1,k)
+      precfrac_wth(map_wth(1)+k) = real( precfrac(1,1,k), r_def )
     end do
     precfrac_wth(map_wth(1)+0) = precfrac_wth(map_wth(1)+1)
 
