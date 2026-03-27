@@ -447,7 +447,7 @@ def trans(psyir):
             # Added OMP transformation on desired loop
             # ----------------------------------------
 
-            omp_tans = OMPParallelLoopTrans(omp_schedule="static")
+            omp_trans = OMPParallelLoopTrans(omp_schedule="static")
             opts = {
                 # some non-PURE subroutines called within this loop
                 "force": True,
@@ -456,7 +456,7 @@ def trans(psyir):
             }
 
             try:
-                omp_tans.apply(
+                omp_trans.apply(
                     loop, options=opts,
                 )
 
