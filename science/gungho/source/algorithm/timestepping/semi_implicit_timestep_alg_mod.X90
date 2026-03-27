@@ -632,7 +632,7 @@ contains
     type(field_type), pointer :: ageofair
 
 #ifdef UM_PHYSICS
-    type( field_type ), pointer :: precfrac => null()
+    type(field_type), pointer :: precfrac
 #endif
 
     type(operator_type), pointer :: mm_wt
