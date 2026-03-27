@@ -9,134 +9,47 @@
 module jules_physics_init_mod
 
   ! Other LFRic modules used
-  use constants_mod,          only : r_um, i_def, r_def
+  use constants_mod,          only : r_um, i_um, i_def, r_def
   use jules_control_init_mod, only : n_sea_ice_tile, n_land_tile
-  use jules_hydrology_config_mod, only :                                       &
-                              l_hydrology_in => l_hydrology,                   &
-                              l_var_rainfrac_in => l_var_rainfrac
-  use jules_nvegparm_config_mod, only :                                        &
-                              albsnc_nvg_io, albsnf_nvg_io, albsnf_nvgl_io,    &
-                              albsnf_nvgu_io, catch_nvg_io, ch_nvg_io,         &
-                              emis_nvg_io, gs_nvg_io, infil_nvg_io, vf_nvg_io, &
-                              z0_nvg_io, z0hm_nvg_io
-  use jules_pftparm_config_mod, only :                                         &
-                              albsnc_max_io, alnir_io, alpar_io, kext_io,      &
-                              omega_io, omnir_io, z0hm_pft_io, z0v_io, knl_io, &
-                              fsmc_p0_io, catch0_io, dcatch_dlai_io
   use jules_radiation_config_mod, only :                                       &
-                              fixed_sea_albedo_in => fixed_sea_albedo,         &
-                              l_hapke_soil_in => l_hapke_soil,                 &
-                              l_partition_albsoil_in => l_partition_albsoil,   &
-                              ratio_soilalb_in => ratio_albsoil,               &
-                              swdn_frac_albsoil_in => swdn_frac_albsoil,       &
-                              i_sea_alb_method_in => i_sea_alb_method,         &
                               i_sea_alb_method_barker,                         &
                               i_sea_alb_method_jin,                            &
-                              i_sea_alb_method_fixed,                          &
-                              l_niso_direct_in => l_niso_direct,               &
-                              l_sea_alb_var_chl_in => l_sea_alb_var_chl,       &
-                              l_spec_alb_bs_in => l_spec_alb_bs,               &
-                              l_albedo_obs_in => l_albedo_obs
+                              i_sea_alb_method_fixed
   use jules_sea_seaice_config_mod, only :                                      &
-                              iseasurfalg_in => iseasurfalg,                   &
                               iseasurfalg_coare,                               &
                               iseasurfalg_surf_div,                            &
-                              alpham_in => alpham,                             &
-                              dtice_in => dtice,                               &
-                              emis_sea_in => emis_sea,                         &
-                              emis_sice_in => emis_sice,                       &
-                              kappai_in => kappai,                             &
-                              kappai_snow_in => kappai_snow,                   &
-                              kappa_seasurf_in => kappa_seasurf,               &
-                              l_iceformdrag_lupkes_in => l_iceformdrag_lupkes, &
-                              l_stability_lupkes_in => l_stability_lupkes,     &
-                              l_sice_heatflux_in => l_sice_heatflux,           &
-                              l_10m_neut_in => l_10m_neut,                     &
-                              i_high_wind_drag_in => i_high_wind_drag,         &
                               i_high_wind_drag_null,                           &
                               i_high_wind_drag_limited,                        &
                               i_high_wind_drag_reduced_v1,                     &
-                              cdn_hw_sea_in => cdn_hw_sea,                     &
-                              cdn_max_sea_in => cdn_max_sea,                   &
-                              u_cdn_hw_in => u_cdn_hw,                         &
-                              u_cdn_max_in => u_cdn_max,                       &
-                              l_use_dtstar_sea_in => l_use_dtstar_sea,         &
-                              hcap_sea_in => hcap_sea,                         &
-                              beta_evap_in => beta_evap,                       &
-                              buddy_sea_in => buddy_sea,                       &
                               buddy_sea_on
-  use jules_soil_config_mod, only :                                            &
-                              l_dpsids_dsdz_in => l_dpsids_dsdz,               &
-                              l_soil_sat_down_in => l_soil_sat_down,           &
-                              l_vg_soil_in => l_vg_soil
   use jules_snow_config_mod, only :                                            &
-                              rho_snow_fresh_in => rho_snow_fresh,             &
-                              can_clump_in => can_clump,                       &
-                              cansnowpft_in => cansnowpft,                     &
-                              n_lai_exposed_in => n_lai_exposed,               &
-                              unload_rate_u_in => unload_rate_u,               &
-                              i_basal_melting_opt_in => i_basal_melting_opt,   &
                               i_basal_melting_opt_none,                        &
                               i_basal_melting_opt_instant,                     &
-                              i_grain_growth_opt_in => i_grain_growth_opt,     &
                               i_grain_growth_opt_marshall,                     &
                               i_grain_growth_opt_taillandier,                  &
-                              i_relayer_opt_in => i_relayer_opt,               &
                               i_relayer_opt_original,                          &
                               i_relayer_opt_inverse
   use jules_surface_config_mod, only :                                         &
-                              all_tiles_in => all_tiles,                       &
                               all_tiles_off, all_tiles_on,                     &
-                              beta1_in => beta1, beta2_in => beta2,            &
-                              beta_cnv_bl_in => beta_cnv_bl,                   &
-                              cor_mo_iter_in => cor_mo_iter,                   &
                               cor_mo_iter_lim_oblen,                           &
                               cor_mo_iter_improved,                            &
-                              fwe_c3_in => fwe_c3, fwe_c4_in => fwe_c4,        &
-                              hleaf_in => hleaf, hwood_in => hwood,            &
-                              srf_ex_cnv_gust_in => srf_ex_cnv_gust,           &
-                              formdrag_in => formdrag, formdrag_none,          &
+                              formdrag_none,                                   &
                               formdrag_eff_z0, formdrag_dist_drag,             &
-                              fd_hill_option_in => fd_hill_option,             &
                               fd_hill_option_capped_lowhill,                   &
-                              fd_stability_dep_in => fd_stability_dep,         &
                               fd_stability_dep_none,                           &
                               fd_stability_dep_surf_ri,                        &
-                              i_modiscopt_in => i_modiscopt,                   &
                               i_modiscopt_on,                                  &
-                              iscrntdiag_in => iscrntdiag,                     &
                               iscrntdiag_decoupled_trans,                      &
-                              l_epot_corr_in => l_epot_corr,                   &
-                              l_land_ice_imp_in => l_land_ice_imp,             &
-                              l_mo_buoyancy_calc_in => l_mo_buoyancy_calc,     &
-                              anthrop_heat_option_in => anthrop_heat_option,   &
                               anthrop_heat_option_dukes,                       &
-                              anthrop_heat_option_flanner,                     &
-                              anthrop_heat_mean_in => anthrop_heat_mean,       &
-                              l_anthrop_heat_src_in => l_anthrop_heat_src,     &
-                              l_urban2t_in => l_urban2t,                       &
-                              l_vary_z0m_soil_in => l_vary_z0m_soil,           &
-                              orog_drag_param_in => orog_drag_param,           &
-                              l_flake_model_in => l_flake_model,               &
-                              l_elev_land_ice_in => l_elev_land_ice,           &
-                              l_elev_lw_down_in => l_elev_lw_down,             &
-                              l_point_data_in => l_point_data
+                              anthrop_heat_option_flanner
   use jules_vegetation_config_mod, only :                                      &
-                              can_rad_mod_in => can_rad_mod,                   &
                               can_rad_mod_one, can_rad_mod_four,               &
                               can_rad_mod_five, can_rad_mod_six,               &
-                              l_limit_canhc_in => l_limit_canhc,               &
-                              l_spec_veg_z0_in => l_spec_veg_z0
-  use jules_urban_config_mod, only :                                           &
-                             anthrop_heat_scale_in => anthrop_heat_scale,      &
-                             l_moruses_albedo_in => l_moruses_albedo,          &
-                             l_moruses_emissivity_in => l_moruses_emissivity,  &
-                             l_moruses_rough_in => l_moruses_rough,            &
-                             l_moruses_storage_in => l_moruses_storage,        &
-                             l_moruses_storage_thin_in => l_moruses_storage_thin
+                              photo_model_collatz, stomata_model_jacobs
 
   ! UM modules used
-  use jules_surface_types_mod, only : npft, nnvg, ntype, ncpft, nnpft
+  use jules_surface_types_mod, only : npft, nnvg, ntype, ncpft, nnpft,         &
+     brd_leaf, ndl_leaf, c3_grass, c4_grass, shrub
   use nlsizes_namelist_mod,    only : sm_levels, ntiles
 
   ! JULES modules used
@@ -184,31 +97,35 @@ contains
   !>          from the JULES code.
   !>        Other parameters and switches which are genuinely input variables,
   !>         via the LFRic namelists, are also set here for the JULES code.
-  subroutine jules_physics_init()
+  !> @param[in] config   The config of the model run
+  subroutine jules_physics_init(config)
+
+    use config_mod,     only: config_type
 
     ! JULES modules containing things that need setting
     use ancil_info, only: land_pts, nsurft, nmasst
     use bl_option_mod, only: on
     use c_kappai, only: kappai, kappai_snow, kappa_seasurf
-    use c_z0h_z0m, only: z0h_z0m
-    use jules_hydrology_mod, only: l_hydrology, check_jules_hydrology,   &
-                                   l_top, l_var_rainfrac, nfita, ti_max, &
-                                   ti_wetl, zw_max
+    use c_z0h_z0m, only: c_z0h_z0m_print, c_z0h_z0m_check, z0h_z0m
+    use jules_hydrology_mod, only: check_jules_hydrology,                   &
+         print_nlist_jules_hydrology, l_hydrology, l_top, l_var_rainfrac,   &
+         nfita, ti_max, ti_wetl, zw_max
     use jules_irrig_mod, only: l_irrig_dmd
     use jules_radiation_mod, only: i_sea_alb_method,                        &
                                    l_embedded_snow, l_mask_snow_orog,       &
          l_spec_alb_bs, l_spec_albedo, l_spec_sea_alb, fixed_sea_albedo,    &
-         check_jules_radiation, l_niso_direct, l_sea_alb_var_chl,           &
-         l_albedo_obs, l_hapke_soil, l_partition_albsoil,                   &
-         ratio_albsoil, swdn_frac_albsoil
+         check_jules_radiation, print_nlist_jules_radiation,                &
+         l_niso_direct, l_sea_alb_var_chl, l_albedo_obs, l_hapke_soil,      &
+         l_partition_albsoil, ratio_albsoil, swdn_frac_albsoil
     use jules_science_fixes_mod, only: l_dtcanfix, l_fix_alb_ice_thick, &
          l_fix_albsnow_ts, ctile_orog_fix, l_fix_wind_snow,             &
          l_accurate_rho, l_fix_osa_chloro, l_fix_ustar_dust,            &
          correct_sea_only, l_fix_lake_ice_temperatures, l_fix_neg_snow
     use jules_sea_seaice_mod, only: nice, nice_use, iseasurfalg, emis_sea,  &
-         seasalinityfactor, ip_ss_surf_div, z0sice,                         &
-         z0h_z0m_sice, emis_sice, l_ctile, l_tstar_sice_new,                &
-         l_sice_heatflux, check_jules_sea_seaice, z0h_z0m_miz,              &
+         seasalinityfactor, ip_ss_surf_div, z0sice, z0h_z0m_sice,           &
+         emis_sice, l_ctile, l_tstar_sice_new, l_sice_heatflux,             &
+         check_jules_sea_seaice, print_nlist_jules_sea_seaice,              &
+         z0h_z0m_miz,                                                       &
          ip_ss_coare_mq, a_chrn_coare, b_chrn_coare, u10_max_coare,         &
          l_10m_neut, alpham, dtice, l_iceformdrag_lupkes,                   &
          l_stability_lupkes, l_use_dtstar_sea, hcap_sea, beta_evap,         &
@@ -219,16 +136,16 @@ contains
          buddy_sea, cdn_hw_sea, cdn_max_sea, u_cdn_hw, u_cdn_max,           &
          i_high_wind_drag, ip_hwdrag_null, ip_hwdrag_limited,               &
          ip_hwdrag_reduced_v1
-    use jules_snow_mod, only: cansnowpft, check_jules_snow, nsmax,          &
-         a_snow_et, b_snow_et, c_snow_et, can_clump, dzsnow,                &
-         frac_snow_subl_melt, i_snow_cond_parm, l_et_metamorph,             &
+    use jules_snow_mod, only: check_jules_snow,                             &
+         cansnowpft, nsmax, a_snow_et, b_snow_et, c_snow_et, can_clump,     &
+         dzsnow, frac_snow_subl_melt, i_snow_cond_parm, l_et_metamorph,     &
          l_snow_infilt, l_snow_nocan_hc, l_snowdep_surf, lai_alb_lim_sn,    &
          n_lai_exposed, rho_snow_et_crit, rho_snow_fresh, snow_hcon,        &
          unload_rate_u, i_basal_melting_opt, i_grain_growth_opt,            &
          i_relayer_opt, graupel_options
-    use jules_soil_mod, only: dzsoil_io, l_dpsids_dsdz, l_soil_sat_down,    &
-         l_vg_soil, soilhc_method, check_jules_soil, confrac, cs_min, zsmc, &
-         zst, sm_levels
+    use jules_soil_mod, only: check_jules_soil, print_nlist_jules_soil,     &
+         dzsoil_io, l_dpsids_dsdz, l_soil_sat_down, l_vg_soil,              &
+         soilhc_method, confrac, cs_min, zsmc, zst, sm_levels
     use jules_soil_biogeochem_mod, only: const_ch4_cs,                      &
          check_jules_soil_biogeochem, diff_n_pft, bio_hum_cn, sorp,         &
          n_inorg_turnover, q10_soil, kaps_4pool, kaps, q10_ch4_cs,          &
@@ -251,51 +168,71 @@ contains
     use jules_urban_mod, only: anthrop_heat_scale, l_moruses_albedo,        &
          l_moruses_emissivity, l_moruses_rough, l_moruses_storage,          &
          l_moruses_storage_thin, check_jules_urban, print_nlist_jules_urban
-    use jules_vegetation_mod, only: can_rad_mod, ilayers, l_vegcan_soilfx,  &
-         photo_model, photo_collatz, stomata_model, stomata_jacobs,         &
-         check_jules_vegetation,                                            &
-         l_spec_veg_z0, l_limit_canhc, l_crop, l_triffid, l_phenol
+    use jules_vegetation_mod, only:                                         &
+         check_jules_vegetation, print_nlist_jules_vegetation,              &
+         can_rad_mod, ilayers, photo_model, photo_collatz, stomata_model,   &
+         stomata_jacobs, l_bvoc_emis, l_crop, l_inferno, l_limit_canhc,     &
+         l_o3_damage, l_phenol, l_spec_veg_z0, l_sugar, l_trif_fire,        &
+         l_triffid, l_use_pft_psi, l_vegcan_soilfx
     use nvegparm, only:                                                     &
          albsnc_nvg, albsnf_nvgu, albsnf_nvg, albsnf_nvgl, catch_nvg,       &
          ch_nvg, emis_nvg, gs_nvg, infil_nvg, vf_nvg, z0_nvg,               &
-         check_jules_nvegparm
+         check_jules_nvegparm, print_nlist_jules_nvegparm
     use pftparm, only:                                                      &
-         a_wl, a_ws, albsnc_max, albsnc_min, albsnf_maxu, albsnf_maxl,      &
-         alniru, alnir, alnirl, alparu, alpar, alparl, alpha, b_wl, c3,     &
-         can_struct_a, catch0, dcatch_dlai, dgl_dm, dgl_dt, dqcrit,         &
-         dz0v_dh, emis_pft, eta_sl, f0, fd, fsmc_of, fsmc_p0,               &
-         g_leaf_0, glmin, gsoil_f, hw_sw, infil_f, kext, kn, knl, kpar,     &
-         lai_alb_lim, lma, neff, nl0, nmass, nr, nr_nl, ns_nl, nsw, omega,  &
-         omegal, omegau, omnir, omnirl, omniru, orient, q10_leaf, r_grow,   &
-         rootd_ft, sigl, tleaf_of, tlow, tupp, vint, vsl, z0v, dust_veg_scj
+         print_nlist_jules_pftparm, check_jules_pftparm,                    &
+         a_wl, a_ws, act_jmax, act_vcmax, aef, albsnc_max, albsnc_min,      &
+         albsnf_max, albsnf_maxl, albsnf_maxu, alnir, alnirl, alniru,       &
+         alpar, alparl, alparu, alpha, alpha_elec, avg_ba, b_wl, c3,        &
+         can_struct_a, catch0, ccleaf_max, ccleaf_min, ccwood_max,          &
+         ccwood_min, ci_st, dcatch_dlai, deact_jmax, deact_vcmax, dfp_dcuo, &
+         dgl_dm, dgl_dt, dqcrit, ds_jmax, ds_vcmax, dust_veg_scj, dz0v_dh,  &
+         emis_pft, eta_sl, f0, fd, fef_bc, fef_c2h4, fef_c2h6, fef_c3h8,    &
+         fef_ch4, fef_co, fef_co2, fef_dms, fef_hcho, fef_mecho, fef_nh3,   &
+         fef_nox, fef_oc, fef_so2, fire_mort, fl_o3_ct, fsmc_mod, fsmc_of,  &
+         fsmc_p0, g1_stomata, g_leaf_0, glmin, gpp_st, gsoil_f, hw_sw, ief, &
+         infil_f, jv25_ratio, kext, kn, knl, kpar, lai_alb_lim, lma, mef,   &
+         neff, nl0, nmass, nr, nr_nl, ns_nl, nsw, omega, omegal, omegau,    &
+         omnir, omnirl, omniru, orient, psi_close, psi_open, q10_leaf,      &
+         r_grow, rootd_ft, sigl, sox_a, sox_p50, sox_rp_min, sug_g0,        &
+         sug_grec, sug_yg, tef, tleaf_of, tlow, tupp, vint, vsl, z0v
 
     use check_compatible_options_mod, only: check_compatible_options
 
+    use jules_pftparm_nml_iterator_mod, only: jules_pftparm_nml_iterator_type
+    use jules_pftparm_nml_mod,          only: jules_pftparm_nml_type
+
     implicit none
 
+    ! Model run working data set
+    type(config_type) :: config
+    type(jules_pftparm_nml_iterator_type) :: iter
+    type(jules_pftparm_nml_type), pointer :: jules_pftparm
+
     integer(kind=i_def) :: errorstatus = 0
+    integer(kind=i_def) :: i, n
 
     call log_event( 'jules_physics_init', LOG_LEVEL_INFO )
 
     ! ----------------------------------------------------------------
     ! JULES hydrology settings - contained in module jules_hydrology
     ! ----------------------------------------------------------------
-    l_hydrology    = l_hydrology_in
+    l_hydrology    = config%jules_hydrology%l_hydrology()
     l_top          = .true.
-    l_var_rainfrac = l_var_rainfrac_in
+    l_var_rainfrac = config%jules_hydrology%l_var_rainfrac()
     nfita          = 30
     ti_max         = 10.0_r_um
     ti_wetl        = 1.5_r_um
     zw_max         = 6.0_r_um
 
     ! Check the contents of the hydrology parameters module
+    call print_nlist_jules_hydrology()
     call check_jules_hydrology()
 
     ! ----------------------------------------------------------------
     ! JULES radiation settings - contained in module jules_radiation
     ! ----------------------------------------------------------------
-    fixed_sea_albedo = real(fixed_sea_albedo_in, r_um)
-    select case (i_sea_alb_method_in)
+    fixed_sea_albedo = real(config%jules_radiation%fixed_sea_albedo(), r_um)
+    select case (config%jules_radiation%i_sea_alb_method())
       case(i_sea_alb_method_barker)
         i_sea_alb_method = 2
       case(i_sea_alb_method_jin)
@@ -303,41 +240,45 @@ contains
       case(i_sea_alb_method_fixed)
         i_sea_alb_method = 4
     end select
-    l_albedo_obs        = l_albedo_obs_in
+    l_albedo_obs        = config%jules_radiation%l_albedo_obs()
     l_embedded_snow     = .true.
-    l_hapke_soil        = l_hapke_soil_in
+    l_hapke_soil        = config%jules_radiation%l_hapke_soil()
     l_mask_snow_orog    = .true.
-    l_niso_direct       = l_niso_direct_in
-    l_partition_albsoil = l_partition_albsoil_in
-    l_sea_alb_var_chl   = l_sea_alb_var_chl_in
-    l_spec_alb_bs       = l_spec_alb_bs_in
-    l_spec_albedo       = .true.
+    l_niso_direct       = config%jules_radiation%l_niso_direct()
+    l_partition_albsoil = config%jules_radiation%l_partition_albsoil()
+    l_sea_alb_var_chl   = config%jules_radiation%l_sea_alb_var_chl()
+    l_spec_alb_bs       = config%jules_radiation%l_spec_alb_bs()
+    l_spec_albedo       = config%jules_radiation%l_spec_albedo()
     l_spec_sea_alb      = .true.
-    ratio_albsoil       = real(ratio_soilalb_in, r_um)
-    swdn_frac_albsoil   = real(swdn_frac_albsoil_in, r_um)
+    ratio_albsoil       = real(config%jules_radiation%ratio_albsoil(), r_um)
+    swdn_frac_albsoil   = real(config%jules_radiation%swdn_frac_albsoil(), r_um)
 
     ! Check the contents of the radiation parameters module
+    call print_nlist_jules_radiation()
     call check_jules_radiation()
 
     ! ----------------------------------------------------------------
     ! JULES sea and sea-ice settings - contained in module jules_sea_seaice
     !                                   and c_kappai
     ! ----------------------------------------------------------------
-    kappai        = real(kappai_in, r_um)
-    kappai_snow   = real(kappai_snow_in, r_um)
-    kappa_seasurf = real(kappa_seasurf_in, r_um)
+    kappai        = real(config%jules_sea_seaice%kappai(), r_um)
+    kappai_snow   = real(config%jules_sea_seaice%kappai_snow(), r_um)
+    kappa_seasurf = real(config%jules_sea_seaice%kappa_seasurf(), r_um)
 
-    a_chrn_coare         = 0.0016_r_um
-    alpham               = real(alpham_in, r_um)
-    b_chrn_coare         = -0.0035_r_um
-    beta_evap            = real(beta_evap_in, r_um)
-    if (buddy_sea_in == buddy_sea_on) buddy_sea = on
-    cdn_hw_sea           = real(cdn_hw_sea_in, r_um)
-    cdn_max_sea          = real(cdn_max_sea_in, r_um)
-    dtice                = real(dtice_in, r_um)
-    emis_sea             = real(emis_sea_in, r_um)
-    emis_sice            = real(emis_sice_in, r_um)
-    select case (i_high_wind_drag_in)
+    a_chrn_coare  = 0.0016_r_um
+    alpham        = real(config%jules_sea_seaice%alpham(), r_um)
+    b_chrn_coare  = -0.0035_r_um
+    beta_evap     = real(config%jules_sea_seaice%beta_evap(), r_um)
+    select case (config%jules_sea_seaice%buddy_sea())
+    case( buddy_sea_on )
+      buddy_sea = on
+    end select
+    cdn_hw_sea    = real(config%jules_sea_seaice%cdn_hw_sea(), r_um)
+    cdn_max_sea   = real(config%jules_sea_seaice%cdn_max_sea(), r_um)
+    dtice         = real(config%jules_sea_seaice%dtice(), r_um)
+    emis_sea      = real(config%jules_sea_seaice%emis_sea(), r_um)
+    emis_sice     = real(config%jules_sea_seaice%emis_sice(), r_um)
+    select case ( config%jules_sea_seaice%i_high_wind_drag() )
       case(i_high_wind_drag_null)
         i_high_wind_drag = ip_hwdrag_null
       case(i_high_wind_drag_limited)
@@ -345,25 +286,27 @@ contains
       case(i_high_wind_drag_reduced_v1)
         i_high_wind_drag = ip_hwdrag_reduced_v1
     end select
-    select case (iseasurfalg_in)
+    select case ( config%jules_sea_seaice%iseasurfalg() )
       case(iseasurfalg_surf_div)
         iseasurfalg = ip_ss_surf_div
       case(iseasurfalg_coare)
         iseasurfalg = ip_ss_coare_mq
     end select
-    l_10m_neut           = l_10m_neut_in
+    l_10m_neut           = config%jules_sea_seaice%l_10m_neut()
     ! l_ctile is implicitly true by design of LFRic and should not be changed
     l_ctile              = .true.
-    l_iceformdrag_lupkes = l_iceformdrag_lupkes_in
-    l_stability_lupkes   = l_stability_lupkes_in
-    l_sice_heatflux      = l_sice_heatflux_in
+    l_iceformdrag_lupkes = config%jules_sea_seaice%l_iceformdrag_lupkes()
+    l_stability_lupkes   = config%jules_sea_seaice%l_stability_lupkes()
+    l_sice_heatflux      = config%jules_sea_seaice%l_sice_heatflux()
     ! Code has not been included to support this being false as configurations
     ! should be moving to the new code
-    l_use_dtstar_sea     = l_use_dtstar_sea_in
-    if (l_use_dtstar_sea) hcap_sea = real(hcap_sea_in, r_um)
+    l_use_dtstar_sea     = config%jules_sea_seaice%l_use_dtstar_sea()
+    if ( config%jules_sea_seaice%l_use_dtstar_sea() ) then
+      hcap_sea = real(config%jules_sea_seaice%hcap_sea(), r_um)
+    end if
     seasalinityfactor    = 0.98_r_um
-    u_cdn_hw             = real(u_cdn_hw_in, r_um)
-    u_cdn_max            = real(u_cdn_max_in, r_um)
+    u_cdn_hw             = real(config%jules_sea_seaice%u_cdn_hw(), r_um)
+    u_cdn_max            = real(config%jules_sea_seaice%u_cdn_max(), r_um)
     u10_max_coare        = 22.0_r_um
     z0h_z0m_miz          = 0.2_r_um
     z0h_z0m_sice         = 0.2_r_um
@@ -398,6 +341,7 @@ contains
     end if
 
     ! Check the contents of the sea_seaice parameters module
+    call print_nlist_jules_sea_seaice()
     call check_jules_sea_seaice()
 
     ! ----------------------------------------------------------------
@@ -407,24 +351,24 @@ contains
     a_snow_et              = 2.8e-6_r_um
     b_snow_et              = 0.042_r_um
     c_snow_et              = 0.046_r_um
-    can_clump(1:npft)      = real(can_clump_in, r_um)
-    cansnowpft(1:npft)     = cansnowpft_in(1:npft)
+    can_clump(1:npft)      = real(config%jules_snow%can_clump(), r_um)
+    cansnowpft(1:npft)     = config%jules_snow%cansnowpft()
     dzsnow(1:nsmax)        = (/ 0.04_r_um, 0.12_r_um, 0.34_r_um /)
     frac_snow_subl_melt    = 1
     graupel_options        = 2
-    select case (i_basal_melting_opt_in)
+    select case (config%jules_snow%i_basal_melting_opt())
       case(i_basal_melting_opt_none)
         i_basal_melting_opt = 0
       case(i_basal_melting_opt_instant)
         i_basal_melting_opt = 1
     end select
-    select case (i_grain_growth_opt_in)
+    select case (config%jules_snow%i_grain_growth_opt())
       case(i_grain_growth_opt_marshall)
         i_grain_growth_opt = 0
       case(i_grain_growth_opt_taillandier)
         i_grain_growth_opt = 1
     end select
-    select case (i_relayer_opt_in)
+    select case (config%jules_snow%i_relayer_opt())
       case(i_relayer_opt_original)
         i_relayer_opt = 0
       case(i_relayer_opt_inverse)
@@ -436,11 +380,11 @@ contains
     l_snow_nocan_hc        = .true.
     l_snowdep_surf         = .true.
     lai_alb_lim_sn(1:npft) = (/ 1.0_r_um, 1.0_r_um, 0.1_r_um, 0.1_r_um, 0.1_r_um /)
-    n_lai_exposed(1:npft)  = real(n_lai_exposed_in, r_um)
+    n_lai_exposed(1:npft)  = real(config%jules_snow%n_lai_exposed(), r_um)
     rho_snow_et_crit       = 150.0_r_um
-    rho_snow_fresh         = real(rho_snow_fresh_in, r_um)
+    rho_snow_fresh         = real(config%jules_snow%rho_snow_fresh(), r_um)
     snow_hcon              = 0.1495_r_um
-    unload_rate_u(1:npft)  = real(unload_rate_u_in, r_um)
+    unload_rate_u(1:npft)  = real(config%jules_snow%unload_rate_u(), r_um)
 
     ! Set the LFRic dimension
     snow_lev_tile = nsmax * n_land_tile
@@ -455,9 +399,9 @@ contains
     ! The number of levels specified here needs to be consistent with
     ! sm_levels from jules_control_init
     dzsoil_io(1:sm_levels) = (/ 0.1_r_um, 0.25_r_um, 0.65_r_um, 2.0_r_um /)
-    l_dpsids_dsdz   = l_dpsids_dsdz_in
-    l_soil_sat_down = l_soil_sat_down_in
-    l_vg_soil       = l_vg_soil_in
+    l_dpsids_dsdz   = config%jules_soil%l_dpsids_dsdz()
+    l_soil_sat_down = config%jules_soil%l_soil_sat_down()
+    l_vg_soil       = config%jules_soil%l_vg_soil()
     soilhc_method   = 2
     confrac         = 0.3_r_um
     cs_min          = 1.0e-6_r_um
@@ -466,6 +410,7 @@ contains
 
     ! Check the contents of the JULES soil parameters module
     ! This module sets some derived parameters
+    call print_nlist_jules_soil()
     call check_jules_soil()
 
     ! ----------------------------------------------------------------
@@ -496,39 +441,39 @@ contains
     ! ----------------------------------------------------------------
     ! JULES surface settings - contained in module jules_surface
     ! ----------------------------------------------------------------
-    anthrop_heat_mean  = real(anthrop_heat_mean_in, r_um)
-    select case (anthrop_heat_option_in)
+    anthrop_heat_mean  = real(config%jules_surface%anthrop_heat_mean(), r_um)
+    select case (config%jules_surface%anthrop_heat_option())
       case(anthrop_heat_option_dukes)
         anthrop_heat_option = dukes
       case(anthrop_heat_option_flanner)
         anthrop_heat_option = flanner
     end select
-    select case (all_tiles_in)
+    select case (config%jules_surface%all_tiles())
       case(all_tiles_off)
         all_tiles = 0
       case(all_tiles_on)
         all_tiles = 1
     end select
-    beta1       = real(beta1_in, r_um)
-    beta2       = real(beta2_in, r_um)
-    beta_cnv_bl = real(beta_cnv_bl_in, r_um)
-    select case (cor_mo_iter_in)
+    beta1       = real(config%jules_surface%beta1(), r_um)
+    beta2       = real(config%jules_surface%beta2(), r_um)
+    beta_cnv_bl = real(config%jules_surface%beta_cnv_bl(), r_um)
+    select case (config%jules_surface%cor_mo_iter())
       case(cor_mo_iter_lim_oblen)
         cor_mo_iter = Limit_ObukhovL
       case(cor_mo_iter_improved)
         cor_mo_iter = Improve_Initial_Guess
     end select
-    select case (fd_hill_option_in)
+    select case (config%jules_surface%fd_hill_option())
       case(fd_hill_option_capped_lowhill)
         fd_hill_option = capped_lowhill
     end select
-    select case (fd_stability_dep_in)
+    select case (config%jules_surface%fd_stability_dep())
       case(fd_stability_dep_none)
         fd_stability_dep = 0
       case(fd_stability_dep_surf_ri)
         fd_stability_dep = 1
     end select
-    select case (formdrag_in)
+    select case (config%jules_surface%formdrag())
       case(formdrag_none)
         formdrag = no_drag
       case(formdrag_eff_z0)
@@ -536,31 +481,32 @@ contains
       case(formdrag_dist_drag)
         formdrag = explicit_stress
     end select
-    fwe_c3       = real(fwe_c3_in, r_um)
-    fwe_c4       = real(fwe_c4_in, r_um)
-    hleaf        = real(hleaf_in, r_um)
-    hwood        = real(hwood_in, r_um)
-    ! Awaiting advice from John Edwards regarding off or other allowed options
-    select case (i_modiscopt_in)
+    fwe_c3       = real(config%jules_surface%fwe_c3(), r_um)
+    fwe_c4       = real(config%jules_surface%fwe_c4(), r_um)
+    hleaf        = real(config%jules_surface%hleaf(), r_um)
+    hwood        = real(config%jules_surface%hwood(), r_um)
+    select case (config%jules_surface%i_modiscopt())
     case(i_modiscopt_on)
       i_modiscopt = 1
     end select
-    select case (iscrntdiag_in)
+    select case (config%jules_surface%iscrntdiag())
     case(iscrntdiag_decoupled_trans)
       iscrntdiag = ip_scrndecpl2
     end select
-    if (srf_ex_cnv_gust_in) srf_ex_cnv_gust = IP_SrfExWithCnv
-    l_epot_corr        = l_epot_corr_in
-    l_land_ice_imp     = l_land_ice_imp_in
-    l_mo_buoyancy_calc = l_mo_buoyancy_calc_in
-    l_anthrop_heat_src = l_anthrop_heat_src_in
-    l_urban2t          = l_urban2t_in
-    l_vary_z0m_soil    = l_vary_z0m_soil_in
-    l_flake_model      = l_flake_model_in
-    l_elev_land_ice    = l_elev_land_ice_in
-    l_elev_lw_down     = l_elev_lw_down_in
-    l_point_data       = l_point_data_in
-    orog_drag_param    = real(orog_drag_param_in, r_um)
+    if (config%jules_surface%srf_ex_cnv_gust()) then
+      srf_ex_cnv_gust = IP_SrfExWithCnv
+    end if
+    l_epot_corr        = config%jules_surface%l_epot_corr()
+    l_land_ice_imp     = config%jules_surface%l_land_ice_imp()
+    l_mo_buoyancy_calc = config%jules_surface%l_mo_buoyancy_calc()
+    l_anthrop_heat_src = config%jules_surface%l_anthrop_heat_src()
+    l_urban2t          = config%jules_surface%l_urban2t()
+    l_vary_z0m_soil    = config%jules_surface%l_vary_z0m_soil()
+    l_flake_model      = config%jules_surface%l_flake_model()
+    l_elev_land_ice    = config%jules_surface%l_elev_land_ice()
+    l_elev_lw_down     = config%jules_surface%l_elev_lw_down()
+    l_point_data       = config%jules_surface%l_point_data()
+    orog_drag_param    = real(config%jules_surface%orog_drag_param(), r_um)
     lake_water_conserve_method = use_elake_surft
 
     ! The minimum sea ice fraction
@@ -576,9 +522,9 @@ contains
     call check_jules_surface()
 
     ! ----------------------------------------------------------------
-    ! JULES vegatation settings - contained in module jules_vegetation
+    ! JULES vegetation settings - contained in module jules_vegetation
     ! ----------------------------------------------------------------
-    select case (can_rad_mod_in)
+    select case (config%jules_vegetation%can_rad_mod())
       case(can_rad_mod_one)
         can_rad_mod = 1
       case(can_rad_mod_four)
@@ -589,25 +535,40 @@ contains
         can_rad_mod = 6
     end select
     ilayers         = 10
-    l_limit_canhc   = l_limit_canhc_in
-    l_spec_veg_z0   = l_spec_veg_z0_in
+    l_bvoc_emis     = config%jules_vegetation%l_bvoc_emis()
+    l_inferno       = config%jules_vegetation%l_inferno()
+    l_limit_canhc   = config%jules_vegetation%l_limit_canhc()
+    l_o3_damage     = config%jules_vegetation%l_o3_damage()
+    l_spec_veg_z0   = config%jules_vegetation%l_spec_veg_z0()
+    l_sugar         = config%jules_vegetation%l_sugar()
+    l_trif_fire     = config%jules_vegetation%l_trif_fire()
+    l_use_pft_psi   = config%jules_vegetation%l_use_pft_psi()
     l_vegcan_soilfx = .true.
-    photo_model     = photo_collatz
-    stomata_model   = stomata_jacobs
+    select case (config%jules_vegetation%photo_model())
+      case(photo_model_collatz)
+        photo_model = photo_collatz
+    end select
+    select case (config%jules_vegetation%stomata_model())
+      case(stomata_model_jacobs)
+        stomata_model = stomata_jacobs
+    end select
 
     ! Check the contents of the vegetation parameters module
+    call print_nlist_jules_vegetation()
     call check_jules_vegetation()
 
     ! ----------------------------------------------------------------
     ! JULES urban settings - contained in module jules_urban
     ! ----------------------------------------------------------------
 
-    anthrop_heat_scale     = anthrop_heat_scale_in
-    l_moruses_albedo       = l_moruses_albedo_in
-    l_moruses_emissivity   = l_moruses_emissivity_in
-    l_moruses_rough        = l_moruses_rough_in
-    l_moruses_storage      = l_moruses_storage_in
-    l_moruses_storage_thin = l_moruses_storage_thin_in
+    if ( config%jules_surface%l_urban2t() ) then
+      anthrop_heat_scale     = config%jules_urban%anthrop_heat_scale()
+      l_moruses_albedo       = config%jules_urban%l_moruses_albedo()
+      l_moruses_emissivity   = config%jules_urban%l_moruses_emissivity()
+      l_moruses_rough        = config%jules_urban%l_moruses_rough()
+      l_moruses_storage      = config%jules_urban%l_moruses_storage()
+      l_moruses_storage_thin = config%jules_urban%l_moruses_storage_thin()
+    end if
 
     call print_nlist_jules_urban()
     call check_jules_urban()
@@ -668,113 +629,201 @@ contains
     ! before copying to allocated array otherwise errors arise, which cannot
     ! be caught by check_jules_nvegparm.
 
-    IF ( ALL ( [0, nnvg] /= SIZE(albsnc_nvg_io) ) )  errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvg_io)) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvgl_io) ) ) errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(albsnf_nvgu_io) ) ) errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(catch_nvg_io) ) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(ch_nvg_io) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(emis_nvg_io) ) )    errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(gs_nvg_io) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(infil_nvg_io) ) )   errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(vf_nvg_io) ) )      errorstatus = 1
-    IF ( ALL ( [0, nnvg] /= SIZE(z0_nvg_io) ) )      errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%albsnc_nvg_io()) ) )  errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%albsnf_nvg_io())) )   errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%albsnf_nvgl_io()) ) ) errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%albsnf_nvgu_io()) ) ) errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%catch_nvg_io()) ) )   errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%ch_nvg_io()) ) )      errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%emis_nvg_io()) ) )    errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%gs_nvg_io()) ) )      errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%infil_nvg_io()) ) )   errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%vf_nvg_io()) ) )      errorstatus = 1
+    if ( all ( [0, nnvg] /= size(config%jules_nvegparm%z0_nvg_io()) ) )      errorstatus = 1
 
-    IF ( errorstatus == 1 ) THEN
+    if ( errorstatus == 1 ) then
       write(log_scratch_space,'(A)')                                         &
          'jules_nvegparm input(s) incorrect length; run `rose macro -V`.'
       call log_event( log_scratch_space, LOG_LEVEL_ERROR)
-    END IF
+    end if
 
-    albsnc_nvg  = real(albsnc_nvg_io, r_um)
-    albsnf_nvg  = real(albsnf_nvg_io, r_um)
-    albsnf_nvgl = real(albsnf_nvgl_io, r_um)
-    albsnf_nvgu = real(albsnf_nvgu_io, r_um)
-    catch_nvg   = real(catch_nvg_io, r_um)
-    ch_nvg      = real(ch_nvg_io, r_um)
-    emis_nvg    = real(emis_nvg_io, r_um)
-    gs_nvg      = real(gs_nvg_io, r_um)
-    infil_nvg   = real(infil_nvg_io, r_um)
-    vf_nvg      = real(vf_nvg_io, r_um)
-    z0_nvg      = real(z0_nvg_io, r_um)
+    albsnc_nvg  = real(config%jules_nvegparm%albsnc_nvg_io(), r_um)
+    albsnf_nvg  = real(config%jules_nvegparm%albsnf_nvg_io(), r_um)
+    albsnf_nvgl = real(config%jules_nvegparm%albsnf_nvgl_io(), r_um)
+    albsnf_nvgu = real(config%jules_nvegparm%albsnf_nvgu_io(), r_um)
+    catch_nvg   = real(config%jules_nvegparm%catch_nvg_io(), r_um)
+    ch_nvg      = real(config%jules_nvegparm%ch_nvg_io(), r_um)
+    emis_nvg    = real(config%jules_nvegparm%emis_nvg_io(), r_um)
+    gs_nvg      = real(config%jules_nvegparm%gs_nvg_io(), r_um)
+    infil_nvg   = real(config%jules_nvegparm%infil_nvg_io(), r_um)
+    vf_nvg      = real(config%jules_nvegparm%vf_nvg_io(), r_um)
+    z0_nvg      = real(config%jules_nvegparm%z0_nvg_io(), r_um)
+    z0h_z0m(npft+1:npft+nnvg) = real(config%jules_nvegparm%z0hm_nvg_io(), r_um)
+
 
     ! ----------------------------------------------------------------
     ! JULES vegetation tile settigs - contained in module pftparm
     ! ----------------------------------------------------------------
-    a_wl=(/ 0.65_r_um, 0.65_r_um, 0.005_r_um, 0.005_r_um, 0.10_r_um /)
-    a_ws=(/ 10.0_r_um, 10.0_r_um, 1.0_r_um, 1.0_r_um, 10.0_r_um /)
-    albsnc_max = real(albsnc_max_io, r_um)
-    albsnc_min=(/ 3.0e-1_r_um, 3.0e-1_r_um, 8.0e-1_r_um, 8.0e-1_r_um, 8.0e-1_r_um /)
-    albsnf_maxl=(/ 0.095_r_um, 0.059_r_um, 0.128_r_um, 0.106_r_um, 0.077_r_um /)
-    albsnf_maxu=(/ 0.215_r_um, 0.132_r_um, 0.288_r_um, 0.239_r_um, 0.173_r_um /)
-    alnir = real(alnir_io, r_um)
-    alnirl=(/ 0.30_r_um, 0.23_r_um, 0.39_r_um, 0.39_r_um, 0.39_r_um /)
-    alniru=(/ 0.75_r_um, 0.65_r_um, 0.95_r_um, 0.95_r_um, 0.87_r_um /)
-    alpar = real(alpar_io, r_um)
-    alparl=(/ 0.06_r_um, 0.04_r_um, 0.06_r_um, 0.06_r_um, 0.06_r_um /)
-    alparu=(/ 0.15_r_um, 0.11_r_um, 0.25_r_um, 0.25_r_um, 0.25_r_um /)
-    alpha=(/ 0.08_r_um, 0.08_r_um, 0.08_r_um, 0.04_r_um, 0.08_r_um /)
-    b_wl=(/ 1.667_r_um, 1.667_r_um, 1.667_r_um, 1.667_r_um, 1.667_r_um /)
-    c3=(/ 1,1,1,0,1 /)
-    can_struct_a=(/ 1.0_r_um, 1.0_r_um, 1.0_r_um, 1.0_r_um, 1.0_r_um /)
-    catch0 = real(catch0_io, r_um)
-    dcatch_dlai = real(dcatch_dlai_io, r_um)
-    dgl_dm=(/ 0.0_r_um, 0.0_r_um, 0.0_r_um, 0.0_r_um, 0.0_r_um /)
-    dgl_dt=(/ 9.0_r_um, 9.0_r_um, 0.0_r_um, 0.0_r_um, 9.0_r_um /)
-    dqcrit=(/ 0.090_r_um, 0.060_r_um, 0.100_r_um, 0.075_r_um, 0.100_r_um /)
-    dust_veg_scj=(/ 0.0_r_um, 0.0_r_um, 1.0_r_um, 1.0_r_um, 0.5_r_um /)
-    dz0v_dh=(/ 5.0e-2_r_um, 5.0e-2_r_um, 1.0e-1_r_um, 1.0e-1_r_um, 1.0e-1_r_um /)
-    emis_pft=(/ 0.98_r_um, 0.99_r_um, 0.98_r_um, 0.98_r_um, 0.98_r_um /)
-    eta_sl=(/ 0.01_r_um, 0.01_r_um, 0.01_r_um, 0.01_r_um, 0.01_r_um /)
-    f0=(/ 0.875_r_um, 0.875_r_um, 0.900_r_um, 0.800_r_um, 0.900_r_um /)
-    fd=(/ 0.015_r_um, 0.015_r_um, 0.015_r_um, 0.025_r_um, 0.015_r_um /)
-    fsmc_of=(/ 0.0_r_um, 0.0_r_um, 0.0_r_um, 0.0_r_um, 0.0_r_um /)
-    fsmc_p0=real(fsmc_p0_io, r_um)
-    g_leaf_0=(/ 0.25_r_um, 0.25_r_um, 0.25_r_um, 0.25_r_um, 0.25_r_um /)
-    glmin=(/ 1.0e-6_r_um, 1.0e-6_r_um, 1.0e-6_r_um, 1.0e-6_r_um, 1.0e-6_r_um /)
-    gsoil_f=(/ 1.0_r_um, 1.0_r_um, 1.0_r_um, 1.0_r_um, 1.0_r_um /)
-    hw_sw=(/ 0.5_r_um, 0.5_r_um, 0.5_r_um, 0.5_r_um, 0.5_r_um /)
-    infil_f=(/ 4.0_r_um, 4.0_r_um, 2.0_r_um, 2.0_r_um, 2.0_r_um /)
-    kext = real(kext_io, r_um)
-    kn=(/ 0.78_r_um, 0.78_r_um, 0.78_r_um, 0.78_r_um, 0.78_r_um /)
-    knl = real(knl_io, r_um)
-    kpar=(/ 0.5_r_um, 0.5_r_um, 0.5_r_um, 0.5_r_um, 0.5_r_um /)
-    lai_alb_lim=(/ 0.005_r_um, 0.005_r_um, 0.005_r_um, 0.005_r_um, 0.005_r_um /)
-    lma=(/ 0.0824_r_um, 0.2263_r_um, 0.0498_r_um, 0.1370_r_um, 0.0695_r_um /)
-    neff=(/ 0.8e-3_r_um, 0.8e-3_r_um, 0.8e-3_r_um, 0.4e-3_r_um, 0.8e-3_r_um /)
-    nl0=(/ 0.040_r_um, 0.030_r_um, 0.060_r_um, 0.030_r_um, 0.030_r_um /)
-    nmass=(/ 0.0210_r_um, 0.0115_r_um, 0.0219_r_um, 0.0131_r_um, 0.0219_r_um /)
-    nr=(/ 0.01726_r_um, 0.00784_r_um, 0.0162_r_um, 0.0084_r_um, 0.01726_r_um /)
-    nr_nl=(/ 1.0_r_um, 1.0_r_um, 1.0_r_um, 1.0_r_um, 1.0_r_um /)
-    ns_nl=(/ 0.1_r_um, 0.1_r_um, 1.0_r_um, 1.0_r_um, 0.1_r_um /)
-    nsw=(/ 0.0072_r_um, 0.0083_r_um, 0.01604_r_um, 0.0202_r_um, 0.0072_r_um /)
-    omega = real(omega_io, r_um)
-    omegal=(/ 0.10_r_um, 0.10_r_um, 0.10_r_um, 0.12_r_um, 0.10_r_um /)
-    omegau=(/ 0.23_r_um, 0.23_r_um, 0.35_r_um, 0.35_r_um, 0.35_r_um /)
-    omnir = real(omnir_io, r_um)
-    omnirl=(/ 0.50_r_um, 0.30_r_um, 0.53_r_um, 0.53_r_um, 0.53_r_um /)
-    omniru=(/ 0.90_r_um, 0.65_r_um, 0.98_r_um, 0.98_r_um, 0.98_r_um /)
-    orient=(/ 0,0,0,0,0 /)
-    q10_leaf=(/ 2.0_r_um, 2.0_r_um, 2.0_r_um, 2.0_r_um, 2.0_r_um /)
-    r_grow=(/ 0.25_r_um, 0.25_r_um, 0.25_r_um, 0.25_r_um, 0.25_r_um /)
-    rootd_ft=(/ 3.0_r_um, 1.0_r_um, 0.5_r_um, 0.5_r_um, 0.5_r_um /)
-    sigl=(/ 0.0375_r_um, 0.1000_r_um, 0.0250_r_um, 0.0500_r_um, 0.0500_r_um /)
-    tleaf_of=(/ 273.15_r_um, 243.15_r_um, 258.15_r_um, 258.15_r_um, 243.15_r_um /)
-    tlow=(/ 0.0_r_um, -5.0_r_um, 0.0_r_um, 13.0_r_um, 0.0_r_um /)
-    tupp=(/ 36.0_r_um, 31.0_r_um, 36.0_r_um, 45.0_r_um, 36.0_r_um /)
-    vint=(/ 5.73_r_um, 6.32_r_um, 6.42_r_um, 0.00_r_um, 14.71_r_um /)
-    vsl=(/ 29.81_r_um, 18.15_r_um, 40.96_r_um, 10.24_r_um, 23.15_r_um /)
-    z0v = real(z0v_io, r_um)
+    ! Check that the size of the input array is correct. Has to be done
+    ! before copying to allocated array otherwise errors arise, which cannot
+    ! be caught by check_jules_pftarm.
+    ! NEED TO CHECK THAT THIS TEST IS STILL REQUIRED. REMOVE FOR NOW.
+
+    n = 0
+    call iter%initialise( config%jules_pftparm )
+    do while ( iter%has_next() )
+      n = n + 1
+      jules_pftparm => iter%next()
+      ! For now add mapping from instance to jules_surface_types
+      select case ( trim( jules_pftparm%pft_name_io() ) )
+      case ( 'brd_leaf' )
+        i = brd_leaf
+      case ( 'ndl_leaf' )
+        i = ndl_leaf
+      case ( 'c3_grass' )
+        i = c3_grass
+      case ( 'c4_grass' )
+        i = c4_grass
+      case ( 'shrub' )
+        i = shrub
+      case default
+        write(log_scratch_space,'(A)')                                         &
+           'PFT name not recognised: ' // jules_pftparm%pft_name_io()
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+      end select
+      c3(i) = int(jules_pftparm%c3_io(), i_um)
+      fsmc_mod(i) = int(jules_pftparm%fsmc_mod_io(), i_um)
+      orient(i)   = int(jules_pftparm%orient_io(), i_um)
+
+      a_wl(i) = real(jules_pftparm%a_wl_io(), r_um)
+      a_ws(i) = real(jules_pftparm%a_ws_io(), r_um)
+      act_jmax(i) = real(jules_pftparm%act_jmax_io(), r_um)
+      act_vcmax(i) = real(jules_pftparm%act_vcmax_io(), r_um)
+      aef(i) = real(jules_pftparm%aef_io(), r_um)
+      albsnc_max(i) = real(jules_pftparm%albsnc_max_io(), r_um)
+      albsnc_min(i) = real(jules_pftparm%albsnc_min_io(), r_um)
+      albsnf_max(i) = real(jules_pftparm%albsnf_max_io(), r_um)
+      albsnf_maxl(i) = real(jules_pftparm%albsnf_maxl_io(), r_um)
+      albsnf_maxu(i) = real(jules_pftparm%albsnf_maxu_io(), r_um)
+      alnir(i) = real(jules_pftparm%alnir_io(), r_um)
+      alnirl(i) = real(jules_pftparm%alnirl_io(), r_um)
+      alniru(i) = real(jules_pftparm%alniru_io(), r_um)
+      alpar(i) = real(jules_pftparm%alpar_io(), r_um)
+      alparl(i) = real(jules_pftparm%alparl_io(), r_um)
+      alparu(i) = real(jules_pftparm%alparu_io(), r_um)
+      alpha(i) = real(jules_pftparm%alpha_io(), r_um)
+      alpha_elec(i) = real(jules_pftparm%alpha_elec_io(), r_um)
+      avg_ba(i) = real(jules_pftparm%avg_ba_io(), r_um)
+      b_wl(i) = real(jules_pftparm%b_wl_io(), r_um)
+      can_struct_a(i) = real(jules_pftparm%can_struct_a_io(), r_um)
+      catch0(i) = real(jules_pftparm%catch0_io(), r_um)
+      ccleaf_max(i) = real(jules_pftparm%ccleaf_max_io(), r_um)
+      ccleaf_min(i) = real(jules_pftparm%ccleaf_min_io(), r_um)
+      ccwood_max(i) = real(jules_pftparm%ccwood_max_io(), r_um)
+      ccwood_min(i) = real(jules_pftparm%ccwood_min_io(), r_um)
+      ci_st(i) = real(jules_pftparm%ci_st_io(), r_um)
+      dcatch_dlai(i) = real(jules_pftparm%dcatch_dlai_io(), r_um)
+      deact_jmax(i) = real(jules_pftparm%deact_jmax_io(), r_um)
+      deact_vcmax(i) = real(jules_pftparm%deact_vcmax_io(), r_um)
+      dfp_dcuo(i) = real(jules_pftparm%dfp_dcuo_io(), r_um)
+      dgl_dm(i) = real(jules_pftparm%dgl_dm_io(), r_um)
+      dgl_dt(i) = real(jules_pftparm%dgl_dt_io(), r_um)
+      dqcrit(i) = real(jules_pftparm%dqcrit_io(), r_um)
+      ds_jmax(i) = real(jules_pftparm%ds_jmax_io(), r_um)
+      ds_vcmax(i) = real(jules_pftparm%ds_vcmax_io(), r_um)
+      dust_veg_scj(i) = real(jules_pftparm%dust_veg_scj_io(), r_um)
+      dz0v_dh(i) = real(jules_pftparm%dz0v_dh_io(), r_um)
+      emis_pft(i) = real(jules_pftparm%emis_pft_io(), r_um)
+      eta_sl(i) = real(jules_pftparm%eta_sl_io(), r_um)
+      f0(i) = real(jules_pftparm%f0_io(), r_um)
+      fd(i) = real(jules_pftparm%fd_io(), r_um)
+      fef_bc(i) = real(jules_pftparm%fef_bc_io(), r_um)
+      fef_c2h4(i) = real(jules_pftparm%fef_c2h4_io(), r_um)
+      fef_c2h6(i) = real(jules_pftparm%fef_c2h6_io(), r_um)
+      fef_c3h8(i) = real(jules_pftparm%fef_c3h8_io(), r_um)
+      fef_ch4(i) = real(jules_pftparm%fef_ch4_io(), r_um)
+      fef_co(i) = real(jules_pftparm%fef_co_io(), r_um)
+      fef_co2(i) = real(jules_pftparm%fef_co2_io(), r_um)
+      fef_dms(i) = real(jules_pftparm%fef_dms_io(), r_um)
+      fef_hcho(i) = real(jules_pftparm%fef_hcho_io(), r_um)
+      fef_mecho(i) = real(jules_pftparm%fef_mecho_io(), r_um)
+      fef_nh3(i) = real(jules_pftparm%fef_nh3_io(), r_um)
+      fef_nox(i) = real(jules_pftparm%fef_nox_io(), r_um)
+      fef_oc(i) = real(jules_pftparm%fef_oc_io(), r_um)
+      fef_so2(i) = real(jules_pftparm%fef_so2_io(), r_um)
+      fire_mort(i) = real(jules_pftparm%fire_mort_io(), r_um)
+      fl_o3_ct(i) = real(jules_pftparm%fl_o3_ct_io(), r_um)
+      fsmc_of(i) = real(jules_pftparm%fsmc_of_io(), r_um)
+      fsmc_p0(i) = real(jules_pftparm%fsmc_p0_io(), r_um)
+      g1_stomata(i) = real(jules_pftparm%g1_stomata_io(), r_um)
+      g_leaf_0(i) = real(jules_pftparm%g_leaf_0_io(), r_um)
+      glmin(i) = real(jules_pftparm%glmin_io(), r_um)
+      gpp_st(i) = real(jules_pftparm%gpp_st_io(), r_um)
+      gsoil_f(i) = real(jules_pftparm%gsoil_f_io(), r_um)
+      hw_sw(i) = real(jules_pftparm%hw_sw_io(), r_um)
+      ief(i) = real(jules_pftparm%ief_io(), r_um)
+      infil_f(i) = real(jules_pftparm%infil_f_io(), r_um)
+      jv25_ratio(i) = real(jules_pftparm%jv25_ratio_io(), r_um)
+      kext(i) = real(jules_pftparm%kext_io(), r_um)
+      kn(i) = real(jules_pftparm%kn_io(), r_um)
+      knl(i) = real(jules_pftparm%knl_io(), r_um)
+      kpar(i) = real(jules_pftparm%kpar_io(), r_um)
+      lai_alb_lim(i) = real(jules_pftparm%lai_alb_lim_io(), r_um)
+      lma(i) = real(jules_pftparm%lma_io(), r_um)
+      mef(i) = real(jules_pftparm%mef_io(), r_um)
+      neff(i) = real(jules_pftparm%neff_io(), r_um)
+      nl0(i) = real(jules_pftparm%nl0_io(), r_um)
+      nmass(i) = real(jules_pftparm%nmass_io(), r_um)
+      nr(i) = real(jules_pftparm%nr_io(), r_um)
+      nr_nl(i) = real(jules_pftparm%nr_nl_io(), r_um)
+      ns_nl(i) = real(jules_pftparm%ns_nl_io(), r_um)
+      nsw(i) = real(jules_pftparm%nsw_io(), r_um)
+      omega(i) = real(jules_pftparm%omega_io(), r_um)
+      omegal(i) = real(jules_pftparm%omegal_io(), r_um)
+      omegau(i) = real(jules_pftparm%omegau_io(), r_um)
+      omnir(i) = real(jules_pftparm%omnir_io(), r_um)
+      omnirl(i) = real(jules_pftparm%omnirl_io(), r_um)
+      omniru(i) = real(jules_pftparm%omniru_io(), r_um)
+      psi_close(i) = real(jules_pftparm%psi_close_io(), r_um)
+      psi_open(i) = real(jules_pftparm%psi_open_io(), r_um)
+      q10_leaf(i) = real(jules_pftparm%q10_leaf_io(), r_um)
+      r_grow(i) = real(jules_pftparm%r_grow_io(), r_um)
+      rootd_ft(i) = real(jules_pftparm%rootd_ft_io(), r_um)
+      sigl(i) = real(jules_pftparm%sigl_io(), r_um)
+      sox_a(i) = real(jules_pftparm%sox_a_io(), r_um)
+      sox_p50(i) = real(jules_pftparm%sox_p50_io(), r_um)
+      sox_rp_min(i) = real(jules_pftparm%sox_rp_min_io(), r_um)
+      sug_g0(i) = real(jules_pftparm%sug_g0_io(), r_um)
+      sug_grec(i) = real(jules_pftparm%sug_grec_io(), r_um)
+      sug_yg(i) = real(jules_pftparm%sug_yg_io(), r_um)
+      tef(i) = real(jules_pftparm%tef_io(), r_um)
+      tleaf_of(i) = real(jules_pftparm%tleaf_of_io(), r_um)
+      tlow(i) = real(jules_pftparm%tlow_io(), r_um)
+      tupp(i) = real(jules_pftparm%tupp_io(), r_um)
+      vint(i) = real(jules_pftparm%vint_io(), r_um)
+      vsl(i) = real(jules_pftparm%vsl_io(), r_um)
+      z0v(i) = real(jules_pftparm%z0v_io(), r_um)
+      z0h_z0m(i) = real(jules_pftparm%z0hm_pft_io(), r_um)
+    end do
+
+    if ( n /= npft ) then
+      write(log_scratch_space,'(A)')                                         &
+         'Number of instances of jules_pftparm namelist is not npft'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+    end if
 
     ! ----------------------------------------------------------------
     ! Settings which are specified on all surface tiles at once
     ! - contained in module c_z0h_z0m
     ! ----------------------------------------------------------------
-    z0h_z0m(1:npft) = real(z0hm_pft_io, r_um)
-    z0h_z0m(npft+1:npft+nnvg) = real(z0hm_nvg_io, r_um)
+    call print_nlist_jules_pftparm()
+    call print_nlist_jules_nvegparm()
+    call c_z0h_z0m_print()
 
     ! This routine checks that the options set are actually compatible
-    call check_jules_nvegparm(nnvg,npft) ! Also checks z0h_z0m(nnvg)
+    call check_jules_pftparm(npft,nnpft)
+    call check_jules_nvegparm(nnvg)
+    call c_z0h_z0m_check(ntype)
     call check_compatible_options()
 
   end subroutine jules_physics_init
