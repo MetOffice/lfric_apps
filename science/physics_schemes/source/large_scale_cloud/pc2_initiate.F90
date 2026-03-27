@@ -36,7 +36,8 @@ use pc2_constants_mod,     only: init_iterations, rhcrit_tol,                  &
                                  pdf_power, rhcpt_tke_based,                   &
                                  pc2init_logic_original,                       &
                                  pc2init_logic_simplified,                     &
-                                 pc2init_logic_smooth
+                                 pc2init_logic_smooth,                         &
+                                 pc2init_logic_smooth_fix
 use cloud_inputs_mod,      only: i_rhcpt, i_pc2_init_logic, cloud_pc2_tol
 use qsat_mod,              only: qsat_wat, qsat_wat_mix
 use pc2_total_cf_mod,      only: pc2_total_cf
@@ -99,7 +100,7 @@ real(kind=real_umphys) ::                                                      &
 !       Ice cloud fraction (no units)
 
 real(kind=real_umphys) ::                                                      &
-                      !, intent(INOUT)
+                      !, intent(in out)
  t(             tdims%i_start:tdims%i_end,                                     &
                 tdims%j_start:tdims%j_end,                                     &
                 nlevels),                                                      &
@@ -244,7 +245,7 @@ end if
 ! Loop round levels to be processed
 ! Levels_do1:
 
-!$OMP  PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC) private(npt,               &
+!$OMP  PARALLEL DO DEFAULT(SHARED) SCHEDULE(STATIC) PRIVATE(npt,               &
 !$OMP  npti, ind_i, ind_j, irhj, irhi, rht, rh0, qn, c_1, ni, nj, t_c,         &
 !$OMP  qn_c, rh0_c, qsl_tl_c, cf_c, cfl_c, cff_c,                              &
 !$OMP  qcl_c, q_c, deltacl_c, deltacf_c, qsl_t_c, l_out, l_bs, al,             &
@@ -288,7 +289,7 @@ do k = 1, nlevels
       end do
     end do
 
-  else if ( i_pc2_init_logic == pc2init_logic_smooth ) then
+  else if ( i_pc2_init_logic >= pc2init_logic_smooth ) then
 
     ! Determine points to calculate
     ! Smooth initiation logic; need to calculate qsat at all points,
@@ -395,7 +396,7 @@ do k = 1, nlevels
           rh0 = rhcrit(irhi,irhj,k)
         end if
 
-      else if ( i_pc2_init_logic == pc2init_logic_smooth ) then
+      else if ( i_pc2_init_logic >= pc2init_logic_smooth ) then
         ! Smooth initiation logic; its possible we might want to initiate
         ! at least a little bit of extra liquid water at any point where
         ! we expect the Smith scheme to diagnose non-zero qcl,
@@ -561,62 +562,82 @@ do k = 1, nlevels
 
   ! Now scatter back values which have been changed
 
-  if ( i_pc2_init_logic == pc2init_logic_smooth ) then
-    ! Smooth initiation logic; only use updated values
-    ! where the diagnosed qcl exceeds the prognosed qcl
+  if ( i_pc2_init_logic >= pc2init_logic_smooth ) then
+    ! Smooth initiation logic...
+
+    ! First update cloud-fractions
+    if ( i_pc2_init_logic == pc2init_logic_smooth_fix ) then
+      ! Bug-fix; update cloud-fractions even if not updating qcl
+
+      do i = 1, npti
+        if ( qsl_tl_c(i) > q_c(i) + qcl_c(i) .eqv. deltacl_c(i) > 0.0 ) then
+          ! Grid-mean subsaturation and diagnostic cfl > prognostic cfl, or
+          ! grid-mean supersaturation and diagnostic cfl < prognostic cfl
+          cf(ni(i),nj(i),k) = cf_c(i)
+          cfl(ni(i),nj(i),k) = cfl_c(i) + deltacl_c(i)
+        end if
+      end do
+
+    else  ! ( i_pc2_init_logic == pc2init_logic_smooth )
+      ! Only use updated cf where the diagnosed qcl exceeds prognosed qcl.
+      ! This version is problematic basically because it imposes a min
+      ! limit on qcl but not cfl, which allows the prognostic cfl to drift
+      ! low, so that in-cloud water content qcl/cfl spuriously increases.
+
+      do i = 1, npti
+        if ( qcl_c(i) > qcl(ni(i),nj(i),k) ) then
+          ! Calculate saturated specific humidity w.r.t. the temperature
+          ! (not the liquid temperature).
+          if ( l_mixing_ratio ) then
+            call qsat_wat_mix(qsl_t_c,t_c(i),p_theta_levels(ni(i),nj(i),k))
+          else
+            call qsat_wat(qsl_t_c,t_c(i),p_theta_levels(ni(i),nj(i),k))
+          end if
+          ! Calculate Qc (corresponds to the qcl we would have with
+          ! no sub-grid moisture variability)
+          ! qc = al ( q + qcl - qsl(Tl) )
+          ! sd = al ( qsl(T) - q )
+          ! qc + sd = al ( qcl + qsl(T) - qsl(Tl) )
+          !         = al ( qcl + qsl(T) - qsl(T) + alpha lcrcp qcl )
+          !         = al qcl ( 1 + alpha lcrcp )
+          !         = qcl
+          ! => sd = qcl - qc
+          alpha=repsilon*lc*qsl_t_c/(r*t_c(i)**2)
+          al=1.0/(1.0+lcrcp*alpha)
+          qc = al * ( q_c(i) + qcl_c(i) - qsl_tl_c(i) )
+          if ( qc < 0.0 ) then
+            ! If qc<0 (total-water subsaturation)
+            ! Find fraction of final qcl that was just created by initiation
+            frac_init = ( qcl_c(i) - qcl(ni(i),nj(i),k) ) /  qcl_c(i)
+          else
+            ! If qc>0 (total-water supersaturation)
+            ! Find fraction of final sd = qcl-qc that was created by initiation
+            frac_init = ( qcl_c(i) - qcl(ni(i),nj(i),k) )                      &
+                      / ( qcl_c(i) - min( qc, qcl(ni(i),nj(i),k) ) )
+            ! (safety check avoids getting frac > 1 if qcl < qc, i.e. sd < 0
+            !  which shouldn't really be possible!)
+          end if
+          ! New cloud fraction is weighted towards the value from the diagnostic
+          ! scheme, in proportion to the fraction of qcl or sd created
+          cf(ni(i),nj(i),k)  =      frac_init  * cf_c(i)                       &
+                             + (1.0-frac_init) * cf(ni(i),nj(i),k)
+          cfl(ni(i),nj(i),k) =      frac_init  * ( cfl_c(i) + deltacl_c(i) )   &
+                             + (1.0-frac_init) * cfl(ni(i),nj(i),k)
+        end if
+      end do
+
+    end if  ! ( i_pc2_init_logic == pc2init_logic_smooth )
+
+    ! Update qcl, q, T
     do i = 1, npti
       if ( qcl_c(i) > qcl(ni(i),nj(i),k) ) then
-
-        ! Calculate saturated specific humidity with respect to the temperature
-        ! (not the liquid temperature).
-        if ( l_mixing_ratio ) then
-          call qsat_wat_mix(qsl_t_c,t_c(i),p_theta_levels(ni(i),nj(i),k))
-        else
-          call qsat_wat(qsl_t_c,t_c(i),p_theta_levels(ni(i),nj(i),k))
-        end if
-
-        ! Calculate Qc (corresponds to the qcl we would have with
-        ! no sub-grid moisture variability)
-
-        ! qc = al ( q + qcl - qsl(Tl) )
-        ! sd = al ( qsl(T) - q )
-        ! qc + sd = al ( qcl + qsl(T) - qsl(Tl) )
-        !         = al ( qcl + qsl(T) - qsl(T) + alpha lcrcp qcl )
-        !         = al qcl ( 1 + alpha lcrcp )
-        !         = qcl
-        ! => sd = qcl - qc
-
-        alpha=repsilon*lc*qsl_t_c/(r*t_c(i)**2)
-        al=1.0/(1.0+lcrcp*alpha)
-        qc = al * ( q_c(i) + qcl_c(i) - qsl_tl_c(i) )
-
-        if ( qc < 0.0 ) then
-          ! If qc<0 (total-water subsaturation)
-          ! Find fraction of final qcl that was just created by initiation
-          frac_init = ( qcl_c(i) - qcl(ni(i),nj(i),k) ) /  qcl_c(i)
-        else
-          ! If qc>0 (total-water supersaturation)
-          ! Find fraction of final sd = qcl-qc that was created by initiation
-          frac_init = ( qcl_c(i) - qcl(ni(i),nj(i),k) )                        &
-                    / ( qcl_c(i) - min( qc, qcl(ni(i),nj(i),k) ) )
-          ! (safety check avoids getting frac > 1 if qcl < qc, i.e. sd < 0
-          !  which shouldn't really be possible!)
-        end if
-
         ! Use the updated q, qcl and T at these points
         q  (ni(i),nj(i),k) = q_c(i)
         qcl(ni(i),nj(i),k) = qcl_c(i)
         t  (ni(i),nj(i),k) = t_c(i)
-
-        ! New cloud fraction is weighted towards the value from the diagnostic
-        ! scheme, in proportion to the fraction of qcl or sd created
-        cf(ni(i),nj(i),k)  =      frac_init  * cf_c(i)                         &
-                           + (1.0-frac_init) * cf(ni(i),nj(i),k)
-        cfl(ni(i),nj(i),k) =      frac_init  * ( cfl_c(i) + deltacl_c(i) )     &
-                           + (1.0-frac_init) * cfl(ni(i),nj(i),k)
-
       end if
     end do
+
   else  ! ( i_pc2_init_logic )
     ! Other initiation logic options use all updated fields in the list
     do i = 1, npti
@@ -631,7 +652,7 @@ do k = 1, nlevels
   end if  ! ( i_pc2_init_logic )
 
 end do ! Levels_do1:
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 ! End of the subroutine
 

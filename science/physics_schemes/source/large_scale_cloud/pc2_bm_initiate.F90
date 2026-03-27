@@ -37,7 +37,8 @@ use atm_fields_bounds_mod, only: pdims, tdims, pdims_l
 use pc2_constants_mod,     only: bm_tiny,                                      &
                                  pc2init_logic_original,                       &
                                  pc2init_logic_simplified,                     &
-                                 pc2init_logic_smooth
+                                 pc2init_logic_smooth,                         &
+                                 pc2init_logic_smooth_fix
 use cloud_inputs_mod,      only: i_pc2_init_logic, cloud_pc2_tol,              &
                                  l_bm_sigma_s_grad,                            &
                                  i_bm_ez_opt, i_bm_ez_orig, i_bm_ez_subcrit,   &
@@ -177,7 +178,7 @@ integer ::                                                                     &
 
 
 real(kind=real_umphys) ::                                                      &
-                      !, intent(INOUT)
+                      !, intent(in out)
  t(             tdims%i_start:tdims%i_end,                                     &
                 tdims%j_start:tdims%j_end,                                     &
                 nlevels),                                                      &
@@ -437,11 +438,11 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 alphl=repsilon*lc/r
 
-!$OMP PARALLEL DEFAULT(none)                                                   &
+!$OMP PARALLEL DEFAULT(NONE)                                                   &
 !$OMP SHARED(nlevels,tdims,qt_in,tl_in,qt3d,tl3d,q,qcl,t,lcrcp,qcl3d,cfl3d,    &
 !$OMP qcf,qcf3d,cff3d,cf3d,cff,cfl_max)                                        &
-!$OMP private(k,j,i)
-!$OMP do SCHEDULE(STATIC)
+!$OMP PRIVATE(k,j,i)
+!$OMP DO SCHEDULE(STATIC)
 do k = 1, nlevels
   do j = tdims%j_start, tdims%j_end
     do i = tdims%i_start, tdims%i_end
@@ -457,15 +458,15 @@ do k = 1, nlevels
     end do
   end do
 end do
-!$OMP end do
-!$OMP do SCHEDULE(STATIC)
+!$OMP END DO
+!$OMP DO SCHEDULE(STATIC)
 do j = tdims%j_start, tdims%j_end
   do i = tdims%i_start, tdims%i_end
     cfl_max(i,j) = 0.0
   end do
 end do
-!$OMP end do
-!$OMP end PARALLEL
+!$OMP END DO
+!$OMP END PARALLEL
 
 ! Find mean qt in each column, used for tapering the minimum-allowed
 ! variance in the surface mixed-layer.
@@ -508,7 +509,7 @@ end select  ! ( i_bm_ez_opt )
     ! Loop over levels to prepare fields for the cloud scheme
 
 !$OMP  PARALLEL                                                                &
-!$OMP  DEFAULT(none)                                                           &
+!$OMP  DEFAULT(NONE)                                                           &
 !$OMP  SHARED(nlevels,tdims,repsilon,r,g,cp,q,t,qt3d,tl3d,cfl3d,qcl3d,alphl,   &
 !$OMP  lcrcp,kappa,sskew,svar_turb,svar_bm,tl_in,qt_in,p_theta_levels,         &
 !$OMP  svar_ini,l_mixing_ratio,lqc_max,lqc_min,bl_w_var,                       &
@@ -524,7 +525,7 @@ end select  ! ( i_bm_ez_opt )
 !$OMP  dtldz_below, dqtdz_below,                                               &
 !$OMP  ql_mean, l_calc_diag,                                                   &
 !$OMP  sl_modes, qw_modes, rh_modes, sd_modes, entzone)                        &
-!$OMP  private(j,i,kk,qsl,qsi,alphal,alx,tlx,mux,sigx,deltacl_c,qc_points,idx, &
+!$OMP  PRIVATE(j,i,kk,qsl,qsi,alphal,alx,tlx,mux,sigx,deltacl_c,qc_points,idx, &
 !$OMP  deltacf_c,cf_c,cfl_c,cff_c,deltaql_c,qnx_min,qnx_max,                   &
 !$OMP  tl_lay,ql_lay,qsl_lay,qsi_lay,tdc_lay,inv_thm_lay,inv_tmp_lay,wvar_lay, &
 !$OMP  qc, frac_init, km1,kp1,kkm1,kkp1,dtldz_lay,dqtdz_lay,tmp,l_set_modes )
@@ -533,7 +534,7 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
   ! Indices of levels above and below, but not allowed to go out-of-bounds!
   km1 = max( k - 1, 1 )
   kp1 = min( k + 1, nlevels )
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do j = tdims%j_start, tdims%j_end
     do i = tdims%i_start, tdims%i_end
 
@@ -878,7 +879,7 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
     end if  ! ( l_calc_diag )
 
   end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
   ! --------------------------------------------------------------------------
   ! -- Section 4 - Store the i,j indices of points that require cloud       --
@@ -889,7 +890,7 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
 
     ! Copy points into compressed arrays
     qc_points = 0
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
         if ( ( cfl(i,j,k) < cloud_pc2_tol                                      &
@@ -905,13 +906,13 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
         end if
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
   else if ( i_pc2_init_logic == pc2init_logic_original ) then
 
       ! Copy points into compressed arrays
     qc_points = 0
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
         if ( ( ( ( .not. cfl(i,j,k) > 0.0_real_umphys )                        &
@@ -928,9 +929,9 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
         end if
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
-  else if ( i_pc2_init_logic == pc2init_logic_smooth ) then
+  else if ( i_pc2_init_logic >= pc2init_logic_smooth ) then
     ! Smooth initiation logic; its possible we might want to initiate
     ! at least a little bit of extra liquid water at any point where
     ! we expect the bimodal scheme to diagnose non-zero qcl,
@@ -938,7 +939,7 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
     ! The result of this test has been stored in lqc_max:
 
     qc_points = 0
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
         if ( lqc_max(i,j) ) then
@@ -948,7 +949,7 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
         end if
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
   end if  ! ( i_pc2_init_logic )
 
@@ -1001,61 +1002,92 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
     call pc2_total_cf(                                                         &
           qc_points,cfl_c,cff_c,deltacl_c,deltacf_c,cf_c)
 
-    if ( i_pc2_init_logic == pc2init_logic_smooth ) then
-      ! Smooth initiation logic; only use updated values
-      ! where the diagnosed qcl exceeds the prognosed qcl
+    if ( i_pc2_init_logic >= pc2init_logic_smooth ) then
+      ! Smooth initiation logic...
+
+      ! First update cloud-fractions
+      if ( i_pc2_init_logic == pc2init_logic_smooth_fix ) then
+        ! Bug-fix; update cloud-fractions even if not updating qcl
+
 !DIR$ IVDEP
-      do i = 1, qc_points
-        if ( deltaql_c(i) > 0.0 ) then
-
-          ! Calculate Qc (corresponds to the qcl we would have with
-          ! no sub-grid moisture variability)
-
-          ! qc = al ( q + qcl - qsl(Tl) )
-          ! sd = al ( qsl(T) - q )
-          ! qc + sd = al ( qcl + qsl(T) - qsl(Tl) )
-          !         = al ( qcl + qsl(T) - qsl(T) + alpha lcrcp qcl )
-          !         = al qcl ( 1 + alpha lcrcp )
-          !         = qcl
-          ! => sd = qcl - qc
-
+        do i = 1, qc_points
+          ! Calculate qsat(Tl)
           tlx = tl_in(idx(i,1),idx(i,2),k)
           if ( l_mixing_ratio ) then
             call qsat_wat_mix(qsl,tlx,p_theta_levels(idx(i,1),idx(i,2),k))
           else
             call qsat_wat(qsl,tlx,p_theta_levels(idx(i,1),idx(i,2),k))
           end if
-          alphal = alphl * qsl / (tlx * tlx)
-          alx  = 1.0 / (1.0 + (lcrcp * alphal))
-          qc = alx * ( qt_in(idx(i,1),idx(i,2),k) - qsl )
-
-          if ( qc < 0.0 ) then
-            ! If qc<0 (total-water subsaturation)
-            ! Find fraction of final qcl that was just created by initiation
-            frac_init = deltaql_c(i) / qcl3d(idx(i,1),idx(i,2),k)
-          else
-            ! If qc>0 (total-water supersaturation)
-            ! Find fraction of final sd = qcl-qc that was created by initiation
-            frac_init = deltaql_c(i) / ( qcl3d(idx(i,1),idx(i,2),k)            &
-                                       - min( qc, qcl(idx(i,1),idx(i,2),k) ) )
-            ! (safety check avoids getting frac > 1 if qcl < qc, i.e. sd < 0
-            !  which shouldn't really be possible!)
+          if ( qsl > qt_in(idx(i,1),idx(i,2),k) .eqv. deltacl_c(i) > 0.0 ) then
+            ! Grid-mean subsaturation and diagnostic cfl > prognostic cfl, or
+            ! grid-mean supersaturation and diagnostic cfl < prognostic cfl
+            cfl(idx(i,1),idx(i,2),k) = cfl3d(idx(i,1),idx(i,2),k)
+            cf(idx(i,1),idx(i,2),k) = cf_c(i)
           end if
+        end do
 
+      else  ! ( i_pc2_init_logic == pc2init_logic_smooth )
+        ! Only use updated cf where the diagnosed qcl exceeds prognosed qcl.
+        ! This version is problematic basically because it imposes a min
+        ! limit on qcl but not cfl, which allows the prognostic cfl to drift
+        ! low, so that in-cloud water content qcl/cfl spuriously increases.
+
+!DIR$ IVDEP
+        do i = 1, qc_points
+          if ( deltaql_c(i) > 0.0 ) then
+            ! Calculate Qc (corresponds to the qcl we would have with
+            ! no sub-grid moisture variability)
+            ! qc = al ( q + qcl - qsl(Tl) )
+            ! sd = al ( qsl(T) - q )
+            ! qc + sd = al ( qcl + qsl(T) - qsl(Tl) )
+            !         = al ( qcl + qsl(T) - qsl(T) + alpha lcrcp qcl )
+            !         = al qcl ( 1 + alpha lcrcp )
+            !         = qcl
+            ! => sd = qcl - qc
+            tlx = tl_in(idx(i,1),idx(i,2),k)
+            if ( l_mixing_ratio ) then
+              call qsat_wat_mix(qsl,tlx,p_theta_levels(idx(i,1),idx(i,2),k))
+            else
+              call qsat_wat(qsl,tlx,p_theta_levels(idx(i,1),idx(i,2),k))
+            end if
+            alphal = alphl * qsl / (tlx * tlx)
+            alx  = 1.0 / (1.0 + (lcrcp * alphal))
+            qc = alx * ( qt_in(idx(i,1),idx(i,2),k) - qsl )
+            if ( qc < 0.0 ) then
+              ! If qc<0 (total-water subsaturation)
+              ! Find fraction of final qcl that was just created by initiation
+              frac_init = deltaql_c(i) / qcl3d(idx(i,1),idx(i,2),k)
+            else
+              ! If qc>0 (total-water supersaturation)
+              ! Find fraction of final sd = qcl-qc created by initiation
+              frac_init = deltaql_c(i)/( qcl3d(idx(i,1),idx(i,2),k)            &
+                                       - min( qc, qcl(idx(i,1),idx(i,2),k) ) )
+              ! (safety check avoids getting frac > 1 if qcl < qc, i.e. sd < 0
+              !  which shouldn't really be possible!)
+            end if
+            ! New cloud fraction is weighted towards the value from the
+            ! diagnostic scheme, in proportion to fraction of qcl or sd created
+            cf (idx(i,1),idx(i,2),k) =      frac_init *cf_c(i)                 &
+                                     + (1.0-frac_init)*cf (idx(i,1),idx(i,2),k)
+            cfl(idx(i,1),idx(i,2),k) =   frac_init *cfl3d(idx(i,1),idx(i,2),k) &
+                                  + (1.0-frac_init)*cfl(idx(i,1),idx(i,2),k)
+          end if
+        end do
+
+      end if  ! ( i_pc2_init_logic == pc2init_logic_smooth )
+
+      ! Update qcl, q, T
+!DIR$ IVDEP
+      do i = 1, qc_points
+        if ( deltaql_c(i) > 0.0 ) then
           ! Use the updated q, qcl and T at these points
           q  (idx(i,1),idx(i,2),k) = qt3d(idx(i,1),idx(i,2),k)
           qcl(idx(i,1),idx(i,2),k) = qcl3d(idx(i,1),idx(i,2),k)
           t  (idx(i,1),idx(i,2),k) = tl3d(idx(i,1),idx(i,2),k)
 
-          ! New cloud fraction is weighted towards the value from the diagnostic
-          ! scheme, in proportion to the fraction of qcl or sd created
-          cf (idx(i,1),idx(i,2),k) =      frac_init  * cf_c(i)                 &
-                                   + (1.0-frac_init) * cf (idx(i,1),idx(i,2),k)
-          cfl(idx(i,1),idx(i,2),k) =   frac_init * cfl3d(idx(i,1),idx(i,2),k)  &
-                                   + (1.0-frac_init) * cfl(idx(i,1),idx(i,2),k)
-
         end if
       end do
+
     else  ! ( i_pc2_init_logic )
       ! Other initiation logic options
 !DIR$ IVDEP
@@ -1076,7 +1108,7 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
   end if ! Qc_points_if
 
 end do !k loop
-!$OMP end PARALLEL
+!$OMP END PARALLEL
 
 ! End of the subroutine
 

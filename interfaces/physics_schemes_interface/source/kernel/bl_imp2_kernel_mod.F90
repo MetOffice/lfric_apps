@@ -821,7 +821,7 @@ contains
             end do
           end if
 
-          if ( i_pc2_init_logic/=pc2init_logic_smooth ) then
+          if ( i_pc2_init_logic < pc2init_logic_smooth ) then
             ! Only do this removal of cloud at and below ntml if NOT using
             ! "smooth" PC2 initiation logic.  With "smooth" logic, we allow
             ! cloud to initiate below ntml, so also need to allow homogenous
@@ -845,7 +845,7 @@ contains
                 end if
               end do
             end do  ! k
-          end if  ! ( i_pc2_init_logic/=pc2init_logic_smooth )
+          end if  ! ( i_pc2_init_logic < pc2init_logic_smooth )
 
           ! To be consistent with the code above, set zlcl_mixed to
           ! prevent PC2 initiating cloud below this level
