@@ -113,7 +113,7 @@ module um_physics_init_mod
                                     two_d_fsd_factor_in => two_d_fsd_factor,   &
                                     pc2_init_logic, pc2_init_logic_original,   &
                                     pc2_init_logic_smooth,                     &
-                                    pc2_init_logic_smooth_fixed,               &
+                                    pc2_init_logic_smooth_fix,                 &
                                     i_pc2_erosion_numerics_explicit,           &
                                     i_pc2_erosion_numerics_implicit,           &
                                     i_pc2_erosion_numerics_analytic,           &
@@ -464,7 +464,7 @@ contains
          original_but_wrong, acf_cusack, cbl_and_cu, forced_cu_cca,            &
          pc2init_smith, pc2init_bimodal, i_pc2_homog_g_cf, i_pc2_homog_g_width,&
          pc2init_logic_original, pc2init_logic_smooth,                         &
-         pc2init_logic_smooth_fixed,                                           &
+         pc2init_logic_smooth_fix,                                             &
          i_pc2_erosion_explicit, i_pc2_erosion_implicit, i_pc2_erosion_analytic
     use rad_input_mod, only: two_d_fsd_factor
     use science_fixes_mod, only:  i_fix_mphys_drop_settle, second_fix,      &
@@ -1111,8 +1111,8 @@ contains
             i_pc2_init_logic = pc2init_logic_original
           case(pc2_init_logic_smooth)
             i_pc2_init_logic = pc2init_logic_smooth
-          case(pc2_init_logic_smooth_fixed)
-            i_pc2_init_logic = pc2init_logic_smooth_fixed
+          case(pc2_init_logic_smooth_fix)
+            i_pc2_init_logic = pc2init_logic_smooth_fix
         end select
         if (pc2ini == pc2ini_smith)   i_pc2_init_method = pc2init_smith
         if (pc2ini == pc2ini_bimodal) i_pc2_init_method = pc2init_bimodal
