@@ -38,3 +38,4 @@
 | mo-lucy-gordon      | Lucy Gordon        | Met Office                       | 2026-03-11 |
 | iboutle             | Ian Boutle         | Met Office                       | 2026-03-04 |
 | Pierre-siddall      | Pierre Siddall     | Met Office                       | 2026-03-02 |
+| DanCopsey           | Dan Copsey         | Met Office                       | 2026-03-27 |
