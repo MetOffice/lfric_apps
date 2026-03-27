@@ -113,7 +113,7 @@
        <field id="ls_m_r" name="ls_m_r" long_name="LS values for m_r" standard_name="m_cr" unit="K" grid_ref="full_level_face_grid" />
        <field id="ls_m_g" name="ls_m_g" long_name="LS values for m_g" standard_name="m_cr" unit="K" grid_ref="full_level_face_grid" />
        <field id="ls_m_s" name="ls_m_s" long_name="LS values for m_s" standard_name="m_s" unit="K" grid_ref="full_level_face_grid" />
-      
+
        <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
        <field id="m_v" name="m_v" long_name="m_v" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_cl" name="m_cl" long_name="m_cl" unit="kg/kg" grid_ref="full_level_face_grid" />
@@ -343,7 +343,7 @@
 
       <variable_group id = "parameters" >
         <variable id = "using_server" type = "bool" >true</variable>
-        <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
+        <variable id = "info_level" type = "int" >50</variable>
         <variable id = "print_file" type="bool">true</variable>
       </variable_group>
     </variable_definition>
