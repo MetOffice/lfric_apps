@@ -38,6 +38,26 @@
         "memory_plot_ex": true,
         "kgo_checks": "",
     }) %}
+
+{% elif task_ns.conf_name == "lfric2um-performance-C896L70_N1280L70" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["performance"],
+        "resolution": "C896",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C896",
+        "source_grid_levs": "70",
+        "source_grid_type": "global",
+        "target_grid_res": "N1280",
+        "target_grid_levs": "70",
+        "target_grid_type": "global",
+        "source_dump": "$BIG_DATA_DIR/start_dumps/nwp-gal9/apps1.1/nwp-gal9_N1280L70_C896L70.nc",
+        "namelist_src": "um_grid.nml",
+        "memory_plot_ex": true,
+        "kgo_checks": "",
+    }) %}
+
+
 {% elif task_ns.conf_name == "lfric2um-umlam-C48L70_N512L70" %}
 
     {% do task_dict.update({
