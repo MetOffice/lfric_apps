@@ -11,7 +11,6 @@ module transport_rho_times_field_alg_mod
 
   ! Infrastructure
   use constants_mod,                      only: r_def, r_tran, i_def
-  use copy_field_alg_mod,                 only: copy_field
   use extrusion_mod,                      only: SHIFTED
   use field_mod,                          only: field_type
   use flux_precomputations_alg_mod,       only: flux_precomputations_type
@@ -102,7 +101,7 @@ contains
     ! First transfer r_def fields to be r_tran
     call field_np1_rtran%initialise( field_np1_rdef%get_function_space()  )
     call field_n_rtran%initialise( field_n_rdef%get_function_space()  )
-    call copy_field( field_n_rdef, field_n_rtran )
+    call invoke( real_to_real_x( field_n_rtran, field_n_rdef ) )
 
     select case (field_n_rdef%which_function_space())
     case (W3)
@@ -188,7 +187,7 @@ contains
     ! -------------------------------------------------------------------- !
     ! Copy transported fields back to r_def
     ! -------------------------------------------------------------------- !
-    call copy_field( field_np1_rtran, field_np1_rdef )
+    call invoke( real_to_real_x( field_np1_rdef, field_np1_rtran ) )
 
   end subroutine transport_rho_times_field_alg
 
