@@ -182,7 +182,7 @@ subroutine pc2_checks_code( nlayers,                   &
     ! Initialisation of prognostic variables and arrays
     !-----------------------------------------------------------------------
 
-    do k = 1, model_levels
+    do k = 1, nlayers
 
       t_work(1,1,k)   = theta_wth(map_wth(1) + k) *            &
                         exner_wth(map_wth(1) + k)
@@ -215,7 +215,7 @@ subroutine pc2_checks_code( nlayers,                   &
                      wtrac)
 
     ! Recast back to LFRic space
-    do k = 1, model_levels
+    do k = 1, nlayers
       ! *_work arrays have been updated
 
       ! New theta found from new temperature.
