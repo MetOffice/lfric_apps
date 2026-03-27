@@ -1065,7 +1065,7 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
               ! (safety check avoids getting frac > 1 if qcl < qc, i.e. sd < 0
               !  which shouldn't really be possible!)
             end if
-            ! New cloud fraction is weighted towards the value from the 
+            ! New cloud fraction is weighted towards the value from the
             ! diagnostic scheme, in proportion to fraction of qcl or sd created
             cf (idx(i,1),idx(i,2),k) =      frac_init *cf_c(i)                 &
                                      + (1.0-frac_init)*cf (idx(i,1),idx(i,2),k)
