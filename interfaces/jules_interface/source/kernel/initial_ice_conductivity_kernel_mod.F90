@@ -3,12 +3,13 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!> @brief Initialise Jules surface fields on tiles
+!> @brief Initialise sea-ice conductivity on sea-ice tiles
 !> @details Non-standard Surface fields (pseudo-levels) aren't as yet not
 !>  implemented in LFRic. As an interim measure Higher-order W3 fields have
 !>  been used to mimic psuedo-level field behaviour. This code is written
 !>  based on this interim measure and will need to be updated when
 !>  suitable infrastructure is available (Ticket #2081)
+
 module initial_ice_conductivity_kernel_mod
   use argument_mod,  only: arg_type,                       &
                            GH_FIELD, GH_REAL, GH_INTEGER,  &
@@ -19,6 +20,7 @@ module initial_ice_conductivity_kernel_mod
   use kernel_mod,    only: kernel_type
   use jules_control_init_mod, only: n_sea_ice_tile, first_sea_ice_tile
   use jules_sea_seaice_config_mod,     only: therm_cond_sice => kappai
+
   implicit none
   private
   !> Kernel metadata for Psyclone
@@ -35,6 +37,7 @@ module initial_ice_conductivity_kernel_mod
   end type initial_ice_conductivity_kernel_type
   public :: initial_ice_conductivity_code
 contains
+
   !> @param[in]     nlayers              The number of layers
   !> @param[in,out] sea_ice_fraction     Sea Ice Fractions on categories
   !> @param[in,out] sea_ice_thickness    Sea Ice Thickness on categories
@@ -58,6 +61,7 @@ contains
     ! Internal variables
     integer(kind=i_def) :: i
     real(kind=r_def) :: min_ice_thick, max_ice_cond
+
     !Taken from UM recon value
     max_ice_cond = 25.0_r_def
     min_ice_thick = 8.0_r_def * therm_cond_sice/max_ice_cond
@@ -69,5 +73,7 @@ contains
             sea_ice_conductivity(map_ice(1)+i) = max_ice_cond
         endif
     end do
+
   end subroutine initial_ice_conductivity_code
+
 end module initial_ice_conductivity_kernel_mod
