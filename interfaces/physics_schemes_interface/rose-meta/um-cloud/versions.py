@@ -18,23 +18,6 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-class vn31_t249(MacroUpgrade):
-    # Upgrade macro for #249 by Mike Whitall
-
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t249"
-
-    def upgrade(self, config, meta_config=None):
-        # Add settings
-
-        # Blank macro needed just to update meta-data version
-        # (apps using the new option 'smooth_fix' under the existing
-        #  multi-option switch 'pc2_init_logic' fail checks against
-        #  the existing meta-data).
-
-        return config, self.reports
-
-
 """
 Copy this template and complete to add your macro
 
@@ -48,3 +31,19 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn31_t249(MacroUpgrade):
+    # Upgrade macro for Issue #249 by Mike Whitall
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t249"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+
+        # Blank macro needed just to update meta-data version
+        # (apps using the new option 'smooth_fix' under the existing
+        #  multi-option switch 'pc2_init_logic' fail checks against
+        #  the existing meta-data).
+
+        return config, self.reports
