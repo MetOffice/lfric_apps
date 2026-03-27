@@ -113,7 +113,7 @@ subroutine lsp_precfrac_checks_code( nlayers,                                  &
 
 
     ! Copy / convert fields for input to lsp_precfrac_checks
-    do k = 1, model_levels
+    do k = 1, nlayers
 
       ! Pressure at layer boundaries
       p_rho_levels(1,1,k) = p_zero * exner_w3(map_w3(1)+k-1)**(1.0_r_um/kappa)
@@ -137,7 +137,7 @@ subroutine lsp_precfrac_checks_code( nlayers,                                  &
                               precfrac )
 
     ! Recast back to LFRic space
-    do k = 1, model_levels
+    do k = 1, nlayers
       ! Updated value of prognostic precip fraction
       precfrac_wth(map_wth(1)+k) = precfrac(1,1,k)
     end do
