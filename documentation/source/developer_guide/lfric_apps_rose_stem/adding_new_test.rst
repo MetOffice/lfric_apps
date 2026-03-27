@@ -195,6 +195,10 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
      - Int
      - 0
      - If ``use_xios`` is true and both this and ``xios_nodes`` are greater than 0, ``xios_server_mode`` will be true and this will set ``xios_server_ranks``. |br| Otherwise ``xios_server_mode=false`` and ``xios_server_ranks=0``.
+   * - xios_info_level
+     - Int
+     - 0
+     - Controls the level of information that XIOS logs to stdout. Used to set the ``info_level`` within xml files.
    * - example_dir
      - Str
      - "example"

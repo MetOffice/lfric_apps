@@ -191,6 +191,10 @@
     {% do task_dict.update({"xios_server_ranks": 0}) %}
 {% endif %}
 
+{% if "xios_info_level" not in task_dict %}
+    {% do task_dict.update({"xios_info_level": 0}) %}
+{% endif %}
+
 
 {# If application is lfric_coupled read in default values specific to coupled runs #}
 {% if task_ns.application == "lfric_coupled" %}
