@@ -86,12 +86,11 @@ contains
     type(function_space_type), pointer :: fs_w3_src, fs_w3_dst
     type(function_space_type), pointer :: fs_wth_src, fs_wth_dst
 
-    type(namelist_type),       pointer :: lfric2lfric_nml
-    type(namelist_type),       pointer :: finite_element_nml
-
     character(len=str_def)   :: mesh_names(2)
     integer(kind=i_def)      :: element_order_h
     integer(kind=i_def)      :: element_order_v
+    integer(kind=i_def)      :: geometry
+    integer(kind=i_def)      :: topology
 
     character(len=str_def)   :: field_name
 
@@ -100,15 +99,12 @@ contains
 
 
     ! Obtain namelist parameters
-    lfric2lfric_nml => modeldb%configuration%get_namelist('lfric2lfric')
-    finite_element_nml => modeldb%configuration%get_namelist('finite_element')
-
-    call lfric2lfric_nml%get_value( 'destination_mesh_name', &
-                                             mesh_names(dst) )
-    call lfric2lfric_nml%get_value( 'source_mesh_name', &
-                                             mesh_names(src) )
-    call finite_element_nml%get_value( 'element_order_h', element_order_h)
-    call finite_element_nml%get_value( 'element_order_v', element_order_v)
+    mesh_names(dst) = modeldb%config%lfric2lfric%destination_mesh_name()
+    mesh_names(src) = modeldb%config%lfric2lfric%source_mesh_name()
+    geometry = modeldb%config%lfric2lfric%destination_geometry()
+    topology = modeldb%config%lfric2lfric%destination_topology()
+    element_order_h = modeldb%config%finite_element%element_order_h()
+    element_order_v = modeldb%config%finite_element%element_order_v()
 
     ! Function spaces for creating temporary fields used in W2 interpolation
     fs_w3_src => function_space_collection%get_fs(                   &
@@ -207,8 +203,9 @@ contains
 
       ! Rebuild the W2 fields from a set of W3 and Wtheta fields
       if (fs == W2) then
-        call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,   &
-                                    v_in_w3_dst, w_in_wth_dst)
+        call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,    &
+                                    v_in_w3_dst, w_in_wth_dst, &
+                                    geometry, topology)
       end if
     end do
 

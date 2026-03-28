@@ -14,10 +14,6 @@ module adj_interpolation_alg_mod
   use adj_dg_matrix_vector_kernel_mod,           only: adj_dg_matrix_vector_kernel_type
   use adj_dg_inc_matrix_vector_kernel_mod,       only: adj_dg_inc_matrix_vector_kernel_type
   use adj_sci_average_w2b_to_w2_kernel_mod,      only: adj_average_w2b_to_w2_kernel_type
-  use base_mesh_config_mod,                      only: geometry_planar,         &
-                                                       geometry_spherical,      &
-                                                       topology_fully_periodic, &
-                                                       topology_non_periodic
   use invoke_adj_cvt_hdiv_field_kernel_mod,      only: invoke_adj_convert_hdiv_field_kernel
   use constants_mod,                             only: i_def, r_def
   use sci_fem_constants_mod,                     only: get_rmultiplicity_fe
@@ -30,6 +26,9 @@ module adj_interpolation_alg_mod
   use operator_mod,                              only: operator_type
   use sci_nodal_xyz_coordinates_kernel_mod,      only: nodal_xyz_coordinates_kernel_type
   use sci_compute_sample_u_ops_kernel_mod,       only: compute_sample_u_ops_kernel_type
+  use log_mod,                  only: log_scratch_space, &
+                                      log_event,         &
+                                      log_level_info
 
   implicit none
 
@@ -118,20 +117,23 @@ module adj_interpolation_alg_mod
   !> @param[in, out] u_in_w3  Zonal component on W3 to adjoint-interpolate to
   !> @param[in, out] v_in_w3  Meridional component on W3 to adjoint-interpolate to
   !> @param[in, out] w_in_wth Vertical component on Wtheta to adjoint-interpolate to
-  subroutine adj_interp_w3wth_to_w2_alg(u_in_w2, u_in_w3, v_in_w3, w_in_wth)
+  !> @param[in]      geometry Mesh geometry
+  !> @param[in]      topology Mesh topology
+  subroutine adj_interp_w3wth_to_w2_alg(u_in_w2, u_in_w3, v_in_w3, w_in_wth, &
+                                        geometry, topology)
 
     implicit none
 
-    type(field_type), intent(inout) :: u_in_w2
-    type(field_type), intent(inout) :: u_in_w3
-    type(field_type), intent(inout) :: v_in_w3
-    type(field_type), intent(inout) :: w_in_wth
+    type(field_type),    intent(inout) :: u_in_w2
+    type(field_type),    intent(inout) :: u_in_w3
+    type(field_type),    intent(inout) :: v_in_w3
+    type(field_type),    intent(inout) :: w_in_wth
+    integer(kind=i_def), intent(in)    :: geometry
+    integer(kind=i_def), intent(in)    :: topology
 
     ! Local
     integer(kind=i_def)                :: element_order_h
     integer(kind=i_def)                :: element_order_v
-    integer(kind=i_def)                :: geometry
-    integer(kind=i_def)                :: topology
     type(field_type)                   :: u_broken
     type(field_type),          pointer :: w2_rmultiplicity
     type(field_type),          pointer :: chi(:)
@@ -158,16 +160,6 @@ module adj_interpolation_alg_mod
     wtheta_fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                   element_order_v, Wtheta)
     w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
-    if (mesh%is_geometry_planar()) then
-      geometry = geometry_planar
-    else if (mesh%is_geometry_spherical()) then
-      geometry = geometry_spherical
-    end if
-    if (mesh%is_topology_non_periodic()) then
-      topology = topology_non_periodic
-    else if (mesh%is_topology_periodic()) then
-      topology = topology_fully_periodic
-    end if
 
     ! Set up intermediate fields
     call u_map%initialise(w2b_fs, w3_fs)
@@ -175,6 +167,8 @@ module adj_interpolation_alg_mod
     call w_map%initialise(w2b_fs, wtheta_fs)
     call u_broken%initialise(w2b_fs)
 
+    write(log_scratch_space, *) 'JMCS adj_interp_w3wth_to_w2_alg:', geometry, topology
+    call log_event( log_scratch_space, log_level_info )
     ! Adjoint of compute wind on W2
     call invoke( setval_c(u_broken, 0.0_r_def), &
                  compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id, &
