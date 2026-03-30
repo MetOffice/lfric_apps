@@ -50,7 +50,7 @@ class vn31_t247(MacroUpgrade):
         nml = "namelist:convection"
         cv_scheme = self.get_setting_value(config, [nml, "cv_scheme"])
 
-        if (cv_scheme == 'comorph'):
+        if (cv_scheme == "'comorph'"):
             # Use the "weight by PDF width" option if using comorph
             i_pc2_homog_g = "'width'"
         else:
