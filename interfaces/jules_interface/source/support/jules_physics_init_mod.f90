@@ -11,6 +11,10 @@ module jules_physics_init_mod
   ! Other LFRic modules used
   use constants_mod,          only : r_um, i_um, i_def, r_def
   use jules_control_init_mod, only : n_sea_ice_tile, n_land_tile
+  use jules_pftparm_config_mod, only : &
+                              c3_io_no, c3_io_yes,                             &
+                              fsmc_mod_io_weight, fsmc_mod_io_average,         &
+                              orient_io_spherical, orient_io_horizontal
   use jules_radiation_config_mod, only :                                       &
                               i_sea_alb_method_barker,                         &
                               i_sea_alb_method_jin,                            &
@@ -691,9 +695,26 @@ contains
            'PFT name not recognised: ' // jules_pftparm%pft_name_io()
         call log_event( log_scratch_space, LOG_LEVEL_ERROR)
       end select
-      c3(i) = int(jules_pftparm%c3_io(), i_um)
-      fsmc_mod(i) = int(jules_pftparm%fsmc_mod_io(), i_um)
-      orient(i)   = int(jules_pftparm%orient_io(), i_um)
+
+      ! c3_io would make more sense as a logical
+      select case ( jules_pftparm%c3_io() )
+      case ( c3_io_no )
+        c3(i) = 0
+      case ( c3_io_yes )
+        c3(i) = 1
+      end select
+      select case ( jules_pftparm%fsmc_mod_io() )
+      case ( fsmc_mod_io_weight )
+        fsmc_mod(i) = 0
+      case ( fsmc_mod_io_average )
+        fsmc_mod(i) = 1
+      end select
+      select case ( jules_pftparm%orient_io() )
+      case ( orient_io_spherical )
+        orient(i) = 0
+      case ( orient_io_horizontal )
+        orient(i) = 1
+      end select
 
       a_wl(i) = real(jules_pftparm%a_wl_io(), r_um)
       a_ws(i) = real(jules_pftparm%a_ws_io(), r_um)
