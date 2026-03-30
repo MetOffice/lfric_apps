@@ -79,12 +79,12 @@ implicit none
 
 !  Subroutine Arguments:------------------------------------------------
 integer ::                                                                     &
-                      !, INTENT(IN)
+                      !, intent(in)
  nlevels
 !    No. of levels being processed.
 
 real(kind=real_umphys) ::                                                      &
-                      !, INTENT(IN)
+                      !, intent(in)
  timestep,                                                                     &
 !    Model timestep (s)
    p_theta_levels(pdims%i_start:pdims%i_end,                                   &
@@ -118,11 +118,11 @@ real(kind=real_umphys) ::                                                      &
 !    ( (kg kg-1 s-1)-1 )
 
 logical ::                                                                     &
-                       !, INTENT(IN)
+                       !, intent(in)
  l_mixing_ratio        ! Use mixing ratio formulation
 
 real(kind=real_umphys) ::                                                      &
-                      !, INTENT(INOUT)
+                      !, intent(in out)
  t(  tdims%i_start:tdims%i_end,                                                &
      tdims%j_start:tdims%j_end,                                                &
      nlevels),                                                                 &
