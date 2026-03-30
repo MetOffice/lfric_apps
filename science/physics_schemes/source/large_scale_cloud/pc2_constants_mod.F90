@@ -168,6 +168,9 @@ integer, parameter :: i_pc2_homog_g_cf = 1
 integer, parameter :: i_pc2_homog_g_width = 2
 ! Blend solutions from liquid cloud water and saturation defecit
 ! weighted by their respective PDF-widths.
+integer, parameter :: i_pc2_homog_g_rev = 4
+! Use finite integrals over the PDF instead of explicit numerical method,
+! with revised blending between the two solutions (accurately reversible)
 
 ! Constants migrated from c_pc2pdf.h
 

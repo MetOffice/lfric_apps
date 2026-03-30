@@ -113,6 +113,11 @@ module um_physics_init_mod
                                     two_d_fsd_factor_in => two_d_fsd_factor,   &
                                     pc2_init_logic, pc2_init_logic_original,   &
                                     pc2_init_logic_smooth,                     &
+                                    i_pc2_homog_g_method_in                    &
+                                      => i_pc2_homog_g_method,                 &
+                                    i_pc2_homog_g_method_cf,                   &
+                                    i_pc2_homog_g_method_width,                &
+                                    i_pc2_homog_g_method_rev,                  &
                                     i_pc2_erosion_numerics_explicit,           &
                                     i_pc2_erosion_numerics_implicit,           &
                                     i_pc2_erosion_numerics_analytic,           &
@@ -461,9 +466,10 @@ contains
          i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,   &
          pc2eros_exp_rh,pc2eros_hybrid_sidesonly, ignore_shear,            &
          original_but_wrong, acf_cusack, cbl_and_cu, pc2init_smith,        &
-         pc2init_logic_original, pc2init_bimodal, i_pc2_homog_g_cf,        &
-         forced_cu_cca, i_pc2_homog_g_width, pc2init_logic_smooth,         &
-         i_pc2_erosion_explicit, i_pc2_erosion_implicit,                   &
+         pc2init_logic_original, pc2init_bimodal,                              &
+         forced_cu_cca, pc2init_logic_smooth,                                  &
+         i_pc2_homog_g_cf, i_pc2_homog_g_width, i_pc2_homog_g_rev,             &
+         i_pc2_erosion_explicit, i_pc2_erosion_implicit,                       &
          i_pc2_erosion_analytic
     use rad_input_mod, only: two_d_fsd_factor
     use science_fixes_mod, only:  i_fix_mphys_drop_settle, second_fix,      &
@@ -1092,11 +1098,9 @@ contains
         dbsdtbs_turb_0               = real( dbsdtbs_turb_0_in, r_um )
         if (cv_scheme == cv_scheme_comorph) then
           forced_cu = forced_cu_cca
-          i_pc2_homog_g_method = i_pc2_homog_g_width
           l_pc2_homog_conv_pressure = .true.
         else
           forced_cu = cbl_and_cu
-          i_pc2_homog_g_method = i_pc2_homog_g_cf
           l_pc2_homog_conv_pressure = .false.
         end if
         forced_cu_fac                = 0.5_r_um
@@ -1110,6 +1114,14 @@ contains
             i_pc2_init_logic = pc2init_logic_original
           case(pc2_init_logic_smooth)
             i_pc2_init_logic = pc2init_logic_smooth
+        end select
+        select case(i_pc2_homog_g_method_in)
+          case(i_pc2_homog_g_method_cf)
+            i_pc2_homog_g_method = i_pc2_homog_g_cf
+          case(i_pc2_homog_g_method_width)
+            i_pc2_homog_g_method = i_pc2_homog_g_width
+          case(i_pc2_homog_g_method_rev)
+            i_pc2_homog_g_method = i_pc2_homog_g_rev
         end select
         if (pc2ini == pc2ini_smith)   i_pc2_init_method = pc2init_smith
         if (pc2ini == pc2ini_bimodal) i_pc2_init_method = pc2init_bimodal
