@@ -26,9 +26,6 @@ module adj_interpolation_alg_mod
   use operator_mod,                              only: operator_type
   use sci_nodal_xyz_coordinates_kernel_mod,      only: nodal_xyz_coordinates_kernel_type
   use sci_compute_sample_u_ops_kernel_mod,       only: compute_sample_u_ops_kernel_type
-  use log_mod,                  only: log_scratch_space, &
-                                      log_event,         &
-                                      log_level_info
 
   implicit none
 
