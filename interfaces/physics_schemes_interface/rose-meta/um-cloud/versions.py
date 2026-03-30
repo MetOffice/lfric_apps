@@ -43,6 +43,5 @@ class vn31_t243(MacroUpgrade):
 
         nml = "namelist:cloud"
         self.add_setting(config, [nml,"l_ensure_max_in_cloud_pc2"], ".false.")
-        self.add_setting(config, [nml,"l_pc2_checks_cfffix"], ".false.")
 
         return config, self.reports

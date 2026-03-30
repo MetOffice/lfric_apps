@@ -43,7 +43,7 @@ use parkind1,              only: jprb, jpim
 use cloud_inputs_mod,      only: i_pc2_checks_cld_frac_method,                 &
                                  l_ensure_min_in_cloud_qcf,                    &
                                  l_ensure_max_in_cloud_pc2
-use science_fixes_mod,     only: l_pc2_checks_sdfix, l_pc2_checks_cfffix
+use science_fixes_mod,     only: l_pc2_checks_sdfix
 
 use qsat_mod, only: qsat_wat, qsat_wat_mix
 
@@ -603,9 +603,7 @@ do k = 1,model_levels
         end if
 
         if ((qcf(i,j,k) +qcf2(i,j,k))> 0.0 .and. cff(i,j,k) == 0.0) then
-          cff(i,j,k) = (qcf(i,j,k)+qcf2(i,j,k)) * one_over_qcf0
-          ! Bug-fix: don't allow this check to make cff > 1.
-          if ( l_pc2_checks_cfffix )  cff(i,j,k) = min( cff(i,j,k), 1.0 )
+          cff(i,j,k) = min( (qcf(i,j,k)+qcf2(i,j,k)) * one_over_qcf0, 1.0 )
           !             CF is not adjusted here but is checked below
         end if
 
@@ -651,9 +649,7 @@ do k = 1,model_levels
         ! some ice cloud fraction.
 
         if (qcf(i,j,k) > 0.0 .and. cff(i,j,k) == 0.0) then
-          cff(i,j,k) = qcf(i,j,k) * one_over_qcf0
-          ! Bug-fix: don't allow this check to make cff > 1.
-          if ( l_pc2_checks_cfffix )  cff(i,j,k) = min( cff(i,j,k), 1.0 )
+          cff(i,j,k) = min( qcf(i,j,k) * one_over_qcf0, 1.0 )
           !             CF is not adjusted here but is checked below
         end if
 
