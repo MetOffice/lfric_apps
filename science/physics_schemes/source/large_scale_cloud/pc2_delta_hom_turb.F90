@@ -494,7 +494,7 @@ do k = 1, tdims%k_end
         ! The following If test is a copy of the PC2_TOTAL_CF subroutine.
         ! ----------------------------------------------------------------------
         if (dcflpc2(i,j,k)  >   0.0) then
-          ! ...  .AND. CFL(i,j,k)  <   1.0 already assured.
+          ! ...  .and. CFL(i,j,k)  <   1.0 already assured.
           if (l_fixbug_pc2_mixph) then
             ! minimum overlap, consistent with pc2_totalcf
             dcfpc2(i,j,k) = min(dcflpc2(i,j,k),(1.0-cf(i,j,k)))
@@ -504,7 +504,7 @@ do k = 1, tdims%k_end
                                              (1.0 - cfl(i,j,k))
           end if
         else if (dcflpc2(i,j,k)  <   0.0) then
-          ! ...  .AND. CFL(i,j,k)  >   0.0 already assured.
+          ! ...  .and. CFL(i,j,k)  >   0.0 already assured.
           if (l_fixbug_pc2_mixph) then
             ! minimum overlap, consistent with pc2_totalcf
             dcfpc2(i,j,k) = max(dcflpc2(i,j,k),(cff(i,j,k)-cf(i,j,k)))
