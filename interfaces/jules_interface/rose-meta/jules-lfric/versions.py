@@ -84,6 +84,9 @@ class vn31_t205(MacroUpgrade):
         self.remove_setting(config, ["namelist:jules_pftparm"])
 
         # Add jules_pftparm items hard-wired in jules_physics_init
+        jules_pftparm["c3_io"] = ["'yes'", "'yes'", "'yes'", "'no'", "'yes'"]
+        jules_pftparm["orient_io"] = ["'spherical'"] * npft
+        jules_pftparm["fsmc_mod_io"] = ["'weight'"] * npft
         jules_pftparm["a_wl_io"] = ["0.65","0.65","0.005","0.005","0.10"]
         jules_pftparm["a_ws_io"] = ["10.0","10.0","1.0","1.0","10.0"]
         jules_pftparm["albsnc_min_io"] = ["3.0e-1","3.0e-1","8.0e-1","8.0e-1","8.0e-1"]
@@ -95,7 +98,6 @@ class vn31_t205(MacroUpgrade):
         jules_pftparm["alparu_io"] = ["0.15","0.11","0.25","0.25","0.25"]
         jules_pftparm["alpha_io"] = ["0.08","0.08","0.08","0.04","0.08"]
         jules_pftparm["b_wl_io"] = ["1.667","1.667","1.667","1.667","1.667"]
-        jules_pftparm["c3_io"] = ["1","1","1","0","1"]
         jules_pftparm["can_struct_a_io"] = ["1.0","1.0","1.0","1.0","1.0"]
         jules_pftparm["dgl_dm_io"] = ["0.0","0.0","0.0","0.0","0.0"]
         jules_pftparm["dgl_dt_io"] = ["9.0","9.0","0.0","0.0","9.0"]
@@ -127,7 +129,6 @@ class vn31_t205(MacroUpgrade):
         jules_pftparm["omegau_io"] = ["0.23","0.23","0.35","0.35","0.35"]
         jules_pftparm["omnirl_io"] = ["0.50","0.30","0.53","0.53","0.53"]
         jules_pftparm["omniru_io"] = ["0.90","0.65","0.98","0.98","0.98"]
-        jules_pftparm["orient_io"] = ["0"] * npft
         jules_pftparm["q10_leaf_io"] = ["2.0","2.0","2.0","2.0","2.0"]
         jules_pftparm["r_grow_io"] = ["0.25","0.25","0.25","0.25","0.25"]
         jules_pftparm["rootd_ft_io"] = ["3.0","1.0","0.5","0.5","0.5"]
@@ -220,8 +221,6 @@ class vn31_t205(MacroUpgrade):
 
         # Remaining parameters added with missing data as no other information
         jules_pftparm["albsnf_max_io"] = [RMDI] * npft
-        # SHOULD BE IMDI
-        jules_pftparm["fsmc_mod_io"] = [RMDI] * npft
 
         # Add unique descriptor used to identify instances of duplicate namelist
         jules_pftparm["pft_name_io"] = [
