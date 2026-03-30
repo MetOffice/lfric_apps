@@ -117,7 +117,7 @@ module um_physics_init_mod
                                       => i_pc2_homog_g_method,                 &
                                     i_pc2_homog_g_method_cf,                   &
                                     i_pc2_homog_g_method_width,                &
-                                    i_pc2_homog_g_method_rev,                  ^
+                                    i_pc2_homog_g_method_rev,                  &
                                     i_pc2_erosion_numerics_explicit,           &
                                     i_pc2_erosion_numerics_implicit,           &
                                     i_pc2_erosion_numerics_analytic,           &
