@@ -38,7 +38,8 @@ use parkind1,              only: jprb, jpim
 use atm_fields_bounds_mod, only: pdims, tdims
 use pc2_constants_mod,     only: dbsdtbs_exp, pdf_power,                       &
                                  pdf_merge_power, cloud_rounding_tol,          &
-                                 i_pc2_homog_g_cf, i_pc2_homog_g_width
+                                 i_pc2_homog_g_cf, i_pc2_homog_g_width,        &
+                                 i_pc2_homog_g_rev
 use cloud_inputs_mod,      only: l_fixbug_pc2_qcl_incr,l_fixbug_pc2_mixph,     &
                                  i_pc2_homog_g_method
 use science_fixes_mod,     only: l_pc2_homog_turb_q_neg
@@ -78,12 +79,12 @@ implicit none
 
 !  Subroutine Arguments:------------------------------------------------
 integer ::                                                                     &
-                      !, intent(in)
+                      !, INTENT(IN)
  nlevels
 !    No. of levels being processed.
 
 real(kind=real_umphys) ::                                                      &
-                      !, intent(in)
+                      !, INTENT(IN)
  timestep,                                                                     &
 !    Model timestep (s)
    p_theta_levels(pdims%i_start:pdims%i_end,                                   &
@@ -117,11 +118,11 @@ real(kind=real_umphys) ::                                                      &
 !    ( (kg kg-1 s-1)-1 )
 
 logical ::                                                                     &
-                       !, intent(in)
+                       !, INTENT(IN)
  l_mixing_ratio        ! Use mixing ratio formulation
 
 real(kind=real_umphys) ::                                                      &
-                      !, intent(INOUT)
+                      !, INTENT(INOUT)
  t(  tdims%i_start:tdims%i_end,                                                &
      tdims%j_start:tdims%j_end,                                                &
      nlevels),                                                                 &
@@ -182,6 +183,30 @@ real(kind=real_umphys) ::                                                      &
                 ! aL (q + l - qsat(TL) )  (kg kg-1)
  sd             ! Saturation deficit (= aL (q - qsat(T)) )  (kg kg-1)
 
+! Variables for PDF integral method
+real(kind=real_umphys) :: sde     ! Saturation deficit computed as qcl - Qc
+real(kind=real_umphys) :: cfc     ! Clear fraction 1-cfl
+real(kind=real_umphys) :: s1      ! Width of clear-air part of the PDF
+real(kind=real_umphys) :: s2      ! Width of cloudy part of the PDF
+real(kind=real_umphys) :: cfl1    ! Predictions from the clear PDF integral
+real(kind=real_umphys) :: cfc1
+real(kind=real_umphys) :: qcl1
+real(kind=real_umphys) :: sde1
+real(kind=real_umphys) :: cfl2    ! Predictions from the cloudy PDF integral
+real(kind=real_umphys) :: cfc2
+real(kind=real_umphys) :: qcl2
+real(kind=real_umphys) :: sde2
+real(kind=real_umphys) :: w1      ! Weights for 2 solutions
+real(kind=real_umphys) :: w2
+real(kind=real_umphys) :: fac     ! Re-occuring factors stored for convenience
+real(kind=real_umphys) :: cfl_diff
+real(kind=real_umphys) :: qcl_diff
+real(kind=real_umphys) :: a_coef  ! Coefficients in quadratic eqn for weight
+real(kind=real_umphys) :: b_coef
+real(kind=real_umphys) :: c_coef
+real(kind=real_umphys) :: qsl_new ! qsat(Tl) after forcing
+real(kind=real_umphys) :: p2al    ! (pdf_power+2)/al
+
 !  (b) Others.
 integer :: k,i,j,                                                              &
                 ! Loop counters: K - vertical level index
@@ -232,10 +257,12 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Loop round levels to be processed
 
-!$OMP  PARALLEL do DEFAULT(SHARED) SCHEDULE(DYNAMIC) private(cfl_c,            &
+!$OMP  PARALLEL DO DEFAULT(SHARED) SCHEDULE(DYNAMIC) PRIVATE(cfl_c,            &
 !$OMP  index_npt, npt, cf_c, cff_c, deltacf_c, qsl_t, tl,                      &
 !$OMP  qsl_tl, alpha, al, alpha_p, sd, g_mqc, dqcdt, dbsdtbs, qc, deltal, i,   &
-!$OMP  j, k, c_1, deltacl_c, cfl_to_m, sky_to_m)
+!$OMP  j, k, c_1, deltacl_c, cfl_to_m, sky_to_m,                               &
+!$OMP  sde, cfc, s1, s2, cfl1, cfc1, qcl1, sde1, cfl2, cfc2, qcl2, sde2,       &
+!$OMP  w1, w2, fac, cfl_diff, qcl_diff, a_coef, b_coef, c_coef, qsl_new, p2al )
 do k = 1, nlevels
 
   ! Copy points into compressed arrays
@@ -366,32 +393,148 @@ do k = 1, nlevels
         ! 4. Calculate the change of liquid cloud fraction. This uses the
         ! arrival value of QC for better behaved numerics.
         ! ----------------------------------------------------------------------
+        if ( i_pc2_homog_g_method == i_pc2_homog_g_rev ) then
+          ! Estimate change in cfl and qcl by integrating the PDF over
+          ! a finite interval, to cope with large increments / long timesteps
 
-        ! DQCDT is the homogeneous forcing part, (QC+DQCDT)*DBSDTBS is the
-        ! width narrowing part
+          ! Set saturation defecit and clear-fraction
+          sde = qcl(i,j,k) - qc
+          cfc = 1.0 - cfl(i,j,k)
+          ! Set PDF-widths in clear and cloudy air
+          s1 = (pdf_power+2.0) * sde / cfc
+          s2 = (pdf_power+2.0) * qcl(i,j,k) / cfl(i,j,k)
 
-        deltacl_c(index_npt(i,j)) = g_mqc * ( dqcdt - (qc + dqcdt) * dbsdtbs)
+          if ( s1 < smallp .or. s2 < smallp .or. abs(dqcdt) < smallp ) then
+            ! Abort and set increments to zero if PDF widths not positive,
+            ! or no forcing
+            deltacl_c(index_npt(i,j)) = 0.0
+            deltal = 0.0
+          else
+            if ( dqcdt >= s1 ) then
+              ! Forcing crosses lower bound of PDF; make whole box saturated
+              deltacl_c(index_npt(i,j)) = 1.0 - cfl(i,j,k)
+              deltal = qc+dqcdt - qcl(i,j,k)
+            else if ( dqcdt <= -s2 ) then
+              ! Forcing crosses upper bound of PDF; make whole box clear
+              deltacl_c(index_npt(i,j)) = -cfl(i,j,k)
+              deltal = -qcl(i,j,k)
+            else
+              ! Saturation boundary remains within the PDF...
 
-        ! Calculate the condensation amount DELTAL. This uses a mid value
-        ! of cloud fraction for better numerical behaviour.
+              ! Set new properties based on integrating over the clear-air PDF
+              cfc1 = cfc * ( 1.0 - dqcdt/s1 )**(pdf_power+1.0)
+              sde1 = sde * ( 1.0 - dqcdt/s1 )**(pdf_power+2.0)
+              cfl1 = 1.0 - cfc1
+              qcl1 = qc+dqcdt + sde1
 
-        c_1 = cfl(i,j,k) + deltacl_c(index_npt(i,j))
-        if (c_1  >   1.0) then
-          deltacl_c(index_npt(i,j)) = 1.0 - cfl(i,j,k)
-          c_1=1.0
-        else if (c_1  <   0.0) then
-          c_1=0.0
-          deltacl_c(index_npt(i,j)) = (- cfl(i,j,k) )
-        end if
-        c_1 = 0.5 * (c_1 + cfl(i,j,k))
-        deltal = c_1 * dqcdt + (qcl(i,j,k) - qc * c_1) * dbsdtbs
-        !
-        ! If we have removed all fraction, remove all liquid
-        if (l_fixbug_pc2_qcl_incr) then
-          if (cfl(i,j,k)+deltacl_c(index_npt(i,j)) == 0.0) then
-            deltal = -qcl(i,j,k)
+              ! Set new properties based on integrating over the cloudy-air PDF
+              cfl2 = cfl(i,j,k) * ( 1.0 + dqcdt/s2 )**(pdf_power+1.0)
+              qcl2 = qcl(i,j,k) * ( 1.0 + dqcdt/s2 )**(pdf_power+2.0)
+              cfc2 = 1.0 - cfl2
+              sde2 = qcl2 - (qc+dqcdt)
+
+              ! Calculate a weight for blending between the two solutions
+              ! Reversible implicitly-calculated weight...
+              if ( abs(cfl2-cfl1)<smallp*minval([cfl1,cfl2,cfc1,cfc2]) ) then
+                ! The two solutions give (near-enough) identical answers;
+                ! just use the solution for the tail we're moving towards
+                w2 = 0.5 - sign( 0.5, dqcdt )
+                w1 = 1.0 - w2
+              else
+                ! We set the weight such that the fractional errors in
+                ! s1 = (P+2)sde/cfc and s2 = (P+2)qcl/cfl will be equal,
+                ! i.e.:
+                !   ( sde'/cfc' - (sde/cfc - dQc/(P+2)) ) / (s1 - 1/2 dQc)
+                ! = ( qcl'/cfl' - (qcl/cfl + dQc/(P+2)) ) / (s2 + 1/2 dQc)
+                ! Note the normalisation is centred-in-time for reversibility.
+                ! Substituting sde' = (1-w) sde1 + w sde2 etc, this yields
+                ! a quadratic equation for the weight w.
+                ! Precalculate re-occuring factors
+                w1 = s1 - 0.5*dqcdt
+                w2 = s2 + 0.5*dqcdt
+                fac = 0.5*(s1+s2) * dqcdt / (pdf_power+2.0)
+                cfl_diff = cfl2 - cfl1
+                qcl_diff = qcl2 - qcl1
+                ! Compute coefficients of the quadratic equation
+                a_coef = cfl_diff * ( qcl_diff*(s1+s2) - fac*cfl_diff )
+                b_coef = ( sde1*w2 + qcl1*w1 - fac*(cfl1 - cfc1) )*cfl_diff    &
+                       + ( cfl1*w2 - cfc1*w1 )*qcl_diff
+                c_coef = sde1*cfl1*w2 - qcl1*cfc1*w1 + fac*cfl1*cfc1
+                ! Compute the weight as the solution
+                w2 = -(2.0*c_coef/b_coef)                                      &
+                   / ( 1.0 + sqrt( 1.0 - 4.0*a_coef*c_coef/b_coef**2 ) )
+                w2 = min( max( w2, 0.0 ), 1.0 )
+                ! Limit weight to ensure +ive qcl and sde
+                ! 0 = (1-w2) qcl1 + w2 qcl2 => w2 (qcl2 - qcl1) = -qcl1
+                if ( dqcdt < 0.0 ) then
+                  ! Drying; solution 1 could give -ive qcl or cfl.  Limit w1:
+                  if (qcl1<0.0) w2 = max(w2, min(-qcl1/qcl_diff+smallp, 1.0))
+                  if (cfl1<0.0) w2 = max(w2, min(-cfl1/cfl_diff+smallp, 1.0))
+                else
+                  ! Moistening; soln 2 could give -ive sde or cfc.  Limit w2:
+                  if (sde2<0.0) w2 = min(w2, max(-sde1/qcl_diff-smallp, 0.0))
+                  if (cfc2<0.0) w2 = min(w2, max( cfc1/cfl_diff-smallp, 0.0))
+                end if
+                w1 = 1.0 - w2
+                ! Don't allow s1 > al qsat(T) (implies -ive q in the tail)
+                qsl_new = qsl_tl + alpha*dtdt(i,j,k) + alpha_p*dpdt(i,j,k)
+                fac = alpha*lcrcp
+                p2al = (pdf_power+2.0) / al
+                if ( p2al * (w1*sde1 + w2*sde2) / (w1*cfc1 + w2*cfc2)          &
+                   > qsl_new + fac*(w1*qcl1 + w2*qcl2) ) then
+                  a_coef = fac * qcl_diff * cfl_diff
+                  b_coef = cfl_diff * (qsl_new + fac*qcl1)                     &
+                         + qcl_diff * (p2al - cfc1*fac)
+                  c_coef = sde1*p2al - cfc1 * (qsl_new + fac*qcl1)
+                  w1 = -(2.0*c_coef/b_coef)                                    &
+                     / ( 1.0 + sqrt( 1.0 - 4.0*a_coef*c_coef/b_coef**2 ) )
+                  if ( dqcdt < 0.0 ) then
+                    w2 = min( max( w1, w2 ), 1.0 )
+                  else
+                    w2 = min( max( w1, 0.0 ), w2 )
+                  end if
+                  w1 = 1.0 - w2
+                end if
+              end if  ! ABS(cfl2-cfl1) > smallp*MINVAL([cfl1,cfl2,cfc1,cfc2])
+
+              ! Compute increments to yield weighted means
+              deltacl_c(index_npt(i,j)) = w1*cfl1 + w2*cfl2 - cfl(i,j,k)
+              deltal                    = w1*qcl1 + w2*qcl2 - qcl(i,j,k)
+
+            end if  ! Saturation boundary within the PDF
+          end if  ! PDF-widths are positive
+
+        else  ! ( i_pc2_homog_g_method )
+          ! Other homog_g_method options use instantaneous G(-Qc)
+
+          ! DQCDT is the homogeneous forcing part, (QC+DQCDT)*DBSDTBS is the
+          ! width narrowing part
+
+          deltacl_c(index_npt(i,j)) = g_mqc * ( dqcdt - (qc + dqcdt) * dbsdtbs)
+
+          ! Calculate the condensation amount DELTAL. This uses a mid value
+          ! of cloud fraction for better numerical behaviour.
+
+          c_1 = cfl(i,j,k) + deltacl_c(index_npt(i,j))
+          if (c_1  >   1.0) then
+            deltacl_c(index_npt(i,j)) = 1.0 - cfl(i,j,k)
+            c_1=1.0
+          else if (c_1  <   0.0) then
+            c_1=0.0
+            deltacl_c(index_npt(i,j)) = (- cfl(i,j,k) )
           end if
-        end if
+          c_1 = 0.5 * (c_1 + cfl(i,j,k))
+          deltal = c_1 * dqcdt + (qcl(i,j,k) - qc * c_1) * dbsdtbs
+          !
+          ! If we have removed all fraction, remove all liquid
+          if (l_fixbug_pc2_qcl_incr) then
+            if (cfl(i,j,k)+deltacl_c(index_npt(i,j)) == 0.0) then
+              deltal = -qcl(i,j,k)
+            end if
+          end if
+
+        end if  ! ( i_pc2_homog_g_method )
+
         !
       else if ( ( cfl(i,j,k)  >=  (1.0 - cloud_rounding_tol) .and.             &
                   cfl(i,j,k)  <=  (1.0 + cloud_rounding_tol) ) .or.            &
@@ -493,7 +636,7 @@ do k = 1, nlevels
   end do !j
 
 end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 ! End of the subroutine
 

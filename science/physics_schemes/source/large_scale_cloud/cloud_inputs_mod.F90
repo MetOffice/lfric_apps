@@ -350,7 +350,7 @@ use ereport_mod,    only: ereport
 use pc2_constants_mod, only: acf_off, acf_cusack, acf_brooks,                  &
        rhcpt_off, rhcpt_tke_based, i_cld_pc2,                                  &
        i_cld_off, i_cld_smith, i_cld_bimodal,                                  &
-       i_pc2_homog_g_cf, i_pc2_homog_g_width,                                  &
+       i_pc2_homog_g_cf, i_pc2_homog_g_width, i_pc2_homog_g_rev,               &
        pc2eros_exp_rh, pc2eros_hybrid_sidesonly,                               &
        i_pc2_erosion_explicit, i_pc2_erosion_implicit, i_pc2_erosion_analytic, &
        pc2init_smith, pc2init_bimodal,                                         &
@@ -391,7 +391,7 @@ call chk_var(ice_fraction_method,'ice_fraction_method',                        &
 if ( i_cld_vn == i_cld_pc2) then
 
   call chk_var(i_pc2_homog_g_method,'i_pc2_homog_g_method',                    &
-               [i_pc2_homog_g_cf, i_pc2_homog_g_width])
+               [i_pc2_homog_g_cf, i_pc2_homog_g_width, i_pc2_homog_g_rev])
 
   call chk_var(i_pc2_erosion_method,'i_pc2_erosion_method',                    &
        [pc2eros_exp_rh, pc2eros_hybrid_sidesonly])
