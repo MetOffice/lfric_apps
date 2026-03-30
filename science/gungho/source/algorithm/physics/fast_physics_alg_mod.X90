@@ -220,8 +220,8 @@ contains
     call derived_fields%get_field('theta_star', theta_star)
     call u_star%copy_field_properties(u_latest)
     call theta_star%copy_field_properties(theta_latest)
-      call invoke(setval_X(theta_latest, theta_star), &
-                  setval_X(u_latest, u_star) )
+    call invoke(setval_X(theta_latest, theta_star), &
+                setval_X(u_latest, u_star) )
 
 #ifdef UM_PHYSICS
     !--------------------------------------------------------------------

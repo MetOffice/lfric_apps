@@ -47,7 +47,7 @@ module bl_imp2_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! wetrho_in_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! exner_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! exner_in_wth
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_star
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_latest
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! height_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! height_wth
          arg_type(GH_FIELD,  GH_INTEGER, GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! ntml_2d
@@ -118,7 +118,7 @@ contains
   !> @param[in]     wetrho_in_wth        Wet density field in wth space
   !> @param[in]     exner_in_w3          Exner pressure field in density space
   !> @param[in]     exner_in_wth         Exner pressure field in wth space
-  !> @param[in]     theta_star           Potential temperature after advection
+  !> @param[in]     theta_latest         Latest estimate of Potential temp
   !> @param[in]     height_w3            Height of density space above surface
   !> @param[in]     height_wth           Height of theta space above surface
   !> @param[in]     ntml_2d              Number of turbulently mixed levels
@@ -202,7 +202,7 @@ contains
                           wetrho_in_wth,                      &
                           exner_in_w3,                        &
                           exner_in_wth,                       &
-                          theta_star,                         &
+                          theta_latest,                       &
                           height_w3,                          &
                           height_wth,                         &
                           ntml_2d,                            &
@@ -321,7 +321,7 @@ contains
                                                            diss_u, diss_v
     real(kind=r_def), dimension(undf_wth), intent(in) :: wetrho_in_wth,        &
                                                          exner_in_wth,         &
-                                                         theta_star,           &
+                                                         theta_latest,         &
                                                          height_wth,           &
                                                          dqw_nt_wth,           &
                                                          dtl_nt_wth,           &
@@ -490,7 +490,7 @@ contains
     if (loop == 2 .and. scheme == scheme_pc2) then
       do i = 1, seg_len
         do k = 1, nlayers
-          t_earliest(i,1,k) = theta_star(map_wth(1,i) + k)   &
+          t_earliest(i,1,k) = theta_latest(map_wth(1,i) + k)   &
                             * exner_in_wth(map_wth(1,i) + k)
           q_earliest(i,1,k) = m_v(map_wth(1,i) + k)
         end do
@@ -666,7 +666,7 @@ contains
       ! Create Tl and qT outside boundary layer levels
       do i = 1, seg_len
         do k = bl_levels+1, nlayers
-          t_latest(i,1,k) = theta_star(map_wth(1,i) + k)   &
+          t_latest(i,1,k) = theta_latest(map_wth(1,i) + k)   &
                             * exner_in_wth(map_wth(1,i) + k) &
                             - (lc * m_cl(map_wth(1,i) + k)) / cp
           q_latest(i,1,k) = m_v(map_wth(1,i) + k) + m_cl(map_wth(1,i) + k)
@@ -1086,7 +1086,7 @@ contains
           ! potential temperature increment on theta levels
           dtheta_bl(map_wth(1,i) + k) = t_latest(i,1,k)                    &
                                       /  exner_in_wth(map_wth(1,i) + k)    &
-                                      - theta_star(map_wth(1,i)+k)
+                                      - theta_latest(map_wth(1,i)+k)
           ! water vapour on theta levels
           m_v(map_wth(1,i) + k)  = q_latest(i,1,k)
           ! cloud liquid and ice water on theta levels
@@ -1119,7 +1119,7 @@ contains
         do i = 1, seg_len
           dtheta_bl(map_wth(1,i)) =                                            &
                t_latest(i,1,1) / exner_in_wth(map_wth(1,i) + 1)                &
-               - theta_star(map_wth(1,i))
+               - theta_latest(map_wth(1,i))
           m_v(map_wth(1,i))  = m_v(map_wth(1,i) + 1)
         end do
 
@@ -1131,7 +1131,7 @@ contains
                    t_latest(i,1,2) / exner_in_wth(map_wth(1,i)+2)              &
                  - t_latest(i,1,1) / exner_in_wth(map_wth(1,i)+1)              &
                                   )                                            &
-               / (z_theta(i,1,2) - z_theta(i,1,1)) - theta_star(map_wth(1,i))
+               / (z_theta(i,1,2) - z_theta(i,1,1)) - theta_latest(map_wth(1,i))
           m_v(map_wth(1,i))  =                                                 &
                m_v(map_wth(1,i) + 1) - z_theta(i,1,1) * ( m_v(map_wth(1,i) + 2)&
              - m_v(map_wth(1,i) + 1) ) / (z_theta(i,1,2) - z_theta(i,1,1))
@@ -1141,7 +1141,7 @@ contains
         do i = 1, seg_len
           dtheta_bl(map_wth(1,i)) =                                            &
                t_latest(i,1,1) / exner_in_wth(map_wth(1,i) + 1)                &
-               + ftl(i,1,1) / (cp * rhokh(i,1,1)) - theta_star(map_wth(1,i))
+               + ftl(i,1,1) / (cp * rhokh(i,1,1)) - theta_latest(map_wth(1,i))
           m_v(map_wth(1,i))  = m_v(map_wth(1,i) + 1)                           &
                + fqw(i,1,1) / rhokh(i,1,1)
         end do

@@ -269,7 +269,7 @@ contains
     type( field_type ) :: massflux_up_half, massflux_up_cmpta
     type( field_type ) :: dth_conv_noshal, dmv_conv_noshal
     type( field_type ) :: mr_ice
-    type( field_type ) :: u_in_w3_star, v_in_w3_star, w_in_w3_star, dw_conv
+    type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
     type( mesh_type ), pointer  :: mesh => null()
     integer(i_def) :: ncells
@@ -512,12 +512,12 @@ contains
     end if
 
     ! Compute the wind predictors at cell centres
-    call rho%copy_field_properties(u_in_w3_star)
-    call rho%copy_field_properties(v_in_w3_star)
-    call rho%copy_field_properties(w_in_w3_star)
-    call map_physics_winds(u_in_w3_star, v_in_w3_star, w_in_w3_star, &
+    call rho%copy_field_properties(u_in_w3_latest)
+    call rho%copy_field_properties(v_in_w3_latest)
+    call rho%copy_field_properties(w_in_w3_latest)
+    call map_physics_winds(u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, &
                            u_latest)
-    call w_in_w3_star%field_final()
+    call w_in_w3_latest%field_final()
 
     ! Switch UM to running i-first on whole domain
     ncells = mesh%get_last_edge_cell()
@@ -546,7 +546,7 @@ contains
                  ! call the scheme
                  conv_gr_kernel_type( outer, rho, rho_in_wth, wetrho_in_w3,   &
                           wetrho_in_wth, exner, exner_in_wth, w_in_wth,       &
-                          theta_latest, u_in_w3_star, v_in_w3_star,           &
+                          theta_latest, u_in_w3_latest, v_in_w3_latest,       &
                           height_w3, height_wth, delta,                       &
                           ntml, cumulus, tile_fraction,                       &
                           dt_conv, dmv_conv, dmcl_conv,                       &

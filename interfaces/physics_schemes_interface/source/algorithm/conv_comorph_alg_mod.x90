@@ -265,7 +265,7 @@ contains
     type( field_type ) :: pres_cv_base,pres_cv_top
     type( field_type ) :: pres_lowest_cv_base,pres_lowest_cv_top, lowest_cca_2d
     type( field_type ) :: massflux_up_half
-    type( field_type ) :: u_in_w3_star, v_in_w3_star, w_in_w3_star, dw_conv
+    type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
     type( mesh_type ), pointer  :: mesh
     integer(i_def) :: ncells
@@ -483,17 +483,17 @@ contains
     call um_sizes_init(ncells)
 
     ! Compute the wind predictors at cell centres
-    call u_in_w3%copy_field_properties(u_in_w3_star)
-    call u_in_w3%copy_field_properties(v_in_w3_star)
-    call u_in_w3%copy_field_properties(w_in_w3_star)
-    call map_physics_winds(u_in_w3_star, v_in_w3_star, w_in_w3_star, &
+    call u_in_w3%copy_field_properties(u_in_w3_latest)
+    call u_in_w3%copy_field_properties(v_in_w3_latest)
+    call u_in_w3%copy_field_properties(w_in_w3_latest)
+    call map_physics_winds(u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, &
                            u_latest)
-    call w_in_w3_star%field_final()
+    call w_in_w3_latest%field_final()
 
     call invoke( conv_comorph_kernel_type( outer, rho, rho_in_wth,            &
                           wetrho_in_w3, wetrho_in_wth, exner, exner_in_wth,   &
                           delta, theta, u_in_w3, v_in_w3, w_in_wth,           &
-                          theta_latest, u_in_w3_star, v_in_w3_star,           &
+                          theta_latest, u_in_w3_latest, v_in_w3_latest,       &
                           height_w3, height_wth,                              &
                           dt_conv, dmv_conv, dmcl_conv,                       &
                           dms_conv, du_conv, dv_conv,                         &

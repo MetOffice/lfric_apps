@@ -47,7 +47,7 @@ module bl_imp_du_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),          &! dtrdz
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),          &! wetrho
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),          &! u_physics
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),          &! u_physics_star
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),          &! u_phys_latest
          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_2), &! surf_interp
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTheta),      &! dw_bl
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W2),          &! dA
@@ -83,7 +83,7 @@ contains
   !> @param[in]     dtrdz          dt/(r*r*dz) mapped to cell faces
   !> @param[in]     wetrho         Wet density
   !> @param[in]     u_physics      Wind in native space at time n
-  !> @param[in]     u_physics_star Wind in native space after advection
+  !> @param[in]     u_phys_latest  Current estimate of the wind
   !> @param[in]     surf_interp    Surface variables which need interpolating
   !> @param[in]     dw_bl          Vertical wind increment from explicit BL
   !> @param[in]     dA             Area of faces
@@ -119,7 +119,7 @@ contains
                             dtrdz,         &
                             wetrho,        &
                             u_physics,     &
-                            u_physics_star,&
+                            u_phys_latest, &
                             surf_interp,   &
                             dw_bl,         &
                             dA,            &
@@ -167,7 +167,7 @@ contains
          wind10m_neut, tau_ssi, pseudotau
 
     real(kind=r_def), dimension(undf_w2),  intent(in) :: rhokm, dtrdz,         &
-         u_physics, u_physics_star, dA, height_w2, wetrho
+         u_physics, u_phys_latest, dA, height_w2, wetrho
     real(kind=r_def), dimension(undf_w2_2d), intent(in) :: tau_land
     real(kind=r_def), dimension(undf_w2_surf), intent(in) :: surf_interp
     real(kind=r_def), dimension(undf_w1),   intent(in) :: height_w1, rdz
@@ -224,8 +224,7 @@ contains
         !================================================================
 
         do k = 0, bl_levels-1
-          du_nt(k) = u_physics_star(map_w2(df) + k) -                          &
-                     u_physics(map_w2(df) + k)
+          du_nt(k) = u_phys_latest(map_w2(df) + k) - u_physics(map_w2(df) + k)
           dtr_rhodz(k) = dtrdz(map_w2(df) + k) / wetrho(map_w2(df) + k)
           rhokm_sp(k) = rhokm(map_w2(df) + k)
           du_bl_sp(k) = du_bl(map_w2(df) + k)
@@ -380,10 +379,10 @@ contains
         ! final increment calculation
         do k = 0, bl_levels-1
           du_bl(map_w2(df) + k) = du_bl_sp(k) -                      &
-               ( u_physics_star(map_w2(df) + k) - u_physics(map_w2(df) + k) )
+               ( u_phys_latest(map_w2(df) + k) - u_physics(map_w2(df) + k) )
         end do
 
-        ! Above BL levels it's just the convection increment
+        ! Above BL levels there's no increment
         do k = bl_levels, nlayers-1
           du_bl(map_w2(df) + k) = 0.0_r_def
         end do
