@@ -109,8 +109,9 @@
 # Imports
 # =======
 
-import os
 import logging
+import os
+
 from psyclone.psyir.nodes import (
     ArrayReference,
     Assignment,
@@ -165,7 +166,7 @@ asad_call_name = "asad_cdrive"
 routine_name = "ukca_chemistry_ctl_full"
 
 # Source and name of the reallocation routine
-asad_realloc_routine = ("ukca_chemistry_ctl_col_mod",
+asad_realloc_routine_loc = ("ukca_chemistry_ctl_col_mod",
                         "ukca_reallocate_asad_arrays")
 
 
@@ -184,7 +185,6 @@ def get_bool_env(var_name: str, default: bool = False) -> bool:
 def trans(psyir):
     desired_chunk_size = os.getenv("UKCA_FULL_CHUNK_SIZE")
     if desired_chunk_size is None:
-        # Do nothing if the chunk size is not set
         return
     elif desired_chunk_size == "FULL_DOMAIN":
         # Message to print (via umPrint) when chunking enabled
@@ -197,7 +197,6 @@ def trans(psyir):
         # Message to print (via umPrint) when chunking enabled
         message_text = ("UKCA full-domain chunking enabled with " +
                         "a chunk size of " + desired_chunk_size)
-
     use_omp = get_bool_env("UKCA_FULL_CHUNK_OMP", True)
     if desired_chunk_size is None and use_omp:
         logging.WARNING(
@@ -407,21 +406,22 @@ def trans(psyir):
         if use_omp:
             # Add import for ASAD reallocation routine
             # ----------------------------------------
+            sym_tab = routine.symbol_table
+            asad_realloc_mod_sym = sym_tab.find_or_create(
+                asad_realloc_routine_loc[0],
+                symbol_type=ContainerSymbol)
 
-            asad_realloc_mod_sym = ContainerSymbol(asad_realloc_routine[0])
-            routine.symbol_table.add(asad_realloc_mod_sym)
-            asad_realloc_routine_sym = Symbol(asad_realloc_routine[1])
-            asad_realloc_routine_sym.interface = ImportInterface(
-                asad_realloc_mod_sym)
-            routine.symbol_table.add(asad_realloc_routine_sym)
+            asad_realloc_routine =sym_tab.find_or_create(
+                            asad_realloc_routine_loc[1],
+                            symbol_type=RoutineSymbol,
+                            interface=ImportInterface(asad_realloc_mod_sym))
+
 
             # Add Reallocation Call to within Loop
             # ------------------------------------
-            # Create reallocation call
-            realloc_call = Call()
-            realloc_call.addchild(Reference(RoutineSymbol(
-                asad_realloc_routine[1])))
-            realloc_call.addchild(Reference(chunk_size_var))
+            realloc_call = Call.create(
+                asad_realloc_routine,
+                [Reference(chunk_size_var)])
 
             # Create conditional reallocation call
             realloc_block = IfBlock.create(
