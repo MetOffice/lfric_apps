@@ -360,7 +360,7 @@ contains
     ! --------------------------------------------------------------------------
 
     call adj_semi_implicit_solver%step( state, rhs, moist_dyn_gas_law, mr, &
-                                        .false., first_iteration )
+                                        first_iteration )
 
     ! --------------------------------------------------------------------------
     ! Compute <AMx,x>
