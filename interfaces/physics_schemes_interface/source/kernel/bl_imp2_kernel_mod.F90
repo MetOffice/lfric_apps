@@ -18,7 +18,7 @@ module bl_imp2_kernel_mod
   use blayer_config_mod,         only : fric_heating
   use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2, &
                                         scheme_bimodal,                   &
-                                        i_bm_ez_opt, i_bm_ez_opt_entpar
+                                        bm_ez_opt, bm_ez_opt_entpar
   use constants_mod,             only : i_def, i_um, r_def, r_um, r_bl
   use fs_continuity_mod,         only : W3, Wtheta
   use kernel_mod,                only : kernel_type
@@ -996,7 +996,7 @@ contains
               wvar_in(i,1,k)     = wvar(map_wth(1,i) + k )
             end do
           end do
-          if (i_bm_ez_opt == i_bm_ez_opt_entpar) then
+          if (bm_ez_opt == bm_ez_opt_entpar) then
             ! Length-scale used for entraining parcel mode construction method
             do i = 1, seg_len
               do k = 1, nlayers

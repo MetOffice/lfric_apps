@@ -19,8 +19,9 @@ module slow_physics_alg_mod
   use timestepping_config_mod,   only: outer_iterations
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_flexchem, &
                                        flexchem_opt, flexchem_opt_none
-  use cloud_config_mod,          only: scheme, scheme_pc2, scheme_bimodal, &
-                                       pc2ini, pc2ini_bimodal,cld_fsd_hill
+  use cloud_config_mod,          only: scheme, scheme_pc2, scheme_bimodal,     &
+                                       pc2_init_method,                        &
+                                       pc2_init_method_bimodal,cld_fsd_hill
   use convection_config_mod,     only: cv_scheme, cv_scheme_lambert_lewis, &
                                        cv_scheme_gregory_rowntree, &
                                        cv_scheme_comorph
@@ -911,7 +912,8 @@ contains
     !------------------------------------------------------------------
 
     if ( cloud == cloud_um .and. ( scheme == scheme_bimodal .or.          &
-        ( scheme == scheme_pc2 .and. pc2ini == pc2ini_bimodal ) ) ) then
+        ( scheme == scheme_pc2 .and.                                      &
+          pc2_init_method == pc2_init_method_bimodal ) ) ) then
 
       call bm_tau_alg(mr_n, theta, derived_fields, turbulence_fields,     &
                      cloud_fields, microphysics_fields)
