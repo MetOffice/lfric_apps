@@ -14,13 +14,13 @@
 
 program linear_model
 
-  use cli_mod,                only : get_initial_filename
+  use cli_mod,                only : parse_command_line
+  use constants_mod,          only : l_def, str_max_filename
   use driver_collections_mod, only : init_collections, final_collections
   use driver_comm_mod,        only : init_comm, final_comm
   use driver_config_mod,      only : init_config, final_config
   use driver_log_mod,         only : init_logger, final_logger
   use driver_time_mod,        only : init_time, final_time
-  use driver_timer_mod,       only : init_timers, final_timers
   use gungho_mod,             only : gungho_required_namelists
   use driver_modeldb_mod,     only : modeldb_type
   use lfric_mpi_mod,          only : global_mpi
@@ -28,6 +28,7 @@ program linear_model
   use log_mod,                only : log_event,       &
                                      log_level_trace, &
                                      log_scratch_space
+  use timing_mod,             only: init_timing, final_timing
 
   implicit none
 
@@ -37,10 +38,14 @@ program linear_model
   character(*), parameter   :: application_name = "linear_model"
   character(:), allocatable :: filename
 
+  character(str_max_filename) :: timer_output_path
+  logical(l_def)              :: subroutine_timers
+
+  call parse_command_line( filename )
+
   modeldb%mpi => global_mpi
 
-  call modeldb%configuration%initialise( application_name, table_len=10 )
-
+  call modeldb%config%initialise( application_name )
   call modeldb%values%initialise('values', 5)
 
   ! Create the depository, prognostics and diagnostics field collections
@@ -59,11 +64,17 @@ program linear_model
   call modeldb%io_contexts%initialise(application_name, 100)
 
   call init_comm( application_name, modeldb )
-  call get_initial_filename( filename )
+
   call init_config( filename, gungho_required_namelists, &
-                    modeldb%configuration )
+                    config=modeldb%config )
+
   call init_logger( modeldb%mpi%get_comm(), application_name )
-  call init_timers( application_name )
+
+  subroutine_timers = modeldb%config%io%subroutine_timers()
+  timer_output_path = modeldb%config%io%timer_output_path()
+  call init_timing( modeldb%mpi%get_comm(), subroutine_timers, &
+                    application_name, timer_output_path )
+
   call init_collections()
   call init_time( modeldb )
   deallocate( filename )
@@ -81,7 +92,7 @@ program linear_model
 
   call final_time( modeldb )
   call final_collections()
-  call final_timers( application_name )
+  call final_timing( application_name )
   call final_logger( application_name )
   call final_config()
   call final_comm( modeldb )

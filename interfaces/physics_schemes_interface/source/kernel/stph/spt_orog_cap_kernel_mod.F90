@@ -8,6 +8,7 @@ module spt_orog_cap_kernel_mod
 
   use argument_mod,      only: arg_type, GH_FIELD,        &
                                GH_WRITE, GH_REAL,         &
+                               GH_SCALAR, GH_INTEGER,     &
                                GH_READ,                   &
                                ANY_DISCONTINUOUS_SPACE_1, &
                                CELL_COLUMN
@@ -27,10 +28,14 @@ module spt_orog_cap_kernel_mod
   !>
   type, public, extends(kernel_type) :: spt_orog_cap_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                   &
+    type(arg_type) :: meta_args(7) = (/                                   &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                   & !dX
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & !fp_spt
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1) & !sd_orog
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1),& !sd_orog
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),      & ! spt_level_bottom
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),      & ! spt_level_top
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),         & ! spt_orog_forcing_pattern_thresh
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)          & ! spt_stddev_orog_thres
          /)
          integer :: operates_on = CELL_COLUMN
 
@@ -58,23 +63,26 @@ contains
   !> @param[in]     ndf_2d      Number of degrees of freedom per cell for density space
   !> @param[in]     undf_2d     Number of unique degrees of freedom for density space
   !> @param[in]     map_2d      Dofmap for the cell at the base of the column for density space
+  !> @param[in]     spt_level_bottom      Bottom level of the stochastic scheme
+  !> @param[in]     spt_level_top         Top level of the stochastic scheme
+  !> @param[in]     spt_orog_forcing_pattern_thresh        spt_orog_forcing_pattern_thresh in stochastic_physics_config_mod
+  !> @param[in]     spt_stddev_orog_thres                  spt_stddev_orog_thres in stochastic_physics_config_mod
 
-  subroutine spt_orog_cap_code(nlayers,  &
-                               dX,       &
-                               fp_spt,   &
-                               sd_orog,  &
-                               ndf_wth,  &
-                               undf_wth, &
-                               map_wth,  &
-                               ndf_2d,   &
-                               undf_2d,  &
-                               map_2d    &
+  subroutine spt_orog_cap_code(nlayers,                         &
+                               dX,                              &
+                               fp_spt,                          &
+                               sd_orog,                         &
+                               spt_level_bottom,                &
+                               spt_level_top,                   &
+                               spt_orog_forcing_pattern_thresh, &
+                               spt_stddev_orog_thres,           &
+                               ndf_wth,                         &
+                               undf_wth,                        &
+                               map_wth,                         &
+                               ndf_2d,                          &
+                               undf_2d,                         &
+                               map_2d                           &
                                )
-
-    use stochastic_physics_config_mod,    only: spt_level_bottom, &
-                                                spt_level_top, &
-                                                spt_orog_forcing_pattern_thresh, &
-                                                spt_stddev_orog_thres
 
     implicit none
 
@@ -84,6 +92,10 @@ contains
     integer(kind=i_def), intent(in) :: undf_wth, undf_2d
     integer(kind=i_def), intent(in), dimension(ndf_wth)  :: map_wth
     integer(kind=i_def), intent(in), dimension(ndf_2d)  ::  map_2d
+    integer(kind=i_def), intent(in) :: spt_level_bottom
+    integer(kind=i_def), intent(in) :: spt_level_top
+    real(kind=r_def), intent(in) :: spt_orog_forcing_pattern_thresh
+    real(kind=r_def), intent(in) :: spt_stddev_orog_thres
 
     ! Fields perturbations + tendencies
     real(kind=r_def), intent(inout), dimension(undf_wth) :: dX
