@@ -41,7 +41,7 @@ class vn31_t363(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
         """Set segmentation size limit for short and long wave radiation kernels"""
-        self.add_setting(config, ["namelist:physics", "sw_segement_limit"], "32")
+        self.add_setting(config, ["namelist:physics", "sw_segment_limit"], "32")
         self.add_setting(config, ["namelist:physics", "lw_segement_limit"], "32")
 
         return config, self.reports
