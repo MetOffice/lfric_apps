@@ -355,7 +355,7 @@ contains
     ! l_ctile is implicitly true by design of LFRic and should not be changed
     l_ctile              = .true.
     l_iceformdrag_lupkes = l_iceformdrag_lupkes_in
-    ! l_saldep_freeze should always be set to false as it no longer affects 
+    ! l_saldep_freeze should always be set to false as it no longer affects
     ! the coupled model except at lake points (which aren't coupled).
     l_saldep_freeze       = .false.
     l_stability_lupkes   = l_stability_lupkes_in

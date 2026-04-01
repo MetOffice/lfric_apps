@@ -156,8 +156,8 @@ contains
       end if
 
       ! For coupled models the sea ice fraction usually comes from the input
-      ! dump. 
-      ! For atmosphere only models or coupled models with inland lakes it is 
+      ! dump.
+      ! For atmosphere only models or coupled models with inland lakes it is
       ! provided by an ancillary file
       if (sea_ice_source == sea_ice_source_start_dump) then
         call fd_fields%get_field('sea_ice_fraction', sea_ice_fraction)
