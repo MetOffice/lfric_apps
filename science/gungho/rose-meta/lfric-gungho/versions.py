@@ -31,3 +31,17 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn31_t363(MacroUpgrade):
+    """Upgrade macro for ticket #363 by Jaffery Irudayasamy."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t363"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Set segmentation size limit for short and long wave radiation kernels"""
+        self.add_setting(config, ["namelist:physics", "sw_segment_limit"], "32")
+        self.add_setting(config, ["namelist:physics", "lw_segment_limit"], "32")
+
+        return config, self.reports
