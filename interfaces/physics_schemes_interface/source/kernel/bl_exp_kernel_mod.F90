@@ -21,10 +21,10 @@ module bl_exp_kernel_mod
   use fs_continuity_mod,      only : W3, Wtheta
   use kernel_mod,             only : kernel_type
   use blayer_config_mod,      only : bl_mix_w
-  use cloud_config_mod,       only : rh_crit_opt, rh_crit_opt_tke, scheme,    &
-                                     scheme_bimodal, scheme_pc2,              &
-                                     pc2ini, pc2ini_bimodal,                  &
-                                     i_bm_ez_opt, i_bm_ez_opt_entpar
+  use cloud_config_mod,       only : rh_crit_opt, rh_crit_opt_tke, scheme,     &
+                                     scheme_bimodal, scheme_pc2,               &
+                                     pc2_init_method, pc2_init_method_bimodal, &
+                                     bm_ez_opt, bm_ez_opt_entpar
   use microphysics_config_mod, only: turb_gen_mixph, prog_tnuc
   use mixing_config_mod,       only: smagorinsky
   use jules_surface_config_mod, only : formdrag, formdrag_dist_drag
@@ -1128,9 +1128,10 @@ contains
 
     ! Liquid temperature gradient and turbulent length-scale
     ! for bimodal cloud scheme
-    if (scheme == scheme_bimodal .or. &
-         (scheme == scheme_pc2 .and. pc2ini == pc2ini_bimodal ) ) then
-      if (i_bm_ez_opt == i_bm_ez_opt_entpar) then
+    if (scheme == scheme_bimodal .or.                                          &
+         (scheme == scheme_pc2 .and.                                           &
+          pc2_init_method == pc2_init_method_bimodal ) ) then
+      if (bm_ez_opt == bm_ez_opt_entpar) then
         ! Length-scale used for entraining parcel mode construction method
         do k = 1, nlayers
           do i = 1, seg_len
@@ -1146,8 +1147,9 @@ contains
         end do
       end if
     end if
-    if (scheme == scheme_bimodal .or. turb_gen_mixph .or. &
-         (scheme == scheme_pc2 .and. pc2ini == pc2ini_bimodal ) ) then
+    if (scheme == scheme_bimodal .or. turb_gen_mixph .or.                      &
+         (scheme == scheme_pc2 .and.                                           &
+          pc2_init_method == pc2_init_method_bimodal ) ) then
       do k = 2, nlayers+1
         do i = 1, seg_len
           wvar(map_wth(1,i)+k-1) = bl_w_var(i,1,k)

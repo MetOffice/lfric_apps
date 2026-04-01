@@ -84,45 +84,43 @@ module um_physics_init_mod
                                 l_converge_ga_in       => l_converge_ga,       &
                                 num_sweeps_bflux_in    => num_sweeps_bflux
 
-  use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2,     &
-                                        scheme_bimodal,                       &
-                                        rh_crit, rh_crit_opt,                 &
-                                        rh_crit_opt_namelist, rh_crit_opt_tke,&
-                                        pc2ini, pc2ini_smith,                 &
-                                        pc2ini_bimodal,                       &
-                                        cloud_pc2_tol_in => cloud_pc2_tol,    &
-                                        cloud_pc2_tol_2_in => cloud_pc2_tol_2,&
-                                        cff_spread_rate_in => cff_spread_rate,&
-                                        falliceshear_method_in =>             &
-                                        falliceshear_method,                  &
-                                        falliceshear_method_real,             &
-                                        falliceshear_method_constant,         &
-                                        falliceshear_method_off,              &
-                                        subgrid_qv, ice_width_in => ice_width,&
-                                    i_pc2_erosion_numerics_in                  &
-                                      => i_pc2_erosion_numerics,               &
-                                    dbsdtbs_turb_0_in => dbsdtbs_turb_0,       &
-                                    ent_coef_bm_in => ent_coef_bm,             &
-                                    ez_max,                                    &
-                                    i_bm_ez_opt_in => i_bm_ez_opt,             &
+  use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2,      &
+                                        scheme_bimodal,                        &
+                                        rh_crit, rh_crit_opt,                  &
+                                        rh_crit_opt_namelist, rh_crit_opt_tke, &
+                                        cloud_pc2_tol_in => cloud_pc2_tol,     &
+                                        cloud_pc2_tol_2_in => cloud_pc2_tol_2, &
+                                        cff_spread_rate_in => cff_spread_rate, &
+                                        falliceshear_method_in =>              &
+                                        falliceshear_method,                   &
+                                        falliceshear_method_real,              &
+                                        falliceshear_method_constant,          &
+                                        falliceshear_method_off,               &
+                                        subgrid_qv, ice_width_in => ice_width, &
+                                        ez_max, bm_ez_opt, bm_ez_opt_orig,     &
+                                        bm_ez_opt_subcrit, bm_ez_opt_entpar,   &
+                                        pc2_erosion_numerics,                  &
+                                        pc2_erosion_numerics_explicit,         &
+                                        pc2_erosion_numerics_implicit,         &
+                                        pc2_erosion_numerics_analytic,         &
+                                        pc2_homog_g_method,                    &
+                                        pc2_homog_g_method_cf,                 &
+                                        pc2_homog_g_method_width,              &
+                                        pc2_homog_g_method_rev,                &
+                                        pc2_init_logic,                        &
+                                        pc2_init_logic_original,               &
+                                        pc2_init_logic_smooth,                 &
+                                        pc2_init_method,                       &
+                                        pc2_init_method_smith,                 &
+                                        pc2_init_method_bimodal,               &
+                                        dbsdtbs_turb_0_in => dbsdtbs_turb_0,   &
+                                        ent_coef_bm_in => ent_coef_bm,         &
                                     l_bm_sigma_s_grad_in => l_bm_sigma_s_grad, &
-                                    l_bm_tweaks_in => l_bm_tweaks,             &
-                                    max_sigmas_in => max_sigmas,               &
-                                    min_sigx_ft_in => min_sigx_ft,             &
-                                    turb_var_fac_bm_in => turb_var_fac_bm,     &
-                                    two_d_fsd_factor_in => two_d_fsd_factor,   &
-                                    pc2_init_logic, pc2_init_logic_original,   &
-                                    pc2_init_logic_smooth,                     &
-                                    i_pc2_homog_g_method_in                    &
-                                      => i_pc2_homog_g_method,                 &
-                                    i_pc2_homog_g_method_cf,                   &
-                                    i_pc2_homog_g_method_width,                &
-                                    i_pc2_homog_g_method_rev,                  &
-                                    i_pc2_erosion_numerics_explicit,           &
-                                    i_pc2_erosion_numerics_implicit,           &
-                                    i_pc2_erosion_numerics_analytic,           &
-                                    i_bm_ez_opt_orig, i_bm_ez_opt_subcrit,     &
-                                    i_bm_ez_opt_entpar
+                                        l_bm_tweaks_in => l_bm_tweaks,         &
+                                        max_sigmas_in => max_sigmas,           &
+                                        min_sigx_ft_in => min_sigx_ft,         &
+                                        turb_var_fac_bm_in => turb_var_fac_bm, &
+                                        two_d_fsd_factor_in => two_d_fsd_factor
 
   use convection_config_mod,     only : cv_scheme,                    &
                                         cv_scheme_gregory_rowntree,   &
@@ -1062,7 +1060,8 @@ contains
 
       ! Bimodal cloud-scheme options
       ! (used if scheme == scheme_bimodal .OR.
-      !          scheme == scheme_pc2 and pc2ini == pc2ini_bimodal).
+      !          scheme == scheme_pc2 and
+      ! pc2_init_method == pc2_init_method_bimodal).
       ! For now just set them regardless as cannot be trigger-ignored.
       ent_coef_bm       = real( ent_coef_bm_in, r_um )
       ez_max_bm         = real( ez_max, r_um )
@@ -1071,12 +1070,12 @@ contains
       turb_var_fac_bm   = real( turb_var_fac_bm_in, r_um )
       l_bm_sigma_s_grad = l_bm_sigma_s_grad_in
       l_bm_tweaks       = l_bm_tweaks_in
-      SELECT CASE ( i_bm_ez_opt_in )
-      CASE ( i_bm_ez_opt_orig )
+      SELECT CASE ( bm_ez_opt )
+      CASE ( bm_ez_opt_orig )
         i_bm_ez_opt = i_bm_ez_orig
-      CASE ( i_bm_ez_opt_subcrit )
+      CASE ( bm_ez_opt_subcrit )
         i_bm_ez_opt = i_bm_ez_subcrit
-      CASE ( i_bm_ez_opt_entpar )
+      CASE ( bm_ez_opt_entpar )
         i_bm_ez_opt = i_bm_ez_entpar
       END SELECT
 
@@ -1109,29 +1108,33 @@ contains
         i_pc2_conv_coupling          = 3
         i_pc2_erosion_method         = pc2eros_hybrid_sidesonly
         l_ensure_min_in_cloud_qcf    = .false.
+        select case(pc2_erosion_numerics)
+          case(pc2_erosion_numerics_explicit)
+            i_pc2_erosion_numerics = i_pc2_erosion_explicit
+          case(pc2_erosion_numerics_implicit)
+            i_pc2_erosion_numerics = i_pc2_erosion_implicit
+          case(pc2_erosion_numerics_analytic)
+            i_pc2_erosion_numerics = i_pc2_erosion_analytic
+        end select
+        select case(pc2_homog_g_method)
+          case(pc2_homog_g_method_cf)
+            i_pc2_homog_g_method = i_pc2_homog_g_cf
+          case(pc2_homog_g_method_width)
+            i_pc2_homog_g_method = i_pc2_homog_g_width
+          case(pc2_homog_g_method_rev)
+            i_pc2_homog_g_method = i_pc2_homog_g_rev
+        end select
         select case(pc2_init_logic)
           case(pc2_init_logic_original)
             i_pc2_init_logic = pc2init_logic_original
           case(pc2_init_logic_smooth)
             i_pc2_init_logic = pc2init_logic_smooth
         end select
-        select case(i_pc2_homog_g_method_in)
-          case(i_pc2_homog_g_method_cf)
-            i_pc2_homog_g_method = i_pc2_homog_g_cf
-          case(i_pc2_homog_g_method_width)
-            i_pc2_homog_g_method = i_pc2_homog_g_width
-          case(i_pc2_homog_g_method_rev)
-            i_pc2_homog_g_method = i_pc2_homog_g_rev
-        end select
-        if (pc2ini == pc2ini_smith)   i_pc2_init_method = pc2init_smith
-        if (pc2ini == pc2ini_bimodal) i_pc2_init_method = pc2init_bimodal
-        select case(i_pc2_erosion_numerics_in)
-          case(i_pc2_erosion_numerics_explicit)
-            i_pc2_erosion_numerics = i_pc2_erosion_explicit
-          case(i_pc2_erosion_numerics_implicit)
-            i_pc2_erosion_numerics = i_pc2_erosion_implicit
-          case(i_pc2_erosion_numerics_analytic)
-            i_pc2_erosion_numerics = i_pc2_erosion_analytic
+        select case(pc2_init_method)
+          case(pc2_init_method_smith)
+            i_pc2_init_method = pc2init_smith
+          case(pc2_init_method_bimodal)
+            i_pc2_init_method = pc2init_bimodal
         end select
 
       case(scheme_bimodal)
