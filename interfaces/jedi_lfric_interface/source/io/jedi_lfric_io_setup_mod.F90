@@ -8,6 +8,7 @@
 module jedi_lfric_io_setup_mod
 
   use calendar_mod,              only: calendar_type
+  use config_mod,                only: config_type
   use constants_mod,             only: i_def
   use driver_fem_mod,            only: init_fem, final_fem
   use empty_io_context_mod,      only: empty_io_context_type
@@ -49,10 +50,12 @@ contains
   !> @param [in]    calendar      The model calendar
   !> @param [inout] io_context  The LFRic context object
   !> @param [inout] model_clock   The model clock
-  subroutine initialise_io( context_name, mpi, file_meta, mesh_name, &
-                            calendar, io_context, model_clock )
+  subroutine initialise_io( config, context_name, mpi, file_meta, &
+                            mesh_name, calendar, io_context, model_clock )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     character(len=*),                       intent(in) :: context_name
     class(lfric_mpi_type),                  intent(in) :: mpi
@@ -73,7 +76,7 @@ contains
     nullify(mesh, chi, panel_id)
 
     ! Create FEM specifics (function spaces and chi field)
-    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+    call init_fem( config, chi_inventory, panel_id_inventory )
 
     ! Get coordinate fields for prime mesh
     mesh => mesh_collection%get_mesh( mesh_name )
@@ -82,8 +85,9 @@ contains
 
     ! Initialise I/O context and setup file to use
     lfric_comm = mpi%get_comm()
-    call init_io( context_name, lfric_comm%get_comm_mpi_val(), file_meta, &
-                  calendar, io_context, chi, panel_id, model_clock )
+    call init_io( config, context_name, lfric_comm%get_comm_mpi_val(), &
+                  file_meta, calendar, io_context, chi, panel_id, &
+                  model_clock )
 
     ! Do initial step
     if ( model_clock%is_initialisation() ) then
@@ -113,7 +117,8 @@ contains
   !> @param[in] model_clock   The model clock
   !> @param[in] before_close  Optional routine to be called before
   !>                          context closes
-  subroutine init_io( context_name,  &
+  subroutine init_io( config,        &
+                      context_name,  &
                       communicator,  &
                       file_meta,     &
                       calendar,      &
@@ -124,6 +129,8 @@ contains
                       before_close )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     character(*),                           intent(in) :: context_name
     integer(i_def),                         intent(in) :: communicator
@@ -166,7 +173,7 @@ contains
       ! Setup the context
       call io_context%initialise( context_name )
       call lfric_comm%set_comm_mpi_val(communicator)
-      call io_context%initialise_xios_context( lfric_comm,            &
+      call io_context%initialise_xios_context( config, lfric_comm,    &
                                                chi, panel_id,         &
                                                model_clock, calendar, &
                                                before_close_ptr )

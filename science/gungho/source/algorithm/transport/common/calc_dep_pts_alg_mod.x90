@@ -98,6 +98,11 @@ module calc_dep_pts_alg_mod
                                                get_detj_at_w2_fv,              &
                                                get_panel_id
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -542,7 +547,9 @@ contains
     ! SL-style Lagrangian departure points -------------------------------------
     case (vertical_method_midpoint, vertical_method_trapezoidal)
       ! Get cell height
-      height_w2_rdef => get_height_fv(W2, mesh%get_id())
+      height_w2_rdef => get_height_fv(W2, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius)
       call height_w2%initialise(vector_space = height_w2_rdef%get_function_space() )
       call copy_field(height_w2_rdef, height_w2 )
 
@@ -617,7 +624,9 @@ contains
       detj_at_w2_ave_rdef  => get_detj_at_w2_fv(mesh_id)
     else
       ! Higher order elements, use finite element
-      detj_at_w2_ave_rdef  => get_detj_at_w2_fe(mesh_id)
+      detj_at_w2_ave_rdef  => get_detj_at_w2_fe(mesh_id, &
+                                        element_order_h, &
+                                        element_order_v)
     end if
 
     ! Set detj_at_w2 to use average Det(J) of neighbouring cells

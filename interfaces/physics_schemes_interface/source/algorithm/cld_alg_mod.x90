@@ -36,6 +36,11 @@ module cld_alg_mod
                                            output_diags_for_cld
   use um_sizes_init_mod,             only: um_sizes_init
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -134,7 +139,9 @@ contains
     call log_event( 'End-of-timestep cloud update', LOG_LEVEL_DEBUG )
 
     mesh => theta%get_mesh()
-    height_wth => get_height_fv(Wtheta, mesh%get_id())
+    height_wth => get_height_fv(Wtheta, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius)
 
     ! Map updated pressure into wtheta space
     call derived_fields%get_field('exner_in_wth', exner_wth)

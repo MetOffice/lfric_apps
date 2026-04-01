@@ -37,6 +37,17 @@ module diagnostic_alg_mod
                                            LOG_LEVEL_ERROR
   use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system, &
+                                       element_order_h, &
+                                       element_order_v
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -275,7 +286,9 @@ contains
     call output_field(1)%copy_field_properties(level)
 
     ! Convert field to physical nodal output & sample chi on nodal points
-    call invoke( nodal_xyz_coordinates_kernel_type(nodal_coordinates, chi, panel_id) )
+    call invoke( nodal_xyz_coordinates_kernel_type(nodal_coordinates, chi, panel_id,&
+                                      geometry, topology,                      &
+                                      coord_system, scaled_radius) )
 
     ! If in spherical geometry,
     ! convert the coordinate field to (longitude, latitude, radius)
@@ -344,7 +357,9 @@ contains
     call field%copy_field_properties(level)
 
     ! Convert field to physical nodal output & sample chi on nodal points
-    call invoke( nodal_xyz_coordinates_kernel_type(nodal_coordinates, chi, panel_id) )
+    call invoke( nodal_xyz_coordinates_kernel_type(nodal_coordinates, chi, panel_id,&
+                                      geometry, topology,                      &
+                                      coord_system, scaled_radius) )
 
     output_fs = field%which_function_space()
 
@@ -647,11 +662,19 @@ contains
 
     if ( rho_field%get_element_order_h() > 0 .or. &
          rho_field%get_element_order_v() > 0 ) then
-      height_w3  => get_height_fe( W3, mesh%get_id() )
-      height_wth => get_height_fe( Wtheta, mesh%get_id() )
+      height_w3  => get_height_fe( W3, mesh%get_id(), &
+                          geometry, element_order_h, element_order_v, &
+                          coord_system, scaled_radius )
+      height_wth => get_height_fe( Wtheta, mesh%get_id(), &
+                          geometry, element_order_h, element_order_v, &
+                          coord_system, scaled_radius )
     else
-      height_w3  => get_height_fv( W3, mesh%get_id() )
-      height_wth => get_height_fv( Wtheta, mesh%get_id() )
+      height_w3  => get_height_fv( W3, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
+      height_wth => get_height_fv( Wtheta, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
     end if
 
     w3_fs      => rho_field%get_function_space()

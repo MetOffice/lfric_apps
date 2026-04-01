@@ -11,8 +11,13 @@ module lake_water_correction_alg_mod
   use constants_mod,              only: l_def, r_def
   use field_mod,                  only: field_type, field_proxy_type
   use mesh_mod,                   only: mesh_type
-  use surface_config_mod,         only: check_soilm_negatives
+
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  ! Configuration modules
+  use base_mesh_config_mod, only: geometry
+  use extrusion_config_mod, only: planet_radius, domain_height
+  use surface_config_mod,   only: check_soilm_negatives
 
   implicit none
 
@@ -114,7 +119,8 @@ contains
     mesh => lake_evap%get_mesh()
 
     ! Calculate the grid cell areas (cell_area)
-    cell_area => get_dA_msl_proj( mesh%get_id() )
+    cell_area => get_dA_msl_proj( mesh%get_id(), &
+                            geometry, planet_radius, domain_height )
 
     ! Multiply by the grid box areas
     call invoke(X_times_Y(evap_whole_grid_cell,lake_evap, cell_area),  &

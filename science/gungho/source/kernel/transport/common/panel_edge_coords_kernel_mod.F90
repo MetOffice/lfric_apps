@@ -18,6 +18,11 @@ use argument_mod,          only: arg_type,                                     &
                                  OWNED_AND_HALO_CELL_COLUMN
 use constants_mod,         only: r_def, i_def, l_def
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
 implicit none
 
 private
@@ -223,7 +228,10 @@ subroutine panel_edge_coords_1d( alpha, beta, chi_1, chi_2, chi_3,             &
     ! Ignore height coordinate as this is not needed
     call chi2xyz(                                                              &
             chi_1(map_wx(df)), chi_2(map_wx(df)), chi_3(map_wx(df)),           &
-            owned_panel, xyz(1), xyz(2), xyz(3)                                &
+            owned_panel, &
+                    geometry, topology,            &
+                    coord_system, scaled_radius,   &
+xyz(1), xyz(2), xyz(3)                                &
     )
     ! Transform to the Cartesian coordinates in the *native* coordinate system
     ! by applying the inverse of any mesh rotation and stretching:

@@ -29,6 +29,11 @@ module initial_mr_kernel_mod
                                              test_isot_dry_atm
     use initial_pressure_config_mod,   only: method, method_balanced
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
     implicit none
     private
 
@@ -170,7 +175,10 @@ contains
         end do
 
         call chi2xyz(coords(1), coords(2), coords(3), &
-                     ipanel, xyz(1), xyz(2), xyz(3))
+                     ipanel, &
+                    geometry, topology,            &
+                    coord_system, scaled_radius,   &
+xyz(1), xyz(2), xyz(3))
 
         !----------------------------------------------------------------------!
         ! Get thermodynamic variables at DoF
@@ -235,7 +243,10 @@ contains
         end do
 
         call chi2xyz(coords(1), coords(2), coords(3), &
-                     ipanel, xyz(1), xyz(2), xyz(3))
+                     ipanel,  &
+                    geometry, topology,            &
+                    coord_system, scaled_radius,   &
+xyz(1), xyz(2), xyz(3))
 
         !----------------------------------------------------------------------!
         ! Get thermodynamic variables at DoF

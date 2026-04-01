@@ -38,6 +38,11 @@ module interpolation_alg_mod
   use sci_nodal_xyz_coordinates_kernel_mod, &
                                         only: nodal_xyz_coordinates_kernel_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   public :: interp_w2_to_w3wth_alg
@@ -100,7 +105,9 @@ module interpolation_alg_mod
                  setval_c(physical_wind_w3(2), 0.0_r_def), &
                  setval_c(physical_wind_w3(3), 0.0_r_def), &
                  convert_hdiv_field_kernel_type(physical_wind_w3, u_in_w2, chi, panel_id), &
-                 nodal_xyz_coordinates_kernel_type(physical_chi_w3, chi, panel_id) )
+                 nodal_xyz_coordinates_kernel_type(physical_chi_w3, chi, panel_id,&
+                                      geometry, topology,                      &
+                                      coord_system, scaled_radius) )
     call invoke( convert_cart2sphere_vector_kernel_type(physical_wind_w3, physical_chi_w3) )
     call invoke( setval_X(u_in_w3, physical_wind_w3(1)), &
                  setval_X(v_in_w3, physical_wind_w3(2)), &
@@ -114,7 +121,9 @@ module interpolation_alg_mod
                  inc_X_times_Y(physical_wind_w2(1), w2_rmultiplicity), &
                  inc_X_times_Y(physical_wind_w2(2), w2_rmultiplicity), &
                  inc_X_times_Y(physical_wind_w2(3), w2_rmultiplicity), &
-                 nodal_xyz_coordinates_kernel_type(physical_chi_w2, chi, panel_id) )
+                 nodal_xyz_coordinates_kernel_type(physical_chi_w2, chi, panel_id,&
+                                      geometry, topology,                      &
+                                      coord_system, scaled_radius) )
     call invoke( convert_cart2sphere_vector_kernel_type(physical_wind_w2, physical_chi_w2) )
     call invoke( extract_w_kernel_type(w_in_wth, physical_wind_w2(3)) )
 
@@ -177,7 +186,9 @@ module interpolation_alg_mod
     ! Compute wind on W2
     ! Based on set_wind in map_fd_prognostics_alg_mod with sample_physics_winds=.true.
     ! Maps computed here to remove dependency on physical_op_constants_mod which requires sample_physics_winds=.true.
-    call invoke( compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id), &
+    call invoke( compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id, &
+                                                  geometry, topology,&
+                                                  coord_system, scaled_radius), &
                  setval_c(u_in_w2, 0.0_r_def), &
                  dg_matrix_vector_kernel_type(u_broken, u_in_w3, u_map), &
                  dg_inc_matrix_vector_kernel_type(u_broken, v_in_w3, v_map), &

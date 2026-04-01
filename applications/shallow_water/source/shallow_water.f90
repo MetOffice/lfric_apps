@@ -65,7 +65,8 @@ program shallow_water
 
   call init_config( filename, shallow_water_required_namelists, &
                     config=modeldb%config )
-  call init_logger( global_mpi%get_comm(), program_name )
+  call init_logger( modeldb%config, global_mpi%get_comm(), &
+                    program_name )
 
   subroutine_timers = modeldb%config%io%subroutine_timers()
   timer_output_path = modeldb%config%io%timer_output_path()
@@ -73,7 +74,7 @@ program shallow_water
   call init_timing( modeldb%mpi%get_comm(), subroutine_timers, &
                     program_name, timer_output_path )
 
-  call init_counters( program_name )
+  call init_counters( modeldb%config, program_name )
   call init_collections()
   call init_time( modeldb )
   deallocate( filename )
@@ -91,7 +92,7 @@ program shallow_water
 
   call final_time( modeldb )
   call final_collections()
-  call final_counters( program_name )
+  call final_counters(modeldb%config, program_name)
   call final_timing( program_name )
   call final_logger( program_name )
   call final_config()

@@ -12,7 +12,7 @@ module shallow_water_model_mod
   use check_configuration_mod,        only: get_required_stencil_depth
   use sci_checksum_alg_mod,           only: checksum_alg
   use conservation_algorithm_mod,     only: conservation_algorithm
-  use constants_mod,                  only: i_def, str_def, r_def, &
+  use constants_mod,                  only: i_def, str_def, r_def, imdi, &
                                             PRECISION_REAL, l_def
   use convert_to_upper_mod,           only: convert_to_upper
   use create_mesh_mod,                only: create_mesh, create_extrusion
@@ -25,6 +25,7 @@ module shallow_water_model_mod
   use extrusion_mod,                  only: extrusion_type,         &
                                             uniform_extrusion_type, &
                                             PRIME_EXTRUSION, TWOD
+  use multigrid_mod,                  only: get_multigrid_tile_size
   use field_mod,                      only: field_type
   use field_parent_mod,               only: write_interface
   use field_collection_mod,           only: field_collection_type
@@ -94,7 +95,15 @@ module shallow_water_model_mod
     real(r_def)    :: domain_bottom
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
-    logical        :: check_partitions
+    logical(l_def) :: check_partitions
+    logical(l_def) :: inner_halo_tiles
+    integer(i_def) :: tile_size_x
+    integer(i_def) :: tile_size_y
+
+    logical(l_def) :: l_multigrid
+
+    integer(i_def), allocatable :: tile_size(:,:)
+    integer(i_def), allocatable :: multigrid_tile_size(:,:)
 
     integer(i_def), parameter :: one_layer = 1_i_def
     integer(i_def) :: i
@@ -108,6 +117,10 @@ module shallow_water_model_mod
     domain_height    = modeldb%config%extrusion%domain_height()
     number_of_layers = modeldb%config%extrusion%number_of_layers()
     scaled_radius    = modeldb%config%planet%scaled_radius()
+
+    tile_size_x = 1
+    tile_size_y = 1
+    inner_halo_tiles = .false.
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
@@ -171,10 +184,22 @@ module shallow_water_model_mod
                                      base_mesh_names, &
                                      modeldb%config )
 
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (l_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
+
     call init_mesh( modeldb%config,              &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
                     base_mesh_names, extrusion,  &
+                    inner_halo_tiles, tile_size, &
                     stencil_depths, check_partitions )
 
 
@@ -182,7 +207,19 @@ module shallow_water_model_mod
     do i=1, size(twod_names)
       twod_names(i) = trim(twod_names(i))//'_2d'
     end do
+
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (l_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion_2d )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
     call create_mesh( base_mesh_names, extrusion_2d, &
+                      inner_halo_tiles, tile_size,   &
                       alt_name=twod_names )
     call assign_mesh_maps(twod_names)
 
@@ -191,7 +228,7 @@ module shallow_water_model_mod
     !-------------------------------------------------------------------------
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
-    call init_fem(mesh_collection, chi_inventory, panel_id_inventory)
+    call init_fem(modeldb%config, chi_inventory, panel_id_inventory)
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of output

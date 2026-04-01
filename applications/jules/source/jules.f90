@@ -71,7 +71,8 @@ program jules
   call init_config( filename, gungho_required_namelists, &
                     config=modeldb%config )
 
-  call init_logger( modeldb%mpi%get_comm(), application_name )
+  call init_logger( modeldb%config, modeldb%mpi%get_comm(), &
+                    application_name )
 
   subroutine_timers = modeldb%config%io%subroutine_timers()
   timer_output_path = modeldb%config%io%timer_output_path()
@@ -81,7 +82,7 @@ program jules
 
   call init_collections()
   call init_time( modeldb )
-  call init_counters( application_name )
+  call init_counters( modeldb%config, application_name )
   deallocate( filename )
 
   call initialise( application_name, modeldb )
@@ -92,7 +93,7 @@ program jules
   end do
   call finalise( application_name, modeldb )
 
-  call final_counters( application_name )
+  call final_counters(modeldb%config, application_name)
   call final_time( modeldb )
   call final_collections()
   call final_timing( application_name )

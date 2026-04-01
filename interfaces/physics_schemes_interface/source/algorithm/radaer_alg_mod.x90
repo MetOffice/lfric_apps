@@ -41,6 +41,11 @@ module radaer_alg_mod
 
   use ukca_radaer_precalc,  only: npd_ukca_aod_wavel
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -212,7 +217,8 @@ contains
       if ( LPROF ) call start_timing( id_aero, 'aerosol.radaer' )
 
       mesh      => theta_in_wth%get_mesh()
-      dz_in_wth => get_dz_at_wtheta(mesh%get_id())
+      dz_in_wth => get_dz_at_wtheta(mesh%get_id(), &
+                             geometry, coord_system, scaled_radius)
 
       ! Unpack fields from aerosol_fields
       call aerosol_fields%get_field('n_ait_sol', n_ait_sol)

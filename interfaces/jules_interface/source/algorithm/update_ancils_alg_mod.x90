@@ -25,6 +25,11 @@ module update_ancils_alg_mod
   use jules_sea_seaice_config_mod, only: amip_ice_thick
   use derived_config_mod,          only: l_couple_sea_ice, l_couple_ocean
 
+  use base_mesh_config_mod,      only: geometry, topology, f_lat
+  use finite_element_config_mod, only: coord_system, element_order_h, element_order_v
+  use planet_config_mod,         only: scaled_radius
+  use idealised_config_mod,      only: f_lon
+
   implicit none
 
   private
@@ -77,7 +82,11 @@ contains
       end if
 
       twod_mesh => sea_ice_thickness%get_mesh()
-      latitude => get_latitude_fv( W3, twod_mesh%get_id() )
+      latitude => get_latitude_fv( W3, twod_mesh%get_id(), &
+                                  geometry, topology, &
+                                  element_order_h, element_order_v, &
+                                  coord_system, f_lat, f_lon, &
+                                  scaled_radius )
 
       ! Start at the head of the time_axis linked list
       loop => time_axis_list%get_head()

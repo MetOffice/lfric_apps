@@ -48,6 +48,11 @@ module physics_mappings_alg_mod
                                         only: nodal_xyz_coordinates_kernel_type
   use sci_field_minmax_alg_mod,         only: log_field_minmax
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -101,8 +106,12 @@ contains
       if (( target_field%which_function_space() == WTHETA ) &
            .and. ( source_field%which_function_space() == W3 ) ) then
         ! Target is lowest order Wtheta, source is lowest order W3
-        height_w3 => get_height_fv(W3, mesh%get_id() )
-        height_wt => get_height_fv(WTHETA, mesh%get_id() )
+        height_w3 => get_height_fv(W3, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
+        height_wt => get_height_fv(WTHETA, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
         call invoke( sample_w3_to_wtheta_kernel_type(target_field, source_field, &
                                                      height_wt, height_w3 ) )
 
@@ -182,7 +191,9 @@ contains
         call u1_field%copy_field_properties(physical_chi(1))
         call u1_field%copy_field_properties(physical_chi(2))
         call u1_field%copy_field_properties(physical_chi(3))
-        call invoke( nodal_xyz_coordinates_kernel_type(physical_chi, chi, panel_id) )
+        call invoke( nodal_xyz_coordinates_kernel_type(physical_chi, chi, panel_id, &
+                                      geometry, topology,                      &
+                                      coord_system, scaled_radius) )
         call invoke( convert_cart2sphere_vector_kernel_type(wind_map, physical_chi) )
       end if
 
@@ -258,7 +269,9 @@ contains
 
     ! Convert coordinate field to physical space
 
-    call invoke( nodal_xyz_coordinates_kernel_type(physical_chi, chi, panel_id) )
+    call invoke( nodal_xyz_coordinates_kernel_type(physical_chi, chi, panel_id,&
+                                      geometry, topology,                      &
+                                      coord_system, scaled_radius) )
 
     ! Convert 3D wind field to 3 components using the Piola transform
 

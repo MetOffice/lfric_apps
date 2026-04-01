@@ -178,6 +178,11 @@ contains
     integer(kind=i_def)     :: number_of_layers
     real(kind=r_def)        :: domain_height
 
+    integer(i_def) :: tile_size_x
+    integer(i_def) :: tile_size_y
+    logical(l_def) :: inner_halo_tiles
+
+    integer(i_def), allocatable :: tile_size(:,:)
     integer(kind=i_def)            :: i
     integer(kind=i_def), parameter :: one_layer = 1_i_def
 
@@ -229,6 +234,10 @@ contains
 
     element_order_h     = modeldb%config%finite_element%element_order_h()
     element_order_v     = modeldb%config%finite_element%element_order_v()
+
+    tile_size_x = 1
+    tile_size_y = 1
+    inner_halo_tiles = .false.
 
     !=======================================================================
     ! Mesh
@@ -307,17 +316,23 @@ contains
     ! Create the required meshes
     !-----------------------------------------------------------------------
     stencil_depth = 2
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
     call init_mesh( modeldb%config,              &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
                     mesh_names, extrusion,       &
+                    inner_halo_tiles, tile_size, &
                     stencil_depth, regrid_method )
 
     allocate( twod_names, source=mesh_names )
     do i=1, size(twod_names)
       twod_names(i) = trim(twod_names(i))//'_2d'
     end do
-    call create_mesh( mesh_names, extrusion_2d, &
+    call create_mesh( mesh_names, extrusion_2d,    &
+                      inner_halo_tiles, tile_size, &
                       alt_name=twod_names )
 
     !=======================================================================
@@ -329,7 +344,7 @@ contains
     ! Create FEM specifics (function spaces and chi field)
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
-    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+    call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
 
     !-----------------------------------------------------------------------
     ! Assign pointers to the correct meshes
@@ -427,9 +442,9 @@ contains
 
     ! Using correct chi and panel_id, initialise xios context for source mesh
     nullify( before_close )
-    call io_context_src%initialise_xios_context( modeldb%mpi%get_comm(), &
-                                                 chi,                    &
-                                                 panel_id,               &
+    call io_context_src%initialise_xios_context( modeldb%config,         &
+                                                 modeldb%mpi%get_comm(), &
+                                                 chi, panel_id,          &
                                                  modeldb%clock,          &
                                                  modeldb%calendar,       &
                                                  before_close            )

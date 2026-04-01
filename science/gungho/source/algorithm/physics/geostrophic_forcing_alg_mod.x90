@@ -22,6 +22,11 @@ use mesh_mod,                      only: mesh_type
 use planet_config_mod,             only: kappa, p_zero, omega
 use timestepping_config_mod,       only: dt
 
+! Configuration modules (due to sci_geometric_constants)
+use base_mesh_config_mod,      only: geometry
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius
+
 implicit none
 
 private
@@ -147,7 +152,9 @@ else
       pressure_coord = .true.
     case(coordinate_height)
       mesh_id = du_in_w3%get_mesh_id()
-      height_w3 => get_height_fv(W3, mesh_id)
+      height_w3 => get_height_fv(W3, mesh_id, &
+                                  geometry, coord_system, &
+                                  scaled_radius)
       pressure_coord = .false.
     case default
       call log_event('Unknown coordinate', LOG_LEVEL_ERROR)
