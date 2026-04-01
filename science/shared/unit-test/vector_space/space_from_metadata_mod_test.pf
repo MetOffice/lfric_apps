@@ -1,0 +1,186 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Unit testing of component code of space_from_metadata.
+!>        Noting that the space_from_metadata function is dependent on an
+!>        in place XIOS context, which makes unit testing complicated and
+!>        is thus deemed not worthwhile.
+
+module space_from_metadata_mod_test
+
+  use feign_config_mod,        only : feign_base_mesh_config
+  use base_mesh_config_mod,    only : geometry_planar, &
+                                      topology_fully_periodic
+  use space_from_metadata_mod, only : trim_string_start_arrow, &
+                                      try_split, split_composite_grid_ref, &
+                                      get_field_fsenum, get_field_flavour, &
+                                      space_from_metadata
+  use constants_mod,           only : r_def, str_def, l_def, i_def
+  use funit
+  use function_space_mod,              only: function_space_type
+
+  implicit none
+
+  private
+  public test_test, set_up, test_trim_string_start_arrow, &
+                  test_try_split, test_split_composite_grid, &
+                  test_get_field_fsenum, test_get_field_flavour_vanilla, &
+                  test_get_field_flavour_planar, test_get_field_flavour_tile, &
+                  test_get_field_flavour_radiation, &
+                  test_get_field_flavour_vanilla_multi
+
+contains
+
+  @before
+  subroutine set_up()
+    call feign_base_mesh_config                  &
+             ( file_prefix='foo',                &
+               prime_mesh_name='unit_test',      &
+               geometry=geometry_planar,         &
+               prepartitioned=.false.,           &
+               topology=topology_fully_periodic, &
+               fplane=.false., f_lat_deg=0.0_r_def )
+
+  end subroutine set_up
+
+  @test
+  subroutine test_test()
+
+    implicit none
+
+    @assertEqual( 1, 1)
+
+  end subroutine test_test
+
+  @test
+  subroutine test_trim_string_start_arrow()
+
+    implicit none
+
+    character(str_def) :: out_str_a, out_str_b
+    character(str_def) :: in_str_a = 'node_grid'
+    character(str_def) :: in_str_b = ' --> node_grid'
+
+    out_str_a = trim_string_start_arrow(in_str_a)
+    out_str_b = trim_string_start_arrow(in_str_b)
+
+    @assertEqual(out_str_a, out_str_b)
+
+  end subroutine test_trim_string_start_arrow
+
+  @test
+  subroutine test_try_split()
+    implicit none
+    character(str_def) :: out_str_suffix
+    character(str_def) :: in_str = 'half_level_edge_grid_cloud_subcols'
+    character(str_def) :: expected_suffix = 'cloud_subcols'
+    character(str_def) :: in_str_prefix = 'half_level_edge_grid'
+    logical(l_def)     :: split_result
+
+    split_result = try_split(in_str, out_str_suffix, in_str_prefix)
+
+    @assertTrue(split_result)
+    @assertEqual(expected_suffix, out_str_suffix)
+
+  end subroutine test_try_split
+
+  @test
+  subroutine test_split_composite_grid()
+    implicit none
+    character(str_def) :: grid_ref = 'half_level_edge_grid_cloud_subcols'
+    character(str_def) :: axis_ref
+    character(str_def) :: expected_grid_ref = 'half_level_edge_grid'
+    character(str_def) :: expected_axis_ref = 'cloud_subcols'
+
+    call split_composite_grid_ref(grid_ref, axis_ref)
+    @assertEqual(expected_grid_ref, grid_ref)
+    @assertEqual(expected_axis_ref, axis_ref)
+
+  end subroutine test_split_composite_grid
+
+  @test
+  subroutine test_get_field_fsenum()
+    implicit none
+    character(str_def) :: xios_id = 'test_xios_id'
+    character(str_def) :: grid_ref = 'full_level_face_grid'
+    character(str_def) :: domain_ref = ''
+    integer(i_def) :: fsenum
+
+    fsenum = get_field_fsenum(xios_id, grid_ref, domain_ref)
+    @assertEqual(274, fsenum)
+
+  end subroutine test_get_field_fsenum
+
+  @test
+  subroutine test_get_field_flavour_vanilla()
+    implicit none
+    character(str_def) :: xios_id = 'test_xios_id'
+    character(str_def) :: grid_ref = 'full_level_face_grid'
+    character(str_def) :: domain_ref = ''
+    character(str_def) :: axis_ref = ''
+    character(str_def) :: flavour
+
+    flavour = get_field_flavour(xios_id, grid_ref, domain_ref, axis_ref)
+    @assertEqual('VanillaField', flavour)
+
+  end subroutine test_get_field_flavour_vanilla
+
+  @test
+  subroutine test_get_field_flavour_vanilla_multi()
+    implicit none
+    character(str_def) :: xios_id = 'test_xios_id'
+    character(str_def) :: grid_ref = 'full_level_face_grid'
+    character(str_def) :: domain_ref = ''
+    character(str_def) :: axis_ref = 'height'
+    character(str_def) :: flavour
+
+    flavour = get_field_flavour(xios_id, grid_ref, domain_ref, axis_ref)
+    @assertEqual('VanillaMulti', flavour)
+
+  end subroutine test_get_field_flavour_vanilla_multi
+
+  @test
+  subroutine test_get_field_flavour_planar()
+    implicit none
+    character(str_def) :: xios_id = 'test_xios_id'
+    character(str_def) :: grid_ref = ''
+    character(str_def) :: domain_ref = 'face'
+    character(str_def) :: axis_ref = ''
+    character(str_def) :: flavour
+
+    flavour = get_field_flavour(xios_id, grid_ref, domain_ref, axis_ref)
+    @assertEqual('PlanarField', flavour)
+
+  end subroutine test_get_field_flavour_planar
+
+  @test
+  subroutine test_get_field_flavour_tile()
+    implicit none
+    character(str_def) :: xios_id = 'test_xios_id'
+    character(str_def) :: grid_ref = ''
+    character(str_def) :: domain_ref = 'node'
+    character(str_def) :: axis_ref = 'tile_levels'
+    character(str_def) :: flavour
+
+    flavour = get_field_flavour(xios_id, grid_ref, domain_ref, axis_ref)
+    @assertEqual('TileField', flavour)
+
+  end subroutine test_get_field_flavour_tile
+
+  @test
+  subroutine test_get_field_flavour_radiation()
+    implicit none
+    character(str_def) :: xios_id = 'test_xios_id'
+    character(str_def) :: grid_ref = ''
+    character(str_def) :: domain_ref = 'node'
+    character(str_def) :: axis_ref = 'radiation_levels'
+    character(str_def) :: flavour
+
+    flavour = get_field_flavour(xios_id, grid_ref, domain_ref, axis_ref)
+    @assertEqual('RadiationField', flavour)
+
+  end subroutine test_get_field_flavour_radiation
+
+end module space_from_metadata_mod_test
