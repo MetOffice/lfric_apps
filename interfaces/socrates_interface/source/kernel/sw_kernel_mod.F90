@@ -467,7 +467,6 @@ subroutine sw_code(nlayers, n_profile, &
   ! Segmentation variables for threading call to Socrates
   integer(i_def) :: max_threads, soc_sw_block, seg_start, seg_end, &
                     ncols_per_thread, nblocks
-  
   ! Note, changes to variables in this file may require corresponding changes in
   ! applications/lfric_atm/optimisation/meto-ex1a/transmute/kernel/sw_kernel_mod.py
 
