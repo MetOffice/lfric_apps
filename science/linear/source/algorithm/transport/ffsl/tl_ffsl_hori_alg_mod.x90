@@ -59,7 +59,6 @@ module tl_ffsl_hori_alg_mod
                                               transport_boundary_depth,        &
                                               transport_overwrite_freq,        &
                                               transport_overwrite_freq_all
-  use check_configuration_mod,          only: get_required_stencil_depth
   use io_config_mod,                    only: subroutine_timers
   use transport_config_mod,             only:                                  &
                                           panel_edge_treatment,                &
@@ -174,9 +173,6 @@ contains
         outer_order = 0
       end if
     end if
-
-    ! This is a switch for us to test
-    use_sl_for_advective = .true.
 
     ! Initialise fields used by all splitting options --------------------------
     call field_x%initialise( vector_space = field_fs )
@@ -576,7 +572,7 @@ contains
                                   remap_depth)
     else
       call field_big_halo%initialise( field_n%get_function_space(), &
-                                      halo_depth=get_required_stencil_depth() )
+                                      halo_depth=mesh%get_halo_depth() )
       call invoke( setval_x(field_big_halo, field_n) )
     end if
     ! Copy required as PSyclone doesn't allow the same field to be
@@ -843,8 +839,8 @@ contains
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)
     else
-      call field_x_big_halo%initialise(field_fs, halo_depth=get_required_stencil_depth())
-      call field_y_big_halo%initialise(field_fs, halo_depth=get_required_stencil_depth())
+      call field_x_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
+      call field_y_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
       call invoke( setval_x(field_x_big_halo, field_x),                        &
                    setval_x(field_y_big_halo, field_y) )
     end if

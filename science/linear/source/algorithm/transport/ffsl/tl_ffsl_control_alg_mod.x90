@@ -90,9 +90,11 @@ module tl_ffsl_control_alg_mod
     integer(kind=i_def)                :: vertical_order
 
     ! Internal variables
-    type(field_type)          :: pert_u_ls_field_update
-    type(field_type), target  :: ls_field_new_with_pert
-    type(field_type), target  :: field_with_ls_wind
+    type(field_type)         :: pert_u_ls_field_update
+    type(field_type), target :: ls_field_new_with_pert
+    type(field_type), target :: field_with_ls_wind
+    type(field_type)         :: mass_flux_pert
+    type(field_type)         :: mass_flux_pert_ls
 
     ! Pointers to fields
     type(field_type), pointer :: field_ptr
