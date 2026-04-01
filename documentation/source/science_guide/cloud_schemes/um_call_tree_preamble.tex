@@ -1,0 +1,25 @@
+
+% Packages needed for the UM subroutine tree diagram in um_call_tree.txt
+
+% Used to colour-code things in the subroutine call tree diagram:
+\usepackage{xcolor}
+% Define a darker green, as in some pdf viewers the standard green
+% is too bright to be readable on the grey background.
+\definecolor{mygreen}{rgb}{0.0, 0.667, 0.0}
+
+% Allow more deeply nested lists, for writing the subroutine call tree:
+\usepackage{enumitem}
+\setlistdepth{20}
+\renewlist{itemize}{itemize}{20}
+\setlist[itemize]{label=$\cdot$}
+\setlist[itemize,1]{label=\textcolor{black}{$\bullet$}}
+\setlist[itemize,2]{label=\textcolor{blue}{$\bullet$}}
+\setlist[itemize,3]{label=\textcolor{purple}{$\bullet$}}
+\setlist[itemize,4]{label=\textcolor{red}{$\bullet$}}
+\setlist[itemize,5]{label=\textcolor{orange}{$\bullet$}}
+\setlist[itemize,6]{label=\textcolor{yellow}{$\bullet$}}
+\setlist[itemize,7]{label=\textcolor{green}{$\bullet$}}
+\setlist[itemize,8]{label=\textcolor{cyan}{$\bullet$}}
+
+% Used to draw boxes around subroutines in the call tree diagram:
+\usepackage[most]{tcolorbox}
