@@ -6911,6 +6911,6 @@ greater vertical coherence. Tuning the parameters in
 
       |image3|
 
-.. |image1| image:: pc2_process_explanation
+.. |image1| image:: pc2_process_explanation.eps
 .. |image2| image:: Timestepping_ctl66.epsi
 .. |image3| image:: Timestepping_pc266.epsi
