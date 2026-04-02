@@ -172,7 +172,6 @@ contains
     call surface_fields%get_field('snowice_melt', snowice_melt)
     call surface_fields%get_field('snowice_sublimation', snowice_sublimation)
     call surface_fields%get_field('urbztm', urbztm)
-    call surface_fields%get_field('inland_basin_flow', inland_basin_flow)
 
     ! Sea ice fields
     call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
@@ -207,6 +206,7 @@ contains
     call soil_fields%get_field('wetness_under_soil', wetness_under_soil)
     call soil_fields%get_field('surface_runoff', surface_runoff)
     call soil_fields%get_field('sub_surface_runoff', sub_surface_runoff)
+    call soil_fields%get_field('inland_basin_flow', inland_basin_flow)
 
     ! Snow fields
     call snow_fields%get_field('tile_snow_mass', tile_snow_mass)

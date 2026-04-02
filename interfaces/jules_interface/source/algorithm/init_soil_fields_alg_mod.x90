@@ -69,6 +69,7 @@ contains
     type( field_type ), pointer :: wetness_under_soil     => null()
     type( field_type ), pointer :: surface_runoff         => null()
     type( field_type ), pointer :: sub_surface_runoff     => null()
+    type( field_type ), pointer :: inland_basin_flow      => null()
 
     call soil_fields%get_field('soil_albedo', soil_albedo)
     call soil_fields%get_field('soil_moist_wilt', soil_moist_wilt)
@@ -95,6 +96,7 @@ contains
     call soil_fields%get_field('wetness_under_soil', wetness_under_soil)
     call soil_fields%get_field('surface_runoff', surface_runoff)
     call soil_fields%get_field('sub_surface_runoff', sub_surface_runoff)
+    call soil_fields%get_field('inland_basin_flow',inland_basin_flow)
 
     ! Set soil ancillaries to fixed values for if no ancil is read
     call invoke( setval_c(soil_albedo, 0.11_r_def),                         &
@@ -114,6 +116,7 @@ contains
                  setval_c(c_wet_frac, 1.0_r_def),                           &
                  setval_c(surface_runoff, 0.0_r_def),                       &
                  setval_c(sub_surface_runoff, 0.0_r_def),                   &
+                 setval_c(inland_basin_flow, 0.0_r_def ),                   &
                  ! Set soil prognostics when no values are provided by um2lfric
                  setval_c(soil_sat_frac, 1.0_r_def),                        &
                  setval_c(water_table, 1.0_r_def),                          &
