@@ -376,7 +376,6 @@ contains
     ! Transport ls_f_np1 with pert wind u'.grad(ls_f_np1)
     ! ======================================================================== !
 
-
     ! COSMIC/Lin-Rood splitting (Leonard et al. 1996, Lin and Rood 1996).
 
     ! 1st advective step -------------------------------------------------------
@@ -531,11 +530,6 @@ contains
     )
     face_selector_ew => get_face_selector_ew(mesh_id)
     face_selector_ns => get_face_selector_ns(mesh_id)
-
-    if (is_cubed_sphere) then
-      panel_id => get_panel_id(mesh_id)
-      panel_edge_dist => get_panel_edge_dist(mesh_id)
-    end if
 
     ! Function spaces
     w2h_fs => dep_dist%get_function_space()

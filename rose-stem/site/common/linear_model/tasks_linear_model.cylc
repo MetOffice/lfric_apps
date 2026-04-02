@@ -76,6 +76,7 @@
         "DT": 1800,
         "tsteps": 12,
         "mpi_parts": 6,
+        "log_level": "debug",
         "plot_str": "linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 70 linear_model-nwp-gal9_C12 theta:exner:rho:u_in_w3:v_in_w3:m_v:m_cl:m_r:m_cf 120:0:5",
     }) %}
 
