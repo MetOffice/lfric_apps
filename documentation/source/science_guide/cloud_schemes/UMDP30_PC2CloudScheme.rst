@@ -135,10 +135,9 @@ In this derivation we will consider only liquid condensate. We assume,
 as above, that, locally, the water content in a cloud is such as to
 remove any supersaturation. This gives the equation
 
-.. math::
+.. math:: :label: eq:basic_qcl
 
    q_{cl} = q_T - q_{sat}(T,p)
-   \label{eq:basic_qcl}
 
 assuming that :math:`q_T > q_{sat}(T,p)` (:math:`q_{cl}` will be zero
 otherwise). :math:`q_T` is the local total water content, equal to the
@@ -152,29 +151,26 @@ with respect to ice when :math:`T < 0 ^{\circ} C`, but the Unified Model
 does not). We now introduce the liquid temperature (:math:`T_L`), where
 :math:`T_L` is given by
 
-.. math::
+.. math:: :label: eq:tl
 
    T_L = T - \frac{L}{c_p} q_{cl} , 
-   \label{eq:tl}
 
 and :math:`L` is the latent heat of vaporization and :math:`c_p` is the
 heat capacity of air. Note that :math:`T_L` is unaffected by changes of
 phase between vapour and liquid. We now write
-:math:`\eqref{eq:basic_qcl}` as an *equality*
+:eq:`eq:basic_qcl` as an *equality*
 
-.. math::
+.. math:: :label: eq:alpha_t_tl
 
    q_{cl} = q_T - \left( q_{sat}(T_L,p) + \alpha (T - T_L) \right)
-   \label{eq:alpha_t_tl}
 
 where
 
-.. math::
+.. math:: :label: eq:alpha
 
    \alpha = \frac{ q_{sat}(T,p) - q_{sat}(T_L,p) }{T - T_L } .
-   \label{eq:alpha}
 
-Using (`[eq:tl] <#eq:tl>`__) in (`[eq:alpha_t_tl] <#eq:alpha_t_tl>`__)
+Using :eq:`eq:tl` in :eq:`eq:alpha_t_tl`
 gives the expression
 
 .. math:: q_{cl} = q_T - q_{sat} (T_L) - \alpha \frac{L}{c_p} q_{cl}
@@ -193,7 +189,7 @@ where :math:`a_L` is given by
    a_L = \left( 1 + \alpha \frac{L}{c_p} \right) ^{-1} .
    \label{eq:a_L}
 
-Thus (`[eq:basic_qcl] <#eq:basic_qcl>`__) has been rewritten *exactly*
+Thus :eq:`eq:basic_qcl` has been rewritten *exactly*
 in terms of the conserved variables, :math:`q_T` and :math:`T_L`,
 although the temperature, :math:`T`, does remain in the definition of
 :math:`a_L`. We will need to consider variations across a gridbox for a
@@ -211,7 +207,7 @@ where :math:`\overline{\phi}` represents the mean of a distibution of
 :math:`\phi` and :math:`\phi = \overline{\phi} + {\phi}'`. The
 expression (`[eq:bar_plus_pri1] <#eq:bar_plus_pri1>`__) is *exact* when
 using the definition of :math:`\alpha` given in
-(`[eq:alpha] <#eq:alpha>`__).
+:eq:`eq:alpha`.
 
 The idea of a PDF scheme is to calculate the first (mean) term,
 :math:`\overline{\phi}`, from the known gridbox mean parameters,
@@ -259,7 +255,7 @@ This gives the equation
 with the assumption that :math:`s \ge -Q_c` (i.e. :math:`q_{cl} \ge 0`).
 If :math:`s < -Q_c` then :math:`q_{cl} = 0`. The term :math:`a_L` can be
 calculated using (`[eq:a_L] <#eq:a_L>`__) from
-(`[eq:alpha] <#eq:alpha>`__) with gridbox mean temperatures, i.e.
+:eq:`eq:alpha` with gridbox mean temperatures, i.e.
 
 .. math::
 
@@ -740,7 +736,7 @@ respect to temperature at constant pressure
 (:math:`\frac{\partial q_{sat}}{\partial T}`), and :math:`\beta` is the
 rate of change of :math:`q_{sat}` with respect to pressure at constant
 temperature (:math:`\frac{\partial q_{sat}}{\partial p}`). Using
-(`[eq:tl] <#eq:tl>`__) to expand :math:`T_L` in terms of :math:`T` and
+:eq:`eq:tl` to expand :math:`T_L` in terms of :math:`T` and
 :math:`q_{cl}` and gathering terms together we obtain
 
 .. math::
@@ -753,7 +749,7 @@ We must now note the method we use here to calculate :math:`a_L`,
 defined in (`[eq:a_L] <#eq:a_L>`__), uses a gradient expansion value of
 :math:`\alpha` that corresponds to :math:`\frac{\partial{q_{sat}}}
 {\partial{T}}` at constant pressure and not the chord expression in
-(`[eq:alpha] <#eq:alpha>`__). This is because we are trying to find the
+:eq:`eq:alpha`. This is because we are trying to find the
 best estimate of the increments, not the absolute value. We have seen
 errors arise in simple numerical tests when the chord expression is
 used. We need to define the temperature around which this calculation of
@@ -768,7 +764,7 @@ discussion of this issue, but we note here that the
 :math:`T` to calculate :math:`\alpha` but the gradient of the chord
 between :math:`(\overline{T_L}, q_{sat}(\overline{T_L}))` and
 :math:`(\overline{T}, q_{sat}(\overline{T}))`, as in
-(`[eq:alpha] <#eq:alpha>`__). The best choice is dependent on the method
+:eq:`eq:alpha`. The best choice is dependent on the method
 of implementation. PC2 uses (`[eq:a_L] <#eq:a_L>`__) with the standard
 thermodynamic relationships (e.g. :raw-latex:`\cite{ry89}`, chapter 2)
 
@@ -1067,7 +1063,7 @@ The conversion between :math:`SD` and :math:`\overline{q_{cl}}` follows
 :math:`\alpha` (and hence :math:`a_L`) in terms of
 :math:`\frac{\partial q_{sat}(\overline{T})}{\partial t}`, although
 within this diagnostic calculation of SD it might actually be better to
-use the representation (`[eq:alpha] <#eq:alpha>`__) used by the
+use the representation :eq:`eq:alpha` used by the
 diagnostic :raw-latex:`\cite{smith90}` scheme.
 
 .. _Numerical Application of the Smith method:
