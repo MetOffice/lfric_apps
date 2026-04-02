@@ -326,8 +326,9 @@ Concept of PC2
 The PC2 scheme develops prognostic expressions for the rates of change
 of cloud fraction and condensate contents as a result of each process
 that acts in the model. We consider ice and liquid condensate as two
-distinct aspects of clouds, which may or may not overlap Figure
-`1 <#fig:schematic>`__ provides a schematic summary of the PC2 scheme.
+distinct aspects of clouds, which may or may not overlap.
+:numref:`Figure %s <fig:schematic>`
+provides a schematic summary of the PC2 scheme.
 The equations for the five prognostic cloud variables can be written
 schematically:
 
@@ -6890,27 +6891,23 @@ against mid-latitude cloud and it is known that tropical clouds have
 greater vertical coherence. Tuning the parameters in
 :math:`large_scale_cloud/ls_acf_brooks.F90` may be beneficial.
 
-.. container:: float
+.. figure:: pc2_process_explanation.svg
    :name: fig:schematic
+   :alt: Schematic summary of the PC2 cloud scheme
+   :width: 100%
 
-   .. container:: center
+   Schematic summary of the PC2 cloud scheme.
 
-      |image1|
-
-.. container:: float
+.. figure:: Timestepping_ctl66.svg
    :name: fig:tstep_diag
+   :alt: Timestepping diagram for the control (non-PC2) scheme
+   :width: 100%
 
-   .. container:: center
+   Timestepping diagram for the control (non-PC2) scheme
 
-      |image2|
-
-.. container:: float
+.. figure:: Timestepping_pc266.svg
    :name: fig:tstep_prog
+   :alt: Timestepping diagram for the PC2 scheme
+   :width: 100%
 
-   .. container:: center
-
-      |image3|
-
-.. |image1| image:: pc2_process_explanation.eps
-.. |image2| image:: Timestepping_ctl66.epsi
-.. |image3| image:: Timestepping_pc266.epsi
+   Timestepping diagram for the PC2 scheme
