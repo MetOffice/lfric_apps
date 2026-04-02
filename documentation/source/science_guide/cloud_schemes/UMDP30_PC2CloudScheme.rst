@@ -58,8 +58,7 @@ straightforward to solve if one is allowed to assume that there is no
 variability of moisture or temperature on a scale of a model gridbox. In
 this case the cloud fraction scheme is redundant and only the
 condensation part remains, which may be solved diagnostically using the
-instantaneous condensation assumption in section
-:ref:`The ‘s’ distribution <sec:s_dist>`:.
+instantaneous condensation assumption in section :ref:`The ‘s’ distribution`.
 However, the ‘no-variability’ assumption is poor until very high
 resolutions close to, or maybe exceeding, 1 km in the horizontal are
 reached. Although we may eventually assume that computer power will
@@ -71,8 +70,7 @@ parametrization.
 There are several approaches to take to the solution of the problem,
 although they are not as independent as often portrayed, since they
 nearly all require the same instantaneous condensation assumption
-(discussed in section :ref:`The ‘s’ distribution <sec:s_dist>`:).
-Hence there are
+(discussed in section :ref:`The ‘s’ distribution`).  Hence there are
 mathematical links between all the approaches. *The following are all
 valid structures to use in this respect.*
 
@@ -114,7 +112,7 @@ and to break the hard diagnostic link between cloud fraction and
 condensate. These major features of the :raw-latex:`\cite{t93}` scheme
 provide the motivation to develop the PC2 cloud scheme.
 
-.. _sec:s_dist:
+.. _The ‘s’ distribution:
 
 The ‘s’ distribution
 --------------------
@@ -2287,7 +2285,7 @@ This term exerts one of the most important influences on the ice cloud
 in the whole model (this applies to the control as well as for PC2).
 Contained in the formulation is a subgrid-scale assumption that causes
 equivalent effects to that for a moisture PDF under the ‘:math:`s`’
-framework (section :ref:`The ‘s’ distribution <sec:s_dist>`:). However, since
+framework (section :ref:`The ‘s’ distribution`). However, since
 :math:`{q_{cf}}` changes slowly in response to local changes in
 :math:`q` and :math:`T`, we cannot base the :math:`q_{cf}` response on
 the same instantaneous condensation framework. It would be useful to
