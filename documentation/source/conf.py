@@ -20,7 +20,8 @@ release = '0.1.0'
 extensions = [
     'sphinx_sitemap',
     'sphinx_design',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.autosectionlabel'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -95,6 +96,9 @@ html_context = {
 # Enable numbered references to e.g. figures.
 #
 numfig = True
+html_use_modindex = True
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 3
 
 # Exclude files from Sphinx processing
 exclude_patterns = ['common_links.rst']
