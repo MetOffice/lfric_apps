@@ -20,6 +20,9 @@ module gungho_init_fields_mod
   use io_value_mod,                       only : io_value_type, &
                                                  io_operation_interface, &
                                                  get_io_value
+  use integer_io_value_mod,                       only : integer_io_value_type, &
+                                                 integer_io_operation_interface, &
+                                                 get_integer_io_value
   use driver_modeldb_mod,                 only : modeldb_type
   use gungho_time_axes_mod,               only : gungho_time_axes_type, &
                                                  get_time_axes_from_collection
@@ -555,9 +558,11 @@ subroutine create_model_data( modeldb,      &
     type( field_type ), pointer :: ageofair => null()
 
     type( io_value_type ),               pointer :: temp_corr_io_value
-    type( io_value_type ),               pointer :: random_seed_io_value
+    type( integer_io_value_type ),               pointer :: random_seed_io_value
     procedure( io_operation_interface ), pointer :: io_op_read_ptr
     procedure( io_operation_interface ), pointer :: io_op_write_ptr
+    procedure( integer_io_operation_interface ), pointer :: integer_io_op_read_ptr
+    procedure( integer_io_operation_interface ), pointer :: integer_io_op_write_ptr
 
     ! Dust fields
 #ifdef UM_PHYSICS
@@ -640,7 +645,7 @@ subroutine create_model_data( modeldb,      &
 
     temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value' )
     if ( stochastic_physics == stochastic_physics_um ) then
-      random_seed_io_value => get_io_value( modeldb%values, 'random_seed_io_value' )
+      random_seed_io_value => get_integer_io_value( modeldb%values, 'random_seed_io_value' )
     end if
     call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
     call modeldb%values%get_value( 'total_energy_previous', &
@@ -680,13 +685,15 @@ subroutine create_model_data( modeldb,      &
     ! like with the fields but currently there is no support for this so they are placed here
     io_op_read_ptr => checkpoint_read_value
     io_op_write_ptr => checkpoint_write_value
+    integer_io_op_read_ptr => checkpoint_read_value
+    integer_io_op_write_ptr => checkpoint_write_value
     if ( encorr_usage /= encorr_usage_none ) then
       call temp_corr_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
       call temp_corr_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
     end if
     if ( stochastic_physics == stochastic_physics_um ) then
-      call random_seed_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
-      call random_seed_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
+      call random_seed_io_value%set_checkpoint_read_behaviour(integer_io_op_read_ptr)
+      call random_seed_io_value%set_checkpoint_write_behaviour(integer_io_op_write_ptr)
     end if
     ! Initialise prognostic fields appropriately
     select case ( prognostic_init_choice )
@@ -1014,7 +1021,8 @@ subroutine create_model_data( modeldb,      &
 
           ! Convert into integer, because io_value_type can accept only real.
           do i = 1, random_seed_size
-            ranseed(i) = nint(random_seed_io_value%data(i), i_def)
+            ranseed(i) = random_seed_io_value%data(i*2-1) * 2**16
+            ranseed(i) = ranseed(i) + random_seed_io_value%data(i*2)
           end do
         end if
 
@@ -1076,7 +1084,7 @@ subroutine create_model_data( modeldb,      &
     type( field_collection_type ), pointer :: fd_fields
     type( field_collection_type ), pointer :: prognostic_fields
 
-    type( io_value_type ), pointer :: random_seed_io_value
+    type( integer_io_value_type ), pointer :: random_seed_io_value
     integer(i_def) :: i
     integer(i_def) :: random_seed_size
     integer(i_def), allocatable :: ranseed(:)
@@ -1106,7 +1114,7 @@ subroutine create_model_data( modeldb,      &
 
       if ( stochastic_physics == stochastic_physics_um ) then
         ! Get current random seed
-        random_seed_io_value => get_io_value(modeldb%values, 'random_seed_io_value')
+        random_seed_io_value => get_integer_io_value(modeldb%values, 'random_seed_io_value')
         random_seed_size = size(random_seed_io_value%data)
         allocate(ranseed(random_seed_size))
 
@@ -1114,7 +1122,8 @@ subroutine create_model_data( modeldb,      &
 
         ! Convert into real, because io_value_type cannot accept integer.
         do i = 1, random_seed_size
-          random_seed_io_value%data(i) = real(ranseed(i), r_def)
+          random_seed_io_value%data(i*2-1) = ranseed(i)/2**16
+          random_seed_io_value%data(i*2)   = ranseed(i) - 2**16 * (ranseed(i)/2**16)
         end do
         deallocate(ranseed)
       end if

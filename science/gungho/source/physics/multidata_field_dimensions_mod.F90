@@ -267,6 +267,7 @@ end subroutine sync_multidata_field_dimensions
 
       case('random_seed_size')
            call random_seed(size=dim)
+           dim = dim * 3
       case ('photol_species')
             if (chem_scheme == chem_scheme_strattrop) then
                dim = n_phot_spc
