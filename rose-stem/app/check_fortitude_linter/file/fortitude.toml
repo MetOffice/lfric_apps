@@ -8,22 +8,33 @@
 
 file-extensions= ["f90", "F90", "X90", "x90", "pf"]          #check these file types
 
-select = ["S101", "PORT011"]
+select = ["E000", "E001", "C001", "C021", "C022", "C031", "C032", "C043",
+"C051", "C061", "C071", "C072", "C081", "C091", "C082", "C092", "C121",
+"C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
+"S101", "S071", "PORT011", "PORT012", "PORT021", "FORT001",
+"FORT002", "FORT003", "FORT004", "FORT005"]
+
+
+# select = ["S101", "PORT011"] #passes
 
 output-format = "grouped"                #group results by file
 
+[check.per-file-ignores]
 
-# "./interfaces/coupled_interface/source/algorithm/process_send_fields_2d_mod.X90" = ["S101"]
+#transport files:
+"analytic_tracer_field_profiles_mod_test.pf" = ["E001"]
+"set_tracer_field_kernel_mod_test.pf" = ["E001", "C121"]
+"initial_tracer_field_sample_kernel_mod_test.pf" = ["E001", "C121"]
 
-# "./interfaces/socrates_interface*" = ["S101"]
-# "../coupled_interface/*" = ["S101"]
+#name_transport files:
+"analytic_name_field_profiles_mod_test.pf" = ["E001"]
+"set_name_field_kernel_mod_test.pf" = ["E001", "C121"]
 
+#lfric_coupled files :
+"lfric_coupled_test.pf" = ["E001", "C121"]
 
-# "./interfaces/coupled_interface/* = ["S101"]
-
-
-# "../socrates_interface/*" = ["S101"]
-# "physics_schemes_interface/*" = ["S101"]
-# "jules_interface/*" = ["S101"]
-# "jedi_lfric_interface/*" = ["S101"]
+#gravity_wave files:
+"analytic_buoyancy_profiles_mod_test.pf" = ["E001"]
+"compute_q_operator_kernel_mod_test.pf" = ["E001", "C121"]
+"initial_buoyancy_kernel_mod_test.pf" = ["E001", "C121"]
 

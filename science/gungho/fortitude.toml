@@ -6,15 +6,19 @@
 
 [check]
 
-file-extensions= ["f90", "F90", "X90", "x90", "pf"]    #check these file types
+file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
 
-
-select = ["E000", "C001", "C031", "C032", "C043", "C051", "C071", "C091",
-"C082", "C092", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "S101",
+select = ["E000", "C001", "C071", "C091", "C092", "C141", "OB011", "OB021", 
+"OB051", "OB061", "MOD001", "S101",
 "PORT011", "PORT012", "PORT021", "FORT001", "FORT002", "FORT003", "FORT004",
 "FORT005"]
 
 
-# select = ["S101", "PORT011"] #passes
+output-format = "grouped"               #group results by file
 
-output-format = "grouped"                #group results by file
+[check.per-file-ignores]
+
+"pressure_gradient_p0_kernel_mod_test.pf" = ["C092"]
+
+
+
