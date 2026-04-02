@@ -20,7 +20,8 @@ release = '0.1.0'
 extensions = [
     'sphinx_sitemap',
     'sphinx_design',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -95,6 +96,10 @@ html_context = {
 # Enable numbered references to e.g. figures.
 #
 numfig = True
+
+# enable \label/\eqref numbering
+# load amsmath functionality
+mathjax3_config = { "tex": { "tags": "ams", "packages": {"[+]": ["ams"]} } }
 
 # Exclude files from Sphinx processing
 exclude_patterns = ['common_links.rst']

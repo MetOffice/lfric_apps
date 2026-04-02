@@ -160,7 +160,7 @@ does not). We now introduce the liquid temperature (:math:`T_L`), where
 and :math:`L` is the latent heat of vaporization and :math:`c_p` is the
 heat capacity of air. Note that :math:`T_L` is unaffected by changes of
 phase between vapour and liquid. We now write
-(`[eq:basic_qcl] <#eq:basic_qcl>`__) as an *equality*
+:math:`\eqref{eq:basic_qcl}` as an *equality*
 
 .. math::
 
