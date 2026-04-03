@@ -90,6 +90,7 @@ module shallow_water_model_mod
     character(str_def) :: prime_mesh_name
 
     integer(i_def) :: geometry
+    integer(i_def) :: topology
     integer(i_def) :: method
     integer(i_def) :: number_of_layers
     real(r_def)    :: domain_bottom
@@ -113,6 +114,7 @@ module shallow_water_model_mod
     !=======================================================================
     prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
     geometry         = modeldb%config%base_mesh%geometry()
+    topology         = modeldb%config%base_mesh%topology()
     method           = modeldb%config%extrusion%method()
     domain_height    = modeldb%config%extrusion%domain_height()
     number_of_layers = modeldb%config%extrusion%number_of_layers()
@@ -240,6 +242,7 @@ module shallow_water_model_mod
     files_init_ptr => init_shallow_water_files
     call init_io( io_context_name, prime_mesh_name, modeldb, &
                   chi_inventory, panel_id_inventory,         &
+                  geometry, topology,                        &
                   populate_filelist=files_init_ptr )
 
     !-------------------------------------------------------------------------

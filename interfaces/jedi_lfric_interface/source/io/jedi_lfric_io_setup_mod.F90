@@ -9,7 +9,7 @@ module jedi_lfric_io_setup_mod
 
   use calendar_mod,              only: calendar_type
   use config_mod,                only: config_type
-  use constants_mod,             only: i_def
+  use constants_mod,             only: i_def, r_def
   use driver_fem_mod,            only: init_fem, final_fem
   use empty_io_context_mod,      only: empty_io_context_type
   use event_actor_mod,           only: event_actor_type
@@ -151,6 +151,16 @@ contains
     procedure(event_action), pointer :: context_advance
     type(lfric_comm_type)            :: lfric_comm
 
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    geometry      = config%base_mesh%geometry()
+    topology      = config%base_mesh%topology()
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     ! Allocate XIOS IO context types
     if (present(before_close)) then
       before_close_ptr => before_close
@@ -173,10 +183,11 @@ contains
       ! Setup the context
       call io_context%initialise( context_name )
       call lfric_comm%set_comm_mpi_val(communicator)
-      call io_context%initialise_xios_context( config, lfric_comm,    &
+      call io_context%initialise_xios_context( lfric_comm,    &
                                                chi, panel_id,         &
                                                model_clock, calendar, &
-                                               before_close_ptr )
+                                               before_close_ptr,        &
+                                         geometry, topology, coord_system, scaled_radius )
       ! Attach context advancement to the model's clock
       context_advance => advance
       event_actor_ptr => io_context

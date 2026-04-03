@@ -371,8 +371,8 @@ contains
   !>
   subroutine initialise_infrastructure( io_context_name, modeldb )
 
-    use base_mesh_config_mod, only: GEOMETRY_PLANAR, &
-                                    GEOMETRY_SPHERICAL
+    use base_mesh_config_mod, only: geometry_planar, &
+                                    geometry_spherical
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics
@@ -445,6 +445,7 @@ contains
     logical(l_def) :: apply_partition_check
 
     integer(i_def) :: geometry
+    integer(i_def) :: topology
     integer(i_def) :: extrusion_method
     real(r_def)    :: domain_bottom
     real(r_def)    :: domain_height
@@ -485,6 +486,7 @@ contains
 
     prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
     geometry         = modeldb%config%base_mesh%geometry()
+    topology         = modeldb%config%base_mesh%topology()
     prepartitioned   = modeldb%config%base_mesh%prepartitioned()
     domain_height    = modeldb%config%extrusion%domain_height()
     extrusion_method = modeldb%config%extrusion%method()
@@ -876,6 +878,7 @@ contains
 
       call init_io( io_context_name, prime_mesh_name, modeldb, &
                     chi_inventory, panel_id_inventory,         &
+                    geometry, topology,                        &
                     populate_filelist=files_init_ptr,          &
                     alt_mesh_names=extra_io_mesh_names,        &
                     before_close=before_context_close )
@@ -883,6 +886,7 @@ contains
     else
       call init_io( io_context_name, prime_mesh_name, modeldb, &
                     chi_inventory, panel_id_inventory,         &
+                    geometry, topology,                        &
                     populate_filelist=files_init_ptr,          &
                     before_close=before_context_close )
     end if

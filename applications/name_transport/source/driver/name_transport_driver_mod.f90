@@ -55,15 +55,13 @@ module name_transport_driver_mod
                                                 name_transport_final
 
   ! Configuration modules
-  use base_mesh_config_mod,               only: GEOMETRY_PLANAR, &
-                                                GEOMETRY_SPHERICAL
-  use name_options_config_mod,            only: transport_density
+  use base_mesh_config_mod,    only: geometry_planar, &
+                                     geometry_spherical
+  use name_options_config_mod, only: transport_density
 
-  use base_mesh_config_mod,      only: geometry
   use finite_element_config_mod, only: coord_system, &
                                        element_order_h, &
                                        element_order_v
-  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -122,6 +120,7 @@ contains
     logical(kind=l_def) :: apply_partition_check
 
     integer(kind=i_def) :: geometry
+    integer(kind=i_def) :: topology
     real(kind=r_def)    :: domain_bottom
     real(kind=r_def)    :: domain_height
     real(kind=r_def)    :: scaled_radius
@@ -143,6 +142,7 @@ contains
     !=======================================================================
     prime_mesh_name    = modeldb%config%base_mesh%prime_mesh_name()
     geometry           = modeldb%config%base_mesh%geometry()
+    topology           = modeldb%config%base_mesh%topology()
     prepartitioned     = modeldb%config%base_mesh%prepartitioned()
     method             = modeldb%config%extrusion%method()
     domain_height      = modeldb%config%extrusion%domain_height()
@@ -350,7 +350,8 @@ contains
                   prime_mesh_name,    &
                   modeldb,            &
                   chi_inventory,      &
-                  panel_id_inventory )
+                  panel_id_inventory, &
+                  geometry, topology )
 
     ! Call clock initial step before initial conditions output
     ! This ensures that lfric_initial.nc will be written out

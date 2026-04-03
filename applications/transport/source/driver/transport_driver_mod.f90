@@ -141,6 +141,7 @@ contains
     logical(kind=l_def) :: apply_partition_check
 
     integer(kind=i_def) :: geometry
+    integer(kind=i_def) :: topology
     real(kind=r_def)    :: domain_bottom
     real(kind=r_def)    :: domain_height
     real(kind=r_def)    :: scaled_radius
@@ -175,6 +176,7 @@ contains
 
     prime_mesh_name    = modeldb%config%base_mesh%prime_mesh_name()
     geometry           = modeldb%config%base_mesh%geometry()
+    topology           = modeldb%config%base_mesh%topology()
     prepartitioned     = modeldb%config%base_mesh%prepartitioned()
     method             = modeldb%config%extrusion%method()
     domain_height      = modeldb%config%extrusion%domain_height()
@@ -436,13 +438,15 @@ contains
                     modeldb,            &
                     chi_inventory,      &
                     panel_id_inventory, &
+                    geometry, topology, &
                     alt_mesh_names=extra_io_mesh_names )
     else
       call init_io( xios_ctx,           &
                     prime_mesh_name,    &
                     modeldb,            &
                     chi_inventory,      &
-                    panel_id_inventory )
+                    panel_id_inventory, &
+                    geometry, topology )
     end if
 
     ! Call clock initial step before initial conditions output
