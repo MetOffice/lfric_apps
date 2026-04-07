@@ -1770,9 +1770,8 @@ Model description
 :raw-latex:`\cite{fhfk14}` started from the equation for the dynamics of
 ice supersaturation :math:`S_i=e_v/e_{sat\;ice}-1`:
 
-.. math::
+.. math:: :label: eqn:squires_eqn
 
-   \label{eqn:squires_eqn}
     \frac{D S_i}{D t} = -b_i B_0 {\cal M}_1 S_i
       -\left(\frac{\varepsilon}{L^2}\right)^{1/3}(S_i-S_E) + a_i w,
 
@@ -1844,13 +1843,13 @@ Equation :eq:`eqn:si_avg` and
 model. The liquid cloud fraction and liquid water mass mixing ratio are
 given by
 
-.. math::
+.. math:: :label: eqn:cloud_fraction
 
-   C_l^{sgt} = \int_{S_{i,wat}}^\infty d S_i F(S_i), \label{eqn:cloud_fraction}
+   C_l^{sgt} = \int_{S_{i,wat}}^\infty d S_i F(S_i),
 
-.. math::
+.. math:: :label: eqn:cloud_liquid
 
-   q_{cl}^{sgt} =  q_{sat\;ice}\int_{S_{i,wat}}^\infty d S_i (S_i -S_{i,wat}) F(S_i) \label{eqn:cloud_liquid},
+   q_{cl}^{sgt} =  q_{sat\;ice}\int_{S_{i,wat}}^\infty d S_i (S_i -S_{i,wat}) F(S_i) ,
 
 
 where :math:`S_{i,wat} = e_{sat\;wat}/e_{sat\;ice}-1` is the value of
@@ -3373,12 +3372,12 @@ The bulk cloud model plume equations for mass and :math:`{\chi}` are:
    - \ensuremath{\frac{\partial \, M^{\rm{P}}}{\partial \, p}}  =
    \left({ \varepsilon \, M^{\rm{P}} - \mu \, M^{\rm{P}} - \delta \, M^{\rm{P}} } \right)
 
-.. math::
+.. math:: :label: eq:dbydpmfchi
 
    - \ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}} \, M^{\rm{P}}}{\partial \, p}}  =  \left({
    \varepsilon \, M^{\rm{P}} \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}
    - \mu \, M^{\rm{P}} \, \ensuremath{{\chi}_{\rm{ }}^{\rm{R}}} - \delta \, M^{\rm{P}} \, \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}}
-   } \right)\label{eq:dbydpmfchi}
+   } \right)
 
 
 Equations :eq:`eq:eddyflux`,
@@ -3411,21 +3410,21 @@ which is also the top of the turbulent mixed boundary layer. A simple
 discretized form of :eq:`eq:chimassflux`, setting
 :math:`{ \mu = 0 }`, is:
 
-.. math::
+.. math:: :label: eq:chidisck
 
    {\ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv, \, k}}  =  m_{\rm{k+1/2}} \,
    \frac{ \left({\ensuremath{{\chi}_{\rm{k+1}}^{\rm{E}}} - \ensuremath{{\chi}_{\rm{k}}^{\rm{E}}}} \right)}
    {{\Delta z}_{\rm{k \, \rightarrow \, k+1}}}
    + {\delta}_{\rm{k}} \, m_{\rm{k}} \, \left({ \ensuremath{{\chi}_{\rm{k}}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{k}}^{\rm{E}}} } \right)
-   \qquad \ldots \; \mbox{for k $>$ cb} \label{eq:chidisck}
+   \qquad \ldots \; \mbox{for k $>$ cb}
 
-.. math::
+.. math:: :label: eq:chidisccb
 
    {\ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv, \, cb}}  =  m_{\rm{cb+1/2}} \,
    \frac{ \left({\ensuremath{{\chi}_{\rm{cb+1}}^{\rm{E}}} - \ensuremath{{\chi}_{\rm{cb}}^{\rm{E}}}} \right)}
    {{\Delta z}_{\rm{cb \, \rightarrow \, cb+1}}}
    - m_{\rm{cb}} \,
-   \left({ \ensuremath{{\chi}_{\rm{i,cb}}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{cb}}^{\rm{E}}} } \right)\label{eq:chidisccb}
+   \left({ \ensuremath{{\chi}_{\rm{i,cb}}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{cb}}^{\rm{E}}} } \right)
 
 
 where the initial parcel value :math:`{\chi}_{\rm{i,cb}}^{\rm{P}}` may
@@ -3466,25 +3465,25 @@ as :eq:`eq:defineq1` and
 :eq:`eq:defineq2`. The change is seen in the vertical
 gradient equations based upon :eq:`eq:gradchipar`
 
-.. math::
+.. math:: :label: eq:gradtpar
 
    M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{T_{\rm{ }}^{\rm{P}}}}{\partial \, p}}  =
    \varepsilon \, M^{\rm{P}} \, \left({ \ensuremath{T_{\rm{ }}^{\rm{P}}} - \ensuremath{T_{\rm{ }}^{\rm{E}}} } \right)-
    \mu         \, M^{\rm{P}} \, \left({ \ensuremath{T_{\rm{ }}^{\rm{P}}} - \ensuremath{T_{\rm{ }}^{\rm{R}}} } \right)-
-   \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{par}}  \label{eq:gradtpar}
+   \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{par}}
 
-.. math::
+.. math:: :label: eq:gradqpar
 
    M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{q_{\rm{ }}^{\rm{P}}}}{\partial \, p}}  =
    \varepsilon \, M^{\rm{P}} \, \left({ \ensuremath{q_{\rm{ }}^{\rm{P}}} - \ensuremath{q_{\rm{ }}^{\rm{E}}} } \right)-
    \mu         \, M^{\rm{P}} \, \left({ \ensuremath{q_{\rm{ }}^{\rm{P}}} - \ensuremath{q_{\rm{ }}^{\rm{R}}} } \right)+
-   {\overline{Q}}_{\rm{par}}  \label{eq:gradqpar}
+   {\overline{Q}}_{\rm{par}}
 
-.. math::
+.. math:: :label: eq:gradlpar
 
    M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{ }}^{\rm{P}}}}{\partial \, p}}  =
    \varepsilon \, M^{\rm{P}} \, \left({ \ensuremath{l_{\rm{ }}^{\rm{P}}} - \ensuremath{l_{\rm{ }}^{\rm{E}}} } \right)
-   - {\overline{Q}}_{\rm{par}} + PPN  \label{eq:gradlpar}
+   - {\overline{Q}}_{\rm{par}} + PPN
 
 
 The final calculation of rates in the current condensation scheme (,
@@ -3568,31 +3567,31 @@ where the PC2 assumption thus far has been that
 Based on :eq:`eq:gradlpar`, the vertical dependence of
 condensate is calculated as
 
-.. math::
+.. math:: :label: eq:vertparl
 
    \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{l}}^{\rm{P}}}}{\partial \, p}}  =  \varepsilon \,
    \left({ \ensuremath{l_{\rm{l}}^{\rm{P}}} - \ensuremath{l_{\rm{l}}^{\rm{E}}} } \right)-
    \frac{{\overline{Q}}_{\rm{l, par}}}{M^{\rm{P}}} -
-   \frac{RAIN}{M^{\rm{P}}}  \label{eq:vertparl}
+   \frac{RAIN}{M^{\rm{P}}}
 
-.. math::
+.. math:: :label: eq:vertparf
 
    \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{f}}^{\rm{P}}}}{\partial \, p}}  =  \varepsilon \,
    \left({ \ensuremath{l_{\rm{f}}^{\rm{P}}} - \ensuremath{l_{\rm{f}}^{\rm{E}}} } \right)-
    \frac{{\overline{Q}}_{\rm{f, par}}}{M^{\rm{P}}} -
-   \frac{SNOW}{M^{\rm{P}}}\label{eq:vertparf}
+   \frac{SNOW}{M^{\rm{P}}}
 
 
 Following , equations :eq:`eq:dbydpmassflux`,
 :eq:`eq:vertparl` and :eq:`eq:vertparf`
 are discretized:
 
-.. math::
+.. math:: :label: eq:discdmfbydp
 
    M_{\rm{k} + 1}  =  M_{\rm{k}} \,
    \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)\,
    \left({ 1 - \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)\,
-   EPSS_{\rm{k}}  \label{eq:discdmfbydp}
+   EPSS_{\rm{k}}
 
 .. math::
 
@@ -3636,7 +3635,7 @@ The condensation and precipitation terms in equations
 therefore solved by starting with an ascent in which condensation and
 precipitation terms are suppressed:
 
-.. math::
+.. math:: :label: eq:discvparldry
 
    \ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}}  =  \frac{\left({
    \ensuremath{l_{\rm{l \, k}}^{\rm{P}}} +
@@ -3644,9 +3643,9 @@ precipitation terms are suppressed:
    \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
    \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}} \right]\,
    \ensuremath{l_{\rm{l \, k + 1}}^{\rm{E}}}
-   } \right)}{EPSS_{\rm{k}}}  \label{eq:discvparldry}
+   } \right)}{EPSS_{\rm{k}}}
 
-.. math::
+.. math:: :label: eq:discvparfdry
 
    \ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}}  =  \frac{\left({
    \ensuremath{l_{\rm{f \, k}}^{\rm{P}}} +
@@ -3654,7 +3653,7 @@ precipitation terms are suppressed:
    \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
    \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}} \right]\,
    \ensuremath{l_{\rm{f \, k + 1}}^{\rm{E}}}
-   } \right)}{EPSS_{\rm{k}}}  \label{eq:discvparfdry}
+   } \right)}{EPSS_{\rm{k}}}
 
 
 At the base of the convective plume (ie. the level immediately above
@@ -3664,17 +3663,17 @@ cloud base), :math:`l_{\rm{l \, k}}^{\rm{P}}` is initialized to
 such that the modified form of :eq:`eq:chidisccb`
 produces zero fluxes at cloud base:
 
-.. math::
+.. math:: :label: eq:q4lcbi
 
    Q4_{\rm{l}}(cb) = 0  =  M_{\rm{cb+1/2}}^{\rm{P}} \,
    \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{l}}^{\rm{E}}}}{\partial \, p}}  - M_{\rm{cb}}^{\rm{P}}\,
-   \left({ \ensuremath{l_{\rm{l}}^{\rm{P \, i}}} - \ensuremath{l_{\rm{l}}^{\rm{E}}}(\rm{cb}) } \right)\label{eq:q4lcbi}
+   \left({ \ensuremath{l_{\rm{l}}^{\rm{P \, i}}} - \ensuremath{l_{\rm{l}}^{\rm{E}}}(\rm{cb}) } \right)
 
-.. math::
+.. math:: :label: eq:q4fcbi
 
    Q4_{\rm{f}}(cb) = 0  =  M_{\rm{cb+1/2}}^{\rm{P}} \,
    \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{f}}^{\rm{E}}}}{\partial \, p}}  - M_{\rm{cb}}^{\rm{P}}\,
-   \left({ \ensuremath{l_{\rm{f}}^{\rm{P \, i}}} - \ensuremath{l_{\rm{f}}^{\rm{E}}}(\rm{cb}) } \right)\label{eq:q4fcbi}
+   \left({ \ensuremath{l_{\rm{f}}^{\rm{P \, i}}} - \ensuremath{l_{\rm{f}}^{\rm{E}}}(\rm{cb}) } \right)
 
 
 As the convection scheme makes the single phase assumption for parcel
@@ -3723,37 +3722,37 @@ where :math:`l_{\rm{k + 1}}^{\rm{P}}` =
 
 This reduces the parcel condensate to :
 
-.. math::
+.. math:: :label: eq:vparlfinal
 
    \ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}}  =  \left({
    \frac{\ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}}}{\ensuremath{l_{\rm{k + 1}}^{\rm{P}}}}
-   } \right)\, \ensuremath{l_{\rm{MIN}}^{\rm{P}}}  \label{eq:vparlfinal}
+   } \right)\, \ensuremath{l_{\rm{MIN}}^{\rm{P}}}
 
-.. math::
+.. math:: :label: eq:vparffinal
 
    \ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}}  =  \left({
    \frac{\ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}}}{\ensuremath{l_{\rm{k + 1}}^{\rm{P}}}}
-   } \right)\, \ensuremath{l_{\rm{MIN}}^{\rm{P}}}  \label{eq:vparffinal}
+   } \right)\, \ensuremath{l_{\rm{MIN}}^{\rm{P}}}
 
 
 The final parcel condensate values are then used in the rate calculation
 based upon eqn :eq:`eq:basiclold`:
 
-.. math::
+.. math:: :label: eq:q4lmassf
 
    Q4_{\rm{l}}(k)  =   M_{\rm{k+1/2}}^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{l}}^{\rm{E}}}}{\partial \, p}}   +
    \left({ {\mu}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} +
    {\delta}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} } \right)\,
    \left({ \ensuremath{l_{\rm{l}}^{\rm{P}}}(\rm{k}) - \ensuremath{l_{\rm{l}}^{\rm{E}}}(\rm{k}) } \right)-
-   {\overline{Q}}_{\rm{l, reset}}  \label{eq:q4lmassf}
+   {\overline{Q}}_{\rm{l, reset}}
 
-.. math::
+.. math:: :label: eq:q4fmassf
 
    Q4_{\rm{f}}(k)  =   M_{\rm{k+1/2}}^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{f}}^{\rm{E}}}}{\partial \, p}}  +
    \left({ {\mu}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} +
    {\delta}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} } \right)\,
    \left({ \ensuremath{l_{\rm{f}}^{\rm{P}}}(\rm{k}) - \ensuremath{l_{\rm{f}}^{\rm{E}}}(\rm{k}) } \right)-
-   {\overline{Q}}_{\rm{f, reset}}  \label{eq:q4fmassf}
+   {\overline{Q}}_{\rm{f, reset}}
 
 
 Note that, as a side-effect, the environment equations for potential
@@ -3780,12 +3779,12 @@ condensate is no longer re-evaporated at the end
    \left({ \theta_{\rm{k}}^{\rm{R}} - \theta_{\rm{k}}^{\rm{E}} } \right)
     +
 
-.. math::
+.. math:: :label: eq:enviroth
 
    \left . {
    \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
    \left({ \theta_{\rm{k}}^{\rm{P}} - \theta_{\rm{k}}^{\rm{E}} } \right)
-   } \right] { }   \label{eq:enviroth}
+   } \right] { }
 
 
 and
@@ -3808,12 +3807,12 @@ and
    \left({ q_{\rm{k}}^{\rm{R}} - q_{\rm{k}}^{\rm{E}} } \right)
     +
 
-.. math::
+.. math:: :label: eq:enviroq
 
    \left . {
    \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
    \left({ q_{\rm{k}}^{\rm{P}} - q_{\rm{k}}^{\rm{E}} } \right)
-   } \right] { }   \label{eq:enviroq}
+   } \right] { }
 
 
 Similarly, eqns :eq:`eq:q4lmassf` and
@@ -3837,12 +3836,12 @@ Similarly, eqns :eq:`eq:q4lmassf` and
    \left({ \ensuremath{l_{\rm{l \, k}}^{\rm{P}}} - \ensuremath{l_{\rm{l \, k}}^{\rm{E}}} } \right)
     +
 
-.. math::
+.. math:: :label: eq:enviroll
 
    \left . {
    \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
    \left({ \ensuremath{l_{\rm{l \, k}}^{\rm{P}}} - \ensuremath{l_{\rm{l \, k}}^{\rm{E}}} } \right)
-   } \right] { }   \label{eq:enviroll}
+   } \right] { }
 
 
 and
@@ -3865,12 +3864,12 @@ and
    \left({ \ensuremath{l_{\rm{f \, k}}^{\rm{P}}} - \ensuremath{l_{\rm{f \, k}}^{\rm{E}}} } \right)
     +
 
-.. math::
+.. math:: :label: eq:envirolf
 
    \left . {
    \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
    \left({ \ensuremath{l_{\rm{f \, k }}^{\rm{P}}} - \ensuremath{l_{\rm{f \, k}}^{\rm{E}}} } \right)
-   } \right] { }   \label{eq:envirolf}
+   } \right] { }
 
 
 .. _Background condensation:
@@ -4299,9 +4298,8 @@ Using the semi-Lagrangian advection in the same way as is performed for
 the model prognostic *Exner*, (:math:`\prod`) on the departure points
 (:math:`\prod_{dep}`). *Exner* is defined as
 
-.. math::
+.. math:: :label: eq:exner
 
-   \label{eq:exner}
    \prod = \frac{T}{\theta} = \left( \frac{p}{p_{ref}} \right)^{\kappa}
 
 where :math:`\theta` is the potential temperature, :math:`p_{ref}` is a
