@@ -4551,26 +4551,29 @@ prognostic :math:`C_l` and :math:`q_{cl}` are incremented as follows:
 
 - If :math:`{q_{cl}}_{diag} > q_{cl}`:
 
-  :math:`\Delta q_{cl} = {q_{cl}}_{diag} - q_{cl}
-  \quad \refstepcounter{equation}(\theequation)\label{eq:dqcl_init}`
+  .. math:: :label: eq:dqcl_init
+
+     \Delta q_{cl} = {q_{cl}}_{diag} - q_{cl}
 
   - If :math:`Q_C < 0`:
 
-    :math:`\Delta C_{l} = \frac{\Delta q_{cl}}{{q_{cl}}_{diag}}
-                    \left( {C_{l}}_{diag} - C_{l} \right)
-      \quad \refstepcounter{equation}(\theequation)\label{eq:dcl_init1}`
+    .. math:: :label: eq:dcl_init1
+
+       \Delta C_{l} = \frac{\Delta q_{cl}}{{q_{cl}}_{diag}}
+                      \left( {C_{l}}_{diag} - C_{l} \right)
 
   - If :math:`Q_C > 0`:
 
-    :math:`\Delta C_{l} = \frac{\Delta SD}{{SD}_{diag}}
-                    \left( {C_{l}}_{diag} - C_{l} \right)
-      \quad \refstepcounter{equation}(\theequation)\label{eq:dcl_init2}`
+    .. math:: :label: eq:dcl_init2
+
+       \Delta C_{l} = \frac{\Delta SD}{{SD}_{diag}}
+                      \left( {C_{l}}_{diag} - C_{l} \right)
 
 - Otherwise:
 
-  :math:`\Delta q_{cl} = 0`
+  .. math:: \Delta q_{cl} = 0
 
-  :math:`\Delta C_{l} = 0`
+  .. math:: \Delta C_{l} = 0
 
 where the subscript :math:`_{diag}` denotes the liquid cloud water
 content and fraction predicted by the diagnostic cloud scheme (either
