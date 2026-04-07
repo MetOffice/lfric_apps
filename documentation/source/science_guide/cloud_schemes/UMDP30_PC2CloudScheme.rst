@@ -1409,10 +1409,10 @@ used within the convection scheme. It still remains to parametrize
 :math:`\delta_{xl}`, which is given by the convection scheme itself.
 This is discussed in section :ref:`Phase of condensate`.
 
-.. _Numerical application:
+.. _Numerical application of injection forcing:
 
-Numerical application
-~~~~~~~~~~~~~~~~~~~~~
+Numerical application of injection forcing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The numerical application using
 :eq:`eq:dcltdt_almost_final` may be
@@ -3050,7 +3050,7 @@ cumulus regimes.
 
       Note that :math:`q_{cl}` falls to zero after a finite time
       :math:`\frac{{q_{cl}}_0}{1-b_1} \frac{a_L}{K}
-       \frac{1}{2 {C_l}_0 (1 - C_l) \, (q_{cl}-Q_c)}`. If the timestep
+      \frac{1}{2 {C_l}_0 (1 - C_l) \, (q_{cl}-Q_c)}`. If the timestep
       :math:`\Delta t` is longer than this time, then erosion completely
       removes the cloud during the current timestep.
 
@@ -5042,7 +5042,7 @@ ill-conditioning of this solution near :math:`C_l = 1`.
 In practice, the ill-conditioning of :eq:`eq:da2` and
 :eq:`eq:da3` becomes too numerically awkward for us to apply
 the full solution based on homogeneous forcing, although, for
-completeness, we outline it in Appendix :ref:`Appendix: Alternative PC2 - Data Assimilation formulations`. Hence
+completeness, we outline it in Appendix :ref:`Appendix; Alternative PC2 - Data Assimilation formulations`. Hence
 we have chosen to apply a much simpler model. Here we use simply the
 data assimilation increments :math:`\Delta \overline{q}` and
 :math:`\Delta \overline{T}` within the standard homogeneous forcing
@@ -5058,7 +5058,7 @@ data assimilation increments for :math:`\Delta \overline{q_{cl}}`,
 :math:`\Delta \overline{q}` and :math:`\Delta \overline{T}` remain those
 that the data assimilation scheme itself calculated.
 
-Appendix :ref:`Appendix: Alternative PC2 - Data Assimilation formulations` gives, for completeness, the
+Appendix :ref:`Appendix; Alternative PC2 - Data Assimilation formulations` gives, for completeness, the
 alternative numerical technique for the solution of
 :eq:`eq:da2` and :eq:`eq:da3`. However, we
 stress that this technique is not used within the current PC2
@@ -6055,9 +6055,9 @@ More information
 Information on results of the scheme and how to run the PC2 code at
 various model versions is available on the PC2 web site.
 
-.. _Appendix: Alternative PC2 - Data Assimilation formulations:
+.. _Appendix; Alternative PC2 - Data Assimilation formulations:
 
-Appendix: Alternative PC2 - Data Assimilation formulations
+Appendix; Alternative PC2 - Data Assimilation formulations
 ==========================================================
 
 In this alternative method to section :ref:`Data Assimilation` we will assume
@@ -6358,9 +6358,9 @@ results than simply using the homogeneous forcing method.
 Further work will be required to enable the implementation of this
 :math:`\overline{q}` and :math:`\overline{T}` preserving method.
 
-.. _Appendix: Essentials of PC2 for code developers:
+.. _Appendix; Essentials of PC2 for code developers:
 
-Appendix: Essentials of PC2 for code developers
+Appendix; Essentials of PC2 for code developers
 ===============================================
 
 This section provides some guidance to code developers on the treatment
