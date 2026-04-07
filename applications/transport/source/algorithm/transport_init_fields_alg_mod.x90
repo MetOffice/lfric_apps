@@ -12,6 +12,7 @@
 
 module transport_init_fields_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: r_def, i_def, radians_to_degrees
   use domain_mod,                        only: domain_type
   use divergence_alg_mod,                only: divergence_alg
@@ -53,6 +54,7 @@ module transport_init_fields_alg_mod
 contains
 !-----------------------------------------------------------------------------
 !> @brief Initialisation of prognostic fields for the transport miniapp.
+!> @param[in]     config            Configuration
 !> @param[in]     mesh              Mesh to initialise variables on
 !> @param[in,out] wind              Transporting wind field
 !> @param[in,out] density           Density field (in W3)
@@ -68,7 +70,8 @@ contains
 !> @param[in,out] wt_aerosol        Tracer in Wtheta on coarse mesh to transport advectively
 !> @param[in,out] divergence        Divergence field
 !-----------------------------------------------------------------------------
-subroutine transport_init_fields_alg( mesh,         &
+subroutine transport_init_fields_alg( config,       &
+                                      mesh,         &
                                       wind,         &
                                       density,      &
                                       theta,        &
@@ -84,6 +87,9 @@ subroutine transport_init_fields_alg( mesh,         &
                                       divergence )
 
     implicit none
+
+    ! Configuration
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(mesh_type), pointer, intent(in) :: mesh
@@ -225,7 +231,7 @@ subroutine transport_init_fields_alg( mesh,         &
     end if
 
     ! Set winds and divergence
-    call init_u_field( wind, initial_time )
+    call init_u_field(config, wind, initial_time)
     call divergence_alg( divergence, wind )
     call map_w2_intermesh( aerosol_wind, wind )
 

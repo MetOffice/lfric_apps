@@ -9,7 +9,7 @@
 module iau_firstfile_io_mod
 
   use calendar_mod,              only: calendar_type
-  use constants_mod,             only: str_def, l_def
+  use constants_mod,             only: str_def, str_max_filename, l_def
   use driver_modeldb_mod,        only: modeldb_type
   use field_collection_mod,      only: field_collection_type
   use field_mod,                 only: field_type

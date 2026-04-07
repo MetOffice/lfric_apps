@@ -634,7 +634,7 @@ module linear_data_algorithm_mod
 
     ! Define reference field
     initial_time = 0.0_r_def
-    call init_u_field( ls_u , initial_time )
+    call init_u_field(modeldb%config, ls_u, initial_time)
     call set_bundle_scalar( 0.0_r_def, ls_mr, nummr )
 
     call invoke( initial_theta_ref_kernel_type( &

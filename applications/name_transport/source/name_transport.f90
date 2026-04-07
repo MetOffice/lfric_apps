@@ -75,7 +75,7 @@ program name_transport
   ! Run time steps
   call log_event( 'Running ' // program_name // ' ...', log_level_trace )
   do while (modeldb%clock%tick())
-    call step_name_transport( modeldb%clock )
+    call step_name_transport( modeldb )
   end do
 
   ! Finalise name_transport app

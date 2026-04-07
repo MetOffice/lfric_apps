@@ -696,10 +696,10 @@ subroutine create_model_data( modeldb,      &
         ! Initialise prognostics analytically according to
         ! namelist options
 
-        call init_gungho_prognostics( prognostic_fields,                    &
-                                      mr_array%bundle,                      &
-                                      moist_dyn_array%bundle                &
-                                      )
+        call init_gungho_prognostics( modeldb%config,    &
+                                      prognostic_fields, &
+                                      mr_array%bundle,   &
+                                      moist_dyn_array%bundle )
 
       case ( init_option_checkpoint_dump )
 

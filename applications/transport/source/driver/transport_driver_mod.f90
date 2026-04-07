@@ -47,7 +47,6 @@ module transport_driver_mod
   use mass_conservation_alg_mod,        only: mass_conservation
   use mesh_mod,                         only: mesh_type
   use mesh_collection_mod,              only: mesh_collection
-  use model_clock_mod,                  only: model_clock_type
   use mr_indices_mod,                   only: nummr
   use runtime_constants_mod,            only: create_runtime_constants
   use timing_mod,                       only: start_timing, stop_timing, &
@@ -339,7 +338,8 @@ contains
     call transport_prerun_setup( num_base_meshes )
 
     ! Initialise prognostic variables
-    call transport_init_fields_alg( mesh, wind, density, theta, &
+    call transport_init_fields_alg( modeldb%config,             &
+                                    mesh, wind, density, theta, &
                                     tracer_con, tracer_adv,     &
                                     constant, mr, w2_vector,    &
                                     aerosol_mesh, aerosol_wind, &
@@ -446,7 +446,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Performs a time step.
   !>
-  subroutine step_transport( model_clock )
+  subroutine step_transport( modeldb )
 
     use base_mesh_config_mod,   only: prime_mesh_name
     use formulation_config_mod, only: use_multires_coupling
@@ -458,7 +458,7 @@ contains
 
     implicit none
 
-    class(model_clock_type), intent(in) :: model_clock
+    type(modeldb_type), intent(in) :: modeldb
 
     type(mesh_type), pointer :: mesh
     type(mesh_type), pointer :: aerosol_mesh
@@ -470,7 +470,7 @@ contains
     write(log_scratch_space, '(I1)') kind(1_i_def)
     call log_event( '        i_def kind = '//log_scratch_space , LOG_LEVEL_INFO )
 
-    call mass_conservation( model_clock%get_step(), density, mr, &
+    call mass_conservation( modeldb%clock%get_step(), density, mr, &
                             w3_aerosol, wt_aerosol, use_aerosols )
     call log_field_minmax( LOG_LEVEL_INFO, 'rho', density )
     call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )
@@ -489,12 +489,12 @@ contains
     write(log_scratch_space, '("/", A, "\ ")') repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     write( log_scratch_space, '(A,I0)' ) &
-      'Start of timestep ', model_clock%get_step()
+      'Start of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     if ( LPROF ) call start_timing( id, 'transport_step' )
 
-    call transport_step( model_clock,                          &
+    call transport_step( modeldb,                              &
                          wind, density, theta, tracer_con,     &
                          tracer_adv, constant, mr, w2_vector,  &
                          w3_aerosol, wt_aerosol, aerosol_wind, &
@@ -503,7 +503,7 @@ contains
     if ( LPROF ) call stop_timing( id, 'transport_step' )
 
     ! Write out conservation diagnostics
-    call mass_conservation( model_clock%get_step(), density, mr, &
+    call mass_conservation( modeldb%clock%get_step(), density, mr, &
                             w3_aerosol, wt_aerosol, use_aerosols )
     call log_field_minmax( LOG_LEVEL_INFO, 'rho', density )
     call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )
@@ -517,45 +517,45 @@ contains
     end if
 
     write( log_scratch_space, &
-           '(A,I0)' ) 'End of timestep ', model_clock%get_step()
+           '(A,I0)' ) 'End of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write(log_scratch_space, '("\", A, "/ ")') repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     ! Output wind and density values.
-    if ( (mod( model_clock%get_step(), diagnostic_frequency ) == 0) &
+    if ( (mod( modeldb%clock%get_step(), diagnostic_frequency ) == 0) &
          .and. write_diag ) then
 
       ! Compute divergence
       call divergence_alg( divergence, wind )
 
       call write_vector_diagnostic( 'u', wind,                &
-                                    model_clock, mesh, nodal_output_on_w3 )
+                                    modeldb%clock, mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'rho', density,           &
-                                    model_clock, mesh, nodal_output_on_w3 )
+                                    modeldb%clock, mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'theta', theta,           &
-                                    model_clock, mesh, nodal_output_on_w3 )
+                                    modeldb%clock, mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'tracer_con', tracer_con, &
-                                    model_clock, mesh, nodal_output_on_w3 )
+                                    modeldb%clock, mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'tracer_adv', tracer_adv, &
-                                    model_clock, mesh, nodal_output_on_w3 )
+                                    modeldb%clock, mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'constant', constant,     &
-                                    model_clock, mesh, nodal_output_on_w3 )
+                                    modeldb%clock, mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'm_v', mr(1),             &
-                                    model_clock, mesh, nodal_output_on_w3 )
+                                    modeldb%clock, mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'divergence', divergence, &
-                                    model_clock, mesh, nodal_output_on_w3 )
+                                    modeldb%clock, mesh, nodal_output_on_w3 )
       if (use_w2_vector) then
         call write_vector_diagnostic( 'w2_vector', w2_vector,   &
-                                      model_clock, mesh, nodal_output_on_w3 )
+                                      modeldb%clock, mesh, nodal_output_on_w3 )
       end if
       if (use_aerosols) then
-        call write_vector_diagnostic( 'aerosol_wind', aerosol_wind, model_clock, &
+        call write_vector_diagnostic( 'aerosol_wind', aerosol_wind, modeldb%clock, &
                                       aerosol_mesh, nodal_output_on_w3 )
         call write_scalar_diagnostic( 'w3_aerosol', w3_aerosol,   &
-                                      model_clock, aerosol_mesh, nodal_output_on_w3 )
+                                      modeldb%clock, aerosol_mesh, nodal_output_on_w3 )
         call write_scalar_diagnostic( 'wt_aerosol', wt_aerosol,   &
-                                      model_clock, aerosol_mesh, nodal_output_on_w3 )
+                                      modeldb%clock, aerosol_mesh, nodal_output_on_w3 )
       end if
     end if
 
