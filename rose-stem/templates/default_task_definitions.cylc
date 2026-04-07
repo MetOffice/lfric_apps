@@ -193,11 +193,11 @@
 
 {% if "xios_info_level" not in task_dict %}
     {% do task_dict.update({"xios_info_level": 0}) %}
-    {% do task_dict.update({"xios_print_file": false}) %}
+    {% do task_dict.update({"xios_print_file": "false"}) %}
 {% endif %}
 
 {% if "xios_info_level" in task_dict and task_dict["xios_info_level"] > 1 %}
-    {% do task_dict.update({"xios_print_file": true}) %}
+    {% do task_dict.update({"xios_print_file": "true"}) %}
 {% endif %}
 
 {# If application is lfric_coupled read in default values specific to coupled runs #}
