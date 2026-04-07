@@ -964,7 +964,7 @@ else ! l_use_surf_in_ri = true
       end if
     end if ! l_noice_in_turb
   end do
-  !$OMP end do
+  !$OMP end do NOWAIT
   k=1
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
@@ -2669,10 +2669,6 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
     else
       call qsat_wat(qsw_arr(i),tl(i,j,k-1),p_theta_levels(i,j,k-1))
     end if
-  end do
-!$OMP end do
-!$OMP do SCHEDULE(STATIC)
-  do i = tdims%i_start, tdims%i_end
     ! calculate the variance
     sl_var = zero
     qw_var = zero
@@ -2712,29 +2708,24 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
     !  do this for safety, not sure if it's really needed
     sgm(i) = sqrt ( max( sgm(i), zero ) )
 
+    if (i_rhcpt == rhcpt_tke_based) then
+        ! calculate rhcrit, with appropriate limits
+        ! calculate grid-box size, just take surface for simplicity
+        delta_x = sqrt( r_theta_levels(i,j,k-1) * delta_lambda *               &
+                      r_theta_levels(i,j,k-1) * delta_phi *                    &
+                      cos_theta_latitude(i,j) )
+        ! max limit, based on curve fitted to aircraft observations
+        max_rhcpt(i,j) = min( 0.99_r_bl, 0.997_r_bl - 0.0078_r_bl *            &
+                                  log( 0.001_r_bl * delta_x ) )
+        ! min limit, based on curve fitted to aircraft observations
+        min_rhcpt(i,j) = max( 0.6_r_bl, 0.846_r_bl - 0.065_r_bl *              &
+                                  log( 0.001_r_bl * delta_x ) )
+        ! full expression
+        rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),             &
+                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
+    end if
   end do !i
 !$OMP end do
-
-  if (i_rhcpt == rhcpt_tke_based) then
-!$OMP do SCHEDULE(STATIC)
-    do i = tdims%i_start, tdims%i_end
-      ! calculate rhcrit, with appropriate limits
-      ! calculate grid-box size, just take surface for simplicity
-      delta_x = sqrt( r_theta_levels(i,j,k-1) * delta_lambda *                 &
-                    r_theta_levels(i,j,k-1) * delta_phi *                      &
-                    cos_theta_latitude(i,j) )
-      ! max limit, based on curve fitted to aircraft observations
-      max_rhcpt(i,j) = min( 0.99_r_bl, 0.997_r_bl - 0.0078_r_bl *              &
-                                log( 0.001_r_bl * delta_x ) )
-      ! min limit, based on curve fitted to aircraft observations
-      min_rhcpt(i,j) = max( 0.6_r_bl, 0.846_r_bl - 0.065_r_bl *                &
-                                log( 0.001_r_bl * delta_x ) )
-      ! full expression
-      rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),               &
-                    one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
-    end do !i
-!$OMP end do
-  end if
 
   ! remaining bl levels use proper interpolation
 
@@ -2746,10 +2737,6 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
       else
         call qsat_wat(qsw_arr(i),tl(i,j,k-1),p_theta_levels(i,j,k-1))
       end if
-    end do
-!$OMP end do
-!$OMP do SCHEDULE(STATIC)
-    do i = tdims%i_start, tdims%i_end
       ! calculate the variance
       sl_var = zero
       qw_var = zero
@@ -2794,19 +2781,15 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
       sgm(i) = a_dqsdt(i,j,k-1)**2 * exner**2 * sl_var                         &
               + a_qs(i,j,k-1)**2 * qw_var                                      &
               - 2.0_r_bl * a_qs(i,j,k-1) * a_dqsdt(i,j,k-1) * exner * sl_qw
-    end do !i
+      if (i_rhcpt == rhcpt_tke_based) then
+          ! do this for safety, not sure if it's really needed
+          sgm(i) = sqrt ( max( sgm(i), zero ) )
+          ! calculate rhcrit, with appropriate limits
+          rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),           &
+                    one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
+      end if
+  end do !i
 !$OMP end do NOWAIT
-    if (i_rhcpt == rhcpt_tke_based) then
-!$OMP do SCHEDULE(STATIC)
-      do i = tdims%i_start, tdims%i_end
-        ! do this for safety, not sure if it's really needed
-        sgm(i) = sqrt ( max( sgm(i), zero ) )
-        ! calculate rhcrit, with appropriate limits
-        rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),             &
-                  one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
-      end do !i
-!$OMP end do NOWAIT
-    end if
 
   end do     !k
 !$OMP BARRIER
