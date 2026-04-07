@@ -25,7 +25,7 @@ module theta_transport_alg_mod
   use fv_divergence_3d_kernel_mod,    only: fv_divergence_3d_kernel_type
   use sci_geometric_constants_mod,    only: get_height_fv, get_height_fe
   use log_mod,                        only: log_event, LOG_LEVEL_ERROR
-  use map_w2_to_sh_w2_alg_mod,        only: map_w2_to_sh_w2_alg
+  use map_w2_to_sh_w2_alg_mod,        only: map_w2_to_sh_w2_alg_rtran
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
   use moist_to_dry_theta_kernel_mod,  only: moist_to_dry_theta_kernel_type
@@ -320,7 +320,7 @@ contains
       w2_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2)
       wind => transport_controller%get_transporting_wind()
       call wind_shifted%initialise( w2_sh_fs )
-      call map_w2_to_sh_w2_alg(wind_shifted, wind)
+      call map_w2_to_sh_w2_alg_rtran(wind_shifted, wind)
 
       ! Get divergence on shifted mesh
       detj_at_w3 => get_detj_at_w3_r_tran(shifted_mesh%get_id())
