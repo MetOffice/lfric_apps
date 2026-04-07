@@ -4432,16 +4432,16 @@ The initiation will be called if the liquid cloud fraction is either 0
 or 1 and appropriate :math:`RH` criteria hold, along with other
 restrictions. :math:`C_l` is initiated away from 0 if
 
--  :math:`RH_T > RH_{crit} + RH_{crit \, tol}` **and**
+- :math:`RH_T > RH_{crit} + RH_{crit \, tol}` **and**
 
--  Cumulus convection has *not* been diagnosed from the boundary-layer
+- Cumulus convection has *not* been diagnosed from the boundary-layer
   in the current column **and**
 
--  The current level is not below the surface mixed-layer LCL **and**
+- The current level is not below the surface mixed-layer LCL **and**
 
--  :math:`C_l = 0` **and**
+- :math:`C_l = 0` **and**
 
--  :math:`RH_T^{[n+1]} > RH_T^{[n]}` ,
+- :math:`RH_T^{[n+1]} > RH_T^{[n]}` ,
 
 where :math:`RH_{crit \, tol}` is a specified tolerance parameter, of
 value 0.01, and :math:`RH_T` is defined in :eq:`eq:rht`.
@@ -4451,15 +4451,15 @@ is called. Additionally, there is another possibility for the last of
 the relations. This second option also allows initiation when the water
 is supercooled:
 
--  :math:`C_l < 0.05` *and* :math:`\overline{T} < 0 ^{\circ} C` .
+- :math:`C_l < 0.05` *and* :math:`\overline{T} < 0 ^{\circ} C` .
 
 Equivalently, :math:`C_l` is initiated away from 1 if
 
--  :math:`RH_T < 2 - RH_{crit} - RH_{crit \, tol}` **and**
+- :math:`RH_T < 2 - RH_{crit} - RH_{crit \, tol}` **and**
 
--  :math:`C_l = 1` **and**
+- :math:`C_l = 1` **and**
 
--  :math:`RH_T^{[n+1]} < RH_T^{[n]}` .
+- :math:`RH_T^{[n+1]} < RH_T^{[n]}` .
 
 “Simplified” initiation logic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4656,9 +4656,9 @@ We first calculate :math:`RH_T` using :eq:`eq:rht` and
 compare this to the critical relative humidity, :math:`RH_{crit}`. The
 liquid cloud fraction will be reset to 1 if:
 
--  :math:`RH_T > 2 - RH_{crit}` and :math:`C_l \ge C_{high}`
+- :math:`RH_T > 2 - RH_{crit}` and :math:`C_l \ge C_{high}`
 
--  or :math:`C_l \ge C_{high 2}`
+- or :math:`C_l \ge C_{high 2}`
 
 where :math:`C_{high}` and :math:`C_{high 2}` are defined in
 :eq:`eq:chigh-chigh2`. The evaporation is done by
@@ -4670,9 +4670,9 @@ to saturation, according to :eq:`eq:qsdcheck1` below.
 Similarly, the equivalent check for low values of :math:`RH_T` is
 performed. The liquid cloud fraction will be reset to 0 if:
 
--  :math:`RH_T < RH_{crit}` and :math:`C_l \le C_{low}`
+- :math:`RH_T < RH_{crit}` and :math:`C_l \le C_{low}`
 
--  or :math:`C_l \le C_{low 2}` .
+- or :math:`C_l \le C_{low 2}` .
 
 The remaining :math:`\overline{q_{cl}}` is evaporated into the gridbox
 using :eq:`eq:qclcheck` below.
@@ -5641,30 +5641,30 @@ diagnose the moisture cycle within PC2. Since most physics sections can
 cause condensation, condensate and cloud fraction increment diagnostics
 have been written for each of these sections.
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{C_t}` and
   :math:`\overline{C_l}` increments from SW radiation,
   :math:`\overline{T}` increment from SW Radiation without including the
   condensation: **Section 1** .
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{C_t}` and
   :math:`\overline{C_l}` increments from LW radiation,
   :math:`\overline{T}` increment from LW Radiation without including the
   condensation: **Section 2** .
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{q_{cf}}`,
   :math:`\overline{C_t}`, :math:`\overline{C_l}` and
   :math:`\overline{C_f}` increments from Boundary Layer: **Section 3** .
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{q_{cf}}`,
   :math:`\overline{C_t}`, :math:`\overline{C_l}` and
   :math:`\overline{C_f}` increments from Large-scale precipitation:
   **Section 4** .
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{q_{cf}}`,
   :math:`\overline{C_t}`, :math:`\overline{C_l}` and
   :math:`\overline{C_f}` increments from Convection,
@@ -5673,7 +5673,7 @@ have been written for each of these sections.
   :math:`\overline{C_l}` and :math:`\overline{C_f}` increments from the
   inhomogeneous part of the Convection scheme only: **Section 5** .
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{q_{cf}}`,
   :math:`\overline{C_t}`, :math:`\overline{C_l}` and
   :math:`\overline{C_f}` increments from the Advection: **Section 12** .
@@ -5685,25 +5685,25 @@ increments were available using a modification set or branch and a
 user-STASHmaster file up to version 7.5. From version 7.6 these
 diagnostics are available as standard.
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{C_t}`, and
   :math:`\overline{C_l}` increments from the PC2 erosion section:
   **Section 4** or **Section 5** depending on where the erosion is
   called.
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{q_{cf}}`,
   :math:`\overline{C_t}`, :math:`\overline{C_l}` and
   :math:`\overline{C_f}` increments from the Bounds Checking after
   atmphya: **Section 4** .
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{q_{cf}}`,
   :math:`\overline{C_t}`, :math:`\overline{C_l}` and
   :math:`\overline{C_f}` increments from the Initiation and Bounds
   checking at the end of the timestep: **Section 16** .
 
--  :math:`\overline{T}`, :math:`\overline{q}`,
+- :math:`\overline{T}`, :math:`\overline{q}`,
   :math:`\overline{q_{cl}}`, :math:`\overline{q_{cf}}`,
   :math:`\overline{C_t}`, :math:`\overline{C_l}` and
   :math:`\overline{C_f}` increments from the Pressure Forcing section:
