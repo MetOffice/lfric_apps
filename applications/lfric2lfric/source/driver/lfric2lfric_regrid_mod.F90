@@ -85,7 +85,6 @@ contains
     type(field_type),          target  :: u_in_w3_src,  u_in_w3_dst
     type(field_type),          target  :: v_in_w3_src,  v_in_w3_dst
     type(field_type),          target  :: w_in_wth_src, w_in_wth_dst
-    type(field_type),          pointer :: field_src_ptr, field_dst_ptr
 
     integer(kind=i_def)                :: fs
     type(function_space_type), pointer :: fs_w3_src, fs_w3_dst
@@ -176,15 +175,9 @@ contains
       select case (regrid_method)
         case (regrid_method_map)
           if (fs == W2) then
-            field_src_ptr => u_in_w3_src
-            field_dst_ptr => u_in_w3_dst
-            call lfric2lfric_map_regrid(field_dst_ptr, field_src_ptr)
-            field_src_ptr => v_in_w3_src
-            field_dst_ptr => v_in_w3_dst
-            call lfric2lfric_map_regrid(field_dst_ptr, field_src_ptr)
-            field_src_ptr => w_in_wth_src
-            field_dst_ptr => w_in_wth_dst
-            call lfric2lfric_map_regrid(field_dst_ptr, field_src_ptr)
+            call lfric2lfric_map_regrid(u_in_w3_dst, u_in_w3_src)
+            call lfric2lfric_map_regrid(v_in_w3_dst, v_in_w3_src)
+            call lfric2lfric_map_regrid(w_in_wth_dst, w_in_wth_src)
           else
             call lfric2lfric_map_regrid(field_dst, field_src)
           end if
@@ -199,18 +192,12 @@ contains
         case (regrid_method_oasis)
 #ifdef MCT
           if (fs == W2) then
-            field_src_ptr => u_in_w3_src
-            field_dst_ptr => u_in_w3_dst
             call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
-                                  field_dst_ptr, field_src_ptr)
-            field_src_ptr => v_in_w3_src
-            field_dst_ptr => v_in_w3_dst
+                                  u_in_w3_dst, u_in_w3_src)
             call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
-                       field_dst_ptr, field_src_ptr)
-            field_src_ptr => w_in_wth_src
-            field_dst_ptr => w_in_wth_dst
+                                  v_in_w3_dst, v_in_w3_src)
             call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
-                                  field_dst_ptr, field_src_ptr)
+                                  w_in_wth_dst, w_in_wth_src)
           else
             call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
                                           field_dst, field_src)
