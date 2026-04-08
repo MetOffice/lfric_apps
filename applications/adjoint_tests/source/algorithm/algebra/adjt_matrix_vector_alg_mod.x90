@@ -36,7 +36,7 @@ module adjt_matrix_vector_alg_mod
   !> and A is the adjoint.
   !> @param[in]  mesh                    The model mesh
   subroutine adjt_matrix_vector_alg(mesh)
-    
+
     use matrix_vector_kernel_mod,     only : matrix_vector_kernel_type
     use adj_matrix_vector_kernel_mod, only : adj_matrix_vector_kernel_type
 
