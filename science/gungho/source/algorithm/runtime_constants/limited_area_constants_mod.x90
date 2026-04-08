@@ -697,7 +697,7 @@ contains
       fs => function_space_collection%get_fs(mesh, element_order_h, &
                                              element_order_v, space)
       call inventory%add_field(mask_r_solver, fs, mesh)
-      call invoke(real_to_real_x(mask_r_solver, mask_r_def))
+      call invoke( real_to_real_x(mask_r_solver, mask_r_def) )
 
       if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if

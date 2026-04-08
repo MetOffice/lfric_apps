@@ -384,7 +384,7 @@ contains
           ! Consistent wind will be vertical only -- initialise as wind_v
           height_rdef => get_height_fv(Wtheta, mesh%get_id())
           call height%initialise( vector_space = height_rdef%get_function_space() )
-          call invoke( real_to_real_x( height, height_rdef ) )
+          call invoke( real_to_real_x(height, height_rdef) )
           chi => get_coordinates(mesh%get_id())
           call u_grad_z%initialise( u_grad_f%get_function_space() )
           call consistent_wind%initialise( wind_v%get_function_space() )
