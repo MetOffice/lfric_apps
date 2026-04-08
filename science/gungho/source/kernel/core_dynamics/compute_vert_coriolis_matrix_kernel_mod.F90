@@ -28,14 +28,16 @@ use argument_mod,            only: arg_type, func_type,       &
                                    GH_BASIS, GH_DIFF_BASIS,   &
                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
 use fs_continuity_mod,       only: W2, Wtheta
-
 use sci_coordinate_jacobian_mod, only: coordinate_jacobian
-use base_mesh_config_mod,    only: geometry,           &
-                                   geometry_spherical
 use rotation_vector_mod,     only: rotation_vector_fplane,  &
                                    rotation_vector_sphere,  &
                                    vert_vector_sphere
 use cross_product_mod,       only: cross_product
+
+use base_mesh_config_mod,      only: geometry, topology, &
+                                     geometry_spherical
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius
 
 implicit none
 private
@@ -180,8 +182,10 @@ subroutine compute_vert_coriolis_matrix_code(col_idx, nlayers, ncell_3d,       &
     end if
 
     ! Calculate the Jacobian
-    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v,                            &
-                             chi_1_e, chi_2_e, chi_3_e, ipanel,                &
+    call coordinate_jacobian(coord_system, geometry,            &
+                             topology, scaled_radius,           &
+                             ndf_chi, nqp_h, nqp_v,             &
+                             chi_1_e, chi_2_e, chi_3_e, ipanel, &
                              basis_chi, diff_basis_chi, jac, dj)
 
     ! To convert from reference space to physical space:

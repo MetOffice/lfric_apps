@@ -1,9 +1,8 @@
-import re
 import sys
 
-from metomi.rose.upgrade import MacroUpgrade
+from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version22_30 import *
+from .version30_31 import *
 
 
 class UpgradeError(Exception):
@@ -21,10 +20,13 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
+
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
+
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
+
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports

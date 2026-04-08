@@ -43,6 +43,11 @@
         inherit={{inherit.str|upper}}
         script="rose task-run --app-key=check_style"
 
+{% elif "fortitude_linter" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=check_fortitude_linter"
+
 {% elif "extract_checker" in task %}
 
         inherit={{inherit.str|upper}}

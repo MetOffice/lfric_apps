@@ -35,13 +35,13 @@
 program jedi_tlm_tests
 
   use cli_mod,                      only : parse_command_line
-  use constants_mod,                only : PRECISION_REAL, i_def, str_def, r_def
+  use config_mod,                   only : config_type
+  use constants_mod,                only : PRECISION_REAL, i_def, str_def, &
+                                           r_def, l_def
   use field_collection_mod,         only : field_collection_type
   use log_mod,                      only : log_event, log_scratch_space, &
                                            LOG_LEVEL_ALWAYS, LOG_LEVEL_ERROR, &
                                            LOG_LEVEL_INFO
-  use namelist_collection_mod,      only : namelist_collection_type
-  use namelist_mod,                 only : namelist_type
 
   ! Jedi emulator objects
   use jedi_lfric_duration_mod,      only : jedi_duration_type
@@ -66,11 +66,13 @@ program jedi_tlm_tests
   type( jedi_post_processor_traj_type ) :: pp_traj
 
   ! Local
-  type( namelist_collection_type ), pointer :: configuration
+
+  type( config_type ), pointer :: config
+
   character(:),                 allocatable :: filename
   integer( kind=i_def )                     :: model_communicator
   type( jedi_duration_type )                :: forecast_length
-  type( namelist_type ),            pointer :: jedi_lfric_settings_config
+  logical( kind=l_def )                     :: real_increment
   character( str_def )                      :: forecast_length_str
   real( kind=r_def )                        :: dot_product_1
   real( kind=r_def )                        :: dot_product_2
@@ -100,18 +102,22 @@ program jedi_tlm_tests
   call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
   ! Get the configuration
-  configuration => run%get_configuration()
+  config => run%get_config()
 
   ! Get the forecast length
-  jedi_lfric_settings_config => configuration%get_namelist('jedi_lfric_settings')
-  call jedi_lfric_settings_config%get_value( 'forecast_length', forecast_length_str )
+  forecast_length_str = config%jedi_lfric_settings%forecast_length()
   call forecast_length%init(forecast_length_str)
 
   ! Create geometry
-  call geometry%initialise( model_communicator, configuration )
+  call geometry%initialise( model_communicator, config )
+
+  ! Create inc_initial, either from file or random
+  call inc_initial%initialise( geometry, config )
+  real_increment = config%jedi_increment%initialise_via_read()
+  if (.not. real_increment) call inc_initial%random()
 
   ! Create state
-  call state%initialise( geometry, configuration )
+  call state%initialise( geometry, config )
 
   ! Create linear model
   call linear_model%initialise( geometry, filename )
@@ -120,16 +126,12 @@ program jedi_tlm_tests
   call pp_traj%initialise( linear_model )
 
   ! Create non-linear model
-  call pseudo_model%initialise( configuration )
+  call pseudo_model%initialise( config )
 
   ! Run non-linear model forecast to populate the trajectory object
   call pseudo_model%forecast( state, forecast_length, pp_traj )
 
   ! ---- Perform the adjoint test
-
-  ! Create inc_initial and randomise
-  call inc_initial%initialise( geometry, configuration )
-  call inc_initial%random()
 
   ! Check the norm is not zero
   if (inc_initial%norm() <= 0.0_r_def) then
@@ -148,7 +150,7 @@ program jedi_tlm_tests
   end if
 
   ! Compute <Mx,Mx>
-  dot_product_1 = inc%scaled_dot_product_with_itself()
+  dot_product_1 = real(inc%scaled_dot_product_with_itself(), r_def)
 
   ! Propagate via AD model
   call linear_model%forecastAD( inc, forecast_length )
@@ -158,14 +160,14 @@ program jedi_tlm_tests
   end if
 
   ! Compute <AMx,x>
-  dot_product_2 = inc%dot_product_with(inc_initial)
+  dot_product_2 = real(inc%dot_product_with(inc_initial), r_def)
 
   ! The two dot products should be nearly identical. The tolerance is included
   ! due to differences in order of operations and solver non-convergence.
   absolute_diff = abs( dot_product_1 - dot_product_2 )
   machine_tolerance = spacing( max( abs( dot_product_1 ), abs( dot_product_2 ) ) )
   relative_diff = absolute_diff / machine_tolerance
-  call jedi_lfric_settings_config%get_value( 'adjoint_test_tolerance', absolute_tolerance )
+  absolute_tolerance = config%jedi_lfric_settings%adjoint_test_tolerance()
   if (absolute_diff > absolute_tolerance ) then
     call run%finalise_timers()  ! We still want timing info even if the test fails
     write( log_scratch_space, * ) "Adjoint test FAILED", &
