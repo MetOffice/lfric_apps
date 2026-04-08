@@ -196,7 +196,7 @@ integer ::                                                                     &
             ! LOCAL Loop counter (horizontal field index).
  k          ! LOCAL Loop counter (vertical level index).
 
-integer :: 
+integer ::                                                                     &
  ii,                                                                           &
              ! omp blocking index
  tdims_omp_block,                                                              &
