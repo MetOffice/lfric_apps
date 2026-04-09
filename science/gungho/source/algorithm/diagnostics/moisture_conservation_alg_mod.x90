@@ -68,8 +68,10 @@ contains
     ! Fields and values
     type(field_type)                    :: rho_X_shifted
     type(field_type)                    :: rho_d_shifted
+    type(field_type)                    :: total_water
     real(kind=r_def)                    :: total_dry
     real(kind=r_def)                    :: total_water_all(nummr)
+    real(kind=r_def)                    :: total_water_sum
     integer(kind=i_def)                 :: i_mr, shifted_mesh_id
     integer(kind=i_def)                 :: element_order_h, element_order_v
     integer(kind=i_def)                 :: nqp_h_exact, nqp_v_exact
@@ -106,13 +108,19 @@ contains
     chi_shifted => get_coordinates(shifted_mesh_id)
     w3_sh_fs => function_space_collection%get_fs( shifted_mesh, 0, 0, W3 )
     call rho_X_shifted%initialise( vector_space = w3_sh_fs )
+    call mr(1)%copy_field_properties(total_water)
+    call invoke(setval_c(total_water, 0.0_r_def))
 
     call obtain_shifted_rho(rho_d_shifted, rho_d)
     do i_mr = 1, nummr
-      call invoke( X_times_Y(rho_X_shifted, mr(i_mr), rho_d_shifted) )
+      call invoke( inc_X_plus_Y(total_water, mr(i_mr)), &
+                      X_times_Y(rho_X_shifted, mr(i_mr), rho_d_shifted) )
       call compute_total_mass_alg(total_water_all(i_mr), rho_X_shifted, &
                                   shifted_mesh, method=integral_method_fe)
     end do
+    call invoke( X_times_Y(rho_X_shifted, total_water, rho_d_shifted) )
+    call compute_total_mass_alg(total_water_sum, rho_X_shifted, &
+                                shifted_mesh, method=integral_method_fe)
 
     ! Output diagnostic values to log
     write( log_scratch_space, '(2A,E32.12)' ) &
@@ -124,7 +132,9 @@ contains
         total_water_all(i_mr)
         call log_event( log_scratch_space, LOG_LEVEL_INFO )
     end do
-
+    write( log_scratch_space, '(2A,E32.12)' ) &
+      'Conservation: total water, ', stage, total_water_sum
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     nullify( chi, panel_id, w3_fs, w3_fs, mesh, shifted_mesh, chi_shifted )
     if ( LPROF ) call stop_timing( id, 'diags.moisture_conservation' )
