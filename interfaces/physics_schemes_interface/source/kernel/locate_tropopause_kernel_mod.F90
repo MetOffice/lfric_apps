@@ -7,15 +7,16 @@
 
 module locate_tropopause_kernel_mod
 
-use argument_mod,      only : arg_type,          &
-                              GH_FIELD, GH_REAL, &
-                              GH_READ, GH_WRITE, &
-                              CELL_COLUMN,       &
-                              GH_INTEGER,        &
-                              ANY_DISCONTINUOUS_SPACE_1
-use fs_continuity_mod, only:  Wtheta
-use constants_mod,     only : r_def, i_def
-use kernel_mod,        only : kernel_type
+use argument_mod,         only: arg_type,          &
+                                GH_FIELD, GH_REAL, &
+                                GH_READ, GH_WRITE, &
+                                CELL_COLUMN,       &
+                                GH_INTEGER,        &
+                                ANY_DISCONTINUOUS_SPACE_1
+use fs_continuity_mod,    only: Wtheta
+use constants_mod,        only: r_def, i_def
+use kernel_mod,           only: kernel_type
+use planet_constants_mod, only: g_over_r
 
 implicit none
 
@@ -97,6 +98,11 @@ subroutine locate_tropopause_code(nlayers,                    &
   real(r_def), parameter :: p_min_trop = 5000.0_r_def  ! Pa
   real(r_def), parameter :: p_max_trop = 50000.0_r_def ! Pa
 
+  ! Lapse rates below and above current layer, and the difference between them
+  REAL(KIND=real_umphys) :: lapseupr, lapselwr, delta_lapse
+
+  REAL(KIND=real_umphys), PARAMETER :: vsmall = 1.0e-6
+  
 
   exner_min = (p_min_trop/p_zero)**kappa
   exner_max = (p_max_trop/p_zero)**kappa
@@ -139,6 +145,63 @@ subroutine locate_tropopause_code(nlayers,                    &
   else
     trop_level(map_2d(1)) = cold_point_trop_level
   end if
+
+
+
+
+  ! calculate tropopause height, temperature and pressure, and icao heights, for diagnostics
+
+  ! Assuming the tropopause was found in the steps above, retrieve the
+  ! level index for it here...
+  ! We shall calculate the lapse rates above and below expected level
+  ! and assume linear cross over point is nearer to the true height of the
+  ! tropopause level -- it need not correspond to an exact model level --
+  ! if no model level was identified return mdi
+  
+  ! todo: flags for these? (tropopause_height, tropopause_temp, tropopause_pressure)
+  ! if level found  
+  if (lapse_rate_trop_level > 0) then
+
+    k = lapse_rate_trop_level
+
+    ! lapse rate for interval above, k+1 -> k+2
+    ! lapse rate for interval below, k-1 -> k
+    lapse_upr = lapse_rate(k+2)
+    lapse_lwr = lapse_rate(k)
+
+    delta_lapse = lapselwr - lapseupr
+    IF ( ABS(delta_lapse) < vsmall ) THEN
+      IF ( delta_lapse >= 0 ) delta_lapse =  vsmall
+      IF ( delta_lapse <  0 ) delta_lapse = -vsmall
+    END IF
+
+    ! height of tropopause
+    ! note: the um code subtracts planet_radius from height
+    tropopause_height(map_2d(1)) = (                       &
+      (t_wth(k) + (lapselwr*height_wth(k)))     &
+    - (t_wth(k+1) + (lapseupr*height_wth(k+1))) &
+    ) / delta_lapse
+
+    ! temperature at tropopause
+    tropopause_temp(map_2d(1)) = t_wth(k) -                              &
+      lapselwr * (tropopause_height(i,j) - height_wth(i,j,k))
+
+    ! pressure at tropopause is derived from hydrostatic equation
+    ! todo: we'll need an equivalent of p_theta_levels
+    IF ( ABS(lapselwr) < vsmall ) THEN
+      IF ( lapseLwr >= 0 ) lapselwr =  vsmall
+      IF ( lapselwr <  0 ) lapselwr = -vsmall
+    END IF
+    
+    tropopause_press(map_2d(1)) = p_theta_levels(k) *                       &
+      (tropopause_temp(map_2d(1)) / temp(k)) ** (g_over_r/lapselwr)
+
+  endif
+
+
+  ! calculate tropopauise icao heights, temperature and pressure
+
+
 
 end subroutine locate_tropopause_code
 
