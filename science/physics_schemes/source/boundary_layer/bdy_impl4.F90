@@ -46,6 +46,7 @@ use model_domain_mod, only: model_type, mt_single_column
 use planet_constants_mod, only: cp => cp_bl
 use yomhook, only: lhook, dr_hook
 use parkind1, only: jprb, jpim
+!$ use omp_lib, only: omp_get_max_threads
 
 implicit none
 
@@ -192,11 +193,20 @@ real(kind=r_bl) :: r_sq, rbt, at ,                                             &
  gamma2_uv      ! gamma1 and gamma2 shifted to u or v points
 
 integer ::                                                                     &
- i,j,                                                                          &
-                ! LOCAL Loop counter (horizontal field index).
+ i,                                                                            &
+            ! LOCAL Loop counter (horizontal field index).
  k          ! LOCAL Loop counter (vertical level index).
 
-integer :: ii, tdims_omp_block, tdims_seg_block ! omp blocking variables
+integer ::                                                                     &
+ ii,                                                                           &
+             ! omp blocking index
+ tdims_omp_block,                                                              &
+             ! omp block length
+ tdims_seg_block,                                                              &
+             ! omp segment length
+ max_threads ! store the no of threads
+
+integer, parameter :: j = 1 ! Array bound, LFRic Parameter
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -206,10 +216,12 @@ character(len=*), parameter :: RoutineName='BDY_IMPL4'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-tdims_omp_block = bl_segment_size
+max_threads = 1
+!$ max_threads = omp_get_max_threads()
+tdims_omp_block  = ceiling(real(tdims%i_len)/max_threads)
 tdims_seg_block = min(tdims_omp_block, tdims%i_len)
 
-!$OMP  PARALLEL DEFAULT(SHARED) private(i,j,k,ii,at,rbt,gamma1_uv,             &
+!$OMP  PARALLEL DEFAULT(SHARED) private(i,k,ii,at,rbt,gamma1_uv,             &
 !$OMP  gamma2_uv,r_sq)
 if ( .not. l_correct ) then
   !  1st stage: predictor
@@ -225,29 +237,27 @@ if ( .not. l_correct ) then
   !---------------------------------------------------------------------
 
 !$OMP do SCHEDULE(STATIC)
-  do j = tdims%j_start, tdims%j_end
-    do i = tdims%i_start, tdims%i_end
-      r_sq = r_rho_levels(i,j,1)*r_rho_levels(i,j,1)
-      rhokh(i,j,2) = r_sq * rhokh(i,j,2)
-      fqw(i,j,1)   = r_sq * fqw(i,j,1)
-      ftl(i,j,1)   = r_sq * ftl(i,j,1)
-      fqw(i,j,2)   = r_sq * fqw(i,j,2)
-      ftl(i,j,2)   = r_sq * ftl(i,j,2)
-      dqw(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                &
-          ( fqw(i,j,2) - fqw(i,j,1) ) + dqw_nt(i,j,1) )
-      dtl(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                &
-          ( ftl(i,j,2) - ftl(i,j,1) ) + dtl_nt(i,j,1) )
-      at = -dtrdz_charney_grid(i,j,1) *                                        &
-               gamma1(i,j)*rhokh(i,j,2)*rdz_charney_grid(i,j,2)
-      rbt = 1.0_r_bl / ( 1.0_r_bl - at*( 1.0_r_bl + ct_ctq(i,j,2) ) )
-      dqw(i,j,1) = rbt*(dqw(i,j,1) - at*dqw(i,j,2) )
-      dtl(i,j,1) = rbt*(dtl(i,j,1) - at*dtl(i,j,2) )
-      rhokh(i,j,2) = rhokh(i,j,2)/r_sq
-      fqw(i,j,1) = fqw(i,j,1)/r_sq
-      ftl(i,j,1) = ftl(i,j,1)/r_sq
-      fqw(i,j,2) = fqw(i,j,2)/r_sq
-      ftl(i,j,2) = ftl(i,j,2)/r_sq
-    end do
+  do i = tdims%i_start, tdims%i_end
+    r_sq = r_rho_levels(i,j,1)*r_rho_levels(i,j,1)
+    rhokh(i,j,2) = r_sq * rhokh(i,j,2)
+    fqw(i,j,1)   = r_sq * fqw(i,j,1)
+    ftl(i,j,1)   = r_sq * ftl(i,j,1)
+    fqw(i,j,2)   = r_sq * fqw(i,j,2)
+    ftl(i,j,2)   = r_sq * ftl(i,j,2)
+    dqw(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                  &
+        ( fqw(i,j,2) - fqw(i,j,1) ) + dqw_nt(i,j,1) )
+    dtl(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                  &
+        ( ftl(i,j,2) - ftl(i,j,1) ) + dtl_nt(i,j,1) )
+    at = -dtrdz_charney_grid(i,j,1) *                                          &
+              gamma1(i,j)*rhokh(i,j,2)*rdz_charney_grid(i,j,2)
+    rbt = 1.0_r_bl / ( 1.0_r_bl - at*( 1.0_r_bl + ct_ctq(i,j,2) ) )
+    dqw(i,j,1) = rbt*(dqw(i,j,1) - at*dqw(i,j,2) )
+    dtl(i,j,1) = rbt*(dtl(i,j,1) - at*dtl(i,j,2) )
+    rhokh(i,j,2) = rhokh(i,j,2)/r_sq
+    fqw(i,j,1) = fqw(i,j,1)/r_sq
+    ftl(i,j,1) = ftl(i,j,1)/r_sq
+    fqw(i,j,2) = fqw(i,j,2)/r_sq
+    ftl(i,j,2) = ftl(i,j,2)/r_sq
   end do
 !$OMP end do
 
@@ -258,24 +268,20 @@ end if
 
 ! Update TL, QW and their increments
 !$OMP do SCHEDULE(STATIC)
-do j = tdims%j_start, tdims%j_end
-  do i = tdims%i_start, tdims%i_end
-    tl(i,j,1) = tl(i,j,1) + dtl(i,j,1)
-    qw(i,j,1) = qw(i,j,1) + dqw(i,j,1)
-  end do
+do i = tdims%i_start, tdims%i_end
+  tl(i,j,1) = tl(i,j,1) + dtl(i,j,1)
+  qw(i,j,1) = qw(i,j,1) + dqw(i,j,1)
 end do
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
 do ii = tdims%j_start, tdims%i_end, tdims_seg_block
   do k = 2, bl_levels
-    do j = tdims%j_start, tdims%j_end
-      do i = ii, min(ii+tdims_seg_block-1,tdims%i_end)
-        dtl(i,j,k) = dtl(i,j,k) - ct_ctq(i,j,k)*dtl(i,j,k-1)
-        tl(i,j,k) = tl(i,j,k) + dtl(i,j,k)
-        dqw(i,j,k) = dqw(i,j,k) - ct_ctq(i,j,k)*dqw(i,j,k-1)
-        qw(i,j,k) = qw(i,j,k) + dqw(i,j,k)
-      end do
+    do i = ii, min(ii+tdims_seg_block-1,tdims%i_end)
+      dtl(i,j,k) = dtl(i,j,k) - ct_ctq(i,j,k)*dtl(i,j,k-1)
+      tl(i,j,k) = tl(i,j,k) + dtl(i,j,k)
+      dqw(i,j,k) = dqw(i,j,k) - ct_ctq(i,j,k)*dqw(i,j,k-1)
+      qw(i,j,k) = qw(i,j,k) + dqw(i,j,k)
     end do
   end do !bl_levels
 end do
@@ -289,12 +295,10 @@ if ( BL_diag%l_ftl ) then
 
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
-      do j = tdims%j_start, tdims%j_end
-        do i = tdims%i_start, tdims%i_end
-          ftl_star(i,j,k) = gamma2(i,j)*ftl(i,j,k)                             &
-               - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)              &
-                            * (dtl(i,j,k)-dtl(i,j,k-1))
-        end do
+      do i = tdims%i_start, tdims%i_end
+        ftl_star(i,j,k) = gamma2(i,j)*ftl(i,j,k)                               &
+              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
+                          * (dtl(i,j,k)-dtl(i,j,k-1))
       end do
     end do
 !$OMP end do NOWAIT
@@ -302,12 +306,10 @@ if ( BL_diag%l_ftl ) then
 
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
-      do j = tdims%j_start, tdims%j_end
-        do i = tdims%i_start, tdims%i_end
-          ftl(i,j,k) = ftl_star(i,j,k)+gamma2(i,j)*ftl(i,j,k)                  &
-               - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)              &
-                            * (dtl(i,j,k)-dtl(i,j,k-1))
-        end do
+      do i = tdims%i_start, tdims%i_end
+        ftl(i,j,k) = ftl_star(i,j,k)+gamma2(i,j)*ftl(i,j,k)                    &
+              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
+                          * (dtl(i,j,k)-dtl(i,j,k-1))
       end do
     end do
 !$OMP end do NOWAIT
@@ -321,12 +323,10 @@ if ( BL_diag%l_fqw ) then
 
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
-      do j = tdims%j_start, tdims%j_end
-        do i = tdims%i_start, tdims%i_end
-          fqw_star(i,j,k) = gamma2(i,j)*fqw(i,j,k)                             &
-               - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)              &
-               * (dqw(i,j,k)-dqw(i,j,k-1))
-        end do
+      do i = tdims%i_start, tdims%i_end
+        fqw_star(i,j,k) = gamma2(i,j)*fqw(i,j,k)                               &
+              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
+              * (dqw(i,j,k)-dqw(i,j,k-1))
       end do
     end do ! bl_levels
 !$OMP end do NOWAIT
@@ -335,12 +335,10 @@ if ( BL_diag%l_fqw ) then
 
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
-      do j = tdims%j_start, tdims%j_end
-        do i = tdims%i_start, tdims%i_end
-          fqw(i,j,k) = fqw_star(i,j,k)+gamma2(i,j)*fqw(i,j,k)                  &
-               - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)              &
-                 * (dqw(i,j,k)-dqw(i,j,k-1))
-        end do
+      do i = tdims%i_start, tdims%i_end
+        fqw(i,j,k) = fqw_star(i,j,k)+gamma2(i,j)*fqw(i,j,k)                    &
+              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
+                * (dqw(i,j,k)-dqw(i,j,k-1))
       end do
     end do ! bl_levels
 !$OMP end do NOWAIT
@@ -358,10 +356,8 @@ if ( l_correct ) then
 
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-    do j = tdims%j_start, tdims%j_end
-      do i = tdims%i_start, tdims%i_end
-        ftl(i,j,k) = ftl(i,j,k)*cp
-      end do
+    do i = tdims%i_start, tdims%i_end
+      ftl(i,j,k) = ftl(i,j,k)*cp
     end do
   end do
 !$OMP end do NOWAIT
@@ -370,11 +366,9 @@ if ( l_correct ) then
 
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels
-    do j = tdims%j_start, tdims%j_end
-      do i = tdims%i_start, tdims%i_end
-        t_latest(i,j,k)=tl(i,j,k)
-        q_latest(i,j,k)=qw(i,j,k)
-      end do
+    do i = tdims%i_start, tdims%i_end
+      t_latest(i,j,k)=tl(i,j,k)
+      q_latest(i,j,k)=qw(i,j,k)
     end do
   end do
 !$OMP end do NOWAIT
