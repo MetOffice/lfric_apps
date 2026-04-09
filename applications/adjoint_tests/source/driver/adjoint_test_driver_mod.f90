@@ -43,6 +43,12 @@ contains
     ! ./
     use adjt_sci_psykal_builtin_alg_mod,            only : adjt_convert_cart2sphere_vector_alg
 
+    ! ./algebra
+    use adjt_matrix_vector_alg_mod,                 only : adjt_matrix_vector_alg
+    use adjt_dg_matrix_vector_alg_mod,              only : adjt_dg_matrix_vector_alg
+    use adjt_dg_inc_matrix_vector_alg_mod,          only : adjt_dg_inc_matrix_vector_alg
+    use adjt_transpose_matrix_vector_alg_mod,       only : adjt_transpose_matrix_vector_alg
+
     ! ./inter_function_space
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
 
@@ -158,6 +164,12 @@ contains
 
     ! ./inter_function_space
     call adjt_sci_convert_hdiv_field_alg( mesh, chi, panel_id )
+
+    ! ./algebra
+    call adjt_matrix_vector_alg( mesh )
+    call adjt_dg_matrix_vector_alg( mesh )
+    call adjt_dg_inc_matrix_vector_alg( mesh )
+    call adjt_transpose_matrix_vector_alg( mesh )
 
     call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
     ! ./
