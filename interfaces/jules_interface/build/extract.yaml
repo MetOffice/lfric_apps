@@ -67,6 +67,7 @@ jules:
     - src/control/shared/wtrac_extra_mod.F90
     - src/initialisation/shared/calc_urban_aero_fields_mod.F90
     - src/initialisation/shared/check_compatible_options_mod.F90
+    - src/initialisation/shared/check_compatible_options_rivers_mod.F90
     - src/initialisation/shared/freeze_soil.F90
     - src/initialisation/shared/wtrac_check_options_mod.F90
     - src/science/deposition/deposition_check_species_mod.F90

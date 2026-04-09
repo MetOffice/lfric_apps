@@ -13,6 +13,7 @@ module jules_physics_init_mod
   use jules_control_init_mod, only : n_sea_ice_tile, n_land_tile
   use jules_hydrology_config_mod, only :                                       &
                               l_hydrology_in => l_hydrology,                   &
+                              l_inland_in    => l_inland,                      &
                               l_var_rainfrac_in => l_var_rainfrac
   use jules_nvegparm_config_mod, only :                                        &
                               albsnc_nvg_io, albsnf_nvg_io, albsnf_nvgl_io,    &
@@ -193,7 +194,7 @@ contains
     use c_z0h_z0m, only: z0h_z0m
     use jules_hydrology_mod, only: l_hydrology, check_jules_hydrology,   &
                                    l_top, l_var_rainfrac, nfita, ti_max, &
-                                   ti_wetl, zw_max
+                                   ti_wetl, zw_max, l_inland
     use jules_irrig_mod, only: l_irrig_dmd
     use jules_radiation_mod, only: i_sea_alb_method,                        &
                                    l_embedded_snow, l_mask_snow_orog,       &
@@ -563,6 +564,7 @@ contains
     l_point_data       = l_point_data_in
     orog_drag_param    = real(orog_drag_param_in, r_um)
     lake_water_conserve_method = use_elake_surft
+    l_inland           = l_inland_in
 
     ! The minimum sea ice fraction
     ! This is 0.0 for coupled models and 0.1 for atmosphere only models

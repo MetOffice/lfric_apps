@@ -334,6 +334,7 @@ write_minmax_tseries=.false.,
 &jules_hydrology
 l_var_rainfrac=.true.,
 l_hydrology=.true.,
+l_inland=.false.,
 /
 &jules_model_environment_lfric
 l_jules_parent='lfric',
