@@ -142,7 +142,7 @@ contains
     ! Obtain operators from SI operators
     r_solver_rho_at_u => get_rho_at_u()
     call rho_at_u%initialise( vector_space = rhs(igh_u)%get_function_space() )
-    call invoke( real_to_real_x( rho_at_u, r_solver_rho_at_u ) )
+    call invoke( real_to_real_x(rho_at_u, r_solver_rho_at_u) )
     call f_star%initialise( vector_space = rhs(igh_u)%get_function_space() )
     call u_tmp%initialise( vector_space = rhs(igh_u)%get_function_space() )
     call r_tmp%initialise( vector_space = rhs(igh_d)%get_function_space() )
