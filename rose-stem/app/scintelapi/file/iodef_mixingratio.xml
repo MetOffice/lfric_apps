@@ -47,6 +47,7 @@
 
       <!-- File definition for lfric checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
        <field id="read_rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="instant" />
        <field id="read_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
        <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
@@ -57,7 +58,8 @@
        <field id="read_qcl" name="qcl" long_name="specific_humidity_cloud_liquid"  unit="1" grid_ref="full_level_face_grid" operation="instant"/>
        <field id="read_qcf" name="qcf" long_name="specific_humidity_cloud_ice"  unit="1" grid_ref="full_level_face_grid" operation="instant"/>
        <field id="read_qrain" name="qrain" long_name="mass_fraction_of_rain_in_air" unit="1" grid_ref="full_level_face_grid" operation="instant"/>
-      </file>
+       </field_group>
+     </file>
 
     </file_definition>
 
