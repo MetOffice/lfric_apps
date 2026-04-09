@@ -8,7 +8,11 @@
 
 file-extensions= ["f90", "F90", "X90", "x90", "pf"]  #check these file types
 
-select = ["S101", "PORT011"]
+select = ["E000", "C001", "C021", "C022", "C031", "C032", "C043",
+"C051", "C061", "C071", "C072", "C091", "C082", "C092",
+"C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
+"S101", "S071", "PORT011", "PORT012", "PORT021", "FORT001",
+"FORT002", "FORT003", "FORT004", "FORT005"]
 
 output-format = "grouped"                #group results by file
 
@@ -16,3 +20,13 @@ output-format = "grouped"                #group results by file
 
 "jedi_lfric_linear_modeldb_driver_mod.f90" = ["S101"]
 "atlas_field_interface_mod.F90" = ["S101"]
+"jedi_lfric_field_meta_mod.f90" = ["C061"]
+"jedi_lfric_wind_fields_mod.f90" = ["C061"]
+"atlas_field_interface_test.pf" = ["C021"]
+"jedi_lfric_mesh_setup_mod.F90" = ["C072"]
+"test_jedi_lfric_time_driver_mod.f90" = ["C072"]
+"jedi_lfric_datetime_functions_mod_test.pf" = ["C001"]
+"test_jedi_lfric_duration_mod.f90" = ["C072"]
+
+#C081, E001, left out for now as too many errors
+
