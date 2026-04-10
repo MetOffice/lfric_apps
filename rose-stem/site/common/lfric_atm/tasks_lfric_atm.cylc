@@ -243,6 +243,7 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "error",
+        "xios_info_level": 50,
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_ls_and_jedi-C224_MG" %}

@@ -137,6 +137,8 @@
             XIOS_SERVER_RANKS       = {{task_values["xios_server_ranks"]}}
             xios_nodes              = {{task_values["xios_nodes"]}}
             mpi_parts_xios          = {{task_values["mpi_parts_xios"]}}
+            XIOS_INFO_LEVEL         = {{task_values['xios_info_level']}}
+            XIOS_PRINT_FILE         = {{task_values['xios_print_file']}}
             PAT_EXE_EXTEN           = {{PAT_EXE_EXTEN}}
             CORES_PER_NODE_OVERRIDE = {{task_values["task_ranks_per_node"]}}
             RANKS_DEPTH_PAD         = {{task_values["task_ranks_depth_pad"]}}
