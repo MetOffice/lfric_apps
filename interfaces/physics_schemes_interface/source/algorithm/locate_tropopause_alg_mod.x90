@@ -21,6 +21,11 @@ use sci_geometric_constants_mod,   only: get_height_fv
 use locate_tropopause_kernel_mod,  only: locate_tropopause_kernel_type
 use timing_mod,                    only: start_timing, stop_timing, tik, LPROF
 
+! Configuration modules (due to sci_geometric_constants)
+use base_mesh_config_mod,      only: geometry
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius
+
 implicit none
 private
 public :: locate_tropopause_alg
@@ -48,7 +53,9 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
 
   if ( LPROF ) call start_timing( id_alg, 'locate_tropopause' )
 
-  height_wth => get_height_fv(Wtheta, theta%get_mesh_id())
+  height_wth => get_height_fv(Wtheta, theta%get_mesh_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius)
 
   vector_space=>function_space_collection%get_fs(twod_mesh, 0, 0, W3)
   call trop_level%initialise(vector_space)

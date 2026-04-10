@@ -64,6 +64,11 @@ module map_fd_to_prognostics_alg_mod
                                        sample_physics_winds_correction
   use planet_config_mod,         only: gravity, p_zero, kappa, rd, cp
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -256,9 +261,15 @@ contains
 
       w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2broken)
       rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
-      u_lon_map => get_u_lon_sample(mesh%get_id())
-      u_lat_map => get_u_lat_sample(mesh%get_id())
-      u_up_map  => get_u_up_sample(mesh%get_id())
+      u_lon_map => get_u_lon_sample(mesh%get_id(), &
+                                    geometry, topology, &
+                                    coord_system, scaled_radius)
+      u_lat_map => get_u_lat_sample(mesh%get_id(), &
+                                    geometry, topology, &
+                                    coord_system, scaled_radius)
+      u_up_map  => get_u_up_sample(mesh%get_id(), &
+                                    geometry, topology, &
+                                    coord_system, scaled_radius)
 
       call u_broken%initialise( w2b_fs )
 
@@ -281,7 +292,11 @@ contains
         call u_lon_large%initialise( u_lon%get_function_space(), halo_depth=2 )
         call u_lat_large%initialise( u_lat%get_function_space(), halo_depth=2 )
 
-        displacement => get_w3_to_w2_displacement(mesh%get_id())
+        displacement => get_w3_to_w2_displacement(mesh%get_id(),&
+                                                  geometry,&
+                                                  topology,&
+                                                  coord_system,&
+                                                  scaled_radius)
         chi => get_coordinates(mesh%get_id())
         panel_id => get_panel_id(mesh%get_id())
 
@@ -302,7 +317,9 @@ contains
                      convert_phys_to_hdiv_kernel_type(u_correction,            &
                                                       u_lon_w2, u_lat_w2,      &
                                                       u_up_w2, chi, panel_id,  &
-                                                      geometry),               &
+                                                      geometry, topology,      &
+                                                      coord_system,            &
+                                                      scaled_radius),          &
                      ! Increment wind with correction field
                      inc_X_plus_Y(u, u_correction) )
       end if
@@ -311,9 +328,15 @@ contains
 
       call u%copy_field_properties(r_u)
 
-      u_lon_map => get_u_lon_map( mesh%get_id() )
-      u_lat_map => get_u_lat_map( mesh%get_id() )
-      u_up_map  => get_u_up_map( mesh%get_id() )
+      u_lon_map => get_u_lon_map( mesh%get_id(), &
+                                    geometry, topology, &
+                                    coord_system, scaled_radius )
+      u_lat_map => get_u_lat_map( mesh%get_id(), &
+                                    geometry, topology, &
+                                    coord_system, scaled_radius )
+      u_up_map  => get_u_up_map( mesh%get_id(), &
+                                    geometry, topology, &
+                                    coord_system, scaled_radius )
 
       call invoke( name="galerkin_projection_from_lonlatr",          &
                    setval_c( u,   0.0_r_def ),                       &
@@ -346,8 +369,8 @@ contains
                                        only : hydro_shallow_to_deep_kernel_type
     use moist_dyn_mod,                 only : num_moist_factors
     use matrix_vector_kernel_mod,      only : matrix_vector_kernel_type
-    use sci_nodal_xyz_coordinates_kernel_mod, &
-                                       only : nodal_xyz_coordinates_kernel_type
+!!$    use sci_nodal_xyz_coordinates_kernel_mod, &
+!!$                                       only : nodal_xyz_coordinates_kernel_type
     use sci_mass_matrix_solver_alg_mod, &
                                        only : mass_matrix_solver_alg
     use sample_eos_pressure_kernel_mod,  &
@@ -384,8 +407,12 @@ contains
             height_wth, vert_coriolis, mesh, mask )
 
     mesh => exner%get_mesh()
-    height_w3 => get_height_fv( W3, mesh%get_id() )
-    height_wth => get_height_fv( Wtheta, mesh%get_id() )
+    height_w3 => get_height_fv( W3, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
+    height_wth => get_height_fv( Wtheta, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
     geopotential => get_geopotential( mesh%get_id() )
 
     ! If lbc_mask wasn't supplied, create a dummy mask

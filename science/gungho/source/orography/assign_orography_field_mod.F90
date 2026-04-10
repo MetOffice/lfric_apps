@@ -45,6 +45,11 @@ module assign_orography_field_mod
   use function_space_mod,             only : BASIS
   use surface_altitude_alg_mod,       only : surface_altitude_alg
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -506,7 +511,9 @@ contains
         ! analytic orography
         radius = chi_3(dfk) + domain_surface
         call chi2llr(chi_1(dfk), chi_2(dfk), radius, &
-                     ipanel, longitude, latitude, dummy_radius)
+                     ipanel, geometry, topology,    &
+                     coord_system, scaled_radius,   &
+                    longitude, latitude, dummy_radius)
 
         ! Calculate surface height for each DoF using selected analytic orography
         surface_height = orography_profile%analytic_orography(longitude, latitude)

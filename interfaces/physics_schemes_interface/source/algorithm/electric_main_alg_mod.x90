@@ -19,6 +19,11 @@ module electric_main_alg_mod
   use electric_main_diags_mod, only: initialise_main_diags_for_electric,       &
                                      output_main_diags_for_electric
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -89,7 +94,8 @@ contains
     call invoke( setval_c(rhodz_dry, 0.0_r_def), &
                  setval_c(t_local,   0.0_r_def))
 
-    dz_in_wth => get_dz_at_wtheta( mesh%get_id() )
+    dz_in_wth => get_dz_at_wtheta( mesh%get_id(), &
+                             geometry, coord_system, scaled_radius )
 
     call electric_fields%get_field('flash_potential', flash_potential)
     call flash_potential%copy_field_properties(num_flashes_2d)

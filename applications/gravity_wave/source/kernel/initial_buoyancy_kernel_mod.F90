@@ -20,6 +20,11 @@ module initial_buoyancy_kernel_mod
     use constants_mod, only: r_def, i_def
     use kernel_mod,    only: kernel_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
     implicit none
 
     private
@@ -115,7 +120,10 @@ contains
             end do
 
             call chi2xyz(chi_wt(1), chi_wt(2), chi_wt(3), &
-                         ipanel, xyz(1), xyz(2), xyz(3))
+                         ipanel, &
+                    geometry, topology,            &
+                    coord_system, scaled_radius,   &
+xyz(1), xyz(2), xyz(3))
 
             buoyancy(map_wt(df) + k) = analytic_buoyancy(xyz)
           end do

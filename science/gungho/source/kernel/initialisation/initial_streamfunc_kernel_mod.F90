@@ -202,7 +202,9 @@ subroutine initial_streamfunc_code(nlayers,                         &
         if ( geometry == geometry_spherical ) then
           ! Need (lon,lat,r) coordinates
           call chi2llr(coords(1), coords(2), coords(3), &
-                       ipanel, llr(1), llr(2), llr(3))
+                       ipanel, geometry, topology,    &
+                     coord_system, scaled_radius,   &
+                     llr(1), llr(2), llr(3))
 
           psi_spherical = analytic_streamfunction( llr, profile, 3, option3, &
                                                    time, domain_max_x )

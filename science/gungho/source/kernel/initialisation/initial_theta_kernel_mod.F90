@@ -24,6 +24,11 @@ module initial_theta_kernel_mod
     use kernel_mod,                    only: kernel_type
     use idealised_config_mod,          only: test
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
     implicit none
 
     private
@@ -123,7 +128,10 @@ contains
             end do
 
             call chi2xyz(coords(1), coords(2), coords(3), &
-                         ipanel, xyz(1), xyz(2), xyz(3))
+                         ipanel, &
+                    geometry, topology,            &
+                    coord_system, scaled_radius,   &
+xyz(1), xyz(2), xyz(3))
             theta(map_wtheta(df) + k) = analytic_temperature(xyz, test)
 
           end do

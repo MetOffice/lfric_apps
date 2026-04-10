@@ -28,6 +28,11 @@ use cosp_config_mod, only: n_subcol_gen
 use cosp_diags_mod,  only: initialise_diags_for_cosp, output_diags_for_cosp
 use cosp_kernel_mod, only: cosp_kernel_type
 
+! Configuration modules
+use base_mesh_config_mod,      only: geometry
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius
+
 implicit none
 private
 public :: cosp_alg
@@ -148,8 +153,12 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
 
   ! Set height on W3 and Wtheta levels
   mesh => exner%get_mesh()
-  height_wth => get_height_fv( Wtheta, mesh%get_id() )
-  height_w3  => get_height_fv( W3, mesh%get_id() )
+  height_wth => get_height_fv( Wtheta, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
+  height_w3  => get_height_fv( W3, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
 
   ! Set pressure on W3 levels
   call exner%copy_field_properties(pressure_in_w3)

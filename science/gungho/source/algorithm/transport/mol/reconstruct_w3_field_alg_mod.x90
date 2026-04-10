@@ -61,6 +61,10 @@ module reconstruct_w3_field_alg_mod
 
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -290,7 +294,9 @@ contains
     end if
 
     if ( monotonicity == monotone_koren ) then
-      height_tr => get_height_fv( Wtheta, mesh%get_id() )
+      height_tr => get_height_fv( Wtheta, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
       call invoke(name="w3_vert_reconstruction_koren",                         &
                   polyv_w3_koren_kernel_type( field_new,                       &
                                               field_old,                       &

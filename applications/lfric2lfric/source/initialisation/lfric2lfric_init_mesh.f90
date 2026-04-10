@@ -85,6 +85,7 @@ subroutine init_mesh( config,                  &
                       local_rank, total_ranks, &
                       mesh_names,              &
                       extrusion,               &
+                    inner_halo_tiles, tile_size, &
                       stencil_depths_in,       &
                       regrid_method )
 
@@ -100,6 +101,8 @@ subroutine init_mesh( config,                  &
   integer(kind=i_def),   intent(in) :: total_ranks
   character(len=*),      intent(in) :: mesh_names(2)
   class(extrusion_type), intent(in) :: extrusion
+  logical(l_def),        intent(in) :: inner_halo_tiles
+  integer(i_def),        intent(in) :: tile_size(:,:)
   integer(kind=i_def),   intent(in) :: stencil_depths_in(:)
   integer(kind=i_def),   intent(in) :: regrid_method
 
@@ -129,6 +132,9 @@ subroutine init_mesh( config,                  &
   integer(kind=i_def)                 :: i
   character(len=str_max_filename)     :: mesh_file(2)
   integer(kind=i_def)                 :: stencil_depths(2)
+
+!  integer(i_def), allocatable :: tile_size(:,:)
+!  logical(l_def) :: inner_halo_tiles
 
   procedure(partitioner_interface), pointer :: partitioner_src => null()
   procedure(partitioner_interface), pointer :: partitioner_dst => null()
@@ -365,7 +371,11 @@ subroutine init_mesh( config,                  &
   ! Alternative names are needed in case the source and destination
   ! mesh files use the same mesh name.
   !============================================================================
-  call create_mesh( mesh_names, extrusion )
+!  inner_halo_tiles = .false.
+!  allocate(tile_size(2,size(mesh_names)))
+!  tile_size = 1
+  call create_mesh( mesh_names, extrusion, &
+                    inner_halo_tiles, tile_size )
 
   !============================================================================
   ! Generate intergrid LiD-LiD maps and assign them to mesh objects.

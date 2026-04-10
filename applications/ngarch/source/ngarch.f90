@@ -68,7 +68,8 @@ program ngarch
 
   deallocate( filename )
 
-  call init_logger( modeldb%mpi%get_comm(), application_name )
+  call init_logger( modeldb%config, modeldb%mpi%get_comm(), &
+                    application_name )
 
   subroutine_timers = modeldb%config%io%subroutine_timers()
   timer_output_path = modeldb%config%io%timer_output_path()

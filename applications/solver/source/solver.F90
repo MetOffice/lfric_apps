@@ -14,7 +14,8 @@ program solver
   use add_mesh_map_mod,        only: assign_mesh_maps
   use config_mod,              only: config_type
   use config_loader_mod,       only: final_configuration
-  use constants_mod,           only: i_def, r_def, PRECISION_REAL, str_def
+  use constants_mod,           only: i_def, r_def, l_def, str_def, &
+                                     PRECISION_REAL
   use convert_to_upper_mod,    only: convert_to_upper
   use cli_mod,                 only: parse_command_line
   use create_mesh_mod,         only: create_mesh, create_extrusion
@@ -84,11 +85,16 @@ program solver
   integer(i_def) :: geometry
   integer(i_def) :: method
   integer(i_def) :: number_of_layers
+  integer(i_def) :: tile_size_x
+  integer(i_def) :: tile_size_y
   real(r_def)    :: domain_bottom
   real(r_def)    :: domain_height
   real(r_def)    :: scaled_radius
-  logical        :: check_partitions
+  logical(l_def) :: check_partitions
 
+  logical(l_def) :: inner_halo_tiles
+
+  integer(i_def), allocatable :: tile_size(:,:)
   integer(i_def) :: i
   integer(i_def), parameter :: one_layer = 1_i_def
 
@@ -115,7 +121,7 @@ program solver
   call init_config( filename, solver_required_namelists, &
                     config=config )
 
-  call init_logger( comm, program_name )
+  call init_logger( config, comm, program_name )
 
   call init_collections()
 
@@ -135,6 +141,10 @@ program solver
   domain_height    = config%extrusion%domain_height()
   number_of_layers = config%extrusion%number_of_layers()
   scaled_radius    = config%planet%scaled_radius()
+
+  inner_halo_tiles = .false.
+  tile_size_x = 1
+  tile_size_y = 1
 
   call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
 
@@ -173,8 +183,15 @@ program solver
   !-----------------------------------------------------------------------
   stencil_depth = 1
   check_partitions = .false.
+
+  if (allocated(tile_size)) deallocate(tile_size)
+  allocate(tile_size(2, size(base_mesh_names)))
+  tile_size(1,:) = tile_size_x
+  tile_size(2,:) = tile_size_y
+
   call init_mesh( config, local_rank, total_ranks, &
                   base_mesh_names, extrusion,      &
+                  inner_halo_tiles, tile_size,     &
                   stencil_depth, check_partitions )
 
   allocate( twod_names, source=base_mesh_names )
@@ -182,6 +199,7 @@ program solver
     twod_names(i) = trim(twod_names(i))//'_2d'
   end do
   call create_mesh( base_mesh_names, extrusion_2d, &
+                    inner_halo_tiles, tile_size,   &
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
@@ -190,7 +208,7 @@ program solver
   ! 2.0 Build the FEM function spaces and coordinate fields
   !=======================================================================
   ! Create FEM specifics (function spaces and chi field)
-  call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+  call init_fem( config, chi_inventory, panel_id_inventory )
 
   ! Create and initialise prognostic fields
   mesh => mesh_collection%get_mesh(prime_mesh_name)

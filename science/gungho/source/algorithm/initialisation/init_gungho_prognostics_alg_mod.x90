@@ -84,6 +84,17 @@ module init_gungho_prognostics_alg_mod
   use mr_indices_mod,                  only: nummr, mr_names, imr_v
   use moist_dyn_mod,                   only: num_moist_factors, gas_law
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system, &
+                                       element_order_h, &
+                                       element_order_v
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -277,12 +288,20 @@ contains
     chi => get_coordinates(mesh_id)
     panel_id => get_panel_id(mesh_id)
     if (element_order_h > 0 .or. element_order_v > 0) then
-      height_w3 => get_height_fe(W3, mesh_id)
-      height_wth => get_height_fe(Wtheta, mesh_id)
+      height_w3 => get_height_fe(W3, mesh_id, &
+                          geometry, element_order_h, element_order_v, &
+                          coord_system, scaled_radius)
+      height_wth => get_height_fe(Wtheta, mesh_id, &
+                          geometry, element_order_h, element_order_v, &
+                          coord_system, scaled_radius)
       qr => get_qr_fe()
     else
-      height_w3 => get_height_fv(W3, mesh_id)
-      height_wth => get_height_fv(Wtheta, mesh_id)
+      height_w3 => get_height_fv(W3, mesh_id, &
+                                 geometry, coord_system, &
+                                 scaled_radius)
+      height_wth => get_height_fv(Wtheta, mesh_id, &
+                                 geometry, coord_system, &
+                                 scaled_radius)
       qr => get_qr_fv()
     end if
 
@@ -429,11 +448,19 @@ contains
         ! TODO: This should not be done here -- will be fixed by #2877
         ! This should be done by separate routines from the driver level
         if( element_order_h > 0 .or. element_order_v > 0 ) then
-          height_w3 => get_height_fe(W3, mesh_id)
-          height_wth => get_height_fe(Wtheta, mesh_id)
+          height_w3 => get_height_fe(W3, mesh_id, &
+                          geometry, element_order_h, element_order_v, &
+                          coord_system, scaled_radius)
+          height_wth => get_height_fe(Wtheta, mesh_id, &
+                          geometry, element_order_h, element_order_v, &
+                          coord_system, scaled_radius)
         else
-          height_w3 => get_height_fv(W3, mesh_id)
-          height_wth => get_height_fv(Wtheta, mesh_id)
+          height_w3 => get_height_fv(W3, mesh_id, &
+                                 geometry, coord_system, &
+                                 scaled_radius)
+          height_wth => get_height_fv(Wtheta, mesh_id, &
+                                 geometry, coord_system, &
+                                 scaled_radius)
         end if
         initial_time = 0.0_r_def
         call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &

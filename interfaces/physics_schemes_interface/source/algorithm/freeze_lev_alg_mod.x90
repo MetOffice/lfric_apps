@@ -15,6 +15,11 @@ module freeze_lev_alg_mod
   use sci_geometric_constants_mod, only: get_height_fv
   use fs_continuity_mod,           only: Wtheta
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
   private
 
@@ -46,7 +51,9 @@ contains
 
     if (init_diag(freeze_lev, 'processed__freeze_lev') .and. use_xios_io) then
 
-      height_wth => get_height_fv(Wtheta, theta%get_mesh_id())
+      height_wth => get_height_fv(Wtheta, theta%get_mesh_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius)
 
       call invoke( freeze_lev_kernel_type(theta, mr(imr_v),                  &
                                           moist_dyn(total_mass), exner_wth,  &

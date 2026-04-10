@@ -62,6 +62,17 @@ module theta_transport_alg_mod
                                       only: transport_rho_times_field_alg
   use transport_enumerated_types_mod, only: direction_3d
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system, &
+                                       element_order_h, &
+                                       element_order_v
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -353,10 +364,14 @@ contains
       if (theta_in_rdef%get_element_order_h() == 0 .and. &
           theta_in_rdef%get_element_order_v() == 0) then
         ! Use the finite volume height function
-        height_wt => get_height_fv(Wtheta, theta_in_rdef%get_mesh_id())
+        height_wt => get_height_fv(Wtheta, theta_in_rdef%get_mesh_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius)
       else
         ! Use the finite element height function
-        height_wt => get_height_fe(Wtheta, theta_in_rdef%get_mesh_id())
+        height_wt => get_height_fe(Wtheta, theta_in_rdef%get_mesh_id(), &
+                          geometry, element_order_h, element_order_v, &
+                          coord_system, scaled_radius)
       end if
       call invoke( sort_column_above_kernel_type(theta_out_rdef, height_wt,    &
                                                  adjust_theta_above) )

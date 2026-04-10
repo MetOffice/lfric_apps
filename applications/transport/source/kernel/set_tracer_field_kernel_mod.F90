@@ -173,7 +173,10 @@ subroutine set_tracer_field_code(nlayers, tracer,                        &
 
           ! Need (X,Y,Z) coordinate
           call chi2xyz(coords(1), coords(2), coords(3), &
-                       ipanel, xyz(1), xyz(2), xyz(3))
+                       ipanel, &
+                    geometry, topology,            &
+                    coord_system, scaled_radius,   &
+xyz(1), xyz(2), xyz(3))
 
           if (const_flag == 1_i_def) then
             ! Set tracer field to be 1 everywhere
