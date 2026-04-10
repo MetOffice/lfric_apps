@@ -17,7 +17,8 @@ select = ["E000", "C001", "C021", "C022", "C031", "C032", "C043",
 
 output-format = "grouped"                #group results by file
 
-# leaving out for now:
+# Leaving out for now (these rules are used in the universal config):
 # C081, E001, C121
+
 
 

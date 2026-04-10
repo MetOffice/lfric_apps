@@ -28,5 +28,7 @@ output-format = "grouped"                #group results by file
 "jedi_lfric_datetime_functions_mod_test.pf" = ["C001"]
 "test_jedi_lfric_duration_mod.f90" = ["C072"]
 
-#C081, E001, left out for now as too many errors
+# Leaving out for now (these rules are used in the universal config):
+# C081, E001
+
 

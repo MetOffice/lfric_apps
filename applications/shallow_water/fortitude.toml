@@ -22,5 +22,6 @@ output-format = "grouped"                #group results by file
 "galewsky_test_case_mod.F90" = ["MOD021"]
 
 
-# leaving out for now:
+# Leaving out for now (these rules are used in the universal config):
 # E001, C121
+

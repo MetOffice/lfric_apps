@@ -6,7 +6,7 @@
 
 [check]
 
-file-extensions= ["f90", "F90", "X90", "x90", "pf"]          #check these file types
+file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
 
 select = ["E000", "E001", "C001", "C021", "C022", "C031", "C032", "C043",
 "C051", "C061", "C071", "C072", "C081", "C091", "C082", "C092", "C121",
@@ -17,29 +17,34 @@ select = ["E000", "E001", "C001", "C021", "C022", "C031", "C032", "C043",
 
 output-format = "grouped"                #group results by file
 
-[check.per-file-ignores]
+# Repos with too many errors with the above rules have their own toml files.
 
-#transport files:
+# Repos containing only a few files with errors for the above rules
+# are dealt with below:
+
+[check.per-file-ignores] #don't run these rules on these files:
+
+# transport files:
 "analytic_tracer_field_profiles_mod_test.pf" = ["E001"]
 "set_tracer_field_kernel_mod_test.pf" = ["E001", "C121"]
 "initial_tracer_field_sample_kernel_mod_test.pf" = ["E001", "C121"]
 
-#name_transport files:
+# name_transport files:
 "analytic_name_field_profiles_mod_test.pf" = ["E001"]
 "set_name_field_kernel_mod_test.pf" = ["E001", "C121"]
 
-#lfric_coupled files:
+# lfric_coupled files:
 "lfric_coupled_test.pf" = ["E001", "C121"]
 
-#gravity_wave files:
+# gravity_wave files:
 "analytic_buoyancy_profiles_mod_test.pf" = ["E001"]
 "compute_q_operator_kernel_mod_test.pf" = ["E001", "C121"]
 "initial_buoyancy_kernel_mod_test.pf" = ["E001", "C121"]
 
-#science/shared:
+# science/shared:
 "space_from_metadata_mod.F90" = ["C072"]
 
-#science/socrates_interface:
+# science/socrates_interface:
 "init_radiation_fields_alg_mod.x90" = ["S101"]
 "rad_cloud_alg_mod.x90" = ["S101"]
 "lw_kernel_mod.F90" = ["S101"]
@@ -49,7 +54,7 @@ output-format = "grouped"                #group results by file
 "rand_seed_kernel_mod_test.pf" = ["E001", "C121"]
 "set_topography_kernel_mod.F90" = ["C081"]
 
-#interfaces/coupled_interface:
+# interfaces/coupled_interface:
 "process_send_fields_2d_mod.X90" = ["S101"]
 "set_r_ocean_fraction_mod.F90" = ["S101"]
 "coupler_mod.F90" = ["MOD021"]
@@ -57,7 +62,7 @@ output-format = "grouped"                #group results by file
 "convert_to_celsius_kernel_mod_test.pf" = ["C121", "E001"]
 "value_based_mask_kernel_mod_test.pf" = ["E001"]
 
-#interfaces/jules_interface:
+# interfaces/jules_interface:
 "update_ancils_alg_mod.x90" = ["S101"]
 "jules_exp_kernel_mod.F90" = ["S101"]
 "jules_extra_kernel_mod.F90" = ["S101"]
@@ -66,20 +71,10 @@ output-format = "grouped"                #group results by file
 "jules_control_init_mod.f90" = ["C081"]
 "jules_physics_init_mod.f90" = ["C081"]
 
-#interfaces/physics_schemes_interface:
-"set_levels_list.F90" = ["C071"]
-"set_pseudo_list.F90" = ["C071"]
-"photol_kernel_mod.F90" = ["C072"]
-"fastjx_inphot_mod.f90" = ["C072"]
-"umprintmgr.f90" = ["C072", "C132"]
-"ukca_photol_param_mod.f90" = ["C072", "C132"]
-"psykal_lite_phys_mod.F90" = ["C132", "MOD021"]
-"um_sizes_init_mod.f90" = ["MOD021"]
-
-#applications/jedi_lfric_tests:
+# applications/jedi_lfric_tests:
 "jedi_lfric_tests_increment_alg_mod.x90" = ["C081"]
 
-#applications/adjoint_tests:
+# applications/adjoint_tests:
 "atlt_poly_adv_update_alg_mod.X90" = ["C132"]
 "atlt_bl_inc_alg_mod.x90" = ["C132"]
 "atlt_bdy_lyr_alg_mod.x90" = ["C132"]
@@ -90,18 +85,7 @@ output-format = "grouped"                #group results by file
 "adjt_compute_vorticity_alg_mod.x90" = ["C132"]
 
 
-
-#delete indi toml for:
-#science/socrates_interface
-#interfaces/coupled_interface
-#interfaces/jules_interface
-#interfaces/physics_schemes_interface
-#applications/lfric2lfric
-#applications/jedi_lfric_tests
-#applications/adjoint_tests
-
-
-# pass for all:
-# E000, C031, C032, C043, C051, C091, C082, C141, 
-# OB011, OB021, OB051, OB061, MOD001, PORT011, PORT012, 
+# Rules that pass for whole Lfric repo with no exceptions:
+# E000, C031, C032, C043, C051, C091, C082, C141,
+# OB011, OB021, OB051, OB061, MOD001, PORT011, PORT012,
 # PORT021, FORT001, FORT002, FORT003, FORT004, FORT005

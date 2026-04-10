@@ -25,5 +25,6 @@ output-format = "grouped"               #group results by file
 "psykal_lite_transport_mod.F90" = ["C132", "S071"]
 
 
-# leaving these rules out for now:
-# C001, C081, C061, E001, C121, 
+# Leaving out for now (these rules are used in the universal config):
+# C001, C081, C061, E001, C121
+

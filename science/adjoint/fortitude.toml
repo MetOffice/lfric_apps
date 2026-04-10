@@ -23,5 +23,5 @@ output-format = "grouped"                #group results by file
 "setop_random_kernel_mod_test.pf" = ["E001"]
 "adj_mixed_operator_alg_mod.x90" = ["C061"]
 
-# leaving out for now:
+# Leaving out for now (these rules are used in the universal config):
 # S071

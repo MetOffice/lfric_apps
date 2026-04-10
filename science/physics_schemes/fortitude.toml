@@ -6,7 +6,7 @@
 
 [check]
 
-file-extensions= ["f90", "F90", "X90", "x90", "pf"]          #check these file types
+file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
 
 select = ["E000", "E001", "C001", "C031", "C032", "C043",
 "C051", "C071", "C072", "C081", "C091", "C082", "C092", "C121",
@@ -24,6 +24,8 @@ output-format = "grouped"                #group results by file
 "grow_particles_mod.F90" = ["C081"]
 "mphys_die.F90" = ["C081"]
 
-# leaving these rules out for now:
-# C021, C022, C061, 
+# Leaving out for now (these rules are used in the universal config):
+# C021, C022, C061
+
+
 
