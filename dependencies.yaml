@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: 018e40c707091a4b08cb67cba5f5c4ab49303481
+    source: git@github.com:mo-marqh/lfric_core.git
+    ref: 3b37e491809eb0fd3818557bbbe859ec7d138a4e
 
 moci:
     source: git@github.com:MetOffice/moci.git
