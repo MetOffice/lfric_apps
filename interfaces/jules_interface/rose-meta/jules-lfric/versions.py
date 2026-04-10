@@ -42,8 +42,8 @@ class vn31_t400(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
 
         # Is this a coupled model? The easiest way to get this is from the number of sea ice categories.
-        nice = int(self.get_setting_value(config, ["namelist:jules_sea_seaice", "nice"])
-        is_coupled = bool(nice > 1)
+        nice = int(self.get_setting_value(config, ["namelist:jules_sea_seaice", "nice"]))
+        is_coupled = nice > 1
  
         # Add the new namelist settings
         self.add_setting(config, ["namelist:jules_sea_seaice", "l_zenith_albedo"], ".false.")
