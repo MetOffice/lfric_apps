@@ -1,0 +1,142 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for adj_matrix_vector_kernel_type
+module adjt_matrix_vector_alg_mod
+
+  use field_mod,                     only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod,     only : element_order_h, element_order_v
+  use fs_continuity_mod,             only : W0
+  use operator_mod,                  only : operator_type
+  use constants_mod,                 only : i_def, r_def, EPS
+  use setop_random_alg_mod,          only : setop_random_alg
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_DEBUG,   &
+                                            LOG_LEVEL_ERROR
+  implicit none
+
+  private
+
+  public :: adjt_matrix_vector_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for adj_matrix_vector_kernel_type.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !> Determined by testing the equality of inner products
+  !> < Mx, Mx > and < AMx, x >, where M is the tangent linear
+  !> and A is the adjoint.
+  !> @param[in]  mesh                    The model mesh
+  subroutine adjt_matrix_vector_alg(mesh)
+
+    use matrix_vector_kernel_mod,     only : matrix_vector_kernel_type
+    use adj_matrix_vector_kernel_mod, only : adj_matrix_vector_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type)    :: lhs
+    type(field_type)    :: x
+    type(operator_type) :: matrix
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: lhs_input
+    type(field_type) :: x_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w0_ptr
+
+    ! Inner products
+    real(kind=r_def) :: lhs_inner_prod
+    real(kind=r_def) :: x_inner_prod
+    real(kind=r_def) :: lhs_sf
+    real(kind=r_def) :: x_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: lhs_lhs_input_inner_prod
+    real(kind=r_def) :: x_x_input_inner_prod
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    vector_space_w0_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, W0)
+    call lhs%initialise(vector_space = vector_space_w0_ptr, name = 'lhs')
+    call x%initialise(vector_space = vector_space_w0_ptr, name = 'x')
+    call matrix%initialise(vector_space_w0_ptr, vector_space_w0_ptr)
+    call lhs_input%initialise(vector_space = vector_space_w0_ptr, name = 'lhs_input')
+    call x_input%initialise(vector_space = vector_space_w0_ptr, name = 'x_input')
+
+    lhs_inner_prod = 0.0_r_def
+    x_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(lhs),       &
+                 setval_x(lhs_input, lhs), &
+                 setval_random(x),         &
+                 setval_x(x_input, x) )
+    call setop_random_alg( matrix )
+
+    ! Tangent linear and <Mx, Mx>
+    call invoke( matrix_vector_kernel_type(lhs, x, matrix), &
+                 x_innerproduct_x(lhs_inner_prod, lhs),     &
+                 x_innerproduct_x(x_inner_prod, x) )
+
+    ! Determining scale factors
+    lhs_sf = 1.0_r_def / (lhs_inner_prod + EPS)
+    x_sf = 1.0_r_def / (x_inner_prod + EPS)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + lhs_inner_prod * lhs_sf
+    inner1 = inner1 + x_inner_prod * x_sf
+
+    write( log_scratch_space, * ) "adjt_matrix_vector_alg inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "lhs inner product = ", lhs_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "x inner product = ", x_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( lhs_sf, lhs ), &
+                 inc_a_times_X( x_sf, x ) )
+
+    ! Adjoint and <AMx, x>
+    lhs_lhs_input_inner_prod = 0.0_r_def
+    x_x_input_inner_prod = 0.0_r_def
+
+    call invoke( adj_matrix_vector_kernel_type(lhs, x, matrix),              &
+                 x_innerproduct_y(lhs_lhs_input_inner_prod, lhs, lhs_input), &
+                 x_innerproduct_y(x_x_input_inner_prod, x, x_input))
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + lhs_lhs_input_inner_prod
+    inner2 = inner2 + x_x_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+    relative_diff = ABS(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED matrix_vector_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write(log_scratch_space, *) "FAILED matrix_vector_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine adjt_matrix_vector_alg
+
+end module adjt_matrix_vector_alg_mod
