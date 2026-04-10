@@ -1,0 +1,24 @@
+# ------------------------------------------------------------------------------
+#  (c) Crown copyright Met Office. All rights reserved.
+#  The file LICENCE, distributed with this code, contains details of the terms
+#  under which the code may be used.
+# ------------------------------------------------------------------------------
+
+name: Docs Build for Pull Requests
+run-name: Docs build PR${{github.event.pull_request.number}}
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'documentation/**'
+      - '.github/workflows/**'       
+
+concurrency:
+  group: pr-${{github.ref}}-${{github.event.pull_request.number || github.run_number}}
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+    name: Build Docs
+    uses: ./.github/workflows/ru_build-docs.yml

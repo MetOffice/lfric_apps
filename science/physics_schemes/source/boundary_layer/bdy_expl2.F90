@@ -46,7 +46,7 @@ subroutine bdy_expl2 (                                                         &
 ! in cloud/moisture data :
  cf_bulk,q,qcf,qcl,t,qw,tl,                                                    &
 ! in everything not covered so far :
- rad_hr,micro_tends,fb_surf,u_s,pstar,tstar,h_blend_orog,                      &
+ rad_hr,micro_tends,fb_surf,u_s,pstar,tstar,                                   &
  zh_prev,zhpar,z_lcl,ho2r2_orog,sd_orog,wtrac_as,                              &
 ! 2 in 3 INOUT for Smagorinsky
  delta_smag, max_diff, rneutml_sq, visc_m, visc_h,                             &
@@ -77,11 +77,11 @@ use bl_option_mod, only:                                                       &
     off, max_t_grad, a_grad_adj, sg_orog_mixing, l_use_surf_in_ri,             &
     h_scale, t_drain, idyndiag, DynDiag_ZL, l_noice_in_turb,                   &
     DynDiag_ZL_corrn, DynDiag_ZL_CuOnly, DynDiag_Ribased,                      &
-    RiCrit_sharp, zhloc_depth_fac, non_local_bl, on, l_full_lambdas,           &
+    RiCrit_sharp, zhloc_depth_fac, non_local_bl, on,                           &
     nl_bl_levels, local_fa, free_trop_layers, to_sharp_across_1km,             &
     sbl_op, equilibrium_sbl, one_third, two_thirds, blending_option,           &
     blend_except_cu, blend_cth_shcu_only, sg_shear, sg_shear_enh_lambda,       &
-    max_tke, var_diags_opt, original_vars, split_tke_and_inv, tke_diag_fac,    &
+    max_tke, tke_diag_fac,                                                     &
     i_interp_local, i_interp_local_gradients, i_interp_local_cf_dbdz,          &
     shallow_cu_maxtop, sc_cftol, near_neut_z_on_l, zero, one, one_half
 use cloud_inputs_mod, only: i_rhcpt, forced_cu, i_cld_vn, i_pc2_init_method,   &
@@ -257,9 +257,6 @@ real(kind=r_bl), intent(in) ::                                                 &
                                   ! in Surface pressure (Pascals).
  tstar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                   &
                                   ! in Surface temperature (K).
- h_blend_orog(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
-                                  ! in Blending height used as part
-                                  ! of effective roughness scheme
  zh_prev(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
                                   ! in boundary layer height from
                                   !    previous timestep
@@ -808,12 +805,9 @@ integer ::                                                                     &
 real(kind=r_bl), parameter :: max_abs_obkhov = 1.0e6_r_bl
                  ! Maximum permitted magnitude of the Obukhov
                  ! length (m).
-real(kind=r_bl), parameter :: small_sh = 0.01_r_bl
-                 ! Minimum  value of sh used in
-                 ! original_vars variance diagnostics
 real(kind=r_bl), parameter :: small_tke = 1.0e-6_r_bl
                  ! Minimum required value of TKE before
-                 ! split_tke_and_inv variance diagnostics are calculated
+                 ! variance diagnostics are calculated
 real(kind=r_bl), parameter :: max_ri = 0.01_r_bl*sqrt(huge(one))
                  ! Maximum (absolute) Richardson number which ensures that
                  ! the stability functions (~ri^2) remain real-valued at
@@ -957,11 +951,10 @@ end do
 ! heterogeneous land surface this is poorly defined and we can't use Rib
 ! from the surface scheme as vertically averaging Ri is numerically
 ! unstable.  So, over land, only the average temperature gradient is used
-if ( .not. l_use_surf_in_ri .and. (var_diags_opt > original_vars .or.          &
-                             i_interp_local == i_interp_local_cf_dbdz ) ) then
+if (.not. l_use_surf_in_ri) then
   ! if not using surface variables in Ri (l_use_surf_in_ri=false) we
-  ! extrapolate dbdz itself from level 2, but the sl and qw gradients are
-  ! used in the newer variance calculations and with i_interp_local_cf_dbdz
+  ! extrapolate dbdz itself from level 2, with the sl and qw gradients being
+  ! used in the variance calculations and with i_interp_local_cf_dbdz
   ! so extrapolate them here
 !$OMP do SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
@@ -2002,11 +1995,10 @@ end if  ! blending_option
 !-----------------------------------------------------------------------
 call ex_coef (                                                                 &
 ! in levels/logicals
-   bl_levels,k_log_layr,nSCMDpkgs,L_SCMDiags,BL_diag,                          &
+   bl_levels,k_log_layr,BL_diag,                                               &
 ! in fields
-   sigma_h,flandg,dbdz,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,               &
-   h_blend_orog,zhpar,ntpar,ntml_nl,ntdsc,nbdsc,u_p,v_p,u_s,fb_surf,           &
-   qw,tl,l_shallow_cth,rmlmax2, rneutml_sq, delta_smag,                        &
+   sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhpar,ntpar,        &
+   ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,delta_smag,            &
 ! in/out fields
    cumulus,weight_1dbl,                                                        &
 ! out fields
@@ -2067,27 +2059,6 @@ do k = 2, bl_levels
           !  Include mixing length, ELH, in RHOKH.
           !  Code moved from EX_COEF to avoid interpolation
           !------------------------------------------------------------
-          if ( k >= ntml_local(i,j)+2 .and. l_full_lambdas .and.               &
-               local_fa == to_sharp_across_1km ) then
-            ! Assuming only LOCAL_FA = "to_sharp_across_1km" option
-            ! will have L_FULL_LAMBDAS.
-            ! If other LOCAL_FA options are coded here then
-            ! changes must be included in section 2.1 of ex_coef
-            if (l_rp2) then
-              lambdah = max ( lambda_min ,                                     &
-                              par_mezcla_rp(rp_idx)*zh_local(i,j) )
-            else
-              lambdah = max ( lambda_min , 0.15_r_bl*zh_local(i,j) )
-            end if
-            z_scale = 1000.0_r_bl
-            weight1 = one_half*( one -                                         &
-                        tanh(3.0_r_bl*((z_uv(i,j,k)/z_scale )-one) ) )
-            lambdah = lambdah * weight1                                        &
-                         + lambda_min*( one -  weight1)
-            ! no need to do log profile correction as klog_layr eq 2
-            vkz = vkman * ( z_uv(i,j,k) + z0m_eff_gb(i,j) )
-            elh_rho(i,j,k) = vkz / (one + vkz/lambdah )
-          end if
           ! Reinstate UKV drainage flow bug here, where lambdah was not
           ! enhanced as intended (and as was done in ex_coef)!
           if (sg_orog_mixing == sg_shear_enh_lambda) then
@@ -2097,7 +2068,7 @@ do k = 2, bl_levels
             else
               lambdah = max ( lambda_min , 0.15_r_bl*zh_local(i,j) )
             end if
-            if (k >= ntml_local(i,j)+2 .and. .not. l_full_lambdas) then
+            if (k >= ntml_local(i,j)+2) then
               lambdah = lambda_min
             end if
             if (k <= k_log_layr) then
@@ -2226,64 +2197,36 @@ end if
 ! function of ustar, wstar) but is currently just set to zero
 if (BL_diag%l_tke) then
 
-  if (var_diags_opt == original_vars) then
-    ! BL_diag%tke currently contains (the reciprocal of) the non-local
-    ! (SML and DSC) mixed layer timescale, calculated in excf_nl
-
-!$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
-!$OMP  SHARED(BL_diag, rho_wet_tq, rhokm, dbdz, bl_levels, pdims)              &
-!$OMP  private(i, j, k, recip_time_sbl, recip_time_cbl)
-    do k = 2, bl_levels
-      do j = pdims%j_start, pdims%j_end
-        do i = pdims%i_start, pdims%i_end
-
-          ! stable timescale
-          recip_time_sbl = sqrt( max(dbdz(i,j,k),1.0e-5_r_bl) )/0.7_r_bl
-          recip_time_cbl = BL_diag%tke(i,j,k)
-
-          ! TKE diagnostic - taking 5 m2/s2 as a suitable maximum
-          BL_diag%tke(i,j,k)=  min( max_tke,                                   &
-                ( rhokm(i,j,k) / rho_wet_tq(i,j,k-1) )*(                       &
-                   recip_time_cbl + recip_time_sbl ) )
-
-        end do
-      end do
-    end do
-!$OMP end PARALLEL do
-
-  else if (var_diags_opt == split_tke_and_inv) then
-    ! Combine the, separately calculated, local and non-local TKE diagnostics
+  ! Combine the, separately calculated, local and non-local TKE diagnostics
 
 !$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
 !$OMP  SHARED(BL_diag, tke_nl, tke_loc, rho_wet_tq, weight_1dbl,               &
 !$OMP         tke_diag_fac, bl_levels, pdims)                                  &
 !$OMP  private(i, j, k)
-    do k = 2, bl_levels
-      do j = pdims%j_start, pdims%j_end
-        do i = pdims%i_start, pdims%i_end
+  do k = 2, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
 
-          ! TKE diagnostic
-          ! Currently tke_nl is strictly rho*sigma_w^2 while tke_loc is TKE
-          ! Assume isotropic turb so TKE_nl = 3/2 sigma_w^2
-          tke_nl(i,j,k) = weight_1dbl(i,j,k) * 1.5_r_bl *                      &
-                                            tke_nl(i,j,k)/rho_wet_tq(i,j,k-1)
-          BL_diag%tke(i,j,k) = max( tke_loc(i,j,k), tke_nl(i,j,k) )
+        ! TKE diagnostic
+        ! Currently tke_nl is strictly rho*sigma_w^2 while tke_loc is TKE
+        ! Assume isotropic turb so TKE_nl = 3/2 sigma_w^2
+        tke_nl(i,j,k) = weight_1dbl(i,j,k) * 1.5_r_bl *                        &
+                                          tke_nl(i,j,k)/rho_wet_tq(i,j,k-1)
+        BL_diag%tke(i,j,k) = max( tke_loc(i,j,k), tke_nl(i,j,k) )
 
-          ! Multiply by tuning factor
-          BL_diag%tke(i,j,k) = tke_diag_fac * BL_diag%tke(i,j,k)
+        ! Multiply by tuning factor
+        BL_diag%tke(i,j,k) = tke_diag_fac * BL_diag%tke(i,j,k)
 
-          ! Keep TKE below a sensible max value of max_tke
-          BL_diag%tke(i,j,k) = min( max_tke, BL_diag%tke(i,j,k) )
-          ! Applying this limit can occasionally cause the length-scale
-          ! Km / sqrt(w_var) to become unrealistically large, since no
-          ! equivalent limiting is done on Km.
+        ! Keep TKE below a sensible max value of max_tke
+        BL_diag%tke(i,j,k) = min( max_tke, BL_diag%tke(i,j,k) )
+        ! Applying this limit can occasionally cause the length-scale
+        ! Km / sqrt(w_var) to become unrealistically large, since no
+        ! equivalent limiting is done on Km.
 
-        end do
       end do
     end do
+  end do
 !$OMP end PARALLEL do
-
-  end if  ! var_diags_opt
 
   if ( i_bm_ez_opt == i_bm_ez_entpar ) then
     ! Calculate mixing-length to pass to bimodal cloud scheme,
@@ -2362,7 +2305,7 @@ if (BL_diag%l_tke) then
     ! to the microphysics turbulence call
 
 !$OMP PARALLEL DEFAULT(none) private(k,j,i)                                    &
-!$OMP SHARED(tdims, bl_levels,pdims,BL_diag,bl_w_var,var_diags_opt)
+!$OMP SHARED(tdims, bl_levels,pdims,BL_diag,bl_w_var)
 
 !$OMP do SCHEDULE(STATIC)
     do k = 2, tdims%k_end+1
@@ -2374,73 +2317,41 @@ if (BL_diag%l_tke) then
     end do
 !$OMP end do
 
-    if (var_diags_opt == original_vars) then
-      ! Original version: w_var = TKE
+    ! w_var = 2/3 TKE
 !$OMP do SCHEDULE(STATIC)
-      do k = 2, bl_levels
-        do j = pdims%j_start, pdims%j_end
-          do i = pdims%i_start, pdims%i_end
-            if (BL_diag%tke(i,j,k) > 1.0e-12_r_bl) then
-              bl_w_var(i,j,k) = BL_diag%tke(i,j,k)
-            end if
-          end do
+    do k = 2, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
+          if (BL_diag%tke(i,j,k) > 1.0e-12_r_bl) then
+            bl_w_var(i,j,k) = two_thirds * BL_diag%tke(i,j,k)
+          end if
         end do
       end do
+    end do
 !$OMP end do
-    else if (var_diags_opt == split_tke_and_inv) then
-      ! Improved version: w_var = 2/3 TKE
-!$OMP do SCHEDULE(STATIC)
-      do k = 2, bl_levels
-        do j = pdims%j_start, pdims%j_end
-          do i = pdims%i_start, pdims%i_end
-            if (BL_diag%tke(i,j,k) > 1.0e-12_r_bl) then
-              bl_w_var(i,j,k) = two_thirds * BL_diag%tke(i,j,k)
-            end if
-          end do
-        end do
-      end do
-!$OMP end do
-    end if ! test on var_diags_opt
 !$OMP end PARALLEL
 
   end if ! l_subgrid_qcl_mp .or. l_wvar_for_conv
 
-  if (var_diags_opt == original_vars) then
-    ! at this point, BL_diag%tke really contains 1.5*sigma_w^2. To make it look
-    ! a bit more like TKE near the surface, we will keep it constant below
-    ! the max of rhokm_surf
-!$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
-!$OMP  SHARED( pdims, rhokmz, BL_diag ) private(i, j, k, kmax )
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        kmax = maxloc(rhokmz(i,j,:), dim=1)
-        do k = 2, kmax
-          BL_diag%tke(i,j,k) = BL_diag%tke(i,j,kmax)
-        end do
-      end do
-    end do
-!$OMP end PARALLEL do
-  else if (var_diags_opt == split_tke_and_inv) then
-    ! at this point, tke_nl really contained 1.5*sigma_w^2. To make it look
-    ! a bit more like TKE near the surface, we will keep it constant below
-    ! the max of rhokm_surf (here we find the first local maximum in case there
-    ! is a larger rhokmz in a resolved inversion
+  ! At this point, tke_nl really contained 1.5*sigma_w^2. To make it look
+  ! a bit more like TKE near the surface, we will keep it constant below
+  ! the max of rhokm_surf (here we find the first local maximum in case there
+  ! is a larger rhokmz in a resolved inversion
 !$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
 !$OMP  SHARED( pdims,  bl_levels, rhokmz, BL_diag, tke_loc, tke_nl )           &
 !$OMP  private(i, j, k, kp)
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        kp=2
-        do while ( rhokmz(i,j,kp+1) > rhokmz(i,j,kp) .and. kp < bl_levels )
-          kp = kp +1
-        end do
-        do k = 2, kp-1
-          BL_diag%tke(i,j,k) = max( tke_loc(i,j,k), tke_nl(i,j,kp) )
-        end do
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
+      kp=2
+      do while ( rhokmz(i,j,kp+1) > rhokmz(i,j,kp) .and. kp < bl_levels )
+        kp = kp +1
+      end do
+      do k = 2, kp-1
+        BL_diag%tke(i,j,k) = max( tke_loc(i,j,k), tke_nl(i,j,kp) )
       end do
     end do
+  end do
 !$OMP end PARALLEL do
-  end if ! test on var_diags_opt
 
 end if    ! BL_diag%L_tke
 
@@ -2915,14 +2826,6 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
   ! slvar,qwvar,slqw are on theta-level K
   ! tke is on theta-level K-1
   ! exner is on theta-level K-1
-
-  ! For var_diags_opt = original_vars we use the following variables:
-  ! dsldzm is on theta-level K-1
-  ! dqwdzm is on theta-level K-1
-  ! elm is on theta-level K-1
-  ! rhokh is on rho-level K
-
-  ! For var_diags_opt = split_tke_and_inv
   ! dsldz is on rho-level K
   ! dqwdz is on rho-level K
   ! ftl is on rho-level k
@@ -2943,85 +2846,47 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
       call qsat_wat(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),tdims%i_len)
     end if
 
-    if (var_diags_opt == original_vars) then
-
-      do i = tdims%i_start, tdims%i_end
-        ! calculate sh, don't interpolate with the surface flux or divide by 0
-        if ( BL_diag%tke(i,j,k) > 1.0e-10_r_bl ) then
-          sh = rhokh(i,j,k)                                                    &
-               / ( rho_wet_tq(i,j,k-1) * elm(i,j,k)                            &
-               * sqrt( 2.0_r_bl * BL_diag%tke(i,j,k) ) )
-        else
-          sh = small_sh
-        end if
-        if ( sh < small_sh ) sh = small_sh
-        ! calculate exner
-        exner = ( p_theta_levels(i,j,k-1) / pref )**kappa
-        ! calculate the variance, use gradient interpolated between levs 1 and 2
-        sgm(i) = a_dqsdt(i,j,k-1)**2 * exner**2 * b2 * sh                      &
-              * elm(i,j,k)**2 * dsldz(i,j,k)**2                                &
-            + a_qs(i,j,k-1)**2 * b2 * sh                                       &
-              * elm(i,j,k)**2 * dqwdz(i,j,k)**2                                &
-            - 2.0_r_bl * a_qs(i,j,k-1) * a_dqsdt(i,j,k-1) * exner * b2         &
-              * sh * elm(i,j,k)**2 * dsldz(i,j,k) * dqwdz(i,j,k)
+    do i = tdims%i_start, tdims%i_end
+      ! calculate the variance
+      sl_var = zero
+      qw_var = zero
+      sl_qw = zero
+      if ( BL_diag%tke(i,j,k) > small_tke ) then
+        ! vertical interpolation weights
+        weight1 = r_rho_levels(i,j,k) - r_rho_levels(i,j,k-1)
+        weight2 = r_theta_levels(i,j,k-1) - r_rho_levels(i,j,k-1)
+        weight3 = r_rho_levels(i,j,k) - r_theta_levels(i,j,k-1)
+        ! var_fac=b2*L/sqrt(TKE)
+        var_fac = b2 * rhokm(i,j,k) / ( weight1 * BL_diag%tke(i,j,k) *       &
+                                  rho_wet_tq(i,j,k-1) * rho_mix_tq(i,j,k-1) )
+        ! Note that flux*gradient can be negative so the absolute values
+        ! are used
+        qw_var= abs( -var_fac*( weight2 * fqw(i,j,k)  * dqwdz(i,j,k) +       &
+                                weight3 * fqw(i,j,k-1)* dqwdz(i,j,k-1) ) )
+        sl_var= abs( -var_fac*( weight2 * ftl(i,j,k)  * dsldz(i,j,k) +       &
+                                weight3 * ftl(i,j,k-1)* dsldz(i,j,k-1) ) )
+        sl_qw = - one_half * var_fac*(                                       &
+         weight2*( ftl(i,j,k)*dqwdz(i,j,k) + fqw(i,j,k)*dsldz(i,j,k) ) +     &
+         weight3*( ftl(i,j,k-1)*dqwdz(i,j,k-1) + fqw(i,j,k-1)*dsldz(i,j,k-1))&
+                                )
         if (BL_diag%l_slvar) then
-          BL_diag%slvar(i,j,k-1) = b2 * sh * elm(i,j,k)**2 * dsldz(i,j,k)**2
+          BL_diag%slvar(i,j,k-1) = sl_var
         end if
         if (BL_diag%l_qwvar) then
-          BL_diag%qwvar(i,j,k-1) = b2 * sh * elm(i,j,k)**2 * dqwdz(i,j,k)**2
+          BL_diag%qwvar(i,j,k-1) = qw_var
         end if
         if (BL_diag%l_slqw) then
-          BL_diag%slqw(i,j,k-1) = b2 * sh * elm(i,j,k)**2 * dsldz(i,j,k)       &
-                                     * dqwdz(i,j,k)
+          BL_diag%slqw(i,j,k-1)  = sl_qw
         end if
-        ! do this for safety, not sure if it's really needed
-        sgm(i) = sqrt ( max( sgm(i), zero ) )
-      end do
+      end if
+      exner = ( p_theta_levels(i,j,k-1) / pref )**kappa
+      sgm(i) = a_dqsdt(i,j,k-1)**2 * exner**2 * sl_var                       &
+             + a_qs(i,j,k-1)**2 * qw_var                                     &
+             - 2.0_r_bl * a_qs(i,j,k-1) * a_dqsdt(i,j,k-1) * exner * sl_qw
+      !  do this for safety, not sure if it's really needed
+      sgm(i) = sqrt ( max( sgm(i), zero ) )
 
-    else ! var_diags_opt
-
-      do i = tdims%i_start, tdims%i_end
-        ! calculate the variance
-        sl_var = zero
-        qw_var = zero
-        sl_qw = zero
-        if ( BL_diag%tke(i,j,k) > small_tke ) then
-          ! vertical interpolation weights
-          weight1 = r_rho_levels(i,j,k) - r_rho_levels(i,j,k-1)
-          weight2 = r_theta_levels(i,j,k-1) - r_rho_levels(i,j,k-1)
-          weight3 = r_rho_levels(i,j,k) - r_theta_levels(i,j,k-1)
-          ! var_fac=b2*L/sqrt(TKE)
-          var_fac = b2 * rhokm(i,j,k) / ( weight1 * BL_diag%tke(i,j,k) *       &
-                                    rho_wet_tq(i,j,k-1) * rho_mix_tq(i,j,k-1) )
-          ! Note that flux*gradient can be negative so the absolute values
-          ! are used
-          qw_var= abs( -var_fac*( weight2 * fqw(i,j,k)  * dqwdz(i,j,k) +       &
-                                  weight3 * fqw(i,j,k-1)* dqwdz(i,j,k-1) ) )
-          sl_var= abs( -var_fac*( weight2 * ftl(i,j,k)  * dsldz(i,j,k) +       &
-                                  weight3 * ftl(i,j,k-1)* dsldz(i,j,k-1) ) )
-          sl_qw = - one_half * var_fac*(                                       &
-           weight2*( ftl(i,j,k)*dqwdz(i,j,k) + fqw(i,j,k)*dsldz(i,j,k) ) +     &
-           weight3*( ftl(i,j,k-1)*dqwdz(i,j,k-1) + fqw(i,j,k-1)*dsldz(i,j,k-1))&
-                                  )
-          if (BL_diag%l_slvar) then
-            BL_diag%slvar(i,j,k-1) = sl_var
-          end if
-          if (BL_diag%l_qwvar) then
-            BL_diag%qwvar(i,j,k-1) = qw_var
-          end if
-          if (BL_diag%l_slqw) then
-            BL_diag%slqw(i,j,k-1)  = sl_qw
-          end if
-        end if
-        exner = ( p_theta_levels(i,j,k-1) / pref )**kappa
-        sgm(i) = a_dqsdt(i,j,k-1)**2 * exner**2 * sl_var                       &
-               + a_qs(i,j,k-1)**2 * qw_var                                     &
-               - 2.0_r_bl * a_qs(i,j,k-1) * a_dqsdt(i,j,k-1) * exner * sl_qw
-        !  do this for safety, not sure if it's really needed
-        sgm(i) = sqrt ( max( sgm(i), zero ) )
-
-      end do !i
-    end if ! var_diags_opt
+    end do !i
 
     if (i_rhcpt == rhcpt_tke_based) then
       do i = tdims%i_start, tdims%i_end
@@ -3057,110 +2922,61 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
         call qsat_wat(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),tdims%i_len)
       end if
 
-      if (var_diags_opt == original_vars) then
-
-        do i = tdims%i_start, tdims%i_end
-          ! calculate sh, don't divide by 0
-          if ( BL_diag%tke(i,j,k) > 1.0e-10_r_bl ) then
-            weight1 = r_rho_levels(i,j,k) - r_rho_levels(i,j,k-1)
-            weight2 = r_theta_levels(i,j,k-1)-r_rho_levels(i,j,k-1)
-            weight3 = r_rho_levels(i,j,k) - r_theta_levels(i,j,k-1)
-            sh = ( weight2 * rhokh(i,j,k) + weight3 * rhokh(i,j,k-1) )         &
-                 / ( weight1 * rho_wet_tq(i,j,k-1) * elm(i,j,k)                &
-                 * sqrt( 2.0_r_bl * BL_diag%tke(i,j,k) ) )
-          else
-            sh = small_sh
-          end if
-          if ( sh < small_sh ) sh = small_sh
-          ! calculate exner
-          exner = ( p_theta_levels(i,j,k-1) / pref )**kappa
-          ! calculate the variance
-          sgm(i) = a_dqsdt(i,j,k-1)**2 * exner**2 * b2 * sh                    &
-                * elm(i,j,k)**2 * dsldzm(i,j,k)**2                             &
-              + a_qs(i,j,k-1)**2 * b2 * sh                                     &
-                * elm(i,j,k)**2 * dqwdzm(i,j,k)**2                             &
-              - 2.0_r_bl * a_qs(i,j,k-1) * a_dqsdt(i,j,k-1) * exner * b2       &
-                * sh * elm(i,j,k)**2 * dsldzm(i,j,k) * dqwdzm(i,j,k)
+      do i = tdims%i_start, tdims%i_end
+        ! calculate the variance
+        sl_var = zero
+        qw_var = zero
+        sl_qw  = zero
+        if ( BL_diag%tke(i,j,k) > small_tke ) then
+          ! vertical interpolation weights
+          weight1 = r_rho_levels(i,j,k) - r_rho_levels(i,j,k-1)
+          weight2 = r_theta_levels(i,j,k-1) - r_rho_levels(i,j,k-1)
+          weight3 = r_rho_levels(i,j,k) - r_theta_levels(i,j,k-1)
+          var_fac = b2 * rhokm(i,j,k) / ( weight1*BL_diag%tke(i,j,k) *       &
+                                   rho_wet_tq(i,j,k-1) * rho_mix_tq(i,j,k-1))
+          kp=k
+          km=k-1
+          ! Don't use level ntml (or ntdsc) if disc_inv=2 as this indicates
+          ! the inversion has just risen and the gradients between ntml and
+          ! ntml-1 are likely to give excessive variances
+          if ( (kp == ntml(i,j)  .and. sml_disc_inv(i,j) == 2) .or.          &
+               (kp == ntdsc(i,j) .and. dsc_disc_inv(i,j) == 2) ) kp = km
+          if ( (km == ntml(i,j)  .and. sml_disc_inv(i,j) == 2) .or.          &
+               (km == ntdsc(i,j) .and. dsc_disc_inv(i,j) == 2) ) km = kp
+          ! Note that flux*gradient can be negative so the absolute values
+          ! are used
+          qw_var= abs( -var_fac*( weight2 * fqw(i,j,kp) * dqwdz(i,j,kp) +    &
+                                  weight3 * fqw(i,j,km) * dqwdz(i,j,km) ) )
+          sl_var= abs( -var_fac*( weight2 * ftl(i,j,kp) * dsldz(i,j,kp) +    &
+                                  weight3 * ftl(i,j,km) * dsldz(i,j,km) ) )
+          sl_qw = - one_half * var_fac*(                                     &
+         weight2*( ftl(i,j,k)*dqwdz(i,j,k) + fqw(i,j,k)*dsldz(i,j,k) ) +     &
+         weight3*( ftl(i,j,k-1)*dqwdz(i,j,k-1) + fqw(i,j,k-1)*dsldz(i,j,k-1))&
+                                  )
           if (BL_diag%l_slvar) then
-            BL_diag%slvar(i,j,k-1) = b2 * sh * elm(i,j,k)**2 * dsldz(i,j,k)**2
+            BL_diag%slvar(i,j,k-1) = sl_var
           end if
           if (BL_diag%l_qwvar) then
-            BL_diag%qwvar(i,j,k-1) = b2 * sh * elm(i,j,k)**2 * dqwdz(i,j,k)**2
+            BL_diag%qwvar(i,j,k-1) = qw_var
           end if
           if (BL_diag%l_slqw) then
-            BL_diag%slqw(i,j,k-1) = b2 * sh * elm(i,j,k)**2 * dsldzm(i,j,k)    &
-                                       * dqwdz(i,j,k)
+            BL_diag%slqw(i,j,k-1) = sl_qw
           end if
-        end do !i
-        if (i_rhcpt == rhcpt_tke_based) then
-          do i = tdims%i_start, tdims%i_end
-            ! do this for safety, not sure if it's really needed
-            sgm(i) = sqrt ( max( sgm(i), zero ) )
-            ! calculate rhcrit, with appropriate limits
-            rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),         &
-                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
-          end do !i
         end if
-
-      else ! var_diags_opt
-
+        exner = ( p_theta_levels(i,j,k-1) / pref )**kappa
+        sgm(i) = a_dqsdt(i,j,k-1)**2 * exner**2 * sl_var                     &
+               + a_qs(i,j,k-1)**2 * qw_var                                   &
+               - 2.0_r_bl * a_qs(i,j,k-1) * a_dqsdt(i,j,k-1) * exner * sl_qw
+      end do !i
+      if (i_rhcpt == rhcpt_tke_based) then
         do i = tdims%i_start, tdims%i_end
-          ! calculate the variance
-          sl_var = zero
-          qw_var = zero
-          sl_qw  = zero
-          if ( BL_diag%tke(i,j,k) > small_tke ) then
-            ! vertical interpolation weights
-            weight1 = r_rho_levels(i,j,k) - r_rho_levels(i,j,k-1)
-            weight2 = r_theta_levels(i,j,k-1) - r_rho_levels(i,j,k-1)
-            weight3 = r_rho_levels(i,j,k) - r_theta_levels(i,j,k-1)
-            var_fac = b2 * rhokm(i,j,k) / ( weight1*BL_diag%tke(i,j,k) *       &
-                                     rho_wet_tq(i,j,k-1) * rho_mix_tq(i,j,k-1))
-            kp=k
-            km=k-1
-            ! Don't use level ntml (or ntdsc) if disc_inv=2 as this indicates
-            ! the inversion has just risen and the gradients between ntml and
-            ! ntml-1 are likely to give excessive variances
-            if ( (kp == ntml(i,j)  .and. sml_disc_inv(i,j) == 2) .or.          &
-                 (kp == ntdsc(i,j) .and. dsc_disc_inv(i,j) == 2) ) kp = km
-            if ( (km == ntml(i,j)  .and. sml_disc_inv(i,j) == 2) .or.          &
-                 (km == ntdsc(i,j) .and. dsc_disc_inv(i,j) == 2) ) km = kp
-            ! Note that flux*gradient can be negative so the absolute values
-            ! are used
-            qw_var= abs( -var_fac*( weight2 * fqw(i,j,kp) * dqwdz(i,j,kp) +    &
-                                    weight3 * fqw(i,j,km) * dqwdz(i,j,km) ) )
-            sl_var= abs( -var_fac*( weight2 * ftl(i,j,kp) * dsldz(i,j,kp) +    &
-                                    weight3 * ftl(i,j,km) * dsldz(i,j,km) ) )
-            sl_qw = - one_half * var_fac*(                                     &
-           weight2*( ftl(i,j,k)*dqwdz(i,j,k) + fqw(i,j,k)*dsldz(i,j,k) ) +     &
-           weight3*( ftl(i,j,k-1)*dqwdz(i,j,k-1) + fqw(i,j,k-1)*dsldz(i,j,k-1))&
-                                    )
-            if (BL_diag%l_slvar) then
-              BL_diag%slvar(i,j,k-1) = sl_var
-            end if
-            if (BL_diag%l_qwvar) then
-              BL_diag%qwvar(i,j,k-1) = qw_var
-            end if
-            if (BL_diag%l_slqw) then
-              BL_diag%slqw(i,j,k-1) = sl_qw
-            end if
-          end if
-          exner = ( p_theta_levels(i,j,k-1) / pref )**kappa
-          sgm(i) = a_dqsdt(i,j,k-1)**2 * exner**2 * sl_var                     &
-                 + a_qs(i,j,k-1)**2 * qw_var                                   &
-                 - 2.0_r_bl * a_qs(i,j,k-1) * a_dqsdt(i,j,k-1) * exner * sl_qw
+          ! do this for safety, not sure if it's really needed
+          sgm(i) = sqrt ( max( sgm(i), zero ) )
+          ! calculate rhcrit, with appropriate limits
+          rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),         &
+                    one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
         end do !i
-        if (i_rhcpt == rhcpt_tke_based) then
-          do i = tdims%i_start, tdims%i_end
-            ! do this for safety, not sure if it's really needed
-            sgm(i) = sqrt ( max( sgm(i), zero ) )
-            ! calculate rhcrit, with appropriate limits
-            rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),         &
-                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
-          end do !i
-        end if
-
-      end if ! var_diags_opt
+      end if
 
     end do   !j
 !$OMP end do NOWAIT

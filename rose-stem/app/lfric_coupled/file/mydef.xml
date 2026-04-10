@@ -140,6 +140,18 @@
 	<field field_ref="chemistry__dmso" />
 	<field field_ref="chemistry__monoterpene" />
 	<field field_ref="chemistry__secondary_organic" />
+	<field field_ref="aerosol__aod_ukca_ait_sol" />
+	<field field_ref="aerosol__aaod_ukca_ait_sol" />
+	<field field_ref="aerosol__aod_ukca_acc_sol" />
+	<field field_ref="aerosol__aaod_ukca_acc_sol" />
+	<field field_ref="aerosol__aod_ukca_cor_sol" />
+	<field field_ref="aerosol__aaod_ukca_cor_sol" />
+	<field field_ref="aerosol__aod_ukca_ait_ins" />
+	<field field_ref="aerosol__aaod_ukca_ait_ins" />
+	<field field_ref="aerosol__aod_ukca_acc_ins" />
+	<field field_ref="aerosol__aaod_ukca_acc_ins" />
+	<field field_ref="aerosol__aod_ukca_cor_ins" />
+	<field field_ref="aerosol__aaod_ukca_cor_ins" />
 	<field field_ref="aerosol__n_nuc_sol" />
 	<field field_ref="aerosol__n_ait_sol" />
 	<field field_ref="aerosol__n_acc_sol" />
@@ -453,7 +465,7 @@
     <variable_definition>
       <variable_group id = "buffer">
         <variable id = "optimal_buffer_size" type = "string" >performance</variable>
-        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+        <variable id = "buffer_size_factor" type = "double" >1.0</variable>
       </variable_group>
 
       <variable_group id = "parameters" >

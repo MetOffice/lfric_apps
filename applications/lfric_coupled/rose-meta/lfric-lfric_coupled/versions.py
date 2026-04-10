@@ -1,8 +1,9 @@
+import re
 import sys
 
-from metomi.rose.upgrade import MacroUpgrade
+from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version22_30 import *
+from .version30_31 import *
 
 
 class UpgradeError(Exception):
@@ -31,3 +32,15 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
+class vn31_t118(MacroUpgrade):
+    """Upgrade macro for ticket None by None."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t118"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Blank Upgrade Macro
+        return config, self.reports
