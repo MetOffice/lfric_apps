@@ -5797,172 +5797,163 @@ a closure needed to form the equation set, but are less readily related
 to physical quantities. Variables marked ’Diag’ form a part of the
 diagnostic output routines.
 
-.. container:: center
+.. list-table:: PC2 parameter values and locations
+   :name: tab:pc2_names
+   :header-rows: 1
 
-   .. container::
-      :name: tab:pc2_names
+   * - Symbol
+     - Code variable
+     - Des cription
+     - Value
+     - Location
+     - Notes and ref.
 
-      .. table:: PC2 parameter values and locations
+   * - -
+     - init-it erations
+     - Number of it erations in in itiation
+     - 10
+     - p c2-const
+     - Num: `3.4.2 <#sec:numapp_init>`__
 
-         +----------+----------+----------+----------+----------+----------+
-         | Symbol   | Code     | Des      | Value    | Location | Notes    |
-         |          | variable | cription |          |          | and ref. |
-         +==========+==========+==========+==========+==========+==========+
-         | -        | init-it  | Number   | 10       | p        | Num:     |
-         |          | erations | of       |          | c2-const | `3.4     |
-         |          |          | it       |          |          | .2 <#sec |
-         |          |          | erations |          |          | :numapp_ |
-         |          |          | in       |          |          | init>`__ |
-         |          |          | in       |          |          |          |
-         |          |          | itiation |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :math:`  | cloud    | Bounds   | 0.005    | UM       | Num:     |
-         | C_{tol}` | -pc2-tol | checking |          | namelist | `4.9     |
-         |          |          | :ma      |          |          |  <#sec:i |
-         |          |          | th:`C_l` |          |          | nit2>`__ |
-         |          |          | t        |          |          |          |
-         |          |          | hreshold |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :        | cloud-p  | Bounds   | 0.001    | UM       | Num:     |
-         | math:`C_ | c2-tol-2 | checking |          | namelist | `4.9     |
-         | {tol 2}` |          | :ma      |          |          |  <#sec:i |
-         |          |          | th:`C_l` |          |          | nit2>`__ |
-         |          |          | t        |          |          |          |
-         |          |          | hreshold |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :math:`R | rh       | :        | 0.01     | p        | Num:     |
-         | H_{tol}` | crit-tol | math:`RH |          | c2-const | `4.9     |
-         |          |          | _{crit}` |          |          |  <#sec:i |
-         |          |          | t        |          |          | nit2>`__ |
-         |          |          | olerance |          |          |          |
-         |          |          | in       |          |          |          |
-         |          |          | in       |          |          |          |
-         |          |          | itiation |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :math    | ls-bl0   | Fixed    | :ma      | imp-ctl  | Clo:     |
-         | :`q_{cf0 |          | value of | th:`1.0  |          | `        |
-         |  \, BL}` |          | BL       | \times 1 |          | 4.6 <#se |
-         |          |          | in-plume | 0^{-4} \ |          | c:bl>`__ |
-         |          |          | :        | , kg \,  |          |          |
-         |          |          | math:`\o | kg^{-1}` |          |          |
-         |          |          | verline{ |          |          |          |
-         |          |          | q_{cf}}` |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :math:`  | one-     | Fixed    | :ma      | pc2-chck | Num:     |
-         | q_{cf0}` | over-qcf | in-cloud | th:`1.0  |          | `4.10    |
-         |          |          | :        | \times 1 |          | <#sec:ch |
-         |          |          | math:`\o | 0^{-4} \ |          | ecks>`__ |
-         |          |          | verline{ | , kg \,  |          |          |
-         |          |          | q_{cf}}` | kg^{-1}` |          |          |
-         |          |          | if       |          |          |          |
-         |          |          | :math:`  |          |          |          |
-         |          |          | C_f`\ =0 |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :        | pdf-mer  | Merging  | 0.5      | p        | Clo:     |
-         | math:`m` | ge-power | power    |          | c2-const | `3.2     |
-         |          |          | for      |          |          |  <#sec:h |
-         |          |          | :math:`  |          |          | omog>`__ |
-         |          |          | G(-Q_c)` |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :        | p        | Shape    | 0.0      | p        | Phy:     |
-         | math:`n` | df-power | p        |          | c2-const | `3.2     |
-         |          |          | arameter |          |          |  <#sec:h |
-         |          |          | for      |          |          | omog>`__ |
-         |          |          | :math:`  |          |          |          |
-         |          |          | G(-Q_c)` |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :        | w        | Wind     | :mat     | p        | Phy:     |
-         | math:`w` | ind-shea | shear in | h:`1.5 \ | c2-const | `        |
-         |          | r-factor | fallout  | times 10 |          | 4.2.1 <# |
-         |          |          | of ice   | ^{-4} \, |          | sec:lsp_ |
-         |          |          | term     |  s^{-1}` |          | fall>`__ |
-         +----------+----------+----------+----------+----------+----------+
-         | :        | i        | Scaling  | 0.04     | p        | Phy:     |
-         | math:`i` | ce-width | factor   |          | c2-const | `4       |
-         |          |          | for      |          |          | .2.4 <#s |
-         |          |          | r        |          |          | ec:mp_de |
-         |          |          | eduction |          |          | psub>`__ |
-         |          |          | in       |          |          |          |
-         |          |          | :ma      |          |          |          |
-         |          |          | th:`b_i` |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :        | dbsdtb   | Rate of  | :math:   | UM       | Phy:     |
-         | math:`a` | s-turb-0 | r        | `-2.25 \ | namelist | `3.3     |
-         |          |          | eduction | times 10 |          |  <#sec:w |
-         |          |          | of PDF   | ^{-5} \, |          | idth>`__ |
-         |          |          | width    |  s^{-1}` |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :        | dbsdtb   | Rate of  | 0        | p        | Phy:     |
-         | math:`b` | s-turb-1 | r        |          | c2-const | `3.3     |
-         |          |          | eduction |          |          |  <#sec:w |
-         |          |          | of PDF   |          |          | idth>`__ |
-         |          |          | width    |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         |          | dbsd     | Redn of  | 0        | p        | Phy:     |
-         |          | tbs-conv | PDF      |          | c2-const | `3.3     |
-         |          |          | width in |          |          |  <#sec:w |
-         |          |          | co       |          |          | idth>`__ |
-         |          |          | nvection |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         |          | dbs      | V        | 10.05    | p        | Phy:     |
-         |          | dtbs-exp | ariation |          | c2-const | `3.3     |
-         |          |          | of       |          |          |  <#sec:w |
-         |          |          | erosion  |          |          | idth>`__ |
-         |          |          | on RH    |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :        | RHCRIT   | Critical |          | UM       | Phy:     |
-         | math:`RH |          | RH for   |          | namelist | `3.4     |
-         | _{crit}` |          | cloud    |          |          |  <#sec:i |
-         |          |          | f        |          |          | nit>`__, |
-         |          |          | ormation |          |          | `4       |
-         |          |          |          |          |          | .2.4 <#s |
-         |          |          |          |          |          | ec:mp_de |
-         |          |          |          |          |          | psub>`__ |
-         +----------+----------+----------+----------+----------+----------+
-         | :math:   | condensa | Minimum  | :m       | pc2-chck | Num:     |
-         | `q_{c0}` | te-limit | allowed  | ath:`1 \ |          | `4.10    |
-         |          |          | co       | times 10 |          | <#sec:ch |
-         |          |          | ndensate | ^{-10} \ |          | ecks>`__ |
-         |          |          |          | , kg \,  |          |          |
-         |          |          |          | kg^{-1}` |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | :math:`q | ls0      | Lower    | :        | enviro?a | Num:     |
-         | _c^{S0}` |          | limit of | math:`5  |          | `3.5.    |
-         |          |          | plume    | \times 1 |          | 2 <#sec: |
-         |          |          | co       | 0^{-5} \ |          | multi_nu |
-         |          |          | ndensate | , kg \,  |          | mapp>`__ |
-         |          |          |          | kg^{-1}` |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         |          | *Har     | Conv     | 0.2      | imp-ctl2 | Diag:    |
-         |          | d-wired* | cloud    |          |          | `5.3     |
-         |          |          | fraction |          |          |  <#sec:d |
-         |          |          | for      |          |          | iags>`__ |
-         |          |          | vi       |          |          |          |
-         |          |          | sibility |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         |          | *Har     | Limit on | 0.001    | lspice3d | Num:     |
-         |          | d-wired* | width of |          |          | `4       |
-         |          |          | ice      |          |          | .2.4 <#s |
-         |          |          | dist     |          |          | ec:mp_de |
-         |          |          | ribution |          |          | psub>`__ |
-         +----------+----------+----------+----------+----------+----------+
-         |          | *Har     | :ma      | 0.05     | pc2-init | Num:     |
-         |          | d-wired* | th:`C_l` |          |          | `4.9     |
-         |          |          | limit    |          |          |  <#sec:i |
-         |          |          | for init |          |          | nit2>`__ |
-         |          |          | if       |          |          |          |
-         |          |          | :math:`T |          |          |          |
-         |          |          |  < 0 ^{\ |          |          |          |
-         |          |          | circ} C` |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         |          | *Har     | T        | :mat     | imp-ctl  | Num:     |
-         |          | d-wired* | olerance | h:`1.0 \ |          | `        |
-         |          |          | on calc. | times 10 |          | 4.6 <#se |
-         |          |          | of       | ^{-10} \ |          | c:bl>`__ |
-         |          |          | :math    | , kg \,  |          |          |
-         |          |          | :`q_C^s` | kg^{-1}` |          |          |
-         |          |          | in BL    |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
+   * - :math:`C_{tol}`
+     - cloud -pc2-tol
+     - Bounds checking :math:`C_l` t hreshold
+     - 0.005
+     - UM namelist
+     - Num: `4.9 <#sec:init2>`__
+
+   * - :math:`C_{tol 2}`
+     - cloud-p c2-tol-2
+     - Bounds checking :math:`C_l` t hreshold
+     - 0.001
+     - UM namelist
+     - Num: `4.9 <#sec:init2>`__
+
+   * - :math:`RH_{tol}`
+     - rh crit-tol
+     - :math:`RH_{crit}` t olerance in in itiation
+     - 0.01
+     - p c2-const
+     - Num: `4.9 <#sec:init2>`__
+
+   * - :math:`q_{cf0\, BL}`
+     - ls-bl0
+     - Fixed value of BL in-plume :math:`\overline{q_{cf}}`
+     - :math:`1.0\times 10^{-4} \, kg \,kg^{-1}`
+     - imp-ctl
+     - Clo: `4.6 <#sec:bl>`__
+
+   * - :math:`q_{cf0}`
+     - one- over-qcf
+     - Fixed in-cloud :math:`\overline{q_{cf}}` if :math:`C_f`\ =0
+     - :math:`1.0\times 10^{-4} \, kg \,kg^{-1}`
+     - pc2-chck
+     - Num: `4.10 <#sec:checks>`__
+
+   * - :math:`m`
+     - pdf-mer ge-power
+     - Merging power for :math:`G(-Q_c)`
+     - 0.5
+     - p c2-const
+     - Clo: `3.2 <#sec:homog>`__
+
+   * - :math:`n`
+     - p df-power
+     - Shape p arameter for :math:`G(-Q_c)`
+     - 0.0
+     - p c2-const
+     - Phy: `3.2 <#sec:homog>`__
+
+   * - :math:`w`
+     - w ind-shea r-factor
+     - Wind shear in fallout of ice term
+     - :math:`1.5 \times 10^{-4} \,s^{-1}`
+     - p c2-const
+     - Phy: `4.2.1 <#sec:lsp_fall>`__
+
+   * - :math:`i`
+     - i ce-width
+     - Scaling factor for r eduction in :math:`b_i`
+     - 0.04
+     - p c2-const
+     - Phy: `4.2.4 <#sec:mp_depsub>`__
+
+   * - :math:`a`
+     - dbsdtb s-turb-0
+     - Rate of r eduction of PDF width
+     - :math:`-2.25 \times 10^{-5} \,s^{-1}`
+     - UM namelist
+     - Phy: `3.3 <#sec:width>`__
+
+   * - :math:`b`
+     - dbsdtb s-turb-1
+     - Rate of r eduction of PDF width
+     - 0
+     - p c2-const
+     - Phy: `3.3 <#sec:width>`__
+
+   * - 
+     - dbsd tbs-conv
+     - Redn of PDF width in co nvection
+     - 0
+     - p c2-const
+     - Phy: `3.3 <#sec:width>`__
+
+   * - 
+     - dbs dtbs-exp
+     - V ariation of erosion on RH
+     - 10.05
+     - p c2-const
+     - Phy: `3.3 <#sec:width>`__
+
+   * - :math:`RH_{crit}`
+     - RHCRIT
+     - Critical RH for cloud f ormation
+     - 
+     - UM namelist
+     - Phy: `3.4 <#sec:init>`__, `4.2.4 <#sec:mp_depsub>`__
+
+   * - :math:`q_{c0}`
+     - condensa te-limit
+     - Minimum allowed co ndensate
+     - :math:`1 \times 10^{-10} \, kg \,kg^{-1}`
+     - pc2-chck
+     - Num: `4.10 <#sec:checks>`__
+
+   * - :math:`q_c^{S0}`
+     - ls0
+     - Lower limit of plume co ndensate
+     - :math:`5\times 10^{-5} \, kg \,kg^{-1}`
+     - enviro?a
+     - Num: `3.5.2 <#sec:multi_numapp>`__
+
+   * - 
+     - *Har d-wired*
+     - Conv cloud fraction for vi sibility
+     - 0.2
+     - imp-ctl2
+     - Diag: `5.3 <#sec:diags>`__
+
+   * - 
+     - *Har d-wired*
+     - Limit on width of ice dist ribution
+     - 0.001
+     - lspice3d
+     - Num: `4.2.4 <#sec:mp_depsub>`__
+
+   * - 
+     - *Har d-wired*
+     - :math:`C_l` limit for init if :math:`T< 0 ^{\circ} C`
+     - 0.05
+     - pc2-init
+     - Num: `4.9 <#sec:init2>`__
+
+   * - 
+     - *Har d-wired*
+     - T olerance on calc. of :math:`q_C^s` in BL
+     - :math:`1.0 \times 10^{-10} \, kg \,kg^{-1}`
+     - imp-ctl
+     - Num: `4.6 <#sec:bl>`__
 
 PC2 also recommends some tunings of the existing convection scheme
 parameters. These cannot be placed in the library code, since they would
@@ -5971,54 +5962,51 @@ modification sets. We have included those parameters that have been
 investigated throughout testing, although only two are different between
 PC2:64 and a non-PC2 run.
 
-.. container:: center
+.. list-table:: PC2 parameter values and locations relating to the
+   :name: tab:pc2_conv_names
+   :header-rows: 1
 
-   .. container::
-      :name: tab:pc2_conv_names
+   * - Code variable
+     - Des cription
+     - Value in PC2
+     - Value in Control
+     - Location
+     - Notes and r eference
 
-      .. table:: PC2 parameter values and locations relating to the
-      convection. \*These values are those used in HadGAM
+   * - TICE
+     - Tem perature at which plume freezes
+     - :math:`-10 ^{\circ} C`
+     - :math:`0^{\circ} C`\ \*
+     - tice.cdk or UMUI
+     - Phy: `4.7 <#sec:convec>`__
 
-         +----------+----------+----------+----------+----------+----------+
-         | Code     | Des      | Value in | Value in | Location | Notes    |
-         | variable | cription | PC2      | Control  |          | and      |
-         |          |          |          |          |          | r        |
-         |          |          |          |          |          | eference |
-         +==========+==========+==========+==========+==========+==========+
-         | TICE     | Tem      | :math:   | :math:`0 | tice.cdk | Phy:     |
-         |          | perature | `-10 ^{\ |  ^{\circ | or UMUI  | `4.7     |
-         |          | at which | circ} C` | } C`\ \* |          | <#sec:co |
-         |          | plume    |          |          |          | nvec>`__ |
-         |          | freezes  |          |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | QSTICE   | App      | :m       | :m       | qs       | Phy:     |
-         |          | roximate | ath:`3.5 | ath:`3.5 | tice.cdk | `4.7     |
-         |          | qs       |  \times  |  \times  | or UMUI  | <#sec:co |
-         |          | at(TICE) | 10^{-3}` | 10^{-3}` |          | nvec>`__ |
-         +----------+----------+----------+----------+----------+----------+
-         | *Har     | Limit on | 0.5      | :math:   | cloudw   | Phy:     |
-         | d-wired* | conv.    | :        | `0.5 \,  |          | `4.7     |
-         |          | cond.    | math:`q_ | q_{sat}` |          | <#sec:co |
-         |          | after    | {sat}, 2 |          |          | nvec>`__ |
-         |          | precip   |  \times  |          |          |          |
-         |          |          | 10^{-4}` |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | Anvil    | Shape    | 0        | 0.3\*    | UMUI     | Phy:     |
-         | factor   | p        |          |          |          | `4.7     |
-         |          | arameter |          |          |          | <#sec:co |
-         |          | for      |          |          |          | nvec>`__ |
-         |          | conv.    |          |          |          |          |
-         |          | cloud    |          |          |          |          |
-         |          | anvil    |          |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
-         | Tower    | Shape    | 0        | 0.25\*   | UMUI     | Phy:     |
-         | factor   | p        |          |          |          | `4.7     |
-         |          | arameter |          |          |          | <#sec:co |
-         |          | for      |          |          |          | nvec>`__ |
-         |          | conv.    |          |          |          |          |
-         |          | cloud    |          |          |          |          |
-         |          | tower    |          |          |          |          |
-         +----------+----------+----------+----------+----------+----------+
+   * - QSTICE
+     - App roximate qs at(TICE)
+     - :math:`3.5\times10^{-3}`
+     - :math:`3.5\times10^{-3}`
+     - qs tice.cdk or UMUI
+     - Phy: `4.7 <#sec:convec>`__
+
+   * - *Har d-wired*
+     - Limit on conv. cond. after precip
+     - 0.5 :math:`q_{sat}, 2\times10^{-4}`
+     - :math:`0.5 \,q_{sat}`
+     - cloudw
+     - Phy: `4.7 <#sec:convec>`__
+
+   * - Anvil factor
+     - Shape p arameter for conv. cloud anvil
+     - 0
+     - 0.3\*
+     - UMUI
+     - Phy: `4.7 <#sec:convec>`__
+
+   * - Tower factor
+     - Shape p arameter for conv. cloud tower
+     - 0
+     - 0.25\*
+     - UMUI
+     - Phy: `4.7 <#sec:convec>`__
 
 How to run the PC2 scheme
 -------------------------
