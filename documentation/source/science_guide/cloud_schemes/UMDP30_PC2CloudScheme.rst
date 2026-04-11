@@ -5813,147 +5813,147 @@ diagnostic output routines.
      - Number of it erations in in itiation
      - 10
      - p c2-const
-     - Num: `3.4.2 <#sec:numapp_init>`__
+     - Num: :ref:`Numerical Application of the Smith method`
 
    * - :math:`C_{tol}`
      - cloud -pc2-tol
      - Bounds checking :math:`C_l` t hreshold
      - 0.005
      - UM namelist
-     - Num: `4.9 <#sec:init2>`__
+     - Num: :ref:`Initiation`
 
    * - :math:`C_{tol 2}`
      - cloud-p c2-tol-2
      - Bounds checking :math:`C_l` t hreshold
      - 0.001
      - UM namelist
-     - Num: `4.9 <#sec:init2>`__
+     - Num: :ref:`Initiation`
 
    * - :math:`RH_{tol}`
      - rh crit-tol
      - :math:`RH_{crit}` t olerance in in itiation
      - 0.01
      - p c2-const
-     - Num: `4.9 <#sec:init2>`__
+     - Num: :ref:`Initiation`
 
    * - :math:`q_{cf0\, BL}`
      - ls-bl0
      - Fixed value of BL in-plume :math:`\overline{q_{cf}}`
      - :math:`1.0\times 10^{-4} \, kg \,kg^{-1}`
      - imp-ctl
-     - Clo: `4.6 <#sec:bl>`__
+     - Clo: :ref:`Boundary Layer`
 
    * - :math:`q_{cf0}`
      - one- over-qcf
      - Fixed in-cloud :math:`\overline{q_{cf}}` if :math:`C_f`\ =0
      - :math:`1.0\times 10^{-4} \, kg \,kg^{-1}`
      - pc2-chck
-     - Num: `4.10 <#sec:checks>`__
+     - Num: :ref:`Bounds checking`
 
    * - :math:`m`
      - pdf-mer ge-power
      - Merging power for :math:`G(-Q_c)`
      - 0.5
      - p c2-const
-     - Clo: `3.2 <#sec:homog>`__
+     - Clo: :ref:`Homogeneous forcing`
 
    * - :math:`n`
      - p df-power
      - Shape p arameter for :math:`G(-Q_c)`
      - 0.0
      - p c2-const
-     - Phy: `3.2 <#sec:homog>`__
+     - Phy: :ref:`Homogeneous forcing`
 
    * - :math:`w`
      - w ind-shea r-factor
      - Wind shear in fallout of ice term
      - :math:`1.5 \times 10^{-4} \,s^{-1}`
      - p c2-const
-     - Phy: `4.2.1 <#sec:lsp_fall>`__
+     - Phy: :ref:`Fall of ice`
 
    * - :math:`i`
      - i ce-width
      - Scaling factor for r eduction in :math:`b_i`
      - 0.04
      - p c2-const
-     - Phy: `4.2.4 <#sec:mp_depsub>`__
+     - Phy: :ref:`Deposition and sublimation`
 
    * - :math:`a`
      - dbsdtb s-turb-0
      - Rate of r eduction of PDF width
      - :math:`-2.25 \times 10^{-5} \,s^{-1}`
      - UM namelist
-     - Phy: `3.3 <#sec:width>`__
+     - Phy: :ref:`Changing the width of the PDF - PC2 erosion`
 
    * - :math:`b`
      - dbsdtb s-turb-1
      - Rate of r eduction of PDF width
      - 0
      - p c2-const
-     - Phy: `3.3 <#sec:width>`__
+     - Phy: :ref:`Changing the width of the PDF - PC2 erosion`
 
    * - 
      - dbsd tbs-conv
      - Redn of PDF width in co nvection
      - 0
      - p c2-const
-     - Phy: `3.3 <#sec:width>`__
+     - Phy: :ref:`Changing the width of the PDF - PC2 erosion`
 
    * - 
      - dbs dtbs-exp
      - V ariation of erosion on RH
      - 10.05
      - p c2-const
-     - Phy: `3.3 <#sec:width>`__
+     - Phy: :ref:`Changing the width of the PDF - PC2 erosion`
 
    * - :math:`RH_{crit}`
      - RHCRIT
      - Critical RH for cloud f ormation
      - 
      - UM namelist
-     - Phy: `3.4 <#sec:init>`__, `4.2.4 <#sec:mp_depsub>`__
+     - Phy: :ref:`Initiation of cloud`, :ref:`Deposition and sublimation`
 
    * - :math:`q_{c0}`
      - condensa te-limit
      - Minimum allowed co ndensate
      - :math:`1 \times 10^{-10} \, kg \,kg^{-1}`
      - pc2-chck
-     - Num: `4.10 <#sec:checks>`__
+     - Num: :ref:`Bounds checking`
 
    * - :math:`q_c^{S0}`
      - ls0
      - Lower limit of plume co ndensate
      - :math:`5\times 10^{-5} \, kg \,kg^{-1}`
      - enviro?a
-     - Num: `3.5.2 <#sec:multi_numapp>`__
+     - Num: :ref:`Numerical application`
 
    * - 
      - *Har d-wired*
      - Conv cloud fraction for vi sibility
      - 0.2
      - imp-ctl2
-     - Diag: `5.3 <#sec:diags>`__
+     - Diag: :ref:`Diagnostics`
 
    * - 
      - *Har d-wired*
      - Limit on width of ice dist ribution
      - 0.001
      - lspice3d
-     - Num: `4.2.4 <#sec:mp_depsub>`__
+     - Num: :ref:`Deposition and sublimation`
 
    * - 
      - *Har d-wired*
      - :math:`C_l` limit for init if :math:`T< 0 ^{\circ} C`
      - 0.05
      - pc2-init
-     - Num: `4.9 <#sec:init2>`__
+     - Num: :ref:`Initiation`
 
    * - 
      - *Har d-wired*
      - T olerance on calc. of :math:`q_C^s` in BL
      - :math:`1.0 \times 10^{-10} \, kg \,kg^{-1}`
      - imp-ctl
-     - Num: `4.6 <#sec:bl>`__
+     - Num: :ref:`Boundary Layer`
 
 PC2 also recommends some tunings of the existing convection scheme
 parameters. These cannot be placed in the library code, since they would
@@ -5978,35 +5978,35 @@ PC2:64 and a non-PC2 run.
      - :math:`-10 ^{\circ} C`
      - :math:`0^{\circ} C`\ \*
      - tice.cdk or UMUI
-     - Phy: `4.7 <#sec:convec>`__
+     - Phy: :ref:`Convection`
 
    * - QSTICE
      - App roximate qs at(TICE)
      - :math:`3.5\times10^{-3}`
      - :math:`3.5\times10^{-3}`
      - qs tice.cdk or UMUI
-     - Phy: `4.7 <#sec:convec>`__
+     - Phy: :ref:`Convection`
 
    * - *Har d-wired*
      - Limit on conv. cond. after precip
      - 0.5 :math:`q_{sat}, 2\times10^{-4}`
      - :math:`0.5 \,q_{sat}`
      - cloudw
-     - Phy: `4.7 <#sec:convec>`__
+     - Phy: :ref:`Convection`
 
    * - Anvil factor
      - Shape p arameter for conv. cloud anvil
      - 0
      - 0.3\*
      - UMUI
-     - Phy: `4.7 <#sec:convec>`__
+     - Phy: :ref:`Convection`
 
    * - Tower factor
      - Shape p arameter for conv. cloud tower
      - 0
      - 0.25\*
      - UMUI
-     - Phy: `4.7 <#sec:convec>`__
+     - Phy: :ref:`Convection`
 
 How to run the PC2 scheme
 -------------------------
