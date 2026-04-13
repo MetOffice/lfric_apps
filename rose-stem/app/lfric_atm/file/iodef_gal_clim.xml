@@ -43,6 +43,7 @@
 
       <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
       <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<!-- Atmosphere fields -->
 	<field id="read_ew_wind_in_w3" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
 	<field id="read_ns_wind_in_w3" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
@@ -83,6 +84,7 @@
 	<field id="read_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
 	<field id="read_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
 	<field id="read_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+       </field_group>
       </file>
 
     </file_definition>

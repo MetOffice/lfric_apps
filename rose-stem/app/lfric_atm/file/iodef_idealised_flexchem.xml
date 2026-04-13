@@ -42,6 +42,7 @@
 
       <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
       <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<!-- Atmosphere fields -->
 	<field id="read_ew_wind_in_w3" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
 	<field id="read_ns_wind_in_w3" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
@@ -61,6 +62,7 @@
 	<!-- aquaplanet ancillary fields -->
 	<field id="read_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="once" />
 	<field id="read_ozone" name="ozone" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="once" />
+       </field_group>
       </file>
 
     </file_definition>
