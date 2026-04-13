@@ -1,19 +1,9 @@
-<<<<<<< TBendall/mol_division_fix
-Inner product checksum rho = 411B54095116B382
-Inner product checksum theta = 42735B1738E95DAA
-Inner product checksum u = 456F429B28A784A4
-Inner product checksum mr1 = 403684A967E32E42
-Inner product checksum mr2 = 3F3FFA1EE107DAE0
-Inner product checksum mr3 = 3F02AAB75EC64EC0
-Inner product checksum mr4 = 3F3698F3B16E678A
-=======
-Inner product checksum rho = 411B540D9DA63C6C
-Inner product checksum theta = 42735B1B24537EDD
-Inner product checksum u = 456F42BA8FBFE59A
-Inner product checksum mr1 = 40368429CA80B478
-Inner product checksum mr2 = 3F3FC9B57D725706
-Inner product checksum mr3 = 3F0247C38AA5E417
-Inner product checksum mr4 = 3F3672C68E0DEAB3
->>>>>>> main
+Inner product checksum rho = 411B540A101D14D3
+Inner product checksum theta = 42735B179026DDD2
+Inner product checksum u = 456F4424668465D2
+Inner product checksum mr1 = 403684A084256805
+Inner product checksum mr2 = 3F3FD0C0751D3CC1
+Inner product checksum mr3 = 3F012DD8506F6E14
+Inner product checksum mr4 = 3F3693B42B44FFA1
 Inner product checksum mr5 =                0
 Inner product checksum mr6 =                0
