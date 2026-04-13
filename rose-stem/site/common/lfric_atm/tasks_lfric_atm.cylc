@@ -633,7 +633,6 @@
         "DT": 60,
         "tsteps": 120,
         "crun": 2,
-        "crun_compare": false,
         "mpi_parts": 16,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",

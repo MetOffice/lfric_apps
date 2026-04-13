@@ -17,9 +17,14 @@ module gungho_init_fields_mod
   use integer_field_mod,                  only : integer_field_type
   use field_parent_mod,                   only : write_interface
   use field_collection_mod,               only : field_collection_type
-  use io_value_mod,                       only : io_value_type, &
-                                                 io_operation_interface, &
+  use io_value_mod,                       only : io_value_type,      &
+                                                 io_write_interface, &
+                                                 io_read_interface,  &
                                                  get_io_value
+  use integer_io_value_mod,                       only : integer_io_value_type, &
+                                                 integer_io_write_interface,    &
+                                                 integer_io_read_interface,     &
+                                                 get_integer_io_value
   use driver_modeldb_mod,                 only : modeldb_type
   use gungho_time_axes_mod,               only : gungho_time_axes_type, &
                                                  get_time_axes_from_collection
@@ -69,9 +74,11 @@ module gungho_init_fields_mod
                                                  write_dump
   use lfric_xios_read_mod,                only : read_checkpoint,  &
                                                  read_state,       &
-                                                 checkpoint_read_value
+                                                 checkpoint_read_r_def_value, &
+                                                 checkpoint_read_integer_value
   use lfric_xios_write_mod,               only : write_checkpoint, &
-                                                 checkpoint_write_value, &
+                                                 checkpoint_write_r_def_value, &
+                                                 checkpoint_write_integer_value, &
                                                  create_checkpoint_list, &
                                                  write_state
   use boundaries_config_mod,              only : limited_area
@@ -555,9 +562,11 @@ subroutine create_model_data( modeldb,      &
     type( field_type ), pointer :: ageofair => null()
 
     type( io_value_type ),               pointer :: temp_corr_io_value
-    type( io_value_type ),               pointer :: random_seed_io_value
-    procedure( io_operation_interface ), pointer :: io_op_read_ptr
-    procedure( io_operation_interface ), pointer :: io_op_write_ptr
+    type( integer_io_value_type ),       pointer :: random_seed_io_value
+    procedure( io_read_interface ),          pointer :: io_op_read_ptr
+    procedure( io_write_interface ),         pointer :: io_op_write_ptr
+    procedure( integer_io_read_interface ),  pointer :: integer_io_op_read_ptr
+    procedure( integer_io_write_interface ), pointer :: integer_io_op_write_ptr
 
     ! Dust fields
 #ifdef UM_PHYSICS
@@ -603,9 +612,9 @@ subroutine create_model_data( modeldb,      &
     type(field_collection_type), pointer :: radiation_fields
 
     character(str_def) :: string
-    integer(i_def) :: i
     integer(i_def) :: random_seed_size
     integer(i_def), allocatable :: ranseed(:)
+    integer(i_def) :: i
 #ifdef UM_PHYSICS
     integer(i_def) :: ensemble_number
     procedure(regridder), pointer :: regrid_operation => null()
@@ -639,8 +648,9 @@ subroutine create_model_data( modeldb,      &
     model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
 
     temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value' )
+    nullify(random_seed_io_value)
     if ( stochastic_physics == stochastic_physics_um ) then
-      random_seed_io_value => get_io_value( modeldb%values, 'random_seed_io_value' )
+      random_seed_io_value => get_integer_io_value( modeldb%values, 'random_seed_io_value' )
     end if
     call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
     call modeldb%values%get_value( 'total_energy_previous', &
@@ -678,15 +688,17 @@ subroutine create_model_data( modeldb,      &
 
     ! Ideally, setting IO behaviour should be part of the initialisation
     ! like with the fields but currently there is no support for this so they are placed here
-    io_op_read_ptr => checkpoint_read_value
-    io_op_write_ptr => checkpoint_write_value
+    io_op_read_ptr => checkpoint_read_r_def_value
+    io_op_write_ptr => checkpoint_write_r_def_value
+    integer_io_op_read_ptr => checkpoint_read_integer_value
+    integer_io_op_write_ptr => checkpoint_write_integer_value
     if ( encorr_usage /= encorr_usage_none ) then
       call temp_corr_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
       call temp_corr_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
     end if
     if ( stochastic_physics == stochastic_physics_um ) then
-      call random_seed_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
-      call random_seed_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
+      call random_seed_io_value%set_checkpoint_read_behaviour(integer_io_op_read_ptr)
+      call random_seed_io_value%set_checkpoint_write_behaviour(integer_io_op_write_ptr)
     end if
     ! Initialise prognostic fields appropriately
     select case ( prognostic_init_choice )
@@ -986,9 +998,9 @@ subroutine create_model_data( modeldb,      &
       end if
 
       if ( stochastic_physics == stochastic_physics_um ) then
-        random_seed_size = size(random_seed_io_value%data)
+        call random_seed(size = random_seed_size)
         allocate(ranseed(random_seed_size))
-        ranseed(1:random_seed_size) = 0
+        ranseed = 0
 
 #ifdef UM_PHYSICS
         if ( .not. checkpoint_read .or. use_random_parameters ) then
@@ -1011,11 +1023,7 @@ subroutine create_model_data( modeldb,      &
         if ( checkpoint_read ) then
           ! Read the checkpointed random seed
           call random_seed_io_value%read_checkpoint()
-
-          ! Convert into integer, because io_value_type can accept only real.
-          do i = 1, random_seed_size
-            ranseed(i) = nint(random_seed_io_value%data(i), i_def)
-          end do
+          ranseed = random_seed_io_value%data
         end if
 
         ! Set random seed for stochastic physics
@@ -1076,8 +1084,7 @@ subroutine create_model_data( modeldb,      &
     type( field_collection_type ), pointer :: fd_fields
     type( field_collection_type ), pointer :: prognostic_fields
 
-    type( io_value_type ), pointer :: random_seed_io_value
-    integer(i_def) :: i
+    type( integer_io_value_type ), pointer :: random_seed_io_value
     integer(i_def) :: random_seed_size
     integer(i_def), allocatable :: ranseed(:)
     real(r_second), allocatable :: all_checkpoint_times(:)
@@ -1105,17 +1112,13 @@ subroutine create_model_data( modeldb,      &
     if( checkpoint_write ) then
 
       if ( stochastic_physics == stochastic_physics_um ) then
-        ! Get current random seed
-        random_seed_io_value => get_io_value(modeldb%values, 'random_seed_io_value')
-        random_seed_size = size(random_seed_io_value%data)
+        ! Store current random seed in IO value data type for checkpointing
+        call random_seed(size = random_seed_size)
         allocate(ranseed(random_seed_size))
-
         call random_seed(get = ranseed(1:random_seed_size))
 
-        ! Convert into real, because io_value_type cannot accept integer.
-        do i = 1, random_seed_size
-          random_seed_io_value%data(i) = real(ranseed(i), r_def)
-        end do
+        random_seed_io_value => get_integer_io_value(modeldb%values, 'random_seed_io_value')
+        random_seed_io_value%data = ranseed
         deallocate(ranseed)
       end if
       call split_complex_prognostics( prognostic_fields )

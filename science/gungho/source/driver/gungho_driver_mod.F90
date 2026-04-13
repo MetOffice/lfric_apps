@@ -63,6 +63,7 @@ module gungho_driver_mod
                                           stochastic_physics,    &
                                           stochastic_physics_um
   use io_value_mod,                only : io_value_type
+  use integer_io_value_mod,        only : integer_io_value_type
   use time_config_mod,             only : timestep_start
   use timing_mod,                  only : start_timing, stop_timing, &
                                           tik, LPROF
@@ -128,11 +129,11 @@ contains
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
 
     type(io_value_type) :: temp_corr_io_value
-    type(io_value_type) :: random_seed_io_value
+    type(integer_io_value_type) :: random_seed_io_value
 
     character(len=*), parameter :: io_context_name = "gungho_atm"
     integer(i_def) :: random_seed_size
-    real(r_def), allocatable :: real_array(:)
+    integer(i_def), allocatable :: integer_array(:)
     integer(tik)   :: id
 
 #ifdef UM_PHYSICS
@@ -179,12 +180,12 @@ contains
     if ( stochastic_physics == stochastic_physics_um ) then
       ! Random seed for stochastic physics
       call random_seed(size = random_seed_size)
-      allocate(real_array(random_seed_size))
-      real_array(1:random_seed_size) = 0.0_r_def
-      call random_seed_io_value%init("random_seed", real_array)
+      allocate(integer_array(random_seed_size))
+      integer_array = 0
+      call random_seed_io_value%init("random_seed", integer_array)
       call modeldb%values%add_key_value( 'random_seed_io_value', &
                                          random_seed_io_value )
-      deallocate(real_array)
+      deallocate(integer_array)
     end if
 
     ! Instantiate the fields stored in model_data
