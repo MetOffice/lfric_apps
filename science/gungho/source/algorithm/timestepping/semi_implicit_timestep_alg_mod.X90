@@ -68,7 +68,6 @@ module semi_implicit_timestep_alg_mod
                                         blend_frequency_final
   use finite_element_config_mod,  only: element_order_h, &
                                         element_order_v
-  use sci_field_minmax_alg_mod,   only: log_field_minmax
 
   ! PSyKAl PSyclone kernels
   use matrix_vector_kernel_mod,   only: matrix_vector_kernel_type
@@ -1074,14 +1073,12 @@ contains
           .and. outer == outer_iterations                                      &
         )
         if (do_moist_correction) then
-          call log_field_minmax(LOG_LEVEL_INFO, 'mr_v_bef_correct', mr(1))
           call invoke(                                                         &
               X_plus_Y(rho_star, self%rhs_adv(igh_d), self%state_n(igh_d))     &
           )
           call solver_moist_correction_alg(                                    &
               mr, self%state(igh_d), rho_star, dry_flux_solver                 &
           )
-          call log_field_minmax(LOG_LEVEL_INFO, 'mr_v_aft_correct', mr(1))
         end if
 
       else ! when use_wavedynamics=false, just add physics increments here
