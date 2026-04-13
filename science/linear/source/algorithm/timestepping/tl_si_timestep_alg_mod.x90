@@ -14,7 +14,6 @@ module tl_si_timestep_alg_mod
                                          LOG_LEVEL_INFO,    &
                                          LOG_LEVEL_ERROR
   use driver_modeldb_mod,          only: modeldb_type
-  use namelist_mod,                only: namelist_type
   use reference_element_mod,       only: T
 
   ! Configuration options
@@ -396,13 +395,10 @@ contains
                                                ! these may differ from input
                                                ! values during the spinup period
 
-    ! Don't write moisture diagnostics in linear app
-    logical( kind=l_def ) :: write_moisture_diag = .false.
-
     ! Configuration
-    type( namelist_type ), pointer :: mixed_solver_nml
-    real( kind=r_def )             :: mixed_solver_a_tol
-    integer(tik)                   :: id
+    real(r_def)  :: mixed_solver_a_tol
+
+    integer(tik) :: id
 
     if ( LPROF ) call start_timing( id, 'tl_semi_implicit_timestep' )
 
@@ -643,7 +639,7 @@ contains
                            ls_rhs_np1(:, outer, inner),                        &
                            ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                            ls_mr_itns(:, next_outer, next_inner),              &
-                           write_moisture_diag, first_iteration=(inner==1) )
+                           first_iteration=(inner==1) )
             ! If not already done update factors for moist dynamics
             if ( .not. guess_np1 .and. use_moisture) then
               call moist_dyn_factors_alg(                        &
@@ -848,9 +844,7 @@ contains
           ! Solve semi-implicit system: A*inc = rhs, and increment state by inc
           !--------------------------------------------------------------------
 
-          mixed_solver_nml => modeldb%configuration%get_namelist('mixed_solver')
-          call mixed_solver_nml%get_value( 'mixed_solver_a_tol', &
-                                            mixed_solver_a_tol )
+          mixed_solver_a_tol = modeldb%config%mixed_solver%mixed_solver_a_tol()
 
           ! If rhs_np1 is zero, there is no need to call the SI solver
           if ( .not. &
@@ -858,7 +852,6 @@ contains
             call semi_implicit_solver_alg_step( state, rhs_np1,      &
                                                 moist_dyn(gas_law),  &
                                                 mr,                  &
-                                                write_moisture_diag, &
                                                 first_iteration=(inner==1) )
           end if
 

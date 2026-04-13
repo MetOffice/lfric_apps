@@ -277,6 +277,9 @@ contains
     l_iceformdrag_lupkes = config%jules_sea_seaice%l_iceformdrag_lupkes()
     l_stability_lupkes   = config%jules_sea_seaice%l_stability_lupkes()
     l_sice_heatflux      = config%jules_sea_seaice%l_sice_heatflux()
+    ! l_saldep_freeze should always be set to false as it no longer affects
+    ! the coupled model except at lake points (which aren't coupled).
+    l_saldep_freeze       = .false.
     ! Code has not been included to support this being false as configurations
     ! should be moving to the new code
     l_use_dtstar_sea     = config%jules_sea_seaice%l_use_dtstar_sea()
@@ -298,7 +301,6 @@ contains
       l_sice_meltponds_cice = .true.
       l_tstar_sice_new      = .false.
       l_cice_alb            = .true.
-      l_saldep_freeze       = .true.
       l_sice_multilayers    = .true.
       l_sice_scattering     = .true.
       l_ssice_albedo        = .true.
@@ -310,7 +312,6 @@ contains
       l_sice_meltponds_cice = .false.
       l_tstar_sice_new      = .true.
       l_cice_alb            = .false.
-      l_saldep_freeze       = .false.
       l_sice_multilayers    = .false.
       l_sice_scattering     = .false.
       l_ssice_albedo        = .false.
