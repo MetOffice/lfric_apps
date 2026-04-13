@@ -61,6 +61,16 @@ module gungho_diagnostics_driver_mod
   use freeze_lev_alg_mod,        only : freeze_lev_alg
 #endif
 
+  ! Configuration modules
+  use base_mesh_config_mod, only: geometry
+  use extrusion_config_mod, only: planet_radius, domain_height
+
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system, &
+                                       element_order_h, &
+                                       element_order_v
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -183,7 +193,9 @@ contains
         field_name = trim(prefix)//"height_"//trim(fs_names(i))
         fs = fs_ids(i)
         if (diagnostic_to_be_sampled(trim(field_name))) then
-          height => get_height_fe(fs, mesh%get_id())
+          height => get_height_fe(fs, mesh%get_id(), &
+                          geometry, element_order_h, element_order_v, &
+                          coord_system, scaled_radius)
           call height%set_write_behaviour(tmp_write_ptr)
           call height%write_field(trim(field_name))
         end if
@@ -201,7 +213,8 @@ contains
     ! Write out grid_cell area at initialisation only
     if ( use_physics .and. use_xios_io .and. modeldb%clock%is_initialisation() &
          .and. diagnostic_to_be_sampled("init_area_at_msl") ) then
-      dA => get_da_msl_proj(twod_mesh%get_id())
+      dA => get_da_msl_proj(twod_mesh%get_id(), &
+                            geometry, planet_radius, domain_height)
       tmp_write_ptr => write_field_generic
       call dA%set_write_behaviour(tmp_write_ptr)
       call dA%write_field("init_area_at_msl")

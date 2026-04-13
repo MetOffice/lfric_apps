@@ -53,6 +53,10 @@ contains
     class(extrusion_type),        allocatable :: extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
+    integer(i_def), allocatable :: tile_size(:,:)
+    integer(i_def) :: tile_size_x
+    integer(i_def) :: tile_size_y
+
     character(str_def), allocatable :: twod_names(:)
     character(str_def)              :: base_mesh_names(1)
     character(str_def)              :: prime_mesh_name
@@ -67,6 +71,8 @@ contains
     real(r_def)                     :: scaled_radius
     logical(l_def)                  :: apply_partition_check
 
+    logical(l_def) :: inner_halo_tiles
+
     !--------------------------------------
     ! 0.0 Extract namelist variables
     !--------------------------------------
@@ -76,6 +82,10 @@ contains
     extrusion_method = config%extrusion%method()
     number_of_layers = config%extrusion%number_of_layers()
     scaled_radius    = config%planet%scaled_radius()
+
+    tile_size_x = 1
+    tile_size_y = 1
+    inner_halo_tiles = .false.
 
     !--------------------------------------
     ! 1.0 Create the meshes
@@ -120,20 +130,27 @@ contains
                                      base_mesh_names, &
                                      config )
 
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
     apply_partition_check = .false.
-    call init_mesh( config,                  &
-                    mpi_obj%get_comm_rank(), &
-                    mpi_obj%get_comm_size(), &
-                    base_mesh_names,         &
-                    extrusion,               &
-                    stencil_depths,          &
+
+    call init_mesh( config,                      &
+                    mpi_obj%get_comm_rank(),     &
+                    mpi_obj%get_comm_size(),     &
+                    base_mesh_names, extrusion,  &
+                    inner_halo_tiles, tile_size, &
+                    stencil_depths,              &
                     apply_partition_check )
 
     allocate( twod_names, source=base_mesh_names )
     do i=1, size(twod_names)
       twod_names(i) = trim(twod_names(i))//'_2d'
     end do
+
     call create_mesh( base_mesh_names, extrusion_2d, &
+                      inner_halo_tiles, tile_size,   &
                       alt_name=twod_names )
     call assign_mesh_maps(twod_names)
 

@@ -16,6 +16,11 @@ module init_radiation_fields_alg_mod
   use fs_continuity_mod,               only: Wtheta
   use sci_geometric_constants_mod,     only: get_height_fv
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -92,7 +97,9 @@ contains
     call radiation_fields%get_field('ozone', ozone)
     if ( o3_rad_opt == o3_rad_opt_profile ) then
       mesh_id = ozone%get_mesh_id()
-      height_o3 => get_height_fv(Wtheta, mesh_id)
+      height_o3 => get_height_fv(Wtheta, mesh_id, &
+                                  geometry, coord_system, &
+                                  scaled_radius)
       profile_size                    = o3_profile_size
       profile_data(1:profile_size)    = o3_profile_data(1:o3_profile_size)
       profile_heights(1:profile_size) = o3_profile_heights(1:o3_profile_size)

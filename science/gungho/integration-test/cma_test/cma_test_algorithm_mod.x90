@@ -53,9 +53,7 @@ module cma_test_algorithm_mod
                                              r_solver_operator_type
   use fs_continuity_mod,              only : W0, W1, W2, W2V, W2H, W3, Wchi
   use driver_coordinates_mod,         only : assign_coordinate_field
-  use finite_element_config_mod,      only : element_order_h, &
-                                             element_order_v, &
-                                             coord_order
+
   use extrusion_mod,                  only: TWOD
   use mesh_collection_mod,            only: mesh_collection
   ! Kernels for field assignment and manipulation
@@ -85,6 +83,13 @@ module cma_test_algorithm_mod
   use sci_columnwise_op_scaledadd_kernel_mod, only : columnwise_op_scaledadd_kernel_type
   use sci_columnwise_op_asm_m2v_lumped_inv_krnl_mod, &
                               only : columnwise_op_asm_m2v_lumped_inv_krnl_type
+
+
+  use finite_element_config_mod, only: element_order_h, &
+                                       element_order_v, &
+                                       coord_order, coord_system
+  use base_mesh_config_mod,      only: geometry, topology
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -221,7 +226,9 @@ contains
                              halo_depth = mesh%get_halo_depth() )
     end do
 
-    call assign_coordinate_field( chi, panel_id, mesh )
+    call assign_coordinate_field(chi, panel_id, mesh, &
+                                 geometry, topology, &
+                                 coord_system, scaled_radius )
 
     ! Construct quadrature rule
     qr = quadrature_xyoz_type(3, quadrature_rule)

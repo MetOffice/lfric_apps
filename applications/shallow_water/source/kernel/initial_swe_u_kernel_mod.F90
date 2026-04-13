@@ -31,6 +31,11 @@ module initial_swe_u_kernel_mod
   use shallow_water_settings_config_mod, &
                                  only: swe_test
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   !---------------------------------------------------------------------------
@@ -169,11 +174,17 @@ subroutine initial_swe_u_code( nlayers, rhs,                       &
         coord(3) = coord(3) + chi_3_cell(df)*chi_basis(1,df,qp1,qp2)
       end do
       if ( geometry == geometry_spherical ) then
-        call chi2llr(coord(1), coord(2), coord(3), ipanel, llr(1), llr(2), llr(3))
+        call chi2llr(coord(1), coord(2), coord(3), ipanel, &
+                     geometry, topology,    &
+                     coord_system, scaled_radius,   &
+                     llr(1), llr(2), llr(3))
         u_spherical = analytic_swe_wind(llr, swe_test, domain_x)
         u_physical = sphere2cart_vector(u_spherical,llr)
       else
-        call chi2xyz(coord(1), coord(2), coord(3), ipanel, xyz(1), xyz(2), xyz(3))
+        call chi2xyz(coord(1), coord(2), coord(3), ipanel, &
+                    geometry, topology,            &
+                    coord_system, scaled_radius,   &
+xyz(1), xyz(2), xyz(3))
         u_physical = analytic_swe_wind(xyz, swe_test, domain_x)
       end if
       do df = 1, ndf

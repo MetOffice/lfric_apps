@@ -73,7 +73,8 @@ program lfric2lfric
   call init_config( filename, lfric2lfric_required_namelists, &
                     config=modeldb%config )
 
-  call init_logger( modeldb%mpi%get_comm(), program_name )
+  call init_logger( modeldb%config, modeldb%mpi%get_comm(), &
+                    program_name )
   call init_collections()
   call init_time( modeldb )
   deallocate( filename )

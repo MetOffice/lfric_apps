@@ -26,6 +26,11 @@ module compute_sl_coefficients_alg_mod
   use compute_vertical_cubic_coef_kernel_mod,   only: compute_vertical_cubic_coef_kernel_type
   use compute_vertical_quintic_coef_kernel_mod, only: compute_vertical_quintic_coef_kernel_type
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -69,7 +74,9 @@ contains
 
     ! Get height at r_tran precision
     mesh => coeffs(1)%get_mesh()
-    height_rdef => get_height_fv( Wtheta, mesh%get_id() )
+    height_rdef => get_height_fv( Wtheta, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
     call height%initialise( vector_space = height_rdef%get_function_space() )
     call copy_field( height_rdef, height )
 

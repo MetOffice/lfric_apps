@@ -81,6 +81,11 @@ module external_forcing_alg_mod
 
   use external_forcing_diagnostics_mod, only: write_forcing_diagnostics
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -158,7 +163,9 @@ contains
     if ( LPROF ) call start_timing( id, 'external_forcing' )
 
     mesh => theta%get_mesh()
-    height_wth => get_height_fv( Wtheta, mesh%get_id() )
+    height_wth => get_height_fv( Wtheta, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius )
 
     if ( theta_forcing /= theta_forcing_none .or. theta_relaxation .or.           &
          vertadvect_forcing ) then
@@ -307,8 +314,12 @@ contains
           ! zero.
           !
           panel_id => get_panel_id(mesh%get_id())
-          height_w1 => get_height_fv(W1, mesh%get_id())
-          height_w2 => get_height_fv(W2, mesh%get_id())
+          height_w1 => get_height_fv(W1, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius)
+          height_w2 => get_height_fv(W2, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius)
 
           dx_at_w2 => get_dx_at_w2(mesh%get_id())
 

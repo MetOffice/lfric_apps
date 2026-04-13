@@ -34,6 +34,11 @@ module theta_relax_alg_mod
                                            profile_heights
   use prof_temporal_interp_mod,      only: prof_temporal_interp
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -123,7 +128,9 @@ contains
       height_wth => exner_in_wth
     else
       mesh_id = dtheta_relax%get_mesh_id()
-      height_wth => get_height_fv( Wtheta, mesh_id )
+      height_wth => get_height_fv( Wtheta, mesh_id, &
+                                  geometry, coord_system, &
+                                  scaled_radius )
     end if
     profile_extrap = .false.
     call invoke( setval_X( dtheta_relax, horiz_mean),                  &

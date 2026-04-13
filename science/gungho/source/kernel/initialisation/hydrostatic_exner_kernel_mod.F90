@@ -23,6 +23,10 @@ use kernel_mod,                 only : kernel_type
 use fs_continuity_mod,          only : Wtheta, W3
 use formulation_config_mod,     only : init_exner_bt, shallow
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 implicit none
 
 private
@@ -174,7 +178,10 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
     coords(3) = coords(3) + chi_3_e(dfc)*basis_chi_on_wt(1,dfc,wt_dof)
   end do
 
-  call chi2xyz(coords(1), coords(2), coords(3), ipanel, xyz(1), xyz(2), xyz(3))
+  call chi2xyz(coords(1), coords(2), coords(3), ipanel, &
+                    geometry, topology,            &
+                    coord_system, scaled_radius,   &
+xyz(1), xyz(2), xyz(3))
 
   ! Exner at the model surface or top
   exner_start = analytic_pressure( xyz, test, 0.0_r_def)

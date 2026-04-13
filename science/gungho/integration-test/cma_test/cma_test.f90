@@ -130,11 +130,16 @@ program cma_test
   character(str_def) :: prime_mesh_name
   real(r_def)        :: radius
   real(r_def)        :: scaled_radius
-  integer            :: geometry
-  integer            :: extrusion_method
+  integer(i_def)     :: geometry
+  integer(i_def)     :: extrusion_method
+  integer(i_def)     :: tile_size_x
+  integer(i_def)     :: tile_size_y
   integer(i_def)     :: number_of_layers
   logical(l_def)     :: prepartitioned
-  logical            :: check_partitions = .false.
+  logical(l_def)     :: check_partitions = .false.
+  logical(l_def)     :: inner_halo_tiles
+
+  integer(i_def), allocatable :: tile_size(:,:)
 
   ! Error tolerance for tests
   ! Note: tolerance is for r_solver = real64
@@ -267,6 +272,16 @@ program cma_test
   prime_mesh_name  = config%base_mesh%prime_mesh_name()
   scaled_radius    = config%planet%scaled_radius()
 
+  if (prepartitioned) then
+    inner_halo_tiles = .false.
+    tile_size_x      = 1
+    tile_size_y      = 1
+  else
+    inner_halo_tiles = config%partitioning%inner_halo_tiles()
+    tile_size_x      = config%partitioning%tile_size_x()
+    tile_size_y      = config%partitioning%tile_size_y()
+    end if
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialise
 
@@ -283,9 +298,15 @@ program cma_test
   stencil_depth = 2
   check_partitions = .false.
 
-  call init_mesh( config,                     &
-                  local_rank, total_ranks,    &
-                  base_mesh_names, extrusion, &
+  if (allocated(tile_size)) deallocate(tile_size)
+  allocate(tile_size(2, size(base_mesh_names)))
+  tile_size(1,:) = tile_size_x
+  tile_size(2,:) = tile_size_y
+
+  call init_mesh( config,                      &
+                  local_rank, total_ranks,     &
+                  base_mesh_names, extrusion,  &
+                  inner_halo_tiles, tile_size, &
                   stencil_depth, check_partitions )
 
   allocate( twod_names, source=base_mesh_names )
@@ -296,6 +317,7 @@ program cma_test
                                          0.0_r_def, &
                                          1_i_def, TWOD )
   call create_mesh( base_mesh_names, extrusion_2d, &
+                    inner_halo_tiles, tile_size,   &
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 

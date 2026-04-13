@@ -27,6 +27,16 @@ module jules_imp_alg_mod
   use log_mod,                       only: log_event, LOG_LEVEL_DEBUG
   use mesh_mod,                      only: mesh_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
+  use base_mesh_config_mod,      only: geometry, topology, f_lat
+  use finite_element_config_mod, only: coord_system, element_order_h, element_order_v
+  use planet_config_mod,         only: scaled_radius
+  use idealised_config_mod,      only: f_lon
+
   implicit none
 
   private
@@ -233,10 +243,16 @@ contains
     call snow_fields%get_field('snow_depth', snow_depth)
 
     mesh       => exner_in_wth%get_mesh()
-    height_wth => get_height_fv(Wtheta, mesh%get_id())
+    height_wth => get_height_fv(Wtheta, mesh%get_id(), &
+                                  geometry, coord_system, &
+                                  scaled_radius)
 
     mesh       => ustar%get_mesh()
-    latitude   => get_latitude_fv(W3, mesh%get_id())
+    latitude   => get_latitude_fv(W3, mesh%get_id(), &
+                                  geometry, topology, &
+                                  element_order_h, element_order_v, &
+                                  coord_system, f_lat, f_lon, &
+                                  scaled_radius )
 
     if ( loop == 1 ) then
 

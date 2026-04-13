@@ -34,6 +34,16 @@ module physics_constants_mod
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
 
+  ! Configuration modules (due to sci_geometric_constants)
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
+  use base_mesh_config_mod,      only: geometry, topology, f_lat
+  use finite_element_config_mod, only: coord_system, element_order_h, element_order_v
+  use planet_config_mod,         only: scaled_radius
+  use idealised_config_mod,      only: f_lon
+
   implicit none
 
   private
@@ -124,10 +134,18 @@ contains
 
     mesh_id = mesh%get_id()
 
-    height_w1 => get_height_fv(W1, mesh_id)
-    height_w2 => get_height_fv(W2, mesh_id)
-    height_w3 => get_height_fv(W3, mesh_id)
-    height_wth => get_height_fv(Wtheta, mesh_id)
+    height_w1 => get_height_fv(W1, mesh_id, &
+                                  geometry, coord_system, &
+                                  scaled_radius)
+    height_w2 => get_height_fv(W2, mesh_id, &
+                                  geometry, coord_system, &
+                                  scaled_radius)
+    height_w3 => get_height_fv(W3, mesh_id, &
+                                  geometry, coord_system, &
+                                  scaled_radius)
+    height_wth => get_height_fv(Wtheta, mesh_id, &
+                                  geometry, coord_system, &
+                                  scaled_radius)
     delta_at_wtheta => get_delta_at_wtheta(mesh_id)
 
     if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )
@@ -424,7 +442,11 @@ contains
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
       twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
-      latitude => get_latitude_fv(W3, mesh_id)
+      latitude => get_latitude_fv(W3, mesh_id, &
+                                  geometry, topology, &
+                                  element_order_h, element_order_v, &
+                                  coord_system, f_lat, f_lon, &
+                                  scaled_radius)
       fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3, stph_spectral_dim)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )

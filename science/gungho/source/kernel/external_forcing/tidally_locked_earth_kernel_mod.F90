@@ -32,6 +32,11 @@ module tidally_locked_earth_kernel_mod
   use held_suarez_forcings_mod,          only: held_suarez_newton_frequency
   use kernel_mod,                        only: kernel_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -143,7 +148,9 @@ subroutine tidally_locked_earth_code(nlayers,                     &
     coords(3) = coords(3) + chi_3( location )/ndf_chi
   end do
 
-  call chi2llr(coords(1), coords(2), coords(3), ipanel, lon, lat, radius)
+  call chi2llr(coords(1), coords(2), coords(3), ipanel, &
+               geometry, topology, coord_system, scaled_radius,   &
+               lon, lat, radius)
 
   exner0 = exner_in_wth(map_wth(1))
 

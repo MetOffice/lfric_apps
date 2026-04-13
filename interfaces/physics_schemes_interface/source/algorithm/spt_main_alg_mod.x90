@@ -23,6 +23,11 @@ module spt_main_alg_mod
     use function_space_collection_mod, only: function_space_collection
     use function_space_mod,            only: function_space_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
     implicit none
 
     private
@@ -491,7 +496,8 @@ module spt_main_alg_mod
   ! Apply water conservation to the column if requested
   if (spt_moisture_conservation) then
     mesh   => dtheta%get_mesh()
-    dz_wth => get_dz_at_wtheta(mesh%get_id())
+    dz_wth => get_dz_at_wtheta(mesh%get_id(), &
+                             geometry, coord_system, scaled_radius)
     call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth, &
                                             rho_in_wth,spt_level_bottom, &
                                             spt_level_top))

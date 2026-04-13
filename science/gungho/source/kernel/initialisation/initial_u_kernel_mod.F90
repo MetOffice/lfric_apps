@@ -208,7 +208,9 @@ contains
 
           ! Need to obtain longitude, latitude and radius from position vector
           call chi2llr(coords(1), coords(2), coords(3), &
-                       ipanel, llr(1), llr(2), llr(3))
+                       ipanel,  geometry, topology,    &
+                     coord_system, scaled_radius,   &
+llr(1), llr(2), llr(3))
 
           ! Obtain (lon,lat,r) components of u and then transform to (X,Y,Z) components
           u_spherical = analytic_wind( llr, time, profile, n_options, &
