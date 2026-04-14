@@ -165,6 +165,7 @@
 
 {% elif task_ns.conf_name == "um2lfric-nwp_gal9-N1280L70_C224L70" %}
     {% do task_dict.update({
+        "CXI_MATCH_hybrid": true,
         "opt_confs": ["nwp_gal9"],
         "resolution": "C224",
         "mesh_name": "dynamics",
@@ -184,6 +185,7 @@
 
 {% elif task_ns.conf_name == "um2lfric-nwp_gal9-N1280L70_C896L70" %}
     {% do task_dict.update({
+        "CXI_MATCH_hybrid": true,
         "opt_confs": ["nwp_gal9"],
         "resolution": "C896",
         "mesh_name": "dynamics",
