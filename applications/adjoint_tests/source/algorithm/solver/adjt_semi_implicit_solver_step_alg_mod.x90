@@ -217,6 +217,7 @@ contains
   !> @brief Actual code for adjoint test for semi_implicit_solver_alg_mod subroutine step
   !> @param[in,out] state                    Prognostic state
   !> @param[in,out] rhs                      Prognostic rhs
+  !> @param[in,out] dry_flux_solver          Dry flux solver field
   !> @param[in,out] moist_dyn_gas_law        Prognostic moist_dyn_gas_law
   !> @param[in,out] mr                       Prognostic mr
   !> @param[in,out] state_in                 Input state
@@ -225,7 +226,8 @@ contains
   !> @param[in,out] mr_in                    Input mr
   !> @param[in,out] adj_semi_implicit_solver Adjoint semi-implicit solver
   !> @param[in]     first_iteration          Switch to control which test to do
-  subroutine adjt_semi_implicit_solver_step_alg_common( state, rhs, moist_dyn_gas_law, mr,             &
+  subroutine adjt_semi_implicit_solver_step_alg_common( state, rhs, dry_flux_solver, &
+                                                        moist_dyn_gas_law, mr,       &
                                                         state_in, rhs_in, moist_dyn_gas_law_in, mr_in, &
                                                         adj_semi_implicit_solver, first_iteration )
 
@@ -247,6 +249,8 @@ contains
     ! first_iteration switch
     logical(kind=l_def), intent(in) :: first_iteration
 
+    type(field_type) :: dry_flux_solver
+
     ! Inner product test variables
     real(kind=r_def) :: state_inner_prod(bundle_size), rhs_inner_prod(bundle_size), &
                         moist_dyn_gas_law_inner_prod, mr_inner_prod(nummr)
@@ -261,11 +265,16 @@ contains
 
     integer(kind=i_def) :: i
 
+    ! Argument not active in adjoint test
+    call dry_flux_solver%initialise(state(igh_u)%get_function_space())
+    call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
+
     ! --------------------------------------------------------------------------
     ! Step the semi-implicit solver (i.e., forward code, Mx)
     ! --------------------------------------------------------------------------
 
-    call semi_implicit_solver_alg_step( state, rhs, moist_dyn_gas_law, mr, &
+    call semi_implicit_solver_alg_step( state, rhs, dry_flux_solver, &
+                                        moist_dyn_gas_law, mr,       &
                                         .false., first_iteration )
 
     ! --------------------------------------------------------------------------

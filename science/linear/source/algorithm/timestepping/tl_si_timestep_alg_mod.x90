@@ -390,6 +390,8 @@ contains
     type( operator_type ), pointer :: mm_wt  => null()
     type( operator_type ), pointer :: mm_vel => null()
 
+    type( field_type ) :: dry_flux_solver
+
     integer( kind=i_def ) :: outer, inner, reference_reset_freq
     integer( kind=i_def ) :: ls_outer, ls_inner
     integer( kind=i_def ) :: next_outer, next_inner
@@ -416,6 +418,7 @@ contains
 
     mm_wt  => get_mass_matrix_fe(Wtheta, mesh%get_id())
     mm_vel => get_mass_matrix_fe(W2,     mesh%get_id())
+    call dry_flux_solver%initialise(ls_u%get_function_space())
 
     !--------------------------------------------------------------------
     ! If off-centring is being spun up then modify the alpha value
@@ -509,6 +512,7 @@ contains
     ! Start the Outer (advection) loop
     !==========================================================================
     ls_outer_dynamics_loop: do outer = 1,ls_outer_iterations
+      call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
 
       call gungho_transport_control_alg(ls_rhs_adv(:, outer, 1),        &
                                         ls_advected_state,              &
@@ -643,6 +647,7 @@ contains
             call semi_implicit_solver_alg_step(                                &
                            ls_state_itns(:, next_outer, next_inner),           &
                            ls_rhs_np1(:, outer, inner),                        &
+                           dry_flux_solver,                                    &
                            ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                            ls_mr_itns(:, next_outer, next_inner),              &
                            write_moisture_diag, first_iteration=(inner==1) )
@@ -735,6 +740,8 @@ contains
     !==========================================================================
 
     outer_dynamics_loop: do outer = 1,outer_iterations
+
+      call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
 
       if (fixed_ls) then
         ls_outer = 1
@@ -869,6 +876,7 @@ contains
           if ( .not. &
                bundle_is_zero(mixed_solver_a_tol, rhs_np1, bundle_size) ) then
             call semi_implicit_solver_alg_step( state, rhs_np1,      &
+                                                dry_flux_solver,     &
                                                 moist_dyn(gas_law),  &
                                                 mr,                  &
                                                 write_moisture_diag, &

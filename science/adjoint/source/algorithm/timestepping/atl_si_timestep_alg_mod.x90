@@ -335,6 +335,7 @@ contains
     real(kind=r_def)                                   :: mixed_solver_a_tol
     type(field_type)                                   :: rhs_n_igh_u
     type(field_type)                                   :: advected_u
+    type(field_type)                                   :: dry_flux_solver
     type(mesh_type), pointer                           :: mesh
     character(len=str_def)                             :: prime_mesh_name
     integer(tik)                                       :: id
@@ -352,6 +353,8 @@ contains
 
     mm_wt  => get_mass_matrix_fe( Wtheta, mesh%get_id() )
     mm_vel => get_mass_matrix_fe( W2,     mesh%get_id() )
+
+    call dry_flux_solver%initialise(u%get_function_space())
 
     ! If off-centring is being spun up then modify the alpha value
     if (spinup_alpha .and. modeldb%clock%is_spinning_up()) then
@@ -419,6 +422,7 @@ contains
     ! Start the outer (advection) loop
     !---------------------------------------------------------------------------
     ls_outer_dynamics_loop: do outer = 1, self%ls_outer_iterations
+      call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
 
       call gungho_transport_control_alg( self%ls_rhs_adv(:,outer,1),        &
                                          self%ls_advected_state,            &
@@ -528,6 +532,7 @@ contains
 
             call semi_implicit_solver_alg_step( self%ls_state_itns(:,next_outer,next_inner),             &
                                                 self%ls_rhs_np1(:,outer,inner),                          &
+                                                dry_flux_solver,                                         &
                                                 self%ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                                                 self%ls_mr_itns(:,next_outer,next_inner),                &
                                                 .false., first_iteration=(inner==1) )

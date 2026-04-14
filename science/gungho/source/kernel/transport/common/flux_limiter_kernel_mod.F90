@@ -95,7 +95,7 @@ subroutine flux_limiter_code(                                                  &
   w3_t_idx = w3_b_idx + nlayers - 1
 
   ! Find the total outgoing flux for each cell
-  total_outgoing(:) = 0.0
+  total_outgoing(:) = 0.0_r_def
   do df = 1, ndf_w2
     w2_b_idx = map_w2(df)
     w2_t_idx = w2_b_idx + nlayers - 1
