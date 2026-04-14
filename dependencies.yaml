@@ -22,8 +22,8 @@ casim:
     ref: 2026.03.2
 
 jules:
-    source: cazldf0000FK.spice.sc.metoffice.gov.uk:/home/users/margaret.hendry/jules_fork/jules
-    ref: 5d957ec1eb1a8f62fc99b3668e9f8e9b4e5026f9
+    source: cazldf0000CW.spice.sc.metoffice.gov.uk:/home/users/margaret.hendry/jules_fork/jules
+    ref: 4ba8c4a2cdf6ac310a136653af7ed3ff2e8a87f3
 
 lfric_apps:
     source:
