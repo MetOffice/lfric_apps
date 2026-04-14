@@ -169,6 +169,7 @@ p2theta_vert=.true.,
 rotating=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
+solver_moisture_conservation=.true.,
 theta_moist_source=.true.
 use_multires_coupling=.false.,
 use_physics=.true.,

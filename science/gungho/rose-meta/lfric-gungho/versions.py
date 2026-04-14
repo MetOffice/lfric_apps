@@ -31,3 +31,15 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn31_t378(MacroUpgrade):
+    """Upgrade macro for ticket #394 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t394"
+
+    def upgrade(self, config, meta_config=None):
+        self.add_setting(
+            config, ["namelist:formulation", "solver_moisture_conservation"], ".false."
+        )
+        return config, self.reports

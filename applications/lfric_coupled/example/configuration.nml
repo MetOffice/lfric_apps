@@ -96,6 +96,7 @@ moisture_formulation='traditional',
 rotating=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
+solver_moisture_conservation=.true.,
 theta_moist_source=.true.
 use_physics=.true.,
 use_wavedynamics=.false.,

@@ -1,0 +1,91 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the flux_limiter_kernel_mod
+!>
+module flux_limiter_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: flux_limiter_kernel_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: flux_limiter_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type flux_limiter_kernel_test_type
+
+contains
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use flux_limiter_kernel_mod, only : flux_limiter_code
+
+    implicit none
+
+    class(flux_limiter_kernel_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlayers = 3
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: undf_w3 = nlayers * ndf_w3
+    integer(kind=i_def), parameter :: ndf_w2 = 6
+    integer(kind=i_def), parameter :: undf_w2 = 5 * nlayers + 1
+
+    integer(kind=i_def)            :: map_w3(ndf_w3)
+    integer(kind=i_def)            :: map_w2(ndf_w2)
+    real(kind=r_def)               :: flux(undf_w2)
+    real(kind=r_def)               :: field(undf_w3)
+    real(kind=r_def)               :: volume(undf_w3)
+    real(kind=r_def)               :: flux_answer(undf_w2)
+
+    real(kind=r_def), parameter    :: tol = 1.0e-12_r_def
+
+    map_w3(:) = (/ 1_i_def /)
+    map_w2(:) = (/                                                             &
+        1, 1+nlayers, 1+2*nlayers, 1+3*nlayers, 1+4*nlayers, 2+4*nlayers       &
+    /)
+
+    flux(:) = (/                                                               &
+        -2.0_r_def, -2.0_r_def, -2.0_r_def,                                    &
+         1.0_r_def,  1.0_r_def,  1.0_r_def,                                    &
+        -4.0_r_def, -4.0_r_def, -4.0_r_def,                                    &
+         3.0_r_def,  3.0_r_def,  3.0_r_def,                                    &
+        -5.0_r_def, -5.0_r_def, -5.0_r_def, 2.0_r_def                          &
+    /)
+    field(:) = (/ 1.0_r_def, 2.0_r_def, 3.0_r_def /)
+    volume(:) = (/ 2.0_r_def, 2.0_r_def, 2.0_r_def /)
+
+    ! total_outgoing for each cell = (/ 8, 8, 10 /),
+    ! giving a_scaling = (/ 0.25, 0.5, 0.6 /).
+    ! This implementation applies that scaling where sign_div*flux < 0.
+    flux_answer(:) = (/                                                        &
+        -2.0_r_def, -2.0_r_def, -2.0_r_def,                                    &
+         1.0_r_def,  1.0_r_def,  1.0_r_def,                                    &
+        -1.0_r_def, -2.0_r_def, -2.4_r_def,                                    &
+         0.75_r_def, 1.5_r_def, 1.8_r_def,                                     &
+        -5.0_r_def, -1.25_r_def, -2.5_r_def, 2.0_r_def                         &
+    /)
+
+    call flux_limiter_code(                                                    &
+        nlayers,                                                               &
+        flux,                                                                  &
+        field,                                                                 &
+        volume,                                                                &
+        ndf_w2, undf_w2, map_w2,                                               &
+        ndf_w3, undf_w3, map_w3                                                &
+    )
+
+    @assertEqual(flux, flux_answer, tol)
+
+  end subroutine test_all
+
+end module flux_limiter_kernel_mod_test
