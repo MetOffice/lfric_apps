@@ -1,3 +1,4 @@
+<<<<<<< stoch_vn3.1
 Inner product checksum rho =         46D667FA
 Inner product checksum theta =         518E9E02
 Inner product checksum u =         6AF3BD32
@@ -5,5 +6,14 @@ Inner product checksum mr1 =         3FD170C5
 Inner product checksum mr2 =         373F47E4
 Inner product checksum mr3 =         35431E16
 Inner product checksum mr4 =         36BD8656
+=======
+Inner product checksum rho =         46D6608C
+Inner product checksum theta =         518E9763
+Inner product checksum u =         6AF40E1A
+Inner product checksum mr1 =         3FD20A0A
+Inner product checksum mr2 =         37370207
+Inner product checksum mr3 =         351FB046
+Inner product checksum mr4 =         36D2EB94
+>>>>>>> main
 Inner product checksum mr5 =                0
 Inner product checksum mr6 =                0
