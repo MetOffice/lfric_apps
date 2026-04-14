@@ -19,6 +19,7 @@ module atl_transport_control_alg_mod
   use model_clock_mod,                   only: model_clock_type
   use transport_config_mod,              only: cheap_update
   use tl_transport_controller_mod,       only: tl_transport_controller_type
+  use adj_trans_lookup_cache_mod,        only: adj_trans_lookup_cache_type
   use transport_controller_mod,          only: transport_controller_type
   use flux_precomputations_alg_mod,      only: flux_precomputations_type
   use wind_precomputations_alg_mod,      only: wind_precomputations_type
@@ -41,25 +42,26 @@ contains
 
   !=============================================================================
   !> @brief Adjoint of advection of prognostic variables for the tangent linear model.
-  !> @param[in,out] advection_inc      ACTIVE Advection increment of the dynamics
-  !!                                   prognostics [u, rho, theta, exner]
-  !> @param[in,out] advected_fields    ACTIVE Fields to advect: [u, rho, theta, exner]
-  !> @param[in,out] wind_np1           ACTIVE End of timestep wind field
-  !> @param[in,out] wind_n             ACTIVE Start of timestep wind field
-  !> @param[in,out] mr_out             ACTIVE Moisture fields after transport
-  !> @param[in,out] mr_in              ACTIVE Moisture fields before transport
-  !> @param[in]     ls_advected_fields PASSIVE Fields to advect: [u, rho, theta, exner]
-  !> @param[in]     ls_wind_np1        PASSIVE End of timestep wind field
-  !> @param[in]     ls_wind_n          PASSIVE Start of timestep wind field
-  !> @param[in]     ls_mr_in           PASSIVE Moisture fields before transport
-  !> @param[in]     model_clock        Time within the model
-  !> @param[in]     outer              Outer (advection) iteration number
+  !> @param[in,out] advection_inc            ACTIVE Advection increment of the dynamics
+  !!                                         prognostics [u, rho, theta, exner]
+  !> @param[in,out] advected_fields          ACTIVE Fields to advect: [u, rho, theta, exner]
+  !> @param[in,out] wind_np1                 ACTIVE End of timestep wind field
+  !> @param[in,out] wind_n                   ACTIVE Start of timestep wind field
+  !> @param[in,out] mr_out                   ACTIVE Moisture fields after transport
+  !> @param[in,out] mr_in                    ACTIVE Moisture fields before transport
+  !> @param[in]     ls_advected_fields       PASSIVE Fields to advect: [u, rho, theta, exner]
+  !> @param[in]     ls_wind_np1              PASSIVE End of timestep wind field
+  !> @param[in]     ls_wind_n                PASSIVE Start of timestep wind field
+  !> @param[in]     ls_mr_in                 PASSIVE Moisture fields before transport
+  !> @param[in]     model_clock              Time within the model
+  !> @param[in]     outer                    Outer (advection) iteration number
+  !> @param[in]     adj_lookup_table_cache   Lookup table cache
   !>
   subroutine atl_transport_control_alg(advection_inc, advected_fields,          &
                                        wind_np1, wind_n, mr_out, mr_in,         &
                                        ls_advected_fields,                      &
                                        ls_wind_np1, ls_wind_n, ls_mr_in,        &
-                                       model_clock, outer )
+                                       model_clock, outer, adj_lookup_table_cache )
 
     use derived_config_mod,               only: bundle_size
     use sci_field_bundle_builtins_mod,    only: clone_bundle, set_bundle_scalar
@@ -80,18 +82,19 @@ contains
     implicit none
 
     ! Arguments
-    type(field_type),            intent(inout) :: advection_inc(bundle_size)
-    type(field_type),            intent(inout) :: advected_fields(bundle_size)
-    type(field_type),            intent(inout) :: wind_np1
-    type(field_type),            intent(inout) :: wind_n
-    type(field_type),            intent(in)    :: ls_wind_np1
-    type(field_type),            intent(in)    :: ls_wind_n
-    type(field_type),            intent(inout) :: mr_out(nummr)
-    type(field_type),            intent(inout) :: mr_in(nummr)
-    type(field_type),            intent(in)    :: ls_advected_fields(bundle_size)
-    type(field_type),            intent(in)    :: ls_mr_in(nummr)
-    class(model_clock_type),     intent(in)    :: model_clock
-    integer(kind=i_def),         intent(in)    :: outer
+    type(field_type),                  intent(inout) :: advection_inc(bundle_size)
+    type(field_type),                  intent(inout) :: advected_fields(bundle_size)
+    type(field_type),                  intent(inout) :: wind_np1
+    type(field_type),                  intent(inout) :: wind_n
+    type(field_type),                  intent(in)    :: ls_wind_np1
+    type(field_type),                  intent(in)    :: ls_wind_n
+    type(field_type),                  intent(inout) :: mr_out(nummr)
+    type(field_type),                  intent(inout) :: mr_in(nummr)
+    type(field_type),                  intent(in)    :: ls_advected_fields(bundle_size)
+    type(field_type),                  intent(in)    :: ls_mr_in(nummr)
+    class(model_clock_type),           intent(in)    :: model_clock
+    integer(kind=i_def),               intent(in)    :: outer
+    type(adj_trans_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     ! Internal variables
     type(field_type)                           :: fields_np1(bundle_size)
@@ -170,7 +173,7 @@ contains
     call atl_theta_transport_alg(                                               &
             fields_np1(igh_t), advection_inc(igh_t), advected_fields(igh_t),    &
             ls_advected_fields(igh_t), tl_transport_controller,                 &
-            transport_metadata                                                  &
+            transport_metadata, adj_lookup_table_cache                          &
     )
 
     ! ------------------------------------------------------------------------- !
@@ -191,7 +194,8 @@ contains
 
       call atl_moist_mr_transport_alg(                                          &
               mr_out, mr_in, ls_mr_in, nummr_to_transport,                      &
-              tl_transport_controller, transport_metadata                       &
+              tl_transport_controller, transport_metadata,                      &
+              adj_lookup_table_cache                                            &
       )
     end if
 
@@ -215,7 +219,7 @@ contains
     call atl_wind_transport_alg(                                                &
             advection_inc(igh_u), advected_fields(igh_u),                       &
             ls_advected_fields(igh_u), tl_transport_controller,                 &
-            transport_metadata                                                  &
+            transport_metadata, adj_lookup_table_cache                          &
     )
     ! We don't change advection_inc(igh_u) as tl_wind_transport_alg
     ! already returns weak increment
@@ -240,7 +244,7 @@ contains
     call atl_transport_field(                                                   &
             fields_np1(igh_d), advected_fields(igh_d),                          &
             ls_advected_fields(igh_d), tl_transport_controller,                 &
-            transport_metadata                                                  &
+            transport_metadata, adj_lookup_table_cache                          &
     )
 
     ! The precomputation initialisation routines are initially called on

@@ -40,6 +40,7 @@ module transport_counter_mod
     contains
 
     procedure, public  :: initialise
+    procedure, public  :: adj_initialise
     procedure, public  :: get_field_n
     procedure, public  :: set_field_n
     procedure, public  :: get_flux
@@ -51,6 +52,7 @@ module transport_counter_mod
     procedure, public  :: get_num_split_steps_per_substep
     procedure, public  :: get_dt_substep
     procedure, public  :: get_outer_iteration
+    procedure, public  :: dec_split_step_counter
     procedure, public  :: inc_split_step_counter
     procedure, public  :: inc_substep_counter
     procedure, public  :: apply_cheap_update
@@ -98,17 +100,69 @@ contains
     self%split_step_of_substep_counter = 1
     self%substep_counter = 1
 
-    if (allocated(self%flux)) deallocate(self%flux)
+    equation_form = transport_metadata%get_equation_form()
+
+    ! Allocate arrays for dry fields
+    if (equation_form == equation_form_conservative                            &
+         .or. equation_form == equation_form_consistent) then
+      if ( .not. allocated(self%flux)) then
+         allocate(self%flux(self%num_split_steps_per_substep-1))
+      end if
+    end if
+
+  end subroutine initialise
+
+  !> @brief Initialises the transport_counter object, allocating flux fields
+  !!        if necessary, ready for the adjoint model simulation
+  !> @details This is the same as initialise, but it prepares the code to be
+  !!        run in reverse order, with the counter decreasing instead of
+  !!        increasing.
+  !> @param[in] transport_metadata  Object containing metadata describing
+  !!                                the options for transporting a variable
+  !> @param[in] dt_substep          The time interval for a single substep
+  !> @param[in] num_substeps        The number of total transport substeps to be
+  !!                                performed
+  !> @param[in] outer               Optional, current iteration of the outer
+  !!                                loop of the semi-implicit time step
+  subroutine adj_initialise(self, transport_metadata, dt_substep, num_substeps, outer)
+
+    implicit none
+
+    class(transport_counter_type), intent(inout) :: self
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    real(kind=r_tran),             intent(in)    :: dt_substep
+    integer(kind=i_def),           intent(in)    :: num_substeps
+    integer(kind=i_def), optional, intent(in)    :: outer
+
+    integer(kind=i_def) :: equation_form
+
+    self%dt_substep = dt_substep
+    self%num_substeps = num_substeps
+    self%num_split_steps_per_substep = get_num_split_steps(transport_metadata%get_splitting())
+    self%num_split_steps_per_whole_step = self%num_substeps * self%num_split_steps_per_substep
+
+    if (present(outer)) then
+      self%outer = outer
+    else
+      self%outer = 0
+    end if
+
+    ! Initialise step counters to the last values (NOT 1)
+    self%split_step_of_whole_step_counter =  self%num_split_steps_per_whole_step
+    self%split_step_of_substep_counter = self%num_split_steps_per_substep
+    self%substep_counter =  num_substeps
 
     equation_form = transport_metadata%get_equation_form()
 
     ! Allocate arrays for dry fields
     if (equation_form == equation_form_conservative                            &
-        .or. equation_form == equation_form_consistent) then
-      allocate(self%flux(self%num_split_steps_per_substep-1))
+         .or. equation_form == equation_form_consistent) then
+      if ( .not. allocated(self%flux)) then
+         allocate(self%flux(self%num_split_steps_per_substep-1))
+      end if
     end if
 
-  end subroutine initialise
+  end subroutine adj_initialise
 
   !> Public finalise method for the transport_counter
   subroutine finalise(self)
@@ -314,6 +368,18 @@ contains
 ! ============================================================================ !
 ! UTILITIES
 ! ============================================================================ !
+  !> @brief Decreases the counter of transport split steps (for adjoint model)
+  subroutine dec_split_step_counter(self)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(inout) :: self
+
+    self%split_step_of_substep_counter = self%split_step_of_substep_counter - 1
+    self%split_step_of_whole_step_counter = self%split_step_of_whole_step_counter - 1
+
+  end subroutine dec_split_step_counter
+
 
   !> @brief Increments the counter of transport split steps
   subroutine inc_split_step_counter(self)
