@@ -92,7 +92,7 @@ logical :: l_fix_ukca_h2dd_x = .false.    ! Review in May 2019
 logical :: l_fix_neg_pvol_wat = .false.    ! Review in Jan 2020
 ! ticket #3245
 logical :: l_fix_ukca_h2so4_ystore = .false. ! Review Oct 2020
-! issue #61
+! issue #432, um#61, ukca#30
 logical :: l_fix_ukca_n2o5_h2o = .false. ! Review June 2028
 ! ticket #4501
 logical :: l_fix_pc2_cnv_mix_phase = .false. ! Review Dec 2021
