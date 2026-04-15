@@ -20,7 +20,7 @@ def load_yaml(fpath: Path) -> dict:
 
 def copy_rose_meta(rose_meta_dest: Path, clone_loc: Path) -> None:
     """
-    Copy rose-meta contents from extracted dependency to working/../rose-meta
+    Copy rose-meta contents from extracted dependency to rose_meta_dest
     """
 
     rose_meta_orig = clone_loc / "rose-meta"
