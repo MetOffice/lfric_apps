@@ -54,6 +54,7 @@ module semi_implicit_timestep_alg_mod
                                         init_option_checkpoint_dump, &
                                         lbc_option_um2lfric_file
   use mixed_solver_config_mod,    only: guess_np1, reference_reset_time
+  use stochastic_physics_config_mod, only : use_spt, use_skeb, stph_spectral_dim
   use timestepping_config_mod,    only: alpha,                                &
                                         outer_iterations, inner_iterations,   &
                                         spinup_alpha
@@ -143,6 +144,11 @@ module semi_implicit_timestep_alg_mod
   use cld_alg_mod,                only: cld_alg
   use aerosol_ukca_alg_mod,       only: aerosol_ukca_alg
   use casim_activate_alg_mod,     only: casim_activate_alg
+  use stph_main_alg_mod,          only : spt_array_names,  &
+                                         spt_array_count,  &
+                                         skeb_array_names, &
+                                         skeb_array_count
+
 #endif
   use cld_incs_mod,               only: cld_incs_init, cld_incs_output
 
@@ -284,6 +290,14 @@ contains
     type( field_collection_type ), pointer :: stph_fields
     type( field_collection_type ), pointer :: lbc_fields
 
+    ! Arrays for passing modeldb data to stochastic physics scheme
+    real(r_def), allocatable :: spt_spectral_coeffc(:)
+    real(r_def), allocatable :: spt_spectral_coeffs(:)
+    real(r_def), allocatable :: spt_power_law(:)
+    real(r_def), allocatable :: skeb_spectral_coeffc(:)
+    real(r_def), allocatable :: skeb_spectral_coeffs(:)
+    real(r_def), allocatable :: skeb_power_law(:)
+
     type( io_value_type ), pointer :: temp_corr_io_value
     real( r_def )    :: dt
     real( r_def )    :: dtemp_encorr
@@ -335,6 +349,19 @@ contains
     ! Get temperature increment for energy correction
     dtemp_encorr = dt * temp_corr_io_value%data(1)
 
+#ifdef UM_PHYSICS
+    if (use_spt) then
+      ! Get spectral coefficients and power law from the model database
+      call get_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
+                           spt_spectral_coeffs, spt_power_law)
+    end if
+    if (use_skeb) then
+      ! Get spectral coefficients and power law from the model database
+      call get_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
+                           skeb_spectral_coeffs, skeb_power_law)
+    end if
+#endif
+
     ! Run the timestep
     call run_step(self, modeldb,                              &
                   u, rho, theta, exner, mr, moist_dyn,        &
@@ -349,7 +376,25 @@ contains
                   snow_fields, chemistry_fields,              &
                   aerosol_fields, stph_fields, lbc_fields,    &
                   model_clock, dtemp_encorr,                  &
+                  spt_spectral_coeffc, spt_spectral_coeffs,   &
+                  spt_power_law,                              &
+                  skeb_spectral_coeffc, skeb_spectral_coeffs, &
+                  skeb_power_law,                             &
                   mesh, twod_mesh)
+
+#ifdef UM_PHYSICS
+    if (use_spt) then
+      ! Put spectral coefficients and power law back into model database
+      call put_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
+                           spt_spectral_coeffs, spt_power_law)
+    end if
+
+    if (use_skeb) then
+      ! Put spectral coefficients and power law back into model database
+      call put_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
+                           skeb_spectral_coeffs, skeb_power_law)
+    end if
+#endif
 
     nullify(      model_clock, mesh,                          &
                   prognostic_fields, moisture_fields,         &
@@ -551,6 +596,12 @@ contains
   !> @param[in]     model_clock            Time in the model.
   !> @param[in]     dtemp_encorr           Temperature increment for energy
   !>                                       correction
+  !> @param[in,out] spt_spectral_coeffc    Real Spectral coefficients
+  !> @param[in,out] spt_spectral_coeffs    Imaginary Spectral coefficients
+  !> @param[in,out] spt_power_law          Spectral power law
+  !> @param[in,out] skeb_spectral_coeffc   Real Spectral coefficients
+  !> @param[in,out] skeb_spectral_coeffs   Imaginary Spectral coefficients
+  !> @param[in,out] skeb_power_law         Spectral power law
   !> @param[in]     mesh                   The current mesh
   !> @param[in]     twod_mesh              The current 2d mesh
   subroutine run_step(self, modeldb,                              &
@@ -566,6 +617,10 @@ contains
                       snow_fields, chemistry_fields,              &
                       aerosol_fields, stph_fields, lbc_fields,    &
                       model_clock, dtemp_encorr,                  &
+                      spt_spectral_coeffc, spt_spectral_coeffs,   &
+                      spt_power_law,                              &
+                      skeb_spectral_coeffc, skeb_spectral_coeffs, &
+                      skeb_power_law,                             &
                       mesh, twod_mesh)
 
     implicit none
@@ -602,6 +657,13 @@ contains
     type( field_collection_type ), intent( inout ) :: lbc_fields
 
     class(model_clock_type), intent(in) :: model_clock
+
+    real(r_def), intent(inout) :: spt_spectral_coeffc(:)
+    real(r_def), intent(inout) :: spt_spectral_coeffs(:)
+    real(r_def), intent(inout) :: spt_power_law(:)
+    real(r_def), intent(inout) :: skeb_spectral_coeffc(:)
+    real(r_def), intent(inout) :: skeb_spectral_coeffs(:)
+    real(r_def), intent(inout) :: skeb_power_law(:)
 
     real(kind=r_def), intent(in)  :: dtemp_encorr
 
@@ -913,6 +975,10 @@ contains
                           convection_fields, cloud_fields,                     &
                           surface_fields, soil_fields, snow_fields,            &
                           chemistry_fields, aerosol_fields, stph_fields,       &
+                          spt_spectral_coeffc, spt_spectral_coeffs,            &
+                          spt_power_law,                                       &
+                          skeb_spectral_coeffc, skeb_spectral_coeffs,          &
+                          skeb_power_law,                                      &
                           outer, model_clock, cast_dt)
 
         if (smagorinsky .and. smagorinsky_placement == smagorinsky_placement_outer) then
@@ -1266,4 +1332,70 @@ contains
     end if
 
   end subroutine conditional_collection_copy
+
+  !> Get some stochastic physics variables out of modeldb
+  !> @param[in]  modeldb Holds the model state
+  !> @param[in]  array_names List of names that reference values
+  !> @param[out] spectral_coeffc Spectral coefficients
+  !> @param[out] spectral_coeffs Spectral coefficients
+  !> @param[out] power_law       Power law
+
+  subroutine get_stph_values(modeldb, array_names, spectral_coeffc, &
+                             spectral_coeffs, power_law)
+
+    type(modeldb_type),       intent(in)  :: modeldb
+    character(*),             intent(in)  :: array_names(:)
+
+    real(r_def), allocatable, intent(out) :: spectral_coeffc(:)
+    real(r_def), allocatable, intent(out) :: spectral_coeffs(:)
+    real(r_def), allocatable, intent(out) :: power_law(:)
+
+    type(io_value_type), pointer :: stph_io_value_type
+
+    allocate(spectral_coeffc(stph_spectral_dim))
+    allocate(spectral_coeffs(stph_spectral_dim))
+    allocate(power_law(stph_spectral_dim))
+
+    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
+    spectral_coeffc = stph_io_value_type%data
+    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
+    spectral_coeffs = stph_io_value_type%data
+    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
+    power_law = stph_io_value_type%data
+  end subroutine get_stph_values
+
+  !> Put some stochastic physics values into modeldb and deallocate
+  !> holding variables
+  !> @param[in]  modeldb Holds the model state
+  !> @param[in]  array_names List of names that reference values
+  !> @param[in,out] spectral_coeffc Spectral coefficients
+  !> @param[in,out] spectral_coeffs Spectral coefficients
+  !> @param[in,out] power_law       Power law
+
+  subroutine put_stph_values(modeldb, array_names, spectral_coeffc, &
+                             spectral_coeffs, power_law)
+
+    type(modeldb_type),       intent(in)  :: modeldb
+    character(*),             intent(in)  :: array_names(:)
+
+    real(r_def), allocatable, intent(inout) :: spectral_coeffc(:)
+    real(r_def), allocatable, intent(inout) :: spectral_coeffs(:)
+    real(r_def), allocatable, intent(inout) :: power_law(:)
+
+    type(io_value_type), pointer :: stph_io_value_type
+
+    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
+    stph_io_value_type%data = spectral_coeffc
+    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
+    stph_io_value_type%data = spectral_coeffs
+    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
+    stph_io_value_type%data = power_law
+
+    deallocate(spectral_coeffc)
+    deallocate(spectral_coeffs)
+    deallocate(power_law)
+
+  end subroutine put_stph_values
+
+
 end module semi_implicit_timestep_alg_mod
