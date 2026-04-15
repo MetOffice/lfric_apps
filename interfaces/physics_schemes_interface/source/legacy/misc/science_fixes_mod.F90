@@ -480,7 +480,7 @@ end if
 if (.not. l_fix_ukca_n2o5_h2o) then
   ErrorStatus = -100
   cmessage    =                                                       newline//&
-  'model run excludes a change from issue #61 as'//                   newline//&
+  'model run excludes a change from issue #432, ukca#30 as'//         newline//&
   ' l_fix_ukca_n2o5_h2o=.false. .'//                                  newline//&
   ' this will disable stratflag n2o5+h2o filtering for b85 and h04 reactions.'
   call ereport(RoutineName, ErrorStatus, CMessage)
