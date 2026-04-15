@@ -35,3 +35,4 @@
 | tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-02-02 |
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
 | ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
+| theabro             | Nathan Luke Abraham | NCAS & University of Cambridge  | 2026-04-15 |
