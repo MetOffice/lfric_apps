@@ -145,7 +145,7 @@ implicit none
 type(lfricinp_grid_type), intent(in):: um_grid
 integer(kind=int64), intent(in) :: stashcode
 ! Result
-integer(kind=int64) :: num_pseudo_levels, last_pseudL_num, first_pseudL_num
+integer(kind=int64) :: num_pseudo_levels
 
 
 num_pseudo_levels = lfricinp_get_last_pseudo_level_num(um_grid, stashcode) - &
