@@ -58,6 +58,7 @@ __pycache__
 applications/**/bin
 applications/**/documents
 applications/**/working
+applications/**/fab-workspace
 applications/**/test
 applications/**/example*/
 science/**/bin
