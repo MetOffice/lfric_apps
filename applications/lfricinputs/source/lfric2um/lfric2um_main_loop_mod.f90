@@ -21,7 +21,7 @@ use lfric2um_conv_exner_mod,      only: lfric2um_conv_p_exner,            &
 
 ! lfricinp modules
 use lfricinp_stashmaster_mod,          only: get_stashmaster_item, levelt,     &
-                                             rho_levels, single_level,         &
+                                             pseudt, rho_levels, single_level, &
                                              stashcode_exner, stashcode_p,     &
                                              stashcode_q, stashcode_theta,     &
                                              theta_levels
@@ -29,8 +29,11 @@ use lfricinp_add_um_field_to_file_mod, only: lfricinp_add_um_field_to_file
 use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels
 use lfricinp_check_shumlib_status_mod, only: shumlib
 use lfricinp_regrid_weights_type_mod,  only: lfricinp_regrid_weights_type
-use lfricinp_stash_to_lfric_map_mod,   only: get_field_name
 use lfricinp_gather_lfric_field_mod,   only: lfricinp_gather_lfric_field
+use lfricinp_stash_to_lfric_map_mod,   only: w2h_field, w3_field, w3_field_2d, &
+                                             w3_soil_field, wtheta_field,      &
+                                             get_field_name,                   &
+                                             get_lfric_field_kind
 
 ! lfric modules
 use field_mod,  only: field_type
@@ -51,7 +54,7 @@ subroutine lfric2um_main_loop()
 implicit none
 
 integer(kind=int64) :: i_stash, level, i_field
-integer(kind=int64) :: stashcode, num_levels
+integer(kind=int64) :: stashcode, num_levels, lfric_field_kind
 character(len=*), parameter :: routinename='lfric2um_main_loop'
 type(field_type), pointer :: lfric_field
 type(lfricinp_regrid_weights_type), pointer :: weights
