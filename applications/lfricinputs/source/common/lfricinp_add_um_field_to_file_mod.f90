@@ -39,13 +39,13 @@ use log_mod, only : log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
 use f_shum_fieldsfile_mod, only: f_shum_fixed_length_header_len
 use f_shum_file_mod, only: shum_file_type
 use f_shum_field_mod, only: shum_field_type
-use f_shum_lookup_indices_mod, only:                                        &
-    lbyr, lbmon, lbdat, lbhr, lbmin, lbday, lbsec, lbyrd, lbmond, lbdatd,   &
-    lbhrd, lbmind, lbdayd, lbsecd, lbtim, lbft, lbcode, lbhem, lbrow,       &
-    lbnpt, lbpack, lbrel, lbfc, lbcfc, lbproc, lbvc, lbrvc, lbtyp, lblev,   &
-    lbrsvd1, lbrsvd2, lbrsvd3, lbrsvd4, lbsrce, lbuser1, lbuser4, lbuser7,  &
-    bulev, bhulev, brsvd3, brsvd4, bdatum, bacc, blev, brlev,               &
-    bhlev, bhrlev, bplat, bplon, bgor, bzy, bdy, bzx, bdx, bmdi, bmks
+use f_shum_lookup_indices_mod, only:                                         &
+    lbyr, lbmon, lbdat, lbhr, lbmin, lbday, lbsec, lbyrd, lbmond, lbdatd,    &
+    lbhrd, lbmind, lbdayd, lbsecd, lbtim, lbft, lbcode, lbhem, lbrow, lbnpt, &
+    lbpack, lbrel, lbfc, lbcfc, lbproc, lbvc, lbrvc, lbtyp, lblev, lbsrce,   &
+    lbrsvd1, lbrsvd2, lbrsvd3, lbrsvd4, lbuser1, lbuser4, lbuser5, lbuser7,  &
+    bulev, bhulev, brsvd3, brsvd4, bdatum, bacc, blev, brlev, bhlev,         &
+    bhrlev, bplat, bplon, bgor, bzy, bdy, bzx, bdx, bmdi, bmks
 
 use f_shum_fixed_length_header_indices_mod, only:                           &
     vert_coord_type, horiz_grid_type, dataset_type, run_identifier,         &
@@ -227,13 +227,13 @@ lookup_real_tmp(brsvd4) = 0.0_real64
 if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      .or. lookup_int(lbvc) == 5 .or. lookup_int(lbvc) == 0 .or. &
      lookup_int(lbvc) == 275 ) then
+  write(log_scratch_space, '(A,I0,A)') &
+     "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
+  call log_event(log_scratch_space, LOG_LEVEL_INFO)
+  ! Pseudo-level number
+  ! lookup_int(lbuser5) = 5_int64
+
   ! Special codes inc single level, set to 0.0
-  if ( .not. lookup_int(lbvc) == 129 ) then
-    write(log_scratch_space, '(A,I0,A)') &
-       "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
-    call log_event(log_scratch_space, LOG_LEVEL_INFO)
-    ! this log message appears once per pseudolevel, which I'm not sure it should do
-  end if
   lookup_real_tmp(blev)=0.0_real64
   lookup_real_tmp(bhlev)=0.0_real64
   lookup_real_tmp(brlev)=0.0_real64

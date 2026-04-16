@@ -182,7 +182,8 @@ int_constants(ih_row_length) = um_grid%num_p_points_x
 int_constants(ih_rows) = um_grid%num_p_points_y
 int_constants(ih_model_levels) = lfric_mesh%get_nlayers()
 int_constants(ih_wet_levels) = int_constants(ih_model_levels)
-! hardcode for now, no info on soil in lfric dump
+! hardcode to 4 for now, no info on soil in lfric dump.
+! TODO Potentially get from namelists?
 int_constants(ih_soilT_levels) = 4
 int_constants(ih_soilQ_levels) = int_constants(ih_soilT_levels)
 int_constants(ih_cloud_levels) = lfric_mesh%get_nlayers()
@@ -193,9 +194,14 @@ int_constants(ih_height_gen) = 2 ! Smooth height generation method
 ! hardcode for now - doesn't exist in lfric yet
 int_constants(ih_1_c_rho_level) = 30
 !  hardcode for now - aquaplanet
+! TODO unhardcode - no longer aquaplanet!
 int_constants(ih_land_points) = 0
 int_constants(ih_ozone_levels) = int_constants(ih_model_levels)
 int_constants(ih_convect_levels) = 0
+
+! Set pseudo-level information
+! um_output_file%num_snow_layers = um_grid%num_snow_layers
+! um_output_file%num_surface_types = um_grid%num_surface_types
 
 call shumlib(routinename//'::set_integer_constants', &
      um_output_file%set_integer_constants(int_constants))
