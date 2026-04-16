@@ -23,10 +23,10 @@ use lfricinp_gather_lfric_field_mod,   only: lfricinp_gather_lfric_field
 use lfricinp_lfric_driver_mod,         only: lfric_fields, local_rank, comm,   &
                                              twod_mesh
 use lfricinp_regrid_weights_type_mod,  only: lfricinp_regrid_weights_type
-use lfricinp_stash_to_lfric_map_mod,   only: w2h_field, w3_field, w3_field_2d, &
-                                             w3_soil_field, wtheta_field,      &
-                                             get_field_name,                   &
-                                             get_lfric_field_kind
+use lfricinp_stash_to_lfric_map_mod,   only: get_field_name,                   &
+                                             get_lfric_field_kind,             &
+                                             w2h_field, w3_field, w3_field_2d, &
+                                             w3_soil_field, wtheta_field
 use lfricinp_stashmaster_mod,          only: get_stashmaster_item, levelt,     &
                                              pseudt, rho_levels, single_level, &
                                              stashcode_exner, stashcode_p,     &
@@ -37,9 +37,9 @@ use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels,          &
                                              lfricinp_get_num_pseudo_levels
 
 ! lfric modules
-use field_mod,     only: field_type
-use log_mod,       only: log_event, log_scratch_space,   &
-                         LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+use field_mod,  only: field_type
+use log_mod,    only: log_event, log_scratch_space,   &
+                      LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 
 implicit none
 

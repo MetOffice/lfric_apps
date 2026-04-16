@@ -38,6 +38,7 @@
         "memory_plot_ex": true,
         "kgo_checks": "",
     }) %}
+
 {% elif task_ns.conf_name == "lfric2um-pseudolevels-C48L70_N48L70" %}
 
     {% do task_dict.update({
