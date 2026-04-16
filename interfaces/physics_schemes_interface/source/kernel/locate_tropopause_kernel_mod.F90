@@ -34,6 +34,14 @@ type, public, extends(kernel_type) :: locate_tropopause_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                   & ! exner_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                   & ! height_wth
        arg_type(GH_FIELD, GH_INTEGER,GH_WRITE,ANY_DISCONTINUOUS_SPACE_1)& ! trop_level
+       arg_type(GH_FIELD, LOGICAL, GH_READ)                             & ! trop_height_flag
+       arg_type(GH_FIELD, LOGICAL, GH_READ)                             & ! trop_temp_flag
+       arg_type(GH_FIELD, LOGICAL, GH_READ)                             & ! trop_press_flag
+       arg_type(GH_FIELD, LOGICAL, GH_READ)                             & ! trop_icao_height_flag
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_height
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_temp
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_press
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_icao_height
     /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -52,6 +60,14 @@ contains
 !> @param[in]     exner_in_wth          Exner pressure in wth space
 !> @param[in]     height_wth            Height of wth levels above surface
 !> @param[in,out] trop_level            Level of tropopause
+!> @param[in]     trop_height_flag      Whether to calculate tropopause height
+!> @param[in]     trop_temp_flag        Whether to calculate tropopause temperature
+!> @param[in]     trop_press_flag       Whether to calculate tropopause pressure
+!> @param[in]     trop_icao_height_flag Whether to calculate tropopause icao height
+!> @param[in,out] trop_height           Height of tropopause
+!> @param[in,out] trop_temp             Temperature at tropopause
+!> @param[in,out] trop_press            Pressure at tropopause
+!> @param[in,out] trop_icao_height      ICAO height of tropopause
 !> @param[in]     ndf_wth               No. DOFs per cell for wth space
 !> @param[in]     undf_wth              No. unique DOFs for wth space
 !> @param[in]     map_wth               Dofmap for wth space column base cell
@@ -63,6 +79,14 @@ subroutine locate_tropopause_code(nlayers,                    &
                                   exner_in_wth,               &
                                   height_wth,                 &
                                   trop_level,                 &
+                                  trop_height_flag,           &
+                                  trop_temp_flag,             &
+                                  trop_press_flag,            &
+                                  trop_icao_height_flag,      &
+                                  trop_height,                &
+                                  trop_temp,                  &
+                                  trop_press,                 &
+                                  trop_icao_height,           &
                                   ndf_wth, undf_wth, map_wth, &
                                   ndf_2d, undf_2d, map_2d)
 
@@ -82,6 +106,12 @@ subroutine locate_tropopause_code(nlayers,                    &
   real(r_def), dimension(undf_wth), intent(in) :: height_wth
 
   integer(i_def), dimension(undf_2d), intent(inout) :: trop_level
+  integer(r_def), dimension(undf_2d), intent(inout) :: trop_height
+  integer(r_def), dimension(undf_2d), intent(inout) :: trop_temp
+  integer(r_def), dimension(undf_2d), intent(inout) :: trop_press
+  integer(r_def), dimension(undf_2d), intent(inout) :: trop_icao_height
+
+  logical, intent(in) :: trop_height_flag, trop_temp_flag, trop_press_flag, trop_icao_height_flag
 
   ! Local variables
   integer(i_def) :: k, kk
@@ -99,9 +129,10 @@ subroutine locate_tropopause_code(nlayers,                    &
   real(r_def), parameter :: p_max_trop = 50000.0_r_def ! Pa
 
   ! Lapse rates below and above current layer, and the difference between them
-  REAL(KIND=real_umphys) :: lapseupr, lapselwr, delta_lapse
+  REAL(r_def) :: lapse_upr, lapse_lwr, delta_lapse
 
-  REAL(KIND=real_umphys), PARAMETER :: vsmall = 1.0e-6
+  REAL(r_def), PARAMETER :: vsmall = 1.0e-6
+  REAL(r_def) :: press_wth
   
 
   exner_min = (p_min_trop/p_zero)**kappa
@@ -149,16 +180,14 @@ subroutine locate_tropopause_code(nlayers,                    &
 
 
 
-  ! calculate tropopause height, temperature and pressure, and icao heights, for diagnostics
-
-  ! Assuming the tropopause was found in the steps above, retrieve the
-  ! level index for it here...
+  ! Calculate tropopause height, temperature and pressure, and icao heights
+  ! for diagnostics, from the tropopause level identified above.
+  !
   ! We shall calculate the lapse rates above and below expected level
   ! and assume linear cross over point is nearer to the true height of the
   ! tropopause level -- it need not correspond to an exact model level --
   ! if no model level was identified return mdi
   
-  ! todo: flags for these? (tropopause_height, tropopause_temp, tropopause_pressure)
   ! if level found  
   if (lapse_rate_trop_level > 0) then
 
@@ -169,37 +198,49 @@ subroutine locate_tropopause_code(nlayers,                    &
     lapse_upr = lapse_rate(k+2)
     lapse_lwr = lapse_rate(k)
 
-    delta_lapse = lapselwr - lapseupr
+    delta_lapse = lapse_lwr - lapse_upr
     IF ( ABS(delta_lapse) < vsmall ) THEN
       IF ( delta_lapse >= 0 ) delta_lapse =  vsmall
       IF ( delta_lapse <  0 ) delta_lapse = -vsmall
     END IF
 
-    ! height of tropopause
-    ! note: the um code subtracts planet_radius from height
-    tropopause_height(map_2d(1)) = (                       &
-      (t_wth(k) + (lapselwr*height_wth(k)))     &
-    - (t_wth(k+1) + (lapseupr*height_wth(k+1))) &
-    ) / delta_lapse
+    ! height of tropopause between k and k+1
+    if (trop_height_flag) then
+      ! discuss: the um code subtracts planet_radius from height
+      tropopause_height(map_2d(1)) = (                         &
+        (t_wth(k) + (lapse_lwr * height_wth(map_wth(1)+k)))     &
+      - (t_wth(k+1) + (lapse_upr * height_wth(map_wth(1)+k+1))) &
+      ) / delta_lapse
+    end if
 
     ! temperature at tropopause
-    tropopause_temp(map_2d(1)) = t_wth(k) -                              &
-      lapselwr * (tropopause_height(i,j) - height_wth(i,j,k))
+    if (trop_temp_flag) then
+      tropopause_temp(map_2d(1)) = t_wth(k) -                              &
+        lapse_lwr * (tropopause_height(map_2d(1)) - height_wth(map_wth(1) + k))
+    end if
 
     ! pressure at tropopause is derived from hydrostatic equation
-    ! todo: we'll need an equivalent of p_theta_levels
-    IF ( ABS(lapselwr) < vsmall ) THEN
-      IF ( lapseLwr >= 0 ) lapselwr =  vsmall
-      IF ( lapselwr <  0 ) lapselwr = -vsmall
-    END IF
-    
-    tropopause_press(map_2d(1)) = p_theta_levels(k) *                       &
-      (tropopause_temp(map_2d(1)) / temp(k)) ** (g_over_r/lapselwr)
+    if (trop_press_flag) then
+      IF ( ABS(lapse_lwr) < vsmall ) THEN
+        IF ( lapse_lwr >= 0 ) lapse_lwr =  vsmall
+        IF ( lapse_lwr <  0 ) lapse_lwr = -vsmall
+      END IF   
+
+      press_wth = p_zero * exner_in_wth(map_wth(1)+k) ** (1.0_r_def / kappa)
+      tropopause_press(map_2d(1)) = press_wth *                             &
+        (tropopause_temp(map_2d(1)) / t_wth(k)) ** (g_over_r/lapse_lwr)
+    end if
 
   endif
 
 
-  ! calculate tropopauise icao heights, temperature and pressure
+  ! calculate tropopause icao height of the tropopause 
+  ! todo: call the kernel from https://github.com/MetOffice/lfric_apps/pull/169
+  if (trop_icao_height_flag) then
+    ! call diags_icao_heights_kernel_code( &
+    !   nlayers, icao_tropopause_height, tropopause_press, ndf_2d, undf_2d, map_2d)
+    icao_tropopause_height(map_2d(1)) = rmdi;
+  end if
 
 
 

@@ -991,6 +991,11 @@
   <!-- Vertical integrals -->
   <field id="processed__sw_aer_optical_depth_rts" field_ref="radiation__sw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
   <field id="processed__lw_aer_optical_depth_rts" field_ref="radiation__lw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
+  <!-- Aviation diagnostics -->
+  <field id="aviation__tropopause_height" name="aviation_tropopause_height" standard_name="tropopause_altitude" long_name="tropopause_height" unit="m" domain_ref="face"/>
+  <field id="aviation__tropopause_temperature" name="aviation_tropopause_temperature" standard_name="tropopause_air_temperature" long_name="tropopause_temperature" unit="K" domain_ref="face"/>
+  <field id="aviation__tropopause_pressure" name="aviation_tropopause_pressure" standard_name="tropopause_air_pressure" long_name="tropopause_pressure" unit="Pa" domain_ref="face"/>
+  <field id="aviation__tropopause_icao_height" name="aviation_tropopause_icao_height" standard_name="tropopause_altitude" long_name="icao_tropopause_height" unit="kft" domain_ref="face"/>
 </field_group>
 
 <!-- Integer diagnostic group -->
