@@ -90,8 +90,8 @@
 	<field id="read_tile_n_snow_layers" name="tile_n_snow_layers" long_name="Number of snow layers on tiles" unit="1" grid_ref="land_tiles_face_grid" operation="instant" />
 	<field id="read_tile_snow_depth" name="tile_snow_depth" long_name="Snow depth on tiles" unit="m" grid_ref="land_tiles_face_grid" operation="instant" />
 	<field id="read_tile_snow_rgrain" name="tile_snow_rgrain" long_name="Tile snow grain size" unit="microns" grid_ref="land_tiles_face_grid" operation="instant" />-->
-	<!--<field id="read_snow_soot" name="snow_soot" long_name="Snow soot content" unit="kg kg-1" domain_ref="face" operation="instant" />
-	<field id="read_tile_snow_under_canopy" name="tile_snow_under_canopy" long_name="Snow under canopy on tiles" unit="m" grid_ref="land_tiles_face_grid" operation="instant" />
+	<field id="read_snow_soot" name="snow_soot" long_name="Snow soot content" unit="kg kg-1" domain_ref="face" operation="instant" />
+	<!--<field id="read_tile_snow_under_canopy" name="tile_snow_under_canopy" long_name="Snow under canopy on tiles" unit="m" grid_ref="land_tiles_face_grid" operation="instant" />
 	<field id="read_tile_snowpack_density" name="tile_snowpack_density" long_name="Snowpack density on tiles" unit="kg m-3" grid_ref="land_tiles_face_grid" operation="instant" />-->
 	<!--<field id="read_tile_snow_layer_thickness" name="tile_snow_layer_thickness" long_name="Snow layer thickness on tiles" unit="m" grid_ref="snow_layers_face_grid" operation="instant" />
 	<field id="read_tile_snow_layer_ice_mass" name="tile_snow_layer_ice_mass" long_name="Snow layer ice mass on tiles" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
