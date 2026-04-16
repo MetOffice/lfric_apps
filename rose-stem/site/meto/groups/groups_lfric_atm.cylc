@@ -65,6 +65,7 @@
     "lfric_atm_azspice_developer": [
         "lfric_atm_nwp_azspice_developer",
         "lfric_atm_clim_gal9-C12_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_clim_gal9_short-C12_azspice_gnu_fast-debug-64bit",
         "lfric_atm_ral_azspice_developer",
         "lfric_atm_rce-BiP64x64-1500x1500_MG_azspice_gnu_fast-debug-32bit",
         "lfric_atm_scm_azspice_developer",
@@ -173,6 +174,7 @@
     "lfric_atm_ex1a_developer": [
         "lfric_atm_nwp_ex1a_developer",
         "lfric_atm_clim_gal9-C12_ex1a_cce_fast-debug-32bit",
+        "lfric_atm_clim_gal9_short-C12_ex1a_cce_fast-debug-64bit",
         "lfric_atm_ral_ex1a_developer",
         "lfric_atm_rce-BiP64x64-1500x1500_MG_ex1a_cce_fast-debug-32bit",
         "lfric_atm_scm_ex1a_developer",
