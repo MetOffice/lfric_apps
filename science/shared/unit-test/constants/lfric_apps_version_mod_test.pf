@@ -1,0 +1,71 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+module lfric_apps_version_mod_test
+  use funit
+  use constants_mod,          only: i_def, l_def, str_def
+  use lfric_apps_version_mod, only: lfric_apps_major_version, &
+                                    lfric_apps_minor_version, &
+                                    lfric_apps_patch_version, &
+                                    lfric_apps_release_version, &
+                                    lfric_apps_version_char
+  implicit none
+
+  public :: test_lfric_apps_version_char_basic, &
+            test_lfric_apps_version_char_release, &
+            test_lfric_apps_version_char_patch, &
+            test_lfric_apps_version_char_patch_release
+
+contains
+
+  @Test
+  subroutine test_lfric_apps_version_char_basic()
+    character(str_def) :: apps_version_char
+    character(str_def) :: expected_apps_version_char = 'vn3.1_dev'
+    lfric_apps_major_version = 3
+    lfric_apps_minor_version = 1
+    lfric_apps_patch_version = 0
+    lfric_apps_release_version = .false.
+    apps_version_char = lfric_apps_version_char()
+    @assertEqual(expected_apps_version_char, apps_version_char)
+  end subroutine test_lfric_apps_version_char_basic
+
+  @Test
+  subroutine test_lfric_apps_version_char_release()
+    character(str_def) :: apps_version_char
+    character(str_def) :: expected_apps_version_char = 'vn3.1'
+    lfric_apps_major_version = 3
+    lfric_apps_minor_version = 1
+    lfric_apps_patch_version = 0
+    lfric_apps_release_version = .true.
+    apps_version_char = lfric_apps_version_char()
+    @assertEqual(expected_apps_version_char, apps_version_char)
+  end subroutine test_lfric_apps_version_char_release
+
+  @Test
+  subroutine test_lfric_apps_version_char_patch()
+    character(str_def) :: apps_version_char
+    character(str_def) :: expected_apps_version_char = 'vn7.2.3_dev'
+    lfric_apps_major_version = 7
+    lfric_apps_minor_version = 2
+    lfric_apps_patch_version = 3
+    lfric_apps_release_version = .false.
+    apps_version_char = lfric_apps_version_char()
+    @assertEqual(expected_apps_version_char, apps_version_char)
+  end subroutine test_lfric_apps_version_char_patch
+
+  @Test
+  subroutine test_lfric_apps_version_char_patch_release()
+    character(str_def) :: apps_version_char
+    character(str_def) :: expected_apps_version_char = 'vn7.2.3'
+    lfric_apps_major_version = 7
+    lfric_apps_minor_version = 2
+    lfric_apps_patch_version = 3
+    lfric_apps_release_version = .true.
+    apps_version_char = lfric_apps_version_char()
+    @assertEqual(expected_apps_version_char, apps_version_char)
+  end subroutine test_lfric_apps_version_char_patch_release
+
+end module lfric_apps_version_mod_test
