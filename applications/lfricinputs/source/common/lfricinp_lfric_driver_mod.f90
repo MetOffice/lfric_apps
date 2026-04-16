@@ -25,12 +25,9 @@ use extrusion_mod,              only: extrusion_type,         &
                                       TWOD
 use field_collection_mod,       only: field_collection_type
 use field_mod,                  only: field_type
-use sci_geometric_constants_mod,      &
-                                only: get_chi_inventory, get_panel_id_inventory
 use gungho_extrusion_mod,       only: create_extrusion
 use halo_comms_mod,             only: initialise_halo_comms
 use inventory_by_mesh_mod,      only: inventory_by_mesh_type
-use model_clock_mod,            only: model_clock_type
 use io_context_mod,             only: callback_clock_arg
 use lfric_xios_context_mod,     only: lfric_xios_context_type
 use lfric_xios_action_mod,      only: advance
@@ -40,8 +37,11 @@ use lfricinp_setup_io_mod,      only: io_config
 use linked_list_mod,            only: linked_list_type
 use mesh_mod,                   only: mesh_type
 use mesh_collection_mod,        only: mesh_collection
+use model_clock_mod,            only: model_clock_type
 use namelist_collection_mod,    only: namelist_collection_type
 use namelist_mod,               only: namelist_type
+use sci_geometric_constants_mod,      &
+                                only: get_chi_inventory, get_panel_id_inventory
 use step_calendar_mod,          only: step_calendar_type
 
 ! Interface to mpi

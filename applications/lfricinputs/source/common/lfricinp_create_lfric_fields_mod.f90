@@ -10,30 +10,30 @@ use, intrinsic :: iso_fortran_env, only : int64
 
 ! lfric modules
 use constants_mod,                 only : i_def, str_def
+use field_collection_mod,          only : field_collection_type
 use field_mod,                     only : field_type
 use field_parent_mod,              only :  read_interface, write_interface,    &
                                            field_parent_proxy_type
+use finite_element_config_mod,     only : element_order_h, element_order_v
+use fs_continuity_mod,             only : W3, Wtheta, W2H
+use function_space_collection_mod, only : function_space_collection
+use function_space_mod,            only : function_space_type
 use lfric_xios_time_axis_mod,      only : time_axis_type
 use lfric_xios_read_mod,           only : read_field_generic
 use lfric_xios_write_mod,          only : write_field_generic
-use finite_element_config_mod,     only : element_order_h, element_order_v
-use function_space_mod,            only : function_space_type
-use function_space_collection_mod, only : function_space_collection
-use field_collection_mod,          only : field_collection_type
-use fs_continuity_mod,             only : W3, Wtheta, W2H
 use log_mod,                       only : LOG_LEVEL_INFO, LOG_LEVEL_ERROR,     &
                                           log_event, log_scratch_space
 use mesh_mod,                      only : mesh_type
 
 ! lfricinp modules
+use lfricinp_grid_type_mod,          only: lfricinp_grid_type
+use lfricinp_regrid_options_mod,     only: winds_on_w3
 use lfricinp_stashmaster_mod,        only: get_stashmaster_item, pseudt
 use lfricinp_stash_to_lfric_map_mod, only: w2h_field, w3_field, w3_field_2d,   &
                                            w3_soil_field, wtheta_field,        &
                                            get_field_name, get_lfric_field_kind
-use lfricinp_grid_type_mod,          only: lfricinp_grid_type
 use lfricinp_um_level_codes_mod,     only: lfricinp_get_num_levels,            &
                                            lfricinp_get_num_pseudo_levels
-use lfricinp_regrid_options_mod,     only: winds_on_w3
 
 ! shumlib modules
 use f_shum_file_mod, only: shum_file_type
