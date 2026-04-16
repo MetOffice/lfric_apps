@@ -101,14 +101,14 @@ contains
         100.0_r_def, 200.0_r_def, 300.0_r_def, 400.0_r_def,                    &
         100.0_r_def, 200.0_r_def, 300.0_r_def, 400.0_r_def,                    &
         100.0_r_def, 200.0_r_def, 300.0_r_def, 400.0_r_def,                    &
-        1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def                             &
+        1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def                  &
     /)
     dA_at_w2(:) = (/                                                           &
         1000.0_r_def, 2000.0_r_def, 3000.0_r_def, 4000.0_r_def,                &
         1000.0_r_def, 2000.0_r_def, 3000.0_r_def, 4000.0_r_def,                &
         1000.0_r_def, 2000.0_r_def, 3000.0_r_def, 4000.0_r_def,                &
         1000.0_r_def, 2000.0_r_def, 3000.0_r_def, 4000.0_r_def,                &
-        1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def                             &
+        1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def                  &
     /)
     flux(:) = 0.0_r_def
 

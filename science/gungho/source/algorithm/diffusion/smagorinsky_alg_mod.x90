@@ -52,8 +52,7 @@ module smagorinsky_alg_mod
   ! Config
   use formulation_config_mod,    only: moisture_formulation,                   &
                                        moisture_formulation_dry
-  use io_config_mod,             only: subroutine_timers,                      &
-                                       write_conservation_diag
+  use io_config_mod,             only: write_conservation_diag
   use mixing_config_mod,         only: mix_factor, conservative_diffusion,     &
                                        smag_l_calc, smag_l_calc_use_geo,       &
                                        density_weighted
@@ -218,17 +217,17 @@ subroutine smagorinsky_alg(                                                    &
 
       call visc_w2h%initialise(w2h_sh_fs)
       call rho_in_w2h%initialise(w2h_sh_fs)
-      call derived_fields%get_field('rho_in_wth', rho_in_wth)
 
       ! Get density at W2H points
       if (density_weighted) then
+        call derived_fields%get_field('rho_in_wth', rho_in_wth)
         call invoke(                                                           &
             setval_c(rho_in_w2h, 0.0_r_def),                                   &
             w3_to_w2_average_kernel_type(rho_in_w2h, rho_in_wth, rmult)        &
         )
       else
         ! Set rho to 1 everywhere if not using density weighting
-        call rho_one%initialise(rho_in_wth%get_function_space())
+        call rho_one%initialise(theta%get_function_space())
         call invoke(                                                           &
             setval_c(rho_one, 1.0_r_def),                                      &
             setval_c(rho_in_w2h, 1.0_r_def)                                    &
