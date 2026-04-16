@@ -154,30 +154,32 @@ do i_stash = 1, lfric2um_config%num_fields
          num_levels, level, twod_mesh )
     if (local_rank == 0 ) then
 
-      !---------------------------------------------------------------------------
+      !-------------------------------------------------------------------------
       ! Create UM field in output file
-      !---------------------------------------------------------------------------
+      !-------------------------------------------------------------------------
       call lfricinp_add_um_field_to_file(um_output_file, stashcode, &
            level, um_grid, lfric2um_config%lbtim_list(i_stash),     &
            lfric2um_config%lbproc_list(i_stash))
+      ! I think this + loop it's in is what is causing the pseudolevel fields to
+      ! be added as 9 individual fields rather than a field with 9 pseudolevels
 
-      !---------------------------------------------------------------------------
+      !-------------------------------------------------------------------------
       ! Adding a 2D UM field to the file increments num_fields by 1 each time
       ! Get the index of the last field added, which is just num_fields
-      !---------------------------------------------------------------------------
+      !-------------------------------------------------------------------------
       i_field = um_output_file%num_fields
       call weights%validate_dst(size(um_output_file%fields(i_field)%rdata))
 
-      !---------------------------------------------------------------------------
+      !-------------------------------------------------------------------------
       ! Perform the regridding from lfric to um
-      !---------------------------------------------------------------------------
+      !-------------------------------------------------------------------------
       call weights%regrid_src_1d_dst_2d(global_field_array(:), &
            um_output_file%fields(i_field)%rdata(:,:))
 
-      !---------------------------------------------------------------------------
+      !-------------------------------------------------------------------------
       ! Copy the pointers for the top-level fields needed to compute the
       ! Exner pressure at the half level immediately above the model top
-      !---------------------------------------------------------------------------
+      !-------------------------------------------------------------------------
       if (stashcode == stashcode_q .and. level == num_levels) then
         q_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
       else if (stashcode == stashcode_theta .and. level == num_levels) then

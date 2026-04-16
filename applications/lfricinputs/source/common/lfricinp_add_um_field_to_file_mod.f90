@@ -39,22 +39,20 @@ use log_mod, only : log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
 use f_shum_fieldsfile_mod, only: f_shum_fixed_length_header_len
 use f_shum_file_mod, only: shum_file_type
 use f_shum_field_mod, only: shum_field_type
-use f_shum_lookup_indices_mod, only: &
-    lbyr, lbmon, lbdat, lbhr, lbmin, lbday, lbsec, lbyrd, lbmond, lbdatd, &
-    lbhrd, lbmind, lbdayd, lbsecd, lbtim, lbft, lbcode, lbhem,    &
-    lbrow, lbnpt, lbpack, lbrel, lbfc, lbcfc, lbproc, lbvc, lbrvc, &
-    lbtyp, lblev, lbrsvd1, lbrsvd2,        &
-    lbrsvd3, lbrsvd4, lbsrce, lbuser1, lbuser4, &
-    lbuser7, bulev, bhulev, brsvd3, brsvd4, bdatum, bacc, blev,  &
-    brlev, bhlev, bhrlev, bplat, bplon, bgor, bzy, bdy, bzx, bdx, bmdi,   &
-    bmks
+use f_shum_lookup_indices_mod, only:                                        &
+    lbyr, lbmon, lbdat, lbhr, lbmin, lbday, lbsec, lbyrd, lbmond, lbdatd,   &
+    lbhrd, lbmind, lbdayd, lbsecd, lbtim, lbft, lbcode, lbhem, lbrow,       &
+    lbnpt, lbpack, lbrel, lbfc, lbcfc, lbproc, lbvc, lbrvc, lbtyp, lblev,   &
+    lbrsvd1, lbrsvd2, lbrsvd3, lbrsvd4, lbsrce, lbuser1, lbuser4, lbuser7,  &
+    bulev, bhulev, brsvd3, brsvd4, bdatum, bacc, blev, brlev,               &
+    bhlev, bhrlev, bplat, bplon, bgor, bzy, bdy, bzx, bdx, bmdi, bmks
 
-use f_shum_fixed_length_header_indices_mod, only:                        &
- vert_coord_type, horiz_grid_type, &
- dataset_type, run_identifier, calendar, projection_number, model_version, &
- grid_staggering, sub_model, t1_year, t1_month, t1_day, t1_hour, t1_minute, &
- t1_second, t2_year, t2_month, t2_day, t2_hour, t2_minute, t2_second, &
- t3_year, t3_month, t3_day, t3_hour, t3_minute, t3_second
+use f_shum_fixed_length_header_indices_mod, only:                           &
+    vert_coord_type, horiz_grid_type, dataset_type, run_identifier,         &
+    calendar, projection_number, model_version, grid_staggering, sub_model, &
+    t1_year, t1_month, t1_day, t1_hour, t1_minute, t1_second,               &
+    t2_year, t2_month, t2_day, t2_hour, t2_minute, t2_second,               &
+    t3_year, t3_month, t3_day, t3_hour, t3_minute, t3_second
 
 
 implicit none
@@ -234,6 +232,7 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
     write(log_scratch_space, '(A,I0,A)') &
        "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    ! this log message appears once per pseudolevel, which I'm not sure it should do
   end if
   lookup_real_tmp(blev)=0.0_real64
   lookup_real_tmp(bhlev)=0.0_real64
