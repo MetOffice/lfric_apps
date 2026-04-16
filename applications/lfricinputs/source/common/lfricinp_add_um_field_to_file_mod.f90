@@ -227,7 +227,8 @@ lookup_real_tmp(brsvd4) = 0.0_real64
 
 ! Check vertical coordinate type
 if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
-     .or. lookup_int(lbvc) == 5) then
+     .or. lookup_int(lbvc) == 5 .or. lookup_int(lbvc) == 0 .or. &
+     lookup_int(lbvc) == 275 ) then
   ! Special codes inc single level, set to 0.0
   lookup_real_tmp(blev)=0.0_real64
   lookup_real_tmp(bhlev)=0.0_real64

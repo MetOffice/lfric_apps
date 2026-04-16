@@ -101,6 +101,9 @@ do i_stash = 1, lfric2um_config%num_fields
       else
         ! Get number of pseudo levels
         num_levels = lfricinp_get_num_pseudo_levels(um_grid, stashcode)
+        write(log_scratch_space, '(A)')                                     &
+          "LFRic2UM cannot currently handle fields with pseudo-levels"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
       end if
 
     !---------------------------------------------------------------------------
