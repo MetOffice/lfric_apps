@@ -235,6 +235,37 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
   lookup_real_tmp(bhrlev)=0.0_real64
   lookup_real_tmp(bulev)=0.0_real64
   lookup_real_tmp(bhulev)=0.0_real64
+
+else if (lookup_int(lbvc) == 6) then ! Deep soil levels
+  ! These are hardcoded to the settings in a UM dump file with 4 soil levels as
+  ! that is currently hardcoded in elsewhere in lfric2um. If at some point that
+  ! gets changed to not be hardcoded, this will also need to change
+  ! bulev is the same as brsvd1
+  write(log_scratch_space, '(A,I0,A)') &
+    "Vertical coord type ", lookup_int(lbvc), " treated as soil field"
+  call log_event(log_scratch_space, LOG_LEVEL_INFO)
+  if (level_number == 1) then
+    lookup_real_tmp(bulev) = 0.0_real64
+    lookup_real_tmp(blev)=0.05_real64
+    lookup_real_tmp(brlev)=0.1_real64
+  else if (level_number == 2) then
+    lookup_real_tmp(bulev) = 0.1_real64
+    lookup_real_tmp(blev)=0.225_real64
+    lookup_real_tmp(brlev)=0.35_real64
+  else if (level_number == 3) then
+    lookup_real_tmp(bulev) = 0.35_real64
+    lookup_real_tmp(blev)=0.675_real64
+    lookup_real_tmp(brlev)=1.0_real64
+  else if (level_number == 4) then
+    lookup_real_tmp(bulev) = 1.0_real64
+    lookup_real_tmp(blev)=2.0_real64
+    lookup_real_tmp(brlev)=3.0_real64
+  else
+    write(log_scratch_space, '(A,I0,A)') "Soil level number ", level_number, &
+      " not supported. Only soil fields with 4 levels are supported currently"
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+  end if
+
 else if (lookup_int(lbvc) == 65) then ! Standard hybrid height levels
   ! height of model level k above mean sea level is
   !       z(i,j,k) = Zsea(k) + C(k)*Zorog(i,j)

@@ -72,7 +72,43 @@ do i_stash = 1, lfric2um_config%num_fields
   stashcode = lfric2um_config%stash_list(i_stash)
   write(log_scratch_space, '(A,I0)') "Processing stashcode ", stashcode
   call log_event(log_scratch_space, LOG_LEVEL_INFO)
-  num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
+  !---------------------------------------------------------------------------
+  ! Identify if field uses pseudo levels
+  !---------------------------------------------------------------------------
+  lfric_field_kind = get_lfric_field_kind(stashcode)
+  select case (lfric_field_kind)
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that map to W2h (i.e. winds), W3/rho, Wtheta
+    !---------------------------------------------------------------------------
+    case(w2h_field,w3_field,wtheta_field)
+      num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that need 2D mesh, inc non-soil_levels pseudo levels
+    !---------------------------------------------------------------------------
+    case(w3_field_2d)
+      if ( get_stashmaster_item(stashcode, pseudt) == 0 ) then
+        ! Field has no pseudo levels
+        num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+      else
+        ! Get number of pseudo levels
+        num_levels = lfricinp_get_num_pseudo_levels(um_grid, stashcode)
+      end if
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that are soil fields
+    !---------------------------------------------------------------------------
+    case(w3_soil_field)
+      num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
+    case DEFAULT
+      write(log_scratch_space, '(A,I0,A)')                                     &
+         "LFRic field kind code ", lfric_field_kind, " not recognised"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+  end select
 
   ! Select appropriate weights
   weights => get_weights(stashcode)
