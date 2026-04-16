@@ -220,16 +220,14 @@ select case(last_pseudo_level_code)
 case (7,9) ! ntypes == ntiles (lfricinputs doesn't support aggregate tile)
   last_pseudo_level_num = um_grid % num_surface_types
   if (last_pseudo_level_num == -32768) then
-    call log_event("Number of surface types is not set", LOG_LEVEL_INFO)
-    last_pseudo_level_num = 9
+    call log_event("Number of surface types is not set", LOG_LEVEL_ERROR)
   end if
 case (10)
   last_pseudo_level_num = um_grid%num_ice_cats
 case (11)
   last_pseudo_level_num = um_grid%num_snow_layers * um_grid%num_surface_types
   if ( um_grid%num_snow_layers == -32768 .or. um_grid%num_surface_types == -32768 ) then
-    call log_event("Either the number of surface types or the number of snow layers is not set", LOG_LEVEL_INFO)
-    last_pseudo_level_num = 3 * 9
+    call log_event("Either the number of surface types or the number of snow layers is not set", LOG_LEVEL_ERROR)
   end if
 case DEFAULT
   write(log_scratch_space, '(A,I0,A,I0)') &
