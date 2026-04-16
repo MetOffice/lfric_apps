@@ -151,10 +151,6 @@ integer(kind=int64) :: num_pseudo_levels, last_pseudL_num, first_pseudL_num
 num_pseudo_levels = lfricinp_get_last_pseudo_level_num(um_grid, stashcode) - &
              lfricinp_get_first_pseudo_level_num(stashcode) + 1
 
-last_pseudL_num = lfricinp_get_last_pseudo_level_num(um_grid, stashcode)
-
-first_pseudL_num = lfricinp_get_first_pseudo_level_num(stashcode)
-
 end function lfricinp_get_num_pseudo_levels
 
 !------------------------------------------------------------------
