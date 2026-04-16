@@ -365,7 +365,8 @@ contains
 #endif
     integer(tik)                    :: id
     if ( LPROF ) call start_timing( id, 'slow_physics' )
-
+    if (write_conservation_diag) &
+         call moisture_conservation_alg( rho, mr, 'Before slow' )
     !--------------------------------------------------------------------
     ! Initialisation of fields and flags
     !--------------------------------------------------------------------

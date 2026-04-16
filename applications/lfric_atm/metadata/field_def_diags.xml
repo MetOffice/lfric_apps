@@ -418,8 +418,8 @@
   <field id="microphysics__ls_rain" name="ls_rain" long_name="surface_microphysical_rainfall_rate" unit="kg m-2 s-1" domain_ref="face" />
   <field id="microphysics__ls_snow" name="ls_snow" long_name="surface_microphysical_snowfall_rate" unit="kg m-2 s-1" domain_ref="face" />
   <field id="microphysics__ls_graup" name="ls_graup" long_name="surface_microphysical_graupelfall_rate" unit="kg m-2 s-1" domain_ref="face" />
-  <field id="microphysics__total_fpr" name="total_fpr" long_name="surface_microphysical_total_frozen_precipitation_rate" unit="kg m-2 s-2" domain_ref="face"> microphysics__ls_snow + microphysics__ls_graup </field>
-  <field id="microphysics__ls_prec" name="ls_prec" long_name="surface_microphysical_precipitation_rate" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_rain + microphysics__ls_snow + microphysics__ls_graup </field>
+  <field id="microphysics__snow_no_graup" name="snow_no_graup" long_name="surface_microphysical_snowfall_rate_excluding_graupel" unit="kg m-2 s-2" domain_ref="face"> microphysics__ls_snow - microphysics__ls_graup </field>
+  <field id="microphysics__ls_prec" name="ls_prec" long_name="surface_microphysical_precipitation_rate" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_rain + microphysics__ls_snow </field>
   <field id="microphysics__ls_rain_acc" name="ls_rain_acc" long_name="surface_microphysical_rainfall_amount" unit="kg m-2" domain_ref="face"> $DT * microphysics__ls_rain </field>
   <field id="microphysics__ls_snow_acc" name="ls_snow_acc" long_name="surface_microphysical_snowfall_amount" unit="kg m-2" domain_ref="face"> $DT * microphysics__ls_snow </field>
   <field id="microphysics__ls_graup_acc" name="ls_graup_acc" long_name="surface_microphysical_graupelfall_amount" unit="kg m-2" domain_ref="face"> $DT * microphysics__ls_graup </field>
