@@ -98,6 +98,14 @@ contains
       hori_flux => transport_counter%get_flux(2)
 
       call sum_vert_flux%initialise(w2v_fs)
+      if (.not. hori_flux%is_initialised() ) then
+         call hori_flux%initialise(w2h_fs)
+         call invoke( setval_c( hori_flux, 0.0_r_tran ) )
+      end if
+      if (.not. old_flux%is_initialised() ) then
+         call old_flux%initialise(w2v_fs)
+         call invoke( setval_c( old_flux, 0.0_r_tran ) )
+      end if
       call invoke( setval_c( sum_vert_flux, 0.0_r_tran ),                           &
                    adj_combine_w2_field_kernel_type( sum_flux, hori_flux,           &
                                                      sum_vert_flux,                 &
@@ -105,6 +113,7 @@ contains
                                                      face_selector_ns ),            &
                    inc_X_plus_Y( old_flux, sum_vert_flux ),                         &
                    inc_X_plus_Y( flux_last_step, sum_vert_flux ),                   &
+                   setval_c( sum_flux, 0.0_r_tran ),                                &
                    setval_c( sum_vert_flux, 0.0_r_tran ) )
 
     ! General case for any splitting

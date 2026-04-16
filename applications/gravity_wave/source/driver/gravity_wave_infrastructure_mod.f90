@@ -10,7 +10,6 @@ module gravity_wave_infrastructure_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
   use driver_modeldb_mod,         only : modeldb_type
-  use check_configuration_mod,    only : get_required_stencil_depth
   use constants_mod,              only : i_def,           &
                                          PRECISION_REAL,  &
                                          r_def, r_second, &
@@ -30,7 +29,6 @@ module gravity_wave_infrastructure_mod
                                          LOG_LEVEL_ALWAYS,   &
                                          LOG_LEVEL_ERROR
   use mesh_collection_mod,        only : mesh_collection
-  use namelist_mod,               only : namelist_type
   use field_mod,                  only : field_type
   use driver_fem_mod,             only : init_fem, init_function_space_chains
   use driver_io_mod,              only : init_io, final_io
@@ -81,7 +79,8 @@ contains
     logical(l_def) :: prepartitioned
     logical        :: apply_partition_check
 
-    integer(i_def) :: stencil_depth
+    integer(i_def) :: stencil_depth(1)
+
     integer(i_def) :: geometry
     integer(i_def) :: method
     integer(i_def) :: number_of_layers
@@ -89,43 +88,24 @@ contains
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
 
-    type(namelist_type), pointer :: base_mesh_nml   => null()
-    type(namelist_type), pointer :: formulation_nml => null()
-    type(namelist_type), pointer :: extrusion_nml   => null()
-    type(namelist_type), pointer :: planet_nml      => null()
-    type(namelist_type), pointer :: multigrid_nml   => null()
-
     integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
 
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
-    formulation_nml => modeldb%configuration%get_namelist('formulation')
-    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
-    planet_nml      => modeldb%configuration%get_namelist('planet')
-
-    call formulation_nml%get_value( 'l_multigrid', l_multigrid )
-
+    l_multigrid = modeldb%config%formulation%l_multigrid()
     if (l_multigrid) then
-      multigrid_nml => modeldb%configuration%get_namelist('multigrid')
-      call multigrid_nml%get_value( 'chain_mesh_tags', chain_mesh_tags )
-      multigrid_nml => null()
+      chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
     end if
 
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-    call extrusion_nml%get_value( 'method', method )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
-
-    base_mesh_nml   => null()
-    extrusion_nml   => null()
-    formulation_nml => null()
-    planet_nml      => null()
+    prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
+    geometry         = modeldb%config%base_mesh%geometry()
+    prepartitioned   = modeldb%config%base_mesh%prepartitioned()
+    method           = modeldb%config%extrusion%method()
+    domain_height    = modeldb%config%extrusion%domain_height()
+    number_of_layers = modeldb%config%extrusion%number_of_layers()
+    scaled_radius    = modeldb%config%planet%scaled_radius()
 
     !-------------------------------------------------------------------------
     ! Initialise infrastructure
@@ -191,17 +171,17 @@ contains
     !=======================================================================
     ! 1.3 Initialise mesh objects and assign InterGrid maps
     !=======================================================================
-    stencil_depth = get_required_stencil_depth()
+    stencil_depth = 2
     apply_partition_check = .false.
     if ( .not. prepartitioned .and. l_multigrid ) then
       apply_partition_check = .true.
     end if
 
-    call init_mesh( modeldb%configuration,        &
-                    modeldb%mpi%get_comm_rank(),  &
-                    modeldb%mpi%get_comm_size(),  &
-                    base_mesh_names,              &
-                    extrusion, stencil_depth,     &
+    call init_mesh( modeldb%config,              &
+                    modeldb%mpi%get_comm_rank(), &
+                    modeldb%mpi%get_comm_size(), &
+                    base_mesh_names,             &
+                    extrusion, stencil_depth,    &
                     apply_partition_check )
 
     allocate( twod_names, source=base_mesh_names )
@@ -237,6 +217,9 @@ contains
 
     nullify(chi_inventory, panel_id_inventory)
     deallocate(base_mesh_names)
+    deallocate(twod_names)
+    deallocate(extrusion)
+    deallocate(extrusion_2d)
 
   end subroutine initialise_infrastructure
 

@@ -154,6 +154,7 @@ write_minmax_tseries=.false.,
 fixed_ls=.false.
 pert_option='analytic',
 l_stabilise_bl=.false.,
+transport_efficiency=.false.,
 /
 &logging
 run_log_level='info',
@@ -263,11 +264,11 @@ panel_edge_high_order=.true.,
 panel_edge_treatment='none'
 reversible=.false.,.false.,.false.,.false.,.false.
 runge_kutta_method='ssp3'
-scheme=1,1,1,1,1
+scheme=5*3
 si_outer_transport='none',
 slice_order='parabola'
 special_edges_monotone=5*1
-splitting=1,1,1,1,1
+splitting=5*2
 substep_transport='off'
 theta_dispersion_correction=.false.
 theta_variable='dry'
