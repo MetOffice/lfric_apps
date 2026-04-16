@@ -67,3 +67,15 @@ class vn31_t322(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t118(MacroUpgrade):
+    """Upgrade macro for ticket None by None."""
+
+    BEFORE_TAG = "vn3.1_t322"
+    AFTER_TAG = "vn3.1_t118"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Blank Upgrade Macro
+        return config, self.reports
