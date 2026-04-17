@@ -23,14 +23,18 @@ use lfricinp_gather_lfric_field_mod,   only: lfricinp_gather_lfric_field
 use lfricinp_lfric_driver_mod,         only: lfric_fields, local_rank, comm,   &
                                              twod_mesh
 use lfricinp_regrid_weights_type_mod,  only: lfricinp_regrid_weights_type
-use lfricinp_stash_to_lfric_map_mod,   only: get_field_name
+use lfricinp_stash_to_lfric_map_mod,   only: get_field_name,                   &
+                                             get_lfric_field_kind,             &
+                                             w2h_field, w3_field, w3_field_2d, &
+                                             w3_soil_field, wtheta_field
 use lfricinp_stashmaster_mod,          only: get_stashmaster_item, levelt,     &
-                                             rho_levels, single_level,         &
+                                             pseudt, rho_levels, single_level, &
                                              stashcode_exner, stashcode_p,     &
                                              stashcode_q, stashcode_theta,     &
                                              theta_levels
 use lfricinp_um_grid_mod,              only: um_grid
-use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels
+use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels,          &
+                                             lfricinp_get_num_pseudo_levels
 
 ! lfric modules
 use field_mod,  only: field_type
@@ -53,7 +57,7 @@ subroutine lfric2um_main_loop()
 implicit none
 
 integer(kind=int64) :: i_stash, level, i_field
-integer(kind=int64) :: stashcode, num_levels
+integer(kind=int64) :: stashcode, num_levels, lfric_field_kind
 character(len=*), parameter :: routinename='lfric2um_main_loop'
 type(field_type), pointer :: lfric_field
 type(lfricinp_regrid_weights_type), pointer :: weights
@@ -76,7 +80,46 @@ do i_stash = 1, lfric2um_config%num_fields
   stashcode = lfric2um_config%stash_list(i_stash)
   write(log_scratch_space, '(A,I0)') "Processing stashcode ", stashcode
   call log_event(log_scratch_space, LOG_LEVEL_INFO)
-  num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
+  !---------------------------------------------------------------------------
+  ! Identify if field uses pseudo levels
+  !---------------------------------------------------------------------------
+  lfric_field_kind = get_lfric_field_kind(stashcode)
+  select case (lfric_field_kind)
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that map to W2h (i.e. winds), W3/rho, Wtheta
+    !---------------------------------------------------------------------------
+    case(w2h_field,w3_field,wtheta_field)
+      num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that need 2D mesh, inc non-soil_levels pseudo levels
+    !---------------------------------------------------------------------------
+    case(w3_field_2d)
+      if ( get_stashmaster_item(stashcode, pseudt) == 0 ) then
+        ! Field has no pseudo levels
+        num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+      else
+        ! Get number of pseudo levels
+        num_levels = lfricinp_get_num_pseudo_levels(um_grid, stashcode)
+        write(log_scratch_space, '(A)')                                     &
+          "LFRic2UM cannot currently handle fields with pseudo-levels"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that are soil fields
+    !---------------------------------------------------------------------------
+    case(w3_soil_field)
+      num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
+    case DEFAULT
+      write(log_scratch_space, '(A,I0,A)')                                     &
+         "LFRic field kind code ", lfric_field_kind, " not recognised"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+  end select
 
   !---------------------------------------------------------------------------
   ! Select appropriate weights
