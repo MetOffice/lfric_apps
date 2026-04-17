@@ -12,9 +12,11 @@ use argument_mod,         only: arg_type,          &
                                 GH_READ, GH_WRITE, &
                                 CELL_COLUMN,       &
                                 GH_INTEGER,        &
+                                GH_SCALAR,         &
+                                GH_LOGICAL,        &
                                 ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod,    only: Wtheta
-use constants_mod,        only: r_def, i_def
+use constants_mod,        only: r_def, i_def, rmdi
 use kernel_mod,           only: kernel_type
 use planet_constants_mod, only: g_over_r
 
@@ -29,19 +31,19 @@ private
 ! Contains the metadata needed by the PSy layer.
 type, public, extends(kernel_type) :: locate_tropopause_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                                   &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                   & ! theta
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                   & ! exner_in_wth
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                   & ! height_wth
-       arg_type(GH_FIELD, GH_INTEGER,GH_WRITE,ANY_DISCONTINUOUS_SPACE_1)& ! trop_level
-       arg_type(GH_FIELD, LOGICAL, GH_READ)                             & ! trop_height_flag
-       arg_type(GH_FIELD, LOGICAL, GH_READ)                             & ! trop_temp_flag
-       arg_type(GH_FIELD, LOGICAL, GH_READ)                             & ! trop_press_flag
-       arg_type(GH_FIELD, LOGICAL, GH_READ)                             & ! trop_icao_height_flag
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_height
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_temp
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_press
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1) & ! trop_icao_height
+  type(arg_type) :: meta_args(12) = (/                                   &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
+       arg_type(GH_FIELD, GH_INTEGER,GH_WRITE,ANY_DISCONTINUOUS_SPACE_1),& ! trop_level
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_height_flag
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_temp_flag
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_press_flag
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_icao_height_flag
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_height
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_temp
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_press
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! trop_icao_height
     /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -106,10 +108,10 @@ subroutine locate_tropopause_code(nlayers,                    &
   real(r_def), dimension(undf_wth), intent(in) :: height_wth
 
   integer(i_def), dimension(undf_2d), intent(inout) :: trop_level
-  integer(r_def), dimension(undf_2d), intent(inout) :: trop_height
-  integer(r_def), dimension(undf_2d), intent(inout) :: trop_temp
-  integer(r_def), dimension(undf_2d), intent(inout) :: trop_press
-  integer(r_def), dimension(undf_2d), intent(inout) :: trop_icao_height
+  real(r_def), dimension(undf_2d), intent(inout) :: trop_height
+  real(r_def), dimension(undf_2d), intent(inout) :: trop_temp
+  real(r_def), dimension(undf_2d), intent(inout) :: trop_press
+  real(r_def), dimension(undf_2d), intent(inout) :: trop_icao_height
 
   logical, intent(in) :: trop_height_flag, trop_temp_flag, trop_press_flag, trop_icao_height_flag
 
@@ -207,7 +209,7 @@ subroutine locate_tropopause_code(nlayers,                    &
     ! height of tropopause between k and k+1
     if (trop_height_flag) then
       ! discuss: the um code subtracts planet_radius from height
-      tropopause_height(map_2d(1)) = (                         &
+      trop_height(map_2d(1)) = (                         &
         (t_wth(k) + (lapse_lwr * height_wth(map_wth(1)+k)))     &
       - (t_wth(k+1) + (lapse_upr * height_wth(map_wth(1)+k+1))) &
       ) / delta_lapse
@@ -215,8 +217,8 @@ subroutine locate_tropopause_code(nlayers,                    &
 
     ! temperature at tropopause
     if (trop_temp_flag) then
-      tropopause_temp(map_2d(1)) = t_wth(k) -                              &
-        lapse_lwr * (tropopause_height(map_2d(1)) - height_wth(map_wth(1) + k))
+      trop_temp(map_2d(1)) = t_wth(k) -                              &
+        lapse_lwr * (trop_height(map_2d(1)) - height_wth(map_wth(1) + k))
     end if
 
     ! pressure at tropopause is derived from hydrostatic equation
@@ -227,8 +229,8 @@ subroutine locate_tropopause_code(nlayers,                    &
       END IF   
 
       press_wth = p_zero * exner_in_wth(map_wth(1)+k) ** (1.0_r_def / kappa)
-      tropopause_press(map_2d(1)) = press_wth *                             &
-        (tropopause_temp(map_2d(1)) / t_wth(k)) ** (g_over_r/lapse_lwr)
+      trop_press(map_2d(1)) = press_wth *                             &
+        (trop_temp(map_2d(1)) / t_wth(k)) ** (g_over_r/lapse_lwr)
     end if
 
   endif
@@ -239,7 +241,7 @@ subroutine locate_tropopause_code(nlayers,                    &
   if (trop_icao_height_flag) then
     ! call diags_icao_heights_kernel_code( &
     !   nlayers, icao_tropopause_height, tropopause_press, ndf_2d, undf_2d, map_2d)
-    icao_tropopause_height(map_2d(1)) = rmdi;
+    trop_icao_height(map_2d(1)) = rmdi
   end if
 
 
