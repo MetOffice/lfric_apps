@@ -1540,81 +1540,84 @@ if ( sc_diag_opt == sc_diag_cu_rh_max .or.                                     &
      sc_diag_opt == sc_diag_all_rh_max ) then
 
   ! Options that diagnose the Sc-top using the max total-water RH method...
-  !$OMP do SCHEDULE(DYNAMIC)
-  do ii = pdims%i_start, pdims%i_end, bl_segment_size
-    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      ! Initialise max RH in the column to zero
-      rht_max(i,j) = zero
-    end do
-    do k = 1, bl_levels-1
-      do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-        if ( ( cumulus(i,j) .and. z_tq(i,j,k) > z_lcl(i,j) ) .or.                &
-              ( sc_diag_opt == sc_diag_all_rh_max .and. (.not. cumulus(i,j))     &
-                .and. k > ntml(i,j)+1 ) ) then
-          ! If sc_diag_opt == sc_diag_cu_rh_max, only check cumulus points
-          ! at heights above the LCL.
-          ! If sc_diag_opt == sc_diag_all_rh_max, also check non-cumulus points
-          ! at heights above ntml+1.
 
-          ! Find max of RHt = qw/qsat(Tl) in the column
-          ! (with extra check that value exceeds next level, to exclude
-          !  points at bl_levels-1 where a larger value occurs at bl_levels)
-          if ( cf(i,j,k) > sc_cftol .and. z_tq(i,j,k) < zmaxt_for_dsc ) then
-            if ( l_mr_physics ) then
-              call qsat_wat_mix( rht_k,   tl(i,j,k),   p(i,j,k) )
-              call qsat_wat_mix( rht_kp1, tl(i,j,k+1), p(i,j,k+1) )
-            else
-              call qsat_wat( rht_k,   tl(i,j,k),   p(i,j,k) )
-              call qsat_wat( rht_kp1, tl(i,j,k+1), p(i,j,k+1) )
-            end if
-            rht_k   = qw(i,j,k)   / rht_k
-            rht_kp1 = qw(i,j,k+1) / rht_kp1
-            if ( rht_k > rht_max(i,j) .and. rht_k > rht_kp1 ) then
-              ntdsc(i,j) = k
-              rht_max(i,j) = rht_k
-            end if
-          end if  ! ( cf(i,j,k) > sc_cftol etc )
-        end if  ! ( cumulus(i,j) etc )
-      end do  ! i = pdims%i_start, pdims%i_end
-    end do  ! k = 1, bl_levels-1
-    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      if ( ntdsc(i,j) > 0 .and. ( .not. dsc(i,j) ) ) then
-        ! If we just found ntdsc above (exclude points where dsc already
-        ! set true by finding ntdsc at non-cumulus points earlier under
-        ! the option sc_diag_opt = sc_diag_cu_rh_max)...
-        ! Set flag indicating we found a potential Sc layer top
-        dsc(i,j) = .true.
-        ! Now we assume that theta-level ntdsc is wholly within the Sc-layer,
-        ! and that theta-level ntdsc+1 is composed of air with RH of
-        ! level ntdsc up to height zhsc, and air with RH of level ntdsc+2
-        ! above that height.  Interpolate to find the height of zhsc
-        ! (fraction of theta-level ntdsc+1 that is below the Sc-top).
-        k = ntdsc(i,j)
-        kp2 = min(k+2, bl_levels)  ! Avoid out-of-bounds when k = bl_levels-1
-        rht_k = rht_max(i,j)
-        if ( l_mr_physics ) then
-          call qsat_wat_mix( rht_kp1, tl(i,j,k+1), p(i,j,k+1) )
-          call qsat_wat_mix( rht_kp2, tl(i,j,kp2), p(i,j,kp2) )
-        else
-          call qsat_wat( rht_kp1, tl(i,j,k+1), p(i,j,k+1) )
-          call qsat_wat( rht_kp2, tl(i,j,kp2), p(i,j,kp2) )
-        end if
-        rht_kp1 = qw(i,j,k+1) / rht_kp1
-        rht_kp2 = qw(i,j,kp2) / rht_kp2
-        if ( rht_kp2 < rht_kp1 ) then
-          ! RHt(k+1) lies between RHt(k) and RHt(k+2); compute fraction
-          interp = (rht_kp1 - rht_kp2) / (rht_k - rht_kp2)
-          zhsc(i,j) = (one-interp) * z_uv(i,j,k+1)                               &
-                    +      interp  * z_uv(i,j,kp2)
-        else
-          ! Rht(k+1) is a local minimum; can't construct k+1 as a fraction
-          ! of properties from k and k+2.  Set zhsc to what it would be in
-          ! the limit RHt(k+2) = RHt(k+1)
-          zhsc(i,j) = z_uv(i,j,k+1)
-        end if
-      end if ! ( ntdsc(i,j) > 0 )
-    end do ! i
-  end do ! ii
+  !$OMP do SCHEDULE(STATIC)
+  do i = pdims%i_start, pdims%i_end
+    ! Initialise max RH in the column to zero
+    rht_max(i,j) = zero
+  end do
+  !$OMP end do
+  do k = 1, bl_levels-1
+    !$OMP do SCHEDULE(STATIC)
+    do i = pdims%i_start, pdims%i_end
+      if ( ( cumulus(i,j) .and. z_tq(i,j,k) > z_lcl(i,j) ) .or.                &
+            ( sc_diag_opt == sc_diag_all_rh_max .and. (.not. cumulus(i,j))     &
+              .and. k > ntml(i,j)+1 ) ) then
+        ! If sc_diag_opt == sc_diag_cu_rh_max, only check cumulus points
+        ! at heights above the LCL.
+        ! If sc_diag_opt == sc_diag_all_rh_max, also check non-cumulus points
+        ! at heights above ntml+1.
+
+        ! Find max of RHt = qw/qsat(Tl) in the column
+        ! (with extra check that value exceeds next level, to exclude
+        !  points at bl_levels-1 where a larger value occurs at bl_levels)
+        if ( cf(i,j,k) > sc_cftol .and. z_tq(i,j,k) < zmaxt_for_dsc ) then
+          if ( l_mr_physics ) then
+            call qsat_wat_mix( rht_k,   tl(i,j,k),   p(i,j,k) )
+            call qsat_wat_mix( rht_kp1, tl(i,j,k+1), p(i,j,k+1) )
+          else
+            call qsat_wat( rht_k,   tl(i,j,k),   p(i,j,k) )
+            call qsat_wat( rht_kp1, tl(i,j,k+1), p(i,j,k+1) )
+          end if
+          rht_k   = qw(i,j,k)   / rht_k
+          rht_kp1 = qw(i,j,k+1) / rht_kp1
+          if ( rht_k > rht_max(i,j) .and. rht_k > rht_kp1 ) then
+            ntdsc(i,j) = k
+            rht_max(i,j) = rht_k
+          end if
+        end if  ! ( cf(i,j,k) > sc_cftol etc )
+      end if  ! ( cumulus(i,j) etc )
+    end do  ! i = pdims%i_start, pdims%i_end
+    !$OMP end do
+  end do  ! k = 1, bl_levels-1
+  !$OMP do SCHEDULE(STATIC)
+  do i = pdims%i_start, pdims%i_end
+    if ( ntdsc(i,j) > 0 .and. ( .not. dsc(i,j) ) ) then
+      ! If we just found ntdsc above (exclude points where dsc already
+      ! set true by finding ntdsc at non-cumulus points earlier under
+      ! the option sc_diag_opt = sc_diag_cu_rh_max)...
+      ! Set flag indicating we found a potential Sc layer top
+      dsc(i,j) = .true.
+      ! Now we assume that theta-level ntdsc is wholly within the Sc-layer,
+      ! and that theta-level ntdsc+1 is composed of air with RH of
+      ! level ntdsc up to height zhsc, and air with RH of level ntdsc+2
+      ! above that height.  Interpolate to find the height of zhsc
+      ! (fraction of theta-level ntdsc+1 that is below the Sc-top).
+      k = ntdsc(i,j)
+      kp2 = min(k+2, bl_levels)  ! Avoid out-of-bounds when k = bl_levels-1
+      rht_k = rht_max(i,j)
+      if ( l_mr_physics ) then
+        call qsat_wat_mix( rht_kp1, tl(i,j,k+1), p(i,j,k+1) )
+        call qsat_wat_mix( rht_kp2, tl(i,j,kp2), p(i,j,kp2) )
+      else
+        call qsat_wat( rht_kp1, tl(i,j,k+1), p(i,j,k+1) )
+        call qsat_wat( rht_kp2, tl(i,j,kp2), p(i,j,kp2) )
+      end if
+      rht_kp1 = qw(i,j,k+1) / rht_kp1
+      rht_kp2 = qw(i,j,kp2) / rht_kp2
+      if ( rht_kp2 < rht_kp1 ) then
+        ! RHt(k+1) lies between RHt(k) and RHt(k+2); compute fraction
+        interp = (rht_kp1 - rht_kp2) / (rht_k - rht_kp2)
+        zhsc(i,j) = (one-interp) * z_uv(i,j,k+1)                               &
+                  +      interp  * z_uv(i,j,kp2)
+      else
+        ! Rht(k+1) is a local minimum; can't construct k+1 as a fraction
+        ! of properties from k and k+2.  Set zhsc to what it would be in
+        ! the limit RHt(k+2) = RHt(k+1)
+        zhsc(i,j) = z_uv(i,j,k+1)
+      end if
+    end if ! ( ntdsc(i,j) > 0 )
+  end do
   !$OMP end do
 
 else if ( sc_diag_opt == sc_diag_cu_relax ) then
@@ -1756,12 +1759,18 @@ if (l_new_kcloudtop) then
         end if
       end if  ! DSC test separated out
 
+    end do ! i
+  end do ! ii
+  !$OMP end do
   !-----------------------------------------------------------------
   !  Find bottom grid-level (K_LEVEL) for cloud-top radiative flux
   !  divergence: higher of base of LW radiatively cooled layer,
   !  ZH and 0.5*ZHSC, since cooling must be in upper part of layer
   !  in order to generate turbulence.
   !-----------------------------------------------------------------
+  !$OMP do SCHEDULE(DYNAMIC)
+  do ii = pdims%i_start, pdims%i_end, bl_segment_size
+    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
       k_level(i,j) = k_cloud_dsct(i,j)
       if ( k_cloud_dsct(i,j)  >   1 ) then
         k_rad_lim = ntml(i,j)+1
@@ -1810,12 +1819,18 @@ else
         end if
 
       end do ! k
+    end do ! i
+  end do ! ii
+  !$OMP end do
     !-----------------------------------------------------------------
     !  Find bottom grid-level (K_LEVEL) for cloud-top radiative flux
     !  divergence: higher of base of LW radiatively cooled layer,
     !  ZH and 0.5*ZHSC, since cooling must be in upper part of layer
     !  in order to generate turbulence.
     !-----------------------------------------------------------------
+  !$OMP do SCHEDULE(DYNAMIC)
+  do ii = pdims%i_start, pdims%i_end, bl_segment_size
+    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
       k_level(i,j) = k_cloud_dsct(i,j)
       if ( k_cloud_dsct(i,j)  >   1 ) then
         k_rad_lim = ntml(i,j)+1
@@ -1886,6 +1901,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       df_dsct_over_cp(i,j) = max( zero,                                        &
                     df_dsct_over_cp(i,j) + dfsw_frac * dfsw_top )
     end if
+  end do !i
+end do !ii
+!$OMP end do
 
 !-----------------------------------------------------------------------
 ! 2.4 Set NBDSC, the bottom level of the DSC layer.
@@ -1903,6 +1921,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 !     Sc, and no mixing or entrainment is applied to it.
 !-----------------------------------------------------------------------
 
+!$OMP do SCHEDULE(DYNAMIC)
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1,pdims%i_end)
     nbdsc(i,j) = ntdsc(i,j)+1
     if (dsc(i,j)) then
       ! The depth of the radiatively-cooled layer tends to be less
@@ -2589,47 +2610,45 @@ end if
 ! compilers.
 
 !$OMP do SCHEDULE(STATIC)
-do ii = pdims%i_start, pdims%i_end, bl_segment_size
-  do k = 1, bl_levels
-    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      if (k  <=  ntml_prev(i,j)) then
-        dsldz(i) = -grcp + grad_t_adj(i,j)
-      else
-        dsldz(i) = -grcp
-      end if
-    end do
+do k = 1, bl_levels
+  do i = pdims%i_start, pdims%i_end
+    if (k  <=  ntml_prev(i,j)) then
+      dsldz(i) = -grcp + grad_t_adj(i,j)
+    else
+      dsldz(i) = -grcp
+    end if
+  end do
 
-  !DIR$ NOFUSION
-  !DIR$ VECTOR ALWAYS
-    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      virt_factor = one + c_virtual*q(i,j,k) - qcl(i,j,k) -                    &
-                          qcf(i,j,k)
+!DIR$ NOFUSION
+!DIR$ VECTOR ALWAYS
+  do i = pdims%i_start, pdims%i_end
+    virt_factor = one + c_virtual*q(i,j,k) - qcl(i,j,k) -                      &
+                        qcf(i,j,k)
 
-      dqcldz(i,j,k) = -( dsldz(i)*dqsdt(i,j,k)                                 &
-                      + g*qs(i,j,k)/(r*t(i,j,k)*virt_factor) )                 &
-                      / ( one + lcrcp*dqsdt(i,j,k) )
-      dqcfdz(i,j,k) = -( dsldz(i)*dqsdt(i,j,k)                                 &
-                      + g*qs(i,j,k)/(r*t(i,j,k)*virt_factor) ) * fgf           &
-                      / ( one + lsrcp*dqsdt(i,j,k) )
-    end do
+    dqcldz(i,j,k) = -( dsldz(i)*dqsdt(i,j,k)                                   &
+                    + g*qs(i,j,k)/(r*t(i,j,k)*virt_factor) )                   &
+                    / ( one + lcrcp*dqsdt(i,j,k) )
+    dqcfdz(i,j,k) = -( dsldz(i)*dqsdt(i,j,k)                                   &
+                    + g*qs(i,j,k)/(r*t(i,j,k)*virt_factor) ) * fgf             &
+                    / ( one + lsrcp*dqsdt(i,j,k) )
+  end do
 
-          ! limit calculation to greater than a small cloud fraction
-  !DIR$ NOFUSION
-    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      if ( qcl(i,j,k) + qcf(i,j,k)  >   zero                                   &
-            .and. cf(i,j,k)  >   1.0e-3_r_bl ) then
-        cfl(i,j,k) = cf(i,j,k) * qcl(i,j,k) /                                  &
-                      ( qcl(i,j,k) + qcf(i,j,k) )
-        cff(i,j,k) = cf(i,j,k) * qcf(i,j,k) /                                  &
-                      ( qcl(i,j,k) + qcf(i,j,k) )
-      else
-        cfl(i,j,k) = zero
-        cff(i,j,k) = zero
-      end if
+        ! limit calculation to greater than a small cloud fraction
+!DIR$ NOFUSION
+  do i = pdims%i_start, pdims%i_end
+    if ( qcl(i,j,k) + qcf(i,j,k)  >   zero                                     &
+          .and. cf(i,j,k)  >   1.0e-3_r_bl ) then
+      cfl(i,j,k) = cf(i,j,k) * qcl(i,j,k) /                                    &
+                    ( qcl(i,j,k) + qcf(i,j,k) )
+      cff(i,j,k) = cf(i,j,k) * qcf(i,j,k) /                                    &
+                    ( qcl(i,j,k) + qcf(i,j,k) )
+    else
+      cfl(i,j,k) = zero
+      cff(i,j,k) = zero
+    end if
 
-    end do
-  end do !k
-end do !ii
+  end do
+end do
 !$OMP end do
 
 !-----------------------------------------------------------------------
@@ -2915,64 +2934,62 @@ end do !I
 ! compilers.
 
 !$OMP do SCHEDULE(DYNAMIC)
-do ii = pdims%i_start, pdims%i_end, bl_segment_size
-  do k = 2, bl_levels
+do k = 2, bl_levels
 
-    ! This is to help vectorization
-    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      if ( k <= ntml_prev(i,j) .or. l_converge_ga ) then
-        ! If using more accurate treatment of gradient adjustment in the
-        ! buoyancy-flux integration, it needs to be set on all levels.
-        grad_t_adj_inv_rdz(i) = grad_t_adj(i,j)/rdz(i,j,k)
-        grad_q_adj_inv_rdz(i) = grad_q_adj(i,j)/rdz(i,j,k)
-      else
-        grad_t_adj_inv_rdz(i) = zero
-        grad_q_adj_inv_rdz(i) = zero
-      end if
+  ! This is to help vectorization
+  do i = pdims%i_start, pdims%i_end
+    if ( k <= ntml_prev(i,j) .or. l_converge_ga ) then
+      ! If using more accurate treatment of gradient adjustment in the
+      ! buoyancy-flux integration, it needs to be set on all levels.
+      grad_t_adj_inv_rdz(i) = grad_t_adj(i,j)/rdz(i,j,k)
+      grad_q_adj_inv_rdz(i) = grad_q_adj(i,j)/rdz(i,j,k)
+    else
+      grad_t_adj_inv_rdz(i) = zero
+      grad_q_adj_inv_rdz(i) = zero
+    end if
+
+    !----------------------------------------------------------
+    ! CF_FOR_WB is uniform `bl' CF for use within cloud layers
+    !----------------------------------------------------------
+    cf_for_wb(i) = zero
+    z_cbase = zh(i,j)-zc(i,j)
+    zdsc_cbase = zhsc(i,j)-zc_dsc(i,j)
+    if ( z_tq(i,j,k)  <=  zh(i,j) .and.                                        &
+          z_tq(i,j,k)  >=  z_cbase) cf_for_wb(i) = cf_sml(i,j)
+    if ( z_tq(i,j,k)  <=  zhsc(i,j) .and.                                      &
+          z_tq(i,j,k)  >=  zdsc_cbase) cf_for_wb(i) = cf_dsc(i,j)
+  end do
+
+!DIR$ NOFUSION
+!DIR$ VECTOR ALWAYS
+  do i = pdims%i_start, pdims%i_end
+    dqw = qw(i,j,k) - qw(i,j,k-1)
+    dsl = sl(i,j,k) - sl(i,j,k-1)
+    dsl_ga = dsl - grad_t_adj_inv_rdz(i)
+    dqw_ga = dqw - grad_q_adj_inv_rdz(i)
 
       !----------------------------------------------------------
-      ! CF_FOR_WB is uniform `bl' CF for use within cloud layers
+      ! WB = -K_SURF*(DB/DZ - gamma_buoy) - K_TOP*DB/DZ
+      ! This is integrated in EXCF_NL, iterating the K profiles.
+      ! Here the relevant integrated DB/DZ factors are calculated
       !----------------------------------------------------------
-      cf_for_wb(i) = zero
-      z_cbase = zh(i,j)-zc(i,j)
-      zdsc_cbase = zhsc(i,j)-zc_dsc(i,j)
-      if ( z_tq(i,j,k)  <=  zh(i,j) .and.                                      &
-            z_tq(i,j,k)  >=  z_cbase) cf_for_wb(i) = cf_sml(i,j)
-      if ( z_tq(i,j,k)  <=  zhsc(i,j) .and.                                    &
-            z_tq(i,j,k)  >=  zdsc_cbase) cf_for_wb(i) = cf_dsc(i,j)
-    end do
-
-  !DIR$ NOFUSION
-  !DIR$ VECTOR ALWAYS
-    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
-      dqw = qw(i,j,k) - qw(i,j,k-1)
-      dsl = sl(i,j,k) - sl(i,j,k-1)
-      dsl_ga = dsl - grad_t_adj_inv_rdz(i)
-      dqw_ga = dqw - grad_q_adj_inv_rdz(i)
-
-        !----------------------------------------------------------
-        ! WB = -K_SURF*(DB/DZ - gamma_buoy) - K_TOP*DB/DZ
-        ! This is integrated in EXCF_NL, iterating the K profiles.
-        ! Here the relevant integrated DB/DZ factors are calculated
-        !----------------------------------------------------------
-      db_ga_dry(i,j,k) = - g *                                                 &
-                ( btm(i,j,k-1)*dsl_ga + bqm(i,j,k-1)*dqw_ga )
-      db_noga_dry(i,j,k)  = - g *                                              &
-                ( btm(i,j,k-1)*dsl + bqm(i,j,k-1)*dqw )
-      db_ga_cld(i,j,k) = - g *                                                 &
-                ( btm_cld(i,j,k-1)*dsl_ga + bqm_cld(i,j,k-1)*dqw_ga )
-      db_noga_cld(i,j,k)  = - g *                                              &
-                ( btm_cld(i,j,k-1)*dsl + bqm_cld(i,j,k-1)*dqw )
-        !-------------------------------------------------------
-        ! Weight cloud layer factors with cloud fraction
-        !-------------------------------------------------------
-      db_ga_cld(i,j,k) = db_ga_dry(i,j,k)*(one-cf_for_wb(i)) +                 &
-                          db_ga_cld(i,j,k)*cf_for_wb(i)
-      db_noga_cld(i,j,k)  = db_noga_dry(i,j,k)*(one-cf_for_wb(i)) +            &
-                            db_noga_cld(i,j,k)*cf_for_wb(i)
-    end do
-  end do ! k
-end do ! ii
+    db_ga_dry(i,j,k) = - g *                                                   &
+              ( btm(i,j,k-1)*dsl_ga + bqm(i,j,k-1)*dqw_ga )
+    db_noga_dry(i,j,k)  = - g *                                                &
+              ( btm(i,j,k-1)*dsl + bqm(i,j,k-1)*dqw )
+    db_ga_cld(i,j,k) = - g *                                                   &
+              ( btm_cld(i,j,k-1)*dsl_ga + bqm_cld(i,j,k-1)*dqw_ga )
+    db_noga_cld(i,j,k)  = - g *                                                &
+              ( btm_cld(i,j,k-1)*dsl + bqm_cld(i,j,k-1)*dqw )
+      !-------------------------------------------------------
+      ! Weight cloud layer factors with cloud fraction
+      !-------------------------------------------------------
+    db_ga_cld(i,j,k) = db_ga_dry(i,j,k)*(one-cf_for_wb(i)) +                   &
+                        db_ga_cld(i,j,k)*cf_for_wb(i)
+    db_noga_cld(i,j,k)  = db_noga_dry(i,j,k)*(one-cf_for_wb(i)) +              &
+                          db_noga_cld(i,j,k)*cf_for_wb(i)
+  end do
+end do
 !$OMP end do
 
 !-----------------------------------------------------------------------
@@ -3436,11 +3453,17 @@ if (l_new_kcloudtop) then
         if (dflw_over_cp(i,j,k+1) < 1.5_r_bl*dflw_over_cp(i,j,k+2))            &
           k_cloud_top(i,j) = k-1
       end if
+    end do ! i
+  end do ! ii
+  !$OMP end do
   !-----------------------------------------------------------------
   !  Find bottom grid-level (K_LEVEL) for cloud-top radiative fux
   !  divergence: higher of base of LW radiatively cooled layer,
   !  0.5*ZH, since cooling must be in upper part of layer
   !-----------------------------------------------------------------
+  !$OMP do SCHEDULE(DYNAMIC)
+  do ii = pdims%i_start, pdims%i_end, bl_segment_size
+    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
       k_level(i,j) = k_cloud_top(i,j)
       if ( k_cloud_top(i,j)  >   1 ) then
         k_rad_lim = 1
@@ -3489,11 +3512,18 @@ else
         end if
 
       end do ! k
+    end do ! i
+  end do ! ii
+  !$OMP end do
+
       !-----------------------------------------------------------------
       !  Find bottom grid-level (K_LEVEL) for cloud-top radiative fux
       !  divergence: higher of base of LW radiatively cooled layer,
       !  0.5*ZH, since cooling must be in upper part of layer
       !-----------------------------------------------------------------
+  !$OMP do SCHEDULE(DYNAMIC)
+  do ii = pdims%i_start, pdims%i_end, bl_segment_size
+    do i = ii, min((ii+bl_segment_size)-1,pdims%i_end)
       k_level(i,j) = k_cloud_top(i,j)
       if ( k_cloud_top(i,j)  >   1 ) then
         k_rad_lim = 1
