@@ -1145,7 +1145,7 @@ contains
     call prognostic_fields%get_field('theta', theta)
     call prognostic_fields%get_field('u', u)
     call prognostic_fields%get_field('rho', rho)
-    ! The exner field is not passed to the checksum and it should be. 
+    ! The exner field is not passed to the checksum and it should be.
     call prognostic_fields%get_field('exner', exner)
 
     ! Write checksums to file
