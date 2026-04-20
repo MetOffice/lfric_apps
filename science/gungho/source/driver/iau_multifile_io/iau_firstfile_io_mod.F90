@@ -28,10 +28,6 @@ module iau_firstfile_io_mod
   use sci_geometric_constants_mod, only: get_chi_inventory, &
                                          get_panel_id_inventory
   use step_calendar_mod,         only: step_calendar_type
-!!!SP: temporary
-  use log_mod,                    only : log_event,     &
-                                         log_level_info
-!!!SP: end
 
   implicit none
 
@@ -99,11 +95,6 @@ contains
 
     split_filename = split_string( trim(iau_incs_path), '/' )
     short_filename = trim(split_filename(size(split_filename)))
-
-!!!SP: print diagnostics
-      call log_event('filename split to short_filename in iau_firstfile_io: ' &
-                // trim(short_filename), log_level_info)
-!!!SP: end
 
     ! get filename and set up context name for this file
     context_name = "multifile_context_" // trim(short_filename)

@@ -40,11 +40,6 @@ module iau_multifile_io_mod
   use model_clock_mod,             only: model_clock_type
   use namelist_mod,                only: namelist_type
   use step_calendar_mod,           only: step_calendar_type
-!!!SP: temporary
-  use log_mod,                    only : log_event,           &
-                                         log_level_info,      &
-                                         log_scratch_space
-!!!SP: end
 
   implicit none
 
@@ -126,16 +121,7 @@ contains
              source=modeldb%configuration%get_namelist_profiles(nml_name))
     model_clock => modeldb % clock
 
-!!!SP: print diagnostics
-      call log_event('about to read nml profiles with nml_name: ' &
-                // trim(nml_name), log_level_info)    
-!!!SP: end
-
     do i=1, size(multifile_io_profiles)
-!!!SP: print diagnostics
-      call log_event('multifile_io_profiles(:) contains: ' &
-                // trim(multifile_io_profiles(i)), log_level_info)
-!!!SP: end
 
       multifile_nml => modeldb%configuration%get_namelist(trim(nml_name), &
                             profile_name=trim(multifile_io_profiles(i)))
@@ -143,28 +129,11 @@ contains
       call multifile_nml%get_value('name', name)
       call multifile_nml%get_value('filename', filename)
       call multifile_nml%get_value('start_time', iau_time)
-!!!SP: print diagnostics
-      write(log_scratch_space,*)'just read nml profile, start_time: ', iau_time
-      call log_event(log_scratch_space, log_level_info)
-!!!SP: end
+
       multifile_start_timestep = calc_iau_ts_num (model_clock, iau_time)
       multifile_stop_timestep = multifile_start_timestep + 1_i_def
-
-!!!SP: print diagnostics
-      call log_event('just read nml profile: ' &
-                // trim(multifile_io_profiles(i)), log_level_info)
-      call log_event('filename read: ' &
-                // trim(filename), log_level_info)  
-      call log_event('name used to set up context_name in init_iau_io_incs: ' &
-                // trim(name), log_level_info)
-      write(log_scratch_space,*)'multifile_start_timestep calculated: ', &
-                                 multifile_start_timestep
-      call log_event(log_scratch_space, log_level_info)
-      write(log_scratch_space,*)'multifile_stop_timestep calculated: ', &
-                                 multifile_stop_timestep
-      call log_event(log_scratch_space, log_level_info)
-!!!SP: end
       context_name = "multifile_context_" // trim(name)
+
       call context_init(modeldb, context_name, multifile_start_timestep, &
                         multifile_stop_timestep)
 
@@ -254,11 +223,6 @@ contains
       multifile_nml => modeldb%configuration%get_namelist(nml_name, &
                     profile_name=trim(multifile_io_profiles(i)))
       call multifile_nml%get_value('name', name)
-
-!!!SP: print diagnostics
-      call log_event('name used to set context_name in step_multifile_io: ' &
-                // trim(name), log_level_info)
-!!!SP: end
 
       context_name = "multifile_context_" // trim(name)
       call modeldb%io_contexts%get_io_context(context_name, io_context)

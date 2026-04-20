@@ -73,7 +73,6 @@
             BIG_DATA_DIR = '/common/internal/lfricdir/data'
 {% else %}
             BIG_DATA_DIR = '/data/users/lfricadmin/data'
-            SAM_TEST_DIR = '/data/users/samantha.pullen/IAU/Global/very_long_pathname_to_test_mogreps_workflow_filepath_setup'
 {% endif %}
             TARGET_PLATFORM = 'meto-ex1a'
             RUN_METHOD = 'mpiexec'
