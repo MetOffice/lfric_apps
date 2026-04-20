@@ -22,8 +22,8 @@ casim:
     ref: 2026.03.2
 
 jules:
-    source: git@github.com:MetOffice/jules.git
-    ref: 2026.03.2
+    source: cazldf0000CW.spice.sc.metoffice.gov.uk:/home/users/margaret.hendry/jules_fork/jules
+    ref: 6881c3f8b1df562112c947535f03418fa01af43b
 
 lfric_apps:
     source:
@@ -31,7 +31,7 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: 018e40c707091a4b08cb67cba5f5c4ab49303481
+    ref: 7ed072b3f8c888d2e116288853a6b9acf44982c8
 
 moci:
     source: git@github.com:MetOffice/moci.git
