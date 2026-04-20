@@ -1,8 +1,10 @@
 # Contributors
 | GitHub user         | Real Name          | Affiliation                      | Date       |
 | ------------------- | ------------------ | -------------------------------- | ---------- |
+| iboutle             | Ian Boutle         | Met Office                       | 2026-03-06 |
 | james-bruten-mo     | James Bruten       | Met Office                       | 2025-12-09 |
 | jedbakerMO          | Jed Baker          | Met Office                       | 2025-12-29 |
+| mo-lucy-gordon      | Lucy Gordon        | Met Office                       | 2026-03-11 |
 | jennyhickson        | Jenny Hickson      | Met Office                       | 2025-12-10 |
 | mike-hobson         | Mike Hobson        | Met Office                       | 2025-12-17 |
 | mo-marqh            | mark Hedley        | Met Office                       | 2025-12-11 |
@@ -33,6 +35,6 @@
 | Adrian-Lock         | Adrian Lock        | Met Office                       | 2026-01-09 |
 | thomasmelvin        | Thomas Melvin      | Met Office                       | 2026-01-15 |
 | tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-02-02 |
+| Pierre-siddall      | Pierre Siddall     | Met Office                       | 2026-03-02 |
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
 | ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
-| iboutle             | Ian Boutle         | Met Office                       | 2026-03-06 |

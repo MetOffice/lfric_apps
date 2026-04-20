@@ -68,12 +68,11 @@ contains
     type(field_type)                          :: fqw_total
     type(field_type), pointer                 :: ls_rain  => null()
     type(field_type), pointer                 :: ls_snow  => null()
-    type(field_type), pointer                 :: ls_graup => null()
     type(field_type), pointer                 :: conv_rain  => null()
     type(field_type), pointer                 :: conv_snow  => null()
     type(field_type), pointer                 :: moist_flux_bl => null()
     real(kind=r_def)                          :: bl_source_mass, mp_sink_mass, conv_sink_mass
-    real(kind=r_def)                          :: ls_rain_mass, ls_snow_mass, ls_graup_mass
+    real(kind=r_def)                          :: ls_rain_mass, ls_snow_mass
     real(kind=r_def)                          :: conv_rain_mass, conv_snow_mass
     integer(kind=i_def)                       :: mesh
     integer(tik)                              :: id
@@ -83,7 +82,7 @@ contains
     mesh = area%get_mesh_id()
     call microphysics_fields%get_field('ls_rain', ls_rain)
     call microphysics_fields%get_field('ls_snow', ls_snow)
-    call microphysics_fields%get_field('ls_graup', ls_graup)
+    ! Graupel is included in ls_snow
     call convection_fields%get_field('conv_rain', conv_rain)
     call convection_fields%get_field('conv_snow', conv_snow)
     call turbulence_fields%get_field('moist_flux_bl', moist_flux_bl)
@@ -120,13 +119,6 @@ contains
                                                             dt          &
                                                           ),            &
                  sum_X(ls_snow_mass, mass),                             &
-                 setval_c(mass, 0.0_r_def),                             &
-                 compute_bottom_mass_from_flux_kernel_type( mass,       &
-                                                            ls_graup,   &
-                                                            area,       &
-                                                            dt          &
-                                                          ),            &
-                 sum_X(ls_graup_mass, mass),                            &
     ! Compute convective preciptation sink mass
                  setval_c(mass, 0.0_r_def),                             &
                  compute_bottom_mass_from_flux_kernel_type( mass,       &
@@ -144,7 +136,7 @@ contains
                  sum_X(conv_snow_mass, mass)                            &
                 )
 
-    mp_sink_mass = ls_rain_mass + ls_snow_mass + ls_graup_mass
+    mp_sink_mass = ls_rain_mass + ls_snow_mass
     conv_sink_mass = conv_rain_mass + conv_snow_mass
 
     write( log_scratch_space, '(A, E32.12)' ) &
@@ -161,7 +153,7 @@ contains
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     nullify( fs_2d )
-    nullify( ls_rain, ls_snow, ls_graup, conv_rain, conv_snow, moist_flux_bl )
+    nullify( ls_rain, ls_snow, conv_rain, conv_snow, moist_flux_bl )
 
     if ( LPROF ) call stop_timing( id, 'diags.moisture_fluxes' )
 

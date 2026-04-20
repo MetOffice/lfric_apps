@@ -50,8 +50,7 @@ def trans(psyir):
     for node in psyir.walk(Routine):
         loop_replacement_of(node, "j")
 
-    # Span a parallel section across the whole routine,
-    # apart for a few exceptions provided
+    # Place a parallel do around loops
     for loop in psyir.walk(Loop):
         loop_ancestor_type = ""
         try:
