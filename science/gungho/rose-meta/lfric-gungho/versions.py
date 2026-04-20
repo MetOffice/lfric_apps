@@ -43,7 +43,7 @@ class vn31_t118(MacroUpgrade):
 class vn31_t348(MacroUpgrade):
     # Upgrade macro for #348 by Ian Boutle
 
-    BEFORE_TAG = "vn3.1"
+    BEFORE_TAG = "vn3.1_t118"
     AFTER_TAG = "vn3.1_t348"
 
     def upgrade(self, config, meta_config=None):
