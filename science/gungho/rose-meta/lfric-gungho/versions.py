@@ -30,6 +30,7 @@ class vnXX_txxx(MacroUpgrade):
         return config, self.reports
 """
 
+
 class vn31_t118(MacroUpgrade):
     """Upgrade macro for ticket TTTT by Unknown."""
 
@@ -39,9 +40,9 @@ class vn31_t118(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
         # Blank Upgrade Macro
-        
         return config, self.reports
-      
+
+
 class vn31_t363(MacroUpgrade):
     """Upgrade macro for ticket #363 by Jaffery Irudayasamy."""
 
