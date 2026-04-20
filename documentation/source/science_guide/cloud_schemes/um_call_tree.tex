@@ -1,0 +1,530 @@
+
+% Latex source to make a diagram of the UM subroutine call tree, showing the
+% locations of all cloud scheme calls.  This diagram is included in both
+% UMDP 029 (large-scale cloud scheme) and UMDP 030 (PC2).
+
+% NOTE: any preamble text required for this should be put in the file
+% um_call_tree_preamble.tex, which is also inlcuded in both the UMDPs.
+
+Subroutines only called for the \textcolor{blue}{Smith} scheme are highlighted
+in \textcolor{blue}{blue}, those only called for \textcolor{mygreen}{PC2} are
+in \textcolor{mygreen}{green}, and those only called for
+the \textcolor{purple}{bimodal} scheme are in \textcolor{purple}{purple}.
+
+\subsubsection{Main Tree from atm\_step\_4a}
+
+\begin{itemize}
+
+\item {\bf atm\_step\_4a} \\*
+(performs one timestep of the Unified Model...)
+  \begin{itemize}
+
+  \begin{tcolorbox}[enhanced jigsaw, breakable]
+  \item {\bf atm\_step\_alloc\_4a} \\*
+  (does miscellaneous initialisations in atm\_step)
+
+    \begin{itemize}
+
+    \item \textcolor{mygreen}{\bf pc2\_rhtl} \\*
+    (calculate start-of-timestep Relative Humidity, used by PC2 initiation)
+
+    \end{itemize}
+  \end{tcolorbox}
+
+  \begin{tcolorbox}[enhanced jigsaw, breakable]
+  \item {\bf atmos\_physics1} \\*
+  (calls explicit ``slow'' physics routines...)
+    \begin{itemize}
+
+    \begin{tcolorbox}
+    \item {\bf microphys\_ctl} \\*
+    (interface to microphysics scheme)
+      \begin{itemize}
+
+      \item \textcolor{mygreen}{\bf pc2\_turbulence\_ctl} \\*
+      (Perform optional erosion of liquid-cloud;
+       done here if NOT doing erosion after convection,
+       e.g. if no convection scheme is used).
+        \begin{itemize}
+
+        \item \textcolor{mygreen}{\bf pc2\_hom\_conv} \\*
+        (called here just to do erosion)
+
+        \end{itemize}
+
+      \item \textcolor{blue}{\bf ls\_cld} \\*
+      (Smith scheme without area cloud fraction calculation,
+       to set initial cloud fields passed into microphysics)
+
+      \item {\bf ls\_ppn} \\*
+      (microphysics scheme)
+
+      \item {\bf mphys\_turb\_gen\_mixed\_phase} \\*
+      (turbulent production of liquid cloud)
+
+      \item \textcolor{mygreen}{\bf pc2\_turbulence\_ctl} \\*
+      (optionally use the PC2 pdf-width-change code to calculate
+       the cloud-fraction change from the above turbulent production
+       of liquid cloud)
+
+        \begin{itemize}
+
+        \item \textcolor{mygreen}{\bf pc2\_hom\_conv} \\*
+        (called here just to calculate the cloud fraction increment
+         consistent with the turbulent qcl increment)
+
+        \end{itemize}
+
+      \end{itemize}
+    \end{tcolorbox}
+
+    \begin{tcolorbox}
+    \item {\bf rad\_ctl} \\*
+    (interface to radiation scheme)
+      \begin{itemize}
+
+      \item {\bf sw\_rad} \\*
+      (short-wave radiation scheme)
+
+      \item \textcolor{mygreen}{\bf pc2\_homog\_plus\_turb} \\*
+      (PC2 homogeneous forcing of liquid-cloud by SW radiation heating)
+
+      \item {\bf lw\_rad} \\*
+      (long-wave radiation scheme)
+
+      \item \textcolor{mygreen}{\bf pc2\_homog\_plus\_turb} \\*
+      (PC2 homogeneous forcing of liquid-cloud by LW radiation tendency)
+
+      \end{itemize}
+    \end{tcolorbox}
+
+    \begin{tcolorbox}
+    \item {\bf atmos\_physics1\_alloc\_pc2}
+    (wrapper for PC2 self-consistency checks at end of atmos\_physics1)
+
+      \begin{itemize}
+
+      \item Add increments from microphysics + radiation onto
+      start-of-timestep fields to form updated fields.
+
+      \item \textcolor{mygreen}{\bf pc2\_checks} \\*
+      (self-consistency checks on cloud fractions and water contents)
+
+      \item Convert corrected updated fields back to increments.
+
+      \end{itemize}
+    \end{tcolorbox}
+
+    \end{itemize}
+  \end{tcolorbox}
+
+  Begin loop over solver outer cycles
+
+    \begin{itemize}
+
+    \begin{tcolorbox}[enhanced jigsaw, breakable]
+    \item {\bf atm\_step\_phys\_reset} \\*
+    (for PC2, on subsequent solver outer cycles,
+     reset cloud-fractions to saved values after atmos\_physics1)
+    \end{tcolorbox}
+
+    \begin{tcolorbox}[enhanced jigsaw, breakable]
+    \item {\bf eg\_sl\_moisture} \\*
+    (large-scale advection of cloud water contents and fractions)
+    \end{tcolorbox}
+
+    \begin{tcolorbox}[enhanced jigsaw, breakable]
+    \item \textcolor{mygreen}{\bf pc2\_pressure\_forcing\_only} \\*
+    (Optionally calculate homogeneous forcing of liquid cloud by the
+     pressure change along the trajectory from departure point to
+     arrival point).
+       \begin{itemize}
+
+       \item \textcolor{mygreen}{\bf pc2\_homog\_plus\_turb} \\*
+       (generic homogeneous forcing routine used here).
+
+       \end{itemize}
+    \end{tcolorbox}
+
+    \begin{tcolorbox}[enhanced jigsaw, breakable]
+    \item {\bf atmos\_physics2} \\*
+    (calls ``fast'' physics routines...)
+
+      \begin{itemize}
+
+      \begin{tcolorbox}
+      \item {\bf ni\_bl\_ctl} \\*
+      (interface to explicit boundary-layer and surface scheme calls,
+       including calculation of TKE and TKE-based $RH_{crit}$)
+      \end{tcolorbox}
+
+      \begin{tcolorbox}
+      \item \textcolor{purple}{\bf bm\_calc\_tau} \\*
+      (calculates turbulence properties used in the bimodal cloud scheme,
+       based on the boundary-layer scheme TKE and mixing-length)
+      \end{tcolorbox}
+
+      \begin{tcolorbox}
+      \item {\bf cloud\_call\_b4\_conv} \\*
+      (routine for optional cloud-scheme calls before convection)
+        \begin{itemize}
+
+        \item \textcolor{blue}{\bf ls\_arcld} \\*
+        (Smith scheme with area cloud fraction;
+         see \ref{subsubsec:smith_acf} for a drill-down inside this routine)
+
+        \item \textcolor{purple}{\bf bm\_ctl} \\*
+        (bimodal scheme)
+    
+        \item \textcolor{purple}{Set area cloud fraction equal to bulk
+                                 cloud fraction}
+
+        \item \textcolor{mygreen}{\bf pc2\_initiation\_ctl} \\*
+        (interface to PC2 initiation and consistency-checks;
+         see \ref{subsubsec:pc2_initiation} for a drill-down inside this
+         routine)
+
+        \end{itemize}
+      \end{tcolorbox}
+
+      \begin{tcolorbox}
+      \item {\bf ni\_conv\_ctl} or {\bf other\_conv\_ctl} \\*
+      (interface routines to various convection schemes...)
+        \begin{itemize}
+
+        \item {\bf glue\_conv\_5a/6a} \\*
+        (calls deep, shallow and mid-level convection schemes)
+          \begin{itemize}
+
+          \item{\bf deep/shallow/mid\_conv} \\*
+          (convection scheme main routines)
+            \begin{itemize}
+
+            \item {\bf convec2}
+            (completes lifting of the convective parcel by one model-level)
+              \begin{itemize}
+
+              \item {\bf parcel}
+              (calculates new parcel properties at next level)
+
+              \item {\bf environ}
+              (calculates grid-mean increments to primary fields;
+               includes PC2 partitioning of detrained condensate mass
+               between liquid and ice phases)
+
+              \item \textcolor{mygreen}{\bf pc2\_environ}
+              (calculates increments to PC2 cloud fractions due to
+               convective detrainment and subsidence)
+
+              \end{itemize}
+
+            \end{itemize}
+
+          \end{itemize}
+
+        \item \textcolor{mygreen}{\bf pc2\_from\_conv\_ctl} \\*
+        (PC2 calculations after convection)
+          \begin{itemize}
+
+          \item \textcolor{mygreen}{\bf pc2\_hom\_conv} \\*
+          (homogeneous forcing by convection, and erosion of liquid-cloud)
+
+          \end{itemize}
+
+        \end{itemize}
+      \end{tcolorbox}
+
+      \begin{tcolorbox}
+      \item {\bf ni\_imp\_ctl} \\*
+      (interface to boundary-layer implicit solver)
+        \begin{itemize}
+
+        \item {\bf imp\_solver} \\*
+        (implicitly solves vertical diffusion to find $T_l$ and $q_T$
+         updated by turbulent fluxes).
+
+        \item \textcolor{mygreen}{\bf pc2\_bl\_inhom\_ice} \\*
+        (inhomogeneous forcing of ice-cloud)
+
+        \item \textcolor{mygreen}{\bf pc2\_delta\_hom\_turb} \\*
+        (homogeneous forcing of liquid cloud by the turbulent fluxes)
+
+        \item \textcolor{mygreen}{\bf pc2\_bl\_forced\_cu} \\*
+        (adds diagnosed ``forced cumulus'' cloud fraction and water content
+         onto the PC2 prognostics)
+
+        \item Calculate area cloud fraction:
+
+        \textcolor{mygreen}{\bf ls\_acf\_brooks} \\*
+        (for the Brooks epirical method)
+
+        \textcolor{mygreen}{\bf pc2\_hom\_arcld} \\*
+        (for the Cusack vertical interpolation method)
+          \begin{itemize}
+
+          \item \textcolor{mygreen}{\bf pc2\_homog\_plus\_turb} \\*
+          (generic homogeneous forcing routine used to interpolate)
+
+          \end{itemize}
+
+        \item \textcolor{blue}{\bf ls\_arcld} \\*
+        (interface to diagnostic Smith scheme and area cloud fraction;
+         see \ref{subsubsec:smith_acf} for a drill-down inside this routine)
+
+        \item \textcolor{purple}{\bf bm\_ctl} \\*
+        (bimodal cloud scheme)
+
+        \item \textcolor{purple}{Set area cloud fraction equal to bulk
+                                 cloud fraction}
+
+        \item {\bf diagnostics\_bl} \\*
+        (outputs boundary-layer diagnostics to STASH)
+          \begin{itemize}
+
+          \item {\bf ls\_cld} \\*
+          (Smith scheme used here to calculate various diagnostics of
+           near-surface temperature and humidity, by extrapolating pressure,
+           $T_l$ and $q_t$ down to the desired height and then
+           re-diagnosing $q_{cl}$.
+
+          \end{itemize}
+
+        \end{itemize}
+      \end{tcolorbox}
+
+      \end{itemize}
+    \end{tcolorbox}
+
+    \begin{tcolorbox}[enhanced jigsaw, breakable]
+    \item {\bf atm\_step\_ac\_assim} \\*
+    (interface to Data Assimilation analysis increments...)
+
+      \begin{itemize}
+
+      \item {\bf ac\_ctl}
+      (control routine for Data Assimilation analysis increments...)
+        \begin{itemize}
+
+        \item{\bf ac}
+        (main analysis increment routine)
+
+        \item \textcolor{mygreen}{\bf pc2\_assim} \\*
+        (PC2 reponse to the analysis increments;
+         see \ref{subsubsec:pc2_assim} for a drill-down inside this routine)
+
+        \item \textcolor{mygreen}{\bf ls\_acf\_brooks}
+        (calculate area cloud fraction using Brooks empirical method if active)
+
+        \item \textcolor{blue}{\bf ls\_arcld}
+        (call diagnostic Smith scheme with area cloud fraction again to
+         account for the analysis increments;
+         see \ref{subsubsec:smith_acf} for a drill-down inside this routine)
+
+        \end{itemize}
+
+      \end{itemize}
+    \end{tcolorbox}
+
+    \begin{tcolorbox}[enhanced jigsaw, breakable]
+    \item {\bf eg\_sl\_helmholtz} \\*
+    (dynamics pressure solver; updates pressure, and the winds used
+     to perform advection on the next solver outer cycle)
+    \end{tcolorbox}
+
+    \end{itemize}
+
+  End loop over solver outer cycles
+
+  \begin{tcolorbox}[enhanced jigsaw, breakable]
+  \item \textcolor{mygreen}{\bf pc2\_pressure\_forcing} \\*
+  (interface to miscellaneous PC2 calculations at end-of-timestep)
+    \begin{itemize}
+
+    \item \textcolor{mygreen}{\bf pc2\_homog\_plus\_turb} \\*
+    (homogeneous forcing of liquid-cloud by the dynamics pressure change;
+     optionally either uses total pressure change including the
+     Lagrangian component following the winds, or only the Eulerian
+     component from the dynamics solver)
+
+    \item \textcolor{mygreen}{\bf pc2\_initiation\_ctl} \\*
+    (interface to PC2 initiation and consistency-checks;
+     see \ref{subsubsec:pc2_initiation} for a drill-down inside this routine)
+
+    \end{itemize}
+  \end{tcolorbox}
+
+  \begin{tcolorbox}[enhanced jigsaw, breakable]
+  \item {\bf qt\_bal\_cld} \\*
+  (calculates end-of-timestep cloud state consistent with final pressure...)
+    \begin{itemize}
+
+    \item \textcolor{blue}{\bf ls\_arcld} \\*
+    (interface to diagnostic Smith scheme and area cloud fraction;
+     see \ref{subsubsec:smith_acf} for a drill-down inside this routine)
+
+    \item \textcolor{purple}{\bf bm\_ctl} \\*
+    (bimodal cloud scheme)
+
+    \item \textcolor{purple}{Set area cloud fraction equal to bulk
+                             cloud fraction}
+
+    \end{itemize}
+  \end{tcolorbox}
+
+  \begin{tcolorbox}[enhanced jigsaw, breakable]
+  \item {\bf iau} \\*
+  (incremental analysis update; part of data assimilation)
+    \begin{itemize}
+
+    \item \textcolor{mygreen}{\bf pc2\_assim} \\*
+    (PC2 reponse to the analysis increments;
+     see \ref{subsubsec:pc2_assim} for a drill-down inside this routine)
+
+    \item \textcolor{mygreen}{\bf initial\_pc2\_check} \\*
+    (wrapper for optional self-consistency checks on prognostic cloud variables
+     if not doing PC2 response to analysis increments)
+
+      \begin{itemize}
+
+      \item \textcolor{mygreen}{\bf pc2\_checks} \\*
+      (self-consistency checks on cloud fractions and water contents)
+
+      \end{itemize}
+
+    \end{itemize}
+  \end{tcolorbox}
+
+  \end{itemize}
+
+\end{itemize}
+
+
+Drill-downs within some routines in the call tree are listed separately below,
+to avoid duplication
+(since these routines are called in multiple different places in the tree)...
+
+\subsubsection{Smith scheme with area cloud fraction}
+\label{subsubsec:smith_acf}
+
+\begin{itemize}
+
+\begin{tcolorbox}[enhanced jigsaw, breakable]
+\item \textcolor{blue}{\bf ls\_arcld} \\*
+(interface to diagnostic Smith scheme and area cloud fraction)
+  \begin{itemize}
+
+  \item If no area cloud fraction scheme:
+
+  \textcolor{blue}{\bf ls\_cld} \\*
+  (just directly call Smith scheme)
+
+  Set area cloud fraction equal to bulk cloud fraction.
+
+  \item If using Cusack vertical interpolation method:
+
+  Interpolate fields onto finer vertical grid
+
+  \textcolor{blue}{\bf ls\_cld} \\*
+  (call Smith scheme using higher vertical resolution fields)
+
+  Coarse-grain cloud fields back to model grid, but set area cloud
+  fraction to max of bulk cloud fraction over corresponding fine-grid levels.
+
+  \item If using Brooks empirical area cloud fraction method:
+
+  \textcolor{blue}{\bf ls\_cld} \\*
+  (just directly call Smith scheme)
+
+  \textcolor{blue}{\bf ls\_acf\_brooks} \\*
+  (estimate area cloud fraction)
+
+  \end{itemize}
+\end{tcolorbox}
+
+\end{itemize}
+
+
+\subsubsection{PC2 initiation}
+\label{subsubsec:pc2_initiation}
+
+\begin{itemize}
+
+\begin{tcolorbox}[enhanced jigsaw, breakable]
+\item \textcolor{mygreen}{\bf pc2\_initiation\_ctl} \\*
+(interface to PC2 initiation and consistency-checks)
+  \begin{itemize}
+
+  \item \textcolor{mygreen}{\bf pc2\_checks} \\*
+  (self-consistency checks on cloud fractions and water contents)
+
+  \item PC2 initiation of liquid-cloud:
+
+  \textcolor{mygreen}{\bf pc2\_bm\_initiate} \\*
+  (using the bimodal cloud scheme)
+
+  \textcolor{mygreen}{\bf pc2\_arcld} \\*
+  (using the Smith scheme with the Cusack vertical interpolation method)
+
+    \begin{itemize}
+
+    \item \textcolor{mygreen}{\bf pc2\_initiate} \\*
+    (initiation using the Smith scheme,
+     called here on a finer vertical grid as per the Cusack method)
+
+    \end{itemize}
+
+  \textcolor{mygreen}{\bf pc2\_initiate} \\*
+  (using the Smith scheme with no area cloud representation)
+
+  \item \textcolor{mygreen}{\bf pc2\_checks2} \\*
+  (further self-consistency checks on cloud-fractions)
+
+  \item \textcolor{mygreen}{\bf pc2\_checks} \\*
+  (repeat the first lot of self-consistency checks again,
+   just in case we broke something in the mean-time!)
+
+  \item \textcolor{mygreen}{\bf pc2\_hom\_arcld} \\*
+  (finds area cloud fraction using a version of the Cusack method,
+   where the cloud fraction on the finer vertical grid is estimated by
+   applying homogeneous forcing relative to the original grid fields)
+
+    \begin{itemize}
+
+    \item \textcolor{mygreen}{\bf pc2\_homog\_plus\_turb} \\*
+    (generic homogeneous forcing routine used to interpolate)
+
+    \end{itemize}
+
+  \end{itemize}
+\end{tcolorbox}
+
+\end{itemize}
+
+
+\subsubsection{PC2 Data Assimilation}
+\label{subsubsec:pc2_assim}
+
+\begin{itemize}
+
+\begin{tcolorbox}[enhanced jigsaw, breakable]
+\item \textcolor{mygreen}{\bf pc2\_assim} \\*
+(PC2 reponse to the analysis increments)
+  \begin{itemize}
+
+  \item \textcolor{mygreen}{\bf pc2\_homog\_plus\_turb} \\*
+  (generic PC2 homogeneous forcing routine used here for liquid-cloud)
+
+  \item Estimate change in ice-cloud fraction from the assimilation
+  increment to ice-cloud mass.
+
+  \item \textcolor{mygreen}{\bf pc2\_total\_cf} \\*
+  (update bulk cloud fraction due to change in ice cloud fraction)
+
+  \item \textcolor{mygreen}{\bf pc2\_checks} \\*
+  (self-consistency checks on prognostic cloud fractions and
+   water contents)
+
+  \end{itemize}
+\end{tcolorbox}
+
+\end{itemize}
