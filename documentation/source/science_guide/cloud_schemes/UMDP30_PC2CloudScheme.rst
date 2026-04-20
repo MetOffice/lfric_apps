@@ -312,7 +312,9 @@ Concept of PC2
 The PC2 scheme develops prognostic expressions for the rates of change
 of cloud fraction and condensate contents as a result of each process
 that acts in the model. We consider ice and liquid condensate as two
-distinct aspects of clouds, which may or may not overlap :numref:`Figure %s <fig:schematic>` provides a schematic summary of the PC2 scheme.
+distinct aspects of clouds, which may or may not overlap.
+:numref:`Figure %s <fig:schematic>`
+provides a schematic summary of the PC2 scheme.
 The equations for the five prognostic cloud variables can be written
 schematically:
 
@@ -1407,10 +1409,10 @@ used within the convection scheme. It still remains to parametrize
 :math:`\delta_{xl}`, which is given by the convection scheme itself.
 This is discussed in section :ref:`Phase of condensate`.
 
-.. _Numerical application:
+.. _Numerical application of injection forcing:
 
-Numerical application
-~~~~~~~~~~~~~~~~~~~~~
+Numerical application of injection forcing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The numerical application using
 :eq:`eq:dcltdt_almost_final` may be
@@ -3048,7 +3050,7 @@ cumulus regimes.
 
       Note that :math:`q_{cl}` falls to zero after a finite time
       :math:`\frac{{q_{cl}}_0}{1-b_1} \frac{a_L}{K}
-       \frac{1}{2 {C_l}_0 (1 - C_l) \, (q_{cl}-Q_c)}`. If the timestep
+      \frac{1}{2 {C_l}_0 (1 - C_l) \, (q_{cl}-Q_c)}`. If the timestep
       :math:`\Delta t` is longer than this time, then erosion completely
       removes the cloud during the current timestep.
 
@@ -4549,26 +4551,29 @@ prognostic :math:`C_l` and :math:`q_{cl}` are incremented as follows:
 
 - If :math:`{q_{cl}}_{diag} > q_{cl}`:
 
-  :math:`\Delta q_{cl} = {q_{cl}}_{diag} - q_{cl}
-  \quad \refstepcounter{equation}(\theequation)\label{eq:dqcl_init}`
+  .. math:: :label: eq:dqcl_init
+
+     \Delta q_{cl} = {q_{cl}}_{diag} - q_{cl}
 
   - If :math:`Q_C < 0`:
 
-    :math:`\Delta C_{l} = \frac{\Delta q_{cl}}{{q_{cl}}_{diag}}
-                    \left( {C_{l}}_{diag} - C_{l} \right)
-      \quad \refstepcounter{equation}(\theequation)\label{eq:dcl_init1}`
+    .. math:: :label: eq:dcl_init1
+
+       \Delta C_{l} = \frac{\Delta q_{cl}}{{q_{cl}}_{diag}}
+                      \left( {C_{l}}_{diag} - C_{l} \right)
 
   - If :math:`Q_C > 0`:
 
-    :math:`\Delta C_{l} = \frac{\Delta SD}{{SD}_{diag}}
-                    \left( {C_{l}}_{diag} - C_{l} \right)
-      \quad \refstepcounter{equation}(\theequation)\label{eq:dcl_init2}`
+    .. math:: :label: eq:dcl_init2
+
+       \Delta C_{l} = \frac{\Delta SD}{{SD}_{diag}}
+                      \left( {C_{l}}_{diag} - C_{l} \right)
 
 - Otherwise:
 
-  :math:`\Delta q_{cl} = 0`
+  .. math:: \Delta q_{cl} = 0
 
-  :math:`\Delta C_{l} = 0`
+  .. math:: \Delta C_{l} = 0
 
 where the subscript :math:`_{diag}` denotes the liquid cloud water
 content and fraction predicted by the diagnostic cloud scheme (either
@@ -5037,7 +5042,7 @@ ill-conditioning of this solution near :math:`C_l = 1`.
 In practice, the ill-conditioning of :eq:`eq:da2` and
 :eq:`eq:da3` becomes too numerically awkward for us to apply
 the full solution based on homogeneous forcing, although, for
-completeness, we outline it in Appendix :ref:`Appendix: Alternative PC2 - Data Assimilation formulations`. Hence
+completeness, we outline it in Appendix :ref:`Appendix; Alternative PC2 - Data Assimilation formulations`. Hence
 we have chosen to apply a much simpler model. Here we use simply the
 data assimilation increments :math:`\Delta \overline{q}` and
 :math:`\Delta \overline{T}` within the standard homogeneous forcing
@@ -5053,7 +5058,7 @@ data assimilation increments for :math:`\Delta \overline{q_{cl}}`,
 :math:`\Delta \overline{q}` and :math:`\Delta \overline{T}` remain those
 that the data assimilation scheme itself calculated.
 
-Appendix :ref:`Appendix: Alternative PC2 - Data Assimilation formulations` gives, for completeness, the
+Appendix :ref:`Appendix; Alternative PC2 - Data Assimilation formulations` gives, for completeness, the
 alternative numerical technique for the solution of
 :eq:`eq:da2` and :eq:`eq:da3`. However, we
 stress that this technique is not used within the current PC2
@@ -6038,9 +6043,9 @@ More information
 Information on results of the scheme and how to run the PC2 code at
 various model versions is available on the PC2 web site.
 
-.. _Appendix: Alternative PC2 - Data Assimilation formulations:
+.. _Appendix; Alternative PC2 - Data Assimilation formulations:
 
-Appendix: Alternative PC2 - Data Assimilation formulations
+Appendix; Alternative PC2 - Data Assimilation formulations
 ==========================================================
 
 In this alternative method to section :ref:`Data Assimilation` we will assume
@@ -6341,9 +6346,9 @@ results than simply using the homogeneous forcing method.
 Further work will be required to enable the implementation of this
 :math:`\overline{q}` and :math:`\overline{T}` preserving method.
 
-.. _Appendix: Essentials of PC2 for code developers:
+.. _Appendix; Essentials of PC2 for code developers:
 
-Appendix: Essentials of PC2 for code developers
+Appendix; Essentials of PC2 for code developers
 ===============================================
 
 This section provides some guidance to code developers on the treatment
@@ -6859,14 +6864,14 @@ greater vertical coherence. Tuning the parameters in
 
    Schematic summary of the PC2 cloud scheme.
 
-.. figure:: Timestepping_ctl66.epsi.svg
+.. figure:: Timestepping_ctl66.svg
    :name: fig:tstep_diag
    :alt: Timestepping diagram for the control (non-PC2) scheme
    :width: 60%
 
    Timestepping diagram for the control (non-PC2) scheme
 
-.. figure:: Timestepping_pc266.epsi.svg
+.. figure:: Timestepping_pc266.svg
    :name: fig:tstep_prog
    :alt: Timestepping diagram for the PC2 scheme
    :width: 60%
