@@ -312,9 +312,7 @@ Concept of PC2
 The PC2 scheme develops prognostic expressions for the rates of change
 of cloud fraction and condensate contents as a result of each process
 that acts in the model. We consider ice and liquid condensate as two
-distinct aspects of clouds, which may or may not overlap.
-:numref:`Figure %s <fig:schematic>`
-provides a schematic summary of the PC2 scheme.
+distinct aspects of clouds, which may or may not overlap :numref:`Figure %s <fig:schematic>` provides a schematic summary of the PC2 scheme.
 The equations for the five prognostic cloud variables can be written
 schematically:
 
@@ -6859,21 +6857,21 @@ greater vertical coherence. Tuning the parameters in
 
 .. figure:: pc2_process_explanation.svg
    :name: fig:schematic
-   :alt: Schematic summary of the PC2 cloud scheme
+   :alt: Schematic summary of the PC2 cloud scheme.
    :width: 100%
 
    Schematic summary of the PC2 cloud scheme.
 
-.. figure:: Timestepping_ctl66.svg
+.. figure:: Timestepping_ctl66.epsi.svg
    :name: fig:tstep_diag
    :alt: Timestepping diagram for the control (non-PC2) scheme
-   :width: 100%
+   :width: 60%
 
    Timestepping diagram for the control (non-PC2) scheme
 
-.. figure:: Timestepping_pc266.svg
+.. figure:: Timestepping_pc266.epsi.svg
    :name: fig:tstep_prog
    :alt: Timestepping diagram for the PC2 scheme
-   :width: 100%
+   :width: 60%
 
    Timestepping diagram for the PC2 scheme
