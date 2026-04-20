@@ -11,7 +11,9 @@ module iau_multifile_io_mod
 
   use base_mesh_config_mod,        only: prime_mesh_name
   use calendar_mod,                only: calendar_type
-  use constants_mod,               only: str_def, i_def
+  use constants_mod,               only: str_def, i_def,   &
+                                         str_max_filename, &
+                                         str_long
   use driver_modeldb_mod,          only: modeldb_type
   use event_mod,                   only: event_action
   use event_actor_mod,             only: event_actor_type
@@ -38,6 +40,11 @@ module iau_multifile_io_mod
   use model_clock_mod,             only: model_clock_type
   use namelist_mod,                only: namelist_type
   use step_calendar_mod,           only: step_calendar_type
+!!!SP: temporary
+  use log_mod,                    only : log_event,           &
+                                         log_level_info,      &
+                                         log_scratch_space
+!!!SP: end
 
   implicit none
 
@@ -111,23 +118,53 @@ contains
     integer(i_def)     :: multifile_stop_timestep
     integer(i_def)     :: i
     character(str_def) :: context_name
-    character(str_def) :: filename
+    character(str_def) :: name
+    character(str_max_filename) :: filename
     character(str_def), pointer :: multifile_io_profiles(:)
 
     allocate(multifile_io_profiles, &
              source=modeldb%configuration%get_namelist_profiles(nml_name))
     model_clock => modeldb % clock
 
+!!!SP: print diagnostics
+      call log_event('about to read nml profiles with nml_name: ' &
+                // trim(nml_name), log_level_info)    
+!!!SP: end
+
     do i=1, size(multifile_io_profiles)
+!!!SP: print diagnostics
+      call log_event('multifile_io_profiles(:) contains: ' &
+                // trim(multifile_io_profiles(i)), log_level_info)
+!!!SP: end
 
       multifile_nml => modeldb%configuration%get_namelist(trim(nml_name), &
                             profile_name=trim(multifile_io_profiles(i)))
+
+      call multifile_nml%get_value('name', name)
       call multifile_nml%get_value('filename', filename)
       call multifile_nml%get_value('start_time', iau_time)
+!!!SP: print diagnostics
+      write(log_scratch_space,*)'just read nml profile, start_time: ', iau_time
+      call log_event(log_scratch_space, log_level_info)
+!!!SP: end
       multifile_start_timestep = calc_iau_ts_num (model_clock, iau_time)
       multifile_stop_timestep = multifile_start_timestep + 1_i_def
 
-      context_name = "multifile_context_" // trim(filename)
+!!!SP: print diagnostics
+      call log_event('just read nml profile: ' &
+                // trim(multifile_io_profiles(i)), log_level_info)
+      call log_event('filename read: ' &
+                // trim(filename), log_level_info)  
+      call log_event('name used to set up context_name in init_iau_io_incs: ' &
+                // trim(name), log_level_info)
+      write(log_scratch_space,*)'multifile_start_timestep calculated: ', &
+                                 multifile_start_timestep
+      call log_event(log_scratch_space, log_level_info)
+      write(log_scratch_space,*)'multifile_stop_timestep calculated: ', &
+                                 multifile_stop_timestep
+      call log_event(log_scratch_space, log_level_info)
+!!!SP: end
+      context_name = "multifile_context_" // trim(name)
       call context_init(modeldb, context_name, multifile_start_timestep, &
                         multifile_stop_timestep)
 
@@ -196,7 +233,7 @@ contains
     type(namelist_type),           pointer :: time_nml
     class(calendar_type), allocatable      :: tmp_calendar
     character(str_def) :: context_name
-    character(str_def) :: filename
+    character(str_def) :: name
     character(str_def) :: time_origin
     character(str_def) :: time_start
     character(str_def), pointer :: multifile_io_profiles(:)
@@ -216,9 +253,14 @@ contains
 
       multifile_nml => modeldb%configuration%get_namelist(nml_name, &
                     profile_name=trim(multifile_io_profiles(i)))
-      call multifile_nml%get_value('filename', filename)
+      call multifile_nml%get_value('name', name)
 
-      context_name = "multifile_context_" // trim(filename)
+!!!SP: print diagnostics
+      call log_event('name used to set context_name in step_multifile_io: ' &
+                // trim(name), log_level_info)
+!!!SP: end
+
+      context_name = "multifile_context_" // trim(name)
       call modeldb%io_contexts%get_io_context(context_name, io_context)
 
       if (modeldb%clock%get_step() == io_context%get_stop_time()) then

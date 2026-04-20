@@ -9,13 +9,15 @@
 module iau_firstfile_io_mod
 
   use calendar_mod,              only: calendar_type
-  use constants_mod,             only: str_def, l_def
+  use constants_mod,             only: str_def, l_def, &
+                                       str_max_filename
   use driver_modeldb_mod,        only: modeldb_type
   use field_collection_mod,      only: field_collection_type
   use field_mod,                 only: field_type
   use file_mod,                  only: FILE_MODE_READ
   use inventory_by_mesh_mod,     only: inventory_by_mesh_type
   use io_context_mod,            only: callback_clock_arg
+  use lfric_string_mod,          only: split_string
   use lfric_xios_context_mod,    only: lfric_xios_context_type
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
                                        OPERATION_ONCE
@@ -26,6 +28,10 @@ module iau_firstfile_io_mod
   use sci_geometric_constants_mod, only: get_chi_inventory, &
                                          get_panel_id_inventory
   use step_calendar_mod,         only: step_calendar_type
+!!!SP: temporary
+  use log_mod,                    only : log_event,     &
+                                         log_level_info
+!!!SP: end
 
   implicit none
 
@@ -69,8 +75,8 @@ contains
     character(str_def) :: time_start
     character(str_def) :: prime_mesh_name
     character(str_def) :: context_name
-    character(str_def) :: iau_addinf_path
-    character(str_def) :: iau_bcorr_path
+    character(:), allocatable :: split_filename(:)
+    character(str_def)        :: short_filename
 
     logical(l_def) :: use_xios_io
 
@@ -89,12 +95,18 @@ contains
     call time_nml%get_value('calendar_origin', time_origin)
     call time_nml%get_value('calendar_start', time_start)
     call base_mesh_nml%get_value('prime_mesh_name', prime_mesh_name)
-    call files_nml%get_value('iau_addinf_path', iau_addinf_path)
-    call files_nml%get_value('iau_bcorr_path', iau_bcorr_path)
     call io_nml%get_value('use_xios_io', use_xios_io)
 
+    split_filename = split_string( trim(iau_incs_path), '/' )
+    short_filename = trim(split_filename(size(split_filename)))
+
+!!!SP: print diagnostics
+      call log_event('filename split to short_filename in iau_firstfile_io: ' &
+                // trim(short_filename), log_level_info)
+!!!SP: end
+
     ! get filename and set up context name for this file
-    context_name = "multifile_context_" // trim(iau_incs_path)
+    context_name = "multifile_context_" // trim(short_filename)
     call tmp_io_context%initialise( context_name )
 
     !add context to modeldb

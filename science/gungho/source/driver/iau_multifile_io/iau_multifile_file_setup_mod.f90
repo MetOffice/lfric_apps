@@ -8,9 +8,9 @@
 !>
 module iau_multifile_file_setup_mod
 
-  use constants_mod,         only: i_def, &
-                                   str_def
-  use driver_modeldb_mod,    only : modeldb_type
+  use constants_mod,         only: i_def,          &
+                                   str_max_filename
+  use driver_modeldb_mod,    only: modeldb_type
   use field_collection_mod,  only: field_collection_type
   use file_mod,              only: file_type, FILE_MODE_READ
   use lfric_xios_file_mod,   only: lfric_xios_file_type, OPERATION_ONCE
@@ -39,10 +39,10 @@ contains
 
     implicit none
 
-    type(linked_list_type), intent(out)    :: files_list
-    type(modeldb_type),     intent(inout)  :: modeldb
-    character(*),           intent(in)     :: iau_incs
-    character(str_def),     intent(in)     :: filename
+    type(linked_list_type),      intent(out)   :: files_list
+    type(modeldb_type),          intent(inout) :: modeldb
+    character(*),                intent(in)    :: iau_incs
+    character(str_max_filename), intent(in)    :: filename
 
     integer(i_def) :: ts_start, ts_end
     integer(i_def) :: rc
