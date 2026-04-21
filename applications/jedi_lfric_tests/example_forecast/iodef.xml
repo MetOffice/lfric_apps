@@ -6,6 +6,9 @@
   <!-- Include variable definitions -->
   <variable_definition src="../../lfric_atm/metadata/variable_def_main.xml"/>
 
+  <!-- Include scalar definitions -->
+  <scalar_definition src="../../lfric_atm/metadata/scalar_def_main.xml"/>
+
   <!-- Include axis definitions -->
   <axis_definition src="../../lfric_atm/metadata/axis_def_main.xml"/>
 
