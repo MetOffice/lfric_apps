@@ -47,7 +47,7 @@ contains
 
     call  feign_finite_element_config( cellshape = cellshape_quadrilateral, &
                                        coord_order = 1, &
-                                       coord_order_multigrid = 1, &
+                                       coord_order_nonprime = 1, &
                                        coord_space = coord_space_wchi, &
                                        coord_system = coord_system_xyz, &
                                        element_order_h = 0, &
