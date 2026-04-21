@@ -128,6 +128,8 @@ contains
     procedure(write_interface), pointer :: tmp_write_ptr
     type(io_value_type),        pointer :: temp_corr_io_value
 
+    real( r_def ), allocatable :: temp_corr_data_value(:)
+
     integer(kind=i_def)    :: i, fs
     integer(kind=tik)      :: id
     character(len=str_def) :: name, prefix, field_name
@@ -338,9 +340,10 @@ contains
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+      allocate(temp_corr_data_value, source=temp_corr_io_value%get_data())
       call column_total_diagnostics_alg(rho, mr, derived_fields, exner, &
                                         mesh, twod_mesh,             &
-                                        temp_corr_io_value%data(1))
+                                        temp_corr_data_value(1))
 
     end if
 

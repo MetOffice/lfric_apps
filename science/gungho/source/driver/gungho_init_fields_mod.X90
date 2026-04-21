@@ -556,6 +556,8 @@ subroutine create_model_data( modeldb,      &
 
     type( io_value_type ),               pointer :: temp_corr_io_value
     type( io_value_type ),               pointer :: random_seed_io_value
+    real( kind=r_def ), allocatable :: temp_corr_data_value(:)
+    real( kind=r_def ), allocatable :: random_seed_data_value(:)
     procedure( io_operation_interface ), pointer :: io_op_read_ptr
     procedure( io_operation_interface ), pointer :: io_op_write_ptr
 
@@ -971,22 +973,24 @@ subroutine create_model_data( modeldb,      &
 
         ! Initialise flux sum to zero
         call invoke( setval_c(accumulated_fluxes, 0.0_r_def) )
-
+        allocate(temp_corr_data_value, source=temp_corr_io_value%get_data())
         if ( checkpoint_read ) then
           ! Read the checkpointed temperature correction rate
           call temp_corr_io_value%read_checkpoint()
           write( log_scratch_space,                                     &
                  '("restart_temperature_correction_rate = ", e30.22)' ) &
-            temp_corr_io_value%data(1)
+            temp_corr_data_value(1)
+
           call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
         else
-          temp_corr_io_value%data(1) = 0.0_r_def
+          temp_corr_data_value(1) = 0.0_r_def
+          call temp_corr_io_value%set_data(temp_corr_data_value)
         end if
 
       end if
 
       if ( stochastic_physics == stochastic_physics_um ) then
-        random_seed_size = size(random_seed_io_value%data)
+        random_seed_size = random_seed_io_value%get_data_size()
         allocate(ranseed(random_seed_size))
         ranseed(1:random_seed_size) = 0
 
@@ -1008,13 +1012,15 @@ subroutine create_model_data( modeldb,      &
           end if
         end if
 #endif
+
         if ( checkpoint_read ) then
           ! Read the checkpointed random seed
           call random_seed_io_value%read_checkpoint()
+          allocate(random_seed_data_value, source=random_seed_io_value%get_data())
 
           ! Convert into integer, because io_value_type can accept only real.
           do i = 1, random_seed_size
-            ranseed(i) = nint(random_seed_io_value%data(i), i_def)
+            ranseed(i) = nint(random_seed_data_value(i), i_def)
           end do
         end if
 
@@ -1077,6 +1083,8 @@ subroutine create_model_data( modeldb,      &
     type( field_collection_type ), pointer :: prognostic_fields
 
     type( io_value_type ), pointer :: random_seed_io_value
+    real( r_def ), allocatable :: random_seed_data_value(:)
+
     integer(i_def) :: i
     integer(i_def) :: random_seed_size
     integer(i_def), allocatable :: ranseed(:)
@@ -1107,15 +1115,17 @@ subroutine create_model_data( modeldb,      &
       if ( stochastic_physics == stochastic_physics_um ) then
         ! Get current random seed
         random_seed_io_value => get_io_value(modeldb%values, 'random_seed_io_value')
-        random_seed_size = size(random_seed_io_value%data)
+        random_seed_size = random_seed_io_value%get_data_size()
         allocate(ranseed(random_seed_size))
 
         call random_seed(get = ranseed(1:random_seed_size))
 
         ! Convert into real, because io_value_type cannot accept integer.
+        allocate(random_seed_data_value, source=random_seed_io_value%get_data())
         do i = 1, random_seed_size
-          random_seed_io_value%data(i) = real(ranseed(i), r_def)
+          random_seed_data_value(i) = real(ranseed(i), r_def)
         end do
+        call random_seed_io_value%set_data(random_seed_data_value)
         deallocate(ranseed)
       end if
       call split_complex_prognostics( prognostic_fields )
