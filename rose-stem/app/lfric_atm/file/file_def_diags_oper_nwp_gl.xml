@@ -26,6 +26,7 @@
       <field field_ref="surface__dew_point"/>
       <field field_ref="surface__vis_prob_5km"/>
       <field field_ref="surface__visibility_with_precip"/>
+      <field field_ref="surface__visibility_with_dust"/>
       <field field_ref="surface__canopy_height"/>
       <field field_ref="surface__canopy_water"/>
       <field field_ref="surface__u10m_neut"/>

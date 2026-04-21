@@ -46,6 +46,7 @@ module bl_imp_diags_mod
   logical( l_def ) :: pseudotauy_flag
   logical( l_def ) :: vis_no_precip_flag
   logical( l_def ) :: vis_with_precip_flag
+  logical( l_def ) :: vis_with_dust_flag
   logical( l_def ) :: fog_fraction_flag
   logical( l_def ) :: fog_fraction_ssi_flag
   logical( l_def ) :: fog_fraction_land_flag
@@ -176,6 +177,9 @@ contains
   !> @param[in]     mr                       Rain mixing ratio
   !> @param[in]     nr_mphys                 Rain number mixing ratio
   !> @param[in]     ns_mphys                 Snow number mixing ratio
+  !> @param[in]     murk                     ???
+  !> @param[in]     acc_ins_du               Accumulated <something> dust
+  !> @param[in]     cor_ins_du               Coarse <something> dust
   !> @param[in]     cf_bulk                  Bulk cloud fraction
   !> @param[in]     cf_area                  Area cloud fraction
   !> @param[in]     cf_liq                   Liquid cloud fraction
@@ -218,6 +222,7 @@ contains
                                      z0m_eff, rho_in_w3, wetrho_in_w3,         &
                                      mv, mcl, mci, mr,                         &
                                      nr_mphys, ns_mphys, murk,                 &
+                                     acc_ins_du, cor_ins_du,                   &
                                      cf_bulk, cf_area, cf_liq, cf_fro,         &
                                      dtheta_bl, exner_in_wth, dt_conv,         &
                                      t1p5m, q1p5m, qcl1p5m,                    &
@@ -234,6 +239,7 @@ contains
     ! Prognostic fields input, used in calculations
     type( field_type ), intent(in)    :: mv, mcl, mci, mr,                     &
                                          nr_mphys, ns_mphys, murk,             &
+                                         acc_ins_du, cor_ins_du,               &
                                          cf_bulk, cf_area, cf_liq, cf_fro,     &
                                          rho_in_w3, wetrho_in_w3,              &
                                          exner_in_wth, z0m_eff, bl_weight_1dbl,&
@@ -269,6 +275,7 @@ contains
     type( field_type ) :: scale_dep_wind_gust
     type( field_type ) :: visibility_with_precip
     type( field_type ) :: visibility_no_precip
+    type( field_type ) :: visibility_with_dust
     type( field_type ) :: fog_fraction
     type( field_type ) :: fog_fraction_ssi
     type( field_type ) :: fog_fraction_land
@@ -395,6 +402,7 @@ contains
     scale_dep_wind_gust_flag = init_diag(scale_dep_wind_gust, 'surface__scale_dep_wind_gust')
     vis_no_precip_flag = init_diag(visibility_no_precip, 'surface__visibility_no_precip')
     vis_with_precip_flag = init_diag(visibility_with_precip, 'surface__visibility_with_precip')
+    vis_with_dust_flag = init_diag(visibility_with_dust, 'surface__visibility_with_dust')
     fog_fraction_flag = init_diag(fog_fraction, 'surface__fog_fraction')
     fog_fraction_ssi_flag = init_diag(fog_fraction_ssi, 'surface__fog_fraction_ssi')
     fog_fraction_land_flag = init_diag(fog_fraction_land, 'surface__fog_fraction_land')
@@ -408,17 +416,25 @@ contains
       ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
     end if
 
+    ! visibility_with_dust requires visibility_no_precip
+    if (vis_with_dust_flag .and. .not. vis_no_precip_flag) then
+      ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
+    end if
+
     if ( wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
          vis_no_precip_flag .or. vis_with_precip_flag .or.                     &
          fog_fraction_flag .or. fog_fraction_ssi_flag .or.                     &
          fog_fraction_land_flag .or. vis_prob_5km_flag .or. dew_point_flag     &
          .or. dew_point_ssi_flag .or. dew_point_land_flag ) then
 
+      ! aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+
       ! Calculate various extra diagnostics
       call invoke( bl_extra_diags_kernel_type( rho_in_w3, wetrho_in_w3,        &
                                                heat_flux_bl, moist_flux_bl,    &
                                                exner_in_wth, mci, mr,          &
                                                nr_mphys, ns_mphys, murk,       &
+                                               acc_ins_du, cor_ins_du,         &
                                                zh, t1p5m, q1p5m, qcl1p5m,      &
                                                t1p5m_ssi, q1p5m_ssi,           &
                                                qcl1p5m_ssi,                    &
@@ -435,12 +451,14 @@ contains
                                                dew_point, dew_point_ssi,       &
                                                dew_point_land,                 &
                                                visibility_with_precip,         &
-                                               visibility_no_precip ) )
+                                               visibility_no_precip,           &
+                                               visibility_with_dust ) )
 
       if (wind_gust_flag) call wind_gust%write_field()
       if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
       if (vis_no_precip_flag) call visibility_no_precip%write_field()
       if (vis_with_precip_flag) call visibility_with_precip%write_field()
+      if (vis_with_dust_flag) call visibility_with_dust%write_field()
       if (fog_fraction_flag) call fog_fraction%write_field()
       if (fog_fraction_ssi_flag) call fog_fraction_ssi%write_field()
       if (fog_fraction_land_flag) call fog_fraction_land%write_field()
