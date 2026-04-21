@@ -1,3 +1,9 @@
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
+
 import argparse
 import logging
 import os
@@ -29,7 +35,9 @@ def copy_rose_meta(rose_meta_dest: Path, clone_loc: Path) -> None:
         copytree(directory, rose_meta_dest / directory.name, dirs_exist_ok=True)
 
 
-def copy_extracted_files(dependency: str, extract_lists: dict, working: Path, clone_loc: Path) -> None:
+def copy_extracted_files(
+    dependency: str, extract_lists: dict, working: Path, clone_loc: Path
+) -> None:
     """
     Copy extracted files to the working dir based on extract list
     """
@@ -53,7 +61,13 @@ def copy_extracted_files(dependency: str, extract_lists: dict, working: Path, cl
     run_command(copy_command)
 
 
-def extract_files(dependencies: dict, rose_meta: str, extract_lists: dict, working: Path, meta: Path) -> None:
+def extract_files(
+    dependencies: dict,
+    working: Path,
+    meta: Path,
+    rose_meta: str = "",
+    extract_lists: dict = {},
+) -> None:
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
@@ -81,7 +95,6 @@ def extract_files(dependencies: dict, rose_meta: str, extract_lists: dict, worki
             copy_extracted_files(dependency, extract_lists, working, clone_loc)
 
 
-
 def parse_args() -> argparse.Namespace:
     """
     Read command line args
@@ -100,7 +113,7 @@ def parse_args() -> argparse.Namespace:
         "--meta_dir",
         default=None,
         help="Path to store externally extracted rose-meta. Used if --rose-meta set. "
-        "Defaults to args.working/../rose-meta"
+        "Defaults to args.working/../rose-meta",
     )
     parser.add_argument(
         "-e",
@@ -115,7 +128,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Should be a repository in the dependencies file. If set, copy the "
         "dependencies rose-meta directory contents to working/../rose-meta. "
-        "If set, the extract file will be ignored, and just rose-metadata copied"
+        "If set, the extract file will be ignored, and just rose-metadata copied",
     )
 
     args = parser.parse_args()
@@ -134,10 +147,19 @@ def main():
 
     dependencies: dict = load_yaml(args.dependencies)
 
+    # If args.rose_meta is set then extract rose-meta contents from that repo
     if args.rose_meta:
-        extract_files(dependencies, args.rose_meta, [], args.working, args.meta_dir)
+        extract_files(
+            dependencies, args.working, args.meta_dir, rose_meta=args.rose_meta
+        )
+    # If args.rose_meta is not set, then extract files based on the provided extract list
     else:
-        extract_files(dependencies, args.rose_meta, load_yaml(args.extract), args.working, args.meta_dir)
+        extract_files(
+            dependencies,
+            args.working,
+            args.meta_dir,
+            extract_lists=load_yaml(args.extract),
+        )
 
 
 if __name__ == "__main__":
