@@ -76,40 +76,40 @@ valid structures to use in this respect.*
 
 - One may diagnose cloud fractions and condensate contents from
   knowledge of gridbox mean variables. This forms the basis of the
-  :raw-latex:`\cite{smith90}` scheme, which is described in .
+  `Smith (1990)`_ scheme, which is described in .
 
-- A mixed scheme, such as :raw-latex:`\cite{sundqvist1978}` uses a
+- A mixed scheme, such as `Sundqvist (1978)`_ uses a
   prediction of condensate contents, but a diagnostic cloud fraction.
 
 - Alternatively, one may predict cloud fraction and condensate content
   changes as a result of each modelled process. This forms the basis of
-  the :raw-latex:`\cite{t93}` scheme and the PC2 scheme.
+  the `Tiedtke (1993)`_ scheme and the PC2 scheme.
 
-- Hybrid schemes, such as :raw-latex:`\cite{t02}`, will predict various
+- Hybrid schemes, such as `Tompkins (2002)`_, will predict various
   moments of the subgrid-scale variability, and use this knowledge to
   diagnose the cloud fraction and condensate contents.
 
 Many years of experience of the results from the
-:raw-latex:`\cite{smith90}` scheme have highlighted deficiences in the
+`Smith (1990)`_ scheme have highlighted deficiences in the
 diagnosis of cloud from this scheme, which we feel can only be tackled
 by adding the memory of cloud history available by using a prognostic
 based scheme. We chose to develop a scheme that directly specified the
 impacts on observable prognostics (condensates and cloud fractions, as
-in :raw-latex:`\cite{t93}`) rather than on moments of a probability
-density function (as in :raw-latex:`\cite{t02}`). This is because we
+in `Tiedtke (1993)`_) rather than on moments of a probability
+density function (as in `Tompkins (2002)`_). This is because we
 believe it is easier to physically relate (and hence parametrize) the
 effect processes to quantities such as cloud fraction and condensate
 rather than to the more abstract quantities of moments of a probability
 density function of moisture. However, although the PC2 scheme is
-similar to :raw-latex:`\cite{t93}` in its very basic prognostic variable
+similar to `Tiedtke (1993)`_ in its very basic prognostic variable
 structure, the assumptions behind the formulation of the prognostic
 terms in PC2 are very different and much improved. The PC2 scheme should
-not be considered to be merely an extension of :raw-latex:`\cite{t93}`.
+not be considered to be merely an extension of `Tiedtke (1993)`_.
 
 In particular, we wish to use a prognostic formulation in order to link
 the detraiment of moisture from convection directly to cloud fraction,
 and to break the hard diagnostic link between cloud fraction and
-condensate. These major features of the :raw-latex:`\cite{t93}` scheme
+condensate. These major features of the `Tiedtke (1993)`_ scheme
 provide the motivation to develop the PC2 cloud scheme.
 
 .. _The ‘s’ distribution:
@@ -120,10 +120,10 @@ The ‘s’ distribution
 Most cloud schemes are based on the concept of a distribution of
 fluctuations of moisture and temperature in the gridbox. Here we
 mathematically formalize this concept, since it is used both in the PC2
-scheme and the :raw-latex:`\cite{smith90}` scheme.
+scheme and the `Smith (1990)`_ scheme.
 
-This method was first formulated by :raw-latex:`\cite{m77}` and
-:raw-latex:`\cite{sommeria_deardorff_1977}` for large-eddy simulations.
+This method was first formulated by `Mellor (1977)`_ and
+`Sommeria and Deardorff (1977)`_ for large-eddy simulations.
 It can also be applied to larger scale models. It allows us to calculate
 vapour and liquid contents and liquid cloud fraction from knowledge only
 of the combined vapour+liquid content, :math:`\overline{q_T}`, and the
@@ -259,7 +259,7 @@ calculated using :eq:`eq:a_L` from
 This definition of :math:`\alpha` and :math:`a_L` will retrieve an
 *exact* value for the gridbox mean :math:`\overline{q_{cl}}` *if* the
 distribution is monodispersed. Hence it is the sensible form to use for
-a purely diagnostic representation such as :raw-latex:`\cite{smith90}`
+a purely diagnostic representation such as `Smith (1990)`_
 where we explicitly consider distributions of :math:`s`. Strictly, the
 linear approximation implies that other approximations for
 :math:`\alpha` are valid: PC2 will do this (see section
@@ -289,12 +289,12 @@ for :math:`C_l` and :math:`\overline{q_{cl}}`. Note that this
 distribution is in terms of :math:`s`, there is no need to know the
 three-dimensional distribution in terms of three separate variables
 :math:`q_T`, :math:`T_L` and :math:`p`. This is the method used by
-:raw-latex:`\cite{smith90}`, where a symmetric triangular distribution
+`Smith (1990)`_, where a symmetric triangular distribution
 function is used. For further information on the
-:raw-latex:`\cite{smith90}` scheme, please refer to . Physics and
+`Smith (1990)`_ scheme, please refer to . Physics and
 dynamics schemes hence only need to provide increments to
 :math:`\overline{q_T}` and :math:`\overline{T_L}`, provided that a
-diagnostic scheme (such as :raw-latex:`\cite{smith90}`) is called at
+diagnostic scheme (such as `Smith (1990)`_) is called at
 some point in the timestep to partition :math:`\overline{q_T}` into
 :math:`\overline{q}` and :math:`\overline{q_{cl}}`, to calculate the dry
 bulb temperature :math:`\overline{T}` (from :math:`\overline{T_L}` and
@@ -385,9 +385,9 @@ concept of instantaneous condensation for liquid clouds. Equations
 homogeneous forcing methods discussed in section :ref:`Homogeneous forcing`.
 We note in particular that the convective cloud fraction, previously a
 quantity that is diagnosed separately from the large-scale cloud
-fraction calculated by the :raw-latex:`\cite{smith90}` scheme, may, in
+fraction calculated by the `Smith (1990)`_ scheme, may, in
 PC2, be included as part of the large-scale cloud fraction. This aspect
-is similar to the :raw-latex:`\cite{t93}` approach.
+is similar to the `Tiedtke (1993)`_ approach.
 
 The final aim of PC2 is that the parametrization of each term in
 :eq:`eq:dqcldt_and_dcdt` is performed by each
@@ -418,7 +418,7 @@ A note on convective cloud fraction
 
 It was the original intention that PC2 be able to replace the two
 separate diagnostic cloud fractions (large-scale and convective) with a
-single cloud fraction, as in :raw-latex:`\cite{t93}`. The hypothesis was
+single cloud fraction, as in `Tiedtke (1993)`_. The hypothesis was
 that by detraining cloud directly from the convection scheme we would no
 longer need a separate representation of this cloud type. Our experience
 with PC2 is that this is not necessarily the case. We suspect that the
@@ -428,7 +428,7 @@ create cloud associated with the detrainment part of the convection
 scheme, assuming that cloud associated with the active updraughts in
 convection is small. This assumption is not necessarily applicable.
 Similar arguments, and model results, come from analysis of the
-:raw-latex:`\cite{t93}` and :raw-latex:`\cite{t02}` scheme (Ben Johnson,
+`Tiedtke (1993)`_ and `Tompkins (2002)`_ scheme (Ben Johnson,
 personal communication). We also note that with two cloud fraction types
 and two different optical depths it is possible to have a basic degree
 of representation of cloud inhomogeneity.
@@ -504,7 +504,7 @@ deficit, :math:`SD`, rather than tie :math:`G(-Q_c)` to a process. The
 saturation deficit is *defined* here in the ‘s’ framework to be the
 first moment of the PDF for ‘s’ values less than :math:`-Q_c`. In this
 way it is analogous to the liquid water content,
-:math:`\overline{q_{cl}}`. Appendix A of :raw-latex:`\cite{wg03}` writes
+:math:`\overline{q_{cl}}`. Appendix A of `Wilson and Gregory (2003)`_ writes
 this *definition* as
 
 .. math:: :label: SD
@@ -520,7 +520,7 @@ and shows this is equivalent to
 The basis behind the parametrization for :math:`G(-Q_c)` is to consider
 an underlying form of the distribution :math:`G(s)` near the
 :math:`+b_s` and :math:`-b_s` ends. We borrow the notation of
-:raw-latex:`\cite{smith90}` and refer to a quantity :math:`b_s` that is
+`Smith (1990)`_ and refer to a quantity :math:`b_s` that is
 the value of :math:`s` when a monomodal distribution :math:`G(s)` just
 equals zero. We suppose that the distribution G can be described as a
 power law near :math:`s=b_s`.
@@ -532,7 +532,7 @@ power law near :math:`s=b_s`.
 provided :math:`s<b_s`, where :math:`b_s` represents the ‘width’ of the
 distribution (so :math:`G(-Q_c)` = 0 at :math:`-Q_c` = :math:`b_s`) and
 n is a power. From :eq:`eqn19` it can be shown (see appendix
-B of :raw-latex:`\cite{wg03}`) that
+B of `Wilson and Gregory (2003)`_) that
 
 .. math:: :label: eqn20
 
@@ -541,7 +541,7 @@ B of :raw-latex:`\cite{wg03}`) that
 An important feature is that the proportionality between :math:`G(-Q_c)`
 and :math:`{\frac{C^2}{\overline{l}} }` holds for any power law
 description. Also, this relationship is independent of the value of
-:math:`b_s`. The triangular :raw-latex:`\cite{smith90}` scheme obeys
+:math:`b_s`. The triangular `Smith (1990)`_ scheme obeys
 this relationship (for :math:`C_l` less than 0.5) with :math:`n`\ =1, as
 does a ‘top hat’ function which is a limiting case of :math:`n` tending
 to zero. This invariant functional form can be exploited in deriving a
@@ -554,8 +554,8 @@ for the other end of the distribution we can write a second estimate of
    {G_2(-Q_c) = {\frac{(n+1)}{(n+2)}} {\frac{{(1-C_l)}^2}{SD}} .}
 
 We note that if n tends to zero then :eq:`eqn21` is identical
-to the expression used by :raw-latex:`\cite{jgt99}`. This is because
-:raw-latex:`\cite{jgt99}` also uses a similar description of a ‘top-hat’
+to the expression used by `Jakob et al. (1999)`_. This is because
+`Jakob et al. (1999)`_ also uses a similar description of a ‘top-hat’
 PDF of fluctuations.
 
 In order that the closure of :math:`G(-Q_c)` is reversible, we take a
@@ -571,7 +571,7 @@ form a complete mathematical set for the solution of :math:`C_l` and
 initial value of :math:`C_l` is not identically 0 or 1. If :math:`C_l`
 is 0 or 1 then :math:`G(-Q_c)` remains at zero. The equation set then
 needs to be initiated in some way. This is discussed further in
-:raw-latex:`\cite{wg03}` and in section :ref:`Initiation of cloud`. If
+`Wilson and Gregory (2003)`_ and in section :ref:`Initiation of cloud`. If
 :math:`G(-Q_c)` is defined, then application of the above equation set
 may be used to trace out an underlying PDF for any input values of
 :math:`C_l`, :math:`\overline{q_{cl}}` and :math:`SD`. Although we never
@@ -579,7 +579,7 @@ need to define the complete PDF in PC2 (just the value of
 :math:`G(-Q_c)` from equation :eq:`eqn22`, a PDF can be
 inferred off-line if required.
 
-:raw-latex:`\cite{wg03}` analyse the performance of this parametrization
+`Wilson and Gregory (2003)`_ analyse the performance of this parametrization
 under idealised tests, and shows it performs well against other cloud
 parametrizations used in large-scale models. After extensive analysis
 including observed PDF shapes and moments from balloon, performance in
@@ -649,7 +649,7 @@ Weight in proportion to PDF width
 This option is selected by setting **i_pc2_homog_g_method=2** in the UM
 large-scale cloud namelist.
 
-:raw-latex:`\cite{morcrette_2020}` proposed an alternative choice of
+`Morcrette (2020)`_ proposed an alternative choice of
 weights applied to :math:`G_1(-Q_c)` :eq:`eqn20` and
 :math:`G_2(-Q_c)` :eq:`eqn21`, so-as to make each one’s
 weight go to zero in the limit that it goes to infinity, reliably
@@ -675,7 +675,7 @@ cancels-out in the numerator, so this reduces to:
    G(-Q_c) = \frac{(n+1)}{(n+2)} \frac{ 1
              }{ \frac{\overline{q_{cl}}}{C_l} + \frac{SD}{1-C_l} }
 
-In full UM tests, :raw-latex:`\cite{morcrette_2020}` found that this
+In full UM tests, `Morcrette (2020)`_ found that this
 closure removed occasional spurious very large cloud-fraction increments
 that occur when using :eq:`eqn22`, but did not significantly
 impact the performance of the model forecast.
@@ -745,13 +745,13 @@ locally is defined by the local dry-bulb temperature (:math:`T`) and we
 need to consider *changes* in the condensate. This has been confirmed
 using simulations using a single gridbox model. contains a longer
 discussion of this issue, but we note here that the
-:raw-latex:`\cite{smith90}` scheme performs best when it does not use
+`Smith (1990)`_ scheme performs best when it does not use
 :math:`T` to calculate :math:`\alpha` but the gradient of the chord
 between :math:`(\overline{T_L}, q_{sat}(\overline{T_L}))` and
 :math:`(\overline{T}, q_{sat}(\overline{T}))`, as in
 :eq:`eq:alpha`. The best choice is dependent on the method
 of implementation. PC2 uses :eq:`eq:a_L` with the standard
-thermodynamic relationships (e.g. :raw-latex:`\cite{ry89}`, chapter 2)
+thermodynamic relationships (e.g. `Rogers and Yau (1989)`_, chapter 2)
 
 .. math:: :label: eq:alpha_exp
 
@@ -830,11 +830,11 @@ is altered. This is, perhaps, the simplest method of representing a
 process that changes the shape of the PDF, and we will, in PC2, apply it
 to represent mixing of air within a gridbox, although this is a
 significant approximation of the process. Its application fulfils the
-role of the “cloud erosion” term in the :raw-latex:`\cite{t93}` scheme.
+role of the “cloud erosion” term in the `Tiedtke (1993)`_ scheme.
 By linking the term to the PDF shape we can place this term on a
 stronger mathematical footing than the simple reduction term
-parametrized by :raw-latex:`\cite{t93}`. Equivalent arguments enabled
-:raw-latex:`\cite{ww99}` to retrieve the same result as presented here.
+parametrized by `Tiedtke (1993)`_. Equivalent arguments enabled
+`Wang and Wang (1999)`_ to retrieve the same result as presented here.
 
 We can consider a change in the width of the PDF to alter its form
 according to
@@ -949,7 +949,7 @@ we start from a position where :math:`C_l` is 0 or 1. To complete this
 set, we will need to define a width, :math:`b_s`, to the PDF and provide
 an initiation increment to :math:`C_l` and :math:`\overline{q_{cl}}`
 when the value of :math:`-Q_c` crosses the limit of the distribution.
-There is more discussion in :raw-latex:`\cite{wg03}`.
+There is more discussion in `Wilson and Gregory (2003)`_.
 
 To initiate new partial cloud-cover (or new partial clear-sky), we
 essentially call a diagnostic cloud scheme to initialise the prognostics
@@ -978,13 +978,13 @@ description in :eq:`eqn19` to obtain the expressions
    \overline{q_{cl}} = \frac{1}{2 b_s^{n+1}} \frac{(b_s + Q_c)^{n+2}}{n+2} .
 
 We now need to parametrize the PDF width :math:`b_s`. Unlike the
-:raw-latex:`\cite{smith90}` scheme, this is the only location in the PC2
+`Smith (1990)`_ scheme, this is the only location in the PC2
 cloud scheme where the width needs to be defined for the liquid cloud
 (although see section :ref:`Deposition and sublimation` for a discussion of an
 equivalent width in the deposition / sublimation relationship for ice
 cloud). We still choose to define :math:`b_s` in terms of a critical
 relative humidity parameter, :math:`RH_{crit}`. Like the
-:raw-latex:`\cite{smith90}` scheme (see ), we define the value of
+`Smith (1990)`_ scheme (see ), we define the value of
 :math:`b_s` as
 
 .. math:: :label: eq:bs
@@ -992,8 +992,8 @@ relative humidity parameter, :math:`RH_{crit}`. Like the
    b_s = a_L (1 - RH_{crit}) q_{sat} (\overline{T_L}) .
 
 Hence, if the parameter :math:`n` was the same in PC2 as the equivalent
-in :raw-latex:`\cite{smith90}`, the initial creation of liquid cloud
-would follow precisely that diagnosed by the :raw-latex:`\cite{smith90}`
+in `Smith (1990)`_, the initial creation of liquid cloud
+would follow precisely that diagnosed by the `Smith (1990)`_
 scheme (assuming that the numerical implementation of the calculation is
 the same). Its subsequent behaviour in PC2, though, would be different,
 because the subsequent physical processes that act are parametrized in
@@ -1029,7 +1029,7 @@ The conversion between :math:`SD` and :math:`\overline{q_{cl}}` follows
 :math:`\frac{\partial q_{sat}(\overline{T})}{\partial t}`, although
 within this diagnostic calculation of SD it might actually be better to
 use the representation :eq:`eq:alpha` used by the
-diagnostic :raw-latex:`\cite{smith90}` scheme.
+diagnostic `Smith (1990)`_ scheme.
 
 .. _Numerical Application of the Smith method:
 
@@ -1202,7 +1202,7 @@ We will assume a physical model whereby saturated air, containing
 condensate, randomly replaces already existing air in the gridbox. (Such
 a formulation is designed to represent air detrained from convection
 replacing pre-existing air when averaged over a large horizontal
-domain). :raw-latex:`\cite{bwg03}` discusses the situation in more
+domain). `Bushell et al. (2003)`_ discusses the situation in more
 detail. Briefly, we consider two parts to the distribution function
 :math:`G(s)`. One part represents the background air. This maintains its
 PDF shape (in terms of absolute :math:`q_T` and :math:`T_L` values)
@@ -1277,7 +1277,7 @@ Multiple phases in the injection source
 The injection source formulation can be extended to multiple phases of
 condensate. In practice, this will simply be the two phases ice and
 liquid, although we need to recognize that they can overlap with each
-other. :raw-latex:`\cite{wilson2001}` provides the background to the
+other. `Wilson (2001)`_ provides the background to the
 derivation and it is briefly presented below.
 
 We firstly rewrite :eq:`eq:dqcldt_inhom` but use
@@ -1669,9 +1669,9 @@ parcel ascent, and a cloud-top value of 0.1 at the top of the capping
 inversion, :math:`z_i^{top}`. The cloud-base value of :math:`C_{forced}`
 varies linearly between 0.1 and 0.3 for cloud depths between 100 m and
 300 m based loosely on SGP ARM site observations
-:raw-latex:`\cite{zk13}`. The inversion top is taken to be the boundary
+`Zhang and Klein (2013)`_. The inversion top is taken to be the boundary
 layer depth, :math:`z_h` plus the inversion thickness,
-:math:`\Delta z_i` parametrized following :raw-latex:`\cite{rb08}` as:
+:math:`\Delta z_i` parametrized following `Beare (2008)`_ as:
 
 .. math:: :label: dz_param
 
@@ -1682,7 +1682,7 @@ where :math:`w_m` is the boundary layer velocity scale
 buoyancy that is integrated over the depth of the inversion assuming a
 piece-wise linear variation between grid-levels. Note that the constant
 in :eq:`dz_param` is the same as in
-:raw-latex:`\cite{rb08}` because :math:`6.3 = 2.5 * 4^{2/3}` and
+`Beare (2008)`_ because :math:`6.3 = 2.5 * 4^{2/3}` and
 :math:`w_m^3` differs by a factor of 4.
 
 The in-cloud water content at the top of the inversion is estimated
@@ -1741,7 +1741,7 @@ Turbulence-driven production of subgrid scale liquid cloud
 Introduction
 ~~~~~~~~~~~~
 
-:raw-latex:`\cite{fhfk14}` developed a model for subgrid liquid water
+`Field et al. (2014)`_ developed a model for subgrid liquid water
 production by turbulent motions. Their method uses an exactly soluble
 stochastic process to describe subgrid relative humidity (RH)
 fluctuations. The probability density function (PDF) of the fluctuations
@@ -1750,7 +1750,7 @@ pre-existing ice cloud. The liquid cloud properties (cloud fraction and
 liquid water content) can be then be calculated as truncated moments of
 the PDF.
 
-:raw-latex:`\cite{fhfk14}` initially used their model to understand and
+`Field et al. (2014)`_ initially used their model to understand and
 parametrize the results of Large Eddy Simulations (LES) of
 shear-induced, Altostratus clouds. They obtained excellent agreement
 between their theoretically predicted predicted mean cloud properties
@@ -1758,7 +1758,7 @@ and the bulk properties of the LES clouds. Subsequently, their model has
 been used as the basis of subgrid cloud initiation method for use in the
 Unified Model in conjunction with the PC2 prognostic cloud scheme. In
 Section :ref:`Model description` we outline the model of
-:raw-latex:`\cite{fhfk14}`. In Section
+`Field et al. (2014)`_. In Section
 :ref:`Model implementation and closure relations` we described its implementation in
 the GCM.
 
@@ -1767,7 +1767,7 @@ the GCM.
 Model description
 ~~~~~~~~~~~~~~~~~
 
-:raw-latex:`\cite{fhfk14}` started from the equation for the dynamics of
+`Field et al. (2014)`_ started from the equation for the dynamics of
 ice supersaturation :math:`S_i=e_v/e_{sat\;ice}-1`:
 
 .. math:: :label: eqn:squires_eqn
@@ -1801,7 +1801,7 @@ depositional growth of ice crystals, the second term models entrainment
 (mixing) of environmental air into the cloudy volume and the third term
 is a source term due to vertical air motions.
 
-:raw-latex:`\cite{fhfk14}` modeled vertical velocity as a white-noise
+`Field et al. (2014)`_ modeled vertical velocity as a white-noise
 process with autocorrelation function:
 
 .. math:: \overline{w(t)w(s)} = \sigma_w^2 \tau_{\rm d} \delta(t-s),
@@ -1811,7 +1811,7 @@ noise, :math:`\sigma_w^2`, will be called the standard derivation of the
 vertical velocity fluctuations (due to the white nature of noise, a true
 expectation value :math:`\overline{w^2}` is not defined) and
 :math:`\tau_{\rm d}` a Lagrangian decorrelation time define here by the
-relation used by :raw-latex:`\cite{rodean1997}`:
+relation used by `Rodean (1997)`_:
 
 .. math:: :label: eqn:taud
 
@@ -1823,7 +1823,7 @@ Because it is linear in :math:`S_i`, Equation
 :eq:`eqn:squires_eqn` can be solved exactly, for any
 given realisation of the noise term. By averaging the solutions over the
 the noise and taking a steady-state limit (see
-:raw-latex:`\cite{fhfk14}` for details) it can be shown that the
+`Field et al. (2014)`_ for details) it can be shown that the
 solution PDF is Gaussian with mean and variance given by:
 
 .. math:: :label: eqn:si_avg
@@ -1927,7 +1927,7 @@ Finally, where :math:`T`, :math:`p` and :math:`q` appear in the
 expressions for :math:`C_l^{sgt}` and :math:`q_{cl}^{sgt}`, these are
 taken to be the grid box mean values. The first moment of the ice PSD,
 :math:`{\cal M}_1`, is found from the parametrization, due to
-:raw-latex:`\cite{fhbicc05}`, described in Section 4.1 of UMDP26.
+`Field et al. (2005)`_, described in Section 4.1 of UMDP26.
 
 .. _Options for incrementing model prognostics:
 
@@ -2512,7 +2512,7 @@ between 0 and 1 and that :math:`C_t` is bounded between
 We should note in particular, that these parametrizations allow a
 considerable reduction in :math:`\overline{q_{cl}}` without a
 corresponding large reduction in :math:`C_l`. This is an underlying
-feature of the PC2 scheme (discussed in :raw-latex:`\cite{wg03}`), and
+feature of the PC2 scheme (discussed in `Wilson and Gregory (2003)`_), and
 necessarily implies the skewing of the underlying moisture PDF.
 Subsequent parts of the model (e.g. the width narrowing, section
 :ref:`Changing the width of the PDF - PC2 erosion`) will, of course, act on the modified fields to
@@ -2573,7 +2573,7 @@ to calculate increments in :math:`\overline{q_{cl}}` and :math:`C_l`.
 Using the liquid - ice cloud overlap ideas of section :ref:`Ice cloud and mixed phase regions`
 then gives the associated :math:`C_t` change. This background narrowing
 term, :math:`\Upsilon`, is originally based upon work by
-:raw-latex:`\cite{sg03}`, although it is a parameter that has been
+`Stiller and Gregory (2003)`_, although it is a parameter that has been
 extensively tuned during PC2 development, a typical value would be
 :math:`\Upsilon=-2.25 \times 10^{-5} s^{-1}`.
 
@@ -2619,7 +2619,7 @@ Cloud-surface-area hybrid erosion method
 
 (selected by setting **i_pc2_erosion_method = 3** in the UM namelist).
 
-:raw-latex:`\cite{morcrette_petch}` showed that changes to the erosion
+`Morcrette and Petch (2010)`_ showed that changes to the erosion
 parameter (:math:`\Upsilon` in Eqn.
 :eq:`eq:dbsbydtbs_turb` did not have as
 significant an impact on the global work done by the erosion process as
@@ -2636,7 +2636,7 @@ developed from a pragmatic rather than theoretical stand-point. The
 option for an alternative way of calculating the erosion was introduced
 at vn8.0
 
-We use equation 30 from :raw-latex:`\cite{t93}` to specify the sink of
+We use equation 30 from `Tiedtke (1993)`_ to specify the sink of
 :math:`q_{cl}` due to erosion, i.e.
 
 .. math:: :label: eq:dqcldt_hybrid
@@ -2644,9 +2644,9 @@ We use equation 30 from :raw-latex:`\cite{t93}` to specify the sink of
    \frac{\partial q_{cl}}{\partial t}=-A K(q_{sat}-q_v)
 
 (note we have changed the sign as we have replaced the evaporation rate
-:math:`E_2` in :raw-latex:`\cite{t93}` with
+:math:`E_2` in `Tiedtke (1993)`_ with
 :math:`-\frac{\partial q_{cl}}{\partial t}` on the left-hand-side). In
-the :raw-latex:`\cite{t93}` scheme, :math:`A` is set to the cloud
+the `Tiedtke (1993)`_ scheme, :math:`A` is set to the cloud
 fraction (i.e. :math:`A=C_l`). Here we recall that "cloud erosion" is
 meant to represent the evaporation of cloud water due to the mixing of
 clear and cloudy air and that this can only happen on the edges of
@@ -3905,7 +3905,7 @@ Hence we can write
    + (1 - \Delta C_S) \Delta \overline{q_{background}}
 
 where :math:`\Delta C_S` is the volume of plume air that is detrained
-into the gridbox, as discussed by :raw-latex:`\cite{bwg03}`. :math:`T_s`
+into the gridbox, as discussed by `Bushell et al. (2003)`_. :math:`T_s`
 is the temperature of the air injected into the gridbox by the plume.
 The first term is simply the difference between the value of :math:`q`
 in the plume and what was previously in the gridbox, and the second term
@@ -3937,7 +3937,7 @@ uniform forcing for the background air. Hence
    ( q_{sat liq}(T_{s}) - \overline{q} ) .
 
 where :math:`A_q |_{background}` is the currently unknown background
-forcing of :math:`q` (see :raw-latex:`\cite{gwb02}`) and
+forcing of :math:`q` (see `Gregory et al. (2002)`_) and
 :math:`\Delta t` is the timestep. We can do the same analysis for the
 temperature change, and obtain
 
@@ -3952,7 +3952,7 @@ of temperature.
 
 The full change of liquid water content in the gridbox is that injected,
 :math:`Q4~\Delta t`, plus the amount of condensation in the background
-from the uniform forcings (see :raw-latex:`\cite{wg03}`). Note that the
+from the uniform forcings (see `Wilson and Gregory (2003)`_). Note that the
 uniform forcings are only applied across a proportion
 :math:`1 - \Delta C_S` of the gridbox. Hence these two terms give, using
 the homogeneous forcing equations :eq:`dqcldt` and
@@ -4046,11 +4046,11 @@ Thus we are able to parametrize the net condensation and cloud changes
 associated with the :math:`Q1` and :math:`Q2` terms in a physically more
 consistent way than using simple homogeneous application of these terms.
 
-As an aside, we note that in the :raw-latex:`\cite{t93}` scheme the
+As an aside, we note that in the `Tiedtke (1993)`_ scheme the
 condensation and cloud fraction change associated with the compensating
 subsidence is taken out of the convection term by adding the vertical
 motion associated with the compensating subsidence to the large-scale
-vertical velocity before the :raw-latex:`\cite{t93}` equivalent of the
+vertical velocity before the `Tiedtke (1993)`_ equivalent of the
 homogeneous forcing term is applied. By doing so it ensures that any
 balance between these two terms (as the tropical circulation is commonly
 analysed to show) is removed before the net effect is calculated,
@@ -5086,7 +5086,7 @@ Area cloud fraction
 Two area cloud fraction parametrizations are available for use with PC2.
 
 The area cloud fraction of Cusack (documented in ) has been adapted by
-:raw-latex:`\cite{boutle_morcrette10}` so it can be used with PC2 (and
+`Boutle and Morcrette (2010)`_ so it can be used with PC2 (and
 is available from the UMUI as the “Cusack” option from version 7.6
 onwards). This method aims to reproduce some of the detail of the
 thermodynamic profile lost due to the coarseness of the grid. The
@@ -5095,7 +5095,7 @@ interpolation/extrapolation technique is used prior to PC2 initiation
 along with the homogeneous forcing idea at the start of the timestep to
 allow more cloud to be seen by radiation.
 
-The diagnostic area cloud fraction of :raw-latex:`\cite{bhi05}` has also
+The diagnostic area cloud fraction of `Brooks et al. (2005)`_ has also
 been implemented in the model (available from the UMUI at version 6.4
 onwards), and this is used in PC2:64. This method diagnoses the area
 cloud fraction given the volume cloud fraction, taking into account the
@@ -6227,7 +6227,7 @@ complete the analysis, we need to estimate :math:`-Q_c+b_s`. To do this,
 we now make the *assumption* of a power-law type PDF, as in section
 :ref:`Initiation of cloud`. If we start from the equivalent of
 :eq:`eqn19` but at the :math:`s=-bs` end of the distribution,
-equation (B.3) in :raw-latex:`\cite{wg03}` can be equivalently written
+equation (B.3) in `Wilson and Gregory (2003)`_ can be equivalently written
 for :math:`(1-C_l)` as:
 
 .. math:: :label: eqn:1mc
@@ -6238,7 +6238,7 @@ To derive this from (B.3) note that :math:`C_l` is swapped for
 :math:`1-C_l` and :math:`(b_s - (-Q_c))` is swapped for
 :math:`(-Qc - (-b_s))`, as in section :ref:`Numerical Application of the Smith method`.
 Similarly, noting that :math:`\overline{q_{cl}}` can be swapped with
-:math:`SD`, gives the equivalent to (B.4) in :raw-latex:`\cite{wg03}` as
+:math:`SD`, gives the equivalent to (B.4) in `Wilson and Gregory (2003)`_ as
 
 .. math:: :label: eqn:sd
 
@@ -6263,7 +6263,7 @@ This is the expression that is used for the limit on
 numerically this expression is still not well behaved when :math:`C_l`
 is close to 1. Here we note that just at complete cloud cover for a
 symmetric PDF we have :math:`\overline{q_{cl}} = b_s`. Hence we estimate
-:math:`b_s` as in :raw-latex:`\cite{smith90}`,
+:math:`b_s` as in `Smith (1990)`_,
 
 .. math:: :label: eqn:bs
 
@@ -6289,7 +6289,7 @@ assumption for :math:`n`, acknowledging that this is not necessarily
 entirely consistent with the rest of the model (although it is in the
 PC2:64 formulation).
 
-We have (equivalent to B.6 from :raw-latex:`\cite{wg03}`)
+We have (equivalent to B.6 from `Wilson and Gregory (2003)`_)
 
 .. math:: \frac{ (1-C_l)^2 }{SD} = G(-Q_c) \frac{n+2}{n+1}.
 
@@ -6508,7 +6508,7 @@ This should be available within the boundary layer and convection
 schemes, but not outside of these in the current UM.
 
 The erosion formulation in PC2:66 is one where the width of the PDF is
-always narrowed (developed following :raw-latex:`\cite{sg03}`). It may
+always narrowed (developed following `Stiller and Gregory (2003)`_). It may
 be advantageous to think whether there are unmodelled processes in the
 atmosphere that result in an increase in width. Clearly convection is
 likely to be one, but this is already represented in PC2. There may be
@@ -6701,7 +6701,7 @@ microphysics, convection etc) in the full UM or SCM has not been done
 for a long time. In the early development stages much effort was placed
 in developing good numerical techniques for each of the terms in PC2,
 and to explore the way in which they coupled together. An example is the
-homogeneous forcing timestep investigated by :raw-latex:`\cite{wg03}`.
+homogeneous forcing timestep investigated by `Wilson and Gregory (2003)`_.
 We note that in shallow convection at 30 minutes timestep the erosion
 term is trying to remove most of the cloud that the convective
 detrainment places into the model. Since the erosion is limited by the
@@ -6775,7 +6775,7 @@ the initiation is optimal, particular in the diagnosis of when it is
 applied. For example, we note that the initiation is currently
 symmetrical, with initiation from :math:`C_l=1` occuring with the same
 :math:`RH_{crit}` value as from :math:`C_l=0`. However, the
-:raw-latex:`\cite{wf00}` observations hint that a higher
+`Wood and Field (2000)`_ observations hint that a higher
 :math:`RH_{crit}` might be more appropriate for initiation from
 :math:`C_l=1`.
 
@@ -6827,7 +6827,7 @@ been rigorously consistent with the PDF used in the calculation of
 liquid water, because it was most easily developed that way and produced
 reasonable results. It may be useful to investigate whether the two PDF
 representations can be brought together in a rigourous way, both for the
-PC2 scheme and the :raw-latex:`\cite{smith90}` scheme.
+PC2 scheme and the `Smith (1990)`_ scheme.
 
 We have similarly noted potential inconsistencies in the parametrization
 of cloud fraction changes between the evaporation of rain term and the
@@ -6852,7 +6852,7 @@ Work in Australia on a TWP-ICE single column model case study using PC2
 suggests the area cloud fraction scheme over estimates the area cloud
 coverage for tropical anvil clouds (which exist long after the
 convection itself has ceased). This is perhaps not surprising since the
-:raw-latex:`\cite{bhi05}` area cloud fraction scheme was evaluated
+`Brooks et al. (2005)`_ area cloud fraction scheme was evaluated
 against mid-latitude cloud and it is known that tropical clouds have
 greater vertical coherence. Tuning the parameters in
 :math:`large_scale_cloud/ls_acf_brooks.F90` may be beneficial.
@@ -6877,3 +6877,167 @@ greater vertical coherence. Tuning the parameters in
    :width: 60%
 
    Timestepping diagram for the PC2 scheme
+
+
+References
+==========
+
+.. _Brooks et al. (2005):
+
+   Brooks, M. E. and R. J. Hogan and A. J. Illingworth (2005).
+   *Parametrizing the Difference in Cloud Fraction Defined by Area and by
+   Volume as Observed with Radar and Lidar*.
+   J. Atmos. Sci., 62, 2248-2260.
+
+.. _Bushell et al. (2003):
+
+   Bushell, A. C. and D. R. Wilson and D. Gregory (2003).
+   *A description of cloud production by non-uniformly distributed processes*.
+   Q. J. Roy. Meteor. Soc., 129, 1435-1455.
+
+.. _Wilson and Gregory (2003):
+
+   Wilson, D. and D. Gregory (2003).
+   *The behaviour of large-scale model cloud schemes under idealised forcing
+   scenarios*.
+   Q. J. Roy. Meteor. Soc., 129, 967-986.
+
+.. _Rogers and Yau (1989):
+
+   Rogers, R. R. and M. K. Yau (1989).
+   *A Short Course in Cloud Physics*.
+
+.. _Gregory et al. (2002):
+
+   Gregory, D. and D. R. Wilson and A. C. Bushell (2002).
+   *Insights into cloud parametrization provided by a prognotic approach*.
+   Q. J. Roy. Meteor. Soc., 128, 1485-1504.
+
+.. _Mellor (1977):
+
+   Mellor, G. (1977).
+   *The {Gaussian} cloud model relations*.
+   J. Atmos. Sci., 34, 356-358.
+
+.. _Sommeria and Deardorff (1977):
+
+   Sommeria, G. and Deardorff, J. W. (1977).
+   *Subgrid-scale condensation in models of non-precipitating clouds*.
+   J. Atmos. Sci., 34, 344-355.
+
+.. _Tiedtke (1993):
+
+   Tiedtke, M. (1993).
+   *Representation of clouds in large-scale models*.
+   Mon. Weather Rev., 121, 3040-3061.
+
+.. _Wood and Field (2000):
+
+   Wood, R. and P. R. Field (2000).
+   *Relationships between Total Water, Condensed Water and Cloud Fraction in
+   Stratiform Clouds Examined Using Aircraft Data*.
+   J. Atmos. Sci., 57, 1888-1905.
+
+.. _Beare (2008):
+
+   Beare, R.J (2008).
+   *The role of shear in the morning transition boundary layer*.
+   Boundary-Layer Meteorology, 129, 395-410.
+
+.. _Zhang and Klein (2013):
+
+   Zhang, Y. and S. A. Klein (2013).
+   *Factors controlling the vertical extent of fair-weather shallow cumulus
+   clouds over land: Investigation of diurnal-cycle observations collected at
+   the ARM Southern Great Plains site*.
+   J. Atmos. Sci., tba, tba.
+
+.. _Smith (1990):
+
+   Smith, R. N. B. (1990).
+   *A scheme for predicting layer cloud and their water content in a general
+   circulation model*.
+   Q. J. Roy. Meteor. Soc., 116, 435-460.
+
+.. _Boutle and Morcrette (2010):
+
+   Boutle, I. A. and C. J. Morcrette (2010).
+   *Parametrization of area cloud fraction*.
+   Atmos. Sci. Let., 11, 283–289.
+
+.. _Field et al. (2005):
+
+   Field, P. R. and R. J. Hogan and P. R. A. Brown and A. J. Illingworth and
+   T. W. Choularton and R. J. Cotton (2005).
+   *Parametrization of ice particle size distributions for mid-latitude
+   stratiform cloud*.
+   Q. J. Roy. Meteor. Soc., 131, 1997-2017.
+
+.. _Field et al. (2014):
+
+   Field, P.R. and Hill, A.A. and Furtado K. and Korolev, A. (2014).
+   *Mixed-phase clouds in a turbulent environment. {II: A}nalytic treatment*.
+   Q. J. Roy. Meteor. Soc., 140, 870-880.
+
+.. _Jakob et al. (1999):
+
+   Jakob, C. and Gregory, D. and Teixeria, J. (1999).
+   *A package of cloud and convection changes for CY21R3*.
+   Research Department Memorandum, {ECMWF}, Shinfield Park, Reading {RG2 9AX},
+   United Kingdom.
+
+.. _Morcrette and Petch (2010):
+
+   Morcrette, C. J. and J. C. Petch (2010).
+   *Analysis of prognostic cloud scheme increments in a climate model*.
+   Q. J. Roy. Meteor. Soc., 136, 2061-2073.
+
+.. _Rodean (1997):
+
+   Rodean, H. C. (1997).
+   *Stochastic Lagrangian Models of Turbulent Diffusion*.
+   American Meteorological Society, Boston, USA.
+
+.. _Sundqvist (1978):
+
+   Sundqvist, H. (1978).
+   *A parametrization scheme for non-convective condensation including
+   prediction of cloud water content*.
+   Q. J. Roy. Meteor. Soc., 104, 677-690.
+
+.. _Stiller and Gregory (2003):
+
+   Stiller, O. and D. Gregory (2003).
+   *The evolution of subgrid-scale humidity fluctuations in the presence of
+   homogeneous cooling*.
+   Q. J. Roy. Meteor. Soc., 129, 1149-1168.
+
+.. _Tompkins (2002):
+
+   Tompkins, A. (2002).
+   *A prognostic parametrization for the subgrid-scale variability of water
+   vapor and clouds in large-scale models and its use to diagnose cloud
+   cover*.
+   J. Atmos. Sci., 59, 1917-1942.
+
+.. _Wang and Wang (1999):
+
+   Wang, Shouping and Qing Wang (1999).
+   *On Condensation and Evaporation in Turbulence Cloud Parametrization*.
+   J. Atmos. Sci., 56, 3338-3344.
+
+.. _Wilson (2001):
+
+   Wilson, D. (2001).
+   *The extension of a prognostic cloud fraction formulation to multiple
+   condensate phases. From Development of a New Cloud Scheme for the Unified
+   Model*.
+   Met Office internal note.
+
+.. _Morcrette (2020):
+
+   C. J. Morcrette (2020).
+   *Modification of the thermodynamic variability closure in the Met Office
+   Unified Model prognostic cloud scheme*.
+   Atmospheric Science Letters.
+   https://doi.org/10.1002/asl.1021
