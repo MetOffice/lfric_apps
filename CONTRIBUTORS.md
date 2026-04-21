@@ -39,3 +39,4 @@
 | iboutle             | Ian Boutle          | Met Office                       | 2026-03-04 |
 | Pierre-siddall      | Pierre Siddall      | Met Office                       | 2026-03-02 |
 | jirudaya            | Jaffery Irudayasamy | University of Edinburgh          | 2026-03-11 |
+| mattatmet           | Matthew Walker      | Met Office                       | 2026-04-21 |
