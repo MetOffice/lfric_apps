@@ -125,14 +125,19 @@ module interpolation_alg_mod
   !> @param[in]      u_in_w3  Zonal component on W3 to interpolate from
   !> @param[in]      v_in_w3  Meridional component on W3 to interpolate from
   !> @param[in]      w_in_wth Vertical component on Wtheta to interpolate from
-  subroutine interp_w3wth_to_w2_alg(u_in_w2, u_in_w3, v_in_w3, w_in_wth)
+  !> @param[in]      geometry Mesh geometry enumeration value
+  !> @param[in]      topology Mesh topology enumeration value
+  subroutine interp_w3wth_to_w2_alg(u_in_w2, u_in_w3, v_in_w3, w_in_wth, &
+                                    geometry, topology)
 
     implicit none
 
-    type(field_type), intent(inout) :: u_in_w2
-    type(field_type), intent(in)    :: u_in_w3
-    type(field_type), intent(in)    :: v_in_w3
-    type(field_type), intent(in)    :: w_in_wth
+    type(field_type),    intent(inout) :: u_in_w2
+    type(field_type),    intent(in)    :: u_in_w3
+    type(field_type),    intent(in)    :: v_in_w3
+    type(field_type),    intent(in)    :: w_in_wth
+    integer(kind=i_def), intent(in)    :: geometry
+    integer(kind=i_def), intent(in)    :: topology
 
     ! Local
     integer(kind=i_def)                :: element_order_h
@@ -177,7 +182,8 @@ module interpolation_alg_mod
     ! Compute wind on W2
     ! Based on set_wind in map_fd_prognostics_alg_mod with sample_physics_winds=.true.
     ! Maps computed here to remove dependency on physical_op_constants_mod which requires sample_physics_winds=.true.
-    call invoke( compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id), &
+    call invoke( compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id, &
+                                                                 geometry, topology), &
                  setval_c(u_in_w2, 0.0_r_def), &
                  dg_matrix_vector_kernel_type(u_broken, u_in_w3, u_map), &
                  dg_inc_matrix_vector_kernel_type(u_broken, v_in_w3, v_map), &

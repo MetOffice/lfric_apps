@@ -9,6 +9,7 @@
 
 module normal_wind_transform_mod
 
+  use base_mesh_config_mod,    only: geometry, topology
   use base_wind_transform_mod, only: base_wind_transform_type
   use field_collection_mod,    only: field_collection_type
   use field_mod,               only: field_type
@@ -89,7 +90,8 @@ module normal_wind_transform_mod
     call fields%get_field( 'w_in_wth', w_in_wth )
     call fields%get_field( 'u', u_in_w2 )
 
-    call interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+    call interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth, &
+                                 geometry, topology )
 
   end subroutine scalar_to_vector
 
@@ -114,7 +116,8 @@ module normal_wind_transform_mod
     call fields%get_field( 'w_in_wth', w_in_wth )
     call fields%get_field( 'u', u_in_w2 )
 
-    call adj_interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+    call adj_interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth, &
+                                     geometry, topology )
 
   end subroutine adj_scalar_to_vector
 
