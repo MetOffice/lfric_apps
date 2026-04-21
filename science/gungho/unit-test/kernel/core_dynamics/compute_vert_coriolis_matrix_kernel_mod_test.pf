@@ -86,7 +86,7 @@ contains
             element_order_v=0_i_def,                                           &
             rehabilitate=.true.,                                               &
             coord_order=0_i_def,                                               &
-            coord_order_multigrid=1_i_def,                                     &
+            coord_order_nonprime=1_i_def,                                      &
             coord_space=coord_space_wchi,                                      &
             coord_system=coord_system_native,                                  &
             vorticity_in_w1=.false.                                            &
