@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:mo-rickywong/lfric_core.git
-    ref: EnforcePartitionRestrictions
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 03753d89c30af4aba2bf9a16f42ddec05dc51ad8
 
 moci:
     source: git@github.com:MetOffice/moci.git
