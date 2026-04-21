@@ -240,7 +240,7 @@ subroutine locate_tropopause_code(nlayers,                    &
   ! todo: call the kernel from https://github.com/MetOffice/lfric_apps/pull/169
   if (trop_icao_height_flag) then
     ! call diags_icao_heights_kernel_code( &
-    !   nlayers, icao_tropopause_height, tropopause_press, ndf_2d, undf_2d, map_2d)
+    !   nlayers, trop_icao_height, trop_press, ndf_2d, undf_2d, map_2d)
     trop_icao_height(map_2d(1)) = rmdi
   end if
 
