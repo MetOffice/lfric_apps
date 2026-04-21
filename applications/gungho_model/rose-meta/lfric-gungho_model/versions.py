@@ -49,7 +49,7 @@ class vn31_t238(MacroUpgrade):
         )
         self.add_setting(
             config,
-            ["namelist:finite_element", "coord_order_multigrid"],
+            ["namelist:finite_element", "coord_order_nonprime"],
             coord_order,
         )
 

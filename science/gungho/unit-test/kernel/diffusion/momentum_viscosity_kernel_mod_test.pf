@@ -46,7 +46,7 @@ contains
         cellshape=cellshape_quadrilateral, &
         coord_order=0_i_def,               &
         coord_system=coord_system_xyz,     &
-        coord_order_multigrid=1_i_def,     &
+        coord_order_nonprime=1_i_def,      &
         coord_space=coord_space_wchi,      &
         element_order_h=0_i_def,           &
         element_order_v=0_i_def,           &
