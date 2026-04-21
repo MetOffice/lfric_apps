@@ -102,6 +102,7 @@ module gungho_step_mod
     type( field_type), pointer :: accumulated_fluxes => null()
 
     type( io_value_type ), pointer :: temp_corr_io_value
+    real( r_def ), allocatable :: temp_corr_data_value(:)
 
 
     class(timestep_method_type), pointer :: timestep_method => null()
@@ -124,6 +125,7 @@ module gungho_step_mod
 
     if ( encorr_usage /= encorr_usage_none .or. write_conservation_diag ) then
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+      allocate(temp_corr_data_value, source=temp_corr_io_value%get_data())
       call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
       call modeldb%values%get_value( 'total_energy', total_energy )
       call modeldb%values%get_value( 'total_energy_previous', &
@@ -179,12 +181,13 @@ module gungho_step_mod
                                        mesh, twod_mesh )
 
         call update_energy_correction_alg(                  &
-                               temp_corr_io_value%data(1),  &
+                               temp_corr_data_value(1),     &
                                accumulated_fluxes,          &
                                total_dry_mass, dt,          &
                                mesh, twod_mesh,             &
                                total_energy,                &
                                total_energy_previous )
+        call temp_corr_io_value%set_data(temp_corr_data_value)
 
       end if
 

@@ -299,6 +299,7 @@ contains
     real(r_def), allocatable :: skeb_power_law(:)
 
     type( io_value_type ), pointer :: temp_corr_io_value
+    real( r_def ), allocatable :: temp_corr_data_value(:)
     real( r_def )    :: dt
     real( r_def )    :: dtemp_encorr
 
@@ -346,8 +347,9 @@ contains
     orography_fields => modeldb%fields%get_field_collection("orography_fields")
 
     temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+    allocate(temp_corr_data_value, source=temp_corr_io_value%get_data())
     ! Get temperature increment for energy correction
-    dtemp_encorr = dt * temp_corr_io_value%data(1)
+    dtemp_encorr = dt * temp_corr_data_value(1)
 
 #ifdef UM_PHYSICS
     if (use_spt) then
