@@ -240,7 +240,11 @@ do ic2 = 1, n_sat
   ic = index_ic_sat(ic2)
 
   ! Fraction of the way through the level where SS is zero
-  interp = -prev_ss(ic2) / ( next_ss(ic2) - prev_ss(ic2) )
+  if ( prev_ss(ic2) * next_ss(ic2) >= zero ) then
+    interp = zero
+  else
+    interp = -prev_ss(ic2) / ( next_ss(ic2) - prev_ss(ic2) )
+  end if
 
   ! Interpolate height
   sat_height(ic2)                                                              &
