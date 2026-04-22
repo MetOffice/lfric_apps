@@ -84,8 +84,8 @@
       <variable_group id = "parameters" >
         <variable id = "using_server" type = "bool" >false</variable>
         <variable id = "using_oasis" type = "bool">false</variable>
-        <variable id = "info_level" type = "int" >50</variable>
-        <variable id = "print_file" type="bool">true</variable>
+        <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
+        <variable id = "print_file" type="bool">$XIOS_PRINT_FILE</variable>
         <variable id = "oasis_codes_id" type="string" >lfric2lfric lfric2lfric</variable>
       </variable_group>
     </variable_definition>
