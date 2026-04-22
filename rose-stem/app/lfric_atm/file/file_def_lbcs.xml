@@ -2,6 +2,7 @@
 
   <!-- LBC files -->
   <file id="lbc" name="lbc" mode="read" output_freq="1h" convention="UGRID" cyclic="true" enabled=".FALSE.">
+   <field_group read_access=".TRUE.">
     <field id="lbc_time" name="time" unit="seconds" operation="once" axis_ref="lbc_axis" />
     <field id="lbc_theta_data" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_time_grid" operation="once" />
     <!-- <field id="lbc_rho_data" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_time_grid" operation="once"/> -->
@@ -16,6 +17,7 @@
     <!-- <field id="lbc_m_cl_data" name="m_cl" long_name="cloud_liquid_water_mixing_ratio" unit="1" grid_ref="full_level_face_time_grid" operation="once" /> -->
     <!-- <field id="lbc_m_s_data" name="m_cf" long_name="cloud_snow_mixing_ratio" unit="1" grid_ref="full_level_face_time_grid" operation="once" /> -->
     <!-- <field id="lbc_m_r_data" name="m_r" long_name="rain_mixing_ratio" unit="1" grid_ref="full_level_face_time_grid" operation="once" /> -->
+   </field_group>
   </file>
 
 </file_definition>

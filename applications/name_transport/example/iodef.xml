@@ -76,9 +76,11 @@
 
        <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
        <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" operation="instant" domain_ref="checkpoint_W3" />
        <field id="restart_tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" operation="instant" domain_ref="checkpoint_W3" />
        <field id="restart_u" name="u" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+       </field_group>
       </file>
 
       <file id="lfric_diag" name="lfric_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">

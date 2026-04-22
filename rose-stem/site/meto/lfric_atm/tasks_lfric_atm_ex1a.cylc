@@ -19,13 +19,13 @@
 {% elif task_ns.conf_name == "nwp_gal9_coarse_aero_threaded-C48_MG" %}
 
     {% do task_dict.update({
-        "memory": [24, "GB"],
+        "memory": [36, "GB"],
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_debug-C48_MG" %}
 
     {% do task_dict.update({
-        "memory": [36, "GB"],
+        "memory": [48, "GB"],
     }) %}
 
 {% elif task_ns.conf_name == "clim_gal9-C12" %}
