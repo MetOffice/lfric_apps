@@ -3345,38 +3345,38 @@ processes (e.g. total water content). In this case,
 
 .. math:: :label: eq:chibasic
 
-   {\ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv}} = 
-   - \frac{1}{\overline{\rho}} \, \ensuremath{\frac{\partial \, \overline{\rho w^{'} \ensuremath{{\chi}_{\rm{ }}^{\rm{E'}}}}}{\partial \, z}} 
+   {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} = 
+   - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'} {\chi}_{\rm{ }}^{\rm{E'}}}}{\partial \, z} 
 
 To parametrize :eq:`eq:chibasic`, the current UM
 convection scheme takes a mass flux approximation
 
 .. math:: :label: eq:massflux
 
-   \left({\overline{\rho w^{'} \ensuremath{{\chi}_{\rm{ }}^{\rm{E'}}}}} \right)_{\rm{conv}} = M^{\rm{P}} \, 
-   \left({ \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}} } \right)
+   \left({\overline{\rho w^{'} {\chi}_{\rm{ }}^{\rm{E'}}}} \right)_{\rm{conv}} = M^{\rm{P}} \, 
+   \left({ {\chi}_{\rm{ }}^{\rm{P}} - {\chi}_{\rm{ }}^{\rm{E}} } \right)
 
 which can be differentiated to give
 
 .. math:: :label: eq:eddyflux
 
-   - \frac{1}{\overline{\rho}} \, \ensuremath{\frac{\partial \, \overline{\rho w^{'} \ensuremath{{\chi}_{\rm{ }}^{\rm{E'}}}}}{\partial \, z}} =
-   \ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}} \, M^{\rm{P}}}{\partial \, p}} - 
-   \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}} \,  \ensuremath{\frac{\partial \, M^{\rm{P}}}{\partial \, p}} -   
-   M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}}{\partial \, p}}  
+   - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'} {\chi}_{\rm{ }}^{\rm{E'}}}}{\partial \, z} =
+   \frac{\partial \, {\chi}_{\rm{ }}^{\rm{P}} \, M^{\rm{P}}}{\partial \, p} - 
+   {\chi}_{\rm{ }}^{\rm{E}} \,  \frac{\partial \, M^{\rm{P}}}{\partial \, p} -   
+   M^{\rm{P}} \, \frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, p}  
 
 The bulk cloud model plume equations for mass and :math:`{\chi}` are:
 
 .. math:: :label: eq:dbydpmassflux
 
-   - \ensuremath{\frac{\partial \, M^{\rm{P}}}{\partial \, p}}  =
+   - \frac{\partial \, M^{\rm{P}}}{\partial \, p}  =
    \left({ \varepsilon \, M^{\rm{P}} - \mu \, M^{\rm{P}} - \delta \, M^{\rm{P}} } \right)
 
 .. math:: :label: eq:dbydpmfchi
 
-   - \ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}} \, M^{\rm{P}}}{\partial \, p}}  =  \left({
-   \varepsilon \, M^{\rm{P}} \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}
-   - \mu \, M^{\rm{P}} \, \ensuremath{{\chi}_{\rm{ }}^{\rm{R}}} - \delta \, M^{\rm{P}} \, \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}}
+   - \frac{\partial \, {\chi}_{\rm{ }}^{\rm{P}} \, M^{\rm{P}}}{\partial \, p}  =  \left({
+   \varepsilon \, M^{\rm{P}} \, {\chi}_{\rm{ }}^{\rm{E}}
+   - \mu \, M^{\rm{P}} \, {\chi}_{\rm{ }}^{\rm{R}} - \delta \, M^{\rm{P}} \, {\chi}_{\rm{ }}^{\rm{P}}
    } \right)
 
 
@@ -3387,10 +3387,10 @@ Equations :eq:`eq:eddyflux`,
 
 .. math:: :label: eq:chimassflux
 
-   {\ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv}} = 
-   - M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}}{\partial \, p}} 
-   + \mu \, M^{\rm{P}} \, \left({ \ensuremath{{\chi}_{\rm{ }}^{\rm{R}}} - \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}} } \right)
-   + \delta \, M^{\rm{P}} \, \left({ \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}} } \right)
+   {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} = 
+   - M^{\rm{P}} \, \frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, p} 
+   + \mu \, M^{\rm{P}} \, \left({ {\chi}_{\rm{ }}^{\rm{R}} - {\chi}_{\rm{ }}^{\rm{E}} } \right)
+   + \delta \, M^{\rm{P}} \, \left({ {\chi}_{\rm{ }}^{\rm{P}} - {\chi}_{\rm{ }}^{\rm{E}} } \right)
 
 while :math:`{\chi}_{\rm{}}^{\rm{P}}` is obtained from the vertical
 gradient derived by combining :eq:`eq:dbydpmassflux`
@@ -3398,9 +3398,9 @@ and :eq:`eq:dbydpmfchi` :
 
 .. math:: :label: eq:gradchipar
 
-   M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}}}{\partial \, p}} =  
-   \varepsilon \, M^{\rm{P}} \, \left({ \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}} } \right)- 
-   \mu         \, M^{\rm{P}} \, \left({ \ensuremath{{\chi}_{\rm{ }}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{ }}^{\rm{R}}} } \right)
+   M^{\rm{P}} \, \frac{\partial \, {\chi}_{\rm{ }}^{\rm{P}}}{\partial \, p} =  
+   \varepsilon \, M^{\rm{P}} \, \left({ {\chi}_{\rm{ }}^{\rm{P}} - {\chi}_{\rm{ }}^{\rm{E}} } \right)- 
+   \mu         \, M^{\rm{P}} \, \left({ {\chi}_{\rm{ }}^{\rm{P}} - {\chi}_{\rm{ }}^{\rm{R}} } \right)
 
 Within the model, eqn :eq:`eq:chimassflux` would take
 a discretized form which actually depends upon whether the model level,
@@ -3412,19 +3412,19 @@ discretized form of :eq:`eq:chimassflux`, setting
 
 .. math:: :label: eq:chidisck
 
-   {\ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv, \, k}}  =  m_{\rm{k+1/2}} \,
-   \frac{ \left({\ensuremath{{\chi}_{\rm{k+1}}^{\rm{E}}} - \ensuremath{{\chi}_{\rm{k}}^{\rm{E}}}} \right)}
+   {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv, \, k}}  =  m_{\rm{k+1/2}} \,
+   \frac{ \left({{\chi}_{\rm{k+1}}^{\rm{E}} - {\chi}_{\rm{k}}^{\rm{E}}} \right)}
    {{\Delta z}_{\rm{k \, \rightarrow \, k+1}}}
-   + {\delta}_{\rm{k}} \, m_{\rm{k}} \, \left({ \ensuremath{{\chi}_{\rm{k}}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{k}}^{\rm{E}}} } \right)
+   + {\delta}_{\rm{k}} \, m_{\rm{k}} \, \left({ {\chi}_{\rm{k}}^{\rm{P}} - {\chi}_{\rm{k}}^{\rm{E}} } \right)
    \qquad \ldots \; \mbox{for k $>$ cb}
 
 .. math:: :label: eq:chidisccb
 
-   {\ensuremath{\frac{\partial \, \ensuremath{{\chi}_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv, \, cb}}  =  m_{\rm{cb+1/2}} \,
-   \frac{ \left({\ensuremath{{\chi}_{\rm{cb+1}}^{\rm{E}}} - \ensuremath{{\chi}_{\rm{cb}}^{\rm{E}}}} \right)}
+   {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv, \, cb}}  =  m_{\rm{cb+1/2}} \,
+   \frac{ \left({{\chi}_{\rm{cb+1}}^{\rm{E}} - {\chi}_{\rm{cb}}^{\rm{E}}} \right)}
    {{\Delta z}_{\rm{cb \, \rightarrow \, cb+1}}}
    - m_{\rm{cb}} \,
-   \left({ \ensuremath{{\chi}_{\rm{i,cb}}^{\rm{P}}} - \ensuremath{{\chi}_{\rm{cb}}^{\rm{E}}} } \right)
+   \left({ {\chi}_{\rm{i,cb}}^{\rm{P}} - {\chi}_{\rm{cb}}^{\rm{E}} } \right)
 
 
 where the initial parcel value :math:`{\chi}_{\rm{i,cb}}^{\rm{P}}` may
@@ -3444,14 +3444,14 @@ terms for temperature and specific humidity:
 
 .. math:: :label: eq:defineq1
 
-   {\ensuremath{\frac{\partial \, \ensuremath{T_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv}} = Q1  \equiv
+   {\frac{\partial \, T_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} = Q1  \equiv
    \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{par}}
-   - \frac{1}{\overline{\rho}} \, \ensuremath{\frac{\partial \, \overline{\rho w^{'} \ensuremath{T_{\rm{ }}^{\rm{E'}}}}}{\partial \, z}}
+   - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'} T_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
 
 .. math:: :label: eq:defineq2
 
-   {\ensuremath{\frac{\partial \, \ensuremath{q_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv}} = Q2  \equiv  - {\overline{Q}}_{\rm{par}}
-   - \frac{1}{\overline{\rho}} \, \ensuremath{\frac{\partial \, \overline{\rho w^{'} \ensuremath{q_{\rm{ }}^{\rm{E'}}}}}{\partial \, z}}
+   {\frac{\partial \, q_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} = Q2  \equiv  - {\overline{Q}}_{\rm{par}}
+   - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'} q_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
 
 
 where :math:`{\overline{Q}}_{\rm{par}}` is the rate of condensation
@@ -3467,22 +3467,22 @@ gradient equations based upon :eq:`eq:gradchipar`
 
 .. math:: :label: eq:gradtpar
 
-   M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{T_{\rm{ }}^{\rm{P}}}}{\partial \, p}}  =
-   \varepsilon \, M^{\rm{P}} \, \left({ \ensuremath{T_{\rm{ }}^{\rm{P}}} - \ensuremath{T_{\rm{ }}^{\rm{E}}} } \right)-
-   \mu         \, M^{\rm{P}} \, \left({ \ensuremath{T_{\rm{ }}^{\rm{P}}} - \ensuremath{T_{\rm{ }}^{\rm{R}}} } \right)-
+   M^{\rm{P}} \, \frac{\partial \, T_{\rm{ }}^{\rm{P}}}{\partial \, p}  =
+   \varepsilon \, M^{\rm{P}} \, \left({ T_{\rm{ }}^{\rm{P}} - T_{\rm{ }}^{\rm{E}} } \right)-
+   \mu         \, M^{\rm{P}} \, \left({ T_{\rm{ }}^{\rm{P}} - T_{\rm{ }}^{\rm{R}} } \right)-
    \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{par}}
 
 .. math:: :label: eq:gradqpar
 
-   M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{q_{\rm{ }}^{\rm{P}}}}{\partial \, p}}  =
-   \varepsilon \, M^{\rm{P}} \, \left({ \ensuremath{q_{\rm{ }}^{\rm{P}}} - \ensuremath{q_{\rm{ }}^{\rm{E}}} } \right)-
-   \mu         \, M^{\rm{P}} \, \left({ \ensuremath{q_{\rm{ }}^{\rm{P}}} - \ensuremath{q_{\rm{ }}^{\rm{R}}} } \right)+
+   M^{\rm{P}} \, \frac{\partial \, q_{\rm{ }}^{\rm{P}}}{\partial \, p}  =
+   \varepsilon \, M^{\rm{P}} \, \left({ q_{\rm{ }}^{\rm{P}} - q_{\rm{ }}^{\rm{E}} } \right)-
+   \mu         \, M^{\rm{P}} \, \left({ q_{\rm{ }}^{\rm{P}} - q_{\rm{ }}^{\rm{R}} } \right)+
    {\overline{Q}}_{\rm{par}}
 
 .. math:: :label: eq:gradlpar
 
-   M^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{ }}^{\rm{P}}}}{\partial \, p}}  =
-   \varepsilon \, M^{\rm{P}} \, \left({ \ensuremath{l_{\rm{ }}^{\rm{P}}} - \ensuremath{l_{\rm{ }}^{\rm{E}}} } \right)
+   M^{\rm{P}} \, \frac{\partial \, l_{\rm{ }}^{\rm{P}}}{\partial \, p}  =
+   \varepsilon \, M^{\rm{P}} \, \left({ l_{\rm{ }}^{\rm{P}} - l_{\rm{ }}^{\rm{E}} } \right)
    - {\overline{Q}}_{\rm{par}} + PPN
 
 
@@ -3496,23 +3496,23 @@ is basic equations
 
 .. math:: :label: eq:basictold
 
-   {\ensuremath{\frac{\partial \, \ensuremath{T_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv}}  =  Q1 -
+   {\frac{\partial \, T_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}}  =  Q1 -
    \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{reset}}
 
 .. math:: :label: eq:basicqold
 
-   {\ensuremath{\frac{\partial \, \ensuremath{q_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv}}  =  Q2 + {\overline{Q}}_{\rm{reset}}
+   {\frac{\partial \, q_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}}  =  Q2 + {\overline{Q}}_{\rm{reset}}
 
 .. math::
 
-   0 \equiv {\ensuremath{\frac{\partial \, \ensuremath{l_{\rm{ }}^{\rm{E}}}}{\partial \, t}}}_{\rm{conv}}  =  {\overline{Q}}_{\rm{par}} -
+   0 \equiv {\frac{\partial \, l_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}}  =  {\overline{Q}}_{\rm{par}} -
    {\overline{Q}}_{\rm{reset}} - PPN
-   - \frac{1}{\overline{\rho}} \, \ensuremath{\frac{\partial \, \overline{\rho w^{'} \ensuremath{l_{\rm{ }}^{\rm{E'}}}}}{\partial \, z}}
+   - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'} l_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
 
 .. math:: :label: eq:basiclold
 
     =
-   \mu \, M^{\rm{P}} \, \ensuremath{l_{\rm{ }}^{\rm{P}}} + \delta \, M^{\rm{P}} \, \ensuremath{l_{\rm{ }}^{\rm{P}}} -
+   \mu \, M^{\rm{P}} \, l_{\rm{ }}^{\rm{P}} + \delta \, M^{\rm{P}} \, l_{\rm{ }}^{\rm{P}} -
    {\overline{Q}}_{\rm{reset}}
 
 
@@ -3536,15 +3536,15 @@ Define
 
 .. math:: :label: eq:defineq4l
 
-   \left({ \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{l}}^{\rm{ }}}}{\partial \, t}} } \right)_{\rm{conv}} = Q4_{\rm{l}}  \equiv
+   \left({ \frac{\partial \, l_{\rm{l}}^{\rm{ }}}{\partial \, t} } \right)_{\rm{conv}} = Q4_{\rm{l}}  \equiv
    {\overline{Q}}_{\rm{l, par}} - {\overline{Q}}_{\rm{l, reset}} - RAIN -
-   \frac{1}{\overline{\rho}} \, \ensuremath{\frac{\partial \, \overline{\rho w^{'} \ensuremath{l_{\rm{l}}^{\rm{'}}}}}{\partial \, z}}
+   \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'} l_{\rm{l}}^{\rm{'}}}}{\partial \, z}
 
 .. math:: :label: eq:defineq4f
 
-   \left({ \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{f}}^{\rm{ }}}}{\partial \, t}} } \right)_{\rm{conv}} = Q4_{\rm{f}}  \equiv
+   \left({ \frac{\partial \, l_{\rm{f}}^{\rm{ }}}{\partial \, t} } \right)_{\rm{conv}} = Q4_{\rm{f}}  \equiv
    {\overline{Q}}_{\rm{f, par}} - {\overline{Q}}_{\rm{f, reset}} - SNOW -
-   \frac{1}{\overline{\rho}} \, \ensuremath{\frac{\partial \, \overline{\rho w^{'} \ensuremath{l_{\rm{f}}^{\rm{'}}}}}{\partial \, z}}
+   \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'} l_{\rm{f}}^{\rm{'}}}}{\partial \, z}
 
 
 where the PC2 assumption thus far has been that
@@ -3569,15 +3569,15 @@ condensate is calculated as
 
 .. math:: :label: eq:vertparl
 
-   \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{l}}^{\rm{P}}}}{\partial \, p}}  =  \varepsilon \,
-   \left({ \ensuremath{l_{\rm{l}}^{\rm{P}}} - \ensuremath{l_{\rm{l}}^{\rm{E}}} } \right)-
+   \frac{\partial \, l_{\rm{l}}^{\rm{P}}}{\partial \, p}  =  \varepsilon \,
+   \left({ l_{\rm{l}}^{\rm{P}} - l_{\rm{l}}^{\rm{E}} } \right)-
    \frac{{\overline{Q}}_{\rm{l, par}}}{M^{\rm{P}}} -
    \frac{RAIN}{M^{\rm{P}}}
 
 .. math:: :label: eq:vertparf
 
-   \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{f}}^{\rm{P}}}}{\partial \, p}}  =  \varepsilon \,
-   \left({ \ensuremath{l_{\rm{f}}^{\rm{P}}} - \ensuremath{l_{\rm{f}}^{\rm{E}}} } \right)-
+   \frac{\partial \, l_{\rm{f}}^{\rm{P}}}{\partial \, p}  =  \varepsilon \,
+   \left({ l_{\rm{f}}^{\rm{P}} - l_{\rm{f}}^{\rm{E}} } \right)-
    \frac{{\overline{Q}}_{\rm{f, par}}}{M^{\rm{P}}} -
    \frac{SNOW}{M^{\rm{P}}}
 
@@ -3595,12 +3595,12 @@ are discretized:
 
 .. math::
 
-   \ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}}  =  \left({
-   \ensuremath{l_{\rm{l \, k}}^{\rm{P}}} +
-   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, \ensuremath{l_{\rm{l \, k}}^{\rm{E}}} +
+   l_{\rm{l \, k + 1}}^{\rm{P}}  =  \left({
+   l_{\rm{l \, k}}^{\rm{P}} +
+   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, l_{\rm{l \, k}}^{\rm{E}} +
    \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
    \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}} \right]\,
-   \ensuremath{l_{\rm{l \, k + 1}}^{\rm{E}}}
+   l_{\rm{l \, k + 1}}^{\rm{E}}
    } \right)\, / \, \left({EPSS_{\rm{k}}} \right)
 
 .. math:: :label: eq:discvparl
@@ -3610,12 +3610,12 @@ are discretized:
 
 .. math::
 
-   \ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}}  =  \left({
-   \ensuremath{l_{\rm{f \, k}}^{\rm{P}}} +
-   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, \ensuremath{l_{\rm{f \, k}}^{\rm{E}}} +
+   l_{\rm{f \, k + 1}}^{\rm{P}}  =  \left({
+   l_{\rm{f \, k}}^{\rm{P}} +
+   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, l_{\rm{f \, k}}^{\rm{E}} +
    \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
    \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}} \right]\,
-   \ensuremath{l_{\rm{f \, k + 1}}^{\rm{E}}}
+   l_{\rm{f \, k + 1}}^{\rm{E}}
    } \right)\, / \, \left({EPSS_{\rm{k}}} \right)
 
 .. math:: :label: eq:discvparf
@@ -3637,22 +3637,22 @@ precipitation terms are suppressed:
 
 .. math:: :label: eq:discvparldry
 
-   \ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}}  =  \frac{\left({
-   \ensuremath{l_{\rm{l \, k}}^{\rm{P}}} +
-   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, \ensuremath{l_{\rm{l \, k}}^{\rm{E}}} +
+   l_{\rm{l \, k + 1}}^{\rm{P}}  =  \frac{\left({
+   l_{\rm{l \, k}}^{\rm{P}} +
+   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, l_{\rm{l \, k}}^{\rm{E}} +
    \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
    \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}} \right]\,
-   \ensuremath{l_{\rm{l \, k + 1}}^{\rm{E}}}
+   l_{\rm{l \, k + 1}}^{\rm{E}}
    } \right)}{EPSS_{\rm{k}}}
 
 .. math:: :label: eq:discvparfdry
 
-   \ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}}  =  \frac{\left({
-   \ensuremath{l_{\rm{f \, k}}^{\rm{P}}} +
-   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, \ensuremath{l_{\rm{f \, k}}^{\rm{E}}} +
+   l_{\rm{f \, k + 1}}^{\rm{P}}  =  \frac{\left({
+   l_{\rm{f \, k}}^{\rm{P}} +
+   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, l_{\rm{f \, k}}^{\rm{E}} +
    \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
    \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}} \right]\,
-   \ensuremath{l_{\rm{f \, k + 1}}^{\rm{E}}}
+   l_{\rm{f \, k + 1}}^{\rm{E}}
    } \right)}{EPSS_{\rm{k}}}
 
 
@@ -3666,14 +3666,14 @@ produces zero fluxes at cloud base:
 .. math:: :label: eq:q4lcbi
 
    Q4_{\rm{l}}(cb) = 0  =  M_{\rm{cb+1/2}}^{\rm{P}} \,
-   \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{l}}^{\rm{E}}}}{\partial \, p}}  - M_{\rm{cb}}^{\rm{P}}\,
-   \left({ \ensuremath{l_{\rm{l}}^{\rm{P \, i}}} - \ensuremath{l_{\rm{l}}^{\rm{E}}}(\rm{cb}) } \right)
+   \frac{\partial \, l_{\rm{l}}^{\rm{E}}}{\partial \, p}  - M_{\rm{cb}}^{\rm{P}}\,
+   \left({ l_{\rm{l}}^{\rm{P \, i}} - l_{\rm{l}}^{\rm{E}}(\rm{cb}) } \right)
 
 .. math:: :label: eq:q4fcbi
 
    Q4_{\rm{f}}(cb) = 0  =  M_{\rm{cb+1/2}}^{\rm{P}} \,
-   \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{f}}^{\rm{E}}}}{\partial \, p}}  - M_{\rm{cb}}^{\rm{P}}\,
-   \left({ \ensuremath{l_{\rm{f}}^{\rm{P \, i}}} - \ensuremath{l_{\rm{f}}^{\rm{E}}}(\rm{cb}) } \right)
+   \frac{\partial \, l_{\rm{f}}^{\rm{E}}}{\partial \, p}  - M_{\rm{cb}}^{\rm{P}}\,
+   \left({ l_{\rm{f}}^{\rm{P \, i}} - l_{\rm{f}}^{\rm{E}}(\rm{cb}) } \right)
 
 
 As the convection scheme makes the single phase assumption for parcel
@@ -3683,14 +3683,14 @@ at this point and adjust the temperature accordingly.
 .. math:: :label: eqn:meltlf
 
    \theta_{\rm{k + 1}}^{\rm{P}} = \theta_{\rm{k + 1}}^{\rm{P}} -
-   \left(\frac{L_{\rm{F}}}{C_{p} \, \Pi_{\rm{k + 1}}} \right)\, \ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}}
-    \; \ldots \;  \mbox{ if \ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}} is melted }
+   \left(\frac{L_{\rm{F}}}{C_{p} \, \Pi_{\rm{k + 1}}} \right)\, l_{\rm{f \, k + 1}}^{\rm{P}}
+    \; \ldots \;  \mbox{ if l_{\rm{f \, k + 1}}^{\rm{P}} is melted }
 
 .. math:: :label: eqn:freezell
 
    \theta_{\rm{k + 1}}^{\rm{P}} = \theta_{\rm{k + 1}}^{\rm{P}} +
-   \left(\frac{L_{\rm{F}}}{C_{p} \, \Pi_{\rm{k + 1}}} \right)\, \ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}}
-    \; \ldots \;  \mbox{ if \ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}} is frozen }
+   \left(\frac{L_{\rm{F}}}{C_{p} \, \Pi_{\rm{k + 1}}} \right)\, l_{\rm{l \, k + 1}}^{\rm{P}}
+    \; \ldots \;  \mbox{ if l_{\rm{l \, k + 1}}^{\rm{P}} is frozen }
 
 
 Once a final value for the condensation term
@@ -3708,7 +3708,7 @@ The precipitation calculation is unaltered.
 
 .. math:: :label: eq:precip
 
-   P_{\rm{k} + 1} = \left({ \ensuremath{l_{\rm{k + 1}}^{\rm{P}}} - \ensuremath{l_{\rm{MIN}}^{\rm{P}}} } \right)\, 
+   P_{\rm{k} + 1} = \left({ l_{\rm{k + 1}}^{\rm{P}} - l_{\rm{MIN}}^{\rm{P}} } \right)\, 
    M_{\rm{k} + 1} \, / \, g
 
 where :math:`l_{\rm{k + 1}}^{\rm{P}}` =
@@ -3724,15 +3724,15 @@ This reduces the parcel condensate to :
 
 .. math:: :label: eq:vparlfinal
 
-   \ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}}  =  \left({
-   \frac{\ensuremath{l_{\rm{l \, k + 1}}^{\rm{P}}}}{\ensuremath{l_{\rm{k + 1}}^{\rm{P}}}}
-   } \right)\, \ensuremath{l_{\rm{MIN}}^{\rm{P}}}
+   l_{\rm{l \, k + 1}}^{\rm{P}}  =  \left({
+   \frac{l_{\rm{l \, k + 1}}^{\rm{P}}}{l_{\rm{k + 1}}^{\rm{P}}}
+   } \right)\, l_{\rm{MIN}}^{\rm{P}}
 
 .. math:: :label: eq:vparffinal
 
-   \ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}}  =  \left({
-   \frac{\ensuremath{l_{\rm{f \, k + 1}}^{\rm{P}}}}{\ensuremath{l_{\rm{k + 1}}^{\rm{P}}}}
-   } \right)\, \ensuremath{l_{\rm{MIN}}^{\rm{P}}}
+   l_{\rm{f \, k + 1}}^{\rm{P}}  =  \left({
+   \frac{l_{\rm{f \, k + 1}}^{\rm{P}}}{l_{\rm{k + 1}}^{\rm{P}}}
+   } \right)\, l_{\rm{MIN}}^{\rm{P}}
 
 
 The final parcel condensate values are then used in the rate calculation
@@ -3740,18 +3740,18 @@ based upon eqn :eq:`eq:basiclold`:
 
 .. math:: :label: eq:q4lmassf
 
-   Q4_{\rm{l}}(k)  =   M_{\rm{k+1/2}}^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{l}}^{\rm{E}}}}{\partial \, p}}   +
+   Q4_{\rm{l}}(k)  =   M_{\rm{k+1/2}}^{\rm{P}} \, \frac{\partial \, l_{\rm{l}}^{\rm{E}}}{\partial \, p}   +
    \left({ {\mu}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} +
    {\delta}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} } \right)\,
-   \left({ \ensuremath{l_{\rm{l}}^{\rm{P}}}(\rm{k}) - \ensuremath{l_{\rm{l}}^{\rm{E}}}(\rm{k}) } \right)-
+   \left({ l_{\rm{l}}^{\rm{P}}(\rm{k}) - l_{\rm{l}}^{\rm{E}}(\rm{k}) } \right)-
    {\overline{Q}}_{\rm{l, reset}}
 
 .. math:: :label: eq:q4fmassf
 
-   Q4_{\rm{f}}(k)  =   M_{\rm{k+1/2}}^{\rm{P}} \, \ensuremath{\frac{\partial \, \ensuremath{l_{\rm{f}}^{\rm{E}}}}{\partial \, p}}  +
+   Q4_{\rm{f}}(k)  =   M_{\rm{k+1/2}}^{\rm{P}} \, \frac{\partial \, l_{\rm{f}}^{\rm{E}}}{\partial \, p}  +
    \left({ {\mu}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} +
    {\delta}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} } \right)\,
-   \left({ \ensuremath{l_{\rm{f}}^{\rm{P}}}(\rm{k}) - \ensuremath{l_{\rm{f}}^{\rm{E}}}(\rm{k}) } \right)-
+   \left({ l_{\rm{f}}^{\rm{P}}(\rm{k}) - l_{\rm{f}}^{\rm{E}}(\rm{k}) } \right)-
    {\overline{Q}}_{\rm{f, reset}}
 
 
@@ -3820,27 +3820,27 @@ Similarly, eqns :eq:`eq:q4lmassf` and
 
 .. math::
 
-   \frac{\Delta \, \ensuremath{l_{\rm{l \, k}}^{\rm{E}}}}{\Delta \, t} =
+   \frac{\Delta \, l_{\rm{l \, k}}^{\rm{E}}}{\Delta \, t} =
    \left(\frac{ M_{\rm{k}} }{ \Delta \, p_{\rm{k}} } \right)
    \left[{
    \left({ 1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4} } \right)
    \left({ 1 - \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
    \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \ensuremath{l_{\rm{l \, k + 1}}^{\rm{E}}} - \ensuremath{l_{\rm{l \, k}}^{\rm{E}}} } \right)
+   \left({ l_{\rm{l \, k + 1}}^{\rm{E}} - l_{\rm{l \, k}}^{\rm{E}} } \right)
    } \right .  +
 
 .. math::
 
    \left({ \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
    \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \ensuremath{l_{\rm{l \, k}}^{\rm{P}}} - \ensuremath{l_{\rm{l \, k}}^{\rm{E}}} } \right)
+   \left({ l_{\rm{l \, k}}^{\rm{P}} - l_{\rm{l \, k}}^{\rm{E}} } \right)
     +
 
 .. math:: :label: eq:enviroll
 
    \left . {
    \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \ensuremath{l_{\rm{l \, k}}^{\rm{P}}} - \ensuremath{l_{\rm{l \, k}}^{\rm{E}}} } \right)
+   \left({ l_{\rm{l \, k}}^{\rm{P}} - l_{\rm{l \, k}}^{\rm{E}} } \right)
    } \right] { }
 
 
@@ -3848,27 +3848,27 @@ and
 
 .. math::
 
-   \frac{\Delta \, \ensuremath{l_{\rm{f \, k}}^{\rm{E}}}}{\Delta \, t} =
+   \frac{\Delta \, l_{\rm{f \, k}}^{\rm{E}}}{\Delta \, t} =
    \left(\frac{ M_{\rm{k}} }{ \Delta \, p_{\rm{k}} } \right)
    \left[{
    \left({ 1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4} } \right)
    \left({ 1 - \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
    \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \ensuremath{l_{\rm{f \, k + 1}}^{\rm{E}}} - \ensuremath{l_{\rm{f \, k}}^{\rm{E}}} } \right)
+   \left({ l_{\rm{f \, k + 1}}^{\rm{E}} - l_{\rm{f \, k}}^{\rm{E}} } \right)
    } \right .  +
 
 .. math::
 
    \left({ \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
    \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \ensuremath{l_{\rm{f \, k}}^{\rm{P}}} - \ensuremath{l_{\rm{f \, k}}^{\rm{E}}} } \right)
+   \left({ l_{\rm{f \, k}}^{\rm{P}} - l_{\rm{f \, k}}^{\rm{E}} } \right)
     +
 
 .. math:: :label: eq:envirolf
 
    \left . {
    \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \ensuremath{l_{\rm{f \, k }}^{\rm{P}}} - \ensuremath{l_{\rm{f \, k}}^{\rm{E}}} } \right)
+   \left({ l_{\rm{f \, k }}^{\rm{P}} - l_{\rm{f \, k}}^{\rm{E}} } \right)
    } \right] { }
 
 
