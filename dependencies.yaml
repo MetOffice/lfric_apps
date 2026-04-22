@@ -39,7 +39,7 @@ moci:
 
 SimSys_Scripts:
     source: git@github.com:MetOffice/SimSys_Scripts.git
-    ref: 4387949a7dcd60d6fa2bc523ba1d32a6f073c700
+    ref: cab3315147a3c7e8546dda559d3da0fccd702f29
 
 socrates:
     source: git@github.com:MetOffice/socrates.git
