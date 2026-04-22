@@ -46,9 +46,9 @@ class vn31_t400(MacroUpgrade):
         is_coupled = nice > 1
  
         # Add the new namelist settings
-        self.add_setting(config, ["namelist:jules_sea_seaice", "l_zenith_albedo"], ".false.")
+        self.add_setting(config, ["namelist:jules_sea_seaice", "l_zenith_albedo"], ".true.")
         if is_coupled:
-            self.add_setting(config, ["namelist:jules_sea_seaice", "meltpond_alb_vn"], "'cice'")
+            self.add_setting(config, ["namelist:jules_sea_seaice", "meltpond_alb_vn"], "'malinka'")
         else:
             self.add_setting(config, ["namelist:jules_sea_seaice", "meltpond_alb_vn"], "'none'")
         self.add_setting(config, ["namelist:jules_sea_seaice", "snow_grain_size_max"], "100.0")
