@@ -1745,28 +1745,39 @@ used to calculate :math:`K_m^{\rm Sc}`.
 Discussion of some of the revisions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. container:: center
+.. list-table:: Convective and Neutral limits for velocity scales
+   :name: tab:vscales
+   :header-rows: 1
 
-   .. container::
-      :name: tab:vscales
+   * - Formulation
+     - Convective limit
+     - 
+     - Neutral limit
+     - 
 
-      .. table:: Convective and Neutral limits for velocity scales
+   * - 
+     - :math:`w_m`
+     - :math:`w_h`
+     - :math:`w_m`
+     - :math:`w_h`
 
-         +-------------+-------------+-------------+-------------+-------------+
-         | Formulation | Convective  |             | Neutral     |             |
-         |             | limit       |             | limit       |             |
-         +-------------+-------------+-------------+-------------+-------------+
-         |             | :math:`w_m` | :math:`w_h` | :math:`w_m` | :math:`w_h` |
-         +-------------+-------------+-------------+-------------+-------------+
-         | HB          | :math:`     | :math:      | :math:`u_*` | :math:`u_*` |
-         |             | 0.84 \,w_*` | `1.4 \,w_*` |             |             |
-         +-------------+-------------+-------------+-------------+-------------+
-         | UM standard | :math:`     | :math:      | :math:`u_*` | :math:      |
-         |             | 0.63 \,w_*` | `1.7 \,w_*` |             | `1.3 \,u_*` |
-         +-------------+-------------+-------------+-------------+-------------+
-         | UM revised  | :math:`     | :math:`w_*` | :math:`u_*` | :math:      |
-         |             | 0.6  \,w_*` |             |             | `1.3 \,u_*` |
-         +-------------+-------------+-------------+-------------+-------------+
+   * - HB
+     - :math:`0.84 \,w_*`
+     - :math:`1.4 \,w_*`
+     - :math:`u_*`
+     - :math:`u_*`
+
+   * - UM standard
+     - :math:`0.63 \,w_*`
+     - :math:`1.7 \,w_*`
+     - :math:`u_*`
+     - :math:`1.3 \,u_*`
+
+   * - UM revised
+     - :math:`0.6  \,w_*`
+     - :math:`w_*`
+     - :math:`u_*`
+     - :math:`1.3 \,u_*`
 
 .. container:: float
    :name: fig:stab_dep
@@ -5361,48 +5372,45 @@ therefore needs to be computed only once, when the 1st or predictor
 stage is computed, i.e. :math:`X^{*}`. Briefly the following
 calculations take place for the scalar variables:
 
-.. container:: center
+.. list-table:: Table
+   :name: table_name
+   :header-rows: 1
 
-   +-------------------+-------------------------------------------------+
-   | CALL bdy_impl3(): | set up coefficients for                         |
-   |                   | (`[eq:dX_disc_top] <#eq:dX_disc_top>`__),       |
-   |                   | (`[eq:dX_disc] <#eq:dX_disc>`__) and do a       |
-   |                   | downward sweep;                                 |
-   +-------------------+-------------------------------------------------+
-   |                   | do a downward sweep using the original implicit |
-   |                   | scheme to                                       |
-   +-------------------+-------------------------------------------------+
-   |                   | compute information required by the surface     |
-   |                   | implicit solver;                                |
-   +-------------------+-------------------------------------------------+
-   | CALL sf_impl2():  | CALL im_sf_pt2(): compute :math:`F_{JULES}`     |
-   |                   | (scalar implicit fluxes),                       |
-   +-------------------+-------------------------------------------------+
-   |                   | using original surface implicit solver;         |
-   +-------------------+-------------------------------------------------+
-   | CALL bdy_impl4(): | set up (`[eq:dX_bottom] <#eq:dX_bottom>`__) and |
-   |                   | complete downward sweep;                        |
-   +-------------------+-------------------------------------------------+
-   |                   | back substitute to compute implicit correction  |
-   |                   | :math:`\delta X^{*}`;                           |
-   +-------------------+-------------------------------------------------+
-   | CALL bdy_impl3(): | compute explicit flux                           |
-   |                   | :math:`F^*=                                     |
-   |                   | F^n+K_X\frac{\partial \delta X^*}{\partial z}`; |
-   +-------------------+-------------------------------------------------+
-   |                   | set up coefficients for                         |
-   |                   | (`[eq:dXtop_np1] <#eq:dXtop_np1>`__),           |
-   |                   | (`[eq:dXk_np1] <#eq:dXk_np1>`__),               |
-   |                   | (`[eq:dX1_np1] <#eq:dX1_np1>`__) and            |
-   +-------------------+-------------------------------------------------+
-   |                   | do a downward sweep;                            |
-   +-------------------+-------------------------------------------------+
-   | CALL sf_impl2():  | only momentum variables are affected - no       |
-   |                   | change in scalars;                              |
-   +-------------------+-------------------------------------------------+
-   | CALL bdy_impl4(): | back substitute to compute final implicit       |
-   |                   | correction :math:`\delta X^{n+1}`               |
-   +-------------------+-------------------------------------------------+
+   * - CALL bdy_impl3():
+     - set up coefficients for (`[eq:dX_disc_top] <#eq:dX_disc_top>`__), (`[eq:dX_disc] <#eq:dX_disc>`__) and do a downward sweep;
+
+   * - 
+     - do a downward sweep using the original implicit scheme to
+
+   * - 
+     - compute information required by the surface implicit solver;
+
+   * - CALL sf_impl2():
+     - CALL im_sf_pt2(): compute :math:`F_{JULES}` (scalar implicit fluxes),
+
+   * - 
+     - using original surface implicit solver;
+
+   * - CALL bdy_impl4():
+     - set up (`[eq:dX_bottom] <#eq:dX_bottom>`__) and complete downward sweep;
+
+   * - 
+     - back substitute to compute implicit correction :math:`\delta X^{*}`;
+
+   * - CALL bdy_impl3():
+     - compute explicit flux :math:`F^*=F^n+K_X\frac{\partial \delta X^*}{\partial z}`;
+
+   * - 
+     - set up coefficients for (`[eq:dXtop_np1] <#eq:dXtop_np1>`__), (`[eq:dXk_np1] <#eq:dXk_np1>`__), (`[eq:dX1_np1] <#eq:dX1_np1>`__) and
+
+   * - 
+     - do a downward sweep;
+
+   * - CALL sf_impl2():
+     - only momentum variables are affected - no change in scalars;
+
+   * - CALL bdy_impl4():
+     - back substitute to compute final implicit correction :math:`\delta X^{n+1}`
 
 NB: for CABLE compatibility, sf_impl2 is now called by an intermediate
 routine surf_couple_implicit.
@@ -6678,320 +6686,361 @@ results for these variables it will prevent UKCA jobs from regressing.
 If the changes are significant it would be prudent to discuss them with
 the UKCA code owner before lodging the change.
 
-.. container:: center
+.. list-table:: Table
+   :name: table_name
+   :header-rows: 1
 
-   +-------------------+------+-------------------+-------------------+
-   | Boundary layer    |      |                   |                   |
-   | inputs to UKCA    |      |                   |                   |
-   +===================+======+===================+===================+
-   | Sec               | Item | Description       | Use in UKCA       |
-   +-------------------+------+-------------------+-------------------+
-   | 0                 | 24   | SURFACE           | dry deposition    |
-   |                   |      | TEMPERATURE AFTER |                   |
-   |                   |      | TIMESTEP          |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 0                 | 25   | BOUNDARY LAYER    | dry deposition,   |
-   |                   |      | DEPTH AFTER       | bl nucleation and |
-   |                   |      | TIMESTEP          | call to tr_mix    |
-   +-------------------+------+-------------------+-------------------+
-   | 0                 | 26   | ROUGHNESS LENGTH  | dry deposition    |
-   |                   |      | AFTER TIMESTEP    |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 0                 | 233  | SURFACE           | dry deposition    |
-   |                   |      | TEMPERATURE ON    |                   |
-   |                   |      | TILES K           |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 0                 | 234  | ROUGHNESS LENGTH  | dry deposition    |
-   |                   |      | ON TILES m        |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 60   | RHOKH_MIX         | call to tr_mix    |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 64   | D                 | call to tr_mix    |
-   |                   |      | TRDZ_CHARNEY_GRID |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 65   | GRID-LEVEL OF SML | call to tr_mix    |
-   |                   |      | INVERSION (kent)  |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 66   | Rho \*            | call to tr_mix    |
-   |                   |      | entrainment rate  |                   |
-   |                   |      | (we_lim)          |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 67   | Fraction of the   | call to tr_mix    |
-   |                   |      | timestep (t_frac) |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 68   | zrzi              | call to tr_mix    |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 69   | GRID-LEVEL OF DSC | call to tr_mix    |
-   |                   |      | INVERSION (kent)  |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 70   | Rho \*            | call to tr_mix    |
-   |                   |      | entrainment rate  |                   |
-   |                   |      | dsc               |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 71   | Fraction of the   | call to tr_mix    |
-   |                   |      | timestep dsc      |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 72   | zrzi dsc          | call to tr_mix    |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 73   | ZHSC Top of       | call to tr_mix    |
-   |                   |      | decoupled layer   |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 217  | SURFACE HEAT FLUX | dry deposition    |
-   |                   |      | W/M2              |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 230  | 10 METRE WIND     | calculate sea     |
-   |                   |      | SPEED ON C-GRID   | salt emissions    |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 401  | Dust Emissions    | GLOMAP dust       |
-   |                   |      | div 1             | scheme            |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 402  | Dust Emissions    | GLOMAP dust       |
-   |                   |      | div 2             | scheme            |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 403  | Dust Emissions    | GLOMAP dust       |
-   |                   |      | div 3             | scheme            |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 404  | Dust Emissions    | GLOMAP dust       |
-   |                   |      | div 4             | scheme            |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 405  | Dust Emissions    | GLOMAP dust       |
-   |                   |      | div 5             | scheme            |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 406  | Dust Emissions    | GLOMAP dust       |
-   |                   |      | div 6             | scheme            |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 430  | Dust Friction     | dry deposition    |
-   |                   |      | velocity (U\*) on |                   |
-   |                   |      | tiles             |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 462  | STOMATAL          | dry deposition    |
-   |                   |      | CONDUCTANCE ON    |                   |
-   |                   |      | PFTS (M/S)        |                   |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 465  | FRICTION VELOCITY | dry deposition    |
-   +-------------------+------+-------------------+-------------------+
-   | 3                 | 473  | TURBULENT KINETIC | ACTIVATE cloud    |
-   |                   |      | ENERGY            | scheme            |
-   +-------------------+------+-------------------+-------------------+
+   * - Boundary layer inputs to UKCA
+     - 
+     - 
+     - 
+
+   * - Sec
+     - Item
+     - Description
+     - Use in UKCA
+
+   * - 0
+     - 24
+     - SURFACE TEMPERATURE AFTER TIMESTEP
+     - dry deposition
+
+   * - 0
+     - 25
+     - BOUNDARY LAYER DEPTH AFTER TIMESTEP
+     - dry deposition, bl nucleation and call to tr_mix
+
+   * - 0
+     - 26
+     - ROUGHNESS LENGTH AFTER TIMESTEP
+     - dry deposition
+
+   * - 0
+     - 233
+     - SURFACE TEMPERATURE ON TILES K
+     - dry deposition
+
+   * - 0
+     - 234
+     - ROUGHNESS LENGTH ON TILES m
+     - dry deposition
+
+   * - 3
+     - 60
+     - RHOKH_MIX
+     - call to tr_mix
+
+   * - 3
+     - 64
+     - D TRDZ_CHARNEY_GRID
+     - call to tr_mix
+
+   * - 3
+     - 65
+     - GRID-LEVEL OF SML INVERSION (kent)
+     - call to tr_mix
+
+   * - 3
+     - 66
+     - Rho \* entrainment rate (we_lim)
+     - call to tr_mix
+
+   * - 3
+     - 67
+     - Fraction of the timestep (t_frac)
+     - call to tr_mix
+
+   * - 3
+     - 68
+     - zrzi
+     - call to tr_mix
+
+   * - 3
+     - 69
+     - GRID-LEVEL OF DSC INVERSION (kent)
+     - call to tr_mix
+
+   * - 3
+     - 70
+     - Rho \* entrainment rate dsc
+     - call to tr_mix
+
+   * - 3
+     - 71
+     - Fraction of the timestep dsc
+     - call to tr_mix
+
+   * - 3
+     - 72
+     - zrzi dsc
+     - call to tr_mix
+
+   * - 3
+     - 73
+     - ZHSC Top of decoupled layer
+     - call to tr_mix
+
+   * - 3
+     - 217
+     - SURFACE HEAT FLUX W/M2
+     - dry deposition
+
+   * - 3
+     - 230
+     - 10 METRE WIND SPEED ON C-GRID
+     - calculate sea salt emissions
+
+   * - 3
+     - 401
+     - Dust Emissions div 1
+     - GLOMAP dust scheme
+
+   * - 3
+     - 402
+     - Dust Emissions div 2
+     - GLOMAP dust scheme
+
+   * - 3
+     - 403
+     - Dust Emissions div 3
+     - GLOMAP dust scheme
+
+   * - 3
+     - 404
+     - Dust Emissions div 4
+     - GLOMAP dust scheme
+
+   * - 3
+     - 405
+     - Dust Emissions div 5
+     - GLOMAP dust scheme
+
+   * - 3
+     - 406
+     - Dust Emissions div 6
+     - GLOMAP dust scheme
+
+   * - 3
+     - 430
+     - Dust Friction velocity (U\*) on tiles
+     - dry deposition
+
+   * - 3
+     - 462
+     - STOMATAL CONDUCTANCE ON PFTS (M/S)
+     - dry deposition
+
+   * - 3
+     - 465
+     - FRICTION VELOCITY
+     - dry deposition
+
+   * - 3
+     - 473
+     - TURBULENT KINETIC ENERGY
+     - ACTIVATE cloud scheme
 
 .. _`app:not`:
 
 Appendix: Notation
 ==================
 
-.. container:: flushleft
+.. list-table:: Table
+   :name: table_name
+   :header-rows: 1
 
-   +--------------------------------+------------------------------------+
-   | Finite difference notation     |                                    |
-   +================================+====================================+
-   | :math:`z_k`                    | height of the :math:`\theta`-level |
-   |                                | :math:`k`                          |
-   +--------------------------------+------------------------------------+
-   | :math:`z_{k+\frac{1}{2}}`      | height of half-level above         |
-   |                                | :math:`\theta`-level :math:`k`     |
-   +--------------------------------+------------------------------------+
-   | :math:`\Delta_k`               | indicates a finite difference      |
-   |                                | between :math:`\theta`-levels      |
-   |                                | :math:`k` and :math:`k-1`          |
-   +--------------------------------+------------------------------------+
-   | :math:`\Delta_{k+\frac{1}{2}}` | indicates a finite difference      |
-   |                                | between half-levels                |
-   |                                | :math:`k+\frac{1}{2}` and          |
-   |                                | :math:`k-\frac{1}{2}`              |
-   +--------------------------------+------------------------------------+
-   | :math:`\Delta`                 | note: real change (i.e., not       |
-   |                                | necessarily finite-difference) in  |
-   |                                | a parameter                        |
-   +--------------------------------+------------------------------------+
-   |                                | across the capping inversion (see  |
-   |                                | (`[dbinv] <#dbinv>`__) and         |
-   |                                | following text)                    |
-   +--------------------------------+------------------------------------+
+   * - Finite difference notation
+     - 
 
-.. container:: flushleft
+   * - :math:`z_k`
+     - height of the :math:`\theta`-level :math:`k`
 
-   +----------------------------------+----------------------------------+
-   | Model variables                  |                                  |
-   +==================================+==================================+
-   | :math:`\theta_l`,                | thermodynamic variables defined  |
-   | :math:`\theta_{v\ell}`           | by (`[thetal] <#thetal>`__) and  |
-   |                                  | (`[thetavl] <#thetavl>`__)       |
-   +----------------------------------+----------------------------------+
-   | :math:`T_v`, :math:`\theta_v`    | virtual temperature and          |
-   |                                  | potential temperature,           |
-   +----------------------------------+----------------------------------+
-   |                                  | defined by (`[Tv] <#Tv>`__) and  |
-   |                                  | in section                       |
-   |                                  | (`3.1.1 <#sec:parxs>`__)         |
-   +----------------------------------+----------------------------------+
-   | :math:`b`                        | buoyancy (:math:`=g T_v'/T_v`)   |
-   +----------------------------------+----------------------------------+
-   | :math:`q_t`, :math:`q_v`,        | specific humidities:             |
-   | :math:`q_s`, :math:`q_{\ell}`,   |                                  |
-   | :math:`q_f`                      |                                  |
-   +----------------------------------+----------------------------------+
-   |                                  | total, vapour, saturated, liquid |
-   |                                  | and frozen water, respectively   |
-   +----------------------------------+----------------------------------+
-   | :math:`C_F`, :math:`C_F^l`,      | cloud fraction and the liquid    |
-   | :math:`C_F^f`                    | and frozen water parts,          |
-   |                                  | respectively                     |
-   +----------------------------------+----------------------------------+
-   | :math:`{\cal H}`                 | total heat flux (net radiative   |
-   |                                  | plus turbulent,                  |
-   |                                  | Kms\ :math:`^{-1}`)              |
-   +----------------------------------+----------------------------------+
+   * - :math:`z_{k+\frac{1}{2}}`
+     - height of half-level above :math:`\theta`-level :math:`k`
 
-.. container:: flushleft
+   * - :math:`\Delta_k`
+     - indicates a finite difference between :math:`\theta`-levels :math:`k` and :math:`k-1`
 
-   +----------------------------------+----------------------------------+
-   | Thresholds                       |                                  |
-   +==================================+==================================+
-   | :math:`C_t`                      | (:math:`=1.1`) threshold for     |
-   |                                  | ratio of layer                   |
-   |                                  | :math:`q_t`-gradients in cumulus |
-   |                                  | diagnosis                        |
-   +----------------------------------+----------------------------------+
-   | :math:`\Gamma_{\rm inv}`         | (:math:`=1.1`) threshold on      |
-   |                                  | ratio of environment to parcel   |
-   |                                  | :math:`\theta_v` gradients       |
-   +----------------------------------+----------------------------------+
-   |                                  | for identifying capping          |
-   |                                  | inversions above the LCL         |
-   +----------------------------------+----------------------------------+
-   | SC_CFTOL                         | (:math:`=0.1`) :math:`C_F`       |
-   |                                  | threshold for recognising the    |
-   |                                  | presence of Sc                   |
-   +----------------------------------+----------------------------------+
-   | :ma                              | threshold (in Km\ :math:`^{-1}`) |
-   | th:`\Delta_{k_{ct}} \theta_{v\el | for initial diagnosis of         |
-   | l}/ \Delta_{k_{ct}} z < 10^{-3}` | *well-mixed* DSC layers          |
-   +----------------------------------+----------------------------------+
-   | :math:`D_t`                      | (:math:`=0.1`) threshold for the |
-   |                                  | ratio of buoyancy consumption to |
-   |                                  | production                       |
-   +----------------------------------+----------------------------------+
-   |                                  | before decoupling occurs         |
-   +----------------------------------+----------------------------------+
+   * - :math:`\Delta_{k+\frac{1}{2}}`
+     - indicates a finite difference between half-levels :math:`k+\frac{1}{2}` and :math:`k-\frac{1}{2}`
 
-.. container:: flushleft
+   * - :math:`\Delta`
+     - note: real change (i.e., not necessarily finite-difference) in a parameter
 
-   +----------------------------------+----------------------------------+
-   | Layer definitions and parameters |                                  |
-   +==================================+==================================+
-   | SML                              | surface-based mixed layer        |
-   +----------------------------------+----------------------------------+
-   | NTML                             | top :math:`\theta`-level within  |
-   |                                  | SML                              |
-   +----------------------------------+----------------------------------+
-   | NTPAR                            | top :math:`\theta`-level reached |
-   |                                  | by parcel ascent                 |
-   +----------------------------------+----------------------------------+
-   | DSC                              | decoupled stratocumulus (mixed   |
-   |                                  | layer)                           |
-   +----------------------------------+----------------------------------+
-   | NTDSC                            | top :math:`\theta`-level within  |
-   |                                  | DSC layer                        |
-   +----------------------------------+----------------------------------+
-   | NBDSC                            | bottom :math:`\theta`-level      |
-   |                                  | within DSC layer                 |
-   +----------------------------------+----------------------------------+
-   | NTLOC                            | top :math:`\theta`-level below   |
-   |                                  | which :math:`Ri<1`               |
-   +----------------------------------+----------------------------------+
-   | :math:`z_{\rm h}`                | height of top of SML             |
-   |                                  | (potentially subgrid)            |
-   +----------------------------------+----------------------------------+
-   | :math:`z_{\rm h}^{\rm Sc}`       | height of top of DSC layer       |
-   |                                  | (potentially subgrid)            |
-   +----------------------------------+----------------------------------+
-   | :math:`z_{\rm b}`                | height of base of DSC layer      |
-   |                                  | (subgrid)                        |
-   +----------------------------------+----------------------------------+
-   | :math:`z_{\rm par}`              | height of half-level at top of   |
-   |                                  | parcel ascent                    |
-   +----------------------------------+----------------------------------+
-   | :math:`z_{\rm loc}`              | height of half-level marking     |
-   |                                  | ‘top’ of local :math:`Ri`-based  |
-   |                                  | mixing                           |
-   +----------------------------------+----------------------------------+
-   |                                  | (where :math:`Ri>1`)             |
-   +----------------------------------+----------------------------------+
-   | :math:`z_i`                      | generic inversion height         |
-   +----------------------------------+----------------------------------+
-   | :math:`z_c`                      | cloud depth                      |
-   +----------------------------------+----------------------------------+
-   | :math:`z_{\rm ml}`               | mixed layer depth                |
-   +----------------------------------+----------------------------------+
-   | :math:`K_m^{\rm surf}`,          | :math:`K` profiles for           |
-   | :math:`K_h^{\rm surf}`           | surface-driven turbulence (in    |
-   |                                  | SML)                             |
-   +----------------------------------+----------------------------------+
-   | :math:`K_m^{\rm Sc}`,            | :math:`K` profiles for           |
-   | :math:`K_h^{\rm Sc}`             | cloud-top-driven turbulence      |
-   +----------------------------------+----------------------------------+
-   |                                  | (calculated for both DSC and     |
-   |                                  | SML)                             |
-   +----------------------------------+----------------------------------+
-   | LCL                              | lifting condensation level       |
-   +----------------------------------+----------------------------------+
+   * - 
+     - across the capping inversion (see (`[dbinv] <#dbinv>`__) and following text)
 
-.. container:: flushleft
+.. list-table:: Table
+   :name: table_name
+   :header-rows: 1
 
-   +----------------------------------+----------------------------------+
-   | Other parameters                 |                                  |
-   +==================================+==================================+
-   | :math:`\gamma_{\theta_{\ell}}`   | gradient adjustment term, given  |
-   |                                  | by (`[gradadj] <#gradadj>`__)    |
-   +----------------------------------+----------------------------------+
-   | :math:`w_m`                      | scaling velocity for momentum    |
-   |                                  | mixing in the SML                |
-   +----------------------------------+----------------------------------+
-   |                                  | (used in :math:`K_m^{\rm surf}`, |
-   |                                  | :math:`\gamma_{\theta_{\ell}}`   |
-   |                                  | and the SML parcel perturbation, |
-   |                                  | :math:`\theta_v'`)               |
-   +----------------------------------+----------------------------------+
-   | :math:`w_*`                      | ‘standard’ convective velocity   |
-   |                                  | scale for a cloud-free           |
-   |                                  | convective                       |
-   +----------------------------------+----------------------------------+
-   |                                  | boundary layer,                  |
-   |                                  | :math:`w_                        |
-   |                                  | *^3 = z_{\rm h}\overline{w'b}_S` |
-   +----------------------------------+----------------------------------+
-   | :math:`u_*`                      | friction velocity (here includes |
-   |                                  | the orographic component)        |
-   +----------------------------------+----------------------------------+
-   | :math:`w_e`, :math:`\tilde{w_e}` | entrainment velocity and         |
-   |                                  | compensated to allow for         |
-   |                                  | subsidence (ms\ :math:`^{-1}`)   |
-   +----------------------------------+----------------------------------+
-   | :math:`w_S`                      | subsidence velocity              |
-   |                                  | (ms\ :math:`^{-1}`)              |
-   +----------------------------------+----------------------------------+
-   | :math:`\Delta_F`                 | cloud-top net radiative          |
-   |                                  | divergence, calculation given in |
-   |                                  | (`[ctraddiv] <#ctraddiv>`__)     |
-   +----------------------------------+----------------------------------+
-   | :math:`\alpha_t`                 | parameter in entrainment         |
-   |                                  | parametrization,                 |
-   |                                  | (`[we_parm] <#we_parm>`__)       |
-   +----------------------------------+----------------------------------+
-   | :math:`\tau_{rc}`,               | parameters in perturbation       |
-   | :math:`z_{rc}`                   | calculation,                     |
-   |                                  | (`[dscd_pert] <#dscd_pert>`__),  |
-   +----------------------------------+----------------------------------+
-   |                                  | for initial identification of    |
-   |                                  | and :math:`z_{\rm ml}`           |
-   |                                  | calculation for DSC layers       |
-   +----------------------------------+----------------------------------+
-   | :math:`a_L`, :math:`\alpha_L`,   | buoyancy parameters, defined in  |
-   | :math:`\beta_T`,                 | appendix `12 <#app:buoyp>`__     |
-   | :math:`\beta_q`,                 |                                  |
-   | :math:`\tilde{\beta_T}`,         |                                  |
-   | :math:`\tilde{\beta_q}`          |                                  |
-   +----------------------------------+----------------------------------+
+   * - Model variables
+     - 
+
+   * - :math:`\theta_l`, :math:`\theta_{v\ell}`
+     - thermodynamic variables defined by (`[thetal] <#thetal>`__) and (`[thetavl] <#thetavl>`__)
+
+   * - :math:`T_v`, :math:`\theta_v`
+     - virtual temperature and potential temperature,
+
+   * - 
+     - defined by (`[Tv] <#Tv>`__) and in section (`3.1.1 <#sec:parxs>`__)
+
+   * - :math:`b`
+     - buoyancy (:math:`=g T_v'/T_v`)
+
+   * - :math:`q_t`, :math:`q_v`, :math:`q_s`, :math:`q_{\ell}`, :math:`q_f`
+     - specific humidities:
+
+   * - 
+     - total, vapour, saturated, liquid and frozen water, respectively
+
+   * - :math:`C_F`, :math:`C_F^l`, :math:`C_F^f`
+     - cloud fraction and the liquid and frozen water parts, respectively
+
+   * - :math:`{\cal H}`
+     - total heat flux (net radiative plus turbulent, Kms\ :math:`^{-1}`)
+
+.. list-table:: Table
+   :name: table_name
+   :header-rows: 1
+
+   * - Thresholds
+     - 
+
+   * - :math:`C_t`
+     - (:math:`=1.1`) threshold for ratio of layer :math:`q_t`-gradients in cumulus diagnosis
+
+   * - :math:`\Gamma_{\rm inv}`
+     - (:math:`=1.1`) threshold on ratio of environment to parcel :math:`\theta_v` gradients
+
+   * - 
+     - for identifying capping inversions above the LCL
+
+   * - SC_CFTOL
+     - (:math:`=0.1`) :math:`C_F` threshold for recognising the presence of Sc
+
+   * - :math:`\Delta_{k_{ct}} \theta_{v\ell}/ \Delta_{k_{ct}} z < 10^{-3}`
+     - threshold (in Km\ :math:`^{-1}`) for initial diagnosis of *well-mixed* DSC layers
+
+   * - :math:`D_t`
+     - (:math:`=0.1`) threshold for the ratio of buoyancy consumption to production
+
+   * - 
+     - before decoupling occurs
+
+.. list-table:: Table
+   :name: table_name
+   :header-rows: 1
+
+   * - Layer definitions and parameters
+     - 
+
+   * - SML
+     - surface-based mixed layer
+
+   * - NTML
+     - top :math:`\theta`-level within SML
+
+   * - NTPAR
+     - top :math:`\theta`-level reached by parcel ascent
+
+   * - DSC
+     - decoupled stratocumulus (mixed layer)
+
+   * - NTDSC
+     - top :math:`\theta`-level within DSC layer
+
+   * - NBDSC
+     - bottom :math:`\theta`-level within DSC layer
+
+   * - NTLOC
+     - top :math:`\theta`-level below which :math:`Ri<1`
+
+   * - :math:`z_{\rm h}`
+     - height of top of SML (potentially subgrid)
+
+   * - :math:`z_{\rm h}^{\rm Sc}`
+     - height of top of DSC layer (potentially subgrid)
+
+   * - :math:`z_{\rm b}`
+     - height of base of DSC layer (subgrid)
+
+   * - :math:`z_{\rm par}`
+     - height of half-level at top of parcel ascent
+
+   * - :math:`z_{\rm loc}`
+     - height of half-level marking ‘top’ of local :math:`Ri`-based mixing
+
+   * - 
+     - (where :math:`Ri>1`)
+
+   * - :math:`z_i`
+     - generic inversion height
+
+   * - :math:`z_c`
+     - cloud depth
+
+   * - :math:`z_{\rm ml}`
+     - mixed layer depth
+
+   * - :math:`K_m^{\rm surf}`, :math:`K_h^{\rm surf}`
+     - :math:`K` profiles for surface-driven turbulence (in SML)
+
+   * - :math:`K_m^{\rm Sc}`, :math:`K_h^{\rm Sc}`
+     - :math:`K` profiles for cloud-top-driven turbulence
+
+   * - 
+     - (calculated for both DSC and SML)
+
+   * - LCL
+     - lifting condensation level
+
+.. list-table:: Table
+   :name: table_name
+   :header-rows: 1
+
+   * - Other parameters
+     - 
+
+   * - :math:`\gamma_{\theta_{\ell}}`
+     - gradient adjustment term, given by (`[gradadj] <#gradadj>`__)
+
+   * - :math:`w_m`
+     - scaling velocity for momentum mixing in the SML
+
+   * - 
+     - (used in :math:`K_m^{\rm surf}`, :math:`\gamma_{\theta_{\ell}}` and the SML parcel perturbation, :math:`\theta_v'`)
+
+   * - :math:`w_*`
+     - ‘standard’ convective velocity scale for a cloud-free convective
+
+   * - 
+     - boundary layer, :math:`w_*^3 = z_{\rm h}\overline{w'b}_S`
+
+   * - :math:`u_*`
+     - friction velocity (here includes the orographic component)
+
+   * - :math:`w_e`, :math:`\tilde{w_e}`
+     - entrainment velocity and compensated to allow for subsidence (ms\ :math:`^{-1}`)
+
+   * - :math:`w_S`
+     - subsidence velocity (ms\ :math:`^{-1}`)
+
+   * - :math:`\Delta_F`
+     - cloud-top net radiative divergence, calculation given in (`[ctraddiv] <#ctraddiv>`__)
+
+   * - :math:`\alpha_t`
+     - parameter in entrainment parametrization, (`[we_parm] <#we_parm>`__)
+
+   * - :math:`\tau_{rc}`, :math:`z_{rc}`
+     - parameters in perturbation calculation, (`[dscd_pert] <#dscd_pert>`__),
+
+   * - 
+     - for initial identification of and :math:`z_{\rm ml}` calculation for DSC layers
+
+   * - :math:`a_L`, :math:`\alpha_L`, :math:`\beta_T`, :math:`\beta_q`, :math:`\tilde{\beta_T}`, :math:`\tilde{\beta_q}`
+     - buoyancy parameters, defined in appendix `12 <#app:buoyp>`__
 
 .. [1]
    unless the option to mix across the LCL is selected, see
