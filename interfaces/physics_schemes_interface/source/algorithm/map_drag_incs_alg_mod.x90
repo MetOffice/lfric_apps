@@ -8,6 +8,7 @@
 module map_drag_incs_alg_mod
 
   use field_mod,                     only: field_type
+  use integer_field_mod,             only: integer_field_type
   use constants_mod,                 only: r_def, i_def
   use physics_config_mod,            only: limit_drag_incs
   use map_fd_to_prognostics_alg_mod, only: set_wind
@@ -43,10 +44,10 @@ contains
     type(field_type), intent(in) :: u
     type(field_type), intent(inout) :: du_drag_inc
 
-    type(field_type)          :: du_new_drag_inc
-    type(field_type), pointer :: face_selector_ew
-    type(field_type), pointer :: face_selector_ns
-    integer(kind=i_def)       :: mesh_id
+    type(field_type)                  :: du_new_drag_inc
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+    integer(kind=i_def)               :: mesh_id
 
     ! Mapping back of wind increments
     call set_wind(du_drag_inc, du_inc, dv_inc, dw_inc)
