@@ -13,12 +13,14 @@ module bl_exp_du_kernel_mod
                                       ANY_SPACE_1, ANY_SPACE_2,               &
                                       ANY_SPACE_3, ANY_SPACE_4,               &
                                       ANY_SPACE_5, ANY_SPACE_6,               &
+                                      ANY_DISCONTINUOUS_SPACE_3,              &
                                       GH_REAL, GH_WRITE, GH_SCALAR, GH_INTEGER
   use constants_mod,            only: r_def, i_def, r_bl
   use fs_continuity_mod,        only: W1, W2
   use kernel_mod,               only: kernel_type
   use nlsizes_namelist_mod,     only: bl_levels
   use jules_surface_config_mod, only: formdrag, formdrag_dist_drag
+  use reference_element_mod,    only: N
 
   implicit none
 
@@ -30,19 +32,21 @@ module bl_exp_du_kernel_mod
   !> Kernel metadata type.
   type, public, extends(kernel_type) :: bl_exp_du_kernel_type
     private
-    type(arg_type) :: meta_args(11) = (/                     &
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),           &! nfaces
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_1), &! tau w3/w2
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_2), &! tau_land 2d w3/w2
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_SPACE_2), &! tau_ssi 2d w3/w2
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_3), &! rhokm wth/w2
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_4), &! rdz wth/fd1
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1), &! u_physics w3/w2
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_5), &! surf_interp mult w3/w2
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_3), &! ngstress wth/w2
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_1), &! fd_tau w3/w2
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_SPACE_6)  &! sea_current mix w3/w2
-         /)
+    type(arg_type) :: meta_args(13) = (/                                       &
+        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &! nfaces
+        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_SPACE_1),                &! tau w3/w2
+        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_SPACE_2),                &! tau_land 2d w3/w2
+        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_SPACE_2),                &! tau_ssi 2d w3/w2
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_3),                &! rhokm wth/w2
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_4),                &! rdz wth/fd1
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_1),                &! u_physics w3/w2
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_5),                &! surf_interp mult w3/w2
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_3),                &! ngstress wth/w2
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_1),                &! fd_tau w3/w2
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_6),                &! sea_current mix w3/w2
+        arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),  &! face_selector_ew
+        arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3)   &! face_selector_ns
+    /)
     integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: bl_exp_du_code
@@ -69,6 +73,10 @@ contains
   !> @param[in]     ngstress       NG stress function
   !> @param[in]     fd_tau         Stress from turbulent form-drag
   !> @param[in]     sea_current    Ocean surface current
+  !> @param[in]     face_selector_ew   2D field indicating which W/E faces
+  !!                               to loop over in this column
+  !> @param[in]     face_selector_ns   2D field indicating which N/S faces
+  !!                               to loop over in this column
   !> @param[in]     ndf_half       Number of DOFs per cell for half levels
   !> @param[in]     undf_half      Number of unique DOFs for half levels
   !> @param[in]     map_half       Dofmap for the cell at the base of the column
@@ -87,36 +95,44 @@ contains
   !> @param[in]     ndf_curr       Number of DOFs per cell for current space
   !> @param[in]     undf_curr      Number of unique DOFs for current space
   !> @param[in]     map_curr       Dofmap for the cell at the base of the column
-  subroutine bl_exp_du_code(nlayers,       &
-                            nfaces,        &
-                            tau,           &
-                            tau_land,      &
-                            tau_ssi,       &
-                            rhokm,         &
-                            rdz,           &
-                            u_physics,     &
-                            surf_interp,   &
-                            ngstress,      &
-                            fd_tau,        &
-                            sea_current,   &
-                            ndf_half,      &
-                            undf_half,     &
-                            map_half,      &
-                            ndf_2d,        &
-                            undf_2d,       &
-                            map_2d,        &
-                            ndf_full,      &
-                            undf_full,     &
-                            map_full,      &
-                            ndf_rdz,       &
-                            undf_rdz,      &
-                            map_rdz,       &
-                            ndf_surf,      &
-                            undf_surf,     &
-                            map_surf,      &
-                            ndf_curr,      &
-                            undf_curr,     &
-                            map_curr)
+  !> @param[in]     ndf_w3_2d      Num of DoFs for 2D W3 per cell
+  !> @param[in]     undf_w3_2d     Num of DoFs for this partition for 2D W3
+  !> @param[in]     map_w3_2d      Map for 2D W3
+  subroutine bl_exp_du_code(nlayers,          &
+                            nfaces,           &
+                            tau,              &
+                            tau_land,         &
+                            tau_ssi,          &
+                            rhokm,            &
+                            rdz,              &
+                            u_physics,        &
+                            surf_interp,      &
+                            ngstress,         &
+                            fd_tau,           &
+                            sea_current,      &
+                            face_selector_ew, &
+                            face_selector_ns, &
+                            ndf_half,         &
+                            undf_half,        &
+                            map_half,         &
+                            ndf_2d,           &
+                            undf_2d,          &
+                            map_2d,           &
+                            ndf_full,         &
+                            undf_full,        &
+                            map_full,         &
+                            ndf_rdz,          &
+                            undf_rdz,         &
+                            map_rdz,          &
+                            ndf_surf,         &
+                            undf_surf,        &
+                            map_surf,         &
+                            ndf_curr,         &
+                            undf_curr,        &
+                            map_curr,         &
+                            ndf_w3_2d,        &
+                            undf_w3_2d,       &
+                            map_w3_2d )
 
     !---------------------------------------
     ! UM modules containing switches or global constants
@@ -141,6 +157,8 @@ contains
     integer(kind=i_def), intent(in) :: map_full(ndf_full)
     integer(kind=i_def), intent(in) :: ndf_surf, undf_surf
     integer(kind=i_def), intent(in) :: map_surf(ndf_surf)
+    integer(kind=i_def), intent(in) :: ndf_w3_2d, undf_w3_2d
+    integer(kind=i_def), intent(in) :: map_w3_2d(ndf_w3_2d)
 
     real(kind=r_def), dimension(undf_half), intent(inout) :: tau
     real(kind=r_def), dimension(undf_2d), intent(inout) :: tau_land, tau_ssi
@@ -152,70 +170,75 @@ contains
     real(kind=r_def), dimension(undf_surf), intent(in) :: surf_interp
     real(kind=r_def), dimension(undf_curr), intent(in) :: sea_current
 
+    integer(kind=i_def), dimension(undf_w3_2d), intent(in) :: face_selector_ew
+    integer(kind=i_def), dimension(undf_w3_2d), intent(in) :: face_selector_ns
+
     ! Internal variables
-    integer(kind=i_def) :: df, k
+    integer(kind=i_def) :: df, k, j, total_faces
     real(kind=r_bl) :: rhokm_land, rhokm_ssi, fland, flandfac, fseafac
     real(kind=r_bl) :: zh_nonloc(1)
     real(kind=r_bl), dimension(0:bl_levels-1) :: tau_grad, tau_non_grad, u_sp, &
          rdz_sp, rhokm_sp, ngstress_sp, tau_sp, fd_tau_sp
 
+    total_faces = MIN(                                                         &
+      nfaces, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))  &
+    )
+
     ! loop over all faces of the cell
-    do df = 1,nfaces
+    do j = 1, total_faces
+      df = j
+      if (j == 3 .and. face_selector_ns(map_w3_2d(1)) == 2                     &
+                .and. face_selector_ew(map_w3_2d(1)) == 1) df = N
 
-      ! Only calculate face if it's not already been done
-      if (tau(map_half(df)) == 0.0_r_def) then
+      !================================================================
+      ! In the UM this happens in bdy_expl3
+      !================================================================
+      fland      = surf_interp(map_surf(df) + 0)
+      rhokm_land = surf_interp(map_surf(df) + 1)
+      rhokm_ssi  = surf_interp(map_surf(df) + 2)
+      flandfac   = surf_interp(map_surf(df) + 3)
+      fseafac    = surf_interp(map_surf(df) + 4)
+      zh_nonloc  = surf_interp(map_surf(df) + 5)
 
-        !================================================================
-        ! In the UM this happens in bdy_expl3
-        !================================================================
-        fland      = surf_interp(map_surf(df) + 0)
-        rhokm_land = surf_interp(map_surf(df) + 1)
-        rhokm_ssi  = surf_interp(map_surf(df) + 2)
-        flandfac   = surf_interp(map_surf(df) + 3)
-        fseafac    = surf_interp(map_surf(df) + 4)
-        zh_nonloc  = surf_interp(map_surf(df) + 5)
+      do k = 0, bl_levels-1
+        u_sp(k) = u_physics(map_half(df)+k)
+        rdz_sp(k) = rdz(map_rdz(df)+k)
+        rhokm_sp(k) = rhokm(map_full(df)+k)
+        ngstress_sp(k) = ngstress(map_full(df)+k)
+        fd_tau_sp(k) = fd_tau(map_half(df)+k)
+        tau_sp(k) = tau(map_half(df)+k)
+      end do
 
-        do k = 0, bl_levels-1
-          u_sp(k) = u_physics(map_half(df)+k)
-          rdz_sp(k) = rdz(map_rdz(df)+k)
-          rhokm_sp(k) = rhokm(map_full(df)+k)
-          ngstress_sp(k) = ngstress(map_full(df)+k)
-          fd_tau_sp(k) = fd_tau(map_half(df)+k)
-          tau_sp(k) = tau(map_half(df)+k)
-        end do
+      tau_land(map_2d(df)) = rhokm_land * u_sp(0) * flandfac
 
-        tau_land(map_2d(df)) = rhokm_land * u_sp(0) * flandfac
+      ! If sea surface current (sea_current) has not been obtained
+      ! from coupling fields or from an ancillary file then it will simply
+      ! contain uniform zeros.
+      tau_ssi(map_2d(df)) = rhokm_ssi *                                        &
+                (u_sp(0) - sea_current(map_curr(df))) * fseafac
+      tau_sp(0) = fland * tau_land(map_2d(df))                                 &
+                      + (1.0_r_bl - fland) * tau_ssi(map_2d(df))
 
-        ! If sea surface current (sea_current) has not been obtained
-        ! from coupling fields or from an ancillary file then it will simply
-        ! contain uniform zeros.
-        tau_ssi(map_2d(df)) = rhokm_ssi *                                      &
-                 (u_sp(0) - sea_current(map_curr(df))) * fseafac
-        tau_sp(0) = fland * tau_land(map_2d(df))                               &
-                        + (1.0_r_bl - fland) * tau_ssi(map_2d(df))
-
-        if (formdrag == formdrag_dist_drag) then
-          if (fland > 0.0_r_bl) then
-            tau_land(map_2d(df)) = tau_land(map_2d(df))                        &
-                                    + fd_tau(map_half(df)) / fland
-          end if
+      if (formdrag == formdrag_dist_drag) then
+        if (fland > 0.0_r_bl) then
+          tau_land(map_2d(df)) = tau_land(map_2d(df))                          &
+                                  + fd_tau(map_half(df)) / fland
         end if
+      end if
 
-        call ex_flux_uv(pdims, pdims, pdims, bl_levels,                        &
-                        u_sp(0:bl_levels-1),                                   &
-                        zh_nonloc,                                             &
-                        rdz_sp(1:bl_levels-1),                                 &
-                        rhokm_sp(0:bl_levels-1),                               &
-                        ngstress_sp(1:bl_levels-1),                            &
-                        fd_tau_sp(0:bl_levels-1),                              &
-                        tau_sp(0:bl_levels-1),                                 &
-                        tau_grad(0:bl_levels-1), tau_non_grad(0:bl_levels-1))
+      call ex_flux_uv(pdims, pdims, pdims, bl_levels,                          &
+                      u_sp(0:bl_levels-1),                                     &
+                      zh_nonloc,                                               &
+                      rdz_sp(1:bl_levels-1),                                   &
+                      rhokm_sp(0:bl_levels-1),                                 &
+                      ngstress_sp(1:bl_levels-1),                              &
+                      fd_tau_sp(0:bl_levels-1),                                &
+                      tau_sp(0:bl_levels-1),                                   &
+                      tau_grad(0:bl_levels-1), tau_non_grad(0:bl_levels-1))
 
-        do k = 0, bl_levels-1
-          tau(map_half(df)+k) = tau_sp(k)
-        end do
-
-      end if ! this face needs calculating
+      do k = 0, bl_levels-1
+        tau(map_half(df)+k) = tau_sp(k)
+      end do
 
     end do ! loop over df
 

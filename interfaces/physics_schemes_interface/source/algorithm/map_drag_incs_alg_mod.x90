@@ -8,10 +8,11 @@
 module map_drag_incs_alg_mod
 
   use field_mod,                     only: field_type
-  use constants_mod,                 only: r_def
+  use constants_mod,                 only: r_def, i_def
   use physics_config_mod,            only: limit_drag_incs
   use map_fd_to_prognostics_alg_mod, only: set_wind
   use drag_incs_kernel_mod,          only: drag_incs_kernel_type
+  use sci_geometric_constants_mod,   only: get_face_selector_ew, get_face_selector_ns
 
   implicit none
   private
@@ -36,21 +37,28 @@ contains
     implicit none
 
     ! Arguments
-    type( field_type ), intent( in ) :: du_inc
-    type( field_type ), intent( in ) :: dv_inc
-    type( field_type ), intent( in ) :: dw_inc
-    type( field_type ), intent( in ) :: u
-    type( field_type ), intent( inout ) :: du_drag_inc
+    type(field_type), intent(in) :: du_inc
+    type(field_type), intent(in) :: dv_inc
+    type(field_type), intent(in) :: dw_inc
+    type(field_type), intent(in) :: u
+    type(field_type), intent(inout) :: du_drag_inc
 
-    type( field_type ) :: du_new_drag_inc
+    type(field_type)          :: du_new_drag_inc
+    type(field_type), pointer :: face_selector_ew
+    type(field_type), pointer :: face_selector_ns
+    integer(kind=i_def)       :: mesh_id
 
     ! Mapping back of wind increments
     call set_wind(du_drag_inc, du_inc, dv_inc, dw_inc)
 
     if (limit_drag_incs) then
+      mesh_id = u%get_mesh_id()
+      face_selector_ew => get_face_selector_ew(mesh_id)
+      face_selector_ns => get_face_selector_ns(mesh_id)
       call du_drag_inc%copy_field_properties(du_new_drag_inc)
-      call invoke(setval_c(du_new_drag_inc, 0.0_r_def),                   &
-                  drag_incs_kernel_type(du_new_drag_inc, du_drag_inc, u), &
+      call invoke(setval_c(du_new_drag_inc, 0.0_r_def),                        &
+                  drag_incs_kernel_type(du_new_drag_inc, du_drag_inc, u,       &
+                                        face_selector_ew, face_selector_ns),   &
                   setval_X(du_drag_inc, du_new_drag_inc) )
     end if
 

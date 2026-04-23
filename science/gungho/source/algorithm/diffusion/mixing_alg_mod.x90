@@ -29,8 +29,11 @@ contains
     use log_mod,                       only: log_event,         &
                                              LOG_LEVEL_INFO
     use field_mod,                     only: field_type
+    use integer_field_mod,             only: integer_field_type
     use field_collection_mod,          only: field_collection_type
-    use sci_geometric_constants_mod,   only: get_dx_at_w2
+    use sci_geometric_constants_mod,   only: get_dx_at_w2, &
+                                             get_face_selector_ew, &
+                                             get_face_selector_ns
     use mesh_mod,                      only: mesh_type
     use mr_indices_mod,                only: nummr
     use mixing_config_mod,             only: viscosity, smagorinsky, viscosity_mu
@@ -55,9 +58,10 @@ contains
     ! Increment fields
     type( field_type ) :: du, dtheta
 
-    type( field_type ), pointer :: dx_at_w2 => null()
-
-    type( mesh_type ), pointer   :: mesh => null()
+    type( field_type ),         pointer :: dx_at_w2
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+    type( mesh_type ),          pointer :: mesh
 
     !--------------------------------------------------------------------
     ! Apply horizontal Smagorinsky subgrid mixing
@@ -87,10 +91,15 @@ contains
       call du%initialise( u%get_function_space() )
 
       dx_at_w2 => get_dx_at_w2(mesh%get_id())
+      face_selector_ew => get_face_selector_ew(mesh%get_id())
+      face_selector_ns => get_face_selector_ns(mesh%get_id())
+
       call invoke( setval_c(du, 0.0_r_def),                                   &
                    tracer_viscosity_kernel_type( dtheta, theta, 1, dx_at_w2,  &
                                                  viscosity_mu ),              &
                    momentum_viscosity_kernel_type( du, u, 1, dx_at_w2, 1,     &
+                                                   face_selector_ew,          &
+                                                   face_selector_ns,          &
                                                    viscosity_mu ),            &
                    inc_X_plus_bY( theta, dt, dtheta ),                        &
                    inc_X_plus_bY( u,     dt, du ) )
