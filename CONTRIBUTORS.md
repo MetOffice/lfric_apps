@@ -1,20 +1,15 @@
 # Contributors
 | GitHub user         | Real Name            | Affiliation                      | Date       |
 |---------------------|----------------------| -------------------------------- |------------|
-| james-bruten-mo     | James Bruten         | Met Office                       | 2025-12-09 |
 | jedbakerMO          | Jed Baker            | Met Office                       | 2025-12-29 |
+| bblay-mo            | Byron Blay           | Met Office                       | 2026-01-07 |
 | tommbendall         | Thomas Bendall       | Met Office                       | 2026-01-13 |
 | iboutle             | Ian Boutle           | Met Office                       | 2026-03-06 |
 | ukmo-juan-castillo  | Juan M. Castillo     | Met Office                       | 2026-01-23 |
 | t00sa               | Sam Clarke-Green     | Met Office                       | 2026-01-20 |
 | andrewcoughtrie     | Andrew Coughtrie     | Met Office                       | 2026-01-28 |
 | oakleybrunt         | Oakley Brunt         | Met Office                       | 2025-12-19 |
-| bblay-mo            | Byron Blay           | Met Office                       | 2026-01-07 |
-| harry-shepherd      | Harry Shepherd       | Met Office                       | 2026-01-08 |
-| DrTVockerodtMO      | Terence Vockerodt    | Met Office                       | 2026-01-08 |
-| ricky-lv426         | Ricky Olivier        | University of Exeter             | 2026-01-12 |
-| MetBenjaminWent     | Benjamin Went        | Met Office                       | 2026-01-15 |
-| timgraham-Met       | Tim Graham           | Met Office                       | 2026-01-15 |
+| james-bruten-mo     | James Bruten         | Met Office                       | 2025-12-09 |
 | mcdalvi             | Mohit Dalvi          | Met Office                       | 2026-01-15 |
 | mo-lucy-gordon      | Lucy Gordon          | Met Office                       | 2026-03-11 |
 | timgraham-Met       | Tim Graham           | Met Office                       | 2026-01-15 |
