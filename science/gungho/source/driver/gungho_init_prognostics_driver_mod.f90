@@ -77,7 +77,7 @@ contains
     ! Initialise potential temperature and water vapour
     call set_bundle_scalar(0.0_r_def, mr, nummr)
     if ( test == test_specified_profiles ) then
-      call init_thermo_profile_alg( theta, mr(imr_v) )
+      call init_thermo_profile_alg( theta, mr(imr_v), exner )
     else if ( test == test_bryan_fritsch ) then
       call init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
     else
