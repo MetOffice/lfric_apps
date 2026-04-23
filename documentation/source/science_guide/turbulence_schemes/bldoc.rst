@@ -44,16 +44,18 @@ horizontal components of momentum, :math:`{\bf u}` on a sphere gives:
 
 .. math::
 
-   \begin{aligned}
-     \frac{\partial \chi}{\partial t}
-     &=& - \frac{1}{r^2 \rho} \, \frac{\partial }{\partial z} \left( r^2 \rho \overline{w'\chi'} \right) 
-     + {\cal S}
-     \label{cons_eqn_scal} \\
-     \frac{\partial {\bf u}}{\partial t}
-     &=& \frac{1}{r^2 \rho} \, \frac{\partial }{\partial z} \left( r^2 {\bf \tau} \right) 
-     + {\cal S}
-     \label{cons_eqn_uv}
-   \end{aligned}
+   \frac{\partial \chi}{\partial t}
+   = - \frac{1}{r^2 \rho} \, \frac{\partial }{\partial z} \left( r^2 \rho \overline{w'\chi'} \right)
+   + {\cal S}
+   \label{cons_eqn_scal}
+
+.. math::
+
+   \frac{\partial {\bf u}}{\partial t}
+   = \frac{1}{r^2 \rho} \, \frac{\partial }{\partial z} \left( r^2 {\bf \tau} \right)
+   + {\cal S}
+   \label{cons_eqn_uv}
+
 
 where :math:`\overline{w'\chi'}` and :math:`{\bf \tau}` are the vertical
 turbulent fluxes to be parametrized, :math:`r` is the height from the
@@ -63,11 +65,13 @@ approximately conserved under moist adiabatic ascent, are:
 
 .. math::
 
-   \begin{aligned}
-     \theta_{\ell}&=& T_L + \frac{g}{c_p} z = T - \frac{L}{c_p} q_{\ell}
-                     - \frac{L_s}{c_p} q_f + \frac{g}{c_p} z   \label{thetal} \\
-     q_t &=& q_v + q_{\ell}+ q_f \label{qt}
-   \end{aligned}
+   \theta_{\ell}= T_L + \frac{g}{c_p} z = T - \frac{L}{c_p} q_{\ell}
+                   - \frac{L_s}{c_p} q_f + \frac{g}{c_p} z   \label{thetal}
+
+.. math::
+
+   q_t = q_v + q_{\ell}+ q_f \label{qt}
+
 
 where :math:`T` is temperature, :math:`q_v` is specific humidity,
 :math:`q_{\ell}` and :math:`q_f` the specific liquid and frozen water
@@ -112,12 +116,14 @@ alternative methodology is optionally available, see section
 
 .. math::
 
-   \begin{aligned}
-     \overline{w'\chi'} &=& - K_h \frac{\partial \chi}{\partial z} + K_h^{\rm surf}\gamma_{\chi} 
-     \label{scal_closure} \\
-     {\bf \tau} &=& K_m \frac{\partial {\bf u}}{\partial z} + {\bf \tau}^{nl}
-     \label{uv_closure}
-   \end{aligned}
+   \overline{w'\chi'} = - K_h \frac{\partial \chi}{\partial z} + K_h^{\rm surf}\gamma_{\chi}
+   \label{scal_closure}
+
+.. math::
+
+   {\bf \tau} = K_m \frac{\partial {\bf u}}{\partial z} + {\bf \tau}^{nl}
+   \label{uv_closure}
+
 
 Separate eddy-diffusivities are calculated for momentum, :math:`K_m`,
 and for scalar variables, :math:`K_h`. The second term on the right hand
@@ -533,13 +539,15 @@ expanded using the first-order closure in
 
 .. math::
 
-   \begin{aligned}
-     \overline{w'\theta_{\ell}'}_k &=&  -K_h^{\rm surf}\,\frac{\widetilde{\Delta_k \theta_{\ell}}}{\Delta_k z}
-                  -K_h^{\rm Sc}\,\frac{\Delta_k \theta_{\ell}}{\Delta_k z} \nonumber \\
-     \overline{w'q_t'}_k  &=&  -\left(K_h^{\rm surf}+ K_h^{\rm Sc}\right) \,
-                  \,\frac{\Delta_k q_t}{\Delta_k z} 
-     \label{eq:wx_std}
-   \end{aligned}
+   \overline{w'\theta_{\ell}'}_k =  -K_h^{\rm surf}\,\frac{\widetilde{\Delta_k \theta_{\ell}}}{\Delta_k z}
+                -K_h^{\rm Sc}\,\frac{\Delta_k \theta_{\ell}}{\Delta_k z}
+
+.. math::
+
+   \overline{w'q_t'}_k  =  -\left(K_h^{\rm surf}+ K_h^{\rm Sc}\right) \,
+                \,\frac{\Delta_k q_t}{\Delta_k z}
+   \label{eq:wx_std}
+
 
 where
 :math:`\widetilde{\Delta_k \theta_{\ell}} = \Delta_k \theta_{\ell}-
@@ -707,14 +715,15 @@ Then,
 
 .. math::
 
-   \begin{aligned}
-     \int_{z_h-\Delta z_{rad}}^{z_h} \, \overline{w'\theta_{\ell}'}\, dz  & = & 
-     \int_{z_h-\Delta z_{rad}}^{z_h} \, F_{\theta_{\ell}}^{Tot} -
-     F_{\theta_{\ell}}^{NT}\, dz
-     \nonumber \\
-     & = &  I^{Tot} - I^{rad} - I^{ppn}
-     \label{wthl_int}
-   \end{aligned}
+   \int_{z_h-\Delta z_{rad}}^{z_h} \, \overline{w'\theta_{\ell}'}\, dz   =
+   \int_{z_h-\Delta z_{rad}}^{z_h} \, F_{\theta_{\ell}}^{Tot} -
+   F_{\theta_{\ell}}^{NT}\, dz
+
+.. math::
+
+    =   I^{Tot} - I^{rad} - I^{ppn}
+   \label{wthl_int}
+
 
 For the radiative flux, it could be assumed that the subgrid flux
 distribution is exponentially dependent on the grid-level LWP, for
@@ -745,12 +754,14 @@ approximations, (`[wthl_int] <#wthl_int>`__) becomes
 
 .. math::
 
-   \begin{aligned}
-     \int_{z_h-\Delta z_{rad}}^{z_h} \, \overline{w'\theta_{\ell}'}\, dz  & = & 
-     \Delta  z_{rad} \left(-w_e \Delta \theta_{\ell}+ \Delta F\right)
-     - \Delta z_{rad} \Delta F/ 3 \\
-     & = & \Delta  z_{rad} \left(-w_e \Delta \theta_{\ell}+ \frac{2}{3} \Delta F\right)
-   \end{aligned}
+   \int_{z_h-\Delta z_{rad}}^{z_h} \, \overline{w'\theta_{\ell}'}\, dz   =
+   \Delta  z_{rad} \left(-w_e \Delta \theta_{\ell}+ \Delta F\right)
+   - \Delta z_{rad} \Delta F/ 3
+
+.. math::
+
+    =  \Delta  z_{rad} \left(-w_e \Delta \theta_{\ell}+ \frac{2}{3} \Delta F\right)
+
 
 For the integral of :math:`\overline{w'q_t'}` across this cloud-top
 region, :math:`\overline{w'q_t'}` is also taken to be constant so that:
@@ -862,11 +873,13 @@ A first order ‘mixing length’ closure is used:
 
 .. math::
 
-   \begin{aligned}
-     K_m &=& {\cal L}_m^2 \, (S+S_d) \, f_m(Ri) \label{kmlocal}\\
-     K_h &=& {\cal L}_h \, {\cal L}_m \, 
-             (S+S_d) \, f_h(Ri) \label{khlocal}
-   \end{aligned}
+   K_m = {\cal L}_m^2 \, (S+S_d) \, f_m(Ri) \label{kmlocal}
+
+.. math::
+
+   K_h = {\cal L}_h \, {\cal L}_m \,
+           (S+S_d) \, f_h(Ri) \label{khlocal}
+
 
 where :math:`{\cal L}_m` and :math:`{\cal L}_h` are the neutral mixing
 lengths and :math:`S` is the resolved vertical shear of the horizontal
@@ -880,10 +893,12 @@ ignored above grid-level 2 and the neutral mixing lengths are given by
 
 .. math::
 
-   \begin{aligned}
-     {\cal L}_m &=& \frac{k(z+z_{0m})}{1+k(z+z_{0m})/\lambda_m} \\
-     {\cal L}_h &=& \frac{k(z+z_{0m})}{1+k(z+z_{0m})/\lambda_h} 
-   \end{aligned}
+   {\cal L}_m = \frac{k(z+z_{0m})}{1+k(z+z_{0m})/\lambda_m}
+
+.. math::
+
+   {\cal L}_h = \frac{k(z+z_{0m})}{1+k(z+z_{0m})/\lambda_h}
+
 
 where :math:`z_{0m}` includes the orographic component. For the lowest
 interior grid-level (:math:`k=1`) they are calculated, incorporating
@@ -902,11 +917,13 @@ The asymptotic mixing lengths are given by
 
 .. math::
 
-   \begin{aligned}
-     \lambda_m &=&\mbox{max}\left[\lambda_0,\, 0.15 z_{\rm loc}, 2 h_B \right] \nonumber\\
-     \lambda_h &=&\mbox{max}\left[\lambda_0,\, 0.15 z_{\rm loc}\right]
-     \label{asymp_ml}
-   \end{aligned}
+   \lambda_m =\mbox{max}\left[\lambda_0,\, 0.15 z_{\rm loc}, 2 h_B \right]
+
+.. math::
+
+   \lambda_h =\mbox{max}\left[\lambda_0,\, 0.15 z_{\rm loc}\right]
+   \label{asymp_ml}
+
 
 where :math:`\lambda_0` is a minimum mixing length read in from the
 namelist and :math:`z_{\rm loc}` is defined below. The orographic
@@ -995,12 +1012,14 @@ For :math:`Ri < 0`, the standard UM stability functions are given by
 
 .. math::
 
-   \begin{aligned}
-     f_m & =& 1 - \frac{g_0 \,Ri}
-             {1+D_m(\tilde{{\cal L}}_m/\tilde{{\cal L}}_h)|Ri|^{1/2} } \nonumber\\ 
-     f_h & =& \frac{1}{Pr_N}\left(1 - \frac{g_0 \,Ri}
-             {1+D_h(\tilde{{\cal L}}_m/\tilde{{\cal L}}_h)|Ri|^{1/2} }\right) 
-   \end{aligned}
+   f_m  = 1 - \frac{g_0 \,Ri}
+           {1+D_m(\tilde{{\cal L}}_m/\tilde{{\cal L}}_h)|Ri|^{1/2} }
+
+.. math::
+
+   f_h  = \frac{1}{Pr_N}\left(1 - \frac{g_0 \,Ri}
+           {1+D_h(\tilde{{\cal L}}_m/\tilde{{\cal L}}_h)|Ri|^{1/2} }\right)
+
 
 with :math:`g_0=10`, :math:`D_m=g_0/4` and :math:`D_h=g_0/25`. If the
 stability dependent Prandtl number option is chosen (see below) the
@@ -1010,10 +1029,12 @@ model (LEM), :raw-latex:`\cite{brown1999}`:
 
 .. math::
 
-   \begin{aligned}
-     f_m & =& (1 - c_{LEM} Ri)^{1/2} \nonumber\\
-     f_h & =& \frac{1}{Pr_N}\left(1 - b_{LEM} Ri\right)^{1/2}
-   \end{aligned}
+   f_m  = (1 - c_{LEM} Ri)^{1/2}
+
+.. math::
+
+   f_h  = \frac{1}{Pr_N}\left(1 - b_{LEM} Ri\right)^{1/2}
+
 
 where :math:`Pr_N = 0.7`, and the constants :math:`b_{LEM}` and
 :math:`c_{LEM}` can take the values 40 and 16 respectively in the
@@ -1044,10 +1065,12 @@ where
 
 .. math::
 
-   \begin{aligned}
-   A_{Ri} & = & \left(1-g_0 Ri_{t}\right)/\left(1- g_0 Ri_{t}/2\right)^2  \nonumber\\
-   B_{Ri} & = & (g_0/2) /\left(1 - g_0 Ri_{t}/2\right)^2
-   \end{aligned}
+   A_{Ri}  =  \left(1-g_0 Ri_{t}\right)/\left(1- g_0 Ri_{t}/2\right)^2
+
+.. math::
+
+   B_{Ri}  =  (g_0/2) /\left(1 - g_0 Ri_{t}/2\right)^2
+
 
 For the ‘SHARPEST’ function of :raw-latex:`\cite{derbyshire1997}`,
 :math:`Ri_{t}=0.1`, while larger values give even sharper reduction of
@@ -1067,10 +1090,12 @@ for :math:`Ri>0` are then given by:
 
 .. math::
 
-   \begin{aligned}
-     f_m & =& \frac{Pr}{Pr_N} \, f_{\rm stable} \\
-     f_h & =& \frac{1}{Pr_N}  \, f_{\rm stable} 
-   \end{aligned}
+   f_m  = \frac{Pr}{Pr_N} \, f_{\rm stable}
+
+.. math::
+
+   f_h  = \frac{1}{Pr_N}  \, f_{\rm stable}
+
 
 Note that writing the functions in this way ensures that :math:`f_m=1`
 under neutral conditions and the effect of the variation in :math:`Pr`
@@ -1083,10 +1108,12 @@ turbulence beyond a critical Richardson number, :math:`Ri_c=0.25`:
 
 .. math::
 
-   \begin{aligned}
-     f_m & =& \left( 1 - \frac{Ri}{Ri_c} \right)^4 \\
-     f_h & =& \frac{1}{Pr_N} \left( 1 - \frac{Ri}{Ri_c} \right)^4 (1 - g_{LEM} Ri)
-   \end{aligned}
+   f_m  = \left( 1 - \frac{Ri}{Ri_c} \right)^4
+
+.. math::
+
+   f_h  = \frac{1}{Pr_N} \left( 1 - \frac{Ri}{Ri_c} \right)^4 (1 - g_{LEM} Ri)
+
 
 with :math:`g_{LEM}=1.2`.
 
@@ -2159,10 +2186,12 @@ F|_{z_i}`, so that
 
 .. math::
 
-   \begin{aligned}
-     {\cal H}|_{z_i} & =& - w_e \Delta \theta_{\ell}+ F_{\rm net}|_h \nonumber\\
-     \overline{w'q_t'}_{z_i}& =& - w_e \Delta q_t
-   \end{aligned}
+   {\cal H}|_{z_i}  = - w_e \Delta \theta_{\ell}+ F_{\rm net}|_h
+
+.. math::
+
+   \overline{w'q_t'}_{z_i} = - w_e \Delta q_t
+
 
 where the total heat flux
 :math:`{\cal H} = \overline{w'\theta_{\ell}'}+ F_{\rm net}` and
@@ -2193,15 +2222,17 @@ base of the mixed layer:
 
 .. math::
 
-   \begin{aligned}
-     \overline{w'\theta_{\ell}'}|_{ z_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} } & =& \overline{w'\theta_{\ell}'}|_{z_{\rm b}} 
-     - \frac{ z'_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }{z_{\rm ml}}
-     \left( \tilde{w_e} \Delta \theta_{\ell}+ \overline{w'\theta_{\ell}'}|_{z_{\rm b}} - F_{\rm net}|_{h} \right)
-     - F_{\rm net}|_{ z_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} } \nonumber\\
-     \overline{w'q_t'}|_{ z_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} } & =& \overline{w'q_t'}|_{z_{\rm b}} 
-     - \frac{ z'_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }{z_{\rm ml}} 
-     \left( \tilde{w_e} \Delta q_t + \overline{w'q_t'}|_{z_{\rm b}} \right)
-   \end{aligned}
+   \overline{w'\theta_{\ell}'}|_{ z_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }  = \overline{w'\theta_{\ell}'}|_{z_{\rm b}}
+   - \frac{ z'_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }{z_{\rm ml}}
+   \left( \tilde{w_e} \Delta \theta_{\ell}+ \overline{w'\theta_{\ell}'}|_{z_{\rm b}} - F_{\rm net}|_{h} \right)
+   - F_{\rm net}|_{ z_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }
+
+.. math::
+
+   \overline{w'q_t'}|_{ z_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }  = \overline{w'q_t'}|_{z_{\rm b}}
+   - \frac{ z'_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }{z_{\rm ml}}
+   \left( \tilde{w_e} \Delta q_t + \overline{w'q_t'}|_{z_{\rm b}} \right)
+
 
 where :math:`z' = z-z_{\rm b}`, and similarly for the SML entrainment
 fluxes (at :math:`z=z_{\mbox{\tiny \rm NTML}+\frac{1}{2}}`). The
@@ -2335,20 +2366,25 @@ The coefficients are given by
 
 .. math::
 
-   \begin{aligned}
-     a & =& 0.5 (\gamma^{\scriptsize \rm FA}- \gamma^{\tiny \rm ML})   \\
-     b & =& - \left( {\theta_{v\ell}}_{\mbox{\tiny \rm NTML}+2}
-       - \gamma^{\scriptsize \rm FA}(z_{\mbox{\tiny \rm NTML}+2}-z_{\mbox{\tiny \rm NTML}+\frac{3}{2}}) \right)
-     + \left( {\theta_{v\ell}}_{\mbox{\tiny \rm NTML}}
-       + \gamma^{\tiny \rm ML}(z_{\mbox{\tiny \rm NTML}+\frac{3}{2}}-z_{\mbox{\tiny \rm NTML}}) \right)  \\
-     c & =& (z_{\mbox{\tiny \rm NTML}+\frac{3}{2}}-z_{\mbox{\tiny \rm NTML}+\frac{1}{2}})
-     \left( {\theta_{v\ell}}_{\mbox{\tiny \rm NTML}+1} -
-       \left( {\theta_{v\ell}}_{\mbox{\tiny \rm NTML}} +
-         \gamma^{\tiny \rm ML}\left(
-           \frac{1}{2}(z_{\mbox{\tiny \rm NTML}+\frac{1}{2}}+z_{\mbox{\tiny \rm NTML}+\frac{3}{2}})
-           -z_{\mbox{\tiny \rm NTML}} \right)     \right)
-     \right)  \\
-   \end{aligned}
+   a  = 0.5 (\gamma^{\scriptsize \rm FA}- \gamma^{\tiny \rm ML})
+
+.. math::
+
+   b  = - \left( {\theta_{v\ell}}_{\mbox{\tiny \rm NTML}+2}
+     - \gamma^{\scriptsize \rm FA}(z_{\mbox{\tiny \rm NTML}+2}-z_{\mbox{\tiny \rm NTML}+\frac{3}{2}}) \right)
+   + \left( {\theta_{v\ell}}_{\mbox{\tiny \rm NTML}}
+     + \gamma^{\tiny \rm ML}(z_{\mbox{\tiny \rm NTML}+\frac{3}{2}}-z_{\mbox{\tiny \rm NTML}}) \right)
+
+.. math::
+
+   c  = (z_{\mbox{\tiny \rm NTML}+\frac{3}{2}}-z_{\mbox{\tiny \rm NTML}+\frac{1}{2}})
+   \left( {\theta_{v\ell}}_{\mbox{\tiny \rm NTML}+1} -
+     \left( {\theta_{v\ell}}_{\mbox{\tiny \rm NTML}} +
+       \gamma^{\tiny \rm ML}\left(
+         \frac{1}{2}(z_{\mbox{\tiny \rm NTML}+\frac{1}{2}}+z_{\mbox{\tiny \rm NTML}+\frac{3}{2}})
+         -z_{\mbox{\tiny \rm NTML}} \right)     \right)
+   \right)
+
 
 Clearly, care must be taken to ensure that :math:`z_i` is not only
 well-defined but also sensible (for example, as a rising inversion
@@ -2565,16 +2601,18 @@ mixed layer by the end of the timestep. In other words, for
 
 .. math::
 
-   \begin{aligned}
-     \chi_{\mbox{\tiny \rm NTML}+1}^{n+1} & =& \chi_{\mbox{\tiny \rm NTML}+1}^{n}
-     - \frac{\Delta t}{\Delta z} \left(
-       F_{\chi}^{Tot}|_{ \mbox{\tiny \rm NTML}+\frac{3}{2} } -  F_{\chi}^{Tot}|_{ \mbox{\tiny \rm NTML}+\frac{1}{2} } 
-     \right) \\
-     \chi_{\mbox{\tiny \rm NTML}}^{n+1} & =& \chi_{\mbox{\tiny \rm NTML}}^{n}
-     - \frac{\Delta t}{z_{\mbox{\tiny \rm NTML}+\frac{1}{2}}} \left(
-       F_{\chi}^{Tot}|_{ \mbox{\tiny \rm NTML}+\frac{1}{2} } -  F_{\chi}^{Tot}|_{z_{\rm b}} 
-     \right) \\
-   \end{aligned}
+   \chi_{\mbox{\tiny \rm NTML}+1}^{n+1}  = \chi_{\mbox{\tiny \rm NTML}+1}^{n}
+   - \frac{\Delta t}{\Delta z} \left(
+     F_{\chi}^{Tot}|_{ \mbox{\tiny \rm NTML}+\frac{3}{2} } -  F_{\chi}^{Tot}|_{ \mbox{\tiny \rm NTML}+\frac{1}{2} }
+   \right)
+
+.. math::
+
+   \chi_{\mbox{\tiny \rm NTML}}^{n+1}  = \chi_{\mbox{\tiny \rm NTML}}^{n}
+   - \frac{\Delta t}{z_{\mbox{\tiny \rm NTML}+\frac{1}{2}}} \left(
+     F_{\chi}^{Tot}|_{ \mbox{\tiny \rm NTML}+\frac{1}{2} } -  F_{\chi}^{Tot}|_{z_{\rm b}}
+   \right)
+
 
 where the superscripts :math:`n` and :math:`n+1` refer to the model
 timestep, although strictly speaking :math:`n+1` refers to fields after
@@ -2633,14 +2671,16 @@ free-atmospheric lapse rates are given by
 
 .. math::
 
-   \begin{aligned}
-     \gamma_{\theta_{\ell}} & =& {\rm max}\left[ \, 0, \, \frac{ {\theta_{\ell}}_{\mbox{\tiny \rm NTML}+3}-{\theta_{\ell}}_{\mbox{\tiny \rm NTML}+2} }
-       { z_{\mbox{\tiny \rm NTML}+3} - z_{\mbox{\tiny \rm NTML}+2} }
-     \right] \\
-     \gamma_{q_t}    & =& {\rm min}\left[ \, 0, \, \frac{ {q_t}_{\mbox{\tiny \rm NTML}+3}-{q_t}_{\mbox{\tiny \rm NTML}+2} }
-       { z_{\mbox{\tiny \rm NTML}+3} - z_{\mbox{\tiny \rm NTML}+2} }
-     \right]
-   \end{aligned}
+   \gamma_{\theta_{\ell}}  = {\rm max}\left[ \, 0, \, \frac{ {\theta_{\ell}}_{\mbox{\tiny \rm NTML}+3}-{\theta_{\ell}}_{\mbox{\tiny \rm NTML}+2} }
+     { z_{\mbox{\tiny \rm NTML}+3} - z_{\mbox{\tiny \rm NTML}+2} }
+   \right]
+
+.. math::
+
+   \gamma_{q_t}     = {\rm min}\left[ \, 0, \, \frac{ {q_t}_{\mbox{\tiny \rm NTML}+3}-{q_t}_{\mbox{\tiny \rm NTML}+2} }
+     { z_{\mbox{\tiny \rm NTML}+3} - z_{\mbox{\tiny \rm NTML}+2} }
+   \right]
+
 
 .. _`sec:subs_calc`:
 
@@ -2694,10 +2734,12 @@ specified through an eddy diffusivity which is given by
 
 .. math::
 
-   \begin{aligned}
-     K_h|_{\mbox{\tiny \rm NTML}+\frac{1}{2}} & =& w_e \Delta_{\mbox{\tiny \rm NTML}+1} z \nonumber\\
-     K_m|_{\mbox{\tiny \rm NTML}}          & =& Pr \, w_e \Delta_{\mbox{\tiny \rm NTML}+\frac{1}{2}} z 
-   \end{aligned}
+   K_h|_{\mbox{\tiny \rm NTML}+\frac{1}{2}}  = w_e \Delta_{\mbox{\tiny \rm NTML}+1} z
+
+.. math::
+
+   K_m|_{\mbox{\tiny \rm NTML}}           = Pr \, w_e \Delta_{\mbox{\tiny \rm NTML}+\frac{1}{2}} z
+
 
 noting the Charney-Philips grid implying stresses are staggered from
 scalar fluxes. The Prandtl number, :math:`Pr`, takes the same form as
@@ -2837,11 +2879,16 @@ layer are related to the surface fluxes by:
 
 .. math::
 
-   \begin{aligned}
-     \frac{\partial T}{\partial z} + \frac{g}{ c_P }&=&-\frac{ H_0 }{ c_P  \rho _0  v_\ast } \frac{ \phi _h (z/L)}{kz}\label{1.1.1}\\
-     \frac{\partial q}{\partial z}&=&-\frac{ E_0 }{ \rho _0  v_\ast } \frac{ \phi _h (z/L)}{kz}\label{1.1.2}\\ 
-     \frac{\partial {\rm {\bf v}}}{\partial z}&=&\frac{ {\rm {\bf \tau }}_{0} }{ \rho _0  v_\ast } \frac{ \phi _m (z/L)}{kz},\label{1.1.3}
-   \end{aligned}
+   \frac{\partial T}{\partial z} + \frac{g}{ c_P }=-\frac{ H_0 }{ c_P  \rho _0  v_\ast } \frac{ \phi _h (z/L)}{kz}\label{1.1.1}
+
+.. math::
+
+   \frac{\partial q}{\partial z}=-\frac{ E_0 }{ \rho _0  v_\ast } \frac{ \phi _h (z/L)}{kz}\label{1.1.2}
+
+.. math::
+
+   \frac{\partial {\rm {\bf v}}}{\partial z}=\frac{ {\rm {\bf \tau }}_{0} }{ \rho _0  v_\ast } \frac{ \phi _m (z/L)}{kz},\label{1.1.3}
+
 
 where subscript 0 represents a surface value and subscript \* represents
 a surface layer scaling quantity. :math:`\phi _{m}` and :math:`\phi
@@ -2874,11 +2921,16 @@ surface turbulent fluxes are:
 
 .. math::
 
-   \begin{aligned}
-     \frac{ H_0 }{ c_P  \rho _0 }&=&-\frac{ c_H }{ c_D^{1/2} }  v_\ast \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m} -  z_{0h} )} \right)\label{1.1.7}\\
-     \frac{ E_0 }{ \rho _0 }&=&-\frac{ c_H }{ c_D^{1/2} }  v_\ast \Delta q\label{1.1.8}\\
-     \frac{ {\bf \tau }_{0} }{ \rho _{0} }&=& c_D^{1/2}  v_\ast \Delta {\rm {\bf v}},\label{1.1.9}
-   \end{aligned}
+   \frac{ H_0 }{ c_P  \rho _0 }=-\frac{ c_H }{ c_D^{1/2} }  v_\ast \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m} -  z_{0h} )} \right)\label{1.1.7}
+
+.. math::
+
+   \frac{ E_0 }{ \rho _0 }=-\frac{ c_H }{ c_D^{1/2} }  v_\ast \Delta q\label{1.1.8}
+
+.. math::
+
+   \frac{ {\bf \tau }_{0} }{ \rho _{0} }= c_D^{1/2}  v_\ast \Delta {\rm {\bf v}},\label{1.1.9}
+
 
 where :math:`\Delta`\ X=X\ :math:`_{1}`-X\ :math:`_{0}`.
 From (`[1.1.7] <#1.1.7>`__) and (`[1.1.8] <#1.1.8>`__) the surface
@@ -2901,21 +2953,25 @@ and c\ :math:`_{H}`, are given by
 
 .. math::
 
-   \begin{aligned}
-     c_D^{1/2}&=&\frac{k}{ \Phi _m (L ,  z_1 +  z_{0m} ,  z_{0m} )}
-     \label{1.1.12}\\
-     \frac{ c_H }{ c_D^{1/2} }&=&\frac{k}{ \Phi _h (L ,  z_1 +  z_{0m} ,  z_{0h} )},
-     \label{1.1.13}
-   \end{aligned}
+   c_D^{1/2}=\frac{k}{ \Phi _m (L ,  z_1 +  z_{0m} ,  z_{0m} )}
+   \label{1.1.12}
+
+.. math::
+
+   \frac{ c_H }{ c_D^{1/2} }=\frac{k}{ \Phi _h (L ,  z_1 +  z_{0m} ,  z_{0h} )},
+   \label{1.1.13}
+
 
 where
 
 .. math::
 
-   \begin{aligned}
-     \Phi _m (L ,  z_1 +  z_{0m} ,  z_{0m} )&=& \int \limits_{ z_{0m} /L}^{( z_1 + z_{0m} )/L} \frac{ \phi _m (\zeta )}{\zeta } d\zeta\label{1.1.14}\\
-     \Phi _h (L ,  z_1 +  z_{0m} ,  z_{0h} )&=& \int \limits_{ z_{0h} /L}^{( z_1 + z_{0m} )/L} \frac{ \phi _h (\zeta )}{\zeta } d\zeta\label{1.1.15},
-   \end{aligned}
+   \Phi _m (L ,  z_1 +  z_{0m} ,  z_{0m} )= \int \limits_{ z_{0m} /L}^{( z_1 + z_{0m} )/L} \frac{ \phi _m (\zeta )}{\zeta } d\zeta\label{1.1.14}
+
+.. math::
+
+   \Phi _h (L ,  z_1 +  z_{0m} ,  z_{0h} )= \int \limits_{ z_{0h} /L}^{( z_1 + z_{0m} )/L} \frac{ \phi _h (\zeta )}{\zeta } d\zeta\label{1.1.15},
+
 
 z\ :math:`_{0m}` and z\ :math:`_{0h}` are the **surface roughness
 lengths** for momentum and scalars respectively.
@@ -2926,12 +2982,20 @@ forms
 
 .. math::
 
-   \begin{aligned}
-     \frac{ H_0 }{ c_P  \rho _0 }&=&{-c}_H V \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m} -  z_{0h} )} \right)\nonumber\\
-     &=& - C_H \left( {\Delta T + \frac{g}{c_p } ( z_1 +  z_{0m} -  z_{0h} )} \right)\label{1.1.16}\\
-     \frac{ E_0 }{ \rho _0 }&=&- c_H V \Delta q = - C_H \Delta q\label{1.1.17}\\
-     \frac{ {\rm {\bf \tau }}_{0} }{ \rho _{0} }&=& c_D V \Delta {\rm {\bf v}}{ }=  C_D \Delta {\rm {\bf v}},\label{1.1.18}
-   \end{aligned}
+   \frac{ H_0 }{ c_P  \rho _0 }={-c}_H V \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m} -  z_{0h} )} \right)
+
+.. math::
+
+   = - C_H \left( {\Delta T + \frac{g}{c_p } ( z_1 +  z_{0m} -  z_{0h} )} \right)\label{1.1.16}
+
+.. math::
+
+   \frac{ E_0 }{ \rho _0 }=- c_H V \Delta q = - C_H \Delta q\label{1.1.17}
+
+.. math::
+
+   \frac{ {\rm {\bf \tau }}_{0} }{ \rho _{0} }= c_D V \Delta {\rm {\bf v}}{ }=  C_D \Delta {\rm {\bf v}},\label{1.1.18}
+
 
 where the effective wind speed for surface turbulent exchanges,
 :math:`V`, is defined by
@@ -2943,21 +3007,25 @@ respectively
 
 .. math::
 
-   \begin{aligned}
-     C_H&=&\frac{k}{ \Phi _h }  v_\ast =  c_H V\label{1.1.20}\\
-     C_D&=&\frac{k}{ \Phi _m }  v_\ast =  c_D V\label{1.1.21}.
-   \end{aligned}
+   C_H=\frac{k}{ \Phi _h }  v_\ast =  c_H V\label{1.1.20}
+
+.. math::
+
+   C_D=\frac{k}{ \Phi _m }  v_\ast =  c_D V\label{1.1.21}.
+
 
 The surface exchange coefficients can then be written in any of the
 following forms:
 
 .. math::
 
-   \begin{aligned}
-     c_H&=&\frac{ C_H }{V} = \frac{ C_H  C_D }{ v_\ast ^2 } = \frac{ k^2 }{ \Phi _h  \Phi _m }\label{1.1.22}\\
-     c_D&=&\frac{ C_D }{V} = \frac{ C_D^2 }{ v_\ast ^2 } = \frac{ k^2 }{ \Phi _m^2 }.
+     c_H=\frac{ C_H }{V} = \frac{ C_H  C_D }{ v_\ast ^2 } = \frac{ k^2 }{ \Phi _h  \Phi _m }\label{1.1.22}
+
+.. math::
+
+     c_D=\frac{ C_D }{V} = \frac{ C_D^2 }{ v_\ast ^2 } = \frac{ k^2 }{ \Phi _m^2 }.
    \label{1.1.23}
-   \end{aligned}
+
 
 In order to close the system the surface scaling velocity,
 v\ :math:`_{\ast
@@ -3138,17 +3206,21 @@ Redefining the vertical coordinate as :math:`\zeta=z/L`, we have
 
 .. math::
 
-   \begin{aligned}
-     u(\zeta)  &=& \frac{u_*}{k} \int_{0}^{\zeta} \frac{1}{(\zeta'+\zeta_{0m})}
-     \phi_m(\zeta'+\zeta_{0m}) \, d\zeta' =
-     \frac{u_*}{k} \int_{\zeta_{0m}}^{\zeta'+\zeta_{0m}}
-     \frac{1}{\zeta'} \phi_m(\zeta') \, d\zeta' \\
-     &=& \frac{u_*}{k} \int_{\zeta_{0m}}^{\zeta'+\zeta_{0m}} \left ( \frac{1}{\zeta'} -
-       \frac{d\psi_m}{d\zeta'} \right ) \, d\zeta' \nonumber \\
-     &=& \frac{u_*}{k} \left \{ \ln \left ( \frac{\zeta+\zeta_{0m}}{\zeta_{0m}}
-       \right ) - \psi_m(\zeta+\zeta_{0m}) + \psi_m (\zeta_{0m}) \right \}.
-     \nonumber
-   \end{aligned}
+   u(\zeta)  = \frac{u_*}{k} \int_{0}^{\zeta} \frac{1}{(\zeta'+\zeta_{0m})}
+   \phi_m(\zeta'+\zeta_{0m}) \, d\zeta' =
+   \frac{u_*}{k} \int_{\zeta_{0m}}^{\zeta'+\zeta_{0m}}
+   \frac{1}{\zeta'} \phi_m(\zeta') \, d\zeta'
+
+.. math::
+
+   = \frac{u_*}{k} \int_{\zeta_{0m}}^{\zeta'+\zeta_{0m}} \left ( \frac{1}{\zeta'} -
+     \frac{d\psi_m}{d\zeta'} \right ) \, d\zeta'
+
+.. math::
+
+   = \frac{u_*}{k} \left \{ \ln \left ( \frac{\zeta+\zeta_{0m}}{\zeta_{0m}}
+     \right ) - \psi_m(\zeta+\zeta_{0m}) + \psi_m (\zeta_{0m}) \right \}.
+
 
 This is also frequently written as
 
@@ -3159,62 +3231,86 @@ in the rescaled coordinate), is therefore
 
 .. math::
 
-   \begin{aligned}
-     \bar u &=& \frac{u_*}{k\zeta_1} \int_0^{\zeta_1} u(\zeta)  \, d \zeta \\
-     &=& \frac{u_*}{k\zeta_1} \int_0^{\zeta_1}
-     \ln \left ( \frac{\zeta+\zeta_{0m}}{\zeta_{0m}} \right )
-     - \psi_m(\zeta+\zeta_{0m}) + \psi_m (\zeta_{0m}) \, d \zeta.
-     \nonumber
-   \end{aligned}
+   \bar u = \frac{u_*}{k\zeta_1} \int_0^{\zeta_1} u(\zeta)  \, d \zeta
+
+.. math::
+
+   = \frac{u_*}{k\zeta_1} \int_0^{\zeta_1}
+   \ln \left ( \frac{\zeta+\zeta_{0m}}{\zeta_{0m}} \right )
+   - \psi_m(\zeta+\zeta_{0m}) + \psi_m (\zeta_{0m}) \, d \zeta.
+
 
 We consider the three terms within the integral separately. For the
 first,
 
 .. math::
 
-   \begin{aligned}
-     \int_0^{\zeta_1} \ln \left ( \frac{\zeta+\zeta_{0m}}{\zeta_{0m}} \right ) \, d \zeta
-     &=& \zeta_{0m} \int_1^{1+\zeta_1/\zeta_{0m}} \ln(x) \, dx \\
-     &=& \zeta_{0m} \left [ \left ( 1+ \frac{\zeta_1}{\zeta_{0m}} \right ) \ln
-       \left ( 1+ \frac{\zeta_1}{\zeta_{0m}} \right ) -
-       \left ( 1+ \frac{\zeta_1}{\zeta_{0m}} \right ) +1 \right ] . \nonumber
-   \end{aligned}
+   \int_0^{\zeta_1} \ln \left ( \frac{\zeta+\zeta_{0m}}{\zeta_{0m}} \right ) \, d \zeta
+   = \zeta_{0m} \int_1^{1+\zeta_1/\zeta_{0m}} \ln(x) \, dx
+
+.. math::
+
+   = \zeta_{0m} \left [ \left ( 1+ \frac{\zeta_1}{\zeta_{0m}} \right ) \ln
+     \left ( 1+ \frac{\zeta_1}{\zeta_{0m}} \right ) -
+     \left ( 1+ \frac{\zeta_1}{\zeta_{0m}} \right ) +1 \right ] .
+
 
 For the second,
 
 .. math::
 
-   \begin{aligned}
-     \int_0^{\zeta_1} \psi_m(\zeta+\zeta_{0m}) \, d\zeta &=&
-     \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}} \psi_m(\zeta) \, d\zeta \\
-     &=& \left [ \zeta \psi_m
-     \right ]_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
-     - \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}} \zeta \frac{d\psi_m}{d\zeta}
-     d\zeta \nonumber \\
-     &=& (\zeta_1+\zeta_{0m}) \psi_m(\zeta_1+\zeta_{0m}) - \zeta_{0m}
-     \psi_m(\zeta_{0m}) \nonumber \\ &-& \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
-     (1-\phi_m) d\zeta \nonumber \\
-     &=& (\zeta_1+\zeta_{0m}) \psi_m(\zeta_1+\zeta_{0m}) - \zeta_{0m}
-     \psi_m(\zeta_{0m}) \nonumber \\ &+& \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
-     (\phi_m -1) \, d\zeta . \nonumber
-   \end{aligned}
+   \int_0^{\zeta_1} \psi_m(\zeta+\zeta_{0m}) \, d\zeta =
+   \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}} \psi_m(\zeta) \, d\zeta
+
+.. math::
+
+   = \left [ \zeta \psi_m
+   \right ]_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
+   - \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}} \zeta \frac{d\psi_m}{d\zeta}
+   d\zeta
+
+.. math::
+
+   = (\zeta_1+\zeta_{0m}) \psi_m(\zeta_1+\zeta_{0m}) - \zeta_{0m}
+   \psi_m(\zeta_{0m})
+
+.. math::
+
+    - \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
+   (1-\phi_m) d\zeta
+
+.. math::
+
+   = (\zeta_1+\zeta_{0m}) \psi_m(\zeta_1+\zeta_{0m}) - \zeta_{0m}
+   \psi_m(\zeta_{0m})
+
+.. math::
+
+    + \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
+   (\phi_m -1) \, d\zeta .
+
 
 :math:`\phi_m-1` is retained in the last integral since this will prove
 convenient in later algebra. The third integral is trivial. Hence,
 
 .. math::
 
-   \begin{aligned}
-     \bar u &=& \frac{u_*}{k} \left \{
-       \left ( 1+ \frac{\zeta_{0m}}{\zeta_1} \right ) \left [
-         \ln \left ( 1+ \frac{\zeta_1}{\zeta_{0m}} \right ) \right . \right .  \\
-     &-& \left . \left . \psi_m(\zeta_1+\zeta_{0m}) + \psi_m(\zeta_{0m}) \right ] -1
-       - \frac{1}{\zeta_1} \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
-       (\phi_m -1) \, d\zeta \right \} \nonumber \\
-     &=& \frac{u_*}{k} \left \{ \left ( 1+ \frac{\zeta_{0m}}{\zeta_1} \right )
-       \Phi_m(\zeta_1) - \frac{1}{\zeta_1} \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
-       \phi_m  \, d\zeta \right \} . \nonumber
-   \end{aligned}
+   \bar u = \frac{u_*}{k} \left \{
+     \left ( 1+ \frac{\zeta_{0m}}{\zeta_1} \right ) \left [
+       \ln \left ( 1+ \frac{\zeta_1}{\zeta_{0m}} \right ) \right . \right .
+
+.. math::
+
+   - \left . \left . \psi_m(\zeta_1+\zeta_{0m}) + \psi_m(\zeta_{0m}) \right ] -1
+     - \frac{1}{\zeta_1} \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
+     (\phi_m -1) \, d\zeta \right \}
+
+.. math::
+
+   = \frac{u_*}{k} \left \{ \left ( 1+ \frac{\zeta_{0m}}{\zeta_1} \right )
+     \Phi_m(\zeta_1) - \frac{1}{\zeta_1} \int_{\zeta_{0m}}^{\zeta_1+\zeta_{0m}}
+     \phi_m  \, d\zeta \right \} .
+
 
 Thus, in practical terms, the standard function :math:`\Phi_m` is
 evaluated at the top of the layer, scaled by
@@ -3244,12 +3340,14 @@ stability functions are given by :raw-latex:`\cite{Beljaars1991}`:
 
 .. math::
 
-   \begin{aligned}
-     \Phi _m&=&\ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0m} }} \right) -  \Psi _m ( \zeta _1 ) +  \Psi _m ( \zeta _{0m} )
-     \label{1.3.11}\\
-     \Phi _h&=&\ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0h} }} \right) -  \Psi _h ( \zeta _1 ) +  \Psi _h ( \zeta _{0h} )
-     \label{1.3.12}
-   \end{aligned}
+   \Phi _m=\ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0m} }} \right) -  \Psi _m ( \zeta _1 ) +  \Psi _m ( \zeta _{0m} )
+   \label{1.3.11}
+
+.. math::
+
+   \Phi _h=\ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0h} }} \right) -  \Psi _h ( \zeta _1 ) +  \Psi _h ( \zeta _{0h} )
+   \label{1.3.12}
+
 
 where :math:`\zeta _{1}` = (z\ :math:`_{1}` + z\ :math:`_{0m})`/L,
 :math:`\zeta _{0m}` = z\ :math:`_{0m}`/L, :math:`\zeta _{0h}` =
@@ -3257,12 +3355,14 @@ z\ :math:`_{0h}`/L and
 
 .. math::
 
-   \begin{aligned}
-     - \Psi _h (\zeta )&=&\left[ {  {\left( {1 + \frac{2}{3}a\zeta } \right)}^{3/2} - 1 } \right] + b\left( {\zeta - \frac{c}{d}} \right)\exp (-d\zeta ) + \frac{bc}{d}
-     \label{1.3.13}\\
-     - \Psi _m (\zeta )&=&a\zeta + b\left( {\zeta - \frac{c}{d}} \right)\exp (-d\zeta ) + \frac{bc}{d},
-     \label{1.3.14}
-   \end{aligned}
+   - \Psi _h (\zeta )=\left[ {  {\left( {1 + \frac{2}{3}a\zeta } \right)}^{3/2} - 1 } \right] + b\left( {\zeta - \frac{c}{d}} \right)\exp (-d\zeta ) + \frac{bc}{d}
+   \label{1.3.13}
+
+.. math::
+
+   - \Psi _m (\zeta )=a\zeta + b\left( {\zeta - \frac{c}{d}} \right)\exp (-d\zeta ) + \frac{bc}{d},
+   \label{1.3.14}
+
 
 with :math:`a = 1`, :math:`b =2/3`, :math:`c = 5`, :math:`d = 0.35`.
 
@@ -3283,12 +3383,14 @@ Dyer and Hicks forms :raw-latex:`\cite[]{dyer1974}` are used:
 
 .. math::
 
-   \begin{aligned}
-     \phi _m&=&(1 - 16\zeta  )^{-1/4}
-     \label{1.3.15} \\
-     \phi _h&=&(1 - 16\zeta  )^{-1/2}
-     \label{1.3.16}
-   \end{aligned}
+   \phi _m=(1 - 16\zeta  )^{-1/4}
+   \label{1.3.15}
+
+.. math::
+
+   \phi _h=(1 - 16\zeta  )^{-1/2}
+   \label{1.3.16}
+
 
 (Note that :math:`\phi _{h}\prime` is discontinuous at 0.) These are
 only empirically verified for :math:`\zeta \ge` -1. Evaluating the
@@ -3332,14 +3434,19 @@ ms\ :math:`^{-1}`), then start the iteration from the neutral limit, so
 
 .. math::
 
-   \begin{aligned}
-     \Phi _m^{(0)}&=&\ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0m} }} \right)
-     \label{1.4.5} \\
-     \Phi _h^{(0)}&=&\ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0h} }} \right)
-     \label{1.4.6} \\
-     v_\ast ^{(0)}&=&  {\left( {\frac{k}{ \Phi _m^{(0)} }} \right)} \left| {\Delta {{{\rm {\bf v}}}}} \right|
-     \label{1.4.7}
-   \end{aligned}
+   \Phi _m^{(0)}=\ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0m} }} \right)
+   \label{1.4.5}
+
+.. math::
+
+   \Phi _h^{(0)}=\ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0h} }} \right)
+   \label{1.4.6}
+
+.. math::
+
+   v_\ast ^{(0)}=  {\left( {\frac{k}{ \Phi _m^{(0)} }} \right)} \left| {\Delta {{{\rm {\bf v}}}}} \right|
+   \label{1.4.7}
+
 
 Otherwise (if :math:`\Delta`\ B :math:`<` 0 and :math:`\Delta`\ **v**
 :math:`<` 2 ms\ :math:`^{-1}` ) start from the greater of the neutral
@@ -3347,28 +3454,38 @@ and convective limits for :math:`v_\ast^{(0)}`, so
 
 .. math::
 
-   \begin{aligned}
-     \frac{1}{ L^{(0)} }&=&\frac{-k}{ \gamma _t^3  z_i }
-     \label{1.4.1}\\
-     \Phi _m^{(0)}&=& \Phi _m ( L^{(0)} ,  z_1 +  z_{0m} ,  z_{0m} )
-     \label{1.4.2}\\
-     \Phi _h^{(0)}&=& \Phi _h ( L^{(0)} ,  z_1 +  z_{0m} ,  z_{0h} )
-     \label{1.4.3}\\
-     v_\ast ^{(0)}&= & MAX{\left[ {\left( {\frac{k}{ \Phi _m^{(0)} }} \right)} \left| {\Delta {{{\rm {\bf v}}}}} \right|, \,
-           {\left[ {  \gamma _t^3 \left( {\frac{k}{ \Phi _h^{(0)} }} \right)  z_i \left| {-\Delta B} \right| } \right]}^{ 1/2} \right]}
-     \label{1.4.4}
-   \end{aligned}
+   \frac{1}{ L^{(0)} }=\frac{-k}{ \gamma _t^3  z_i }
+   \label{1.4.1}
+
+.. math::
+
+   \Phi _m^{(0)}= \Phi _m ( L^{(0)} ,  z_1 +  z_{0m} ,  z_{0m} )
+   \label{1.4.2}
+
+.. math::
+
+   \Phi _h^{(0)}= \Phi _h ( L^{(0)} ,  z_1 +  z_{0m} ,  z_{0h} )
+   \label{1.4.3}
+
+.. math::
+
+   v_\ast ^{(0)}=  MAX{\left[ {\left( {\frac{k}{ \Phi _m^{(0)} }} \right)} \left| {\Delta {{{\rm {\bf v}}}}} \right|, \,
+         {\left[ {  \gamma _t^3 \left( {\frac{k}{ \Phi _h^{(0)} }} \right)  z_i \left| {-\Delta B} \right| } \right]}^{ 1/2} \right]}
+   \label{1.4.4}
+
 
 Then calculate
 
 .. math::
 
-   \begin{aligned}
-     C_D^{(0)}&=&\frac{k}{ \Phi _m^{(0)} }  v_\ast ^{(0)}
-     \label{1.4.8} \\
-     C_H^{(0)}&=&\frac{k}{ \Phi _h^{(0)} }  v_\ast ^{(0)}
-     \label{1.4.9}
-   \end{aligned}
+   C_D^{(0)}=\frac{k}{ \Phi _m^{(0)} }  v_\ast ^{(0)}
+   \label{1.4.8}
+
+.. math::
+
+   C_H^{(0)}=\frac{k}{ \Phi _h^{(0)} }  v_\ast ^{(0)}
+   \label{1.4.9}
+
 
 Having set up initial values the iteration loop can be entered (this is
 the original method used but contains an inconsistency in the treatment
@@ -3379,26 +3496,49 @@ DO n = 1 to N
 
 .. math::
 
-   \begin{aligned}
-     u_\ast ^{(n)2}&=& C_D^{(n-1)} \left| {\Delta {{\rm {\bf v}}}} \right|
-     \label{1.4.10} \\
-     {\left( {\frac{ F_{B0} }{ \rho _0 }} \right)}^{(n)}&=& { {-C}_H }^{(n-1)} \Delta B
-     \label{1.4.11}\\
-     w_\ast ^{(n)}&=& {\left[ {  z_i  {\left( {\frac{ F_{B0} }{ \rho _0 }} \right)}^{(n)} } \right]}^{ 1/3}
-     \label{1.4.12}\\
-     v_\ast ^{(n)2}&=& u_\ast ^{(n)2} +  \gamma _t^2  w_\ast ^{(n)2} +  \gamma _c^2  w_c^2 
-     \label{1.4.13}\\
-     \frac{1}{ L^{(n)} } = \frac{-k( F_{B0} / \rho _0  )^{(n)} }{ v_\ast ^{(n)3} }
-     \label{1.4.14}\\
-     \Phi _m^{(n)}&=& \Phi _m ( L^{(n)} ,  z_1 +  z_{0m} ,  z_{0m} )
-     \label{1.4.15} \\
-     \Phi _h^{(n)}&=& \Phi _h ( L^{(n)} ,  z_1 +  z_{0m} ,  z_{0h} )
-     \label{1.4.16} \\
-     C_D^{(n)}&=&\frac{k}{ \Phi _m^{(n)} }  v_\ast ^{(n)}
-     \label{1.4.17} \\
-     C_H^{(n)}&=&\frac{k}{ \Phi _h^{(n)} }  v_\ast ^{(n)}
-     \label{1.4.18}
-   \end{aligned}
+   u_\ast ^{(n)2}= C_D^{(n-1)} \left| {\Delta {{\rm {\bf v}}}} \right|
+   \label{1.4.10}
+
+.. math::
+
+   {\left( {\frac{ F_{B0} }{ \rho _0 }} \right)}^{(n)}= { {-C}_H }^{(n-1)} \Delta B
+   \label{1.4.11}
+
+.. math::
+
+   w_\ast ^{(n)}= {\left[ {  z_i  {\left( {\frac{ F_{B0} }{ \rho _0 }} \right)}^{(n)} } \right]}^{ 1/3}
+   \label{1.4.12}
+
+.. math::
+
+   v_\ast ^{(n)2}= u_\ast ^{(n)2} +  \gamma _t^2  w_\ast ^{(n)2} +  \gamma _c^2  w_c^2
+   \label{1.4.13}
+
+.. math::
+
+   \frac{1}{ L^{(n)} } = \frac{-k( F_{B0} / \rho _0  )^{(n)} }{ v_\ast ^{(n)3} }
+   \label{1.4.14}
+
+.. math::
+
+   \Phi _m^{(n)}= \Phi _m ( L^{(n)} ,  z_1 +  z_{0m} ,  z_{0m} )
+   \label{1.4.15}
+
+.. math::
+
+   \Phi _h^{(n)}= \Phi _h ( L^{(n)} ,  z_1 +  z_{0m} ,  z_{0h} )
+   \label{1.4.16}
+
+.. math::
+
+   C_D^{(n)}=\frac{k}{ \Phi _m^{(n)} }  v_\ast ^{(n)}
+   \label{1.4.17}
+
+.. math::
+
+   C_H^{(n)}=\frac{k}{ \Phi _h^{(n)} }  v_\ast ^{(n)}
+   \label{1.4.18}
+
 
 END DO.
 
@@ -3412,14 +3552,19 @@ stress:
 
 .. math::
 
-   \begin{aligned}
-     H_0&=& {-c}_P  \rho _0  C_H^{(N)} \left( {\Delta T + \frac{g}{ c_P }( z_1 +  z_{0m} -  z_{0h} )} \right)
-     \label{1.4.19} \\
-     E_0&=& {-\rho }_0  C_H^{(N)} \Delta q
-     \label{1.4.20} \\
-     {\rm {\bf \tau }}_{0} &=& \rho _0  C_D^{(N)} \Delta {\rm {\bf v}}
-     \label{1.4.21}
-   \end{aligned}
+   H_0= {-c}_P  \rho _0  C_H^{(N)} \left( {\Delta T + \frac{g}{ c_P }( z_1 +  z_{0m} -  z_{0h} )} \right)
+   \label{1.4.19}
+
+.. math::
+
+   E_0= {-\rho }_0  C_H^{(N)} \Delta q
+   \label{1.4.20}
+
+.. math::
+
+   {\rm {\bf \tau }}_{0} = \rho _0  C_D^{(N)} \Delta {\rm {\bf v}}
+   \label{1.4.21}
+
 
 N is the last iteration value. N = 5 is currently used.
 
@@ -3642,12 +3787,14 @@ the result that would be obtained from standard similarity theory,
 
 .. math::
 
-   \begin{aligned}
-     \theta_{ob}'(t+\delta t) &\leftarrow & \theta_{ob}(t)+
-     \delta t \, \dot T_{ob,\mbox{\tiny rad,surf}} \\
-     \theta_{ob}(t+\delta t) &\leftarrow & W \theta_{ob}'(t+\delta t)
-     +(1-W) \theta_{ob, \mbox{\tiny sim}}.
-   \end{aligned}
+   \theta_{ob}'(t+\delta t) \leftarrow  \theta_{ob}(t)+
+   \delta t \, \dot T_{ob,\mbox{\tiny rad,surf}}
+
+.. math::
+
+   \theta_{ob}(t+\delta t) \leftarrow  W \theta_{ob}'(t+\delta t)
+   +(1-W) \theta_{ob, \mbox{\tiny sim}}.
+
 
 By tuning against an idealized highly vertically resolved model based on
 local scaling we set,
@@ -3925,36 +4072,45 @@ Two approaches are available in uncoupled configurations of the model.
 
    .. math::
 
-      \begin{aligned}
-        < C_H >&=&(  f_I  C_{H(MIZ)} + ( 0.7 -  f_I )  C_{H(L)} ) / 0.7
-        \label{1.6.1} \\
-        < C_D >&=&(  f_I  C_{D(MIZ)} + ( 0.7 -  f_I )  C_{D(L)} ) / 0.7
-        \label{1.6.2}
-      \end{aligned}
+      < C_H >=(  f_I  C_{H(MIZ)} + ( 0.7 -  f_I )  C_{H(L)} ) / 0.7
+      \label{1.6.1}
+
+   .. math::
+
+      < C_D >=(  f_I  C_{D(MIZ)} + ( 0.7 -  f_I )  C_{D(L)} ) / 0.7
+      \label{1.6.2}
+
 
    and for 0.7 :math:`\le` f\ :math:`_{I} \le` 1
 
    .. math::
 
-      \begin{aligned}
-        < C_H >&=&( ( 1 -  f_I )  C_{H(MIZ)} + (  f_I - 0.7 ) )  C_{H(I)} ) / 0.3
-        \label{1.6.3} \\
-        < C_D >&=&( ( 1 -  f_I )  C_{D(MIZ)} + (  f_I - 0.7 ) )  C_{D(I)} ) / 0.3
-        \label{1.6.4}
-      \end{aligned}
+      < C_H >=( ( 1 -  f_I )  C_{H(MIZ)} + (  f_I - 0.7 ) )  C_{H(I)} ) / 0.3
+      \label{1.6.3}
+
+   .. math::
+
+      < C_D >=( ( 1 -  f_I )  C_{D(MIZ)} + (  f_I - 0.7 ) )  C_{D(I)} ) / 0.3
+      \label{1.6.4}
+
 
    where
 
    .. math::
 
-      \begin{aligned}
-        C_{H(L)}&= &C_H (  L_{(L)} ,  z_{0m(sea)} ,  z_{0h(sea)} )
-        \label{1.6.5} \\
-        C_{H(MIZ)}&=& C_H (  L_{(I)} ,  z_{0m(MIZ)} ,  z_{0h(MIZ)} )
-        \label{1.6.6} \\
-        C_{H(I)}&=& C_H (  L_{(I)} ,  z_{0m(sea-ice)} ,  z_{0h(sea-ice)} )
-        \label{1.6.7}
-      \end{aligned}
+      C_{H(L)}= C_H (  L_{(L)} ,  z_{0m(sea)} ,  z_{0h(sea)} )
+      \label{1.6.5}
+
+   .. math::
+
+      C_{H(MIZ)}= C_H (  L_{(I)} ,  z_{0m(MIZ)} ,  z_{0h(MIZ)} )
+      \label{1.6.6}
+
+   .. math::
+
+      C_{H(I)}= C_H (  L_{(I)} ,  z_{0m(sea-ice)} ,  z_{0h(sea-ice)} )
+      \label{1.6.7}
+
 
    and similarly for the drag coefficient C\ :math:`_{D}`.
 
@@ -4081,12 +4237,14 @@ Two approaches are available in uncoupled configurations of the model.
 
    .. math::
 
-      \begin{aligned}
-        < C_D >&=& (1 - f_I) C_{D(L)} + f_I (C_{D(I)} + C_{D(FRM)})
-        \label{eq:cdice_int} \\
-        < C_H >&=& (1 - f_I) C_{H(L)} + f_I C_{H(I)} 
-        \label{eq:chice_int} 
-      \end{aligned}
+      < C_D >= (1 - f_I) C_{D(L)} + f_I (C_{D(I)} + C_{D(FRM)})
+      \label{eq:cdice_int}
+
+   .. math::
+
+      < C_H >= (1 - f_I) C_{H(L)} + f_I C_{H(I)}
+      \label{eq:chice_int}
+
 
 .. _`sec:coast`:
 
@@ -4204,15 +4362,23 @@ When form drag is included via effective roughness lengths equations
 
 .. math::
 
-   \begin{aligned}
-     \frac{ H_{0(eff)} }{ c_P  \rho _0 }&=&\frac{-k}{ \Phi _h (L ,  z_1 +  z_{0m(eff)} ,  z_{0h(eff)} )}  v_{\ast (eff)}\nonumber\\
-     && \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m(eff)} - z_{0h(eff)} )} \right)
-     \label{2.1.1} \\
-     \frac{ E_{0(eff)} }{ \rho _0 }&=&\frac{-k}{ \Phi _h (L ,  z_1 +  z_{0m(eff)} ,  z_{0h(eff)} )}  v_{\ast (eff)} \Delta q
-     \label{2.1.2} \\
-     \frac{ {\rm {\bf \tau }}_{{0(eff)}} }{ \rho _{0} }&=&\frac{k}{ \Phi _m (L ,  z_1 +  z_{0m(eff)} ,  z_{0m(eff)} )}  v_{\ast (eff)} \Delta {\rm {\bf v}}
-     \label{2.1.3}
-   \end{aligned}
+   \frac{ H_{0(eff)} }{ c_P  \rho _0 }=\frac{-k}{ \Phi _h (L ,  z_1 +  z_{0m(eff)} ,  z_{0h(eff)} )}  v_{\ast (eff)}
+
+.. math::
+
+    \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m(eff)} - z_{0h(eff)} )} \right)
+   \label{2.1.1}
+
+.. math::
+
+   \frac{ E_{0(eff)} }{ \rho _0 }=\frac{-k}{ \Phi _h (L ,  z_1 +  z_{0m(eff)} ,  z_{0h(eff)} )}  v_{\ast (eff)} \Delta q
+   \label{2.1.2}
+
+.. math::
+
+   \frac{ {\rm {\bf \tau }}_{{0(eff)}} }{ \rho _{0} }=\frac{k}{ \Phi _m (L ,  z_1 +  z_{0m(eff)} ,  z_{0m(eff)} )}  v_{\ast (eff)} \Delta {\rm {\bf v}}
+   \label{2.1.3}
+
 
 The effective surface scaling velocity, v\ :math:`_{\ast (eff)}` , is
 given by (cf. (`[1.1.25] <#1.1.25>`__))
@@ -4343,14 +4509,16 @@ and (`[2.1.13] <#2.1.13>`__) and (`[2.1.14] <#2.1.14>`__) become
 
 .. math::
 
-   \begin{aligned}
-     {\rm {\bf \tau }}_{{0(f)}} &=& {\rm {\bf \tau
-       }}_{{0(eff)}} {\left( {{1 + }\alpha \beta \pi ^{2} { } {f}_{D} { }
-           {\left( {\frac{{A}}{{S}}} \right)}^{2} { }} \right)}^{-1}
-     \label{2.1.16} \\
-     C_{D(f)}&= &C_{D(eff)}  {\left( {1 + \alpha \beta  \pi ^2  f_D  {\left( {\frac{A}{S}} \right)}^2 } \right)}^{-1}
-     \label{2.1.17}
-   \end{aligned}
+   {\rm {\bf \tau }}_{{0(f)}} = {\rm {\bf \tau
+     }}_{{0(eff)}} {\left( {{1 + }\alpha \beta \pi ^{2} { } {f}_{D} { }
+         {\left( {\frac{{A}}{{S}}} \right)}^{2} { }} \right)}^{-1}
+   \label{2.1.16}
+
+.. math::
+
+   C_{D(f)}= C_{D(eff)}  {\left( {1 + \alpha \beta  \pi ^2  f_D  {\left( {\frac{A}{S}} \right)}^2 } \right)}^{-1}
+   \label{2.1.17}
+
 
 The effective surface flux of scalar X evaluated in terms of values at
 z\ :math:`_{c}` is
@@ -4405,36 +4573,58 @@ iteration from the convective limit, so
 
 .. math::
 
-   \begin{aligned}
-     \frac{1}{ L^{(0)} }&=&\frac{-k}{ \gamma _t^3  z_i }
-     \label{2.2.1} \\
-     \Phi _m^{(0)}&=& \Phi _m ( L^{(0)} ,  z_1 +  z_{0m(eff)} ,  z_{0m(eff)} )
-     \label{2.2.2} \\
-     \Phi _h^{(0)}&=& \Phi _h ( L^{(0)} ,  z_1 +  z_{0m(eff)} ,  z_{0h} )
-     \label{2.2.3} \\
-     v_{\ast (eff)}^{(0)}&=& v_{\ast (f)}^{(0)} =  {\left[ {  \gamma _t^3 \left( {\frac{k}{ \Phi _h^{(0)} }} \right)  z_i \left| {-\Delta B} \right| +  \gamma _c^2  w_c^2 } \right]}^{ 1/2}
-     \label{(2.2.4}
-   \end{aligned}
+   \frac{1}{ L^{(0)} }=\frac{-k}{ \gamma _t^3  z_i }
+   \label{2.2.1}
+
+.. math::
+
+   \Phi _m^{(0)}= \Phi _m ( L^{(0)} ,  z_1 +  z_{0m(eff)} ,  z_{0m(eff)} )
+   \label{2.2.2}
+
+.. math::
+
+   \Phi _h^{(0)}= \Phi _h ( L^{(0)} ,  z_1 +  z_{0m(eff)} ,  z_{0h} )
+   \label{2.2.3}
+
+.. math::
+
+   v_{\ast (eff)}^{(0)}= v_{\ast (f)}^{(0)} =  {\left[ {  \gamma _t^3 \left( {\frac{k}{ \Phi _h^{(0)} }} \right)  z_i \left| {-\Delta B} \right| +  \gamma _c^2  w_c^2 } \right]}^{ 1/2}
+   \label{(2.2.4}
+
 
 ELSE IF (:math:`\Delta`\ **v** :math:`\ge` 2 ms\ :math:`^{-1}` ) start
 iteration from the neutral end, so
 
 .. math::
 
-   \begin{aligned}
-     \Phi _m^{(0)}&=&\ln  \left( {\frac{ z_1 +  z_{0m(eff)} }{ z_{0m(eff)} }} \right)
-     \label{2.2.5} \\
-     \Phi _h^{(0)}&=&\ln  \left( {\frac{ z_1 +  z_{0m(eff)} }{ z_{0h} }} \right)
-     \label{2.2.6} \\
-     u_{\ast (eff)}^{(0)}&=&\frac{k}{ \Phi _m^{(0)} } \left| {\Delta {{{v}}}} \right|
-     \label{2.2.7} \\
-     v_{\ast (eff)}^{(0)}&=& {\left( { u_{\ast (eff)}^{(0) 2} +  \gamma _c^2  w_c^2 } \right)}^{ 1/2}
-     \label{2.2.8} \\
-     u_{\ast (f)}&=& u_{\ast (eff)} \frac{\ln (  z_c /  z_{0m(eff)} )}{\ln (  z_c /  z_{0m} )}
-     \label{2.2.9} \\
-     v_{\ast (f)}^{(0)}&=& {\left( { u_{\ast (f)}^{(0) 2} +  \gamma _c^2  w_c^2 } \right)}^{ 1/2}
-     \label{2.2.10}
-   \end{aligned}
+   \Phi _m^{(0)}=\ln  \left( {\frac{ z_1 +  z_{0m(eff)} }{ z_{0m(eff)} }} \right)
+   \label{2.2.5}
+
+.. math::
+
+   \Phi _h^{(0)}=\ln  \left( {\frac{ z_1 +  z_{0m(eff)} }{ z_{0h} }} \right)
+   \label{2.2.6}
+
+.. math::
+
+   u_{\ast (eff)}^{(0)}=\frac{k}{ \Phi _m^{(0)} } \left| {\Delta {{{v}}}} \right|
+   \label{2.2.7}
+
+.. math::
+
+   v_{\ast (eff)}^{(0)}= {\left( { u_{\ast (eff)}^{(0) 2} +  \gamma _c^2  w_c^2 } \right)}^{ 1/2}
+   \label{2.2.8}
+
+.. math::
+
+   u_{\ast (f)}= u_{\ast (eff)} \frac{\ln (  z_c /  z_{0m(eff)} )}{\ln (  z_c /  z_{0m} )}
+   \label{2.2.9}
+
+.. math::
+
+   v_{\ast (f)}^{(0)}= {\left( { u_{\ast (f)}^{(0) 2} +  \gamma _c^2  w_c^2 } \right)}^{ 1/2}
+   \label{2.2.10}
+
 
 END IF.
 
@@ -4442,16 +4632,24 @@ Then calculate:
 
 .. math::
 
-   \begin{aligned}
-     C_{D(eff)}^{(0)}&=&\frac{k}{ \Phi _m^{(0)} }  v_{\ast (eff)}^{(0)}
-     \label{(2.2.11} \\
-     C_{H(eff)}^{(0)}&=&\frac{k}{ \Phi _h^{(0)} }  v_{\ast (eff)}^{(0)}
-     \label{(2.2.12} \\
-     C_{D(f)}^{(0)}&=& C_{D(eff)}^{(0)}  {\left( {1 + \frac{1}{2} c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c /  z_{0m} )}{k}} \right)}^2 } \right)}^{-1}
-     \label{(2.2.13} \\
-     C_{H(f)}^{(0)}&=& C_{H(eff)}^{(0)} \left( {1 - 2.2  f_D \frac{A}{S}} \right)
-     \label{(2.2.14}
-   \end{aligned}
+   C_{D(eff)}^{(0)}=\frac{k}{ \Phi _m^{(0)} }  v_{\ast (eff)}^{(0)}
+   \label{(2.2.11}
+
+.. math::
+
+   C_{H(eff)}^{(0)}=\frac{k}{ \Phi _h^{(0)} }  v_{\ast (eff)}^{(0)}
+   \label{(2.2.12}
+
+.. math::
+
+   C_{D(f)}^{(0)}= C_{D(eff)}^{(0)}  {\left( {1 + \frac{1}{2} c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c /  z_{0m} )}{k}} \right)}^2 } \right)}^{-1}
+   \label{(2.2.13}
+
+.. math::
+
+   C_{H(f)}^{(0)}= C_{H(eff)}^{(0)} \left( {1 - 2.2  f_D \frac{A}{S}} \right)
+   \label{(2.2.14}
+
 
 Having set up initial values the iteration loop can be entered:
 
@@ -4459,34 +4657,69 @@ DO n = 1 to N
 
 .. math::
 
-   \begin{aligned}
-     u_{\ast (eff)}^{(n)2}&=& C_{D(eff)}^{(n-1)} \left| {\Delta {{\rm {\bf v}}}} \right|
-     \label{(2.2.15} \\
-     u_{\ast (f)}^{(n)2}&=& C_{D(f)}^{(n-1)} \left| {\Delta {{\rm {\bf v}}}} \right|
-     \label{(2.2.16} \\
-     {\left( {\frac{ F_{B0} }{ \rho _0 }} \right)}^{(n)}&=&- { C_{H(eff)} }^{(n-1)} \Delta B
-     \label{(2.2.17} \\
-     w_\ast ^{(n)}&=& {\left[ {  z_i  {\left( {\frac{ F_{B0} }{ \rho _0 }} \right)}^{(n)} } \right]}^{ 1/3} 
-     \label{(2.2.18} \\
-     v_{\ast (eff)}^{(n)2}&=& u_{\ast (eff)}^{(n)2} +  \gamma _t^2  w_\ast ^{(n)2} +  \gamma _c^2  w_c^2 
-     \label{(2.2.19} \\
-     v_{\ast (f)}^{(n)2}&= &u_{\ast (f)}^{(n)2} +  \gamma _t^2  w_\ast ^{(n)2} +  \gamma _c^2  w_c^2 
-     \label{(2.2.20} \\
-     \frac{1}{ L^{(n)} }&=&\frac{-k( F_{B0} / \rho _0  )^{(n)} }{ v_{\ast (eff)}^{(n)3} }
-     \label{(2.2.21} \\
-     \Phi _m^{(n)}&=& \Phi _m ( L^{(n)} ,  z_1 +  z_{0m(eff)} ,  z_{0m(eff)} )
-     \label{(2.2.22} \\
-     \Phi _h^{(n)}&=& \Phi _h ( L^{(n)} ,  z_1 +  z_{0m(eff)} ,  z_{0h} )
-     \label{(2.2.23} \\
-     C_{D(eff)}^{(n)}&=&\frac{k}{ \Phi _m^{(n)} }  v_{\ast (eff)}^{(n)} 
-     \label{(2.2.24} \\
-     C_{H(eff)}^{(n)}&=&\frac{k}{ \Phi _h^{(n)} }  v_{\ast (eff)}^{(n)} 
-     \label{(2.2.25} \\
-     C_{D(f)}^{(n)}&=& C_{D(eff)}^{(n)}  {\left( {1 + \frac{1}{2} c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c /  z_{0m} )}{k}} \right)}^2 } \right)}^{-1}
-     \label{(2.2.26} \\
-     C_{H(f)}^{(n)}&=& C_{H(eff)}^{(n)} \left( {1 - 2.2  f_D \frac{A}{S}} \right)
-     \label{(2.2.27}
-   \end{aligned}
+   u_{\ast (eff)}^{(n)2}= C_{D(eff)}^{(n-1)} \left| {\Delta {{\rm {\bf v}}}} \right|
+   \label{(2.2.15}
+
+.. math::
+
+   u_{\ast (f)}^{(n)2}= C_{D(f)}^{(n-1)} \left| {\Delta {{\rm {\bf v}}}} \right|
+   \label{(2.2.16}
+
+.. math::
+
+   {\left( {\frac{ F_{B0} }{ \rho _0 }} \right)}^{(n)}=- { C_{H(eff)} }^{(n-1)} \Delta B
+   \label{(2.2.17}
+
+.. math::
+
+   w_\ast ^{(n)}= {\left[ {  z_i  {\left( {\frac{ F_{B0} }{ \rho _0 }} \right)}^{(n)} } \right]}^{ 1/3}
+   \label{(2.2.18}
+
+.. math::
+
+   v_{\ast (eff)}^{(n)2}= u_{\ast (eff)}^{(n)2} +  \gamma _t^2  w_\ast ^{(n)2} +  \gamma _c^2  w_c^2
+   \label{(2.2.19}
+
+.. math::
+
+   v_{\ast (f)}^{(n)2}= u_{\ast (f)}^{(n)2} +  \gamma _t^2  w_\ast ^{(n)2} +  \gamma _c^2  w_c^2
+   \label{(2.2.20}
+
+.. math::
+
+   \frac{1}{ L^{(n)} }=\frac{-k( F_{B0} / \rho _0  )^{(n)} }{ v_{\ast (eff)}^{(n)3} }
+   \label{(2.2.21}
+
+.. math::
+
+   \Phi _m^{(n)}= \Phi _m ( L^{(n)} ,  z_1 +  z_{0m(eff)} ,  z_{0m(eff)} )
+   \label{(2.2.22}
+
+.. math::
+
+   \Phi _h^{(n)}= \Phi _h ( L^{(n)} ,  z_1 +  z_{0m(eff)} ,  z_{0h} )
+   \label{(2.2.23}
+
+.. math::
+
+   C_{D(eff)}^{(n)}=\frac{k}{ \Phi _m^{(n)} }  v_{\ast (eff)}^{(n)}
+   \label{(2.2.24}
+
+.. math::
+
+   C_{H(eff)}^{(n)}=\frac{k}{ \Phi _h^{(n)} }  v_{\ast (eff)}^{(n)}
+   \label{(2.2.25}
+
+.. math::
+
+   C_{D(f)}^{(n)}= C_{D(eff)}^{(n)}  {\left( {1 + \frac{1}{2} c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c /  z_{0m} )}{k}} \right)}^2 } \right)}^{-1}
+   \label{(2.2.26}
+
+.. math::
+
+   C_{H(f)}^{(n)}= C_{H(eff)}^{(n)} \left( {1 - 2.2  f_D \frac{A}{S}} \right)
+   \label{(2.2.27}
+
 
 END DO.
 
@@ -4498,14 +4731,19 @@ surface sensible and latent heat fluxes and surface stress:
 
 .. math::
 
-   \begin{aligned}
-     H_{0(eff)}&=&- c_P  \rho _0  C_{H(eff)}^{(N)} \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m(eff)} - z_{0h} )} \right)
-     \label{2.2.28} \\
-     E_{0(eff)}&=& {-\rho }_0  C_{H(eff)}^{(N)} \Delta q
-     \label{2.2.29} \\
-     {\rm {\bf \tau }}_{{0(eff)}} &=& \rho _0  C_{D(eff)}^{(N)} \Delta {\rm {\bf v}}
-     \label{2.2.30}
-   \end{aligned}
+   H_{0(eff)}=- c_P  \rho _0  C_{H(eff)}^{(N)} \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m(eff)} - z_{0h} )} \right)
+   \label{2.2.28}
+
+.. math::
+
+   E_{0(eff)}= {-\rho }_0  C_{H(eff)}^{(N)} \Delta q
+   \label{2.2.29}
+
+.. math::
+
+   {\rm {\bf \tau }}_{{0(eff)}} = \rho _0  C_{D(eff)}^{(N)} \Delta {\rm {\bf v}}
+   \label{2.2.30}
+
 
 The stress for a flat surface, if required for output, is calculated
 from
@@ -4782,12 +5020,14 @@ becomes
 
 .. math::
 
-   \begin{aligned}
-     \frac{X^{*}-X^{n}}{\Delta t} & = & {\cal I}_{1}\frac{\partial F}{\partial z}^{*}-{\cal E}_{1}\frac{\partial F}{\partial z}^{n}+\left({\cal I}_{1}-{\cal E}_{1}\right)S\label{eq:sppf_bl1}\\
-     \frac{X^{n+1}-X^{*}}{\Delta t} & = & {\cal I}_{2}\frac{\partial
-       F}{\partial z}^{n+1}-{\cal E}_{2}\frac{\partial F}{\partial
-       z}^{*}+\left({\cal I}_{2}-{\cal E}_{2}\right)S\label{eq:sppf_bl2}
-   \end{aligned}
+   \frac{X^{*}-X^{n}}{\Delta t}  =  {\cal I}_{1}\frac{\partial F}{\partial z}^{*}-{\cal E}_{1}\frac{\partial F}{\partial z}^{n}+\left({\cal I}_{1}-{\cal E}_{1}\right)S\label{eq:sppf_bl1}
+
+.. math::
+
+   \frac{X^{n+1}-X^{*}}{\Delta t}  =  {\cal I}_{2}\frac{\partial
+     F}{\partial z}^{n+1}-{\cal E}_{2}\frac{\partial F}{\partial
+     z}^{*}+\left({\cal I}_{2}-{\cal E}_{2}\right)S\label{eq:sppf_bl2}
+
 
 where,
 
@@ -4821,11 +5061,16 @@ Writing equations (`[eq:sppf_bl1] <#eq:sppf_bl1>`__),
 
 .. math::
 
-   \begin{aligned}
-     \frac{\delta X}{\Delta t}^{*} & = & ({\cal I}_{1}-{\cal E}_{1})\left(\frac{\partial F}{\partial z}^{n}+S\right)+{\cal I}_{1}\frac{\partial}{\partial z}\left(K_{X}\frac{\partial\delta X}{\partial z}^{*}\right)\label{eq:sppf_inc1}\\
-     \frac{\delta X}{\Delta t}^{n+1} & = & ({\cal I}_{2}-{\cal E}_{2})\left(\frac{\partial F}{\partial z}^{*}+S\right)+{\cal I}_{2}\frac{\partial}{\partial z}\left(K_{X}\frac{\partial\delta X}{\partial z}^{n+1}\right)\label{eq:sppf_inc2}\\
-     X^{n+1} & = & X^{n}+\delta X^{*}+\delta X^{n+1}\label{eq:sppf_inc3}
-   \end{aligned}
+   \frac{\delta X}{\Delta t}^{*}  =  ({\cal I}_{1}-{\cal E}_{1})\left(\frac{\partial F}{\partial z}^{n}+S\right)+{\cal I}_{1}\frac{\partial}{\partial z}\left(K_{X}\frac{\partial\delta X}{\partial z}^{*}\right)\label{eq:sppf_inc1}
+
+.. math::
+
+   \frac{\delta X}{\Delta t}^{n+1}  =  ({\cal I}_{2}-{\cal E}_{2})\left(\frac{\partial F}{\partial z}^{*}+S\right)+{\cal I}_{2}\frac{\partial}{\partial z}\left(K_{X}\frac{\partial\delta X}{\partial z}^{n+1}\right)\label{eq:sppf_inc2}
+
+.. math::
+
+   X^{n+1}  =  X^{n}+\delta X^{*}+\delta X^{n+1}\label{eq:sppf_inc3}
+
 
 .. _`sec:impsolve`:
 
@@ -4871,15 +5116,17 @@ levels), discretizing the previous equation in :math:`z` on all
 
 .. math::
 
-   \begin{aligned}
-     \delta u_{k+1/2}^{*} & = & ({\cal I}_{1}-{\cal E}_{1})\Delta t\left(\frac{\tau_{x}^{n}\Big|_{k+1}-\tau_{x}^{n}\Big|_{k}}{z_{k+1}-z_{k}}+S_{k+1/2}\right)\\
-     & & +{\cal I}_{1}\frac{\Delta
-       t}{z_{k+1}-z_{k}}\left[\left(K_{u}\Big|_{k+1}\frac{\delta
-           u_{k+3/2}^{*}-\delta
-           u_{k+1/2}^{*}}{z_{k+3/2}-z_{k+1/2}}\right)-\left(K_{u}\Big|_{k}\frac{\delta
-           u_{k+1/2}^{*}-\delta
-           u_{k-1/2}^{*}}{z_{k+1/2}-z_{k-1/2}}\right)\right]
-   \end{aligned}
+   \delta u_{k+1/2}^{*}  =  ({\cal I}_{1}-{\cal E}_{1})\Delta t\left(\frac{\tau_{x}^{n}\Big|_{k+1}-\tau_{x}^{n}\Big|_{k}}{z_{k+1}-z_{k}}+S_{k+1/2}\right)
+
+.. math::
+
+     +{\cal I}_{1}\frac{\Delta
+     t}{z_{k+1}-z_{k}}\left[\left(K_{u}\Big|_{k+1}\frac{\delta
+         u_{k+3/2}^{*}-\delta
+         u_{k+1/2}^{*}}{z_{k+3/2}-z_{k+1/2}}\right)-\left(K_{u}\Big|_{k}\frac{\delta
+         u_{k+1/2}^{*}-\delta
+         u_{k-1/2}^{*}}{z_{k+1/2}-z_{k-1/2}}\right)\right]
+
 
 or, rearranging
 
@@ -5010,10 +5257,12 @@ and thus the following discretization is obtained, on
 
 .. math::
 
-   \begin{aligned}
-     \frac{\delta X_{k}^{*}}{\Delta t} & = & \left({\cal I}_{1}-{\cal E}_{1}\right)\left(\frac{F_{k+1/2}^{n}-F_{k-1/2}^{n}}{z_{k+1/2}-z_{k-1/2}}+S_{k}\right)\\
-     & +&\frac{{\cal I}_{1}}{z_{k+1/2}-z_{k-1/2}}\left[K_{X}\Big|_{k+1/2}\left(\frac{\delta X_{k+1}^{*}-\delta X_{k}^{*}}{z_{k+1}-z_{k}}\right)-K_{X}\Big|_{k-1/2}\left(\frac{\delta X_{k}^{*}-\delta X_{k-1}^{*}}{z_{k}-z_{k-1}}\right)\right],\; k=2,\ldots,L-1.
-   \end{aligned}
+   \frac{\delta X_{k}^{*}}{\Delta t}  =  \left({\cal I}_{1}-{\cal E}_{1}\right)\left(\frac{F_{k+1/2}^{n}-F_{k-1/2}^{n}}{z_{k+1/2}-z_{k-1/2}}+S_{k}\right)
+
+.. math::
+
+    +\frac{{\cal I}_{1}}{z_{k+1/2}-z_{k-1/2}}\left[K_{X}\Big|_{k+1/2}\left(\frac{\delta X_{k+1}^{*}-\delta X_{k}^{*}}{z_{k+1}-z_{k}}\right)-K_{X}\Big|_{k-1/2}\left(\frac{\delta X_{k}^{*}-\delta X_{k-1}^{*}}{z_{k}-z_{k-1}}\right)\right],\; k=2,\ldots,L-1.
+
 
 or,
 
@@ -5189,10 +5438,12 @@ corrector are defined as:
 
 .. math::
 
-   \begin{aligned}
-     \overline{\tau_{x}}^{[n,*]}\equiv{\cal I}_{1}\tau_{x}^{*}-{\cal E}_{1}\tau_{x}^{n} & = & \left({\cal I}_{1}-{\cal E}_{1}\right)\tau_{x}^{n}+{\cal I}_{1}K_{u}\frac{\partial\delta u^{*}}{\partial z}\\
-     \overline{\tau_{x}}^{[*,n+1]}\equiv{\cal I}_{2}\tau_{x}^{n+1}-{\cal E}_{2}\tau_{x}^{*} & = & \left({\cal I}_{2}-{\cal E}_{2}\right)\tau_{x}^{*}+{\cal I}_{2}K_{u}\frac{\partial\delta u^{n+1}}{\partial z}
-   \end{aligned}
+   \overline{\tau_{x}}^{[n,*]}\equiv{\cal I}_{1}\tau_{x}^{*}-{\cal E}_{1}\tau_{x}^{n}  =  \left({\cal I}_{1}-{\cal E}_{1}\right)\tau_{x}^{n}+{\cal I}_{1}K_{u}\frac{\partial\delta u^{*}}{\partial z}
+
+.. math::
+
+   \overline{\tau_{x}}^{[*,n+1]}\equiv{\cal I}_{2}\tau_{x}^{n+1}-{\cal E}_{2}\tau_{x}^{*}  =  \left({\cal I}_{2}-{\cal E}_{2}\right)\tau_{x}^{*}+{\cal I}_{2}K_{u}\frac{\partial\delta u^{n+1}}{\partial z}
+
 
 where, :math:`\delta u^{*}=u^{*}-u^{n},\;\delta u^{n+1}=u^{n+1}-u^{*}`.
 The meridional stress :math:`\tau_{y}` and the scalar fluxes can be
@@ -5284,10 +5535,12 @@ flux for :math:`H` is derived:
 
 .. math::
 
-   \begin{aligned}
-     \frac{H_{j}^{*}}{c_{p}} & = & \gamma_{2}\frac{H_{j}^{(n)}}{c_{p}}-\gamma_{1}RK_{PMj}[LD_{j}\psi_{j}RK_{H}(1)_{j}+A_{*j}][c_{p}\delta{T'}_{1}-\beta\overline{H^{*}}]\\
-     &  & \qquad\quad+\gamma_{1}RK_{PMj}L\psi_{j}RK_{H}(1)_{j}[\delta{Q'}_{1}-\beta\overline{E^{*}}]
-   \end{aligned}
+   \frac{H_{j}^{*}}{c_{p}}  =  \gamma_{2}\frac{H_{j}^{(n)}}{c_{p}}-\gamma_{1}RK_{PMj}[LD_{j}\psi_{j}RK_{H}(1)_{j}+A_{*j}][c_{p}\delta{T'}_{1}-\beta\overline{H^{*}}]
+
+.. math::
+
+      \qquad\quad+\gamma_{1}RK_{PMj}L\psi_{j}RK_{H}(1)_{j}[\delta{Q'}_{1}-\beta\overline{E^{*}}]
+
 
 and similarly :math:`E_{j}^{*}`. From these, the tile flux equations
 (`[eq:FTLstar] <#eq:FTLstar>`__), (`[eq:FQWstar] <#eq:FQWstar>`__) can
@@ -5771,15 +6024,20 @@ written
 
 .. math::
 
-   \begin{aligned}
-     V_{\rm heat}^3&=& z_{\rm ml}\! \left( (2-\zeta_s)\zeta_s \overline{w'b}_S+ (1-\zeta_s)^2 [\overline{w'b'}_S]_{\rm sat}\right)
-     \label{vsurf} \\
-     V_{\rm rad}^3&=& z_{\rm ml}\Delta_F\, g \,
-     \left( \beta_T \zeta_r^2 + \tilde{\beta_T} (1-\zeta_r^2) \right)
-     \label{vrad} \\
-     V_{\rm br}^3&=&  A_{\rm br}\chi_s^2 \, \mbox{max}\left[0,-\delta b\right] \, \Delta b ^{1/2}
-     \, z_c^{3/2} \, C_{fac} \label{vbr}
-   \end{aligned}
+   V_{\rm heat}^3= z_{\rm ml}\! \left( (2-\zeta_s)\zeta_s \overline{w'b}_S+ (1-\zeta_s)^2 [\overline{w'b'}_S]_{\rm sat}\right)
+   \label{vsurf}
+
+.. math::
+
+   V_{\rm rad}^3= z_{\rm ml}\Delta_F\, g \,
+   \left( \beta_T \zeta_r^2 + \tilde{\beta_T} (1-\zeta_r^2) \right)
+   \label{vrad}
+
+.. math::
+
+   V_{\rm br}^3=  A_{\rm br}\chi_s^2 \, \mbox{max}\left[0,-\delta b\right] \, \Delta b ^{1/2}
+   \, z_c^{3/2} \, C_{fac} \label{vbr}
+
 
 Here,
 :math:`[\overline{w'b'}_S]_{\rm sat}= g ( \tilde{\beta_T} \overline{w'\theta_{\ell}'}_S+ \tilde{\beta_q}\overline{w'q_t'}_S)`,
@@ -5835,12 +6093,14 @@ approximated as
 
 .. math::
 
-   \begin{aligned}
-     \gamma_{q_{\ell}} &=& -\frac{\gamma_{T_L} \alpha_L + g q_s/(RTV_{fac})}
-     {1+(L_c/c_p)\alpha_L} \\
-     \gamma_{q_f} &=& -\frac{\gamma_{T_L}\alpha_L + g q_s/(RTV_{fac})}
-     {1+(L_s/c_p)\alpha_L}
-   \end{aligned}
+   \gamma_{q_{\ell}} = -\frac{\gamma_{T_L} \alpha_L + g q_s/(RTV_{fac})}
+   {1+(L_c/c_p)\alpha_L}
+
+.. math::
+
+   \gamma_{q_f} = -\frac{\gamma_{T_L}\alpha_L + g q_s/(RTV_{fac})}
+   {1+(L_s/c_p)\alpha_L}
+
 
 where :math:`\gamma_{T_L} = -(g/c_p)+ \gamma_{\theta_{\ell}}` and
 :math:`\gamma_{\theta_{\ell}}` is given by (`[gradadj] <#gradadj>`__)
@@ -5860,17 +6120,19 @@ grid-level based calculation:
 
 .. math::
 
-   \begin{aligned}
-     z_c &=& z_c + \frac{\Delta_{k_b+\frac{1}{2}} z}{2} 
+   z_c = z_c + \frac{\Delta_{k_b+\frac{1}{2}} z}{2}
+   + \mbox{min}\left[ \frac{ \Delta_{k_b+\frac{1}{2}}z
+       +\Delta_{k_b-\frac{1}{2}}z }{2} C_F^l,
+     \frac{ q_{\ell}}{ \gamma_{q_{\ell}} }  \right]/C_F
+
+.. math::
+
+     \left. \hspace{2.4cm}
      + \mbox{min}\left[ \frac{ \Delta_{k_b+\frac{1}{2}}z
-         +\Delta_{k_b-\frac{1}{2}}z }{2} C_F^l,
-       \frac{ q_{\ell}}{ \gamma_{q_{\ell}} }  \right]/C_F \nonumber \\
-     & & \left. \hspace{2.4cm} 
-       + \mbox{min}\left[ \frac{ \Delta_{k_b+\frac{1}{2}}z
-           +\Delta_{k_b-\frac{1}{2}}z }{2} C_F^f,
-         \frac{ q_f }{ \gamma_{q_f} }  \right]/C_F \right.
-     \label{zc_calc}
-   \end{aligned}
+         +\Delta_{k_b-\frac{1}{2}}z }{2} C_F^f,
+       \frac{ q_f }{ \gamma_{q_f} }  \right]/C_F \right.
+   \label{zc_calc}
+
 
 When :math:`\gamma_{q_f}` is set to zero (currently as standard) the
 last term in (`[zc_calc] <#zc_calc>`__) is given by
@@ -5931,23 +6193,27 @@ above and below using the adiabatic lapse rates are calculated as:
 
 .. math::
 
-   \begin{aligned}
-     {q_{\ell}}_{\rm ct}& =& \frac{{q_{\ell}}_{\mbox{\tiny \rm NTML}}}{{C_F}^l_{\mbox{\tiny \rm NTML}}} 
-     + (z_i-z_{\mbox{\tiny \rm NTML}}) \gamma_{q_{\ell}}\\
-     q_{\ell}^+  & =& \mbox{max}\left[ 0, \, 
-       \frac{{q_{\ell}}_{\mbox{\tiny \rm NTML}+2}}{{C_F}^l_{\mbox{\tiny \rm NTML}+2}} 
-       - (z_{\mbox{\tiny \rm NTML}+2}-z_i) \gamma_{q_{\ell}} \right]
-   \end{aligned}
+   {q_{\ell}}_{\rm ct} = \frac{{q_{\ell}}_{\mbox{\tiny \rm NTML}}}{{C_F}^l_{\mbox{\tiny \rm NTML}}}
+   + (z_i-z_{\mbox{\tiny \rm NTML}}) \gamma_{q_{\ell}}
+
+.. math::
+
+   q_{\ell}^+   = \mbox{max}\left[ 0, \,
+     \frac{{q_{\ell}}_{\mbox{\tiny \rm NTML}+2}}{{C_F}^l_{\mbox{\tiny \rm NTML}+2}}
+     - (z_{\mbox{\tiny \rm NTML}+2}-z_i) \gamma_{q_{\ell}} \right]
+
 
 and similarly for :math:`q_f` (noting that currently
 :math:`\gamma_{q_f}=0`) and for DSC layers. Then,
 
 .. math::
 
-   \begin{aligned}
-     \Delta q_{\ell}& =& {C_F^l}_{\mbox{\tiny \rm NTML}+2}\, q_{\ell}^+ - {C_F^l}_{\mbox{\tiny \rm NTML}}\, {q_{\ell}}_{\rm ct}\\
-     \Delta q_f & =& {C_F^f}_{\mbox{\tiny \rm NTML}+2}\, q_f^+ - {C_F^f}_{\mbox{\tiny \rm NTML}}\, {q_f}_{\rm ct}
-   \end{aligned}
+   \Delta q_{\ell} = {C_F^l}_{\mbox{\tiny \rm NTML}+2}\, q_{\ell}^+ - {C_F^l}_{\mbox{\tiny \rm NTML}}\, {q_{\ell}}_{\rm ct}
+
+.. math::
+
+   \Delta q_f  = {C_F^f}_{\mbox{\tiny \rm NTML}+2}\, q_f^+ - {C_F^f}_{\mbox{\tiny \rm NTML}}\, {q_f}_{\rm ct}
+
 
 The only other explicit account of variable cloud fraction is in
 (`[vbr] <#vbr>`__) for which it is assumed that buoyancy reversal can
@@ -6201,13 +6467,15 @@ where
 
 .. math::
 
-   \begin{aligned}
-     \tilde{\beta_T}  = \beta_T - \alpha_L \beta_c, &
-     \tilde{\beta_q} & = \beta_q + \beta_c \\
-     {\rm and}    &
-     \beta_c & = a_L \left(   \frac{L}{c_p}     \beta_T 
-       - \frac{1+c_v}{c_v} \beta_q \right) 
-   \end{aligned}
+   \tilde{\beta_T}  = \beta_T - \alpha_L \beta_c,
+   \tilde{\beta_q}  = \beta_q + \beta_c
+
+.. math::
+
+   {\rm and}
+   \beta_c  = a_L \left(   \frac{L}{c_p}     \beta_T
+     - \frac{1+c_v}{c_v} \beta_q \right)
+
 
 Note that here :math:`\tilde{\beta_T}` and :math:`\tilde{\beta_q}` are
 strictly *in*-cloud parameters, while their definitions in boundary
@@ -6274,10 +6542,12 @@ specific or mixing ratio, respectively) as:
 
 .. math::
 
-   \begin{aligned}
-        \rho_{0} & =& \rho_*/(1+(1/\epsilon-1)q_S) \\
-        \rho_{y0} & =& \rho_*/(1+(1/\epsilon)m_{vS})
-   \end{aligned}
+   \rho_{0}  = \rho_*/(1+(1/\epsilon-1)q_S)
+
+.. math::
+
+   \rho_{y0}  = \rho_*/(1+(1/\epsilon)m_{vS})
+
 
 where, in each case, the surface humidity is taken as the surface
 saturated humidity over open sea but over land and ice surfaces this is
