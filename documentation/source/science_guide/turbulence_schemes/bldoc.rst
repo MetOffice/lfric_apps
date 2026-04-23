@@ -231,8 +231,16 @@ been categorised into 7 distinct ‘boundary layer types’:
 
 Types I to VI are shown schematically in Fig. `1 <#fig:bltypes>`__.
 
-.. container:: float
+.. figure:: blank.svg
    :name: fig:bltypes
+
+   Schematic representation of boundary layer types I to VI. The top of the
+   upward arrows indicate the height \zhpar while the top of their solid line
+   portions indicate \zh.
+
+   +----------------------------------+----------------------------------+
+   | .. image:: wcrp_bltypes1.svg     | .. image:: wcrp_bltypes2.svg     |
+   +----------------------------------+----------------------------------+
 
 .. _`sec:adiapar`:
 
@@ -706,10 +714,17 @@ of the first :math:`\theta`-level below :math:`z_h-100` m (a physically
 reasonable depth over which cloud-top radiative cooling might be
 expected to occur) and :math:`z_{\mbox{\tiny \rm NTML}-1}`.
 
-.. container:: float
+.. figure:: blank.svg
    :name: fig:inv_integ
 
-   .. container:: center
+   Subgrid (lines) and model (symbols) fluxes of $\thetal$: turbulent flux
+   (dash-dotted, crosses), radiative flux (dashed, triangles) and total flux
+   (solid). The shaded area illustrates the integrated turbulent flux that
+   would be obtained were (\protect\mbox{\protect\ref{eq:wx_std}}) used.
+
+   +-----------------------------------+
+   | .. image:: ideal_invinteg.svg     |
+   +-----------------------------------+
 
 Then,
 
@@ -1779,8 +1794,18 @@ Discussion of some of the revisions
      - :math:`u_*`
      - :math:`1.3 \,u_*`
 
-.. container:: float
+.. figure:: blank.svg
    :name: fig:stab_dep
+
+   Stability dependence of the surface velocity scales, Prandtl number
+   (although I hope something is wrong with my coding of HB here!) and $d$.
+   Solid lines are from HB, dotted from the standard UM and the dashed from the
+   revised formulation. The dash-dotted line for $d$ is a potential
+   modification, as described in the text.
+
+   +------------------------------+
+   | .. image:: stab_dep.svg      |
+   +------------------------------+
 
 It is useful to compare the velocity scales in the revised scheme with
 those in the standard version, as well as those in
@@ -1833,12 +1858,16 @@ adjustment in the shape. In addition, note that the factors
 removed since the entrainment flux is now carried via the explicit
 :math:`f_2` term.
 
-.. container:: float
+.. figure:: blank.svg
    :name: fig:new_ksc
 
-   .. container:: center
+   Standard UM $\khtop$ (solid) and revised (dotted), both scaled by $k z_h
+   \vtopo$. An upside-down version of $\khsurf$ is also shown (dashed) for
+   comparison.
 
-      |image1|
+   +-----------------------------------+
+   | .. image:: new_ktop_shape.svg     |
+   +-----------------------------------+
 
 .. _`sec:blend`:
 
@@ -1971,10 +2000,20 @@ x`, where Eq. `[eq-tanh] <#eq-tanh>`__ tends to zero faster. This is by
 choice, to force the highest resolution simulations to use the 3D
 turbulence scheme.
 
-.. container:: float
+.. figure:: blank.svg
    :name: fig-blend
 
-   |image| |image2|
+   (a) Weighting for the 1D boundary-layer scheme as a function of $\Delta
+   x/z_{\rm turb}$, showing the function of Equation~\ref{eq-tanh} (blue
+   solid), the equation in \cite{Boutleetal2014} (black solid) and the TKE
+   partitioning of \cite{Honnertetal2011} (mean thick dashed, 5th/95th
+   percentiles thin dashed). (b) Schematic showing the calculation of $z_{\rm
+   turb}$ used in Eq.~\ref{eq-tanh} for a well-mixed layer (black dotted) and a
+   decoupled cloud layer (black solid).
+
+   +------------------------------------+------------------------------------+
+   | .. image:: honnert_vs_tanh.svg     | .. image:: zturb_schem.svg         |
+   +------------------------------------+------------------------------------+
 
 One of the key benefits of the :raw-latex:`\cite{lock00}` scheme is its
 ability to represent decoupled stratocumulus layers, and this is a
@@ -2251,8 +2290,17 @@ turbulent fluxes at the base of the mixed layer are assumed zero except
 for the SML where the surface fluxes are used. This interpolation is
 illustrated for a SML in Fig. `6 <#fig:fluxinterp>`__.
 
-.. container:: float
+.. figure:: blank.svg
    :name: fig:fluxinterp
+
+   Idealised profiles of (a) $\wqt$ (dash-dotted line) and (b) ${\cal H}$
+   (dotted line), $\wthl$ (dash-dotted) and $F$ (dashed). The continuous lines
+   are the turbulent fluxes on the model grid indicated by the dashed
+   horizontal lines.
+
+   +---------------------------------+
+   | .. image:: subsent_fig7.svg     |
+   +---------------------------------+
 
 Note that, because (`[fluxinterp] <#fluxinterp>`__) includes an explicit
 balance between the turbulent and radiative fluxes for
@@ -2345,8 +2393,15 @@ radiation described above is attempted (the local scheme is also
 currently not set to zero above NTML or NTDSC when this occurs to allow
 it to diffuse out this static instability).
 
-.. container:: float
+.. figure:: blank.svg
    :name: zi_diag
+
+   Schematic illustrating the assumptions behind the subgrid diagnosis of
+   $z_i$.
+
+   +----------------------------------+
+   | .. image:: nbldoc_zidiag.svg     |
+   +----------------------------------+
 
 Having identified the model grid-level at the top of the well-mixed
 layer (either level NTML from the parcel ascent, as described in
@@ -2489,8 +2544,17 @@ between the parametrized entrainment rate, :math:`w_e`, and the
 large-scale vertical velocity evaluated at the inversion,
 :math:`w|_{z_h}`).
 
-.. container:: float
+.. figure:: blank.svg
    :name: fig:rev_fluxes
+
+   Subgrid (lines) and model (symbols) profiles and fluxes of, top row, $q_t$
+   and, bottom row, $\thetal$: turbulent fluxes (dash-dotted, crosses),
+   subsidence fluxes (dotted, diamonds), radiative flux (dashed, triangles) and
+   total flux (solid, squares).
+
+   +----------------------------------+
+   | .. image:: ideal_revflux.svg     |
+   +----------------------------------+
 
 An idealised subgrid total flux profile is constructed from the
 parametrized entrainment flux and the increments from radiation,
@@ -6337,12 +6401,16 @@ between these two schemes but the 9B parametrization is clearly an
 improvement on the 8A which gives :math:`\Delta_F=0` around midday (and
 therefore zero entrainment and turbulent mixing).
 
-.. container:: float
+.. figure:: blank.svg
    :name: fig:dradts
 
-   .. container:: centering
+   Time series from LES of $\Delta_\radf$ (solid), $\Delta_\radf^{LW} $
+   (dotted), $-\Delta_\radf^{SW} $ (dashed) and the 8A (dash-dot) and 9B (dash-
+   dot-dot-dot) parametrizations of $\Delta_\radf$.
 
-      |image3| |image4|
+   +------------------------------+------------------------------+
+   | .. image:: div_r080.svg      | .. image:: div_r071.svg      |
+   +------------------------------+------------------------------+
 
 The 9C version attempted to remove the grid-dependence implied by the
 summation over 3 grid-levels in (`[ctraddiv] <#ctraddiv>`__) as follows:
