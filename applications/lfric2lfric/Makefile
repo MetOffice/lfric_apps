@@ -21,11 +21,11 @@ export PSYCLONE_TRANSFORMATION ?= minimum
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
-                               $(CORE_ROOT_DIR)/components/coupling \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/science \
                                $(CORE_ROOT_DIR)/components/inventory \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
+                               $(CORE_ROOT_DIR)/components/coupling \
                                $(APPS_ROOT_DIR)/science/gungho
 
 META_VN             ?= HEAD
@@ -143,9 +143,9 @@ build: ALWAYS
 ##############################################################################
 # Unit tests
 #
-unit-tests/%: export ADDITIONAL_EXTRACTION            \
-                  = $(ROOT_DIR)/infrastructure/source \
-                    $(ROOT_DIR)/components/science/source/kernel
+
+unit-tests/%: export ADDITIONAL_EXTRACTION = $(CORE_ROOT_DIR)/components/science/unit-test/support
+unit-tests/%: export IMPORT_PARTS = $(INTERNAL_DEPENDENCIES)
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export META_FILE_DIR = rose-meta/lfric-lfric2lfric/HEAD
 unit-tests/%: export PROGRAMS = $(PROJECT_NAME)_unit_tests
