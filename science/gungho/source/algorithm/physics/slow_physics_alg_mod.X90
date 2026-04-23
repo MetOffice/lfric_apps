@@ -97,7 +97,8 @@ module slow_physics_alg_mod
   use planet_config_mod,         only: p_zero, kappa, cp, Rd
   ! Physics schemes called
 #ifdef UM_PHYSICS
-  use locate_tropopause_alg_mod, only: locate_tropopause_alg
+  use locate_tropopause_alg_mod, only: locate_tropopause_alg, &
+                                       any_trop_diag_flags
   use radaer_alg_mod,            only: radaer_alg
   use glomap_aerosol_alg_mod,    only: glomap_aerosol_alg
   use strat_aerosol_alg_mod,     only: strat_aerosol_alg
@@ -511,6 +512,7 @@ contains
         ! note that triggered options like l_radaer do not
         ! necessarily default to false
         if ( sulphuric_strat_climatology .or.                                  &
+             any_trop_diag_flags() .or.                                            &
              ( ( ( glomap_mode == glomap_mode_climatology ) .or.               &
                  ( glomap_mode == glomap_mode_dust_and_clim ) .or.             &
                  ( glomap_mode == glomap_mode_ukca ) .or.                      &

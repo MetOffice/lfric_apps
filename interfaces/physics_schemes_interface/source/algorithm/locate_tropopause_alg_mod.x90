@@ -7,7 +7,7 @@
 
 module locate_tropopause_alg_mod
 
-use constants_mod,                 only: i_def
+use constants_mod,                 only: i_def, l_def
 use field_mod,                     only: field_type
 use integer_field_mod,             only: integer_field_type
 use fs_continuity_mod,             only: W3, Wtheta
@@ -20,18 +20,44 @@ use field_parent_mod,              only: write_interface
 use sci_geometric_constants_mod,   only: get_height_fv
 use locate_tropopause_kernel_mod,  only: locate_tropopause_kernel_type
 use timing_mod,                    only: start_timing, stop_timing, tik, LPROF
+use initialise_diagnostics_mod,    only: diagnostic_to_be_sampled, &
+                                         init_diag => init_diagnostic_field
+
 
 implicit none
 private
-public :: locate_tropopause_alg
+public :: locate_tropopause_alg, any_trop_diag_flags
 
 contains
+
+
+! Check for any tropopause diagnostic flags.
+function any_trop_diag_flags() result(a_flag_is_set)
+
+  ! Locals
+  LOGICAL(l_def) :: trop_height_flag
+  LOGICAL(l_def) :: trop_temp_flag
+  LOGICAL(l_def) :: trop_press_flag
+  LOGICAL(l_def) :: trop_icao_height_flag
+
+  ! Return
+  LOGICAL(l_def) :: a_flag_is_set
+
+  a_flag_is_set = .false.
+  if ( diagnostic_to_be_sampled('aviation__tropopause_height') .or. &
+       diagnostic_to_be_sampled('aviation__tropopause_temperature') .or. &
+       diagnostic_to_be_sampled('aviation__tropopause_pressure') .or. &
+       diagnostic_to_be_sampled('aviation__tropopause_icao_height') ) then
+    a_flag_is_set = .true.
+  endif
+
+end function any_trop_diag_flags
+
 
 ! @param[in,out] trop_level             Level of tropopause
 ! @param[in]     theta                  Potential temperature
 ! @param[in]     exner_in_wth           Exner pressure on wth space
 ! @param[in]     twod_mesh              Current 2d mesh
-
 subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
 
   implicit none
@@ -45,6 +71,17 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
   type(function_space_type),  pointer :: vector_space => null()
   procedure(write_interface), pointer :: write_diag_behaviour => null()
   integer(tik)                        :: id_alg, id_diags
+  type( field_type )                  :: trop_height
+  type( field_type )                  :: trop_temp
+  type( field_type )                  :: trop_press
+  type( field_type )                  :: trop_icao_height
+
+  ! Field request flags
+  LOGICAL(l_def) :: trop_height_flag
+  LOGICAL(l_def) :: trop_temp_flag
+  LOGICAL(l_def) :: trop_press_flag
+  LOGICAL(l_def) :: trop_icao_height_flag
+
 
   if ( LPROF ) call start_timing( id_alg, 'locate_tropopause' )
 
@@ -53,8 +90,27 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
   vector_space=>function_space_collection%get_fs(twod_mesh, 0, 0, W3)
   call trop_level%initialise(vector_space)
 
-  call invoke( locate_tropopause_kernel_type( theta, exner_in_wth, &
-                                              height_wth, trop_level ) )
+  ! Which diagnostics are requested for this timestep?
+  trop_icao_height_flag =                                           &
+    init_diag(trop_icao_height, 'aviation__tropopause_icao_height')
+
+  trop_press_flag =                                                 &
+    init_diag(trop_press, 'aviation__tropopause_pressure',          &
+      activate=trop_icao_height_flag)
+
+  trop_temp_flag =                                                  &
+    init_diag(trop_temp, 'aviation__tropopause_temperature',        &
+      activate=trop_press_flag)
+
+  trop_height_flag =                                                &
+    init_diag(trop_height, 'aviation__tropopause_height',           &
+      activate=trop_temp_flag)
+
+  call invoke( locate_tropopause_kernel_type(                                 &
+    theta, exner_in_wth, height_wth, trop_level,                              &
+    trop_height_flag, trop_temp_flag, trop_press_flag, trop_icao_height_flag, &
+    trop_height, trop_temp, trop_press, trop_icao_height ) )
+  
   if ( LPROF ) call stop_timing( id_alg, 'locate_tropopause' )
 
   if (write_diag .and. use_xios_io) then
