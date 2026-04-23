@@ -423,7 +423,7 @@ included. All other physics schemes use one of the generic approaches
 below.
 
 A note on convective cloud fraction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It was the original intention that PC2 be able to replace the two
 separate diagnostic cloud fractions (large-scale and convective) with a
@@ -597,7 +597,7 @@ parameter :math:`n` has been chosen to be 0.0, corresponding to a
 top-hat distribution shape.
 
 Weight as a function of cloud-fraction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting **i_pc2_homog_g_method=1** in the UM
 large-scale cloud namelist.
@@ -653,7 +653,7 @@ This in itself can be problematic, since leaving :math:`C_l` unmodified
 under a homogeneous forcing can allow unrealistic states to develop.
 
 Weight in proportion to PDF width
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting **i_pc2_homog_g_method=2** in the UM
 large-scale cloud namelist.
@@ -692,7 +692,7 @@ impact the performance of the model forecast.
 .. _Numerical application:
 
 Numerical application
-~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^
 
 The timestepping methods that are used in the homogeneous forcing were
 developed off-line using a single gridbox model, to ensure smooth,
@@ -969,7 +969,7 @@ this; either a version of the Smith scheme (see UMDP 029), or the
 bimodal scheme (see UMDP 039). These two options are described below...
 
 Initiation using a “Smith-like” method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
 **i_pc2_init_method = 1** (Smith).
@@ -1044,7 +1044,7 @@ diagnostic `Smith (1990)`_ scheme.
 .. _Numerical Application of the Smith method:
 
 Numerical Application of the Smith method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In order to calculate and compare the state of the model to :math:`b_s`,
 we first calculate :math:`T_L`, :math:`q_{sat}(\overline{T_L})` and
@@ -1170,7 +1170,7 @@ given by :math:`a_L^{[i]}`.
 .. _Initiation using the bimodal scheme:
 
 Initiation using the bimodal scheme
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
 **i_pc2_init_method = 2** (Bimodal).
@@ -1293,7 +1293,7 @@ the change in a tracer and we discuss this later.
 .. _Multiple phases in the injection source:
 
 Multiple phases in the injection source
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The injection source formulation can be extended to multiple phases of
 condensate. In practice, this will simply be the two phases ice and
@@ -1434,7 +1434,7 @@ This is discussed in section :ref:`Phase of condensate`.
 .. _Numerical application of injection forcing:
 
 Numerical application of injection forcing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The numerical application using
 :eq:`eq:dcltdt_almost_final` may be
@@ -1505,7 +1505,7 @@ and similar equations are used for :math:`C_i^{[n+1]}` and
 .. _A note on the implementation of the cloud fraction change:
 
 A note on the implementation of the cloud fraction change
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Equation :eq:`eq:dcdt_inhom2` has been derived
 assuming that the only change in the cloud properties within the gridbox
@@ -1660,7 +1660,7 @@ Equivalent equations to :eq:`eq:deltact_ran1` and
 overlap.
 
 Numerical Implementation
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 In general, although the situation does not occur within the current
 implementation of PC2 , we might have increments to both :math:`C_l` and
@@ -1764,7 +1764,7 @@ Turbulence-driven production of subgrid scale liquid cloud
 .. _Introduction:
 
 Introduction
-~~~~~~~~~~~~
+^^^^^^^^^^^^
 
 `Field et al. (2014)`_ developed a model for subgrid liquid water
 production by turbulent motions. Their method uses an exactly soluble
@@ -1791,7 +1791,7 @@ the GCM.
 .. _Model description:
 
 Model description
-~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^
 
 `Field et al. (2014)`_ started from the equation for the dynamics of
 ice supersaturation :math:`S_i=e_v/e_{sat\;ice}-1`:
@@ -1892,7 +1892,7 @@ turbulent processes.
 .. _Model implementation and closure relations:
 
 Model implementation and closure relations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To implement the model of Section :ref:`Model description` in
 the Unified Model, closure relations are needed for the quantities
@@ -1918,7 +1918,7 @@ functionality.
 .. _Closure relations:
 
 Closure relations
-~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^
 
 The vertical velocity variance, :math:`\sigma_w^2`, is available as a
 diagnostic from the Boundary Layer scheme. Because the Boundary Layer
@@ -1963,7 +1963,7 @@ taken to be the grid box mean values. The first moment of the ice PSD,
 .. _Options for incrementing model prognostics:
 
 Options for incrementing model prognostics
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Using the information in Section :ref:`Closure relations` to obtain
 closed expressions for the subgrid PDF of :math:`S_i`-fluctuations
@@ -2051,7 +2051,7 @@ cloud scheme.
 .. _Other user options:
 
 Other user options
-~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^
 
 The following variables and logical switches are optional inputs:
 
@@ -2155,7 +2155,7 @@ considered to contribute to the ice cloud fraction.
 .. _Fall of ice:
 
 Fall of ice
-~~~~~~~~~~~
+^^^^^^^^^^^
 
 The fall of ice is the process that contributes most to the growth of
 ice cloud fraction in the model. The model results are therefore
@@ -2223,7 +2223,7 @@ UMUI (from version 7.6 onwards).**
 .. _Homogeneous nucleation:
 
 Homogeneous nucleation
-~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^
 
 This will freeze all supercooled liquid water when a temperature
 threshold is exceeded. Hence we turn all existing liquid and mixed phase
@@ -2243,7 +2243,7 @@ cloud to ice cloud. The cloud fraction changes are:
 
 
 Heterogeneous nucleation
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 This process will freeze a small amount of supercooled liquid water,
 regardless of the previous presence of ice cloud. This will mean that
@@ -2266,7 +2266,7 @@ cloud. These give the following changes:
 .. _Deposition and sublimation:
 
 Deposition and sublimation
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This term exerts one of the most important influences on the ice cloud
 in the whole model (this applies to the control as well as for PC2).
@@ -2431,7 +2431,7 @@ in the presence of liquid cloud:
    \Delta C_t = \Delta C_i .
 
 Riming
-~~~~~~
+^^^^^^
 
 This process acts only where mixed phase cloud occurs - although, in
 theory, it could remove any supercooled liquid totally, the air would
@@ -2441,7 +2441,7 @@ choose to model this process as having *no effect* on the cloud
 fractions.
 
 Capture
-~~~~~~~
+^^^^^^^
 
 This is the freezing of raindrops onto ice crystals by collision. This
 does not alter the ice cloud *fraction* in the gridbox (although it does
@@ -2450,7 +2450,7 @@ liquid cloud. Again, we therefore choose to model this process as having
 *no effect* on the cloud fractions.
 
 Evaporation of melting ice
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Here we simply assume that ice cloud fraction is removed in proportion
 to the ice content that is removed.
@@ -2463,7 +2463,7 @@ Because the evaporation cannot occur in the liquid part of the gridbox,
 there is no change to :math:`C_t` (or to :math:`C_l`).
 
 Melting
-~~~~~~~
+^^^^^^^
 
 Again, the change in :math:`C_i` is calculated using the method in
 :eq:`eq:lsp_evapmeltsnow`.
@@ -2484,7 +2484,7 @@ proportion of ice cloud fraction that exists without liquid cloud (i.e.
    \frac{A_{ice}}{C_i} .
 
 Evaporation of rain
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
 Evaporation of rain will not, *on its own*, generate liquid cloud, since
 a large-scale lifting process will be required in order to condense
@@ -2494,7 +2494,7 @@ elsewhere in the model (e.g. by the lifting process, section
 :ref:`Response to pressure changes`).
 
 Accretion
-~~~~~~~~~
+^^^^^^^^^
 
 Accretion is the sweep-out of liquid water droplets by rain. We argue in
 a similar way to the riming term, that this will not remove any liquid
@@ -2509,13 +2509,13 @@ considered necessary to increase the complexity of the current, simple
 representations.
 
 Autoconversion
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
 As for accretion, the generation of rain directly from collision and
 coalescence of liquid water droplets will not alter the cloud fractions.
 
 Other microphysics terms
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are already (i.e. also in the control) two numerical tidy-up terms
 at the end of the microphysics section that remove small rain amounts
@@ -2530,7 +2530,7 @@ appropriately, so :math:`C_t` is reset to :math:`C_l` etc.
 .. _numerical-implementation-1:
 
 Numerical implementation
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Note that after each process has been applied, we do *not* recalculate
 the sizes of the ice-only, liquid-only and mixed phase partitions, but
@@ -2562,7 +2562,7 @@ PC2 erosion
 -----------
 
 Original width-narrowing method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (selected by setting **i_pc2_erosion_method = 1** in the UM namelist).
 
@@ -2618,7 +2618,7 @@ extensively tuned during PC2 development, a typical value would be
 :math:`\Upsilon=-2.25 \times 10^{-5} s^{-1}`.
 
 Numerical application of the original width-narrowing method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Because of the strong link the mathematical expressions for width
 narrowing (section :ref:`Changing the width of the PDF - PC2 erosion`) have
@@ -2657,7 +2657,7 @@ The option “l_fixbug_pc2_qcl_incr” ensures that qcl is set to zero if
 the CFL has reached zero.
 
 Cloud-surface-area hybrid erosion method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (selected by setting **i_pc2_erosion_method = 3** in the UM namelist).
 
@@ -2778,7 +2778,7 @@ cloud-surface-area erosion method.
 .. _Numerical application of the hybrid erosion method:
 
 Numerical application of the hybrid erosion method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Next, we consider how to numerically discretise equations
 :eq:`eq:dqcldt_hybrid` and
@@ -3356,7 +3356,7 @@ its effect on the rest of the convection. Within PC2 we have had to work
 to more fully incorporate the condensate into the convection scheme.
 
 Introduction to the convective mass flux scheme
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Within the mass flux scheme the net change in :math:`\overline{q_{cl}}`
 and :math:`C_l` etc. comes from two distinct sources. Firstly, the
@@ -3394,7 +3394,7 @@ mass flux convection scheme.
 .. _Basic Equations for a Convective Mass Flux Scheme:
 
 Basic Equations for a Convective Mass Flux Scheme
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We first consider a generic mass-flux scheme before its application to
 PC2. As discussed by Grant and Stirling (personal communication), the
@@ -3610,7 +3610,7 @@ condensate values and to allow them to change.
 .. _Calculation of Grid-Box Averaged Condensate Rate (Q4):
 
 Calculation of Grid-Box Averaged Condensate Rate (Q4)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The PC2 condensation scheme allows convection to feed cloud condensate
 (ice or liquid) directly into the large scale and to update the cloud
@@ -3984,7 +3984,7 @@ and
 .. _Background condensation:
 
 Background condensation
-~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^
 
 The modification to the convective plume will result in the transport,
 detrainment and entrainment of condensate, in addition to the transport
@@ -4168,7 +4168,7 @@ analysed to show) is removed before the net effect is calculated,
 leading to more accurate numerical behaviour.
 
 Homogeneous forcing of the environment by convective-subsidence pressure change
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To this end, the code includes an option to perform the homogeneous
 forcing of liquid cloud by convection using the “pressure forcing” from
@@ -4241,7 +4241,7 @@ homogeneous forcing routine after convection as the forcings to be
 applied (with the forcings to all other variables set to zero).
 
 Convective cloud amount
-~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^
 
 It is a debatable point whether the convective cloud fraction should be
 set to zero. Although this was one of the original key concepts of PC2,
@@ -4266,7 +4266,7 @@ scheme, but they are clearly directly related to the rest of the cloud
 scheme formulation.
 
 CAPE scaling
-~~~~~~~~~~~~
+^^^^^^^^^^^^
 
 The CAPE scaling option in the mass-flux convection scheme scales its
 increments by the calculated values of
@@ -4280,7 +4280,7 @@ Hence we consider any detrained condensate to have been evaporated when
 we calculate :math:`\frac{dCAPE}{dt}`.
 
 Convective precipitation
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 The amount of condensate detrained from convective plumes, and hence the
 amount of moisture in the upper levels of the atmosphere, is very
@@ -4299,7 +4299,7 @@ necessary in order to produce thick enough anvil clouds.
 .. _Phase of condensate:
 
 Phase of condensate
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
 The phase of the convective condensate *carried in the plume* is
 determined by a single phase change temperature TICE, with condensate
@@ -4328,7 +4328,7 @@ is -10 :math:`^{\circ}` C.
 .. _Tidier way of coupling convection and PC2:
 
 Tidier way of coupling convection and PC2
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This area is still under development. But in brief, work is udner way to
 ensure that the convective plume smoothly transitions from detraining
@@ -4343,7 +4343,7 @@ increments to cloud fraction from detrainment and subsidence are then
 combined.
 
 Prognostic dust approach
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 A prognostic dust approach is implemented in the micro-physics scheme
 under large-sale-precipitation where by the heterogeneous nucleation
@@ -4365,7 +4365,7 @@ and all-ice for T :math:`\leq` :math:`tnuc_n` - 10.0
 .. _Condensation adjustment in the profiles input to the convection scheme:
 
 Condensation adjustment in the profiles input to the convection scheme
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The convection scheme itself is highly sensitive to the input
 environment temperature and moisture profiles *before* the convection
@@ -4540,7 +4540,7 @@ saturation boundary lies within the bounds of the bimodal scheme’s
 assumed PDF, as described in section :ref:`Initiation using the bimodal scheme`.
 
 “Original” initiation logic
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
 **i_pc2_init_logic = 1** (Original)
@@ -4579,7 +4579,7 @@ Equivalently, :math:`C_l` is initiated away from 1 if
 - :math:`RH_T^{[n+1]} < RH_T^{[n]}` .
 
 “Simplified” initiation logic
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
 **i_pc2_init_logic = 2** (Simplified)
@@ -4626,7 +4626,7 @@ but with the following differences:
 .. _“Smooth” initiation logic:
 
 “Smooth” initiation logic
-~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
 **i_pc2_init_logic = 3** (Smooth)
@@ -4759,7 +4759,7 @@ uses :math:`q_{cl} - Q_c` in place of :math:`SD`, and
 .. _Additional checks after PC2 initiation:
 
 Additional checks after PC2 initiation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The initiation is followed immediately by a section of resetting code.
 For numerical reasons, it is possible to obtain very low, but non zero,
@@ -5091,7 +5091,7 @@ phase if the temperature is cold enough. Hence, if
 .. _Qpos checks:
 
 Qpos checks
-~~~~~~~~~~~
+^^^^^^^^^^^
 
 The implementation of the PC2 code includes an additional bounds check
 after the *atmos-physics-2* part of the model timestep has been
@@ -5288,7 +5288,7 @@ those only called for PC2 are in green, and those only called for the
 bimodal scheme are in purple.
 
 Main Tree from atm_step_4a
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. container:: itemize
 
@@ -5631,7 +5631,7 @@ different places in the tree)...
 .. _Smith scheme with area cloud fraction:
 
 Smith scheme with area cloud fraction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. container:: itemize
 
@@ -5670,7 +5670,7 @@ Smith scheme with area cloud fraction
 .. _PC2 initiation:
 
 PC2 initiation
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
 .. container:: itemize
 
@@ -5718,7 +5718,7 @@ PC2 initiation
 .. _PC2 Data Assimilation:
 
 PC2 Data Assimilation
-~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^
 
 .. container:: itemize
 
@@ -6402,7 +6402,7 @@ and take the smaller value for of :eq:`eqn:sdr1mc` and
 :eq:`eqn:bs` for :math:`\Delta \overline{q_{cl \, max}}`.
 
 Initiation from :math:`C_l=1`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The equations are not defined when :math:`C_l=1`. (Note that when
 :math:`C_l=0` we will calculate :math:`G(-Q_c)=0` so there is no change
@@ -6619,7 +6619,7 @@ alterations. It is fair to say that the link to the convection has
 proved the most problematic issue so far with PC2 development.
 
 PC2 cloud erosion
-~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^
 
 The cloud erosion is a critical term for the simulation of shallow
 convective cloud. A large amount of erosion is required to keep the
@@ -6668,7 +6668,7 @@ many reasons for this). A different mixing method may give significantly
 different results for the areas around convective plumes.
 
 Narrowing of the moisture PDF
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Most of the parametrized terms in PC2 act to reduce the width of the
 moisture PDF. The only terms that can increase the width are the
@@ -6679,7 +6679,7 @@ actually increase the width in the presence of large vertical gradients
 of moisture.
 
 Convective cloud increments in the mass-flux framework
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As discussed in section :ref:`A note on the implementation of the cloud
 fraction change`, it would be
@@ -6690,7 +6690,7 @@ values of :math:`Q4`, which can introduce errors.
 .. _Turbulence based convection scheme:
 
 Turbulence based convection scheme
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We will need to properly consider the links between PC2 and the
 turbulence based convection scheme. In essence, we can use the diagnosed
@@ -6707,14 +6707,14 @@ despite the phase changes forming an integral part of the convection
 scheme.
 
 Detailed convective comparisons with CRM/LEM data
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This work is already underway at the Met Office, in order to properly
 evaluate the performance of the convective cloud parametrization in PC2
 against high resolution research models.
 
 Choice of PDF parameters
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Work by Dan Tang at Leeds University has highlighted an interesting and
 undesirable property of the choice of :math:`m` and :math:`n` parameters
@@ -6734,7 +6734,7 @@ investigated.
 .. _Homogeneous forcing section improvements:
 
 Homogeneous forcing section improvements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Although the homogeneous forcing provides a convenient method to
 calculate increments to :math:`C_l` and :math:`\overline{q_{cl}}`, it is
@@ -6750,7 +6750,7 @@ at with a view to using something better. This is one of the strengths
 of the PC2 framework and is an intention of the project.
 
 Overlap of ice and liquid cloud changes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We have assumed within PC2 that ice and liquid cloud changes are
 minimally overlapped with each other (within the same gridbox) in order
@@ -6760,7 +6760,7 @@ tend not to coexist together in a cloud, it may be possible to
 characterise and apply this overlap in a more quantiative way.
 
 Parameter tuning
-~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^
 
 The sensitivity of some of the parameters in PC2 have not been properly
 tested, mainly due to a lack of resources rather than a physical reason.
@@ -6801,7 +6801,7 @@ given the length of the timestep.
   sensitivities.
 
 Cloud inhomogeneities
-~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^
 
 A cloud generator approach to cloud inhomogeneities is currently being
 developed. However we note two particular issues that relate to PC2.
@@ -6826,7 +6826,7 @@ developed. However we note two particular issues that relate to PC2.
 .. _Time-stepping:
 
 Time-stepping
-~~~~~~~~~~~~~
+^^^^^^^^^^^^^
 
 A proper analysis of timestep sensitivities of PC2 (as opposed to
 microphysics, convection etc) in the full UM or SCM has not been done
@@ -6900,7 +6900,7 @@ We have placed the initiation at the end of the timestep, but it is
 sensible to ask whether this could ideally be located elsewhere.
 
 Initiation formulation
-~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^
 
 Ideally this should be a relatively infrequent part of the model but
 remains an essential part of the code. It is reasonable to ask whether
@@ -6913,7 +6913,7 @@ symmetrical, with initiation from :math:`C_l=1` occuring with the same
 :math:`C_l=1`.
 
 70-levels performance
-~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^
 
 The performance of PC2:66 in the 70-levels model is not good as far as
 shallow convective cloud is concerned (there is far too much of it in
@@ -6925,7 +6925,7 @@ much progress in identifying the reasons for the differences, or
 producing effective tunings to counter the problem.
 
 High horizontal resolution performace
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 PC2 has only been tested once at 4 km horizontal resolution. This
 produced excessive shallow convective cloud (this may or may not be
@@ -6939,7 +6939,7 @@ acceptable at 12 km resolution, but we have not quantitatively explored
 this limit.
 
 Diagnostic evaluation
-~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^
 
 One of the principal areas for future cloud scheme development work
 planned in the future is in the area of detailed evaluation against a
@@ -6950,7 +6950,7 @@ been on tackling qualitatively poor results. Hence new sources of
 evaluation work on PC2 would be very welcome.
 
 Moisture distribution within the deposition/sublimation term
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The liquid cloud changes in PC2 (or in a non-PC2 run) are based upon a
 moisture PDF, as are the deposition/sublimation changes. However, it is
@@ -6968,7 +6968,7 @@ riming (or accretion) term. Again, it might be possible to bring
 together these formulations into a single consistent framework.
 
 Area cloud fraction representation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The current area cloud fraction representation is not used when
 convection is taking place (signified by the *cumulus* logical). This
