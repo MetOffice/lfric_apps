@@ -18,11 +18,13 @@ module pmsl_alg_mod
                                only: get_height_fv, get_panel_id, get_dx_at_w2
   use fs_continuity_mod,       only: Wtheta, W3
   use function_space_collection_mod, only: function_space_collection
+  use function_space_mod,            only: function_space_type
   use mesh_mod,                only: mesh_type
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
   use planet_constants_mod, only: recip_kappa_def
   use planet_config_mod, only: p_zero
   use um_domain_init_mod, only: n_iter_pmsl
+  use physics_config_mod, only: pmsl_halo_calcs
 
   ! Configuration modules (due to sci_geometric_constants)
   use base_mesh_config_mod,      only: geometry
@@ -54,6 +56,7 @@ contains
     use pmsl_fgeo_kernel_mod, only: pmsl_fgeo_kernel_type
     use pmsl_ffunc_kernel_mod, only: pmsl_ffunc_kernel_type
     use pmsl_solve_kernel_mod, only: pmsl_solve_kernel_type
+    use copy_field_halo_kernel_mod, only: copy_field_halo_kernel_type
 
     implicit none
 
@@ -76,7 +79,9 @@ contains
     type( field_type ), pointer     :: dx_at_w2 => null()
     type( field_type ), pointer     :: panel_id => null()
 
-    integer(kind=i_def) :: k, levelupper, n
+    type(function_space_type), pointer :: vector_space
+
+    integer(kind=i_def) :: k, levelupper, n, m
 
     logical :: pmsl_flag, pmsl_unsmooth_flag
 
@@ -85,6 +90,7 @@ contains
 
     real(kind=r_def), parameter :: upperheight=2000.0_r_def
     integer(kind=i_def), parameter :: sten_size = 1
+    integer(kind=i_def) :: sten_size_big, max_halo_depth, counter
     integer(tik)                   :: id
 
     if ( LPROF ) call start_timing( id, 'diags.pmsl' )
@@ -128,9 +134,20 @@ contains
       ! Calculate the geostrohpic forcing functions used for the smoothed PMSL
       call pmsl%copy_field_properties(f_vg)
       call pmsl%copy_field_properties(f_ug)
-      call pmsl%copy_field_properties(exner_m)
-      call pmsl%copy_field_properties(f_func)
-      call pmsl%copy_field_properties(exner_sm)
+
+      ! Determine the maximum halo depth available if we are going to compute
+      ! into it
+      if (pmsl_halo_calcs) then
+        max_halo_depth = twod_mesh%get_halo_depth()
+      else
+        max_halo_depth = 1
+      end if
+
+      vector_space => function_space_collection % get_fs(twod_mesh, 0, 0, W3)
+      call exner_m%initialise(vector_space, halo_depth=max_halo_depth)
+      call f_func%initialise(vector_space, halo_depth=max_halo_depth)
+      call exner_sm%initialise(vector_space, halo_depth=max_halo_depth)
+
       dx_at_w2 => get_dx_at_w2(theta_wth%get_mesh_id())
       panel_id => get_panel_id(theta_wth%get_mesh_id())
 
@@ -143,14 +160,27 @@ contains
                                          f_ug, sten_size, panel_id, sten_size, &
                                          f_func) )
 
-      do n = 1, n_iter_pmsl
-        ! Solve for new PMSL value
-        call invoke(pmsl_solve_kernel_type(dx_at_w2, f_func, exner_m, &
-                                           sten_size, height_wth, exner_sm) )
+      ! Iterative solver for exner - this loops to depth 'm' in the halo
+      ! thus only requiring a halo exchange once every m iterations
+      ! Larger m values will thus do more computation but fewer halo exchanges
+      counter = 0
+      outer: do n = 1, n_iter_pmsl/max_halo_depth+1
+        do m = max_halo_depth-1,0,-1
+          sten_size_big = m+sten_size
+          ! Solve for new PMSL value (exner_sm) to depth m in the halo
+          call invoke(pmsl_solve_kernel_type(dx_at_w2, f_func, exner_m, &
+                                             sten_size_big, height_wth, &
+                                             exner_sm, m) )
 
-        ! Set old value to new value
-        call invoke(setval_X(exner_m, exner_sm))
-      end do
+          ! Set old value (exner_m) to new value (exner_sm),
+          ! copying clean field to depth m in halo
+          call invoke(copy_field_halo_kernel_type(exner_m, exner_sm, m))
+
+          ! Exit if we're done
+          counter = counter + 1
+          if (counter == n_iter_pmsl) exit outer
+        end do
+      end do outer
 
       ! Convert exner to PMSL
       call invoke(inc_X_powreal_a(exner_m, recip_kappa_def), &
