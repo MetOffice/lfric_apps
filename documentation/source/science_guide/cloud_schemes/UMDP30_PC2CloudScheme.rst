@@ -6124,7 +6124,8 @@ modification sets. We have included those parameters that have been
 investigated throughout testing, although only two are different between
 PC2:64 and a non-PC2 run.
 
-.. list-table:: PC2 parameter values and locations relating to the
+.. list-table:: PC2 parameter values and locations relating to the convection.
+   \*These values are those used in HadGAM
    :name: tab:pc2_conv_names
    :header-rows: 1
 
