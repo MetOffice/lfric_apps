@@ -32,12 +32,16 @@ use lfric_xios_write_mod,    only: write_field_generic
 use mesh_mod,                only: mesh_type
 use field_parent_mod,        only: write_interface
 use empty_data_mod,          only: empty_real_data
-use planet_config_mod,       only: p_zero, kappa, gravity, cp
 use microphysics_config_mod, only: microphysics_casim
 use radiation_diags_mod,     only: initialise_diags_for_radiation, &
                                    output_diags_for_radiation
 use set_thermodynamic_kernel_mod, only: set_thermodynamic_kernel_type
 use radiative_gases_config_mod,   only: h2o_rad_opt, h2o_rad_opt_ancil
+
+! Configuration modules
+use base_mesh_config_mod,      only: geometry
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius, p_zero, kappa, gravity, cp
 
 implicit none
 private
@@ -390,7 +394,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
 
   mesh      => theta%get_mesh()
   twod_mesh => cos_zenith_angle%get_mesh()
-  dz_in_wth => get_dz_at_wtheta(mesh%get_id())
+  dz_in_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                 coord_system, scaled_radius )
 
   n_levs = mesh%get_nlayers() + 1
   flux_space => function_space_collection%get_fs(twod_mesh, 0, 0, W3, n_levs)

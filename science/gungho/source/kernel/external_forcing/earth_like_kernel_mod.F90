@@ -30,6 +30,11 @@ module earth_like_kernel_mod
                                       earth_like_equilibrium_theta
   use kernel_mod,               only: kernel_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -155,7 +160,9 @@ subroutine earth_like_code(nlayers,                    &
     coords(3) = coords(3) + chi_3( location )/ndf_chi
   end do
 
-  call chi2llr(coords(1), coords(2), coords(3), ipanel, lon, lat, radius)
+  call chi2llr(coords(1), coords(2), coords(3), ipanel,         &
+               geometry, topology, coord_system, scaled_radius, &
+               lon, lat, radius)
 
   exner0 = exner_in_wth(map_wth(1))
 

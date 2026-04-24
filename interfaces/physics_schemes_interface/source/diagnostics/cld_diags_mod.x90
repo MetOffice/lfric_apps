@@ -28,6 +28,11 @@ module cld_diags_mod
   use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
                                          samp_diag => diagnostic_to_be_sampled
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -244,8 +249,12 @@ contains
           cloud_fraction_below_1000feet_asl_flag ) then
 
         mesh       => combined_cld_amount%get_mesh()
-        height_w3  => get_height_fv(W3, mesh%get_id())
-        height_wth => get_height_fv(Wtheta, mesh%get_id())
+        height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                     geometry, coord_system, &
+                                     scaled_radius )
+        height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                     geometry, coord_system, &
+                                     scaled_radius )
         call derived_fields%get_field('rho_in_wth', rho_in_wth)
         call cloud_fields%get_field('frozen_fraction', cf_frozen)
 
@@ -288,7 +297,9 @@ contains
 
       ! Need to know height to remove any spurious icing index in stratosphere
       mesh => theta%get_mesh()
-      height_wth => get_height_fv( Wtheta, mesh%get_id() )
+      height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                   geometry, coord_system, &
+                                   scaled_radius )
 
     end if
 

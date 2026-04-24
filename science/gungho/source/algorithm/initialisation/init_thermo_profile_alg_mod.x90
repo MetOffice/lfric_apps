@@ -20,6 +20,12 @@ use sci_geometric_constants_mod, only: get_height_fe,   &
                                        get_coordinates, &
                                        get_panel_id
 
+! Configuration modules
+use base_mesh_config_mod,      only: geometry
+use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                     coord_system
+use planet_config_mod,         only: scaled_radius
+
 implicit none
 
 private
@@ -69,11 +75,17 @@ type( field_type ), pointer :: height_wth => null()
 mesh_id = theta%get_mesh_id()
 chi => get_coordinates(mesh_id)
 panel_id => get_panel_id(mesh_id)
+
 if ( theta%get_element_order_h() > 0 .or. theta%get_element_order_v() > 0 ) then
-  height_wth => get_height_fe(Wtheta, mesh_id)
+  height_wth => get_height_fe( Wtheta, mesh_id, geometry,        &
+                               element_order_h, element_order_v, &
+                               coord_system, scaled_radius )
 else
-  height_wth => get_height_fv(Wtheta, mesh_id)
+  height_wth => get_height_fv( Wtheta, mesh_id,        &
+                               geometry, coord_system, &
+                               scaled_radius )
 end if
+
 profile_extrap = .true.
 
 profile_size    = temp_prof_size

@@ -41,4 +41,7 @@
 &partitioning
   partitioner         = 'cubedsphere'
   panel_decomposition = 'auto'
+  tile_size_x         = 1
+  tile_size_y         = 1
+  inner_halo_tiles    = .false.
 /

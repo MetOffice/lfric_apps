@@ -7,6 +7,7 @@
 !>@brief Drives the execution of the da dev algorithms tests
 module test_algorithm_mod
 
+  use config_mod,                    only : config_type
   use constants_mod,                 only : i_def, r_def, str_def
   use driver_fem_mod,                only : init_fem, final_fem
   use field_mod,                     only : field_type, field_proxy_type
@@ -40,14 +41,15 @@ contains
   !> @brief     Initialise module.
   !> @details   Initialises the fem & function space wtheta_fs
   !> @param[in] mesh Mesh to be used
-  subroutine test_algorithm_initialise( mesh_name )
+  subroutine test_algorithm_initialise( config, mesh_name )
 
     implicit none
 
+    type(config_type), intent(in) :: config
     character(str_def), intent(in) :: mesh_name
     type(mesh_type),    pointer    :: mesh => null()
 
-    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+    call init_fem( config, chi_inventory, panel_id_inventory )
     mesh => mesh_collection%get_mesh(mesh_name)
     wtheta_fs => function_space_collection%get_fs( mesh,            &
                                                    element_order_h, &

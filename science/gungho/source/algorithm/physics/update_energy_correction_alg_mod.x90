@@ -10,7 +10,6 @@ module update_energy_correction_alg_mod
   use energy_correction_config_mod,  only: encorr_usage,      &
                                            encorr_usage_diag, &
                                            reset_hours
-  use extrusion_config_mod,          only: planet_radius
   use field_mod,                     only: field_type
   use function_space_mod,            only: function_space_type
   use log_mod,                       only: log_event,         &
@@ -19,7 +18,12 @@ module update_energy_correction_alg_mod
                                            LOG_LEVEL_INFO
   use mesh_mod,                      only: mesh_type
   use sci_geometric_constants_mod,   only: get_da_msl_proj
-  use planet_config_mod,             only: cv
+
+  ! Configuration modules
+  use base_mesh_config_mod, only: geometry
+  use extrusion_config_mod, only: planet_radius, domain_height
+  use planet_config_mod,    only: cv
+
 
   implicit none
 
@@ -61,7 +65,8 @@ contains
     correction_period = reset_hours * 3600.0_r_def
 
     fs_2d => accumulated_fluxes%get_function_space()
-    dA    => get_da_msl_proj(twod_mesh%get_id())
+    dA    => get_da_msl_proj( twod_mesh%get_id(), geometry, &
+                              planet_radius, domain_height )
 
 
     call invoke( inc_aX_times_Y(dt, accumulated_fluxes, dA),                    &

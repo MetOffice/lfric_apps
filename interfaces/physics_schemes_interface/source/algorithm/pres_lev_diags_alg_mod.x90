@@ -20,8 +20,13 @@ module pres_lev_diags_alg_mod
   use fs_continuity_mod,       only: W3, WTheta
   use mr_indices_mod,          only: nummr, imr_v
   use moist_dyn_mod,           only: num_moist_factors, total_mass
-  use planet_config_mod,       only: p_zero, kappa, gravity, cp
   use planet_constants_mod,    only: ex_power
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius, p_zero, kappa, &
+                                       gravity, cp
 
   implicit none
   private
@@ -90,7 +95,8 @@ contains
     allocate(plevs(nplev))
     plevs = get_axis_values('pressure_levels',nplev)
     call derived_fields%get_field('exner_in_wth', exner_wth)
-    height_wth => get_height_fv(WTheta, exner_w3%get_mesh_id())
+    height_wth => get_height_fv( WTheta, exner_w3%get_mesh_id(), &
+                                 geometry, coord_system, scaled_radius )
 
     ! Heaviside function
     plev_heaviside_flag = init_diag(plev_heaviside, 'plev__heaviside')
@@ -261,7 +267,9 @@ contains
     plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', activate=plev_geopot_clim_flag)
     if ((plev_geopot_flag .or. plev_geopot_clim_flag) .and. use_xios_io) then
 
-      height_w3 => get_height_fv(W3, exner_w3%get_mesh_id())
+      height_w3 => get_height_fv( W3, exner_w3%get_mesh_id(), &
+                                  geometry, coord_system,     &
+                                  scaled_radius )
       call invoke_geo_on_pres_kernel_type(height_w3, exner_w3, theta_wth, &
                                           height_wth, exner_wth,          &
                                           nplev, plevs, plev_geopot,      &

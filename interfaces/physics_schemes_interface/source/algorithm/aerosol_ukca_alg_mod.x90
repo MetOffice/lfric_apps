@@ -10,6 +10,14 @@ module aerosol_ukca_alg_mod
   use mesh_mod, only: mesh_type
   use model_clock_mod, only: model_clock_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology, f_lat
+  use extrusion_config_mod,      only: planet_radius, domain_height
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
+  use idealised_config_mod,      only: f_lon
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -117,7 +125,6 @@ contains
     use um_sizes_init_mod,             only: um_sizes_init
     use um_ukca_init_mod,              only: n_phot_spc, ratj_varnames
     use ukca_photol_param_mod,         only: jppj, jrate_fac, jp_names
-  
     use pseudo_photol_kernel_mod,      only: pseudo_photol_kernel_type
     use map_pseudophotol_kernel_mod,   only: map_pseudophotol_kernel_type
     use calc_albedo_kernel_mod,        only: calc_albedo_kernel_type
@@ -970,15 +977,29 @@ contains
     ! Get location, level heights, cell area and volume data
 
     mesh => sin_stellar_declination_rts%get_mesh()   ! 2-D mesh
-    latitude_w3  => get_latitude_fv(W3, mesh%get_id())
-    longitude_w3 => get_longitude_fv(W3, mesh%get_id())
-    cell_area => get_da_msl_proj(mesh%get_id())
+    latitude_w3  => get_latitude_fv( W3, mesh%get_id(),                &
+                                     geometry, topology,               &
+                                     element_order_h, element_order_v, &
+                                     coord_system, f_lat, f_lon,       &
+                                     scaled_radius)
+
+    longitude_w3 => get_longitude_fv( W3, mesh%get_id(),                &
+                                      geometry, topology,               &
+                                      element_order_h, element_order_v, &
+                                      coord_system, f_lat, f_lon,       &
+                                      scaled_radius )
+
+    cell_area => get_da_msl_proj( mesh%get_id(), geometry, &
+                                  planet_radius, domain_height )
 
     mesh => state(igh_t)%get_mesh()                  ! 3-D mesh
-    height_wth => get_height_fv( Wtheta, mesh%get_id() )
-    height_w3 => get_height_fv( W3, mesh%get_id() )
-    rdz_w3    => get_rdz_w3( mesh%get_id() )
-
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    rdz_w3     => get_rdz_w3( mesh%get_id() )
 
     ! Get detj on shifted W3 grid (to use as grid_volume)
     shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)

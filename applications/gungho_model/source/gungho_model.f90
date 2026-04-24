@@ -75,7 +75,9 @@ program gungho_model
   call init_config( filename, gungho_required_namelists, &
                     config=modeldb%config )
 
-  call init_logger( modeldb%mpi%get_comm(), application_name )
+  call init_logger( modeldb%config,         &
+                    modeldb%mpi%get_comm(), &
+                    application_name )
 
   subroutine_timers = modeldb%config%io%subroutine_timers()
   timer_output_path = modeldb%config%io%timer_output_path()
@@ -85,7 +87,7 @@ program gungho_model
 
   call init_collections()
   call init_time( modeldb )
-  call init_counters( application_name )
+  call init_counters( modeldb%config, application_name )
   deallocate( filename )
 
   write( log_scratch_space, '("Initialise ", A, " ...")' ) application_name
@@ -108,7 +110,7 @@ program gungho_model
   call log_event( 'Finalising '//application_name//' ...', log_level_trace )
   call finalise( application_name, modeldb )
 
-  call final_counters( application_name )
+  call final_counters(modeldb%config, application_name)
   call final_time( modeldb )
   call final_collections()
   call final_timing( application_name )

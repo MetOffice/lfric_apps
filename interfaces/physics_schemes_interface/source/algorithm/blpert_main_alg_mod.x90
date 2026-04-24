@@ -15,6 +15,11 @@ module blpert_main_alg_mod
   use clock_mod,            only: clock_type
   use timing_mod,           only: start_timing, stop_timing, tik, LPROF
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -135,7 +140,9 @@ contains
     mesh => dtheta_blpert % get_mesh()
     twod_mesh => mesh_collection % get_mesh(mesh, TWOD)
     vector_space => function_space_collection % get_fs(twod_mesh, 0, 0, W3)
-    height_wth => get_height_fv(Wtheta, mesh % get_id())
+    height_wth => get_height_fv( Wtheta, mesh % get_id(), &
+                                 geometry, coord_system,  &
+                                 scaled_radius )
 
     coarse_mesh => mesh_collection % get_mesh(blpert_mesh_name)
     coarse_twod_mesh => mesh_collection % get_mesh(coarse_mesh, TWOD)

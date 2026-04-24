@@ -69,6 +69,11 @@ module wt_advective_update_alg_mod
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -252,7 +257,9 @@ contains
     ndata_v = 2_i_def*(vertical_order + 1_i_def)
 
     if ( monotonicity == monotone_koren ) then
-      height_tr => get_height_fv( Wtheta, mesh%get_id() )
+      height_tr => get_height_fv( Wtheta, mesh%get_id(),  &
+                                  geometry, coord_system, &
+                                  scaled_radius )
       call invoke( polyv_wtheta_koren_kernel_type(u_grad_f,      &
                                                   wind,          &
                                                   field,         &
@@ -383,7 +390,9 @@ contains
         ! TODO #3325: Make consistent wind be pre-computed
         if ( consistent_metric ) then
           ! Consistent wind will be vertical only -- initialise as wind_v
-          height_rdef => get_height_fv(Wtheta, mesh%get_id())
+          height_rdef => get_height_fv( Wtheta, mesh%get_id(),  &
+                                        geometry, coord_system, &
+                                        scaled_radius )
           call height%initialise( vector_space = height_rdef%get_function_space() )
           call copy_field( height_rdef, height )
           chi => get_coordinates(mesh%get_id())

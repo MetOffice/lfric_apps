@@ -27,6 +27,11 @@ module conv_comorph_alg_mod
   use mesh_mod,             only: mesh_type
   use um_sizes_init_mod,    only: um_sizes_init
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -458,8 +463,12 @@ contains
     call microphysics_fields%get_field('ls_rain', ls_rain)
     call microphysics_fields%get_field('ls_snow', ls_snow)
 
-    height_wth => get_height_fv(Wtheta, mesh%get_id())
-    height_w3  => get_height_fv(W3, mesh%get_id())
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
 
     ! Initialise the convection diagnostics
     call initialise_diags_for_comorph(lowest_cv_base,       &

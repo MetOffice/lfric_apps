@@ -35,6 +35,12 @@ module map_physics_fields_alg_mod
   use sci_field_minmax_alg_mod,     only: log_field_minmax
 
   use timing_mod,                   only: start_timing, stop_timing, tik, LPROF
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -149,8 +155,12 @@ contains
       call log_event( 'Calculate 3D shear', LOG_LEVEL_DEBUG )
       ! Calculate 3D shear
       call derived_fields%get_field('shear', shear)
-      height_wth => get_height_fv(Wtheta, mesh%get_id())
-      height_w3 => get_height_fv(W3, mesh%get_id())
+      height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                   geometry, coord_system, &
+                                   scaled_radius )
+      height_w3 => get_height_fv( W3, mesh%get_id(),      &
+                                  geometry, coord_system, &
+                                  scaled_radius )
       dx_at_w2 => get_dx_at_w2(mesh%get_id())
       panel_id => get_panel_id(mesh%get_id())
 

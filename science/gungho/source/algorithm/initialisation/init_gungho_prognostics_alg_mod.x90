@@ -22,9 +22,6 @@ module init_gungho_prognostics_alg_mod
   use sci_fem_constants_mod,           only: get_inverse_mass_matrix_fe, &
                                              get_inverse_mass_matrix_fv, &
                                              get_qr_fe, get_qr_fv
-  use base_mesh_config_mod,            only: geometry,           &
-                                             geometry_spherical, &
-                                             geometry_planar
   use formulation_config_mod,          only: eos_method,              &
                                              eos_method_sampled,      &
                                              eos_method_projected,    &
@@ -48,8 +45,6 @@ module init_gungho_prognostics_alg_mod
                                              profile_NL_case_4,               &
                                              profile_rotational,              &
                                              profile_pw_linear
-  use planet_config_mod,               only: gravity, cp, rd, p_zero, kappa,  &
-                                             recip_epsilon
 
   ! PsyKAl-lite kernels
   use sci_field_bundle_builtins_mod,   only: set_bundle_scalar
@@ -83,6 +78,15 @@ module init_gungho_prognostics_alg_mod
   use fs_continuity_mod,               only: W1, W3, Wtheta
   use mr_indices_mod,                  only: nummr, mr_names, imr_v
   use moist_dyn_mod,                   only: num_moist_factors, gas_law
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry,           &
+                                       geometry_spherical, &
+                                       geometry_planar
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
+  use planet_config_mod,         only: scaled_radius, gravity, cp, rd, &
+                                       p_zero, kappa, recip_epsilon
 
   implicit none
 
@@ -276,13 +280,23 @@ contains
     mesh_id = exner%get_mesh_id()
     chi => get_coordinates(mesh_id)
     panel_id => get_panel_id(mesh_id)
+
     if (element_order_h > 0 .or. element_order_v > 0) then
-      height_w3 => get_height_fe(W3, mesh_id)
-      height_wth => get_height_fe(Wtheta, mesh_id)
+
+      height_w3  => get_height_fe( W3, mesh_id, geometry,            &
+                                   element_order_h, element_order_v, &
+                                   coord_system, scaled_radius )
+      height_wth => get_height_fe( Wtheta, mesh_id, geometry,        &
+                                   element_order_h, element_order_v, &
+                                   coord_system, scaled_radius )
       qr => get_qr_fe()
+
     else
-      height_w3 => get_height_fv(W3, mesh_id)
-      height_wth => get_height_fv(Wtheta, mesh_id)
+
+      height_w3  => get_height_fv( W3, mesh_id, geometry, &
+                                   coord_system, scaled_radius )
+      height_wth => get_height_fv( Wtheta, mesh_id, geometry, &
+                                   coord_system, scaled_radius )
       qr => get_qr_fv()
     end if
 
@@ -429,12 +443,23 @@ contains
         ! TODO: This should not be done here -- will be fixed by #2877
         ! This should be done by separate routines from the driver level
         if( element_order_h > 0 .or. element_order_v > 0 ) then
-          height_w3 => get_height_fe(W3, mesh_id)
-          height_wth => get_height_fe(Wtheta, mesh_id)
+
+          height_w3  => get_height_fe( W3, mesh_id, geometry,            &
+                                       element_order_h, element_order_v, &
+                                       coord_system, scaled_radius )
+          height_wth => get_height_fe( Wtheta, mesh_id, geometry,        &
+                                       element_order_h, element_order_v, &
+                                       coord_system, scaled_radius )
+
         else
-          height_w3 => get_height_fv(W3, mesh_id)
-          height_wth => get_height_fv(Wtheta, mesh_id)
+
+          height_w3  => get_height_fv( W3, mesh_id, geometry, &
+                                       coord_system, scaled_radius )
+          height_wth => get_height_fv( Wtheta, mesh_id, geometry, &
+                                       coord_system, scaled_radius )
+
         end if
+
         initial_time = 0.0_r_def
         call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
                                                     height_wth, height_w3,   &
@@ -448,7 +473,5 @@ contains
     nullify(chi, panel_id, height_w3, height_wth)
 
   end subroutine init_mr_fields
-
-
 
 end module init_gungho_prognostics_alg_mod

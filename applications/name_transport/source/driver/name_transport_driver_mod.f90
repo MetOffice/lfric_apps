@@ -55,9 +55,12 @@ module name_transport_driver_mod
                                                 name_transport_final
 
   ! Configuration modules
-  use base_mesh_config_mod,               only: GEOMETRY_PLANAR, &
-                                                GEOMETRY_SPHERICAL
-  use name_options_config_mod,            only: transport_density
+  use base_mesh_config_mod,      only: geometry_planar, &
+                                       geometry_spherical
+  use finite_element_config_mod, only: coord_system,    &
+                                       element_order_h, &
+                                       element_order_v
+  use name_options_config_mod,   only: transport_density
 
   implicit none
 
@@ -110,10 +113,13 @@ contains
     character(len=str_def)              :: prime_mesh_name
     integer(kind=i_def),    allocatable :: stencil_depths(:)
 
+    integer(i_def), allocatable :: tile_size(:,:)
+
     logical(kind=l_def) :: prepartitioned
-    logical(kind=l_def) :: apply_partition_check
+    logical(kind=l_def) :: check_partitions
 
     integer(kind=i_def) :: geometry
+    integer(kind=i_def) :: topology
     real(kind=r_def)    :: domain_bottom
     real(kind=r_def)    :: domain_height
     real(kind=r_def)    :: scaled_radius
@@ -123,6 +129,10 @@ contains
     logical(kind=l_def) :: write_diag
     logical(kind=l_def) :: use_xios_io
 
+    logical(l_def) :: inner_halo_tiles
+    integer(i_def) :: tile_size_x
+    integer(i_def) :: tile_size_y
+
     integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
 
@@ -131,6 +141,7 @@ contains
     !=======================================================================
     prime_mesh_name    = modeldb%config%base_mesh%prime_mesh_name()
     geometry           = modeldb%config%base_mesh%geometry()
+    topology           = modeldb%config%base_mesh%topology()
     prepartitioned     = modeldb%config%base_mesh%prepartitioned()
     method             = modeldb%config%extrusion%method()
     domain_height      = modeldb%config%extrusion%domain_height()
@@ -139,6 +150,16 @@ contains
     nodal_output_on_w3 = modeldb%config%io%nodal_output_on_w3()
     write_diag         = modeldb%config%io%write_diag()
     use_xios_io        = modeldb%config%io%use_xios_io()
+
+    if (prepartitioned) then
+      tile_size_x      = 1
+      tile_size_y      = 1
+      inner_halo_tiles = .false.
+    else
+      tile_size_x      = modeldb%config%partitioning%tile_size_x()
+      tile_size_y      = modeldb%config%partitioning%tile_size_y()
+      inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
+    end if
 
     !-----------------------------------------------------------------------
     ! Initialise infrastructure
@@ -225,16 +246,21 @@ contains
                                      base_mesh_names, &
                                      modeldb%config )
 
-    apply_partition_check = .false.
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
 
+    check_partitions = .false.
     call init_mesh( modeldb%config,              &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
-                    base_mesh_names,             &
-                    extrusion, stencil_depths,   &
-                    apply_partition_check )
+                    base_mesh_names, extrusion,  &
+                    inner_halo_tiles, tile_size, &
+                    stencil_depths, check_partitions )
 
     call create_mesh( base_mesh_names, extrusion_2d, &
+                      inner_halo_tiles, tile_size,   &
                       alt_name=twod_names )
     call assign_mesh_maps(twod_names)
 
@@ -247,8 +273,16 @@ contains
         do i=1, size(shifted_names)
           shifted_names(i) = trim(shifted_names(i))//'_shifted'
         end do
+
+        if (allocated(tile_size)) deallocate(tile_size)
+        allocate(tile_size(2, size(meshes_to_shift)))
+        tile_size(1,:) = tile_size_x
+        tile_size(2,:) = tile_size_y
+
         call create_mesh( meshes_to_shift,   &
                           extrusion_shifted, &
+                          inner_halo_tiles,  &
+                          tile_size,         &
                           alt_name=shifted_names )
         call assign_mesh_maps(shifted_names)
 
@@ -264,8 +298,16 @@ contains
         do i=1, size(double_names)
           double_names(i) = trim(double_names(i))//'_double'
         end do
+
+        if (allocated(tile_size)) deallocate(tile_size)
+        allocate(tile_size(2, size(meshes_to_shift)))
+        tile_size(1,:) = tile_size_x
+        tile_size(2,:) = tile_size_y
+
         call create_mesh( meshes_to_double, &
                           extrusion_double, &
+                          inner_halo_tiles, &
+                          tile_size,        &
                           alt_name=double_names )
         call assign_mesh_maps(double_names)
 
@@ -280,7 +322,7 @@ contains
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
-    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+    call init_fem(  modeldb%config, chi_inventory, panel_id_inventory )
 
     call create_runtime_constants()
 
@@ -306,7 +348,8 @@ contains
                   prime_mesh_name,    &
                   modeldb,            &
                   chi_inventory,      &
-                  panel_id_inventory )
+                  panel_id_inventory, &
+                  geometry, topology )
 
     ! Call clock initial step before initial conditions output
     ! This ensures that lfric_initial.nc will be written out
@@ -329,8 +372,13 @@ contains
       call write_scalar_diagnostic( 'tracer_con', tracer_con, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
 
-      height_w3 => get_height_fe(W3, mesh%get_id())
-      height_wth => get_height_fe(Wtheta, mesh%get_id())
+      height_w3  => get_height_fe( W3, mesh%get_id(),                          &
+                                   geometry, element_order_h, element_order_v, &
+                                   coord_system, scaled_radius )
+      height_wth => get_height_fe( Wtheta, mesh%get_id(),                      &
+                                   geometry, element_order_h, element_order_v, &
+                                   coord_system, scaled_radius )
+
       call write_scalar_diagnostic( 'height_w3', height_w3, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'height_wth', height_wth, modeldb%clock, &
