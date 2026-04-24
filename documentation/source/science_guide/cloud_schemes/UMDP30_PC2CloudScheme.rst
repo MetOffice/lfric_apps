@@ -64,7 +64,8 @@ straightforward to solve if one is allowed to assume that there is no
 variability of moisture or temperature on a scale of a model gridbox. In
 this case the cloud fraction scheme is redundant and only the
 condensation part remains, which may be solved diagnostically using the
-instantaneous condensation assumption in section :ref:`The ‘s’ distribution`.
+instantaneous condensation assumption in section :ref:`The ‘s’ distribution
+<sec_s_dist>`.
 However, the ‘no-variability’ assumption is poor until very high
 resolutions close to, or maybe exceeding, 1 km in the horizontal are
 reached. Although we may eventually assume that computer power will
@@ -76,7 +77,7 @@ parametrization.
 There are several approaches to take to the solution of the problem,
 although they are not as independent as often portrayed, since they
 nearly all require the same instantaneous condensation assumption
-(discussed in section :ref:`The ‘s’ distribution`). Hence there are
+(discussed in section :ref:`The ‘s’ distribution <sec_s_dist>`). Hence there are
 mathematical links between all the approaches. *The following are all
 valid structures to use in this respect.*
 
@@ -118,7 +119,7 @@ and to break the hard diagnostic link between cloud fraction and
 condensate. These major features of the `Tiedtke (1993)`_ scheme
 provide the motivation to develop the PC2 cloud scheme.
 
-.. _The ‘s’ distribution:
+.. _sec_s_dist:
 
 The ‘s’ distribution
 --------------------
@@ -270,7 +271,8 @@ a purely diagnostic representation such as `Smith (1990)`_
 where we explicitly consider distributions of :math:`s`. Strictly, the
 linear approximation implies that other approximations for
 :math:`\alpha` are valid: PC2 will do this (see section
-:ref:`Numerical application`) since we are concerned in PC2 with the
+:ref:`Numerical application <sec_homog_num_app>`) since we are concerned in PC2
+with the
 best estimate of the *changes* to :math:`\overline{q_{cl}}`, not the
 best estimate of :math:`\overline{q_{cl}}` itself.
 
@@ -319,9 +321,8 @@ Concept of PC2
 The PC2 scheme develops prognostic expressions for the rates of change
 of cloud fraction and condensate contents as a result of each process
 that acts in the model. We consider ice and liquid condensate as two
-distinct aspects of clouds, which may or may not overlap.
-:numref:`Figure %s <fig:schematic>`
-provides a schematic summary of the PC2 scheme.
+distinct aspects of clouds, which may or may not overlap :numref:`Figure %s
+<fig:schematic>` provides a schematic summary of the PC2 scheme.
 The equations for the five prognostic cloud variables can be written
 schematically:
 
@@ -389,7 +390,8 @@ given by :eq:`eq:int_gs_ds` and
 concept of instantaneous condensation for liquid clouds. Equations
 :eq:`eq:int_gs_ds` and
 :eq:`eq:qclbar=int` will form the basis of the
-homogeneous forcing methods discussed in section :ref:`Homogeneous forcing`.
+homogeneous forcing methods discussed in section :ref:`Homogeneous forcing
+<sec_homog>`.
 We note in particular that the convective cloud fraction, previously a
 quantity that is diagnosed separately from the large-scale cloud
 fraction calculated by the `Smith (1990)`_ scheme, may, in
@@ -407,15 +409,18 @@ specifically developed generic approaches that can be used to calculate
 expressions for :math:`\frac{\partial \overline{q_{cl}}}{\partial t}`
 and :math:`\frac{\partial C_l}
 {\partial t}` . These are referred to as Homogeneous forcing (section
-:ref:`Homogeneous forcing`), Injection source (or inhomogeneous forcing,
-section :ref:`Injection forcing`) and Width Changing (section
-:ref:`Changing the width of the PDF - PC2 erosion`). Two additional modules are
-available to assist
-with PC2, liquid cloud initiaion (section :ref:`Initiation of cloud`) and the
+:ref:`Homogeneous forcing <sec_homog>`), Injection source (or inhomogeneous
+forcing,
+section :ref:`Injection forcing <sec_inhomog>`) and Width Changing (section
+:ref:`Changing the width of the PDF - PC2 erosion <sec_width>`). Two additional
+modules are available to assist
+with PC2, liquid cloud initiaion (section :ref:`Initiation of cloud
+<sec_init>`) and the
 calculation of total cloud fraction changes (section :ref:`Ice cloud and mixed
-phase regions`).
+phase regions <sec_ct>`).
 At the present time, only the large-scale precipitation (section
-:ref:`Large-scale precipitation`) scheme has been rewritten fully to use the PC2
+:ref:`Large-scale precipitation <sec_precip>`) scheme has been rewritten fully
+to use the PC2
 concept of prognostic cloud fractions. The existing mass-flux convection
 scheme has been modified to enable calculation of the detrained
 condensate, but direct modification to the cloud fraction is not
@@ -444,7 +449,7 @@ of representation of cloud inhomogeneity.
 
 Hence the code still exists to enable PC2 to be run with or without a
 diagnostic convective cloud fraction, although PC2:66 does not include a
-diagnostic term. More details are in section :ref:`Convection`.
+diagnostic term. More details are in section :ref:`Convection <sec_convec>`.
 
 Physical basis of the PC2 prognostic cloud scheme
 =================================================
@@ -453,7 +458,7 @@ In this section we will develop the physical models that PC2 uses in
 order to calculate its prognostic increment terms. We will also consider
 the numerical solution of the models. The way in which these are
 incorporated into the Unifed Model will be discussed in section
-:ref:`Implementation in the Unified Model`
+:ref:`Implementation in the Unified Model <sec_um>`
 
 Instantaneous condensation
 --------------------------
@@ -466,7 +471,7 @@ cloud in PC2. We will start by looking at changes to
 applied to a gridbox, under the assumption of instantaneous
 condensation.
 
-.. _Homogeneous forcing:
+.. _sec_homog:
 
 Homogeneous forcing
 -------------------
@@ -580,7 +585,8 @@ form a complete mathematical set for the solution of :math:`C_l` and
 initial value of :math:`C_l` is not identically 0 or 1. If :math:`C_l`
 is 0 or 1 then :math:`G(-Q_c)` remains at zero. The equation set then
 needs to be initiated in some way. This is discussed further in
-`Wilson and Gregory (2003)`_ and in section :ref:`Initiation of cloud`. If
+`Wilson and Gregory (2003)`_ and in section :ref:`Initiation of cloud
+<sec_init>`. If
 :math:`G(-Q_c)` is defined, then application of the above equation set
 may be used to trace out an underlying PDF for any input values of
 :math:`C_l`, :math:`\overline{q_{cl}}` and :math:`SD`. Although we never
@@ -689,7 +695,7 @@ closure removed occasional spurious very large cloud-fraction increments
 that occur when using :eq:`eqn22`, but did not significantly
 impact the performance of the model forecast.
 
-.. _Numerical application:
+.. _sec_homog_num_app:
 
 Numerical application
 ^^^^^^^^^^^^^^^^^^^^^
@@ -811,7 +817,8 @@ interfere with the possible cancellation of positive and negative
 increments from different physics schemes. A checking routine is
 applied, however, in the Unified Model to remove any negative values
 that are generated, which is discussed in section
-:ref:`Bounds checking`. However, the checking routine (Q-Pos) involves a
+:ref:`Bounds checking <sec_checks>`. However, the checking routine (Q-Pos)
+involves a
 lot of communication between processors and can significantly increase
 the run-time of the model. The option to “Ensure consistent sinks of qcl
 and CFL” performs a check at the end of the homogeneous forcing routines
@@ -829,7 +836,7 @@ the net change in :math:`\overline{q_T}` minus the net change in
 calculated simply to account for the latent heat released due to the
 condensation.
 
-.. _Changing the width of the PDF - PC2 erosion:
+.. _sec_width:
 
 Changing the width of the PDF - PC2 erosion
 -------------------------------------------
@@ -940,15 +947,15 @@ of the process that is occuring. Note we don’t need to calculate
 :math:`b_s` separately, just its *fractional* rate of change. Options
 for the parameterisation of
 :math:`\frac{1}{b_s}\frac{\partial b_s}{\partial t}` due to turbulent
-“erosion” are described in section :ref:`PC2 erosion`, along with the
+“erosion” are described in section :ref:`PC2 erosion <sec_turb>`, along with the
 numerical methods used to integrate the equations.
 
-.. _Initiation of cloud:
+.. _sec_init:
 
 Initiation of cloud
 -------------------
 
-In section :ref:`Homogeneous forcing` we commented that the closure
+In section :ref:`Homogeneous forcing <sec_homog>` we commented that the closure
 :eq:`eqn22` for :math:`G(-Qc)` is only valid if :math:`C_l`
 is not identically 0 or 1. If :math:`C_l` is 0 or 1 we know that
 :math:`G(-Q_c)` is equal to 0 but we have lost the information that will
@@ -990,7 +997,8 @@ description in :eq:`eqn19` to obtain the expressions
 We now need to parametrize the PDF width :math:`b_s`. Unlike the
 `Smith (1990)`_ scheme, this is the only location in the PC2
 cloud scheme where the width needs to be defined for the liquid cloud
-(although see section :ref:`Deposition and sublimation` for a discussion of an
+(although see section :ref:`Deposition and sublimation <sec_mp_depsub>` for a
+discussion of an
 equivalent width in the deposition / sublimation relationship for ice
 cloud). We still choose to define :math:`b_s` in terms of a critical
 relative humidity parameter, :math:`RH_{crit}`. Like the
@@ -1041,7 +1049,7 @@ within this diagnostic calculation of SD it might actually be better to
 use the representation :eq:`eq:alpha` used by the
 diagnostic `Smith (1990)`_ scheme.
 
-.. _Numerical Application of the Smith method:
+.. _sec_numapp_init:
 
 Numerical Application of the Smith method
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1069,7 +1077,7 @@ circumstances in which we wish to proceed further:
 Note: in the UM implementation, the actual conditions for when
 initiation may occur are more complicated than this, and there are
 several options depending on a namelist switch. See section
-:ref:`Initiation` for details...
+:ref:`Initiation <sec_init2>` for details...
 
 In the second case, we then make the temporary transformation of
 variables in order to use the same solution set as in the first case:
@@ -1167,7 +1175,7 @@ where the superscript :math:`[i]` labels each iteration. We find that 10
 iterations is effective for convergence, with the weighting :math:`f`
 given by :math:`a_L^{[i]}`.
 
-.. _Initiation using the bimodal scheme:
+.. _sec_bimodal_init:
 
 Initiation using the bimodal scheme
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1198,14 +1206,14 @@ upper and lower values of :math:`Q_N` are then compared to -1 and 1
 respectively, to determine whether the saturation boundary lies within
 the PDF bounds. This is the basic condition for initiation to occur
 (though there are additional conditions and various options for these in
-the soure code; see section :ref:`Initiation`).
+the soure code; see section :ref:`Initiation <sec_init2>`).
 
 If the initiation conditions are met, the diagnostic bimodal cloud
 scheme code is then called (see UMDP 039), and the diagnosed :math:`C_l`
 and :math:`q_{cl}` are used to set the prognostic :math:`C_l` and
 :math:`q_{cl}`.
 
-.. _Injection forcing:
+.. _sec_inhomog:
 
 Injection forcing
 -----------------
@@ -1232,8 +1240,8 @@ air.
 The fractional rate at which existing air is replaced by the injected
 source air we will write as :math:`\frac{\partial{C_S}}{\partial{t}}`.
 Provided that only the liquid phase exists (see section
-:ref:`Multiple phases in the injection source` for the extention to multiple
-phases), we then
+:ref:`Multiple phases in the injection source <sec_multiple>` for the extention
+to multiple phases), we then
 note that the rate of change of liquid cloud fraction and liquid water
 content in the gridbox can be written in two parts: firstly the change
 due to the background, and secondly the change due to the source.
@@ -1273,7 +1281,7 @@ completely cloudy air. This equation allows one to calculate the change
 in :math:`C_l` associated with an injection source change of
 :math:`\overline{q_{cl}}` for the example of convection. Modifications
 to the mass-flux convection scheme for PC2 (far from trivial and
-discussed in depth in section :ref:`Convection`) allow :math:`Q4_l`
+discussed in depth in section :ref:`Convection <sec_convec>`) allow :math:`Q4_l`
 to be calculated (:math:`q_{cl}^S` is already available), and
 :eq:`eq:dcdt_inhom2` can then be used to calculate
 the equivalent :math:`C_l` change. We note at this stage that the
@@ -1290,7 +1298,7 @@ We could reasonably calculate the change in cloud fraction following the
 same methods as used to calculate the change in :math:`\overline{q}` or
 the change in a tracer and we discuss this later.
 
-.. _Multiple phases in the injection source:
+.. _sec_multiple:
 
 Multiple phases in the injection source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1343,7 +1351,7 @@ equivalently to :eq:`eq:dcdt_inhom` as
 
    \frac{\partial{C_l}}{\partial{t}} =
    - C_l \frac{\partial{C_S}}{\partial{t}} + g_l
-   \frac{\partial{C_S}}{\partial{t}} .
+     \frac{\partial{C_S}}{\partial{t}} .
 
 Combining :eq:`eq:dcldt_inhom` and
 :eq:`eq:dctdt_inhom` by eliminating
@@ -1429,12 +1437,12 @@ the ice cloud fraction and total cloud fraction.
 with :math:`\delta_{xi} = h_i = g_i`. These are the expressions that are
 used within the convection scheme. It still remains to parametrize
 :math:`\delta_{xl}`, which is given by the convection scheme itself.
-This is discussed in section :ref:`Phase of condensate`.
+This is discussed in section :ref:`Phase of condensate <sec_plume_phase>`.
 
-.. _Numerical application of injection forcing:
+.. _sec_multi_numapp:
 
-Numerical application of injection forcing
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Numerical application
+^^^^^^^^^^^^^^^^^^^^^
 
 The numerical application using
 :eq:`eq:dcltdt_almost_final` may be
@@ -1502,7 +1510,7 @@ fraction remains within its physical bounds.
 and similar equations are used for :math:`C_i^{[n+1]}` and
 :math:`C_t^{[n+1]}`.
 
-.. _A note on the implementation of the cloud fraction change:
+.. _sec_conv_imp_note:
 
 A note on the implementation of the cloud fraction change
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1525,8 +1533,8 @@ detrainment. It is possible to calculate directly the change in
 :math:`C_l` that should occur due to the detrainment and compensating
 subsidence treated together, in the same way that
 :math:`\Delta \overline{q_{cl}}` is calculated (see section
-:ref:`Calculation of Grid-Box Averaged Condensate Rate (Q4)`), and this is the
-way in which the
+:ref:`Calculation of Grid-Box Averaged Condensate Rate (Q4)
+<subsect_q4calculation>`), and this is the way in which the
 cloud fraction change **should** be done. It is an unfortunate
 historical emphasis in the early development of PC2 on the derivation of
 :eq:`eq:dcdt_inhom2` that has led to the treatment
@@ -1536,7 +1544,8 @@ convection.
 The change in :math:`\overline{q_{cl}}` and :math:`C_l` due to the
 adiabatic warming associated with the compensating subsidence is
 considered explicitly in the model implementation (see section
-:ref:`Background condensation`) for both :math:`\overline{q_{cl}}` and
+:ref:`Background condensation <sec_conv_homog>`) for both
+:math:`\overline{q_{cl}}` and
 :math:`C_l` after the rest of the convective process has been
 calculated. It is perhaps arguable that if
 :eq:`eq:dcdt_inhom2` is going to be applied then the
@@ -1547,7 +1556,7 @@ Any major future developments of PC2 for a mass-flux convection scheme
 would be advised to consider whether it is appropriate to use
 :eq:`eq:dcdt_inhom2` at all.
 
-.. _Ice cloud and mixed phase regions:
+.. _sec_ct:
 
 Ice cloud and mixed phase regions
 ---------------------------------
@@ -1556,13 +1565,13 @@ The homogeneous forcing, initiation and PC2 erosion sections described
 above have only considered the generation and dissipation of liquid
 clouds. Although the forcing methods will not influence the generation
 and dissipation of ice cloud (which is primarily performed in the
-large-scale precipitation scheme, section :ref:`Large-scale precipitation`) we
-are
+large-scale precipitation scheme, section :ref:`Large-scale precipitation
+<sec_precip>`) we are
 still left with the issue of how created or dissipated liquid cloud
 overlaps with existing ice cloud in the gridbox. The opposite situation,
 where changes in ice cloud are specified and changes in the overlap with
 liquid cloud need to be calculated, is also possible in PC2 (e.g. in the
-boundary layer, see section :ref:`Boundary Layer`).
+boundary layer, see section :ref:`Boundary Layer <sec_bl>`).
 
 Here we need a simple assumption to close the problem. The assumption
 that we now choose is that liquid cloud fraction *changes* are
@@ -1756,12 +1765,12 @@ summarised below:
   and :math:`CCW` in both dry-convective and cumulus-capped
   boundary-layers.
 
-.. _Turbulence-driven production of subgrid scale liquid cloud:
+.. _sec_turb_qcl_scheme:
 
 Turbulence-driven production of subgrid scale liquid cloud
 ----------------------------------------------------------
 
-.. _Introduction:
+.. _sec_sgt_intro:
 
 Introduction
 ^^^^^^^^^^^^
@@ -1782,13 +1791,14 @@ between their theoretically predicted predicted mean cloud properties
 and the bulk properties of the LES clouds. Subsequently, their model has
 been used as the basis of subgrid cloud initiation method for use in the
 Unified Model in conjunction with the PC2 prognostic cloud scheme. In
-Section :ref:`Model description` we outline the model of
+Section :ref:`Model description <sec_sgt_model_describe>` we outline the model
+of
 `Field et al. (2014)`_. In Section
-:ref:`Model implementation and closure relations` we described its
-implementation in
+:ref:`Model implementation and closure relations <sec_sgt_model_implement>` we
+described its implementation in
 the GCM.
 
-.. _Model description:
+.. _sec_sgt_model_describe:
 
 Model description
 ^^^^^^^^^^^^^^^^^
@@ -1889,12 +1899,13 @@ ice supersaturation at water saturation. We use the superscription
 and water content diagnosed from a parametrization of small-scale
 turbulent processes.
 
-.. _Model implementation and closure relations:
+.. _sec_sgt_model_implement:
 
 Model implementation and closure relations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To implement the model of Section :ref:`Model description` in
+To implement the model of Section :ref:`Model description
+<sec_sgt_model_describe>` in
 the Unified Model, closure relations are needed for the quantities
 :math:`\sigma_w^2`, :math:`\varepsilon`, :math:`L`, :math:`\tau_{\rm d}`
 and :math:`S_E`, subject to the constraining relationship given by Eq.
@@ -1910,12 +1921,12 @@ prognostic fields, :math:`C_l` and :math:`q_{cl}`. Two methods are
 available for doing this. In the simplest case, the diagnosed values
 :math:`C_l^{sgt}` and :math:`q_{cl}^{sgt}` are just treated as
 increments to model prognostics (option one, in Sec.
-:ref:`Options for incrementing model prognostics` below). A more complex option
-(see
+:ref:`Options for incrementing model prognostics <sec_sgt_increments>` below).
+A more complex option (see
 option two, below) is to increment the model fields via the PC2 Erosion
 functionality.
 
-.. _Closure relations:
+.. _sec_sgt_closures:
 
 Closure relations
 ^^^^^^^^^^^^^^^^^
@@ -1932,7 +1943,8 @@ vertical grid spacing in each grid box: :math:`L=\beta_{mix} \Delta z`,
 where :math:`\Delta z` is calculated as the height different between the
 :math:`\rho`-levels adjacent to the given :math:`\theta`-point. The
 parameter, :math:`\beta_{mix}`, is an adjustable constant that the user
-can define (see Section :ref:`Other user options` below), however it
+can define (see Section :ref:`Other user options <sec_sgt_options>` below),
+however it
 should be of order one.
 
 To obtain :math:`\tau_{\rm d}` we impose an eddy size constraint:
@@ -1960,12 +1972,13 @@ taken to be the grid box mean values. The first moment of the ice PSD,
 :math:`{\cal M}_1`, is found from the parametrization, due to
 `Field et al. (2005)`_, described in Section 4.1 of UMDP26.
 
-.. _Options for incrementing model prognostics:
+.. _sec_sgt_increments:
 
 Options for incrementing model prognostics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Using the information in Section :ref:`Closure relations` to obtain
+Using the information in Section :ref:`Closure relations <sec_sgt_closures>` to
+obtain
 closed expressions for the subgrid PDF of :math:`S_i`-fluctuations
 allows :math:`C_l^{sgt}` and :math:`q_{cl}^{sgt}` to be calculated.
 These will be non-zero only where there is turbulence as diagnosed by
@@ -2044,11 +2057,11 @@ where :math:`q_{cl}` is the liquid cloud amount prior to calling to the
 turbulent production scheme. The cloud fraction increments are
 calculated by calling PC2 Erosion with
 :math:`\left( \Delta q_{cl} \right)_{sgt}` as input. See Section
-:ref:`PC2 erosion` for details on how the PC2 Erosion process works.
+:ref:`PC2 erosion <sec_turb>` for details on how the PC2 Erosion process works.
 This method gives cloud fraction increments that are consistent with PC2
 cloud scheme.
 
-.. _Other user options:
+.. _sec_sgt_options:
 
 Other user options
 ^^^^^^^^^^^^^^^^^^
@@ -2082,7 +2095,7 @@ The following variables and logical switches are optional inputs:
 #. ``mp_czero`` defines the constant parameter :math:`C_0` (defaults to
    :math:`C_0=10`).
 
-.. _Application to the Unified Model:
+.. _sec_app_um:
 
 Application to the Unified Model
 ================================
@@ -2090,7 +2103,8 @@ Application to the Unified Model
 This section describes the way in which the physical concepts described
 in the above section are applied to the sections of the Unified Model,
 in order to build up the complete prognostic scheme. Description of the
-actual subroutines themselves follow in section :ref:`Code Structure`.
+actual subroutines themselves follow in section :ref:`Code Structure
+<sec_code>`.
 Note that the large-scale precipitation and convection schemes have
 considerable documentation below, since these schemes have been heavily
 modified for PC2. The other schemes use generic forcing scenarios, hence
@@ -2099,7 +2113,7 @@ their desciption here is much shorter. Remember, whenever a signficiant
 able to represent the corresponding condensation and changes in cloud
 fractions.
 
-.. _Radiation:
+.. _sec_rad:
 
 Radiation
 ---------
@@ -2108,10 +2122,11 @@ The shortwave and longwave radiation schemes both alter the temperature
 of the atmosphere, hence we need to calculate the corresponding
 condensation and cloud fraction changes. For both shortwave and
 longwave, we use the homogeneous forcing routines (section
-:ref:`Homogeneous forcing`) for :math:`\overline{q_{cl}}` and :math:`C_l`,
+:ref:`Homogeneous forcing <sec_homog>`) for :math:`\overline{q_{cl}}` and
+:math:`C_l`,
 (using eqn. :eq:`eq:deltaqc_exp2` to calculate the
 :math:`Q_c` forcing) and then the method in section :ref:`Ice cloud and mixed
-phase regions` to
+phase regions <sec_ct>` to
 calculate :math:`C_t` changes. There is no :math:`\overline{q_{cf}}`
 change associated with this process since the deposition / sublimation
 process is performed within the large-scale precipitation scheme (as it
@@ -2122,9 +2137,9 @@ model to use when we know that a large proportion of the heating
 associated with radiative transfer in the atmosphere comes from the
 cloudy air and is not evenly spread across the gridbox. Possible
 developments are discussed in section :ref:`Homogeneous forcing section
-improvements`.
+improvements <sec_homog_improve>`.
 
-.. _Large-scale precipitation:
+.. _sec_precip:
 
 Large-scale precipitation
 -------------------------
@@ -2152,7 +2167,7 @@ single ice cloud fraction is stored, the assumption being that the two
 ice categories are completely overlapped with each other. Graupel is not
 considered to contribute to the ice cloud fraction.
 
-.. _Fall of ice:
+.. _sec_lsp_fall:
 
 Fall of ice
 ^^^^^^^^^^^
@@ -2165,7 +2180,8 @@ spread of ice cloud fraction at a particular level (hence
 :math:`\overline{q_{cf}}` that leaves a gridbox does not reduce
 :math:`C_f` in that gridbox). The in-cloud ice content simply reduces
 due to the fall out of ice - it is the sublimation term (section
-:ref:`Deposition and sublimation`) that erodes the fall streaks. However, ice
+:ref:`Deposition and sublimation <sec_mp_depsub>`) that erodes the fall
+streaks. However, ice
 that falls into a clear layer from above may increase the ice cloud
 fraction. We parametrize this by considering the horizontal overlap of
 ice clouds between two model layers, and the fall speed of ice between
@@ -2205,7 +2221,7 @@ layer below can be filled by ice in the timestep:
 
 where :math:`\Delta t` is the timestep. We now choose to assume a
 minimum overlap between the liquid and the ice phases (as in section
-:ref:`Ice cloud and mixed phase regions`).
+:ref:`Ice cloud and mixed phase regions <sec_ct>`).
 
 .. math:: :label: eq:lsp_fall_ct
 
@@ -2220,7 +2236,7 @@ the ice cloud fraction overhang. Consequently, the option not to use the
 “wind shear value” when calculating the overhang is available in the
 UMUI (from version 7.6 onwards).**
 
-.. _Homogeneous nucleation:
+.. _sec_lsp_homo:
 
 Homogeneous nucleation
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -2263,7 +2279,7 @@ cloud. These give the following changes:
    \Delta C_t = 0.
 
 
-.. _Deposition and sublimation:
+.. _sec_mp_depsub:
 
 Deposition and sublimation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2272,7 +2288,7 @@ This term exerts one of the most important influences on the ice cloud
 in the whole model (this applies to the control as well as for PC2).
 Contained in the formulation is a subgrid-scale assumption that causes
 equivalent effects to that for a moisture PDF under the ‘:math:`s`’
-framework (section :ref:`The ‘s’ distribution`). However, since
+framework (section :ref:`The ‘s’ distribution <sec_s_dist>`). However, since
 :math:`{q_{cf}}` changes slowly in response to local changes in
 :math:`q` and :math:`T`, we cannot base the :math:`q_{cf}` response on
 the same instantaneous condensation framework. It would be useful to
@@ -2491,7 +2507,7 @@ a large-scale lifting process will be required in order to condense
 water from the moistened air. We cannot, therefore, allow any change in
 cloud fractions to occur as a result, subsequent changes are calculated
 elsewhere in the model (e.g. by the lifting process, section
-:ref:`Response to pressure changes`).
+:ref:`Response to pressure changes <sec_pres>`).
 
 Accretion
 ^^^^^^^^^
@@ -2551,12 +2567,12 @@ corresponding large reduction in :math:`C_l`. This is an underlying
 feature of the PC2 scheme (discussed in `Wilson and Gregory (2003)`_), and
 necessarily implies the skewing of the underlying moisture PDF.
 Subsequent parts of the model (e.g. the width narrowing, section
-:ref:`Changing the width of the PDF - PC2 erosion`) will, of course, act on the
-modified fields to
+:ref:`Changing the width of the PDF - PC2 erosion <sec_width>`) will, of
+course, act on the modified fields to
 adjust the cloud fractions further, but remember that these are separate
 processes and modelled elsewhere in the timestep.
 
-.. _PC2 erosion:
+.. _sec_turb:
 
 PC2 erosion
 -----------
@@ -2607,10 +2623,10 @@ term “dbsdtbs1” which scales with the rate of homogeneous forcing
 to zero on input to these routines so is never used.
 
 The width-narrowing formulation of section :ref:`Changing the width of the PDF
-- PC2 erosion` is used
+- PC2 erosion <sec_width>` is used
 to calculate increments in :math:`\overline{q_{cl}}` and :math:`C_l`.
 Using the liquid - ice cloud overlap ideas of section :ref:`Ice cloud and mixed
-phase regions`
+phase regions <sec_ct>`
 then gives the associated :math:`C_t` change. This background narrowing
 term, :math:`\Upsilon`, is originally based upon work by
 `Stiller and Gregory (2003)`_, although it is a parameter that has been
@@ -2621,15 +2637,18 @@ Numerical application of the original width-narrowing method
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Because of the strong link the mathematical expressions for width
-narrowing (section :ref:`Changing the width of the PDF - PC2 erosion`) have
-with the expressions for
-the homogeneous forcing (section :ref:`Homogeneous forcing`), we choose to
+narrowing (section :ref:`Changing the width of the PDF - PC2 erosion
+<sec_width>`) have with the expressions for
+the homogeneous forcing (section :ref:`Homogeneous forcing <sec_homog>`), we
+choose to
 represent the timestepping of this process in exactly the same way as
 for the homogeneous forcing (in fact, in the Unified Model code we use
-the same subroutine, see section :ref:`Code Structure`). As before, we use
+the same subroutine, see section :ref:`Code Structure <sec_code>`). As before,
+we use
 a simple forward timestepping of :math:`C_l`, with :math:`Q_c` given by
 :eq:`eq:qc_eq_qt-qs` and :math:`a_L` defined as
-discussed in section :ref:`Numerical application` and discretize eq
+discussed in section :ref:`Numerical application <sec_homog_num_app>` and
+discretize eq
 :eq:`eq:dcdt_width` as:
 
 .. math:: :label: eq:dcl_turb_final
@@ -2755,7 +2774,7 @@ used to calculate the change in :math:`C_l` using the same moisture PDF
 assumptions as were used in the original PC2 erosion formulation. To
 achieve this, we combine equations :eq:`eq:dcdt_width`
 and :eq:`eq:dqcldt_width` from section
-:ref:`Changing the width of the PDF - PC2 erosion` to eliminate
+:ref:`Changing the width of the PDF - PC2 erosion <sec_width>` to eliminate
 :math:`\frac{1}{b_s} \frac{\partial b_s}{\partial t}` and write
 :math:`\frac{\partial C_l}{\partial t}` as a function of
 :math:`\frac{\partial \overline{q_{cl}}}{\partial t}`:
@@ -2775,7 +2794,7 @@ for :math:`C_l` and the introduction of some surface area dependence
 leads to this formulation being referred to as a “hybrid”
 cloud-surface-area erosion method.
 
-.. _Numerical application of the hybrid erosion method:
+.. _sec_erosion_numerics:
 
 Numerical application of the hybrid erosion method
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2821,7 +2840,7 @@ cumulus regimes.
    off. This means any cloud detrained by convection during the current
    timestep cannot be eroded until the following timestep, and so is
    still present at end-of-timestep. As discussed in section
-   :ref:`Time-stepping`, this leads to a problematic timestep
+   :ref:`Time-stepping <sec_timestepping>`, this leads to a problematic timestep
    sensitivity, since the amount of cloud not subject to erosion is the
    convection increment, which scales with the timestep length.
 
@@ -2995,7 +3014,8 @@ cumulus regimes.
           \;
             \frac{1}{q_{cl}} \frac{\partial q_{cl}}{\partial t}
 
-      Under homogeneous forcing (section :ref:`Homogeneous forcing`), we
+      Under homogeneous forcing (section :ref:`Homogeneous forcing
+      <sec_homog>`), we
       defined the PDF height at the saturation boundary when near the
       cloudy end of the PDF as
       :math:`G(-Q_c) = \frac{n+1}{n+2} \frac{C_l^2}{q_{cl}}` (eq
@@ -3056,7 +3076,7 @@ cumulus regimes.
       where :math:`SD` is the saturation defecit, and :math:`a_L` is the
       dimensionless factor defined in eq :eq:`eq:a_L`.
       Following the derivation in section
-      :ref:`“Smooth” initiation logic` (eq
+      :ref:`“Smooth” initiation logic <sec_smooth_initiation>` (eq
       :eq:`eq:qc_plus_sd`, we can write this in terms
       of the liquid-water content: :math:`SD = q_{cl} - Q_c` (where
       :math:`Q_c` was defined in eq
@@ -3106,7 +3126,7 @@ cumulus regimes.
 
       Note that :math:`q_{cl}` falls to zero after a finite time
       :math:`\frac{{q_{cl}}_0}{1-b_1} \frac{a_L}{K}
-      \frac{1}{2 {C_l}_0 (1 - C_l) \, (q_{cl}-Q_c)}`. If the timestep
+       \frac{1}{2 {C_l}_0 (1 - C_l) \, (q_{cl}-Q_c)}`. If the timestep
       :math:`\Delta t` is longer than this time, then erosion completely
       removes the cloud during the current timestep.
 
@@ -3228,7 +3248,7 @@ temperature or moisture content of the model gridboxes, hence PC2
 assumes no change in the condensate and cloud fractions as a result of
 these processes.
 
-.. _Advection:
+.. _sec_advec:
 
 Advection
 ---------
@@ -3243,7 +3263,8 @@ following each parcel, which will cause an accompanying adiabatic
 temperature change. These advective pressure and temperature changes
 imply a homogeneous forcing, which yields a change in
 :math:`\overline{q_{cl}}` and :math:`C_l` in addition to their transport
-by the winds. This is described in section :ref:`Response to pressure changes`.
+by the winds. This is described in section :ref:`Response to pressure changes
+<sec_pres>`.
 
 If the UM namelist switch **l_pc2_sl_advection** is turned on, the PC2
 homogeneous forcing response to advection is calculated straight after
@@ -3252,7 +3273,7 @@ from advection is combined with the Eulerian pressure change from the
 dynamics Helmholtz solver, and the resulting homogeneous forcing of
 liquid cloud is computed at the end of the timestep.
 
-.. _Boundary Layer:
+.. _sec_bl:
 
 Boundary Layer
 --------------
@@ -3293,7 +3314,8 @@ denominator is small, we will, to avoid numerical problems, set
 :math:`C_i` to 1 if
 :math:`q_C^S - \overline{q_{cf}} < 1 \times 10^{-10} kg kg^{-1}`. Note
 that we do not use the multiple phases injection source expressions
-(section :ref:`Multiple phases in the injection source` and equation
+(section :ref:`Multiple phases in the injection source <sec_multiple>` and
+equation
 :eq:`eq:cff_ts`. This is because the liquid water changes
 are not associated with the plume model.
 
@@ -3306,7 +3328,7 @@ the ice water content is reduced, the ice cloud fraction is reduced, in
 such as way as to maintain the same in-cloud ice water content.
 
 The :math:`C_t` changes are calculated using the minimum overlap method
-of section :ref:`Ice cloud and mixed phase regions`.
+of section :ref:`Ice cloud and mixed phase regions <sec_ct>`.
 
 In *ni-imp-ctl* the control code inhibits the call to the diagnostic
 cloud scheme if there is deep or shallow convection occurring and the
@@ -3322,7 +3344,7 @@ level above the boundary layer mixed layer*. This choice (i.e. ntml) is
 seen to give improved results in PC2, and is arguably a more physical
 reasonable choice anyway than using ntml+1.
 
-.. _Convection:
+.. _sec_convec:
 
 Convection
 ----------
@@ -3331,11 +3353,12 @@ This section concentrates specifically upon the PC2 interface to the
 convection scheme. In the current formulation of the UM, only a
 mass-flux convection scheme exists, and this is what is described below.
 Work to interface PC2 to the developing turbulence based convection
-scheme is commented upon in section :ref:`Turbulence based convection scheme`.
+scheme is commented upon in section :ref:`Turbulence based convection scheme
+<sec_tbcs>`.
 
 An alternative way of calculating cloud fraction increments is currently
 under development and is described in section
-:ref:`Tidier way of coupling convection and PC2`.
+:ref:`Tidier way of coupling convection and PC2 <sec_conv-simpler>`.
 
 A traditional view of convective parametrization is a scheme that
 transports vapour, :math:`q`, heat, :math:`\theta`, and momentum,
@@ -3361,7 +3384,8 @@ Introduction to the convective mass flux scheme
 Within the mass flux scheme the net change in :math:`\overline{q_{cl}}`
 and :math:`C_l` etc. comes from two distinct sources. Firstly, the
 condensate and cloud fraction injected from the plume (the :math:`Q4`
-terms, section :ref:`Injection forcing`); secondly, the condensation
+terms, section :ref:`Injection forcing <sec_inhomog>`); secondly, the
+condensation
 response to the vapour and heat changes associated with the detrainment
 and compensating subsidence. Strictly, we will see that the :math:`Q4`
 terms also include the contribution to the condensate transport by the
@@ -3382,16 +3406,18 @@ We therefore split the convective contribution in
 where :math:`Q_{environment}` is the condensation associated with
 changes in the vapour and temperature from the detrainment and
 compensating subsidence. Similar splits are made for the cloud
-variables, where the injection forcing, section :ref:`Injection forcing`,
+variables, where the injection forcing, section :ref:`Injection forcing
+<sec_inhomog>`,
 is used to calculate the first term from :math:`Q4_l`. Section
-:ref:`Calculation of Grid-Box Averaged Condensate Rate (Q4)` looks at the issue
-of the calculation
-of :math:`Q4_l` etc., and section :ref:`Background condensation` looks at
+:ref:`Calculation of Grid-Box Averaged Condensate Rate (Q4)
+<subsect_q4calculation>` looks at the issue of the calculation
+of :math:`Q4_l` etc., and section :ref:`Background condensation
+<sec_conv_homog>` looks at
 the calculation of :math:`Q_{environment}`, and its associated cloud
 fraction change. We first look at the basic transport equations in a
 mass flux convection scheme.
 
-.. _Basic Equations for a Convective Mass Flux Scheme:
+.. _subsect_basmaseqs:
 
 Basic Equations for a Convective Mass Flux Scheme
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -3406,7 +3432,7 @@ processes (e.g. total water content). In this case,
 
    {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} = 
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-   {\chi}_{\rm{ }}^{\rm{E'}}}}{\partial \, z} 
+     {\chi}_{\rm{ }}^{\rm{E'}}}}{\partial \, z} 
 
 To parametrize :eq:`eq:chibasic`, the current UM
 convection scheme takes a mass flux approximation
@@ -3422,7 +3448,7 @@ which can be differentiated to give
 .. math:: :label: eq:eddyflux
 
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-   {\chi}_{\rm{ }}^{\rm{E'}}}}{\partial \, z} =
+     {\chi}_{\rm{ }}^{\rm{E'}}}}{\partial \, z} =
    \frac{\partial \, {\chi}_{\rm{ }}^{\rm{P}} \, M^{\rm{P}}}{\partial \, p} - 
    {\chi}_{\rm{ }}^{\rm{E}} \,  \frac{\partial \, M^{\rm{P}}}{\partial \, p} - 
     
@@ -3439,10 +3465,10 @@ The bulk cloud model plume equations for mass and :math:`{\chi}` are:
 .. math:: :label: eq:dbydpmfchi
 
    - \frac{\partial \, {\chi}_{\rm{ }}^{\rm{P}} \, M^{\rm{P}}}{\partial \, p} 
-   =  \left({
+     =  \left({
    \varepsilon \, M^{\rm{P}} \, {\chi}_{\rm{ }}^{\rm{E}}
    - \mu \, M^{\rm{P}} \, {\chi}_{\rm{ }}^{\rm{R}} - \delta \, M^{\rm{P}} \,
-   {\chi}_{\rm{ }}^{\rm{P}}
+     {\chi}_{\rm{ }}^{\rm{P}}
    } \right)
 
 
@@ -3519,14 +3545,14 @@ terms for temperature and specific humidity:
    \equiv
    \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{par}}
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-   T_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
+     T_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
 
 .. math:: :label: eq:defineq2
 
    {\frac{\partial \, q_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} = Q2 
    \equiv  - {\overline{Q}}_{\rm{par}}
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-   q_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
+     q_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
 
 
 where :math:`{\overline{Q}}_{\rm{par}}` is the rate of condensation
@@ -3590,7 +3616,7 @@ is basic equations
     =  {\overline{Q}}_{\rm{par}} -
    {\overline{Q}}_{\rm{reset}} - PPN
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-   l_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
+     l_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
 
 .. math:: :label: eq:basiclold
 
@@ -3607,7 +3633,7 @@ convection scheme :math:`Q4 = 0`. The PC2 scheme requires a reassessment
 of these assumptions because we wish to allow non-zero environment
 condensate values and to allow them to change.
 
-.. _Calculation of Grid-Box Averaged Condensate Rate (Q4):
+.. _subsect_q4calculation:
 
 Calculation of Grid-Box Averaged Condensate Rate (Q4)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -3981,7 +4007,7 @@ and
    } \right] { }
 
 
-.. _Background condensation:
+.. _sec_conv_homog:
 
 Background condensation
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -4173,8 +4199,9 @@ Homogeneous forcing of the environment by convective-subsidence pressure change
 To this end, the code includes an option to perform the homogeneous
 forcing of liquid cloud by convection using the “pressure forcing” from
 the convective subsidence, consistent with the pressure forcing by
-large-scale advection (see sections :ref:`Advection` and
-:ref:`Response to pressure changes`). This approach replaces the above method of
+large-scale advection (see sections :ref:`Advection <sec_advec>` and
+:ref:`Response to pressure changes <sec_pres>`). This approach replaces the
+above method of
 homogeneous forcing by convection if the UM namelist switch
 **l_pc2_homog_conv_pressure** is turned on. By applying the same
 homogeneous forcing method for advection and convectively-forced
@@ -4228,7 +4255,7 @@ by:
 
    \Delta T^E = \theta^E \left( \left(\frac{p}{p_{ref}}\right)^\kappa
                               - \left(\frac{p - \Delta
-                              p^E}{p_{ref}}\right)^\kappa
+                                p^E}{p_{ref}}\right)^\kappa
                          \right)
 
 where :math:`\theta^E` is the environment potential temperature,
@@ -4296,7 +4323,7 @@ temperatures less than around :math:`-42 ^{\circ} C`, with the tuning
 allowing less precipitation and greater detrainment. This change is
 necessary in order to produce thick enough anvil clouds.
 
-.. _Phase of condensate:
+.. _sec_plume_phase:
 
 Phase of condensate
 ^^^^^^^^^^^^^^^^^^^
@@ -4325,7 +4352,7 @@ is -10 :math:`^{\circ}` C.
                      ^{\circ} C
                  \end{array} \right.
 
-.. _Tidier way of coupling convection and PC2:
+.. _sec_conv-simpler:
 
 Tidier way of coupling convection and PC2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4362,7 +4389,7 @@ temperature thresholds by maintaining a similar linear ramp. For e.g.,
 condensate is assumed to be all-liquid for T :math:`\geq` :math:`tnuc_n`
 and all-ice for T :math:`\leq` :math:`tnuc_n` - 10.0
 
-.. _Condensation adjustment in the profiles input to the convection scheme:
+.. _sec_conv_input_profs:
 
 Condensation adjustment in the profiles input to the convection scheme
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4386,17 +4413,17 @@ additional condensation adjustments from PC2 before the convection call:
 - **l_pc2_sl_advection**: performs homogeneous forcing response to
   Semi-Lagrangian advection immediately after the advection calculation,
   instead of at the end of the timestep (see section
-  :ref:`Response to pressure changes`).
+  :ref:`Response to pressure changes <sec_pres>`).
 
 - **l_cloud_call_b4_conv**: performs an additional call to PC2
   initiation (and PC2 checks) before the convection scheme (see section
-  :ref:`Initiation`). This should catch any instances where
+  :ref:`Initiation <sec_init2>`). This should catch any instances where
   large-scale ascent or other processes have brought the profiles after
   advection to near or beyond saturation, in grid-points where there was
   no liquid cloud already present (and so no homogeneous forcing
   response).
 
-.. _Response to pressure changes:
+.. _sec_pres:
 
 Response to pressure changes
 ----------------------------
@@ -4405,7 +4432,7 @@ A pressure change following the parcel during the timestep will result
 in an adiabatic temperature change which will force condensation, hence
 we must include this temperature change forcing within PC2. The majority
 of this pressure change comes from vertical advection (although not
-all). Remember that the advection (section :ref:`Advection`), on its
+all). Remember that the advection (section :ref:`Advection <sec_advec>`), on its
 own, does not cause condensation, it merely moves the existing cloud
 field.
 
@@ -4512,32 +4539,36 @@ The splitting of the pressure forcing call under the
 **l_pc2_sl_advection** switch was originally implemented to make the
 profiles passed to convection more realistic.
 
-.. _Initiation:
+.. _sec_init2:
 
 Initiation
 ----------
 
-As discussed in section :ref:`Initiation of cloud`, there are occasions when
+As discussed in section :ref:`Initiation of cloud <sec_init>`, there are
+occasions when
 :math:`\overline{q_{cl}}` and :math:`C_l` need to be initiated from 0 or
 1. The application of the initiation is given in section
-:ref:`Initiation of cloud`. The initiation forms a new, separate block of PC2
+:ref:`Initiation of cloud <sec_init>`. The initiation forms a new, separate
+block of PC2
 code to perform this calculation, and is located immediately following
-the pressure change response (section :ref:`Response to pressure changes`).
-Also, if the
+the pressure change response (section :ref:`Response to pressure changes
+<sec_pres>`). Also, if the
 UM namelist switch **l_cloud_call_b4_conv** is set to true, an
 additional call to PC2 initiation is performed before the convection
 scheme, to ensure that the condensation response to advection and other
 forcings earlier in the timestep has been accounted for in the profiles
 passed to the convection scheme, even if there was no cloud already
 present for homogeneous forcing to act upon. (see section
-:ref:`Condensation adjustment in the profiles input to the convection scheme`).
+:ref:`Condensation adjustment in the profiles input to the convection scheme
+<sec_conv_input_profs>`).
 
 There are currently 3 options for the conditions under-which initiation
 may occur. For all of these options, if using the bimodal cloud scheme
 to do initiation within PC2, then the tests on :math:`RH_T` relative to
 :math:`RH_{crit}` are replaced by equivalent tests for whether the
 saturation boundary lies within the bounds of the bimodal scheme’s
-assumed PDF, as described in section :ref:`Initiation using the bimodal scheme`.
+assumed PDF, as described in section :ref:`Initiation using the bimodal scheme
+<sec_bimodal_init>`.
 
 “Original” initiation logic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4607,7 +4638,7 @@ Or:
 where :math:`C_{tol}` can be set via the UM namelist; its original
 standard value is 0.005. Note this threshold is also used to remove
 small cloud-fractions after initiation; see section
-:ref:`Additional checks after PC2 initiation`.
+:ref:`Additional checks after PC2 initiation <sec_checks2>`.
 
 This is very similar to the “Original” initiation logic described above,
 but with the following differences:
@@ -4623,7 +4654,7 @@ but with the following differences:
 
 - The different threshold when initiating super-cooled cloud is removed.
 
-.. _“Smooth” initiation logic:
+.. _sec_smooth_initiation:
 
 “Smooth” initiation logic
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4668,29 +4699,26 @@ prognostic :math:`C_l` and :math:`q_{cl}` are incremented as follows:
 
 - If :math:`{q_{cl}}_{diag} > q_{cl}`:
 
-  .. math:: :label: eq:dqcl_init
-
-     \Delta q_{cl} = {q_{cl}}_{diag} - q_{cl}
+  :math:`\Delta q_{cl} = {q_{cl}}_{diag} - q_{cl}
+  \quad \refstepcounter{equation}(\theequation)\label{eq:dqcl_init}`
 
   - If :math:`Q_C < 0`:
 
-    .. math:: :label: eq:dcl_init1
-
-       \Delta C_{l} = \frac{\Delta q_{cl}}{{q_{cl}}_{diag}}
-                      \left( {C_{l}}_{diag} - C_{l} \right)
+    :math:`\Delta C_{l} = \frac{\Delta q_{cl}}{{q_{cl}}_{diag}}
+                    \left( {C_{l}}_{diag} - C_{l} \right)
+      \quad \refstepcounter{equation}(\theequation)\label{eq:dcl_init1}`
 
   - If :math:`Q_C > 0`:
 
-    .. math:: :label: eq:dcl_init2
-
-       \Delta C_{l} = \frac{\Delta SD}{{SD}_{diag}}
-                      \left( {C_{l}}_{diag} - C_{l} \right)
+    :math:`\Delta C_{l} = \frac{\Delta SD}{{SD}_{diag}}
+                    \left( {C_{l}}_{diag} - C_{l} \right)
+      \quad \refstepcounter{equation}(\theequation)\label{eq:dcl_init2}`
 
 - Otherwise:
 
-  .. math:: \Delta q_{cl} = 0
+  :math:`\Delta q_{cl} = 0`
 
-  .. math:: \Delta C_{l} = 0
+  :math:`\Delta C_{l} = 0`
 
 where the subscript :math:`_{diag}` denotes the liquid cloud water
 content and fraction predicted by the diagnostic cloud scheme (either
@@ -4756,7 +4784,7 @@ implementation of :eq:`eq:dcl_init2` in the code simply
 uses :math:`q_{cl} - Q_c` in place of :math:`SD`, and
 :math:`\Delta q_{cl}` in place of :math:`\Delta SD`).
 
-.. _Additional checks after PC2 initiation:
+.. _sec_checks2:
 
 Additional checks after PC2 initiation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4766,7 +4794,7 @@ For numerical reasons, it is possible to obtain very low, but non zero,
 values of :math:`C_l` (and equivalently values very close to, but not
 equal to, 1). The code will reset these clouds to either a fraction of 0
 or 1, as appropriate. We choose to apply these terms here and not in the
-Bounds Checking part of the code (section :ref:`Bounds checking`)
+Bounds Checking part of the code (section :ref:`Bounds checking <sec_checks>`)
 because these are not required to obtain consistency between fields, but
 are ‘tidying up’ pieces of code, although they may reasonably also be
 applied in the Bounds Checking. Care needs to be taken when choosing the
@@ -4839,10 +4867,10 @@ zero).
 Note that if these checks are relaxed by lowering the thresholds
 :math:`C_{tol}` and :math:`C_{tol 2}` to near-zero, similar checks are
 still performed independently by the bounds checking described in
-section :ref:`Bounds checking`, but with a much lower threshold of
+section :ref:`Bounds checking <sec_checks>`, but with a much lower threshold of
 :math:`C_{tol 3} = 1 \times 10^{-12}`.
 
-.. _Bounds checking:
+.. _sec_checks:
 
 Bounds checking
 ---------------
@@ -4859,7 +4887,8 @@ to ensure consistency between these values.
 
 The bounds checking is performed three times during the timestep.
 Firstly, after the parallel part of the physics (*atmos-physics1*) is
-complete; secondly, before the initiation (section :ref:`Initiation of cloud`)
+complete; secondly, before the initiation (section :ref:`Initiation of cloud
+<sec_init>`)
 is called; thirdly, after the initiation is called.
 
 Firstly, if :math:`C_l > 1 - C_{tol 3}` then :math:`C_l` is set to 1.
@@ -4880,7 +4909,7 @@ negligible, but non-zero values of :math:`\overline{q_{cl}}` and
 reset :math:`C_l` to zero. :math:`C_t` gets reset, as it must if there
 is no liquid cloud, to be equal to :math:`C_i`.
 
-.. _`sec:pc2_checks_sd`:
+.. _sec_pc2_checks_sd:
 
 The next check complements the first but updates the moisture fields. We
 firstly calculate :math:`SD` using :eq:`SD2` and
@@ -5061,7 +5090,8 @@ overlap situation and then the minimum overlap situation.
 .. _section-8:
 
 Finally, there is a homogeneous nucleation term applied, similar to that
-in the large-scale precipitation (section :ref:`Homogeneous nucleation`).
+in the large-scale precipitation (section :ref:`Homogeneous nucleation
+<sec_lsp_homo>`).
 This is a fast microphysics process, and must act to ensure that no
 liquid cloud created by the initiation is allowed to persist in this
 phase if the temperature is cold enough. Hence, if
@@ -5088,7 +5118,7 @@ phase if the temperature is cold enough. Hence, if
    C_l \leftarrow 0.
 
 
-.. _Qpos checks:
+.. _sec_qpos:
 
 Qpos checks
 ^^^^^^^^^^^
@@ -5108,7 +5138,7 @@ consistent sinks of qcl and CFL” prevents the QCL increment from trying
 to remove too much liquid condensate and hence reduces the models
 reliance on Q-Pos to deal with the inconsistencies.
 
-.. _Data Assimilation:
+.. _sec_da:
 
 Data Assimilation
 -----------------
@@ -5162,32 +5192,33 @@ ill-conditioning of this solution near :math:`C_l = 1`.
 In practice, the ill-conditioning of :eq:`eq:da2` and
 :eq:`eq:da3` becomes too numerically awkward for us to apply
 the full solution based on homogeneous forcing, although, for
-completeness, we outline it in Appendix :ref:`Appendix; Alternative PC2 - Data
-Assimilation formulations`. Hence
+completeness, we outline it in Appendix :ref:`Appendix: Alternative PC2 - Data
+Assimilation formulations <sec_appendix-da>`. Hence
 we have chosen to apply a much simpler model. Here we use simply the
 data assimilation increments :math:`\Delta \overline{q}` and
 :math:`\Delta \overline{T}` within the standard homogeneous forcing
-(section :ref:`Homogeneous forcing`), even though we are fully aware that this
+(section :ref:`Homogeneous forcing <sec_homog>`), even though we are fully
+aware that this
 is inconsistent (because :math:`\Delta \overline{q}` and :math:`\Delta
 \overline{T}` are not forcings, but are forcings plus the condensation.
 This allows us an *estimate* of :math:`\Delta \overline{q_{cl}}` and
 :math:`\Delta{C_l}`, via the homogeneous forcing routine (and
 :math:`\Delta C_t` via the standard updating described in section
-:ref:`Ice cloud and mixed phase regions`). These are the quantities applied as
-the equivalent
+:ref:`Ice cloud and mixed phase regions <sec_ct>`). These are the quantities
+applied as the equivalent
 data assimilation increments for :math:`\Delta \overline{q_{cl}}`,
 :math:`\Delta{C_l}` and :math:`\Delta C_t`. The increments
 :math:`\Delta \overline{q}` and :math:`\Delta \overline{T}` remain those
 that the data assimilation scheme itself calculated.
 
-Appendix :ref:`Appendix; Alternative PC2 - Data Assimilation formulations`
-gives, for completeness, the
+Appendix :ref:`Appendix: Alternative PC2 - Data Assimilation formulations
+<sec_appendix-da>` gives, for completeness, the
 alternative numerical technique for the solution of
 :eq:`eq:da2` and :eq:`eq:da3`. However, we
 stress that this technique is not used within the current PC2
 formulation.
 
-.. _Implementation in the Unified Model:
+.. _sec_um:
 
 Implementation in the Unified Model
 ===================================
@@ -5201,7 +5232,7 @@ much as possible in a similar way to the condensate variables. Hence,
 wherever the condensed water variables :math:`q_{cl}` and :math:`q_{cf}`
 are updated, the cloud fractions need to be updated consistently.
 
-.. _Area cloud fraction:
+.. _sec_acf:
 
 Area cloud fraction
 -------------------
@@ -5225,7 +5256,7 @@ cloud fraction given the volume cloud fraction, taking into account the
 size of the grid box. The setting of the area cloud fraction is
 performed at the end of the timestep.
 
-.. _Code Structure:
+.. _sec_code:
 
 Code Structure
 --------------
@@ -5257,7 +5288,8 @@ before the microphysics scheme (within *pc2_turbulence_ctl*).
 Note there is also an optional call to *pc2_turbulence_ctl* after the
 microphysics scheme, which is used only to estimate the cloud fraction
 change consistent with the turbulent production of liquid cloud (see
-section :ref:`Turbulence-driven production of subgrid scale liquid cloud`).
+section :ref:`Turbulence-driven production of subgrid scale liquid cloud
+<sec_turb_qcl_scheme>`).
 
 Most PC2 code is protected by IF tests on the namelist input *i_cld_vn*
 = 2 (PC2 in the GUI). However, within the convection scheme, the code is
@@ -5435,7 +5467,7 @@ Main Tree from atm_step_4a
 
                   - | ls_arcld
                     | \* (Smith scheme with area cloud fraction; see
-                      :ref:`Smith scheme with area cloud fraction` for a drill-down
+                      :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a drill-down
                       inside this routine)
 
                   - | bm_ctl
@@ -5446,7 +5478,7 @@ Main Tree from atm_step_4a
                   - | pc2_initiation_ctl
                     | \* (interface to PC2 initiation and
                       consistency-checks; see
-                      :ref:`PC2 initiation` for a
+                      :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a
                       drill-down inside this routine)
 
                .. container:: tcolorbox
@@ -5520,7 +5552,7 @@ Main Tree from atm_step_4a
                   - | ls_arcld
                     | \* (interface to diagnostic Smith scheme and area
                       cloud fraction; see
-                      :ref:`Smith scheme with area cloud fraction` for a drill-down
+                      :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a drill-down
                       inside this routine)
 
                   - | bm_ctl
@@ -5550,7 +5582,7 @@ Main Tree from atm_step_4a
 
               - | pc2_assim
                 | \* (PC2 reponse to the analysis increments; see
-                  :ref:`PC2 Data Assimilation` for a drill-down
+                  :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>` for a drill-down
                   inside this routine)
 
               - ls_acf_brooks (calculate area cloud fraction using
@@ -5558,8 +5590,8 @@ Main Tree from atm_step_4a
 
               - ls_arcld (call diagnostic Smith scheme with area cloud
                 fraction again to account for the analysis increments;
-                see :ref:`Smith scheme with area cloud fraction` for a
-                drill-down
+                see :ref:`Smith scheme with area cloud fraction
+                <subsubsec_smith_acf>` for a drill-down
                 inside this routine)
 
          .. container:: tcolorbox
@@ -5586,7 +5618,7 @@ Main Tree from atm_step_4a
 
          - | pc2_initiation_ctl
            | \* (interface to PC2 initiation and consistency-checks; see
-             :ref:`PC2 initiation` for a drill-down
+             :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a drill-down
              inside this routine)
 
       .. container:: tcolorbox
@@ -5597,7 +5629,7 @@ Main Tree from atm_step_4a
 
          - | ls_arcld
            | \* (interface to diagnostic Smith scheme and area cloud
-             fraction; see :ref:`Smith scheme with area cloud fraction` for a
+             fraction; see :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a
              drill-down inside this routine)
 
          - | bm_ctl
@@ -5612,7 +5644,7 @@ Main Tree from atm_step_4a
 
          - | pc2_assim
            | \* (PC2 reponse to the analysis increments; see
-             :ref:`PC2 Data Assimilation` for a drill-down inside
+             :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>` for a drill-down inside
              this routine)
 
          - | initial_pc2_check
@@ -5628,7 +5660,7 @@ Drill-downs within some routines in the call tree are listed separately
 below, to avoid duplication (since these routines are called in multiple
 different places in the tree)...
 
-.. _Smith scheme with area cloud fraction:
+.. _subsubsec_smith_acf:
 
 Smith scheme with area cloud fraction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -5667,7 +5699,7 @@ Smith scheme with area cloud fraction
         | ls_acf_brooks
         | \* (estimate area cloud fraction)
 
-.. _PC2 initiation:
+.. _subsubsec_pc2_initiation:
 
 PC2 initiation
 ^^^^^^^^^^^^^^
@@ -5715,7 +5747,7 @@ PC2 initiation
         - | pc2_homog_plus_turb
           | \* (generic homogeneous forcing routine used to interpolate)
 
-.. _PC2 Data Assimilation:
+.. _subsubsec_pc2_assim:
 
 PC2 Data Assimilation
 ^^^^^^^^^^^^^^^^^^^^^
@@ -5742,7 +5774,7 @@ PC2 Data Assimilation
         | \* (self-consistency checks on prognostic cloud fractions and
           water contents)
 
-.. _Diagnostics:
+.. _sec_diags:
 
 Diagnostics
 -----------
@@ -5856,8 +5888,8 @@ rest of the SCM uses the same PC2 code as the full model.
 
 Note that the change to PC2 homogeneous forcing from advection under the
 UM namelist switch **l_pc2_sl_advection** (see section
-:ref:`Response to pressure changes`) is also mirrored in the Single-Column
-Model. If
+:ref:`Response to pressure changes <sec_pres>`) is also mirrored in the
+Single-Column Model. If
 this switch is turned on, the PC2 homogeneous forcing call using the SCM
 forcing increments is moved straight after the call to the forcing
 routine, so that the condensation adjustment is performed before the
@@ -5873,8 +5905,8 @@ The SCM forcings may comprise one or both of the following:
 For the latter, we can calculate the pressure change experienced by
 vertically-advected parcels, and so calculate the PC2 homogeneous
 forcing response in the same way as we do for Semi-Lagrangian advection
-in the full model (see section :ref:`Response to pressure changes`). For the
-former, we
+in the full model (see section :ref:`Response to pressure changes <sec_pres>`).
+For the former, we
 don’t know if the prescribed T,q tendencies are due to advection,
 radiation, or some other process, so we calculate the PC2 homogeneous
 forcing response as if the tendencies are applied "in-situ".
@@ -5939,147 +5971,148 @@ diagnostic output routines.
      - Number of it erations in in itiation
      - 10
      - p c2-const
-     - Num: :ref:`Numerical Application of the Smith method`
+     - Num: :ref:`Numerical Application of the Smith method <sec_numapp_init>`
 
    * - :math:`C_{tol}`
      - cloud -pc2-tol
      - Bounds checking :math:`C_l` t hreshold
      - 0.005
      - UM namelist
-     - Num: :ref:`Initiation`
+     - Num: :ref:`Initiation <sec_init2>`
 
    * - :math:`C_{tol 2}`
      - cloud-p c2-tol-2
      - Bounds checking :math:`C_l` t hreshold
      - 0.001
      - UM namelist
-     - Num: :ref:`Initiation`
+     - Num: :ref:`Initiation <sec_init2>`
 
    * - :math:`RH_{tol}`
      - rh crit-tol
      - :math:`RH_{crit}` t olerance in in itiation
      - 0.01
      - p c2-const
-     - Num: :ref:`Initiation`
+     - Num: :ref:`Initiation <sec_init2>`
 
    * - :math:`q_{cf0\, BL}`
      - ls-bl0
      - Fixed value of BL in-plume :math:`\overline{q_{cf}}`
      - :math:`1.0\times 10^{-4} \, kg \,kg^{-1}`
      - imp-ctl
-     - Clo: :ref:`Boundary Layer`
+     - Clo: :ref:`Boundary Layer <sec_bl>`
 
    * - :math:`q_{cf0}`
      - one- over-qcf
      - Fixed in-cloud :math:`\overline{q_{cf}}` if :math:`C_f`\ =0
      - :math:`1.0\times 10^{-4} \, kg \,kg^{-1}`
      - pc2-chck
-     - Num: :ref:`Bounds checking`
+     - Num: :ref:`Bounds checking <sec_checks>`
 
    * - :math:`m`
      - pdf-mer ge-power
      - Merging power for :math:`G(-Q_c)`
      - 0.5
      - p c2-const
-     - Clo: :ref:`Homogeneous forcing`
+     - Clo: :ref:`Homogeneous forcing <sec_homog>`
 
    * - :math:`n`
      - p df-power
      - Shape p arameter for :math:`G(-Q_c)`
      - 0.0
      - p c2-const
-     - Phy: :ref:`Homogeneous forcing`
+     - Phy: :ref:`Homogeneous forcing <sec_homog>`
 
    * - :math:`w`
      - w ind-shea r-factor
      - Wind shear in fallout of ice term
      - :math:`1.5 \times 10^{-4} \,s^{-1}`
      - p c2-const
-     - Phy: :ref:`Fall of ice`
+     - Phy: :ref:`Fall of ice <sec_lsp_fall>`
 
    * - :math:`i`
      - i ce-width
      - Scaling factor for r eduction in :math:`b_i`
      - 0.04
      - p c2-const
-     - Phy: :ref:`Deposition and sublimation`
+     - Phy: :ref:`Deposition and sublimation <sec_mp_depsub>`
 
    * - :math:`a`
      - dbsdtb s-turb-0
      - Rate of r eduction of PDF width
      - :math:`-2.25 \times 10^{-5} \,s^{-1}`
      - UM namelist
-     - Phy: :ref:`Changing the width of the PDF - PC2 erosion`
+     - Phy: :ref:`Changing the width of the PDF - PC2 erosion <sec_width>`
 
    * - :math:`b`
      - dbsdtb s-turb-1
      - Rate of r eduction of PDF width
      - 0
      - p c2-const
-     - Phy: :ref:`Changing the width of the PDF - PC2 erosion`
+     - Phy: :ref:`Changing the width of the PDF - PC2 erosion <sec_width>`
 
    * - 
      - dbsd tbs-conv
      - Redn of PDF width in co nvection
      - 0
      - p c2-const
-     - Phy: :ref:`Changing the width of the PDF - PC2 erosion`
+     - Phy: :ref:`Changing the width of the PDF - PC2 erosion <sec_width>`
 
    * - 
      - dbs dtbs-exp
      - V ariation of erosion on RH
      - 10.05
      - p c2-const
-     - Phy: :ref:`Changing the width of the PDF - PC2 erosion`
+     - Phy: :ref:`Changing the width of the PDF - PC2 erosion <sec_width>`
 
    * - :math:`RH_{crit}`
      - RHCRIT
      - Critical RH for cloud f ormation
      - 
      - UM namelist
-     - Phy: :ref:`Initiation of cloud`, :ref:`Deposition and sublimation`
+     - Phy: :ref:`Initiation of cloud <sec_init>`, :ref:`Deposition and
+       sublimation <sec_mp_depsub>`
 
    * - :math:`q_{c0}`
      - condensa te-limit
      - Minimum allowed co ndensate
      - :math:`1 \times 10^{-10} \, kg \,kg^{-1}`
      - pc2-chck
-     - Num: :ref:`Bounds checking`
+     - Num: :ref:`Bounds checking <sec_checks>`
 
    * - :math:`q_c^{S0}`
      - ls0
      - Lower limit of plume co ndensate
      - :math:`5\times 10^{-5} \, kg \,kg^{-1}`
      - enviro?a
-     - Num: :ref:`Numerical application`
+     - Num: :ref:`Numerical application <sec_multi_numapp>`
 
    * - 
      - *Har d-wired*
      - Conv cloud fraction for vi sibility
      - 0.2
      - imp-ctl2
-     - Diag: :ref:`Diagnostics`
+     - Diag: :ref:`Diagnostics <sec_diags>`
 
    * - 
      - *Har d-wired*
      - Limit on width of ice dist ribution
      - 0.001
      - lspice3d
-     - Num: :ref:`Deposition and sublimation`
+     - Num: :ref:`Deposition and sublimation <sec_mp_depsub>`
 
    * - 
      - *Har d-wired*
      - :math:`C_l` limit for init if :math:`T< 0 ^{\circ} C`
      - 0.05
      - pc2-init
-     - Num: :ref:`Initiation`
+     - Num: :ref:`Initiation <sec_init2>`
 
    * - 
      - *Har d-wired*
      - T olerance on calc. of :math:`q_C^s` in BL
      - :math:`1.0 \times 10^{-10} \, kg \,kg^{-1}`
      - imp-ctl
-     - Num: :ref:`Boundary Layer`
+     - Num: :ref:`Boundary Layer <sec_bl>`
 
 PC2 also recommends some tunings of the existing convection scheme
 parameters. These cannot be placed in the library code, since they would
@@ -6104,35 +6137,35 @@ PC2:64 and a non-PC2 run.
      - :math:`-10 ^{\circ} C`
      - :math:`0^{\circ} C`\ \*
      - tice.cdk or UMUI
-     - Phy: :ref:`Convection`
+     - Phy: :ref:`Convection <sec_convec>`
 
    * - QSTICE
      - App roximate qs at(TICE)
      - :math:`3.5\times10^{-3}`
      - :math:`3.5\times10^{-3}`
      - qs tice.cdk or UMUI
-     - Phy: :ref:`Convection`
+     - Phy: :ref:`Convection <sec_convec>`
 
    * - *Har d-wired*
      - Limit on conv. cond. after precip
      - 0.5 :math:`q_{sat}, 2\times10^{-4}`
      - :math:`0.5 \,q_{sat}`
      - cloudw
-     - Phy: :ref:`Convection`
+     - Phy: :ref:`Convection <sec_convec>`
 
    * - Anvil factor
      - Shape p arameter for conv. cloud anvil
      - 0
      - 0.3\*
      - UMUI
-     - Phy: :ref:`Convection`
+     - Phy: :ref:`Convection <sec_convec>`
 
    * - Tower factor
      - Shape p arameter for conv. cloud tower
      - 0
      - 0.25\*
      - UMUI
-     - Phy: :ref:`Convection`
+     - Phy: :ref:`Convection <sec_convec>`
 
 How to run the PC2 scheme
 -------------------------
@@ -6169,19 +6202,20 @@ More information
 Information on results of the scheme and how to run the PC2 code at
 various model versions is available on the PC2 web site.
 
-.. _Appendix; Alternative PC2 - Data Assimilation formulations:
+.. _sec_appendix-da:
 
-Appendix; Alternative PC2 - Data Assimilation formulations
+Appendix: Alternative PC2 - Data Assimilation formulations
 ==========================================================
 
-In this alternative method to section :ref:`Data Assimilation` we will assume
+In this alternative method to section :ref:`Data Assimilation <sec_da>` we will
+assume
 that there exists a homogeneous forcing, :math:`\Delta Q_c`, that gives
 changes, net of condensation, of :math:`\Delta\overline{q}` and
 :math:`\Delta\overline{T}`. If we can recover what :math:`\Delta Q_c` is
 then we can use this to calculate the liquid, :math:`\overline{q_{cl}}`,
 and liquid cloud fraction, :math:`C_l`, increments.
 
-As in section :ref:`Data Assimilation`, we start by discretising
+As in section :ref:`Data Assimilation <sec_da>`, we start by discretising
 :eq:`dqcldt` to give
 
 .. math:: :label: eq:dqcldt_discrete
@@ -6252,7 +6286,7 @@ solution.
 
 Initially, we calculate :math:`G(-Qc)` and :math:`\Delta Q_c` from the
 input fields, as in the homogeneous forcing technique (section
-:ref:`Homogeneous forcing`) and :eq:`eq:deltaqc_exp2`.
+:ref:`Homogeneous forcing <sec_homog>`) and :eq:`eq:deltaqc_exp2`.
 
 An initial increment, :math:`\Delta C_l^1` is estimated directly using
 the basic equation
@@ -6353,7 +6387,7 @@ the :math:`C_l` terms gives :math:`\Delta \overline{q_{cl \, max}}` as
 This is a general expression, it is not fixed for a particular PDF. To
 complete the analysis, we need to estimate :math:`-Q_c+b_s`. To do this,
 we now make the *assumption* of a power-law type PDF, as in section
-:ref:`Initiation of cloud`. If we start from the equivalent of
+:ref:`Initiation of cloud <sec_init>`. If we start from the equivalent of
 :eq:`eqn19` but at the :math:`s=-bs` end of the distribution,
 equation (B.3) in `Wilson and Gregory (2003)`_ can be equivalently written
 for :math:`(1-C_l)` as:
@@ -6365,7 +6399,7 @@ for :math:`(1-C_l)` as:
 To derive this from (B.3) note that :math:`C_l` is swapped for
 :math:`1-C_l` and :math:`(b_s - (-Q_c))` is swapped for
 :math:`(-Qc - (-b_s))`, as in section :ref:`Numerical Application of the Smith
-method`.
+method <sec_numapp_init>`.
 Similarly, noting that :math:`\overline{q_{cl}}` can be swapped with
 :math:`SD`, gives the equivalent to (B.4) in `Wilson and Gregory (2003)`_ as
 
@@ -6476,15 +6510,15 @@ results than simply using the homogeneous forcing method.
 Further work will be required to enable the implementation of this
 :math:`\overline{q}` and :math:`\overline{T}` preserving method.
 
-.. _Appendix; Essentials of PC2 for code developers:
+.. _sec_code-development:
 
-Appendix; Essentials of PC2 for code developers
+Appendix: Essentials of PC2 for code developers
 ===============================================
 
 This section provides some guidance to code developers on the treatment
 of PC2. Code developers are advised to read the relevant part of section
-:ref:`Application to the Unified Model` to understand the way in which the
-current PC2
+:ref:`Application to the Unified Model <sec_app_um>` to understand the way in
+which the current PC2
 scheme interacts with their section of code.
 
 The essence of a prognostic cloud scheme is that each physical part of
@@ -6511,7 +6545,8 @@ inhomogeneous forcing) methods.
 Homogeneous forcing
 -------------------
 
-This is described fully in section :ref:`Homogeneous forcing`. This assumes
+This is described fully in section :ref:`Homogeneous forcing <sec_homog>`. This
+assumes
 that the distribution of :math:`q_T - q_{sat}(T_L)` about its gridbox
 mean is unchanged when a process acts. (The mean will change of course,
 but we assume that the variations in each part of the gridbox from the
@@ -6524,7 +6559,8 @@ necessary updates.
 Injection forcing
 -----------------
 
-This is described fully in section :ref:`Injection forcing`. We assume
+This is described fully in section :ref:`Injection forcing <sec_inhomog>`. We
+assume
 that we already know a condensate increment :math:`q_{cl}` or
 :math:`q_{cf}` and that a corresponding cloud fraction increment
 :math:`C_l` or :math:`C_f` (and :math:`C_t`) remains to be estimated.
@@ -6682,12 +6718,12 @@ Convective cloud increments in the mass-flux framework
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As discussed in section :ref:`A note on the implementation of the cloud
-fraction change`, it would be
+fraction change <sec_conv_imp_note>`, it would be
 useful to code up the convective cloud fraction changes to link directly
 to the mass-flux convection scheme, and not to estimate them from the
 values of :math:`Q4`, which can introduce errors.
 
-.. _Turbulence based convection scheme:
+.. _sec_tbcs:
 
 Turbulence based convection scheme
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -6731,7 +6767,7 @@ particularly poor behaviour, and we do not pick up substantial evidence
 of problems from this in the full model. This remains something to be
 investigated.
 
-.. _Homogeneous forcing section improvements:
+.. _sec_homog_improve:
 
 Homogeneous forcing section improvements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -6823,7 +6859,7 @@ developed. However we note two particular issues that relate to PC2.
   :math:`\overline{q}`, :math:`q_{sat}`, :math:`\overline{q_{cl}}` and
   :math:`C_l` etc.?
 
-.. _Time-stepping:
+.. _sec_timestepping:
 
 Time-stepping
 ^^^^^^^^^^^^^
@@ -6853,7 +6889,7 @@ model anything prognostically when the cycling time is less than the
 timestep.
 
 As discussed in section :ref:`Numerical application of the hybrid erosion
-method`, the timestep
+method <sec_erosion_numerics>`, the timestep
 sensitivity of cloud amounts in shallow cumulus regimes can be addressed
 by using a more accurate numerical method to solve the erosion term.
 Several options are available under the UM namelist switch
@@ -6990,26 +7026,40 @@ against mid-latitude cloud and it is known that tropical clouds have
 greater vertical coherence. Tuning the parameters in
 :math:`large_scale_cloud/ls_acf_brooks.F90` may be beneficial.
 
-.. figure:: pc2_process_explanation.svg
+.. figure:: blank.svg
    :name: fig:schematic
-   :alt: Schematic summary of the PC2 cloud scheme.
-   :width: 100%
 
    Schematic summary of the PC2 cloud scheme.
 
-.. figure:: Timestepping_ctl66.svg
+   .. list-table::
+      :align: center
+      :widths: 100
+
+      * - .. image:: pc2_process_explanation.svg
+
+.. figure:: blank.svg
    :name: fig:tstep_diag
-   :alt: Timestepping diagram for the control (non-PC2) scheme
-   :width: 60%
 
    Timestepping diagram for the control (non-PC2) scheme
 
-.. figure:: Timestepping_pc266.svg
+   .. list-table::
+      :align: center
+      :widths: 60
+
+      * - .. image:: Timestepping_ctl66.svg
+                     :width: 60%
+
+.. figure:: blank.svg
    :name: fig:tstep_prog
-   :alt: Timestepping diagram for the PC2 scheme
-   :width: 60%
 
    Timestepping diagram for the PC2 scheme
+
+   .. list-table::
+      :align: center
+      :widths: 60
+
+      * - .. image:: Timestepping_pc266.svg
+                     :width: 60%
 
 
 References
