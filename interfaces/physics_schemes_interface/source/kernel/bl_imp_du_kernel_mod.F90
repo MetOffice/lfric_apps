@@ -7,21 +7,22 @@
 
 module bl_imp_du_kernel_mod
 
-  use kernel_mod,               only: kernel_type
-  use argument_mod,             only: arg_type, func_type,                     &
-                                      GH_FIELD, GH_READ, CELL_COLUMN,          &
-                                      ANY_SPACE_1, ANY_SPACE_2,                &
-                                      ANY_DISCONTINUOUS_SPACE_3,               &
-                                      ANY_DISCONTINUOUS_SPACE_2,               &
-                                      GH_INTEGER, GH_REAL, GH_SCALAR, GH_WRITE
-  use constants_mod,            only: r_def, i_def, r_bl
-  use extrusion_config_mod,     only: planet_radius
-  use fs_continuity_mod,        only: W1, W2, WTheta
-  use kernel_mod,               only: kernel_type
-  use nlsizes_namelist_mod,     only: bl_levels
-  use timestepping_config_mod,  only: outer_iterations
-  use blayer_config_mod,        only: fric_heating, bl_mix_w
-  use reference_element_mod,    only: N
+  use kernel_mod,                    only: kernel_type
+  use argument_mod,                  only: arg_type, func_type,                &
+                                           GH_FIELD, GH_READ, CELL_COLUMN,     &
+                                           ANY_SPACE_1, ANY_SPACE_2,           &
+                                           ANY_DISCONTINUOUS_SPACE_3,          &
+                                           ANY_DISCONTINUOUS_SPACE_2,          &
+                                           GH_INTEGER, GH_REAL,                &
+                                           GH_SCALAR, GH_WRITE
+  use constants_mod,                 only: r_def, i_def, r_bl
+  use extrusion_config_mod,          only: planet_radius
+  use fs_continuity_mod,             only: W1, W2, WTheta
+  use kernel_mod,                    only: kernel_type
+  use nlsizes_namelist_mod,          only: bl_levels
+  use timestepping_config_mod,       only: outer_iterations
+  use blayer_config_mod,             only: fric_heating, bl_mix_w
+  use sci_face_selector_support_mod, only: face_from_face_selector
 
   implicit none
 
@@ -210,10 +211,8 @@ contains
     ! In the UM this happens in imp_solver - predictor section
     !================================================================
     ! loop over all faces of the cell
-    do j = 1, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))
-      df = j
-      if (j == 3 .and. face_selector_ns(map_w3_2d(1)) == 2                     &
-                 .and. face_selector_ew(map_w3_2d(1)) == 1) df = N
+    do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+      df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
 
       fland   = surf_interp(map_w2_surf(df) + 0)
       fb_surf = surf_interp(map_w2_surf(df) + 6)

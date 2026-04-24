@@ -7,14 +7,14 @@
 !>        the wind
 module drag_incs_kernel_mod
 
-  use argument_mod,          only: arg_type, CELL_COLUMN,                      &
-                                   GH_FIELD, GH_WRITE, GH_READ,                &
-                                   GH_REAL, GH_INTEGER,                        &
-                                   ANY_DISCONTINUOUS_SPACE_3
-  use constants_mod,         only: i_def, r_def
-  use fs_continuity_mod,     only: W2
-  use kernel_mod,            only: kernel_type
-  use reference_element_mod, only: N
+  use argument_mod,                  only: arg_type, CELL_COLUMN,              &
+                                           GH_FIELD, GH_WRITE, GH_READ,        &
+                                           GH_REAL, GH_INTEGER,                &
+                                           ANY_DISCONTINUOUS_SPACE_3
+  use constants_mod,                 only: i_def, r_def
+  use fs_continuity_mod,             only: W2
+  use kernel_mod,                    only: kernel_type
+  use sci_face_selector_support_mod, only: face_from_face_selector
 
   implicit none
 
@@ -56,12 +56,12 @@ contains
 !> @param[in]  ndf               Number of degrees of freedom per cell
 !> @param[in]  undf              Total number of degrees of freedom
 !> @param[in]  map               Dofmap for the cell at the base of the column
-!> @param[in]  ndf_2d            Num DoFs per cell for 2D field
-!> @param[in]  undf_2d           Total num DoFs for 2D field in this partition
-!> @param[in]  map_2d            Dofmap for the 2D field
+!> @param[in]  ndf_w3_2d         Num DoFs per cell for 2D field
+!> @param[in]  undf_w3_2d        Total num DoFs for 2D field in this partition
+!> @param[in]  map_w3_2d         Dofmap for the 2D field
 subroutine drag_incs_code(nlayers, du_out, du_in, u_in,       &
                           face_selector_ew, face_selector_ns, &
-                          ndf, undf, map, ndf_2d, undf_2d, map_2d)
+                          ndf, undf, map, ndf_w3_2d, undf_w3_2d, map_w3_2d)
 
   implicit none
 
@@ -78,10 +78,9 @@ subroutine drag_incs_code(nlayers, du_out, du_in, u_in,       &
   integer(kind=i_def) :: j, df, k
 
   ! Only loop over horizontal DoFs
-  do j = 1, face_selector_ew(map_2d(1)) + face_selector_ns(map_2d(1))
-    df = j
-    if (j == 3 .and. face_selector_ns(map_2d(1)) == 2                          &
-               .and. face_selector_ew(map_2d(1)) == 1) df = N
+  do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+    df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
+
     do k = 0, nlayers-1
       ! Ensure drag is always acting in opposite sense to the wind,
       ! i.e. u and du aren't the same sign

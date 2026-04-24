@@ -11,16 +11,16 @@
 !!          Only implemented for the lowest-order elements.
 
 module consistent_dispersion_kernel_mod
-use argument_mod,            only : arg_type, GH_FIELD,        &
-                                    GH_READ, GH_WRITE,         &
-                                    GH_INTEGER, GH_REAL,       &
-                                    ANY_DISCONTINUOUS_SPACE_2, &
-                                    ANY_DISCONTINUOUS_SPACE_3, &
-                                    CELL_COLUMN
-use fs_continuity_mod,       only : W2
-use constants_mod,           only : r_tran, r_def, i_def
-use kernel_mod,              only : kernel_type
-use reference_element_mod,   only : N
+use argument_mod,                  only : arg_type, GH_FIELD,                  &
+                                          GH_READ, GH_WRITE,                   &
+                                          GH_INTEGER, GH_REAL,                 &
+                                          ANY_DISCONTINUOUS_SPACE_2,           &
+                                          ANY_DISCONTINUOUS_SPACE_3,           &
+                                          CELL_COLUMN
+use fs_continuity_mod,             only : W2
+use constants_mod,                 only : r_tran, r_def, i_def
+use kernel_mod,                    only : kernel_type
+use sci_face_selector_support_mod, only : face_from_face_selector
 
 implicit none
 
@@ -110,10 +110,8 @@ subroutine consistent_dispersion_code( nlayers_shifted,    &
   ! -------------------------------------------------------------------------- !
 
   ! Loop over horizontal W2 DoFs
-  do j = 1, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))
-    face = j
-    if (j == 3 .and. face_selector_ns(map_w3_2d(1)) == 2                       &
-               .and. face_selector_ew(map_w3_2d(1)) == 1) face = N
+  do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+    face = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
 
     ! Faces in bottom layer: zero contribution
     k = 0

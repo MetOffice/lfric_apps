@@ -13,18 +13,18 @@
 !>
 module momentum_smagorinsky_kernel_mod
 
-  use argument_mod,          only : arg_type,                    &
-                                    GH_FIELD, GH_REAL,           &
-                                    GH_READ, GH_WRITE,           &
-                                    STENCIL, CROSS, CELL_COLUMN, &
-                                    ANY_DISCONTINUOUS_SPACE_9,   &
-                                    ANY_DISCONTINUOUS_SPACE_3,   &
-                                    ANY_DISCONTINUOUS_SPACE_2,   &
-                                    GH_INTEGER
-  use constants_mod,         only : r_def, i_def
-  use fs_continuity_mod,     only : W2, W1, Wtheta
-  use kernel_mod,            only : kernel_type
-  use reference_element_mod, only : N
+  use argument_mod,                  only : arg_type,                          &
+                                            GH_FIELD, GH_REAL,                 &
+                                            GH_READ, GH_WRITE,                 &
+                                            STENCIL, CROSS, CELL_COLUMN,       &
+                                            ANY_DISCONTINUOUS_SPACE_9,         &
+                                            ANY_DISCONTINUOUS_SPACE_3,         &
+                                            ANY_DISCONTINUOUS_SPACE_2,         &
+                                            GH_INTEGER
+  use constants_mod,                 only : r_def, i_def
+  use fs_continuity_mod,             only : W2, W1, Wtheta
+  use kernel_mod,                    only : kernel_type
+  use sci_face_selector_support_mod, only : face_from_face_selector
 
   implicit none
   private
@@ -247,10 +247,8 @@ subroutine momentum_smagorinsky_code( nlayers,                                 &
   end do
 
   ! Loop over horizontal faces of the cell for horizontal diffusion
-  do j = 1, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))
-    df = j
-    if (j == 3 .and. face_selector_ns(map_w3_2d(1)) == 2                       &
-               .and. face_selector_ew(map_w3_2d(1)) == 1) df = N
+  do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+    df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
 
     ! Compute horizontal grid spacing
     if (df == 1 .or. df == 3) then

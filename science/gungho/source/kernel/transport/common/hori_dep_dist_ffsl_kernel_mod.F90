@@ -17,20 +17,21 @@
 
 module hori_dep_dist_ffsl_kernel_mod
 
-use argument_mod,                only : arg_type,                  &
-                                        GH_FIELD, GH_REAL,         &
-                                        GH_WRITE, GH_READ,         &
-                                        GH_SCALAR, GH_INTEGER,     &
-                                        STENCIL, CROSS2D,          &
-                                        GH_LOGICAL, CELL_COLUMN,   &
-                                        ANY_DISCONTINUOUS_SPACE_2, &
-                                        ANY_DISCONTINUOUS_SPACE_3, &
-                                        ANY_DISCONTINUOUS_SPACE_4, &
-                                        GH_READWRITE
-use fs_continuity_mod,           only : W3, W2h
-use constants_mod,               only : r_tran, i_def, l_def
-use kernel_mod,                  only : kernel_type
-use reference_element_mod,       only : E, W, N, S
+use argument_mod,                  only : arg_type,                            &
+                                          GH_FIELD, GH_REAL,                   &
+                                          GH_WRITE, GH_READ,                   &
+                                          GH_SCALAR, GH_INTEGER,               &
+                                          STENCIL, CROSS2D,                    &
+                                          GH_LOGICAL, CELL_COLUMN,             &
+                                          ANY_DISCONTINUOUS_SPACE_2,           &
+                                          ANY_DISCONTINUOUS_SPACE_3,           &
+                                          ANY_DISCONTINUOUS_SPACE_4,           &
+                                          GH_READWRITE
+use fs_continuity_mod,             only : W3, W2h
+use constants_mod,                 only : r_tran, i_def, l_def
+use kernel_mod,                    only : kernel_type
+use reference_element_mod,         only : E, W, N, S
+use sci_face_selector_support_mod, only : face_from_face_selector
 
 implicit none
 
@@ -358,8 +359,8 @@ subroutine hori_dep_dist_ffsl_1d( nlayers,             &
   ndep_half = (ndep - 1_i_def) / 2_i_def
 
   ! Loop through horizontal DoFs -----------------------------------------------
-  do df_idx = 1, face_selector(map_w3_2d(1))
-    df = local_dofs(df_idx)
+  do df_idx = 1, ABS(face_selector(map_w3_2d(1)))
+    df = local_dofs(df_idx - MIN(0, face_selector(map_w3_2d(1))))
 
     ! Set a local offset, dependent on the face we are looping over
     select case (df)

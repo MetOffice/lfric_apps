@@ -7,20 +7,21 @@
 
 module bl_exp_du_kernel_mod
 
-  use kernel_mod,               only: kernel_type
-  use argument_mod,             only: arg_type, func_type,                    &
-                                      GH_FIELD, GH_READ, CELL_COLUMN,         &
-                                      ANY_SPACE_1, ANY_SPACE_2,               &
-                                      ANY_SPACE_3, ANY_SPACE_4,               &
-                                      ANY_SPACE_5, ANY_SPACE_6,               &
-                                      ANY_DISCONTINUOUS_SPACE_3,              &
-                                      GH_REAL, GH_WRITE, GH_SCALAR, GH_INTEGER
-  use constants_mod,            only: r_def, i_def, r_bl
-  use fs_continuity_mod,        only: W1, W2
-  use kernel_mod,               only: kernel_type
-  use nlsizes_namelist_mod,     only: bl_levels
-  use jules_surface_config_mod, only: formdrag, formdrag_dist_drag
-  use reference_element_mod,    only: N
+  use kernel_mod,                    only: kernel_type
+  use argument_mod,                  only: arg_type, func_type,                &
+                                           GH_FIELD, GH_READ, CELL_COLUMN,     &
+                                           ANY_SPACE_1, ANY_SPACE_2,           &
+                                           ANY_SPACE_3, ANY_SPACE_4,           &
+                                           ANY_SPACE_5, ANY_SPACE_6,           &
+                                           ANY_DISCONTINUOUS_SPACE_3,          &
+                                           GH_REAL, GH_WRITE,                  &
+                                           GH_SCALAR, GH_INTEGER
+  use constants_mod,                 only: r_def, i_def, r_bl
+  use fs_continuity_mod,             only: W1, W2
+  use kernel_mod,                    only: kernel_type
+  use nlsizes_namelist_mod,          only: bl_levels
+  use jules_surface_config_mod,      only: formdrag, formdrag_dist_drag
+  use sci_face_selector_support_mod, only: face_from_face_selector
 
   implicit none
 
@@ -181,14 +182,15 @@ contains
          rdz_sp, rhokm_sp, ngstress_sp, tau_sp, fd_tau_sp
 
     total_faces = MIN(                                                         &
-      nfaces, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))  &
+      nfaces,                                                                  &
+      ABS(face_selector_ew(map_w3_2d(1)))                                      &
+      + ABS(face_selector_ns(map_w3_2d(1)))                                    &
     )
 
     ! loop over all faces of the cell
     do j = 1, total_faces
-      df = j
-      if (j == 3 .and. face_selector_ns(map_w3_2d(1)) == 2                     &
-                .and. face_selector_ew(map_w3_2d(1)) == 1) df = N
+      df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
+      df = MIN(df, nfaces)  ! Ensures this works for W3
 
       !================================================================
       ! In the UM this happens in bdy_expl3

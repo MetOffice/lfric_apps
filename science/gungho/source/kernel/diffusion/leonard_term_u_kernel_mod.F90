@@ -9,18 +9,18 @@
 !>
 module leonard_term_u_kernel_mod
 
-  use argument_mod,          only : arg_type,                     &
-                                    GH_FIELD, GH_SCALAR, GH_REAL, &
-                                    GH_READ, GH_WRITE, GH_WRITE,  &
-                                    CELL_COLUMN, STENCIL, REGION, &
-                                    ANY_DISCONTINUOUS_SPACE_9,    &
-                                    ANY_DISCONTINUOUS_SPACE_3,    &
-                                    ANY_DISCONTINUOUS_SPACE_2,    &
-                                    GH_INTEGER
-  use constants_mod,         only : r_def, i_def
-  use fs_continuity_mod,     only : Wtheta, W2, W1
-  use kernel_mod,            only : kernel_type
-  use reference_element_mod, only : N
+  use argument_mod,                  only : arg_type,                          &
+                                            GH_FIELD, GH_SCALAR, GH_REAL,      &
+                                            GH_READ, GH_WRITE, GH_WRITE,       &
+                                            CELL_COLUMN, STENCIL, REGION,      &
+                                            ANY_DISCONTINUOUS_SPACE_9,         &
+                                            ANY_DISCONTINUOUS_SPACE_3,         &
+                                            ANY_DISCONTINUOUS_SPACE_2,         &
+                                            GH_INTEGER
+  use constants_mod,                 only : r_def, i_def
+  use fs_continuity_mod,             only : Wtheta, W2, W1
+  use kernel_mod,                    only : kernel_type
+  use sci_face_selector_support_mod, only : face_from_face_selector
 
   implicit none
 
@@ -252,10 +252,8 @@ subroutine leonard_term_u_code( nlayers,                                &
   end do
 
   ! Loop over horizontal faces of the cell
-  do j = 1, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))
-    df = j
-    if (j == 3 .and. face_selector_ns(map_w3_2d(1)) == 2                       &
-               .and. face_selector_ew(map_w3_2d(1)) == 1) df = N
+  do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+    df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
 
     true_wt_stencil(:,1:map_wt_stencil_size) = map_wt_stencil
     true_w2_stencil(:,1:map_w2_stencil_size) = rot_w2_stencil
