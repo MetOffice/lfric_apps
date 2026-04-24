@@ -238,9 +238,14 @@ Types I to VI are shown schematically in Fig. `1 <#fig:bltypes>`__.
    upward arrows indicate the height \zhpar while the top of their solid line
    portions indicate \zh.
 
-   +----------------------------------+----------------------------------+
-   | .. image:: wcrp_bltypes1.svg     | .. image:: wcrp_bltypes2.svg     |
-   +----------------------------------+----------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 46 46
+
+      * - .. image:: wcrp_bltypes1.svg
+                     :width: 46%
+        - .. image:: wcrp_bltypes2.svg
+                     :width: 46%
 
 .. _`sec:adiapar`:
 
@@ -722,9 +727,11 @@ expected to occur) and :math:`z_{\mbox{\tiny \rm NTML}-1}`.
    (solid). The shaded area illustrates the integrated turbulent flux that
    would be obtained were (\protect\mbox{\protect\ref{eq:wx_std}}) used.
 
-   +-----------------------------------+
-   | .. image:: ideal_invinteg.svg     |
-   +-----------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 100
+
+      * - .. image:: ideal_invinteg.svg
 
 Then,
 
@@ -1803,9 +1810,12 @@ Discussion of some of the revisions
    revised formulation. The dash-dotted line for $d$ is a potential
    modification, as described in the text.
 
-   +------------------------------+
-   | .. image:: stab_dep.svg      |
-   +------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 80
+
+      * - .. image:: stab_dep.svg
+                     :width: 80%
 
 It is useful to compare the velocity scales in the revised scheme with
 those in the standard version, as well as those in
@@ -1865,9 +1875,11 @@ removed since the entrainment flux is now carried via the explicit
    \vtopo$. An upside-down version of $\khsurf$ is also shown (dashed) for
    comparison.
 
-   +-----------------------------------+
-   | .. image:: new_ktop_shape.svg     |
-   +-----------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 100
+
+      * - .. image:: new_ktop_shape.svg
 
 .. _`sec:blend`:
 
@@ -2011,9 +2023,14 @@ turbulence scheme.
    turb}$ used in Eq.~\ref{eq-tanh} for a well-mixed layer (black dotted) and a
    decoupled cloud layer (black solid).
 
-   +------------------------------------+------------------------------------+
-   | .. image:: honnert_vs_tanh.svg     | .. image:: zturb_schem.svg         |
-   +------------------------------------+------------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 49 49
+
+      * - .. image:: honnert_vs_tanh.svg
+                     :width: 49%
+        - .. image:: zturb_schem.svg
+                     :width: 49%
 
 One of the key benefits of the :raw-latex:`\cite{lock00}` scheme is its
 ability to represent decoupled stratocumulus layers, and this is a
@@ -2298,9 +2315,11 @@ illustrated for a SML in Fig. `6 <#fig:fluxinterp>`__.
    are the turbulent fluxes on the model grid indicated by the dashed
    horizontal lines.
 
-   +---------------------------------+
-   | .. image:: subsent_fig7.svg     |
-   +---------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 100
+
+      * - .. image:: subsent_fig7.svg
 
 Note that, because (`[fluxinterp] <#fluxinterp>`__) includes an explicit
 balance between the turbulent and radiative fluxes for
@@ -2399,9 +2418,11 @@ it to diffuse out this static instability).
    Schematic illustrating the assumptions behind the subgrid diagnosis of
    $z_i$.
 
-   +----------------------------------+
-   | .. image:: nbldoc_zidiag.svg     |
-   +----------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 100
+
+      * - .. image:: nbldoc_zidiag.svg
 
 Having identified the model grid-level at the top of the well-mixed
 layer (either level NTML from the parcel ascent, as described in
@@ -2552,9 +2573,11 @@ large-scale vertical velocity evaluated at the inversion,
    subsidence fluxes (dotted, diamonds), radiative flux (dashed, triangles) and
    total flux (solid, squares).
 
-   +----------------------------------+
-   | .. image:: ideal_revflux.svg     |
-   +----------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 100
+
+      * - .. image:: ideal_revflux.svg
 
 An idealised subgrid total flux profile is constructed from the
 parametrized entrainment flux and the increments from radiation,
@@ -6408,9 +6431,14 @@ therefore zero entrainment and turbulent mixing).
    (dotted), $-\Delta_\radf^{SW} $ (dashed) and the 8A (dash-dot) and 9B (dash-
    dot-dot-dot) parametrizations of $\Delta_\radf$.
 
-   +------------------------------+------------------------------+
-   | .. image:: div_r080.svg      | .. image:: div_r071.svg      |
-   +------------------------------+------------------------------+
+   .. list-table::
+      :align: center
+      :widths: 50 50
+
+      * - .. image:: div_r080.svg
+                     :width: 50%
+        - .. image:: div_r071.svg
+                     :width: 50%
 
 The 9C version attempted to remove the grid-dependence implied by the
 summation over 3 grid-levels in (`[ctraddiv] <#ctraddiv>`__) as follows:
@@ -7138,11 +7166,3 @@ Appendix: Notation
    implicit solver is called after convection it does not account for
    this lowering, so that all the subsided air is forced to be entrained
    into the mixed-layer.
-
-.. |image1| image:: new_ktop_shape
-.. |image| image:: honnert_vs_tanh.eps
-.. |image2| image:: zturb_schem.eps
-.. |image3| image:: div_r080
-   :width: 3.5in
-.. |image4| image:: div_r071
-   :width: 3.5in
