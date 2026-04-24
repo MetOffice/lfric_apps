@@ -128,11 +128,10 @@ subroutine initial_theta_ref_code(nlayers,                               &
         coords(3) = coords(3) + chi_3_e(dfc)*chi_basis(1,dfc,df)
       end do
 
-      call chi2xyz(coords(1), coords(2), coords(3), &
-                   ipanel, &
-                    geometry, topology,            &
-                    coord_system, scaled_radius,   &
-xyz(1), xyz(2), xyz(3))
+      call chi2xyz( coords(1), coords(2), coords(3), &
+                    ipanel, geometry, topology,      &
+                    coord_system, scaled_radius,     &
+                    xyz(1), xyz(2), xyz(3) )
       theta(map_wtheta(df) + k) = analytic_ref_temperature(xyz, test)
 
     end do

@@ -17,7 +17,7 @@ module tracer_emission_alg_mod
   use sci_calc_dz_face_kernel_mod,   only: calc_dz_face_kernel_type
   use timestepping_config_mod,       only: dt
 
-  ! Configuration modules (due to sci_geometric_constants)
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
@@ -74,12 +74,12 @@ contains
 
     call derived_fields%get_field('rho_in_wth',rho_in_wth)
     mesh => rho_in_wth%get_mesh()
-    height_wth => get_height_fv(WTheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
-    height_w3 => get_height_fv(W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+    height_wth => get_height_fv( WTheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
     call tracer_emissions%copy_field_properties(scaled_emission)
     call tracer_emissions%copy_field_properties(dz_wth)
 

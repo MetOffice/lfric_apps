@@ -122,13 +122,14 @@ contains
 
     allocate(tmp_calendar, source=step_calendar_type(time_origin, time_start))
 
-    call io_context%initialise_xios_context(       &
-                                             modeldb%mpi%get_comm(), &
+    call io_context%initialise_xios_context( modeldb%mpi%get_comm(), &
                                              chi, panel_id,          &
                                              modeldb%clock,          &
                                              tmp_calendar,           &
                                              before_close,           &
-                                         geometry, topology, coord_system, scaled_radius,&
+                                             geometry, topology,     &
+                                             coord_system,           &
+                                             scaled_radius,          &
                                              start_at_zero=.true. )
     ! Finalise XIOS context
     call io_context%finalise_xios_context()

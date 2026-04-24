@@ -140,7 +140,8 @@ program runge_kutta
   call init_comm( application_name, modeldb )
   call init_config( filename, gungho_required_namelists, &
                     config=modeldb%config )
-  call init_logger( modeldb%config, modeldb%mpi%get_comm(), &
+  call init_logger( modeldb%config,         &
+                    modeldb%mpi%get_comm(), &
                     application_name )
   call init_collections()
   call init_time( modeldb )

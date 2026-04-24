@@ -167,11 +167,10 @@ subroutine set_name_field_code(nlayers, tracer,                        &
           end do
 
           ! Need (X,Y,Z) coordinate
-          call chi2xyz(coords(1), coords(2), coords(3), &
-                       ipanel, &
-                    geometry, topology,            &
-                    coord_system, scaled_radius,   &
-xyz(1), xyz(2), xyz(3))
+          call chi2xyz( coords(1), coords(2), coords(3), &
+                        ipanel, geometry, topology,      &
+                        coord_system, scaled_radius,     &
+                        xyz(1), xyz(2), xyz(3) )
 
           ! Set tracer field based on namelist
           tracer_ref = analytic_name_field(xyz, test, domain_max_x)

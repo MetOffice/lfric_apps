@@ -70,8 +70,8 @@ contains
     mesh => area_fraction%get_mesh()
 
     delta  => get_delta_at_wtheta(mesh%get_id())
-    dz_wth => get_dz_at_wtheta(mesh%get_id(), &
-                             geometry, coord_system, scaled_radius)
+    dz_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                coord_system, scaled_radius )
 
     call invoke ( fsd_condensate_kernel_type ( sigma_ml,        & ! fsd of condensate
                                                f_arr,           & ! fsd parameters

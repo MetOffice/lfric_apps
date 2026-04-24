@@ -21,7 +21,7 @@ module mphys_alg_mod
   use sci_geometric_constants_mod, only: get_height_fv, get_dz_at_wtheta
   use fs_continuity_mod,           only: W3, Wtheta
 
-  ! Configuration modules (due to sci_geometric_constants)
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
@@ -151,12 +151,12 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth => get_height_fv( Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
-    height_w3  => get_height_fv( W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
 
     call theta%copy_field_properties(dcfl_mphys)
     call theta%copy_field_properties(dcff_mphys)
@@ -250,8 +250,8 @@ contains
                                      refl_tot, refl_1km ) )
 
     if (turb_gen_mixph) then
-      dz_in_wth => get_dz_at_wtheta( mesh%get_id(), &
-                             geometry, coord_system, scaled_radius )
+      dz_in_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                     coord_system, scaled_radius )
       call invoke( mphys_turb_gen_kernel_type(theta, mr_n(imr_v), mr_n(imr_cl),&
                                               mr_n(imr_ci), mr_n(imr_s),       &
                                               ns_mphys, ni_mphys,              &

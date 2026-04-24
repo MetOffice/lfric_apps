@@ -107,12 +107,12 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth => get_height_fv(Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w3  => get_height_fv(W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
 
     ! Unpack fields
     call derived_fields%get_field('u_in_w3', u_in_w3)

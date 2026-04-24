@@ -320,8 +320,8 @@ module process_send_fields_2d_mod
     call tmp_field3%initialise( vector_space=tmp_fs, name="tmp_field3_W3" )
 
     ! Calculate the grid cell areas (dA)
-    dA => get_dA_msl_proj( mesh%get_id(), &
-                            geometry, planet_radius, domain_height )
+    dA => get_dA_msl_proj( mesh%get_id(), geometry, &
+                           planet_radius, domain_height )
 
     call invoke(                                                             &
                 ! Extract snow mass on ice tile into tmp_field1

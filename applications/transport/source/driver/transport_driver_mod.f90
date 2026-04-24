@@ -62,11 +62,10 @@ module transport_driver_mod
   !-------------------------------------------
   ! Configuration modules
   !-------------------------------------------
-  use base_mesh_config_mod, only: GEOMETRY_PLANAR, &
-                                  GEOMETRY_SPHERICAL
-
-  use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system, &
+  use base_mesh_config_mod,      only: geometry,        &
+                                       geometry_planar, &
+                                       geometry_spherical
+  use finite_element_config_mod, only: coord_system,    &
                                        element_order_h, &
                                        element_order_v
   use planet_config_mod,         only: scaled_radius
@@ -138,7 +137,7 @@ contains
     logical(kind=l_def) :: l_multigrid
     logical(kind=l_def) :: prepartitioned
     logical(kind=l_def) :: inner_halo_tiles
-    logical(kind=l_def) :: apply_partition_check
+    logical(kind=l_def) :: check_partitions
 
     integer(kind=i_def) :: geometry
     integer(kind=i_def) :: topology
@@ -289,10 +288,10 @@ contains
                                      base_mesh_names, &
                                      modeldb%config )
 
-    apply_partition_check = .false.
+    check_partitions = .false.
     if ( .not. prepartitioned .and. &
          ( l_multigrid .or. use_multires_coupling ) ) then
-      apply_partition_check = .true.
+      check_partitions = .true.
     end if
 
     if (allocated(tile_size)) deallocate(tile_size)
@@ -311,8 +310,8 @@ contains
                     modeldb%mpi%get_comm_size(), &
                     base_mesh_names, extrusion,  &
                     inner_halo_tiles, tile_size, &
-                    stencil_depths,    &
-                    apply_partition_check )
+                    stencil_depths, check_partitions )
+
 
     if (allocated(tile_size)) deallocate(tile_size)
     allocate(tile_size(2, size(base_mesh_names)))
@@ -375,7 +374,7 @@ contains
         tile_size(1,:) = tile_size_x
         tile_size(2,:) = tile_size_y
         if (l_multigrid) then
-          multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+          multigrid_tile_size = get_multigrid_tile_size( modeldb%config,   &
                                                          meshes_to_double, &
                                                          extrusion_double )
           where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
@@ -479,13 +478,16 @@ contains
         call write_vector_diagnostic( 'w2_vector', w2_vector, modeldb%clock, &
                                       mesh, nodal_output_on_w3 )
       end if
+
       if (use_aerosols) then
-        height_w3 => get_height_fe(W3, aerosol_mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
-        height_wth => get_height_fe(Wtheta, aerosol_mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
+
+        height_w3  => get_height_fe( W3, aerosol_mesh%get_id(),                  &
+                                     geometry, element_order_h, element_order_v, &
+                                     coord_system, scaled_radius )
+        height_wth => get_height_fe( Wtheta, aerosol_mesh%get_id(),              &
+                                     geometry, element_order_h, element_order_v, &
+                                     coord_system, scaled_radius )
+
         call write_scalar_diagnostic( 'aerosol_height_w3', height_w3, modeldb%clock, &
                                       aerosol_mesh, nodal_output_on_w3 )
         call write_scalar_diagnostic( 'aerosol_height_wth', height_wth, modeldb%clock, &
@@ -499,12 +501,13 @@ contains
                                       aerosol_mesh, nodal_output_on_w3 )
       end if
 
-      height_w3 => get_height_fe(W3, mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
-      height_wth => get_height_fe(Wtheta, mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
+      height_w3  => get_height_fe( W3, mesh%get_id(),                          &
+                                   geometry, element_order_h, element_order_v, &
+                                   coord_system, scaled_radius )
+      height_wth => get_height_fe( Wtheta, mesh%get_id(),                      &
+                                   geometry, element_order_h, element_order_v, &
+                                   coord_system, scaled_radius )
+
       call write_scalar_diagnostic( 'height_w3', height_w3, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'height_wth', height_wth, modeldb%clock, &

@@ -140,10 +140,9 @@ subroutine deep_hot_jupiter_code(nlayers,                    &
     coords(3) = coords(3) + chi_3( location )/ndf_chi
   end do
 
-  call chi2llr(coords(1), coords(2), coords(3), ipanel, &
-               geometry, topology,    &
-               coord_system, scaled_radius,   &
-               lon, lat, radius)
+  call chi2llr( coords(1), coords(2), coords(3), ipanel,         &
+                geometry, topology, coord_system, scaled_radius, &
+                lon, lat, radius )
 
   do k = 0, nlayers
 

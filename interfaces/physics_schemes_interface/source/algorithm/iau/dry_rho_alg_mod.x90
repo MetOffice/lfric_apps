@@ -10,13 +10,13 @@
 module dry_rho_alg_mod
 
   use constants_mod,               only: r_def, i_def
-  use extrusion_config_mod,        only: planet_radius
   use field_mod,                   only: field_type
   use fs_continuity_mod,           only: W3
   use sci_geometric_constants_mod, only: get_height_fv
 
-  ! Configuration modules (due to sci_geometric_constants)
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
+  use extrusion_config_mod,      only: planet_radius
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
 
@@ -48,9 +48,10 @@ contains
     integer( kind=i_def )       :: mesh_id
 
     mesh_id     =  rho%get_mesh_id()
-    height_w3   => get_height_fv( W3, mesh_id, &
+    height_w3   => get_height_fv( W3, mesh_id,            &
                                   geometry, coord_system, &
                                   scaled_radius )
+
     call rho_r2_tot_inc % copy_field_properties( wetrho_inc )
     call rho % copy_field_properties( rho_inc )
     call height_w3 % copy_field_properties( radius_w3 )

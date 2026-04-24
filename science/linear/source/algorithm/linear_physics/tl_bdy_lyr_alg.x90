@@ -32,10 +32,10 @@ module tl_bdy_lyr_alg_mod
   use tl_compute_aubu_kernel_mod,          only: tl_compute_aubu_kernel_type
   use tl_bl_inc_kernel_mod,                only: tl_bl_inc_kernel_type
 
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system, &
-                                       element_order_h, &
-                                       element_order_v
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
   use planet_config_mod,         only: scaled_radius
 
   implicit none
@@ -93,15 +93,15 @@ subroutine tl_bdy_lyr_alg(modeldb, u_bl_inc, u, ls_state, dt)
   call ls_fields%get_field('ls_land_fraction', ls_land_fraction)
 
   mesh => u%get_mesh()
-  height_w2  => get_height_fe(W2, mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
-  height_w3  => get_height_fe(W3, mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
-  height_wth => get_height_fe(Wtheta, mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
+  height_w2  => get_height_fe( W2, mesh%get_id(), geometry,      &
+                               element_order_h, element_order_v, &
+                               coord_system, scaled_radius )
+  height_w3  => get_height_fe( W3, mesh%get_id(), geometry,      &
+                               element_order_h, element_order_v, &
+                               coord_system, scaled_radius )
+  height_wth => get_height_fe( Wtheta, mesh%get_id(), geometry,  &
+                               element_order_h, element_order_v, &
+                               coord_system, scaled_radius )
 
   w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
 

@@ -14,12 +14,11 @@
 module rotation_vector_mod
 
 use constants_mod,     only: r_def, i_def
-use planet_config_mod, only: scaled_omega
 
 ! Configuration modules
 use base_mesh_config_mod,      only: geometry, topology
 use finite_element_config_mod, only: coord_system
-use planet_config_mod,         only: scaled_radius
+use planet_config_mod,         only: scaled_radius, scaled_omega
 
 implicit none
 
@@ -115,9 +114,8 @@ do j = 1, ngp_v
     end do
 
     ! Need to obtain longitude, latitude and radius from position vector
-    call chi2llr(coords(1), coords(2), coords(3), panel_id, &
-                 geometry, topology,    &
-                 coord_system, scaled_radius,   &
+    call chi2llr(coords(1), coords(2), coords(3), panel_id,       &
+                 geometry, topology, coord_system, scaled_radius, &
                  long, lat, r)
 
     ! Get (long,lat,r) components of planet rotation vector
@@ -180,9 +178,8 @@ do j = 1, ngp_v
     end do
 
     ! Need to obtain longitude, latitude and radius from position vector
-    call chi2llr(coords(1), coords(2), coords(3), panel_id, &
-                 geometry, topology,    &
-                 coord_system, scaled_radius,   &
+    call chi2llr(coords(1), coords(2), coords(3), panel_id,       &
+                 geometry, topology, coord_system, scaled_radius, &
                  long, lat, r)
 
     ! Get (long,lat,r) components of planet rotation vector

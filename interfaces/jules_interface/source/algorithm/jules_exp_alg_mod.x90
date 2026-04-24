@@ -372,12 +372,12 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth       => get_height_fv( Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
-    height_w3        => get_height_fv( W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
 
     call initialise_diags_for_jules_exp(z0h_eff, gross_prim_prod, &
                                         soil_respiration)

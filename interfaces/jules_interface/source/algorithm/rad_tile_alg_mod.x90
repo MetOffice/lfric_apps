@@ -42,6 +42,7 @@ use socrates_init_mod, only: wavelength_short, wavelength_long, &
 use sw_rad_tile_kernel_mod, only: sw_rad_tile_kernel_type
 use lw_rad_tile_kernel_mod, only: lw_rad_tile_kernel_type
 
+! Configuration modules
 use base_mesh_config_mod,      only: geometry
 use finite_element_config_mod, only: coord_system
 use planet_config_mod,         only: scaled_radius
@@ -225,8 +226,9 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
     call derived_fields%get_field('u_in_w3', u_in_w3)
     call derived_fields%get_field('v_in_w3', v_in_w3)
 
-    dz_wth            => get_dz_at_wtheta(u_in_w3%get_mesh_id(), &
-                             geometry, coord_system, scaled_radius)
+    dz_wth => get_dz_at_wtheta( u_in_w3%get_mesh_id(),  &
+                                geometry, coord_system, &
+                                scaled_radius )
 
     ! SW albedos only required on radiation timesteps
     if (radiation == radiation_socrates .and. &

@@ -11,7 +11,8 @@ module iau_multifile_io_mod
 
   use base_mesh_config_mod,        only: prime_mesh_name
   use calendar_mod,                only: calendar_type
-  use constants_mod,               only: str_def, str_max_filename, i_def, r_def
+  use constants_mod,               only: str_def, str_max_filename, &
+                                         i_def, r_def
   use driver_modeldb_mod,          only: modeldb_type
   use event_mod,                   only: event_action
   use event_actor_mod,             only: event_actor_type
@@ -280,8 +281,6 @@ contains
     context_name = "multifile_context_" // trim(filename)
     call modeldb%io_contexts%get_io_context(context_name, io_context)
 
-
-
     if (modeldb%clock%get_step() == io_context%get_stop_time()) then
       ! Finalise XIOS context
       call io_context%set_current()
@@ -304,7 +303,8 @@ contains
                                                chi, panel_id,               &
                                                modeldb%clock, tmp_calendar, &
                                                before_close,                &
-                                         geometry, topology, coord_system, scaled_radius,&
+                                               geometry, topology,          &
+                                               coord_system, scaled_radius, &
                                                start_at_zero=.true. )
 
       ! Attach context advancement to the model's clock

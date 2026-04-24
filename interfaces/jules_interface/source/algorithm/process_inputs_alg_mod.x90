@@ -45,10 +45,12 @@ module process_inputs_alg_mod
   use log_mod,                    only : log_event, log_scratch_space,  &
                                          LOG_LEVEL_ERROR
 
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, f_lat
-  use finite_element_config_mod, only: coord_system, element_order_h, element_order_v
-  use planet_config_mod,         only: scaled_radius
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
   use idealised_config_mod,      only: f_lon
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -231,10 +233,10 @@ contains
       end if
 
       twod_mesh => sea_ice_thickness%get_mesh()
-      latitude => get_latitude_fv( W3, twod_mesh%get_id(),&
-                                   geometry, topology, &
+      latitude => get_latitude_fv( W3, twod_mesh%get_id(),           &
+                                   geometry, topology,               &
                                    element_order_h, element_order_v, &
-                                   coord_system, f_lat, f_lon, &
+                                   coord_system, f_lat, f_lon,       &
                                    scaled_radius )
 
       ! Surface fields
@@ -255,14 +257,14 @@ contains
       call invoke(process_ssi_kernel_type( sea_ice_fraction,                  &
                                            sea_ice_thickness,                 &
                                            tile_fraction, latitude,           &
-                                           amip_ice_thick, l_couple_sea_ice),     &
+                                           amip_ice_thick, l_couple_sea_ice), &
                   multi_insert_kernel_type(tile_temperature, tstar_sea,       &
                                            first_sea_tile, n_sea_tile ))
 
       ! In a coupled model with inland lakes we need to initialise the sea-ice
       ! conductivity. This will be overwritten by values from SI3 except at
       ! lake points.
-      if ((sea_ice_source == sea_ice_source_surf ) .and.                     &
+      if ((sea_ice_source == sea_ice_source_surf ) .and.                      &
            (l_couple_sea_ice)) then
            call surface_fields%get_field('sea_ice_conductivity',              &
                                           sea_ice_conductivity)

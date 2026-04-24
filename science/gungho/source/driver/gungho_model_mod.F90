@@ -488,7 +488,7 @@ contains
     logical(l_def) :: l_multigrid
     logical(l_def) :: inner_halo_tiles
     logical(l_def) :: prepartitioned
-    logical(l_def) :: apply_partition_check
+    logical(l_def) :: check_partitions
 
     integer(i_def) :: geometry
     integer(i_def) :: topology
@@ -710,10 +710,10 @@ contains
 
     ! 1.3a Initialise prime/2d meshes
     ! ---------------------------------------------------------
-    apply_partition_check = .false.
+    check_partitions = .false.
     if ( .not. prepartitioned .and. &
          ( l_multigrid .or. use_multires_coupling ) ) then
-      apply_partition_check = .true.
+      check_partitions = .true.
     end if
 
     allocate(stencil_depths(size(base_mesh_names)))
@@ -737,8 +737,7 @@ contains
                     modeldb%mpi%get_comm_size(),  &
                     base_mesh_names, extrusion,   &
                     inner_halo_tiles, tile_size,  &
-                    stencil_depths,               &
-                    apply_partition_check )
+                    stencil_depths, check_partitions )
 
     allocate( twod_names, source=base_mesh_names )
     do i=1, size(twod_names)

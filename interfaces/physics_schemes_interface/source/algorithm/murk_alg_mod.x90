@@ -88,12 +88,12 @@ contains
     call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
 
     mesh       => murk%get_mesh()
-    height_wth => get_height_fv( Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
-    height_w3  => get_height_fv( W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
     rdz_w3     => get_rdz_w3( mesh%get_id() )
 
     ! Call emission routine to add source to murk field

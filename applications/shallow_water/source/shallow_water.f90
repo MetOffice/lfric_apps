@@ -65,7 +65,8 @@ program shallow_water
 
   call init_config( filename, shallow_water_required_namelists, &
                     config=modeldb%config )
-  call init_logger( modeldb%config, global_mpi%get_comm(), &
+  call init_logger( modeldb%config,        &
+                    global_mpi%get_comm(), &
                     program_name )
 
   subroutine_timers = modeldb%config%io%subroutine_timers()

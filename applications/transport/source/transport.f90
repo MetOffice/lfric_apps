@@ -46,7 +46,8 @@ program transport
   call init_config( filename, transport_required_namelists, &
                     config=modeldb%config )
 
-  call init_logger( modeldb%config, modeldb%mpi%get_comm(), &
+  call init_logger( modeldb%config,         &
+                    modeldb%mpi%get_comm(), &
                     program_name )
 
   call log_event( 'Miniapp will run with default precision set as:', &

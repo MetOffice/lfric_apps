@@ -124,18 +124,18 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
 
     dtrdz_fd2  => get_dtrdz_fd2(mesh_id, model_clock)
-    height_wth => get_height_fv(Wtheta, mesh_id, &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w3  => get_height_fv(W3, mesh_id, &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w2  => get_height_fv(W2, mesh_id, &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w1  => get_height_fv(W1, mesh_id, &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+    height_wth => get_height_fv( Wtheta, mesh_id,        &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh_id,            &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w2  => get_height_fv( W2, mesh_id,            &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w1  => get_height_fv( W1, mesh_id,            &
+                                 geometry, coord_system, &
+                                 scaled_radius )
     panel_id   => get_panel_id(mesh_id)
 
     ! Set-up arrays for local fields

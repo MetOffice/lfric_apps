@@ -65,8 +65,8 @@ contains
     correction_period = reset_hours * 3600.0_r_def
 
     fs_2d => accumulated_fluxes%get_function_space()
-    dA    => get_da_msl_proj(twod_mesh%get_id(), &
-                            geometry, planet_radius, domain_height)
+    dA    => get_da_msl_proj( twod_mesh%get_id(), geometry, &
+                              planet_radius, domain_height )
 
 
     call invoke( inc_aX_times_Y(dt, accumulated_fluxes, dA),                    &

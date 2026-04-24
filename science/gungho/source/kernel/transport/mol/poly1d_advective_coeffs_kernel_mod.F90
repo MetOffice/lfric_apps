@@ -304,10 +304,11 @@ subroutine poly1d_advective_coeffs_code(one_layer,                 &
   ! Convert x0 to XYZ coordinate system
   ipanel = int(panel_id(smap_pid(1,1)), i_def)
   chi = x0 + r0
-  call chir2xyz(chi(1), chi(2), chi(3), &
-                ipanel,     &
-                     geometry, topology, coord_system, &
-x0(1), x0(2), x0(3))
+  call chir2xyz( chi(1), chi(2), chi(3), &
+                 ipanel, geometry,       &
+                 topology, coord_system, &
+                 x0(1), x0(2), x0(3) )
+
   ! Initialise polynomial coefficients to zero
   do df = 0, ndata-1
     coeff(map_c(1) + df) = 0.0_r_tran
@@ -334,10 +335,10 @@ x0(1), x0(2), x0(3))
       ipanel = int(panel_id(smap_pid(1,edge+1)), i_def)
     end if
     chi = x1 + r0
-    call chir2xyz(chi(1), chi(2), chi(3), &
-                  ipanel,     &
-                     geometry, topology, coord_system, &
-x1(1), x1(2), x1(3))
+    call chir2xyz( chi(1), chi(2), chi(3), &
+                   ipanel, geometry,       &
+                   topology, coord_system, &
+                   x1(1), x1(2), x1(3) )
 
     ! Unit normal to plane containing points 0 and 1
     ! cross_product is zero if x0(3) = x1(3) = 0, which occurs for the first level in
@@ -365,10 +366,10 @@ x1(1), x1(2), x1(3))
         ! Convert xq to XYZ coordinate system
         if ( .not. extended_mesh ) ipanel = int(panel_id(smap_pid(1,map1d(stencil,edge))), i_def)
         chi = xq + r0
-        call chir2xyz(chi(1), chi(2), chi(3), &
-                      ipanel,     &
-                     geometry, topology, coord_system, &
-xq(1), xq(2), xq(3))
+        call chir2xyz( chi(1), chi(2), chi(3), &
+                       ipanel, geometry,       &
+                       topology, coord_system, &
+                       xq(1), xq(2), xq(3) )
 
         xq(3) = ispherical*xq(3) + (1_i_def-ispherical)*x0(3)
         ! Second: Compute the local coordinate of each quadrature point from the
@@ -405,10 +406,10 @@ xq(1), xq(2), xq(3))
       ! Convert xq to XYZ coordinate system
       ipanel = int(panel_id(smap_pid(1,1)), i_def)
       chi = xq + r0
-      call chir2xyz(chi(1), chi(2), chi(3), &
-                    ipanel,     &
-                     geometry, topology, coord_system, &
-xq(1), xq(2), xq(3))
+      call chir2xyz( chi(1), chi(2), chi(3), &
+                     ipanel, geometry,       &
+                     topology, coord_system, &
+                     xq(1), xq(2), xq(3) )
 
       ! Obtain local coordinates of gauss points on this edge
       xx = local_distance_1d(x0, xq, xn1, domain_x, domain_y, spherical)

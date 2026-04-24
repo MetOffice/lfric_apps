@@ -116,10 +116,11 @@ contains
         coord(3) = coord(3) + chi_3_e(df0)*wx_basis(1,df0,df)
       end do
 
-      call chi2xyz(coord(1), coord(2), coord(3), ipanel, &
-                    geometry, topology,            &
-                    coord_system, scaled_radius,   &
-xyz(1), xyz(2), xyz(3))
+      call chi2xyz( coord(1), coord(2), coord(3), &
+                    ipanel, geometry, topology,   &
+                    coord_system, scaled_radius,  &
+                    xyz(1), xyz(2), xyz(3) )
+
       geopot(map_w3(df)) = analytic_surface_geopot(xyz, swe_test)
 
     end do

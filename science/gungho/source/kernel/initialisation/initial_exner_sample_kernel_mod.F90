@@ -16,12 +16,12 @@ module initial_exner_sample_kernel_mod
                                    GH_EVALUATOR
   use constants_mod,        only : r_def, i_def
   use fs_continuity_mod,    only : W3
-  use idealised_config_mod, only : test
   use kernel_mod,           only : kernel_type
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system
+  use idealised_config_mod,      only: test
   use planet_config_mod,         only: scaled_radius
 
   implicit none
@@ -135,11 +135,10 @@ contains
           coords(3) = coords(3) + chi_3_e(df1)*basis_chi_on_w3(1,df1,df)
         end do
 
-        call chi2xyz(coords(1), coords(2), coords(3), &
-                     ipanel, &
-                    geometry, topology,            &
-                    coord_system, scaled_radius,   &
-xyz(1), xyz(2), xyz(3))
+        call chi2xyz( coords(1), coords(2), coords(3), &
+                      ipanel, geometry, topology,      &
+                      coord_system, scaled_radius,     &
+                      xyz(1), xyz(2), xyz(3) )
 
         exner(map_w3(df) + k) = analytic_pressure(xyz, test, current_time)
 

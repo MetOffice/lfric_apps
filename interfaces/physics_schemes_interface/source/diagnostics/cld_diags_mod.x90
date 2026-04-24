@@ -249,12 +249,12 @@ contains
           cloud_fraction_below_1000feet_asl_flag ) then
 
         mesh       => combined_cld_amount%get_mesh()
-        height_w3  => get_height_fv(W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-        height_wth => get_height_fv(Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+        height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                     geometry, coord_system, &
+                                     scaled_radius )
+        height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                     geometry, coord_system, &
+                                     scaled_radius )
         call derived_fields%get_field('rho_in_wth', rho_in_wth)
         call cloud_fields%get_field('frozen_fraction', cf_frozen)
 
@@ -297,9 +297,9 @@ contains
 
       ! Need to know height to remove any spurious icing index in stratosphere
       mesh => theta%get_mesh()
-      height_wth => get_height_fv( Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+      height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                   geometry, coord_system, &
+                                   scaled_radius )
 
     end if
 

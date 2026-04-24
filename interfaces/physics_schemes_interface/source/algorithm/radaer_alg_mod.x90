@@ -217,8 +217,8 @@ contains
       if ( LPROF ) call start_timing( id_aero, 'aerosol.radaer' )
 
       mesh      => theta_in_wth%get_mesh()
-      dz_in_wth => get_dz_at_wtheta(mesh%get_id(), &
-                             geometry, coord_system, scaled_radius)
+      dz_in_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                     coord_system, scaled_radius )
 
       ! Unpack fields from aerosol_fields
       call aerosol_fields%get_field('n_ait_sol', n_ait_sol)

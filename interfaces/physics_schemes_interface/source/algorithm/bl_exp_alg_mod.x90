@@ -39,7 +39,7 @@ module bl_exp_alg_mod
   use bl_exp_diags_mod,   only: initialise_diags_for_bl_exp, &
                                 output_diags_for_bl_exp
 
-  ! Configuration modules (due to sci_geometric_constants)
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
@@ -321,12 +321,13 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth       => get_height_fv( Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
-    height_w3        => get_height_fv( W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+
     ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
     ! in lfric core as the mininum of the cell horizontal edge lengths
     delta            => get_delta_at_wtheta( mesh%get_id() )
@@ -336,8 +337,8 @@ contains
     rdz_w3           => get_rdz_w3( mesh%get_id() )
     dtrdz_wth        => get_dtrdz_wth( mesh%get_id(), model_clock )
     w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() )
-    dz_wth           => get_dz_at_wtheta( mesh%get_id(), &
-                             geometry, coord_system, scaled_radius )
+    dz_wth           => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                          coord_system, scaled_radius )
 
     ! Initialise diagnostics
     call initialise_diags_for_bl_exp(zht, oblen)

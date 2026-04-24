@@ -11,7 +11,6 @@ module vertadvect_forcing_alg_mod
 
   use constants_mod,                 only: i_def, r_def, l_def
   use field_mod,                     only: field_type
-  use finite_element_config_mod,     only: element_order_h, element_order_v
   use fs_continuity_mod,             only: Wtheta, W3
   use function_space_collection_mod, only: function_space_collection
   use sci_geometric_constants_mod,   only: get_height_fv
@@ -27,9 +26,10 @@ module vertadvect_forcing_alg_mod
                                            profile_heights
   use prof_temporal_interp_mod,      only: prof_temporal_interp
 
-  ! Configuration modules (due to sci_geometric_constants)
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
   use planet_config_mod,         only: scaled_radius
 
   implicit none
@@ -118,14 +118,14 @@ contains
   ! There's a choice to be made here. Either advect then average, or average
   ! then advect. Choose the latter, replicating what's done in the UM and MONC.
   mesh_id = theta%get_mesh_id()
-  height_wth => get_height_fv( Wtheta, mesh_id, &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+  height_wth => get_height_fv( Wtheta, mesh_id,        &
+                               geometry, coord_system, &
+                               scaled_radius )
 
   mesh_id = rho%get_mesh_id()
-  height_w3 => get_height_fv( W3, mesh_id, &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+  height_w3 => get_height_fv( W3, mesh_id,            &
+                              geometry, coord_system, &
+                              scaled_radius )
 
   ! Vertical advection of potential temperature
   call horiz_mean_alg( field_mean, nlayers, twod_mesh, theta )

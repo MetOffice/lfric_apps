@@ -49,7 +49,8 @@ program gravity_wave
 
   deallocate( filename )
 
-  call init_logger( modeldb%config, modeldb%mpi%get_comm(), &
+  call init_logger( modeldb%config,         &
+                    modeldb%mpi%get_comm(), &
                     program_name )
 
   subroutine_timers = modeldb%config%io%subroutine_timers()

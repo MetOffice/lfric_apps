@@ -22,6 +22,7 @@ module initial_u_kernel_mod
   use fs_continuity_mod,       only : W2
   use kernel_mod,              only : kernel_type
 
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, &
                                        geometry_spherical
   use finite_element_config_mod, only: coord_system
@@ -63,52 +64,52 @@ module initial_u_kernel_mod
 !-----------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-----------------------------------------------------------------------------
-public :: initial_u_code
+  public :: initial_u_code
 
 contains
 
-  !> @brief Compute the right hand side to initialise the wind field.
-  !! @param[in] nlayers Number of layers
-  !! @param[in,out] rhs Right hand side field to compute
-  !! @param[in] chi_1 1st coordinate field
-  !! @param[in] chi_2 2nd coordinate field
-  !! @param[in] chi_3 3rd coordinate field
-  !! @param[in] panel_id A field giving the ID for mesh panels.
-  !! @param[in] time Time (timestep multiplied by dt)
-  !! @param[in] domain_max_x Domain maximum x-coordinate.
-  !! @param[in] domain_max_y Domain maximum y-coordinate.
-  !! @param[in] ndf Number of degrees of freedom per cell for W2
-  !! @param[in] undf Total number of degrees of freedom for W2
-  !! @param[in] map Dofmap for the cell at the base of the column for W2
-  !! @param[in] basis Basis functions for W2 evaluated at gaussian quadrature points
-  !! @param[in] ndf_chi Number of degrees of freedom per cell for chi
-  !! @param[in] undf_chi Number of unique degrees of freedom for chi
-  !! @param[in] map_chi Dofmap for the cell at the base of the column for chi
-  !! @param[in] chi_basis Basis functions for Wchi evaluated at
-  !!                      gaussian quadrature points
-  !! @param[in] chi_diff_basis Differential of the Wchi basis functions
-  !!                           evaluated at gaussian quadrature point
-  !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
-  !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
-  !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id
-  !! @param[in] nqp_h Number of quadrature points in the horizontal
-  !! @param[in] nqp_v Number of quadrature points in the vertical
-  !! @param[in] wqp_h Horizontal quadrature weights
-  !! @param[in] wqp_v Vertical quadrature weights
-  subroutine initial_u_code(nlayers,                         &
-                            rhs,                             &
-                            chi_1, chi_2, chi_3,             &
-                            panel_id,                        &
-                            time,                            &
-                            domain_max_x,                    &
-                            domain_max_y,                    &
-                            ndf, undf, map, basis,           &
-                            ndf_chi, undf_chi,               &
-                            map_chi, chi_basis,              &
-                            chi_diff_basis,                  &
-                            ndf_pid, undf_pid, map_pid,      &
-                            nqp_h, nqp_v, wqp_h, wqp_v       &
-                            )
+!> @brief Compute the right hand side to initialise the wind field.
+!! @param[in] nlayers Number of layers
+!! @param[in,out] rhs Right hand side field to compute
+!! @param[in] chi_1 1st coordinate field
+!! @param[in] chi_2 2nd coordinate field
+!! @param[in] chi_3 3rd coordinate field
+!! @param[in] panel_id A field giving the ID for mesh panels.
+!! @param[in] time Time (timestep multiplied by dt)
+!! @param[in] domain_max_x Domain maximum x-coordinate.
+!! @param[in] domain_max_y Domain maximum y-coordinate.
+!! @param[in] ndf Number of degrees of freedom per cell for W2
+!! @param[in] undf Total number of degrees of freedom for W2
+!! @param[in] map Dofmap for the cell at the base of the column for W2
+!! @param[in] basis Basis functions for W2 evaluated at gaussian quadrature points
+!! @param[in] ndf_chi Number of degrees of freedom per cell for chi
+!! @param[in] undf_chi Number of unique degrees of freedom for chi
+!! @param[in] map_chi Dofmap for the cell at the base of the column for chi
+!! @param[in] chi_basis Basis functions for Wchi evaluated at
+!!                      gaussian quadrature points
+!! @param[in] chi_diff_basis Differential of the Wchi basis functions
+!!                           evaluated at gaussian quadrature point
+!! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
+!! @param[in] undf_pid Number of unique degrees of freedom for panel_id
+!! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id
+!! @param[in] nqp_h Number of quadrature points in the horizontal
+!! @param[in] nqp_v Number of quadrature points in the vertical
+!! @param[in] wqp_h Horizontal quadrature weights
+!! @param[in] wqp_v Vertical quadrature weights
+subroutine initial_u_code(nlayers,                         &
+                          rhs,                             &
+                          chi_1, chi_2, chi_3,             &
+                          panel_id,                        &
+                          time,                            &
+                          domain_max_x,                    &
+                          domain_max_y,                    &
+                          ndf, undf, map, basis,           &
+                          ndf_chi, undf_chi,               &
+                          map_chi, chi_basis,              &
+                          chi_diff_basis,                  &
+                          ndf_pid, undf_pid, map_pid,      &
+                          nqp_h, nqp_v, wqp_h, wqp_v       &
+                          )
 
   use analytic_wind_profiles_mod, only : analytic_wind
   use sci_chi_transform_mod,      only : chi2llr
@@ -207,10 +208,10 @@ contains
         if ( geometry == geometry_spherical ) then
 
           ! Need to obtain longitude, latitude and radius from position vector
-          call chi2llr(coords(1), coords(2), coords(3), &
-                       ipanel,  geometry, topology,    &
-                     coord_system, scaled_radius,   &
-llr(1), llr(2), llr(3))
+          call chi2llr( coords(1), coords(2), coords(3), &
+                        ipanel,  geometry, topology,     &
+                        coord_system, scaled_radius,     &
+                        llr(1), llr(2), llr(3) )
 
           ! Obtain (lon,lat,r) components of u and then transform to (X,Y,Z) components
           u_spherical = analytic_wind( llr, time, profile, n_options, &

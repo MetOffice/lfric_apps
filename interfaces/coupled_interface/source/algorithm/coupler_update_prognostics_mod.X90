@@ -36,10 +36,12 @@ module coupler_update_prognostics_mod
 #endif
   use sci_field_minmax_alg_mod,      only: log_field_minmax
 
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, f_lat
-  use finite_element_config_mod, only: coord_system, element_order_h, element_order_v
-  use planet_config_mod,         only: scaled_radius
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
   use idealised_config_mod,      only: f_lon
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -94,11 +96,11 @@ module coupler_update_prognostics_mod
         call depository%get_field('tile_fraction', fld_ptr1)
         call depository%get_field('sea_ice_thickness', fld_ptr2)
         twod_mesh => fld_ptr2%get_mesh()
-        lat => get_latitude_fv( W3, twod_mesh%get_id(), &
-                                  geometry, topology, &
-                                  element_order_h, element_order_v, &
-                                  coord_system, f_lat, f_lon, &
-                                  scaled_radius )
+        lat => get_latitude_fv( W3, twod_mesh%get_id(),           &
+                                geometry, topology,               &
+                                element_order_h, element_order_v, &
+                                coord_system, f_lat, f_lon,       &
+                                scaled_radius )
 #if defined(UM_PHYSICS)
         ! Update tile_fractions with new sea ice fractions
         call invoke( masked_process_ssi_kernel_type(fld,fld_ptr2,fld_ptr1,lat, &

@@ -33,7 +33,6 @@ module theta_transport_alg_mod
                                             imr_ci, imr_s, imr_g
   use operator_mod,                   only: operator_type
   use physics_mappings_alg_mod,       only: map_physics_scalars
-  use planet_config_mod,              only: recip_epsilon, cp, Rd, p_zero
   use r_tran_field_mod,               only: r_tran_field_type
   use sci_sort_column_above_kernel_mod, &
                                       only: sort_column_above_kernel_type
@@ -62,16 +61,12 @@ module theta_transport_alg_mod
                                       only: transport_rho_times_field_alg
   use transport_enumerated_types_mod, only: direction_3d
 
-  ! Configuration modules (due to sci_geometric_constants)
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system
-  use planet_config_mod,         only: scaled_radius
-
-  use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system, &
-                                       element_order_h, &
-                                       element_order_v
-  use planet_config_mod,         only: scaled_radius
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
+  use planet_config_mod,         only: scaled_radius, recip_epsilon, &
+                                       cp, Rd, p_zero
 
   implicit none
 
@@ -364,14 +359,13 @@ contains
       if (theta_in_rdef%get_element_order_h() == 0 .and. &
           theta_in_rdef%get_element_order_v() == 0) then
         ! Use the finite volume height function
-        height_wt => get_height_fv(Wtheta, theta_in_rdef%get_mesh_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+        height_wt => get_height_fv( Wtheta, theta_in_rdef%get_mesh_id(), &
+                                    geometry, coord_system, scaled_radius )
       else
         ! Use the finite element height function
-        height_wt => get_height_fe(Wtheta, theta_in_rdef%get_mesh_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
+        height_wt => get_height_fe( Wtheta, theta_in_rdef%get_mesh_id(),        &
+                                    geometry, element_order_h, element_order_v, &
+                                    coord_system, scaled_radius )
       end if
       call invoke( sort_column_above_kernel_type(theta_out_rdef, height_wt,    &
                                                  adjust_theta_above) )

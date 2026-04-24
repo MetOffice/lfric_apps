@@ -81,7 +81,8 @@ module lfric2lfric_infrastructure_mod
   !------------------------------------
   ! Configuration modules
   !------------------------------------
-  use base_mesh_config_mod, only: geometry_planar, geometry_spherical, &
+  use base_mesh_config_mod, only: geometry_planar,         &
+                                  geometry_spherical,      &
                                   topology_fully_periodic, &
                                   topology_non_periodic
   use extrusion_config_mod,       only: key_from_method,              &
@@ -475,7 +476,8 @@ contains
                                                  modeldb%clock,          &
                                                  modeldb%calendar,       &
                                                  before_close,           &
-                 geometry, topology, coord_system, scaled_radius )
+                                                 geometry, topology,     &
+                                                 coord_system, scaled_radius )
 
     !=======================================================================
     ! Initialise source orography

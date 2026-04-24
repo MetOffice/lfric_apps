@@ -28,7 +28,7 @@ module conv_gr_alg_mod
   use log_mod,              only: log_event, LOG_LEVEL_DEBUG
   use mesh_mod,             only: mesh_type
 
-  ! Configuration modules (due to sci_geometric_constants)
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
@@ -459,12 +459,12 @@ contains
     call microphysics_fields%get_field('tnuc', tnuc)
     call microphysics_fields%get_field('tnuc_nlcl', tnuc_nlcl)
 
-    height_wth => get_height_fv(Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w3  => get_height_fv(W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
     delta      => get_delta_at_wtheta(mesh%get_id())
 
     ! Initialise the convection diagnostics

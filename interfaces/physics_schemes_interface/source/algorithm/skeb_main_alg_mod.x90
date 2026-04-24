@@ -31,21 +31,17 @@ module skeb_main_alg_mod
     use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
     ! configs
     use um_domain_init_mod,            only: level2km, model_wavenumber_max
-    use planet_config_mod,             only: gravity
     use sci_geometric_constants_mod,   only: get_da_at_w2, get_panel_id, &
                                              get_height_fv
     use sci_set_any_dof_kernel_mod,    only: set_any_dof_kernel_type
     use reference_element_mod,         only: T
 
-    ! Configuration modules (due to sci_geometric_constants)
-    use base_mesh_config_mod,      only: geometry
-    use finite_element_config_mod, only: coord_system
-    use planet_config_mod,         only: scaled_radius
-
-  use base_mesh_config_mod,      only: geometry, topology, f_lat
-  use finite_element_config_mod, only: coord_system, element_order_h, element_order_v
-  use planet_config_mod,         only: scaled_radius
-  use idealised_config_mod,      only: f_lon
+    ! Configuration modules
+    use base_mesh_config_mod,      only: geometry, topology, f_lat
+    use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                         coord_system
+    use idealised_config_mod,      only: f_lon
+    use planet_config_mod,         only: scaled_radius, gravity
 
     implicit none
 
@@ -69,7 +65,7 @@ module skeb_main_alg_mod
 
     public skeb_main_alg, skeb_init_power_law
 
- contains
+contains
   !>@brief Run the Stochastic Kinetic Energy Backscatter (SKEB)
   !>@details The SKEB scheme creates stochastic perturbations
   !>         for the horizontal wind based on the projection of
@@ -374,9 +370,9 @@ module skeb_main_alg_mod
 
     !!! 2.b call convective dissipation kernel
     ! Call kernel to compute the convective dissipation, get dz at W3 points
-    height_wth => get_height_fv(Wtheta, mesh_id, &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+    height_wth => get_height_fv( Wtheta, mesh_id,        &
+                                 geometry, coord_system, &
+                                 scaled_radius )
 
     call invoke(skeb_conv_disp_kernel_type(cdisp, wetrho_w3, massflux_diff,     &
                                            cape, height_wth, skeb_level_bottom, &
@@ -506,9 +502,9 @@ module skeb_main_alg_mod
   if (skeb_rot_du == skeb_rot_du_fe) then
 
     ! Initialise Operators
-    project_w3_to_w1 => get_project_r_dot_to_w1(mesh%get_id(), &
-                                    geometry, topology, &
-                                    coord_system, scaled_radius)
+    project_w3_to_w1 => get_project_r_dot_to_w1( mesh%get_id(),      &
+                                                 geometry, topology, &
+                                                 coord_system, scaled_radius )
 
     ! Project k*psif_hat to W1V and take strong curl
     call psif_hat_w1%initialise( vector_space = w1_fs)
@@ -543,12 +539,12 @@ module skeb_main_alg_mod
   !!  6)  Compute divergence wind increments !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  mesh_2d => mesh_collection%get_mesh( mesh, TWOD )
-  latitude  => get_latitude_fv(W2, mesh_2d%get_id(), &
-                                  geometry, topology, &
-                                  element_order_h, element_order_v, &
-                                  coord_system, f_lat, f_lon, &
-                                  scaled_radius)
+  mesh_2d  => mesh_collection%get_mesh( mesh, TWOD )
+  latitude => get_latitude_fv( W2, mesh_2d%get_id(),             &
+                               geometry, topology,               &
+                               element_order_h, element_order_v, &
+                               coord_system, f_lat, f_lon,       &
+                               scaled_radius )
 
   if (skeb_div_du == skeb_div_du_fe) then
 

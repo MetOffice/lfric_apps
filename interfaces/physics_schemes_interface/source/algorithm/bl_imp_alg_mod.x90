@@ -307,18 +307,20 @@ contains
     call surface_fields%get_field('tauy_ssi', tauy_ssi)
 
     mesh       => theta%get_mesh()
-    height_wth => get_height_fv(Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w1  => get_height_fv(W1, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w2  => get_height_fv(W2, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w3  => get_height_fv(W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+
+    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w1  => get_height_fv( W1, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w2  => get_height_fv( W2, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+    height_w3  => get_height_fv( W3, mesh%get_id(),      &
+                                 geometry, coord_system, &
+                                 scaled_radius )
+
     dA         => get_da_at_w2(mesh%get_id())
     rdz        => get_rdz_fd1(mesh%get_id())
     dtrdz      => get_dtrdz_fd2(mesh%get_id(), model_clock)

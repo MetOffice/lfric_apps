@@ -10,16 +10,12 @@
 !!          More details of the solver forumulation can be found in the solver section of:
 !!          https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
 module si_operators_alg_mod
-  use base_mesh_config_mod,      only: prime_mesh_name
+
   use constants_mod,             only: i_def, r_def, r_solver
   use model_clock_mod,           only: model_clock_type
   use operator_mod,              only: operator_type, r_solver_operator_type
   use field_mod,                 only: field_type
   use function_space_mod,        only: function_space_type
-  use finite_element_config_mod, only: element_order_h, &
-                                       element_order_v, &
-                                       nqp_h_exact,     &
-                                       nqp_v_exact
   use function_space_collection_mod, &
                                  only: function_space_collection
   use r_solver_field_mod,        only: r_solver_field_type
@@ -50,9 +46,10 @@ module si_operators_alg_mod
                                        eliminate_variables_analytic
   use moist_dyn_mod,             only: num_moist_factors, gas_law, total_mass
 
-  ! Configuration modules (due to sci_geometric_constants)
-  use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system
+  ! Configuration modules
+  use base_mesh_config_mod,      only: prime_mesh_name, geometry
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       nqp_h_exact, nqp_v_exact, coord_system
   use planet_config_mod,         only: scaled_radius
 
   implicit none
@@ -541,12 +538,12 @@ contains
        ! Non-topological operators
        call exner_in_wth%initialise( vector_space = theta%get_function_space() )
        if ( element_order_h == 0 .and. element_order_v == 0) then
-         height_w3 => get_height_fv(W3, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-         height_wt => get_height_fv(Wtheta, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+         height_w3 => get_height_fv( W3, mesh%get_id(),      &
+                                     geometry, coord_system, &
+                                     scaled_radius )
+         height_wt => get_height_fv( Wtheta, mesh%get_id(),  &
+                                     geometry, coord_system, &
+                                     scaled_radius )
          call invoke( sample_w3_to_wtheta_kernel_type(exner_in_wth, exner, &
                                                       height_wt, height_w3 ) )
          nullify(height_w3, height_wt)

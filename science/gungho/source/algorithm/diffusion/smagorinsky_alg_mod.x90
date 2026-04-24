@@ -111,12 +111,12 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     call derived_fields%get_field('visc_h', visc_h)
     call derived_fields%get_field('visc_m', visc_m)
 
-    height_w1 => get_height_fv(W1, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
-    height_w2 => get_height_fv(W2, mesh%get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+    height_w1 => get_height_fv( W1, mesh%get_id(),      &
+                                geometry, coord_system, &
+                                scaled_radius )
+    height_w2 => get_height_fv( W2, mesh%get_id(),      &
+                                geometry, coord_system, &
+                                scaled_radius )
 
     dx_at_w2 => get_dx_at_w2(mesh%get_id())
     panel_id => get_panel_id(mesh%get_id())
@@ -175,8 +175,8 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
       if (smag_l_calc == smag_l_calc_use_geo) then
         ! Use geometric mean mixing length
-        dz_wth => get_dz_at_wtheta(mesh%get_id(), &
-                             geometry, coord_system, scaled_radius)
+        dz_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                    coord_system, scaled_radius )
 
         one_third = 1.0_r_def / 3.0_r_def
         call invoke( inc_X_powint_n( delta, 2 ),                              &

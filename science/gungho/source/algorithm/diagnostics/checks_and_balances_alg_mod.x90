@@ -51,9 +51,8 @@ contains
     if ( element_order_h > 0 .or. &
          element_order_v > 0) then
       ! Get finite element detJ
-      detJ => get_detj_at_w2_fe(state(igh_u)%get_mesh_id(), &
-                                        element_order_h, &
-                                        element_order_v)
+      detJ => get_detj_at_w2_fe( state(igh_u)%get_mesh_id(), &
+                                 element_order_h, element_order_v )
     else
       ! Get finite volume detJ
       detJ => get_detj_at_w2_fv(state(igh_u)%get_mesh_id())

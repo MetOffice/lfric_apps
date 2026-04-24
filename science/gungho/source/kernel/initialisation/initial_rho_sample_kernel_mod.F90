@@ -21,12 +21,12 @@ module initial_rho_sample_kernel_mod
                                    CELL_COLUMN, GH_EVALUATOR
   use fs_continuity_mod,    only : Wchi
   use constants_mod,        only : r_def, i_def
-  use idealised_config_mod, only : test
   use kernel_mod,           only : kernel_type
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system
+  use idealised_config_mod,      only: test
   use planet_config_mod,         only: scaled_radius
 
   implicit none
@@ -136,11 +136,10 @@ contains
           coords(3) = coords(3) + chi_3_e(df1)*chi_basis(1,df1,df)
         end do
 
-        call chi2xyz(coords(1), coords(2), coords(3), &
-                     ipanel,&
-                    geometry, topology,            &
-                    coord_system, scaled_radius,   &
- xyz(1), xyz(2), xyz(3))
+        call chi2xyz( coords(1), coords(2), coords(3), &
+                      ipanel, geometry, topology,      &
+                      coord_system, scaled_radius,     &
+                      xyz(1), xyz(2), xyz(3) )
 
         rho(map_rho(df) + k) = analytic_density(xyz, test, time)
 

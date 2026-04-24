@@ -22,10 +22,10 @@ use constants_mod,         only: r_tran, r_def, i_def, l_def, LARGE_REAL_POSITIV
 use fs_continuity_mod,     only: Wchi
 use reference_element_mod, only: W, S, N, E
 
-  ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology
-  use finite_element_config_mod, only: coord_system
-  use planet_config_mod,         only: scaled_radius
+! Configuration modules
+use base_mesh_config_mod,      only: geometry, topology
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius
 
 implicit none
 
@@ -453,10 +453,8 @@ subroutine panel_edge_weights_1d( remap_weights, remap_indices,                &
         ! Convert chi fields to native cubed-sphere coordinates, on owned panel
         call chi2xyz(                                                          &
                 alpha(wx_stencil_1d(df, n)), beta(wx_stencil_1d(df, n)),       &
-                unit_radius, owned_panel, &
-                    geometry, topology,            &
-                    coord_system, scaled_radius,   &
-xyz(1), xyz(2), xyz(3)               &
+                unit_radius, owned_panel, geometry, topology, coord_system,    &
+                scaled_radius, xyz(1), xyz(2), xyz(3)                          &
         )
         ! Transform to the Cartesian coordinates in the *native* coordinate
         ! system by applying the inverse of any mesh rotation and stretching:

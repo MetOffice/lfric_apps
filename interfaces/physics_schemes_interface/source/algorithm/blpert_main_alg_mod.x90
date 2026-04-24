@@ -72,11 +72,6 @@ contains
     use log_mod,                       only: log_event, log_scratch_space, &
                                              LOG_LEVEL_ERROR
 
-    ! Configuration modules
-    use base_mesh_config_mod,      only: geometry
-    use finite_element_config_mod, only: coord_system
-    use planet_config_mod,         only: scaled_radius
-
     implicit none
     type( field_type ), intent(inout) :: dtheta_blpert
     type( field_type ), intent(inout) :: dmv_blpert
@@ -145,9 +140,9 @@ contains
     mesh => dtheta_blpert % get_mesh()
     twod_mesh => mesh_collection % get_mesh(mesh, TWOD)
     vector_space => function_space_collection % get_fs(twod_mesh, 0, 0, W3)
-    height_wth => get_height_fv(Wtheta, mesh % get_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+    height_wth => get_height_fv( Wtheta, mesh % get_id(), &
+                                 geometry, coord_system,  &
+                                 scaled_radius )
 
     coarse_mesh => mesh_collection % get_mesh(blpert_mesh_name)
     coarse_twod_mesh => mesh_collection % get_mesh(coarse_mesh, TWOD)

@@ -18,13 +18,15 @@ use sci_geometric_constants_mod,   &
 use illuminate_kernel_mod,   only: illuminate_kernel_type
 use timing_mod,              only: start_timing, stop_timing, tik, LPROF
 
+! Confugration modules
 use base_mesh_config_mod,      only: geometry, topology, f_lat
-use finite_element_config_mod, only: coord_system, element_order_h, element_order_v
-use planet_config_mod,         only: scaled_radius
+use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                     coord_system
 use idealised_config_mod,      only: f_lon
-
+use planet_config_mod,         only: scaled_radius
 
 implicit none
+
 private
 
 !------------------------------------------------------------------------------
@@ -100,15 +102,15 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
 
     mesh => cos_zenith_angle%get_mesh()
 
-    latitude  => get_latitude_fv( W3, mesh%get_id(), &
-                                geometry, topology, &
+    latitude  => get_latitude_fv( W3, mesh%get_id(),                &
+                                  geometry, topology,               &
                                   element_order_h, element_order_v, &
-                                  coord_system, f_lat, f_lon, &
+                                  coord_system, f_lat, f_lon,       &
                                   scaled_radius )
-    longitude => get_longitude_fv( W3, mesh%get_id(), &
-                                geometry, topology, &
+    longitude => get_longitude_fv( W3, mesh%get_id(),               &
+                                  geometry, topology,               &
                                   element_order_h, element_order_v, &
-                                  coord_system, f_lat, f_lon, &
+                                  coord_system, f_lat, f_lon,       &
                                   scaled_radius )
 
     call invoke( illuminate_kernel_type( &

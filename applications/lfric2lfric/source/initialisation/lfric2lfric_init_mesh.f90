@@ -74,6 +74,8 @@ contains
 !> @param[in] total_ranks        Total number of MPI ranks in this job.
 !> @param[in] mesh_names         Mesh names to load from the mesh input file(s).
 !> @param[in] extrusion          Extrusion object to be applied to meshes.
+!> @param[in] inner_halo_tiles   Flag to apply tiling to inner halos
+!> @param[in] tile_size          Inner halo tile sizes in x/y direction for each mesh.
 !> @param[in] stencil_depths_in  Required stencil depth for the application
 !!                               for each mesh.
 !> @param[in] regrid_method      Apply check for even partitions with the
@@ -85,7 +87,8 @@ subroutine init_mesh( config,                  &
                       local_rank, total_ranks, &
                       mesh_names,              &
                       extrusion,               &
-                    inner_halo_tiles, tile_size, &
+                      inner_halo_tiles,        &
+                      tile_size,               &
                       stencil_depths_in,       &
                       regrid_method )
 
@@ -132,9 +135,6 @@ subroutine init_mesh( config,                  &
   integer(kind=i_def)                 :: i
   character(len=str_max_filename)     :: mesh_file(2)
   integer(kind=i_def)                 :: stencil_depths(2)
-
-!  integer(i_def), allocatable :: tile_size(:,:)
-!  logical(l_def) :: inner_halo_tiles
 
   procedure(partitioner_interface), pointer :: partitioner_src => null()
   procedure(partitioner_interface), pointer :: partitioner_dst => null()
@@ -373,9 +373,6 @@ subroutine init_mesh( config,                  &
   ! Alternative names are needed in case the source and destination
   ! mesh files use the same mesh name.
   !============================================================================
-!  inner_halo_tiles = .false.
-!  allocate(tile_size(2,size(mesh_names)))
-!  tile_size = 1
   call create_mesh( mesh_names, extrusion, &
                     inner_halo_tiles, tile_size )
 

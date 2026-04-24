@@ -8,34 +8,36 @@
 
 module spt_main_alg_mod
 
-    use constants_mod,        only: r_def, i_def, l_def, r_second
-    use fs_continuity_mod,    only: W0, Wtheta
-    ! define types
-    use clock_mod,            only: clock_type
-    use field_mod,            only: field_type
-    use field_collection_mod, only: field_collection_type
-    use mesh_mod,             only: mesh_type
-    ! for IO and timers
-    use io_config_mod,        only: write_diag, use_xios_io
-    use timing_mod,           only: start_timing, stop_timing, tik, LPROF
-    ! load modules to set up the W0 space for 1-2-1 filtering
-    ! wtheta -> w0 bottom DoF -> wtheta
-    use function_space_collection_mod, only: function_space_collection
-    use function_space_mod,            only: function_space_type
-    use extrusion_config_mod, only: planet_radius
+  use constants_mod,        only: r_def, i_def, l_def, r_second
+  use fs_continuity_mod,    only: W0, Wtheta
+
+  ! define types
+  use clock_mod,            only: clock_type
+  use field_mod,            only: field_type
+  use field_collection_mod, only: field_collection_type
+  use mesh_mod,             only: mesh_type
+
+  ! for IO and timers
+  use io_config_mod,        only: write_diag, use_xios_io
+  use timing_mod,           only: start_timing, stop_timing, tik, LPROF
+  ! load modules to set up the W0 space for 1-2-1 filtering
+  ! wtheta -> w0 bottom DoF -> wtheta
+  use function_space_collection_mod, only: function_space_collection
+  use function_space_mod,            only: function_space_type
+  use extrusion_config_mod, only: planet_radius
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
 
-    implicit none
+  implicit none
 
-    private
+  private
 
-    public spt_main_alg, spt_init_power_law
+  public spt_main_alg, spt_init_power_law
 
- contains
+contains
   !>@brief Run the Stochastic Perturbation of Tendencies (SPT)
   !>@details The SPT scheme  creates perturbations in theta and mv prognostics
   !>         from the physical tendencies of radiation, microphysics and convection.
@@ -456,8 +458,8 @@ module spt_main_alg_mod
   ! Apply water conservation to the column if requested
   if (spt_moisture_conservation) then
     mesh   => dtheta%get_mesh()
-    dz_wth => get_dz_at_wtheta(mesh%get_id(), &
-                             geometry, coord_system, scaled_radius)
+    dz_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                coord_system, scaled_radius )
     call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth, &
                                             rho_in_wth,spt_level_bottom, &
                                             spt_level_top))

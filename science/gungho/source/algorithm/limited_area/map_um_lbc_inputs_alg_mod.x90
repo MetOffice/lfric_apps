@@ -18,7 +18,7 @@ module map_um_lbc_inputs_alg_mod
   use sci_sample_wtheta_to_w3_kernel_mod, only: sample_wtheta_to_w3_kernel_type
   use sci_geometric_constants_mod,    only: get_height_fv
 
-  ! Configuration modules (due to sci_geometric_constants)
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
@@ -58,10 +58,10 @@ contains
     type(field_type)                :: qsum_w3
     integer(i_def)                  :: mesh_id
 
-    mesh_id     =  rho%get_mesh_id()
-    height_w3   => get_height_fv( W3, mesh_id, &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+    mesh_id   =  rho%get_mesh_id()
+    height_w3 => get_height_fv( W3, mesh_id,            &
+                                geometry, coord_system, &
+                                scaled_radius )
 
     ! Convert to a total air density
     ! rho = rho/r/r

@@ -55,13 +55,12 @@ module name_transport_driver_mod
                                                 name_transport_final
 
   ! Configuration modules
-  use base_mesh_config_mod,    only: geometry_planar, &
-                                     geometry_spherical
-  use name_options_config_mod, only: transport_density
-
-  use finite_element_config_mod, only: coord_system, &
+  use base_mesh_config_mod,      only: geometry_planar, &
+                                       geometry_spherical
+  use finite_element_config_mod, only: coord_system,    &
                                        element_order_h, &
                                        element_order_v
+  use name_options_config_mod,   only: transport_density
 
   implicit none
 
@@ -117,7 +116,7 @@ contains
     integer(i_def), allocatable :: tile_size(:,:)
 
     logical(kind=l_def) :: prepartitioned
-    logical(kind=l_def) :: apply_partition_check
+    logical(kind=l_def) :: check_partitions
 
     integer(kind=i_def) :: geometry
     integer(kind=i_def) :: topology
@@ -153,12 +152,12 @@ contains
     use_xios_io        = modeldb%config%io%use_xios_io()
 
     if (prepartitioned) then
-      tile_size_x = 1
-      tile_size_y = 1
+      tile_size_x      = 1
+      tile_size_y      = 1
       inner_halo_tiles = .false.
     else
-      tile_size_x = modeldb%config%partitioning%tile_size_x()
-      tile_size_y = modeldb%config%partitioning%tile_size_y()
+      tile_size_x      = modeldb%config%partitioning%tile_size_x()
+      tile_size_y      = modeldb%config%partitioning%tile_size_y()
       inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
     end if
 
@@ -252,14 +251,13 @@ contains
     tile_size(1,:) = tile_size_x
     tile_size(2,:) = tile_size_y
 
-    apply_partition_check = .false.
+    check_partitions = .false.
     call init_mesh( modeldb%config,              &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
                     base_mesh_names, extrusion,  &
                     inner_halo_tiles, tile_size, &
-                    stencil_depths,              &
-                    apply_partition_check )
+                    stencil_depths, check_partitions )
 
     call create_mesh( base_mesh_names, extrusion_2d, &
                       inner_halo_tiles, tile_size,   &
@@ -374,12 +372,13 @@ contains
       call write_scalar_diagnostic( 'tracer_con', tracer_con, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
 
-      height_w3 => get_height_fe(W3, mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
-      height_wth => get_height_fe(Wtheta, mesh%get_id(), &
-                          geometry, element_order_h, element_order_v, &
-                          coord_system, scaled_radius)
+      height_w3  => get_height_fe( W3, mesh%get_id(),                          &
+                                   geometry, element_order_h, element_order_v, &
+                                   coord_system, scaled_radius )
+      height_wth => get_height_fe( Wtheta, mesh%get_id(),                      &
+                                   geometry, element_order_h, element_order_v, &
+                                   coord_system, scaled_radius )
+
       call write_scalar_diagnostic( 'height_w3', height_w3, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'height_wth', height_wth, modeldb%clock, &

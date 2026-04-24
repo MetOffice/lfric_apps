@@ -51,9 +51,8 @@ contains
 
     if (init_diag(freeze_lev, 'processed__freeze_lev') .and. use_xios_io) then
 
-      height_wth => get_height_fv(Wtheta, theta%get_mesh_id(), &
-                                  geometry, coord_system, &
-                                  scaled_radius)
+      height_wth => get_height_fv( Wtheta, theta%get_mesh_id(), &
+                                   geometry, coord_system, scaled_radius )
 
       call invoke( freeze_lev_kernel_type(theta, mr(imr_v),                  &
                                           moist_dyn(total_mass), exner_wth,  &

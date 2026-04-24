@@ -94,8 +94,8 @@ contains
     call invoke( setval_c(rhodz_dry, 0.0_r_def), &
                  setval_c(t_local,   0.0_r_def))
 
-    dz_in_wth => get_dz_at_wtheta( mesh%get_id(), &
-                             geometry, coord_system, scaled_radius )
+    dz_in_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                   coord_system, scaled_radius )
 
     call electric_fields%get_field('flash_potential', flash_potential)
     call flash_potential%copy_field_properties(num_flashes_2d)

@@ -65,7 +65,7 @@ program algorithm_test
 
   character(str_def) ::  prime_mesh_name
 
-  logical(l_def) :: apply_partition_check
+  logical(l_def) :: check_partitions
   logical(l_def) :: inner_halo_tiles
 
   integer(i_def) :: geometry
@@ -198,12 +198,11 @@ program algorithm_test
   tile_size(1,:) = tile_size_x
   tile_size(2,:) = tile_size_y
   stencil_depth = 1
-  apply_partition_check = .false.
+  check_partitions = .false.
   call init_mesh( config, local_rank, total_ranks, &
                   base_mesh_names, extrusion,      &
                   inner_halo_tiles, tile_size,     &
-                  stencil_depth,                   &
-                  apply_partition_check )
+                  stencil_depth, check_partitions )
 
   do i=1, size(twod_names)
     twod_names(i) = trim(twod_names(i))//'_2d'

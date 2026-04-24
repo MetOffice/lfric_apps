@@ -35,7 +35,7 @@ contains
   !> @brief Initialise the mesh and store it in the global mesh collection
   !>
   !> @param [out]   mesh_name     The name of the mesh being setup
-  !> @param [in]    config        The geometry configuration
+  !> @param [in]    config        Application configuration object
   !> @param [inout] mpi_obj       The mpi communicator
   !> @param [in]    alt_mesh_name The name of an alternative mesh_name to setup
   subroutine initialise_mesh( mesh_name, config, mpi_obj, alt_mesh_name )
@@ -43,7 +43,7 @@ contains
     implicit none
 
     character(len=*),              intent(out) :: mesh_name
-    type(config_type),              intent(in) :: config
+    type(config_type),             intent(in)  :: config
     !> @todo: This should be intent in but when calling the method I get
     !> a compiler failure
     class(lfric_mpi_type),       intent(inout) :: mpi_obj
@@ -69,9 +69,9 @@ contains
     real(r_def)                     :: domain_bottom
     real(r_def)                     :: domain_height
     real(r_def)                     :: scaled_radius
-    logical(l_def)                  :: apply_partition_check
 
     logical(l_def) :: inner_halo_tiles
+    logical(l_def) :: check_partitions
 
     !--------------------------------------
     ! 0.0 Extract namelist variables
@@ -134,15 +134,14 @@ contains
     allocate(tile_size(2, size(base_mesh_names)))
     tile_size(1,:) = tile_size_x
     tile_size(2,:) = tile_size_y
-    apply_partition_check = .false.
+    check_partitions = .false.
 
     call init_mesh( config,                      &
                     mpi_obj%get_comm_rank(),     &
                     mpi_obj%get_comm_size(),     &
                     base_mesh_names, extrusion,  &
                     inner_halo_tiles, tile_size, &
-                    stencil_depths,              &
-                    apply_partition_check )
+                    stencil_depths, check_partitions )
 
     allocate( twod_names, source=base_mesh_names )
     do i=1, size(twod_names)

@@ -43,12 +43,13 @@ contains
 
   !> @brief Initialise the XIOS context and IO
   !>
+  !> @param [in]    config        Application configuration object
   !> @param [in]    context_name  The name of the context
   !> @param [in]    mpi           The mpi communicator
   !> @param [in]    file_meta     The file meta data
   !> @param [in]    mesh_name     The name of the mesh
   !> @param [in]    calendar      The model calendar
-  !> @param [inout] io_context  The LFRic context object
+  !> @param [inout] io_context    The LFRic context object
   !> @param [inout] model_clock   The model clock
   subroutine initialise_io( config, context_name, mpi, file_meta, &
                             mesh_name, calendar, io_context, model_clock )
@@ -107,6 +108,7 @@ contains
 
   !> @brief  Initialises the model I/O and context
   !>
+  !> @param[in] config        Application configuration object
   !> @param[in] context_name  A string identifier for the context
   !> @param[in] communicator  The ID for the model MPI communicator
   !> @param[in] file_meta     The file meta data
@@ -183,11 +185,12 @@ contains
       ! Setup the context
       call io_context%initialise( context_name )
       call lfric_comm%set_comm_mpi_val(communicator)
-      call io_context%initialise_xios_context( lfric_comm,    &
+      call io_context%initialise_xios_context( lfric_comm,            &
                                                chi, panel_id,         &
                                                model_clock, calendar, &
-                                               before_close_ptr,        &
-                                         geometry, topology, coord_system, scaled_radius )
+                                               before_close_ptr,      &
+                                               geometry, topology,    &
+                                               coord_system, scaled_radius )
       ! Attach context advancement to the model's clock
       context_advance => advance
       event_actor_ptr => io_context

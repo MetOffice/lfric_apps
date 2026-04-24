@@ -8,28 +8,31 @@
 
 module stph_fp_main_alg_mod
 
-    use constants_mod,       only: r_def, i_def, str_def, pi
-    use extrusion_mod,       only: TWOD
-    use field_mod,           only: field_type
-    use fs_continuity_mod,   only: W3
-    use mesh_mod,            only: mesh_type
-    use mesh_collection_mod, only: mesh_collection
-    use timing_mod,          only: start_timing, stop_timing, tik, LPROF
-    use level_heights_mod,    only: eta_theta_levels
-    use extrusion_config_mod, only: domain_height
+  use constants_mod,       only: r_def, i_def, str_def, pi
+  use extrusion_mod,       only: TWOD
+  use field_mod,           only: field_type
+  use fs_continuity_mod,   only: W3
+  use mesh_mod,            only: mesh_type
+  use mesh_collection_mod, only: mesh_collection
+  use timing_mod,          only: start_timing, stop_timing, tik, LPROF
+  use level_heights_mod,    only: eta_theta_levels
+  use extrusion_config_mod, only: domain_height
 
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, f_lat
-  use finite_element_config_mod, only: coord_system, element_order_h, element_order_v
-  use planet_config_mod,         only: scaled_radius
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
   use idealised_config_mod,      only: f_lon
+  use planet_config_mod,         only: scaled_radius
 
-    implicit none
 
-    private
+  implicit none
 
-    public stph_fp_main_alg
+  private
 
- contains
+  public stph_fp_main_alg
+
+contains
   !>@brief Run the Stochastic Forcing pattern code
   !>@details This code creates the forcing pattern for stochastic physics schemes.
   !>         The forcing pattern comes from the spherical harmonic spectral transformation
@@ -187,16 +190,16 @@ module stph_fp_main_alg_mod
   !!  2)  Apply the spect_2_cubedsphere transformation !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
- ! Create 2D mesh from the FP field
+  ! Create 2D mesh from the FP field
   mesh => fp%get_mesh()
   twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
   ! Get longitude
-  longitude => get_longitude_fv(W3, twod_mesh%get_id(), &
-                                geometry, topology, &
-                                  element_order_h, element_order_v, &
-                                  coord_system, f_lat, f_lon, &
-                                  scaled_radius )
+  longitude => get_longitude_fv( W3, twod_mesh%get_id(),           &
+                                 geometry, topology,               &
+                                 element_order_h, element_order_v, &
+                                 coord_system, f_lat, f_lon,       &
+                                 scaled_radius )
 
   ! Get Matrix of Legendre Polynomials (scaled) Pnm_star
   Pnm_star => get_Pnm_star(twod_mesh%get_id())

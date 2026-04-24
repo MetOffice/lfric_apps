@@ -78,7 +78,7 @@ contains
 
     logical(l_def) :: l_multigrid
     logical(l_def) :: prepartitioned
-    logical(l_def) :: apply_partition_check
+    logical(l_def) :: check_partitions
     logical(l_def) :: inner_halo_tiles
     integer(i_def) :: stencil_depth(1)
     integer(i_def) :: geometry
@@ -190,9 +190,9 @@ contains
     ! 1.3 Initialise mesh objects and assign InterGrid maps
     !=======================================================================
     stencil_depth = 2
-    apply_partition_check = .false.
+    check_partitions = .false.
     if ( .not. prepartitioned .and. l_multigrid ) then
-      apply_partition_check = .true.
+      check_partitions = .true.
     end if
 
     if (allocated(tile_size)) deallocate(tile_size)
@@ -200,17 +200,10 @@ contains
     tile_size(1,:) = tile_size_x
     tile_size(2,:) = tile_size_y
     if (l_multigrid) then
-!print*, 'l_multigrid :', l_multigrid
-!print*, 'tile_size_x:', tile_size_x
-!print*, 'tile_size_y:', tile_size_y
-!print*, 'pre-tile_size:', tile_size
-!print*, 'base_mesh_names :', base_mesh_names
-!print*, 'extrusion :', extrusion
       multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
                                                      base_mesh_names, &
                                                      extrusion )
       where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
-!print*, 'post-tile_size:', tile_size
     end if
 
     call init_mesh( modeldb%config,              &
@@ -218,8 +211,7 @@ contains
                     modeldb%mpi%get_comm_size(), &
                     base_mesh_names, extrusion,  &
                     inner_halo_tiles, tile_size, &
-                    stencil_depth,    &
-                    apply_partition_check )
+                    stencil_depth, check_partitions )
 
     allocate( twod_names, source=base_mesh_names )
     do i=1, size(twod_names)
@@ -254,8 +246,8 @@ contains
     !-------------------------------------------------------------------------
     ! Initialise aspects of output
     !-------------------------------------------------------------------------
-    call init_io( program_name, prime_mesh_name, &
-                  modeldb, chi_inventory, panel_id_inventory, &
+    call init_io( program_name, prime_mesh_name, modeldb, &
+                  chi_inventory, panel_id_inventory,      &
                   geometry, topology )
 
     !-------------------------------------------------------------------------
