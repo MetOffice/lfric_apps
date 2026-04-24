@@ -1,0 +1,18 @@
+##############################################################################
+# (c) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+[check]
+
+file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
+
+select = ["S101", "PORT011"]
+
+output-format = "grouped"                #group results by file
+
+[check.per-file-ignores]
+
+"process_send_fields_2d_mod.X90" = ["S101"]
+"set_r_ocean_fraction_mod.F90" = ["S101"]

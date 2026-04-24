@@ -154,7 +154,7 @@ contains
                                              canopy_height, tile_temperature, &
                                              tile_lw_grey_albedo ),           &
                  ! Sea ice conductivity will use either this fixed value or
-                 ! it will get overwritten by the coupler
+                 ! it will get overwritten by the coupler or process_inputs
                  setval_c(sea_ice_conductivity, default_conductivity ),       &
                  ! Initialise melt ponds to zero
                  setval_c(melt_pond_fraction, 0.0_r_def ),                    &

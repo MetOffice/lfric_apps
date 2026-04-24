@@ -31,7 +31,7 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: 2026.03.2
+    ref: a963e38720b7ea0b01952176603f6f98767d6506
 
 moci:
     source: git@github.com:MetOffice/moci.git
@@ -39,7 +39,7 @@ moci:
 
 SimSys_Scripts:
     source: git@github.com:MetOffice/SimSys_Scripts.git
-    ref: 2026.03.2
+    ref: cab3315147a3c7e8546dda559d3da0fccd702f29
 
 socrates:
     source: git@github.com:MetOffice/socrates.git
