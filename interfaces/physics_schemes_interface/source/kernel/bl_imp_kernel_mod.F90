@@ -223,25 +223,15 @@ contains
          dtrdz_charney_grid, rdz_charney_grid, qw, tl, dqw, dtl, ct_ctq, &
          dqw_nt, dtl_nt
 
-    ! profile fields on u/v points and all levels
-    real(r_bl), dimension(seg_len,1,nlayers) :: r_u, r_v
-
-    ! profile fields on u/v points and BL levels
-    real(r_bl), dimension(seg_len,1,bl_levels) :: taux, tauy, &
-         dtrdz_u, dtrdz_v, rhokm_u, rhokm_v, cq_cm_u, cq_cm_v
-
-    ! profile fields from level 2 upwards
-    real(r_bl), dimension(seg_len,1,2:bl_levels) :: rdz_u, rdz_v
-
     ! profile fields from level 0 upwards
     real(r_bl), dimension(seg_len,1,0:nlayers) :: q, qcl, qcf, r_theta_levels
 
     ! single level real fields
     real(r_bl), dimension(seg_len,1) :: gamma1, gamma2, ctctq1_1, &
-         dqw1_1, dtl1_1, cq_cm_u_1, du_1, cq_cm_v_1, dv_1
+         dqw1_1, dtl1_1
 
     ! single level integer fields
-    integer(i_um), dimension(seg_len,1) :: k_blend_tq, k_blend_uv
+    integer(i_um), dimension(seg_len,1) :: k_blend_tq
 
     ! parameters for new BL solver
     real(r_bl) :: pnonl,p1,p2
@@ -372,15 +362,13 @@ contains
          bl_levels, l_correct,                                               &
          ! IN fields
          q, qcl, qcf, q_latest, qcl_latest, qcf_latest, t, t_latest,         &
-         dtrdz_charney_grid, dtrdz_u, dtrdz_v, rhokh, rhokm_u, rhokm_v,      &
-         rdz_charney_grid, rdz_u, rdz_v, gamma1, gamma2, real(alpha_cd,r_bl),&
-         r_u, r_v, r_theta_levels, r_rho_levels, k_blend_tq,                 &
-         k_blend_uv, k_blend_uv,                                             &
+         dtrdz_charney_grid, rhokh,                                          &
+         rdz_charney_grid, gamma1, gamma2, real(alpha_cd,r_bl),              &
+         r_theta_levels, r_rho_levels, k_blend_tq,                           &
          ! INOUT fields
-         fqw, ftl, taux, tauy, r_u, r_v, dqw, dtl,                           &
+         fqw, ftl, dqw, dtl,                                                 &
          ! OUT fields
-         dqw_nt, dtl_nt, qw, tl, ct_ctq, cq_cm_u, cq_cm_v, cq_cm_u_1,        &
-         cq_cm_v_1, du_1, dv_1, dqw1_1,dtl1_1,ctctq1_1                       &
+         dqw_nt, dtl_nt, qw, tl, ct_ctq, dqw1_1, dtl1_1, ctctq1_1            &
          )
 
     do k = 1, bl_levels
