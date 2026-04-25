@@ -1019,7 +1019,7 @@ For :math:`Ri < 0`, the standard UM stability functions are given by
    f_m  = 1 - \frac{g_0 \,Ri}
            {1+D_m(\tilde{{\cal L}}_m/\tilde{{\cal L}}_h)|Ri|^{1/2} }
 
-.. math::
+.. math:: :label: unstable_stab
 
    f_h  = \frac{1}{Pr_N}\left(1 - \frac{g_0 \,Ri}
            {1+D_h(\tilde{{\cal L}}_m/\tilde{{\cal L}}_h)|Ri|^{1/2} }\right)
@@ -1035,7 +1035,7 @@ model (LEM), `Brown (1999) 2`_:
 
    f_m  = (1 - c_{LEM} Ri)^{1/2}
 
-.. math::
+.. math:: :label: unstable_stab_lem
 
    f_h  = \frac{1}{Pr_N}\left(1 - b_{LEM} Ri\right)^{1/2}
 
@@ -1114,7 +1114,7 @@ turbulence beyond a critical Richardson number, :math:`Ri_c=0.25`:
 
    f_m  = \left( 1 - \frac{Ri}{Ri_c} \right)^4
 
-.. math::
+.. math:: :label: stable_stab_lem
 
    f_h  = \frac{1}{Pr_N} \left( 1 - \frac{Ri}{Ri_c} \right)^4 (1 - g_{LEM} Ri)
 
@@ -2221,7 +2221,7 @@ F|_{z_i}`, so that
 
    {\cal H}|_{z_i}  = - w_e \Delta \theta_{\ell}+ F_{\rm net}|_h
 
-.. math::
+.. math:: :label: discinv
 
    \overline{w'q_t'}_{z_i} = - w_e \Delta q_t
 
@@ -2260,7 +2260,7 @@ base of the mixed layer:
    \left( \tilde{w_e} \Delta \theta_{\ell}+ \overline{w'\theta_{\ell}'}|_{z_{\rm b}} - F_{\rm net}|_{h} \right)
    - F_{\rm net}|_{ z_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }
 
-.. math::
+.. math:: :label: fluxinterp
 
    \overline{w'q_t'}|_{ z_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }  = \overline{w'q_t'}|_{z_{\rm b}}
    - \frac{ z'_{\mbox{\tiny \rm NTDSC}+\frac{1}{2}} }{z_{\rm ml}}
@@ -2792,7 +2792,7 @@ specified through an eddy diffusivity which is given by
 
    K_h|_{\mbox{\tiny \rm NTML}+\frac{1}{2}}  = w_e \Delta_{\mbox{\tiny \rm NTML}+1} z
 
-.. math::
+.. math:: :label: khent
 
    K_m|_{\mbox{\tiny \rm NTML}}           = Pr \, w_e \Delta_{\mbox{\tiny \rm NTML}+\frac{1}{2}} z
 
