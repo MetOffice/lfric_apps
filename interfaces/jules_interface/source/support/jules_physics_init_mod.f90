@@ -56,6 +56,14 @@ module jules_physics_init_mod
                               i_high_wind_drag_null,                           &
                               i_high_wind_drag_limited,                        &
                               i_high_wind_drag_reduced_v1,                     &
+                              meltpond_alb_vn,                                 &
+                              meltpond_alb_vn_none,                            &
+                              meltpond_alb_vn_cice,                            &
+                              meltpond_alb_vn_malinka,                         &
+                              l_zenith_albedo_in => l_zenith_albedo,           &
+                              snow_grain_size_min_in => snow_grain_size_min,   &
+                              snow_grain_size_max_in => snow_grain_size_max,   &
+                              snowpatch_in => snowpatch,                       &
                               cdn_hw_sea_in => cdn_hw_sea,                     &
                               cdn_max_sea_in => cdn_max_sea,                   &
                               u_cdn_hw_in => u_cdn_hw,                         &
@@ -212,7 +220,8 @@ contains
          ip_ss_coare_mq, a_chrn_coare, b_chrn_coare, u10_max_coare,         &
          l_10m_neut, alpham, dtice, l_iceformdrag_lupkes,                   &
          l_stability_lupkes, l_use_dtstar_sea, hcap_sea, beta_evap,         &
-         l_sice_meltponds, l_sice_meltponds_cice,                           &
+         l_sice_meltponds, i_meltpond_alb_vn, l_zenith_albedo,              &
+         snow_grain_size_min, snow_grain_size_max, snowpatch,               &
          l_cice_alb, l_saldep_freeze, l_sice_multilayers,                   &
          l_sice_scattering, l_sice_swpen, l_ssice_albedo,                   &
          pen_rad_frac_cice, sw_beta_cice,                                   &
@@ -371,12 +380,25 @@ contains
     z0h_z0m_miz          = 0.2_r_um
     z0h_z0m_sice         = 0.2_r_um
     z0sice               = 5.0e-4_r_um
+    l_zenith_albedo      = l_zenith_albedo_in
+    snow_grain_size_min  = snow_grain_size_min_in
+    snow_grain_size_max  = snow_grain_size_max_in
+    snowpatch            = snowpatch_in
+
+    ! Setup the melt pond albedo scheme
+    select case (meltpond_alb_vn)
+      case(meltpond_alb_vn_none)
+        i_meltpond_alb_vn = 0
+      case(meltpond_alb_vn_cice)
+        i_meltpond_alb_vn = 1
+      case(meltpond_alb_vn_malinka)
+        i_meltpond_alb_vn = 2
+    end select
 
     ! Setup switches that vary depending if the model is
     ! coupled to an ocean/sea-ice model or not.
     if (l_couple_sea_ice) then
       l_sice_meltponds      = .true.
-      l_sice_meltponds_cice = .true.
       l_tstar_sice_new      = .false.
       l_cice_alb            = .true.
       l_sice_multilayers    = .true.
@@ -387,7 +409,6 @@ contains
       sw_beta_cice          = 0.3_r_um
     else
       l_sice_meltponds      = .false.
-      l_sice_meltponds_cice = .false.
       l_tstar_sice_new      = .true.
       l_cice_alb            = .false.
       l_sice_multilayers    = .false.
