@@ -66,13 +66,15 @@ subroutine drag_incs_code(nlayers, du_out, du_in, u_in,       &
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in) :: nlayers, ndf, undf, ndf_2d, undf_2d
-  integer(kind=i_def), dimension(ndf), intent(in) :: map
-  integer(kind=i_def), dimension(ndf_2d), intent(in) :: map_2d
-  real(kind=r_def), dimension(undf), intent(inout) :: du_out
-  real(kind=r_def), dimension(undf), intent(in) :: du_in, u_in
-  integer(kind=i_def), dimension(undf_2d), intent(in) :: face_selector_ew
-  integer(kind=i_def), dimension(undf_2d), intent(in) :: face_selector_ns
+  integer(kind=i_def),                        intent(in)    :: nlayers
+  integer(kind=i_def),                        intent(in)    :: ndf, undf
+  integer(kind=i_def),                        intent(in)    :: ndf_w3_2d, undf_w3_2d
+  integer(kind=i_def), dimension(ndf),        intent(in)    :: map
+  integer(kind=i_def), dimension(ndf_w3_2d),  intent(in)    :: map_w3_2d
+  real(kind=r_def),    dimension(undf),       intent(inout) :: du_out
+  real(kind=r_def),    dimension(undf),       intent(in)    :: du_in, u_in
+  integer(kind=i_def), dimension(undf_w3_2d), intent(in)    :: face_selector_ew
+  integer(kind=i_def), dimension(undf_w3_2d), intent(in)    :: face_selector_ns
 
   ! Internal variables
   integer(kind=i_def) :: j, df, k
