@@ -24,8 +24,8 @@ contains
 !!            should be used instead.
 subroutine um2lfric_init_masked_field_adjustments()
 
-use lfricinp_nearest_neighbour_mod,    only: find_nn_on_um_grid
 use lfricinp_get_latlon_mod,           only: get_lfric_mesh_coords
+use lfricinp_nearest_neighbour_mod,    only: find_nn_on_um_grid
 use lfricinp_masks_mod,                only: lfricinp_init_masks,              &
                                              lfricinp_finalise_masks,          &
                                              um_land_mask,                     &
@@ -34,9 +34,9 @@ use lfricinp_masks_mod,                only: lfricinp_init_masks,              &
                                              lfric_maritime_mask
 use lfricinp_stashmaster_mod,          only: stashcode_land_frac
 
-use um2lfric_regrid_weights_mod,           only: get_weights
 use um2lfric_masked_field_adjustments_mod, only: land_field_adjustments,       &
                                                  maritime_field_adjustments
+use um2lfric_regrid_weights_mod,           only: get_weights
 
 implicit none
 
