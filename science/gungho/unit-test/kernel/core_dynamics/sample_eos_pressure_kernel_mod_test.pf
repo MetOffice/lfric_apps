@@ -44,7 +44,8 @@ contains
                                           feign_initial_temperature_config, &
                                           feign_planet_config
     use initial_temperature_config_mod, &
-                                   only : perturb_none
+                                   only : perturb_none, &
+                                          profile_variable_potential
 
     implicit none
 
@@ -63,7 +64,8 @@ contains
                                            perturb=perturb_none,                  &
                                            profile_size=profile_size,             &
                                            profile_data=profile_data,             &
-                                           profile_heights=profile_heights )
+                                           profile_heights=profile_heights,       &
+                                           profile_variable=profile_variable_potential )
 
     call feign_planet_config( cp=1000.0_r_def,       &
                               gravity=10.0_r_def,    &
@@ -78,7 +80,7 @@ contains
   @after
   subroutine tear_down()
 
-    use configuration_mod, only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 

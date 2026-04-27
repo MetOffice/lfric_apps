@@ -61,7 +61,8 @@ contains
     use feign_config_mod,          only : feign_base_mesh_config,           &
                                           feign_initial_temperature_config
     use initial_temperature_config_mod, &
-                                   only : perturb_none
+                                   only : perturb_none, &
+                                          profile_variable_potential
 
 
     implicit none
@@ -83,14 +84,15 @@ contains
                                            perturb=perturb_none,                  &
                                            profile_size=profile_size,             &
                                            profile_data=profile_data,             &
-                                           profile_heights=profile_heights )
+                                           profile_heights=profile_heights,       &
+                                           profile_variable=profile_variable_potential )
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 

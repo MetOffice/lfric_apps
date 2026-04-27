@@ -53,7 +53,8 @@ contains
     use initial_pressure_config_mod, &
                                  only : method_balanced
     use initial_temperature_config_mod, &
-                                 only : perturb_none
+                                 only : perturb_none, &
+                                        profile_variable_potential
     use initial_wind_config_mod, only : profile_none
 
     implicit none
@@ -73,7 +74,8 @@ contains
                                            perturb=perturb_none,                  &
                                            profile_size=profile_size,             &
                                            profile_data=profile_data,             &
-                                           profile_heights=profile_heights )
+                                           profile_heights=profile_heights,       &
+                                           profile_variable=profile_variable_potential )
 
     call feign_initial_pressure_config( method = method_balanced,             &
                                         surface_pressure = surface_pressure )
@@ -126,7 +128,7 @@ contains
   @after
   subroutine tear_down()
 
-    use configuration_mod,        only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 

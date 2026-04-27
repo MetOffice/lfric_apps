@@ -63,7 +63,8 @@ contains
                                           feign_planet_config,              &
                                           feign_finite_element_config
     use initial_temperature_config_mod, &
-                                   only : perturb_none
+                                   only : perturb_none, &
+                                          profile_variable_potential
     use sci_chi_transform_mod,     only : init_chi_transforms
 
     implicit none
@@ -90,7 +91,8 @@ contains
                                            perturb=perturb_none,                  &
                                            profile_size=profile_size,             &
                                            profile_data=profile_data,             &
-                                           profile_heights=profile_heights )
+                                           profile_heights=profile_heights,       &
+                                           profile_variable=profile_variable_potential )
 
     call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
@@ -99,8 +101,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 
