@@ -55,7 +55,8 @@ contains
                                             coord_system_xyz
     use initial_pressure_config_mod, only : method_balanced
     use initial_temperature_config_mod, &
-                                     only : perturb_none
+                                     only : perturb_none, &
+                                            profile_variable_potential
 
     use feign_config_mod,            only : feign_base_mesh_config,           &
                                             feign_extrusion_config,           &
@@ -110,7 +111,8 @@ contains
                                            perturb=perturb_none,                  &
                                            profile_size=profile_size,             &
                                            profile_data=profile_data,             &
-                                           profile_heights=profile_heights )
+                                           profile_heights=profile_heights,       &
+                                           profile_variable=profile_variable_potential )
 
     call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
@@ -120,7 +122,7 @@ contains
   @after
   subroutine tear_down()
 
-    use configuration_mod, only: final_configuration
+    use config_loader_mod,     only: final_configuration
     use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
