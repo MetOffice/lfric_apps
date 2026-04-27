@@ -31,4 +31,3 @@ output-format = "grouped"                #group results by file
 # Leaving out for now (these rules are used in the universal config):
 # C081, E001
 
-
