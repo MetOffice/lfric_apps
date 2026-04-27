@@ -1810,6 +1810,7 @@ Discussion of some of the revisions
 
 .. list-table:: Convective and Neutral limits for velocity scales
    :name: tab:vscales
+   :header-rows: 2
 
 
    * - Formulation
