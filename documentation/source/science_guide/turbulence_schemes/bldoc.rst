@@ -393,7 +393,7 @@ of the height of the capping inversion is attempted for
 .. _sec_parxs:
 
 Calculation of parcel buoyancy excess
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As described in appendix :ref:`Appendix: Derivation and definitions of the buoyancy parameters <app_buoyp>`, virtual temperature,
 :math:`T_v =
@@ -662,7 +662,7 @@ contribution to the TKE budget in :eq:`deccrit` and so
 allow shear-driven mixing to help maintain well-mixed layers.
 
 Surface layer :math:`\overline{w'b}` integration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In the surface layer, below :math:`z_i/10`, the :math:`K` profiles have
 a different functional form from the rest of the mixed layer. Rather
@@ -686,7 +686,7 @@ becomes negative.
 .. _sec_wbint_inv:
 
 Integration of :math:`\overline{w'b}` close to the inversion
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Because of the large gradients often seen in fluxes close to the
 inversion (in particular, in the LW radiative flux), simple finite
@@ -1432,7 +1432,7 @@ convective. The origin of the functional form of
 .. _sec_hbcomp:
 
 Comparison with `Holtslag and Boville (1993)`_
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The surface-driven :math:`K` profiles are the same as those in
 `Holtslag and Boville (1993)`_, HB93,
@@ -1728,7 +1728,7 @@ and the range is now :math:`Pr_{\rm neut} = 0.75` to
 used to calculate :math:`K_m^{\rm Sc}`.
 
 Discussion of some of the revisions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. list-table:: Convective and Neutral limits for velocity scales
    :name: tab:vscales
@@ -2350,7 +2350,7 @@ and
 .. _sec_sginv:
 
 Diagnosis of a sub-grid inversion
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The profile of :math:`\theta_{v\ell}` is used to diagnose the height of
 a discontinuous inversion because it is approximately conserved under
@@ -2681,7 +2681,7 @@ treatment is attempted and entrainment is modelled using a
 straightforward eddy diffusivity.
 
 Calculation of the inversion jumps in the 9C scheme
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In the 9B scheme, the discontinuous jumps in :math:`\theta_{\ell}` and
 :math:`q_t` that are used in the entrainment calculation were calculated
@@ -2770,7 +2770,7 @@ for momentum and tracer variables.
 .. _sec_ent_K:
 
 For momentum (and scalars if no subgrid inversion)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For momentum, and scalars if a subgrid inversion cannot be diagnosed,
 see section :ref:`Diagnosis of a sub-grid inversion <sec_sginv>`, fluxes at the mixed layer top are
@@ -2821,7 +2821,7 @@ the :math:`{\cal E}` factors.
 .. _sec_entr_prof:
 
 Resolved inversions
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
 An inversion is defined as being resolved when it extends above the
 flux-level above the usual entrainment interface level (see
@@ -2859,7 +2859,7 @@ in :eq:`khent`.
 .. _sec_ent_K_flux:
 
 For tracers, when there is a subgrid inversion
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Here ‘tracers’ refers to scalar variables other than
 :math:`\theta_{\ell}` and :math:`q_t`: aerosols, :math:`q_f`, etc.
@@ -3130,7 +3130,7 @@ heat flux in very low mean wind conditions.
 .. _section_1.2:
 
 Comparison with the `Godfrey and Beljaars (1991)`_ formulation for gustiness
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We can define the **mean gust speed** at height z\ :math:`_{1}` by
 
@@ -3572,7 +3572,7 @@ subsection `8.6 <#section_1.6>`__ below.
 .. _mo_iter_corrn:
 
 Correction to the iterative algorithm
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The above implementation of boundary-layer convective gustiness in the
 Monin-Obukhov iteration contains an inconsistency. The overall effect
@@ -3705,7 +3705,7 @@ height (1.5 m) and the last iteration (N) values of C\ :math:`_{H}`, L
 and :math:`v_{\ast }` are used.
 
 The parametrization of decoupling
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In the foregoing analysis it is tacitly assumed that the surface layer,
 up to the model’s lowest grid level, is in equilibrium with the surface
@@ -3877,7 +3877,7 @@ mean value, :math:`<`\ c\ :math:`_{D}>`, when there is partial ice
 cover.
 
 Roughness Lengths over the Sea
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The roughness lengths for momentum and scalars depend on both the
 atmospheric flow and the wave state. The dependence on wave state is not
@@ -4043,7 +4043,7 @@ is useful to consider the treatment of high wind speeds as a seperate
 option.
 
 Surface exchange over sea ice
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As explained above, when sea ice is present, surface exchange involves
 exchanges between the atmosphere and the open sea (L), the marginal ice
@@ -4227,7 +4227,7 @@ Two approaches are available in uncoupled configurations of the model.
 .. _sec_coast:
 
 Surface exchange in coastal grid-boxes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In coupled ocean-atmosphere modelling the ocean requires appropriate
 surface stresses and fluxes over all ocean points. In coastal regions
@@ -4322,7 +4322,7 @@ The modifications needed to incorporate orographic form drag.
 .. _section_2.1:
 
 Effective roughness lengths
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Form drag is included in the surface turbulent flux formulation via
 effective roughness lengths for momentum :raw-latex:`\cite[]{wood93}`
@@ -4445,7 +4445,7 @@ Equation :eq:`2.1.13` implies that
    C_{D(f)} =  C_{D(eff)}  {\left( {1 + \frac{1}{2}  c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c /  z_{0m} )}{k}} \right)}^2 } \right)}^{-1}
 
 Parametrized orographic drag coefficient
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 `Wood and Mason (1993)`_ find that orographic drag coefficient
 c\ :math:`_{D(orog)}` depends on A/S via the equation
@@ -4516,7 +4516,7 @@ if the `Wood and Mason (1993)`_ formulation is used.
 .. _section_2.2:
 
 The iterative algorithm for calculating the effective surface exchange coefficients
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For unstable conditions, i.e. :math:`\Delta`\ B :math:`<` 0 :
 
@@ -4678,7 +4678,7 @@ from
 .. _section_2.3:
 
 Interpolation of surface layer variables to standard observation heights
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If the observation height wind is assumed to lie on the profile defined
 by the effective roughness length and surface scaling velocity then
@@ -4861,7 +4861,7 @@ accurate. In practical simulations :math:`P` may vary from timestep to
 timestep and from column to column.
 
 Algorithmic description
-~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Consider the non-linear damping equation:
 
@@ -4979,7 +4979,7 @@ Writing equations :eq:`eq:sppf_bl1`,
 .. _sec_impsolve:
 
 Discrete equations and boundary conditions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To derive the boundary conditions for the horizontal wind components we
 adapt the technique used in the original scheme.
@@ -5333,7 +5333,7 @@ NB: for CABLE compatibility, sf_impl2 is now called by an intermediate
 routine surf_couple_implicit.
 
 Flux diagnostic formulae
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 The original boundary layer implicit solver computes the total stress by
 time averaging the stresses at :math:`t^{n}` and :math:`t^{n+1}`, where
@@ -5376,7 +5376,7 @@ derived in a similar way. These formulae have been validated in SCM
 experiments.
 
 Implicit surface flux and future upgrades
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This scheme should be incorporated in the calculation of the scalar
 implicit fluxes. This would be preferable to the current technique for
@@ -5621,7 +5621,7 @@ scheme. [\ *Could it be that coefficients :math:`D_{j}`,
 :math:`\psi_{j}` need to be modified in the second sweep?*]
 
 Blending height coupling
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 The same method is used as in section :ref:`Discrete equations and boundary conditions <sec_impsolve>` to form
 two independent tridiagonal systems of linear equations that relate the
