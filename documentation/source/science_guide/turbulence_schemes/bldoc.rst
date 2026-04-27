@@ -1726,7 +1726,7 @@ Discussion of some of the revisions
 
 .. list-table:: Convective and Neutral limits for velocity scales
    :name: tab:vscales
-   :header-rows: 1
+
 
    * - Formulation
      - Convective limit
@@ -5284,9 +5284,8 @@ therefore needs to be computed only once, when the 1st or predictor
 stage is computed, i.e. :math:`X^{*}`. Briefly the following
 calculations take place for the scalar variables:
 
-.. list-table:: Table
-   :name: table_name
-   :header-rows: 1
+.. list-table::
+
 
    * - CALL bdy_impl3():
      - set up coefficients for :eq:`eq:dX_disc_top`, :eq:`eq:dX_disc` and do a downward sweep;
@@ -6579,9 +6578,8 @@ results for these variables it will prevent UKCA jobs from regressing.
 If the changes are significant it would be prudent to discuss them with
 the UKCA code owner before lodging the change.
 
-.. list-table:: Table
-   :name: table_name
-   :header-rows: 1
+.. list-table::
+
 
    * - Boundary layer inputs to UKCA
      - 
@@ -6738,9 +6736,8 @@ the UKCA code owner before lodging the change.
 Appendix: Notation
 ==================
 
-.. list-table:: Table
-   :name: table_name
-   :header-rows: 1
+.. list-table::
+
 
    * - Finite difference notation
      - 
@@ -6763,9 +6760,8 @@ Appendix: Notation
    * - 
      - across the capping inversion (see :eq:`dbinv` and following text)
 
-.. list-table:: Table
-   :name: table_name
-   :header-rows: 1
+.. list-table::
+
 
    * - Model variables
      - 
@@ -6794,9 +6790,8 @@ Appendix: Notation
    * - :math:`{\cal H}`
      - total heat flux (net radiative plus turbulent, Kms\ :math:`^{-1}`)
 
-.. list-table:: Table
-   :name: table_name
-   :header-rows: 1
+.. list-table::
+
 
    * - Thresholds
      - 
@@ -6822,9 +6817,8 @@ Appendix: Notation
    * - 
      - before decoupling occurs
 
-.. list-table:: Table
-   :name: table_name
-   :header-rows: 1
+.. list-table::
+
 
    * - Layer definitions and parameters
      - 
@@ -6889,9 +6883,8 @@ Appendix: Notation
    * - LCL
      - lifting condensation level
 
-.. list-table:: Table
-   :name: table_name
-   :header-rows: 1
+.. list-table::
+
 
    * - Other parameters
      - 
