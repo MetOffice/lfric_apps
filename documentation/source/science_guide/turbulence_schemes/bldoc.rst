@@ -238,9 +238,9 @@ Types I to VI are shown schematically in :numref:`Fig. %s <fig:bltypes>`.
       :widths: 46 46
 
       * - .. image:: wcrp_bltypes1.svg
-                     :width: 46%
+                     :width: 92%
         - .. image:: wcrp_bltypes2.svg
-                     :width: 46%
+                     :width: 92%
 
 .. _`sec:adiapar`:
 
@@ -1996,9 +1996,9 @@ turbulence scheme.
       :widths: 49 49
 
       * - .. image:: honnert_vs_tanh.svg
-                     :width: 49%
+                     :width: 98%
         - .. image:: zturb_schem.svg
-                     :width: 49%
+                     :width: 98%
 
 One of the key benefits of the `Lock et al. (2000)`_ scheme is its
 ability to represent decoupled stratocumulus layers, and this is a
@@ -6265,9 +6265,7 @@ therefore zero entrainment and turbulent mixing).
       :widths: 50 50
 
       * - .. image:: div_r080.svg
-                     :width: 50%
         - .. image:: div_r071.svg
-                     :width: 50%
 
 The 9C version attempted to remove the grid-dependence implied by the
 summation over 3 grid-levels in :eq:`ctraddiv` as follows:
