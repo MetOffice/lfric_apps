@@ -7547,7 +7547,7 @@ References
    Lock, A. P. (1999).
    *A parametrization of turbulent mixing in convective cloud-capped boundary
    layers derived from large-eddy simulations*.
-   Proceedings of GCSS-WGNE Workshop on `Cloud processes and cloud feedbacks
+   Proceedings of GCSS-WGNE Workshop on 'Cloud processes and cloud feedbacks
    in large-scale models', 9-13 November 1998, ECMWF, Shinfield Park, Reading,
    Berks., RG2 9AX, U.K..
 
@@ -7614,7 +7614,7 @@ References
 .. _Zilitinkevich (1975):
 
    Zilitinkevich, S. S. (1975).
-   *{Comments on ``A model for the dynamics of the inversion above a
+   *{Comments on ''A model for the dynamics of the inversion above a
    convective boundary layer''}*.
    J. Atmos. Sci., 32, 991-992.
 
