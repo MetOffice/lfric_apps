@@ -224,7 +224,7 @@ been categorised into 7 distinct ‘boundary layer types’:
   inhibit the formation of cumulus); the possibilities are discussed in
   section `4.2 <#sec:shear>`__.
 
-Types I to VI are shown schematically in Fig. `1 <#fig:bltypes>`__.
+Types I to VI are shown schematically in :numref:`Fig. %s <fig:bltypes>`.
 
 .. figure:: blank.svg
    :name: fig:bltypes
@@ -358,7 +358,7 @@ layer gradient, :math:`\Delta_{\rm sub}`, between grid-levels NLCL and
 :math:`k_s`. Currently the threshold factor, :math:`C_t = 1.1`. If
 cumulus is diagnosed, the top of the surface-based mixed layer
 (:math:`z_{\rm h}` ) is set to :math:`z_{\rm lcl}` (rather than to
-:math:`z_{\rm par}` , as illustrated in Fig. `1 <#fig:bltypes>`__ for
+:math:`z_{\rm par}` , as illustrated in :numref:`Fig. %s <fig:bltypes>` for
 types V and VI). There is then an option to diagnose the thickness of
 the LCL transition zone, see section `3.4 <#sec:lclmixing>`__.
 Otherwise, the boundary layer surface-driven mixing is capped at
@@ -689,7 +689,7 @@ Because of the large gradients often seen in fluxes close to the
 inversion (in particular, in the LW radiative flux), simple finite
 difference flux calculations, :eq:`eq:wx_std`, can be
 significantly inaccurate in this region. An example is shown in
-Fig. `2 <#fig:inv_integ>`__. Calculating
+:numref:`Fig. %s <fig:inv_integ>`. Calculating
 :math:`\overline{w'\theta_{\ell}'}_{\mbox{\tiny \rm NTML}+\frac{1}{2}}`
 from :eq:`eq:wx_std` gives a negative value, largely
 because :math:`\Delta_{\mbox{\tiny \rm NTML}+1} \theta_{\ell}` is
@@ -700,7 +700,7 @@ be positive.
 
 The solution adopted is to integrate :math:`\overline{w'b}` analytically
 across the region just below the inversion, labelled
-:math:`\Delta z_{rad}` in Fig, `2 <#fig:inv_integ>`__. Since
+:math:`\Delta z_{rad}` in Fig, :numref:`%s <fig:inv_integ>`. Since
 :math:`\Delta_{\mbox{\tiny \rm NTML}} \theta_{\ell}` can also be
 significantly positive (when the grid-level inversion is rising or
 falling, for example), the base of this region is taken to be the lower
@@ -1799,8 +1799,8 @@ that HB and the standard UM set
 surface layer. The convective and neutral limits for :math:`w_h` and
 :math:`w_m` are given in Table `1 <#tab:vscales>`__ and the stability
 dependencies of several parameters are shown in
-Fig. `3 <#fig:stab_dep>`__. The parameter :math:`d` in
-Fig. `3 <#fig:stab_dep>`__ contains the stability dependence of the
+:numref:`Fig. %s <fig:stab_dep>`. The parameter :math:`d` in
+:numref:`Fig. %s <fig:stab_dep>` contains the stability dependence of the
 gradient adjustment parameter:
 
 .. math:: :label: grad_adj
@@ -1817,7 +1817,7 @@ The inclusion of an extra :math:`w_*/w_m` factor in
 on which the UM was based. This seems an appealing feature (HB’s
 :math:`\gamma_{\chi}` will tend to zero as :math:`w_* \rightarrow 0`)
 and probably should be considered for the revised scheme (the
-dash-dotted line in Fig. `3 <#fig:stab_dep>`__ sets
+dash-dotted line in :numref:`Fig. %s <fig:stab_dep>` sets
 :math:`d^{std} = 10 w_*^2/w_h^2`). Similarly, :math:`f_2` might benefit
 from an additional factor of the form :math:`(V_{\rm surf}^3+
 V_{\rm Sc}^3)/ V_{\rm sum}^3` so that it too tends to zero in the
@@ -1833,7 +1833,7 @@ gives better agreement against LES.
 
 Compared to the standard scheme, it appears that the revised
 :math:`K_h^{\rm Sc}` is very different. However,
-Fig.\ `4 <#fig:new_ksc>`__ shows that this actually amounts to a small
+Fig.\ :numref:`%s <fig:new_ksc>` shows that this actually amounts to a small
 adjustment in the shape. In addition, note that the factors
 :math:`\varepsilon_h^{surf}` and :math:`\varepsilon_h^{Sc}` have been
 removed since the entrainment flux is now carried via the explicit
@@ -1974,7 +1974,7 @@ with `Malavelle et al. (2014)`_, and choose
 :math:`\beta=\beta_{\rm
   bl}=0.15` to give the best match of our function to that of
 `Honnert et al. (2011)`_. These functions are shown in
-Figure `5 <#fig-blend>`__\ (a) and are only dissimilar for small
+:numref:`Figure %s <fig-blend>`\ (a) and are only dissimilar for small
 :math:`\Delta
 x`, where Eq. :eq:`eq-tanh` tends to zero faster. This is by
 choice, to force the highest resolution simulations to use the 3D
@@ -2018,7 +2018,7 @@ the decoupled cloud top we set
 where :math:`z_{\rm sml}` is the depth of the surface-based mixed layer
 :raw-latex:`\cite[i.e.~the depth through which a positively buoyant parcel
 released at the surface would ascend,][]{lock00}`. This is shown
-schematically in Figure `5 <#fig-blend>`__\ (b), and ensures that
+schematically in :numref:`Figure %s <fig-blend>`\ (b), and ensures that
 :math:`W_{1D}` has a high value in the poorly resolved surface mixed
 layer and cloud layer, and a lower value in between those layers. Again,
 this choice of :math:`z_{\rm turb}` is broadly consistent with the
@@ -2271,7 +2271,7 @@ where :math:`z' = z-z_{\rm b}`, and similarly for the SML entrainment
 fluxes (at :math:`z=z_{\mbox{\tiny \rm NTML}+\frac{1}{2}}`). The
 turbulent fluxes at the base of the mixed layer are assumed zero except
 for the SML where the surface fluxes are used. This interpolation is
-illustrated for a SML in Fig. `6 <#fig:fluxinterp>`__.
+illustrated for a SML in :numref:`Fig. %s <fig:fluxinterp>`.
 
 .. figure:: blank.svg
    :name: fig:fluxinterp
@@ -2400,7 +2400,7 @@ cell-average value. Thus, :math:`z_i` can be calculated by assuming that
 the integral of :math:`\theta_{v\ell}` over grid-level NTML\ :math:`+1`
 for the model and for a profile with a discontinuous inversion at
 :math:`z_i` are equal, as illustrated by the hatched areas in
-Fig. `7 <#zi_diag>`__. To calculate the integral of the discontinuous
+:numref:`Fig. %s <zi_diag>`. To calculate the integral of the discontinuous
 profile, the lapse rate of :math:`\theta_{v\ell}` between grid-levels
 NTML\ :math:`-1` and :math:`NTML`, :math:`\gamma^{\tiny \rm ML}`, is
 extended up to :math:`z_i`, while the stable lapse in the free
@@ -2548,7 +2548,7 @@ precipitation and subsidence, assuming a well-mixed boundary layer
 capped by a diagnosed subgrid inversion. The crucial step is to ensure
 that the total flux on the model entrainment grid-level equals the
 idealised total flux profile interpolated to that level. Consider the
-example illustrated in Fig. `8 <#fig:rev_fluxes>`__ of a well-mixed
+example illustrated in :numref:`Fig. %s <fig:rev_fluxes>` of a well-mixed
 boundary layer up to :math:`\theta`-level :math:`\mbox{\tiny \rm NTML}`.
 For the subgrid :math:`q_t` profiles, the turbulent flux divergence
 generates a moistening across the inversion while subsidence generates
@@ -2563,7 +2563,7 @@ is split across levels :math:`\mbox{\tiny \rm NTML}` and
 model’s boundary layer and inversion consistent with the total subgrid
 flux profile, the model’s entrainment flux at
 :math:`\mbox{\tiny \rm NTML}+1/2` (shown by the cross in
-Fig. `8 <#fig:rev_fluxes>`__) must be found by subtracting the
+:numref:`Fig. %s <fig:rev_fluxes>`) must be found by subtracting the
 subsidence flux at :math:`\mbox{\tiny \rm NTML}+1/2` (diamond) from the
 total flux interpolated to :math:`\mbox{\tiny \rm NTML}+1/2` (square).
 Exactly the same arguments follow for the :math:`\theta_{\ell}` fluxes
@@ -6232,7 +6232,7 @@ height where :math:`F_{LW}` becomes some small fraction, :math:`A`, of
    \Delta_F\approx \Delta_F^{LW} +
      (1-\exp^{ln(A)\kappa_{SW}/\kappa_{LW}}) \Delta_F^{SW}
 
-Empirically, see Fig. `9 <#fig:dradts>`__, a reasonable fit to LEM data
+Empirically, see :numref:`Fig. %s <fig:dradts>`, a reasonable fit to LEM data
 is obtained with:
 
 .. math:: :label: eq:deltaf_emp
@@ -6244,7 +6244,7 @@ Note that in the 9B scheme :math:`\Delta_F^{LW}` and
 but with the LW and SW increments separately.
 
 This change in the calculation of :math:`\Delta_F` is illustrated in
-Fig. (`9 <#fig:dradts>`__) from LES of the diurnal cycle of marine
+Fig. (:numref:`%s <fig:dradts>`) from LES of the diurnal cycle of marine
 stratocumulus. The top panel is from a simulation which used the code
 specified for the EUROCS LES intercomparison, the lower panel used the
 Edwards-Slingo radiation scheme in the LES. There are clearly some
