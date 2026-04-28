@@ -62,7 +62,7 @@ module stph_main_alg_mod
   !>@param[in,out]     skeb_spectral_coeffs    Imaginary Spectral coefficients
   !>@param[in,out]     skeb_power_law          Spectral power law
   !>@param[in]         clock                   Model time information
-  subroutine stph_main_alg( du_stph, dtheta_stph, dmv_stph, dtheta,     &
+  subroutine stph_main_alg( du_stph, dtheta_stph, dmv_stph,             &
                             theta_latest, mv, rho, u,                   &
                             convection_fields,                          &
                             microphysics_fields, radiation_fields,      &
@@ -114,7 +114,7 @@ module stph_main_alg_mod
 
   !!!! DO SPT
   if (use_spt) then
-    call spt_main_alg(dtheta_stph, dmv_stph, dtheta,            &
+    call spt_main_alg(dtheta_stph, dmv_stph,                    &
                       theta_latest, mv, convection_fields,      &
                       microphysics_fields, radiation_fields,    &
                       derived_fields, orography_fields,         &
