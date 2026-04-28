@@ -40,5 +40,3 @@
 | MetBenjaminWent     | Benjamin Went      | Met Office                       | 2026-01-15 |
 | mo-rickywong        | Ricky Wong         | Met Office                       | 2026-24-02 |
 | theabro             | Nathan Luke Abraham | NCAS & University of Cambridge  | 2026-04-15 |
-| ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
-| iboutle             | Ian Boutle         | Met Office                       | 2026-03-13 |
