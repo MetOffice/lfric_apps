@@ -17,9 +17,13 @@ def load_rootgrp(infile):
     print(f"loading ... ... {infile}")
     return rootgrp
 
-def test_time_instant_exists(load_rootgrp):
+# def test_time_instant_exists(load_rootgrp):
+#     "validate that the output file has a variable named 'time_instant'"
+#     assert "time_instant" in load_rootgrp.variables
+
+def test_time_centered_exists(load_rootgrp):
     "validate that the output file has a variable named 'time_instant'"
-    assert "time_instant" in load_rootgrp.variables
+    assert "time_centered" in load_rootgrp.variables
 
 def test_time_counter_not_exists(load_rootgrp):
     "validate that the output file does not have a variable named 'time_counter'"

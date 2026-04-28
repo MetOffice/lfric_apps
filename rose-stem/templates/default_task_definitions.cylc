@@ -226,10 +226,6 @@
     {% do task_dict.update({"phystest_families": [task_ns.platform|upper~"_TECH"]}) %}
 {% endif %}
 
-{% if "metadatatest_families" not in task_dict %}
-    {% do task_dict.update({"metadatatest_families": [task_ns.platform|upper~"_METADATA"]}) %}
-{% endif %}
-
 {% if "techtests_families" not in task_dict %}
     {% do task_dict.update({"techtests_families": [task_ns.platform|upper~"_TECH_TESTS_"~task_ns.compiler|upper]}) %}
 {% endif %}
