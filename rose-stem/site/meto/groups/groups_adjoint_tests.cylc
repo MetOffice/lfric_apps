@@ -11,6 +11,9 @@
         "adjoint_tests_nwp_gal9-C12_MG_azspice_gnu_fast-debug-64bit-rsolver64",
         "adjoint_tests_nwp_gal9-C12_MG_azspice_gnu_full-debug-64bit-rsolver64",
         "adjoint_tests_nwp_gal9-C12_MG-varying_LS_azspice_gnu_fast-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG-mpi_6_azspice_gnu_full-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG-omp_4_azspice_gnu_full-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG-mpi_6-omp_2_azspice_gnu_full-debug-64bit-rsolver64",
         "adjoint_tests_azspice_canned",
     ],
     "adjoint_tests_azspice": [
@@ -29,6 +32,10 @@
 {% do site_groups.update({
     "adjoint_tests_ex1a_developer": [
         "adjoint_tests_nwp_gal9-C12_MG_ex1a_gnu_fast-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG_ex1a_gnu_full-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG-mpi_6_ex1a_gnu_full-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG-omp_4_ex1a_gnu_full-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG-mpi_6-omp_2_ex1a_gnu_full-debug-64bit-rsolver64",
         "adjoint_tests_nwp_gal9-C12_MG_ex1a_gnu_full-debug-64bit-rsolver64",
         "adjoint_tests_ex1a_canned",
     ],

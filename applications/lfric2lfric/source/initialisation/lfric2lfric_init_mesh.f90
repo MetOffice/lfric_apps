@@ -341,14 +341,16 @@ subroutine init_mesh( config,                  &
                             decomposition_dst,             &
                             stencil_depths,                &
                             generate_inner_halos(dst),     &
-                            partitioner_dst )
+                            partitioner_dst,               &
+                            enforce_constraints = .false. )
 
     call create_local_mesh( mesh_names(src:src),           &
                             local_rank, total_ranks,       &
                             decomposition_src,             &
                             stencil_depths,                &
                             generate_inner_halos(src),     &
-                            partitioner_src )
+                            partitioner_src,               &
+                            enforce_constraints = .false. )
 
     ! Read in the global intergrid mesh mappings,
     ! then create the associated local mesh maps
