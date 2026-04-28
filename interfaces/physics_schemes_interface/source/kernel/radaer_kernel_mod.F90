@@ -636,6 +636,11 @@ subroutine radaer_code( nlayers,                                               &
 
   !-----------------------------------------------------------------------
 
+  ! Prognostics to be updated in the time step
+  real(r_um), allocatable :: ntp(:,:)    ! NTP fields
+
+  !-----------------------------------------------------------------------
+
   ncp_max_x_nmodes = ncp_max * nmodes
 
   npd_profile = row_length * rows
@@ -685,6 +690,26 @@ subroutine radaer_code( nlayers,                                               &
   !-----------------------------------------------------------------------
   ! Initialisation of prognostic variables and arrays
   !-----------------------------------------------------------------------
+
+  ! -- Non-transported prognostics --
+  n_fields = size(ntp_names)
+  allocate(ntp(nlayers, n_fields))
+  ntp = 0.0_r_um
+
+  do m = 1, n_fields
+    select case(ntp_names(i))
+    !case(fldname_cloud_drop_no_conc)
+
+    case(fldname_drydp_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( drydp_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case default
+      write( log_scratch_space, '(A,A)' )                                      &
+           'Missing required UKCA NTP: ', ntp_names(i)
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end select
+  end do 
 
   do k = 1, nlayers
     p_theta_levels(1,1,k) = p_zero *                                           &
