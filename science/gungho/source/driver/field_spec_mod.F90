@@ -71,11 +71,12 @@ module field_spec_mod
     integer(i_def) :: none          ! field without time axis
     integer(i_def) :: lbc           ! lbc time axis
     integer(i_def) :: ls            ! ls time axis
+    integer(i_def) :: nudging       ! nudging time axis
   end type time_axis_dict_type
 
    !> @brief Map moisture array enumerators to moisture array.
   type(time_axis_dict_type), parameter :: time_axis_dict &
-    = time_axis_dict_type(525,529,536)
+    = time_axis_dict_type(525,529,536,542)
 
   ! request function space discovery
   integer, parameter :: missing_fs = imdi
@@ -97,6 +98,7 @@ module field_spec_mod
     logical(l_def)     :: twod      = .false.             ! Is it two-dimensional?
     logical(l_def)     :: empty     = .false.             ! Is it empty (with an empty data array)?
     logical(l_def)     :: coarse    = .false.             ! Is it coarse?
+    character(str_def) :: mesh_name = ''                  ! Name of mesh, or blank string
     logical(l_def)     :: is_int    = .false.             ! Is it an integer field?
     logical(l_def)     :: legacy    = .false.             ! Is it a field with legacy checkpointing?
   end type field_spec_type
@@ -198,12 +200,13 @@ contains
   !> @param[in, optional] twod     Is it two-dimensional?
   !> @param[in, optional] empty    Is it empty (with empty data array)?
   !> @param[in, optional] coarse   Is it on a coarse mesh?
+  !> @param[in, optional] coarse_mesh_name Name of mesh, if coarse
   !> @param[in, optional] is_int   Is it an integer field?
   !> @param[in, optional] legacy   Is it a field with legacy checkpointing?
   !> @return                       Specifier returned
   function make_spec(name, main_coll, space, order_h, order_v, adv_coll, &
     moist_arr, moist_idx, time_axis, &
-    mult, ckp, twod, empty, coarse, is_int, legacy) result(field_spec)
+    mult, ckp, twod, empty, coarse, coarse_mesh_name, is_int, legacy) result(field_spec)
     implicit none
     character(*), intent(in) :: name
     integer(i_def), intent(in) :: main_coll
@@ -219,6 +222,7 @@ contains
     logical(l_def), optional, intent(in) :: twod
     logical(l_def), optional, intent(in) :: empty
     logical(l_def), optional, intent(in) :: coarse
+    character(*),   optional, intent(in) :: coarse_mesh_name
     logical(l_def), optional, intent(in) :: is_int
     logical(l_def), optional, intent(in) :: legacy
     type(field_spec_type) :: field_spec
@@ -237,6 +241,7 @@ contains
     if (present(twod)) field_spec%twod=twod
     if (present(empty)) field_spec%empty=empty
     if (present(coarse)) field_spec%coarse=coarse
+    if (present(coarse_mesh_name)) field_spec%mesh_name=coarse_mesh_name
     if (present(is_int)) field_spec%is_int=is_int
     if (present(legacy)) field_spec%legacy=legacy
 

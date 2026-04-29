@@ -384,6 +384,8 @@ contains
       axis => self%gungho_axes%lbc_time_axis
     case (time_axis_dict%ls)
       axis => self%gungho_axes%lbc_time_axis
+    case (time_axis_dict%nudging)
+      axis => self%gungho_axes%nudging_time_axis
     case (time_axis_dict%none)
       axis => null()
     case default

@@ -11,6 +11,7 @@ module field_maker_mod
 
   use constants_mod,                  only : i_def, l_def, str_def, r_def, &
                                              r_second
+  use extrusion_mod,                  only : TWOD
   use log_mod,                        only : log_event, log_scratch_space,     &
                                              log_level_error
   use field_mod,                      only : field_type
@@ -25,6 +26,7 @@ module field_maker_mod
   use function_space_mod,             only : function_space_type
   use function_space_collection_mod,  only : function_space_collection
   use mesh_mod,                       only : mesh_type
+  use mesh_collection_mod,            only : mesh_collection
   use clock_mod,                      only : clock_type
   use model_clock_mod,                only : model_clock_type
   use field_spec_mod,                 only : main_coll_dict,                   &
@@ -64,8 +66,6 @@ module field_maker_mod
   type, extends(processor_type) :: field_maker_type
     type(mesh_type), pointer :: mesh
     type(mesh_type), pointer :: twod_mesh
-    type(mesh_type), pointer :: coarse_mesh
-    type(mesh_type), pointer :: coarse_twod_mesh
     type(field_mapper_type), pointer :: mapper
   contains
     private
@@ -101,26 +101,19 @@ end function has_xios_io
   !> @param[inout] self             Field maker object
   !> @param[in]    mesh             Mesh for spatial fields
   !> @param[in]    twod_mesh        Mesh for planar fields
-  !> @param[in]    coarse_mesh      Coarse mesh for spatial fields
-  !> @param[in]    coarse_twod_mesh Coarse mesh for planar fields
   !> @param[in]    mapper           Provides access to field collections
   !> @param[in]    clock            Model clock
-  subroutine field_maker_init(self, mesh, twod_mesh, coarse_mesh, coarse_twod_mesh, &
-                              mapper, clock)
+  subroutine field_maker_init(self, mesh, twod_mesh, mapper, clock)
     implicit none
     class(field_maker_type), intent(inout) :: self
 
     type(mesh_type), intent(in), pointer :: mesh
     type(mesh_type), intent(in), pointer :: twod_mesh
-    type(mesh_type), intent(in), pointer :: coarse_mesh
-    type(mesh_type), intent(in), pointer :: coarse_twod_mesh
     type(field_mapper_type), target, intent(in) :: mapper
     class(clock_type), intent(in) :: clock
 
     self%mesh => mesh
     self%twod_mesh => twod_mesh
-    self%coarse_mesh => coarse_mesh
-    self%coarse_twod_mesh => coarse_twod_mesh
     self%mapper => mapper
     call self%set_clock(clock)
   end subroutine field_maker_init
@@ -145,6 +138,8 @@ end function has_xios_io
     type(field_collection_type), pointer :: depository => null()
     type(field_collection_type), pointer :: prognostic_fields => null()
     type(function_space_type), pointer :: space => null()
+    type(mesh_type), pointer :: mesh => null()
+    type(mesh_type), pointer :: twod_mesh => null()
     type(field_type), pointer :: external_real_field => null()
     type(time_axis_type), pointer :: time_axis => null()
     type(integer_field_type), pointer :: external_int_field => null()
@@ -177,11 +172,13 @@ end function has_xios_io
       end if
     else
       if (spec%coarse) then
+        mesh => mesh_collection%get_mesh(spec%mesh_name)
         if (spec%twod) then
-          space => function_space_collection%get_fs(self%coarse_twod_mesh, spec%order_h, &
+          twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+          space => function_space_collection%get_fs(twod_mesh, spec%order_h, &
                                                     spec%order_v, spec%space, ndata)
         else
-          space => function_space_collection%get_fs(self%coarse_mesh, spec%order_h, &
+          space => function_space_collection%get_fs(mesh, spec%order_h, &
                                                     spec%order_v, spec%space, ndata)
         end if
       else
@@ -361,14 +358,14 @@ end function has_xios_io
       ! pre-initialise field with window size, add to time axis;
       ! cf. init_time_axis_mod / setup_field
       if (associated(vector_space)) then
-        ! re-create function space, overriding ndata with window size
+        ! re-create function space, combining ndata with window size
         window_size_space => &
           function_space_collection%get_fs(     &
             vector_space%get_mesh(),            &
             vector_space%get_element_order_h(), &
             vector_space%get_element_order_v(), &
             vector_space%which(),               &
-            time_axis%get_window_size())
+            vector_space%get_ndata() * time_axis%get_window_size())
         if (empty) then
           call new_field_ptr%initialise( window_size_space, name=trim(name), &
             override_data = empty_real_data )
@@ -376,6 +373,7 @@ end function has_xios_io
           call new_field_ptr%initialise( window_size_space, name=trim(name) )
         end if
       else
+
         ! discover space, overriding ndata with window size
         call init_field_from_metadata( &
            new_field_ptr, trim(name), force_order_h=order_h, force_order_v=order_v,&

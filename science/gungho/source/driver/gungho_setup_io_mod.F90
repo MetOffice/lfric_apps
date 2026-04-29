@@ -97,6 +97,8 @@ module gungho_setup_io_mod
                                        iau_surf_path,             &
                                        lbc_filename,              &
                                        lbc_directory,             &
+                                       nudging_filename,          &
+                                       nudging_directory,         &
                                        ls_filename,               &
                                        ls_directory,              &
                                        coarse_ancil_directory,    &
@@ -140,6 +142,11 @@ module gungho_setup_io_mod
                                        timestep_end
   use derived_config_mod,        only: l_couple_sea_ice
   use lfric_string_mod,          only: split_string
+  use external_forcing_config_mod, &
+                                 only: theta_forcing,                  &
+                                       theta_forcing_nudging,          &
+                                       wind_forcing,                   &
+                                       wind_forcing_nudging
 #ifdef UM_PHYSICS
   use jules_surface_config_mod,  only: l_vary_z0m_soil, l_urban2t
   use specified_surface_config_mod, only: internal_flux_method, &
@@ -193,6 +200,7 @@ module gungho_setup_io_mod
                                        iau_fname,               &
                                        iau_surf_fname,          &
                                        lbc_fname,               &
+                                       nudging_fname,           &
                                        ls_fname
     character(:), allocatable :: split_checkpoint_stem_name(:)
     real(r_second), allocatable :: all_checkpoint_times(:)
@@ -804,6 +812,16 @@ module gungho_setup_io_mod
                              trim(lbc_filename)
       call files_list%insert_item( lfric_xios_file_type( lbc_fname,     &
                                                          xios_id="lbc", &
+                                                         io_mode=FILE_MODE_READ ) )
+    endif
+
+    ! Setup the nudging file
+    if ( theta_forcing == theta_forcing_nudging                                &
+        .or. wind_forcing == wind_forcing_nudging ) then
+      write(nudging_fname,'(A)') trim(nudging_directory) //'/'// &
+                                 trim(nudging_filename)
+      call files_list%insert_item( lfric_xios_file_type( nudging_fname,        &
+                                                         xios_id="nudging",    &
                                                          io_mode=FILE_MODE_READ ) )
     endif
 

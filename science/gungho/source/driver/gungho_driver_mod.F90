@@ -55,7 +55,13 @@ module gungho_driver_mod
   use mesh_mod,                    only : mesh_type
   use mesh_collection_mod,         only : mesh_collection
   use multires_coupling_config_mod, &
-                                   only : aerosol_mesh_name
+                                  only : aerosol_mesh_name, &
+                                         nudging_mesh_name, &
+                                         coarse_nudging
+  use nudging_config_mod,         only : nudging_source,                       &
+                                         nudging_source_initial
+  use physics_constants_mod,      only : update_nudging_weights
+  use create_nudging_fields_mod,  only : set_nudging_reference_initial
   use remove_field_collection_mod, only : remove_field_collection
   use section_choice_config_mod,   only : iau,                   &
                                           iau_sst,               &
@@ -66,9 +72,9 @@ module gungho_driver_mod
   use time_config_mod,             only : timestep_start
   use timing_mod,                  only : start_timing, stop_timing, &
                                           tik, LPROF
+  use variable_fields_mod,         only : update_variable_fields
 
 #ifdef UM_PHYSICS
-  use variable_fields_mod,         only : update_variable_fields
   use lfric_xios_time_axis_mod,    only : regridder
   use intermesh_mappings_alg_mod,  only : map_scalar_intermesh
   use update_ancils_alg_mod,       only : update_ancils_alg
@@ -126,6 +132,8 @@ contains
     type(mesh_type),        pointer :: twod_mesh         => null()
     type(mesh_type),        pointer :: aerosol_mesh      => null()
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
+    type(mesh_type),        pointer :: nudging_mesh      => null()
+    type(mesh_type),        pointer :: nudging_twod_mesh => null()
 
     type(io_value_type) :: temp_corr_io_value
     type(io_value_type) :: random_seed_io_value
@@ -166,6 +174,15 @@ contains
       aerosol_twod_mesh => twod_mesh
     end if
 
+    ! If nudging is on a different mesh, get this
+    if (coarse_nudging) then
+      nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
+      nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
+    else
+      nudging_mesh => mesh
+      nudging_twod_mesh => twod_mesh
+    end if
+
     ! Rate of temperature adjustment for energy correction
     call temp_corr_io_value%init("temperature_correction_rate", [0.0_r_def])
     call modeldb%values%add_key_value( 'temperature_correction_io_value', &
@@ -188,9 +205,10 @@ contains
     end if
 
     ! Instantiate the fields stored in model_data
-    call create_model_data( modeldb,         &
-                            mesh, twod_mesh, &
-                            aerosol_mesh, aerosol_twod_mesh )
+    call create_model_data( modeldb,                         &
+                            mesh, twod_mesh,                 &
+                            aerosol_mesh, aerosol_twod_mesh, &
+                            nudging_mesh, nudging_twod_mesh )
 
     ! Set up io for multifile reading
     if ( multifile_io ) then
@@ -293,6 +311,7 @@ contains
 
     type(mesh_type), pointer :: mesh      => null()
     type(mesh_type), pointer :: twod_mesh => null()
+    type(mesh_type), pointer :: nudging_mesh => null()
     integer(kind=i_def)      :: ts_start, rc
     integer(tik)             :: tid_first, tid_rest
 
@@ -304,6 +323,8 @@ contains
 
     type(gungho_time_axes_type), pointer :: model_axes
     character(len=*), parameter :: io_context_name = "gungho_atm"
+
+    type( field_collection_type ), pointer :: derived_fields
 
 #ifdef UM_PHYSICS
     procedure(regridder), pointer :: regrid_operation => null()
@@ -388,6 +409,17 @@ contains
                                  model_axes%lbc_times_list, &
                                  modeldb%clock, lbc_fields )
     endif
+
+    ! Spectral nudging update
+    if (theta_forcing == theta_forcing_nudging                                 &
+        .or. wind_forcing == wind_forcing_nudging) then
+      derived_fields => modeldb%fields%get_field_collection("derived_fields")
+      call update_variable_fields(                                             &
+            model_axes%nudging_times_list, modeldb%clock, derived_fields       &
+      )
+      nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
+      call update_nudging_weights(modeldb%clock, nudging_mesh)
+    end if
 
 #ifdef UM_PHYSICS
     ! If IAU is active and increments need to be added over a time window, then do this

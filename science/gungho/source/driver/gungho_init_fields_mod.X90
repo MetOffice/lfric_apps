@@ -79,6 +79,8 @@ module gungho_init_fields_mod
   use create_lbcs_mod,                    only : create_lbc_fields
   use create_gungho_prognostics_mod,      only : create_gungho_prognostics
   use create_physics_prognostics_mod,     only : create_physics_prognostics
+  use create_nudging_fields_mod,          only : create_nudging_fields
+  use variable_fields_mod,                only : update_variable_fields
   use field_mapper_mod,                   only : field_mapper_type
   use map_fd_to_prognostics_alg_mod,      only : map_fd_to_prognostics
   use gungho_init_prognostics_driver_mod, only : init_gungho_prognostics
@@ -88,6 +90,10 @@ module gungho_init_fields_mod
   use derived_config_mod,                 only : l_esm_couple
   use ageofair_alg_mod,                   only : init_ageofair
   use transport_config_mod,               only : transport_ageofair
+  use external_forcing_config_mod,        only : theta_forcing_nudging,        &
+                                                 theta_forcing,                &
+                                                 wind_forcing_nudging,         &
+                                                 wind_forcing
 #ifdef COUPLED
   use coupler_mod,                      only : zero_coupling_send_fields
 #endif
@@ -96,6 +102,7 @@ module gungho_init_fields_mod
   use map_physics_fields_alg_mod,       only : map_physics_fields_alg
   use set_any_dof_alg_mod,              only : set_any_dof_alg
   use reference_element_mod,            only : T
+  use variable_fields_mod,              only : init_variable_fields
 #ifdef UM_PHYSICS
   use create_fd_prognostics_mod,          only : create_fd_prognostics
   use init_ancils_mod,                    only : create_fd_ancils, &
@@ -103,7 +110,6 @@ module gungho_init_fields_mod
   use process_inputs_alg_mod,             only : process_inputs_alg
   use process_urban_alg_mod,              only : process_urban_alg
   use update_tstar_alg_mod,               only : update_tstar_alg
-  use variable_fields_mod,                only : init_variable_fields
   use lfric_xios_time_axis_mod,           only : regridder
   use intermesh_mappings_alg_mod,         only : map_scalar_intermesh
   use iau_config_mod,                     only : iau_use_pertinc
@@ -305,11 +311,15 @@ contains
   !> @param[in]    twod_mesh The current 2d mesh
   !> @param[in]    aerosol_mesh      Aerosol 3d mesh
   !> @param[in]    aerosol_twod_mesh Aerosol 2d mesh
-subroutine create_model_data( modeldb,      &
-                              mesh,         &
-                              twod_mesh,    &
-                              aerosol_mesh, &
-                              aerosol_twod_mesh )
+  !> @param[in]    nudging_mesh      Nudging 3d mesh
+  !> @param[in]    nudging_twod_mesh Nudging 2d mesh
+subroutine create_model_data( modeldb,           &
+                              mesh,              &
+                              twod_mesh,         &
+                              aerosol_mesh,      &
+                              aerosol_twod_mesh, &
+                              nudging_mesh,      &
+                              nudging_twod_mesh)
 
 
     implicit none
@@ -319,6 +329,8 @@ subroutine create_model_data( modeldb,      &
     type( mesh_type ),    intent(in), pointer :: twod_mesh
     type( mesh_type ),    intent(in), pointer :: aerosol_mesh
     type( mesh_type ),    intent(in), pointer :: aerosol_twod_mesh
+    type( mesh_type ),    intent(in), pointer :: nudging_mesh
+    type( mesh_type ),    intent(in), pointer :: nudging_twod_mesh
 
     type(field_mapper_type), target :: field_mapper
 
@@ -485,14 +497,11 @@ subroutine create_model_data( modeldb,      &
     ! Create gungho prognostics and auxiliary (diagnostic) fields
     call create_gungho_prognostics( mesh,                             &
                                     twod_mesh,                        &
-                                    aerosol_mesh,                     &
-                                    aerosol_twod_mesh,                &
                                     field_mapper,                     &
                                     modeldb%clock )
 
     if (limited_area) then
-      call create_lbc_fields( mesh, twod_mesh,  aerosol_mesh, aerosol_twod_mesh, &
-                              field_mapper, modeldb%clock )
+      call create_lbc_fields( mesh, twod_mesh, field_mapper, modeldb%clock )
     end if
 
     if ( iau ) call create_iau_fields( mesh, twod_mesh,                      &
@@ -500,10 +509,16 @@ subroutine create_model_data( modeldb,      &
                                        prognostic_fields, &
                                        modeldb )
 
+    if ( wind_forcing == wind_forcing_nudging .or.                             &
+         theta_forcing == theta_forcing_nudging ) then
+      call create_nudging_fields(                                              &
+          nudging_mesh, nudging_twod_mesh, field_mapper, modeldb%clock         &
+      )
+    end if
+
     ! Create prognostics used by physics
     if (use_physics) then
-      call create_physics_prognostics( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, field_mapper, &
-                                       modeldb%clock )
+      call create_physics_prognostics( mesh, twod_mesh, field_mapper, modeldb%clock )
 
 #ifdef UM_PHYSICS
       ! Create FD prognostic fields
@@ -522,6 +537,8 @@ subroutine create_model_data( modeldb,      &
                                  mesh, twod_mesh ,                &
                                  aerosol_mesh,                    &
                                  aerosol_twod_mesh,               &
+                                 nudging_mesh,                    &
+                                 nudging_twod_mesh,               &
                                  model_axes%ancil_times_list )
         case ( ancil_option_idealised )
           call create_fd_ancils_idealised( depository, &
@@ -830,6 +847,16 @@ subroutine create_model_data( modeldb,      &
       call map_physics_fields_alg(u, exner, rho, theta,     &
                                   moist_dyn_array%bundle,     &
                                   derived_fields)
+
+
+      ! Initialise reading of nudging fields
+      if ( wind_forcing == wind_forcing_nudging .or.                           &
+          theta_forcing == theta_forcing_nudging ) then
+        ! Initialise time interpolation
+        call init_variable_fields(                                             &
+            model_axes%nudging_times_list, modeldb%clock, derived_fields       &
+        )
+      end if
 
 #ifdef UM_PHYSICS
       ! Initialise Casim numbers if they aren't coming from an LFRic dump

@@ -27,6 +27,7 @@ module gungho_model_mod
   use create_gungho_prognostics_mod, only : process_gungho_prognostics
   use create_lbcs_mod,            only : process_lbc_fields
   use create_mesh_mod,            only : create_mesh
+  use create_nudging_fields_mod,  only : process_nudging_fields
   use create_physics_prognostics_mod, only : &
                                             process_physics_prognostics
   use derived_config_mod,         only : set_derived_config, l_esm_couple, &
@@ -246,6 +247,10 @@ contains
     use multidata_field_dimensions_mod, only: sync_multidata_field_dimensions
     use time_dimensions_mod,            only: sync_time_dimensions
     use boundaries_config_mod,          only: limited_area
+    use external_forcing_config_mod,    only: theta_forcing,                   &
+                                              theta_forcing_nudging,           &
+                                              wind_forcing,                    &
+                                              wind_forcing_nudging
     use formulation_config_mod,         only: use_physics
     use section_choice_config_mod,      only: stochastic_physics, &
                                               stochastic_physics_um
@@ -257,11 +262,15 @@ contains
     class(clock_type), intent(in) :: clock
 
     type(persistor_type) :: persistor
-
-    real(r_second) :: DT
+    real(r_second)       :: DT
+    logical(l_def)       :: to_process_nudging_fields
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
+
+
+    to_process_nudging_fields = ( theta_forcing == theta_forcing_nudging       &
+        .or. wind_forcing == wind_forcing_nudging )
 
     call persistor%init(clock)
     call process_gungho_prognostics(persistor)
@@ -291,6 +300,7 @@ contains
     if (limited_area) call process_lbc_fields(persistor)
     if (use_physics) then
       call process_physics_prognostics(persistor)
+      if (to_process_nudging_fields) call process_nudging_fields(persistor)
       call sync_multidata_field_dimensions()
       call sync_time_dimensions()
     end if
