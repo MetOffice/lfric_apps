@@ -31,12 +31,13 @@ contains
   !>         erosion get calculated downward from here.
   !>         Fields do not get updated. Increments are passed back out.
   !>         See UMDP30 for full scheme details.
+  !>@param[in,out] theta_latest     Current value of potential temperature
   !>@param[in,out] mr               Mixing ratios
   !>@param[in]     derived_fields   Group of derived fields
   !>@param[in,out] convection_fields Fields for convection scheme
   !>@param[in,out] cloud_fields      Fields for cloud scheme
   !>@param[in]     dt                The model timestep length
-  subroutine pc2_conv_coupling_alg( mr, derived_fields,                  &
+  subroutine pc2_conv_coupling_alg( theta_latest, mr, derived_fields,    &
                                     convection_fields, cloud_fields, dt )
 
     use constants_mod,                only: i_def
@@ -48,6 +49,7 @@ contains
     implicit none
 
     type( field_type ), intent( inout ) :: mr(nummr)
+    type( field_type ), intent( in ) :: theta_latest
 
     type( field_collection_type ), intent(in)    :: derived_fields
     type( field_collection_type ), intent(inout) :: convection_fields
@@ -56,7 +58,6 @@ contains
 
     ! Temporary unpacked fields from collections
     type( field_type ), pointer :: exner_wth       => null()
-    type( field_type ), pointer :: theta_star      => null()
 
     type( field_type ), pointer :: liquid_fraction => null()
     type( field_type ), pointer :: frozen_fraction => null()
@@ -78,7 +79,6 @@ contains
     if ( LPROF ) call start_timing( id_alg, 'cloud.pc2_conv' )
 
     call derived_fields%get_field('exner_in_wth', exner_wth)
-    call derived_fields%get_field('theta_star', theta_star)
 
     call cloud_fields%get_field('liquid_fraction', liquid_fraction)
     call cloud_fields%get_field('frozen_fraction', frozen_fraction)
@@ -100,7 +100,7 @@ contains
 
     call invoke ( name="update_from_pc2_conv_coupling",            &
                                                                    !
-                  pc2_conv_coupling_kernel_type ( theta_star,      &
+                  pc2_conv_coupling_kernel_type ( theta_latest,    &
                                                   mr(imr_v),       &
                                                   mr(imr_cl),      &
                                                   liquid_fraction, &

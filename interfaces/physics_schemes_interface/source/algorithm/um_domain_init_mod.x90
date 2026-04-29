@@ -134,15 +134,14 @@ contains
     cells_per_panel = n_cells / n_panels
     cells_per_side = nint( sqrt( real( cells_per_panel, r_def ) ), i_def )
 
+    ! number of iters is number of points on panel
+    n_iter_pmsl = cells_per_side
+
     ! Calculate parameters derived from mesh size
     if (n_panels > 1) then
-      ! global model, number of iters is equatorial number of points
-      n_iter_pmsl = 4_i_def * cells_per_side
       ! max wavenumber is half equatorial number of points
       model_wavenumber_max = 2_i_def * cells_per_side
     else
-      ! limited area model, number of iters is number of points
-      n_iter_pmsl = cells_per_side
       ! max wavenumber is half number of points
       model_wavenumber_max = cells_per_side / 2_i_def
     end if
