@@ -1867,7 +1867,7 @@ that HB and the standard UM set
 :math:`w_m = (u_*^3 + C_{ws} w_*^3)^{\frac{1}{3}}` and :math:`w_h
 = w_m/Pr`, with :math:`C_{ws} = 0.6` and 0.25, respectively, above the
 surface layer. The convective and neutral limits for :math:`w_h` and
-:math:`w_m` are given in Table `1 <#tab:vscales>`__ and the stability
+:math:`w_m` are given in :numref:`Table %s <tab:vscales>` and the stability
 dependencies of several parameters are shown in
 :numref:`Fig. %s <fig:stab_dep>`. The parameter :math:`d` in
 :numref:`Fig. %s <fig:stab_dep>` contains the stability dependence of the
@@ -4732,8 +4732,7 @@ if the `Wood and Mason (1993)`_ formulation is used.
 
 .. _section_2.2:
 
-The iterative algorithm for calculating the effective surface exchange
-coefficients
+The iterative algorithm for calculating the effective surface exchange coefficients
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For unstable conditions, i.e. :math:`\Delta`\ B :math:`<` 0 :
@@ -4993,8 +4992,7 @@ and v\ :math:`_{\ast }` are used.
 
 .. _section_2.4:
 
-Distributed form drag – an alternative to the effective roughness length
-parametrization
+Distributed form drag – an alternative to the effective roughness length parametrization
 ----------------------------------------------------------------------------------------
 
 An alternative representation of the turbulent form drag due to sub-grid
