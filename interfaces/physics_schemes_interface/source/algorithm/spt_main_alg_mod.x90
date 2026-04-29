@@ -451,7 +451,7 @@ contains
 
   ! Apply water conservation to the column if requested
   if (spt_moisture_conservation) then
-    mesh   => dtheta_latest%get_mesh()
+    mesh   => theta_latest%get_mesh()
     dz_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
                                 coord_system, scaled_radius )
     call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth, &
