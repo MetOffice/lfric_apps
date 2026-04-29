@@ -4,6 +4,12 @@
     under which the code may be used.
    -----------------------------------------------------------------------------
 
+.. attention::
+
+   This documentation has been transfered directly from the UM to LFRic;
+   It is still a work in progress. There are still UM-specific references
+   and terminology that are yet to be updated.
+
 ===============================================
 The Parametrization of Boundary Layer Processes
 ===============================================
@@ -1811,7 +1817,6 @@ Discussion of some of the revisions
 .. list-table:: Convective and Neutral limits for velocity scales
    :name: tab:vscales
    :header-rows: 2
-
 
    * - Formulation
      - Convective limit
