@@ -125,6 +125,10 @@
         "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",
     ],
+    "lfric2um_ex1a_N320": [
+        "lfricinputs_lfric2um-performance-C896L70_N320L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-performance-C896L70_N320L70_ex1a_gnu_fast-debug-64bit",
+    ],
     "lfric2um_ex1a_C896": [
         "lfricinputs_lfric2um-performance-C896L70_N1280L70_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-performance-C896L70_N1280L70_ex1a_gnu_fast-debug-64bit",
@@ -243,6 +247,7 @@
     ],
     "lfric2um_ex1a_weekly": [
         "lfric2um_ex1a_C224",
+        "lfric2um_ex1a_N320",
         "lfric2um_ex1a_C896",
     ],
     "scintelapi_ex1a_developer": [
