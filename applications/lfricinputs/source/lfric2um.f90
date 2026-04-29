@@ -19,6 +19,9 @@ use lfricinp_lfric_driver_mod,            only: lfricinp_initialise_lfric,     &
 use lfric2um_namelists_mod,               only: lfric2um_nl_fname,             &
                                                 lfric2um_config,               &
                                                 required_lfric_namelists
+
+use lfric2um_init_masked_field_adjustments_mod,                                &
+                                   only: lfric2um_init_masked_field_adjustments
 use lfric2um_initialise_um_mod,           only: lfric2um_initialise_um,        &
                                                 um_output_file
 use lfric2um_initialise_lfric2um_mod,     only: lfric2um_initialise_lfric2um
