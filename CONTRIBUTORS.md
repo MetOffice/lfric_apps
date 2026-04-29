@@ -37,6 +37,7 @@
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
 | mo-lottieturner     | Lottie Turner      | Met Office                       | 2026-01-27 |
 | DrTVockerodtMO      | Terence Vockerodt  | Met Office                       | 2026-01-08 |
+| mattatmet           | Matthew Walker     | Met Office                       | 2026-04-21 |
 | MetBenjaminWent     | Benjamin Went      | Met Office                       | 2026-01-15 |
 | mo-rickywong        | Ricky Wong         | Met Office                       | 2026-24-02 |
 | theabro             | Nathan Luke Abraham | NCAS & University of Cambridge  | 2026-04-15 |
