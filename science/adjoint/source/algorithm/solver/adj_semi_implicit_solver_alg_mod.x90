@@ -37,7 +37,6 @@ module adj_semi_implicit_solver_alg_mod
   use timing_mod,                             only: start_timing, stop_timing, &
                                                     tik, LPROF
   use finite_element_config_mod,              only: element_order_h, element_order_v
-  use copy_field_alg_mod,                     only: copy_field
   use function_space_collection_mod,          only: function_space_collection
   use fs_continuity_mod,                      only: W2, Wtheta, W2v, W2h
   use mixed_solver_config_mod,                only: si_maximum_iterations,                         &
@@ -306,10 +305,8 @@ contains
   !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics
   !!                                    factors
   !> @param[in]     mr                  Mixing ratio array
-  !> @param[in]     write_moisture_diag Flag to control output of moisture
-  !!                                    conservation diagnostics
   !> @param[in]     first_iteration     Flag for first inner iteration
-  subroutine step( self, state, rhs, moist_dyn_gas_law, mr, write_moisture_diag, first_iteration )
+  subroutine step( self, state, rhs, moist_dyn_gas_law, mr, first_iteration )
 
     use solver_constants_mod,                only: get_normalisation_r_solver, get_im3_div_r_solver, get_normalisation
     use mr_indices_mod,                      only: nummr
@@ -333,7 +330,7 @@ contains
     type(field_type), dimension(bundle_size), intent(inout) :: state, rhs
     type(field_type),                         intent(in)    :: moist_dyn_gas_law
     type(field_type), dimension(nummr),       intent(in)    :: mr
-    logical(kind=l_def),                      intent(in)    :: write_moisture_diag, first_iteration
+    logical(kind=l_def),                      intent(in)    :: first_iteration
 
     ! Local variables
     type(field_type), pointer                         :: t_normalisation, u_normalisation
@@ -358,13 +355,6 @@ contains
     ! Input fields are r_def fields so preliminary work uses field_types
 
     mesh_id = state(igh_p)%get_mesh_id()
-
-    if (write_moisture_diag) then
-      call log_event( "adj_semi_implicit_solver_type%step: write_moisture_diag not coded", LOG_LEVEL_ERROR )
-      ! Best guess for the prognostic fields state can be calculated as:
-      ! state_best_guess = rhs_n - rhs_np1 + state + rhs_adv + rhs_phys
-      ! where fortunately all of the above except "state" is already in "rhs_np1"
-    end if
 
     ! Normalise theta & u residual
     t_normalisation => get_normalisation( Wtheta, mesh_id )
@@ -394,10 +384,10 @@ contains
 
     ! Finally we need to add r_solver increments to the r_def state field
 
-    call copy_field( state(igh_u), inc_uvw_rsol )
-    call copy_field( state(igh_p), inc_exner_rsol )
-    call copy_field( state(igh_t), inc_theta_rsol )
-    call copy_field( state(igh_d), inc_rho_rsol )
+    call invoke( real_to_real_x( inc_uvw_rsol, state(igh_u) ),   &
+                 real_to_real_x( inc_exner_rsol, state(igh_p) ), &
+                 real_to_real_x( inc_theta_rsol, state(igh_t) ), &
+                 real_to_real_x( inc_rho_rsol, state(igh_d) ) )
 
     call rhs_tmp%initialise(vector_space=rhs_rsol(igh_t)%get_function_space())
     call invoke( name="adj_si_solver_1",                          &
