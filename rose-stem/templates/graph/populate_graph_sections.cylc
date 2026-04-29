@@ -124,26 +124,58 @@
     {% endif %}
 {% endif %}
 
+
+{# ################################### #}
+{# Create the graph - only for 1 cycle #}
+{# ################################### #}
+
+{% if mesh_build_task %}
+    {% do graph_sections.append([
+        export_task,
+        mesh_build_task]) %}
+{% endif %}
+
+{% if application_build_task %}
+    {% do graph_sections.append([
+        export_task,
+        application_build_task]) %}
+{% endif %}
+
+
+
 {# Do we need to run the mesh? #}
 {# Any run task will need mesh unless it is a canned test #}
 {% if task.startswith("run") and task_values["app_name"] != "canned_test" %}
-    {% set mesh_run_task = "run_mesh_"~
-                           task_values["resolution"]~"_"~
-                           task_ns.platform~"_"~
-                           site_vars["mesh_build"][task_ns.platform] %}
+    {% if task_values["resolution"] is iterable and task_values["resolution"] is not string %}
+        {% set resolutions = task_values["resolution"] %}
+    {% else %}
+        {% set resolutions = [task_values["resolution"]] %}
+    {% endif %}
+    {% for res in resolutions %}
+    
+        {% set mesh_run_task = "run_mesh_"~
+                               res~"_"~
+                               task_ns.platform~"_"~
+                               site_vars["mesh_build"][task_ns.platform] %}
 {# If the task is the mesh run task then use the task dictionary #}
 {# Otherwise use an empty dict to be populated later #}
-    {% if mesh_run_task not in tasks_to_run %}
-        {% if task_ns.application == "mesh" %}
-            {% do tasks_to_run.update({mesh_run_task: task_values}) %}
-        {% else %}
-            {% set mesh_dict = {} %}
-            {% if "mpi_parts" in task_values %}
-                {% do mesh_dict.update({"mpi_parts": task_values["mpi_parts"]}) %}
+        {% if mesh_run_task not in tasks_to_run %}
+            {% if task_ns.application == "mesh" %}
+                {% do tasks_to_run.update({mesh_run_task: task_values}) %}
+            {% else %}
+                {% set mesh_dict = {} %}
+                {% if "mpi_parts" in task_values %}
+                    {% do mesh_dict.update({"mpi_parts": task_values["mpi_parts"]}) %}
+                {% endif %}
+                {% do tasks_to_run.update({mesh_run_task: mesh_dict}) %}
             {% endif %}
-            {% do tasks_to_run.update({mesh_run_task: mesh_dict}) %}
+	    {% if mesh_run_task %}
+                {% do graph_sections.append([
+                    mesh_build_task,
+                    mesh_run_task]) %}
+            {% endif %}
         {% endif %}
-    {% endif %}
+    {% endfor %}
 {% endif %}
 
 {# Do we need to run an application? #}
@@ -170,28 +202,6 @@
                                             task_ns.compiler~"_"~
                                             task_ns.extras %}
     {% endif %}
-{% endif %}
-
-{# ################################### #}
-{# Create the graph - only for 1 cycle #}
-{# ################################### #}
-
-{% if mesh_build_task %}
-    {% do graph_sections.append([
-        export_task,
-        mesh_build_task]) %}
-{% endif %}
-
-{% if application_build_task %}
-    {% do graph_sections.append([
-        export_task,
-        application_build_task]) %}
-{% endif %}
-
-{% if mesh_run_task %}
-    {% do graph_sections.append([
-        mesh_build_task,
-        mesh_run_task]) %}
 {% endif %}
 
 {# If running the nrun task, define application, plot, check and phystest #}
