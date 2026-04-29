@@ -17,6 +17,12 @@
         "memory": [96, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "lfric2um-performance-C896L70_N320L70" %}
+
+    {% do task_dict.update({
+        "mpi_parts": 510,
+    }) %}
+
 {% elif task_ns.conf_name == "lfric2um-performance-C896L70_N1280L70" %}
 
     {% do task_dict.update({
