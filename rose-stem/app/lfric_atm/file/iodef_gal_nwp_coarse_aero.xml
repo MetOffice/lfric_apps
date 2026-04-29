@@ -20,6 +20,7 @@
     <grid_definition src="$METADATA/grid_def_main.xml"/>
     <grid_definition src="$METADATA/grid_def_aero_coarse.xml"/>
     <grid_definition src="$METADATA/grid_def_radaer_coarse.xml"/>
+    <grid_definition src="$METADATA/grid_def_nudging_coarse.xml"/>
 
     <!-- Include field definitions -->
     <field_definition src="$METADATA/lfric_dictionary.xml"/>

@@ -393,5 +393,11 @@
   <field id="frozen_soil_moisture" name="frozen_soil_moisture" long_name="mass_fraction_of_frozen_water_in_saturated_soil_moisture" unit="1" domain_ref="face" axis_ref="soil_levels" />
   <!-- energy correction -->
   <field id="temperature_correction_rate" name="temperature_correction_rate" long_name="temperature_rate_for_energy_correction" unit="K s-1" axis_ref="scalar_axis" />
+  <!-- Nudging reference fields -->
+  <field id="u_nudging_ext_ref" name="u_nudging_ext_ref" long_name="Eastward wind component regridded from Nudging file data" unit="m s-1" grid_ref="nudging_ref_half_grid" />
+  <field id="v_nudging_ext_ref" name="v_nudging_ext_ref" long_name="Northward wind component regridded from Nudging file data" unit="m s-1" grid_ref="nudging_ref_half_grid" />
+  <field id="temperature_nudging_ext_ref" name="temperature_nudging_ext_ref" long_name="Air temperature regridded from Nudging file data" unit="K" grid_ref="nudging_ref_half_grid" />
+  <field id="surface_pressure_nudging_ext_ref" name="surface_pressure_nudging_ext_ref" long_name="Surface air pressure regridded from Nudging file data" unit="Pa" grid_ref="nudging_ref_2D_grid" />
+
 </field_group>
 </field_definition>

@@ -34,6 +34,8 @@
   <axis id="lw_bands_radiation_levels" name="lw_bands_radiation_levels" />
   <axis id="photolysis_pathways" name="photolysis_pathways" />
   <axis id="photol_species" name="photol_species" />  
+  <axis id="nudging_time_axis" name="nudging_time_axis" />
+  <axis id="ecmwf_levels" name="ecmwf_levels" />
   <axis id="one_time_axis" name="one_time_axis" n_glo="1" />
 
   <axis id="random_seed_size" name="random_seed_size" />

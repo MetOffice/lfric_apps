@@ -284,6 +284,30 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9_nudging-era-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nudging-era","um_dump"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 24,
+        "log_level": "debug",
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_nudging-era-coarse-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nudging-era-coarse","um_dump"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 24,
+        "log_level": "debug",
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name == "nwp_gal9_coarse_aero_threaded-C48_MG" %}
 
     {% do task_dict.update({

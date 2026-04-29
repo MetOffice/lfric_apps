@@ -126,6 +126,11 @@
         "lfric_atm_nwp_comorph_dev-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_gal9_mol-C12_ex1a_cce_fast-debug-32bit",
     ],
+    "lfric_atm_nudging": [
+        "lfric_atm_nwp_gal9_coarse_aero-C48_MG_azspice_gnu_fast-debug-64bit",
+        "lfric_atm_nwp_gal9_nudging-era-C48_MG_azspice_gnu_fast-debug-64bit",
+        "lfric_atm_nwp_gal9_nudging-era-coarse-C48_MG_azspice_gnu_fast-debug-64bit",
+    ],
     "lfric_atm_nwp_ex1a": [
         "lfric_atm_nwp_ex1a_developer",
         "lfric_atm_nwp_ex1a_extra",
