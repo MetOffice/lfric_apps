@@ -28,10 +28,7 @@ module bl_imp_alg_mod
                               output_diags_for_bl_imp
   use log_mod,                       only: log_event, LOG_LEVEL_DEBUG
   use mesh_mod,                      only: mesh_type
-  use map_fd_to_prognostics_alg_mod, only: set_wind
   use physics_mappings_alg_mod,      only: map_physics_winds
-  use convection_config_mod,         only: cv_scheme, cv_scheme_comorph, &
-       cv_scheme_gregory_rowntree
   use blayer_config_mod,             only: fric_heating
   use derived_config_mod,            only: l_esm_couple
   use esm_couple_config_mod,         only: l_esm_couple_test
@@ -59,9 +56,10 @@ contains
   !>@details The UM Boundary Layer scheme does:
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
-  !>         NB This version uses winds in w3 space (i.e. A-grid)
   !>@param[in,out] dtheta_bl         Theta increment
   !>@param[in,out] du_bl             3D wind increment
+  !>@param[in,out] theta_latest      Current estimate of theta
+  !>@param[in,out] u_latest          Current estimate of wind
   !>@param[in,out] mr                Mixing ratios
   !>@param[out]    surf_heat_flux    Net surface heat flux
   !>@param[out]    canopy_evap       Canopy evaporation from land tiles
@@ -69,10 +67,19 @@ contains
   !>@param[out]    lake_evap         Evaporation from lakes GBM
   !>@param[out]    theta_star_surf   Atmospheric stability via heat flux
   !>@param[out]    qv_star_surf      Atmospheric stability via moist flux
+  !>@param[out]    ustar_implicit    Implicit friction velocity (m/s)
+  !>@param[out]    t1p5m             Temperature at 1p5m (K)
+  !>@param[out]    q1p5m             Specific humidity at 1p5m (kg/kg)
+  !>@param[out]    qcl1p5m           Liquid cloud at 1p5m (kg/kg)
+  !>@param[out]    t1p5m_ssi         Temperature at 1p5m over sea/sea-ice (K)
+  !>@param[out]    q1p5m_ssi         Specific humidity at 1p5m over sea/sea-ice (kg/kg)
+  !>@param[out]    qcl1p5m_ssi       Liquid cloud at 1p5m over sea/sea-ice (kg/kg)
+  !>@param[out]    t1p5m_land        Temperature at 1p5m over land (K)
+  !>@param[out]    q1p5m_land        Specific humidity at 1p5m over land (kg/kg)
+  !>@param[out]    qcl1p5m_land      Liquid cloud at 1p5m over land (kg/kg)
   !>@param[in]     theta             Theta in its native (wth) space
   !>@param[in]     exner             Exner Pressure in the w3 space
   !>@param[in]     mr_n              Mixing ratios at time level n
-  !>@param[in]     rho               Dry density in its native (w3) space
   !>@param[in]     derived_fields    Group of derived fields
   !>@param[in]     radition_fields   Fields for radiation scheme
   !>@param[in]     orography_fields  Fields for orog drag scheme
@@ -85,10 +92,13 @@ contains
   !>@param[in]     microphysics_fields Fields for microphysics scheme
   !>@param[in]     outer             Outer loop counter
   !>@param[in]     clock             The clock object
-  subroutine bl_imp_alg(dtheta_bl, du_bl, mr,                            &
+  subroutine bl_imp_alg(dtheta_bl, du_bl, theta_latest, u_latest, mr,    &
                         surf_heat_flux, canopy_evap, water_extraction,   &
                         lake_evap, theta_star_surf, qv_star_surf,        &
-                        theta, exner, mr_n, rho,                         &
+                        ustar_implicit, t1p5m, q1p5m, qcl1p5m,           &
+                        t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,               &
+                        t1p5m_land, q1p5m_land, qcl1p5m_land,            &
+                        theta, exner, mr_n,                              &
                         derived_fields, radiation_fields,                &
                         orography_fields, turbulence_fields,             &
                         convection_fields, cloud_fields, surface_fields, &
@@ -106,8 +116,15 @@ contains
     type( field_type ), intent( inout )     :: dtheta_bl, du_bl, mr(nummr)
     type( field_type ), intent( out )       :: surf_heat_flux, canopy_evap,   &
                                                water_extraction, lake_evap,   &
-                                               theta_star_surf, qv_star_surf
-    type( field_type ), intent( in )        :: theta, exner, rho, mr_n(nummr)
+                                               theta_star_surf, qv_star_surf, &
+                                               ustar_implicit,                &
+                                               t1p5m, q1p5m, qcl1p5m,         &
+                                               t1p5m_ssi, q1p5m_ssi,          &
+                                               qcl1p5m_ssi, t1p5m_land,       &
+                                               q1p5m_land, qcl1p5m_land
+    
+    type( field_type ), intent( in )        :: theta, exner, mr_n(nummr),     &
+                                               theta_latest, u_latest
 
     type( field_collection_type ), intent(in)    :: derived_fields
     type( field_collection_type ), intent(in)    :: radiation_fields
@@ -128,9 +145,7 @@ contains
     type( field_type ), pointer :: wetrho_in_wth  => null()
     type( field_type ), pointer :: wetrho_in_w3   => null()
     type( field_type ), pointer :: wetrho_in_w2   => null()
-    type( field_type ), pointer :: theta_star     => null()
     type( field_type ), pointer :: u_physics      => null()
-    type( field_type ), pointer :: u_star
 
     type( field_type ), pointer :: zh             => null()
     type( field_type ), pointer :: zhsc           => null()
@@ -138,7 +153,6 @@ contains
     type( integer_field_type ), pointer :: cumulus => null()
     type( integer_field_type ), pointer :: blend_height_tq => null()
     type( field_type ), pointer :: zh_nonloc      => null()
-    type( field_type ), pointer :: bl_weight_1dbl => null()
     type( integer_field_type ), pointer :: bl_type_ind => null()
     type( field_type ), pointer :: z_lcl          => null()
     type( field_type ), pointer :: inv_depth      => null()
@@ -159,14 +173,6 @@ contains
     type( field_type ), pointer :: mt_inc_leonard => null()
     type( field_type ), pointer :: thetal_inc_leonard => null()
 
-    type( field_type ), pointer :: ls_rain => null()
-    type( field_type ), pointer :: ls_snow => null()
-    type( field_type ), pointer :: lsca_2d => null()
-    type( field_type ), pointer :: nr_mphys => null()
-    type( field_type ), pointer :: ns_mphys => null()
-
-    type( field_type ), pointer :: murk => null()
-
     type( field_type ), pointer :: cf_area    => null()
     type( field_type ), pointer :: cf_fro     => null()
     type( field_type ), pointer :: cf_liq     => null()
@@ -176,17 +182,10 @@ contains
     type( field_type ), pointer :: tau_hom_bm => null()
     type( field_type ), pointer :: tau_mph_bm => null()
 
-    type( field_type ), pointer :: dt_conv   => null()
-    type( field_type ), pointer :: du_conv   => null()
-    type( field_type ), pointer :: dv_conv   => null()
-    type( field_type ), pointer :: conv_rain => null()
-    type( field_type ), pointer :: conv_snow => null()
-    type( field_type ), pointer :: cca_2d    => null()
     type( field_type ), pointer :: cca
     type( field_type ), pointer :: ccw
 
     type( field_type ), pointer :: surf_interp_w2      => null()
-    type( field_type ), pointer :: z0m_eff             => null()
     type( field_type ), pointer :: tau_land_w2         => null()
     type( field_type ), pointer :: tau_ssi_w2          => null()
     type( field_type ), pointer :: wspd10m             => null()
@@ -204,22 +203,18 @@ contains
 
     ! Local variables
     type( field_type ) :: u_physics_star
-    type( field_type ) :: du_conv_w2, dw_conv
     type( field_type ) :: dissip, diss_u, diss_v, diss_w
     type( field_type ) :: wind10m_w2, u10m, v10m, w10m, u10m2, v10m2
     type( field_type ) :: wind10m_neut_w2, pseudotau_w2
     type( field_type ) :: wspd10m_neut, u10m_neut, v10m_neut
     type( field_type ) :: taux, tauy, tauz
     type( field_type ) :: tauz_ssi
-    type( field_type ) :: ustar_implicit
     type( field_type ) :: dmv_bl, dmcl_bl, dmci_bl, dbcf_bl
     type( field_type ) :: dacf_bl, dcfl_bl, dcff_bl
     type( field_type ) :: dqw, dtl, dqw_nt, dtl_nt, qw, tl, ct_ctq,     &
                           dqw1, dtl1, ct_ctq1, ftl_star, fqw_star, ftl, fqw, &
                           rhokh, mr_ice, mrn_ice
-
-    type( field_type ) :: latent_heat, t1p5m, q1p5m, qcl1p5m, &
-         t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, t1p5m_land, q1p5m_land, qcl1p5m_land
+    type( field_type ) :: latent_heat
 
     type( mesh_type ), pointer :: mesh => null()
     integer(i_def) :: loop, ncells
@@ -236,9 +231,7 @@ contains
     call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
     call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
     call derived_fields%get_field('wetrho_in_w2', wetrho_in_w2)
-    call derived_fields%get_field('theta_star', theta_star)
     call derived_fields%get_field('u_physics', u_physics)
-    call derived_fields%get_field('u_star', u_star)
 
     ! Unpack turbulence fields
     call turbulence_fields%get_field('zh', zh)
@@ -247,7 +240,6 @@ contains
     call turbulence_fields%get_field('cumulus', cumulus)
     call turbulence_fields%get_field('blend_height_tq', blend_height_tq)
     call turbulence_fields%get_field('zh_nonloc', zh_nonloc)
-    call turbulence_fields%get_field('bl_weight_1dbl', bl_weight_1dbl)
     call turbulence_fields%get_field('bl_type_ind', bl_type_ind)
     call turbulence_fields%get_field('z_lcl', z_lcl)
     call turbulence_fields%get_field('inv_depth', inv_depth)
@@ -278,28 +270,12 @@ contains
     call cloud_fields%get_field('tau_hom_bm', tau_hom_bm)
     call cloud_fields%get_field('tau_mph_bm', tau_mph_bm)
 
-    ! Unpack microphysics fields
-    call microphysics_fields%get_field('ls_rain', ls_rain)
-    call microphysics_fields%get_field('ls_snow', ls_snow)
-    call microphysics_fields%get_field('lsca_2d', lsca_2d)
-    call microphysics_fields%get_field('nr_mphys', nr_mphys)
-    call microphysics_fields%get_field('ns_mphys', ns_mphys)
-
-    call aerosol_fields%get_field('murk', murk)
-
     ! Unpack the convection
-    call convection_fields%get_field('dt_conv', dt_conv)
-    call convection_fields%get_field('du_conv', du_conv)
-    call convection_fields%get_field('dv_conv', dv_conv)
-    call convection_fields%get_field('conv_rain', conv_rain)
-    call convection_fields%get_field('conv_snow', conv_snow)
-    call convection_fields%get_field('cca_2d', cca_2d)
     call convection_fields%get_field('cca', cca)
     call convection_fields%get_field('ccw', ccw)
 
     ! Surface fields
     call surface_fields%get_field('surf_interp_w2', surf_interp_w2)
-    call surface_fields%get_field('z0m_eff', z0m_eff)
     call surface_fields%get_field('tau_land_w2', tau_land_w2)
     call surface_fields%get_field('tau_ssi_w2', tau_ssi_w2)
     call surface_fields%get_field('wspd10m', wspd10m)
@@ -328,9 +304,6 @@ contains
 
     mesh       => zh%get_mesh()
 
-    ! Set up the BL increments
-    call theta%copy_field_properties(dtheta_bl)
-
     ! Initialise the BL diagnostics
     call initialise_diags_for_bl_imp(mr(imr_v), mr(imr_cl), mr(imr_s),         &
                                      cf_bulk, cf_area, cf_liq, cf_fro,         &
@@ -342,23 +315,6 @@ contains
                                      v10m_neut, taux, tauy,                    &
                                      ustar_implicit)
 
-    ! Map the convection wind increments into w2 space
-    call u_physics%copy_field_properties(du_conv_w2)
-    if ( cv_scheme == cv_scheme_gregory_rowntree .or. &
-         cv_scheme == cv_scheme_comorph ) then
-      if ( LPROF ) call stop_timing( id, 'bl.implicit' )
-      call theta%copy_field_properties(dw_conv)
-      call invoke(setval_c(dw_conv, 0.0_r_def) )
-      call set_wind(du_conv_w2, du_conv, dv_conv, dw_conv)
-      call dw_conv%field_final()
-      ! Set wind provides output in dynamics quantites, need to remove
-      ! dA scaling for physics
-      call invoke(inc_X_divideby_Y(du_conv_w2, dA) )
-      if ( LPROF ) call start_timing( id, 'bl.implicit' )
-    else
-      call invoke(setval_c(du_conv_w2, 0.0_r_def) )
-    end if
-
     ! Set up required variables in w2 space
     call u_physics%copy_field_properties(dissip)
     call exner%copy_field_properties(diss_u)
@@ -367,14 +323,14 @@ contains
     call tau_ssi_w2%copy_field_properties(wind10m_w2)
     call tau_ssi_w2%copy_field_properties(wind10m_neut_w2)
     call tau_ssi_w2%copy_field_properties(pseudotau_w2)
-    call u_star%copy_field_properties(u_physics_star)
+    call u_latest%copy_field_properties(u_physics_star)
 
     call invoke(setval_c(du_bl, 0.0_r_def),                                    &
                 setval_c(dissip, 0.0_r_def),                                   &
                 setval_c(wind10m_w2, 0.0_r_def),                               &
                 setval_c(wind10m_neut_w2, 0.0_r_def),                          &
                 setval_c(pseudotau_w2, 0.0_r_def),                             &
-                X_divideby_Y(u_physics_star, u_star, dA),                      &
+                X_divideby_Y(u_physics_star, u_latest, dA),                    &
 
                 ! LFRic calculation of du on cell faces
                 bl_imp_du_kernel_type(outer, du_bl, dissip, tau_w2,            &
@@ -382,7 +338,7 @@ contains
                                       tau_land_w2, tau_ssi_w2, pseudotau_w2,   &
                                       rhokm_w2, rdz, dtrdz, wetrho_in_w2,      &
                                       u_physics, u_physics_star,               &
-                                      surf_interp_w2, du_conv_w2, dw_bl, dA,   &
+                                      surf_interp_w2, dw_bl, dA,               &
                                       height_w1, height_w2),                   &
                 ! Map the wind back into dynamics quantities
                 inc_X_times_Y(du_bl, dA),                                      &
@@ -433,8 +389,8 @@ contains
     do loop = 1,2
       ! Call the implicit scheme for scalars
       call invoke(bl_imp_kernel_type( loop, theta, exner_in_wth, mr_n(imr_v),  &
-                                      mr_n(imr_cl), mrn_ice, theta_star,       &
-                                      height_w3, height_wth, dt_conv,          &
+                                      mr_n(imr_cl), mrn_ice, theta_latest,     &
+                                      height_w3, height_wth,                   &
                                       mr(imr_v), mr(imr_cl), mr_ice,           &
                                       dtrdz_tq_bl, rdz_w3, blend_height_tq,    &
                                       bl_type_ind, rhokh, fqw, ftl, dqw, dtl,  &
@@ -449,9 +405,9 @@ contains
                           t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, t1p5m_land,       &
                           q1p5m_land, qcl1p5m_land)
       call invoke(bl_imp2_kernel_type( outer, loop, wetrho_in_wth, exner,      &
-                                       exner_in_wth, theta_star, height_w3,    &
+                                       exner_in_wth, theta_latest, height_w3,  &
                                        height_wth, ntml, cumulus, dtheta_bl,   &
-                                       diss_u, diss_v, dt_conv, mr(imr_v),     &
+                                       diss_u, diss_v, mr(imr_v),              &
                                        mr(imr_cl), mr(imr_ci), mr(imr_s),      &
                                        cf_area, cf_fro, cf_liq, cf_bulk,       &
                                        cca, ccw, rh_crit,                      &
@@ -533,18 +489,10 @@ contains
                                    taux, tauy, ustar_implicit,                 &
                                    taux_ssi, tauy_ssi,                         &
                                    pseudotau_w2,                               &
-                                   z0m_eff, rho, wetrho_in_w3,                 &
                                    mr(imr_v), mr(imr_cl), mr(imr_s),           &
-                                   mr(imr_r),                                  &
-                                   nr_mphys, ns_mphys, murk,                   &
                                    cf_bulk, cf_area, cf_liq, cf_fro,           &
-                                   dtheta_bl, exner_in_wth, dt_conv,           &
-                                   t1p5m, q1p5m, qcl1p5m,                      &
-                                   t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,          &
-                                   t1p5m_land, q1p5m_land, qcl1p5m_land,       &
+                                   dtheta_bl, exner_in_wth,                    &
                                    heat_flux_bl, moist_flux_bl,                &
-                                   bl_weight_1dbl, ls_rain, ls_snow, lsca_2d,  &
-                                   conv_rain, conv_snow, cca_2d,               &
                                    dmv_bl, dmcl_bl, dmci_bl, dbcf_bl,          &
                                    dacf_bl, dcfl_bl, dcff_bl)
         end if

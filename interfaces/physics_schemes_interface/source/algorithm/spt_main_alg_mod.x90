@@ -69,8 +69,8 @@ contains
   !>         See UMDP-081 for the scheme full details
   !>@param[in,out]     dtheta_stph             Stochastic Physics increments for theta
   !>@param[in,out]     dmv_stph                Stochastic Physics increments for mv
+  !>@param[in]         theta_latest            Updated potential temperature
   !>@param[in]         mv                      Updated Water vapour Mixing ratio
-  !>@param[in]         dtheta                  Increments for theta
   !>@param[in]         convection_fields       Fields from convection scheme
   !>@param[in]         microphysics_fields     Fields from microphysics scheme
   !>@param[in]         radiation_fields        Fields from radiationmicrophysics scheme
@@ -81,7 +81,7 @@ contains
   !>@param[in,out]     spt_power_law           Spectral power law
   !>@param[in]         clock                   Model time information
 
-  subroutine spt_main_alg(dtheta_stph, dmv_stph, dtheta, mv,         &
+  subroutine spt_main_alg(dtheta_stph, dmv_stph, theta_latest, mv,   &
                           convection_fields,                         &
                           microphysics_fields, radiation_fields,     &
                           derived_fields, orography_fields,          &
@@ -154,7 +154,7 @@ contains
   type( field_type ), intent( inout ) :: dmv_stph
 
   ! model prognostics
-  type( field_type ), intent(in) :: dtheta
+  type( field_type ), intent(in) :: theta_latest
   type( field_type ), intent(in) :: mv
 
   ! Collections
@@ -192,9 +192,6 @@ contains
 
   ! mass flux for CFL
   type( field_type ), pointer :: massflux_up         => null()
-
-  ! theta with physics increments from present timestep.
-  type( field_type ), pointer :: theta_star          => null()
 
   ! Inverse multiplicity to w0 for 1-2-1 Filter
   type( field_type ), pointer :: rmultiplicity_w0    => null()
@@ -295,12 +292,10 @@ contains
   call derived_fields%get_field('rho_in_wth', rho_in_wth)
   ! Unpack convection mass flux
   call convection_fields%get_field('massflux_up', massflux_up)
-  ! theta
-  call derived_fields%get_field('theta_star', theta_star)
 
   !!!!!! 2.b Set dX_spt forcing
-  call dtheta%copy_field_properties(dtheta_spt)
-  call dtheta%copy_field_properties(dt_spt)
+  call theta_latest%copy_field_properties(dtheta_spt)
+  call theta_latest%copy_field_properties(dt_spt)
   call mv%copy_field_properties(dmv_spt)
 
   ! Get mesh
@@ -407,10 +402,9 @@ contains
   !!  6)  Remove points where perturbations cause super-saturation  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  call theta_star%copy_field_properties(T_latest)
-  call invoke(X_plus_Y(T_latest,theta_star,dtheta), &
-              ! convert T_latest from pot. Temp to Temp
-              inc_X_times_Y(T_latest,exner_wth), &
+  call theta_latest%copy_field_properties(T_latest)
+  ! convert T_latest from pot. Temp to Temp
+  call invoke(X_times_Y(T_latest, theta_latest, exner_wth), &
               spt_saturation_cap_kernel_type(dtheta_spt,dmv_spt, &
               T_latest,mv, pressure))
 
@@ -457,7 +451,7 @@ contains
 
   ! Apply water conservation to the column if requested
   if (spt_moisture_conservation) then
-    mesh   => dtheta%get_mesh()
+    mesh   => dtheta_latest%get_mesh()
     dz_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
                                 coord_system, scaled_radius )
     call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth, &

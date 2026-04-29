@@ -46,7 +46,7 @@ module stph_main_alg_mod
   !>@param[in,out]     du_stph                 Stochastic Physics increments for winds
   !>@param[in,out]     dtheta_stph             Stochastic Physics increments for theta
   !>@param[in,out]     dmv_stph                Stochastic Physics increment for Water vapour Mixing ratio
-  !>@param[in]         dtheta                  increments for theta
+  !>@param[in]         theta_latest            Update potential temperature
   !>@param[in]         mv                      Updated Water vapour Mixing ratio
   !>@param[in]         rho                     Rho on w3 space
   !>@param[in]         u                       Prognostic wind field on W2
@@ -63,7 +63,7 @@ module stph_main_alg_mod
   !>@param[in,out]     skeb_power_law          Spectral power law
   !>@param[in]         clock                   Model time information
   subroutine stph_main_alg( du_stph, dtheta_stph, dmv_stph,             &
-                            dtheta, mv, rho, u,                         &
+                            theta_latest, mv, rho, u,                   &
                             convection_fields,                          &
                             microphysics_fields, radiation_fields,      &
                             derived_fields, orography_fields,           &
@@ -85,7 +85,7 @@ module stph_main_alg_mod
   type( field_type ), intent( inout ) :: du_stph
   type( field_type ), intent( inout ) :: dtheta_stph
   type( field_type ), intent( inout ) :: dmv_stph
-  type( field_type ), intent(in) :: dtheta
+  type( field_type ), intent(in) :: theta_latest
   type( field_type ), intent(in) :: mv
   type( field_type ), intent(in) :: rho
   type( field_type ), intent(in) :: u
@@ -114,8 +114,8 @@ module stph_main_alg_mod
 
   !!!! DO SPT
   if (use_spt) then
-    call spt_main_alg(dtheta_stph, dmv_stph, dtheta, mv,        &
-                      convection_fields,                        &
+    call spt_main_alg(dtheta_stph, dmv_stph,                    &
+                      theta_latest, mv, convection_fields,      &
                       microphysics_fields, radiation_fields,    &
                       derived_fields, orography_fields,         &
                       spt_spectral_coeffc, spt_spectral_coeffs, &

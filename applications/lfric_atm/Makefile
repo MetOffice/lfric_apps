@@ -32,6 +32,10 @@ export IGNORE_DEPENDENCIES = c_shum_byteswap \
                              f_shum_is_denormal_mod
 
 
+export EXTRA_ROSE_META = jules
+export META_DIR = $(WORKING_DIR)/../rose-meta
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
+
 # Note - socrates_interface must come before jules_interface as there are dependencies on each other.
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
@@ -114,6 +118,10 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=source
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting External Rose Metadata)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Generating $(PROJECT) namelist loaders)
 	$(call MESSAGE,========================================)

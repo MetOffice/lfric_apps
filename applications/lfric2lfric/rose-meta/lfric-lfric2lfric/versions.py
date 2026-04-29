@@ -94,3 +94,18 @@ class vn31_t348(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t368(MacroUpgrade):
+    """Upgrade macro for ticket #368 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t348"
+    AFTER_TAG = "vn3.1_t368"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-convection
+        self.add_setting(
+            config, ["namelist:convection", "llcs_first_outer"], ".false."
+        )
+
+        return config, self.reports
