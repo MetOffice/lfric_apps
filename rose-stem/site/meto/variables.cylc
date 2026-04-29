@@ -27,7 +27,8 @@
                                                "coupled_interface",
                                                "adjoint",
                                                "adjoint_tests",
-                                               "ngarch"]}) %}
+                                               "ngarch",
+                                               "science_shared"]}) %}
 
 {% do site_vars.update({"site_platforms": ["ex1a",
                                            "azspice"]}) %}

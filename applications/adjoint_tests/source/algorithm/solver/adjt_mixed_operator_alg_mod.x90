@@ -32,7 +32,6 @@ module adjt_mixed_operator_alg_mod
   use finite_element_config_mod,        only: element_order_h, element_order_v
   use function_space_collection_mod,    only: function_space_collection
   use moist_dyn_mod,                    only: num_moist_factors
-  use copy_field_alg_mod,               only: copy_field
   use fs_continuity_mod,                only: W2, W3, Wtheta
   use si_operators_alg_mod,             only: compute_si_operators
   use sci_enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
@@ -129,10 +128,10 @@ contains
 
     call invoke( enforce_bc_kernel_type(rhs(igh_u)) ) ! Needed for adjoint test
 
-    call copy_field( rhs(igh_u), rhs_rsol(igh_u) )
-    call copy_field( rhs(igh_t), rhs_rsol(igh_t) )
-    call copy_field( rhs(igh_d), rhs_rsol(igh_d) )
-    call copy_field( rhs(igh_p), rhs_rsol(igh_p) )
+    call invoke( real_to_real_x( rhs_rsol(igh_u), rhs(igh_u) ), &
+                 real_to_real_x( rhs_rsol(igh_t), rhs(igh_t) ), &
+                 real_to_real_x( rhs_rsol(igh_d), rhs(igh_d) ), &
+                 real_to_real_x( rhs_rsol(igh_p), rhs(igh_p) ) )
 
     ! --------------------------------------------------------------------------
     ! Solve the semi-implicit operator (i.e., forward code)
