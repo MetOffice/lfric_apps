@@ -50,7 +50,7 @@ class TestSpatialMetadata:
 
     def test_Mesh2d_node_x_units(self, load_rootgrp):
         """
-        Validate that the output file x variable has degrees_north units
+        Validate that the output file x variable has degrees_east units
         """
         assert load_rootgrp.variables.get("Mesh2d_node_x").units == 'degrees_east'
 
@@ -62,7 +62,7 @@ class TestSpatialMetadata:
 
     def test_Mesh2d_node_y_stdname(self, load_rootgrp):
         """
-        Validate that the output file y variable has longitude standard_name
+        Validate that the output file y variable has latitude standard_name
         """
         assert load_rootgrp.variables.get("Mesh2d_node_y").standard_name == 'latitude'
 
