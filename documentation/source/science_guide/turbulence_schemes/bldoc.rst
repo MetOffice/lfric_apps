@@ -4732,8 +4732,7 @@ if the `Wood and Mason (1993)`_ formulation is used.
 
 .. _section_2.2:
 
-The iterative algorithm for calculating the effective surface exchange
-coefficients
+The iterative algorithm for calculating the effective surface exchange coefficients
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For unstable conditions, i.e. :math:`\Delta`\ B :math:`<` 0 :
@@ -4993,8 +4992,7 @@ and v\ :math:`_{\ast }` are used.
 
 .. _section_2.4:
 
-Distributed form drag – an alternative to the effective roughness length
-parametrization
+Distributed form drag – an alternative to the effective roughness length parametrization
 ----------------------------------------------------------------------------------------
 
 An alternative representation of the turbulent form drag due to sub-grid
