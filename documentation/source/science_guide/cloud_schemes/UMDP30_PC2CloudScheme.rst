@@ -4,6 +4,12 @@
     under which the code may be used.
    -----------------------------------------------------------------------------
 
+.. attention::
+
+   This documentation has been transfered directly from the UM to LFRic;
+   It is still a work in progress. There are still UM-specific references
+   and terminology that are yet to be updated.
+
 ====================
 The PC2 Cloud Scheme
 ====================
