@@ -38,5 +38,8 @@
 | mo-lottieturner     | Lottie Turner      | Met Office                       | 2026-01-27 |
 | DrTVockerodtMO      | Terence Vockerodt  | Met Office                       | 2026-01-08 |
 | MetBenjaminWent     | Benjamin Went      | Met Office                       | 2026-01-15 |
-| mo-rickywong        | Ricky Wong         | Met Office                       | 2026-24-02 |
+| mo-rickywong        | Ricky Wong         | Met Office                       | 2026-02-24 |
+| ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
 | theabro             | Nathan Luke Abraham | NCAS & University of Cambridge  | 2026-04-15 |
+| ss421               | Steven Sandbach    | Met Office                       | 2026-04-20 |
+| MichaelWhitall      | Michael Whitall    | Met Office                       | 2026-04-22 |

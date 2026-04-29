@@ -950,14 +950,9 @@ contains
         !--------------------------------------------------------------------
         ! setting predictors for fast physics
         !--------------------------------------------------------------------
-        if (blayer_placement == blayer_placement_fast .or.                     &
-             convection_placement == convection_placement_fast .or.            &
-             stochastic_physics_placement == stochastic_physics_placement_fast)&
-             then
-          call calc_phys_predictors_alg( derived_fields, self%rhs_np1, self%rhs_adv,    &
-                                         self%rhs_n, self%state, self%state_after_slow, &
-                                         lbc_fields, model_clock )
-        end if
+        call calc_phys_predictors_alg( derived_fields, self%rhs_np1, self%rhs_adv,    &
+                                       self%rhs_n, self%state, self%state_after_slow, &
+                                       lbc_fields, model_clock )
 
         if (outer == outer_iterations .and. self%output_cld_incs) then
           call cld_incs_output(cloud_fields, dcfl_adv, dcff_adv, dbcf_adv, &
