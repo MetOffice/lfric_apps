@@ -7,9 +7,10 @@ import pytest
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--file", action="store", required=True, help="Input netCDF file"
+        "--lfric_diag_file", action="store", required=True,
+        help="Input lfric_diagnostics.nc netCDF file"
     )
 
 @pytest.fixture
-def infile(request):
-    return request.config.getoption("--file")
+def diag_infile(request):
+    return request.config.getoption("--lfric_diag_file")

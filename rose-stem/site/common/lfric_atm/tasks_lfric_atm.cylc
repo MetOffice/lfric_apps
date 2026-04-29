@@ -292,6 +292,7 @@
         "tsteps": 144,
         "crun": 2,
         "crun_compare": false,
+        "metadata_test": true,
         "mpi_parts": 6,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
