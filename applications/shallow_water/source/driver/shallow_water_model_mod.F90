@@ -81,6 +81,7 @@ module shallow_water_model_mod
     character(len=*),   parameter   :: io_context_name = "shallow_water"
 
     character(str_def), allocatable :: base_mesh_names(:)
+    character(str_def), allocatable :: chain_mesh_tags(:)
     character(str_def), allocatable :: twod_names(:)
     integer(i_def),     allocatable :: stencil_depths(:)
 
@@ -112,17 +113,29 @@ module shallow_water_model_mod
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
+    l_multigrid = modeldb%config%formulation%l_multigrid()
+    if (l_multigrid) then
+      chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
+    end if
+
     prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
     geometry         = modeldb%config%base_mesh%geometry()
     topology         = modeldb%config%base_mesh%topology()
+    prepartitioned   = modeldb%config%base_mesh%prepartitioned()
     method           = modeldb%config%extrusion%method()
     domain_height    = modeldb%config%extrusion%domain_height()
     number_of_layers = modeldb%config%extrusion%number_of_layers()
     scaled_radius    = modeldb%config%planet%scaled_radius()
 
-    tile_size_x = 1
-    tile_size_y = 1
-    inner_halo_tiles = .false.
+    if (prepartitioned) then
+      inner_halo_tiles = .false.
+      tile_size_x = 1
+      tile_size_y = 1
+    else
+      inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
+      tile_size_x = maxval([1,modeldb%config%partitioning%tile_size_x()])
+      tile_size_y = maxval([1,modeldb%config%partitioning%tile_size_y()])
+    end if
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure

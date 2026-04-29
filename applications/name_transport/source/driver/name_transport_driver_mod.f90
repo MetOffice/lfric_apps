@@ -152,13 +152,13 @@ contains
     use_xios_io        = modeldb%config%io%use_xios_io()
 
     if (prepartitioned) then
-      tile_size_x      = 1
-      tile_size_y      = 1
       inner_halo_tiles = .false.
+      tile_size_x = 1
+      tile_size_y = 1
     else
-      tile_size_x      = modeldb%config%partitioning%tile_size_x()
-      tile_size_y      = modeldb%config%partitioning%tile_size_y()
       inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
+      tile_size_x = maxval([1,modeldb%config%partitioning%tile_size_x()])
+      tile_size_y = maxval([1,modeldb%config%partitioning%tile_size_y()])
     end if
 
     !-----------------------------------------------------------------------

@@ -117,12 +117,12 @@ contains
 
     if (prepartitioned) then
       inner_halo_tiles = .false.
-      tile_size_x      = 1
-      tile_size_y      = 1
+      tile_size_x = 1
+      tile_size_y = 1
     else
       inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
-      tile_size_x      = modeldb%config%partitioning%tile_size_x()
-      tile_size_y      = modeldb%config%partitioning%tile_size_y()
+      tile_size_x = maxval([1,modeldb%config%partitioning%tile_size_x()])
+      tile_size_y = maxval([1,modeldb%config%partitioning%tile_size_y()])
     end if
 
     !-------------------------------------------------------------------------
