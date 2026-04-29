@@ -17,11 +17,12 @@ module smagorinsky_alg_mod
   use section_choice_config_mod, only: boundary_layer,     &
                                        boundary_layer_um
   use mixing_config_mod,         only: mix_factor, smag_l_calc, &
-                                       smag_l_calc_use_geo, &
-                                       smagorinsky_placement, &
+                                       smag_l_calc_use_geo
+  use physics_config_mod,        only: smagorinsky_placement, &
                                        smagorinsky_placement_outer, &
                                        smagorinsky_placement_end
-  use cloud_config_mod,          only: pc2_horiz_turb
+  use cloud_config_mod,          only: pc2_turb_horiz
+  use physics_mappings_alg_mod,  only: map_physics_scalars
 
   use tracer_smagorinsky_diff_kernel_mod, only: tracer_smagorinsky_diff_kernel_type
   use momentum_smagorinsky_kernel_mod,    only: momentum_smagorinsky_kernel_type
