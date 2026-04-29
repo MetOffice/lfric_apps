@@ -113,6 +113,12 @@ module gungho_init_fields_mod
                                                  use_skeb, &
                                                  use_random_parameters, &
                                                  ens_memb
+  use stph_main_alg_mod,                  only : spt_array_names,  &
+                                                 spt_array_count,  &
+                                                 skeb_array_names, &
+                                                 skeb_array_count
+  use spt_main_alg_mod,                   only : spt_init_power_law
+  use skeb_main_alg_mod,                  only : skeb_init_power_law
   use random_seed_gen_alg_mod,            only : random_seed_gen_alg
   use stph_rp_main_alg_mod,               only : stph_rp_init_alg
 #endif
@@ -556,11 +562,14 @@ subroutine create_model_data( modeldb,      &
 
     type( io_value_type ),               pointer :: temp_corr_io_value
     type( io_value_type ),               pointer :: random_seed_io_value
+
     procedure( io_operation_interface ), pointer :: io_op_read_ptr
     procedure( io_operation_interface ), pointer :: io_op_write_ptr
 
     ! Dust fields
 #ifdef UM_PHYSICS
+    type(io_value_type), pointer :: stph_io_value
+
     type( field_type ), pointer :: dust1_mmr
     type( field_type ), pointer :: dust2_mmr
     type( field_type ), pointer :: n_acc_ins
@@ -608,6 +617,7 @@ subroutine create_model_data( modeldb,      &
     integer(i_def), allocatable :: ranseed(:)
 #ifdef UM_PHYSICS
     integer(i_def) :: ensemble_number
+    real(r_def), allocatable :: power_law(:)
     procedure(regridder), pointer :: regrid_operation => null()
 
     regrid_operation => map_scalar_intermesh
@@ -639,6 +649,7 @@ subroutine create_model_data( modeldb,      &
     model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
 
     temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value' )
+
     if ( stochastic_physics == stochastic_physics_um ) then
       random_seed_io_value => get_io_value( modeldb%values, 'random_seed_io_value' )
     end if
@@ -687,6 +698,23 @@ subroutine create_model_data( modeldb,      &
     if ( stochastic_physics == stochastic_physics_um ) then
       call random_seed_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
       call random_seed_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
+
+#ifdef UM_PHYSICS
+      if (use_spt) then
+        do i = 1, spt_array_count
+          stph_io_value => get_io_value(modeldb%values, trim(spt_array_names(i)))
+          call stph_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
+          call stph_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
+        end do
+      end if
+      if (use_skeb) then
+        do i = 1, skeb_array_count
+          stph_io_value => get_io_value(modeldb%values, trim(skeb_array_names(i)))
+          call stph_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
+          call stph_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
+        end do
+      end if
+#endif
     end if
     ! Initialise prognostic fields appropriately
     select case ( prognostic_init_choice )
@@ -917,11 +945,11 @@ subroutine create_model_data( modeldb,      &
             call depository%remove_field("grad_y_orog")
           end if
           if (ancil_option == ancil_option_fixed) then
-            if (sst_source /= sst_source_start_dump) then
-              call ancil_fields%remove_field("tstar_sea")
-              call depository%remove_field("tstar_sea")
-            end if
             if (.not. l_esm_couple) then
+              if (sst_source /= sst_source_start_dump) then
+                call ancil_fields%remove_field("tstar_sea")
+                call depository%remove_field("tstar_sea")
+              end if
               call ancil_fields%remove_field("sea_ice_fraction")
               call depository%remove_field("sea_ice_fraction")
             end if
@@ -1016,6 +1044,37 @@ subroutine create_model_data( modeldb,      &
           do i = 1, random_seed_size
             ranseed(i) = nint(random_seed_io_value%data(i), i_def)
           end do
+
+#ifdef UM_PHYSICS
+          ! Read arrays for SPT and SKEB schemes
+          if (use_spt) then
+            do i = 1, spt_array_count
+              stph_io_value => get_io_value(modeldb%values, trim(spt_array_names(i)))
+              call stph_io_value%read_checkpoint()
+            end do
+          end if
+          if (use_skeb) then
+            do i = 1, skeb_array_count
+              stph_io_value => get_io_value(modeldb%values, trim(skeb_array_names(i)))
+              call stph_io_value%read_checkpoint()
+            end do
+          end if
+        else
+          if (use_spt) then
+            stph_io_value => get_io_value(modeldb%values, trim(spt_array_names(3)))
+            allocate(power_law, source = stph_io_value%data)
+            call spt_init_power_law(power_law, modeldb%clock)
+            stph_io_value%data = power_law
+            deallocate(power_law)
+          end if
+          if (use_skeb) then
+            stph_io_value => get_io_value(modeldb%values, trim(skeb_array_names(3)))
+            allocate(power_law, source = stph_io_value%data)
+            call skeb_init_power_law(power_law, modeldb%clock)
+            stph_io_value%data = power_law
+            deallocate(power_law)
+          end if
+#endif
         end if
 
         ! Set random seed for stochastic physics
@@ -1025,7 +1084,7 @@ subroutine create_model_data( modeldb,      &
                '(": Random seed generation: Size of random seed: ", I6)' ) &
                random_seed_size
         call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-        write( string, '("(",A23, I3, "(I5))" )' ) '"Random Seed Values: ",', &
+        write( string, '("(",A23, I3, "(I12))" )' ) '"Random Seed Values: ",', &
                random_seed_size
         write( log_scratch_space, trim(string) ) &
                (ranseed(i), i=1,random_seed_size)

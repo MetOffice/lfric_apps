@@ -19,7 +19,7 @@ module transport_controller_mod
   use extrusion_mod,                  only: SHIFTED, TWOD
   use field_mod,                      only: field_type
   use sci_field_minmax_alg_mod,       only: get_field_minmax
-  use fs_continuity_mod,              only: W3, W2H, W2V
+  use fs_continuity_mod,              only: W3, W2H, W2V, W2
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
   use integer_field_mod,              only: integer_field_type
@@ -206,7 +206,7 @@ contains
     logical(kind=l_def)    :: fixed_multiple_substeps
     logical(kind=l_def)    :: logged_lipschitz
     character(len=str_def) :: splitting_name
-    integer(tik)        :: id
+    integer(kind=tik)      :: id
 
     if ( LPROF ) call start_timing( id, 'transport.controller_init' )
 
@@ -550,14 +550,15 @@ contains
     type(flux_precomputations_type), pointer :: flux_precomputations
 
     ! Internal variables
-    real(kind=r_tran)                  :: dt_one, dt
-    integer(kind=i_def)                :: mesh_id
+    real(kind=r_tran)                  :: dt_one, factor
+    integer(kind=i_def)                :: mesh_id, i
     integer(kind=i_def)                :: watkins_fail, watkins_min
     logical(kind=l_def)                :: perform_watkins
     logical(kind=l_def)                :: fixed_multiple_substeps
     logical(kind=l_def)                :: ref_field_safe
     type(mesh_type),           pointer :: mesh
     type(mesh_type),           pointer :: twod_mesh
+    type(function_space_type), pointer :: w2_fs
     type(function_space_type), pointer :: w2h_fs
     type(function_space_type), pointer :: w2v_fs
     type(function_space_type), pointer :: w3_2d_fs
@@ -565,6 +566,7 @@ contains
     type(integer_field_type),  pointer :: face_selector_ns
     type(r_tran_field_type),   pointer :: ref_mass
     type(r_tran_field_type),   pointer :: total_ref_flux
+    type(r_tran_field_type)            :: ref_flux_one_step
     type(r_tran_field_type)            :: hori_flux
     type(r_tran_field_type)            :: vert_flux
     type(r_tran_field_type)            :: step_1_flux
@@ -601,6 +603,7 @@ contains
 
         mesh => self%transporting_wind%get_mesh()
         twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+        w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
         w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
         w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
         w3_2d_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3)
@@ -613,6 +616,7 @@ contains
 
         call hori_flux%initialise(w2h_fs)
         call vert_flux%initialise(w2v_fs)
+        call ref_flux_one_step%initialise(w2_fs)
         call step_1_flux%initialise(w2v_fs)
         call step_3_flux%initialise(w2v_fs)
         call watkins_fail_field%initialise(w3_2d_fs)
@@ -621,20 +625,22 @@ contains
         ! Following calculations will include dt in the "flux" fields, so
         ! set dt = 1.0 for the Watkins kernel
         dt_one = 1.0_r_tran
+        factor = 1.0_r_tran / real(self%num_substeps, r_tran)
 
         call invoke( setval_c(hori_flux, 0.0_r_tran),                          &
                      setval_c(vert_flux, 0.0_r_tran),                          &
+                     a_times_X(ref_flux_one_step, factor, total_ref_flux),     &
                      ! Separate wind into horizontal and vertical parts
                      split_w2_field_kernel_type(hori_flux,                     &
                                                 vert_flux,                     &
-                                                total_ref_flux,                &
+                                                ref_flux_one_step,             &
                                                 face_selector_ew,              &
                                                 face_selector_ns),             &
                      ! Determine the adjusted wind for the first step
                      watkins_kernel_type(step_1_flux,                          &
                                          lipschitz_max_field,                  &
                                          watkins_fail_field,                   &
-                                         total_ref_flux,                       &
+                                         ref_flux_one_step,                    &
                                          dt_one,                               &
                                          ref_mass),                            &
                      ! Determine the adjusted wind for the final step
@@ -650,16 +656,17 @@ contains
           flux_precomputations => self%get_flux_precomputations()
 
           ! Initialise the flux for each step
-          call self%flux_precomputations%initialise_step(step=1, ref_flux=step_1_flux)
-          call self%flux_precomputations%initialise_step(step=2, ref_flux=hori_flux)
-          call self%flux_precomputations%initialise_step(step=3, ref_flux=step_3_flux)
+          do i = 1, self%num_substeps
+            call self%flux_precomputations%initialise_step(step=(1+3*(i-1)), ref_flux=step_1_flux)
+            call self%flux_precomputations%initialise_step(step=(2+3*(i-1)), ref_flux=hori_flux)
+            call self%flux_precomputations%initialise_step(step=(3+3*(i-1)), ref_flux=step_3_flux)
+          end do
 
         else
           ! We're about to fail... log the Lipschitz numbers
-          dt = self%dt_substep * real(self%num_substeps, r_tran)
           call lipschitz_diag_alg(                                             &
-                  self%reference_splitting, self%transporting_wind, dt,        &
-                  LOG_LEVEL_WARNING                                            &
+                  self%reference_splitting, self%transporting_wind,            &
+                  self%dt_substep, LOG_LEVEL_WARNING                           &
           )
 
           if (adjust_tracer_equation) then
@@ -988,7 +995,6 @@ contains
     type(r_tran_field_type),                  intent(in)    :: ref_flux
 
     type(mesh_type), pointer :: mesh
-    integer(kind=i_def)      :: max_courant_num
 
     if (self%flux_precomputations%is_initialised()) then
       call log_event(                                                          &
@@ -1000,31 +1006,17 @@ contains
 
     mesh => self%transporting_wind%get_mesh()
 
-    ! Determine the halo depths to be used in flux computations
-    if (share_stencil_extent) then
-      ! Get the extent that is stored/calculated in this controller object
-      ! This likely comes from the first time horizontal departure distances
-      ! are calculated for density transport on this mesh
-      max_courant_num = self%get_dep_stencil_extent(                           &
-              mesh%get_id(), 1, outer_step=.false., flux_calc=.false.          &
-      )
-    else
-      ! Set the stencil extent from the namelist option
-      max_courant_num = dep_pt_stencil_extent
-    end if
-
     ! This is used for the consistent transport of the "last outer" group of
     ! tracers, either with the "cheap update" or if those tracers are on a
     ! coarser mesh. In either case, the fluxes calculated during the transport
     ! of the density are not the same as those that will be used to transport
     ! the tracers. We set the correct flux here.
-    ! Don't provide the max_courant_num argument, as it is more appropriate to
-    ! recalculate it for this object
     call self%flux_precomputations%initialise(                                 &
             mesh, self%reference_splitting, self%num_substeps,                 &
             self%transporting_wind, self%dt_substep,                           &
-            flux=ref_flux, max_courant_num=max_courant_num                     &
+            flux=ref_flux, ref_field=self%ref_field_rtran                      &
     )
+    call self%check_reference_field()
 
   end subroutine initialise_flux_precomputations
 
