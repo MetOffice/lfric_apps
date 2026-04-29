@@ -63,6 +63,9 @@ call lfricinp_create_lfric_fields( mesh, twod_mesh, lfric_fields,              &
 !==========================================================================
 ! lfric2um main loop
 !==========================================================================
+! Now initialise masked points that requires post regridding adjustments
+call lfric2um_init_masked_field_adjustments()
+
 ! Main loop over fields to be read, regridded and written to output dump
 call lfric2um_main_loop()
 
