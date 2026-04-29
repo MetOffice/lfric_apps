@@ -23,7 +23,7 @@ contains
   !> @param[in]     rho            Density
   !> @param[in]     dt             The model timestep length
   subroutine mixing_alg(mr, theta, u, derived_fields, &
-                        rho, dt)
+                        cloud_fields, rho, exner, dt)
 
     use constants_mod,                 only: i_def,r_def
     use log_mod,                       only: log_event,         &
@@ -47,7 +47,8 @@ contains
     type( field_type ), intent(inout) :: mr ( nummr )
 
     type( field_collection_type ), intent(in) :: derived_fields
-    type( field_type ), intent(in) :: rho
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_type ), intent(in) :: rho, exner
 
     ! Timestepping information
     real( r_def ),      intent(in) :: dt
@@ -68,7 +69,8 @@ contains
       call du%initialise( u%get_function_space() )
       call invoke( setval_c(dtheta, 0.0_r_def), &
                    setval_c(du, 0.0_r_def) )
-      call smagorinsky_alg(dtheta, du, mr, theta, u, derived_fields, rho, dt)
+      call smagorinsky_alg(dtheta, du, mr, theta, u, derived_fields, &
+                           cloud_fields, rho, exner, dt)
       call invoke( inc_X_plus_Y( theta, dtheta ), &
                    inc_X_plus_Y( u,     du ) )
 

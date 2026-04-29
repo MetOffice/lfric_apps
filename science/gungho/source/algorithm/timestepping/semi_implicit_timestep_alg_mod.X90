@@ -925,10 +925,10 @@ contains
                           outer, model_clock, cast_dt)
 
         if (smagorinsky .and. smagorinsky_placement == smagorinsky_placement_outer) then
-          call smagorinsky_alg(self%dtheta, self%du, mr, self%state(igh_t), &
-                               self%state(igh_u),                           &
-                               derived_fields, self%state(igh_d),           &
-                               cast_dt)
+          call smagorinsky_alg(self%dtheta, self%du, mr, self%state(igh_t),    &
+                               self%state(igh_u),                              &
+                               derived_fields, cloud_fields, self%state(igh_d),&
+                               self%state(igh_p), cast_dt)
         end if
 
         if (use_wavedynamics) then
@@ -1083,8 +1083,8 @@ contains
     ! Apply mixing
     !--------------------------------------------------------------------
     call mixing_alg(mr, self%state(igh_t),                                     &
-                    self%state(igh_u), derived_fields,                         &
-                    self%state(igh_d), cast_dt )
+                    self%state(igh_u), derived_fields, cloud_fields,           &
+                    self%state(igh_d), self%state(igh_p), cast_dt )
 
     ! ----------------------------------------------------------------------
     ! Call cloud scheme to generate cloud and latent heating after pressure

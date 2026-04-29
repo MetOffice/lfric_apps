@@ -17,7 +17,11 @@ module smagorinsky_alg_mod
   use section_choice_config_mod, only: boundary_layer,     &
                                        boundary_layer_um
   use mixing_config_mod,         only: mix_factor, smag_l_calc, &
-                                       smag_l_calc_use_geo
+                                       smag_l_calc_use_geo, &
+                                       smagorinsky_placement, &
+                                       smagorinsky_placement_outer, &
+                                       smagorinsky_placement_end
+  use cloud_config_mod,          only: pc2_horiz_turb
 
   use tracer_smagorinsky_diff_kernel_mod, only: tracer_smagorinsky_diff_kernel_type
   use momentum_smagorinsky_kernel_mod,    only: momentum_smagorinsky_kernel_type
@@ -56,7 +60,7 @@ contains
   !> @param[in]     rho            Density
   !> @param[in]     dt             The model timestep length
 subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
-                           derived_fields, rho, dt )
+                           derived_fields, cloud_fields, rho, exner, dt )
 
     implicit none
 
@@ -65,8 +69,9 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     type( field_type ), intent(inout) :: mr ( nummr )
 
     type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
 
-    type( field_type ), intent(in) :: rho, theta, u
+    type( field_type ), intent(in) :: rho, theta, u, exner
     real( r_def ),      intent(in) :: dt
 
     ! Increments on state fields
@@ -82,6 +87,13 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     type( field_type ), pointer :: dx_at_w2 => null()
     type( field_type ), pointer :: panel_id => null()
     type( field_type ) :: dmr_v, dmr_cl
+#ifdef UM_PHYSICS
+    type( field_type ) :: theta_b4smag, cfl_force, bcf_force
+    type( field_type ), pointer :: liquid_fraction
+    type( field_type ), pointer :: bulk_fraction
+    type( field_type ), pointer :: theta_star
+    type( field_type ), pointer :: exner_wth
+#endif
 
     type( mesh_type ), pointer :: mesh => null()
 
@@ -224,6 +236,46 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
       call invoke(inc_a_times_X(dt, dmr_v), &
                   inc_a_times_X(dt, dmr_cl) )
     end if
+
+#ifdef UM_PHYSICS
+    ! Call pc2 homogeneous forcing response to Smagorinsky
+    if (pc2_turb_horiz) then
+
+      ! Calculate theta before Smag - this depends on placement of Smag
+      call theta%copy_field_properties(theta_b4smag)
+      if (smagorinsky_placement == smagorinsky_placement_outer) then
+        ! In outer loop, need to get theta_star and add on the incoming inc
+        call derived_fields%get_field('theta_star', theta_star)
+        call invoke(X_plus_Y(theta_b4smag, theta_star, dtheta_io))
+      else
+        ! Just add incoming inc to incoming theta
+        call invoke(X_plus_Y(theta_b4smag, theta, dtheta_io))
+      end if
+
+      ! Set cloud fraction forcing to 0
+      call theta%copy_field_properties(cfl_force)
+      call theta%copy_field_properties(bcf_force)
+      call invoke(setval_c(cfl_force, 0.0_r_def),           &
+                  setval_c(bcf_force, 0.0_r_def))
+
+      ! If we're at the end of timestep, we need to update exner_wth
+      if (smagorinsky_placement == smagorinsky_placement_end) then
+        call derived_fields%get_field('exner_in_wth', exner_wth)
+        call map_physics_scalars(exner_wth, exner)
+      end if
+
+      ! dtheta and dmr will be updated with the pc2 response in the alg
+      call pc2_force_response_alg(mr, theta_b4smag, derived_fields,    &
+                                  cloud_fields, dtheta, dmr_v, dmr_cl, &
+                                  cfl_force, bcf_force, dt)
+
+      ! update cloud fractions with response
+      call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+      call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+      call invoke(inc_X_plus_Y(liquid_fraction, cfl_force), &
+                  inc_X_plus_Y(bulk_fraction, bcf_force))
+    end if
+#endif
 
     ! Apply increments from Smagorinsky mixing
     call invoke( inc_X_plus_Y( dtheta_io, dtheta ),      &
