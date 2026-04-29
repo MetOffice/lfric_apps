@@ -3125,8 +3125,8 @@ cumulus regimes.
                                      \right)^\frac{1}{1-b_1}
 
       Note that :math:`q_{cl}` falls to zero after a finite time
-      :math:`\frac{{q_{cl}}_0}{1-b_1} \frac{a_L}{K}
-      \frac{1}{2 {C_l}_0 (1 - C_l) \, (q_{cl}-Q_c)}`. If the timestep
+      :math:`\frac{{q_{cl}}_0}{1-b_1} \frac{a_L}{K} \frac{1}{2 {C_l}_0 (1 -
+      C_l) \, (q_{cl}-Q_c)}`. If the timestep
       :math:`\Delta t` is longer than this time, then erosion completely
       removes the cloud during the current timestep.
 
@@ -5946,7 +5946,7 @@ fractions as part of the LBCs file.
 Parameter values
 ----------------
 
-Table `1 <#tab:pc2_names>`__ summarizes the values of parameters used in
+:numref:`Table %s <tab:pc2_names>` summarizes the values of parameters used in
 the PC2 scheme and their location within various comdecks. Those
 parameters marked as ‘Num’ are those that are not part of the
 mathematical equation set that is being solved, but are required in
