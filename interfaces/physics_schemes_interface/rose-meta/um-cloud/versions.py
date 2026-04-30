@@ -31,3 +31,13 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+class vn31_t464(MacroUpgrade):
+    # Upgrade macro for #464 by Ian Boutle
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t464"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        self.add_setting(config, ["namelist:cloud","pc2_turb_horiz"], ".false.")
+        return config, self.reports

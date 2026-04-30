@@ -382,6 +382,7 @@ contains
     type( mesh_type ), intent( in ), pointer :: twod_mesh
 
     real( kind=r_def ) :: cast_dt
+    type( field_collection_type ) :: cloud_fields
 
     ! Quadrature object
     type( quadrature_xyoz_type ), pointer :: qr => null()
@@ -913,8 +914,8 @@ contains
     ! Apply mixing
     !--------------------------------------------------------------------
     call mixing_alg(mr, state(igh_t),                             &
-                    state(igh_u), derived_fields,                 &
-                    state(igh_d), cast_dt )
+                    state(igh_u), derived_fields, cloud_fields,   &
+                    state(igh_d), state(igh_p), cast_dt )
 
     ! Update derived variables for time level n+1
     if (use_moisture) then
