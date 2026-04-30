@@ -4701,7 +4701,7 @@ prognostic :math:`C_l` and :math:`q_{cl}` are incremented as follows:
 
   .. math:: \Delta q_{cl} = 0
 
-  .. math:: \Delta C_{l} = 0 
+  .. math:: \Delta C_{l} = 0
 
 where the subscript :math:`_{diag}` denotes the liquid cloud water
 content and fraction predicted by the diagnostic cloud scheme (either
