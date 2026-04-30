@@ -10,30 +10,30 @@
 ! This file currently belongs in section: physics_schemes_interface
 ! whilst discussions are ongoing about its final location.
 !
-MODULE aviation_diags_kernel_mod
+module aviation_diags_kernel_mod
 
-  USE argument_mod,         ONLY: arg_type,            &
-                                  GH_FIELD, GH_SCALAR, GH_LOGICAL, &
-                                  GH_READ, GH_WRITE, GH_INTEGER, &
-                                  GH_REAL, CELL_COLUMN, &
-                                  ANY_DISCONTINUOUS_SPACE_1, &
-                                  ANY_DISCONTINUOUS_SPACE_2
-  USE kernel_mod,           ONLY: kernel_type
-  USE constants_mod,        ONLY: r_def, i_def, l_def
- 
+  use argument_mod,         only: arg_type,                        &
+                                  gh_field, gh_scalar, gh_logical, &
+                                  gh_read, gh_write, gh_integer,   &
+                                  gh_real, cell_column,            &
+                                  any_discontinuous_space_1,       &
+                                  any_discontinuous_space_2
+  use kernel_mod,           only: kernel_type
+  use constants_mod,        only: r_def, i_def, l_def
 
-  IMPLICIT NONE
+
+  implicit none
 
   ! The aviation diagnostics kernel type.
-  TYPE, EXTENDS(kernel_type) :: aviation_diags_kernel_type
-    TYPE(arg_type), DIMENSION(8) :: meta_args = (/ &
+  type, extends(kernel_type) :: aviation_diags_kernel_type
+    type(arg_type), dimension(8) :: meta_args = (/ &
 
       ! Output fields.
-      arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
-      arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
+      arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
+      arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
 
       ! Source field.
-      arg_type(gh_field, gh_real, gh_read, ANY_DISCONTINUOUS_SPACE_2), &
+      arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_2), &
 
       ! Request flags.
       arg_type(gh_scalar, gh_logical, gh_read), &
@@ -45,90 +45,90 @@ MODULE aviation_diags_kernel_mod
       arg_type(gh_scalar, gh_integer, gh_read) &
       /)
 
-    INTEGER :: operates_on = cell_column
+    integer :: operates_on = cell_column
 
-    CONTAINS
-      PROCEDURE, NOPASS :: code => aviation_diags_kernel_code
-    END TYPE aviation_diags_kernel_type
+    contains
+      procedure, nopass :: code => aviation_diags_kernel_code
+    end type aviation_diags_kernel_type
 
-CONTAINS
+contains
 
-  SUBROUTINE aviation_diags_kernel_code(nlayers, &
+  subroutine aviation_diags_kernel_code(nlayers,     &
              ! Output fields.
-             thickness_850, thickness_500, &
+             thickness_850, thickness_500,           &
 
              ! Source field.
-             plev_geopot, &
+             plev_geopot,                            &
 
              ! Request flags.
              thickness_850_flag, thickness_500_flag, &
 
              ! Level incides.
-             i1000, i850, i500, &
+             i1000, i850, i500,                      &
 
              ! Kernel stuff.
-             result_ndf, result_undf, result_map, &
+             result_ndf, result_undf, result_map,    &
              source_ndf, source_undf, source_map)
 
     ! Subtract geopotential heights at 850 and 500 hPa from that at 1000 hPa
     ! to calculate thickness fields.
 
-    IMPLICIT NONE
+    implicit none
 
     ! Arguments (kernel)
 
     ! The number of layers in a column.
-    INTEGER(KIND=i_def), INTENT(IN) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers
 
     ! Number of degrees of freedom (columns) in the cell we're processing.
-    INTEGER(KIND=i_def), INTENT(IN) :: result_ndf, source_ndf
+    integer(kind=i_def), intent(in) :: result_ndf, source_ndf
 
     ! Number of unique degrees of freedom in the fields.
-    INTEGER(KIND=i_def), INTENT(IN) :: result_undf, source_undf
+    integer(kind=i_def), intent(in) :: result_undf, source_undf
 
     ! Degrees of freedom maps. Offsets to the bottom of each column.
-    INTEGER(KIND=i_def), INTENT(IN), DIMENSION(result_ndf) :: result_map
-    INTEGER(KIND=i_def), INTENT(IN), DIMENSION(source_ndf) :: source_map
+    integer(kind=i_def), intent(in), dimension(result_ndf) :: result_map
+    integer(kind=i_def), intent(in), dimension(source_ndf) :: source_map
 
 
     ! Arguments (algorithm)
 
     ! Output thickness fields.
-    REAL(KIND=r_def), INTENT(OUT), DIMENSION(result_undf) :: thickness_850
-    REAL(KIND=r_def), INTENT(OUT), DIMENSION(result_undf) :: thickness_500
+    real(kind=r_def), intent(out), dimension(result_undf) :: thickness_850
+    real(kind=r_def), intent(out), dimension(result_undf) :: thickness_500
 
     ! Geopotential height at pressure levels.
-    REAL(KIND=r_def), INTENT(IN), DIMENSION(source_undf) :: plev_geopot
+    real(kind=r_def), intent(in), dimension(source_undf) :: plev_geopot
 
     ! Request flags.
-    LOGICAL(KIND=l_def), INTENT(IN) :: thickness_850_flag, thickness_500_flag
+    logical(kind=l_def), intent(in) :: thickness_850_flag, thickness_500_flag
 
     ! Level indices.
-    INTEGER(KIND=i_def), INTENT(IN) :: i1000, i850, i500
+    integer(kind=i_def), intent(in) :: i1000, i850, i500
 
 
     ! Local variables
-    INTEGER(KIND=i_def) :: df
-    REAL(KIND=r_def) :: gph_1000
+    integer(kind=i_def) :: df
+    real(kind=r_def) :: gph_1000
 
 
     ! Process every DOF in this cell.
-    DO df = 1, result_ndf
+    do df = 1, result_ndf
 
       gph_1000 = plev_geopot(source_map(df) + i1000-1)
 
-      IF (thickness_850_flag .and. i850 /= -1) THEN
+      if (thickness_850_flag .and. i850 /= -1) then
         thickness_850(result_map(df)) = &
           plev_geopot(source_map(df)+i850-1) - gph_1000
-      END IF
+      end if
 
-      IF (thickness_500_flag .and. i500 /= -1) THEN
+      if (thickness_500_flag .and. i500 /= -1) then
         thickness_500(result_map(df)) = &
           plev_geopot(source_map(df)+i500-1) - gph_1000
-      END IF
+      end if
 
-    END DO
+    end do
 
-  END SUBROUTINE aviation_diags_kernel_code
+  end subroutine aviation_diags_kernel_code
 
-END MODULE aviation_diags_kernel_mod
+end module aviation_diags_kernel_mod

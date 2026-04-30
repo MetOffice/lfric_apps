@@ -10,58 +10,58 @@
 ! This file currently belongs in section: physics_schemes_interface
 ! whilst discussions are ongoing about its final location.
 !
-MODULE aviation_diags_alg_mod
+module aviation_diags_alg_mod
 
-  USE constants_mod,              ONLY: r_def, i_def, l_def, str_long
-  USE field_mod,                  ONLY: field_type
-  USE io_config_mod,              ONLY: use_xios_io
-  USE initialise_diagnostics_mod, ONLY: init_diag => init_diagnostic_field
+  use constants_mod,              only: r_def, i_def, l_def, str_long
+  use field_mod,                  only: field_type
+  use io_config_mod,              only: use_xios_io
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
-  USE lfric_xios_diag_mod,        ONLY: get_axis_dimension, get_axis_values
-  USE log_mod,                    ONLY: log_event, &
-                                        LOG_LEVEL_ALWAYS, LOG_LEVEL_ERROR, &
-                                        LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
+  use lfric_xios_diag_mod,        only: get_axis_dimension, get_axis_values
+  use log_mod,                    only: log_event,                          &
+                                        log_level_always, log_level_error,  &
+                                        log_level_info, log_level_debug
 
-  USE aviation_diags_kernel_mod,  ONLY: aviation_diags_kernel_type
+  use aviation_diags_kernel_mod,  only: aviation_diags_kernel_type
 
-  IMPLICIT NONE
+  implicit none
 
-PRIVATE
-PUBLIC :: aviation_diags_alg
+private
+public :: aviation_diags_alg
 
-CONTAINS
+contains
 
   ! Algorithm to calculate the section 20 aviation diagnostics.
-  SUBROUTINE aviation_diags_alg(plev_geopot)
+  subroutine aviation_diags_alg(plev_geopot)
 
-    IMPLICIT NONE
+    implicit none
 
     ! Arguments
 
     ! We calculate the result from this input field.
-    TYPE(field_type), INTENT(IN) :: plev_geopot
+    type(field_type), intent(in) :: plev_geopot
 
 
     ! Local variables
 
     ! These flags tell us which results are requested at this time step.
-    LOGICAL(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag
+    logical(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag
 
     ! The array of pressure levels.
-    INTEGER(I_DEF) :: nplev
-    REAL(R_DEF), ALLOCATABLE :: plevs(:)
-    INTEGER(I_DEF) :: plevs_alloc_stat
+    integer(i_def) :: nplev
+    real(r_def), allocatable :: plevs(:)
+    integer(i_def) :: plevs_alloc_stat
 
     ! Level indices for the three pressure levels we want to read.
-    INTEGER(I_DEF) :: i1000, i850, i500
+    integer(i_def) :: i1000, i850, i500
 
     ! Approximate equality tolerance - is there a common variable somewhere?
-    REAL(R_DEF), PARAMETER :: plev_tol = 0.1_r_def
+    real(r_def), parameter :: plev_tol = 0.1_r_def
 
     ! The two output fields we produce.
-    TYPE( field_type ) :: aviation_thick_850, aviation_thick_500
+    type( field_type ) :: aviation_thick_850, aviation_thick_500
 
-    INTEGER(I_DEF) :: i
+    integer(i_def) :: i
 
     character(len=str_long) :: message
 
@@ -73,43 +73,43 @@ CONTAINS
       init_diag(aviation_thick_500, 'aviation__geopot_thickness_500')
 
     ! Anything to do?
-    IF ( .NOT. (aviation_thick_850_flag .OR. aviation_thick_500_flag) ) THEN
+    if ( .not. (aviation_thick_850_flag .or. aviation_thick_500_flag) ) then
       ! Nothing requested at this time step.
-      RETURN
-    END IF
+      return
+    end if
 
-    IF ( .NOT. use_xios_io ) THEN
-      RETURN
-    ENDIF
+    if ( .not. use_xios_io ) then
+      return
+    endif
 
     ! Initialise required fields to 1. Todo: Why 1 and not 0?
-    IF ( aviation_thick_850_flag ) THEN
+    if ( aviation_thick_850_flag ) then
       message = 'Section 20: geopot thick 850 requested'
-      CALL log_event( message, LOG_LEVEL_DEBUG )
-      CALL invoke( setval_c(aviation_thick_850, 1.0_r_def))
-    END IF
+      call log_event( message, log_level_debug )
+      call invoke( setval_c(aviation_thick_850, 1.0_r_def))
+    end if
 
-    IF ( aviation_thick_500_flag ) THEN
+    if ( aviation_thick_500_flag ) then
       message = 'Section 20: geopot thick 500 requested'
-      CALL log_event( message, LOG_LEVEL_DEBUG )
-      CALL invoke( setval_c(aviation_thick_500, 1.0_r_def))
-    END IF
+      call log_event( message, log_level_debug )
+      call invoke( setval_c(aviation_thick_500, 1.0_r_def))
+    end if
 
 
     ! Get the array of pressure levels.
     nplev = get_axis_dimension('pressure_levels')
-    IF (nplev <= 0) THEN
+    if (nplev <= 0) then
       message = 'Section 20: No pressure levels'
-      CALL log_event( message, LOG_LEVEL_ERROR )
-      RETURN
-    END IF
+      call log_event( message, log_level_error )
+      return
+    end if
 
-    ALLOCATE(plevs(nplev), stat=plevs_alloc_stat)
-    IF (plevs_alloc_stat /= 0) THEN
+    allocate(plevs(nplev), stat=plevs_alloc_stat)
+    if (plevs_alloc_stat /= 0) then
       message = 'Section 20: allocate(plevs) failed'
-      CALL log_event( message, LOG_LEVEL_ERROR )
-      RETURN
-    END IF
+      call log_event( message, log_level_error )
+      return
+    end if
     plevs = get_axis_values('pressure_levels',nplev)
 
     ! Find the level indices for our three pressures of interest.
@@ -117,59 +117,59 @@ CONTAINS
     i1000 = -1
     i850  = -1
     i500  = -1
-    DO i = 1, nplev
+    do i = 1, nplev
 
       ! 1000?
-      IF ( abs(plevs(i) - 100000.0_r_def) < plev_tol ) THEN
+      if ( abs(plevs(i) - 100000.0_r_def) < plev_tol ) then
         i1000 = i
 
       ! 850?
-      ELSE IF ( abs(plevs(i) - 85000.0_r_def) < plev_tol ) THEN
+      else if ( abs(plevs(i) - 85000.0_r_def) < plev_tol ) then
         i850 = i
 
       ! 500?
-      ELSE IF ( abs(plevs(i) - 50000.0_r_def) < plev_tol ) THEN
+      else if ( abs(plevs(i) - 50000.0_r_def) < plev_tol ) then
         i500 = i
 
-      END IF
-    END DO
+      end if
+    end do
 
     ! Check we found the required levels.
-    IF (i1000 == -1) THEN
+    if (i1000 == -1) then
       message = 'Section 20: could not find 1000hPa'
-      CALL log_event( message, LOG_LEVEL_ERROR )
-      RETURN
-    END IF
+      call log_event( message, log_level_error )
+      return
+    end if
   
-    IF (aviation_thick_850_flag .AND. i850 == -1) THEN
+    if (aviation_thick_850_flag .and. i850 == -1) then
       message = 'Section 20: could not find 850hPa'
-      CALL log_event( message, LOG_LEVEL_ERROR )
-      RETURN
-    END IF
+      call log_event( message, log_level_error )
+      return
+    end if
 
-    IF (aviation_thick_500_flag .AND. i500 == -1) THEN
+    if (aviation_thick_500_flag .and. i500 == -1) then
       message = 'Section 20: could not find 500hPa'
-      CALL log_event( message, LOG_LEVEL_ERROR )
-      RETURN
-    END IF
+      call log_event( message, log_level_error )
+      return
+    end if
 
     ! Call the kernel to subtract the levels.
     ! Todo: Comment why we initialise to 1.0 and not 0.0. I can't remember.
-    CALL invoke( aviation_diags_kernel_type(            &
+    call invoke( aviation_diags_kernel_type(            &
       aviation_thick_850, aviation_thick_500,           &
       plev_geopot,                                      &
       aviation_thick_850_flag, aviation_thick_500_flag, &
       i1000, i850, i500))
 
     ! Write the fields
-    IF (aviation_thick_850_flag) CALL aviation_thick_850%write_field()
-    IF (aviation_thick_500_flag) CALL aviation_thick_500%write_field()
+    if (aviation_thick_850_flag) call aviation_thick_850%write_field()
+    if (aviation_thick_500_flag) call aviation_thick_500%write_field()
 
     ! Clean up.
-    IF (allocated(plevs)) THEN
-      DEALLOCATE(plevs)
-    END IF
+    if (allocated(plevs)) then
+      deallocate(plevs)
+    end if
 
-  END SUBROUTINE aviation_diags_alg
+  end subroutine aviation_diags_alg
 
-END MODULE aviation_diags_alg_mod
+end module aviation_diags_alg_mod
