@@ -10,7 +10,7 @@ module create_physics_prognostics_mod
   use energy_correction_config_mod,   only : encorr_usage,                      &
                                              encorr_usage_none
   use clock_mod,                      only : clock_type
-  use constants_mod,                  only : i_def, l_def
+  use constants_mod,                  only : i_def, l_def, str_def
   use field_mod,                      only : field_type
   use integer_field_mod,              only : integer_field_type
   use field_spec_mod,                 only : main_coll_dict,                    &

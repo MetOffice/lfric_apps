@@ -23,6 +23,10 @@ module gungho_driver_mod
                                           output_model_data, &
                                           finalise_model_data
   use driver_modeldb_mod,          only : modeldb_type
+  use external_forcing_config_mod, only : theta_forcing_nudging,               &
+                                          theta_forcing,                       &
+                                          wind_forcing_nudging,                &
+                                          wind_forcing
   use gungho_model_mod,            only : initialise_infrastructure, &
                                           initialise_model, &
                                           finalise_infrastructure, &
@@ -58,10 +62,6 @@ module gungho_driver_mod
                                   only : aerosol_mesh_name, &
                                          nudging_mesh_name, &
                                          coarse_nudging
-  use nudging_config_mod,         only : nudging_source,                       &
-                                         nudging_source_initial
-  use physics_constants_mod,      only : update_nudging_weights
-  use create_nudging_fields_mod,  only : set_nudging_reference_initial
   use remove_field_collection_mod, only : remove_field_collection
   use section_choice_config_mod,   only : iau,                   &
                                           iau_sst,               &
@@ -311,7 +311,6 @@ contains
 
     type(mesh_type), pointer :: mesh      => null()
     type(mesh_type), pointer :: twod_mesh => null()
-    type(mesh_type), pointer :: nudging_mesh => null()
     integer(kind=i_def)      :: ts_start, rc
     integer(tik)             :: tid_first, tid_rest
 
@@ -411,14 +410,12 @@ contains
     endif
 
     ! Spectral nudging update
-    if (theta_forcing == theta_forcing_nudging                                 &
+    if ( theta_forcing == theta_forcing_nudging                                &
         .or. wind_forcing == wind_forcing_nudging) then
       derived_fields => modeldb%fields%get_field_collection("derived_fields")
       call update_variable_fields(                                             &
             model_axes%nudging_times_list, modeldb%clock, derived_fields       &
       )
-      nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
-      call update_nudging_weights(modeldb%clock, nudging_mesh)
     end if
 
 #ifdef UM_PHYSICS

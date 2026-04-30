@@ -8,6 +8,10 @@ module linear_driver_mod
 
   use constants_mod,              only : i_def, r_def, imdi, l_def, str_def, &
                                          i_medium
+  use external_forcing_config_mod,  only : theta_forcing,                      &
+                                         theta_forcing_nudging,                &
+                                         wind_forcing,                         &
+                                         wind_forcing_nudging
   use extrusion_mod,              only : TWOD
   use field_array_mod,            only : field_array_type
   use field_mod,                  only : field_type
@@ -78,6 +82,8 @@ contains
     type( mesh_type ),     pointer :: twod_mesh
     type( mesh_type ),     pointer :: aerosol_mesh
     type( mesh_type ),     pointer :: aerosol_twod_mesh
+    type( mesh_type ),     pointer :: nudging_mesh
+    type( mesh_type ),     pointer :: nudging_twod_mesh
 
     type( namelist_type ), pointer :: base_mesh_nml
     type( namelist_type ), pointer :: multires_coupling_nml
@@ -86,8 +92,10 @@ contains
 
     character( len=str_def )       :: prime_mesh_name
     character( len=str_def )       :: aerosol_mesh_name
+    character( len=str_def )       :: nudging_mesh_name
     logical( kind=l_def )          :: coarse_aerosol_ancil
     logical( kind=l_def )          :: coarse_ozone_ancil
+    logical( kind=l_def )          :: coarse_nudging
     integer( kind=i_def )          :: init_option
     logical( kind=l_def )          :: nodal_output_on_w3
 
@@ -101,6 +109,7 @@ contains
     real(r_def), allocatable :: real_array(:)
 
     nullify( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, depository )
+    nullify( nudging_mesh, nudging_twod_mesh )
     nullify( base_mesh_nml, multires_coupling_nml, initialization_nml )
 
     depository => modeldb%fields%get_field_collection("depository")
@@ -142,11 +151,16 @@ contains
                                        coarse_ozone_ancil )
     call initialization_nml%get_value( 'init_option', init_option )
 
+    ! Get information on any multi-resolution meshes
+    multires_coupling_nml => &
+        modeldb%configuration%get_namelist('multires_coupling')
+    
+    call multires_coupling_nml%get_value( 'coarse_nudging', &
+                                          coarse_nudging )
+
     ! If aerosol data is on a different mesh, get this
     if (coarse_aerosol_ancil .or. coarse_ozone_ancil) then
       ! For now use the coarsest mesh
-      multires_coupling_nml => &
-        modeldb%configuration%get_namelist('multires_coupling')
       call multires_coupling_nml%get_value( 'aerosol_mesh_name', &
                                             aerosol_mesh_name )
       aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
@@ -158,12 +172,28 @@ contains
       aerosol_twod_mesh => twod_mesh
     end if
 
+    ! If nudging data is on a different mesh, get this
+    if (coarse_nudging) then
+      ! For now use the coarsest mesh
+      call multires_coupling_nml%get_value( 'nudging_mesh_name', &
+                                            nudging_mesh_name )
+      nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
+      nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
+      write( log_scratch_space,'(A,A)' ) "nudging mesh name:", nudging_mesh%get_mesh_name()
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      nudging_mesh => mesh
+      nudging_twod_mesh => twod_mesh
+    end if
+
     ! Instantiate the fields stored in model_data
     call create_model_data( modeldb,      &
                             mesh,         &
                             twod_mesh,    &
                             aerosol_mesh, &
-                            aerosol_twod_mesh )
+                            aerosol_twod_mesh, &
+                            nudging_mesh, &
+                            nudging_twod_mesh )
 
     ! Instantiate the fields required to read the initial
     ! conditions from a file.
