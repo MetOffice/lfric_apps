@@ -53,6 +53,13 @@
     {% set phystest = false %}
 {% endif %}
 
+{# metadatatest settings #}
+{% if "metadata_test" in task_values %}
+    {% set metadatatest = true %}
+{% else %}
+    {% set metadatatest = false %}
+{% endif %}
+
 {# If the task has a restart and has set crun_compare=false, there is no #}
 {# nrun-crun comparison to be made, so don't run the nrun test #}
 {% set running_nrun = true %}
@@ -291,6 +298,21 @@
         {% do graph_sections.append([
             application_run_task,
             app_perftools_export_task]) %}
+    {% endif %}
+
+    {% if metadatatest %}
+        {% set metadatatest_task = "metadata_test_"~
+                               task_ns.application~"_"~
+                               task_ns.conf_name~"_"~
+                               task_ns.platform~"_"~
+                               task_ns.compiler~"_"~
+                               task_ns.extras %}
+        {% if metadatatest_task not in tasks_to_run %}
+            {% do tasks_to_run.update({metadatatest_task: task_values }) %}
+        {% endif %}
+        {% do graph_sections.append([
+            application_run_task,
+            metadatatest_task]) %}
     {% endif %}
 {% endif %}
 
