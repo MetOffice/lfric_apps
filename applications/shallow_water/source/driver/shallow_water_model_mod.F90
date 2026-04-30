@@ -98,6 +98,7 @@ module shallow_water_model_mod
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
     logical(l_def) :: check_partitions
+    logical(l_def) :: prepartitioned
     logical(l_def) :: inner_halo_tiles
     integer(i_def) :: tile_size_x
     integer(i_def) :: tile_size_y
