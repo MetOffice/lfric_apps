@@ -691,15 +691,174 @@ subroutine radaer_code( nlayers,                                               &
   ! Initialisation of prognostic variables and arrays
   !-----------------------------------------------------------------------
 
+  select case(mode_setup)
+  case(8)
+    allocate( ntp_names(100) )
+
+    ntp_names = [ fldname_p_theta_levels, fldname_t_theta_levels,              &
+                  fldname_ait_sol_su,       fldname_ait_sol_bc, &
+                  fldname_ait_sol_om,       fldname_acc_sol_su, &
+                  fldname_acc_sol_bc,       fldname_acc_sol_om, &
+                  fldname_acc_sol_ss,       fldname_cor_sol_su, &
+                  fldname_cor_sol_bc,       fldname_cor_sol_om, &
+                  fldname_cor_sol_ss,       fldname_ait_ins_bc, &
+                  fldname_ait_ins_om,       fldname_acc_ins_du, &
+                  fldname_cor_ins_du,       fldname_pvol_su_ait_sol, &
+                  fldname_pvol_bc_ait_sol , fldname_pvol_om_ait_sol , &
+                  fldname_pvol_su_acc_sol , fldname_pvol_bc_acc_sol , &
+                  fldname_pvol_om_acc_sol , fldname_pvol_ss_acc_sol , &
+                  fldname_pvol_su_cor_sol , fldname_pvol_bc_cor_sol , &
+                  fldname_pvol_om_cor_sol , fldname_pvol_ss_cor_sol , &
+                  fldname_pvol_bc_ait_ins , fldname_pvol_om_ait_ins , &
+                  fldname_pvol_du_acc_ins , fldname_pvol_du_cor_ins , &
+                  fldname_ , fldname_ , &
+                  fldname_ , fldname_ , &
+
+
+
+                  
+  case default
+    write( log_scratch_space, '(A,I0)' ) 'Missing mode_setup: ', mode_setup
+    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+  end select
+
   ! -- Non-transported prognostics --
   n_fields = size(ntp_names)
   allocate(ntp(nlayers, n_fields))
   ntp = 0.0_r_um
-
+  
   do m = 1, n_fields
     select case(ntp_names(i))
-    !case(fldname_cloud_drop_no_conc)
+    case(fldname_p_theta_levels)
+      do k = 1, nlayers
+        ntp( k, m )= p_zero * ( exner_in_wth(map_wth(1) + k) )**(1.0_r_um/kappa)
+      end do
+    case(fldname_t_theta_levels)
+      do k = 1, nlayers
+        ntp( k, m )= exner_in_wth(map_wth(1) + k) * theta_in_wth(map_wth(1) + k)
+      end do
+    case(fldname_ait_sol_su)
+      do k = 1, nlayers
+        ntp( k, m ) = real( ait_sol_su(map_wth(1) + k), r_um )
+      end do
+    case(fldname_ait_sol_bc)
+      do k = 1, nlayers
+        ntp( k, m ) = real( ait_sol_bc(map_wth(1) + k), r_um )
+      end do
+    case(fldname_ait_sol_om)
+      do k = 1, nlayers
+        ntp( k, m ) = real( ait_sol_om(map_wth(1) + k), r_um )
+      end do
+    case(fldname_acc_sol_su)
+      do k = 1, nlayers
+        ntp( k, m ) = real( acc_sol_su(map_wth(1) + k), r_um )
+      end do
+    case(fldname_acc_sol_bc)
+      do k = 1, nlayers
+        ntp( k, m ) = real( acc_sol_bc(map_wth(1) + k), r_um )
+      end do
+    case(fldname_acc_sol_om)
+      do k = 1, nlayers
+        ntp( k, m ) = real( acc_sol_om(map_wth(1) + k), r_um )
+      end do
+    case(fldname_acc_sol_ss)
+      do k = 1, nlayers
+        ntp( k, m ) = real( acc_sol_ss(map_wth(1) + k), r_um )
+      end do
+    case(fldname_acc_sol_du)
+      ! does not exist for i_mode_setup 8
+    case(fldname_cor_sol_su)
+      do k = 1, nlayers
+        ntp( k, m ) = real( cor_sol_su(map_wth(1) + k), r_um )
+      end do
+    case(fldname_cor_sol_bc)
+      do k = 1, nlayers
+        ntp( k, m ) = real( cor_sol_bc(map_wth(1) + k), r_um )
+      end do
+    case(fldname_cor_sol_om)
+      do k = 1, nlayers
+        ntp( k, m ) = real( cor_sol_om(map_wth(1) + k), r_um )
+      end do
+    case(fldname_cor_sol_ss)
+      do k = 1, nlayers
+        ntp( k, m ) = real( cor_sol_ss(map_wth(1) + k), r_um )
+      end do
+    case(fldname_cor_sol_du)
+      ! does not exist for i_mode_setup 8
+    case(fldname_ait_ins_bc)
+      do k = 1, nlayers
+        ntp( k, m ) = real( ait_ins_bc(map_wth(1) + k), r_um )
+      end do
+    case(fldname_ait_ins_om)
+      do k = 1, nlayers
+        ntp( k, m ) = real( ait_ins_om(map_wth(1) + k), r_um )
+      end do
+    case(fldname_acc_ins_du)
+      do k = 1, nlayers
+        ntp( k, m ) = real( acc_ins_du(map_wth(1) + k), r_um )
+      end do
+    case(fldname_cor_ins_du)
+      do k = 1, nlayers
+        ntp( k, m ) = real( cor_ins_du(map_wth(1) + k), r_um )
+      end do
 
+    ukca_comp_vol_um(1, 1,k) = pvol_su_ait_sol(map_wth(1) + k)
+    ukca_comp_vol_um(2, 1,k) = pvol_bc_ait_sol(map_wth(1) + k)
+    ukca_comp_vol_um(3, 1,k) = pvol_om_ait_sol(map_wth(1) + k)
+    ukca_comp_vol_um(4, 1,k) = pvol_su_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(5, 1,k) = pvol_bc_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(6, 1,k) = pvol_om_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(7, 1,k) = pvol_ss_acc_sol(map_wth(1) + k)
+    ukca_comp_vol_um(8, 1,k) = 0.0_r_um ! no pvol_du_acc_sol prognostic
+    ukca_comp_vol_um(9, 1,k) = pvol_su_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(10,1,k) = pvol_bc_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(11,1,k) = pvol_om_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(12,1,k) = pvol_ss_cor_sol(map_wth(1) + k)
+    ukca_comp_vol_um(13,1,k) = 0.0_r_um ! no pvol_du_cor_sol prognostic
+    ukca_comp_vol_um(14,1,k) = pvol_bc_ait_ins(map_wth(1) + k)
+    ukca_comp_vol_um(15,1,k) = pvol_om_ait_ins(map_wth(1) + k)
+    ukca_comp_vol_um(16,1,k) = pvol_du_acc_ins(map_wth(1) + k)
+    ukca_comp_vol_um(17,1,k) = pvol_du_cor_ins(map_wth(1) + k)
+
+     
+    case(fldname_)
+      do k = 1, nlayers
+        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+      end do
+    case(fldname_)
+      do k = 1, nlayers
+        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+      end do
+         case(fldname_)
+      do k = 1, nlayers
+        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+      end do
+    case(fldname_)
+      do k = 1, nlayers
+        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+      end do
+    case(fldname_)
+      do k = 1, nlayers
+        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+      end do
+    case(fldname_)
+      do k = 1, nlayers
+        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+      end do
+    case(fldname_)
+      do k = 1, nlayers
+        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+      end do
+    case(fldname_)
+      do k = 1, nlayers
+        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+      end do
+     
+      
+    case(fldname_drydp_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( drydp_ait_sol(map_wth(1) + k), r_um )
+      end do
     case(fldname_drydp_ait_sol)
       do k = 1, nlayers
         ntp( k, m ) = real( drydp_ait_sol(map_wth(1) + k), r_um )
@@ -711,15 +870,7 @@ subroutine radaer_code( nlayers,                                               &
     end select
   end do 
 
-  do k = 1, nlayers
-    p_theta_levels(1,1,k) = p_zero *                                           &
-                            ( exner_in_wth(map_wth(1) + k) )**(1.0_r_um/kappa)
-  end do
 
-  do k = 1, nlayers
-    t_theta_levels(1,1,k) = exner_in_wth(map_wth(1) + k) *                     &
-                            theta_in_wth(map_wth(1) + k)
-  end do
 
   ! note - zeroth level is redundant for these fields in UM
   do k = 1, nlayers
