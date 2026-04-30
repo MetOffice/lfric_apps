@@ -109,3 +109,36 @@ class vn31_t368(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t324(MacroUpgrade):
+    """Upgrade macro for ticket #368 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t368"
+    AFTER_TAG = "vn3.1_t324"
+
+    def upgrade(self, config, meta_config=None):
+
+        if config.get(["namelist:partitioning(source)"]) is not None:
+            self.add_setting(
+                config, ["namelist:partitioning(source)", "inner_halo_tiles"], ".false."
+            )
+            self.add_setting(
+                config, ["namelist:partitioning(source)", "tile_size_x"], "1"
+            )
+            self.add_setting(
+                config, ["namelist:partitioning(source)", "tile_size_y"], "1"
+            )
+
+        if config.get(["namelist:partitioning(destination)"]) is not None:
+            self.add_setting(
+                config, ["namelist:partitioning(destination)", "inner_halo_tiles"], ".false."
+            )
+            self.add_setting(
+                config, ["namelist:partitioning(destination)", "tile_size_x"], "1"
+            )
+            self.add_setting(
+                config, ["namelist:partitioning(destination)", "tile_size_y"], "1"
+            )
+
+        return config, self.reports
