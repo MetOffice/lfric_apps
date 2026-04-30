@@ -112,7 +112,7 @@ class vn31_t368(MacroUpgrade):
 
 
 class vn31_t324(MacroUpgrade):
-    """Upgrade macro for ticket #368 by Ian Boutle."""
+    """Upgrade macro for ticket #324 by Ricky Wong."""
 
     BEFORE_TAG = "vn3.1_t368"
     AFTER_TAG = "vn3.1_t324"
@@ -121,7 +121,9 @@ class vn31_t324(MacroUpgrade):
 
         if config.get(["namelist:partitioning(source)"]) is not None:
             self.add_setting(
-                config, ["namelist:partitioning(source)", "inner_halo_tiles"], ".false."
+                config,
+                ["namelist:partitioning(source)", "inner_halo_tiles"],
+                ".false.",
             )
             self.add_setting(
                 config, ["namelist:partitioning(source)", "tile_size_x"], "1"
@@ -132,13 +134,19 @@ class vn31_t324(MacroUpgrade):
 
         if config.get(["namelist:partitioning(destination)"]) is not None:
             self.add_setting(
-                config, ["namelist:partitioning(destination)", "inner_halo_tiles"], ".false."
+                config,
+                ["namelist:partitioning(destination)", "inner_halo_tiles"],
+                ".false.",
             )
             self.add_setting(
-                config, ["namelist:partitioning(destination)", "tile_size_x"], "1"
+                config,
+                ["namelist:partitioning(destination)", "tile_size_x"],
+                "1",
             )
             self.add_setting(
-                config, ["namelist:partitioning(destination)", "tile_size_y"], "1"
+                config,
+                ["namelist:partitioning(destination)", "tile_size_y"],
+                "1",
             )
 
         return config, self.reports
