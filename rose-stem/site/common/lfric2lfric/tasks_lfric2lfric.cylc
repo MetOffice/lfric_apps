@@ -32,18 +32,18 @@
         "src_type": "regional",
     }) %}
 
-{% elif task_ns.conf_name == "oasis_C12_seuk_multi-cpu" %}
+{% elif task_ns.conf_name == "oasis_C12_melbourne" %}
 
     {% do task_dict.update({
-        "opt_confs": ["oasis","source-C12","destination-seuk"],
-        "resolution": ["seuk","C12"],
-        "dst_mesh": "seuk",
-        "dst_name": "seuk",
+        "opt_confs": ["oasis","source-C12","destination-melbourne"],
+        "resolution": ["melbourne","C12"],
+        "dst_mesh": "melbourne",
+        "dst_name": "melbourne",
         "dst_type": "regional",
 	"src_mesh": "C12",
         "src_name": "dynamics",
         "src_type": "global",
-	"mpi_parts": 12,
+	"mpi_parts": 108,
     }) %}
 
 {% elif task_ns.conf_name == "ral3-seuk" %}

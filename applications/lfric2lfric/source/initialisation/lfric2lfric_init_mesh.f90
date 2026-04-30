@@ -349,7 +349,27 @@ subroutine init_mesh( config,                  &
       
     else
 
-      call load_global_mesh( mesh_file(src), mesh_names(src) )
+ 
+            
+      call load_global_mesh( mesh_file(dst), mesh_names(dst) )
+      write( log_scratch_space, '(A)' )                                     &
+         'Loaded dest'
+      call log_event(log_scratch_space, log_level_debug)
+
+      ! Partition the global meshes
+      !===========================================================
+      call create_local_mesh( mesh_names(dst:dst),           &
+                              local_rank, total_ranks,       &
+                              decomposition_dst,             &
+                              stencil_depths,                &
+                              generate_inner_halos(dst),     &
+                              partitioner_dst,               &
+                              enforce_constraints = .false. )
+      call global_mesh_collection%clear()
+
+
+
+     call load_global_mesh( mesh_file(src), mesh_names(src) )
       write( log_scratch_space, '(A)' )                                     &
          'Loaded src'
       call log_event(log_scratch_space, log_level_debug)
@@ -369,22 +389,9 @@ subroutine init_mesh( config,                  &
       write( log_scratch_space, '(A)' )                                     &
          'cleared global'
       call log_event(log_scratch_space, log_level_debug)
-            
-      call load_global_mesh( mesh_file(dst), mesh_names(dst) )
-      write( log_scratch_space, '(A)' )                                     &
-         'Loaded dest'
-      call log_event(log_scratch_space, log_level_debug)
 
-      ! Partition the global meshes
-      !===========================================================
-      call create_local_mesh( mesh_names(dst:dst),           &
-                              local_rank, total_ranks,       &
-                              decomposition_dst,             &
-                              stencil_depths,                &
-                              generate_inner_halos(dst),     &
-                              partitioner_dst,               &
-                              enforce_constraints = .false. )
-      call global_mesh_collection%clear()
+
+      
     endif
 
     ! Read in the global intergrid mesh mappings,
