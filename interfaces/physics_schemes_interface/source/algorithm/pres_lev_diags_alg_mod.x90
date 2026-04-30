@@ -57,9 +57,9 @@ contains
 
     ! Arguments
     type( field_collection_type ), intent(in) :: derived_fields
-    type( field_type ), intent(in) :: theta_wth, exner_w3
-    type( field_type ), intent(in) :: mr(nummr)
-    type( field_type ), intent(in) :: moist_dyn(num_moist_factors)
+    type( field_type ), intent(in)  :: theta_wth, exner_w3
+    type( field_type ), intent(in)  :: mr(nummr)
+    type( field_type ), intent(in)  :: moist_dyn(num_moist_factors)
     type( field_type ), intent(out) :: plev_geopot
     ! Internal variables
     type( field_type ), pointer     :: exner_wth

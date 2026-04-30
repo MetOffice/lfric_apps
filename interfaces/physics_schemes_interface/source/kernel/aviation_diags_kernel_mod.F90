@@ -103,7 +103,7 @@ CONTAINS
     ! Request flags.
     LOGICAL(KIND=l_def), INTENT(IN) :: thickness_850_flag, thickness_500_flag
 
-    ! Level indices. For i850 and i500, -1 means "not requested".
+    ! Level indices.
     INTEGER(KIND=i_def), INTENT(IN) :: i1000, i850, i500
 
 
