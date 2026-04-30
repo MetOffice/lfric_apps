@@ -57,6 +57,7 @@
 
       <!-- File definition for lfric checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
        <field id="read_ew_wind_in_w3" name="ew_wind_in_w3" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
        <field id="read_ns_wind_in_w3" name="ns_wind_in_w3" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
        <field id="read_theta_in_wtheta" name="theta_in_wtheta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="instant" />
@@ -67,17 +68,22 @@
        <field id="read_mcl_in_wtheta" name="mcl_in_wtheta" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
        <field id="read_mcf_in_wtheta" name="mcf_in_wtheta" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
        <field id="read_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="instant" />
+       </field_group>
       </file>
 
       <!-- File definition for land area fraction read -->
       <file id="land_area_ancil" name="land_area_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
         <field id="read_land_area_fraction" name="land_area_fraction" long_name="land_area_fraction" unit="1" operation="once" domain_ref="face"/>
+       </field_group>
       </file>
 
        <!-- File definition for soil_param_ancil read -->
       <file id="soil_param_ancil" name="soil_param_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
         <field id="read_vol_frac_con_water_wilt_point" name="volume_fraction_of_condensed_water_in_soil_at_wilting_point" long_name="volume_fraction_of_condensed_water_in_soil_at_wilting_point" unit="1" operation="once" domain_ref="face"/>
         <field id="read_vol_frac_con_water_crit_point" name="volume_fraction_of_condensed_water_in_soil_at_critical_point" long_name="volume_fraction_of_condensed_water_in_soil_at_critical_point" unit="1" operation="once" domain_ref="face"/>
+       </field_group>
       </file>
 
     </file_definition>

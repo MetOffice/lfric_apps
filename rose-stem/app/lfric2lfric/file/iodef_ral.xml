@@ -17,7 +17,7 @@
 
       <!-- File definition for LFRic checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".TRUE.">
-
+       <field_group read_access=".TRUE.">
         <!-- Atmosphere fields -->
         <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" operation="once" />
         <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" operation="once" />
@@ -189,7 +189,7 @@
         <field id="restart_soil_moisture" name="soil_moisture" long_name="soil_moisture_content" unit="kg kg-1" domain_ref="face" axis_ref="soil_levels" operation="once" />
         <field id="restart_unfrozen_soil_moisture" name="unfrozen_soil_moisture" long_name="unfrozen_soil_moisture_proportion" unit="1" domain_ref="face" axis_ref="soil_levels" operation="once" />
         <field id="restart_frozen_soil_moisture" name="frozen_soil_moisture" long_name="frozen_soil_moisture_proportion" unit="1" domain_ref="face" axis_ref="soil_levels" operation="once" />
-
+      </field_group>
       </file>
     </file_definition>
   </context>
