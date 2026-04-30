@@ -54,7 +54,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 

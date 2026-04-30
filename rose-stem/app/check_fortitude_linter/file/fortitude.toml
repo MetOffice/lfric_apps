@@ -1,0 +1,112 @@
+##############################################################################
+# (c) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+[check]
+
+file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
+
+select = ["E000", "E001", "C001", "C021", "C022", "C031", "C032", "C043",
+"C051", "C061", "C071", "C072", "C081", "C091", "C082", "C092", "C121",
+"C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
+"S101", "S071", "PORT011", "PORT012", "PORT021", "FORT001",
+"FORT002", "FORT003", "FORT004", "FORT005"]
+
+# List of what the rules used are checking for:
+# E000 io-error, E001 syntax-error, C001 missing implicit none,
+# C021 real literal missing kind suffix,
+# C022 implicit-real-kind, C031 magic-number-in-array-size,
+# C032 magic unit in IO statement, C043 missing-action-specifier,
+# C051 trailing-backslash, C061 missing-intent, C071 assumed-size,
+# C072 character has assumed size but does not have intent(in),
+# C081 initialisation-in-declaration, C091 external-procedure,
+# C082 pointer-initialisation-in-declaration, C092 procedure-not-in-module,
+# C121 use-all, C132 default-public-accessibility,
+# C141 missing-exit-or-cycle-label, OB011 common-block, OB021 entry-statement,
+# OB051 pause-statement, OB061 deprecated-character-syntax,
+# MOD001 double-precision, MOD021 deprecated-relational-operator,
+# S101 trailing-whitespace, S071 missing-double-colon,
+# PORT011 literal-kind, PORT012 literal-kind-suffix,
+# PORT021 star-kind, FORT001 invalid-rule-code-or-name,
+# FORT002 unused-allow-comment, FORT003 redirected-allow-comment,
+# FORT004 duplicated-allow-comment, FORT005 disabled-allow-comment
+
+
+output-format = "grouped"                #group results by file
+
+# Repos with too many errors with the above rules have their own toml files.
+
+# Repos containing only a few files with errors for the above rules
+# are dealt with below:
+
+[check.per-file-ignores] #don't run these rules on these files:
+
+# transport files:
+"analytic_tracer_field_profiles_mod_test.pf" = ["E001"]
+"set_tracer_field_kernel_mod_test.pf" = ["E001", "C121"]
+"initial_tracer_field_sample_kernel_mod_test.pf" = ["E001", "C121"]
+
+# name_transport files:
+"analytic_name_field_profiles_mod_test.pf" = ["E001"]
+"set_name_field_kernel_mod_test.pf" = ["E001", "C121"]
+
+# lfric_coupled files:
+"lfric_coupled_test.pf" = ["E001", "C121"]
+
+# gravity_wave files:
+"analytic_buoyancy_profiles_mod_test.pf" = ["E001"]
+"compute_q_operator_kernel_mod_test.pf" = ["E001", "C121"]
+"initial_buoyancy_kernel_mod_test.pf" = ["E001", "C121"]
+
+# science/shared:
+"space_from_metadata_mod.F90" = ["C072"]
+"space_from_metadata_mod_test.pf" = ["E001","C121"]
+
+# science/socrates_interface:
+"init_radiation_fields_alg_mod.x90" = ["S101"]
+"rad_cloud_alg_mod.x90" = ["S101"]
+"lw_kernel_mod.F90" = ["S101"]
+"set_thermodynamic_kernel_mod_test.pf" = ["E001", "C121"]
+"set_rad_cloud_kernel_mod_test.pf" = ["E001", "C121"]
+"set_n_cloud_layer_kernel_mod_test.pf" = ["E001", "C121"]
+"rand_seed_kernel_mod_test.pf" = ["E001", "C121"]
+"set_topography_kernel_mod.F90" = ["C081"]
+
+# interfaces/coupled_interface:
+"process_send_fields_2d_mod.X90" = ["S101"]
+"set_r_ocean_fraction_mod.F90" = ["S101"]
+"coupler_mod.F90" = ["MOD021"]
+"value_based_mask_kernel_mod.F90" = ["MOD021"]
+"convert_to_celsius_kernel_mod_test.pf" = ["C121", "E001"]
+"value_based_mask_kernel_mod_test.pf" = ["E001"]
+
+# interfaces/jules_interface:
+"update_ancils_alg_mod.x90" = ["S101"]
+"jules_exp_kernel_mod.F90" = ["S101"]
+"jules_extra_kernel_mod.F90" = ["S101"]
+"jules_imp_kernel_mod.F90" = ["S101"]
+"jules_imp_alg_mod.x90" = ["C061"]
+"jules_control_init_mod.f90" = ["C081"]
+"jules_physics_init_mod.f90" = ["C081"]
+
+# applications/jedi_lfric_tests:
+"jedi_lfric_tests_increment_alg_mod.x90" = ["C081"]
+
+# applications/adjoint_tests:
+"atlt_poly_adv_update_alg_mod.X90" = ["C132"]
+"atlt_bl_inc_alg_mod.x90" = ["C132"]
+"atlt_bdy_lyr_alg_mod.x90" = ["C132"]
+"atlt_rhs_alg_mod.x90" = ["C132"]
+"atlt_pressure_gradient_bd_alg_mod.x90" = ["C132"]
+"atlt_moist_dyn_factors_alg_mod.x90" = ["C132"]
+"atlt_derive_exner_from_eos_alg_mod.x90" = ["C132"]
+"adjt_compute_vorticity_alg_mod.x90" = ["C132"]
+
+
+# Rules that pass for whole Lfric repo with no exceptions:
+# E000, C031, C032, C043, C051, C091, C082, C141,
+# OB011, OB021, OB051, OB061, MOD001, PORT011, PORT012,
+# PORT021, FORT001, FORT002, FORT003, FORT004, FORT005
+

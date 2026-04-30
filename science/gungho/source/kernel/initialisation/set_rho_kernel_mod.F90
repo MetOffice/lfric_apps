@@ -23,6 +23,7 @@ module set_rho_kernel_mod
   use finite_element_config_mod, only: coord_system
   use idealised_config_mod,      only: test
   use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private

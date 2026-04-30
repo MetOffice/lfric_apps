@@ -75,13 +75,13 @@ coord_space             = 'Wchi',
 /
 
 &partitioning
-  mesh_type             = 'destination',
+  mesh_target           = 'destination',
   partitioner           = 'cubedsphere',
   panel_decomposition   = 'auto',
 /
 
 &partitioning
-  mesh_type             = 'source',
+  mesh_target           = 'source',
   partitioner           = 'cubedsphere',
   panel_decomposition   = 'auto',
 /

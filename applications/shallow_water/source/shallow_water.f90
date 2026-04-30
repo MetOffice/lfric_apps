@@ -30,9 +30,8 @@ program shallow_water
   use shallow_water_driver_mod,  only: initialise, &
                                        step,       &
                                        finalise
-  use namelist_mod,              only: namelist_type
   use timing_mod,                only: init_timing, final_timing
-  use io_config_mod,             only: timer_output_path
+  use constants_mod,             only: l_def, str_max_filename
 
   implicit none
 
@@ -42,14 +41,14 @@ program shallow_water
   type(modeldb_type)        :: modeldb
   character(:), allocatable :: filename
 
-  type(namelist_type), pointer :: io_nml
-  logical                      :: lsubroutine_timers
+  logical(l_def)              :: subroutine_timers
+  character(str_max_filename) :: timer_output_path
 
   call parse_command_line( filename )
 
   modeldb%mpi => global_mpi
 
-  call modeldb%configuration%initialise( program_name, table_len=10 )
+  call modeldb%config%initialise( program_name )
 
   ! Create the depository and prognostics field collections
   call modeldb%fields%add_empty_field_collection("depository", &
@@ -63,13 +62,17 @@ program shallow_water
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call init_comm( program_name, modeldb )
+
   call init_config( filename, shallow_water_required_namelists, &
-                    modeldb%configuration )
+                    config=modeldb%config )
   call init_logger( global_mpi%get_comm(), program_name )
-  io_nml => modeldb%configuration%get_namelist('io')
-  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
-  call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers, program_name, timer_output_path )
-  nullify( io_nml )
+
+  subroutine_timers = modeldb%config%io%subroutine_timers()
+  timer_output_path = modeldb%config%io%timer_output_path()
+
+  call init_timing( modeldb%mpi%get_comm(), subroutine_timers, &
+                    program_name, timer_output_path )
+
   call init_counters( program_name )
   call init_collections()
   call init_time( modeldb )
