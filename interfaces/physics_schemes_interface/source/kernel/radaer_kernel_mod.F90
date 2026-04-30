@@ -693,27 +693,56 @@ subroutine radaer_code( nlayers,                                               &
 
   select case(mode_setup)
   case(8)
-    allocate( ntp_names(100) )
+    allocate( ntp_names(56) ) 
 
-    ntp_names = [ fldname_p_theta_levels, fldname_t_theta_levels,              &
-                  fldname_ait_sol_su,       fldname_ait_sol_bc, &
-                  fldname_ait_sol_om,       fldname_acc_sol_su, &
-                  fldname_acc_sol_bc,       fldname_acc_sol_om, &
-                  fldname_acc_sol_ss,       fldname_cor_sol_su, &
-                  fldname_cor_sol_bc,       fldname_cor_sol_om, &
-                  fldname_cor_sol_ss,       fldname_ait_ins_bc, &
-                  fldname_ait_ins_om,       fldname_acc_ins_du, &
-                  fldname_cor_ins_du,       fldname_pvol_su_ait_sol, &
-                  fldname_pvol_bc_ait_sol , fldname_pvol_om_ait_sol , &
-                  fldname_pvol_su_acc_sol , fldname_pvol_bc_acc_sol , &
-                  fldname_pvol_om_acc_sol , fldname_pvol_ss_acc_sol , &
-                  fldname_pvol_su_cor_sol , fldname_pvol_bc_cor_sol , &
-                  fldname_pvol_om_cor_sol , fldname_pvol_ss_cor_sol , &
-                  fldname_pvol_bc_ait_ins , fldname_pvol_om_ait_ins , &
-                  fldname_pvol_du_acc_ins , fldname_pvol_du_cor_ins , &
-                  fldname_ , fldname_ , &
-                  fldname_ , fldname_ , &
+    ntp_names = [ fldname_p_theta_levels,    fldname_t_theta_levels,           &
+                  fldname_ait_sol_su,        fldname_ait_sol_bc, &
+                  fldname_ait_sol_om,        fldname_acc_sol_su, &
+                  fldname_acc_sol_bc,        fldname_acc_sol_om, &
+                  fldname_acc_sol_ss,        fldname_cor_sol_su, &
+                  fldname_cor_sol_bc,        fldname_cor_sol_om, &
+                  fldname_cor_sol_ss,        fldname_ait_ins_bc, &
+                  fldname_ait_ins_om,        fldname_acc_ins_du, &
+                  fldname_cor_ins_du,        fldname_pvol_su_ait_sol, &
+                  fldname_pvol_bc_ait_sol ,  fldname_pvol_om_ait_sol , &
+                  fldname_pvol_su_acc_sol ,  fldname_pvol_bc_acc_sol , &
+                  fldname_pvol_om_acc_sol ,  fldname_pvol_ss_acc_sol , &
+                  fldname_pvol_su_cor_sol ,  fldname_pvol_bc_cor_sol , &
+                  fldname_pvol_om_cor_sol ,  fldname_pvol_ss_cor_sol , &
+                  fldname_pvol_bc_ait_ins ,  fldname_pvol_om_ait_ins , &
+                  fldname_pvol_du_acc_ins ,  fldname_pvol_du_cor_ins , &
+                  fldname_n_ait_sol ,        fldname_n_acc_sol , &
+                  fldname_n_cor_sol ,        fldname_n_ait_ins , &
+                  fldname_n_acc_ins ,        fldname_n_cor_ins , &
+                  fldname_rhopar_ait_sol ,   fldname_rhopar_acc_sol , &
+                  fldname_rhopar_cor_sol ,   fldname_rhopar_ait_ins , &
+                  fldname_rhopar_acc_ins ,   fldname_rhopar_cor_ins , &
+                  fldname_drydp_ait_sol ,    fldname_drydp_acc_sol , &
+                  fldname_drydp_cor_sol ,    fldname_drydp_ait_ins , &
+                  fldname_drydp_acc_ins ,    fldname_drydp_cor_ins , &
+                  fldname_pvol_wat_ait_sol , fldname_pvol_wat_acc_sol , &
+                  fldname_pvol_wat_cor_sol , fldname_wetdp_ait_sol , &
+                  fldname_wetdp_acc_sol ,    fldname_wetdp_cor_sol ]
+    
+                  !fldname_ , fldname_ , &
+                  !fldname_ , fldname_ , &
+                  !fldname_ , fldname_ , &
+                  !fldname_ , fldname_ , &
+                  !fldname_ , fldname_ , &
+                  !fldname_ , fldname_ , &
+                  !fldname_ , fldname_ , &
+                  !fldname_ , fldname_ , &
 
+
+
+  ! ukca_modal_wtv_um(1,k,(mode_ait_sol-1))   = pvol_wat_ait_sol(map_wth(1) + k)
+  ! ukca_modal_wtv_um(1,k,(mode_acc_sol-1))   = pvol_wat_acc_sol(map_wth(1) + k)
+  ! ukca_modal_wtv_um(1,k,(mode_cor_sol-1))   = pvol_wat_cor_sol(map_wth(1) + k)
+
+
+  ! ukca_wet_diam_um(1,k,(mode_ait_sol-1))    = wetdp_ait_sol(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_acc_sol-1))    = wetdp_acc_sol(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_cor_sol-1))    = wetdp_cor_sol(map_wth(1) + k)
 
 
                   
@@ -801,68 +830,196 @@ subroutine radaer_code( nlayers,                                               &
       do k = 1, nlayers
         ntp( k, m ) = real( cor_ins_du(map_wth(1) + k), r_um )
       end do
+    case(fldname_pvol_su_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_su_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_bc_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_bc_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_om_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_om_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_su_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_su_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_bc_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_bc_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_om_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_om_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_ss_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_ss_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_du_acc_sol)
+      ! does not exist for i_mode_setup 8
+    case(fldname_pvol_su_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_su_cor_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_bc_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_bc_cor_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_om_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_om_cor_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_ss_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_ss_cor_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_du_cor_sol)
+      ! does not exist for i_mode_setup 8 
+    case(fldname_pvol_bc_ait_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_bc_ait_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_om_ait_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_om_ait_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_du_acc_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_du_acc_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_du_cor_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_du_cor_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_n_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( n_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_n_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( n_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_n_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( n_cor_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_n_ait_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( n_ait_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_n_acc_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( n_acc_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_n_cor_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( n_cor_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_rhopar_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( rhopar_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_rhopar_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( rhopar_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_rhopar_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( rhopar_cor_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_rhopar_ait_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( rhopar_ait_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_rhopar_acc_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( rhopar_acc_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_rhopar_cor_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( rhopar_cor_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_drydp_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( drydp_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_drydp_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( drydp_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_drydp_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( drydp_cor_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_drydp_ait_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( drydp_ait_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_drydp_acc_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( drydp_acc_ins(map_wth(1) + k), r_um )
+      end do
+    case(fldname_drydp_cor_ins)
+      do k = 1, nlayers
+        ntp( k, m ) = real( drydp_cor_ins(map_wth(1) + k), r_um )
+      end do
 
-    ukca_comp_vol_um(1, 1,k) = pvol_su_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(2, 1,k) = pvol_bc_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(3, 1,k) = pvol_om_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(4, 1,k) = pvol_su_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(5, 1,k) = pvol_bc_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(6, 1,k) = pvol_om_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(7, 1,k) = pvol_ss_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(8, 1,k) = 0.0_r_um ! no pvol_du_acc_sol prognostic
-    ukca_comp_vol_um(9, 1,k) = pvol_su_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(10,1,k) = pvol_bc_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(11,1,k) = pvol_om_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(12,1,k) = pvol_ss_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(13,1,k) = 0.0_r_um ! no pvol_du_cor_sol prognostic
-    ukca_comp_vol_um(14,1,k) = pvol_bc_ait_ins(map_wth(1) + k)
-    ukca_comp_vol_um(15,1,k) = pvol_om_ait_ins(map_wth(1) + k)
-    ukca_comp_vol_um(16,1,k) = pvol_du_acc_ins(map_wth(1) + k)
-    ukca_comp_vol_um(17,1,k) = pvol_du_cor_ins(map_wth(1) + k)
 
-     
-    case(fldname_)
+
+
+
+
+  ! ukca_modal_wtv_um(1,k,(mode_ait_sol-1))   = pvol_wat_ait_sol(map_wth(1) + k)
+  ! ukca_modal_wtv_um(1,k,(mode_acc_sol-1))   = pvol_wat_acc_sol(map_wth(1) + k)
+  ! ukca_modal_wtv_um(1,k,(mode_cor_sol-1))   = pvol_wat_cor_sol(map_wth(1) + k)
+
+
+  ! ukca_wet_diam_um(1,k,(mode_ait_sol-1))    = wetdp_ait_sol(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_acc_sol-1))    = wetdp_acc_sol(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_cor_sol-1))    = wetdp_cor_sol(map_wth(1) + k)
+
+
+
+
+    case(fldname_pvol_wat_ait_sol)
       do k = 1, nlayers
-        ntp( k, m ) = real( (map_wth(1) + k), r_um )
+        ntp( k, m ) = real( pvol_wat_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_wat_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_wat_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_pvol_wat_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( pvol_wat_cor_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_wetdp_ait_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( wetdp_ait_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_wetdp_acc_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( wetdp_acc_sol(map_wth(1) + k), r_um )
+      end do
+    case(fldname_wetdp_cor_sol)
+      do k = 1, nlayers
+        ntp( k, m ) = real( wetdp_cor_sol(map_wth(1) + k), r_um )
       end do
     case(fldname_)
       do k = 1, nlayers
         ntp( k, m ) = real( (map_wth(1) + k), r_um )
       end do
-         case(fldname_)
-      do k = 1, nlayers
-        ntp( k, m ) = real( (map_wth(1) + k), r_um )
-      end do
     case(fldname_)
       do k = 1, nlayers
         ntp( k, m ) = real( (map_wth(1) + k), r_um )
       end do
-    case(fldname_)
-      do k = 1, nlayers
-        ntp( k, m ) = real( (map_wth(1) + k), r_um )
-      end do
-    case(fldname_)
-      do k = 1, nlayers
-        ntp( k, m ) = real( (map_wth(1) + k), r_um )
-      end do
-    case(fldname_)
-      do k = 1, nlayers
-        ntp( k, m ) = real( (map_wth(1) + k), r_um )
-      end do
-    case(fldname_)
-      do k = 1, nlayers
-        ntp( k, m ) = real( (map_wth(1) + k), r_um )
-      end do
-     
+
+
       
-    case(fldname_drydp_ait_sol)
-      do k = 1, nlayers
-        ntp( k, m ) = real( drydp_ait_sol(map_wth(1) + k), r_um )
-      end do
-    case(fldname_drydp_ait_sol)
-      do k = 1, nlayers
-        ntp( k, m ) = real( drydp_ait_sol(map_wth(1) + k), r_um )
-      end do
+
     case default
       write( log_scratch_space, '(A,A)' )                                      &
            'Missing required UKCA NTP: ', ntp_names(i)
@@ -873,104 +1030,104 @@ subroutine radaer_code( nlayers,                                               &
 
 
   ! note - zeroth level is redundant for these fields in UM
-  do k = 1, nlayers
-    ukca_comp_vol_um(1, 1,k) = pvol_su_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(2, 1,k) = pvol_bc_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(3, 1,k) = pvol_om_ait_sol(map_wth(1) + k)
-    ukca_comp_vol_um(4, 1,k) = pvol_su_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(5, 1,k) = pvol_bc_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(6, 1,k) = pvol_om_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(7, 1,k) = pvol_ss_acc_sol(map_wth(1) + k)
-    ukca_comp_vol_um(8, 1,k) = 0.0_r_um ! no pvol_du_acc_sol prognostic
-    ukca_comp_vol_um(9, 1,k) = pvol_su_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(10,1,k) = pvol_bc_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(11,1,k) = pvol_om_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(12,1,k) = pvol_ss_cor_sol(map_wth(1) + k)
-    ukca_comp_vol_um(13,1,k) = 0.0_r_um ! no pvol_du_cor_sol prognostic
-    ukca_comp_vol_um(14,1,k) = pvol_bc_ait_ins(map_wth(1) + k)
-    ukca_comp_vol_um(15,1,k) = pvol_om_ait_ins(map_wth(1) + k)
-    ukca_comp_vol_um(16,1,k) = pvol_du_acc_ins(map_wth(1) + k)
-    ukca_comp_vol_um(17,1,k) = pvol_du_cor_ins(map_wth(1) + k)
+  !do k = 1, nlayers
+  ! ukca_comp_vol_um(1, 1,k) = pvol_su_ait_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(2, 1,k) = pvol_bc_ait_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(3, 1,k) = pvol_om_ait_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(4, 1,k) = pvol_su_acc_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(5, 1,k) = pvol_bc_acc_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(6, 1,k) = pvol_om_acc_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(7, 1,k) = pvol_ss_acc_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(8, 1,k) = 0.0_r_um ! no pvol_du_acc_sol prognostic
+  ! ukca_comp_vol_um(9, 1,k) = pvol_su_cor_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(10,1,k) = pvol_bc_cor_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(11,1,k) = pvol_om_cor_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(12,1,k) = pvol_ss_cor_sol(map_wth(1) + k)
+  ! ukca_comp_vol_um(13,1,k) = 0.0_r_um ! no pvol_du_cor_sol prognostic
+  ! ukca_comp_vol_um(14,1,k) = pvol_bc_ait_ins(map_wth(1) + k)
+  ! ukca_comp_vol_um(15,1,k) = pvol_om_ait_ins(map_wth(1) + k)
+  ! ukca_comp_vol_um(16,1,k) = pvol_du_acc_ins(map_wth(1) + k)
+  ! ukca_comp_vol_um(17,1,k) = pvol_du_cor_ins(map_wth(1) + k)
 
-    ukca_mix_ratio_um(1, 1,k) = ait_sol_su(map_wth(1) + k)
-    ukca_mix_ratio_um(2, 1,k) = ait_sol_bc(map_wth(1) + k)
-    ukca_mix_ratio_um(3, 1,k) = ait_sol_om(map_wth(1) + k)
-    ukca_mix_ratio_um(4, 1,k) = acc_sol_su(map_wth(1) + k)
-    ukca_mix_ratio_um(5, 1,k) = acc_sol_bc(map_wth(1) + k)
-    ukca_mix_ratio_um(6, 1,k) = acc_sol_om(map_wth(1) + k)
-    ukca_mix_ratio_um(7, 1,k) = acc_sol_ss(map_wth(1) + k)
-    ukca_mix_ratio_um(8, 1,k) = 0.0_r_um ! no acc_sol_du prognostic
-    ukca_mix_ratio_um(9, 1,k) = cor_sol_su(map_wth(1) + k)
-    ukca_mix_ratio_um(10,1,k) = cor_sol_bc(map_wth(1) + k)
-    ukca_mix_ratio_um(11,1,k) = cor_sol_om(map_wth(1) + k)
-    ukca_mix_ratio_um(12,1,k) = cor_sol_ss(map_wth(1) + k)
-    ukca_mix_ratio_um(13,1,k) = 0.0_r_um ! no cor_sol_du prognostic
-    ukca_mix_ratio_um(14,1,k) = ait_ins_bc(map_wth(1) + k)
-    ukca_mix_ratio_um(15,1,k) = ait_ins_om(map_wth(1) + k)
-    ukca_mix_ratio_um(16,1,k) = acc_ins_du(map_wth(1) + k)
-    ukca_mix_ratio_um(17,1,k) = cor_ins_du(map_wth(1) + k)
+  ! ukca_mix_ratio_um(1, 1,k) = ait_sol_su(map_wth(1) + k)
+  ! ukca_mix_ratio_um(2, 1,k) = ait_sol_bc(map_wth(1) + k)
+  ! ukca_mix_ratio_um(3, 1,k) = ait_sol_om(map_wth(1) + k)
+  ! ukca_mix_ratio_um(4, 1,k) = acc_sol_su(map_wth(1) + k)
+  ! ukca_mix_ratio_um(5, 1,k) = acc_sol_bc(map_wth(1) + k)
+  ! ukca_mix_ratio_um(6, 1,k) = acc_sol_om(map_wth(1) + k)
+  ! ukca_mix_ratio_um(7, 1,k) = acc_sol_ss(map_wth(1) + k)
+  ! ukca_mix_ratio_um(8, 1,k) = 0.0_r_um ! no acc_sol_du prognostic
+  ! ukca_mix_ratio_um(9, 1,k) = cor_sol_su(map_wth(1) + k)
+  ! ukca_mix_ratio_um(10,1,k) = cor_sol_bc(map_wth(1) + k)
+  ! ukca_mix_ratio_um(11,1,k) = cor_sol_om(map_wth(1) + k)
+  ! ukca_mix_ratio_um(12,1,k) = cor_sol_ss(map_wth(1) + k)
+  ! ukca_mix_ratio_um(13,1,k) = 0.0_r_um ! no cor_sol_du prognostic
+  ! ukca_mix_ratio_um(14,1,k) = ait_ins_bc(map_wth(1) + k)
+  ! ukca_mix_ratio_um(15,1,k) = ait_ins_om(map_wth(1) + k)
+  ! ukca_mix_ratio_um(16,1,k) = acc_ins_du(map_wth(1) + k)
+  ! ukca_mix_ratio_um(17,1,k) = cor_ins_du(map_wth(1) + k)
 
-    ukca_dry_diam_um(1,k,(mode_ait_sol-1))    = drydp_ait_sol(map_wth(1) + k)
-    ukca_dry_diam_um(1,k,(mode_acc_sol-1))    = drydp_acc_sol(map_wth(1) + k)
-    ukca_dry_diam_um(1,k,(mode_cor_sol-1))    = drydp_cor_sol(map_wth(1) + k)
-    ukca_dry_diam_um(1,k,(mode_ait_insol-1))  = drydp_ait_ins(map_wth(1) + k)
-    ukca_dry_diam_um(1,k,(mode_acc_insol-1))  = drydp_acc_ins(map_wth(1) + k)
-    ukca_dry_diam_um(1,k,(mode_cor_insol-1))  = drydp_cor_ins(map_wth(1) + k)
+  ! ukca_dry_diam_um(1,k,(mode_ait_sol-1))    = drydp_ait_sol(map_wth(1) + k)
+  ! ukca_dry_diam_um(1,k,(mode_acc_sol-1))    = drydp_acc_sol(map_wth(1) + k)
+  ! ukca_dry_diam_um(1,k,(mode_cor_sol-1))    = drydp_cor_sol(map_wth(1) + k)
+  ! ukca_dry_diam_um(1,k,(mode_ait_insol-1))  = drydp_ait_ins(map_wth(1) + k)
+  ! ukca_dry_diam_um(1,k,(mode_acc_insol-1))  = drydp_acc_ins(map_wth(1) + k)
+  ! ukca_dry_diam_um(1,k,(mode_cor_insol-1))  = drydp_cor_ins(map_wth(1) + k)
 
-    ukca_modal_nbr_um(1,k,(mode_ait_sol-1))   = n_ait_sol(map_wth(1) + k)
-    ukca_modal_nbr_um(1,k,(mode_acc_sol-1))   = n_acc_sol(map_wth(1) + k)
-    ukca_modal_nbr_um(1,k,(mode_cor_sol-1))   = n_cor_sol(map_wth(1) + k)
-    ukca_modal_nbr_um(1,k,(mode_ait_insol-1)) = n_ait_ins(map_wth(1) + k)
-    ukca_modal_nbr_um(1,k,(mode_acc_insol-1)) = n_acc_ins(map_wth(1) + k)
-    ukca_modal_nbr_um(1,k,(mode_cor_insol-1)) = n_cor_ins(map_wth(1) + k)
+  ! ukca_modal_nbr_um(1,k,(mode_ait_sol-1))   = n_ait_sol(map_wth(1) + k)
+  ! ukca_modal_nbr_um(1,k,(mode_acc_sol-1))   = n_acc_sol(map_wth(1) + k)
+  ! ukca_modal_nbr_um(1,k,(mode_cor_sol-1))   = n_cor_sol(map_wth(1) + k)
+  ! ukca_modal_nbr_um(1,k,(mode_ait_insol-1)) = n_ait_ins(map_wth(1) + k)
+  ! ukca_modal_nbr_um(1,k,(mode_acc_insol-1)) = n_acc_ins(map_wth(1) + k)
+  ! ukca_modal_nbr_um(1,k,(mode_cor_insol-1)) = n_cor_ins(map_wth(1) + k)
 
-    ukca_modal_rho_um(1,k,(mode_ait_sol-1))   = rhopar_ait_sol(map_wth(1) + k)
-    ukca_modal_rho_um(1,k,(mode_acc_sol-1))   = rhopar_acc_sol(map_wth(1) + k)
-    ukca_modal_rho_um(1,k,(mode_cor_sol-1))   = rhopar_cor_sol(map_wth(1) + k)
-    ukca_modal_rho_um(1,k,(mode_ait_insol-1)) = rhopar_ait_ins(map_wth(1) + k)
-    ukca_modal_rho_um(1,k,(mode_acc_insol-1)) = rhopar_acc_ins(map_wth(1) + k)
-    ukca_modal_rho_um(1,k,(mode_cor_insol-1)) = rhopar_cor_ins(map_wth(1) + k)
+  ! ukca_modal_rho_um(1,k,(mode_ait_sol-1))   = rhopar_ait_sol(map_wth(1) + k)
+  ! ukca_modal_rho_um(1,k,(mode_acc_sol-1))   = rhopar_acc_sol(map_wth(1) + k)
+  ! ukca_modal_rho_um(1,k,(mode_cor_sol-1))   = rhopar_cor_sol(map_wth(1) + k)
+  ! ukca_modal_rho_um(1,k,(mode_ait_insol-1)) = rhopar_ait_ins(map_wth(1) + k)
+  ! ukca_modal_rho_um(1,k,(mode_acc_insol-1)) = rhopar_acc_ins(map_wth(1) + k)
+  ! ukca_modal_rho_um(1,k,(mode_cor_insol-1)) = rhopar_cor_ins(map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_ait_sol-1)) = pvol_wat_ait_sol(map_wth(1) + k)+&
-                                              pvol_su_ait_sol( map_wth(1) + k)+&
-                                              pvol_bc_ait_sol( map_wth(1) + k)+&
-                                              pvol_om_ait_sol( map_wth(1) + k)
+  ! ukca_modal_vol_um(1,k,(mode_ait_sol-1)) = pvol_wat_ait_sol(map_wth(1) + k)+&
+  !                                           pvol_su_ait_sol( map_wth(1) + k)+&
+  !                                           pvol_bc_ait_sol( map_wth(1) + k)+&
+  !                                           pvol_om_ait_sol( map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_acc_sol-1)) = pvol_wat_acc_sol(map_wth(1) + k)+&
-                                              pvol_su_acc_sol( map_wth(1) + k)+&
-                                              pvol_bc_acc_sol( map_wth(1) + k)+&
-                                              pvol_om_acc_sol( map_wth(1) + k)+&
-                                              pvol_ss_acc_sol( map_wth(1) + k)
-                                              ! add pvol_du_acc_sol if used
+  ! ukca_modal_vol_um(1,k,(mode_acc_sol-1)) = pvol_wat_acc_sol(map_wth(1) + k)+&
+  !                                           pvol_su_acc_sol( map_wth(1) + k)+&
+  !                                           pvol_bc_acc_sol( map_wth(1) + k)+&
+  !                                           pvol_om_acc_sol( map_wth(1) + k)+&
+  !                                           pvol_ss_acc_sol( map_wth(1) + k)
+  !                                           ! add pvol_du_acc_sol if used
 
-    ukca_modal_vol_um(1,k,(mode_cor_sol-1)) = pvol_wat_cor_sol(map_wth(1) + k)+&
-                                              pvol_su_cor_sol( map_wth(1) + k)+&
-                                              pvol_bc_cor_sol( map_wth(1) + k)+&
-                                              pvol_om_cor_sol( map_wth(1) + k)+&
-                                              pvol_ss_cor_sol( map_wth(1) + k)
-                                              ! add pvol_du_cor_sol if used
+  ! ukca_modal_vol_um(1,k,(mode_cor_sol-1)) = pvol_wat_cor_sol(map_wth(1) + k)+&
+  !                                           pvol_su_cor_sol( map_wth(1) + k)+&
+  !                                           pvol_bc_cor_sol( map_wth(1) + k)+&
+  !                                           pvol_om_cor_sol( map_wth(1) + k)+&
+  !                                           pvol_ss_cor_sol( map_wth(1) + k)
+  !                                           ! add pvol_du_cor_sol if used
+    
+  ! ukca_modal_vol_um(1,k,(mode_ait_insol-1))=pvol_bc_ait_ins( map_wth(1) + k)+&
+  !                                           pvol_om_ait_ins( map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_ait_insol-1))=pvol_bc_ait_ins( map_wth(1) + k)+&
-                                              pvol_om_ait_ins( map_wth(1) + k)
+  ! ukca_modal_vol_um(1,k,(mode_acc_insol-1))=pvol_du_acc_ins( map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_acc_insol-1))=pvol_du_acc_ins( map_wth(1) + k)
+  ! ukca_modal_vol_um(1,k,(mode_cor_insol-1))=pvol_du_cor_ins( map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_cor_insol-1))=pvol_du_cor_ins( map_wth(1) + k)
+  ! ukca_modal_wtv_um(1,k,(mode_ait_sol-1))   = pvol_wat_ait_sol(map_wth(1) + k)
+  ! ukca_modal_wtv_um(1,k,(mode_acc_sol-1))   = pvol_wat_acc_sol(map_wth(1) + k)
+  ! ukca_modal_wtv_um(1,k,(mode_cor_sol-1))   = pvol_wat_cor_sol(map_wth(1) + k)
+  ! ukca_modal_wtv_um(1,k,(mode_ait_insol-1)) = 0.0_r_um
+  ! ukca_modal_wtv_um(1,k,(mode_acc_insol-1)) = 0.0_r_um
+  ! ukca_modal_wtv_um(1,k,(mode_cor_insol-1)) = 0.0_r_um
 
-    ukca_modal_wtv_um(1,k,(mode_ait_sol-1))   = pvol_wat_ait_sol(map_wth(1) + k)
-    ukca_modal_wtv_um(1,k,(mode_acc_sol-1))   = pvol_wat_acc_sol(map_wth(1) + k)
-    ukca_modal_wtv_um(1,k,(mode_cor_sol-1))   = pvol_wat_cor_sol(map_wth(1) + k)
-    ukca_modal_wtv_um(1,k,(mode_ait_insol-1)) = 0.0_r_um
-    ukca_modal_wtv_um(1,k,(mode_acc_insol-1)) = 0.0_r_um
-    ukca_modal_wtv_um(1,k,(mode_cor_insol-1)) = 0.0_r_um
-
-    ukca_wet_diam_um(1,k,(mode_ait_sol-1))    = wetdp_ait_sol(map_wth(1) + k)
-    ukca_wet_diam_um(1,k,(mode_acc_sol-1))    = wetdp_acc_sol(map_wth(1) + k)
-    ukca_wet_diam_um(1,k,(mode_cor_sol-1))    = wetdp_cor_sol(map_wth(1) + k)
-    ukca_wet_diam_um(1,k,(mode_ait_insol-1))  = drydp_ait_ins(map_wth(1) + k)
-    ukca_wet_diam_um(1,k,(mode_acc_insol-1))  = drydp_acc_ins(map_wth(1) + k)
-    ukca_wet_diam_um(1,k,(mode_cor_insol-1))  = drydp_cor_ins(map_wth(1) + k)
-  end do
+  ! ukca_wet_diam_um(1,k,(mode_ait_sol-1))    = wetdp_ait_sol(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_acc_sol-1))    = wetdp_acc_sol(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_cor_sol-1))    = wetdp_cor_sol(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_ait_insol-1))  = drydp_ait_ins(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_acc_insol-1))  = drydp_acc_ins(map_wth(1) + k)
+  ! ukca_wet_diam_um(1,k,(mode_cor_insol-1))  = drydp_cor_ins(map_wth(1) + k)
+  !end do
 
   call ukca_radaer_prepare(                                                    &
     ! Input Actual array dimensions
