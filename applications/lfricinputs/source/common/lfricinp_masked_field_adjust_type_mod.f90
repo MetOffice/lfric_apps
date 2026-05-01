@@ -227,7 +227,7 @@ type(lfricinp_regrid_weights_type), intent(in) :: weights
 !
 ! Local variables
 !
-integer(kind=int32)              :: i, j, l, w
+integer(kind=int32)              :: i_x, i_y, j, l, w
 integer(kind=int32)              :: src_index, dst_index1, dst_index2
 integer(kind=int32), allocatable :: dst_point_contrb_record(:)
 real(kind=real64)                :: weight_value
@@ -235,13 +235,13 @@ integer(kind=int32), parameter   :: unchecked = 0, src_mask_contrb_only = 1,   &
                                     off_src_mask_contrb = 2
 logical                          :: l_on_src_mask, l_on_dst_mask
 
-allocate(self%dst_mask_2D(size(dst_mask)))
+allocate(self%dst_mask_2D, mold=dst_mask)
 self%dst_mask_2D(:,:) = dst_mask(:,:)
 
 ! Initialise arrays that records whether dst points had any or no
 ! contribution from on mask src points and the src point data
 ! to replace the dst point data
-allocate(dst_point_contrb_record(size(dst_mask)))
+allocate(dst_point_contrb_record, mold=dst_mask)
 dst_point_contrb_record = unchecked
 
 ! Loop over remap matrix, considering only non-zero weight elements, to
@@ -261,18 +261,18 @@ do w = 1, weights%num_wgts
 
       ! Update records on whether the dst point has contributions from only
       ! masked src points, or some off mask source points.
-      select case (dst_point_contrb_record(dst_index))
+      select case (dst_point_contrb_record(dst_index1,dst_index2))
 
         case (unchecked)
           if (l_on_src_mask) then
-            dst_point_contrb_record(dst_index) = src_mask_contrb_only
+            dst_point_contrb_record(dst_index1,dst_index2) = src_mask_contrb_only
           else
-            dst_point_contrb_record(dst_index) = off_src_mask_contrb
+            dst_point_contrb_record(dst_index1,dst_index2) = off_src_mask_contrb
           end if
 
         case (src_mask_contrb_only)
           if ( .not. l_on_src_mask) then
-            dst_point_contrb_record(dst_index) = off_src_mask_contrb
+            dst_point_contrb_record(dst_index1,dst_index2) = off_src_mask_contrb
           end if
 
       end select
@@ -290,11 +290,13 @@ call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 ! Generate array of dst indices that requires post regridding masked adjustment
 allocate(self%adjusted_dst_indices_2D(self%num_adjusted_points,2))
-j = 0                                                                           !SHARKS
-do i = 1, size(dst_mask)                                                        !SHARKS
-  if (dst_point_contrb_record(i) == off_src_mask_contrb) then                   !SHARKS
-    j = j + 1                                                                   !SHARKS
-    self%adjusted_dst_indices_2D(j) = i                                         !SHARKS
+j = 0
+do i_y = 1, size(dst_mask(1,:))
+  do i_x = 1, size(dst_mask(:,i_y))
+  if (dst_point_contrb_record(i_x,i_y) == off_src_mask_contrb) then
+    j = j + 1
+    self%adjusted_dst_indices_2D(j,1) = i_x
+    self%adjusted_dst_indices_2D(j,2) = i_y
   end if
 end do
 
@@ -333,10 +335,11 @@ if (self%initialised) then
                                          src(self%adjusted_dst_to_src_map_1D(i))
   end do
 
-  do i = 1, size(dst)                                                           !SHARKS
-    if (.not. self%dst_mask_2D(i)) then                                         !SHARKS
-      dst(i) = um_rmdi                                                          !SHARKS
-    end if
+  do i_y = 1, size(dst_mask(1,:))
+    do i_x = 1, size(dst_mask(:,i_y))
+      if (.not. self%dst_mask_2D(i_x,i_y)) then
+        dst(i_x,i_y) = um_rmdi
+      end if
   end do
 
 else
