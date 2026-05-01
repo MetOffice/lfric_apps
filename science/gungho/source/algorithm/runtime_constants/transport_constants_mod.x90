@@ -24,7 +24,7 @@ module transport_constants_mod
                                                 get_height_fv,                 &
                                                 get_dz_w3
   use field_mod,                          only: field_type
-  use fs_continuity_mod,                  only: W2, W2H, W2V, W3, Wtheta, Wchi
+  use fs_continuity_mod,                  only: W2, W2H, W2V, W3, Wtheta
   use function_space_collection_mod,      only: function_space_collection
   use function_space_mod,                 only: function_space_type
   use integer_field_mod,                  only: integer_field_type
@@ -351,8 +351,8 @@ contains
     mesh => mesh_collection%get_mesh(mesh_id)
     local_mesh => mesh%get_local_mesh()
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
-    fs => function_space_collection%get_fs(twod_mesh, coord_order, coord_order, Wchi)
     chi => get_coordinates(mesh_id)
+    fs => chi(1)%get_function_space()
     panel_id => get_panel_id(mesh_id)
     field_depth = mesh%get_halo_depth()
     depth = MAX(ffsl_inner_order, ffsl_outer_order)
