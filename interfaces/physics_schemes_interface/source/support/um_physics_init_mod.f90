@@ -47,6 +47,7 @@ module um_physics_init_mod
                                         free_atm_mix, free_atm_mix_to_sharp,   &
                                         free_atm_mix_ntml_corrected,           &
                                         free_atm_mix_free_trop_layer,          &
+                                        free_atm_mix_smooth_to_boundaries,     &
                                         interp_local, interp_local_gradients,  &
                                         interp_local_cf_dbdz,                  &
                                         new_kcloudtop, p_unstable,             &
@@ -336,9 +337,9 @@ contains
          DynDiag_ZL_corrn, blend_allpoints, ng_stress,                     &
          BrownGrant97_limited, BrownGrant97_original, lem_std,             &
          lem_adjust, interactive_fluxes, specified_fluxes_only,            &
-         except_disc_inv, ntml_level_corrn, free_trop_layers, sharpest,    &
-         lem_stability, sg_shear_enh_lambda, l_new_kcloudtop, buoy_integ,  &
-         l_reset_dec_thres, DynDiag_ZL_CuOnly, var_diags_opt,              &
+         except_disc_inv, ntml_level_corrn, free_trop_layers,              &
+         smooth_to_bdys, sharpest, lem_stability, sg_shear_enh_lambda,     &
+         l_new_kcloudtop, buoy_integ, l_reset_dec_thres, DynDiag_ZL_CuOnly,&
          i_interp_local, i_interp_local_gradients,                         &
          split_tke_and_inv, l_noice_in_turb, l_use_var_fixes,              &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
@@ -732,6 +733,8 @@ contains
           local_fa = ntml_level_corrn
         case(free_atm_mix_free_trop_layer)
           local_fa = free_trop_layers
+        case(free_atm_mix_smooth_to_boundaries)
+          local_fa = smooth_to_bdys
       end select
 
       pstb = 2.0_r_um
@@ -766,8 +769,7 @@ contains
           sg_orog_mixing = sg_shear_enh_lambda
       end select
 
-      ! Switch for alternative TKE and variance diagnostics
-      var_diags_opt = split_tke_and_inv
+      ! TKE scaling parameter and switch for fixes to variance diagnostics
       tke_diag_fac  = 1.0_r_bl
       l_use_var_fixes = .true.
       zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
