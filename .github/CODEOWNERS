@@ -81,7 +81,7 @@ interfaces/build/                      @christophermaynard
 # Other areas
 documentation                           # @MetOffice/ssdteam
 .github/                                @MetOffice/ssdteam
-LICENSE                                 @yaswant
+LICENCE                                 @yaswant
 README.md                               @MetOffice/ssdteam
 
 # Owners of specific documentation sections
