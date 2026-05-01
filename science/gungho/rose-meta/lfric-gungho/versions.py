@@ -29,8 +29,6 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
-
-
 class vn31_t118(MacroUpgrade):
     """Upgrade macro for ticket TTTT by Unknown."""
 
@@ -86,3 +84,32 @@ class vn31_t368(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t443(MacroUpgrade):
+    # Upgrade macro for PR #443 by Samantha Pullen
+
+    BEFORE_TAG = "vn3.1_t368"
+    AFTER_TAG = "vn3.1_t443"
+
+    def upgrade(self, config, meta_config=None):
+        # Add name entry to iau_addinf_io namelist
+        self.add_setting(
+            config, ["namelist:iau_addinf_io(addinf1)", "name"], "''"
+        )
+        self.add_setting(
+            config, ["namelist:iau_addinf_io(addinf2)", "name"], "''"
+        )
+        # Add name entry to iau_ainc_io namelist
+        self.add_setting(
+            config, ["namelist:iau_ainc_io(ainc1)", "name"], "''"
+        )
+        self.add_setting(
+            config, ["namelist:iau_ainc_io(ainc2)", "name"], "''"
+        )
+        # Add name entry to iau_bcorr_io namelist
+        self.add_setting(
+            config, ["namelist:iau_bcorr_io(bcorr1)", "name"], "''"
+        )
+        return config, self.reports
+

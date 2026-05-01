@@ -35,6 +35,8 @@
 | harry-shepherd      | Harry Shepherd     | Met Office                       | 2026-01-08 |
 | Pierre-siddall      | Pierre Siddall     | Met Office                       | 2026-03-02 |
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
+| ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
+| SamanthaPullen      | Samantha Pullen    | Met Office                       | 2026-04-20 !
 | mo-lottieturner     | Lottie Turner      | Met Office                       | 2026-01-27 |
 | DrTVockerodtMO      | Terence Vockerodt  | Met Office                       | 2026-01-08 |
 | MetBenjaminWent     | Benjamin Went      | Met Office                       | 2026-01-15 |
