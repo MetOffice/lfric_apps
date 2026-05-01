@@ -70,20 +70,23 @@
         {% do tasks_to_run.update({mesh_run_weights_platform: {} }) %}
     {% endif %}
 
+    {% if not loop.first %}
+        {% set prev_res = resolutions[loop.index0 -1] %}
+	{% set previous_graph_task = "run_mesh_"~
+                                      prev_res~"_"~
+			              site_vars["scripts_platform"]~"_"~
+                                      site_vars["mesh_build"][site_vars["scripts_platform"]] %}
+    {% endif %}
+
     {% if mesh_run_weights_platform != previous_graph_task %}
         {% do graph_sections.append([
             previous_graph_task, mesh_run_weights_platform
             ]) %}
     {% endif %}
 
-    {% set previous_graph_task = mesh_run_weights_platform %}
-
-    {% do LOG.info("previous graph "~previous_graph_task) %}
-
     {% if loop.last %}
-        {% do LOG.info("append previous graph "~previous_graph_task) %}
         {% do graph_sections.append([
-            previous_graph_task, generate_weights_task~"?"
+            mesh_run_weights_platform, generate_weights_task
             ]) %}
     {% endif %}
 {% endfor %}	   

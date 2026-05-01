@@ -46,7 +46,9 @@
         "lfric2lfric_ex1a_canned",
     ],
     "lfric2lfric_ex1a_extra": [
-        "lfric2lfric_oasis_C12_melbourne_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_C896_ukv_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_C896_melbourne_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_C224_melbourne_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_ral3-uk_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_ral3-ukv_ex1a_cce_fast-debug-64bit",
     ],
