@@ -1,0 +1,109 @@
+
+
+
+
+
+
+
+
+
+
+
+module atlt_kinetic_energy_gradient_alg_mod
+  implicit none
+  public
+
+  contains
+  subroutine atlt_kinetic_energy_gradient_alg(mesh, chi, panel_id)
+    use field_mod, only : field_type
+    use function_space_mod, only : function_space_type
+    use mesh_mod, only : mesh_type
+    use function_space_collection_mod, only : function_space_collection
+    use tl_kinetic_energy_gradient_kernel_mod, only : tl_kinetic_energy_gradient_kernel_type
+    use atl_kinetic_energy_gradient_kernel_mod, only : atl_kinetic_energy_gradient_kernel_type
+    use finite_element_config_mod, only : element_order_h, element_order_v
+    use fs_continuity_mod, only : w0, w2, w3
+    use quadrature_xyoz_mod, only : quadrature_xyoz_type
+    use constants_mod, only : i_def, r_def
+    use quadrature_rule_gaussian_mod, only : quadrature_rule_gaussian_type
+    use setop_random_kernel_mod, only : setop_random_kernel_type
+    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(field_type), dimension(3), intent(in), optional :: chi
+    type(field_type), intent(in), optional :: panel_id
+    TYPE(function_space_type), POINTER :: vector_space_w0_ptr
+    TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+    TYPE(function_space_type), POINTER :: vector_space_w3_ptr
+    type(field_type) :: r_u
+    type(field_type) :: u
+    type(field_type) :: ls_u
+    type(quadrature_xyoz_type) :: qr_xyoz
+    type(quadrature_rule_gaussian_type) :: quadrature_rule
+    type(field_type) :: r_u_input
+    type(field_type) :: u_input
+    real(kind=r_def) :: r_u_inner_prod
+    real(kind=r_def) :: u_inner_prod
+    real(kind=r_def) :: r_u_sf
+    real(kind=r_def) :: u_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: r_u_r_u_input_inner_prod
+    real(kind=r_def) :: u_u_input_inner_prod
+    real(kind=r_def) :: inner2
+    real(kind=r_def) :: MachineTol
+    real(kind=r_def) :: relative_diff
+    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+
+    vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w0)
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
+    call r_u%initialise(vector_space=vector_space_w2_ptr, name='r_u')
+    call u%initialise(vector_space=vector_space_w2_ptr, name='u')
+    call ls_u%initialise(vector_space=vector_space_w2_ptr, name='ls_u')
+    qr_xyoz = quadrature_xyoz_type(element_order_h + 3,element_order_h + 3,element_order_v + 3,quadrature_rule)
+    call r_u_input%initialise(vector_space=vector_space_w2_ptr, name='r_u_input')
+    call u_input%initialise(vector_space=vector_space_w2_ptr, name='u_input')
+    r_u_inner_prod = 0.0_r_def
+    u_inner_prod = 0.0_r_def
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke(setval_random(r_u), setval_x(r_u_input, r_u), setval_random(u), setval_x(u_input, u), setval_random(ls_u), &
+&tl_kinetic_energy_gradient_kernel_type(r_u, u, ls_u, chi, panel_id, qr_xyoz), x_innerproduct_x(r_u_inner_prod, r_u), &
+&x_innerproduct_x(u_inner_prod, u))
+    write( log_scratch_space, * ) "atlt_kinetic_energy_gradient inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "u inner product = ", u_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "r_u inner product = ", r_u_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    u_sf = 1.0_r_def / (u_inner_prod + eps)
+    r_u_sf = 1.0_r_def / (r_u_inner_prod + eps)
+    inner1 = 0.0_r_def
+    inner1 = inner1 + u_inner_prod * u_sf
+    inner1 = inner1 + r_u_inner_prod * r_u_sf
+    call invoke( inc_a_times_X( u_sf, u ), &
+                 inc_a_times_X( r_u_sf, r_u ) )
+    r_u_r_u_input_inner_prod = 0.0_r_def
+    u_u_input_inner_prod = 0.0_r_def
+    call invoke(atl_kinetic_energy_gradient_kernel_type(r_u, u, ls_u, chi, panel_id, qr_xyoz), &
+&x_innerproduct_y(r_u_r_u_input_inner_prod, r_u, r_u_input), x_innerproduct_y(u_u_input_inner_prod, u, u_input))
+    inner2 = 0.0_r_def
+    inner2 = inner2 + r_u_r_u_input_inner_prod
+    inner2 = inner2 + u_u_input_inner_prod
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+    relative_diff = ABS(inner1 - inner2) / MachineTol
+    if (relative_diff < overall_tolerance) then
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Write_Stmt
+      WRITE(log_scratch_space, *) "PASSED tl_kinetic_energy_gradient_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_info)
+    else
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Write_Stmt
+      WRITE(log_scratch_space, *) "FAILED tl_kinetic_energy_gradient_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_error)
+    end if
+
+  end subroutine atlt_kinetic_energy_gradient_alg
+
+end module atlt_kinetic_energy_gradient_alg_mod

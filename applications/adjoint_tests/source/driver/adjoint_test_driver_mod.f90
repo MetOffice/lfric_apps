@@ -101,6 +101,14 @@ contains
     use atlt_transport_control_alg_mod,             only : atlt_transport_control_alg
 
     ! ./core_dynamics
+    use atlt_hydrostatic_alg_mod,                   only : atlt_hydrostatic_alg
+    use atlt_kinetic_energy_gradient_alg_mod,       only : atlt_kinetic_energy_gradient_alg
+    use atlt_moist_dyn_gas_alg_mod,                 only : atlt_moist_dyn_gas_alg
+    use atlt_moist_dyn_mass_alg_mod,                only : atlt_moist_dyn_mass_alg
+    use atlt_project_eos_pressure_alg_mod,          only : atlt_project_eos_pressure_alg
+    use atlt_rhs_project_eos_alg_mod,               only : atlt_rhs_project_eos_alg
+    use atlt_rhs_sample_eos_alg_mod,                only : atlt_rhs_sample_eos_alg
+    use atlt_sample_eos_pressure_alg_mod,           only : atlt_sample_eos_pressure_alg
     use atlt_pressure_gradient_bd_alg_mod,          only : atlt_pressure_gradient_bd_alg
     use atlt_rhs_alg_mod,                           only : atlt_rhs_alg
     use adjt_compute_vorticity_alg_mod,             only : adjt_compute_vorticity_alg
@@ -157,6 +165,14 @@ contains
     call adjt_w3h_adv_upd_lookup_alg( mesh, adj_trans_lookup_cache )
 
     ! ./core_dynamics
+    call atlt_hydrostatic_alg( mesh, chi, panel_id )
+    call atlt_kinetic_energy_gradient_alg( mesh, chi, panel_id )
+    call atlt_moist_dyn_gas_alg( mesh, chi, panel_id )
+    call atlt_moist_dyn_mass_alg( mesh, chi, panel_id )
+    call atlt_project_eos_pressure_alg( mesh, chi, panel_id )
+    call atlt_rhs_project_eos_alg( mesh, chi, panel_id )
+    call atlt_rhs_sample_eos_alg( mesh, chi, panel_id )
+    call atlt_sample_eos_pressure_alg( mesh, chi, panel_id )
     call atlt_pressure_gradient_bd_alg( mesh )
 
     ! ./linear_physics
