@@ -822,9 +822,9 @@ do k = 2, bl_levels
       z_scale = zh_local(i,j)
     end if
     if (l_rp2) then
-      lambdam = max ( lambda_min_use , par_mezcla_rp(rp_idx)*zh_local(i,j) )
+      lambdam = max ( lambda_min_use , par_mezcla_rp(rp_idx)*z_scale )
     else
-      lambdam = max ( lambda_min_use , lambda_fac*zh_local(i,j) )
+      lambdam = max ( lambda_min_use , lambda_fac*z_scale )
     end if
     !-----------------------------------------------------------------
     ! Reduce mixing lengths above BL
