@@ -1,0 +1,12 @@
+<file_definition>
+
+  <!-- Nudging reference data files -->
+  <file id="nudging" name="nudging" mode="read" output_freq="6h" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="nudging_time" name="time" unit="hours" operation="once" axis_ref="nudging_time_axis" />
+    <field id="u_nudging_ext_ref_data" name="U" long_name="Eastward wind component for Nudging" unit="m s-1" grid_ref="nudging_ref_input_grid" operation="instant" />
+    <field id="v_nudging_ext_ref_data" name="V" long_name="Northward wind component for Nudging" unit="m s-1" grid_ref="nudging_ref_input_grid" operation="instant" />
+    <field id="temperature_nudging_ext_ref_data" name="T" long_name="Air temperature for Nudging" unit="K" grid_ref="nudging_ref_input_grid" operation="instant" />
+    <field id="surface_pressure_nudging_ext_ref_data" name="LNSP" long_name="Log surface pressure for Nudging" unit="Pa" grid_ref="nudging_ref_2D_grid" operation="instant" />
+  </file>
+
+</file_definition>

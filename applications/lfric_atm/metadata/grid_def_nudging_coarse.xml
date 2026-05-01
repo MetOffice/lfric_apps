@@ -1,0 +1,29 @@
+<!-- Spectral nudging ancillary grid definitions - on coarse mesh-->
+<!-- Grid for reading input fields -->
+<grid_definition>
+  <grid id="nudging_ref_input_grid">
+    <domain domain_ref="multigrid_l2_face"/>
+    <axis axis_ref="nudging_time_axis"/>
+    <axis axis_ref="ecmwf_levels"/>
+  </grid>
+
+  <grid id="nudging_ref_2D_grid">
+    <domain domain_ref="multigrid_l2_face"/>
+    <axis axis_ref="nudging_time_axis"/>
+  </grid>
+
+<!-- Grids for outputting diagnostics -->
+  <grid id="nudging_ref_full_grid">
+    <domain domain_ref="multigrid_l2_face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+  </grid>
+
+  <grid id="nudging_ref_half_grid">
+    <domain domain_ref="multigrid_l2_face"/>
+    <axis axis_ref="vert_axis_half_levels"/>
+  </grid>
+
+  <grid id="nudging_ref_2D_grid">
+    <domain domain_ref="multigrid_l2_face"/>
+  </grid>
+</grid_definition>
