@@ -237,8 +237,8 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
 
 else if (lookup_int(lbvc) == 6) then ! Deep soil levels
   ! These are hardcoded to the settings in a UM dump file with 4 soil levels as
-  ! that is currently hardcoded in elsewhere in lfric2um. If at some point that
-  ! gets changed to not be hardcoded, this will also need to change
+  ! that is currently hardcoded in lfric2um_initialise_um_mod. If at some point
+  ! that gets changed to not be hardcoded, this will also need to change.
   ! bulev is the same as brsvd1
   write(log_scratch_space, '(A,I0,A)') &
     "Vertical coord type ", lookup_int(lbvc), " treated as soil field"
