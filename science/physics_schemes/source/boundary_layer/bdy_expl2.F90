@@ -82,11 +82,7 @@ use bl_option_mod, only:                                                       &
     nl_bl_levels, local_fa, free_trop_layers, to_sharp_across_1km,             &
     sbl_op, equilibrium_sbl, one_third, two_thirds, blending_option,           &
     blend_except_cu, blend_cth_shcu_only, sg_shear, sg_shear_enh_lambda,       &
-<<<<<<< HEAD
     max_tke, tke_diag_fac, smooth_to_bdys,                                     &
-=======
-    max_tke, tke_diag_fac,                                                     &
->>>>>>> origin/main905c_smooth_lambda
     i_interp_local, i_interp_local_gradients, i_interp_local_cf_dbdz,          &
     shallow_cu_maxtop, sc_cftol, near_neut_z_on_l, zero, one, one_half
 use cloud_inputs_mod, only: i_rhcpt, forced_cu, i_cld_vn, i_pc2_init_method,   &
@@ -951,11 +947,7 @@ end do
 ! heterogeneous land surface this is poorly defined and we can't use Rib
 ! from the surface scheme as vertically averaging Ri is numerically
 ! unstable.  So, over land, only the average temperature gradient is used
-<<<<<<< HEAD
 if ( .not. l_use_surf_in_ri ) then
-=======
-if (.not. l_use_surf_in_ri) then
->>>>>>> origin/main905c_smooth_lambda
   ! if not using surface variables in Ri (l_use_surf_in_ri=false) we
   ! extrapolate dbdz itself from level 2, with the sl and qw gradients being
   ! used in the variance calculations and with i_interp_local_cf_dbdz
@@ -1999,14 +1991,9 @@ call ex_coef (                                                                 &
 ! in levels/logicals
    bl_levels,k_log_layr,BL_diag,                                               &
 ! in fields
-<<<<<<< HEAD
    sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhnl,zhpar,zhsc,    &
    zdsc_base,ntpar,ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,       &
    delta_smag,      &
-=======
-   sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhpar,ntpar,        &
-   ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,delta_smag,            &
->>>>>>> origin/main905c_smooth_lambda
 ! in/out fields
    cumulus,weight_1dbl,                                                        &
 ! out fields
@@ -2215,11 +2202,7 @@ if (BL_diag%l_tke) then
         ! TKE diagnostic
         ! Currently tke_nl is strictly rho*sigma_w^2 while tke_loc is TKE
         ! Assume isotropic turb so TKE_nl = 3/2 sigma_w^2
-<<<<<<< HEAD
-        tke_nl(i,j,k) = weight_1dbl(i,j,k) * 1.5_r_bl *                      &
-=======
         tke_nl(i,j,k) = weight_1dbl(i,j,k) * 1.5_r_bl *                        &
->>>>>>> origin/main905c_smooth_lambda
                                           tke_nl(i,j,k)/rho_wet_tq(i,j,k-1)
         BL_diag%tke(i,j,k) = max( tke_loc(i,j,k), tke_nl(i,j,k) )
 
@@ -2342,11 +2325,7 @@ if (BL_diag%l_tke) then
 
   end if ! l_subgrid_qcl_mp .or. l_wvar_for_conv
 
-<<<<<<< HEAD
-  ! at this point, tke_nl really contained 1.5*sigma_w^2. To make it look
-=======
   ! At this point, tke_nl really contained 1.5*sigma_w^2. To make it look
->>>>>>> origin/main905c_smooth_lambda
   ! a bit more like TKE near the surface, we will keep it constant below
   ! the max of rhokm_surf (here we find the first local maximum in case there
   ! is a larger rhokmz in a resolved inversion
@@ -2866,15 +2845,9 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
       sl_qw = zero
       if ( BL_diag%tke(i,j,k) > small_tke ) then
         ! vertical interpolation weights
-<<<<<<< HEAD
-        weight1 = r_rho_levels(i,j,k) - r_rho_levels(i,j,k-1)
-        weight2 = r_theta_levels(i,j,k-1) - r_rho_levels(i,j,k-1)
-        weight3 = r_rho_levels(i,j,k) - r_theta_levels(i,j,k-1)
-=======
         weight1 = z_uv(i,j,k) - z_uv(i,j,k-1)
         weight2 = z_tq(i,j,k-1) - z_uv(i,j,k-1)
         weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
->>>>>>> origin/main905c_smooth_lambda
         ! var_fac=b2*L/sqrt(TKE)
         var_fac = b2 * rhokm(i,j,k) / ( weight1 * BL_diag%tke(i,j,k) *       &
                                   rho_wet_tq(i,j,k-1) * rho_mix_tq(i,j,k-1) )
@@ -2947,15 +2920,9 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
         sl_qw  = zero
         if ( BL_diag%tke(i,j,k) > small_tke ) then
           ! vertical interpolation weights
-<<<<<<< HEAD
-          weight1 = r_rho_levels(i,j,k) - r_rho_levels(i,j,k-1)
-          weight2 = r_theta_levels(i,j,k-1) - r_rho_levels(i,j,k-1)
-          weight3 = r_rho_levels(i,j,k) - r_theta_levels(i,j,k-1)
-=======
           weight1 = z_uv(i,j,k) - z_uv(i,j,k-1)
           weight2 = z_tq(i,j,k-1) - z_uv(i,j,k-1)
           weight3 = z_uv(i,j,k) - z_tq(i,j,k-1)
->>>>>>> origin/main905c_smooth_lambda
           var_fac = b2 * rhokm(i,j,k) / ( weight1*BL_diag%tke(i,j,k) *       &
                                    rho_wet_tq(i,j,k-1) * rho_mix_tq(i,j,k-1))
           kp=k
