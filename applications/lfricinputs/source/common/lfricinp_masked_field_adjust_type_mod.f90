@@ -180,7 +180,7 @@ class(lfricinp_masked_field_adjust_type) :: self
 !
 ! Local variables
 !
-integer(kind=int32) :: i, i_x, i_y
+integer(kind=int32) :: i
 
 ! Check if masked field adjust type has been initialised. If not
 ! report a warning
@@ -291,8 +291,8 @@ call log_event(log_scratch_space, LOG_LEVEL_INFO)
 ! Generate array of dst indices that requires post regridding masked adjustment
 allocate(self%adjusted_dst_indices_2D(self%num_adjusted_points,2))
 j = 0
-do i_y = 1, size(dst_mask(1,:))
-  do i_x = 1, size(dst_mask(:,i_y))
+do i_y = 1, size(dst_mask,2)
+  do i_x = 1, size(dst_mask,1)
   if (dst_point_contrb_record(i_x,i_y) == off_src_mask_contrb) then
     j = j + 1
     self%adjusted_dst_indices_2D(j,1) = i_x
@@ -324,7 +324,7 @@ class(lfricinp_masked_field_adjust_type) :: self
 !
 ! Local variables
 !
-integer(kind=int32) :: i
+integer(kind=int32) :: i, i_x, i_y
 
 ! Check if masked field adjust type has been initialised. If not
 ! report a warning
@@ -335,8 +335,8 @@ if (self%initialised) then
                                          src(self%adjusted_dst_to_src_map_1D(i))
   end do
 
-  do i_y = 1, size(dst_mask(1,:))
-    do i_x = 1, size(dst_mask(:,i_y))
+  do i_y = 1, size(dst_mask,2)
+    do i_x = 1, size(dst_mask,1)
       if (.not. self%dst_mask_2D(i_x,i_y)) then
         dst(i_x,i_y) = um_rmdi
       end if
