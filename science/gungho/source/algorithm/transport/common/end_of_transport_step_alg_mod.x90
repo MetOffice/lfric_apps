@@ -8,7 +8,6 @@
 
 module end_of_transport_step_alg_mod
 
-  use base_mesh_config_mod,           only: topology, topology_non_periodic
   use boundaries_config_mod,          only: limited_area,                      &
                                             transport_boundary_depth,          &
                                             transport_overwrite_freq,          &
@@ -82,6 +81,11 @@ module end_of_transport_step_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use sci_field_minmax_alg_mod,       only: get_field_minmax
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology, topology_non_periodic
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -529,7 +533,8 @@ contains
       rmultiplicity_shifted => get_rmultiplicity_fv(flux_function_space, shifted_mesh%get_id())
       ref_step = transport_counter%get_split_step_of_whole_step_counter()
       dry_flux => flux_precomputations%get_ref_flux(prime_extrusion_mesh_id, ref_step)
-      height_wt => get_height_fv(Wtheta, prime_extrusion_mesh_id)
+      height_wt => get_height_fv( Wtheta, prime_extrusion_mesh_id, &
+                                  geometry, coord_system, scaled_radius )
       logspace = transport_metadata%get_log_space()
       face_selector_ew => get_face_selector_ew(prime_extrusion_mesh_id)
       face_selector_ns => get_face_selector_ns(prime_extrusion_mesh_id)

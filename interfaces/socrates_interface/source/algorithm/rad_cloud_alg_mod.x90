@@ -33,6 +33,13 @@ use casim_ice_act_kernel_mod, only: casim_ice_act_kernel_type
 use cv_run_mod,              only: l_param_conv
 use microphysics_config_mod, only: microphysics_casim
 
+! Configuration modules
+use base_mesh_config_mod,      only: geometry, topology, f_lat
+use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                     coord_system
+use idealised_config_mod,      only: f_lon
+use planet_config_mod,         only: scaled_radius
+
 implicit none
 private
 public :: rad_cloud_alg
@@ -140,8 +147,16 @@ subroutine rad_cloud_alg(rand_seed, n_cloud_layer, &
     year = int( datetime%year, i_def )
     day_of_year = int( xios_date_get_day_of_year(datetime), i_def )
     second_of_day = int( xios_date_get_second_of_day(datetime), i_def )
-    latitude  => get_latitude_fv(W3, twod_mesh%get_id())
-    longitude => get_longitude_fv(W3, twod_mesh%get_id())
+    latitude  => get_latitude_fv( W3, twod_mesh%get_id(),           &
+                                  geometry, topology,               &
+                                  element_order_h, element_order_v, &
+                                  coord_system, f_lat, f_lon,       &
+                                  scaled_radius )
+    longitude => get_longitude_fv( W3, twod_mesh%get_id(),           &
+                                   geometry, topology,               &
+                                   element_order_h, element_order_v, &
+                                   coord_system, f_lat, f_lon,       &
+                                   scaled_radius )
 
     ! Generate a unique seed for each gridpoint (actually for each area of the
     ! globe with a size defined by per_deg_lat) at the given time in seconds.

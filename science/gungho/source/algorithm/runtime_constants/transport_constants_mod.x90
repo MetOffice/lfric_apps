@@ -54,6 +54,11 @@ module transport_constants_mod
   use sci_operator_x_times_y_kernel_mod,  only: operator_x_times_y_kernel_type
   use panel_edge_support_mod,             only: FAR_AWAY
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system, nqp_h_exact, nqp_v_exact
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -217,7 +222,7 @@ contains
 
     ! Get pointers to coordinates
     chi => get_coordinates(mesh%get_id())
-    chi_ext => get_extended_coordinates(mesh%get_id())
+    chi_ext => get_extended_coordinates(mesh%get_id(), coord_system)
     panel_id => get_panel_id(mesh%get_id())
 
     ! Compute remap weights and indices
@@ -582,7 +587,8 @@ contains
 
     w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
-    dz_w3_rdef => get_dz_w3(mesh_id)
+    dz_w3_rdef => get_dz_w3( mesh_id, geometry, &
+                             coord_system, scaled_radius )
     call dz_w3_rtran%initialise( dz_w3_rdef%get_function_space() )
     call invoke( real_to_real_x(dz_w3_rtran, dz_w3_rdef) )
 
@@ -638,7 +644,7 @@ contains
       element_order_h = get_element_order_h_transport()
       element_order_v = get_element_order_v_transport()
       if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
-        chi => get_extended_coordinates(mesh_id)
+        chi => get_extended_coordinates(mesh_id, coord_system)
       else
         chi => get_coordinates(mesh_id)
         if (element_order_h == 0 .and. element_order_v == 0) then
@@ -646,7 +652,9 @@ contains
           detj_r_def => get_detj_at_w3_fv(mesh_id)
         else
           ! Get the finite element det(J) field
-          detj_r_def => get_detj_at_w3_fe(mesh_id)
+          detj_r_def => get_detj_at_w3_fe( mesh_id,                          &
+                                           element_order_h, element_order_v, &
+                                           nqp_h_exact, nqp_v_exact )
         end if
       end if
       panel_id => get_panel_id(mesh_id)
@@ -721,7 +729,8 @@ contains
         detj_at_w2 => get_detj_at_w2_fv(mesh_id)
       else
         ! Get the finite element det(J) field
-        detj_at_w2 => get_detj_at_w2_fe(mesh_id)
+        detj_at_w2 => get_detj_at_w2_fe( mesh_id, &
+                                         element_order_h, element_order_v )
       end if
 
       ! Create the object as it doesn't exist yet
@@ -790,7 +799,8 @@ contains
         detj_at_w2 => get_detj_at_w2_fv(mesh_id)
       else
         ! Get the finite element det(J) field
-        detj_at_w2 => get_detj_at_w2_fe(mesh_id)
+        detj_at_w2 => get_detj_at_w2_fe( mesh_id, &
+                                         element_order_h, element_order_v )
       end if
 
       ! Create the object as it doesn't exist yet
@@ -913,7 +923,8 @@ contains
 
       w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2v)
 
-      dz_w3_rdef => get_dz_w3(mesh_id)
+      dz_w3_rdef => get_dz_w3( mesh_id, geometry, &
+                               coord_system, scaled_radius )
       call dz_w3_rtran%initialise( dz_w3_rdef%get_function_space() )
       call invoke( real_to_real_x(dz_w3_rtran, dz_w3_rdef) )
 
@@ -1744,7 +1755,7 @@ contains
       ! Compute diagonal mass matrix for extended mesh -------------------------
       if ( oned_reconstruction .and. extended_mesh ) then
         ! @TODO #416: using detj_at_w3_r_tran would avoid this but change KGOs
-        chi => get_extended_coordinates(mesh%get_id())
+        chi => get_extended_coordinates(mesh%get_id(), coord_system)
         w3_fs => function_space_collection%get_fs( mesh, 0, 0, W3 )
         call mm_w3%initialise( w3_fs, w3_fs )
         call mm_w3_diag_tmp%initialise( w3_fs )
@@ -1847,7 +1858,9 @@ contains
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
-      height => get_height_fv(Wtheta, mesh%get_id())
+      height => get_height_fv( Wtheta, mesh%get_id(),  &
+                               geometry, coord_system, &
+                               scaled_radius )
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
       ndata_v = 2*(fv_vertical_order + 1)
@@ -1912,7 +1925,9 @@ contains
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
-      height => get_height_fv(Wtheta, mesh%get_id())
+      height => get_height_fv( Wtheta, mesh%get_id(),  &
+                               geometry, coord_system, &
+                               scaled_radius )
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
       vertical_order = fv_vertical_order - 1
@@ -2089,7 +2104,7 @@ contains
 
       ! Compute diagonal mass matrix for extended mesh -------------------------
       if (oned_reconstruction .and. extended_mesh) then
-        chi => get_extended_coordinates(mesh%get_id())
+        chi => get_extended_coordinates(mesh%get_id(), coord_system)
         wt_fs => function_space_collection%get_fs( mesh, 0, 0, Wtheta )
         call mm_wt%initialise( wt_fs, wt_fs )
         call mm_wt_diag_tmp%initialise( wt_fs )
@@ -2194,7 +2209,9 @@ contains
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
-      height => get_height_fv(Wtheta, mesh%get_id())
+      height => get_height_fv( Wtheta, mesh%get_id(),  &
+                               geometry, coord_system, &
+                               scaled_radius )
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
       vertical_order = fv_vertical_order + 1
@@ -2252,7 +2269,9 @@ contains
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
-      height => get_height_fv(Wtheta, mesh%get_id())
+      height => get_height_fv( Wtheta, mesh%get_id(),  &
+                               geometry, coord_system, &
+                               scaled_radius )
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
       ndata_v = 2*(fv_vertical_order + 1)

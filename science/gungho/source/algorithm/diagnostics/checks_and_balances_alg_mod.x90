@@ -42,10 +42,17 @@ contains
 
     type( field_type ), pointer  :: detJ => null() ! Areas of faces
 
-    if (state(igh_u)%get_element_order_h() > 0 .or. &
-        state(igh_u)%get_element_order_v() > 0) then
+    integer(i_def) :: element_order_h
+    integer(i_def) :: element_order_v
+
+    element_order_h = state(igh_u)%get_element_order_h()
+    element_order_v = state(igh_u)%get_element_order_v()
+
+    if ( element_order_h > 0 .or. &
+         element_order_v > 0) then
       ! Get finite element detJ
-      detJ => get_detj_at_w2_fe(state(igh_u)%get_mesh_id())
+      detJ => get_detj_at_w2_fe( state(igh_u)%get_mesh_id(), &
+                                 element_order_h, element_order_v )
     else
       ! Get finite volume detJ
       detJ => get_detj_at_w2_fv(state(igh_u)%get_mesh_id())

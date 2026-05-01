@@ -19,6 +19,11 @@ module printing_iau_mod
   use fs_continuity_mod,           only: W3
   use sci_geometric_constants_mod, only: get_height_fv
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -234,7 +239,9 @@ module printing_iau_mod
         call iau_fields % get_field( 'rho_r2_inc', iau_field )
         ! Divide by r2 to create wet density
         mesh_id = iau_field%get_mesh_id()
-        height_w3 => get_height_fv(W3, mesh_id)
+        height_w3 => get_height_fv( W3, mesh_id,            &
+                                    geometry, coord_system, &
+                                    scaled_radius )
         call iau_field%copy_field_properties(radius_w3)
         call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ),       &
                      inc_X_divideby_Y( iau_field, radius_w3 ),              &

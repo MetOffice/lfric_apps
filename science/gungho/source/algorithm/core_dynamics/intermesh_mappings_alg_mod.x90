@@ -27,16 +27,19 @@ module intermesh_mappings_alg_mod
   use mesh_collection_mod,            only : mesh_collection
   use mesh_mod,                       only : mesh_type
   use mr_indices_mod,                 only : nummr
-  use multires_coupling_config_mod,   only : recovery_order,                   &
-                                             recovery_order_constant,          &
-                                             recovery_order_linear,            &
-                                             reconstruction,                   &
-                                             reconstruction_reversible,        &
-                                             reconstruction_simple,            &
-                                             negative_correction,              &
-                                             negative_correction_none,         &
-                                             negative_correction_one_by_one,   &
-                                             negative_correction_consistent
+
+  ! Configuration modules
+  use finite_element_config_mod,    only: nqp_h_exact, nqp_v_exact
+  use multires_coupling_config_mod, only: recovery_order,                 &
+                                          recovery_order_constant,        &
+                                          recovery_order_linear,          &
+                                          reconstruction,                 &
+                                          reconstruction_reversible,      &
+                                          reconstruction_simple,          &
+                                          negative_correction,            &
+                                          negative_correction_none,       &
+                                          negative_correction_one_by_one, &
+                                          negative_correction_consistent
 
   implicit none
 
@@ -94,8 +97,12 @@ contains
     prime_extrusion_mesh => primary_rho%get_mesh()
     shifted_mesh => mesh_collection%get_mesh(prime_extrusion_mesh, SHIFTED)
     if (element_order_h > 0 .or. element_order_v > 0) then
-      detj_primary => get_detj_at_w3_fe(prime_extrusion_mesh%get_id())
-      detj_shifted => get_detj_at_w3_fe(shifted_mesh%get_id())
+      detj_primary => get_detj_at_w3_fe( prime_extrusion_mesh%get_id(),    &
+                                         element_order_h, element_order_v, &
+                                         nqp_h_exact, nqp_v_exact )
+      detj_shifted => get_detj_at_w3_fe( shifted_mesh%get_id(),            &
+                                         element_order_h, element_order_v, &
+                                         nqp_h_exact, nqp_v_exact)
     else
       detj_primary => get_detj_at_w3_fv(prime_extrusion_mesh%get_id())
       detj_shifted => get_detj_at_w3_fv(shifted_mesh%get_id())

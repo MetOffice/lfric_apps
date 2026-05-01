@@ -13,7 +13,6 @@ module print_field_stats_alg_mod
   use constants_mod,            only: r_def, str_def, i_def, rmdi,             &
                                       radians_to_degrees, r_tran, l_def
   use log_mod,                  only: log_event, log_at_level, log_scratch_space
-  use base_mesh_config_mod,     only: prime_mesh_name
   use mesh_collection_mod,      only: mesh_collection
   use fs_continuity_mod,        only: W3, Wtheta, W2H, W2V
   use sci_geometric_constants_mod,    &
@@ -23,6 +22,14 @@ module print_field_stats_alg_mod
   use field_stats_kernel_mod,   only: field_stats_kernel_type
   use extrusion_mod,            only: TWOD
   use sci_field_minmax_alg_mod, only: get_field_minmax
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: prime_mesh_name, geometry, topology, &
+                                       f_lat
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
+  use idealised_config_mod,      only: f_lon
+  use planet_config_mod,         only: scaled_radius
 
 implicit none
 
@@ -321,13 +328,36 @@ subroutine pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
 
   ! Get fields relating to coordinates to print out location
   if (elt_order_h > 0 .or. elt_order_v > 0) then
-    latitude  => get_latitude_fe(fs_2d, twod_mesh_id)
-    longitude => get_longitude_fe(fs_2d, twod_mesh_id)
-    height => get_height_fe(fs_3d, mesh_id)
+
+    latitude  => get_latitude_fe( fs_2d, twod_mesh_id,              &
+                                  geometry, topology,               &
+                                  element_order_h, element_order_v, &
+                                  coord_system, f_lat, f_lon,       &
+                                  scaled_radius )
+    longitude => get_longitude_fe( fs_2d, twod_mesh_id,              &
+                                   geometry, topology,               &
+                                   element_order_h, element_order_v, &
+                                   coord_system, f_lat, f_lon,       &
+                                   scaled_radius )
+    height => get_height_fe( fs_3d, mesh_id, geometry,         &
+                             element_order_h, element_order_v, &
+                             coord_system, scaled_radius )
+
   else
-    latitude  => get_latitude_fv(fs_2d, twod_mesh_id)
-    longitude => get_longitude_fv(fs_2d, twod_mesh_id)
-    height => get_height_fv(fs_3d, mesh_id)
+
+    latitude  => get_latitude_fv( fs_2d, twod_mesh_id,              &
+                                  geometry, topology,               &
+                                  element_order_h, element_order_v, &
+                                  coord_system, f_lat, f_lon,       &
+                                  scaled_radius )
+    longitude => get_longitude_fv( fs_2d, twod_mesh_id,              &
+                                   geometry, topology,               &
+                                   element_order_h, element_order_v, &
+                                   coord_system, f_lat, f_lon,       &
+                                   scaled_radius )
+    height => get_height_fv( fs_3d, mesh_id, geometry, &
+                             coord_system, scaled_radius )
+
   end if
 
   ! Initialise 2D fields by copying function space from latitude field

@@ -24,6 +24,13 @@ module process_send_fields_0d_mod
                                            ice_sheet_mass
   use value_based_mask_kernel_mod,   only: value_based_mask_kernel_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology, f_lat
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
+  use idealised_config_mod,      only: f_lon
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -70,20 +77,29 @@ module process_send_fields_0d_mod
       ! Get the mesh
       mesh => fld%get_mesh()
       ! Get the latitude field
-      latitude => get_latitude_fv(W3, mesh%get_id())
+      latitude => get_latitude_fv( W3, mesh%get_id(),                &
+                                   geometry, topology,               &
+                                   element_order_h, element_order_v, &
+                                   coord_system, f_lat, f_lon,       &
+                                   scaled_radius )
       call invoke(value_based_mask_kernel_type(fld, latitude, &
                                                0.0_r_def, 2.0_r_def) )
-    endif
+    end if
+
     if (fld_name == "lf_antarctic") then
       !Make a mask of the Southern Hemisphere
       ! Get the mesh
       mesh => fld%get_mesh()
       ! Get the latitude field
-      latitude => get_latitude_fv(W3, mesh%get_id())
+      latitude => get_latitude_fv( W3, mesh%get_id(),                &
+                                   geometry, topology,               &
+                                   element_order_h, element_order_v, &
+                                   coord_system, f_lat, f_lon,       &
+                                   scaled_radius )
       call invoke(value_based_mask_kernel_type(fld, latitude, &
                                                -2.0_r_def, 0.0_r_def) )
-    endif
-  endif
+    end if
+  end if
 
   ! Calculate the scalar icesheet mass
 

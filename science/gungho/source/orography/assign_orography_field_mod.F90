@@ -21,13 +21,6 @@ module assign_orography_field_mod
                                              orog_init_option_ancil, &
                                              orog_init_option_none, &
                                              orog_init_option_start_dump
-  use base_mesh_config_mod,           only : geometry,                &
-                                             geometry_spherical,      &
-                                             topology,                &
-                                             topology_fully_periodic
-  use finite_element_config_mod,      only : coord_system,            &
-                                             coord_order,             &
-                                             coord_system_xyz
   use mesh_collection_mod,            only : mesh_collection
   use coord_transform_mod,            only : xyz2llr, llr2xyz
   use sci_chi_transform_mod,          only : chi2llr
@@ -44,6 +37,16 @@ module assign_orography_field_mod
   use fs_continuity_mod,              only : W0, Wchi
   use function_space_mod,             only : BASIS
   use surface_altitude_alg_mod,       only : surface_altitude_alg
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry,                &
+                                       geometry_spherical,      &
+                                       topology,                &
+                                       topology_fully_periodic
+  use finite_element_config_mod, only: coord_system,            &
+                                       coord_order,             &
+                                       coord_system_xyz
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -505,8 +508,10 @@ contains
         ! Model coordinates need to be converted to (long,lat,r) for reading
         ! analytic orography
         radius = chi_3(dfk) + domain_surface
-        call chi2llr(chi_1(dfk), chi_2(dfk), radius, &
-                     ipanel, longitude, latitude, dummy_radius)
+        call chi2llr( chi_1(dfk), chi_2(dfk), radius, &
+                      ipanel, geometry, topology,     &
+                      coord_system, scaled_radius,    &
+                      longitude, latitude, dummy_radius )
 
         ! Calculate surface height for each DoF using selected analytic orography
         surface_height = orography_profile%analytic_orography(longitude, latitude)

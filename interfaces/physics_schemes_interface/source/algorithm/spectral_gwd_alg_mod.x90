@@ -20,6 +20,13 @@ module spectral_gwd_alg_mod
   use spectral_gwd_diags_mod, only: initialise_diags_for_spectral_gwd, &
                                     output_diags_for_spectral_gwd
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology, f_lat
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       coord_system
+  use idealised_config_mod,      only: f_lon
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -107,9 +114,17 @@ contains
     mesh      => theta%get_mesh()
     twod_mesh => ls_rain%get_mesh()
 
-    latitude_w3 => get_latitude_fv(W3, twod_mesh%get_id())
-    height_wth  => get_height_fv(Wtheta, mesh%get_id())
-    height_w3   => get_height_fv(W3, mesh%get_id())
+    latitude_w3 => get_latitude_fv( W3, twod_mesh%get_id(),           &
+                                    geometry, topology,               &
+                                    element_order_h, element_order_v, &
+                                    coord_system, f_lat, f_lon,       &
+                                    scaled_radius )
+    height_wth  => get_height_fv( Wtheta, mesh%get_id(),  &
+                                  geometry, coord_system, &
+                                  scaled_radius )
+    height_w3   => get_height_fv( W3, mesh%get_id(),      &
+                                  geometry, coord_system, &
+                                  scaled_radius )
 
     call u_in_w3%copy_field_properties(du_spectral_gwd)
     call v_in_w3%copy_field_properties(dv_spectral_gwd)

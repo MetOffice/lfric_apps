@@ -14,11 +14,16 @@ module fsd_condensate_alg_mod
   use mesh_mod,             only: mesh_type
   use sci_geometric_constants_mod, only: get_delta_at_wtheta, get_dz_at_wtheta
 
-   implicit none
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 
-   private
+  implicit none
 
-   public fsd_condensate_alg
+  private
+
+  public fsd_condensate_alg
 
 contains
   !>@brief   Calculate fractional standard deviation (FSD) condensate
@@ -65,7 +70,8 @@ contains
     mesh => area_fraction%get_mesh()
 
     delta  => get_delta_at_wtheta(mesh%get_id())
-    dz_wth => get_dz_at_wtheta(mesh%get_id())
+    dz_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
+                                coord_system, scaled_radius )
 
     call invoke ( fsd_condensate_kernel_type ( sigma_ml,        & ! fsd of condensate
                                                f_arr,           & ! fsd parameters

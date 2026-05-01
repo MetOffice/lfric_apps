@@ -48,10 +48,13 @@ module ffsl_vert_alg_mod
   use fv_difference_z_kernel_mod,       only: fv_difference_z_kernel_type
   use fv_divergence_z_kernel_mod,       only: fv_divergence_z_kernel_type
 
-  ! Configuration options
-  use transport_config_mod,             only: ffsl_unity_3d,                   &
-                                              wind_mono_top,                   &
-                                              wind_mono_top_depth
+  ! Configuration modules
+  use transport_config_mod,      only: ffsl_unity_3d, &
+                                       wind_mono_top, &
+                                       wind_mono_top_depth
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -335,7 +338,8 @@ contains
 
     if ( vertical_order /= 0 ) then
       ! Get objects only needed for high order flux
-      dz_w3_rdef => get_dz_w3(mesh_id)
+      dz_w3_rdef => get_dz_w3( mesh_id, geometry, &
+                               coord_system, scaled_radius )
       call dz_w3%initialise( vector_space = field_fs )
       call invoke( real_to_real_x(dz_w3, dz_w3_rdef) )
     end if

@@ -22,6 +22,11 @@ module casim_activate_alg_mod
   use microphysics_config_mod,       only: casim_cdnc_opt, &
                                            casim_cdnc_opt_fixed
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -80,7 +85,9 @@ contains
       call microphysics_fields%get_field('nl_mphys', nl_mphys)
 
       mesh => cf_liq%get_mesh()
-      height_wth => get_height_fv(Wtheta, mesh%get_id())
+      height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
+                                   geometry, coord_system, &
+                                   scaled_radius )
 
       call invoke( casim_activate_kernel_type( mr(imr_cl),                     &
                                                cf_liq,                         &

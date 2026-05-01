@@ -16,8 +16,12 @@ module wind_forcing_profile_alg_mod
   use log_mod,                       only: log_event, LOG_LEVEL_ERROR
   use map_fd_to_prognostics_alg_mod, only: set_wind
   use mesh_mod,                      only: mesh_type
-  use planet_config_mod,             only: kappa, p_zero
   use timestepping_config_mod,       only: dt
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius, kappa, p_zero
 
   implicit none
 
@@ -126,7 +130,9 @@ contains
           pressure_coord = .true.
         case( coordinate_height )
           mesh_id = du_in_w3%get_mesh_id()
-          height_w3 => get_height_fv( W3, mesh_id )
+          height_w3 => get_height_fv( W3, mesh_id,            &
+                                      geometry, coord_system, &
+                                      scaled_radius )
           pressure_coord = .false.
         case default
           call log_event( 'Unknown coordinate', LOG_LEVEL_ERROR )
