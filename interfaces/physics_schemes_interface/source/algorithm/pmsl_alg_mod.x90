@@ -162,15 +162,14 @@ contains
           call invoke(pmsl_solve_kernel_type(dx_at_w2, f_func, exner_m, &
                                              sten_size_big, height_wth, &
                                              exner_sm, m) )
-
+          ! Set old value (exner_m) to new value (exner_sm),
+          ! copying clean field to depth m in halo
+          call invoke_copy_field_halo(exner_m, exner_sm)
           ! Exit if we're done
           counter = counter + 1
           if (counter == n_iter_pmsl) exit outer
         end do
       end do outer
-      ! Set old value (exner_m) to new value (exner_sm),
-      ! copying clean field to depth m in halo
-      call invoke_copy_field_halo(exner_m, exner_sm)
 
       ! Convert exner to PMSL
       call invoke(inc_X_powreal_a(exner_m, recip_kappa_def), &
