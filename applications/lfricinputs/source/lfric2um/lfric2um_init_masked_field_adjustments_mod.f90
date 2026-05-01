@@ -24,8 +24,8 @@ contains
 !!            should be used instead.
 subroutine lfric2um_init_masked_field_adjustments()
 
-use lfricinp_get_latlon_mod,           only: get_lfric_mesh_coords
-use lfricinp_nearest_neighbour_mod,    only: find_nn_on_um_grid
+use lfricinp_get_latlon_mod,           only: get_um_grid_coords
+use lfricinp_nearest_neighbour_mod,    only: find_nn_on_lfric_mesh
 use lfricinp_masks_mod,                only: lfricinp_init_masks,              &
                                              lfricinp_finalise_masks,          &
                                              um_land_mask,                     &
@@ -42,7 +42,7 @@ implicit none
 
 ! Local variables
 character(len=1),    parameter :: um_land_mask_grid_type = 'p'
-integer(kind=int32)            :: cell_lid, idx_lon_nn, idx_lat_nn, i
+integer(kind=int32)            :: cell_lid_nn, idx, idy, i
 real(kind=real64)              :: lon, lat
 
 ! Initialise masks
@@ -65,16 +65,15 @@ if (allocated(um_land_mask) .and. allocated(lfric_land_mask)) then
                                   land_field_adjustments%num_adjusted_points,2 &!SHARKS
                                                             ))
   do i = 1, land_field_adjustments%num_adjusted_points
-    cell_lid = land_field_adjustments%adjusted_dst_indices_2D(i)                !SHARKS
-    call get_lfric_mesh_coords(cell_lid, lon, lat)
-    call find_nn_on_um_grid(um_mask=um_land_mask,                              &
-                            um_mask_grid_type=um_land_mask_grid_type,          &
-                            lon_ref=lon,                                       &
-                            lat_ref=lat,                                       &
-                            idx_lon_nn=idx_lon_nn,                             &
-                            idx_lat_nn=idx_lat_nn)
-    land_field_adjustments%adjusted_dst_to_src_map_1D(i,1) = idx_lon_nn         !SHARKS
-    land_field_adjustments%adjusted_dst_to_src_map_1D(i,2) = idx_lat_nn         !SHARKS
+    idx = land_field_adjustments%adjusted_dst_indices_2D(i,1)
+    idy = land_field_adjustments%adjusted_dst_indices_2D(i,2)
+    call get_um_grid_coords(idx, idy, lon, lat)
+    call find_nn_on_lfric_mesh(um_mask=um_land_mask,                           &
+                               um_mask_grid_type=um_land_mask_grid_type,       &
+                               lon_ref=lon,                                    &
+                               lat_ref=lat,                                    &
+                               cell_lid_nn=cell_lid_nn)
+    land_field_adjustments%adjusted_dst_to_src_map_1D(i) = cell_lid_nn
   end do
   !
   ! Set initialisation flag of land field adjustment
@@ -100,16 +99,15 @@ if (allocated(um_maritime_mask) .and. allocated(lfric_maritime_mask)) then
                               maritime_field_adjustments%num_adjusted_points,2 &
                                                             ))
   do i = 1, maritime_field_adjustments%num_adjusted_points
-    cell_lid = maritime_field_adjustments%adjusted_dst_indices_1D(i)            !SHARKS
-    call get_lfric_mesh_coords(cell_lid, lon, lat)
-    call find_nn_on_um_grid(um_mask=um_maritime_mask,                          &
-                            um_mask_grid_type=um_land_mask_grid_type,          &
-                            lon_ref=lon,                                       &
-                            lat_ref=lat,                                       &
-                            idx_lon_nn=idx_lon_nn,                             &
-                            idx_lat_nn=idx_lat_nn)
-    maritime_field_adjustments%adjusted_dst_to_src_map_2D(i,1) = idx_lon_nn     !SHARKS
-    maritime_field_adjustments%adjusted_dst_to_src_map_2D(i,2) = idx_lat_nn     !SHARKS
+    idx = maritime_field_adjustments%adjusted_dst_indices_2D(i,1)
+    idy = maritime_field_adjustments%adjusted_dst_indices_2D(i,2)
+    call get_um_grid_coords(idx, idy, lon, lat)
+    call find_nn_on_lfric_mesh(um_mask=um_maritime_mask,                       &
+                               um_mask_grid_type=um_land_mask_grid_type,       &
+                               lon_ref=lon,                                    &
+                               lat_ref=lat,                                    &
+                               cell_lid_nn=cell_lid_nn)
+    maritime_field_adjustments%adjusted_dst_to_src_map_1D(i) = cell_lid_nn
   end do
   !
   ! Set initialisation flag of maritime field adjustment
