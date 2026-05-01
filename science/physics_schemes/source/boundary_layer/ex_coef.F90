@@ -106,7 +106,7 @@ real(kind=r_bl), intent(in) ::                                                 &
  zhpar(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
                  ! IN Height of top of initial parcel ascent
  zhsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                    &
- zdsc_base(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
+ zdsc_base(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),               &
                  ! IN Base and top heights of decoupled Sc-layer
  z0m(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                     &
                  ! IN Roughness length for momentum (m).

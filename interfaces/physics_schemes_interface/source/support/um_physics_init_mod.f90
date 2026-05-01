@@ -341,7 +341,7 @@ contains
          smooth_to_bdys, sharpest, lem_stability, sg_shear_enh_lambda,     &
          l_new_kcloudtop, buoy_integ, l_reset_dec_thres, DynDiag_ZL_CuOnly,&
          i_interp_local, i_interp_local_gradients,                         &
-         split_tke_and_inv, l_noice_in_turb, l_use_var_fixes,              &
+         l_noice_in_turb, l_use_var_fixes,                                 &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
