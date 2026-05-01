@@ -180,7 +180,7 @@ class(lfricinp_masked_field_adjust_type) :: self
 !
 ! Local variables
 !
-integer(kind=int32) :: i
+integer(kind=int32) :: i, i_x, i_y
 
 ! Check if masked field adjust type has been initialised. If not
 ! report a warning
