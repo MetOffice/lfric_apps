@@ -70,7 +70,7 @@ contains
   function trim_string_start_arrow(string) result(newstring)
     character(*), intent(inout) :: string
     character(:), allocatable :: newstring
-    character(5) :: arrow_prefix = ' --> '
+    character(5), parameter :: arrow_prefix = ' --> '
     if ( string(1:5) == arrow_prefix ) then
     newstring = string(6:)
     else

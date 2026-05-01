@@ -58,7 +58,6 @@ module calc_dep_pts_alg_mod
   ! Other algorithms
   use sci_field_minmax_alg_mod,          only: log_field_minmax,               &
                                                get_field_minmax
-  use copy_field_alg_mod,                only: copy_field
 
   ! Kernels
   use calc_departure_wind_kernel_mod,    only: calc_departure_wind_kernel_type
@@ -551,7 +550,7 @@ contains
                                        geometry, coord_system, &
                                        scaled_radius )
       call height_w2%initialise(vector_space = height_w2_rdef%get_function_space() )
-      call copy_field(height_w2_rdef, height_w2 )
+      call invoke( real_to_real_x(height_w2, height_w2_rdef) )
 
       ! Initialise departure wind function space
       call dep_wind_n%initialise( vector_space = w2v_fs )
@@ -630,7 +629,7 @@ contains
     end if
 
     ! Set detj_at_w2 to use average Det(J) of neighbouring cells
-    call copy_field( detj_at_w2_ave_rdef, detj_at_w2 )
+    call invoke( real_to_real_x(detj_at_w2, detj_at_w2_ave_rdef) )
 
     select case (calculate_detj)
 
