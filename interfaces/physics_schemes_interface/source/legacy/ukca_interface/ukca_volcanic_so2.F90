@@ -150,6 +150,19 @@ character(len=*), parameter :: RoutineName='UKCA_VOLCANIC_SO2'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+! Functionality is not currently implemented in LFRic.
+errcode = 1
+cmessage = 'Volcanic SO2 emissions not yet implemented.' //                    &
+           'Logical l_ukca_so2ems_expvolc should be set to .false.'
+call ereport(RoutineName, errcode, cmessage)
+
+! Allocate true_latitude, true_longitude arrays and initialise temporarily.
+! These should be subsequently populated from LFRic w3 fields.
+if ( .not. allocated(true_latitude)) allocate(true_latitude(row_length,rows))
+if ( .not. allocated(true_longitude)) allocate(true_longitude(row_length,rows))
+true_latitude(:,:) = 0.0
+true_longitude(:,:) = 0.0
+
 ! On first call, determine locations on the UM grid where volcanos are located.
 ! The method assumes that the grid is a regular latitude-longitude grid with
 ! latitude constant on each row and equally-spaced between rows and
@@ -334,6 +347,7 @@ do k=1,nerupt
         l2 = l2 - 1
       end do
       if (l2 < l1) l1 = l2
+      allocate(weight_volc_vertdist(l2-l1+1))
       ! express emission as increase in average increase in mass mixing ratio
       weight_volc_vertdist = (abs(r_theta_levels(i,j,l1+1:l2+1) -              &
                              r_theta_levels(i,j,l1-1:l2-1))/2) *               &
@@ -343,9 +357,13 @@ do k=1,nerupt
       so2_mmr(i,j,l1:l2) = so2_mmr(i,j,l1:l2) + emission(k) *                  &
                            (weight_volc_vertdist/sum(weight_volc_vertdist)) /  &
                            mass(i,j,l1:l2)
+      deallocate(weight_volc_vertdist)
     end if
   end if
 end do
+
+if (allocated(true_latitude)) deallocate(true_latitude)
+if (allocated(true_longitude)) deallocate(true_longitude)
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 return

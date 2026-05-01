@@ -40,7 +40,7 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(94) = (/                                       &
+    type(arg_type) :: meta_args(93) = (/                                       &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! rho_in_wth
@@ -72,7 +72,6 @@ module bl_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_temperature
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! rhostar
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! recip_l_mo_sea
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! h_blend_orog
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! t1_sd
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! q1_sd
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! dtl_mphys
@@ -181,7 +180,6 @@ contains
   !> @param[in]     tile_temperature       Surface tile temperatures
   !> @param[in]     rhostar_2d             Surface density
   !> @param[in]     recip_l_mo_sea_2d      Inverse Obukhov length over sea only
-  !> @param[in]     h_blend_orog_2d        Orographic blending height
   !> @param[in]     t1_sd_2d               StDev of level 1 temperature
   !> @param[in]     q1_sd_2d               StDev of level 1 humidity
   !> @param[in]     dtl_mphys              Microphysics liq temperature increment
@@ -297,7 +295,6 @@ contains
                          tile_temperature,                      &
                          rhostar_2d,                            &
                          recip_l_mo_sea_2d,                     &
-                         h_blend_orog_2d,                       &
                          t1_sd_2d,                              &
                          q1_sd_2d,                              &
                          dtl_mphys,                             &
@@ -479,8 +476,7 @@ contains
                                                               cumulus_2d,      &
                                                               shallow_flag,    &
                                                               level_parcel_top
-    real(kind=r_def), dimension(undf_2d), intent(in)    :: h_blend_orog_2d,    &
-                                                           recip_l_mo_sea_2d,  &
+    real(kind=r_def), dimension(undf_2d), intent(in)    :: recip_l_mo_sea_2d,  &
                                                            rhostar_2d,         &
                                                            t1_sd_2d, q1_sd_2d, &
                                                            sea_u_current,      &
@@ -521,8 +517,9 @@ contains
          bulk_cloud_fraction, rho_wet_tq, u_p, v_p, rhcpt, theta,            &
          p_rho_levels, exner_rho_levels, tgrad_bm, mix_len_tmp,              &
          exner_theta_levels,                                                 &
-         bulk_cf_conv, qcf_conv, r_rho_levels, visc_h, visc_m, rneutml_sq,    &
-         tnuc_new
+         bulk_cf_conv, qcf_conv, visc_h, visc_m, rneutml_sq, tnuc_new
+    ! Single precision is not accurate enough for distance from centre of planet
+    real(r_um), dimension(seg_len,1,nlayers) :: r_rho_levels
 
     ! profile field on boundary layer levels
     real(r_bl), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh, bq_gb,    &
@@ -539,7 +536,9 @@ contains
 
     ! profile fields from level 0 upwards
     real(r_bl), dimension(seg_len,1,0:nlayers) :: p_theta_levels, etadot, w, &
-         q, qcl, qcf, r_theta_levels
+         q, qcl, qcf
+    ! Single precision is not accurate enough for distance from centre of planet
+    real(r_um), dimension(seg_len,1,0:nlayers) :: r_theta_levels
 
     ! profile fields with a hard-wired 2
     real(r_bl), dimension(seg_len,1,2,bl_levels) :: rad_hr, micro_tends
@@ -549,8 +548,8 @@ contains
          zh, dzh, wstar, wthvs, u_0_p, v_0_p, zlcl_uv, qsat_lcl, delthvu,    &
          bl_type_1, bl_type_2, bl_type_3, bl_type_4, bl_type_5, bl_type_6,   &
          bl_type_7, uw0, vw0, zhnl, rhostar,                                 &
-         h_blend_orog, recip_l_mo_sea, flandg, t1_sd, q1_sd, qcl_inv_top,    &
-         fb_surf, rib_gb, z0m_eff_gb, zhsc, ustargbm, cos_theta_latitude,    &
+         recip_l_mo_sea, flandg, t1_sd, q1_sd, qcl_inv_top,                  &
+         fb_surf, rib_gb, z0m_eff_gb, zhsc, ustargbm,                        &
          max_diff, delta_smag, tnuc_nlcl_um
     real(r_um), dimension(seg_len,1) :: surf_dep_flux, zeroes
 
@@ -652,7 +651,6 @@ contains
       ustargbm(i,1) = ustar(map_2d(1,i))
       rhostar(i,1) = rhostar_2d(map_2d(1,i))
       recip_l_mo_sea(i,1) = recip_l_mo_sea_2d(map_2d(1,i))
-      h_blend_orog(i,1) = h_blend_orog_2d(map_2d(1,i))
       rib_gb(i,1) = gradrinr(map_wth(1,i))
       z0m_eff_gb(i,1) = z0m_eff(map_2d(1,i))
       ftl(i,1,1) = heat_flux_bl(map_w3(1,i))
@@ -703,8 +701,8 @@ contains
         ! height of rho levels from centre of planet
         r_rho_levels(i,1,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
         ! height of levels above surface
-        z_rho(i,1,k) = r_rho_levels(i,1,k)-r_theta_levels(i,1,0)
-        z_theta(i,1,k) = r_theta_levels(i,1,k)-r_theta_levels(i,1,0)
+        z_rho(i,1,k) = height_w3(map_w3(1,i) + k-1) - height_wth(map_wth(1,i))
+        z_theta(i,1,k) = height_wth(map_wth(1,i) + k) - height_wth(map_wth(1,i))
         ! water vapour mixing ratio
         q(i,1,k) = m_v_n(map_wth(1,i) + k)
         ! cloud liquid mixing ratio
@@ -741,11 +739,6 @@ contains
       end do
     end if
 
-    ! Set this to 1 to account for quasi-uniform grid
-    do i = 1, seg_len
-      cos_theta_latitude(i,1) = 1.0_r_um
-    end do
-
     do i = 1, seg_len
       ! surface pressure
       p_star(i,1) = p_theta_levels(i,1,0)
@@ -753,9 +746,6 @@ contains
         ! computational vertical velocity
         etadot(i,1,k) = velocity_w2v(map_wth(1,i) + k) / z_theta(i,1,nlayers)
       end do
-      ! surface currents
-      u_0_p(i,1) = 0.0_r_bl
-      v_0_p(i,1) = 0.0_r_bl
     end do
 
     do i = 1, seg_len
@@ -817,7 +807,7 @@ contains
 
     ! Calculate vertical differences
     do i = 1, seg_len
-      dzl_charney(i,1,1) = 2.0_r_bl * (r_theta_levels(i,1,1) - r_theta_levels(i,1,0))
+      dzl_charney(i,1,1) = 2.0_r_bl * z_theta(i,1,1)
       do k = 2, bl_levels
         dzl_charney(i,1,k) = dz_wth(map_wth(1,i) + k)
         rdz(i,1,k) = 1.0_r_bl/dz_wth(map_wth(1,i) + k-1)
@@ -861,7 +851,7 @@ contains
     !     IN model dimensions.
           , bl_levels, p_rho_levels, p_theta_levels(1,1,1)              &
           , exner_rho_levels, rho_wet, rho_wet_tq, z_theta, z_rho       &
-          , r_theta_levels, r_rho_levels                                &
+          , r_theta_levels                                              &
     !     IN Model switches
           , l_extra_call, no_cumulus                                    &
     !     IN cloud data
@@ -885,7 +875,7 @@ contains
     call bdy_expl2 (                                                           &
     ! IN values defining vertical grid of model atmosphere :
       bl_levels,p_theta_levels,land_field,land_index,                          &
-      r_theta_levels, r_rho_levels, cos_theta_latitude,                        &
+      r_theta_levels,                                                          &
     ! IN U, V and W momentum fields.
       u_p,v_p, u_0_p, v_0_p,                                                   &
     ! IN from other part of explicit boundary layer code
@@ -895,8 +885,8 @@ contains
     ! IN cloud/moisture data :
       bulk_cloud_fraction,q,qcf,qcl,temperature,qw,tl,                         &
     ! IN everything not covered so far :
-      rad_hr,micro_tends,fb_surf,ustargbm,p_star,tstar,h_blend_orog,           &
-      zh_prev, zhpar,zlcl,ho2r2_orog_gb,sd_orog,wtrac_as,                         &
+      rad_hr,micro_tends,fb_surf,ustargbm,p_star,tstar,                        &
+      zh_prev, zhpar,zlcl,ho2r2_orog_gb,sd_orog,wtrac_as,                      &
     ! 2 IN 3 INOUT for Smagorinsky
       delta_smag, max_diff, rneutml_sq, visc_m, visc_h,                        &
     ! SCM Diagnostics (dummy values in full UM) & stash diag
@@ -939,9 +929,9 @@ contains
       end do
       do k = 2, bl_levels-1
         do i = 1, seg_len
-          weight1 = r_theta_levels(i,1,k) - r_theta_levels(i,1,k-1)
-          weight2 = r_theta_levels(i,1,k) - r_rho_levels(i,1,k)
-          weight3 = r_rho_levels(i,1,k)   - r_theta_levels(i,1,k-1)
+          weight1 = z_theta(i,1,k) - z_theta(i,1,k-1)
+          weight2 = z_theta(i,1,k) - z_rho(i,1,k)
+          weight3 = z_rho(i,1,k)   - z_theta(i,1,k-1)
           rhokm_mix(i,1,k) = (weight3/weight1) * rhokm(i,1,k+1) &
                            + (weight2/weight1) * rhokm(i,1,k)
           ! Scale exchange coefficients by 1/dz factor, as is done for
@@ -952,8 +942,8 @@ contains
       end do
       k = bl_levels
       do i = 1, seg_len
-        weight1 = r_theta_levels(i,1,k) - r_theta_levels(i,1,k-1)
-        weight2 = r_theta_levels(i,1,k) - r_rho_levels(i,1,k)
+        weight1 = z_theta(i,1,k) - z_theta(i,1,k-1)
+        weight2 = z_theta(i,1,k) - z_rho(i,1,k)
         ! Assume rhokm(BL_LEVELS+1) is zero
         rhokm_mix(i,1,k) = (weight2/weight1) * rhokm(i,1,k)
         ! Scale exchange coefficients by 1/dz factor, as is done for
@@ -970,7 +960,7 @@ contains
 
       call  tr_mix (                                                           &
            ! IN fields
-           real(r_theta_levels,r_um), real(r_rho_levels,r_um), pdims,          &
+           r_theta_levels, r_rho_levels, pdims,                                &
            bl_levels, alpha_cd,                                                &
            real(rhokm_mix(1:seg_len,1:1,2:bl_levels),r_um),                    &
            real(rhokm_mix(1:seg_len,1:1,1),r_um),                              &

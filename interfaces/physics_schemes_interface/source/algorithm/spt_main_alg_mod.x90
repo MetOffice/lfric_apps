@@ -8,7 +8,7 @@
 
 module spt_main_alg_mod
 
-    use constants_mod,        only: r_def, i_def, l_def
+    use constants_mod,        only: r_def, i_def, l_def, r_second
     use fs_continuity_mod,    only: W0, Wtheta
     ! define types
     use clock_mod,            only: clock_type
@@ -16,22 +16,19 @@ module spt_main_alg_mod
     use field_collection_mod, only: field_collection_type
     use mesh_mod,             only: mesh_type
     ! for IO and timers
-    use io_config_mod,        only: write_diag, use_xios_io, &
-                                    subroutine_timers
-    use timer_mod,            only: timer
+    use io_config_mod,        only: write_diag, use_xios_io
+    use timing_mod,           only: start_timing, stop_timing, tik, LPROF
     ! load modules to set up the W0 space for 1-2-1 filtering
     ! wtheta -> w0 bottom DoF -> wtheta
     use function_space_collection_mod, only: function_space_collection
     use function_space_mod,            only: function_space_type
+    use extrusion_config_mod, only: planet_radius
 
     implicit none
 
     private
 
-    ! Logical controlling whether spectral coeffs need calculating
-    logical(kind=l_def), save :: initialize_spt_spectral_coeffs = .true.
-
-    public spt_main_alg
+    public spt_main_alg, spt_init_power_law
 
  contains
   !>@brief Run the Stochastic Perturbation of Tendencies (SPT)
@@ -65,46 +62,58 @@ module spt_main_alg_mod
   !>         See UMDP-081 for the scheme full details
   !>@param[in,out]     dtheta_stph             Stochastic Physics increments for theta
   !>@param[in,out]     dmv_stph                Stochastic Physics increments for mv
+  !>@param[in]         theta_latest            Updated potential temperature
   !>@param[in]         mv                      Updated Water vapour Mixing ratio
-  !>@param[in]         dtheta                  Increments for theta
   !>@param[in]         convection_fields       Fields from convection scheme
   !>@param[in]         microphysics_fields     Fields from microphysics scheme
   !>@param[in]         radiation_fields        Fields from radiationmicrophysics scheme
   !>@param[in]         derived_fields          Fields from grid transformations
   !>@param[in]         orography_fields        Fields from orography
+  !>@param[in,out]     spt_spectral_coeffc     Real Spectral coefficients
+  !>@param[in,out]     spt_spectral_coeffs     Imaginary Spectral coefficients
+  !>@param[in,out]     spt_power_law           Spectral power law
   !>@param[in]         clock                   Model time information
 
-  subroutine spt_main_alg(dtheta_stph, dmv_stph, dtheta, mv,         &
+  subroutine spt_main_alg(dtheta_stph, dmv_stph, theta_latest, mv,   &
                           convection_fields,                         &
                           microphysics_fields, radiation_fields,     &
-                          derived_fields, orography_fields, clock)
+                          derived_fields, orography_fields,          &
+                          spt_spectral_coeffc, spt_spectral_coeffs,  &
+                          spt_power_law, clock)
+
+  ! Timestepping parameters
+  use timestepping_config_mod,    only: dt_timestep => dt
 
   ! SPT parameters
-  use stochastic_physics_config_mod, only:                            &
+  use stochastic_physics_config_mod, only:                                  &
                                            ! Switches to use different
                                            ! parametrizations
-                                           spt_use_radiation,         &
-                                           spt_use_microphysics,&
-                                           spt_use_convection, &
+                                           spt_use_radiation,               &
+                                           spt_use_microphysics,            &
+                                           spt_use_convection,              &
                                            ! Std dev of each param.
-                                           spt_stddev_radiation,      &
-                                           spt_stddev_microphysics,   &
-                                           spt_stddev_convection,     &
+                                           spt_stddev_radiation,            &
+                                           spt_stddev_microphysics,         &
+                                           spt_stddev_convection,           &
                                            ! CFL criteria
-                                           spt_convection_cfl_limit, &
+                                           spt_convection_cfl_limit,        &
                                            ! conservation
-                                           spt_mse_conservation, &
-                                           spt_moisture_conservation, &
+                                           spt_mse_conservation,            &
+                                           spt_moisture_conservation,       &
                                            ! 1-2-1 smoothing
-                                           spt_n_smoothing_iters, &
+                                           spt_n_smoothing_iters,           &
                                            ! Add increments
-                                           spt_add_increments,        &
+                                           spt_add_increments,              &
                                            ! SPT levels
-                                           spt_level_bottom,          &
-                                           spt_level_top,             &
+                                           spt_level_bottom,                &
+                                           spt_level_top,                   &
+                                           spt_level_begin_tapering_bottom, &
+                                           spt_level_begin_tapering_top,    &
+                                           spt_orog_forcing_pattern_thresh, &
+                                           spt_stddev_orog_thres,           &
                                            ! Stoch Phy wavenumbers
-                                           stph_n_max,                &
-                                           stph_spectral_dim,         &
+                                           stph_n_max,                      &
+                                           stph_spectral_dim,               &
                                            ! power law
                                            spt_decorrelation_time
 
@@ -129,7 +138,7 @@ module spt_main_alg_mod
   ! Physical constants
   use planet_constants_mod, only: recip_kappa_def, lcrcp
   use planet_config_mod, only: p_zero
-  use extrusion_config_mod, only: planet_radius
+
 
   implicit none
   !!!! Arguments
@@ -138,7 +147,7 @@ module spt_main_alg_mod
   type( field_type ), intent( inout ) :: dmv_stph
 
   ! model prognostics
-  type( field_type ), intent(in) :: dtheta
+  type( field_type ), intent(in) :: theta_latest
   type( field_type ), intent(in) :: mv
 
   ! Collections
@@ -147,6 +156,12 @@ module spt_main_alg_mod
   type( field_collection_type ), intent(in) :: radiation_fields
   type( field_collection_type ), intent(in) :: derived_fields
   type( field_collection_type ), intent(in) :: orography_fields
+
+  ! Spectral coefficients and power law
+  real(r_def), intent(inout) :: spt_spectral_coeffc(:)
+  real(r_def), intent(inout) :: spt_spectral_coeffs(:)
+  real(r_def), intent(inout) :: spt_power_law(:)
+
   ! classes
   class(clock_type), intent(in)   :: clock
 
@@ -170,9 +185,6 @@ module spt_main_alg_mod
 
   ! mass flux for CFL
   type( field_type ), pointer :: massflux_up         => null()
-
-  ! theta with physics increments from present timestep.
-  type( field_type ), pointer :: theta_star          => null()
 
   ! Inverse multiplicity to w0 for 1-2-1 Filter
   type( field_type ), pointer :: rmultiplicity_w0    => null()
@@ -206,76 +218,39 @@ module spt_main_alg_mod
   ! W0 intermediate field for 1-2-1 filtering
   type( field_type ) :: field_w0
 
-  ! Spectral coefficients and power law
-  real(kind=r_def), allocatable, save :: spt_spectral_coeffc(:)
-  real(kind=r_def), allocatable, save :: spt_spectral_coeffs(:)
-  real(kind=r_def), allocatable, save :: spt_power_law(:)
-
   ! Mesh
   type( mesh_type ), pointer :: mesh => null()
 
   ! Scalars
-  real(kind=r_def), save :: spt_alpha
+  real(kind=r_def) :: spt_alpha
   ! Scalars for power law & 1AR
-  real(kind=r_def) :: beta,gamma,Lbeta,sigma,dt
+  real(kind=r_def) :: dt
   ! Physics scalars
   real(kind=r_def) :: mlcrcp
   ! iterators in for loops
-  integer(i_def) :: n,n_row, m
+  integer(i_def) :: n
 
-  if ( subroutine_timers ) call timer("spt_main_alg")
+  ! SPT calculations are performed at theta-levels (Wtheta points). To index the
+  ! "eta_theta_levels" array correctly at these points, set offset to 0
+  integer(kind=i_def), parameter :: lev_offset = 0
+
+  ! Timestepping_config_mod scalar (for PSyclone to know data type)
+  real(kind=r_second) :: timestepping_config_mod_dt
+
+  ! Timing handle
+  integer(tik)   :: id_alg, id_diags
+
+  if ( LPROF ) call start_timing( id_alg, 'stoch_phys.spt' )
+
+  timestepping_config_mod_dt = dt_timestep
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  1)  Create Forcing pattern  ||
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  ! Initialize spectral coefficients for the forcing pattern
-  if (initialize_spt_spectral_coeffs) then
-    !allocate spectral coefficients and power law
-    allocate(spt_spectral_coeffc(stph_spectral_dim))
-    allocate(spt_spectral_coeffs(stph_spectral_dim))
-    allocate(spt_power_law(stph_spectral_dim))
-
-    ! set them to zero (invokes don't work for non-fields types)
-    spt_spectral_coeffc = 0.0_r_def
-    spt_spectral_coeffs = 0.0_r_def
-    spt_power_law= 0.0_r_def
-
-    !!!!!! 1.a compute power law
-
-    ! compute alpha for temporal decorrelation,
-    ! first get timestep from clock
-    dt = real(clock%get_seconds_per_step(), r_def)
-    spt_alpha=1-exp(-dt/spt_decorrelation_time)
-
-    ! Compute spatial decorrelation for 500km
-    ! Maybe move 500 to namelist (hardwired in UM)
-    Lbeta = 500e3_r_def !Original value eq 500e3
-    beta  = 0.5_r_def*(Lbeta/planet_radius)**2.0_r_def
-
-    ! Compute Tau, add zonal one by hand
-    ! (as done in UM)
-    gamma=1.0_r_def/(2.0_r_def-spt_alpha)
-    do n=1,stph_n_max
-      gamma=gamma+(2*n + 1)/(1-0.5_r_def*spt_alpha)*exp(-2*beta*n*(n+1))
-    end do
-
-    ! Compute sigma
-    sigma=1.0_r_def/sqrt(12.0_r_def)
-
-    !Define the power law over all stph_spectral_dim
-    !for simplicity (thus repeating same values)
-    !on the single line
-    n_row = 0
-    do n = 1, stph_n_max
-      n_row = n_row + n
-      do m = 0,n
-        spt_power_law( n_row + m )=exp(-beta*n*(n+1))/(sigma*sqrt(gamma))
-      end do
-    end do
-
-    initialize_spt_spectral_coeffs = .false.
-  end if
+  ! 1.a compute alpha for temporal decorrelation,
+  ! first get timestep from clock
+  dt = real(clock%get_seconds_per_step(), r_def)
+  spt_alpha=1-exp(-dt/spt_decorrelation_time)
 
   !!!!!! 1.b get meshes and 2D field and call stph_fp_main
 
@@ -284,10 +259,10 @@ module spt_main_alg_mod
   call invoke( setval_c(fp_spt, 0.0_r_def))
 
   ! Create forcing pattern for SPT
-  call stph_fp_main_alg(spt_level_bottom, spt_level_top,          &
-                        1, stph_n_max, stph_spectral_dim,         &
-                        spt_alpha, spt_power_law,                 &
-                        spt_spectral_coeffc, spt_spectral_coeffs, &
+  call stph_fp_main_alg(spt_level_bottom, spt_level_top, lev_offset, &
+                        1, stph_n_max, stph_spectral_dim,            &
+                        spt_alpha, spt_power_law,                    &
+                        spt_spectral_coeffc, spt_spectral_coeffs,    &
                         fp_spt)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -310,12 +285,10 @@ module spt_main_alg_mod
   call derived_fields%get_field('rho_in_wth', rho_in_wth)
   ! Unpack convection mass flux
   call convection_fields%get_field('massflux_up', massflux_up)
-  ! theta
-  call derived_fields%get_field('theta_star', theta_star)
 
   !!!!!! 2.b Set dX_spt forcing
-  call dtheta%copy_field_properties(dtheta_spt)
-  call dtheta%copy_field_properties(dt_spt)
+  call theta_latest%copy_field_properties(dtheta_spt)
+  call theta_latest%copy_field_properties(dt_spt)
   call mv%copy_field_properties(dmv_spt)
 
   ! Get mesh
@@ -362,10 +335,12 @@ module spt_main_alg_mod
     if (spt_convection_cfl_limit) then
       if (.not. spt_mse_conservation) then
         call invoke(spt_convection_cfl_limit_cap_kernel_type(dt_conv_cfl,  massflux_up, &
-                                            fp_spt, pressure))
+                                            fp_spt, pressure, spt_level_bottom, &
+                                            spt_level_top, timestepping_config_mod_dt))
       end if
       call invoke(spt_convection_cfl_limit_cap_kernel_type(dmv_conv_cfl,  massflux_up,  &
-                                          fp_spt, pressure))
+                                          fp_spt, pressure, spt_level_bottom, &
+                                          spt_level_top, timestepping_config_mod_dt))
     end if
 
     ! Apply tendencies to dX_spt, conver dt to theta
@@ -393,27 +368,36 @@ module spt_main_alg_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (.not. spt_mse_conservation) then
-    call invoke(spt_levels_cap_kernel_type(dtheta_spt))
+    call invoke(spt_levels_cap_kernel_type(dtheta_spt, spt_level_bottom,  &
+                              spt_level_top, spt_level_begin_tapering_bottom,  &
+                              spt_level_begin_tapering_top))
   end if
-  call invoke(spt_levels_cap_kernel_type(dmv_spt))
+  call invoke(spt_levels_cap_kernel_type(dmv_spt, spt_level_bottom,  &
+                              spt_level_top, spt_level_begin_tapering_bottom,  &
+                              spt_level_begin_tapering_top))
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  5)  Apply orographic capping  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (.not. spt_mse_conservation) then
-    call invoke(spt_orog_cap_kernel_type(dtheta_spt,fp_spt,sd_orog))
+    call invoke(spt_orog_cap_kernel_type(dtheta_spt,fp_spt,sd_orog,  &
+                            spt_level_bottom, spt_level_top,  &
+                            spt_orog_forcing_pattern_thresh,  &
+                            spt_stddev_orog_thres))
   end if
-  call invoke(spt_orog_cap_kernel_type(dmv_spt,fp_spt,sd_orog))
+  call invoke(spt_orog_cap_kernel_type(dmv_spt,fp_spt,sd_orog,  &
+                            spt_level_bottom, spt_level_top,  &
+                            spt_orog_forcing_pattern_thresh,  &
+                            spt_stddev_orog_thres))
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  6)  Remove points where perturbations cause super-saturation  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  call theta_star%copy_field_properties(T_latest)
-  call invoke(X_plus_Y(T_latest,theta_star,dtheta), &
-              ! convert T_latest from pot. Temp to Temp
-              inc_X_times_Y(T_latest,exner_wth), &
+  call theta_latest%copy_field_properties(T_latest)
+  ! convert T_latest from pot. Temp to Temp
+  call invoke(X_times_Y(T_latest, theta_latest, exner_wth), &
               spt_saturation_cap_kernel_type(dtheta_spt,dmv_spt, &
               T_latest,mv, pressure))
 
@@ -460,9 +444,11 @@ module spt_main_alg_mod
 
   ! Apply water conservation to the column if requested
   if (spt_moisture_conservation) then
-    mesh   => dtheta%get_mesh()
+    mesh   => theta_latest%get_mesh()
     dz_wth => get_dz_at_wtheta(mesh%get_id())
-    call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth,rho_in_wth))
+    call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth, &
+                                            rho_in_wth,spt_level_bottom, &
+                                            spt_level_top))
   end if
 
   ! Apply MSE conservation in the column if requested
@@ -483,14 +469,66 @@ module spt_main_alg_mod
                 inc_X_plus_Y(dmv_stph, dmv_spt) )
   end if
 
+  if ( LPROF ) call stop_timing( id_alg, 'stoch_phys.spt' )
+
   ! Write fields to diagnostics if requested
   if (write_diag .and. use_xios_io) then
+    if ( LPROF ) call start_timing( id_diags, 'diags.stoch_phys' )
     call fp_spt%write_field('stochastic__fp_spt')
     call dtheta_spt%write_field('stochastic__dtheta_spt')
     call dmv_spt%write_field('stochastic__dmv_spt')
+    if ( LPROF ) call stop_timing( id_diags, 'diags.stoch_phys' )
   end if
 
-  if ( subroutine_timers ) call timer("spt_main_alg")
-
   end subroutine spt_main_alg
+
+  ! Initialise the power law array
+  ! @param[out] spt_power_law Power law array
+  ! @param[in]  clock         Model clock
+  subroutine spt_init_power_law(spt_power_law, clock)
+    use stochastic_physics_config_mod, only: spt_decorrelation_time, stph_n_max
+
+    real(r_def), intent(out) :: spt_power_law(:)
+    class(clock_type), intent(in)   :: clock
+
+    real(kind=r_def) :: spt_alpha
+    ! Scalars for power law & 1AR
+    real(kind=r_def) :: beta, gamma, Lbeta, sigma, dt
+    ! iterators in for loops
+    integer(i_def) :: n, n_row, m
+
+    spt_power_law = 0.0_r_def
+
+    ! compute alpha for temporal decorrelation,
+    ! first get timestep from clock
+    dt = real(clock%get_seconds_per_step(), r_def)
+    spt_alpha=1-exp(-dt/spt_decorrelation_time)
+
+    ! Compute spatial decorrelation for 500km
+    ! Maybe move 500 to namelist (hardwired in UM)
+    Lbeta = 500e3_r_def ! Original value eq 500e3
+    beta  = 0.5_r_def*(Lbeta/planet_radius)**2.0_r_def
+
+    ! Compute Tau, add zonal one by hand
+    ! (as done in UM)
+    gamma=1.0_r_def/(2.0_r_def-spt_alpha)
+    do n=1,stph_n_max
+      gamma=gamma+(2*n + 1)/(1-0.5_r_def*spt_alpha)*exp(-2*beta*n*(n+1))
+    end do
+
+    ! Compute sigma
+    sigma=1.0_r_def/sqrt(12.0_r_def)
+
+    ! Define the power law over all stph_spectral_dim
+    ! for simplicity (thus repeating same values)
+    ! on the single line
+    n_row = 0
+    do n = 1, stph_n_max
+      n_row = n_row + n
+      do m = 0,n
+        spt_power_law( n_row + m )=exp(-beta*n*(n+1))/(sigma*sqrt(gamma))
+      end do
+    end do
+  end subroutine spt_init_power_law
+
 end module spt_main_alg_mod

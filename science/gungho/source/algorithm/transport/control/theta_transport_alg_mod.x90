@@ -8,7 +8,6 @@
 module theta_transport_alg_mod
 
   use constants_mod,                  only: i_def, r_def, l_def
-  use copy_field_alg_mod,             only: copy_field
   use dg_inc_matrix_vector_kernel_mod, &
                                       only: dg_inc_matrix_vector_kernel_type
   use dry_to_moist_theta_kernel_mod,  only: dry_to_moist_theta_kernel_type
@@ -24,7 +23,6 @@ module theta_transport_alg_mod
   use function_space_collection_mod,  only: function_space_collection
   use fv_divergence_3d_kernel_mod,    only: fv_divergence_3d_kernel_type
   use sci_geometric_constants_mod,    only: get_height_fv, get_height_fe
-  use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event, LOG_LEVEL_ERROR
   use map_w2_to_sh_w2_alg_mod,        only: map_w2_to_sh_w2_alg
   use mesh_mod,                       only: mesh_type
@@ -42,7 +40,6 @@ module theta_transport_alg_mod
                                             get_num_split_steps,               &
                                             get_dry_config
   use theta_moist_source_kernel_mod,  only: theta_moist_source_kernel_type
-  use timer_mod,                      only: timer
   use timestepping_config_mod,        only: time_method => method,             &
                                             method_semi_implicit
   use transport_config_mod,           only: theta_variable,                    &
@@ -188,8 +185,8 @@ contains
         call rho_out_w3%initialise( w3_fs )
         call rho_in_wt%initialise( wt_fs )
         call rho_out_wt%initialise( wt_fs )
-        call copy_field(rho_in_rtran, rho_in_w3)
-        call copy_field(rho_out_rtran, rho_out_w3)
+        call invoke( real_to_real_x(rho_in_w3, rho_in_rtran), &
+                     real_to_real_x(rho_out_w3, rho_out_rtran) )
         call map_physics_scalars(rho_in_wt, rho_in_w3)
         call map_physics_scalars(rho_out_wt, rho_out_w3)
 
@@ -332,7 +329,7 @@ contains
 
       ! Convert divergence to rdef precision
       call div_u%initialise( detj_at_w3%get_function_space() )
-      call copy_field(div_u_rtran, div_u)
+      call invoke( real_to_real_x(div_u, div_u_rtran) )
 
       counter => transport_controller%get_transport_counter()
       dt = real(counter%get_dt_substep() * counter%get_num_substeps(), r_def)

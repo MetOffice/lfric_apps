@@ -22,7 +22,6 @@ program shallow_water
   use driver_log_mod,            only: init_logger, final_logger
   use driver_modeldb_mod,        only: modeldb_type
   use driver_time_mod,           only: init_time, final_time
-  use driver_timer_mod,          only: init_timers, final_timers
   use lfric_mpi_mod,             only: global_mpi
   use log_mod,                   only: log_event,       &
                                        log_level_trace, &
@@ -31,6 +30,8 @@ program shallow_water
   use shallow_water_driver_mod,  only: initialise, &
                                        step,       &
                                        finalise
+  use timing_mod,                only: init_timing, final_timing
+  use constants_mod,             only: l_def, str_max_filename
 
   implicit none
 
@@ -40,11 +41,14 @@ program shallow_water
   type(modeldb_type)        :: modeldb
   character(:), allocatable :: filename
 
+  logical(l_def)              :: subroutine_timers
+  character(str_max_filename) :: timer_output_path
+
   call parse_command_line( filename )
 
   modeldb%mpi => global_mpi
 
-  call modeldb%configuration%initialise( program_name, table_len=10 )
+  call modeldb%config%initialise( program_name )
 
   ! Create the depository and prognostics field collections
   call modeldb%fields%add_empty_field_collection("depository", &
@@ -58,10 +62,17 @@ program shallow_water
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call init_comm( program_name, modeldb )
+
   call init_config( filename, shallow_water_required_namelists, &
-                    modeldb%configuration )
+                    config=modeldb%config )
   call init_logger( global_mpi%get_comm(), program_name )
-  call init_timers( program_name )
+
+  subroutine_timers = modeldb%config%io%subroutine_timers()
+  timer_output_path = modeldb%config%io%timer_output_path()
+
+  call init_timing( modeldb%mpi%get_comm(), subroutine_timers, &
+                    program_name, timer_output_path )
+
   call init_counters( program_name )
   call init_collections()
   call init_time( modeldb )
@@ -81,7 +92,7 @@ program shallow_water
   call final_time( modeldb )
   call final_collections()
   call final_counters( program_name )
-  call final_timers( program_name )
+  call final_timing( program_name )
   call final_logger( program_name )
   call final_config()
   call final_comm( modeldb )

@@ -1,0 +1,67 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2026 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_science_shared.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "science_shared_azspice_developer": [
+        "science_shared_azspice_unit_tests"
+    ],
+    "science_shared_azspice": [
+        "science_shared_azspice_developer",
+    ],
+    "science_shared_azspice_unit_tests": [
+        "science_shared_unit_tests_azspice_gnu_64bit",
+    ],
+    }) %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "science_shared_ex1a_developer": [
+        "science_shared_ex1a_unit_tests"
+    ],
+    "science_shared_ex1a": [
+        "science_shared_ex1a_developer",
+    ],
+    "science_shared_ex1a_unit_tests": [
+        "science_shared_unit_tests_ex1a_gnu_64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "science_shared_developer": [
+        "scripts",
+        "science_shared_azspice_developer",
+        "science_shared_ex1a_developer",
+    ],
+    "science_shared": [
+        "science_shared_developer",
+        "science_shared_azspice",
+        "science_shared_ex1a",
+    ],
+    "science_shared_unit_tests": [
+        "science_shared_azspice_unit_tests",
+        "science_shared_ex1a_unit_tests",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.science_shared_developer) %}
+{% do site_groups.all.extend(site_groups.science_shared) %}
+{% do site_groups.unit_tests.extend(site_groups.science_shared_unit_tests) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.science_shared_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.science_shared_azspice) %}
+{% do site_groups.azspice_unit_tests.extend(site_groups.science_shared_azspice_unit_tests) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.science_shared_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.science_shared_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.science_shared_ex1a_unit_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_science_shared.cylc") %}

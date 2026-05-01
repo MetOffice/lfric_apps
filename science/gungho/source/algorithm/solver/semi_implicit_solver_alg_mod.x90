@@ -38,7 +38,6 @@ module semi_implicit_solver_alg_mod
   use field_indices_mod,                  only: isol_p, isol_u, isol_w, isol_uv, &
                                                 igh_p, igh_t, igh_d,             &
                                                 igh_u, igh_w, igh_uv
-  use copy_field_alg_mod,                 only: copy_field
 
   ! Pointers
   use sci_geometric_constants_mod,        only: get_face_selector_ew, &
@@ -70,8 +69,8 @@ module semi_implicit_solver_alg_mod
   use combine_w2_field_kernel_mod,        only: combine_w2_field_kernel_type
 
   ! IO
-  use io_config_mod,                      only: subroutine_timers
-  use timer_mod,                          only: timer
+  use timing_mod,                         only: start_timing, stop_timing, &
+                                                tik, LPROF
 
   implicit none
 
@@ -491,20 +490,16 @@ contains
   !> @param[in,out] rhs                 Residuals
   !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics factors
   !> @param[in]     mr                  Mixing ratio array
-  !> @param[in]     write_moisture_diag Flag to control output of moisture
-  !!                                    conservation diagnostics
   !> @param[in]     first_iteration     Flag for first inner iteration
   subroutine semi_implicit_solver_alg_step(state, rhs,              &
                                            moist_dyn_gas_law,       &
-                                           mr, write_moisture_diag, &
-                                           first_iteration)
+                                           mr, first_iteration)
 
     use solver_constants_mod,          only: get_normalisation_r_solver, &
                                              get_im3_div_r_solver,       &
                                              get_normalisation
     use fs_continuity_mod,             only: W2, Wtheta
     use mr_indices_mod,                only: nummr
-    use moisture_conservation_alg_mod, only: moisture_conservation_alg
     use si_operators_alg_mod,          only: get_m3_rho_star,       &
                                              get_rho_at_u,          &
                                              get_p2theta,           &
@@ -524,7 +519,6 @@ contains
     use sci_enforce_bc_kernel_mod,     only: enforce_bc_kernel_type
     use sci_mass_matrix_solver_alg_mod, &
                                        only: mass_matrix_solver_alg
-    use sci_psykal_light_mod,          only: invoke_inc_rdefX_plus_rsolverY
     use sci_field_minmax_alg_mod,      only: log_field_minmax
 
     implicit none
@@ -534,7 +528,6 @@ contains
     type( field_type ), dimension(bundle_size), intent( inout ) :: rhs
     type( field_type ),                         intent( in )    :: moist_dyn_gas_law
     type( field_type ), dimension(nummr),       intent( in )    :: mr
-    logical( kind=l_def ),                      intent( in )    :: write_moisture_diag
     logical( kind=l_def),                       intent( in )    :: first_iteration
 
     real( kind=r_def )                    :: si_err(bundle_size)
@@ -545,8 +538,6 @@ contains
     ! For analytic elimination of rho and theta
     type( field_type ) :: rhs_rdef,  &
                           inc_theta
-
-    type( field_type ) :: rho_guess
 
     type( r_solver_field_type ), dimension(bundle_size) :: rhs_rsol
     type( r_solver_field_type ) :: div_u,          &
@@ -569,24 +560,20 @@ contains
                                                ptheta2,     &
                                                q2t_op,      &
                                                q3t_op
+    type( field_type ) :: inc_uvw_rdef,   &
+                          inc_exner_rdef, &
+                          inc_theta_rdef, &
+                          inc_rho_rdef
     real( kind=r_solver ) :: tau_r_dt
     integer( kind=i_def ) :: mesh_id
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
+    integer(tik)                      :: id_si, id_mix
 
-    if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
+    if ( LPROF ) call start_timing( id_si, 'dynamics.solver' )
 
     ! Input fields are r_def fields so preliminary work uses field_types
     mesh_id = state(igh_p)%get_mesh_id()
-
-    if ( write_moisture_diag ) then
-      ! Best guess for the prognostic fields state can be calculated as
-      ! state_best_guess = rhs_n - rhs_np1 + state + rhs_adv + rhs_phys
-      ! where fortunately all of the above except "state" is already in "rhs_np1"
-      call rho_guess%initialise( state(igh_d)%get_function_space() )
-      call invoke(X_plus_Y(rho_guess, state(igh_d), rhs(igh_d)))
-      call moisture_conservation_alg( rho_guess, mr, 'Before solve' )
-    end if
 
     ! Normalise theta & u residual
     ! @TODO #416: can these be at r_solver precision?
@@ -631,11 +618,11 @@ contains
     call rhs_rsol(igh_p)%initialise( rhs(igh_p)%get_function_space() )
     ! This is required to put sensible data in the halo so there is something
     ! for enforce_bc_kernel to work with
-    call invoke(setval_c(rhs_rsol(igh_u), 0.0_r_solver) )
-    call copy_field(rhs(igh_u), rhs_rsol(igh_u))
-    call copy_field(rhs(igh_t), rhs_rsol(igh_t))
-    call copy_field(rhs(igh_d), rhs_rsol(igh_d))
-    call copy_field(rhs(igh_p), rhs_rsol(igh_p))
+    call invoke( setval_c(rhs_rsol(igh_u), 0.0_r_solver), &
+                 real_to_real_x(rhs_rsol(igh_u), rhs(igh_u)), &
+                 real_to_real_x(rhs_rsol(igh_t), rhs(igh_t)), &
+                 real_to_real_x(rhs_rsol(igh_d), rhs(igh_d)), &
+                 real_to_real_x(rhs_rsol(igh_p), rhs(igh_p)) )
 
     if ( first_iteration ) then
       ! Modify RHS due to elimination of rho and theta only for inner iteration 1
@@ -669,14 +656,14 @@ contains
     end if
 
     ! Solve the semi-implicit operator
-    if ( subroutine_timers ) call timer('mixed_solver')
+    if ( LPROF ) call start_timing( id_mix, 'solver.mixed_solver' )
     call log_event( "Gungho: mixed solve:", LOG_LEVEL_DEBUG )
     ! Create field vectors out of field arrays
     call construct_solver_state(vector_inc, rhs_rsol, import_fields = .false.)
     call construct_solver_state(vector_rhs, rhs_rsol, import_fields = .true.)
     call vector_inc%set_scalar(0.0_r_def)
     call mixed_solver%apply(vector_inc, vector_rhs)
-    if ( subroutine_timers ) call timer('mixed_solver')
+    if ( LPROF ) call stop_timing( id_mix, 'solver.mixed_solver' )
 
     ! Get the pressure increment
     inc_exner_rsol => vector_inc%get_field_from_position(isol_p)
@@ -724,25 +711,30 @@ contains
                  dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2))
 
     if (  eliminate_variables == eliminate_variables_analytic ) then
-      call copy_field(rhs_tmp, rhs_rdef)
+      call invoke( real_to_real_x(rhs_rdef, rhs_tmp) )
       call inc_theta%initialise( state(igh_t)%get_function_space() )
       call mass_matrix_solver_alg( inc_theta, rhs_rdef )
-      call copy_field(inc_theta, rhs_tmp)
+      call invoke( real_to_real_x(rhs_tmp, inc_theta) )
     else
       call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv) )
     end if
     call invoke( X_minus_Y( inc_theta_rsol, rhs_rsol(igh_t), rhs_tmp) )
 
     ! Finally we need to add r_solver increments to the r_def state field
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_u), inc_uvw_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_p), inc_exner_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_t), inc_theta_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_d), inc_rho_rsol )
+    call state(igh_u)%copy_field_properties(inc_uvw_rdef)
+    call state(igh_p)%copy_field_properties(inc_exner_rdef)
+    call state(igh_t)%copy_field_properties(inc_theta_rdef)
+    call state(igh_d)%copy_field_properties(inc_rho_rdef)
+    call invoke( real_to_real_x(inc_uvw_rdef, inc_uvw_rsol),     &
+                 inc_X_plus_Y(state(igh_u), inc_uvw_rdef),       &
+                 real_to_real_x(inc_exner_rdef, inc_exner_rsol), &
+                 inc_X_plus_Y(state(igh_p), inc_exner_rdef),     &
+                 real_to_real_x(inc_theta_rdef, inc_theta_rsol), &
+                 inc_X_plus_Y(state(igh_t), inc_theta_rdef),     &
+                 real_to_real_x(inc_rho_rdef, inc_rho_rsol),     &
+                 inc_X_plus_Y(state(igh_d), inc_rho_rdef) )
 
-    if ( write_moisture_diag )  &
-      call moisture_conservation_alg( state(igh_d), mr, 'After solve' )
-
-    if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
+    if ( LPROF ) call stop_timing( id_si, 'dynamics.solver' )
 
   end subroutine semi_implicit_solver_alg_step
 

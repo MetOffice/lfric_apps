@@ -29,19 +29,18 @@ subroutine bdy_impl4 (                                                         &
 ! in levels, switches
  bl_levels, l_correct,                                                         &
 ! in data :
- gamma1,gamma2,rhokm_u,rhokm_v,rdz_charney_grid, r_rho_levels,                 &
- dtrdz_charney_grid,rdz_u,rdz_v,ct_ctq,cq_cm_u,cq_cm_v,dqw_nt,dtl_nt,          &
+ gamma1,gamma2,rdz_charney_grid, r_rho_levels,                                 &
+ dtrdz_charney_grid,ct_ctq,dqw_nt,dtl_nt,                                      &
 ! INOUT data :
- qw,tl,fqw,ftl,tau_x,tau_y, fqw_star,ftl_star,taux_star,tauy_star,             &
- du,dv,du_star,dv_star, dqw,dtl, rhokh, BL_diag,                               &
+ qw,tl,fqw,ftl,fqw_star,ftl_star,                                              &
+ dqw,dtl, rhokh, BL_diag,                                                      &
 ! out data, NB these are really tl and qt on exit!
- t_latest,q_latest,rhokh_mix                                                   &
+ t_latest,q_latest                                                             &
  )
 
-use atm_fields_bounds_mod, only:                                               &
- udims, vdims, udims_s, vdims_s, tdims, pdims, tdims_l
+use atm_fields_bounds_mod, only: tdims, pdims, tdims_l
 use bl_diags_mod, only: strnewbldiag
-
+use tuning_segments_mod, only:  bl_segment_size
 use model_domain_mod, only: model_type, mt_single_column
 use planet_constants_mod, only: cp => cp_bl
 use yomhook, only: lhook, dr_hook
@@ -57,12 +56,6 @@ logical, intent(in) ::                                                         &
  l_correct
 
 real(kind=r_bl), intent(in) ::                                                 &
- rhokm_u(udims%i_start:udims%i_end,udims%j_start:udims%j_end,                  &
-         bl_levels),                                                           &
-                                 ! in Exchange coefficients for U
- rhokm_v(vdims%i_start:vdims%i_end,vdims%j_start:vdims%j_end,                  &
-         bl_levels),                                                           &
-                                 ! in Exchange coefficients for V
  rdz_charney_grid(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,         &
                   bl_levels),                                                  &
                                  ! in RDZ(,1) is the reciprocal of the
@@ -76,12 +69,6 @@ real(kind=r_bl), intent(in) ::                                                 &
                                  ! in height of rho levels
  dtrdz_charney_grid(tdims%i_start:tdims%i_end,                                 &
                     tdims%j_start:tdims%j_end,bl_levels),                      &
- rdz_u(udims%i_start:udims%i_end,udims%j_start:udims%j_end,                    &
-        2:bl_levels),                                                          &
-                                 ! in  RDZ (K > 1) on U-grid.
- rdz_v(vdims%i_start:vdims%i_end,vdims%j_start:vdims%j_end,                    &
-        2:bl_levels),                                                          &
-                                 ! in  RDZ (K > 1) on V-grid.
  gamma1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                  &
  gamma2(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                  &
                                  ! in new scheme weights.
@@ -89,14 +76,6 @@ real(kind=r_bl), intent(in) ::                                                 &
         bl_levels),                                                            &
                                  ! in Coefficient in T and q
                                  !       tri-diagonal implicit matrix
- cq_cm_u(udims%i_start:udims%i_end,udims%j_start:udims%j_end,                  &
-           bl_levels),                                                         &
-                                 ! in Coefficient in U tri-diagonal
-                                 !       implicit matrix
- cq_cm_v(vdims%i_start:vdims%i_end,vdims%j_start:vdims%j_end,                  &
-           bl_levels),                                                         &
-                                 ! in Coefficient in V tri-diagonal
-                                 !       implicit matrix
  dqw_nt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         bl_levels),                                                            &
                                       ! in NT incr to qw
@@ -132,46 +111,15 @@ real(kind=r_bl), intent(in out) ::                                             &
                                  !       into layer K from below; so
                                  !       FTL(,1) is the surface
                                  !       sensible heat, H. (W/m2)
- tau_x(udims%i_start:udims%i_end,udims%j_start:udims%j_end,                    &
-       bl_levels),                                                             &
-                                 ! INOUT W'ly component of surface
-                                 !       wind stress (N/sq m).(On
-                                 !       UV-grid with first and last
-                                 !       rows undefined or at present,
-                                 !       set to  missing data
- tau_y(vdims%i_start:vdims%i_end,vdims%j_start:vdims%j_end,                    &
-       bl_levels),                                                             &
-                                 ! INOUT S'ly component of surface
-                                 !       wind stress (N/sq m).  On
-                                 !       UV-grid; comments as per TAUX
-!                                  4 arrays below:
                                    ! INOUT temp arrays for diags
    fqw_star(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
             bl_levels),                                                        &
    ftl_star(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
             bl_levels),                                                        &
-   taux_star(udims%i_start:udims%i_end,udims%j_start:udims%j_end,              &
-              bl_levels),                                                      &
-   tauy_star(vdims%i_start:vdims%i_end,vdims%j_start:vdims%j_end,              &
-              bl_levels),                                                      &
    dqw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
                                    ! INOUT BL increment to q field
-   dtl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
+   dtl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
                                    ! INOUT BL increment to T field
-   du(udims_s%i_start:udims_s%i_end,udims_s%j_start:udims_s%j_end,             &
-        bl_levels),                                                            &
-                                   ! INOUT BL increment to u wind field
-   dv(vdims_s%i_start:vdims_s%i_end,vdims_s%j_start:vdims_s%j_end,             &
-        bl_levels),                                                            &
-                                   ! INOUT BL increment to v wind field
-   du_star(udims_s%i_start:udims_s%i_end,udims_s%j_start:udims_s%j_end,        &
-        bl_levels),                                                            &
-                                        ! INOUT BL incr to u wind field
-   dv_star(vdims_s%i_start:vdims_s%i_end,vdims_s%j_start:vdims_s%j_end,        &
-        bl_levels),                                                            &
-   rhokh_mix(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,              &
-             bl_levels)      ! out Exch coeffs for moisture
-                             ! needs declaring as in out as unused in LFRic
 
 ! out fields
 real(kind=real_umphys), intent(out) ::                                         &
@@ -196,7 +144,7 @@ integer ::                                                                     &
                 ! LOCAL Loop counter (horizontal field index).
  k          ! LOCAL Loop counter (vertical level index).
 
-integer :: jj, j_block  ! omp blocking variables
+integer :: ii, tdims_omp_block, tdims_seg_block ! omp blocking variables
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -206,13 +154,13 @@ character(len=*), parameter :: RoutineName='BDY_IMPL4'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-j_block = 4
+tdims_omp_block = bl_segment_size
+tdims_seg_block = min(tdims_omp_block, tdims%i_len)
 
-!$OMP  PARALLEL DEFAULT(SHARED) private(i,j,k,jj,at,rbt,gamma1_uv,             &
+!$OMP  PARALLEL DEFAULT(SHARED) private(i,j,k,ii,at,rbt,gamma1_uv,             &
 !$OMP  gamma2_uv,r_sq)
 if ( .not. l_correct ) then
   !  1st stage: predictor
-  !  Keep a copy of computed taux_1.
   !---------------------------------------------------------------------
 
   ! Complete downward sweep of matrix for increments to TL and QW in the
@@ -266,10 +214,10 @@ end do
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
-do jj = tdims%j_start, tdims%j_end, j_block
+do ii = tdims%j_start, tdims%i_end, tdims_seg_block
   do k = 2, bl_levels
-    do j = jj, min(jj+j_block-1,tdims%j_end)
-      do i = tdims%i_start, tdims%i_end
+    do j = tdims%j_start, tdims%j_end
+      do i = ii, min(ii+tdims_seg_block-1,tdims%i_end)
         dtl(i,j,k) = dtl(i,j,k) - ct_ctq(i,j,k)*dtl(i,j,k-1)
         tl(i,j,k) = tl(i,j,k) + dtl(i,j,k)
         dqw(i,j,k) = dqw(i,j,k) - ct_ctq(i,j,k)*dqw(i,j,k-1)

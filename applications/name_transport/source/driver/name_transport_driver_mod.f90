@@ -39,13 +39,13 @@ module name_transport_driver_mod
   use mesh_mod,                           only: mesh_type
   use mesh_collection_mod,                only: mesh_collection
   use model_clock_mod,                    only: model_clock_type
-  use namelist_mod,                       only: namelist_type
   use runtime_constants_mod,              only: create_runtime_constants
   use sci_checksum_alg_mod,               only: checksum_alg
   use sci_geometric_constants_mod,        only: get_chi_inventory,      &
                                                 get_panel_id_inventory, &
                                                 get_height_fe
-  use timer_mod,                          only: timer
+  use timing_mod,                         only: start_timing, stop_timing, &
+                                                tik, LPROF
 
   ! Transport algorithms
   use name_transport_init_fields_alg_mod, only: name_transport_init_fields_alg
@@ -108,12 +108,12 @@ contains
     character(len=str_def), allocatable :: shifted_names(:)
     character(len=str_def), allocatable :: double_names(:)
     character(len=str_def)              :: prime_mesh_name
+    integer(kind=i_def),    allocatable :: stencil_depths(:)
 
     logical(kind=l_def) :: prepartitioned
     logical(kind=l_def) :: apply_partition_check
 
     integer(kind=i_def) :: geometry
-    integer(kind=i_def) :: stencil_depth
     real(kind=r_def)    :: domain_bottom
     real(kind=r_def)    :: domain_height
     real(kind=r_def)    :: scaled_radius
@@ -123,38 +123,22 @@ contains
     logical(kind=l_def) :: write_diag
     logical(kind=l_def) :: use_xios_io
 
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: extrusion_nml
-    type(namelist_type), pointer :: planet_nml
-    type(namelist_type), pointer :: io_nml
-
     integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
 
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-
-    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
-    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
-    planet_nml      => modeldb%configuration%get_namelist('planet')
-    io_nml          => modeldb%configuration%get_namelist('io')
-
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-    call extrusion_nml%get_value( 'method', method )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
-    call io_nml%get_value( 'nodal_output_on_w3', nodal_output_on_w3 )
-    call io_nml%get_value( 'write_diag', write_diag )
-    call io_nml%get_value( 'use_xios_io', use_xios_io )
-
-    base_mesh_nml   => null()
-    extrusion_nml   => null()
-    planet_nml      => null()
-    io_nml          => null()
+    prime_mesh_name    = modeldb%config%base_mesh%prime_mesh_name()
+    geometry           = modeldb%config%base_mesh%geometry()
+    prepartitioned     = modeldb%config%base_mesh%prepartitioned()
+    method             = modeldb%config%extrusion%method()
+    domain_height      = modeldb%config%extrusion%domain_height()
+    number_of_layers   = modeldb%config%extrusion%number_of_layers()
+    scaled_radius      = modeldb%config%planet%scaled_radius()
+    nodal_output_on_w3 = modeldb%config%io%nodal_output_on_w3()
+    write_diag         = modeldb%config%io%write_diag()
+    use_xios_io        = modeldb%config%io%use_xios_io()
 
     !-----------------------------------------------------------------------
     ! Initialise infrastructure
@@ -236,14 +220,18 @@ contains
 
     ! 1.3a Initialise prime/2d meshes
     ! ---------------------------------------------------------
-    stencil_depth = get_required_stencil_depth()
+    allocate(stencil_depths(num_base_meshes))
+    call get_required_stencil_depth( stencil_depths,  &
+                                     base_mesh_names, &
+                                     modeldb%config )
+
     apply_partition_check = .false.
 
-    call init_mesh( modeldb%configuration,        &
-                    modeldb%mpi%get_comm_rank(),  &
-                    modeldb%mpi%get_comm_size(),  &
-                    base_mesh_names,              &
-                    extrusion, stencil_depth,     &
+    call init_mesh( modeldb%config,              &
+                    modeldb%mpi%get_comm_rank(), &
+                    modeldb%mpi%get_comm_size(), &
+                    base_mesh_names,             &
+                    extrusion, stencil_depths,   &
                     apply_partition_check )
 
     call create_mesh( base_mesh_names, extrusion_2d, &
@@ -350,11 +338,19 @@ contains
 
     end if
 
-    if (allocated(base_mesh_names))  deallocate(base_mesh_names)
-    if (allocated(meshes_to_shift))  deallocate(meshes_to_shift)
-    if (allocated(meshes_to_double)) deallocate(meshes_to_double)
-
+    if (allocated(base_mesh_names))     deallocate(base_mesh_names)
+    if (allocated(meshes_to_shift))     deallocate(meshes_to_shift)
+    if (allocated(meshes_to_double))    deallocate(meshes_to_double)
+    if (allocated(twod_names))          deallocate(twod_names)
+    if (allocated(shifted_names))       deallocate(shifted_names)
+    if (allocated(double_names))        deallocate(double_names)
+    if (allocated(extrusion))           deallocate(extrusion)
+    if (allocated(extrusion_2d))        deallocate(extrusion_2d)
+    if (allocated(extrusion_shifted))   deallocate(extrusion_shifted)
+    if (allocated(extrusion_double))    deallocate(extrusion_double)
+    if (allocated(stencil_depths))      deallocate(stencil_depths)
     if (allocated(extra_io_mesh_names)) deallocate(extra_io_mesh_names)
+
     nullify(chi_inventory, panel_id_inventory, mesh)
 
   end subroutine initialise_name_transport
@@ -367,7 +363,6 @@ contains
     use base_mesh_config_mod,     only: prime_mesh_name
     use io_config_mod,            only: diagnostic_frequency, &
                                         nodal_output_on_w3,   &
-                                        subroutine_timers,    &
                                         write_diag
     use sci_field_minmax_alg_mod, only: log_field_minmax
 
@@ -376,6 +371,7 @@ contains
     class(model_clock_type), intent(in) :: model_clock
 
     type(mesh_type), pointer :: mesh
+    integer(tik)             :: id
 
     ! Get mesh
     mesh => mesh_collection%get_mesh(prime_mesh_name)
@@ -392,13 +388,13 @@ contains
       'Start of timestep ', model_clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    if ( subroutine_timers ) call timer( 'name transport step' )
+    if ( LPROF ) call start_timing( id, 'name_transport_step' )
 
     ! Transport field
     call name_transport_step( model_clock, wind, tracer_con, &
                               density, transport_density )
 
-    if ( subroutine_timers ) call timer( 'name transport step' )
+    if ( LPROF ) call stop_timing( id, 'name_transport_step' )
 
     ! Print min/max of fields after transport step
     if (transport_density) then

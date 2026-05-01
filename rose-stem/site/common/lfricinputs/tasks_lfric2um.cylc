@@ -36,6 +36,7 @@
         "source_dump": "$BIG_DATA_DIR/start_dumps/nwp-gal9/apps1.1/nwp-gal9_N320L70_C224L70.nc",
         "namelist_src": "um_grid.nml",
         "memory_plot_ex": true,
+        "kgo_checks": "",
     }) %}
 {% elif task_ns.conf_name == "lfric2um-umlam-C48L70_N512L70" %}
 

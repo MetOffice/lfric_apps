@@ -13,7 +13,8 @@ $(info UM physics specific compile options)
 
 include $(PROJECT_DIR)/build/fortran/$(FORTRAN_COMPILER).mk
 
-science/%.o science/%.mod: private FFLAGS_EXTRA = $(FFLAGS_UM_PHYSICS)
+casim/%.o science/%.mod: private FFLAGS_EXTRA = $(FFLAGS_UM_PHYSICS)
+ukca/%.o science/%.mod: private FFLAGS_EXTRA = $(FFLAGS_UM_PHYSICS)
 jules/%.o jules/%.mod: private FFLAGS_EXTRA = $(FFLAGS_UM_PHYSICS)
 socrates/%.o socrates/%.mod: private FFLAGS_EXTRA = $(FFLAGS_UM_PHYSICS)
 legacy/%.o legacy/%.mod: private FFLAGS_EXTRA = $(FFLAGS_UM_PHYSICS)

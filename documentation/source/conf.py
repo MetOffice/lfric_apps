@@ -19,8 +19,13 @@ release = '0.1.0'
 # ones.
 extensions = [
     'sphinx_sitemap',
-    'sphinx_design'
+    'sphinx_design',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
 ]
+
+# Enable equation referencing and cross-referencing
+mathjax3_config = { "tex": { "tags": "ams", "packages": {"[+]": ["ams"]}, } }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -117,3 +122,12 @@ def superscript_substitution_role(name, rawtext, text, lineno, inliner,
 
 def setup(app):
     app.add_role('superscript_substitution', superscript_substitution_role)
+
+# Options for intersphinx mapping extension
+# To discover the available objects in the target project (e.g. psyclone), run:
+# python -m sphinx.ext.intersphinx https://psyclone.readthedocs.io/en/stable/objects.inv
+intersphinx_mapping = {
+    'psyclone': ('https://psyclone.readthedocs.io/en/stable/', None),
+    'simsys': ('https://metoffice.github.io/simulation-systems/', None),
+    'lfric_core': ('https://metoffice.github.io/lfric_core/', None)
+}
