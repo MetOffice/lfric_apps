@@ -1,7 +1,7 @@
-# This CODEOWNERS file includes a primary codeowner and a deputy for each section. 
+# This CODEOWNERS file includes a primary codeowner and a deputy for each section.
 # Codeowners who are not in a comment will be automatically notified of changes
 # to the listed files. All codeowners listed are valid points of contact
-# for discussing changes and seeking approval for work. 
+# for discussing changes and seeking approval for work.
 
 # Applications
 **/adjoint_tests             @DrTVockerodtMO                     # @mo-joshuacolclough
@@ -10,7 +10,6 @@
 **/jedi_lfric_tests          @ss421  @matthewrmshin @MetOffice/r2o-systems
 **/jules                     @iboutle                            # @MetOfficessdtesam
 **/lfric2lfric               @mo-lottieturner                    # @mike-hobson
-**/lfricinputs               @mo-lottieturner                    # @mike-hobson
 **/lfric_atm                 @iboutle                            # @BShipway
 **/lfric_coupled             @HengistPodd                        # @BShipway
 **/lfricinputs               @mo-lottieturner                    # @mike-hobson
@@ -20,6 +19,11 @@
 **/shallow_water             @jameskent-metoffice                # @atb1995
 **/solver                    @christophermaynard                 # @thomasmelvin
 **/transport                 @tommbendall                        # @jameskent-metoffice
+
+# Rose-Stem - those that don't have an applications area of the same name
+**/lfric2um                  @mo-lottieturner                    # @mike-hobson
+**/scintelapi                @mo-lottieturner                    # @mike-hobson
+**/um2lfric                  @mo-lottieturner                    # @mike-hobson
 
 # Science
 **/adjoint                              @DrTVockerodtMO                     # @mo-joshuacolclough
@@ -66,9 +70,10 @@ rose-stem/lib/                         @james-bruten-mo                    # @je
 rose-stem/bin/                         @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/common/            @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/macros/            @james-bruten-mo                    # @jennyhickson
-rose-stem/apps                         # Mostly updated by macros, no codeowner
-**/versions.py                         @james-bruten-mo                    # @jennyhickson
+rose-stem/app                          # Mostly updated by macros, no codeowner
+**/rose-meta/**/version*.py            @james-bruten-mo                    # @jennyhickson
 build/                                 @MetOffice/ssdteam @hiker
+interfaces/build/                      @christophermaynard
 **/*Makefile                           @MatthewHambley @hiker
 **/*.mk                                @MatthewHambley @hiker
 **/optimisation                        @christophermaynard                 # HPC Optimisation Team
@@ -78,3 +83,6 @@ documentation                           # @MetOffice/ssdteam
 .github/                                @MetOffice/ssdteam
 LICENSE                                 @yaswant
 README.md                               @MetOffice/ssdteam
+
+# Owners of specific documentation sections
+documentation/source/science_guide/cloud_schemes             @paul-barrett

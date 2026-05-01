@@ -82,8 +82,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 
