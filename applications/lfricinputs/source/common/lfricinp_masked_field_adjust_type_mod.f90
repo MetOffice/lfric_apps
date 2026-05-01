@@ -229,7 +229,7 @@ type(lfricinp_regrid_weights_type), intent(in) :: weights
 !
 integer(kind=int32)              :: i_x, i_y, j, l, w
 integer(kind=int32)              :: src_index, dst_index1, dst_index2
-integer(kind=int32), allocatable :: dst_point_contrb_record(:)
+integer(kind=int32), allocatable :: dst_point_contrb_record(:,:)
 real(kind=real64)                :: weight_value
 integer(kind=int32), parameter   :: unchecked = 0, src_mask_contrb_only = 1,   &
                                     off_src_mask_contrb = 2
@@ -241,7 +241,7 @@ self%dst_mask_2D(:,:) = dst_mask(:,:)
 ! Initialise arrays that records whether dst points had any or no
 ! contribution from on mask src points and the src point data
 ! to replace the dst point data
-allocate(dst_point_contrb_record, mold=dst_mask)
+allocate(dst_point_contrb_record(size(dst_mask,1),size(dst_mask,2)))
 dst_point_contrb_record = unchecked
 
 ! Loop over remap matrix, considering only non-zero weight elements, to
