@@ -41,7 +41,7 @@ use lfric2um_regrid_weights_mod,           only: get_weights
 implicit none
 
 ! Local variables
-character(len=1),    parameter :: um_land_mask_grid_type = 'p'
+character(len=1),    parameter :: lfric_land_mask_grid_type = 'p'
 integer(kind=int32)            :: cell_lid_nn, idx, idy, i
 real(kind=real64)              :: lon, lat
 
@@ -62,14 +62,13 @@ if (allocated(um_land_mask) .and. allocated(lfric_land_mask)) then
   !
   ! Set map from UM NN land point indices to LFRic adjusted land point indices
   allocate(land_field_adjustments%adjusted_dst_to_src_map_1D(                  &
-                                  land_field_adjustments%num_adjusted_points,2 &!SHARKS
-                                                            ))
+                                    land_field_adjustments%num_adjusted_points))
   do i = 1, land_field_adjustments%num_adjusted_points
     idx = land_field_adjustments%adjusted_dst_indices_2D(i,1)
     idy = land_field_adjustments%adjusted_dst_indices_2D(i,2)
     call get_um_grid_coords(idx, idy, lon, lat)
-    call find_nn_on_lfric_mesh(um_mask=um_land_mask,                           &
-                               um_mask_grid_type=um_land_mask_grid_type,       &
+    call find_nn_on_lfric_mesh(lfric_mask=lfric_land_mask,                     &
+                               lfric_mask_grid_type=lric_land_mask_grid_type,  &
                                lon_ref=lon,                                    &
                                lat_ref=lat,                                    &
                                cell_lid_nn=cell_lid_nn)
@@ -102,8 +101,8 @@ if (allocated(um_maritime_mask) .and. allocated(lfric_maritime_mask)) then
     idx = maritime_field_adjustments%adjusted_dst_indices_2D(i,1)
     idy = maritime_field_adjustments%adjusted_dst_indices_2D(i,2)
     call get_um_grid_coords(idx, idy, lon, lat)
-    call find_nn_on_lfric_mesh(um_mask=um_maritime_mask,                       &
-                               um_mask_grid_type=um_land_mask_grid_type,       &
+    call find_nn_on_lfric_mesh(lfric_mask=lfric_maritime_mask,                 &
+                               lfric_mask_grid_type=lfric_land_mask_grid_type, &
                                lon_ref=lon,                                    &
                                lat_ref=lat,                                    &
                                cell_lid_nn=cell_lid_nn)
