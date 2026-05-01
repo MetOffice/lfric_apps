@@ -53,19 +53,19 @@ call lfricinp_init_masks(stashcode_land_frac)
 !
 if (allocated(um_land_mask) .and. allocated(lfric_land_mask)) then
 
-  ! Find indices of land points on LFRic mesh that will require adjustment to
-  ! UM NN land point values
-  call land_field_adjustments%find_adjusted_points_src_2d_dst_1d(              &
+  ! Find indices of UM NN land point values that will require adjustment to
+  ! land points on LFRic mesh
+  call land_field_adjustments%find_adjusted_points_src_1d_dst_2d(              &
                                       src_mask=lfric_land_mask,                &
                                       dst_mask=um_land_mask,                   &
                                       weights=get_weights(stashcode_land_frac))
   !
-  ! Set map from LFRic adjusted land point indices to UM NN land point indices
-  allocate(land_field_adjustments%adjusted_dst_to_src_map_2D(                  &
-                                  land_field_adjustments%num_adjusted_points,2 &
+  ! Set map from UM NN land point indices to LFRic adjusted land point indices
+  allocate(land_field_adjustments%adjusted_dst_to_src_map_1D(                  &
+                                  land_field_adjustments%num_adjusted_points,2 &!SHARKS
                                                             ))
   do i = 1, land_field_adjustments%num_adjusted_points
-    cell_lid = land_field_adjustments%adjusted_dst_indices_1D(i)
+    cell_lid = land_field_adjustments%adjusted_dst_indices_2D(i)                !SHARKS
     call get_lfric_mesh_coords(cell_lid, lon, lat)
     call find_nn_on_um_grid(um_mask=um_land_mask,                              &
                             um_mask_grid_type=um_land_mask_grid_type,          &
@@ -73,8 +73,8 @@ if (allocated(um_land_mask) .and. allocated(lfric_land_mask)) then
                             lat_ref=lat,                                       &
                             idx_lon_nn=idx_lon_nn,                             &
                             idx_lat_nn=idx_lat_nn)
-    land_field_adjustments%adjusted_dst_to_src_map_2D(i,1) = idx_lon_nn
-    land_field_adjustments%adjusted_dst_to_src_map_2D(i,2) = idx_lat_nn
+    land_field_adjustments%adjusted_dst_to_src_map_1D(i,1) = idx_lon_nn         !SHARKS
+    land_field_adjustments%adjusted_dst_to_src_map_1D(i,2) = idx_lat_nn         !SHARKS
   end do
   !
   ! Set initialisation flag of land field adjustment
@@ -89,7 +89,7 @@ if (allocated(um_maritime_mask) .and. allocated(lfric_maritime_mask)) then
 
   ! Find indices of maritime points on LFRic mesh that will require adjustment
   ! to UM NN maritime point values
-  call maritime_field_adjustments%find_adjusted_points_src_2d_dst_1d(          &
+  call maritime_field_adjustments%find_adjusted_points_src_1d_dst_2d(          &
                                       src_mask=lfric_maritime_mask,            &
                                       dst_mask=um_maritime_mask,               &
                                       weights=get_weights(stashcode_land_frac))
@@ -100,7 +100,7 @@ if (allocated(um_maritime_mask) .and. allocated(lfric_maritime_mask)) then
                               maritime_field_adjustments%num_adjusted_points,2 &
                                                             ))
   do i = 1, maritime_field_adjustments%num_adjusted_points
-    cell_lid = maritime_field_adjustments%adjusted_dst_indices_1D(i)
+    cell_lid = maritime_field_adjustments%adjusted_dst_indices_1D(i)            !SHARKS
     call get_lfric_mesh_coords(cell_lid, lon, lat)
     call find_nn_on_um_grid(um_mask=um_maritime_mask,                          &
                             um_mask_grid_type=um_land_mask_grid_type,          &
@@ -108,8 +108,8 @@ if (allocated(um_maritime_mask) .and. allocated(lfric_maritime_mask)) then
                             lat_ref=lat,                                       &
                             idx_lon_nn=idx_lon_nn,                             &
                             idx_lat_nn=idx_lat_nn)
-    maritime_field_adjustments%adjusted_dst_to_src_map_2D(i,1) = idx_lon_nn
-    maritime_field_adjustments%adjusted_dst_to_src_map_2D(i,2) = idx_lat_nn
+    maritime_field_adjustments%adjusted_dst_to_src_map_2D(i,1) = idx_lon_nn     !SHARKS
+    maritime_field_adjustments%adjusted_dst_to_src_map_2D(i,2) = idx_lat_nn     !SHARKS
   end do
   !
   ! Set initialisation flag of maritime field adjustment
