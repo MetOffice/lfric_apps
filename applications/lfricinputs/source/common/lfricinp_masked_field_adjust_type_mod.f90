@@ -335,8 +335,8 @@ if (self%initialised) then
                                          src(self%adjusted_dst_to_src_map_1D(i))
   end do
 
-  do i_y = 1, size(dst_mask,2)
-    do i_x = 1, size(dst_mask,1)
+  do i_y = 1, size(dst,2)
+    do i_x = 1, size(dst,1)
       if (.not. self%dst_mask_2D(i_x,i_y)) then
         dst(i_x,i_y) = um_rmdi
       end if
