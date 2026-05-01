@@ -16,7 +16,6 @@ module transport_constants_mod
   ! Infrastructure
   use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
                                                 r_tran, radians_to_degrees
-  use copy_field_alg_mod,                 only: copy_field
   use domain_mod,                         only: domain_type
   use extrusion_mod,                      only: TWOD
   use sci_geometric_constants_mod,        only: get_coordinates,               &
@@ -585,7 +584,7 @@ contains
 
     dz_w3_rdef => get_dz_w3(mesh_id)
     call dz_w3_rtran%initialise( dz_w3_rdef%get_function_space() )
-    call copy_field(dz_w3_rdef, dz_w3_rtran)
+    call invoke( real_to_real_x(dz_w3_rtran, dz_w3_rdef) )
 
     call third_dla_dz_inventory%add_field_array(dla_dz, w3_fs, 3, mesh)
     call third_dlb_dz_inventory%add_field_array(dlb_dz, w3_fs, 3, mesh)
@@ -667,7 +666,7 @@ contains
       call invoke( calc_detj_at_w3_kernel_type(detj_r_tran, chi, panel_id,     &
                                                halo_depth) )
       else
-        call copy_field(detj_r_def, detj_r_tran)
+        call invoke( real_to_real_x(detj_r_tran, detj_r_def) )
       end if
       if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
@@ -916,7 +915,7 @@ contains
 
       dz_w3_rdef => get_dz_w3(mesh_id)
       call dz_w3_rtran%initialise( dz_w3_rdef%get_function_space() )
-      call copy_field(dz_w3_rdef, dz_w3_rtran)
+      call invoke( real_to_real_x(dz_w3_rtran, dz_w3_rdef) )
 
       call fourth_dl_dz_inventory%add_field_array(dl_dz, w2v_fs, 4, mesh)
 
