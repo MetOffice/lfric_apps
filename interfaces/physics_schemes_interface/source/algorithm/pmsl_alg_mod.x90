@@ -25,6 +25,7 @@ module pmsl_alg_mod
   use planet_config_mod, only: p_zero
   use um_domain_init_mod, only: n_iter_pmsl
   use physics_config_mod, only: pmsl_halo_calcs
+  use sci_psykal_builtin_light_mod, only: invoke_copy_field_halo
 
   implicit none
   private
@@ -51,7 +52,6 @@ contains
     use pmsl_fgeo_kernel_mod, only: pmsl_fgeo_kernel_type
     use pmsl_ffunc_kernel_mod, only: pmsl_ffunc_kernel_type
     use pmsl_solve_kernel_mod, only: pmsl_solve_kernel_type
-    use copy_field_halo_kernel_mod, only: copy_field_halo_kernel_type
 
     implicit none
 
@@ -162,11 +162,9 @@ contains
           call invoke(pmsl_solve_kernel_type(dx_at_w2, f_func, exner_m, &
                                              sten_size_big, height_wth, &
                                              exner_sm, m) )
-
           ! Set old value (exner_m) to new value (exner_sm),
           ! copying clean field to depth m in halo
-          call invoke(copy_field_halo_kernel_type(exner_m, exner_sm, m))
-
+          call invoke_copy_field_halo(exner_m, exner_sm)
           ! Exit if we're done
           counter = counter + 1
           if (counter == n_iter_pmsl) exit outer
