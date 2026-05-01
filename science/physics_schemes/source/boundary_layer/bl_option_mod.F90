@@ -120,6 +120,10 @@ integer, parameter :: ntml_level_corrn    = 2
 ! free_trop_layers (=3) => as "ntml_level_corrn" but also diagnose
 ! FA turbulent layer depths
 integer, parameter :: free_trop_layers    = 3
+! smooth_to_bdys (=4) => as "free_trop_layers" but smoothly interpolate
+! between sub- and super-critical model-levels to find depth of turbulent
+! layers, and taper the mixing-length down near top and bottom of each layer.
+integer, parameter :: smooth_to_bdys = 4
 
 ! 10 Switch to keep local mixing in free atmosphere
 integer :: Keep_Ri_FA = imdi

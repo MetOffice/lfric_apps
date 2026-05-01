@@ -26,8 +26,8 @@ subroutine ex_coef (                                                           &
 ! in levels/logicals
  bl_levels, k_log_layr, BL_diag,                                               &
 ! in fields
- sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m,zhpar,ntpar,                 &
- ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq, delta_smag,             &
+ sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m,zhnl,zhpar,zhsc,zdsc_base,   &
+ ntpar,ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,delta_smag,        &
 ! in/out fields
  cumulus,weight_1dbl,                                                          &
 ! out fields
@@ -45,7 +45,7 @@ use bl_option_mod, only:  WeightLouisToLong, Variable_RiC, cbl_op,             &
    off, on, sharpest, sharp_sea_long_land, sharp_sea_mes_land,                 &
    louis_tails, sharp_sea_louis_land, long_tails, mes_tails, ritrans,          &
    neut_cbl, lambda_min_nml, lambda_max_nml,                                   &
-   lambda_fac, beta_bl, beta_fa, rlinfac, linear0,                             &
+   lambda_fac, beta_bl, beta_fa, rlinfac, linear0, smooth_to_bdys,             &
    to_sharp_across_1km, ntml_level_corrn, free_trop_layers, two_thirds,        &
    blending_option, blend_except_cu, blend_gridindep_fa, blend_cth_shcu_only,  &
    extended_tail, zero, one, one_half
@@ -70,56 +70,61 @@ implicit none
 
 integer, intent(in) ::                                                         &
  bl_levels,                                                                    &
-                 ! in maximum number of boundary layer levels
+                 ! IN maximum number of boundary layer levels
  k_log_layr
-                 ! in num of levs requiring log-profile correction
+                 ! IN num of levs requiring log-profile correction
 
 integer, intent(in) ::                                                         &
  ntml_nl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
-                 ! in Number of model layers in the turbulently
+                 ! IN Number of model layers in the turbulently
                  !    mixed layer as determined from the non-local
                  !    scheme.
  ntdsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
-                 ! in Top level of any decoupled Sc
+                 ! IN Top level of any decoupled Sc
  nbdsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
-                 ! in Bottom level of any decoupled Sc layer.
+                 ! IN Bottom level of any decoupled Sc layer.
  ntpar(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                 ! in Top level of parcel ascent
+                 ! IN Top level of parcel ascent
 
 real(kind=r_bl), intent(in) ::                                                 &
  sigma_h(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
-                 ! in Standard deviation of subgrid
+                 ! IN Standard deviation of subgrid
                  !    orography (m)
  rho_wet_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
             bl_levels),                                                        &
-                 ! in density on theta levels;
+                 ! IN density on theta levels;
                  !    used in RHOKM so wet density
  rmlmax2(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),       &
-                 ! in Square of asymptotic mixing length for Smagorinsky scheme
+                 ! IN Square of asymptotic mixing length for Smagorinsky scheme
  z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels+1),        &
-                 ! in Z_UV(K) is height of u level k
+                 ! IN Z_UV(K) is height of u level k
  z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
-                 ! in Z_TQ(K) is height of T,Q level k
+                 ! IN Z_TQ(K) is height of T,Q level k
                  !    NOTE: RI(K) is held at Z_TQ(K-1)
+ zhnl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                    &
+                 ! IN Height of top of surface-driven non-local mixing
  zhpar(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
-                 ! in Height of top of initial parcel ascent
+                 ! IN Height of top of initial parcel ascent
+ zhsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                    &
+ zdsc_base(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),               &
+                 ! IN Base and top heights of decoupled Sc-layer
  z0m(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                     &
-                 ! in Roughness length for momentum (m).
+                 ! IN Roughness length for momentum (m).
  dvdzm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        2:bl_levels),                                                           &
-                 ! in Modulus of wind shear.
+                 ! IN Modulus of wind shear.
  ri(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,2:bl_levels),          &
-                 ! in Local Richardson number.
+                 ! IN Local Richardson number.
  flandg(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end),          &
-                 ! in Land fraction on all tiles.
+                 ! IN Land fraction on all tiles.
  rneutml_sq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),    &
-                 ! in Square of the neutral mixing length for Smagorinsky
+                 ! IN Square of the neutral mixing length for Smagorinsky
  delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
-                 ! in delta_x used by Smagorinsky
+                 ! IN delta_x used by Smagorinsky
 
 logical, intent(in) ::                                                         &
   l_shallow_cth(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                 ! in Flag to indicate shallow convection based on cl-top
+                 ! IN Flag to indicate shallow convection based on cl-top
 
 ! Declaration of new BL diagnostics.
 type (strnewbldiag), intent(in out) :: BL_diag
@@ -140,44 +145,44 @@ real(kind=r_bl), intent(in out) ::                                             &
 real(kind=r_bl), intent(out) ::                                                &
  rhokm(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,            &
        bl_levels),                                                             &
-                 ! out Layer K-1 - to - layer K exchange coefficient
+                 ! OUT Layer K-1 - to - layer K exchange coefficient
                  !       for momentum, on UV-grid with first and last
                  !       levels set to "missing data"
  rhokh(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                    &
        bl_levels),                                                             &
-                 ! out Layer K-1 - to - layer K exchange coefficient
+                 ! OUT Layer K-1 - to - layer K exchange coefficient
                  !       for scalars (but currently on th-levels)
                  ! On out: still to be multiplied by rho(if l_mr_physics)
                  !         and, for Ri-based scheme, interpolated to
                  !         rho levels in BDY_EXPL2
  zh_local(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                 ! out Mixing layer height (m).
+                 ! OUT Mixing layer height (m).
 
 integer, intent(out) ::                                                        &
  ntml_local(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                 ! out Number of model layers in the turbulently
+                 ! OUT Number of model layers in the turbulently
                  !     mixed layer as determined from the local
                  !     Richardson number profile.
 
 real(kind=r_bl), intent(out) ::                                                &
  lambda_min,                                                                   &
-                 ! out Min value of length scale LAMBDA.
+                 ! OUT Min value of length scale LAMBDA.
  fm_3d(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-                 ! out stability function for momentum transport.
+                 ! OUT stability function for momentum transport.
                  !     level 1 value is dummy for use in diagnostics
  fh_3d(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-                 ! out stability function for heat and moisture.
+                 ! OUT stability function for heat and moisture.
                  !     level 1 value is dummy for use in diagnostics
  tke_loc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
             2:bl_levels),                                                      &
-                 ! out Ri-based scheme diagnosed TKE
+                 ! OUT Ri-based scheme diagnosed TKE
  elm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,2:bl_levels),         &
-                 ! out Mixing length for momentum
+                 ! OUT Mixing length for momentum
  elh(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,2:bl_levels),         &
-                 ! out Mixing length for scalars on theta levels
+                 ! OUT Mixing length for scalars on theta levels
  elh_rho(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          2:bl_levels)
-                 ! out Mixing length for scalars on rho levels
+                 ! OUT Mixing length for scalars on rho levels
 
 !-----------------------------------------------------------------------
 !    Local and other symbolic constants :-
@@ -227,7 +232,7 @@ real(kind=r_bl) ::                                                             &
                  ! Fractional weight applied to
                  ! BL function, vs free atmos
  turb_length(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,              &
-             2:bl_levels),                                                     &
+             2:bl_levels+1),                                                   &
                  ! Turbulent length scale on theta levels,
                  ! indexed as Ri (m)
  weight_bltop(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
@@ -293,7 +298,15 @@ real(kind=r_bl) ::                                                             &
                  ! top of boundary layer mixing
  zfa,                                                                          &
                  ! height to use beta_fa in blendin
- zz
+ zz,                                                                           &
+                 ! height
+ zbot, ztop,                                                                   &
+                 ! temporaries for height of base and top of layer
+ lambda_min_use,                                                               &
+                 ! Value of minimum mixing length used in certain checks
+                 ! (work variable allows them to be optionally overridden)
+ interp
+                 ! Vertical interpolation weight
 
 integer ::                                                                     &
  i,                                                                            &
@@ -538,100 +551,252 @@ end if
 !     for a cumulus-capped layer, shear driven mixing is allowed to
 !     dominate (if ISHEAR_BL=1 selected)
 !-----------------------------------------------------------------------
-!$OMP PARALLEL DEFAULT(none)                                                   &
-!$OMP SHARED( pdims, ishear_bl, ntml_local, ntpar, cumulus,                    &
-!$OMP         bl_levels, lambda_min, rlambda_fac,                              &
-!$OMP         turb_length, blending_option, rmlmax2)                           &
-!$OMP private( i, k )
-!$OMP do SCHEDULE(STATIC)
+!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
+!$OMP SHARED( pdims, ishear_bl, ntml_local, ntpar, cumulus )                   &
+!$OMP private( i )
 do i = pdims%i_start, pdims%i_end
   if ( ishear_bl == 1 .and. ntml_local(i,j) > ntpar(i,j) ) then
     cumulus(i,j) = .false.
   end if
 end do
-!$OMP end do
+!$OMP end PARALLEL do
 !-----------------------------------------------------------------------
 ! 1.3 Search for sub-critical layers above the PBL and set the
 !      mixing length to scale with these layer depths
 !-----------------------------------------------------------------------
+if ( local_fa==smooth_to_bdys  ) then
+  ! Calculation of turbulence length-scale based on
+  ! sub-critical layer depth, with interpolation to find accurate
+  ! base and top height of each layer between neighbouring
+  ! sub- and super- critical model-levels.
+  ! Also tapers the length-scale down near the top and bottom
+  ! of each turbulent layer.
+
+  ! Initialise turb_length to zero;
+  ! min and max limits will be imposed after calculation
+!$OMP PARALLEL DEFAULT(none) private(k,i)                                      &
+!$OMP SHARED( pdims, bl_levels, turb_length )
+  do k = 2, bl_levels+1
 !$OMP do SCHEDULE(STATIC)
-do k = 2, bl_levels
-  do i = pdims%i_start, pdims%i_end
-    turb_length(i,j,k) = lambda_min*rlambda_fac
+    do i = pdims%i_start, pdims%i_end
+      turb_length(i,j,k) = zero
+    end do
+!$OMP end do
   end do
-end do
-!$OMP end do NOWAIT
-if (blending_option == blend_cth_shcu_only) then
-  ! use Smag mixing length as background length scale if smaller
-  ! than lambda_min (ie ignore lambda_min for high res simulations)
+!$OMP end PARALLEL
+
+!$OMP PARALLEL DEFAULT(none)                                                   &
+!$OMP SHARED( pdims, bl_levels, z_uv, z_tq, turb_length, ri, ricrit ,          &
+!$OMP         ntpar, ntml_nl, nbdsc, ntdsc, zh_local, zhnl, zhsc, zdsc_base)   &
+!$OMP private( i, k, kl, kb, kt, zbot, ztop, interp, turb_length_layer )
+!$OMP do SCHEDULE(STATIC)
+  do i = pdims%i_start, pdims%i_end
+
+    kb = 0
+    kt = 0
+
+    do k = 2, bl_levels-1
+
+      ! Find base of sub-critical layer
+      if ( k==2 .AND. ri(i,j,k) <= ricrit(i,j) ) then
+        zbot = zero
+        kb = k
+      end if
+      if ( ri(i,j,k) > ricrit(i,j) .AND. ri(i,j,k+1) <= ricrit(i,j) ) then
+        interp = ( ri(i,j,k) - ricrit(i,j) ) / ( ri(i,j,k) - ri(i,j,k+1) )
+        interp = MAX( zero, MIN( one, interp) )
+        zbot = (one-interp) * z_tq(i,j,k-1)                                  &
+             +      interp  * z_tq(i,j,k)
+        kb = k+1
+      end if
+
+      ! Find top of sub-critical layer
+      if ( ri(i,j,k) <= ricrit(i,j) .AND. ri(i,j,k+1) > ricrit(i,j) ) then
+        interp = ( ri(i,j,k) - ricrit(i,j) ) / ( ri(i,j,k) - ri(i,j,k+1) )
+        interp = MAX( zero, MIN( one, interp) )
+        ztop = (one-interp) * z_tq(i,j,k-1)                                  &
+             +      interp  * z_tq(i,j,k)
+        kt = k
+      end if
+      if ( k==bl_levels-1 .AND. ri(i,j,k+1) <= ricrit(i,j) ) then
+        ztop = z_uv(i,j,k+1)
+        kt = k+1
+      end if
+
+      if ( kb > 0 .AND. kt > 0 ) then
+        ! Once found base and top of sub-critical layer, set
+        ! lengthscale on all levels within the layer...
+
+        do kl = kb, kt
+          ! This formula yields turb_length = ztop - zbot
+          ! at a height half-way between zbot and ztop,
+          ! but tapers it towards zero near the base and top
+          ! (such that L varies quadratically with height,
+          !  to make the diffusivity profile look a bit like
+          !  the non-local mixing profiles).
+          turb_length(i,j,kl)                                                &
+            = ( z_tq(i,j,kl-1) - zbot ) * ( ztop - z_tq(i,j,kl-1) )          &
+            * 4.0_r_bl / ( ztop - zbot )
+        end do
+
+        ! If this sub-critical layer is at the surface
+        if ( kb == 2 ) then
+          ! Reset zh_local consistently
+          zh_local(i,j) = ztop
+          ! Remove tapering of turb_length at the surface, as elm
+          ! already gets tapered near the surface after setting from
+          ! turb_length, so will be double-counting
+          do kl = kb, kt
+            if ( z_tq(i,j,kl-1) < one_half * ztop ) then
+              turb_length(i,j,kl) = ztop
+            end if
+          end do
+        end if
+
+        ! Reset base and top levels ready to search for next
+        ! sub-critical layer
+        kb = 0
+        kt = 0
+
+      end if  ! ( kb > 0 .AND. kt > 0 )
+    end do  ! k = 2, bl_levels-1
+
+    ! Overwrite with length-scales based on non-local mixing depth
+    ! where appropriate...
+
+    if ( zhnl(i,j) > zh_local(i,j) ) then
+      ! If surface-driven non-local mixing extends higher than the
+      ! found surface-sub-critical layer, reset turb_length
+      ! consistent with
+      ! zbot = 0, ztop = zhnl
+      ztop = zhnl(i,j)
+      do kl = 2, ntml_nl(i,j) + 2
+        if ( z_tq(i,j,kl-1) < one_half * ztop ) then
+          ! No tapering in lower half of surface-layer
+          turb_length(i,j,kl) = ztop
+        else if ( z_tq(i,j,kl-1) < ztop ) then
+          ! Quadratic tapering in upper half
+          turb_length(i,j,kl)                                                &
+            = ( z_tq(i,j,kl-1) ) * ( ztop - z_tq(i,j,kl-1) )                 &
+            * 4.0_r_bl / ztop
+        end if
+      end do
+    end if
+
+    if ( ntdsc(i,j) > 0 ) then
+      ! If there's a decoupled Sc layer, calculate length-scale
+      ! consistent with
+      ! zbot = z_bdsc, ztop = z_tdsc
+      zbot = zdsc_base(i,j)   ! z_uv(i,j,nbdsc(i,j))
+      ztop = zhsc(i,j)        ! z_uv(i,j,ntdsc(i,j)+1)
+      ! Only use where larger than the existing length-scale
+      do kl = nbdsc(i,j), ntdsc(i,j) + 2
+        turb_length(i,j,kl) = MAX( turb_length(i,j,kl),                      &
+              ( z_tq(i,j,kl-1) - zbot ) * ( ztop - z_tq(i,j,kl-1) )          &
+              * 4.0_r_bl / ( ztop - zbot ) )
+      end do
+    end if
+
+  end do
+!$OMP end do
+!$OMP end PARALLEL
+
+else  ! ( .NOT. local_fa==smooth_to_bdys )
+
+!$OMP PARALLEL DEFAULT(none)                                                   &
+!$OMP SHARED( pdims, bl_levels, lambda_min, rlambda_fac,                       &
+!$OMP         turb_length, blending_option, rmlmax2)                           &
+!$OMP private( i, k )
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = pdims%i_start, pdims%i_end
-      turb_length(i,j,k) = min( turb_length(i,j,k), sqrt(rmlmax2(i,j,k)) )
+      turb_length(i,j,k) = lambda_min*rlambda_fac
     end do
   end do
 !$OMP end do NOWAIT
-end if
+  if (blending_option == blend_cth_shcu_only) then
+    ! use Smag mixing length as background length scale if smaller
+    ! than lambda_min (ie ignore lambda_min for high res simulations)
+!$OMP do SCHEDULE(STATIC)
+    do k = 2, bl_levels
+      do i = pdims%i_start, pdims%i_end
+        turb_length(i,j,k) = min( turb_length(i,j,k), sqrt(rmlmax2(i,j,k)) )
+      end do
+    end do
+!$OMP end do NOWAIT
+  end if
 !$OMP end PARALLEL
 
-if (local_fa == free_trop_layers) then
+  if (local_fa == free_trop_layers) then
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( pdims, bl_levels, ntml_local, ri, ricrit, z_uv,                  &
 !$OMP         turb_length, rlambda_fac, lambda_min )                           &
 !$OMP private( i, k, subcrit, kb, kt, kl, turb_length_layer )
-  do i = pdims%i_start, pdims%i_end
-    subcrit = .false.
-    do k = 3, bl_levels
+    do i = pdims%i_start, pdims%i_end
+      subcrit = .false.
+      do k = 3, bl_levels
 
-      if ( k > ntml_local(i,j)+1  .and.                                        &
-           ! we know Ri(ntml_local(i,j)+2) > RiCrit
-           ri(i,j,k) < ricrit(i,j) .and. .not. subcrit ) then
-        kb      = k   ! first level of subcritical Ri in layer
-        subcrit = .true.
-      end if
-      if (ri(i,j,k) >= ricrit(i,j) .and. subcrit ) then
-        kt      = k-1 ! last level of subcritical ri
-        subcrit = .false.
-        !---------------------------------------------------------
-        ! turb_length(k) is held, with Ri(k), on th-level(k-1)
-        !---------------------------------------------------------
-        turb_length_layer   = z_uv(i,j,kt) - z_uv(i,j,kb-1)
-        do kl = kb, kt
-          turb_length(i,j,kl) = max( turb_length(i,j,kl),                      &
-                      min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
-        end do
-      end if
+        if ( k > ntml_local(i,j)+1  .and.                                      &
+             ! we know Ri(ntml_local(i,j)+2) > RiCrit
+             ri(i,j,k) < ricrit(i,j) .and. .not. subcrit ) then
+          kb      = k   ! first level of subcritical Ri in layer
+          subcrit = .true.
+        end if
+        if (ri(i,j,k) >= ricrit(i,j) .and. subcrit ) then
+          kt      = k-1 ! last level of subcritical ri
+          subcrit = .false.
+          !---------------------------------------------------------
+          ! turb_length(k) is held, with Ri(k), on th-level(k-1)
+          !---------------------------------------------------------
+          turb_length_layer   = z_uv(i,j,kt) - z_uv(i,j,kb-1)
+          do kl = kb, kt
+            turb_length(i,j,kl) = max( turb_length(i,j,kl),                    &
+                        min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
+          end do
+        end if
+      end do
     end do
-  end do
 !$OMP end PARALLEL do
-end if
-!-----------------------------------------------------------------------
-! When using turb_length, calculate within the BL
-! and use the DSC layer depth as the length scale within a DSC layer
-! Remember turb_length(k) is held, with Ri(k), on th-level(k-1)
-!-----------------------------------------------------------------------
-if (blending_option /= off) then
+  end if
+  !-----------------------------------------------------------------------
+  ! When using turb_length, calculate within the BL
+  ! and use the DSC layer depth as the length scale within a DSC layer
+  ! Remember turb_length(k) is held, with Ri(k), on th-level(k-1)
+  !-----------------------------------------------------------------------
+  if (blending_option /= off) then
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( bl_levels, pdims, ntml_nl, ntml_local, turb_length, z_uv,        &
 !$OMP         zh_local, nbdsc, ntdsc )                                         &
 !$OMP private( i, k )
-  do k = 2, bl_levels
-    do i = pdims%i_start, pdims%i_end
-      if ( k-1 <= max(ntml_nl(i,j),ntml_local(i,j)) ) then
-        turb_length(i,j,k) =  max( turb_length(i,j,k),                         &
-            max( z_uv(i,j,ntml_nl(i,j)+1), zh_local(i,j) ) )
-      end if
-      if ( k-1 >= nbdsc(i,j) .and. k-1 <= ntdsc(i,j) ) then
-        turb_length(i,j,k) = max( turb_length(i,j,k),                          &
-                ( z_uv(i,j,ntdsc(i,j)+1)-z_uv(i,j,nbdsc(i,j)) ) )
-      end if
+    do k = 2, bl_levels
+      do i = pdims%i_start, pdims%i_end
+        if ( k-1 <= max(ntml_nl(i,j),ntml_local(i,j)) ) then
+          turb_length(i,j,k) =  max( turb_length(i,j,k),                       &
+              max( z_uv(i,j,ntml_nl(i,j)+1), zh_local(i,j) ) )
+        end if
+        if ( k-1 >= nbdsc(i,j) .and. k-1 <= ntdsc(i,j) ) then
+          turb_length(i,j,k) = max( turb_length(i,j,k),                        &
+                  ( z_uv(i,j,ntdsc(i,j)+1)-z_uv(i,j,nbdsc(i,j)) ) )
+        end if
+      end do
     end do
-  end do
 !$OMP end PARALLEL do
-end if
+  end if
+end if ! local_fa /= smooth_to_bdys
 !-----------------------------------------------------------------------
 ! 2.0 Loop over levels; calculate the mixing lengths
 !-----------------------------------------------------------------------
+! Under the smooth_layer_depth option, we just impose the min limit on lambda
+! once at the end; whereas under other options the limiting is repeatedly
+! done under different sections of code, creating some loop-holes and
+! oddities.  Setting lambda_min_use to zero disables the numerous earlier
+! checks, deffering to the limiting imposed at the end.
+if ( local_fa==smooth_to_bdys ) then
+  lambda_min_use = 0.0_r_bl
+else
+  lambda_min_use = lambda_min
+end if
+
 do k = 2, bl_levels
 !$OMP  PARALLEL DEFAULT(none)                                                  &
 !$OMP  PRIVATE(z_scale,i,lambdam,lambdah,                                      &
@@ -639,33 +804,50 @@ do k = 2, bl_levels
 !$OMP  SHARED(k,pdims,ri,ricrit,flandg,ntml_local,ntml_nl,z_tq,                &
 !$OMP  l_rp2,lambda_min,par_mezcla_rp,zh_local,turb_length,k_log_layr,         &
 !$OMP  z_uv,z0m,elm,elh,elh_rho,blending_option,cumulus,l_shallow_cth,zhpar,   &
-!$OMP  ntdsc,weight_1dbl,weight_bltop,delta_smag,rneutml_sq,BL_diag,local_fa)
+!$OMP  ntdsc,weight_1dbl,weight_bltop,delta_smag,rneutml_sq,BL_diag,local_fa,  &
+!$OMP  lambda_min_use)
   !-----------------------------------------------------------------
   ! 2.1 Calculate asymptotic mixing lengths LAMBDAM and LAMBDAH
   !-----------------------------------------------------------------
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
-    if (l_rp2) then
-      lambdam = max ( lambda_min , par_mezcla_rp(rp_idx)*zh_local(i,j) )
+    ! Note: this code sets the mixing-length used in the surface sub-critical
+    ! layer; the values then get overwritten above ntml_local
+    if ( local_fa==smooth_to_bdys ) then
+      ! Include tapering-down of the length-scale near the top of the
+      ! surface sub-critical layer (tapered version stored in turb_length)
+      z_scale = turb_length(i,j,k)
     else
-      lambdam = max ( lambda_min , lambda_fac*zh_local(i,j) )
+      ! Just use the overall depth of the layer on all levels up to zh_local
+      z_scale = zh_local(i,j)
+    end if
+    if (l_rp2) then
+      lambdam = max ( lambda_min_use , par_mezcla_rp(rp_idx)*z_scale )
+    else
+      lambdam = max ( lambda_min_use , lambda_fac*z_scale )
     end if
     !-----------------------------------------------------------------
     ! Reduce mixing lengths above BL
     !-----------------------------------------------------------------
     if (k >= ntml_local(i,j)+2) then
-      lambdam = lambda_min
+      lambdam = lambda_min_use
     end if
 
     lambdah = lambdam
-    lambdah_rho  = lambdah
+    lambdah_rho = lambdah
 
-    if ( local_fa == free_trop_layers ) then
+    if ( local_fa == free_trop_layers .or. local_fa == smooth_to_bdys ) then
       lambdam = max( lambdam, lambda_fac*turb_length(i,j,k) )
       lambdah = max( lambdah, lambda_fac*turb_length(i,j,k) )
-      ! lambdah_rho does not need to be recalculated under
-      ! local_fa option "free_trop_layers" as the full KH profile
-      ! will be interpolated in bdy_expl2
+      ! lambdah_rho does not need to be recalculated under these
+      ! local_fa options as the full KH profile will be interpolated
+      ! in bdy_expl2
+      if ( local_fa==smooth_to_bdys ) then
+        ! Impose max and min limits on lambda
+        ! (done once at the end to simplify things).
+        lambdam = MAX( MIN( lambdam, lambda_max_nml ), lambda_min )
+        lambdah = MAX( MIN( lambdah, lambda_max_nml ), lambda_min )
+      end if
     end if
     !-----------------------------------------------------------------------
     ! 2.2 Calculate mixing lengths ELH, ELM coincident with RI(K) and so
@@ -676,7 +858,7 @@ do k = 2, bl_levels
     !  Note that ELH_RHO is calculated (on rho levels) for direct inclusion
     !  in RHOKH and also (as elh) on theta levels for the unstable
     !  stability functions and inclusion in RHOKH before interpolation
-    !  (under local_fa option "free_trop_layers").
+    !  (under local_fa option "free_trop_layers" or "smooth_to_bdys").
     !  To save computing logarithms for all K, the values of ELM and ELH
     !  are unchanged for K > K_LOG_LAYR.
 
@@ -763,8 +945,8 @@ do k = 2, bl_levels
             else
               weight_1dbl(i,j,k) = one
             end if
-            if ( local_fa == free_trop_layers .and.                            &
-                 ri(i,j,k) < ricrit(i,j) ) then
+            if ( (local_fa==free_trop_layers .or. local_fa==smooth_to_bdys)    &
+                 .and. ri(i,j,k) < ricrit(i,j) ) then
               ! Except in an elevated turbulent layer where we still use
               ! the standard blending weight
               z_scale = turb_length(i,j,k)
@@ -1201,7 +1383,7 @@ do k = 2, bl_levels
     ! 4.0 Calculate exchange coefficients RHO*KM(K), RHO*KH(K)
     !     both on TH-level K-1 at this stage (RHOKH will be interpolated
     !     onto uv-levels and then be multiplied by ELH in BDY_EXPL2 if
-    !     local_fa is not "free_trop_layers")
+    !     local_fa is not "free_trop_layers" or "smooth_to_bdys")
     !------------------------------------------------------------------
 
     if (l_subfilter_vert .or. l_subfilter_horiz) then
@@ -1218,14 +1400,13 @@ do k = 2, bl_levels
     if (l_mr_physics) then
         ! Note "RHO" here is always wet density (RHO_WET_TQ) so
         ! save multiplication of RHOKH to after interpolation
-      rhokh(i,j,k) =                elm(i,j,k) * dvdzm(i,j,k) * fh
+      rhokh(i,j,k) =                       elm(i,j,k) * dvdzm(i,j,k) * fh
     else
-      rhokh(i,j,k) = rho_wet_tq(i,j,k-1) * elm(i,j,k) * dvdzm(i,j,k)           &
-                      * fh
+      rhokh(i,j,k) = rho_wet_tq(i,j,k-1) * elm(i,j,k) * dvdzm(i,j,k) * fh
     end if
     ! If using the FA mixing length profile it is simplest to
     ! interpolate the full KH profile, including elh (in bdy_expl2)
-    if (local_fa == free_trop_layers)                                          &
+    if (local_fa == free_trop_layers .or. local_fa == smooth_to_bdys)          &
                 rhokh(i,j,k) = rhokh(i,j,k) * elh(i,j,k)
 
     if (BL_diag%l_tke) then

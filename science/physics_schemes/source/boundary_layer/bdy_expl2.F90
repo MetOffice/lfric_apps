@@ -82,7 +82,7 @@ use bl_option_mod, only:                                                       &
     nl_bl_levels, local_fa, free_trop_layers, to_sharp_across_1km,             &
     sbl_op, equilibrium_sbl, one_third, two_thirds, blending_option,           &
     blend_except_cu, blend_cth_shcu_only, sg_shear, sg_shear_enh_lambda,       &
-    max_tke, tke_diag_fac,                                                     &
+    max_tke, tke_diag_fac, smooth_to_bdys,                                     &
     i_interp_local, i_interp_local_gradients, i_interp_local_cf_dbdz,          &
     shallow_cu_maxtop, sc_cftol, near_neut_z_on_l, zero, one, one_half
 use cloud_inputs_mod, only: i_rhcpt, forced_cu, i_cld_vn, i_pc2_init_method,   &
@@ -670,6 +670,8 @@ zh_local(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
                               !  boundary layer (metres) as
                               !  determined from the local
                               !  Richardson number profile.
+zdsc_base(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                &
+                              ! Height of base of K_top in DSC
 dsldz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                     &
       bl_levels),                                                              &
                               ! TL+gz/cp gradient between
@@ -945,7 +947,7 @@ end do
 ! heterogeneous land surface this is poorly defined and we can't use Rib
 ! from the surface scheme as vertically averaging Ri is numerically
 ! unstable.  So, over land, only the average temperature gradient is used
-if (.not. l_use_surf_in_ri) then
+if ( .not. l_use_surf_in_ri ) then
   ! if not using surface variables in Ri (l_use_surf_in_ri=false) we
   ! extrapolate dbdz itself from level 2, with the sl and qw gradients being
   ! used in the variance calculations and with i_interp_local_cf_dbdz
@@ -1859,7 +1861,7 @@ if (non_local_bl == on) then
     !     INOUT fields
              ftl,fqw,zhnl,dzh,cumulus,ntml_nl,w,etadot,t1_sd,q1_sd,wtrac_bl,   &
     !     out fields
-             rhokmz,rhokhz,rhokm_top,rhokh_top,zhsc,                           &
+             rhokmz,rhokhz,rhokm_top,rhokh_top,zhsc,zdsc_base,                 &
              unstable,dsc,coupled,sml_disc_inv,dsc_disc_inv,                   &
              ntdsc,nbdsc,f_ngstress,tke_nl,                                    &
              grad_t_adj, grad_q_adj,                                           &
@@ -1882,7 +1884,7 @@ else   ! not NON_LOCAL_BL
 !$OMP SHARED(pdims,unstable,fb_surf,cumulus,l_shallow,sml_disc_inv,ntpar,      &
 !$OMP        ntml_nl,zhnl,grad_t_adj,grad_q_adj,dsc,dsc_disc_inv,ntdsc,nbdsc,  &
 !$OMP        zhsc,dzh,coupled,kent,kent_dsc,t_frac,zrzi,we_lim,t_frac_dsc,     &
-!$OMP        zrzi_dsc,we_lim_dsc,kplume)
+!$OMP        zdsc_base,zrzi_dsc,we_lim_dsc,kplume)
 !$OMP do SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
@@ -1903,6 +1905,7 @@ else   ! not NON_LOCAL_BL
       ntdsc(i,j)   = 0
       nbdsc(i,j)   = 0
       zhsc(i,j)    = zero
+      zdsc_base(i,j) = zero
       coupled(i,j) = .false.
       ! entrainment variables for non-local tracer mixing
       kent(i,j) = 2
@@ -1988,8 +1991,9 @@ call ex_coef (                                                                 &
 ! in levels/logicals
    bl_levels,k_log_layr,BL_diag,                                               &
 ! in fields
-   sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhpar,ntpar,        &
-   ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,delta_smag,            &
+   sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhnl,zhpar,zhsc,    &
+   zdsc_base,ntpar,ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,       &
+   delta_smag,      &
 ! in/out fields
    cumulus,weight_1dbl,                                                        &
 ! out fields
@@ -2025,7 +2029,7 @@ do k = 2, bl_levels
                             + (weight2/weight1)*weight_1dbl(i,j,k)
       end if
 
-      if (local_fa == free_trop_layers) then
+      if (local_fa == free_trop_layers .or. local_fa == smooth_to_bdys) then
         ! elh already included in rhokh_th so no need to calculate
         ! here, but interpolate elh separately for diagnostic
         if (BL_diag%l_elh3d) then
@@ -2076,7 +2080,7 @@ do k = 2, bl_levels
           rhokh(i,j,k) = elh_rho(i,j,k) * rhokh(i,j,k)
 
         end if   ! test on sbl_op
-      end if   ! test on local_fa = free_trop_layers
+      end if   ! test on local_fa = free_trop_layers or smooth_to_bdys
 
           ! Finally multiply RHOKH by dry density
       if (l_mr_physics)                                                        &
