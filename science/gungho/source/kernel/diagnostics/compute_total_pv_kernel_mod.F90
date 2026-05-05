@@ -19,12 +19,14 @@ module compute_total_pv_kernel_mod
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W0, W1, W3
   use kernel_mod,        only : kernel_type
-  use base_mesh_config_mod, &
-                         only: geometry, &
-                               geometry_spherical
   use rotation_vector_mod, &
                          only: rotation_vector_fplane, &
                                rotation_vector_sphere
+
+  use base_mesh_config_mod,      only: geometry, topology, &
+                                       geometry_spherical
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -180,7 +182,8 @@ subroutine compute_total_pv_code(                                               
       chi2_e(df) = chi2( map_chi(df) + k )
       chi3_e(df) = chi3( map_chi(df) + k )
     end do
-    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
+    call coordinate_jacobian(coord_system, geometry, topology, scaled_radius, &
+                             ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,   &
                              ipanel, chi_basis, chi_diff_basis, jac, dj)
     call coordinate_jacobian_inverse(nqp_h, nqp_v, jac, dj, jac_inv)
 

@@ -8,6 +8,7 @@ module spt_moisture_conservation_kernel_mod
 
     use argument_mod,      only: arg_type, GH_FIELD, &
                                  GH_WRITE, GH_REAL,  &
+                                 GH_SCALAR, GH_INTEGER, &
                                  GH_READ, CELL_COLUMN
     use fs_continuity_mod, only: Wtheta
     use constants_mod,     only: r_def, i_def
@@ -24,11 +25,13 @@ module spt_moisture_conservation_kernel_mod
     !>
     type, public, extends(kernel_type) :: spt_moisture_conservation_kernel_type
       private
-      type(arg_type) :: meta_args(4) = (/                 &
+      type(arg_type) :: meta_args(6) = (/                 &
            arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & !dmv
            arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & !mv
            arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & !dz_wth
-           arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA)  & !rho_wth
+           arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & !rho_wth
+           arg_type(GH_SCALAR, GH_INTEGER, GH_READ),      & !spt_level_bottom
+           arg_type(GH_SCALAR, GH_INTEGER, GH_READ)       & !spt_level_top
            /)
            integer :: operates_on = CELL_COLUMN
 
@@ -53,18 +56,20 @@ module spt_moisture_conservation_kernel_mod
     !> @param[in]     ndf_wth     Number of DOFs per cell for potential temperature space
     !> @param[in]     undf_wth    Number of unique DOFs for potential temperature space
     !> @param[in]     map_wth     dofmap for the cell at the base of the column for potential temperature space
+    !> @param[in]     spt_level_bottom      Bottom level of the stochastic scheme
+    !> @param[in]     spt_level_top         Top level of the stochastic scheme
 
-    subroutine spt_moisture_conservation_code(nlayers,  &
-                                              dmv,      &
-                                              mv,       &
-                                              rho_wth,  &
-                                              dz_wth,   &
-                                              ndf_wth,  &
-                                              undf_wth, &
-                                              map_wth   &
+    subroutine spt_moisture_conservation_code(nlayers,          &
+                                              dmv,              &
+                                              mv,               &
+                                              rho_wth,          &
+                                              dz_wth,           &
+                                              spt_level_bottom, &
+                                              spt_level_top,    &
+                                              ndf_wth,          &
+                                              undf_wth,         &
+                                              map_wth           &
                                               )
-
-      use stochastic_physics_config_mod,   only: spt_level_bottom, spt_level_top
 
       implicit none
 
@@ -73,6 +78,8 @@ module spt_moisture_conservation_kernel_mod
       integer(kind=i_def), intent(in) :: ndf_wth
       integer(kind=i_def), intent(in) :: undf_wth
       integer(kind=i_def), intent(in), dimension(ndf_wth)  :: map_wth
+      integer(kind=i_def), intent(in) :: spt_level_bottom
+      integer(kind=i_def), intent(in) :: spt_level_top
 
       ! Fields
       real(kind=r_def), intent(inout), dimension(undf_wth) :: dmv

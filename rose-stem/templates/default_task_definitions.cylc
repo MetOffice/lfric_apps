@@ -234,4 +234,12 @@
     {% do task_dict.update({"rose_ana_families": [task_ns.platform|upper~"_ROSE_ANA"]}) %}
 {% endif %}
 
+{# ###################################### #}
+{# MPI & LibFabric Configuration Settings #}
+{# ###################################### #}
+
+{% if "CXI_MATCH_hybrid" not in task_dict %}
+    {% do task_dict.update({"CXI_MATCH_hybrid": false}) %}
+{% endif %}
+
 {% do LOG.debug("Finished in templates/default_task_definitions.cylc") %}

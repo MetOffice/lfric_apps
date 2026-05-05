@@ -24,7 +24,6 @@ module si_operators_alg_mod
                                  only: function_space_collection
   use r_solver_field_mod,        only: r_solver_field_type
   use fs_continuity_mod,         only: W2, W3
-  use copy_field_alg_mod,        only: copy_field
   use log_mod,                   only: log_event,      &
                                        LOG_LEVEL_DEBUG, &
                                        LOG_LEVEL_ERROR, &
@@ -35,9 +34,7 @@ module si_operators_alg_mod
                                        preconditioner_tridiagonal,  &
                                        preconditioner_multigrid,    &
                                        normalise
-  use io_config_mod,             only: subroutine_timers
-  use timer_mod,                 only: timer
-
+  use timing_mod,                only: start_timing, stop_timing, tik, LPROF
   use function_space_chain_mod,  only: multigrid_function_space_chain, &
                                        w2_multigrid_function_space_chain, &
                                        wtheta_multigrid_function_space_chain
@@ -193,7 +190,6 @@ contains
     type(function_space_type), pointer     :: w3_fs => null()
     type(function_space_type), pointer     :: wt_fs => null()
 
-    if ( subroutine_timers ) call timer('si_operators_alg:create')
     call log_event( "Gungho: creating si_operators", LOG_LEVEL_DEBUG )
 
     if(l_multigrid) then
@@ -281,8 +277,6 @@ contains
        end if
     end do
    nullify( w2_fs, w3_fs, wt_fs )
-
-   if ( subroutine_timers ) call timer('si_operators_alg:create')
 
   end subroutine create_si_operators
 
@@ -471,8 +465,9 @@ contains
     ! needs to be one bigger than the required stencil_depth
     integer(kind=i_def), parameter :: req_stencil_depth = 1
     integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
+    integer(tik)                   :: id
 
-    if ( subroutine_timers ) call timer('si_operators_alg:compute')
+    if ( LPROF ) call start_timing( id, 'dynamics.compute_si_operators' )
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_DEBUG )
 
     dt = real(model_clock%get_seconds_per_step(), r_def)
@@ -488,9 +483,9 @@ contains
     call exner%initialise( w3_fs, halo_depth = req_halo_depth )
     call rho%initialise( w3_fs, halo_depth = req_halo_depth )
     call theta%initialise( wt_fs, halo_depth = req_halo_depth )
-    call copy_field(exner_ref, exner)
-    call copy_field(rho_ref, rho)
-    call copy_field(theta_ref, theta)
+    call invoke( real_to_real_x(exner, exner_ref), &
+                 real_to_real_x(rho, rho_ref),     &
+                 real_to_real_x(theta, theta_ref) )
     if (dry_static_adjust) &
       call invoke( sort_ref_kernel_type(theta) )
 
@@ -500,7 +495,7 @@ contains
     if (moisture_in_solver) then
       call moist_dyn_factor_rdef%initialise( wt_fs )
       call invoke( X_divideby_Y(moist_dyn_factor_rdef, moist_dyn_ref(gas_law), moist_dyn_ref(total_mass)) )
-      call copy_field(moist_dyn_factor_rdef, moist_dyn_factor)
+      call invoke( real_to_real_x(moist_dyn_factor, moist_dyn_factor_rdef) )
     else
       ! Set factor to 1 and everything else will be unchanged
       call invoke( setval_c(moist_dyn_factor, 1.0_r_solver) )
@@ -584,11 +579,11 @@ contains
           call ones%initialise( vector_space = w2_fs )
           w2_rmultiplicity => get_rmultiplicity_fe( W2, mesh%get_id() )
           call rsol_w2_rmultiplicity%initialise( w2_fs )
-          call copy_field(w2_rmultiplicity, rsol_w2_rmultiplicity)
-          call invoke( setval_c(ones,            1.0_r_solver),       &
-                       setval_c(rho_at_u(level), 0.0_r_solver),       &
-                       sample_flux_kernel_type(rho_at_u(level), ones, &
-                                               rsol_w2_rmultiplicity, &
+          call invoke( real_to_real_x(rsol_w2_rmultiplicity, w2_rmultiplicity), &
+                       setval_c(ones,            1.0_r_solver),                 &
+                       setval_c(rho_at_u(level), 0.0_r_solver),                 &
+                       sample_flux_kernel_type(rho_at_u(level), ones,           &
+                                               rsol_w2_rmultiplicity,           &
                                                rho) )
        end if
 
@@ -708,7 +703,7 @@ contains
          call rsol_w2_mask%initialise( vector_space = w2_fs )
          if ( limited_area ) then
            w2_mask => get_mask_fv(W2, mesh%get_id(), prime_mesh_name)
-           call copy_field(w2_mask, rsol_w2_mask)
+           call invoke( real_to_real_x(rsol_w2_mask, w2_mask) )
          else
            ! Create dummy mask arrays with 1 in every entry
            call invoke( setval_c(rsol_w2_mask, 1.0_r_solver) )
@@ -823,8 +818,7 @@ contains
     nullify( chi, panel_id, m3_inv, div, w2_rmultiplicity, &
              mesh, reference_element, m2, u_normalisation, t_normalisation, &
              w2_mask, mesh )
-
-    if ( subroutine_timers ) call timer('si_operators_alg:compute')
+    if ( LPROF ) call stop_timing( id, 'dynamics.compute_si_operators' )
 
   end subroutine compute_si_operators
 

@@ -203,8 +203,6 @@ module tl_test_vorticity_mod
                    inc_X_minus_Y( diff, p_rhs_u ),        &
                    X_innerproduct_X( norm_diff, diff ) )
 
-      norm_diff = sqrt(norm_diff)
-
       write( log_scratch_space, '(A, E32.12, A, E32.12)' ) &
              'gamma = ', gamma, ' norm = ', norm_diff
 

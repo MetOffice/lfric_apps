@@ -32,8 +32,23 @@
  &undf_w3, map_w3, ndf_md, undf_md, map_md, ndf_w2, undf_w2, map_w2)
      integer(kind=i_def), intent(in) :: nlayers
      integer(kind=i_def), intent(in) :: cell
-@@ -79,6 +79,6 @@
-       w = 0.0
+@@ -51,7 +51,6 @@
+     real(kind=r_def) :: t_u
+     real(kind=r_def) :: t_d
+ 
+-    w = 0.0_r_def
+     if (ndf_w2 == 2) then
+       df = 1
+       offset = 0
+@@ -73,12 +72,11 @@
+       end if
+       dtdz = -t_d + t_u
+       ik = cell * nlayers + k - nlayers + 1
+-      w = w + dtdz * advective_increment(map_w3(1) + k) * m3_inv(ik,1,1)
++      w = dtdz * advective_increment(map_w3(1) + k) * m3_inv(ik,1,1)
+       wind(k + map_w2(df)) = wind(k + map_w2(df)) + 0.5 * w
+       wind(k + map_w2(df) + 1) = wind(k + map_w2(df) + 1) + 0.5 * w
+-      w = 0.0
      enddo
  
 -  end subroutine adj_w3v_advective_update_code

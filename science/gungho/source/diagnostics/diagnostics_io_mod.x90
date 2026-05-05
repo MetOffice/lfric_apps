@@ -17,6 +17,7 @@ module diagnostics_io_mod
                                            scalar_nodal_diagnostic_alg, &
                                            scalar_ugrid_diagnostic_alg, &
                                            vector_nodal_diagnostic_alg
+  use initialise_diagnostics_mod,    only: diagnostic_to_be_sampled
   use io_config_mod,                 only: use_xios_io, write_fluxes
   use files_config_mod,              only: diag_stem_name
   use function_space_collection_mod, only: function_space_collection
@@ -139,9 +140,13 @@ subroutine write_scalar_diagnostic( field_name, field, &
 
     ! Check if we need to write an initial field
     if (clock%is_initialisation()) then
-       call output_field(1)%write_field(trim('init_'//field_name))
+      if (diagnostic_to_be_sampled(trim('init_'//field_name))) then
+        call output_field(1)%write_field(trim('init_'//field_name))
+      end if
     else
-       call output_field(1)%write_field(trim(field_name))
+      if (diagnostic_to_be_sampled(trim(field_name))) then
+        call output_field(1)%write_field(trim(field_name))
+      end if
     end if
 
     nullify(tmp_write_ptr)
@@ -308,23 +313,47 @@ subroutine write_vector_diagnostic( field_name, field, &
 
       if (clock%is_initialisation()) then
         if (field_name == 'u') then
-          call u1_wind%write_field("init_u_in_w2h")
-          call u2_wind%write_field("init_v_in_w2h")
-          call u3_wind%write_field("init_w_in_wth")
+          if (diagnostic_to_be_sampled("init_u_in_w2h")) then
+            call u1_wind%write_field("init_u_in_w2h")
+          end if
+          if (diagnostic_to_be_sampled("init_v_in_w2h")) then
+            call u2_wind%write_field("init_v_in_w2h")
+          end if
+          if (diagnostic_to_be_sampled("init_w_in_wth")) then
+            call u3_wind%write_field("init_w_in_wth")
+          end if
         else
-          call u1_wind%write_field("init_"//trim(field_name)//"1")
-          call u2_wind%write_field("init_"//trim(field_name)//"2")
-          call u3_wind%write_field("init_"//trim(field_name)//"3")
+          if (diagnostic_to_be_sampled(trim(field_name)//"1")) then
+            call u1_wind%write_field("init_"//trim(field_name)//"1")
+          end if
+          if (diagnostic_to_be_sampled(trim(field_name)//"2")) then
+            call u2_wind%write_field("init_"//trim(field_name)//"2")
+          end if
+          if (diagnostic_to_be_sampled(trim(field_name)//"3")) then
+            call u3_wind%write_field("init_"//trim(field_name)//"3")
+          end if
         end if
       else
         if (field_name == 'u') then
-          call u1_wind%write_field("u_in_w2h")
-          call u2_wind%write_field("v_in_w2h")
-          call u3_wind%write_field("w_in_wth")
+          if (diagnostic_to_be_sampled("u_in_w2h")) then
+            call u1_wind%write_field("u_in_w2h")
+          end if
+          if (diagnostic_to_be_sampled("v_in_w2h")) then
+            call u2_wind%write_field("v_in_w2h")
+          end if
+          if (diagnostic_to_be_sampled("w_in_wth")) then
+            call u3_wind%write_field("w_in_wth")
+          end if
         else
-          call u1_wind%write_field(trim(field_name)//"1")
-          call u2_wind%write_field(trim(field_name)//"2")
-          call u3_wind%write_field(trim(field_name)//"3")
+          if (diagnostic_to_be_sampled(trim(field_name)//"1")) then
+            call u1_wind%write_field(trim(field_name)//"1")
+          end if
+          if (diagnostic_to_be_sampled(trim(field_name)//"2")) then
+             call u2_wind%write_field(trim(field_name)//"2")
+          end if
+          if (diagnostic_to_be_sampled(trim(field_name)//"3")) then
+             call u3_wind%write_field(trim(field_name)//"3")
+          end if
         end if
       end if
 

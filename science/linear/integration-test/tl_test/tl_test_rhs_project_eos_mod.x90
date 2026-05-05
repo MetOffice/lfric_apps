@@ -209,7 +209,6 @@ contains
       call invoke( X_minus_Y( diff, n2_rhs, n1_rhs ),   &
                    inc_X_minus_Y( diff, p_rhs ),          &
                    X_innerproduct_X( norm_diff, diff ) )
-      norm_diff = sqrt(norm_diff)
 
       if (n == 2) then
         call convergence_rate_check( norm_diff, norm_diff_prev, &

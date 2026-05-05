@@ -8,7 +8,7 @@
 !>
 module compute_dl_matrix_kernel_mod_test
 
-  use constants_mod,            only : i_def, r_def, r_second
+  use constants_mod,            only : i_def, r_def, r_second, imdi
   use damping_layer_config_mod, only : dl_base, dl_str, dl_type, dl_type_standard
   use get_unit_test_m3x3_dofmap_mod, &
     only : get_w0_m3x3_dofmap, get_w3_m3x3_dofmap
@@ -45,7 +45,7 @@ contains
                                          runge_kutta_method_ssp3
     use extrusion_config_mod,      only: method_uniform, stretching_method_linear
     use finite_element_config_mod, only: cellshape_quadrilateral, &
-                                         coord_system_xyz
+                                         coord_system_xyz, coord_space_wchi
     use sci_chi_transform_mod,     only: init_chi_transforms
 
     implicit none
@@ -61,13 +61,15 @@ contains
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
              coord_order=0_i_def,               &
+             coord_order_nonprime=1_i_def,      &
+             coord_space=coord_space_wchi,      &
              coord_system=coord_system_xyz,     &
              element_order_h=0_i_def,           &
              element_order_v=0_i_def,           &
              rehabilitate=.true.,               &
              vorticity_in_w1=.false. )
 
-    call init_chi_transforms()
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine set_up
 
@@ -75,8 +77,8 @@ contains
   @after
   subroutine tear_down()
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 

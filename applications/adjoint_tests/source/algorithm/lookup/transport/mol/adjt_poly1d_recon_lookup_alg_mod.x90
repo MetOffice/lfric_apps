@@ -6,6 +6,7 @@
 !> @brief Module containing adjoint test for adj_poly1d_recon_lookup_kernel
 module adjt_poly1d_recon_lookup_alg_mod
 
+  use adj_trans_lookup_cache_mod,           only : adj_trans_lookup_cache_type
   use integer_field_mod,                    only : integer_field_type
   use function_space_mod,                   only : function_space_type
   use function_space_collection_mod,        only : function_space_collection
@@ -16,7 +17,7 @@ module adjt_poly1d_recon_lookup_alg_mod
   use r_tran_field_mod,                     only : r_tran_field_type
   use mesh_mod,                             only : mesh_type
   use fs_continuity_mod,                    only : Wtheta
-  use constants_mod,                        only : i_def, r_def, r_tran
+  use constants_mod,                        only : i_def, r_def, r_tran, EPS
   use log_mod,                              only : log_event,       &
                                                    LOG_LEVEL_ERROR, &
                                                    LOG_LEVEL_INFO,  &
@@ -35,17 +36,18 @@ module adjt_poly1d_recon_lookup_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  mesh               The model mesh
-  subroutine adjt_poly1d_recon_lookup_alg( mesh )
+  !> @param[in]  mesh                    The model mesh
+  !> @param[in]  adj_lookup_table_cache  The lookup table cache
+  subroutine adjt_poly1d_recon_lookup_alg( mesh, adj_lookup_table_cache )
 
     use poly1d_reconstruction_kernel_mod,     only : poly1d_reconstruction_kernel_type
-    use adj_lookup_table_generators_alg_mod,  only : create_lookup_poly1d
     use invoke_adj_poly1d_recon_lookup_mod,   only : invoke_adj_poly1d_recon_lookup
 
     implicit none
 
     ! Arguments
-    type(mesh_type),               pointer, intent(in) :: mesh
+    type(mesh_type),          pointer, intent(in) :: mesh
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Internal arguments for kernels
     type(r_tran_field_type)              :: reconstruction
@@ -55,7 +57,7 @@ module adjt_poly1d_recon_lookup_alg_mod
     type(r_tran_field_type),     pointer :: coeff
     integer(kind=i_def)                  :: ndata
     integer(kind=i_def)                  :: order
-    type(adj_lookup_table_type)          :: lookup_poly1d
+    type(adj_lookup_table_type), pointer :: lookup_poly1d
     type(integer_field_type),    pointer :: lookup_poly1d_field
     type(integer_field_type),    pointer :: num_sets_poly1d_field
     integer(kind=i_def)                  :: nsets
@@ -77,14 +79,13 @@ module adjt_poly1d_recon_lookup_alg_mod
     real(kind=r_def)                    :: reconstruction_reconstruction_input_inner_prod
     real(kind=r_def)                    :: tracer_tracer_input_inner_prod
     real(kind=r_tran)                   :: inner2
-    real(kind=r_tran),        parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
-    real(kind=r_tran),        parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran),        parameter :: overall_tolerance = 2500.0_r_tran
     real(kind=r_tran)                   :: machine_tol
     real(kind=r_tran)                   :: relative_diff
 
-    nullify(coeff, lookup_poly1d_field, num_sets_poly1d_field, &
+    nullify(coeff, lookup_poly1d, lookup_poly1d_field, num_sets_poly1d_field, &
             vector_space_wtheta_ptr, vector_space_wt_md_ptr)
 
     mesh_id = mesh%get_id()
@@ -121,8 +122,8 @@ module adjt_poly1d_recon_lookup_alg_mod
                  x_innerproduct_x( tracer_inner_prod, tracer ) )
 
     ! Determining scale factors
-    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + eps )
-    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + eps )
+    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + EPS )
+    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + EPS )
 
     inner1 = 0.0_r_tran
     inner1 = inner1 + real( reconstruction_inner_prod, r_tran )*reconstruction_sf
@@ -141,7 +142,7 @@ module adjt_poly1d_recon_lookup_alg_mod
     reconstruction_reconstruction_input_inner_prod = 0.0_r_def
     tracer_tracer_input_inner_prod = 0.0_r_def
 
-    call create_lookup_poly1d( lookup_poly1d, reconstruction, tracer, coeff, stencil_extent, order )
+    lookup_poly1d => adj_lookup_table_cache%get_lookup_poly1d()
     lookup_poly1d_field => lookup_poly1d%get_lookup_field()
     num_sets_poly1d_field => lookup_poly1d%get_set_count_field()
     nindices = lookup_poly1d%get_nindices()

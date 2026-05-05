@@ -23,9 +23,6 @@ module jedi_lfric_io_setup_mod
   use mesh_mod,                  only: mesh_type
   use mesh_collection_mod,       only: mesh_collection
   use model_clock_mod,           only: model_clock_type
-  use namelist_collection_mod,   only: namelist_collection_type
-  use namelist_mod,              only: namelist_type
-
   use jedi_lfric_file_meta_mod,  only: jedi_lfric_file_meta_type
   use jedi_lfric_init_files_mod, only: jedi_lfric_init_files
 
@@ -165,8 +162,6 @@ contains
       ! Populate list of I/O files if procedure passed through
       file_list => io_context%get_filelist()
       call jedi_lfric_init_files(file_list, file_meta)
-
-      call io_context%set_timer_flag(subroutine_timers)
 
       ! Setup the context
       call io_context%initialise( context_name )

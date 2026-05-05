@@ -1,0 +1,101 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the mixed operator of the semi-implicit lhs
+module apply_mixed_u_operator_kernel_mod_test
+
+  use constants_mod, only : i_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  @test( )
+  subroutine test_all( )
+
+    use apply_mixed_u_operator_kernel_mod, only : apply_mixed_u_operator_code
+
+    implicit none
+
+    real(r_solver), parameter :: tol = 1.0e-6_r_solver
+
+    ! Mesh
+    integer(i_def), parameter :: nlayers = 1
+    integer(i_def), parameter :: cell = 1
+    integer(i_def), parameter :: ncell = 1
+
+    ! Spaces
+    integer(i_def), parameter :: ndf_w2h = 2
+    integer(i_def), parameter :: ndf_w2v = 2
+    integer(i_def), parameter :: ndf_w2 = ndf_w2h+ndf_w2v
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: undf_w2h = ndf_w2h*nlayers
+    integer(i_def), parameter :: undf_w2v = nlayers + 1
+    integer(i_def), parameter :: undf_w2 = undf_w2h + undf_w2v
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
+
+    ! Maps
+    integer(i_def), dimension(ndf_w2h) :: map_w2h
+    integer(i_def), dimension(ndf_w2v) :: map_w2v
+    integer(i_def), dimension(ndf_w2)  :: map_w2
+    integer(i_def), dimension(ndf_w3)  :: map_w3
+
+    ! Operators
+    real(r_solver), dimension(ndf_w2, ndf_w2, ncell) :: Mu
+    real(r_solver), dimension(ndf_w2, ndf_w3, ncell) :: Grad
+
+    ! Fields
+    real(r_solver), dimension(undf_w2)  :: Nu, u
+    real(r_solver), dimension(undf_w2h) :: Luv, uv
+    real(r_solver), dimension(undf_w2v) :: w
+    real(r_solver), dimension(undf_w3)  :: p
+
+    integer(i_def) :: df
+    real(r_solver) :: answer
+
+    map_w2h = (/ 1_i_def, 1_i_def + nlayers /)
+    map_w2v = (/ 1_i_def, 2_i_def /)
+    map_w2 = (/ 1_i_def, 1_i_def + nlayers, 1_i_def + 2*nlayers, 2_i_def + 2*nlayers /)
+    map_w3 = (/ 1_i_def /)
+
+    ! Set up operators
+    Mu = 0.0_r_solver
+    do df = 1,ndf_w2
+      Mu(df,df,1) = real(df,r_solver)
+      Grad(df,1,1) = (-1.0_r_solver)**df
+    end do
+
+    ! Set up the fields
+    uv = (/ 0.0_r_solver, 1.0_r_solver /)
+    w = (/ 3.0_r_solver, -2.0_r_solver /)
+    p = (/ 1.2_r_solver /)
+    Nu = 2.0_r_solver
+    Luv = 0.0_r_solver
+
+    ! Compute: (L_uv) =  Nu*(Mu*u - Grad*p)
+    call apply_mixed_u_operator_code(cell,                       &
+                                     nlayers,                    &
+                                     Luv,                        &
+                                     uv, w, p,                   &
+                                     ncell, Mu,                  &
+                                     ncell, Grad,                &
+                                     Nu,                         &
+                                     ndf_w2h, undf_w2h, map_w2h, &
+                                     ndf_w2h, undf_w2h, map_w2h, &
+                                     ndf_w2v, undf_w2v, map_w2v, &
+                                     ndf_w3, undf_w3, map_w3,    &
+                                     ndf_w2, undf_w2, map_w2)
+
+    @assertEqual(2.4_r_solver, Luv(1), tol)
+    @assertEqual(1.6_r_solver, Luv(2), tol)
+
+  end subroutine test_all
+
+end module apply_mixed_u_operator_kernel_mod_test

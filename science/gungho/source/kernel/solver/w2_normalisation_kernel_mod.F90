@@ -22,8 +22,12 @@ module w2_normalisation_kernel_mod
                                 GH_BASIS, GH_DIFF_BASIS,   &
                                 CELL_COLUMN, GH_EVALUATOR
   use constants_mod,     only : r_def, r_solver, i_def
-  use fs_continuity_mod, only : W2, Wchi
+  use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
+
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -39,14 +43,14 @@ module w2_normalisation_kernel_mod
     private
     type(arg_type) :: meta_args(4) = (/                                     &
          arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wchi),                      &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, W2)                         &
 
          /)
-    type(func_type) :: meta_funcs(2) = (/         &
-         func_type(W2,   GH_BASIS),               &
-         func_type(Wchi, GH_BASIS, GH_DIFF_BASIS) &
+    type(func_type) :: meta_funcs(2) = (/                &
+         func_type(W2,          GH_BASIS),               &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS) &
          /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
@@ -136,15 +140,19 @@ subroutine w2_normalisation_code(nlayers,                 &
       chi_2_cell(df) = chi_2(map_chi(df) + k)
       chi_3_cell(df) = chi_3(map_chi(df) + k)
     end do
-    call coordinate_jacobian(ndf_chi, &
-                             ndf, &
-                             chi_1_cell, &
-                             chi_2_cell, &
-                             chi_3_cell, &
-                             ipanel,     &
-                             chi_basis,  &
+    call coordinate_jacobian(coord_system,   &
+                             geometry,       &
+                             topology,       &
+                             scaled_radius,  &
+                             ndf_chi,        &
+                             ndf,            &
+                             chi_1_cell,     &
+                             chi_2_cell,     &
+                             chi_3_cell,     &
+                             ipanel,         &
+                             chi_basis,      &
                              chi_diff_basis, &
-                             jacobian, &
+                             jacobian,       &
                              dj)
     do df = 1,ndf
       JTJ =  matmul(transpose(jacobian(:,:,df)),jacobian(:,:,df))

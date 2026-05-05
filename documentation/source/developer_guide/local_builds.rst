@@ -57,6 +57,10 @@ This table lists the command line arguments available:
 | ``-o --optlevel``    | None, Uses the default set  | The optimisation level      |
 |                      | in the makefile, usually    | of the build process.       |
 |                      | ``fast-debug``.             |                             |
++----------------------+-----------------------------------------------------------+
+| ``--precision``      | 64, the makefile default.   | The real-number precision   |
+|                      |                             | that the model is built     |
+|                      |                             | with.                       |
 +----------------------+-----------------------------+-----------------------------+
 | ``-p --psyclone``    | None, Uses the default set  | Value passed to the         |
 |                      | in the makefile.            | ``PSYCLONE_TRANSFORMATION`` |
@@ -67,3 +71,19 @@ This table lists the command line arguments available:
 |                      |                             | will request verbose output |
 |                      |                             | from the makefile.          |
 +----------------------+-----------------------------+-----------------------------+
+| ``-m --mirrors``     | False                       | If True, this will attempt  |
+| ``store_true``       |                             | to extract using local      |
+|                      |                             | github mirrors              |
++----------------------+-----------------------------+-----------------------------+
+| ``--mirror-loc``     | MetOffice Mirror Location   | The path to the github      |
+|                      |                             | mirror location             |
++----------------------+-----------------------------+-----------------------------+
+
+Incremental Builds
+------------------
+
+The local build script will attempt to build incrementally if a previous attempt
+at the build exists. This should happen automatically if the working directory
+is the same. If there are large changes then it may be sensible to start the
+build afresh by cleaning the build ``-t clean`` (or deleting the working
+directory).

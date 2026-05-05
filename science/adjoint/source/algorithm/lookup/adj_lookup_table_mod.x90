@@ -13,9 +13,6 @@ module adj_lookup_table_mod
   use function_space_collection_mod, only : function_space_collection
   use function_space_mod,            only : function_space_type
   use integer_field_mod,             only : integer_field_type
-  use log_mod,                       only : log_event,         &
-                                            log_scratch_space, &
-                                            LOG_LEVEL_ERROR
   use mesh_collection_mod,           only : mesh_collection
   use mesh_mod,                      only : mesh_type
 

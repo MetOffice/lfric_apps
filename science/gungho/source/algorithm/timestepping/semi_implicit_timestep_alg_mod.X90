@@ -14,7 +14,6 @@ module semi_implicit_timestep_alg_mod
                                        log_scratch_space, &
                                        LOG_LEVEL_INFO
   use extrusion_mod,             only: TWOD
-  use namelist_mod,              only: namelist_type
   use sci_fem_constants_mod,     only: get_mass_matrix_fe, &
                                        get_mass_matrix_fv
   use sci_field_bundle_builtins_mod,                      &
@@ -48,14 +47,14 @@ module semi_implicit_timestep_alg_mod
                                         moisture_formulation,     &
                                         moisture_formulation_dry, &
                                         exner_from_eos
-  use io_config_mod,              only: subroutine_timers,                    &
-                                        write_conservation_diag, write_diag,  &
+  use io_config_mod,              only: write_conservation_diag, write_diag,  &
                                         use_xios_io, diagnostic_frequency,    &
                                         checkpoint_read
   use initialization_config_mod,  only: init_option,                 &
                                         init_option_checkpoint_dump, &
                                         lbc_option_um2lfric_file
   use mixed_solver_config_mod,    only: guess_np1, reference_reset_time
+  use stochastic_physics_config_mod, only : use_spt, use_skeb, stph_spectral_dim
   use timestepping_config_mod,    only: alpha,                                &
                                         outer_iterations, inner_iterations,   &
                                         spinup_alpha
@@ -112,6 +111,7 @@ module semi_implicit_timestep_alg_mod
   use sci_mass_matrix_solver_alg_mod, &
                                   only: mass_matrix_solver_alg
   use moist_dyn_factors_alg_mod,  only: moist_dyn_factors_alg
+  use moisture_conservation_alg_mod, only: moisture_conservation_alg
   use update_prognostic_scalars_alg_mod, &
                                   only: update_prognostic_scalars_alg
   use mixing_alg_mod,             only: mixing_alg
@@ -144,10 +144,15 @@ module semi_implicit_timestep_alg_mod
   use cld_alg_mod,                only: cld_alg
   use aerosol_ukca_alg_mod,       only: aerosol_ukca_alg
   use casim_activate_alg_mod,     only: casim_activate_alg
+  use stph_main_alg_mod,          only : spt_array_names,  &
+                                         spt_array_count,  &
+                                         skeb_array_names, &
+                                         skeb_array_count
+
 #endif
   use cld_incs_mod,               only: cld_incs_init, cld_incs_output
 
-  use timer_mod,                  only: timer
+  use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
   use ageofair_alg_mod,           only: ageofair_update
 
   implicit none
@@ -285,6 +290,14 @@ contains
     type( field_collection_type ), pointer :: stph_fields
     type( field_collection_type ), pointer :: lbc_fields
 
+    ! Arrays for passing modeldb data to stochastic physics scheme
+    real(r_def), allocatable :: spt_spectral_coeffc(:)
+    real(r_def), allocatable :: spt_spectral_coeffs(:)
+    real(r_def), allocatable :: spt_power_law(:)
+    real(r_def), allocatable :: skeb_spectral_coeffc(:)
+    real(r_def), allocatable :: skeb_spectral_coeffs(:)
+    real(r_def), allocatable :: skeb_power_law(:)
+
     type( io_value_type ), pointer :: temp_corr_io_value
     real( r_def )    :: dt
     real( r_def )    :: dtemp_encorr
@@ -336,6 +349,19 @@ contains
     ! Get temperature increment for energy correction
     dtemp_encorr = dt * temp_corr_io_value%data(1)
 
+#ifdef UM_PHYSICS
+    if (use_spt) then
+      ! Get spectral coefficients and power law from the model database
+      call get_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
+                           spt_spectral_coeffs, spt_power_law)
+    end if
+    if (use_skeb) then
+      ! Get spectral coefficients and power law from the model database
+      call get_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
+                           skeb_spectral_coeffs, skeb_power_law)
+    end if
+#endif
+
     ! Run the timestep
     call run_step(self, modeldb,                              &
                   u, rho, theta, exner, mr, moist_dyn,        &
@@ -350,7 +376,25 @@ contains
                   snow_fields, chemistry_fields,              &
                   aerosol_fields, stph_fields, lbc_fields,    &
                   model_clock, dtemp_encorr,                  &
+                  spt_spectral_coeffc, spt_spectral_coeffs,   &
+                  spt_power_law,                              &
+                  skeb_spectral_coeffc, skeb_spectral_coeffs, &
+                  skeb_power_law,                             &
                   mesh, twod_mesh)
+
+#ifdef UM_PHYSICS
+    if (use_spt) then
+      ! Put spectral coefficients and power law back into model database
+      call put_stph_values(modeldb, spt_array_names, spt_spectral_coeffc, &
+                           spt_spectral_coeffs, spt_power_law)
+    end if
+
+    if (use_skeb) then
+      ! Put spectral coefficients and power law back into model database
+      call put_stph_values(modeldb, skeb_array_names, skeb_spectral_coeffc, &
+                           skeb_spectral_coeffs, skeb_power_law)
+    end if
+#endif
 
     nullify(      model_clock, mesh,                          &
                   prognostic_fields, moisture_fields,         &
@@ -552,6 +596,12 @@ contains
   !> @param[in]     model_clock            Time in the model.
   !> @param[in]     dtemp_encorr           Temperature increment for energy
   !>                                       correction
+  !> @param[in,out] spt_spectral_coeffc    Real Spectral coefficients
+  !> @param[in,out] spt_spectral_coeffs    Imaginary Spectral coefficients
+  !> @param[in,out] spt_power_law          Spectral power law
+  !> @param[in,out] skeb_spectral_coeffc   Real Spectral coefficients
+  !> @param[in,out] skeb_spectral_coeffs   Imaginary Spectral coefficients
+  !> @param[in,out] skeb_power_law         Spectral power law
   !> @param[in]     mesh                   The current mesh
   !> @param[in]     twod_mesh              The current 2d mesh
   subroutine run_step(self, modeldb,                              &
@@ -567,6 +617,10 @@ contains
                       snow_fields, chemistry_fields,              &
                       aerosol_fields, stph_fields, lbc_fields,    &
                       model_clock, dtemp_encorr,                  &
+                      spt_spectral_coeffc, spt_spectral_coeffs,   &
+                      spt_power_law,                              &
+                      skeb_spectral_coeffc, skeb_spectral_coeffs, &
+                      skeb_power_law,                             &
                       mesh, twod_mesh)
 
     implicit none
@@ -604,6 +658,13 @@ contains
 
     class(model_clock_type), intent(in) :: model_clock
 
+    real(r_def), intent(inout) :: spt_spectral_coeffc(:)
+    real(r_def), intent(inout) :: spt_spectral_coeffs(:)
+    real(r_def), intent(inout) :: spt_power_law(:)
+    real(r_def), intent(inout) :: skeb_spectral_coeffc(:)
+    real(r_def), intent(inout) :: skeb_spectral_coeffs(:)
+    real(r_def), intent(inout) :: skeb_power_law(:)
+
     real(kind=r_def), intent(in)  :: dtemp_encorr
 
     type(mesh_type), intent(in), pointer :: mesh
@@ -618,6 +679,7 @@ contains
 
     ! Moisture field to transport
     type( field_type ),       pointer :: mr_to_adv(:)
+    type( field_type ) :: rho_after_transport
 
     type( field_type ) :: dcfl_tot, dcff_tot, dbcf_tot, &
                           dcfl_adv, dcff_adv, dbcf_adv
@@ -651,40 +713,31 @@ contains
     logical(kind=l_def) :: checkpoint_reference_fields
 
     ! Namelist parameters
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: initialization_nml
-    type(namelist_type), pointer :: microphysics_nml
-    type(namelist_type), pointer :: aerosol_nml
-    type(namelist_type), pointer :: timestepping_nml
+    character(str_def) :: prime_mesh_name
+    integer(i_def)     :: lbc_option
+    logical(l_def)     :: microphysics_casim
+    logical(l_def)     :: murk_lbc
+    real(r_def)        :: tau_r
 
-    character(str_def)           :: prime_mesh_name
-    integer(i_def)               :: lbc_option
-    logical(l_def)               :: microphysics_casim
-    logical(l_def)               :: murk_lbc
-    real(r_def)                  :: tau_r
+    integer(tik) :: id
 
-    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+    if ( LPROF ) call start_timing( id, 'semi_implicit_timestep' )
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
     if (limited_area .and. use_wavedynamics) then
-      base_mesh_nml      => modeldb%configuration%get_namelist('base_mesh')
-      initialization_nml => modeldb%configuration%get_namelist('initialization')
-      timestepping_nml   => modeldb%configuration%get_namelist('timestepping')
 
-      call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-      call initialization_nml%get_value( 'lbc_option', lbc_option )
-      call timestepping_nml%get_value( 'tau_r', tau_r )
+      prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
+      lbc_option      = modeldb%config%initialization%lbc_option()
+      tau_r           = modeldb%config%timestepping%tau_r()
 
       if (lbc_option == lbc_option_um2lfric_file) then
-        aerosol_nml        => modeldb%configuration%get_namelist('aerosol')
-        call aerosol_nml%get_value( 'murk_lbc', murk_lbc )
+        murk_lbc =  modeldb%config%aerosol%murk_lbc()
       end if
     end if
     if (lbc_option == lbc_option_um2lfric_file .or. &
         (use_physics .and. cloud == cloud_um)) then
-      microphysics_nml   => modeldb%configuration%get_namelist('microphysics')
-      call microphysics_nml%get_value( 'microphysics_casim', microphysics_casim )
+      microphysics_casim = modeldb%config%microphysics%microphysics_casim()
     end if
 
     if (element_order_h == 0 .and. element_order_v == 0) then
@@ -897,14 +950,9 @@ contains
         !--------------------------------------------------------------------
         ! setting predictors for fast physics
         !--------------------------------------------------------------------
-        if (blayer_placement == blayer_placement_fast .or.                     &
-             convection_placement == convection_placement_fast .or.            &
-             stochastic_physics_placement == stochastic_physics_placement_fast)&
-             then
-          call calc_phys_predictors_alg( derived_fields, self%rhs_np1, self%rhs_adv,    &
-                                         self%rhs_n, self%state, self%state_after_slow, &
-                                         lbc_fields, model_clock )
-        end if
+        call calc_phys_predictors_alg( derived_fields, self%rhs_np1, self%rhs_adv,    &
+                                       self%rhs_n, self%state, self%state_after_slow, &
+                                       lbc_fields, model_clock )
 
         if (outer == outer_iterations .and. self%output_cld_incs) then
           call cld_incs_output(cloud_fields, dcfl_adv, dcff_adv, dbcf_adv, &
@@ -922,6 +970,10 @@ contains
                           convection_fields, cloud_fields,                     &
                           surface_fields, soil_fields, snow_fields,            &
                           chemistry_fields, aerosol_fields, stph_fields,       &
+                          spt_spectral_coeffc, spt_spectral_coeffs,            &
+                          spt_power_law,                                       &
+                          skeb_spectral_coeffc, skeb_spectral_coeffs,          &
+                          skeb_power_law,                                      &
                           outer, model_clock, cast_dt)
 
         if (smagorinsky .and. smagorinsky_placement == smagorinsky_placement_outer) then
@@ -979,7 +1031,7 @@ contains
           if ( limited_area .and. inner == 1 .and. outer == 1 ) then
             call lam_solver_lbc(self%state(igh_u), lbc_fields, prime_mesh_name)
             call calc_rhs_lbc(self%rhs_lbc, lbc_fields, model_clock, prime_mesh_name, &
-                              tau_r, subroutine_timers)
+                              tau_r)
           end if
 
           !--------------------------------------------------------------------
@@ -1012,14 +1064,27 @@ contains
                                 outer == outer_iterations .and. &
                                 inner == inner_iterations .and. &
                                 self%use_moisture
+          if (write_moisture_diag) then
+            ! Calculate transported density
+            call self%state(igh_d)%copy_field_properties(rho_after_transport)
+            call invoke(X_plus_Y(rho_after_transport, &
+                                 self%state_after_slow(igh_d), &
+                                 self%rhs_adv(igh_d)))
+            call moisture_conservation_alg(rho_after_transport, mr, &
+                                           'Before solve')
+          end if
           !--------------------------------------------------------------------
           ! Solve semi-implicit system: A*inc = rhs, and incement state by inc
           !--------------------------------------------------------------------
           call semi_implicit_solver_alg_step( self%state, self%rhs_np1, &
                                               moist_dyn(gas_law),       &
                                               mr,                       &
-                                              write_moisture_diag,      &
                                               first_iteration=(inner==1) )
+
+          if (write_moisture_diag) then
+            call moisture_conservation_alg(self%state(igh_d), mr, &
+                                           'After solve')
+          end if
 
           ! If not already done update factors for moist dynamics
           if ( .not. guess_np1 .and. self%use_moisture ) &
@@ -1156,7 +1221,7 @@ contains
 
     nullify( mm_wt, mm_vel )
 
-    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+    if ( LPROF ) call stop_timing( id, 'semi_implicit_timestep' )
 
   end subroutine run_step
 
@@ -1262,4 +1327,70 @@ contains
     end if
 
   end subroutine conditional_collection_copy
+
+  !> Get some stochastic physics variables out of modeldb
+  !> @param[in]  modeldb Holds the model state
+  !> @param[in]  array_names List of names that reference values
+  !> @param[out] spectral_coeffc Spectral coefficients
+  !> @param[out] spectral_coeffs Spectral coefficients
+  !> @param[out] power_law       Power law
+
+  subroutine get_stph_values(modeldb, array_names, spectral_coeffc, &
+                             spectral_coeffs, power_law)
+
+    type(modeldb_type),       intent(in)  :: modeldb
+    character(*),             intent(in)  :: array_names(:)
+
+    real(r_def), allocatable, intent(out) :: spectral_coeffc(:)
+    real(r_def), allocatable, intent(out) :: spectral_coeffs(:)
+    real(r_def), allocatable, intent(out) :: power_law(:)
+
+    type(io_value_type), pointer :: stph_io_value_type
+
+    allocate(spectral_coeffc(stph_spectral_dim))
+    allocate(spectral_coeffs(stph_spectral_dim))
+    allocate(power_law(stph_spectral_dim))
+
+    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
+    spectral_coeffc = stph_io_value_type%data
+    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
+    spectral_coeffs = stph_io_value_type%data
+    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
+    power_law = stph_io_value_type%data
+  end subroutine get_stph_values
+
+  !> Put some stochastic physics values into modeldb and deallocate
+  !> holding variables
+  !> @param[in]  modeldb Holds the model state
+  !> @param[in]  array_names List of names that reference values
+  !> @param[in,out] spectral_coeffc Spectral coefficients
+  !> @param[in,out] spectral_coeffs Spectral coefficients
+  !> @param[in,out] power_law       Power law
+
+  subroutine put_stph_values(modeldb, array_names, spectral_coeffc, &
+                             spectral_coeffs, power_law)
+
+    type(modeldb_type),       intent(in)  :: modeldb
+    character(*),             intent(in)  :: array_names(:)
+
+    real(r_def), allocatable, intent(inout) :: spectral_coeffc(:)
+    real(r_def), allocatable, intent(inout) :: spectral_coeffs(:)
+    real(r_def), allocatable, intent(inout) :: power_law(:)
+
+    type(io_value_type), pointer :: stph_io_value_type
+
+    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
+    stph_io_value_type%data = spectral_coeffc
+    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
+    stph_io_value_type%data = spectral_coeffs
+    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
+    stph_io_value_type%data = power_law
+
+    deallocate(spectral_coeffc)
+    deallocate(spectral_coeffs)
+    deallocate(power_law)
+
+  end subroutine put_stph_values
+
+
 end module semi_implicit_timestep_alg_mod

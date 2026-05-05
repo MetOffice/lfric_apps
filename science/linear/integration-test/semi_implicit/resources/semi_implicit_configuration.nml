@@ -47,6 +47,8 @@ start_dump_filename='',
 &finite_element
 cellshape='quadrilateral',
 coord_order=1,
+coord_order_nonprime=1,
+coord_space='Wchi',
 coord_system='xyz',
 element_order_h=0,
 element_order_v=0,
@@ -132,7 +134,7 @@ subroutine_counters=.false.,
 subroutine_timers=.true.,
 use_xios_io=.false.,
 write_conservation_diag=.false.,
-write_diag=.true.,
+write_diag=.false.,
 write_dump=.false.,
 write_fluxes=.false.,
 write_minmax_tseries=.false.,
@@ -140,6 +142,10 @@ write_minmax_tseries=.false.,
 &linear
 fixed_ls=.false.
 pert_option='random',
+transport_efficiency=.false.
+/
+&linear_physics
+l_boundary_layer=.false.,
 /
 &logging
 run_log_level='info',

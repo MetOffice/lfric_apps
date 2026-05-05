@@ -32,7 +32,7 @@ gamma_rhokh_rdz, gamma_rhok_dep,f_field,surf_dep_flux,field                    &
 use atm_fields_bounds_mod, only:  pdims, array_dims
 use yomhook, only: lhook, dr_hook
 use parkind1, only: jprb, jpim
-!$ use omp_lib, only: omp_get_num_threads
+!$ use omp_lib, only: omp_get_max_threads
 implicit none
 
 !  Inputs :-
@@ -109,10 +109,13 @@ integer ::                                                                     &
             ! K minus 1.
  kp1,                                                                          &
             ! K plus 1.
- jj,                                                                           &
+ ii,                                                                           &
             ! omp blocking counter
- omp_block
+ pdims_omp_block,                                                              &
             ! omp block size
+ pdims_seg_block,                                                              &
+            ! omp segment length
+ max_threads
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -124,14 +127,15 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 blm1 = bl_levels-1
 
-omp_block =  pdims%j_len
+max_threads = 1
+!$ max_threads = omp_get_max_threads()
+pdims_omp_block = ceiling(real(pdims%i_end)/max_threads)
+pdims_seg_block = min(pdims_omp_block, pdims%i_len)
 
-!$OMP PARALLEL DEFAULT(none) SHARED(f_field, dtrdz, field, pdims,              &
+!$OMP PARALLEL DEFAULT(none) SHARED(pdims_seg_block, f_field, dtrdz, field, pdims,   &
 !$OMP  gamma_rhokh_rdz, r_rho_levels, surf_dep_flux, d_field, af,              &
 !$OMP  r_theta_levels, gamma_rhok_dep, bl_levels, blm1)                        &
-!$OMP  private(r_sq, cf, rbf, kp1, km1, jj, k, j, i, rr_sq, omp_block)
-
-!$ omp_block = ceiling(real(pdims%j_len)/ omp_get_num_threads())
+!$OMP  private(r_sq, cf, rbf, kp1, km1, ii, k, j, i, rr_sq)
 
 ! ----------------------------------------------------------------------
 !  (A) Calculations on P-grid.
@@ -191,12 +195,12 @@ end do
 !-----------------------------------------------------------------------
 
 !$OMP do SCHEDULE(STATIC)
-do jj = pdims%j_start, pdims%j_end, omp_block
+do ii = pdims%i_start, pdims%i_end, pdims_seg_block
   do k = 2, blm1
     kp1 = k+1
     km1 = k-1
-    do j = jj, min(jj+omp_block-1, pdims%j_end)
-      do i = pdims%i_start, pdims%i_end
+    do j = pdims%j_start, pdims%j_end
+      do i = ii, min(ii+pdims_seg_block-1, pdims%i_end)
 
         !   "Explicit" flux divergence across layer giving explicit FIELD
         !   increment due to mixing
@@ -245,10 +249,10 @@ end do
 !-----------------------------------------------------------------------
 
 !$OMP do SCHEDULE(STATIC)
-do jj = pdims%j_start, pdims%j_end, omp_block
+do ii = pdims%i_start, pdims%i_end, pdims_seg_block
   do k = blm1, 1, -1
-    do j = jj, min(jj+omp_block-1,pdims%j_end)
-      do i = pdims%i_start, pdims%i_end
+    do j = pdims%j_start, pdims%j_end
+      do i = ii, min(ii+pdims_seg_block-1,pdims%i_end)
         d_field(i,j,k) = d_field(i,j,k) -                                      &
                        af(i,j,k)*d_field(i,j,k+1)
         field(i,j,k) = field(i,j,k) + d_field(i,j,k)

@@ -1,0 +1,135 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Wrapper for tangent linear physics code
+module tl_physics_alg_mod
+
+  use constants_mod,                       only: r_def
+  use driver_modeldb_mod,                  only: modeldb_type
+  use field_mod,                           only: field_type
+  use derived_config_mod,                  only: bundle_size
+  use field_indices_mod,                   only: igh_u
+  use timing_mod,                          only: start_timing, stop_timing, tik, LPROF
+  use mesh_mod,                            only: mesh_type
+  use fs_continuity_mod,                   only: W2
+  use sci_geometric_constants_mod,         only: get_da_at_w2
+  use sci_fem_constants_mod,               only: get_mass_matrix_fe
+  use sci_enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
+  use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
+  use tl_bdy_lyr_alg_mod,                  only: tl_bdy_lyr_alg
+  use sci_mass_matrix_solver_alg_mod,      only: mass_matrix_solver_alg
+  use sci_field_bundle_builtins_mod,       only: clone_bundle, copy_bundle, set_bundle_scalar
+  use operator_mod,                        only: operator_type
+
+  implicit none
+
+  private
+  public :: tl_physics_alg
+
+contains
+
+!> @brief Wrapper for tangent linear physics code, currently just tl_bdy_lyr_alg
+!> @param[in,out] modeldb    Structure containing the model state
+!> @param[in,out] u          The TL model u field to be incremented
+!> @param[in,out] state_star TL model prognostic fields for physics calculations
+!> @param[in,out] rhs_phys   Residuals
+!> @param[in]     state      The current TL model prognostic fields
+!> @param[in]     rhs_n      Residuals
+!> @param[in]     rhs_np1    Residuals
+!> @param[in]     rhs_adv    Advective terms
+!> @param[in]     ls_state   Lin state for Prognostic model state
+!> @param[in]     mesh       The current mesh
+!> @param[in]     dt         The TL model timestep length
+subroutine tl_physics_alg(modeldb,    &
+                          u,          &
+                          state_star, &
+                          rhs_phys,   &
+                          rhs_np1,    &
+                          rhs_n,      &
+                          state,      &
+                          rhs_adv,    &
+                          ls_state,   &
+                          mesh,       &
+                          dt)
+
+  implicit none
+
+  type(modeldb_type), target,  intent(inout) :: modeldb
+  type(field_type),            intent(inout) :: u
+  type(field_type),            intent(inout) :: state_star(bundle_size)
+  type(field_type),            intent(inout) :: rhs_phys(bundle_size)
+  type(field_type),            intent(in)    :: state(bundle_size)
+  type(field_type),            intent(in)    :: rhs_n(bundle_size)
+  type(field_type),            intent(in)    :: rhs_np1(bundle_size)
+  type(field_type),            intent(in)    :: rhs_adv(bundle_size)
+  type(field_type),            intent(in)    :: ls_state(bundle_size)
+  type(mesh_type),    pointer, intent(in)    :: mesh
+  real(kind=r_def),            intent(in)    :: dt
+
+  type(field_type) :: u_bl_inc
+  type(field_type) :: u_bl_inc_flux
+  type(field_type) :: du
+  type(field_type) :: u_star
+  type(field_type) :: u_star_physical
+  type(field_type) :: rhsu_np1
+
+  type(operator_type), pointer :: mm_vel
+  type(field_type),    pointer :: dA
+
+  integer(kind=tik) :: id
+
+  if (LPROF) call start_timing(id, 'tl_physics_alg')
+
+  mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+
+  ! Run linear boundary layer scheme  to compute increment to u perturbation
+
+  call u%copy_field_properties( u_bl_inc )
+  call u%copy_field_properties( u_bl_inc_flux )
+  call u%copy_field_properties( du )
+  call u%copy_field_properties( u_star )
+  call u%copy_field_properties( u_star_physical )
+  call rhs_adv(igh_u)%copy_field_properties( rhsu_np1 )
+
+  ! Compute u_star = u_np1 + du
+  ! where du = M^-1(-rhs_np1 + rhs_n + rhs_a)
+  ! This mirrors the calc_phys_predictors_alg in gungho
+  call du%initialise( rhs_adv(igh_u)%get_function_space() )
+  call rhsu_np1%initialise( rhs_adv(igh_u)%get_function_space() )
+  call invoke( setval_c( du, 0.0_r_def ),                                       &
+               aX_plus_Y( rhsu_np1, -1.0_r_def, rhs_np1(igh_u), rhs_n(igh_u) ), &
+               inc_X_plus_Y( rhsu_np1, rhs_adv(igh_u) ) )
+
+  call mass_matrix_solver_alg( du, rhsu_np1 )
+
+  call invoke( X_plus_Y( u_star, du, state(igh_u) ) )
+
+  ! u_star_physical = u_star / dA
+  ! i.e., divide u_star from boundary layer by dA to transform from flux to velocity
+  dA => get_da_at_w2(mesh%get_id())
+  call invoke( x_divideby_y ( u_star_physical, u_star, dA ) )
+
+  ! For convenience place u_star_physical as igh_u component of state_star
+  call clone_bundle( state,state_star, bundle_size )
+  call copy_bundle( state, state_star, bundle_size )
+  call invoke( setval_x( state_star(igh_u), u_star_physical ) )
+
+  ! u_bl_inc computed from state_star(igh_u)
+  call tl_bdy_lyr_alg( modeldb, u_bl_inc, state_star(igh_u), ls_state, dt )
+
+  ! u_bl_inc_flux = u_bl_inc * dA
+  ! i.e., multiply by cell face area dA to transform from velocity to flux
+  call invoke( x_times_y( u_bl_inc_flux, u_bl_inc, dA ) )
+
+  call set_bundle_scalar( 0.0_r_def, rhs_phys, bundle_size )
+  call invoke( name="update_rhs_phys_from_fast_physics",                            &
+               matrix_vector_kernel_type( rhs_phys(igh_u), u_bl_inc_flux, mm_vel ), &
+               enforce_bc_kernel_type( rhs_phys(igh_u) ) )
+
+  if (LPROF) call stop_timing(id, 'tl_physics_alg')
+
+end subroutine tl_physics_alg
+
+end module tl_physics_alg_mod

@@ -48,6 +48,8 @@ start_dump_filename='',
 &finite_element
 cellshape='quadrilateral',
 coord_order=1,
+coord_order_nonprime=1,
+coord_space='Wtheta',
 coord_system='native',
 element_order_h=0,
 element_order_v=0,
@@ -286,6 +288,7 @@ tau_u=0.55,
 /
 &transport
 adjust_theta=.false.,
+adjust_tracer_equation=.false.
 adjust_vhv_wind=.true.,
 broken_w2_projection=.false.,
 calculate_detj='upwind',

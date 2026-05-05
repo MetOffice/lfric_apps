@@ -1,7 +1,7 @@
 <file_definition>
 	
   <!-- Diagnostic output file for jedi_lfric_tests and linear_model application runs -->
-  <file id="ls_and_jedi_trajectory" name="ls_and_jedi_trajectory" output_freq="1h" time_counter_name="time" time_counter="exclusive" split_freq="7h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+  <file id="ls_and_jedi_trajectory" name="results/ls_and_jedi_trajectory" output_freq="1h" time_counter_name="time" time_counter="exclusive" split_freq="7h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
     <field_group operation="instant" freq_op="1h" prec="4">
       <field field_ref="aerosol__cloud_drop_no_conc" />
       <field field_ref="aerosol__acc_ins_du" />

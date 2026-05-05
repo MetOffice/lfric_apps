@@ -9,6 +9,7 @@
 !> @brief Module containing adjoint test for adj_apply_helmholtz_op_lookup_kernel
 module adjt_apply_helmholtz_op_lookup_alg_mod
 
+  use adj_solver_lookup_cache_mod,   only: adj_solver_lookup_cache_type
   use constants_mod,                 only: i_def, r_def, l_def, r_solver
   use field_mod,                     only: field_type
   use finite_element_config_mod,     only: element_order_h, element_order_v
@@ -39,19 +40,20 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
   !!          the result stored in the other, so we use three vectors to save on
   !!          variables. This differs from other adjoint tests as most adjoint
   !!          routines would increment one argument and set the other to zero.
-  !> @param[in] mesh        The model mesh
-  !> @param[in] model_clock The model clock
-  subroutine adjt_apply_helmholtz_op_lookup_alg( mesh, model_clock )
+  !> @param[in] mesh                    The model mesh
+  !> @param[in] model_clock             The model clock
+  !> @param[in] adj_lookup_table_cache  The lookup table cache
+  subroutine adjt_apply_helmholtz_op_lookup_alg( mesh, model_clock, adj_lookup_table_cache )
 
-    use apply_helmholtz_operator_kernel_mod,     only: apply_helmholtz_operator_kernel_type
-    use adj_lookup_table_generators_alg_mod, only: create_lookup_apply_helmholtz_op
+    use apply_helmholtz_operator_kernel_mod, only: apply_helmholtz_operator_kernel_type
     use invoke_adj_a_h_o_lookup_kernel_mod,  only: invoke_adj_a_h_o_lookup_kernel
 
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
-    type(model_clock_type),   intent(in) :: model_clock
+    type(mesh_type),           pointer, intent(in) :: mesh
+    type(model_clock_type),             intent(in) :: model_clock
+    type(adj_solver_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Randomised prognostics to initialise SI operators
     type(field_type) :: init_op_t, init_op_d, init_op_p, init_op_moist_dyn(num_moist_factors)
@@ -67,13 +69,14 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
     ! Configuration
     logical(kind=l_def)                :: lam_mesh
     integer(kind=i_def), parameter     :: stencil_extent = 1_i_def
+    integer(kind=i_def), parameter     :: level = 1_i_def
     type(r_solver_field_type), pointer :: Helmholtz_operator(:)
 
     ! Lookup table
-    type(adj_lookup_table_type)        :: lookup
-    type(integer_field_type),  pointer :: lookup_field
-    type(integer_field_type),  pointer :: set_counts_field
-    integer(kind=i_def)                :: nindices
+    type(adj_lookup_table_type), pointer :: lookup
+    type(integer_field_type),    pointer :: lookup_field
+    type(integer_field_type),    pointer :: set_counts_field
+    integer(kind=i_def)                  :: nindices
 
     ! Inner products
     real(kind=r_def)            :: vector_mx_vector_mx_inner_prod
@@ -87,7 +90,7 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
     real(kind=r_def)            :: relative_diff
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
 
-    nullify( lookup_field, set_counts_field, Helmholtz_operator, &
+    nullify( lookup, lookup_field, set_counts_field, Helmholtz_operator, &
              vector_space_w3_ptr, vector_space_wtheta_ptr )
 
     ! Setup
@@ -113,7 +116,7 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
 
     call compute_si_operators( init_op_t, init_op_d, init_op_p, model_clock, init_op_moist_dyn )
 
-    Helmholtz_operator => get_helmholtz_operator(stencil_extent)
+    Helmholtz_operator => get_helmholtz_operator(level)
     lam_mesh = .false.
 
     call vector_x%initialise(vector_space_w3_ptr)
@@ -144,8 +147,7 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
 
     ! Adjoint (AMx)
 
-    ! Create lookup table.
-    call create_lookup_apply_helmholtz_op( lookup, vector_mx )
+    lookup => adj_lookup_table_cache%get_lookup_apply_hho(level)
     lookup_field => lookup%get_lookup_field()
     set_counts_field => lookup%get_set_count_field()
     nindices = lookup%get_nindices()

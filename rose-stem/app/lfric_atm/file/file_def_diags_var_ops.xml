@@ -2,7 +2,7 @@
 
   <!-- Var Atmos LS file -->
   <!-- Time profile is hourly from T+3 to T+9 -->
-  <file id="lfric_ppvar" name="lfric_ppvar" output_freq="1h" split_freq="1h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_ppvar" name="results/lfric_ppvar" output_freq="1h" split_freq="1h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
     <field_group operation="instant" freq_op="1h" prec="4">
       <field field_ref="u_in_w3"/>
       <field field_ref="v_in_w3"/>
@@ -29,7 +29,7 @@
 
   <!-- VAR Surface LS file -->
   <!-- Time profile is T+6 -->
-  <file id="lfric_ppscreen" name="lfric_ppscreen" output_freq="9h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_ppscreen" name="results/lfric_ppscreen" output_freq="9h" convention="UGRID" enabled=".TRUE.">
     <field_group operation="instant" freq_op="9h" prec="4">
       <field field_ref="u_in_w3" />
       <field field_ref="v_in_w3" />
@@ -45,7 +45,7 @@
 
   <!-- OPS Background Error file -->
   <!-- Time profile is hourly from T+0 to T+9 -->
-  <file id="lfric_bg_for_hofx" name="lfric_bg_for_hofx" output_freq="1h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_bg_for_hofx" name="results/lfric_bg_for_hofx" output_freq="1h" convention="UGRID" enabled=".TRUE.">
     <field_group freq_op="1h" operation="instant" prec="4">
       <field field_ref="m_v"/>
       <field field_ref="m_cl"/>
@@ -89,7 +89,7 @@
 
   <!-- Background file for land surface -->
   <!-- Time profile T+9 -->
-  <file id="lfric_bg_for_land_hofx" name="lfric_bg_for_land_hofx" output_freq="9h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_bg_for_land_hofx" name="results/lfric_bg_for_land_hofx" output_freq="9h" convention="UGRID" enabled=".TRUE.">
     <field_group freq_op="9h" operation="instant" prec="4">
       <field field_ref="orography" />
       <field field_ref="surface__land_fraction" />

@@ -45,6 +45,8 @@ ls_filename='ls',
 &finite_element
 cellshape='quadrilateral',
 coord_order=1,
+coord_order_nonprime=1,
+coord_space='Wchi',
 coord_system='native',
 element_order_h=0,
 element_order_v=0,
@@ -222,6 +224,7 @@ spinup_alpha=.false.,
 &transport
 adjust_theta=.false.
 adjust_theta_above=0.0
+adjust_tracer_equation=.false.
 adjust_vhv_wind=.false.
 broken_w2_projection=.false.
 calculate_detj = 'upwind',

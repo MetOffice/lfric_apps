@@ -34,6 +34,8 @@ module gungho_transport_control_alg_mod
   use check_configuration_mod,           only: check_any_shifted,    &
                                                check_transport_name, &
                                                check_any_eqn_consistent
+  use timing_mod,                        only: start_timing, stop_timing, &
+                                               tik, LPROF
 
   implicit none
 
@@ -209,8 +211,6 @@ contains
                                                coarse_collection_transport_alg
     use transport_field_mod,             only: transport_field
     use wind_transport_alg_mod,          only: wind_transport_alg
-    use io_config_mod,                   only: subroutine_timers
-    use timer_mod,                       only: timer
 
     implicit none
 
@@ -262,9 +262,9 @@ contains
     type(transport_metadata_type),   pointer :: transport_metadata
     type(transport_controller_type)          :: transport_controller
     type(transport_controller_type)          :: aerosol_transport_controller
+    integer(tik)                             :: id_cont
 
-    if ( subroutine_timers ) call timer('gungho_transport_control')
-
+    if ( LPROF ) call start_timing( id_cont, 'dynamics.transport' )
     ! ======================================================================== !
     ! Pre-transport initialisation tasks
     ! ======================================================================== !
@@ -380,13 +380,11 @@ contains
               mr_out, mr_in, nummr_to_transport,                               &
               transport_controller, transport_metadata                         &
       )
-
       ! ---------------------------------------------------------------------- !
       ! Transport tracers which are active in fast physics, and therefore need
       ! transporting on every outer iteration
       if (present(adv_tracer_all_outer)                                        &
           .and. check_transport_name('adv_tracer') ) then
-
         call log_event(                                                        &
                  "Transporting advective tracers (all)...", LOG_LEVEL_DEBUG    &
         )
@@ -400,7 +398,6 @@ contains
       end if
       if (present(con_tracer_all_outer)                                        &
           .and. check_transport_name('con_tracer') ) then
-
         call log_event(                                                        &
                 "Transporting conservative tracers (all)...", LOG_LEVEL_DEBUG  &
         )
@@ -479,7 +476,6 @@ contains
       ! Advective tracers
       if (present(adv_tracer_last_outer)                                       &
           .and. check_transport_name('adv_tracer') ) then
-
         call log_event(                                                        &
                 "Transporting advective tracers (last)...", LOG_LEVEL_DEBUG    &
         )
@@ -498,7 +494,6 @@ contains
       ! Conservative tracers
       if (present(con_tracer_last_outer)                                       &
           .and. check_transport_name('con_tracer') ) then
-
         call log_event(                                                        &
                 "Transporting conservative tracers (last)...", LOG_LEVEL_DEBUG &
         )
@@ -555,7 +550,7 @@ contains
     call transport_controller%finalise()
     call aerosol_transport_controller%finalise()
 
-    if ( subroutine_timers ) call timer('gungho_transport_control')
+    if ( LPROF ) call stop_timing( id_cont, 'dynamics.transport' )
 
   end subroutine gungho_transport_control_alg
 
