@@ -14,7 +14,7 @@
 
 program lfric2lfric
 
-  use cli_mod,                only: get_initial_filename
+  use cli_mod,                only: parse_command_line
   use constants_mod,          only: precision_real
   use driver_collections_mod, only: init_collections, final_collections
   use driver_config_mod,      only: init_config, final_config
@@ -46,6 +46,8 @@ program lfric2lfric
   type(coupling_type)          :: coupler
 #endif
 
+  call parse_command_line( filename )
+
   call modeldb%configuration%initialise( program_name, table_len=10 )
 
   write(log_scratch_space,'(A)')                          &
@@ -65,7 +67,6 @@ program lfric2lfric
   call modeldb%values%add_key_value('coupling_dst', coupler)
 #endif
   call init_comm( program_name, modeldb )
-  call get_initial_filename( filename )
   call init_config( filename, lfric2lfric_required_namelists, &
                     modeldb%configuration                     )
   call init_logger( modeldb%mpi%get_comm(), program_name )

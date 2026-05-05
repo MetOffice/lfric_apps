@@ -14,7 +14,7 @@ program solver
   use add_mesh_map_mod,        only: assign_mesh_maps
   use constants_mod,           only: i_def, r_def, PRECISION_REAL, str_def
   use convert_to_upper_mod,    only: convert_to_upper
-  use cli_mod,                 only: get_initial_filename
+  use cli_mod,                 only: parse_command_line
   use create_mesh_mod,         only: create_mesh, create_extrusion
   use driver_collections_mod,  only: init_collections, final_collections
   use driver_config_mod,       only: init_config, final_config
@@ -102,6 +102,8 @@ program solver
   ! Driver layer init
   !-----------------------------------------------------------------------------
 
+  call parse_command_line( filename )
+
   ! Initialise MPI communicatios and get a valid communicator
   call create_comm(comm)
 
@@ -114,7 +116,6 @@ program solver
   total_ranks = global_mpi%get_comm_size()
   local_rank  = global_mpi%get_comm_rank()
 
-  call get_initial_filename( filename )
   call configuration%initialise( program_name, table_len=10 )
   call init_config( filename, solver_required_namelists, &
                     configuration )

@@ -9,7 +9,7 @@
 
 program name_transport
 
-  use cli_mod,                   only: get_initial_filename
+  use cli_mod,                   only: parse_command_line
   use constants_mod,             only: i_def, r_def
   use driver_collections_mod,    only: init_collections, final_collections
   use driver_comm_mod,           only: init_comm, final_comm
@@ -37,10 +37,11 @@ program name_transport
   character(*), parameter   :: program_name = "name_transport"
   character(:), allocatable :: filename
 
+  call parse_command_line( filename )
+
   call modeldb%configuration%initialise( program_name, table_len=10 )
   modeldb%mpi => global_mpi
   call init_comm( program_name, modeldb )
-  call get_initial_filename( filename )
   call init_config( filename, name_transport_required_namelists, &
                     modeldb%configuration )
   call init_logger( modeldb%mpi%get_comm(), program_name )

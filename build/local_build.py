@@ -17,6 +17,8 @@ import sys
 import subprocess
 import argparse
 import yaml
+from pathlib import Path
+import shutil
 
 
 def subprocess_run(command):
@@ -82,13 +84,10 @@ def determine_project_path(project, root_dir):
     )
 
 
-def clone_dependency(values, temp_dep):
+def clone_dependency(source, ref, temp_dep):
     """
     Clone the physics dependencies into a temporary directory
     """
-
-    source = values["source"]
-    ref = values["ref"]
 
     commands = (
         f"git -C {temp_dep} init",
@@ -110,7 +109,10 @@ def get_lfric_core(core_source, working_dir):
 
     if core_source["source"].endswith(".git"):
         print("Cloning LFRic Core from Github")
-        lfric_core_loc = f"{working_dir}/scratch/core"
+        lfric_core_loc = Path(working_dir) / "scratch" / "core"
+        if lfric_core_loc.exists():
+            shutil.rmtree(lfric_core_loc)
+        lfric_core_loc.mkdir(parents=True)
         clone_dependency(core_source["source"], core_source["ref"], lfric_core_loc)
         print("rsyncing the exported lfric_core source")
     else:
