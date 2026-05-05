@@ -676,6 +676,15 @@
   <field id="turbulence__ent_t_frac_dsc" name="ent_t_frac_dsc" long_name="fraction_of_time_decoupled_stratocumulus_inversion_is_above_level" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
   <field id="turbulence__ent_zrzi" name="ent_zrzi" long_name="level_height_as_fraction_of_sml_inversion_height_above_mixed_layer_base" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
   <field id="turbulence__ent_zrzi_dsc" name="ent_zrzi_dsc" long_name="level_height_as_fraction_of_dsc_inversion_height_above_mixed_layer_base" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
+  <!-- diffusion diagnostics -->
+  <field id="diffusion__dtheta_smag" name="dtheta_smag" long_name="theta_increment_from_smagorinsky_mixing" unit="K" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmv_smag" name="dmv_smag" long_name="vapour_increment_from_smagorinsky_mixing" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmcl_smag" name="dmcl_smag" long_name="liquid_water_increment_from_smagorinsky_mixing" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dtheta_smag_pc2" name="dtheta_smag_pc2" long_name="theta_increment_from_smagorinsky_mixing_and_pc2_response" unit="K" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmv_smag_pc2" name="dmv_smag_pc2" long_name="vapour_increment_from_smagorinsky_mixing_and_pc2_response" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmcl_smag_pc2" name="dmcl_smag_pc2" long_name="liquid_water_increment_from_smagorinsky_mixing_and_pc2_response" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dcfl_smag_pc2" name="dcfl_smag_pc2" long_name="liquid_cloud_fraction_increment_from_smagorinsky_mixing_and_pc2_response" unit="1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dbcf_smag_pc2" name="dbcf_smag_pc2" long_name="bulk_cloud_fraction_increment_from_smagorinsky_mixing_and_pc2_response" unit="1" grid_ref="full_level_face_grid" />
   <!-- radiation diagnostics: model timestep -->
   <field id="radiation__dtheta_rad" name="dtheta_rad" long_name="theta_increment_from_radiation" unit="K" grid_ref="full_level_face_grid" />
   <field id="radiation__sw_temperature_incr" name="sw_temperature_incr" long_name="temperature_increment_from_sw_radiation" unit="K" grid_ref="full_level_face_grid" />
