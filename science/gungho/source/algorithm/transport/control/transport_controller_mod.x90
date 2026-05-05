@@ -16,7 +16,6 @@ module transport_controller_mod
   ! Infrastructure
   use constants_mod,                  only: i_def, l_def, r_tran, r_def, IMDI, &
                                             str_def
-  use copy_field_alg_mod,             only: copy_field
   use extrusion_mod,                  only: SHIFTED, TWOD
   use field_mod,                      only: field_type
   use sci_field_minmax_alg_mod,       only: get_field_minmax
@@ -241,17 +240,17 @@ contains
     w2_fs => wind_n_rdef%get_function_space()
     call self%transporting_wind%initialise(w2_fs)
     call self%wind_n_rtran%initialise(w2_fs)
-    call copy_field(wind_n_rdef, self%wind_n_rtran)
+    call invoke( real_to_real_x(self%wind_n_rtran, wind_n_rdef) )
 
     if (present(wind_np1_rdef)) then
       allocate(self%wind_np1_rtran)
       call self%wind_np1_rtran%initialise(w2_fs)
-      call copy_field(wind_np1_rdef, self%wind_np1_rtran)
+      call invoke( real_to_real_x(self%wind_np1_rtran, wind_np1_rdef) )
     end if
 
     w3_fs => ref_field_rdef%get_function_space()
     call self%ref_field_rtran%initialise(w3_fs)
-    call copy_field(ref_field_rdef, self%ref_field_rtran)
+    call invoke( real_to_real_x(self%ref_field_rtran, ref_field_rdef) )
 
     ! ------------------------------------------------------------------------ !
     ! Set transporting wind based on optional arguments
