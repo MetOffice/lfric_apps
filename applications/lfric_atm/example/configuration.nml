@@ -260,6 +260,7 @@ profile_data=8*298.7,298.75138895,299.23958304,299.77916644,300.37014011,
 2422.44972326,2600.0,
 profile_heights=86*0.0,
 profile_size=86,
+profile_variable='potential',
 theta_surf=300.0,
 /
 &initial_vapour
@@ -287,6 +288,7 @@ profile_data=1.69730769e-02,1.69730769e-02,1.69282051e-02,1.68653846e-02,
 2.86662320e-07,1.00000000e-10,
 profile_heights=86*0.0,
 profile_size=86,
+profile_variable='mr',
 /
 &initial_wind
 nl_constant=0.0,

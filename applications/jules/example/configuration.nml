@@ -141,6 +141,7 @@ profile_data=288.701,288.701,288.454,287.592,287.153,286.972,286.703,
 716.713,
 profile_heights=71*0.0,
 profile_size=71,
+profile_variable='potential',
 theta_surf=300.0,
 /
 &initial_vapour
@@ -160,6 +161,7 @@ profile_data=0.00275358,0.00275358,0.00250702,0.00247921,0.00249053,
 7*1.00000e-06,
 profile_heights=71*0.0,
 profile_size=71,
+profile_variable='mr',
 /
 &initial_wind
 nl_constant=0.0,
