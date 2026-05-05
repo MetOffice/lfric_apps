@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: 3c8ccc6ea152cb03f0c5f27de5f1de01cc0c78b9
+    source: git@github.com:tommbendall/lfric_core.git
+    ref: TBendall/CoordSpace
 
 moci:
     source: git@github.com:MetOffice/moci.git
