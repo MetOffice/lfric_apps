@@ -8,7 +8,7 @@
 !>
 module tidally_locked_earth_kernel_mod_test
 
-  use constants_mod,       only : i_def, r_def, r_second, PI
+  use constants_mod,       only : i_def, r_def, r_second, PI, imdi
   use coord_transform_mod, only : llr2xyz
   use funit
 
@@ -17,11 +17,13 @@ module tidally_locked_earth_kernel_mod_test
   private
   public :: set_up, tear_down, test_all
 
-  real(kind=r_def), parameter :: rd           = 287.05_r_def
-  real(kind=r_def), parameter :: cp           = 1005.0_r_def
-  real(kind=r_def), parameter :: kappa        = rd/cp
-  real(kind=r_def), parameter :: dlat         = 1.0_r_def, dlon = 1.0_r_def, dz = 10000.0_r_def
-  real(kind=r_def), parameter :: dt           = 1800.0_r_def
+  real(kind=r_def), parameter :: rd    = 287.05_r_def
+  real(kind=r_def), parameter :: cp    = 1005.0_r_def
+  real(kind=r_def), parameter :: kappa = rd/cp
+  real(kind=r_def), parameter :: dlat  = 1.0_r_def
+  real(kind=r_def), parameter :: dlon  = 1.0_r_def
+  real(kind=r_def), parameter :: dz    = 10000.0_r_def
+  real(kind=r_def), parameter :: dt    = 1800.0_r_def
 
 contains
 
@@ -70,7 +72,7 @@ contains
                                     runge_kutta_method=runge_kutta_method_ssp3,         &
                                     spinup_period=0.0_r_second, spinup_alpha=.false.)
 
-    call init_chi_transforms()
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine set_up
 

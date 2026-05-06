@@ -14,7 +14,7 @@
 
 program lfric2lfric
 
-  use cli_mod,                only: get_initial_filename
+  use cli_mod,                only: parse_command_line
   use constants_mod,          only: precision_real
   use driver_collections_mod, only: init_collections, final_collections
   use driver_config_mod,      only: init_config, final_config
@@ -29,9 +29,9 @@ program lfric2lfric
                                     log_level_trace, &
                                     log_scratch_space
   use lfric_mpi_mod,          only: global_mpi
-
   use lfric2lfric_mod,        only: lfric2lfric_required_namelists
   use lfric2lfric_driver_mod, only: initialise, run, finalise
+  use model_clock_mod,        only: model_clock_type
 
   implicit none
 
@@ -45,6 +45,10 @@ program lfric2lfric
   ! Coupler objects
   type(coupling_type)          :: coupler
 #endif
+  ! Clock for OASIS exchanges
+  type(model_clock_type),    allocatable :: oasis_clock
+
+  call parse_command_line( filename )
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
 
@@ -65,7 +69,6 @@ program lfric2lfric
   call modeldb%values%add_key_value('coupling_dst', coupler)
 #endif
   call init_comm( program_name, modeldb )
-  call get_initial_filename( filename )
   call init_config( filename, lfric2lfric_required_namelists, &
                     modeldb%configuration                     )
   call init_logger( modeldb%mpi%get_comm(), program_name )
@@ -79,9 +82,9 @@ program lfric2lfric
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
-  call initialise( modeldb )
+  call initialise( modeldb, oasis_clock )
 
-  call run( modeldb )
+  call run( modeldb, oasis_clock )
 
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
   call finalise( program_name, modeldb )

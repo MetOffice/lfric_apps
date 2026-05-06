@@ -10,7 +10,7 @@ forecast_length='P0DT6H0M0S',
 &jedi_geometry
 io_calender_start='2018-04-14T21:00:00',
 io_path_inc_read='',
-io_path_state_read='/data/users/lfric/data/jedi-lfric/Ticket354/ls_fields/jedi_trajectory',
+io_path_state_read='/data/users/lfricadmin/data/jedi-lfric/Ticket354/ls_fields/jedi_trajectory',
 io_path_state_write='write_file',
 io_setup_increment=.false.,
 io_time_step='P0DT1H0M0S',
@@ -52,6 +52,9 @@ element_order_h=0,
 element_order_v=0,
 rehabilitate=.true.,
 /
+&formulation
+use_multires_coupling=.false.,
+/
 &io
 file_convention='UGRID',
 /
@@ -67,4 +70,13 @@ scaling_factor=1.0,
 /
 &time
 calendar_type='gregorian',
+/
+&transport
+dep_pt_stencil_extent=3,
+ffsl_inner_order=0,
+ffsl_outer_order=1,
+fv_horizontal_order=2,
+operators='fv',
+panel_edge_high_order=.false.,
+panel_edge_treatment='none',
 /

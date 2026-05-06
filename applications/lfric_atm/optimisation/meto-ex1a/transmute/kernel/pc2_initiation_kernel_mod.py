@@ -1,8 +1,8 @@
-##############################################################################
-# (c) Crown copyright 2025 Met Office. All rights reserved.
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-##############################################################################
+# -----------------------------------------------------------------------------
 """
 Optimisation script that adds OpenMP worksharing-loop directives to speed up
 various loops. Some PSyclone dependency errors need to be overridden; these

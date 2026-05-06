@@ -1,0 +1,11 @@
+@@ -38,9 +38,7 @@
+     real(kind=r_tran) :: direction
+     real(kind=r_tran), dimension(nfaces) :: v_dot_n
+ 
+-    v_dot_n(:) = 1.0_r_tran
+-    v_dot_n(1) = -1.00000000000000
+-    v_dot_n(nfaces) = -1.00000000000000
++    v_dot_n = (/ -1.0_r_tran, 1.0_r_tran, 1.0_r_tran, -1.0_r_tran /)
+     do df = nfaces, 1, -1
+       do k = nlayers - 1, 0, -1
+         direction = v_dot_n(df) * wind(k + map_w2(df))

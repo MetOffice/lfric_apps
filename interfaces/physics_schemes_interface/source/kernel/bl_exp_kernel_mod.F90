@@ -40,7 +40,7 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(94) = (/                                       &
+    type(arg_type) :: meta_args(93) = (/                                       &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! rho_in_wth
@@ -72,7 +72,6 @@ module bl_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2),&! tile_temperature
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! rhostar
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! recip_l_mo_sea
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! h_blend_orog
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! t1_sd
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! q1_sd
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! dtl_mphys
@@ -181,7 +180,6 @@ contains
   !> @param[in]     tile_temperature       Surface tile temperatures
   !> @param[in]     rhostar_2d             Surface density
   !> @param[in]     recip_l_mo_sea_2d      Inverse Obukhov length over sea only
-  !> @param[in]     h_blend_orog_2d        Orographic blending height
   !> @param[in]     t1_sd_2d               StDev of level 1 temperature
   !> @param[in]     q1_sd_2d               StDev of level 1 humidity
   !> @param[in]     dtl_mphys              Microphysics liq temperature increment
@@ -297,7 +295,6 @@ contains
                          tile_temperature,                      &
                          rhostar_2d,                            &
                          recip_l_mo_sea_2d,                     &
-                         h_blend_orog_2d,                       &
                          t1_sd_2d,                              &
                          q1_sd_2d,                              &
                          dtl_mphys,                             &
@@ -479,8 +476,7 @@ contains
                                                               cumulus_2d,      &
                                                               shallow_flag,    &
                                                               level_parcel_top
-    real(kind=r_def), dimension(undf_2d), intent(in)    :: h_blend_orog_2d,    &
-                                                           recip_l_mo_sea_2d,  &
+    real(kind=r_def), dimension(undf_2d), intent(in)    :: recip_l_mo_sea_2d,  &
                                                            rhostar_2d,         &
                                                            t1_sd_2d, q1_sd_2d, &
                                                            sea_u_current,      &
@@ -549,7 +545,7 @@ contains
          zh, dzh, wstar, wthvs, u_0_p, v_0_p, zlcl_uv, qsat_lcl, delthvu,    &
          bl_type_1, bl_type_2, bl_type_3, bl_type_4, bl_type_5, bl_type_6,   &
          bl_type_7, uw0, vw0, zhnl, rhostar,                                 &
-         h_blend_orog, recip_l_mo_sea, flandg, t1_sd, q1_sd, qcl_inv_top,    &
+         recip_l_mo_sea, flandg, t1_sd, q1_sd, qcl_inv_top,                  &
          fb_surf, rib_gb, z0m_eff_gb, zhsc, ustargbm, cos_theta_latitude,    &
          max_diff, delta_smag, tnuc_nlcl_um
     real(r_um), dimension(seg_len,1) :: surf_dep_flux, zeroes
@@ -652,7 +648,6 @@ contains
       ustargbm(i,1) = ustar(map_2d(1,i))
       rhostar(i,1) = rhostar_2d(map_2d(1,i))
       recip_l_mo_sea(i,1) = recip_l_mo_sea_2d(map_2d(1,i))
-      h_blend_orog(i,1) = h_blend_orog_2d(map_2d(1,i))
       rib_gb(i,1) = gradrinr(map_wth(1,i))
       z0m_eff_gb(i,1) = z0m_eff(map_2d(1,i))
       ftl(i,1,1) = heat_flux_bl(map_w3(1,i))
@@ -895,8 +890,8 @@ contains
     ! IN cloud/moisture data :
       bulk_cloud_fraction,q,qcf,qcl,temperature,qw,tl,                         &
     ! IN everything not covered so far :
-      rad_hr,micro_tends,fb_surf,ustargbm,p_star,tstar,h_blend_orog,           &
-      zh_prev, zhpar,zlcl,ho2r2_orog_gb,sd_orog,wtrac_as,                         &
+      rad_hr,micro_tends,fb_surf,ustargbm,p_star,tstar,                        &
+      zh_prev, zhpar,zlcl,ho2r2_orog_gb,sd_orog,wtrac_as,                      &
     ! 2 IN 3 INOUT for Smagorinsky
       delta_smag, max_diff, rneutml_sq, visc_m, visc_h,                        &
     ! SCM Diagnostics (dummy values in full UM) & stash diag

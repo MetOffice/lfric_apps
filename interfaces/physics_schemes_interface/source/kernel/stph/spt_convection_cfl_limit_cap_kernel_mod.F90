@@ -8,9 +8,11 @@ module spt_convection_cfl_limit_cap_kernel_mod
 
   use argument_mod,      only: arg_type, GH_FIELD, &
                                GH_WRITE, GH_REAL,  &
+                               GH_SCALAR, GH_INTEGER, &
                                GH_READ, CELL_COLUMN
   use fs_continuity_mod, only: Wtheta
-  use constants_mod,     only: r_def, i_def, l_def
+  use constants_mod,     only: r_def, i_def, l_def, &
+                               r_second
   use kernel_mod,        only: kernel_type
 
   implicit none
@@ -24,11 +26,14 @@ module spt_convection_cfl_limit_cap_kernel_mod
   !>
   type, public, extends(kernel_type) :: spt_convection_cfl_limit_cap_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                 &
+    type(arg_type) :: meta_args(7) = (/                 &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & ! dX_conv_cfl
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! massflux_up
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! fp_spt
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA)  & ! pressure
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pressure
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),      & ! spt_level_bottom
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),      & ! spt_level_top
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)          & ! dt
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -52,20 +57,20 @@ contains
   !> @param[in]      ndf_wth      Number of degrees of freedom per cell for wtheta
   !> @param[in]      undf_wth     Number of total degrees of freedom for wtheta
   !> @param[in]      map_wth      Dofmap for the cell at the base of the column
-  subroutine spt_convection_cfl_limit_cap_code(nlayers,     &
-                                               dX_conv_cfl, &
-                                               massflux_up, &
-                                               fp_spt,      &
-                                               pressure,    &
-                                               ndf_wth,     &
-                                               undf_wth,    &
-                                               map_wth      &
-                                               )
-
-    use stochastic_physics_config_mod,   only: spt_level_bottom, &
-                                               spt_level_top
-
-    use timestepping_config_mod,    only: dt
+  !> @param[in]      spt_level_bottom      Bottom level of the stochastic scheme
+  !> @param[in]      spt_level_top         Top level of the stochastic scheme
+  !> @param[in]      dt                    Timestep from timestepping_config_mod
+  subroutine spt_convection_cfl_limit_cap_code(nlayers,          &
+                                               dX_conv_cfl,      &
+                                               massflux_up,      &
+                                               fp_spt,           &
+                                               pressure,         &
+                                               spt_level_bottom, &
+                                               spt_level_top,    &
+                                               dt,               &
+                                               ndf_wth,          &
+                                               undf_wth,         &
+                                               map_wth)
 
     implicit none
 
@@ -74,6 +79,9 @@ contains
     integer(kind=i_def), intent(in) :: ndf_wth
     integer(kind=i_def), intent(in) :: undf_wth
     integer(kind=i_def), intent(in), dimension(ndf_wth)  :: map_wth
+    integer(kind=i_def), intent(in) :: spt_level_bottom
+    integer(kind=i_def), intent(in) :: spt_level_top
+    real(kind=r_second), intent(in) :: dt
 
     ! Fields perturbations + tendencies
     real(kind=r_def), intent(inout), dimension(undf_wth) :: dX_conv_cfl

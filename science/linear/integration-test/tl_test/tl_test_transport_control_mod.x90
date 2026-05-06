@@ -21,7 +21,6 @@ module tl_test_transport_control_mod
   use function_space_collection_mod,  only: function_space_collection
   use derived_config_mod,             only: bundle_size
   use driver_modeldb_mod,             only: modeldb_type
-  use moist_dyn_mod,                  only: num_moist_factors
   use mr_indices_mod,                 only: nummr
   use log_mod,                        only: log_event,         &
                                             log_scratch_space, &
@@ -31,7 +30,7 @@ module tl_test_transport_control_mod
                                       only: gungho_transport_control_alg_init, &
                                             gungho_transport_control_alg
   use tl_transport_control_alg_mod,   only: tl_transport_control_alg
-  use tl_test_convergence_rate_check, only: convergence_rate_check
+  use tl_test_convergence_rate_check, only: array_convergence_rate_check
 
   implicit none
 
@@ -61,10 +60,11 @@ module tl_test_transport_control_mod
     type(field_type), pointer :: ls_u => null()
     type(field_type), pointer :: ls_rho => null()
     type(field_type), pointer :: ls_theta => null()
-    type(field_type), pointer :: ls_exner => null()
-    type(field_type), pointer :: ls_moist_dyn(:) => null()
     type(field_type), pointer :: ls_mr(:) => null()
-    type(field_type), pointer :: moist_dyn(:) => null()
+    type(field_type), pointer :: ls_exner => null()
+    type(field_type), pointer :: u => null()
+    type(field_type), pointer :: rho => null()
+    type(field_type), pointer :: theta => null()
     type(field_type), pointer :: mr(:) => null()
 
     type(field_type) :: state(bundle_size)
@@ -75,10 +75,7 @@ module tl_test_transport_control_mod
     type(field_type) :: n1_rhs(bundle_size)
     type(field_type) :: n2_rhs(bundle_size)
     type(field_type) :: diff(bundle_size)
-    type(field_type), dimension(num_moist_factors) :: p_moist_dyn
-    type(field_type), dimension(num_moist_factors) :: n_moist_dyn
-    type(field_type), dimension(num_moist_factors) :: r_moist_dyn
-    type(field_type), dimension(num_moist_factors) :: diff_moist_dyn
+
     type(field_type), dimension(nummr) :: p_mr_in
     type(field_type), dimension(nummr) :: n_mr_in
     type(field_type), dimension(nummr) :: ls_mr_out
@@ -91,42 +88,44 @@ module tl_test_transport_control_mod
 
     type(field_collection_type), pointer :: moisture_fields => null()
     type(field_array_type), pointer      :: mr_array => null()
-    type(field_array_type), pointer      :: moist_dyn_array => null()
     type(field_array_type), pointer      :: ls_mr_array => null()
-    type(field_array_type), pointer      :: ls_moist_dyn_array => null()
 
-    real(r_def) :: gamma_u, gamma_rho, gamma_exner, gamma_theta
-    real(r_def) :: gamma_moist_dyn, gamma_mr
-    real(r_def) :: norm_u, norm_rho, norm_exner, norm_theta
-    real(r_def) :: norm_moist_dyn, norm_mr
-    real(r_def) :: norm_diff, norm_diff_prev
-    real(r_def) :: norm_moist_dyn_tmp, norm_mr_tmp
-
-    real(r_def), parameter :: tol = 1.e-2_r_def
+    real(r_def) :: gamma_u, gamma_rho, gamma_theta
+    real(r_def) :: gamma_mr
+    real(r_def) :: norm_u, norm_rho, norm_theta
+    real(r_def) :: norm_mr
+    real(r_def) :: norm_mr_tmp
+    integer(i_def), parameter :: n_variables = 4
+    real(r_def) :: array_norm(n_variables), array_norm_prev(n_variables)
+    character(str_def) :: array_names(n_variables)
+    real(r_def), parameter :: tol = 5.e-2_r_def
+    real(r_def), parameter :: indiv_tol = 5.e-1_r_def
 
     integer :: n, outer, i
 
     call log_event( "TL Test: " // trim(label), &
-                     LOG_LEVEL_INFO )
+         LOG_LEVEL_INFO )
 
     prognostic_fields => modeldb%fields%get_field_collection( &
                                            "prognostic_fields")
     ls_fields => modeldb%fields%get_field_collection("ls_fields")
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
     call moisture_fields%get_field("mr", mr_array)
-    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
     mr => mr_array%bundle
-    moist_dyn => moist_dyn_array%bundle
     call moisture_fields%get_field("ls_mr", ls_mr_array)
-    call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
     ls_mr => ls_mr_array%bundle
-    ls_moist_dyn => ls_moist_dyn_array%bundle
 
     ! Input
     call ls_fields%get_field('ls_u', ls_u)
     call ls_fields%get_field('ls_rho', ls_rho)
     call ls_fields%get_field('ls_theta', ls_theta)
     call ls_fields%get_field('ls_exner', ls_exner)
+
+    ! Overwrite the moisture fields with potential temperature
+    do i = 1, nummr
+      call invoke( &
+           setval_X( ls_mr(i), ls_theta))
+    end do
 
     call ls_state(igh_u)%initialise( vector_space = ls_u%get_function_space() )
     call ls_state(igh_t)%initialise( vector_space = ls_theta%get_function_space() )
@@ -144,11 +143,6 @@ module tl_test_transport_control_mod
     call clone_bundle(ls_state, n2_rhs, bundle_size)
     call clone_bundle(ls_state, diff, bundle_size)
 
-    call clone_bundle(moist_dyn, p_moist_dyn, num_moist_factors)
-    call clone_bundle(moist_dyn, r_moist_dyn, num_moist_factors)
-    call clone_bundle(moist_dyn, n_moist_dyn, num_moist_factors)
-    call clone_bundle(moist_dyn, diff_moist_dyn, num_moist_factors)
-
     call clone_bundle(mr, r_mr, nummr)
     call clone_bundle(mr, p_mr_in, nummr)
     call clone_bundle(mr, n_mr_in, nummr)
@@ -161,23 +155,36 @@ module tl_test_transport_control_mod
                  setval_X(ls_state(igh_u), ls_u    ), &
                  setval_X(ls_state(igh_t), ls_theta), &
                  setval_X(ls_state(igh_d), ls_rho  ), &
-                 setval_X(ls_state(igh_p), ls_exner), &
+                 setval_X(ls_state(igh_p), ls_exner ), &
                  setval_X(ls_advected_u, ls_u ) )
 
     call gungho_transport_control_alg_init( mesh )
 
-    call invoke( assign_field_random_kernel_type( random(igh_u), 1.0_r_def ) , &
-                 assign_field_random_kernel_type( random(igh_d), 1.0_r_def ) , &
-                 assign_field_random_kernel_type( random(igh_t), 1.0_r_def ) , &
-                 assign_field_random_kernel_type( random(igh_p), 1.0_r_def ) )
+    ! Perturbation
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field('theta', theta)
 
-    do i = 1, num_moist_factors
-      call invoke( assign_field_random_kernel_type( r_moist_dyn(i), 1.0_r_def ) )
-    enddo
+    ! Set the 'random perturbation as the ls_state plus pert'
+    call invoke( name = "copy_fields_to_state",   &
+                 setval_X(random(igh_u), ls_u    ), &
+                 setval_X(random(igh_t), ls_theta), &
+                 setval_X(random(igh_d), ls_rho  ) )
 
     do i = 1, nummr
-      call invoke( assign_field_random_kernel_type( r_mr(i), 1.0_r_def ) )
-    enddo
+      call invoke( &
+           setval_X( r_mr(i), ls_mr(i) ))
+    end do
+
+    call invoke( name = "inc",   &
+                 inc_X_plus_Y(random(igh_u), u    ), &
+                 inc_X_plus_Y(random(igh_t), theta), &
+                 inc_X_plus_Y(random(igh_d), rho  ) )
+
+    do i = 1, nummr
+      call invoke( &
+           inc_X_plus_Y( r_mr(i), theta ))
+    end do
 
     call set_bundle_scalar( 0.0_r_def, n1_rhs, bundle_size )
 
@@ -192,19 +199,15 @@ module tl_test_transport_control_mod
                                       outer,                   &
                                       cheap_update = .false.)
 
-    gamma_u = 7.e8_r_def
-    gamma_theta = 1.e5_r_def
-    gamma_rho = 1.e5_r_def
-    gamma_exner = 1.e5_r_def
-    gamma_moist_dyn=1.e0_r_def
-    gamma_mr = 1.e0_r_def
+    gamma_u = 1._r_def
+    gamma_theta = 1._r_def
+    gamma_rho = 1._r_def
+    gamma_mr = 1._r_def
 
     do n=1,2
       gamma_u = gamma_u/2.0_r_def
       gamma_theta = gamma_theta/2.0_r_def
       gamma_rho = gamma_rho/2.0_r_def
-      gamma_exner = gamma_exner/2.0_r_def
-      gamma_moist_dyn = gamma_moist_dyn/2.0_r_def
       gamma_mr = gamma_mr/2.0_r_def
 
       call set_bundle_scalar( 0.0_r_def, n2_rhs, bundle_size )
@@ -212,7 +215,7 @@ module tl_test_transport_control_mod
       call invoke( a_times_X( p_state(igh_u), gamma_u, random(igh_u) ),       &
                    a_times_X( p_state(igh_t), gamma_theta, random(igh_t) ),   &
                    a_times_X( p_state(igh_d), gamma_rho, random(igh_d) ),     &
-                   a_times_X( p_state(igh_p), gamma_exner, random(igh_p) ),   &
+                   setval_c( p_state(igh_p), 0.0_r_def ),                     &
                    a_times_X( p_advected_u,   gamma_u, random(igh_u) ) )
 
       ! state = ls_state + p_state
@@ -220,13 +223,6 @@ module tl_test_transport_control_mod
 
       call invoke( setval_X( n_advected_u, ls_advected_u), &
                    inc_X_plus_Y(n_advected_u, p_advected_u ) )
-
-      do i = 1, num_moist_factors
-        call invoke( &
-          a_times_X( p_moist_dyn(i), gamma_moist_dyn, r_moist_dyn(i) ), &
-          setval_X( n_moist_dyn(i), ls_moist_dyn(i) ),                       &
-          inc_X_plus_Y( n_moist_dyn(i), p_moist_dyn(i) ) )
-      end do
 
       do i = 1, nummr
         call invoke( &
@@ -263,63 +259,43 @@ module tl_test_transport_control_mod
       call invoke( &
                  inc_X_minus_Y( diff(igh_u), p_rhs(igh_u) ), &
                  inc_X_minus_Y( diff(igh_t), p_rhs(igh_t) ), &
-                 inc_X_minus_Y( diff(igh_d), p_rhs(igh_d) ), &
-                 inc_X_minus_Y( diff(igh_p), p_rhs(igh_p) ) )
+                 inc_X_minus_Y( diff(igh_d), p_rhs(igh_d) ) )
 
-      call invoke( X_innerproduct_X( norm_u,     diff(igh_u) ) , &
+      call invoke( &
+                   X_innerproduct_X( norm_u,     diff(igh_u) ) , &
                    X_innerproduct_X( norm_rho,   diff(igh_d) ) , &
-                   X_innerproduct_X( norm_theta, diff(igh_t) ) , &
-                   X_innerproduct_X( norm_exner, diff(igh_p) ) )
+                   X_innerproduct_X( norm_theta, diff(igh_t) ) )
 
-      norm_moist_dyn=0.0_r_def
-      do i = 1, num_moist_factors
+
+      do i = 1, nummr
         call invoke( &
-          X_minus_Y( diff_moist_dyn(i), n_moist_dyn(i), moist_dyn(i) ),   &
-          inc_X_minus_Y( diff_moist_dyn(i), p_moist_dyn(i) ),             &
-          X_innerproduct_X( norm_moist_dyn_tmp, diff_moist_dyn(i) ) )
-          norm_moist_dyn = norm_moist_dyn + norm_moist_dyn_tmp
+          X_minus_Y( diff_mr(i), n_mr_out(i), ls_mr_out(i) ),   &
+          inc_X_minus_Y( diff_mr(i), p_mr_out(i) ) )
       end do
 
       norm_mr=0.0_r_def
       do i = 1, nummr
-        call invoke( &
-          X_minus_Y( diff_mr(i), n_mr_out(i), ls_mr_out(i) ),   &
-          inc_X_minus_Y( diff_mr(i), p_mr_out(i) ),             &
+         call invoke( &
           X_innerproduct_X( norm_mr_tmp, diff_mr(i) ) )
           norm_mr = norm_mr + norm_mr_tmp
       end do
 
-     write( log_scratch_space, &
-            '(A, E32.12, A, E32.12 )' ) &
-             ' norm_u = ' ,   norm_u,   &
-             ' norm_rho = ' , norm_rho
-
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-      write( log_scratch_space, &
-            '(A, E32.12, A, E32.12 )' )     &
-             ' norm_theta = ' , norm_theta, &
-             ' norm_moist_dyn = ' , norm_moist_dyn
-
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-      write( log_scratch_space, &
-            '(A, E32.12, A, E32.12 )' )     &
-             ' norm_exner = ' , norm_exner, &
-             ' norm_mr = ' , norm_mr
-
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
-      norm_diff = norm_rho + norm_theta + norm_exner + norm_u &
-                + norm_moist_dyn + norm_mr
-      norm_diff = sqrt(norm_diff)
+      array_norm(1) = norm_u
+      array_norm(2) = norm_rho
+      array_norm(3) = norm_theta
+      array_norm(4) = norm_mr
+      array_names(1) = 'norm_u'
+      array_names(2) = 'norm_rho'
+      array_names(3) = 'norm_theta'
+      array_names(4) = 'norm_mr'
 
       if (n == 2) then
-       call convergence_rate_check( norm_diff, norm_diff_prev, &
-                                     label, tol=tol )
+        call array_convergence_rate_check( array_norm, array_norm_prev, &
+             array_names, n_variables, label, tol=tol, indiv_tol=indiv_tol)
       end if
 
-      norm_diff_prev = norm_diff
+      array_norm_prev = array_norm
+
     end do
 
   end subroutine test_transport_control

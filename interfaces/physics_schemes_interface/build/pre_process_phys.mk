@@ -23,6 +23,7 @@ MACRO_ARGS := $(addprefix -D,$(PRE_PROCESS_MACROS))
 ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_include")
 # For CPU OMP method, we want specific files
 	SOURCE_xu_FILES := $(foreach THE_FILE, $(PSYCLONE_PHYSICS_FILES), $(patsubst $(SOURCE_DIR)/%.F90, $(SOURCE_DIR)/%.xu90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).F90' -print)))
+	SOURCE_xu_FILES += $(foreach THE_FILE, $(PSYCLONE_PASS_NO_SCRIPT), $(patsubst $(SOURCE_DIR)/%.F90, $(SOURCE_DIR)/%.xu90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).F90' -print)))
 else ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_exclude")
 # For the offload method, we want to filter out specific files, and psyclone the rest
 # We don't want to wildcard the whole working directory, this will cause problems. 

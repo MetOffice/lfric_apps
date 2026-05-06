@@ -141,6 +141,7 @@
         "var_res_src": "",
         "namelist_src": "um_grid.nml",
         "memory_plot_ex": true,
+        "kgo_checks": "",
     }) %}
 
 {% elif task_ns.conf_name == "um2lfric-protogal-N320L70_C48L70" %}

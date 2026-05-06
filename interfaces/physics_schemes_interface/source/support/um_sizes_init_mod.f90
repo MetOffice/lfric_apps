@@ -40,8 +40,11 @@ contains
                                  u_i_length, u_j_length, &
                                  v_i_length, v_j_length
     use tuning_segments_mod, only: bl_segment_size, precip_segment_size, &
-                                   ussp_seg_size, gw_seg_size
-    use physics_config_mod,  only : ls_ppn_segment, gw_segment, bl_segment, ussp_segment, configure_segments
+                                   ussp_seg_size, gw_seg_size, &
+                                   conv_gr_segment_size
+    use physics_config_mod,  only : ls_ppn_segment, gw_segment, &
+                                    bl_segment, ussp_segment, &
+                                    configure_segments, conv_gr_segment
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
 
     implicit none
@@ -134,12 +137,28 @@ contains
           ussp_seg_size = row_length
 
       end select
+      select case (conv_gr_segment)
+        case (:-1)
+          write(log_scratch_space,'(A)') &
+                'Invalid value: specified gr_convection segment is -ve.'
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+        case (1:)
+          ! Set the value from the namelist
+          conv_gr_segment_size = conv_gr_segment
+
+        case default
+          ! Default behaviour is to set to row_length
+          conv_gr_segment_size = row_length
+
+      end select
     else
       ! Default behaviour is to set to row_length
       precip_segment_size = row_length
       bl_segment_size     = row_length
       gw_seg_size         = row_length
       ussp_seg_size       = row_length
+      conv_gr_segment_size = row_length
     end if
 
     ! Compute lengths in i and j direction. This is the earliest place that they

@@ -222,7 +222,9 @@ module init_from_controller_alg_mod
       if ( flux_ptr%is_initialised() ) then
         call invoke( setval_X( counter_flux_inp(step), flux_ptr ) )
       else
-        call invoke( setval_c( counter_flux_inp(step), 0.0_r_tran ) )
+        call counter_flux_inp(step)%copy_field_properties(flux_ptr)
+        call invoke( setval_random( flux_ptr ),              &
+                     setval_X( counter_flux_inp(step), flux_ptr ) )
       end if
 
     end do

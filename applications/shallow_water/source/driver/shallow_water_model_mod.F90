@@ -83,6 +83,7 @@ module shallow_water_model_mod
 
     character(str_def), allocatable :: base_mesh_names(:)
     character(str_def), allocatable :: twod_names(:)
+    integer(i_def),     allocatable :: stencil_depths(:)
 
     class(extrusion_type),        allocatable :: extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
@@ -93,7 +94,6 @@ module shallow_water_model_mod
 
     character(str_def) :: prime_mesh_name
 
-    integer(i_def) :: stencil_depth
     integer(i_def) :: geometry
     integer(i_def) :: method
     integer(i_def) :: number_of_layers
@@ -180,12 +180,15 @@ module shallow_water_model_mod
     ! Initialise prime/2d meshes
     ! ---------------------------------------------------------
     check_partitions = .false.
-    stencil_depth = get_required_stencil_depth()
+    allocate(stencil_depths(size(base_mesh_names)))
+    call get_required_stencil_depth(                                           &
+        stencil_depths, base_mesh_names, modeldb%configuration                 &
+    )
     call init_mesh( modeldb%configuration,       &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
                     base_mesh_names, extrusion,  &
-                    stencil_depth, check_partitions )
+                    stencil_depths, check_partitions )
 
 
     allocate( twod_names, source=base_mesh_names )
@@ -222,6 +225,8 @@ module shallow_water_model_mod
     call create_runtime_constants()
 
     deallocate(base_mesh_names)
+    deallocate(twod_names)
+    deallocate(stencil_depths)
     nullify(chi_inventory, panel_id_inventory)
 
   end subroutine initialise_infrastructure

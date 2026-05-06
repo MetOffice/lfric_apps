@@ -165,8 +165,6 @@ subroutine atl_w3h_advective_update_code( cell,                 &
   ! so if u.n > 0 then we set the field to be the value on this edge from this cell
   ! and if u.n < 0 then we set the field to be the value on this edge from a
   ! neighbouring cell
-  u = 0.0_r_def
-  v = 0.0_r_def
   do k = nlayers - 1, 0, -1
 
     ! u * dt/dx
@@ -218,16 +216,14 @@ subroutine atl_w3h_advective_update_code( cell,                 &
     dtdy = t_N - t_S
 
     ik = 1 + k + (cell-1)*nlayers
-    u = u + m3_inv(ik,1,1) * dtdx * advective_increment(map_w3(1)+k)
-    v = v + m3_inv(ik,1,1) * dtdy * advective_increment(map_w3(1)+k)
+    u = m3_inv(ik,1,1) * dtdx * advective_increment(map_w3(1)+k)
+    v = m3_inv(ik,1,1) * dtdy * advective_increment(map_w3(1)+k)
 
     wind(map_w2(2) + k) = wind(map_w2(2) + k) - 0.5_r_def * v
     wind(map_w2(4) + k) = wind(map_w2(4) + k) - 0.5_r_def * v
-    v = 0.0_r_def
 
     wind(map_w2(1) + k) = wind(map_w2(1) + k) + 0.5_r_def * u
     wind(map_w2(3) + k) = wind(map_w2(3) + k) + 0.5_r_def * u
-    u = 0.0_r_def
   end do
 
 end subroutine atl_w3h_advective_update_code

@@ -46,7 +46,7 @@ module jules_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_exp_kernel_type
     private
-    type(arg_type) :: meta_args(109) = (/                                      &
+    type(arg_type) :: meta_args(108) = (/                                      &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! exner_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3, STENCIL(REGION)),      &! u_in_w3
@@ -150,7 +150,6 @@ module jules_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbdisp
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! rhostar
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! recip_l_mo_sea
-         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! h_blend_orog
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! t1_sd
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! q1_sd
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! diag__gross_prim_prod
@@ -273,7 +272,6 @@ contains
   !> @param[in]     urbdisp                Urban displacement height
   !> @param[in,out] rhostar_2d             Surface density
   !> @param[in,out] recip_l_mo_sea_2d      Inverse Obukhov length over sea only
-  !> @param[in,out] h_blend_orog_2d        Orographic blending height
   !> @param[in,out] t1_sd_2d               StDev of level 1 temperature
   !> @param[in,out] q1_sd_2d               StDev of level 1 humidity
   !> @param[in,out] gross_prim_prod        Diagnostic: Gross Primary Productivity
@@ -424,7 +422,6 @@ contains
                            urbdisp,                               &
                            rhostar_2d,                            &
                            recip_l_mo_sea_2d,                     &
-                           h_blend_orog_2d,                       &
                            t1_sd_2d,                              &
                            q1_sd_2d,                              &
                            gross_prim_prod,                       &
@@ -603,7 +600,6 @@ contains
                                                            z0m_eff,            &
                                                            ustar,              &
                                                            soil_moist_avail,   &
-                                                           h_blend_orog_2d,    &
                                                            recip_l_mo_sea_2d,  &
                                                            rhostar_2d,         &
                                                            t1_sd_2d, q1_sd_2d
@@ -1678,7 +1674,6 @@ contains
       ! variables passed to explicit BL
       rhostar_2d(map_2d(1,i)) = rhostar(i,1)
       recip_l_mo_sea_2d(map_2d(1,i)) = recip_l_mo_sea(i,1)
-      h_blend_orog_2d(map_2d(1,i)) = jules_vars%h_blend_orog_ij(i,1)
       t1_sd_2d(map_2d(1,i)) = t1_sd(i,1)
       q1_sd_2d(map_2d(1,i)) = q1_sd(i,1)
 

@@ -37,7 +37,8 @@ module init_gungho_lbcs_alg_mod
   use linked_list_mod,                 only: linked_list_type
   use mr_indices_mod,                  only: nummr,             &
                                              mr_names
-  use timer_mod,                       only: timer
+  use timing_mod,                      only: start_timing, stop_timing, &
+                                             tik, LPROF
   use masked_minmax_alg_mod,           only: log_field_masked_minmax
 
   implicit none
@@ -167,16 +168,12 @@ module init_gungho_lbcs_alg_mod
     type(linked_list_type),         intent(in)    :: lbc_times_list
     class(model_clock_type),        intent(in)    :: clock
     type(field_type),               pointer       :: lbc_v_u
+    integer(tik)                                  :: id
 
-    type(namelist_type), pointer :: io_nml
     type(namelist_type), pointer :: initialization_nml
-    logical(l_def)               :: subroutine_timers
     integer(i_def)               :: lbc_option
 
-    io_nml => configuration%get_namelist('io')
-    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
-
-    if ( subroutine_timers ) call timer('init_lbcs')
+    if ( LPROF ) call start_timing( id, 'init_lbcs' )
 
     nullify(lbc_v_u)
 
@@ -209,7 +206,7 @@ module init_gungho_lbcs_alg_mod
 
     end if
 
-    if ( subroutine_timers ) call timer('init_lbcs')
+    if ( LPROF ) call stop_timing( id, 'init_lbcs' )
 
   end subroutine init_lbcs_file_alg
 
@@ -230,16 +227,12 @@ module init_gungho_lbcs_alg_mod
     type(linked_list_type),         intent(in)    :: lbc_times_list
     class(model_clock_type),        intent(in)    :: clock
     type(field_type),               pointer       :: lbc_v_u
+    integer(tik)                                  :: id
 
-    type(namelist_type), pointer :: io_nml
     type(namelist_type), pointer :: initialization_nml
-    logical(l_def)               :: subroutine_timers
     integer(i_def)               :: lbc_option
 
-    io_nml => configuration%get_namelist('io')
-    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
-
-    if ( subroutine_timers ) call timer('update_lbcs')
+    if ( LPROF ) call start_timing( id, 'update_lbcs' )
 
     nullify(lbc_v_u)
 
@@ -267,7 +260,7 @@ module init_gungho_lbcs_alg_mod
     ! Define boundary_u_driving
     call define_boundary_u( configuration, lbc_fields )
 
-    if ( subroutine_timers ) call timer('update_lbcs')
+    if ( LPROF ) call stop_timing( id, 'update_lbcs' )
 
   end subroutine update_lbcs_file_alg
 

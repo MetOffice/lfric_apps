@@ -41,7 +41,7 @@ subroutine bdy_impl4 (                                                         &
 use atm_fields_bounds_mod, only:                                               &
  udims, vdims, udims_s, vdims_s, tdims, pdims, tdims_l
 use bl_diags_mod, only: strnewbldiag
-
+use tuning_segments_mod, only:  bl_segment_size
 use model_domain_mod, only: model_type, mt_single_column
 use planet_constants_mod, only: cp => cp_bl
 use yomhook, only: lhook, dr_hook
@@ -196,7 +196,7 @@ integer ::                                                                     &
                 ! LOCAL Loop counter (horizontal field index).
  k          ! LOCAL Loop counter (vertical level index).
 
-integer :: jj, j_block  ! omp blocking variables
+integer :: ii, tdims_omp_block, tdims_seg_block ! omp blocking variables
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -206,9 +206,10 @@ character(len=*), parameter :: RoutineName='BDY_IMPL4'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-j_block = 4
+tdims_omp_block = bl_segment_size
+tdims_seg_block = min(tdims_omp_block, tdims%i_len)
 
-!$OMP  PARALLEL DEFAULT(SHARED) private(i,j,k,jj,at,rbt,gamma1_uv,             &
+!$OMP  PARALLEL DEFAULT(SHARED) private(i,j,k,ii,at,rbt,gamma1_uv,             &
 !$OMP  gamma2_uv,r_sq)
 if ( .not. l_correct ) then
   !  1st stage: predictor
@@ -266,10 +267,10 @@ end do
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
-do jj = tdims%j_start, tdims%j_end, j_block
+do ii = tdims%j_start, tdims%i_end, tdims_seg_block
   do k = 2, bl_levels
-    do j = jj, min(jj+j_block-1,tdims%j_end)
-      do i = tdims%i_start, tdims%i_end
+    do j = tdims%j_start, tdims%j_end
+      do i = ii, min(ii+tdims_seg_block-1,tdims%i_end)
         dtl(i,j,k) = dtl(i,j,k) - ct_ctq(i,j,k)*dtl(i,j,k-1)
         tl(i,j,k) = tl(i,j,k) + dtl(i,j,k)
         dqw(i,j,k) = dqw(i,j,k) - ct_ctq(i,j,k)*dqw(i,j,k-1)

@@ -50,7 +50,8 @@ contains
                                        element_order_v = 0, &
                                        rehabilitate = .true., &
                                        vorticity_in_w1 = .true. )
-    call init_chi_transforms()
+
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
   end subroutine setUp
 

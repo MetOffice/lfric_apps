@@ -7,7 +7,7 @@
 !>@brief Test the tangent linear of the vorticity advection.
 module tl_vorticity_advection_kernel_mod_test
 
-  use constants_mod,         only: i_def, r_def
+  use constants_mod,         only: i_def, r_def, imdi
   use funit
 
   use finite_element_config_mod, &
@@ -134,7 +134,7 @@ contains
              rehabilitate=.true.,               &
              vorticity_in_w1=.false. )
 
-    call init_chi_transforms()
+    call init_chi_transforms(imdi, imdi)
 
     ! Get infrastructure support data
     !=====================================

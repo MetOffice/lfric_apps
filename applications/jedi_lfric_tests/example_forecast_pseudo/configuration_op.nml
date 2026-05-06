@@ -10,7 +10,7 @@ forecast_length='P0DT6H0M0S',
 &jedi_geometry
 io_calender_start='2018-04-14T21:00:00',
 io_path_inc_read='',
-io_path_state_read='/data/users/lfric/data/jedi-lfric/Ticket354/ls_fields/jedi_trajectory',
+io_path_state_read='/data/users/lfricadmin/data/jedi-lfric/Ticket354/ls_fields/jedi_trajectory',
 io_path_state_write='write_file',
 io_setup_increment=.false.,
 io_time_step='P0DT1H0M0S',

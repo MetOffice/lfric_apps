@@ -80,7 +80,7 @@ contains
         vorticity_in_w1=.false.                                                &
     )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
 
   end subroutine setUp
 

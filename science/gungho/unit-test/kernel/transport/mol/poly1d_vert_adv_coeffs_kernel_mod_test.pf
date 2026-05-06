@@ -80,6 +80,7 @@ contains
                                  wind_mono_top_depth = 0,                                  &
                                  adjust_theta = .false.,                                   &
                                  adjust_theta_above = 0.0_r_def,                           &
+                                 adjust_tracer_equation = .false.,                         &
                                  adjust_vhv_wind=.false.,                                  &
                                  dry_field_name='tracer',                                  &
                                  profile_size = 1,                                         &

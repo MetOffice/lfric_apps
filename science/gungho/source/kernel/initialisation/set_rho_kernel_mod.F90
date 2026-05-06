@@ -17,9 +17,12 @@ module set_rho_kernel_mod
                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
   use fs_continuity_mod,    only : Wchi
   use constants_mod,        only : r_def, i_def
-  use idealised_config_mod, only : test
   use kernel_mod,           only : kernel_type
 
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use idealised_config_mod,      only: test
+  use planet_config_mod,         only: scaled_radius
   implicit none
 
   private
@@ -142,7 +145,9 @@ subroutine set_rho_code(nlayers, rho,                           &
       chi_2_e(df1) = chi_2( map_chi(df1) + k )
       chi_3_e(df1) = chi_3( map_chi(df1) + k )
     end do
-    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v,             &
+    call coordinate_jacobian(coord_system, geometry,            &
+                             topology, scaled_radius,           &
+                             ndf_chi, nqp_h, nqp_v,             &
                              chi_1_e, chi_2_e, chi_3_e,         &
                              ipanel, chi_basis, chi_diff_basis, &
                              jac, dj)

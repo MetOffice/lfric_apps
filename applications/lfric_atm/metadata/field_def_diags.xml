@@ -43,6 +43,8 @@
   <field id="w_in_w3_star" name="w_in_w3_star" long_name="physics_predictor_upward_air_velocity_at_cell_centres" unit="ms-1" grid_ref="half_level_face_grid" />
   <field id="height_w3" name="height_w3" long_name="height_of_cell_centres_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="half_level_face_grid" />
   <field id="height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="full_level_face_grid" />
+  <field id="height_w2h" name="height_w2h" long_name="height_of_cell_faces_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="half_level_edge_grid" />
+  <field id="height_w0" name="height_w0" long_name="height_of_cell_vertices_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="node_grid" />
   <!-- First line extracts level 0, second line removes vertical coordinate, cannot do as one -->
   <field id="zoomed__orography" field_ref="height_wth" grid_ref="full_level_0_face_zoom" />
   <field id="orography" name="orography" long_name="surface_altitude" standard_name="surface_altitude" unit="m" domain_ref="face" > zoomed__orography </field>

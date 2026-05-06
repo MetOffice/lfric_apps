@@ -22,9 +22,9 @@ module lfric2lfric_field_init_mod
   use lfric_xios_diag_mod,                only: field_is_valid
   use lfric_xios_read_mod,                only: read_field_generic, &
                                                 checkpoint_read_xios
-  use space_from_metadata_mod,            only: space_from_metadata
   use lfric_xios_write_mod,               only: write_field_generic, &
                                                 checkpoint_write_xios
+  use lfric2lfric_config_mod,             only: mode_ics, mode_lbc
   use log_mod,                            only: log_event,         &
                                                 log_scratch_space, &
                                                 log_level_info,    &
@@ -34,6 +34,7 @@ module lfric2lfric_field_init_mod
   use netcdf,                             only: nf90_inquire_variable, &
                                                 nf90_inquire,          &
                                                 nf90_max_name
+  use space_from_metadata_mod,            only: space_from_metadata
 
   implicit none
 
@@ -54,13 +55,15 @@ contains
   !> @param [out] num_fields    Number of valid fields in the input file
   !> @param [out] config_list   Vector of valid field names in the input file
   !> @param [in]  file_name     Input file to be checked
-  subroutine get_field_list(num_fields, config_list, file_name)
+  !> @param [in]  prefix        Variable name prefix
+  subroutine get_field_list(num_fields, config_list, file_name, prefix)
 
     implicit none
 
     integer(kind=i_def),                 intent(out) :: num_fields
     character(len=str_def), allocatable, intent(out) :: config_list(:)
     character(len=str_def),              intent(in)  :: file_name
+    character(len=nf90_max_name),        intent(in)  :: prefix
     ! Local variables
     type(lfric_ncdf_file_type)       :: input_file
     integer(kind=i_def), allocatable :: varid_list(:)
@@ -91,7 +94,7 @@ contains
                                      varid_list(i),       &
                                      name=var_name        )
 
-        if (field_is_valid('restart_'//trim(var_name))) then
+        if (field_is_valid(trim(prefix)//trim(var_name))) then
             num_fields = num_fields + 1                         ! Increment counter
             config_list(num_fields) = trim(var_name)            ! Add field to the config_list
 
@@ -102,7 +105,7 @@ contains
         else
           write(log_scratch_space, '(A)') &
             "Field not found in iodef file, skipping: "//&
-            "restart_"//trim(var_name)
+            trim(prefix)//trim(var_name)
           call log_event(log_scratch_space, log_level_trace)
         endif
     end do
@@ -132,12 +135,13 @@ contains
   !!                                    initalised on
   !> @param [in]      twod_mesh         The 2D mesh the field could be
   !!                                    intialised on
-  subroutine field_maker(field_collection, field_name, mesh, twod_mesh)
+  subroutine field_maker(field_collection, field_name, mesh, twod_mesh, prefix)
 
     type(field_collection_type), pointer, intent(inout) :: field_collection
     character(len=*),                     intent(in)    :: field_name
     type(mesh_type),             pointer, intent(in)    :: mesh
     type(mesh_type),             pointer, intent(in)    :: twod_mesh
+    character(len=nf90_max_name),         intent(in)    :: prefix
 
     ! Field object to initialise
     type(field_type) :: field
@@ -157,10 +161,10 @@ contains
 
     if ( .NOT. field_collection%field_exists(field_name) ) then
       ! Get function space from metadata
-      vector_space => space_from_metadata(trim("restart_"//field_name), &
-                                          'Regridding',                 &
-                                          mesh_3d=mesh,                 &
-                                          mesh_2d=twod_mesh             )
+      vector_space => space_from_metadata(trim(prefix)//trim(field_name), &
+                                          'Regridding',                   &
+                                          mesh_3d=mesh,                   &
+                                          mesh_2d=twod_mesh               )
 
       ! Initialise the field
       call field%initialise(vector_space=vector_space, &

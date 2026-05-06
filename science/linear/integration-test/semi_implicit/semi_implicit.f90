@@ -10,35 +10,25 @@
 !!         corresponding nonlinear code.
 program semi_implicit
 
-  use configuration_mod,       only: read_configuration, final_configuration
   use driver_collections_mod,  only: init_collections, final_collections
   use driver_time_mod,         only: init_time, final_time
+  use driver_comm_mod,         only: init_comm, final_comm
+  use driver_log_mod,          only: init_logger, final_logger
+  use driver_config_mod,       only: init_config, final_config
   use driver_modeldb_mod,      only: modeldb_type
-  use halo_comms_mod,          only: initialise_halo_comms, finalise_halo_comms
-  use lfric_mpi_mod,           only: global_mpi, &
-                                     create_comm, destroy_comm, &
-                                     lfric_comm_type
-  use log_mod,                 only: initialise_logging, finalise_logging, &
-                                     log_event,       &
+  use lfric_mpi_mod,           only: global_mpi
+  use gungho_mod,              only: gungho_required_namelists
+  use log_mod,                 only: log_event,       &
                                      LOG_LEVEL_ERROR, &
                                      LOG_LEVEL_INFO
-  use namelist_collection_mod, only: namelist_collection_type
-  use tl_test_driver_mod,      only: initialise,                  &
-                                     finalise,                    &
-                                     run_timesteps,               &
-                                     run_transport_control,       &
-                                     run_semi_imp_alg,            &
-                                     run_rhs_sample_eos,          &
-                                     run_rhs_project_eos,         &
-                                     run_rhs_alg
+  use linear_driver_mod,       only: initialise, finalise
+  use tl_test_driver_mod,      only: run_timesteps_random
 
   implicit none
 
   ! Model run working data set
   type(modeldb_type) :: modeldb
-
   character(*), parameter :: application_name = 'semi_implicit'
-
   character(:), allocatable :: filename
 
   ! Variables used for parsing command line arguments
@@ -46,26 +36,16 @@ program semi_implicit
   character(len=0) :: dummy
   character(len=:), allocatable :: program_name, test_flag
 
-  type(lfric_comm_type) :: communicator
-
   ! Flags which determine the tests that will be carried out
   logical :: do_test_timesteps = .false.
-  logical :: do_test_transport_control = .false.
-  logical :: do_test_semi_imp_alg = .false.
-  logical :: do_test_rhs_alg = .false.
-  logical :: do_test_rhs_project_eos = .false.
-  logical :: do_test_rhs_sample_eos = .false.
 
   ! Usage message to print
   character(len=256) :: usage_message
 
   modeldb%mpi => global_mpi
 
-  call create_comm( communicator )
-  call modeldb%mpi%initialise( communicator )
-  call initialise_logging( communicator%get_comm_mpi_val(), &
-                           "linear_interface-semi_implicit-test" )
-  call initialise_halo_comms( communicator )
+  call modeldb%configuration%initialise( application_name, table_len=10 )
+  call modeldb%values%initialise('values', 5)
 
   call log_event( 'TL testing running ...', LOG_LEVEL_INFO )
 
@@ -82,7 +62,8 @@ program semi_implicit
   call modeldb%fields%add_empty_field_collection("fd_fields",         &
                                                     table_len = 100)
 
-  call modeldb%io_contexts%initialise(program_name, 100)
+
+  call modeldb%io_contexts%initialise(application_name, 100)
 
   ! Parse command line parameters
   call get_command_argument( 0, dummy, length, status )
@@ -99,8 +80,6 @@ program semi_implicit
           " transport_control, "       // &
           " semi_imp_alg, "            // &
           " rhs_alg, "                 // &
-          " rhs_project_eos, "         // &
-          " rhs_sample_eos, "          // &
           " } "
      call log_event( trim(usage_message), LOG_LEVEL_ERROR )
   end if
@@ -118,53 +97,27 @@ program semi_implicit
   select case (trim(test_flag))
   case ("test_timesteps")
      do_test_timesteps = .true.
-  case ("test_transport_control")
-     do_test_transport_control = .true.
-  case ("test_semi_imp_alg")
-     do_test_semi_imp_alg = .true.
-  case ("test_rhs_alg")
-     do_test_rhs_alg = .true.
-  case ("test_rhs_project_eos")
-    do_test_rhs_project_eos = .true.
-  case ("test_rhs_sample_eos")
-     do_test_rhs_sample_eos = .true.
   case default
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call modeldb%configuration%initialise( program_name, table_len=10 )
-  call read_configuration( filename, modeldb%configuration )
-  deallocate( filename )
-
+  call init_comm( application_name, modeldb )
+  call init_config( filename, gungho_required_namelists, &
+       modeldb%configuration )
+  call init_logger( modeldb%mpi%get_comm(), application_name )
   call init_collections()
   call init_time( modeldb )
-  call initialise( application_name, modeldb,  modeldb%calendar )
+  call initialise( application_name, modeldb )
 
   if (do_test_timesteps) then
-    call run_timesteps(modeldb)
-  endif
-  if (do_test_transport_control) then
-    call run_transport_control(modeldb)
-  endif
-  if (do_test_rhs_alg) then
-    call run_rhs_alg(modeldb)
-  endif
-  if (do_test_rhs_project_eos) then
-    call run_rhs_project_eos(modeldb)
-  endif
-  if (do_test_rhs_sample_eos) then
-    call run_rhs_sample_eos(modeldb)
-  endif
-  if (do_test_semi_imp_alg) then
-    call run_semi_imp_alg(modeldb)
+    call run_timesteps_random(modeldb)
   endif
 
   call finalise( application_name, modeldb )
   call final_time( modeldb )
   call final_collections()
-  call final_configuration()
-  call finalise_halo_comms()
-  call finalise_logging()
-  call destroy_comm()
+  call final_logger( application_name )
+  call final_config()
+  call final_comm( modeldb )
 
 end program semi_implicit

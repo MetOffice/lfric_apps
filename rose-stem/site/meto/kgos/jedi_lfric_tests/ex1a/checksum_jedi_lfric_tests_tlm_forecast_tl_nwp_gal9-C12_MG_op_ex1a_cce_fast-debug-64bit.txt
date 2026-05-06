@@ -1,0 +1,9 @@
+Inner product checksum rho =                0
+Inner product checksum theta =                0
+Inner product checksum u =                0
+Inner product checksum mr1 =                0
+Inner product checksum mr2 =                0
+Inner product checksum mr3 =                0
+Inner product checksum mr4 =                0
+Inner product checksum mr5 =                0
+Inner product checksum mr6 =                0

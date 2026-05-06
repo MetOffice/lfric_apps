@@ -1,8 +1,8 @@
-##############################################################################
-# (c) Crown copyright 2025 Met Office. All rights reserved.
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-##############################################################################
+# -----------------------------------------------------------------------------
 '''
 Bespoke PSyclone transformation script for jules_imp_kernel_mod.
 '''
@@ -11,7 +11,7 @@ import logging
 from psyclone.transformations import (
     OMPLoopTrans,
     TransformationError)
-from psyclone.psyir.nodes import Loop, IfBlock, Schedule
+from psyclone.psyir.nodes import Loop, IfBlock
 
 
 omp_transform_par_do = OMPLoopTrans(
@@ -88,9 +88,11 @@ def trans(psyir):
                                 if descendent is not loop]
             if loop_descendents[0].loop_type == 'l':
                 # Now check if there are any if statements in this loop
-                if_statements = [descendent for descendent in
-                                loop_descendents[0].walk(IfBlock, depth=None)
-                                if descendent is not loop]
+                if_statements = [
+                    descendent for descendent in
+                    loop_descendents[0].walk(IfBlock, depth=None)
+                    if descendent is not loop
+                    ]
                 # There is only one loop like this so we can just skip the
                 # transformation for it
                 if len(if_statements) > 0:
@@ -105,5 +107,6 @@ def trans(psyir):
                 logging.warning(
                     "Could not transform:\n %s", err)
 
-#Ignore loops setting these as order dependent: land_field l ainfo%land_index sice_pts ainfo%sice_index sea_pts ainfo%sea_inde ainfo%sice_pts_ncat
-
+# Ignore loops setting these as order dependent:
+#   land_field l ainfo%land_index sice_pts ainfo%sice_index
+#   sea_pts ainfo%sea_inde ainfo%sice_pts_ncat

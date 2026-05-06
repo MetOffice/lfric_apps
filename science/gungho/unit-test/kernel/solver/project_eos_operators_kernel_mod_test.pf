@@ -95,7 +95,7 @@ contains
                               rd=rd, cp=cp, p_zero=p_zero,            &
                               scaling_factor=1.0_r_def )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
   end subroutine set_up
 

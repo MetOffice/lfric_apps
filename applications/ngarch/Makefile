@@ -100,7 +100,7 @@ document-api: api-documentation
 build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
 build: export CXX_LINK     = TRUE
 build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
-build: export SCRATCH_DIR := $(WORKING_DIR)/../physics_scratch
+build: export SCRATCH_DIR := $(WORKING_DIR)/..
 build: export PROJECT      = $(PROJECT_NAME)
 build: export WORKING_DIR := $(WORKING_DIR)
 
@@ -160,10 +160,15 @@ build: ALWAYS
               PSYCLONE_PHYSICS_FILES="$(PSYCLONE_PHYSICS_FILES)" \
 	          PSYCLONE_DIRECTORIES="$(PSYCLONE_DIRECTORIES)" \
 	          PSYCLONE_PHYSICS_EXCEPTION="$(PSYCLONE_PHYSICS_EXCEPTION)"
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface/build/psyclone_transmute_pass.mk \
+	          SOURCE_DIR=$(WORKING_DIR) \
+	          OPTIMISATION_PATH_PSY=$(APPS_ROOT_DIR)/applications/$(PROJECT)/$(OPTIMISATION_PATH) \
+	          PSYCLONE_PASS_NO_SCRIPT="$(PSYCLONE_PASS_NO_SCRIPT)"
 	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface/build/psyclone_transmute.mk \
 	          SOURCE_DIR=$(WORKING_DIR) \
 	          OPTIMISATION_PATH_PSY=$(APPS_ROOT_DIR)/applications/$(PROJECT)/$(OPTIMISATION_PATH) \
 	          PSYCLONE_PHYSICS_FILES="$(PSYCLONE_PHYSICS_FILES)" \
+	          PSYCLONE_PASS_NO_SCRIPT="$(PSYCLONE_PASS_NO_SCRIPT)" \
 	          PSYCLONE_DIRECTORIES="$(PSYCLONE_DIRECTORIES)" \
 	          PSYCLONE_PHYSICS_EXCEPTION="$(PSYCLONE_PHYSICS_EXCEPTION)"
 	$(call MESSAGE,========================================)

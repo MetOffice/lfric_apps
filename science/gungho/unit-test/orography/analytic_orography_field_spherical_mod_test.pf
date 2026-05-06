@@ -134,7 +134,7 @@ contains
                                               lambda_focus,         &
                                               phi_focus ) )
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
 
   end subroutine setUp
 

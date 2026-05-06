@@ -5,18 +5,24 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/common/adjoint_tests/tasks_adjoint_tests.cylc") %}
 
-{% if task_ns.conf_name == "default-C12" %}
+{% if task_ns.conf_name == "nwp_gal9-C12_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["default"],
-        "resolution": "C12",
+        "opt_confs": ["nwp_gal9_c12", "strict_solver", "rrt_equals_dt"],
+        "resolution": "C12_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "log_level": "debug",
     }) %}
 
-{% elif task_ns.conf_name == "varying_ls-C12" %}
+{% elif task_ns.conf_name == "nwp_gal9-C12_MG-varying_LS" %}
 
     {% do task_dict.update({
-        "opt_confs": ["varying_ls"],
-        "resolution": "C12",
+        "opt_confs": ["nwp_gal9_c12", "strict_solver", "rrt_equals_dt", "varying_ls"],
+        "resolution": "C12_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "log_level": "debug",
     }) %}
 
 {% elif task_ns.conf_name == "canned" %}
@@ -45,4 +51,4 @@
     {% endif %}
 {% endif %}
 
-{% do LOG.debug("Finished in site/common/adjoint_tests/tasks_jedi_lfric_tests.cylc") %}
+{% do LOG.debug("Finished in site/common/adjoint_tests/tasks_adjoint_tests.cylc") %}
