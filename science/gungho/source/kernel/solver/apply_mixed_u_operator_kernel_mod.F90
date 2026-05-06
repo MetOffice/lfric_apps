@@ -14,7 +14,7 @@ use argument_mod,      only : arg_type,              &
                               GH_READ,               &
                               GH_WRITE,              &
                               GH_REAL, CELL_COLUMN
-use constants_mod,     only : r_solver, i_def
+use constants_mod,     only : r_solver, i_def, BLOCK_SIZE
 use kernel_mod,        only : kernel_type
 use fs_continuity_mod, only : W2, W3, W2h, W2v, W2broken
 
@@ -119,7 +119,8 @@ subroutine apply_mixed_u_operator_code(cell,                          &
   ! Internal variables
   integer(kind=i_def) :: df, df2, ij, &
                          nm1, iw3,    &
-                         iw2, iw2h
+                         iw2, iw2h,   &
+                         k, kk, kend
 
   ! Set up some useful shorthands for indices
   ij = (cell-1)*nlayers + 1
@@ -127,28 +128,34 @@ subroutine apply_mixed_u_operator_code(cell,                          &
   iw3 = map_w3(1)
 
   ! LHS UV
-  do df = 1, ndf_w2h
-    iw2h = map_w2hb(df)
-    iw2  = map_w2(df)
-    lhs_uv(iw2h:iw2h+nm1) = - norm_u(iw2:iw2+nm1)   &
-                           *grad(ij:ij+nm1, df, 1)*exner(iw3:iw3+nm1)
-  end do
-  do df2 = 1, ndf_w2h
+  do kk = 0, nlayers-1, BLOCK_SIZE
+    kend = min(kk+BLOCK_SIZE-1, nlayers-1)
+
     do df = 1, ndf_w2h
       iw2h = map_w2hb(df)
       iw2  = map_w2(df)
-      lhs_uv(iw2h:iw2h+nm1) = lhs_uv(iw2h:iw2h+nm1) &
-                            + norm_u(iw2:iw2+nm1)*  &
-                              mu_cd(ij:ij+nm1, df, df2)*wind_uv(map_w2h(df2):map_w2h(df2)+nm1)
+      do k = kk, kend
+        lhs_uv(iw2h+k) = - norm_u(iw2+k)   &
+                        *grad(ij+k, df, 1)*exner(iw3+k)
+      end do
     end do
-  end do
-  do df2 = 1, ndf_w2v
     do df = 1, ndf_w2h
       iw2h = map_w2hb(df)
       iw2  = map_w2(df)
-      lhs_uv(iw2h:iw2h+nm1) = lhs_uv(iw2h:iw2h+nm1) &
-                            + norm_u(iw2:iw2+nm1)*  &
-                              mu_cd(ij:ij+nm1, df, ndf_w2h+df2)*wind_w(map_w2v(df2):map_w2v(df2)+nm1)
+      do df2 = 1, ndf_w2h
+        do k = kk, kend
+          lhs_uv(iw2h+k) = lhs_uv(iw2h+k) &
+                         + norm_u(iw2+k)*  &
+                           mu_cd(ij+k, df, df2)*wind_uv(map_w2h(df2)+k)
+        end do
+      end do
+      do df2 = 1, ndf_w2v
+        do k = kk, kend
+          lhs_uv(iw2h+k) = lhs_uv(iw2h+k) &
+                         + norm_u(iw2+k)*  &
+                           mu_cd(ij+k, df, ndf_w2h+df2)*wind_w(map_w2v(df2)+k)
+        end do
+      end do
     end do
   end do
 
