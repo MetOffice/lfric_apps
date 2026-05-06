@@ -560,19 +560,21 @@ end do
 !-----------------------------------------------------------------------
 ! 1.3 Search for sub-critical layers above the PBL and set the
 !      mixing length to scale with these layer depths
-!-----------------------------------------------------------------------
+!----------------------------------------------------------------------------
 if ( local_fa==smooth_to_bdys  ) then
-  ! Calculation of turbulence length-scale based on
-  ! sub-critical layer depth, with interpolation to find accurate
-  ! base and top height of each layer between neighbouring
-  ! sub- and super- critical model-levels.
-  ! Also tapers the length-scale down near the top and bottom
-  ! of each turbulent layer.
+  ! Calculation of turbulence length-scale based on sub-critical layer depth, 
+  ! with interpolation to find accurate base and top height of each layer
+  ! between neighbouring sub- and super- critical model-levels.
+  ! Also tapers the length-scale down near the top and bottom of each
+  ! turbulent layer.
+
+!$OMP PARALLEL DEFAULT(none)                                                   &
+!$OMP SHARED( pdims, bl_levels, z_uv, z_tq, turb_length, ri, ricrit ,          &
+!$OMP         ntpar, ntml_nl, nbdsc, ntdsc, zh_local, zhnl, zhsc, zdsc_base)   &
+!$OMP private( i, k, kl, kb, kt, zbot, ztop, interp, turb_length_layer )
 
   ! Initialise turb_length to zero;
   ! min and max limits will be imposed after calculation
-!$OMP PARALLEL DEFAULT(none) private(k,i)                                      &
-!$OMP SHARED( pdims, bl_levels, turb_length )
   do k = 2, bl_levels+1
 !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
@@ -580,12 +582,7 @@ if ( local_fa==smooth_to_bdys  ) then
     end do
 !$OMP end do
   end do
-!$OMP end PARALLEL
 
-!$OMP PARALLEL DEFAULT(none)                                                   &
-!$OMP SHARED( pdims, bl_levels, z_uv, z_tq, turb_length, ri, ricrit ,          &
-!$OMP         ntpar, ntml_nl, nbdsc, ntdsc, zh_local, zhnl, zhsc, zdsc_base)   &
-!$OMP private( i, k, kl, kb, kt, zbot, ztop, interp, turb_length_layer )
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
@@ -694,7 +691,7 @@ if ( local_fa==smooth_to_bdys  ) then
       end do
     end if
 
-  end do
+  end do ! loop over i
 !$OMP end do
 !$OMP end PARALLEL
 
