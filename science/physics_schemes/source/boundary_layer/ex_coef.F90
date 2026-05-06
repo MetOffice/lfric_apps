@@ -285,9 +285,6 @@ real(kind=r_bl) ::                                                             &
  lambdah,                                                                      &
                  ! Asymptotic mixing length for turbulent transport
                  ! of heat/moisture.
- lambdah_rho,                                                                  &
-                 ! Asymptotic mixing length for turbulent transport
-                 ! of heat/moisture on rho levels
  rlambda_fac,                                                                  &
                  ! reciprocal of lambda_fac
  turb_length_layer,                                                            &
@@ -799,8 +796,7 @@ end if
 
 do k = 2, bl_levels
 !$OMP  PARALLEL DEFAULT(none)                                                  &
-!$OMP  PRIVATE(z_scale,i,lambdam,lambdah,                                      &
-!$OMP  lambdah_rho,vkz,f_log,zz,zht,zfa,beta)                                  &
+!$OMP  PRIVATE(z_scale,i,lambdam,lambdah,vkz,f_log,zz,zht,zfa,beta)            &
 !$OMP  SHARED(k,pdims,ri,ricrit,flandg,ntml_local,ntml_nl,z_tq,                &
 !$OMP  l_rp2,lambda_min,par_mezcla_rp,zh_local,turb_length,k_log_layr,         &
 !$OMP  z_uv,z0m,elm,elh,elh_rho,blending_option,cumulus,l_shallow_cth,zhpar,   &
@@ -842,7 +838,6 @@ do k = 2, bl_levels
       end if
     end if
     lambdah = lambdam
-    lambdah_rho = lambdah
     !-----------------------------------------------------------------------
     ! 2.2 Calculate mixing lengths ELH, ELM coincident with RI(K) and so
     !     at Z_TQ(K-1)
@@ -865,13 +860,13 @@ do k = 2, bl_levels
       vkz   = vkman * ( z_tq(i,j,k) - z_tq(i,j,k-1) )
       f_log = log( ( z_tq(i,j,k) + z0m(i,j)   ) /                              &
                    ( z_tq(i,j,k-1) + z0m(i,j) ) )
-      elh_rho(i,j,k) = vkz / ( f_log + vkz/lambdah_rho )
+      elh_rho(i,j,k) = vkz / ( f_log + vkz/lambdah )
     else
       vkz = vkman * ( z_tq(i,j,k-1) + z0m(i,j) )
       elm(i,j,k) = vkz / (one + vkz/lambdam )
       elh(i,j,k) = vkz / (one + vkz/lambdah )
       vkz = vkman * ( z_uv(i,j,k) + z0m(i,j) )
-      elh_rho(i,j,k) = vkz / (one + vkz/lambdah_rho )
+      elh_rho(i,j,k) = vkz / (one + vkz/lambdah )
     end if
   end do
 !$OMP end do
