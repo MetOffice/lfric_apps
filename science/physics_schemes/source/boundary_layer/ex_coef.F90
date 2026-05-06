@@ -833,22 +833,16 @@ do k = 2, bl_levels
       lambdam = lambda_min_use
     end if
 
-    lambdah = lambdam
-    lambdah_rho = lambdah
-
     if ( local_fa == free_trop_layers .or. local_fa == smooth_to_bdys ) then
       lambdam = max( lambdam, lambda_fac*turb_length(i,j,k) )
-      lambdah = max( lambdah, lambda_fac*turb_length(i,j,k) )
-      ! lambdah_rho does not need to be recalculated under these
-      ! local_fa options as the full KH profile will be interpolated
-      ! in bdy_expl2
       if ( local_fa==smooth_to_bdys ) then
         ! Impose max and min limits on lambda
         ! (done once at the end to simplify things).
         lambdam = MAX( MIN( lambdam, lambda_max_nml ), lambda_min )
-        lambdah = MAX( MIN( lambdah, lambda_max_nml ), lambda_min )
       end if
     end if
+    lambdah = lambdam
+    lambdah_rho = lambdah
     !-----------------------------------------------------------------------
     ! 2.2 Calculate mixing lengths ELH, ELM coincident with RI(K) and so
     !     at Z_TQ(K-1)
