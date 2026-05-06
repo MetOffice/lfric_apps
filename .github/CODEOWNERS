@@ -29,6 +29,7 @@
 **/adjoint                              @DrTVockerodtMO                     # @mo-joshuacolclough
 **/linear                               @cjohnson-pi  @MetOffice/r2o-systems # @tommbendall # Also notifiy jedi team about linear changes.
 science/shared/source/constants/        @iboutle                            # @BShipway
+science/shared/source/utilities/lfric_apps_version_mod_test.pf    @MetOffice/ssdteam
 
 **/gungho                               @thomasmelvin                       # @iboutle
 science/gungho/**/configuration/        @jameskent-metoffice                # @thomasmelvin
