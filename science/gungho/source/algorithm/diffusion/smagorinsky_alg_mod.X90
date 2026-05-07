@@ -247,7 +247,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
       call dtheta%write_field('diffusion__dtheta_smag')
       call dmr_v%write_field('diffusion__dmv_smag')
       call dmr_cl%write_field('diffusion__dmcl_smag')
-      if ( LPROF ) call stop_timing( id, 'diags.smagorinsky' )
+      if ( LPROF ) call stop_timing( id_diags, 'diags.smagorinsky' )
     end if
 
 #ifdef UM_PHYSICS
