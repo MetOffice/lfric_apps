@@ -2187,10 +2187,10 @@ if (BL_diag%l_tke) then
 
   ! Combine the, separately calculated, local and non-local TKE diagnostics
 
-!$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
+!$OMP  PARALLEL DEFAULT(none) private(i, j, k)                                 &
 !$OMP  SHARED(BL_diag, tke_nl, tke_loc, rho_wet_tq, weight_1dbl,               &
-!$OMP         tke_diag_fac, bl_levels, pdims)                                  &
-!$OMP  private(i, j, k)
+!$OMP         improved_tke_diag, tke_diag_fac, bl_levels, pdims)
+!$OMP  do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
