@@ -158,3 +158,18 @@ class vn31_t443(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t464(MacroUpgrade):
+    """Upgrade macro for ticket #464 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t443"
+    AFTER_TAG = "vn3.1_t464"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        self.add_setting(
+            config, ["namelist:cloud", "pc2_turb_horiz"], ".false."
+        )
+
+        return config, self.reports
