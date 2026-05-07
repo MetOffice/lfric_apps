@@ -41,3 +41,94 @@ class vn31_t118(MacroUpgrade):
         # Commands From: rose-meta/lfric-gungho
         # Blank Upgrade Macro
         return config, self.reports
+
+
+class vn31_t363(MacroUpgrade):
+    """Upgrade macro for ticket #363 by Jaffery Irudayasamy."""
+
+    BEFORE_TAG = "vn3.1_t118"
+    AFTER_TAG = "vn3.1_t363"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Set segmentation size limit for short and long wave radiation kernels"""
+        self.add_setting(config, ["namelist:physics", "sw_segment_limit"], "32")
+        self.add_setting(config, ["namelist:physics", "lw_segment_limit"], "32")
+        return config, self.reports
+
+
+class vn31_t348(MacroUpgrade):
+    """Upgrade macro for ticket #348 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t363"
+    AFTER_TAG = "vn3.1_t348"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Use PMSL halo calculations by default
+        self.add_setting(
+            config, ["namelist:physics", "pmsl_halo_calcs"], ".true."
+        )
+        return config, self.reports
+
+
+class vn31_t368(MacroUpgrade):
+    """Upgrade macro for ticket #368 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t348"
+    AFTER_TAG = "vn3.1_t368"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-convection
+        self.add_setting(
+            config, ["namelist:convection", "llcs_first_outer"], ".false."
+        )
+        return config, self.reports
+
+
+class vn31_t238(MacroUpgrade):
+    """Upgrade macro for ticket #238 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t368"
+    AFTER_TAG = "vn3.1_t238"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-driver
+        self.add_setting(
+            config, ["namelist:finite_element", "coord_space"], "'Wchi'"
+        )
+        coord_order = self.get_setting_value(
+            config, ["namelist:finite_element", "coord_order"]
+        )
+        self.add_setting(
+            config,
+            ["namelist:finite_element", "coord_order_nonprime"],
+            coord_order,
+        )
+        return config, self.reports
+
+
+class vn31_t443(MacroUpgrade):
+    """Upgrade macro for ticket #443 by Samantha Pullen."""
+
+    BEFORE_TAG = "vn3.1_t238"
+    AFTER_TAG = "vn3.1_t443"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add name entry to iau_addinf_io namelist
+        self.add_setting(
+            config, ["namelist:iau_addinf_io(addinf1)", "name"], "''"
+        )
+        self.add_setting(
+            config, ["namelist:iau_addinf_io(addinf2)", "name"], "''"
+        )
+        # Add name entry to iau_ainc_io namelist
+        self.add_setting(config, ["namelist:iau_ainc_io(ainc1)", "name"], "''")
+        self.add_setting(config, ["namelist:iau_ainc_io(ainc2)", "name"], "''")
+        # Add name entry to iau_bcorr_io namelist
+        self.add_setting(
+            config, ["namelist:iau_bcorr_io(bcorr1)", "name"], "''"
+        )
+
+        return config, self.reports

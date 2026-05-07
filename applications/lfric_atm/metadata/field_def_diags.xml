@@ -638,7 +638,7 @@
   <field id="soil__soil_moist_crit" name="soil_moist_crit" long_name="soil_moisture_at_critical_point" unit="m3 m-3" domain_ref="face" /> 
   <field id="soil__soil_moist_sat" name="soil_moist_sat" long_name="soil_moisture_at_saturation" unit="m3 m-3" domain_ref="face" />
   <!-- Boundary layer turbulence diagnostics -->
-  <field id="turbulence__dtheta_blcnv" name="dtheta_blcnv" long_name="potential_temperature_increment_from_bl_and_convection_schemes" unit="K" grid_ref="full_level_face_grid" />
+  <field id="turbulence__dtheta_bl" name="dtheta_bl" long_name="potential_temperature_increment_from_bl_scheme" unit="K" grid_ref="full_level_face_grid" />
   <field id="turbulence__dt_bl" name="dt_bl" long_name="temperature_increment_from_bl_scheme" unit="K" grid_ref="full_level_face_grid" />
   <field id="turbulence__dmv_bl" name="dmv_bl" long_name="vapour_increment_from_bl_scheme" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="turbulence__dmcl_bl" name="dmcl_bl" long_name="liquid_water_increment_from_bl_scheme" unit="kg kg-1" grid_ref="full_level_face_grid" />
