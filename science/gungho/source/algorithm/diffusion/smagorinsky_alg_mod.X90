@@ -296,7 +296,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
         call dmr_cl%write_field('diffusion__dmcl_smag_pc2')
         call cfl_force%write_field('diffusion__dcfl_smag_pc2')
         call bcf_force%write_field('diffusion__dbcf_smag_pc2')
-        if ( LPROF ) call stop_timing( id, 'diags.smagorinsky' )
+        if ( LPROF ) call stop_timing( id_diags, 'diags.smagorinsky' )
       end if
     end if
 #endif
