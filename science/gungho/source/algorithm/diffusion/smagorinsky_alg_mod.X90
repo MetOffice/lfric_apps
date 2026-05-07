@@ -106,7 +106,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     logical :: use_moisture
     real( r_def ) :: one_third
-    integer(tik)  :: id
+    integer(tik)  :: id, id_diags
 
     if ( LPROF ) call start_timing( id, 'smagorinsky' )
 
