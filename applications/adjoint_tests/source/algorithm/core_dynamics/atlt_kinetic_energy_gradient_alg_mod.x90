@@ -80,9 +80,9 @@ module atlt_kinetic_energy_gradient_alg_mod
     ! Misc
     type(quadrature_rule_gaussian_type) :: quadrature_rule
 
-    vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,W0)
-    vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,W2)
-    vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,W3)
+    vector_space_w0_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W0)
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3)
 
     call r_u%initialise(vector_space=vector_space_w2_ptr, name='r_u')
     call u%initialise(vector_space=vector_space_w2_ptr, name='u')
