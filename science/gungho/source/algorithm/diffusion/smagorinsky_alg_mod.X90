@@ -243,7 +243,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     ! Write out theta and mr increments from Smagorinsky
     if (write_diag .and. use_xios_io) then
-      if ( LPROF ) call start_timing( id, 'diags.smagorinsky' )
+      if ( LPROF ) call start_timing( id_diags, 'diags.smagorinsky' )
       call dtheta%write_field('diffusion__dtheta_smag')
       call dmr_v%write_field('diffusion__dmv_smag')
       call dmr_cl%write_field('diffusion__dmcl_smag')
