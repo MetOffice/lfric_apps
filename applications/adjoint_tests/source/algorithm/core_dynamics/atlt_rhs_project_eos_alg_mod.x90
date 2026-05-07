@@ -13,7 +13,7 @@ module atlt_rhs_project_eos_alg_mod
   use mesh_mod,                      only : mesh_type
   use function_space_collection_mod, only : function_space_collection
   use finite_element_config_mod,     only : element_order_h, element_order_v
-  use fs_continuity_mod,             only : W0, W3, Wtheta
+  use fs_continuity_mod,             only : W3, Wtheta
   use constants_mod,                 only : i_def, r_def
   use planet_config_mod,             only : kappa, rd, p_zero
   use quadrature_xyoz_mod,           only : quadrature_xyoz_type
@@ -75,7 +75,6 @@ module atlt_rhs_project_eos_alg_mod
     type(field_type) :: moist_dyn_gas_input
 
     ! Pointers for initialising fields
-    type(function_space_type), pointer :: vector_space_w0_ptr
     type(function_space_type), pointer :: vector_space_w3_ptr
     type(function_space_type), pointer :: vector_space_wtheta_ptr
 
@@ -107,7 +106,6 @@ module atlt_rhs_project_eos_alg_mod
     ! Misc
     type(quadrature_rule_gaussian_type) :: quadrature_rule
 
-    vector_space_w0_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W0)
     vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3)
     vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta)
 
