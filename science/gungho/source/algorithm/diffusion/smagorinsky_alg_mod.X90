@@ -243,9 +243,11 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     ! Write out theta and mr increments from Smagorinsky
     if (write_diag .and. use_xios_io) then
+      if ( LPROF ) call start_timing( id, 'diags.smagorinsky' )
       call dtheta%write_field('diffusion__dtheta_smag')
       call dmr_v%write_field('diffusion__dmv_smag')
       call dmr_cl%write_field('diffusion__dmcl_smag')
+      if ( LPROF ) call stop_timing( id, 'diags.smagorinsky' )
     end if
 
 #ifdef UM_PHYSICS
@@ -288,11 +290,13 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
       ! Write out theta, mr, cloud increments from PC2 Smagorinsky
       if (write_diag .and. use_xios_io) then
+        if ( LPROF ) call start_timing( id, 'diags.smagorinsky' )
         call dtheta%write_field('diffusion__dtheta_smag_pc2')
         call dmr_v%write_field('diffusion__dmv_smag_pc2')
         call dmr_cl%write_field('diffusion__dmcl_smag_pc2')
         call cfl_force%write_field('diffusion__dcfl_smag_pc2')
         call bcf_force%write_field('diffusion__dbcf_smag_pc2')
+        if ( LPROF ) call stop_timing( id, 'diags.smagorinsky' )
       end if
     end if
 #endif
