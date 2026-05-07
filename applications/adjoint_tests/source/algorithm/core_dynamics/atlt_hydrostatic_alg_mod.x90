@@ -62,9 +62,9 @@ module atlt_hydrostatic_alg_mod
     type(quadrature_xyoz_type) :: qr_xyoz
 
     ! Copies of input fields used in inner products
-    type(field_type) :: r_u_input
-    type(field_type) :: exner_input
-    type(field_type) :: theta_input
+    type(field_type)               :: r_u_input
+    type(field_type)               :: exner_input
+    type(field_type)               :: theta_input
     type(field_type), dimension(3) :: moist_dyn_fac_input
 
     ! Pointers for initialising fields
@@ -97,9 +97,9 @@ module atlt_hydrostatic_alg_mod
     ! Misc
     type(quadrature_rule_gaussian_type) :: quadrature_rule
 
-    vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
-    vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
-    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,wtheta)
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,W2)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,W3)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,Wtheta)
 
     call r_u%initialise(vector_space=vector_space_w2_ptr, name='r_u')
     call exner%initialise(vector_space=vector_space_w3_ptr, name='exner')
