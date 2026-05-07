@@ -168,7 +168,7 @@ contains
     call atlt_hydrostatic_alg( mesh )
     call atlt_kinetic_energy_gradient_alg( mesh, chi, panel_id )
     call atlt_moist_dyn_gas_alg( mesh )
-    call atlt_moist_dyn_mass_alg( mesh, chi, panel_id )
+    call atlt_moist_dyn_mass_alg( mesh )
     call atlt_project_eos_pressure_alg( mesh, chi, panel_id )
     call atlt_rhs_project_eos_alg( mesh, chi, panel_id )
     call atlt_rhs_sample_eos_alg( mesh, chi, panel_id )
