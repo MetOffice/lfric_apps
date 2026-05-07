@@ -165,7 +165,7 @@ contains
     call adjt_w3h_adv_upd_lookup_alg( mesh, adj_trans_lookup_cache )
 
     ! ./core_dynamics
-    call atlt_hydrostatic_alg( mesh, chi, panel_id )
+    call atlt_hydrostatic_alg( mesh )
     call atlt_kinetic_energy_gradient_alg( mesh, chi, panel_id )
     call atlt_moist_dyn_gas_alg( mesh, chi, panel_id )
     call atlt_moist_dyn_mass_alg( mesh, chi, panel_id )
