@@ -145,8 +145,8 @@ contains
     chi => get_coordinates( mesh%get_id() )
     panel_id => get_panel_id( mesh%get_id() )
     twod_mesh => mesh_collection%get_mesh( mesh, TWOD )
-    call adj_solver_lookup_cache%initialise(mesh)
-    call adj_trans_lookup_cache%initialise(mesh)
+    call adj_solver_lookup_cache%initialise( mesh )
+    call adj_trans_lookup_cache%initialise( mesh )
 
     call log_event( "TESTING generated adjoint kernels", LOG_LEVEL_INFO )
     call run_gen_adj_kernel_tests( mesh, chi, panel_id )
@@ -167,7 +167,7 @@ contains
     ! ./core_dynamics
     call atlt_hydrostatic_alg( mesh )
     call atlt_kinetic_energy_gradient_alg( mesh, chi, panel_id )
-    call atlt_moist_dyn_gas_alg( mesh, chi, panel_id )
+    call atlt_moist_dyn_gas_alg( mesh )
     call atlt_moist_dyn_mass_alg( mesh, chi, panel_id )
     call atlt_project_eos_pressure_alg( mesh, chi, panel_id )
     call atlt_rhs_project_eos_alg( mesh, chi, panel_id )
