@@ -304,6 +304,9 @@ logical :: l_use_var_fixes = .false.
 ! don't create DSC layers when no top-driven turbulence and
 ! set zh to max(zh, zsml_top), not just ntml to keep consistent
 
+! 17a Improvements to the TKE diagnostic, for consistency with rhok
+logical :: improved_tke_diag = .false.
+
 ! 18 Switch to ignore cloud ice (qcf) in the BL scheme
 logical :: l_noice_in_turb = .false.
 
@@ -622,6 +625,8 @@ call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_converge_ga = ',l_converge_ga
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_use_var_fixes = ',l_use_var_fixes
+call umprint(linebuffer,src='bl_option_mod')
+write(linebuffer,'(A,L1)') 'improved_tke_diag = ',improved_tke_diag
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,ES12.4)') 'tke_diag_fac = ',tke_diag_fac
 call umprint(linebuffer,src='bl_option_mod')
