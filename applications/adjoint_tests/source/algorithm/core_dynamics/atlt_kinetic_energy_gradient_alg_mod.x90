@@ -27,11 +27,13 @@ module atlt_kinetic_energy_gradient_alg_mod
 
   contains
   !=============================================================================
-  !> @brief   Adjoint test for atl_hydrostatic.
+  !> @brief   Adjoint test for atl_kinetic_energy_gradient.
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
   !> @param[in] mesh        Mesh object
+  !> @param[in] chi         Coordinate field
+  !> @param[in] panel_id    ID of panel
   subroutine atlt_kinetic_energy_gradient_alg( mesh, chi, panel_id )
 
     use tl_kinetic_energy_gradient_kernel_mod,  only : tl_kinetic_energy_gradient_kernel_type
@@ -106,11 +108,11 @@ module atlt_kinetic_energy_gradient_alg_mod
 
     ! < Mx, Mx >
     write( log_scratch_space, * ) "atlt_kinetic_energy_gradient inner products:"
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "u inner product = ", u_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "r_u inner product = ", r_u_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     u_sf = 1.0_r_def / (u_inner_prod + eps)
     r_u_sf = 1.0_r_def / (r_u_inner_prod + eps)
@@ -141,10 +143,10 @@ module atlt_kinetic_energy_gradient_alg_mod
     relative_diff = abs(inner1 - inner2) / machine_tol
     if (relative_diff < overall_tolerance) then
       write(log_scratch_space, *) "PASSED tl_kinetic_energy_gradient_kernel_type:", inner1, inner2, relative_diff
-      call log_event(log_scratch_space, log_level_info)
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
     else
       write(log_scratch_space, *) "FAILED tl_kinetic_energy_gradient_kernel_type:", inner1, inner2, relative_diff
-      call log_event(log_scratch_space, log_level_error)
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
   end subroutine atlt_kinetic_energy_gradient_alg

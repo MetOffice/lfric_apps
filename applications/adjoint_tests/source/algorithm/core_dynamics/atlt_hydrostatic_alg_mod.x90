@@ -157,19 +157,19 @@ module atlt_hydrostatic_alg_mod
                  x_innerproduct_x(moist_dyn_fac_inner_prod(3_i_def), moist_dyn_fac(3_i_def)) )
 
     write( log_scratch_space, * ) "atlt_hydrostatic_alg inner products:"
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "r_u inner product = ", r_u_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "exner inner product = ", exner_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "theta inner product = ", theta_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "moist_dyn_fac inner(1_i_def) product = ", moist_dyn_fac_inner_prod(1_i_def)
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "moist_dyn_fac inner(2_i_def) product = ", moist_dyn_fac_inner_prod(2_i_def)
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "moist_dyn_fac inner(3_i_def) product = ", moist_dyn_fac_inner_prod(3_i_def)
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     r_u_sf = 1.0_r_def / (r_u_inner_prod + eps)
     exner_sf = 1.0_r_def / (exner_inner_prod + eps)
@@ -228,10 +228,10 @@ module atlt_hydrostatic_alg_mod
     relative_diff = abs(inner1 - inner2) / machine_tol
     if (relative_diff < overall_tolerance) then
       write(log_scratch_space, *) "PASSED tl_hydrostatic_kernel_type:", inner1, inner2, relative_diff
-      call log_event(log_scratch_space, log_level_info)
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
     else
       write(log_scratch_space, *) "FAILED tl_hydrostatic_kernel_type:", inner1, inner2, relative_diff
-      call log_event(log_scratch_space, log_level_error)
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
   end subroutine atlt_hydrostatic_alg
