@@ -69,7 +69,6 @@ class vn31_t348(MacroUpgrade):
         self.add_setting(
             config, ["namelist:physics", "pmsl_halo_calcs"], ".true."
         )
-
         return config, self.reports
 
 
@@ -83,6 +82,53 @@ class vn31_t368(MacroUpgrade):
         # Commands From: rose-meta/um-convection
         self.add_setting(
             config, ["namelist:convection", "llcs_first_outer"], ".false."
+        )
+        return config, self.reports
+
+
+class vn31_t238(MacroUpgrade):
+    """Upgrade macro for ticket #238 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t368"
+    AFTER_TAG = "vn3.1_t238"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-driver
+        self.add_setting(
+            config, ["namelist:finite_element", "coord_space"], "'Wchi'"
+        )
+        coord_order = self.get_setting_value(
+            config, ["namelist:finite_element", "coord_order"]
+        )
+        self.add_setting(
+            config,
+            ["namelist:finite_element", "coord_order_nonprime"],
+            coord_order,
+        )
+        return config, self.reports
+
+
+class vn31_t443(MacroUpgrade):
+    """Upgrade macro for ticket #443 by Samantha Pullen."""
+
+    BEFORE_TAG = "vn3.1_t238"
+    AFTER_TAG = "vn3.1_t443"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add name entry to iau_addinf_io namelist
+        self.add_setting(
+            config, ["namelist:iau_addinf_io(addinf1)", "name"], "''"
+        )
+        self.add_setting(
+            config, ["namelist:iau_addinf_io(addinf2)", "name"], "''"
+        )
+        # Add name entry to iau_ainc_io namelist
+        self.add_setting(config, ["namelist:iau_ainc_io(ainc1)", "name"], "''")
+        self.add_setting(config, ["namelist:iau_ainc_io(ainc2)", "name"], "''")
+        # Add name entry to iau_bcorr_io namelist
+        self.add_setting(
+            config, ["namelist:iau_bcorr_io(bcorr1)", "name"], "''"
         )
 
         return config, self.reports
