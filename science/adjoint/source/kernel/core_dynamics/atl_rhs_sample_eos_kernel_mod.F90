@@ -28,19 +28,19 @@ module atl_rhs_sample_eos_kernel_mod
   !>
   type, public, extends(kernel_type) :: atl_rhs_sample_eos_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/                                     &
-         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, W3),                    &
-         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE,  W3),                   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE,  W3),                   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE,  Wtheta),               &
-         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE,  Wtheta),               &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,       W3),                   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,       W3),                   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,       Wtheta),               &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,       Wtheta),               &
-         arg_type(GH_SCALAR, GH_REAL, GH_READ),                              &
-         arg_type(GH_SCALAR, GH_REAL, GH_READ),                              &
-         arg_type(GH_SCALAR, GH_REAL, GH_READ)                               &
+    type(arg_type) :: meta_args(12) = (/                                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, W3),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, W3),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, W3),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, Wtheta),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, Wtheta),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,      W3),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,      W3),                   &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),               &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)                              &
          /)
     type(func_type) :: meta_funcs(2) = (/                                   &
          func_type(W3,          GH_BASIS),                                  &
