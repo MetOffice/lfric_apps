@@ -172,7 +172,7 @@ contains
     call atlt_project_eos_pressure_alg( mesh, chi, panel_id )
     call atlt_rhs_project_eos_alg( mesh, chi, panel_id )
     call atlt_rhs_sample_eos_alg( mesh )
-    call atlt_sample_eos_pressure_alg( mesh, chi, panel_id )
+    call atlt_sample_eos_pressure_alg( mesh )
     call atlt_pressure_gradient_bd_alg( mesh )
 
     ! ./linear_physics
