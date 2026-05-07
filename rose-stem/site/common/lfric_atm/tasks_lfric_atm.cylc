@@ -59,7 +59,7 @@
         "tsteps": 36,
         "mpi_parts": 24,
         "kgo_checks": ["checksum"],
-        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_nomg-C48" %}
