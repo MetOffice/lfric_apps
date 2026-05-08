@@ -3,7 +3,6 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-
 !> @brief Adjoint for computing the projection of the pressure field
 !!        into the same space as density.
 module atl_project_eos_pressure_kernel_mod
