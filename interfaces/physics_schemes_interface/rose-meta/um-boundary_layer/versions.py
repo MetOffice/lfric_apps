@@ -34,7 +34,7 @@ class vnXX_txxx(MacroUpgrade):
 class vn31_t487(MacroUpgrade):
     # Upgrade macro for #487 by Adrian Lock
 
-    BEFORE_TAG = "vn3.1_t368"
+    BEFORE_TAG = "vn3.1"
     AFTER_TAG = "vn3.1_t487"
 
     def upgrade(self, config, meta_config=None):
