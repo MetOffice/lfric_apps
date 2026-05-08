@@ -71,8 +71,6 @@ module coupler_mod
   character(len=3), parameter  :: cpl_prefix = "lf_"
   ! Name of the first level of a multi-category field
   character(len=2), parameter  :: cpl_fixed_catno = "01"
-  ! Flag for whether a checkpoint has been written
-  logical :: checkpoint_written = .false.
 
   !routines
   public zero_coupling_send_fields, create_coupling_fields, &
@@ -345,10 +343,21 @@ module coupler_mod
     integer(i_def)                               :: ierror
     ! Number of accumulation steps
     real(r_def), pointer                         :: acc_step
+    ! Flag for whether a checkpoint has been written
+    logical(l_def), pointer                      :: checkpoint_written
+    ! Parameter for setting a default value
+    logical(l_def), parameter                    :: default_false = .false.
 
     depository => modeldb%fields%get_field_collection("depository")
     cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
     cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
+
+    ! Determine whether checkpoint has already been written
+    if ( .not. modeldb%values%key_value_exists('checkpoint_written') ) then
+      ! On the first call, the checkpoint will not have been written
+      call modeldb%values%add_key_value('checkpoint_written', default_false)
+    end if
+    call modeldb%values%get_value('checkpoint_written', checkpoint_written)
 
     ! Extract the coupling object from the modeldb key-value pair collection
     coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
@@ -441,6 +450,10 @@ module coupler_mod
 
 
   !>@brief Top level routine for updating coupling fields
+  !>@details Update is done at the end of the timestep prior to
+  !>         the coupling timestep. The checkpoint_written flag
+  !>         is set true so the normal update is not done at the
+  !>         start of the upcoming coupling timestep
   !>@param [in,out] modeldb The structure that holds model state
   !>
   subroutine cpl_fld_update( modeldb )
@@ -474,10 +487,15 @@ module coupler_mod
     type(coupling_type), pointer                 :: coupling_ptr
     ! Pointer to the index used for ordering coupled fields
     integer(i_def), pointer                      :: local_index(:)
+    ! Flag for whether a checkpoint has been written
+    logical(l_def), pointer                      :: checkpoint_written
 
 
     depository => modeldb%fields%get_field_collection("depository")
     cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
+
+    ! This flag will be set to true once checkpoint is written by this call
+    call modeldb%values%get_value('checkpoint_written', checkpoint_written)
 
     ldump_prep = .true.
 
@@ -518,7 +536,7 @@ module coupler_mod
           call dep_fld%write_field(trim(name))
        else
           write(log_scratch_space, '(2A)' ) "PROBLEM cpl_fld_update: ", &
-                "Checkpoints must only be written at coupling frequencies" 
+                "Checkpoints must only be written at coupling frequencies"
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
       class default
