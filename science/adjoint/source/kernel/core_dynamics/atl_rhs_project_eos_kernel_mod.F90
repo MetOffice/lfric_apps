@@ -175,7 +175,7 @@ module atl_rhs_project_eos_kernel_mod
 
     ipanel = int(panel_id(map_pid(1)), i_def)
     p0_over_rd = p_zero / rd
-    onemk_over_k = -1 + 1.0 / kappa
+    onemk_over_k = -1 + 1.0_r_def / kappa
     do k = nlayers - 1, 0, -1
       do df = 1, ndf_chi, 1
         chi1_e(df) = chi1(map_chi(df) + k)

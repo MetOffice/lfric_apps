@@ -211,7 +211,7 @@ module atl_project_eos_pressure_kernel_mod
             ls_theta_vd_at_quad = ls_theta_vd_at_quad + ls_theta_vd_e(df) * wt_basis(1,df,qp1,qp2)
           end do
 
-          ls_exner_eos = (ls_rho_at_quad * ls_theta_vd_at_quad * rd / p_zero) ** (kappa / (1.0 - kappa))
+          ls_exner_eos = (ls_rho_at_quad * ls_theta_vd_at_quad * rd / p_zero) ** (kappa / (1.0_r_def - kappa))
           exner_at_quad = 0.0_r_def
           do df = ndf_w3, 1, -1
             exner_at_quad = exner_at_quad + r_exner(df) * w3_basis(1,df,qp1,qp2)
@@ -219,8 +219,8 @@ module atl_project_eos_pressure_kernel_mod
 
           exner_eos = exner_at_quad * dj(qp1,qp2) * wqp_h(qp1) * wqp_v(qp2)
 
-          rho_at_quad = kappa * exner_eos * ls_exner_eos / (-kappa * ls_rho_at_quad + 1.0 * ls_rho_at_quad)
-          theta_vd_at_quad = kappa * exner_eos * ls_exner_eos / (-kappa * ls_theta_vd_at_quad + 1.0 * &
+          rho_at_quad = kappa * exner_eos * ls_exner_eos / (-kappa * ls_rho_at_quad + 1.0_r_def * ls_rho_at_quad)
+          theta_vd_at_quad = kappa * exner_eos * ls_exner_eos / (-kappa * ls_theta_vd_at_quad + 1.0_r_def * &
 &ls_theta_vd_at_quad)
 
           do df = ndf_wt, 1, -1

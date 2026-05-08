@@ -130,7 +130,7 @@ module atl_rhs_sample_eos_kernel_mod
     real(kind=r_def)                     :: ls_eos
 
     p0_over_rd = p_zero / rd
-    onemk_over_k = -1 + 1.0 / kappa
+    onemk_over_k = -1 + 1.0_r_def / kappa
     do k = nlayers - 1, 0, -1
       do df = 1, ndf_wt, 1
         ls_theta_vd_e(df) = ls_moist_dyn_gas(k + map_wt(df)) * ls_theta(k + map_wt(df))

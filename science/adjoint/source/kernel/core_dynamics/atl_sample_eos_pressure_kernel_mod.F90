@@ -139,9 +139,9 @@ module atl_sample_eos_pressure_kernel_mod
           ls_theta_vd_cell = ls_theta_vd_cell + ls_theta_vd_e(dft) * wt_basis(1,dft,df)
         end do
 
-        ls_exner = (ls_rho_cell * ls_theta_vd_cell * rd / p_zero) ** (kappa / (1.0 - kappa))
-        rho_cell = kappa * exner(map_w3(df) + k) * ls_exner / (-kappa * ls_rho_cell + 1.0 * ls_rho_cell)
-        theta_vd_cell = kappa * exner(map_w3(df) + k) * ls_exner / (-kappa * ls_theta_vd_cell + 1.0 * ls_theta_vd_cell)
+        ls_exner = (ls_rho_cell * ls_theta_vd_cell * rd / p_zero) ** (kappa / (1.0_r_def - kappa))
+        rho_cell = kappa * exner(map_w3(df) + k) * ls_exner / (-kappa * ls_rho_cell + 1.0_r_def * ls_rho_cell)
+        theta_vd_cell = kappa * exner(map_w3(df) + k) * ls_exner / (-kappa * ls_theta_vd_cell + 1.0_r_def * ls_theta_vd_cell)
         exner(map_w3(df) + k) = 0.0_r_def
 
         do dft = ndf_wt, 1, -1
