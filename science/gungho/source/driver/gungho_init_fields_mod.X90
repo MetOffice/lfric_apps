@@ -1077,9 +1077,6 @@ subroutine create_model_data( modeldb,      &
 
     type( field_collection_type ), pointer :: fd_fields
     type( field_collection_type ), pointer :: prognostic_fields
-#ifdef COUPLED
-    type(field_collection_type), pointer :: depository
-#endif
 
     type( io_value_type ), pointer :: random_seed_io_value
     integer(i_def) :: i
@@ -1128,7 +1125,6 @@ subroutine create_model_data( modeldb,      &
                                     end_of_run_checkpoint, all_checkpoint_times )
 #ifdef COUPLED
       if (l_esm_couple .and. checkpoint_time(modeldb%clock, all_checkpoint_times) ) then
-        depository => modeldb%fields%get_field_collection("depository")
         ! Ensure coupling fields are updated at the end of a cycle to ensure the values
         ! stored in and recovered from checkpoint dumps are correct and reproducible
         ! when (re)starting subsequent runs!
