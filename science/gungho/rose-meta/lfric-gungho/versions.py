@@ -84,3 +84,5 @@ class vn31_t368(MacroUpgrade):
         self.add_setting(
             config, ["namelist:convection", "llcs_first_outer"], ".false."
         )
+
+        return config, self.reports
