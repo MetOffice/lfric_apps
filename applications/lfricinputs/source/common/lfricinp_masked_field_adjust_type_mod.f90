@@ -293,11 +293,12 @@ allocate(self%adjusted_dst_indices_2D(self%num_adjusted_points,2))
 j = 0
 do i_y = 1, size(dst_mask,2)
   do i_x = 1, size(dst_mask,1)
-  if (dst_point_contrb_record(i_x,i_y) == off_src_mask_contrb) then
-    j = j + 1
-    self%adjusted_dst_indices_2D(j,1) = i_x
-    self%adjusted_dst_indices_2D(j,2) = i_y
-  end if
+    if (dst_point_contrb_record(i_x,i_y) == off_src_mask_contrb) then
+      j = j + 1
+      self%adjusted_dst_indices_2D(j,1) = i_x
+      self%adjusted_dst_indices_2D(j,2) = i_y
+    end if
+  end do
 end do
 
 deallocate(dst_point_contrb_record)
@@ -340,6 +341,7 @@ if (self%initialised) then
       if (.not. self%dst_mask_2D(i_x,i_y)) then
         dst(i_x,i_y) = um_rmdi
       end if
+    end do
   end do
 
 else
