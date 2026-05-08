@@ -132,8 +132,6 @@ contains
                             intent(inout) :: oasis_clock
 
     ! Coordinate field
-    type(field_type),             pointer :: chi(:)
-    type(field_type),             pointer :: panel_id
     type(field_type)                      :: surface_altitude_dst
     type(field_type)                      :: surface_altitude_src
     type(field_type)                      :: surface_altitude_src_on_dst
@@ -200,10 +198,8 @@ contains
     procedure(callback_clock_arg), pointer :: before_close
 
     ! Source context pointer and temporary context for setup
-    type(lfric_xios_context_type)          :: tmp_io_context_src
     type(lfric_xios_context_type), pointer :: io_context_src
     type(lfric_xios_context_type), pointer :: io_context_dst
-    type(linked_list_type),        pointer :: file_list
 
 
     ! -------------------------------
@@ -409,30 +405,20 @@ contains
     !-----------------------------------------------------------------------
     ! Create the IO context for source files
     !-----------------------------------------------------------------------
-    ! Because the source files are not the same as the 'prime mesh', we have
-    ! to initialise the source context manually with the desired mesh
+    ! Set a pointer to the method for setting files in the source
+    ! IO context
+    files_init_ptr => init_lfric2lfric_src_files
 
-    ! Add the source context to modeldb and return a pointer to it
-    call tmp_io_context_src%initialise(context_src)
-    call modeldb%io_contexts%add_context(tmp_io_context_src)
+    ! Initialise the IO context with all the required info
+    call init_io( context_src,                      &
+                  mesh_names(src),                  &
+                  modeldb,                          &
+                  chi_inventory,                    &
+                  panel_id_inventory,               &
+                  populate_filelist=files_init_ptr  )
+
     call modeldb%io_contexts%get_io_context(context_src, io_context_src)
 
-    ! Get the file list of context and populate
-    file_list => io_context_src%get_filelist()
-    call init_lfric2lfric_src_files( file_list, modeldb )
-
-    ! Get panel_id and chi from correct mesh
-    call chi_inventory%get_field_array(mesh_src, chi)
-    call panel_id_inventory%get_field(mesh_src, panel_id)
-
-    ! Using correct chi and panel_id, initialise xios context for source mesh
-    nullify( before_close )
-    call io_context_src%initialise_xios_context( modeldb%mpi%get_comm(), &
-                                                 chi,                    &
-                                                 panel_id,               &
-                                                 modeldb%clock,          &
-                                                 modeldb%calendar,       &
-                                                 before_close            )
 
     !=======================================================================
     ! Initialise source orography
