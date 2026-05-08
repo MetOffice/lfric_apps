@@ -3,7 +3,6 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-
 !> @brief Adjoint for computing the sampling of the pressure field
 !!        into the same space as density.
 module atl_sample_eos_pressure_kernel_mod
