@@ -8,13 +8,24 @@
 
 file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
 
-select = ["S101", "PORT011"]
+select = ["E000", "E001", "C001", "C031", "C032", "C043",
+"C051", "C071", "C072", "C081", "C091", "C082", "C092", "C121",
+"C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
+"S101", "S071", "PORT011", "PORT012", "PORT021", "FORT001",
+"FORT002", "FORT003", "FORT004", "FORT005"]
+
+
 
 output-format = "grouped"                #group results by file
 
 [check.per-file-ignores]
+"stochastic_physics_run_mod.F90" = ["E001"]
 
-"update_ancils_alg_mod.x90" = ["S101"]
-"jules_exp_kernel_mod.F90" = ["S101"]
-"jules_extra_kernel_mod.F90" = ["S101"]
-"jules_imp_kernel_mod.F90" = ["S101"]
+"grow_particles_mod.F90" = ["C081"]
+"mphys_die.F90" = ["C081"]
+
+# Leaving out for now (these rules are used in the universal config):
+# C021, C022, C061
+
+
+

@@ -37,7 +37,6 @@ module adj_semi_implicit_solver_alg_mod
   use timing_mod,                             only: start_timing, stop_timing, &
                                                     tik, LPROF
   use finite_element_config_mod,              only: element_order_h, element_order_v
-  use copy_field_alg_mod,                     only: copy_field
   use function_space_collection_mod,          only: function_space_collection
   use fs_continuity_mod,                      only: W2, Wtheta, W2v, W2h
   use mixed_solver_config_mod,                only: si_maximum_iterations,                         &
@@ -385,10 +384,10 @@ contains
 
     ! Finally we need to add r_solver increments to the r_def state field
 
-    call copy_field( state(igh_u), inc_uvw_rsol )
-    call copy_field( state(igh_p), inc_exner_rsol )
-    call copy_field( state(igh_t), inc_theta_rsol )
-    call copy_field( state(igh_d), inc_rho_rsol )
+    call invoke( real_to_real_x( inc_uvw_rsol, state(igh_u) ),   &
+                 real_to_real_x( inc_exner_rsol, state(igh_p) ), &
+                 real_to_real_x( inc_theta_rsol, state(igh_t) ), &
+                 real_to_real_x( inc_rho_rsol, state(igh_d) ) )
 
     call rhs_tmp%initialise(vector_space=rhs_rsol(igh_t)%get_function_space())
     call invoke( name="adj_si_solver_1",                          &
