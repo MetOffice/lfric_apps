@@ -39,7 +39,7 @@ module atlt_rhs_sample_eos_alg_mod
   !> @param[in] mesh        Mesh object
   subroutine atlt_rhs_sample_eos_alg( mesh )
 
-    use tl_rhs_sample_eos_kernel_mod,   only : tl_rhs_sample_eos_kernel_type
+    use tl_rhs_sample_eos_kernel_mod,  only : tl_rhs_sample_eos_kernel_type
     use atl_rhs_sample_eos_kernel_mod, only : atl_rhs_sample_eos_kernel_type
 
     implicit none
