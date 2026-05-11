@@ -18,14 +18,22 @@ module smagorinsky_alg_mod
                                        boundary_layer_um
   use mixing_config_mod,         only: mix_factor, smag_l_calc, &
                                        smag_l_calc_use_geo
-
+  use physics_config_mod,        only: smagorinsky_placement, &
+                                       smagorinsky_placement_outer, &
+                                       smagorinsky_placement_end
+  use cloud_config_mod,          only: pc2_turb_horiz
+  use physics_mappings_alg_mod,  only: map_physics_scalars
+#ifdef UM_PHYSICS
+  use pc2_force_response_alg_mod, only: pc2_force_response_alg
+#endif
   use tracer_smagorinsky_diff_kernel_mod, only: tracer_smagorinsky_diff_kernel_type
   use momentum_smagorinsky_kernel_mod,    only: momentum_smagorinsky_kernel_type
 
   use log_mod,                   only: log_event,         &
                                        LOG_LEVEL_INFO
   use mesh_mod,                  only: mesh_type
-  use io_config_mod,             only: write_conservation_diag
+  use io_config_mod,             only: write_conservation_diag, write_diag, &
+                                       use_xios_io
   use timing_mod,                only: start_timing, stop_timing, tik, LPROF
   use moisture_conservation_alg_mod,   &
                                  only: moisture_conservation_alg
@@ -61,7 +69,7 @@ contains
   !> @param[in]     rho            Density
   !> @param[in]     dt             The model timestep length
 subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
-                           derived_fields, rho, dt )
+                           derived_fields, cloud_fields, rho, exner, dt )
 
     implicit none
 
@@ -70,8 +78,9 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     type( field_type ), intent(inout) :: mr ( nummr )
 
     type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
 
-    type( field_type ), intent(in) :: rho, theta, u
+    type( field_type ), intent(in) :: rho, theta, u, exner
     real( r_def ),      intent(in) :: dt
 
     ! Increments on state fields
@@ -87,6 +96,13 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     type( field_type ), pointer :: dx_at_w2 => null()
     type( field_type ), pointer :: panel_id => null()
     type( field_type ) :: dmr_v, dmr_cl
+#ifdef UM_PHYSICS
+    type( field_type ) :: theta_b4smag, cfl_force, bcf_force
+    type( field_type ), pointer :: liquid_fraction
+    type( field_type ), pointer :: bulk_fraction
+    type( field_type ), pointer :: theta_star
+    type( field_type ), pointer :: exner_wth
+#endif
 
     type( mesh_type ), pointer :: mesh => null()
 
@@ -95,7 +111,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     logical :: use_moisture
     real( r_def ) :: one_third
-    integer(tik)  :: id
+    integer(tik)  :: id, id_diags
 
     if ( LPROF ) call start_timing( id, 'smagorinsky' )
 
@@ -107,7 +123,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     call du%initialise( u%get_function_space() )
     call invoke(setval_c(du,0.0_r_def))
-    call dtheta%initialise( theta%get_function_space() )
+    call theta%copy_field_properties(dtheta)
     call derived_fields%get_field('visc_h', visc_h)
     call derived_fields%get_field('visc_m', visc_m)
 
@@ -227,14 +243,81 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     end if ! With or without BL scheme
 
+    ! Scale by dt to obtain full increments
+    call invoke(inc_a_times_X(dt, dtheta), &
+                inc_a_times_X(dt, du))
     if (use_moisture) then
-      call invoke( inc_X_plus_bY( mr(imr_v), dt, dmr_v ),    &
-                   inc_X_plus_bY( mr(imr_cl), dt, dmr_cl ) )
+      call invoke(inc_a_times_X(dt, dmr_v), &
+                  inc_a_times_X(dt, dmr_cl) )
     end if
 
+    ! Write out theta and mr increments from Smagorinsky
+    if (write_diag .and. use_xios_io) then
+      if ( LPROF ) call start_timing( id_diags, 'diags.smagorinsky' )
+      call dtheta%write_field('diffusion__dtheta_smag')
+      call dmr_v%write_field('diffusion__dmv_smag')
+      call dmr_cl%write_field('diffusion__dmcl_smag')
+      if ( LPROF ) call stop_timing( id_diags, 'diags.smagorinsky' )
+    end if
+
+#ifdef UM_PHYSICS
+    ! Call pc2 homogeneous forcing response to Smagorinsky
+    if (pc2_turb_horiz) then
+
+      ! Calculate theta before Smag - this depends on placement of Smag
+      call theta%copy_field_properties(theta_b4smag)
+      if (smagorinsky_placement == smagorinsky_placement_outer) then
+        ! In outer loop, need to get theta_star and add on the incoming inc
+        call derived_fields%get_field('theta_star', theta_star)
+        call invoke(X_plus_Y(theta_b4smag, theta_star, dtheta_io))
+      else
+        ! Just add incoming inc to incoming theta
+        call invoke(X_plus_Y(theta_b4smag, theta, dtheta_io))
+      end if
+
+      ! Set cloud fraction forcing to 0
+      call theta%copy_field_properties(cfl_force)
+      call theta%copy_field_properties(bcf_force)
+      call invoke(setval_c(cfl_force, 0.0_r_def),           &
+                  setval_c(bcf_force, 0.0_r_def))
+
+      ! If we're at the end of timestep, we need to update exner_wth
+      if (smagorinsky_placement == smagorinsky_placement_end) then
+        call derived_fields%get_field('exner_in_wth', exner_wth)
+        call map_physics_scalars(exner_wth, exner)
+      end if
+
+      ! dtheta and dmr will be updated with the pc2 response in the alg
+      call pc2_force_response_alg(mr, theta_b4smag, derived_fields,    &
+                                  cloud_fields, dtheta, dmr_v, dmr_cl, &
+                                  cfl_force, bcf_force, dt)
+
+      ! update cloud fractions with response
+      call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+      call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+      call invoke(inc_X_plus_Y(liquid_fraction, cfl_force), &
+                  inc_X_plus_Y(bulk_fraction, bcf_force))
+
+      ! Write out theta, mr, cloud increments from PC2 Smagorinsky
+      if (write_diag .and. use_xios_io) then
+        if ( LPROF ) call start_timing( id_diags, 'diags.smagorinsky' )
+        call dtheta%write_field('diffusion__dtheta_smag_pc2')
+        call dmr_v%write_field('diffusion__dmv_smag_pc2')
+        call dmr_cl%write_field('diffusion__dmcl_smag_pc2')
+        call cfl_force%write_field('diffusion__dcfl_smag_pc2')
+        call bcf_force%write_field('diffusion__dbcf_smag_pc2')
+        if ( LPROF ) call stop_timing( id_diags, 'diags.smagorinsky' )
+      end if
+    end if
+#endif
+
     ! Apply increments from Smagorinsky mixing
-    call invoke( inc_X_plus_bY( dtheta_io, dt, dtheta ),      &
-                 inc_X_plus_bY( du_io,     dt, du ) )
+    call invoke( inc_X_plus_Y( dtheta_io, dtheta ),      &
+                 inc_X_plus_Y( du_io,     du ) )
+    if (use_moisture) then
+      call invoke( inc_X_plus_Y( mr(imr_v), dmr_v ),    &
+                   inc_X_plus_Y( mr(imr_cl), dmr_cl ) )
+    end if
 
     if (write_conservation_diag .and. use_moisture) &
       call moisture_conservation_alg( rho, mr, 'After mixing' )

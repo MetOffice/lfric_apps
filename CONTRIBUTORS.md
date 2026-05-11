@@ -29,6 +29,9 @@
 | thomasmelvin        | Thomas Melvin      | Met Office                       | 2026-01-15 |
 | stevemullerworth    | Steve Mullerworth  | Met Office                       | 2026-01-28 |
 | ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
+| RobWatersMet        | Rob Waters         | University of Cambridge          | 2026-03-24 |
+| mo-lucy-gordon      | Lucy Gordon        | Met Office                       | 2026-03-11 |
+| iboutle             | Ian Boutle         | Met Office                       | 2026-03-04 |
 | ricky-lv426         | Ricky Olivier      | University of Exeter             | 2026-01-12 |
 | mo-alistairp        | Alistair Pirrie    | Met Office                       | 2026-01-19 |
 | yaswant             | Yaswant Pradhan    | Met Office                       | 2025-12-16 |
