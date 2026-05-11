@@ -5,43 +5,43 @@
 !-------------------------------------------------------------------------------
 !
 ! Section 20 aviation diagnostics kernel.
+! This kernel calculates geopotential thickness and snow probabbility.
 !
 ! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file currently belongs in section: physics_schemes_interface
 ! whilst discussions are ongoing about its final location.
 !
-module aviation_diags_kernel_mod
+module aviation_thickness_snow_kernel_mod
 
-  use argument_mod,         only: arg_type,                        &
+  use argument_mod,         only: arg_type,            &
                                   gh_field, gh_scalar, gh_logical, &
-                                  gh_read, gh_write, gh_integer,   &
-                                  gh_real, cell_column,            &
-                                  any_discontinuous_space_1,       &
+                                  gh_read, gh_write, gh_integer, &
+                                  gh_real, cell_column, &
+                                  any_discontinuous_space_1, &
                                   any_discontinuous_space_2
   use kernel_mod,           only: kernel_type
   use constants_mod,        only: r_def, i_def, l_def
 
-
   implicit none
 
   ! The aviation diagnostics kernel type.
-  type, extends(kernel_type) :: aviation_diags_kernel_type
+  type, extends(kernel_type) :: aviation_thickness_snow_kernel_type
     type(arg_type), dimension(10) :: meta_args = (/ &
 
-      ! Output fields.
+      ! Output fields: thickness 850 & 500, and snow probability.
       arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
       arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
       arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
 
-      ! Source field.
+      ! Source field plev_geopot.
       arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_2), &
 
-      ! Request flags.
+      ! Field request flags.
       arg_type(gh_scalar, gh_logical, gh_read), &
       arg_type(gh_scalar, gh_logical, gh_read), &
       arg_type(gh_scalar, gh_logical, gh_read), &
 
-      ! Level indices.
+      ! Level indices: 1000, 850 & 500.
       arg_type(gh_scalar, gh_integer, gh_read), &
       arg_type(gh_scalar, gh_integer, gh_read), &
       arg_type(gh_scalar, gh_integer, gh_read) &
@@ -50,26 +50,26 @@ module aviation_diags_kernel_mod
     integer :: operates_on = cell_column
 
     contains
-      procedure, nopass :: code => aviation_diags_kernel_code
-    end type aviation_diags_kernel_type
+      procedure, nopass :: code => aviation_thickness_snow_kernel_code
+    end type aviation_thickness_snow_kernel_type
 
 contains
 
-  subroutine aviation_diags_kernel_code(nlayers,     &
-             ! Output fields.
+  subroutine aviation_thickness_snow_kernel_code(nlayers, &
+             ! output fields.
              thickness_850, thickness_500, snow_probability, &
 
-             ! Source field.
-             plev_geopot,                            &
+             ! source field.
+             plev_geopot, &
 
-             ! Request flags.
+             ! request flags.
              thickness_850_flag, thickness_500_flag, snow_probability_flag, &
 
-             ! Level indices.
-             i1000, i850, i500,                      &
+             ! level incides.
+             i1000, i850, i500, &
 
-             ! Kernel stuff.
-             result_ndf, result_undf, result_map,    &
+             ! kernel stuff.
+             result_ndf, result_undf, result_map, &
              source_ndf, source_undf, source_map)
 
     ! Thickness:
@@ -81,7 +81,7 @@ contains
 
     implicit none
 
-    ! Arguments (kernel)
+    ! Arguments (kernel).
 
     ! The number of layers in a column.
     integer(kind=i_def), intent(in) :: nlayers
@@ -92,14 +92,14 @@ contains
     ! Number of unique degrees of freedom in the fields.
     integer(kind=i_def), intent(in) :: result_undf, source_undf
 
-    ! Degrees of freedom maps. Offsets to the bottom of each column.
+    ! Degrees of freedom maps. offsets to the bottom of each column.
     integer(kind=i_def), intent(in), dimension(result_ndf) :: result_map
     integer(kind=i_def), intent(in), dimension(source_ndf) :: source_map
 
 
-    ! Arguments (algorithm)
+    ! Arguments (algorithm).
 
-    ! Output fields.
+    ! Output thickness fields.
     real(kind=r_def), intent(out), dimension(result_undf) :: thickness_850
     real(kind=r_def), intent(out), dimension(result_undf) :: thickness_500
     real(kind=r_def), intent(out), dimension(result_undf) :: snow_probability
@@ -112,13 +112,14 @@ contains
     logical(kind=l_def), intent(in) :: thickness_500_flag
     logical(kind=l_def), intent(in) :: snow_probability_flag
 
-    ! Level indices.
+    ! Level indices. for i850 and i500, -1 means "not requested".
     integer(kind=i_def), intent(in) :: i1000, i850, i500
 
 
-    ! Local variables
+    ! Local variables.
     integer(kind=i_def) :: df
     real(kind=r_def) :: gph_1000, gph_850, gph_500
+
 
     ! Process every DOF in this cell.
     do df = 1, result_ndf
@@ -144,6 +145,6 @@ contains
 
     end do
 
-  end subroutine aviation_diags_kernel_code
+  end subroutine aviation_thickness_snow_kernel_code
 
-end module aviation_diags_kernel_mod
+end module aviation_thickness_snow_kernel_mod

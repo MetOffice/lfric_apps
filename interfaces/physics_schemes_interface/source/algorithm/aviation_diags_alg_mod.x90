@@ -23,8 +23,10 @@ module aviation_diags_alg_mod
                                         log_level_always, log_level_error,  &
                                         log_level_info, log_level_debug
 
-  use diags_geopot_kernel_mod,  only: diags_geopot_kernel_type
-  use diags_icao_heights_kernel_mod,  only: diags_icao_heights_kernel_type
+  use aviation_thickness_snow_kernel_mod,                                   &
+                                  only: aviation_thickness_snow_kernel_type
+  use aviation_icao_heights_kernel_mod,                                     &
+                                  only: aviation_icao_heights_kernel_type
 
   implicit none
 
@@ -181,8 +183,9 @@ contains
 
     ! Call the kernel to subtract the levels.
     ! Todo: Comment why we initialise to 1.0 and not 0.0. I can't remember.
-    call invoke( diags_geopot_kernel_type(            &
+    call invoke( aviation_thickness_snow_kernel_type(            &
       aviation_thick_850, aviation_thick_500,           &
+      aviation_snow_probability,                        &
       plev_geopot,                                      &
       aviation_thick_850_flag, aviation_thick_500_flag, &
       aviation_snow_probability_flag, i1000, i850, i500))
@@ -207,6 +210,7 @@ contains
     TYPE(field_collection_type), INTENT(INOUT) :: convection_fields
 
     ! Locals
+    character(len=str_long) :: message
 
     ! Pressure fields to unpack.
     type(field_type), pointer :: conv_cloud_base_pressure
@@ -228,8 +232,8 @@ contains
       conv_cloud_base_icao_height, 'aviation__conv_cloud_base_icao_height')
 
     if (base_height_flag .or. top_height_flag) then
-      WRITE(log_scratch_space, '(A)') 'Section 20 cloud ICAO heights on'
-      CALL log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+      message = 'Section 20: cloud ICAO heights on'
+      call log_event( message, log_level_debug )
     else
       ! nothing requested at this time step
       return
@@ -242,7 +246,7 @@ contains
               'convection__pres_cv_base', conv_cloud_base_pressure)
       call invoke( &
         setval_c(conv_cloud_base_icao_height, RMDI), &
-        diags_icao_heights_kernel_type(conv_cloud_base_icao_height, &
+        aviation_icao_heights_kernel_type(conv_cloud_base_icao_height, &
           conv_cloud_base_pressure))
 
       call conv_cloud_base_icao_height%write_field()
@@ -260,7 +264,7 @@ contains
               'convection__pres_cv_top', conv_cloud_top_pressure)
       call invoke( &
         setval_c(conv_cloud_top_icao_height, RMDI), &
-        diags_icao_heights_kernel_type(conv_cloud_top_icao_height, &
+        aviation_icao_heights_kernel_type(conv_cloud_top_icao_height, &
           conv_cloud_top_pressure))
 
       call conv_cloud_top_icao_height%write_field()

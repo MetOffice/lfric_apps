@@ -94,7 +94,7 @@
 	<field field_ref="forcing__dt_force" />
       </file>
 
-	<file id="lf_diag_aviation" name="lf_diag_aviation" output_freq="6h" convention="UGRID" enabled=".TRUE.">
+	<file id="lfric_aviation" name="lfric_aviation" output_freq="6h" convention="UGRID" enabled=".TRUE.">
 		<field field_ref="aviation__geopot_thickness_850"/>
 		<field field_ref="aviation__geopot_thickness_500"/>
 		<field field_ref="aviation__snow_probability"/>

@@ -83,8 +83,11 @@ contains
          plev_u_flag, plev_u_clim_flag, plev_v_flag, plev_v_clim_flag, &
          plev_w_flag, plev_w_clim_flag, plev_omega_clim_flag,          &
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
-         plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag,    &
-         aviation_thickness_flag
+         plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
+
+    ! Aviation diagnostics require plev_geopot.
+    logical(l_def) :: aviation_geopot_flag
+
     integer(tik) :: id
 
     ! For code tidiness, combines all flags requiring plev_geopot.
@@ -263,15 +266,16 @@ contains
     end if
 
     ! Geopotential height on pressure levels
-    aviation_thickness_flag = diag_samp('aviation__geopot_thickness_850') .or. &
-                              diag_samp('aviation__geopot_thickness_500')
+    aviation_geopot_flag = diag_samp('aviation__geopot_thickness_850') .or. &
+                           diag_samp('aviation__geopot_thickness_500') .or. &
+                           diag_samp('aviation__snow_probability')
     plev_geopot_clim_flag = diag_samp('plev__geopot_clim')
     plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', &
-            activate=plev_geopot_clim_flag .or. aviation_thickness_flag)
+            activate=plev_geopot_clim_flag .or. aviation_geopot_flag)
 
     plev_gepot_required = plev_geopot_flag .or. &
                           plev_geopot_clim_flag .or. &
-                          aviation_thickness_flag
+                          aviation_geopot_flag
     if (plev_gepot_required .and. use_xios_io) then
 
       height_w3 => get_height_fv(W3, exner_w3%get_mesh_id())
