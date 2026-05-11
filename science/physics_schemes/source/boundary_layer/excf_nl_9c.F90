@@ -3048,7 +3048,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             ! is near-zero.  To keep TKE consistent with this,
             ! scale it up by the ratio of Km over the value it would have
             ! had without the surface-driven contribution.
-            factor = (( one - km_dsct_factor(i,j)*z_pr/zh_pr )**0.8) /       &
+            factor = (( one - km_dsct_factor(i,j)*z_pr/zh_pr )**0.8_r_bl) /       &
                      (( one - km_dsct_factor_top(i,j)*z_pr/zh_pr )**0.8)
           else
             factor = one
