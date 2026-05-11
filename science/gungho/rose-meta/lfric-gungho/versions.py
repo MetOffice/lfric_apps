@@ -29,6 +29,8 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
 class vn31_t118(MacroUpgrade):
     """Upgrade macro for ticket TTTT by Unknown."""
 
@@ -67,7 +69,6 @@ class vn31_t348(MacroUpgrade):
         self.add_setting(
             config, ["namelist:physics", "pmsl_halo_calcs"], ".true."
         )
-
         return config, self.reports
 
 
@@ -82,7 +83,6 @@ class vn31_t368(MacroUpgrade):
         self.add_setting(
             config, ["namelist:convection", "llcs_first_outer"], ".false."
         )
-
         return config, self.reports
 
 
@@ -105,17 +105,17 @@ class vn31_t238(MacroUpgrade):
             ["namelist:finite_element", "coord_order_nonprime"],
             coord_order,
         )
-
         return config, self.reports
 
- 
- class vn31_t443(MacroUpgrade):
-    # Upgrade macro for PR #443 by Samantha Pullen
+
+class vn31_t443(MacroUpgrade):
+    """Upgrade macro for ticket #443 by Samantha Pullen."""
 
     BEFORE_TAG = "vn3.1_t238"
     AFTER_TAG = "vn3.1_t443"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
         # Add name entry to iau_addinf_io namelist
         self.add_setting(
             config, ["namelist:iau_addinf_io(addinf1)", "name"], "''"
@@ -124,14 +124,26 @@ class vn31_t238(MacroUpgrade):
             config, ["namelist:iau_addinf_io(addinf2)", "name"], "''"
         )
         # Add name entry to iau_ainc_io namelist
-        self.add_setting(
-            config, ["namelist:iau_ainc_io(ainc1)", "name"], "''"
-        )
-        self.add_setting(
-            config, ["namelist:iau_ainc_io(ainc2)", "name"], "''"
-        )
+        self.add_setting(config, ["namelist:iau_ainc_io(ainc1)", "name"], "''")
+        self.add_setting(config, ["namelist:iau_ainc_io(ainc2)", "name"], "''")
         # Add name entry to iau_bcorr_io namelist
         self.add_setting(
             config, ["namelist:iau_bcorr_io(bcorr1)", "name"], "''"
         )
+
+        return config, self.reports
+
+
+class vn31_t464(MacroUpgrade):
+    """Upgrade macro for ticket #464 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t443"
+    AFTER_TAG = "vn3.1_t464"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        self.add_setting(
+            config, ["namelist:cloud", "pc2_turb_horiz"], ".false."
+        )
+
         return config, self.reports
