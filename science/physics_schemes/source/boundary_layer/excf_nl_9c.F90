@@ -3038,8 +3038,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             0.75_r_bl*rho_wet_tq(i,j,k-1)*v_top_dsc(i,j)*g1*vkman*             &
               ( (max(one - km_dsct_factor(i,j)*z_pr/zh_pr,zero))**0.8_r_bl )   &
                                       * z_pr * z_pr / zh_pr
-      if (BL_diag%l_tke) then
-        ! save Km/timescale for TKE diag, completed in bdy_expl2
+        if (BL_diag%l_tke) then
+          ! save Km/timescale for TKE diag, completed in bdy_expl2
           if ( improved_tke_diag .and. coupled(i,j) ) then
             ! The expression for tke_nl below assumes it scales with
             ! v_top_dsc/dscdepth, but in the case of "coupled" dsc layers
@@ -3048,12 +3048,14 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             ! is near-zero.  To keep TKE consistent with this,
             ! scale it up by the ratio of Km over the value it would have
             ! had without the surface-driven contribution.
-            factor = (( one - km_dsct_factor(i,j)*z_pr/zh_pr )**0.8_r_bl) /       &
-                     (( one - km_dsct_factor_top(i,j)*z_pr/zh_pr )**0.8_r_bl)
+            ! Include max(,0 and rbl_eps) in case of rounding error.
+            factor = ( max( one-km_dsct_factor(i,j)*z_pr/zh_pr, zero ) /       &
+                       max( one-km_dsct_factor_top(i,j)*z_pr/zh_pr, rbl_eps )  &
+                      )**0.8_r_bl
           else
             factor = one
           end if
-          tke_nl(i,j,k) = tke_nl(i,j,k) +                                    &
+          tke_nl(i,j,k) = tke_nl(i,j,k) +                                      &
                     factor*rhokm_dsct*c_tke*v_top_dsc(i,j)/dscdepth(i,j)
         end if
         rhokm_top(i,j,k) = rhokm_top(i,j,k) + rhokm_dsct
