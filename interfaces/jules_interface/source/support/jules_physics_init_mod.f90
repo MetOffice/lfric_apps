@@ -186,7 +186,7 @@ contains
     implicit none
 
     ! Model run working data set
-    type(config_type) :: config
+    type(config_type), intent(in) :: config
 
     integer(kind=i_def) :: errorstatus = 0
 
