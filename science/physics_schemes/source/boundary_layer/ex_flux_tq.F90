@@ -34,7 +34,7 @@ subroutine ex_flux_tq (                                                        &
   )
 
 use atm_fields_bounds_mod, only: pdims, tdims, scmrowlen, scmrow
-use bl_option_mod, only: flux_grad, LockWhelan2006, zero
+use bl_option_mod, only: flux_grad, LockWhelan2006, l_converge_ga, zero
 use planet_constants_mod, only: cp => cp_bl, grcp => grcp_bl
 use bl_diags_mod, only: strnewbldiag
 use s_scmop_mod,   only: default_streams,                                      &
