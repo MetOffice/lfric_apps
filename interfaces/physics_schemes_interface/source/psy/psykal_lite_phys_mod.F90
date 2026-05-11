@@ -992,10 +992,11 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
   !> Hence this module could be removed once the PSyclone ticket is
   !> completed
     SUBROUTINE invoke_geo_on_pres_kernel_type(height_w3, exner_w3, theta_wth, height_wth, exner_wth, nplev, plevs, plev_geopot, &
-&p_zero, kappa, cp, gravity, ex_power)
+&p_zero, kappa, cp, gravity, planet_radius, ex_power)
       USE geo_on_pres_kernel_mod, ONLY: geo_on_pres_code
       USE mesh_mod, ONLY: mesh_type
-      REAL(KIND=r_def), intent(in) :: p_zero, kappa, cp, gravity, ex_power
+      REAL(KIND=r_def), intent(in) :: p_zero, kappa, cp, gravity, ex_power, &
+                                      planet_radius
       INTEGER(KIND=i_def), intent(in) :: nplev
       REAL(KIND=r_def), intent(in) :: plevs(nplev)
       TYPE(field_type), intent(in) :: height_w3, exner_w3, theta_wth, height_wth, exner_wth, plev_geopot
@@ -1071,7 +1072,7 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       DO cell=loop0_start,loop0_stop
         !
         CALL geo_on_pres_code(nlayers, height_w3_data, exner_w3_data, theta_wth_data, height_wth_data, exner_wth_data, nplev, &
-&plevs, plev_geopot_data, p_zero, kappa, cp, gravity, ex_power, ndf_adspc1_height_w3, undf_adspc1_height_w3, &
+&plevs, plev_geopot_data, p_zero, kappa, cp, gravity, planet_radius, ex_power, ndf_adspc1_height_w3, undf_adspc1_height_w3, &
 &map_adspc1_height_w3(:,cell), ndf_wtheta, undf_wtheta, map_wtheta(:,cell), ndf_adspc2_plev_geopot, undf_adspc2_plev_geopot, &
 &map_adspc2_plev_geopot(:,cell))
       END DO

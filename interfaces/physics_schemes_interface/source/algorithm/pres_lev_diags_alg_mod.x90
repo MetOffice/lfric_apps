@@ -21,7 +21,8 @@ module pres_lev_diags_alg_mod
   use fs_continuity_mod,       only: W3, WTheta
   use mr_indices_mod,          only: nummr, imr_v
   use moist_dyn_mod,           only: num_moist_factors, total_mass
-  use planet_config_mod,       only: p_zero, kappa, gravity, cp
+  use planet_config_mod,       only: p_zero, kappa, gravity, cp, &
+                                     planet_radius
   use planet_constants_mod,    only: ex_power
 
   implicit none
@@ -267,7 +268,7 @@ contains
                                           height_wth, exner_wth,             &
                                           nplev, plevs, plev_geopot,         &
                                           p_zero, kappa, cp, gravity,        &
-                                          ex_power)
+                                          planet_radius, ex_power)
       if (plev_geopot_flag) call plev_geopot%write_field()
 
       if (plev_geopot_clim_flag) then

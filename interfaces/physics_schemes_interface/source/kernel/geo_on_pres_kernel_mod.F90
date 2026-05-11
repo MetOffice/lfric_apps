@@ -17,7 +17,6 @@ module geo_on_pres_kernel_mod
   use fs_continuity_mod,    only: WTHETA
   use constants_mod,        only: r_def, i_def
   use kernel_mod,           only: kernel_type
-  use planet_constants_mod, only: planet_radius
 
   implicit none
 
@@ -66,6 +65,7 @@ contains
   !> @param[in]     kappa         Rd / cp
   !> @param[in]     cp            Specific heat at constant pressure
   !> @param[in]     gravity       Acceleration due to gravity
+  !> @param[in]     planet_radius Radius of the planet
   !> @param[in]     ex_power      (cp * lapse_rate ) / g
   !> @param[in]     ndf_in        Number of degrees of freedom per cell for in fields
   !> @param[in]     undf_in       Number of total degrees of freedom for in fields
@@ -86,6 +86,7 @@ contains
                               kappa,                           &
                               cp,                              &
                               gravity,                         &
+                              planet_radius,                   &
                               ex_power,                        &
                               ndf_in, undf_in, map_in,         &
                               ndf_wth, undf_wth, map_wth,      &
@@ -111,7 +112,8 @@ contains
     real(kind=r_def),    intent(inout), dimension(undf_out) :: data_out
 
     ! Constants passed explicitly from algorithm
-    real(kind=r_def),    intent(in) :: p_zero, kappa, cp, gravity, ex_power
+    real(kind=r_def),    intent(in) :: p_zero, kappa, cp, gravity, ex_power, &
+                                       planet_radius
     real(kind=r_def),    intent(in), dimension(nplev) :: plevs
 
     ! Internal variables
