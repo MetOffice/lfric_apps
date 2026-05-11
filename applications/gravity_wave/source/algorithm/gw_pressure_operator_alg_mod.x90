@@ -44,7 +44,7 @@ module gw_pressure_operator_alg_mod
                                                 b_space_w0, &
                                                 b_space_w3, &
                                                 b_space_wtheta
-  use function_space_chain_mod,           only: multigrid_function_space_chain
+  use multigrid_mod,                      only: multigrid_function_space_chain
 
   implicit none
 

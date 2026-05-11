@@ -10,8 +10,7 @@ module gungho_model_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
   use sci_checksum_alg_mod,       only : checksum_alg
-  use driver_fem_mod,             only : init_fem, final_fem, &
-                                         init_function_space_chains
+  use driver_fem_mod,             only : init_fem, final_fem
   use driver_io_mod,              only : init_io, final_io, &
                                          filelist_populator
   use driver_mesh_mod,            only : init_mesh
@@ -36,7 +35,8 @@ module gungho_model_mod
                                          shifted_extrusion_type,      &
                                          double_level_extrusion_type, &
                                          TWOD, SHIFTED, DOUBLE_LEVEL
-  use multigrid_mod,              only : get_multigrid_tile_size
+  use multigrid_mod,              only : get_multigrid_tile_size, &
+                                         init_multigrid_fs_chain
   use field_array_mod,            only : field_array_type
   use field_mod,                  only : field_type
   use field_spec_mod,             only : field_spec_type, processor_type
@@ -832,7 +832,7 @@ contains
 
     call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
     if ( l_multigrid ) then
-      call init_function_space_chains(chain_mesh_tags)
+      call init_multigrid_fs_chain(chain_mesh_tags)
     end if
 
 

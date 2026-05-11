@@ -20,7 +20,8 @@ module gravity_wave_infrastructure_mod
   use extrusion_mod,              only : extrusion_type,         &
                                          uniform_extrusion_type, &
                                          TWOD, PRIME_EXTRUSION
-  use multigrid_mod,              only : get_multigrid_tile_size
+  use multigrid_mod,              only : get_multigrid_tile_size, &
+                                         init_multigrid_fs_chain
   use sci_geometric_constants_mod,        &
                                   only : get_chi_inventory,  &
                                          get_panel_id_inventory
@@ -31,7 +32,7 @@ module gravity_wave_infrastructure_mod
                                          LOG_LEVEL_ERROR
   use mesh_collection_mod,        only : mesh_collection
   use field_mod,                  only : field_type
-  use driver_fem_mod,             only : init_fem, init_function_space_chains
+  use driver_fem_mod,             only : init_fem
   use driver_io_mod,              only : init_io, final_io
   use driver_mesh_mod,            only : init_mesh
   use runtime_constants_mod,      only : create_runtime_constants
@@ -240,7 +241,7 @@ contains
     panel_id_inventory => get_panel_id_inventory()
     call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
     if ( l_multigrid ) then
-      call init_function_space_chains(chain_mesh_tags)
+      call init_multigrid_fs_chain(chain_mesh_tags)
     end if
 
     !-------------------------------------------------------------------------

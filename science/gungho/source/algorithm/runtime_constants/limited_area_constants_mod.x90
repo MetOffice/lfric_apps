@@ -269,7 +269,7 @@ contains
   !> @param[in] use_fe        Whether to use finite element or finite volume
   subroutine create_multigrid_masks(finest_mesh, use_fe)
 
-    use function_space_chain_mod, only: multigrid_function_space_chain
+    use multigrid_mod,            only: multigrid_function_space_chain
     use multigrid_config_mod,     only: multigrid_chain_nitems
     use sci_restrict_masked_w2_kernel_mod, &
                                   only: restrict_masked_w2_kernel_type

@@ -31,15 +31,15 @@ module si_operators_alg_mod
                                        preconditioner_multigrid,    &
                                        normalise
   use timing_mod,                only: start_timing, stop_timing, tik, LPROF
-  use function_space_chain_mod,  only: multigrid_function_space_chain, &
-                                       w2_multigrid_function_space_chain, &
-                                       wtheta_multigrid_function_space_chain
   use formulation_config_mod,    only: l_multigrid,          &
                                        eos_method,           &
                                        eos_method_sampled,   &
                                        eos_method_projected, &
                                        p2theta_vert,         &
                                        moisture_in_solver
+  use multigrid_mod,             only: multigrid_function_space_chain, &
+                                       w2_multigrid_function_space_chain, &
+                                       wtheta_multigrid_function_space_chain
   use multigrid_config_mod,      only: multigrid_chain_nitems
   use mixed_solver_config_mod,   only: eliminate_variables, &
                                        eliminate_variables_analytic
