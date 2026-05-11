@@ -2876,7 +2876,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         ! Compute value km_dsct_factor would have excluding surf contribution
         if ( factor > zero ) then
           km_dsct_factor_top(i,j) =                                            &
-                         one - ( rhokm_dsct_top_ent(i,j) / factor )**1.25
+                         one - ( rhokm_dsct_top_ent(i,j) / factor )**1.25_r_bl
         else
           km_dsct_factor_top(i,j) = one
         end if
