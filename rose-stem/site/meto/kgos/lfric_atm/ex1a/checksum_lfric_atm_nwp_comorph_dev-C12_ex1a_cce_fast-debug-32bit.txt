@@ -1,20 +1,9 @@
-<<<<<<< pc2_smag
-Inner product checksum rho =         46D831E7
-Inner product checksum theta =         518BE196
-Inner product checksum u =         6A868149
-Inner product checksum mr1 =         3FD0E5D6
-Inner product checksum mr2 =         37F54E32
-Inner product checksum mr3 =         3772FB40
-Inner product checksum mr4 =         37BEDA80
-Inner product checksum mr5 =         36A1EB0A
-=======
 Inner product checksum rho =         46D833B1
-Inner product checksum theta =         518BE282
-Inner product checksum u =         6A8676D9
-Inner product checksum mr1 =         3FD1073C
-Inner product checksum mr2 =         37FFC266
-Inner product checksum mr3 =         376BCC02
-Inner product checksum mr4 =         37C080FE
-Inner product checksum mr5 =         36AEBBA8
->>>>>>> main
+Inner product checksum theta =         518BE35D
+Inner product checksum u =         6A86655E
+Inner product checksum mr1 =         3FD151AB
+Inner product checksum mr2 =         37F9F7AA
+Inner product checksum mr3 =         37819AB2
+Inner product checksum mr4 =         37C5618B
+Inner product checksum mr5 =         36A1FB86
 Inner product checksum mr6 =                0

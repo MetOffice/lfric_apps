@@ -1,17 +1,9 @@
 Inner product checksum rho =         42F8B1D8
-<<<<<<< pc2_smag
-Inner product checksum theta =         4D84DAF2
-Inner product checksum u =         601AD40D
-Inner product checksum mr1 =         3C827B12
-Inner product checksum mr2 =         33F8A292
-Inner product checksum mr3 =         31742424
-=======
 Inner product checksum theta =         4D84DAF0
 Inner product checksum u =         601AD3E8
 Inner product checksum mr1 =         3C826F5B
 Inner product checksum mr2 =         34126ED3
 Inner product checksum mr3 =         31899816
->>>>>>> main
 Inner product checksum mr4 =                0
 Inner product checksum mr5 =                0
 Inner product checksum mr6 =                0
