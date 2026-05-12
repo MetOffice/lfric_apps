@@ -33,10 +33,10 @@
     <file_definition src="./file_def_ancil_gal.xml"/>
     <file_definition src="./file_def_ancil_hadisst.xml"/>
     <file_definition src="./file_def_nudging.xml"/>
+    <file_definition src="./file_def_diags_gal_nwp_nudging.xml"/>
     <file_definition src="./file_def_diags_ver.xml"/>
     <file_definition src="./file_def_diags_name.xml"/>
     <file_definition src="./file_def_initial_diags.xml"/>
-    <file_definition src="./file_def_diags_nudging_ref.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" time_counter="none">

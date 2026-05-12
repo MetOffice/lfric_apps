@@ -537,8 +537,6 @@ subroutine create_model_data( modeldb,           &
                                  mesh, twod_mesh ,                &
                                  aerosol_mesh,                    &
                                  aerosol_twod_mesh,               &
-                                 nudging_mesh,                    &
-                                 nudging_twod_mesh,               &
                                  model_axes%ancil_times_list )
         case ( ancil_option_idealised )
           call create_fd_ancils_idealised( depository, &

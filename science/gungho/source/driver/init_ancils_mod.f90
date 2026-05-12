@@ -104,13 +104,8 @@ contains
   !> @param[in] twod_mesh         The current 2d mesh
   !> @param[in] aerosol_mesh      Aerosol 3d mesh
   !> @param[in] aerosol_twod_mesh Aerosol 2d mesh
-  !> @param[in] nudging_mesh      Nudging 3d mesh
-  !> @param[in] nudging_twod_mesh Nudging 2d mesh
-  !> @param[out] ancil_times_list Linked list of time axes for time-varying ancils
   subroutine create_fd_ancils( depository, ancil_fields, mesh, &
-                               twod_mesh, aerosol_mesh, aerosol_twod_mesh, &
-                               nudging_mesh, nudging_twod_mesh, &
-                               ancil_times_list )
+                               twod_mesh, aerosol_mesh, aerosol_twod_mesh, ancil_times_list )
 
     implicit none
 
@@ -121,8 +116,6 @@ contains
     type( mesh_type ), intent(in), pointer :: twod_mesh
     type( mesh_type ), intent(in), pointer :: aerosol_mesh
     type( mesh_type ), intent(in), pointer :: aerosol_twod_mesh
-    type( mesh_type ), intent(in), pointer :: nudging_mesh
-    type( mesh_type ), intent(in), pointer :: nudging_twod_mesh
 
     type(linked_list_type), intent(out) :: ancil_times_list
 
