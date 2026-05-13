@@ -780,11 +780,11 @@ end if ! local_fa /= smooth_to_bdys
 !-----------------------------------------------------------------------
 ! 2.0 Loop over levels; calculate the mixing lengths
 !-----------------------------------------------------------------------
-! Under the smooth_layer_depth option, we just impose the min limit on lambda
-! once at the end; whereas under other options the limiting is repeatedly
-! done under different sections of code, creating some loop-holes and
-! oddities.  Setting lambda_min_use to zero disables the numerous earlier
-! checks, deffering to the limiting imposed at the end.
+! Under the smooth_to_bdys option, we just impose the min limit on lambda
+! once at the end; whereas under other options the limiting is done in several
+! places, creating potential loop-holes and oddities.
+! Setting lambda_min_use to zero disables the earlier checks,
+! defering to the limiting imposed at the end.
 if ( local_fa==smooth_to_bdys ) then
   lambda_min_use = 0.0_r_bl
 else
@@ -799,19 +799,20 @@ do k = 2, bl_levels
 !$OMP  z_uv,z0m,elm,elh,elh_rho,blending_option,cumulus,l_shallow_cth,zhpar,   &
 !$OMP  ntdsc,weight_1dbl,weight_bltop,delta_smag,rneutml_sq,BL_diag,local_fa,  &
 !$OMP  lambda_min_use)
-  !-----------------------------------------------------------------
-  ! 2.1 Calculate asymptotic mixing lengths LAMBDAM and LAMBDAH
-  !-----------------------------------------------------------------
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
-    ! Note: this code sets the mixing-length used in the surface sub-critical
-    ! layer; the values then get overwritten above ntml_local
+    !------------------------------------------------------------------------
+    ! 2.1 Calculate asymptotic mixing lengths, LAMBDAM and LAMBDAH
+    !------------------------------------------------------------------------
+    ! First, effectively set lambda for the surface-based turbulent layer,
+    ! noting that this value will subsequently be overwritten above the BL
+    !------------------------------------------------------------------------
     if ( local_fa==smooth_to_bdys ) then
       ! Include tapering-down of the length-scale near the top of the
       ! surface sub-critical layer (tapered version stored in turb_length)
       z_scale = turb_length(i,j,k)
     else
-      ! Just use the overall depth of the layer on all levels up to zh_local
+      ! Use the overall depth of the BL
       z_scale = zh_local(i,j)
     end if
     if (l_rp2) then
@@ -820,20 +821,28 @@ do k = 2, bl_levels
       lambdam = max ( lambda_min_use , lambda_fac*z_scale )
     end if
     !-----------------------------------------------------------------
-    ! Reduce mixing lengths above BL
+    ! Reduce lambda above the BL
     !-----------------------------------------------------------------
     if (k >= ntml_local(i,j)+2) then
       lambdam = lambda_min_use
     end if
-
+    !-----------------------------------------------------------------
+    ! Potentially (re)inflate lambda in turbulent layers
+    !-----------------------------------------------------------------
     if ( local_fa == free_trop_layers .or. local_fa == smooth_to_bdys ) then
       lambdam = max( lambdam, lambda_fac*turb_length(i,j,k) )
-      if ( local_fa==smooth_to_bdys ) then
-        ! Impose max and min limits on lambda
-        ! (done once at the end to simplify things).
-        lambdam = max( min( lambdam, lambda_max_nml ), lambda_min )
-      end if
     end if
+    if ( local_fa==smooth_to_bdys ) then
+      !---------------------------------------------------------------
+      ! Finally impose max and min limits on lambda
+      ! (remembering that lambda_min_use was set to zero for
+      !  "smooth_to_bdys", so was effectively inactive earlier)
+      !---------------------------------------------------------------
+      lambdam = max( min( lambdam, lambda_max_nml ), lambda_min )
+    end if
+    !-----------------------------------------------------------------
+    ! Use the same asymptotic mixing length for scalars
+    !-----------------------------------------------------------------
     lambdah = lambdam
     !-----------------------------------------------------------------------
     ! 2.2 Calculate mixing lengths ELH, ELM coincident with RI(K) and so
