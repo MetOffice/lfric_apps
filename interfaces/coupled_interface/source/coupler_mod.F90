@@ -450,8 +450,9 @@ module coupler_mod
 
 
   !>@brief Top level routine for updating coupling fields
-  !>@details Update is done at the end of the timestep prior to
-  !>         the coupling timestep. The checkpoint_written flag
+  !>@details If a checkpoint file is requested, update is done at the
+  !>         end of the timestep prior to the coupling timestep (before
+  !>         the checkpoint is written). The checkpoint_written flag
   !>         is set true so the normal update is not done at the
   !>         start of the upcoming coupling timestep
   !>@param [in,out] modeldb The structure that holds model state
