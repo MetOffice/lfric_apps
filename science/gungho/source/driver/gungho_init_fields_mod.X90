@@ -305,11 +305,11 @@ contains
   !> @param[in]    twod_mesh The current 2d mesh
   !> @param[in]    aerosol_mesh      Aerosol 3d mesh
   !> @param[in]    aerosol_twod_mesh Aerosol 2d mesh
-subroutine create_model_data( modeldb,      &
-                              mesh,         &
-                              twod_mesh,    &
-                              aerosol_mesh, &
-                              aerosol_twod_mesh )
+  subroutine create_model_data( modeldb,      &
+                                mesh,         &
+                                twod_mesh,    &
+                                aerosol_mesh, &
+                                aerosol_twod_mesh )
 
 
     implicit none
@@ -509,6 +509,14 @@ subroutine create_model_data( modeldb,      &
 
   end subroutine create_model_data
 
+  !------------------------------------------------------------------------------
+  !> @brief Create the additional fields contained in model_data that are
+  !!        only required by runs that use physics.
+  !> @param[inout] modeldb   The working data set for a model run
+  !> @param[in]    mesh      The current 3d mesh
+  !> @param[in]    twod_mesh The current 2d mesh
+  !> @param[in]    aerosol_mesh      Aerosol 3d mesh
+  !> @param[in]    aerosol_twod_mesh Aerosol 2d mesh
   subroutine create_physics_model_data( modeldb,      &
                                         mesh,         &
                                         twod_mesh,    &
