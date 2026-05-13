@@ -139,7 +139,8 @@ module um_physics_init_mod
                                         ent_fac_sh_in => ent_fac_sh,         &
                                         thpixs_mid_in => thpixs_mid,         &
                                         c_mass_sh_in => c_mass_sh,           &
-                                        conv_prog_dtheta, conv_prog_dq,      &
+                                l_conv_prog_dtheta_in => l_conv_prog_dtheta, &
+                                     l_conv_prog_dq_in => l_conv_prog_dq,    &
                                      par_gen_mass_fac_in => par_gen_mass_fac, &
                                      par_gen_rhpert_in => par_gen_rhpert,     &
                                      par_radius_ppn_max_in => par_radius_ppn_max, &
@@ -851,8 +852,8 @@ contains
         l_mom       = .true.
         l_ccrad     = .true.
         l_3d_cca    = .true.
-        l_conv_prog_dtheta  = conv_prog_dtheta
-        l_conv_prog_dq      = conv_prog_dq
+        l_conv_prog_dtheta  = l_conv_prog_dtheta_in
+        l_conv_prog_dq      = l_conv_prog_dq_in
         tau_conv_prog_dtheta = 2700.0_r_um
         tau_conv_prog_dq    =  2700.0_r_um
 
@@ -943,8 +944,8 @@ contains
         l_ccrad             = .true.
         l_cmt_heating       = .true.
         l_conv_prog_precip  = .true.
-        l_conv_prog_dtheta  = conv_prog_dtheta
-        l_conv_prog_dq      = conv_prog_dq
+        l_conv_prog_dtheta  = l_conv_prog_dtheta_in
+        l_conv_prog_dq      = l_conv_prog_dq_in
         l_cv_conserve_check = .true.
         l_fcape             = .true.
         l_mom               = .true.

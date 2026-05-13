@@ -40,10 +40,10 @@ class vn31_t360(MacroUpgrade):
         self.add_setting(config, ["namelist:convection","c_mass_sh"],"0.03")
         cv_scheme = self.get_setting_value(config, ["namelist:convection", "cv_scheme"])
         if cv_scheme == "'comorph'":
-            self.add_setting(config, ["namelist:convection","conv_prog_dtheta"],".false.")
-            self.add_setting(config, ["namelist:convection","conv_prog_dq"],".false.")
+            self.add_setting(config, ["namelist:convection","l_conv_prog_dtheta"],".false.")
+            self.add_setting(config, ["namelist:convection","l_conv_prog_dq"],".false.")
         else:
-            self.add_setting(config, ["namelist:convection","conv_prog_dtheta"],".true.")
-            self.add_setting(config, ["namelist:convection","conv_prog_dq"],".true.")
+            self.add_setting(config, ["namelist:convection","l_conv_prog_dtheta"],".true.")
+            self.add_setting(config, ["namelist:convection","l_conv_prog_dq"],".true.")
         return config, self.reports
 
