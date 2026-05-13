@@ -64,10 +64,6 @@
     ],
     "linear_model_ex1a_weekly": [
         "linear_model_nwp_gal9-C224_MG_ex1a_gnu_fast-debug-64bit",
-        "linear_model_nwp_gal9_ffsl-C224_MG_ex1a_gnu_fast-debug-64bit",
-        "linear_model_nwp_gal9_uffsl-C224_MG_ex1a_gnu_fast-debug-64bit",
-        "linear_model_nwp_gal9_dffsl-C224_MG_ex1a_gnu_fast-debug-64bit",
-        "linear_model_nwp_gal9_firstffsl-C224_MG_ex1a_gnu_fast-debug-64bit",
     ],
     }) %}
 

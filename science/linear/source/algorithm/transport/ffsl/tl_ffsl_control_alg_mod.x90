@@ -185,8 +185,15 @@ module tl_ffsl_control_alg_mod
     end if
 
     ! ======================================================================== !
-    ! Compute mass fluxes and advective increment ls_u grad f' and u' grad ls_f
+    ! Compute mass fluxes and advective increment
     ! ======================================================================== !
+
+    ! The mass flux is computed in two parts, ls_u f' and u' ls_f.
+    ! The first part is computed using the same approach as the nonlinear scheme.
+    ! For the second part, the FFSL scheme uses a constant reconstruction of ls_f
+    ! in the departure cell from the ls wind, multiplied by u'. The constant
+    ! reconstruction is used to ensure linearity in u', and the departure cell
+    ! is used to ensure it is a perturbation around ls_u.
 
     select case (direction)
 

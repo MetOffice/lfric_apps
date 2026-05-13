@@ -170,6 +170,10 @@ contains
 
     ! Compute advected field, if required --------------------------------------
     if (to_compute_adv_inc) then
+      ! The advective increment ls_u grad f' + dt u' grad ls_f can be computed
+      ! from the mass fluxes from
+      ! f'_adv = (f' - dt F_1(f') - dt F_2(ls_u) + dt F_2(s) ls_f_adv )/(s - F(s))
+      ! where F = F_1 + F_2 = div(flux), and s=1
 
       detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
       step = transport_counter%get_split_step_of_substep_counter()
