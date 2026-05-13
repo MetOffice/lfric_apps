@@ -302,8 +302,8 @@ the first grid-level (:math:`k=k_s`) above the top of the surface layer,
 upwards allowing for latent heat release. The top of the surface layer
 is taken to be at the lower of :math:`z=0.1`\ :math:`z_{\mathrm{h}}` (this is
 then consistent with the :math:`K`-profiles, see
-section :ref:`Surface-driven turbulence <sec_nlsurf>`;
-:math:`z_{\mathrm{h}}` is taken from the
+section :ref:`Surface-driven turbulence <sec_nlsurf>`; :math:`z_{\mathrm{h}}`
+is taken from the
 previous timestep) and the grid-level above which :math:`\theta_{v\ell}`
 starts to increase with height. The ascent is stopped at the grid-level
 NTPAR (height
@@ -1470,8 +1470,8 @@ The form of :math:`w_s` differs between the surface layer
        0.25 \, w_*^3                 & {\mathrm{mixed}\ layer}   \\
      \end{cases}
 
-and :math:`w_*^3=z_{\mathrm{h}}\overline{w'b}_S` using
-:math:`z_{\mathrm{h}}` from
+and :math:`w_*^3=z_{\mathrm{h}}\overline{w'b}_S` using :math:`z_{\mathrm{h}}`
+from
 the current timestep (note that the use of :math:`w_*` here will be
 inconsistent with the use of :math:`V_{\mathrm{heat}}` in the entrainment
 parametrization in cloudy boundary layers). Note that :math:`w_s` is
