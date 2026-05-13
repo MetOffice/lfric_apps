@@ -533,7 +533,7 @@ subroutine create_model_data( modeldb,      &
     depository => modeldb%fields%get_field_collection("depository")
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
     ancil_fields => modeldb%fields%get_field_collection("ancil_fields")
-    
+
 #ifdef UM_PHYSICS
       ! Create FD prognostic fields
       select case ( prognostic_init_choice )
@@ -558,7 +558,7 @@ subroutine create_model_data( modeldb,      &
                                            mesh, twod_mesh )
       end select
 #endif
-    
+
   end subroutine create_physics_model_data
 
   !------------------------------------------------------------------------------
