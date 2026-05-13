@@ -133,8 +133,8 @@ module um_physics_init_mod
                                      par_gen_rhpert_in => par_gen_rhpert,     &
                                      par_radius_ppn_max_in => par_radius_ppn_max, &
                                      resdep_precipramp, dx_ref_in => dx_ref,   &
-                                     l_cvdiag_ctop_qmax_in => l_cvdiag_ctop_qmax
-
+                                     l_cvdiag_ctop_qmax_in => l_cvdiag_ctop_qmax, &
+                                     llcs_first_outer
 
   use extrusion_config_mod,      only : domain_height, number_of_layers
 
@@ -985,6 +985,21 @@ contains
     else ! convection /= convection_um
       ! Need to set the version of the convection diagnosis that we want to use
       i_convection_vn = i_convection_vn_6a
+    end if
+
+    ! If using LLCS on the first outer, need to set its options
+    ! N.B. don't edit the BL scheme options if doing this
+    if (llcs_first_outer) then
+      if ( scheme == scheme_pc2 ) then
+        ! If pc2, we detrain some cloud
+        llcs_cloud_precip = llcs_opt_crit_condens
+        llcs_detrain_coef = 0.6_r_um
+      else
+        ! We just rain everything out
+        llcs_cloud_precip = llcs_opt_all_rain
+      end if
+      llcs_rhcrit       = 0.8_r_um
+      llcs_timescale    = 3600.0_r_um
     end if
 
     ! Derived switches and parameters are set here based on the options
