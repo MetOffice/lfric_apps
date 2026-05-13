@@ -592,32 +592,32 @@ if ( local_fa==smooth_to_bdys  ) then
     do k = 2, bl_levels-1
 
       ! Find base of sub-critical layer
-      if ( k==2 .AND. ri(i,j,k) <= ricrit(i,j) ) then
+      if ( k==2 .and. ri(i,j,k) <= ricrit(i,j) ) then
         zbot = zero
         kb = k
       end if
-      if ( ri(i,j,k) > ricrit(i,j) .AND. ri(i,j,k+1) <= ricrit(i,j) ) then
+      if ( ri(i,j,k) > ricrit(i,j) .and. ri(i,j,k+1) <= ricrit(i,j) ) then
         interp = ( ri(i,j,k) - ricrit(i,j) ) / ( ri(i,j,k) - ri(i,j,k+1) )
-        interp = MAX( zero, MIN( one, interp) )
+        interp = max( zero, min( one, interp) )
         zbot = (one-interp) * z_tq(i,j,k-1)                                  &
              +      interp  * z_tq(i,j,k)
         kb = k+1
       end if
 
       ! Find top of sub-critical layer
-      if ( ri(i,j,k) <= ricrit(i,j) .AND. ri(i,j,k+1) > ricrit(i,j) ) then
+      if ( ri(i,j,k) <= ricrit(i,j) .and. ri(i,j,k+1) > ricrit(i,j) ) then
         interp = ( ri(i,j,k) - ricrit(i,j) ) / ( ri(i,j,k) - ri(i,j,k+1) )
-        interp = MAX( zero, MIN( one, interp) )
+        interp = max( zero, min( one, interp) )
         ztop = (one-interp) * z_tq(i,j,k-1)                                  &
              +      interp  * z_tq(i,j,k)
         kt = k
       end if
-      if ( k==bl_levels-1 .AND. ri(i,j,k+1) <= ricrit(i,j) ) then
+      if ( k==bl_levels-1 .and. ri(i,j,k+1) <= ricrit(i,j) ) then
         ztop = z_uv(i,j,k+1)
         kt = k+1
       end if
 
-      if ( kb > 0 .AND. kt > 0 ) then
+      if ( kb > 0 .and. kt > 0 ) then
         ! Once found base and top of sub-critical layer, set
         ! lengthscale on all levels within the layer...
 
@@ -685,7 +685,7 @@ if ( local_fa==smooth_to_bdys  ) then
       ztop = zhsc(i,j)        ! z_uv(i,j,ntdsc(i,j)+1)
       ! Only use where larger than the existing length-scale
       do kl = nbdsc(i,j), ntdsc(i,j) + 2
-        turb_length(i,j,kl) = MAX( turb_length(i,j,kl),                      &
+        turb_length(i,j,kl) = max( turb_length(i,j,kl),                      &
               ( z_tq(i,j,kl-1) - zbot ) * ( ztop - z_tq(i,j,kl-1) )          &
               * 4.0_r_bl / ( ztop - zbot ) )
       end do
@@ -831,7 +831,7 @@ do k = 2, bl_levels
       if ( local_fa==smooth_to_bdys ) then
         ! Impose max and min limits on lambda
         ! (done once at the end to simplify things).
-        lambdam = MAX( MIN( lambdam, lambda_max_nml ), lambda_min )
+        lambdam = max( min( lambdam, lambda_max_nml ), lambda_min )
       end if
     end if
     lambdah = lambdam

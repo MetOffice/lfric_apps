@@ -672,12 +672,10 @@ zh_local(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
                               !  Richardson number profile.
 zdsc_base(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                &
                               ! Height of base of K_top in DSC
-dsldz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                     &
-      bl_levels),                                                              &
+dsldz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
                               ! TL+gz/cp gradient between
                               ! levels K and K-1
-dsldz_ga(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
-         bl_levels),                                                           &
+dsldz_ga(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),       &
                               ! TL+gz/cp gradient between
                               ! levels K and K-1, inc gradient adjust
 dqwdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
@@ -1993,7 +1991,7 @@ call ex_coef (                                                                 &
 ! in fields
    sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhnl,zhpar,zhsc,    &
    zdsc_base,ntpar,ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,       &
-   delta_smag,      &
+   delta_smag,                                                                 &
 ! in/out fields
    cumulus,weight_1dbl,                                                        &
 ! out fields
