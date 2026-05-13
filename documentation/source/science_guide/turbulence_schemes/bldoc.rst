@@ -127,8 +127,8 @@ standard closures are:
 
 .. math:: :label: scal_closure
 
-   \overline{w'\chi'} = - K_h \frac{\partial \chi}{\partial z} + K_h^{\rm
-   surf}\gamma_{\chi}
+   \overline{w'\chi'} = - K_h \frac{\partial \chi}{\partial z} +
+   K_h^{\mathrm{surf}}\gamma_{\chi}
 
 .. math:: :label: uv_closure
 
@@ -138,7 +138,7 @@ Separate eddy-diffusivities are calculated for momentum, :math:`K_m`,
 and for scalar variables, :math:`K_h`. The second term on the right hand
 side represents a non-local flux in unstable boundary layers. Currently
 it is only applied for transport arising from surface-driven turbulence
-(:math:`K_h^{\rm surf}`) and is non-zero only for
+(:math:`K_h^{\mathrm{surf}}`) and is non-zero only for
 :math:`\chi=\theta_{\ell}`, as described in
 section :ref:`Gradient adjustment <sec_gradadj>`.
 
@@ -276,16 +276,16 @@ The diagnostic parcel ascent and cumulus diagnosis
 
 **Summary**: the depth of the non-local :math:`K`-profiles for
 surface-driven turbulence (with NTML grid-levels in the mixed layer and
-top at height :math:`z_{\rm h}` , as required for
+top at height :math:`z_{\mathrm{h}}` , as required for
 :eq:`kmsurf`) is determined from:
 
 #. a diagnostic moist parcel ascent; top at grid-level NTPAR, height
-   :math:`z_{\rm par}` :math:`=z_{\mathrm{ \rm NTPAR}+\frac{1}{2}}`.
+   :math:`z_{\mathrm{par}}` :math:`=z_{\mathrm{ \mathrm{NTPAR}}+\frac{1}{2}}`.
    Typically this is an adiabatic parcel but entraining options are
    available.
 
 #. a diagnosis of cumulus-capped layers (if cumulus-capped then NTML and
-   :math:`z_{\rm h}` are set to the LCL [2]_, if not then to the parcel
+   :math:`z_{\mathrm{h}}` are set to the LCL [2]_, if not then to the parcel
    top)
 
 Note that this process is only performed for unstable boundary layers
@@ -297,17 +297,17 @@ driven by surface processes can extend in unstable boundary layers (and
 therefore the vertical extent of the :math:`K` profile for
 surface-driven turbulence) can be determined solely from the properties
 of the thermodynamic profiles. In more detail, the first step in
-calculating :math:`z_{\rm h}` is to lift a parcel, with properties from
+calculating :math:`z_{\mathrm{h}}` is to lift a parcel, with properties from
 the first grid-level (:math:`k=k_s`) above the top of the surface layer,
 upwards allowing for latent heat release. The top of the surface layer
-is taken to be at the lower of :math:`z=0.1`\ :math:`z_{\rm h}` (this is
+is taken to be at the lower of :math:`z=0.1`\ :math:`z_{\mathrm{h}}` (this is
 then consistent with the :math:`K`-profiles, see
-section :ref:`Surface-driven turbulence <sec_nlsurf>`; :math:`z_{\rm h}` is
-taken from the
+section :ref:`Surface-driven turbulence <sec_nlsurf>`;
+:math:`z_{\mathrm{h}}` is taken from the
 previous timestep) and the grid-level above which :math:`\theta_{v\ell}`
 starts to increase with height. The ascent is stopped at the grid-level
 NTPAR (height
-:math:`z_{\rm par}` :math:`=z_{\mathrm{ \rm NTPAR}+\frac{1}{2}}`)
+:math:`z_{\mathrm{par}}` :math:`=z_{\mathrm{ \mathrm{NTPAR}}+\frac{1}{2}}`)
 above which the parcel becomes more negatively buoyant than a given
 threshold, :math:`\theta_v'`. Note that the parcel properties themselves
 are not perturbed in order to preserve the height of the mixed-layer’s
@@ -320,12 +320,12 @@ Currently,
 
    \theta_v' = \mathrm{max} \left[A_{plume}, 
               \, \mathrm{min} \left[ B_{plume} \sigma_{Tv1}, 
-              \, G_{max}z_{\rm h}\right] \right]
+              \, G_{max}z_{\mathrm{h}}\right] \right]
 
 where :math:`A_{plume}=0.2`, :math:`B_{plume}=3.26`,
 :math:`G_{max}=10^{-3}`\ Km\ :math:`^{-1}`,
 :math:`\sigma_{Tv1} = 1.93\, \overline{w'\theta_v'}_S/w_m` and
-:math:`w_m^3=u_*^3+0.25\,z_{\rm h}\overline{w'b}_S`. Following
+:math:`w_m^3=u_*^3+0.25\,z_{\mathrm{h}}\overline{w'b}_S`. Following
 `Holtslag and Boville (1993)`_,
 :math:`\theta_v'` is related to the magnitude of the gradient
 adjustment, :math:`\gamma_{\theta_{\ell}}` (see section
@@ -348,26 +348,26 @@ where the vapour pressure of air in grid-level :math:`k_s`,
 :math:`e_{k_s} =
 q_{k_s} P_{k_s}/(100 \, \epsilon)`. The full-level below that containing
 the LCL is labelled NLCL and
-:math:`z_{\rm lcl}` :math:`=z_{\mathrm{ \rm NLCL}+\frac{1}{2}}`. If
+:math:`z_{\mathrm{lcl}}` :math:`=z_{\mathrm{ \mathrm{NLCL}}+\frac{1}{2}}`. If
 the parcel rises above the top of the LCL transition zone (defined as
-1.1\ :math:`z_{\rm lcl}` , its ascent can also be stopped at the
+1.1\ :math:`z_{\mathrm{lcl}}` , its ascent can also be stopped at the
 grid-level at which it has maximum buoyancy excess over the environment.
 This is identified as the grid-level above which
 
 .. math::
 
-   \frac{d\theta_v}{dz}|_{\rm env} > 
-     \Gamma_{\rm inv}\, \frac{d\theta_v}{dz}|_{\rm par}
+   \frac{d\theta_v}{dz}|_{\mathrm{env}} > 
+     \Gamma_{\mathrm{inv}}\, \frac{d\theta_v}{dz}|_{\mathrm{par}}
 
 where currently the tolerance for identifying inversions by this method,
-:math:`\Gamma_{\rm inv}=1.1`. This use of the height of maximum excess
+:math:`\Gamma_{\mathrm{inv}}=1.1`. This use of the height of maximum excess
 (if lower than that given by the straight buoyancy threshold,
 :math:`\theta_v'`) is typically of little consequence in stratocumulus
 regions (which tend to be well-mixed beneath large inversions), but can
 be necessary in order to identify the capping inversion in cumulus cases
 (e.g. in the trade wind regions).
 
-**Step 2:** having established :math:`z_{\rm par}` , a crucial
+**Step 2:** having established :math:`z_{\mathrm{par}}` , a crucial
 additional test is to determine whether this layer is well-mixed (i.e.,
 stratocumulus-capped) or cumulus-capped. The parcel ascent can rise to
 cloud-top in both cases but cumulus cloud layers are observed not to be
@@ -378,28 +378,29 @@ Specifically, a logical flag (CUMULUS) is set to true if
 
 .. math::
 
-   \left| \frac{ \Delta_{\rm cld} q_t}{\Delta_{\rm cld} z} \right| > 
-     C_t \, \left| \frac{ \Delta_{\rm sub} q_t}{\Delta_{\rm sub} z} \right|
+   \left| \frac{ \Delta_{\mathrm{cld}} q_t}{\Delta_{\mathrm{cld}} z} \right| > 
+     C_t \, \left| \frac{ \Delta_{\mathrm{sub}} q_t}{\Delta_{\mathrm{sub}} z}
+     \right|
 
-where the cloud-layer gradient, :math:`\Delta_{\rm cld}`, is taken
+where the cloud-layer gradient, :math:`\Delta_{\mathrm{cld}}`, is taken
 between both NTPAR and NTPAR-1 (to allow for the possibility that a Sc
 layer has just deepened by a grid-level) and NLCL and the sub-cloud
-layer gradient, :math:`\Delta_{\rm sub}`, between grid-levels NLCL and
+layer gradient, :math:`\Delta_{\mathrm{sub}}`, between grid-levels NLCL and
 :math:`k_s`. Currently the threshold factor, :math:`C_t = 1.1`. If
 cumulus is diagnosed, the top of the surface-based mixed layer
-(:math:`z_{\rm h}` ) is set to :math:`z_{\rm lcl}` (rather than to
-:math:`z_{\rm par}` , as illustrated in :numref:`Fig. %s <fig:bltypes>` for
+(:math:`z_{\mathrm{h}}` ) is set to :math:`z_{\mathrm{lcl}}` (rather than to
+:math:`z_{\mathrm{par}}` , as illustrated in :numref:`Fig. %s <fig:bltypes>` for
 types V and VI). There is then an option to diagnose the thickness of
 the LCL transition zone, see section :ref:`Diagnosis of the LCL transition zone
 thickness <sec_lclmixing>`.
 Otherwise, the boundary layer surface-driven mixing is capped at
-:math:`z_{\rm lcl}` so that mixing into the cumulus cloud layer is only
+:math:`z_{\mathrm{lcl}}` so that mixing into the cumulus cloud layer is only
 carried out by the model’s mass-flux convection scheme and not by the
 eddy viscosity based boundary layer scheme. Note that basing the CUMULUS
 diagnosis on cloud and sub-cloud layer gradients limits the model only
 to being able to resolve cumulus with cloud and sub-cloud layers at
 least 2 grid-levels (and optionally 400m) thick. Otherwise the layer is
-considered well-mixed to :math:`z_{\rm par}` with an option to include a
+considered well-mixed to :math:`z_{\mathrm{par}}` with an option to include a
 representation of fluxes into the capping inversion (see
 section :ref:`Diagnosis of inversion thickness <sec_dzi>`).
 
@@ -414,7 +415,7 @@ BL_LEVELS above the tropopause is recommended.
 
 Note that if cumulus is not diagnosed then a further, subgrid estimation
 of the height of the capping inversion is attempted for
-:math:`z_{\rm h}`  (as described in section :ref:`Diagnosis of a sub-grid
+:math:`z_{\mathrm{h}}`  (as described in section :ref:`Diagnosis of a sub-grid
 inversion <sec_sginv>`).
 
 .. _sec_parxs:
@@ -477,10 +478,10 @@ been separated in to three stages. These are:
 #. diagnose the existence of a decoupled stratocumulus (DSC) layer with
    approximately uniform :math:`\theta_{v\ell}` (label the top
    grid-level in the mixed-layer NTDSC and diagnose the subgrid height
-   of its capping inversion, :math:`z_{\rm h}^{\rm Sc}` , see
+   of its capping inversion, :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` , see
    section :ref:`Diagnosis of a sub-grid inversion <sec_sginv>`)
 
-#. diagnose an approximate depth of the DSC layer, :math:`z_{\rm ml}`,
+#. diagnose an approximate depth of the DSC layer, :math:`z_{\mathrm{ml}}`,
    in order to be able to calculate the representative turbulent
    velocity scales (see appendix :ref:`Appendix: Definitions of the velocity
    scales <app_vscales>`).
@@ -531,9 +532,9 @@ that grid-levels :math:`k_{ct}-1` and :math:`k_{ct}-2` have already been
 identified as well-mixed).
 
 **Step 2** is to diagnose an approximate depth of the DSC layer,
-:math:`z_{\rm ml}`. The bottom grid-level of the mixed-layer (NBDSC) is
+:math:`z_{\mathrm{ml}}`. The bottom grid-level of the mixed-layer (NBDSC) is
 diagnosed as the lowest grid-level, descending from NTDSC, where
-:math:`{\theta_{v\ell}}_{\mathrm{ \rm NTDSC}} + \theta_{v\ell}'` is
+:math:`{\theta_{v\ell}}_{\mathrm{ \mathrm{NTDSC}}} + \theta_{v\ell}'` is
 less than :math:`\theta_{v\ell}` of the environment. The parcel
 perturbation is given by
 
@@ -554,11 +555,11 @@ they are consistent with, for example, the observations of
 NBDSC equals NTDSC) in a DSC layer *not* overlying cumulus, then the
 layer is assumed not to be well-mixed. At the top of a cumulus layer,
 the DSC layer is given a minimum depth of
-:math:`\Delta_{\mathrm{ \rm NTDSC}+\frac{1}{2}} z`. Otherwise, the
-layer depth, :math:`z_{\rm ml}`, is measured from the top of layer NTDSC
+:math:`\Delta_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} z`. Otherwise, the
+layer depth, :math:`z_{\mathrm{ml}}`, is measured from the top of layer NTDSC
 to the base of layer NBDSC.
 
-**Step 3**: the step 2 calculation of :math:`z_{\rm ml}` is used to
+**Step 3**: the step 2 calculation of :math:`z_{\mathrm{ml}}` is used to
 calculate the representative velocity scales for the DSC layer but its
 calculation is only crude. Here, the vertical extent of the
 :math:`K`-profiles is determined more accurately by ensuring that the
@@ -584,13 +585,14 @@ expanded using the first-order closure in
 
 .. math::
 
-   \overline{w'\theta_{\ell}'}_k =  -K_h^{\rm surf}\,\frac{\widetilde{\Delta_k
-   \theta_{\ell}}}{\Delta_k z}
-                -K_h^{\rm Sc}\,\frac{\Delta_k \theta_{\ell}}{\Delta_k z}
+   \overline{w'\theta_{\ell}'}_k = 
+   -K_h^{\mathrm{surf}}\,\frac{\widetilde{\Delta_k \theta_{\ell}}}{\Delta_k z}
+                -K_h^{\mathrm{Sc}}\,\frac{\Delta_k \theta_{\ell}}{\Delta_k z}
 
 .. math:: :label: eq:wx_std
 
-   \overline{w'q_t'}_k  =  -\left(K_h^{\rm surf}+ K_h^{\rm Sc}\right) \,
+   \overline{w'q_t'}_k  =  -\left(K_h^{\mathrm{surf}}+ K_h^{\mathrm{Sc}}\right)
+   \,
                 \,\frac{\Delta_k q_t}{\Delta_k z}
 
 where
@@ -621,15 +623,15 @@ buoyancy consumption of TKE within the mixed layer equals a fraction,
 
 .. math:: :label: deccrit
 
-   \sum_{z_{k-\frac{1}{2}} > z_i-z_{\rm ml}}^{z_{k-\frac{1}{2}} < z_i}
+   \sum_{z_{k-\frac{1}{2}} > z_i-z_{\mathrm{ml}}}^{z_{k-\frac{1}{2}} < z_i}
      \left|\left[ \overline{w'b}|_{z_{k-\frac{1}{2}}}<0 \right]\right| \,
      \Delta_k z \, 
      \leq \, D_t \, 
-     \sum_{z_{k-\frac{1}{2}} > z_i-z_{\rm ml}}^{z_{k-\frac{1}{2}} < z_i}
+     \sum_{z_{k-\frac{1}{2}} > z_i-z_{\mathrm{ml}}}^{z_{k-\frac{1}{2}} < z_i}
      \left[ \overline{w'b}|_{z_{k-\frac{1}{2}}}>0 \right] \, \Delta_k z
 
 Note that, for simplicity, the :math:`{\cal E}_h` factors are not
-included in :math:`K_h^{\rm surf}` or :math:`K_h^{\rm Sc}` when
+included in :math:`K_h^{\mathrm{surf}}` or :math:`K_h^{\mathrm{Sc}}` when
 calculating :eq:`eq:wx_std` under the assumption that
 they will be small. This process is applied to all unstable mixed
 layers. For stratocumulus layers, observations and LES suggest a value
@@ -646,25 +648,26 @@ The first step is to test for whether a well-mixed layer is possible
 (either decoupling what has so far been diagnosed as a well-mixed layer
 or, if one exists, recoupling a decoupled stratocumulus layer), i.e., to
 test whether :eq:`deccrit` is satisfied with both
-:math:`K_h^{\rm surf}` and :math:`K_h^{\rm Sc}` extending from the
+:math:`K_h^{\mathrm{surf}}` and :math:`K_h^{\mathrm{Sc}}` extending from the
 surface to the cloud-top. If recoupling is possible then the various
 flags identifying the DSC layer are reset (*this includes setting the
 cumulus diagnosis to false*), any surface-driven entrainment originally
-applied at :math:`z_{\rm h}` is added to the entrainment at
-:math:`z_{\rm h}^{\rm Sc}` (after rescaling for the inversion strength
-at :math:`z_{\rm h}^{\rm Sc}` ) and :math:`z_{\rm b}` is set to
-0.1\ :math:`z_{\rm h}` (for the reason discussed above). If decoupling
-is diagnosed, :math:`z_{\rm h}^{\rm Sc}` is set to the original
-:math:`z_{\rm h}` (inversion height), although the entrainment across
+applied at :math:`z_{\mathrm{h}}` is added to the entrainment at
+:math:`z_{\mathrm{h}}^{\mathrm{Sc}}` (after rescaling for the inversion strength
+at :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` ) and :math:`z_{\mathrm{b}}` is set to
+0.1\ :math:`z_{\mathrm{h}}` (for the reason discussed above). If decoupling
+is diagnosed, :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` is set to the original
+:math:`z_{\mathrm{h}}` (inversion height), although the entrainment across
 this inversion is not recalculated (and so keeps any surface-driven
 component — the COUPLED flag is therefore set to true, see
 section :ref:`Entrainment fluxes <sec_entr>`).
 
 If a decoupled layer is diagnosed, then an iteration is performed to
-find the highest :math:`z_{\rm h}` (so top of the :math:`K_h^{\rm surf}`
+find the highest :math:`z_{\mathrm{h}}` (so top of the
+:math:`K_h^{\mathrm{surf}}`
 profile) that still satisfies :eq:`deccrit`, but with
-:math:`K_h^{\rm Sc}=0` in :eq:`eq:wx_std`. The iteration
-proceeds with :math:`z_{\rm h}` stepping from its lowest permissible
+:math:`K_h^{\mathrm{Sc}}=0` in :eq:`eq:wx_std`. The iteration
+proceeds with :math:`z_{\mathrm{h}}` stepping from its lowest permissible
 height to its highest (currently 3 steps are used). If at any stage
 :eq:`deccrit` is violated, then the step below (therefore
 containing the height that would give equality in
@@ -672,30 +675,30 @@ containing the height that would give equality in
 taken downwards. If :eq:`deccrit` is met the step above is
 again reduced by a factor of 4 and 3 steps taken upwards. A total of 3
 sweeps are possible, each with a smaller step so that
-:math:`z_{\rm h}` approaches the height that gives equality in
+:math:`z_{\mathrm{h}}` approaches the height that gives equality in
 :eq:`deccrit`. The accuracy with which this is achieved
 will be the difference in the maximum and minimum permissible heights of
-:math:`z_{\rm h}`  divided by :math:`2\times4\times4 = 32`, which will
+:math:`z_{\mathrm{h}}`  divided by :math:`2\times4\times4 = 32`, which will
 typically be less than 30m. The top grid-level of the SML, NTML, is
-defined as the highest grid-level such that :math:`K_h^{\rm Sc}` is
+defined as the highest grid-level such that :math:`K_h^{\mathrm{Sc}}` is
 non-zero at the half-level above.
 
 The above process is then repeated to find the appropriate
-:math:`z_{\rm b}` for :math:`K_h^{\rm Sc}`, i.e., for the base of
-top-driven mixing. Some constraints are placed on :math:`z_{\rm b}` ,
-namely that it should never go below :math:`0.1`\ :math:`z_{\rm h}` (to
+:math:`z_{\mathrm{b}}` for :math:`K_h^{\mathrm{Sc}}`, i.e., for the base of
+top-driven mixing. Some constraints are placed on :math:`z_{\mathrm{b}}` ,
+namely that it should never go below :math:`0.1`\ :math:`z_{\mathrm{h}}` (to
 avoid affecting the continuity of the :math:`K` profiles at the top of
 the surface layer, see :eq:`ws_defn`). If cumulus
-convection has been diagnosed then :math:`z_{\rm b}` is not allowed to
-go below :math:`z_{\mathrm{ \rm NTML}+\frac{1}{2}}` (unless the layer
-is diagnosed to recouple completely). Finally, :math:`z_{\rm b}` must
-always be at or below :math:`z_{\mathrm{ \rm NTDSC}-1}`, so that
+convection has been diagnosed then :math:`z_{\mathrm{b}}` is not allowed to
+go below :math:`z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` (unless the layer
+is diagnosed to recouple completely). Finally, :math:`z_{\mathrm{b}}` must
+always be at or below :math:`z_{\mathrm{ \mathrm{NTDSC}}-1}`, so that
 mixing in decoupled layers is always resolved, and at least
 :math:`\Delta z_{rad}` (the cloud-top radiative cooling depth defined in
 section :ref:`Integration of \overline{w'b} close to the inversion
 <sec_wbint_inv>`) below the t inversion. The base
 grid-level of the DSC layer, NBDSC, is defined (analogously to NTDSC) as
-the lowest grid-level such that :math:`K_h^{\rm Sc}` is non-zero at the
+the lowest grid-level such that :math:`K_h^{\mathrm{Sc}}` is non-zero at the
 half-level below.
 
 A possible extension to this diagnosis would be to include the shear
@@ -735,9 +738,9 @@ inversion (in particular, in the LW radiative flux), simple finite
 difference flux calculations, :eq:`eq:wx_std`, can be
 significantly inaccurate in this region. An example is shown in
 :numref:`Fig. %s <fig:inv_integ>`. Calculating
-:math:`\overline{w'\theta_{\ell}'}_{\mathrm{ \rm NTML}+\frac{1}{2}}`
+:math:`\overline{w'\theta_{\ell}'}_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`
 from :eq:`eq:wx_std` gives a negative value, largely
-because :math:`\Delta_{\mathrm{ \rm NTML}+1} \theta_{\ell}` is
+because :math:`\Delta_{\mathrm{ \mathrm{NTML}}+1} \theta_{\ell}` is
 positive and so the local flux is large and negative. In reality,
 :math:`\overline{w'\theta_{\ell}'}` becomes positive only a short
 distance below cloud-top such that the integral here will tend also to
@@ -746,12 +749,12 @@ be positive.
 The solution adopted is to integrate :math:`\overline{w'b}` analytically
 across the region just below the inversion, labelled
 :math:`\Delta z_{rad}` in Fig, :numref:`%s <fig:inv_integ>`. Since
-:math:`\Delta_{\mathrm{ \rm NTML}} \theta_{\ell}` can also be
+:math:`\Delta_{\mathrm{ \mathrm{NTML}}} \theta_{\ell}` can also be
 significantly positive (when the grid-level inversion is rising or
 falling, for example), the base of this region is taken to be the lower
 of the first :math:`\theta`-level below :math:`z_h-100` m (a physically
 reasonable depth over which cloud-top radiative cooling might be
-expected to occur) and :math:`z_{\mathrm{ \rm NTML}-1}`.
+expected to occur) and :math:`z_{\mathrm{ \mathrm{NTML}}-1}`.
 
 .. figure:: blank.svg
    :name: fig:inv_integ
@@ -796,7 +799,7 @@ tends to be close to 3. Consequently, we approximate :math:`I^{rad} =
 \Delta z_{rad} ( F^{rad}|_{z_h}-F^{rad}|_{z_h-\Delta z_{rad}} ) /3`. In
 addition, :math:`F^{rad}|_{z_h}-F^{rad}|_{z_h-\Delta z_{rad}}` is
 approximated as :math:`\Delta F`, the radiative flux change across
-cloud-top used in the calculation of :math:`V_{\rm Sc}`
+cloud-top used in the calculation of :math:`V_{\mathrm{Sc}}`
 :eq:`ctraddiv`. The precipitation flux is assumed to vary
 linearly across this region, as does the total flux, and so its
 contribution to :math:`I^{Tot}` cancels with :math:`I^{ppn}` in
@@ -859,16 +862,16 @@ the parcel buoyancy. Note that the constant in
 :math:`w_m^3` differs by a factor of 4. The buoyancy integration in
 :eq:`dz_param`, that is itself dependent on
 :math:`z_{top}`, is performed working upwards from
-:math:`z_{\rm par}` assuming piece-wise linear variation of :math:`b`
+:math:`z_{\mathrm{par}}` assuming piece-wise linear variation of :math:`b`
 between grid-levels. Note that the standard definition of the boundary
 layer top in the UM is the height of the first flux level below the
 level of neutral buoyancy, so
-:math:`z_{\rm par}` :math:`=z_{\mathrm{ \rm NTPAR}+\frac{1}{2}}`. The
+:math:`z_{\mathrm{par}}` :math:`=z_{\mathrm{ \mathrm{NTPAR}}+\frac{1}{2}}`. The
 inversion thickness is then defined as
 
 .. math:: :label: dz_definition
 
-   \Delta z_i  =  z_{top} -z_{\rm par}
+   \Delta z_i  =  z_{top} -z_{\mathrm{par}}
 
 .. _sec_lclmixing:
 
@@ -878,7 +881,7 @@ Diagnosis of the LCL transition zone thickness
 As described in section :ref:`The diagnostic parcel ascent and cumulus
 diagnosis <sec_adiapar>`, when cumulus convection
 has been diagnosed surface-driven mixing was originally capped at
-:math:`z_{\rm lcl}` so that mixing into the cumulus cloud layer was only
+:math:`z_{\mathrm{lcl}}` so that mixing into the cumulus cloud layer was only
 carried out by the model’s mass-flux convection scheme. This was seen to
 lead to errors in the mean profiles across the LCL, with superadiabats
 being the most extreme manifestation. Using the boundary layer
@@ -901,10 +904,10 @@ thermals within the grid box that may penetrate above the grid-box mean
 LCL (but are too dry to reach their own LCL). Thus their buoyancy flux
 is given by :eq:`eq:wb_cont` with :math:`C_F=0`.
 Restricting the negative integral of this buoyancy flux then gives a new
-definition for :math:`z_{\rm h}`  that is then used in the calculation
+definition for :math:`z_{\mathrm{h}}`  that is then used in the calculation
 of the surface-driven K-profiles in section :ref:`Surface-driven turbulence
 <sec_nlsurf>` — the
-larger the value of :math:`D_t`, the higher :math:`z_{\rm h}` will be.
+larger the value of :math:`D_t`, the higher :math:`z_{\mathrm{h}}` will be.
 Typically :math:`D_t=0.1` for decoupled stratocumulus layers while
 idealised clear-sky convective boundary layers (where the magnitude of
 the entrainment buoyancy flux is a fraction, :math:`A_1`, of the surface
@@ -970,14 +973,15 @@ The asymptotic mixing lengths are given by
 
 .. math::
 
-   \lambda_m =\mathrm{max}\left[\lambda_0,\, 0.15 z_{\rm loc}, 2 h_B \right]
+   \lambda_m =\mathrm{max}\left[\lambda_0,\, 0.15 z_{\mathrm{loc}}, 2 h_B
+   \right]
 
 .. math:: :label: asymp_ml
 
-   \lambda_h =\mathrm{max}\left[\lambda_0,\, 0.15 z_{\rm loc}\right]
+   \lambda_h =\mathrm{max}\left[\lambda_0,\, 0.15 z_{\mathrm{loc}}\right]
 
 where :math:`\lambda_0` is a minimum mixing length read in from the
-namelist and :math:`z_{\rm loc}` is defined below. The orographic
+namelist and :math:`z_{\mathrm{loc}}` is defined below. The orographic
 blending height, :math:`h_B` (only used within the boundary layer, as
 defined below), is given by
 
@@ -1045,19 +1049,19 @@ height-dependent factor is included,
 minutes, for simplicity.
 
 Initially, the lowest half-level at which :math:`Ri>Ri_{crit}` is taken
-to be a measure of the boundary layer top (:math:`z_{\rm loc}` ) and the
+to be a measure of the boundary layer top (:math:`z_{\mathrm{loc}}` ) and the
 full-level below is designated NTLOC. In general :math:`Ri_{crit}=1` but
 a value of 0.25 is recommended for use with the ’SHARPEST’ stability
 functions, see below. If the boundary layer was diagnosed as
 cumulus-capped by the non-local scheme (see section :ref:`Diagnosis of boundary
 layer depth and type <sec_types>`)
-then :math:`z_{\rm loc}` is lowered to :math:`z_{\rm lcl}` (and
+then :math:`z_{\mathrm{loc}}` is lowered to :math:`z_{\mathrm{lcl}}` (and
 :math:`K_h` and :math:`K_m` are set to zero from the base of grid-level
 NLCL upwards) so that transports into and within the cumulus cloud layer
 can be performed solely by the mass-flux convection scheme. Depending on
 the switch local_fa, above NTLOC turbulently-mixed layers (where
 :math:`Ri<Ri_{crit}`) are identified and within each layer
-:math:`z_{\rm loc}` in :eq:`asymp_ml` is set to the layer
+:math:`z_{\mathrm{loc}}` in :eq:`asymp_ml` is set to the layer
 thickness. Outside of these turbulent layers the mixing lengths are set
 to :math:`\lambda_0`.
 
@@ -1106,10 +1110,10 @@ transitional Richardson number, :math:`Ri_{t}`, as:
 
 .. math::
 
-   f_{\rm stable} = 
+   f_{\mathrm{stable}} = 
    \begin{cases}
-     (1 - 5Ri)^2 & {\rm for}\ 0<Ri<Ri_{t} \\
-     (A_{Ri} + B_{Ri} Ri)^{-2} & {\rm for}\ Ri>Ri_{t}
+     (1 - 5Ri)^2 & {\mathrm{for}}\ 0<Ri<Ri_{t} \\
+     (A_{Ri} + B_{Ri} Ri)^{-2} & {\mathrm{for}}\ Ri>Ri_{t}
    \end{cases}
 
 where
@@ -1134,22 +1138,22 @@ used following `Mailhot and Lock (2004)`_ with:
 
 .. math:: Pr=\min \left( Pr_{\rm max}, \, Pr_N(1+2Ri) \, \right).
 
-The maximum permitted Prandtl number, :math:`Pr_{\rm max}`, is currently
+The maximum permitted Prandtl number, :math:`Pr_{\mathrm{max}}`, is currently
 set to :math:`5` for model stability reasons. The stability functions
 for :math:`Ri>0` are then given by:
 
 .. math::
 
-   f_m  = \frac{Pr}{Pr_N} \, f_{\rm stable}
+   f_m  = \frac{Pr}{Pr_N} \, f_{\mathrm{stable}}
 
 .. math::
 
-   f_h  = \frac{1}{Pr_N}  \, f_{\rm stable}
+   f_h  = \frac{1}{Pr_N}  \, f_{\mathrm{stable}}
 
 Note that writing the functions in this way ensures that :math:`f_m=1`
 under neutral conditions and the effect of the variation in :math:`Pr`
 is for :math:`f_m` to decrease slower with increasing :math:`Ri` than
-:math:`f_{\rm stable}`, which can be explained through increasing
+:math:`f_{\mathrm{stable}}`, which can be explained through increasing
 gravity-wave activity.
 
 Finally, the LEM stable functions are also available which cut off all
@@ -1260,7 +1264,7 @@ where :math:`C_F` decreases with height,
 :math:`f_{lev}={q_c}_{k-1}/(s_{k-1}-s_{k})`, where :math:`q_c` is the
 total condensate, and :math:`f_{lev}` also constrained to be less than
 unity. The total cloud volume fraction is then given by
-:math:`f_{tot} = {\rm min}[{C_F}_{k-1},{C_F}_k] + f_{edge}f_{lev}` and
+:math:`f_{tot} = {\mathrm{min}}[{C_F}_{k-1},{C_F}_k] + f_{edge}f_{lev}` and
 this is used to weight the saturated contribution to the buoyancy
 parameters on :math:`rho`-levels, e.g.,
 :math:`\overline{\beta_T}_{k-1/2} = f_{tot} \tilde{\beta_T}_{k-1/2} +
@@ -1307,7 +1311,8 @@ The general approach is to take :math:`K_{\chi}` in
 
 .. math:: :label: klnl
 
-   K_{\chi} = \mathrm{max} \left[ (K_{\chi}^{\rm surf}+K_{\chi}^{\rm Sc}), 
+   K_{\chi} = \mathrm{max} \left[
+   (K_{\chi}^{\mathrm{surf}}+K_{\chi}^{\mathrm{Sc}}), 
                                  K_{\chi}(Ri) \right]
 
 As noted in section :ref:`Model variables and turbulence closure
@@ -1363,34 +1368,37 @@ the strong surface buoyancy generation of turbulence in these regimes, a
 calculation of :math:`Ri` is made that allows for the gradient
 adjustment by the non-local scheme, i.e., using
 :math:`\widetilde{\Delta_k \theta_{\ell}}` (see
-:eq:`eq:wx_std`). The height, :math:`z_{\rm loc}` , where
+:eq:`eq:wx_std`). The height, :math:`z_{\mathrm{loc}}` , where
 :math:`Ri>Ri_{crit}=0.25` is found. It is then hypothesised that this
 level of turbulent instability (that incorporates the effects of shear)
 only needs extend some fractional distance into the cloud layer to
 disrupt the formation of cumulus elements. Thus, if
 :math:`z_{\rm loc}> z_{\rm lcl}+ f_{\rm sh}
-\left(z_{\rm par}-z_{\rm lcl}\right)`, where :math:`f_{\rm sh}` is a
-tunable parameter (:math:`0<f_{\rm sh}<1`), then the convection scheme
+\left(z_{\rm par}-z_{\rm lcl}\right)`, where :math:`f_{\mathrm{sh}}` is a
+tunable parameter (:math:`0<f_{\mathrm{sh}}<1`), then the convection scheme
 triggering is suppressed (the CUMULUS flag is set to false) and the top
 of the non-local surface-based mixing coefficient is reset to
-:math:`z_{\rm par}` (as it would have been before convection was
+:math:`z_{\mathrm{par}}` (as it would have been before convection was
 diagnosed from the parcel ascent).
 
 A diagnostic is calculated, ZHT
-:math:`=\mathrm{max}[z_{\rm h}, z_{\rm h}^{\rm Sc}, z_{\rm loc}]`, that
+:math:`=\mathrm{max}[z_{\mathrm{h}}, z_{\mathrm{h}}^{\mathrm{Sc}},
+z_{\mathrm{loc}}]`, that
 gives a measure of the maximum height of turbulent mixing (STASH 3,304).
-Recall, :math:`z_{\rm loc}` is the boundary layer depth diagnosed by
+Recall, :math:`z_{\mathrm{loc}}` is the boundary layer depth diagnosed by
 :math:`Ri >
-Ri_{crit}`, :math:`z_{\rm h}^{\rm Sc}` is the top of any stratocumulus
-layer and :math:`z_{\rm h}` is the top of surface-based mixed layer,
+Ri_{crit}`, :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` is the top of any stratocumulus
+layer and :math:`z_{\mathrm{h}}` is the top of surface-based mixed layer,
 found by adiabatic parcel ascent but reset to the LCL in cumulus capped
 layers. Another diagnostic is available, the “boundary layer depth”
-(STASH 25), that is set to :math:`=\mathrm{max}[z_{\rm h}, z_{\rm loc}]`
+(STASH 25), that is set to :math:`=\mathrm{max}[z_{\mathrm{h}},
+z_{\mathrm{loc}}]`
 and so represents the depth of the stable boundary layer or “surface”
 mixed layer. Also available are three diagnostics that represent the
 calculated value of each of the individual terms in STASH 3,304: 3,356
-is set to :math:`z_{\rm h}` ; 3,357 is :math:`z_{\rm h}^{\rm Sc}`  and
-3,358 is :math:`z_{\rm loc}` .
+is set to :math:`z_{\mathrm{h}}` ; 3,357 is
+:math:`z_{\mathrm{h}}^{\mathrm{Sc}}`  and
+3,358 is :math:`z_{\mathrm{loc}}` .
 
 .. _sec_nonlocal:
 
@@ -1418,51 +1426,53 @@ Surface-driven turbulence
 For turbulence sources at the surface (namely surface drag with velocity
 scale :math:`u_*`, and positive surface buoyancy fluxes with velocity
 scale :math:`w_*`) in a layer with top at
-:math:`z=`\ :math:`z_{\rm h}` , base at :math:`z=0` we set
+:math:`z=`\ :math:`z_{\mathrm{h}}` , base at :math:`z=0` we set
 
 .. math:: :label: kmsurf
 
-   K_m^{\rm surf}= k \ z_{\rm h}\ w_m \ \frac{z}{z_{\rm h}}
-               \left( 1 - {\cal E}_m^{\rm surf} \frac{z}{z_{\rm h}} \right)^2
+   K_m^{\mathrm{surf}}= k \ z_{\mathrm{h}}\ w_m \ \frac{z}{z_{\mathrm{h}}}
+               \left( 1 - {\cal E}_m^{\mathrm{surf}} \frac{z}{z_{\mathrm{h}}}
+               \right)^2
 
 where :math:`w_m^3 = u_*^3 + w_s^3`, :math:`u_*` is the friction
 velocity (including the orographic roughness component) and :math:`w_s`
-is defined below. For the 9C version of the scheme, :math:`z_{\rm h}` is
+is defined below. For the 9C version of the scheme, :math:`z_{\mathrm{h}}` is
 the diagnosed subgrid inversion height (see
 section :ref:`Diagnosis of a sub-grid inversion <sec_sginv>`) for both
-:math:`K_h^{\rm surf}` and
-:math:`K_m^{\rm surf}`. In the 8A version, :math:`K_m^{\rm surf}` uses
-:math:`z_{\rm h}` :math:`=z_{\mathrm{ \rm NTML}+\frac{1}{2}}`. The
-factor :math:`{\cal E}_m^{\rm surf}` is chosen so that
-:math:`K_m^{\rm surf}` will tend to
-:math:`K_m|_{\mathrm{ \rm NTML}+\frac{1}{2}}` as :math:`z` tends to
-:math:`z_{\rm h}` , where
-:math:`K_m|_{\mathrm{ \rm NTML}+\frac{1}{2}}` is the entrainment
+:math:`K_h^{\mathrm{surf}}` and
+:math:`K_m^{\mathrm{surf}}`. In the 8A version, :math:`K_m^{\mathrm{surf}}` uses
+:math:`z_{\mathrm{h}}` :math:`=z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`. The
+factor :math:`{\cal E}_m^{\mathrm{surf}}` is chosen so that
+:math:`K_m^{\mathrm{surf}}` will tend to
+:math:`K_m|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` as :math:`z` tends to
+:math:`z_{\mathrm{h}}` , where
+:math:`K_m|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` is the entrainment
 eddy-diffusivity (given by :eq:`khent`, although, in order to
 avoid altering the shape function too much,
-:math:`{\cal E}_m^{\rm surf}` is not allowed to fall below :math:`0.7`).
-A similar factor, :math:`{\cal E}_h^{\rm surf}`, is used in the :math:`K_h^{\rm
-surf}` profile even though the
+:math:`{\cal E}_m^{\mathrm{surf}}` is not allowed to fall below :math:`0.7`).
+A similar factor, :math:`{\cal E}_h^{\rm surf}`, is used in the
+:math:`K_h^{\mathrm{surf}}` profile even though the
 entrainment fluxes of the thermodynamic variables will usually be
 specified explicitly rather than through an eddy-diffusivity (see
 section :ref:`Entrainment fluxes <sec_entr>`).
 
 The form of :math:`w_s` differs between the surface layer
-(:math:`z < 0.1`\ :math:`z_{\rm h}` ) and the rest of the mixed-layer:
+(:math:`z < 0.1`\ :math:`z_{\mathrm{h}}` ) and the rest of the mixed-layer:
 
 .. math:: :label: ws_defn
 
    w_s^3 = 
      \begin{cases}
-       2.5 \, \frac{z}{z_{\rm h}} w_*^3   & {\rm surface\ layer} \\
-       0.25 \, w_*^3                 & {\rm mixed\ layer}   \\
+       2.5 \, \frac{z}{z_{\mathrm{h}}} w_*^3   & {\mathrm{surface}\ layer} \\
+       0.25 \, w_*^3                 & {\mathrm{mixed}\ layer}   \\
      \end{cases}
 
-and :math:`w_*^3=z_{\rm h}\overline{w'b}_S` using :math:`z_{\rm h}` from
+and :math:`w_*^3=z_{\mathrm{h}}\overline{w'b}_S` using
+:math:`z_{\mathrm{h}}` from
 the current timestep (note that the use of :math:`w_*` here will be
-inconsistent with the use of :math:`V_{\rm heat}` in the entrainment
+inconsistent with the use of :math:`V_{\mathrm{heat}}` in the entrainment
 parametrization in cloudy boundary layers). Note that :math:`w_s` is
-continuous across :math:`0.1`\ :math:`z_{\rm h}` and constant with
+continuous across :math:`0.1`\ :math:`z_{\mathrm{h}}` and constant with
 height in the mixed layer. This form for :math:`w_s` is motivated by a
 desire to match the model’s surface transfer formulation within the
 surface layer (as described further in section :ref:`Comparison with Holtslag
@@ -1471,7 +1481,7 @@ and to use a cubic sum of velocity scales within the mixed layer
 (consistent with dimensional analysis of the TKE equation, see
 `Holtslag and Boville (1993)`_).
 
-The formula for :math:`K_h^{\rm surf}` is identical to
+The formula for :math:`K_h^{\mathrm{surf}}` is identical to
 :eq:`kmsurf` but with :math:`w_m` replaced by
 :math:`w_h=w_m/Pr`, where the turbulent Prandtl number is given by:
 
@@ -1495,9 +1505,9 @@ except for :eq:`ws_defn` and
 For the latter, HB93 effectively set
 :math:`{\cal E}_m^{\rm surf} =1`. To generate entrainment, however, they simply
 use
-:math:`K_m^{\rm surf}|_{\mathrm{ \rm NTML}+\frac{1}{2}}`, as
+:math:`K_m^{\mathrm{surf}}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`, as
 evaluated from :eq:`kmsurf` with a subgrid calculation of
-:math:`z_{\rm h}` :math:`>z_{\mathrm{ \rm NTML}+\frac{1}{2}}`, rather
+:math:`z_{\mathrm{h}}` :math:`>z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`, rather
 than using a separate entrainment parametrization.
 
 The difference in :eq:`ws_defn` arises from the surface
@@ -1519,11 +1529,12 @@ say). For the UM,
 
 .. math::
 
-   Pr_{\rm surf} = \frac{\Phi_h}{\Phi_m} 
-                = \left( 1 + 16 \, k \frac{z}{z_{\rm h}} \, \frac{w_*^3}{u_*^3}
+   Pr_{\mathrm{surf}} = \frac{\Phi_h}{\Phi_m} 
+                = \left( 1 + 16 \, k \frac{z}{z_{\mathrm{h}}} \,
+                \frac{w_*^3}{u_*^3}
                   \right)^{-1/4}
 
-giving :math:`Pr_{\rm surf} = 1` in the neutral limit (compared to 0.75
+giving :math:`Pr_{\mathrm{surf}} = 1` in the neutral limit (compared to 0.75
 from :eq:`prandtl_nl`). In the convective limit,
 :math:`Pr_{\rm surf}|_{0.1\, z_{\rm h}} \rightarrow 0.9 (w_*/u_*)^{-3/4} = 0.9
 \beta^{3/4} = 0.14`
@@ -1554,42 +1565,45 @@ Prandtl number between the surface and interior in the UM is not known.
 Cloud-top-driven turbulence
 ---------------------------
 
-For cloud-top-driven turbulence over a layer of depth :math:`z_{\rm ml}`
-(with top at :math:`z_{\rm h}` or :math:`z_{\rm h}^{\rm Sc}` and base at
-:math:`z_{\rm b}` , determined as in section :ref:`Diagnosis of the vertical
-extent of the K-profiles <sec_decouple>`),
+For cloud-top-driven turbulence over a layer of depth :math:`z_{\mathrm{ml}}`
+(with top at :math:`z_{\mathrm{h}}` or :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` and
+base at
+:math:`z_{\mathrm{b}}` , determined as in section :ref:`Diagnosis of the
+vertical extent of the K-profiles <sec_decouple>`),
 
 .. math:: :label: kmtop
 
-   K_m^{\rm Sc}= 0.63 \ k \ z_{\rm ml}\ V_{\rm Sc}\left( \frac{z'}{z_{\rm ml}}
-   \right)^2
-              \left( 1 - {\cal E}_m^{\rm Sc} \frac{z'}{z_{\rm ml}} \right)^{0.8}
+   K_m^{\mathrm{Sc}}= 0.63 \ k \ z_{\mathrm{ml}}\ V_{\mathrm{Sc}}\left(
+   \frac{z'}{z_{\mathrm{ml}}} \right)^2
+              \left( 1 - {\cal E}_m^{\mathrm{Sc}} \frac{z'}{z_{\mathrm{ml}}}
+              \right)^{0.8}
 
-where :math:`V_{\rm Sc}^3= V_{\rm rad}^3+V_{\rm br}^3` (see
+where :math:`V_{\mathrm{Sc}}^3= V_{\mathrm{rad}}^3+V_{\mathrm{br}}^3` (see
 appendix :ref:`Appendix: Definitions of the velocity scales <app_vscales>`) and
 :math:`z'` is height above
-:math:`z_{\rm b}` . Then :math:`K_h = K_m / \mathrm{Pr}`, where
+:math:`z_{\mathrm{b}}` . Then :math:`K_h = K_m / \mathrm{Pr}`, where
 :math:`\mathrm{Pr}=0.75`. The resulting :math:`K_h` profile was derived
 against convective cloudy LES, as described in
 `Lock (1999)`_. The appropriate Prandtl number
-(and therefore :math:`K_m^{\rm Sc}`) is unknown, 0.75 being chosen
+(and therefore :math:`K_m^{\mathrm{Sc}}`) is unknown, 0.75 being chosen
 simply as a number in the middle of the range usually quoted for
 turbulent mixing in general. As with :eq:`kmsurf`,
-:math:`z_{\rm h}`  (or :math:`z_{\rm h}^{\rm Sc}` ) are given by the
+:math:`z_{\mathrm{h}}`  (or :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` ) are given by
+the
 subgrid diagnosis (see section :ref:`Diagnosis of a sub-grid inversion
 <sec_sginv>`) except for
-:math:`K_m^{\rm Sc}` in the 8A scheme which uses the height of the
-half-level below (:math:`z_{\mathrm{ \rm NTML}+\frac{1}{2}}` or
-:math:`z_{\mathrm{ \rm NTDSC}+\frac{1}{2}}`). Again following
-:eq:`kmsurf`, the factors :math:`{\cal E}_m^{\rm Sc}` and
-:math:`{\cal E}_h^{\rm Sc}` are included in :eq:`kmtop` so
-that :math:`K_m^{\rm Sc}` will tend to
-:math:`K_m|_{\mathrm{ \rm NTML}+\frac{1}{2}}` (and
-:math:`K_h^{\rm Sc}` to
-:math:`K_h|_{\mathrm{ \rm NTML}+\frac{1}{2}}`), given by
-:eq:`khent`, as :math:`z` tends to :math:`z_{\rm h}` (and
+:math:`K_m^{\mathrm{Sc}}` in the 8A scheme which uses the height of the
+half-level below (:math:`z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` or
+:math:`z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}}`). Again following
+:eq:`kmsurf`, the factors :math:`{\cal E}_m^{\mathrm{Sc}}` and
+:math:`{\cal E}_h^{\mathrm{Sc}}` are included in :eq:`kmtop` so
+that :math:`K_m^{\mathrm{Sc}}` will tend to
+:math:`K_m|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` (and
+:math:`K_h^{\mathrm{Sc}}` to
+:math:`K_h|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`), given by
+:eq:`khent`, as :math:`z` tends to :math:`z_{\mathrm{h}}` (and
 here no restriction is made on the magnitude of either :math:`{\cal E}_m^{\rm
-Sc}` or :math:`{\cal E}_h^{\rm Sc}`).
+Sc}` or :math:`{\cal E}_h^{\mathrm{Sc}}`).
 
 .. _sec_gradadj:
 
@@ -1601,21 +1615,22 @@ Recall that for :math:`\theta_{\ell}` only we use
 .. math:: :label: wthl
 
    \overline{w'\theta_{\ell}'}= - K_h \frac{\partial \theta_{\ell}}{\partial z}
-   + K_h^{\rm surf}\gamma_{\theta_{\ell}} 
+   + K_h^{\mathrm{surf}}\gamma_{\theta_{\ell}} 
 
 where
 
 .. math:: :label: gradadj
 
    \gamma_{\theta_{\ell}} = 
-     \mathrm{min}\left[ A_{ga} \frac{\sigma_{T1}}{z_{\rm h}}, G_{max} \right]
+     \mathrm{min}\left[ A_{ga} \frac{\sigma_{T1}}{z_{\mathrm{h}}}, G_{max}
+     \right]
 
 :math:`A_{ga}=3.26`, :math:`G_{max}=10^{-3}`\ Km\ :math:`^{-1}` and
 :math:`\sigma_{T1} = 1.93 \,
 \overline{w'\theta_{\ell}'}_S/w_m`, where for this calculation of
 :math:`w_m` (given by
-:math:`w_m^3=u_*^3+0.25\,z_{\rm h}\overline{w'b}_S`)
-:math:`z_{\rm h}` is taken from the previous timestep. The form of
+:math:`w_m^3=u_*^3+0.25\,z_{\mathrm{h}}\overline{w'b}_S`)
+:math:`z_{\mathrm{h}}` is taken from the previous timestep. The form of
 :eq:`gradadj` is similar to that used in HB93 and the
 magnitude of :math:`\gamma_{\theta_{\ell}}` is the same as in HB93 in
 the convective limit — the difference in :math:`A_{ga}` exactly allows
@@ -1666,9 +1681,9 @@ that proposed by `Brown and Grant (1997)`_, written
 .. math:: :label: tau_nl
 
    (\tau_x^{nl},\tau_y^{nl})= \left[
-       \frac{2.7w_*^3}{(u_*^3+0.6w_*^3)}\right] \left[ \left( \frac{z'}{z_{\rm
-       h}'}
-       \right) \left( 1- \frac{z'}{z_{\rm h}'} \right)^2 \right]
+       \frac{2.7w_*^3}{(u_*^3+0.6w_*^3)}\right] \left[ \left(
+       \frac{z'}{z_{\mathrm{h}}'}
+       \right) \left( 1- \frac{z'}{z_{\mathrm{h}}'} \right)^2 \right]
      (\tau_x^{s},\tau_y^{s})
 
 Here :math:`w_*` is the convective velocity scale, :math:`u_*` is the
@@ -1688,12 +1703,13 @@ is zero in neutral conditions but asymptotes to a stability-independent
 fraction of surface stress in convective conditions. The primed
 variables in the shape function allow the non-local stress profile to
 either be applied across the whole boundary layer (using :math:`z'=z`
-and :math:`z_{\rm h}'=z_{\rm h}`), as in
+and :math:`z_{\mathrm{h}}'=z_{\mathrm{h}}`), as in
 `Brown and Grant (1997)`_, or only above the surface layer (using
-:math:`z'=z-0.1z_{\rm h}`, :math:`z_{\rm h}'=z_{\rm h}-0.1z_{\rm h}`).
+:math:`z'=z-0.1z_{\mathrm{h}}`,
+:math:`z_{\mathrm{h}}'=z_{\mathrm{h}}-0.1z_{\mathrm{h}}`).
 The motivation for applying the non-local stress above the surface layer
 was to ensure that the match to surface layer similarity was maintained
-below :math:`0.1z_{\rm h}` (although separate tests suggested that the
+below :math:`0.1z_{\mathrm{h}}` (although separate tests suggested that the
 impact of this change is small).
 
 .. _sec_rev_flux_grad:
@@ -1729,13 +1745,13 @@ So, the new formulation is written:
 
 .. math:: :label: fg_new
 
-   F_{\chi}^{Tot} = F_{\chi}^{NT}|_{z_{\rm b}} 
-     -\left(K_h^{\rm surf}+ K_h^{\rm
-     Sc}\right)\frac{\partial\overline{\chi}}{\partial z} 
-     + \overline{w'\chi'}_{ng}^{\rm surf}+ \overline{w'\chi'}_{ng}^{\rm Sc}
-     + f_2 \left(F_{\chi}|_{z_h} - F_{\chi}^{NT}|_{z_{\rm b}} \right)
+   F_{\chi}^{Tot} = F_{\chi}^{NT}|_{z_{\mathrm{b}}} 
+     -\left(K_h^{\mathrm{surf}}+
+     K_h^{\mathrm{Sc}}\right)\frac{\partial\overline{\chi}}{\partial z} 
+     + \overline{w'\chi'}_{ng}^{\mathrm{surf}}+ \overline{w'\chi'}_{ng}^{\mathrm{Sc}}
+     + f_2 \left(F_{\chi}|_{z_h} - F_{\chi}^{NT}|_{z_{\mathrm{b}}} \right)
 
-where :math:`z_h` and :math:`z_{\rm b}` are the heights of the top and
+where :math:`z_h` and :math:`z_{\mathrm{b}}` are the heights of the top and
 base of the mixed layer, respectively. It can be seen that
 :eq:`fg_new` is composed of a local down-gradient component,
 two non-gradient flux terms (one generated by surface-driven turbulence
@@ -1747,13 +1763,14 @@ non-turbulent component:
 
 The components of :eq:`fg_new` are:
 
-- :math:`K_{h,m}^{\rm surf}= k z_h w_{h,m}
+- :math:`K_{h,m}^{\mathrm{surf}}= k z_h w_{h,m}
   \frac{z}{z_h}\left(1-\frac{z}{z_h}\right)^2`
 
 - :math:`K_h^{\rm Sc}= 3.6 k V_{\rm Sc}z_{ml}
   \left(\frac{z'}{z_{ml}}\right)^{3}\left(1-\frac{z'}{z_{ml}} \right)^{2}`
 
-- :math:`\overline{w'\chi'}_{ng}^{\rm surf}=K_h^{\rm surf}\gamma_{\chi}`
+-
+  :math:`\overline{w'\chi'}_{ng}^{\mathrm{surf}}=K_h^{\mathrm{surf}}\gamma_{\chi}`
   with :math:`\gamma_{\chi}=A_{ga}\frac{\overline{w'\chi'}_S}{w_h z_h}`
   and :math:`A_{ga}=10`
 
@@ -1765,10 +1782,10 @@ The components of :eq:`fg_new` are:
 - :math:`f_2 = 0.5 \, \frac{z}{z_h}\, 2^{(z/z_h)^4}`
 
 In the above equations :math:`k` is von Karman’s constant, :math:`z'`
-(:math:`=z-z_{\rm b}`) is height above the mixed layer base,
-:math:`z_{ml}` (:math:`=z_h-z_{\rm b}`) is the mixed layer depth,
+(:math:`=z-z_{\mathrm{b}}`) is height above the mixed layer base,
+:math:`z_{ml}` (:math:`=z_h-z_{\mathrm{b}}`) is the mixed layer depth,
 :math:`u_*` is the friction velocity, and :math:`w_*` and
-:math:`V_{\rm Sc}` are the velocity scales for surface and cloud-top
+:math:`V_{\mathrm{Sc}}` are the velocity scales for surface and cloud-top
 buoyancy-driven turbulence.
 
 Although the structure of the surface-driven non-gradient terms is the
@@ -1777,7 +1794,7 @@ same as for the standard flux-gradient formulation,
 :math:`q_t` as well as :math:`\theta_{\ell}` and also the empirical
 coefficients in the velocity scales have been revised:
 
-- :math:`w_h = (u_*^3 + C_{ws} w_*^3)^{\frac{1}{3}} / Pr_{\rm neut}`
+- :math:`w_h = (u_*^3 + C_{ws} w_*^3)^{\frac{1}{3}} / Pr_{\mathrm{neut}}`
   with :math:`C_{ws}=0.42` for :math:`\frac{z}{z_h}\geq 0.1` and
   :math:`C_{ws}=4.2 \frac{z}{z_h}` for :math:`\frac{z}{z_h}<0.1`
 
@@ -1788,14 +1805,15 @@ except that :math:`w_m` is replaced by its neutral value:
 
 .. math::
 
-   Pr =  Pr_{\rm neut} 
-     \frac{u_*^4 + w_*^3 {w_m}^{\rm neut} / 25}
-     {u_*^4 + w_*^3 {w_m}^{\rm neut} Pr_{\rm neut}/ (25 Pr_{\rm conv} )}
+   Pr =  Pr_{\mathrm{neut}} 
+     \frac{u_*^4 + w_*^3 {w_m}^{\mathrm{neut}} / 25}
+     {u_*^4 + w_*^3 {w_m}^{\mathrm{neut}} Pr_{\mathrm{neut}}/ (25
+     Pr_{\mathrm{conv}} )}
 
-and the range is now :math:`Pr_{\rm neut} = 0.75` to
+and the range is now :math:`Pr_{\mathrm{neut}} = 0.75` to
 :math:`Pr_{\rm conv} =
 0.6`. As with the standard scheme, a constant Prandtl number of 0.75 is
-used to calculate :math:`K_m^{\rm Sc}`.
+used to calculate :math:`K_m^{\mathrm{Sc}}`.
 
 Discussion of some of the revisions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1868,7 +1886,7 @@ gradient adjustment parameter:
 .. math:: :label: grad_adj
 
    \gamma_{\chi}= d \frac{\overline{w'\chi'}_S}{w_* z_h} 
-     \hspace{0.5cm} {\rm with}  \hspace{0.5cm} 
+     \hspace{0.5cm} {\mathrm{with}}  \hspace{0.5cm} 
      d^{HB} = 7.2 w_*^2/w_m^2,  \hspace{0.2cm} 
      d^{std} = 6.3 w_*/w_m,  \hspace{0.2cm} 
      d^{rev} = 10 w_*/w_h
@@ -1890,11 +1908,11 @@ Note that the most significant change from the standard UM scheme is the
 change to :math:`w_h` in the convective limit. Since
 :math:`\gamma_{\chi}` remains unchanged in the convective limit, this
 reduction in :math:`w_h` will result in a significantly smaller
-:math:`\overline{w'\chi'}_{ng}^{\rm surf}` for the revised scheme which
+:math:`\overline{w'\chi'}_{ng}^{\mathrm{surf}}` for the revised scheme which
 gives better agreement against LES.
 
 Compared to the standard scheme, it appears that the revised
-:math:`K_h^{\rm Sc}` is very different. However,
+:math:`K_h^{\mathrm{Sc}}` is very different. However,
 Fig.\ :numref:`%s <fig:new_ksc>` shows that this actually amounts to a small
 adjustment in the shape. In addition, note that the factors
 :math:`\varepsilon_h^{surf}` and :math:`\varepsilon_h^{Sc}` have been
@@ -1968,18 +1986,18 @@ only difference is in the mixing length, which is calculated as
 
 .. math:: :label: eq-lblend
 
-     l_{\rm blend} = W_{1D}l_{\rm bl}+(1-W_{1D})l_{\rm smag},
+     l_{\mathrm{blend}} = W_{1D}l_{\mathrm{bl}}+(1-W_{1D})l_{\mathrm{smag}},
 
-where :math:`l_{\rm bl}^{-1} = (\kappa z)^{-1} + \lambda_0^{-1}` and
+where :math:`l_{\mathrm{bl}}^{-1} = (\kappa z)^{-1} + \lambda_0^{-1}` and
 :math:`l_{\rm smag}^{-2} = (\kappa z)^{-2} + (c_s \Delta x)^{-2}`,
 :math:`\kappa` is
 the von Karman constant and :math:`c_s` is the Smagorinsky constant.
-Near the surface :math:`l_{\rm bl}` and :math:`l_{\rm smag}` are
+Near the surface :math:`l_{\mathrm{bl}}` and :math:`l_{\mathrm{smag}}` are
 identical, but the asymptotic values are different and this method
 weights the asymptotic value according to the weighting of the two
 schemes. For example, at :math:`\Delta x=1` km,
 :math:`c_s\Delta x=200` m (for :math:`c_s=0.2`), whereas
-:math:`\lambda_0=\max(40\ {\rm m}, 0.15z_h)`, which allows for a small
+:math:`\lambda_0=\max(40\ {\mathrm{m}}, 0.15z_h)`, which allows for a small
 mixing length in shallow unresolved boundary layers (e.g. stable ones).
 
 The `Lock et al. (2000)`_ scheme also contains a non-local
@@ -1990,15 +2008,15 @@ is given by
 
 .. math:: K_\chi = \max\left[W_{1D}K_\chi^{\rm NL}, K_\chi(Ri)\right],
 
-where :math:`K_\chi^{\rm NL}` is the non-local diffusivity and :math:`l`
-in Eq. :eq:`eq-kri` is given by :math:`l_{\rm blend}` in
+where :math:`K_\chi^{\mathrm{NL}}` is the non-local diffusivity and :math:`l`
+in Eq. :eq:`eq-kri` is given by :math:`l_{\mathrm{blend}}` in
 Eq. :eq:`eq-lblend`. The turbulent flux is then calculated
 as
 
 .. math:: F_\chi=-K_\chi\frac{\partial \chi}{\partial z} + W_{1D}F_\chi^{\rm
    NL},
 
-where :math:`F_\chi^{\rm NL}` is the non-local flux. Therefore when
+where :math:`F_\chi^{\mathrm{NL}}` is the non-local flux. Therefore when
 :math:`W_{1D}=1`, the scheme of `Lock et al. (2000)`_ is recovered,
 whilst with :math:`W_{1D}=0` the Smagorinsky-type scheme is recovered.
 
@@ -2012,11 +2030,11 @@ function slightly, using
 
 .. math:: :label: eq-tanh
 
-     W_{1D} = 1 - \tanh\left(\beta\frac{z_{\rm turb}}{\Delta
-     x}\right)\max\left[0,\min\left[1,r_f\left(l_0-\frac{\Delta x}{z_{\rm
-     turb}}\right)\right] \right],
+     W_{1D} = 1 - \tanh\left(\beta\frac{z_{\mathrm{turb}}}{\Delta
+     x}\right)\max\left[0,\min\left[1,r_f\left(l_0-\frac{\Delta
+     x}{z_{\mathrm{turb}}}\right)\right] \right],
 
-where :math:`z_{\rm turb}` is the appropriate lengthscale of the
+where :math:`z_{\mathrm{turb}}` is the appropriate lengthscale of the
 turbulence, :math:`\beta` is a scaling parameter which controls the
 speed of the transition from unresolved to resolved turbulence,
 :math:`r_f=\frac{1}{l_0-l_1}`, :math:`l_0=4` and :math:`l_1=0.25`
@@ -2024,9 +2042,9 @@ speed of the transition from unresolved to resolved turbulence,
 :raw-latex:`\cite[]{Boutleetal2014}`).
 `Malavelle et al. (2014)`_ demonstrated that this scaling
 method was applicable to any type of unstable boundary layer given an
-appropriate choice of :math:`z_{\rm turb}`. In
+appropriate choice of :math:`z_{\mathrm{turb}}`. In
 `Boutle et al. (2014)`_ this functional form was applied
-everywhere, adjusting the values of :math:`z_{\rm turb}` and
+everywhere, adjusting the values of :math:`z_{\mathrm{turb}}` and
 :math:`\beta` depending on the regime. The max function is present to
 force the lowest resolution simulations to just use the 1D mixing
 scheme. An alternative approach that differs above the boundary layer is
@@ -2034,7 +2052,7 @@ described below.
 
 The simplest case is for a well-mixed boundary layer, where the
 appropriate lengthscale is the boundary-layer depth (inversion height).
-Therefore we set :math:`z_{\rm turb}=z_h`, which is broadly consistent
+Therefore we set :math:`z_{\mathrm{turb}}=z_h`, which is broadly consistent
 with `Malavelle et al. (2014)`_, and choose
 :math:`\beta=\beta_{\rm bl}=0.15` to give the best match of our function to
 that of
@@ -2071,23 +2089,22 @@ feature which needs to be maintained in the blended scheme. Physically
 they are similar to well-mixed surface driven boundary layers, and the
 `Lock et al. (2000)`_ scheme parametrizes them as such. The
 appropriate length scale is now the decoupled cloud mixed layer depth,
-:math:`z_{\rm sc}`
+:math:`z_{\mathrm{sc}}`
 :raw-latex:`\cite[i.e.~the depth through which a negatively buoyant parcel
 released at cloud top would descend,][]{lock01}`. In this case, below
 the decoupled cloud top we set
 
 .. math:: :label: zturb_dsc
 
-     z_{\rm turb}=\min\left[\max\left(z,z_{\rm sml}\right),\max\left(z_{\rm
-     sc},z_h-z\right)\right],
+     z_{\mathrm{turb}}=\min\left[\max\left(z,z_{\mathrm{sml}}\right),\max\left(z_{\mathrm{sc}},z_h-z\right)\right],
 
-where :math:`z_{\rm sml}` is the depth of the surface-based mixed layer
+where :math:`z_{\mathrm{sml}}` is the depth of the surface-based mixed layer
 :raw-latex:`\cite[i.e.~the depth through which a positively buoyant parcel
 released at the surface would ascend,][]{lock00}`. This is shown
 schematically in :numref:`Figure %s <fig-blend>`\ (b), and ensures that
 :math:`W_{1D}` has a high value in the poorly resolved surface mixed
 layer and cloud layer, and a lower value in between those layers. Again,
-this choice of :math:`z_{\rm turb}` is broadly consistent with the
+this choice of :math:`z_{\mathrm{turb}}` is broadly consistent with the
 analysis of decoupled stratocumulus LES presented by
 `Malavelle et al. (2014)`_. Finally,
 `Honnert et al. (2011)`_ also included shallow cumulus
@@ -2104,7 +2121,7 @@ used to identify a cumulus regime) was found frequently to indicate deep
 convection even when the resolved clouds were shallow because the
 diagnosis parcel, being undilute, would penetrate to the tropopause.
 However, having decided the regime is shallow convection, we do still
-set :math:`z_{\rm turb}` to the diagnosis parcel top height because, for
+set :math:`z_{\mathrm{turb}}` to the diagnosis parcel top height because, for
 current km-scale configurations (without a cumulus convection
 parametrization), it was found that the resulting stronger parametrized
 vertical mixing was beneficial for the development of the convection,
@@ -2114,46 +2131,48 @@ instead.
 Above the boundary layer top, `Boutle et al. (2014)`_ aimed
 for any free atmospheric mixing to be done by the 3D Smagorinsky scheme.
 Therefore, above the boundary layer top they use :math:`z` as the
-appropriate length scale, and in general take :math:`z_{\rm turb}` in
+appropriate length scale, and in general take :math:`z_{\mathrm{turb}}` in
 Eq. :eq:`eq-tanh` as the greater of that defined by
 :eq:`zturb_dsc` and :math:`z`. However, this did not give
 a particularly fast transition using the value of
-:math:`\beta_{\rm  bl}`, therefore they used :math:`\beta_{\rm fa}=1` at
-a height well above the boundary layer (:math:`z_{\rm fa}=z_h+1` km),
+:math:`\beta_{\mathrm{bl}}`, therefore they used :math:`\beta_{\mathrm{fa}}=1`
+at
+a height well above the boundary layer (:math:`z_{\mathrm{fa}}=z_h+1` km),
 and transitioned between these regimes linearly using
 
 .. math::
 
-   \beta = \beta_{\rm bl}\frac{z_{\rm fa}-z}{z_{\rm fa}-z_h} + 
-             \beta_{\rm fa}\frac{z-z_h}{z_{\rm fa}-z_h}
+   \beta = \beta_{\mathrm{bl}}\frac{z_{\mathrm{fa}}-z}{z_{\mathrm{fa}}-z_h} + 
+             \beta_{\mathrm{fa}}\frac{z-z_h}{z_{\mathrm{fa}}-z_h}
 
 However, because the above method still uses :eq:`eq-tanh`,
-which depends on :math:`z_{\rm turb}/\Delta x`, the rate of transition
+which depends on :math:`z_{\mathrm{turb}}/\Delta x`, the rate of transition
 to 3D Smagorinsky with height above the boundary layer varies in an
 undesirable way with grid size. It might be considered more logical to
 think of non-turbulent regions of the free troposphere as unresolved
 turbulence and so revert to the 1D mixing scheme there. An alternative
 treatment(``blending_option``\ :math:`=`\ 3 or 4), then, is to increase
 :math:`W_{1D}` above the boundary layer top smoothly, to reach unity by
-some physical height :math:`z_{\rm fa}`, to be independent of both
+some physical height :math:`z_{\mathrm{fa}}`, to be independent of both
 horizontal and vertical grid sizes. For
-:math:`z_{\rm turb} < z < z_{\rm fa}`, then, we set
+:math:`z_{\mathrm{turb}} < z < z_{\mathrm{fa}}`, then, we set
 
 .. math::
 
-   W_{1D} = 1 + \frac{1}{2} \left( W_{1D}|_{z=z_{\rm turb}} - 1 \right)
-       \left[ 1 + {\rm cos}\left( \pi \, \frac{z-z_{\rm turb}}{z_{\rm
-       fa}-z_{\rm turb}}
+   W_{1D} = 1 + \frac{1}{2} \left( W_{1D}|_{z=z_{\mathrm{turb}}} - 1 \right)
+       \left[ 1 + {\mathrm{cos}}\left( \pi \,
+       \frac{z-z_{\mathrm{turb}}}{z_{\mathrm{fa}}-z_{\mathrm{turb}}}
                         \right) \right]
 
 The cosine term in square brackets transitions smoothly from 2 at
-:math:`z=z_{\rm turb}` to zero at :math:`z_{fa}` where, although
+:math:`z=z_{\mathrm{turb}}` to zero at :math:`z_{fa}` where, although
 somewhat arbitrary,
-:math:`z_{\rm fa} = {\rm min}(2 z_{\rm turb}, z_{\rm turb}+1 {\rm km})`.
+:math:`z_{\mathrm{fa}} = {\mathrm{min}}(2 z_{\mathrm{turb}},
+z_{\mathrm{turb}}+1 {\mathrm{km}})`.
 The former term ensures the transition is well above any shallow
 boundary layers while the latter that it does not drift far into the
 free atmosphere. In addition, within any layers identified as turbulent,
-through having subcritical :math:`Ri`, :math:`z_{\rm turb}` is set to
+through having subcritical :math:`Ri`, :math:`z_{\mathrm{turb}}` is set to
 the layer depth, in the same way as is done for decoupled stratocumulus
 in :eq:`zturb_dsc`.
 
@@ -2207,13 +2226,14 @@ the velocity scales <app_vscales>`)
 
 .. math:: :label: we_parm
 
-   w_e =  \frac{ A_1 \, V_{\rm sum}^3/ z_{\rm ml}+ g \tilde{\beta_T}
+   w_e =  \frac{ A_1 \, V_{\mathrm{sum}}^3/ z_{\mathrm{ml}}+ g \tilde{\beta_T}
    \tilde{\alpha_t} 
        \Delta_F}
-     {\Delta b + c_T V_{\rm sum}^2/z_{\rm ml}}
+     {\Delta b + c_T V_{\mathrm{sum}}^2/z_{\mathrm{ml}}}
 
 where
-:math:`V_{\rm sum}^3= V_{\rm heat}^3+ V_{\rm rad}^3+ V_{\rm br}^3+ A_2 u_*^3`.
+:math:`V_{\mathrm{sum}}^3= V_{\mathrm{heat}}^3+ V_{\mathrm{rad}}^3+
+V_{\mathrm{br}}^3+ A_2 u_*^3`.
 The constant :math:`A_1` is given a value 0.23, as in
 `Lock (1998)`_, and :math:`A_1*A_2=5`, as in
 `Driedonks (1982)`_. To allow for weak inversions, the
@@ -2242,14 +2262,14 @@ quantities required for :eq:`we_parm` is described in
 appendix :ref:`Appendix: Definitions of the velocity scales <app_vscales>`. At
 some point during the transition to a
 decoupled boundary layer the surface-driven entrainment terms (the terms
-in :eq:`we_parm` proportional to :math:`V_{\rm heat}^3` and
+in :eq:`we_parm` proportional to :math:`V_{\mathrm{heat}}^3` and
 :math:`u_*`) will no longer contribute to entrainment at cloud top,
 because the two layers will have become entirely decoupled. If the
 ``entr_smooth_dec`` switch is on then the surface contribution to the
-parametrized entrainment at :math:`z_{\rm h}^{\rm Sc}` is decreased
+parametrized entrainment at :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` is decreased
 linearly as the :math:`\theta_{v\ell}` difference between NTDSC and NTML
 increases from 0.5 to 1K. The flag, COUPLED, is set to true and
-:math:`z_{\rm h}^{\rm Sc}` is used as the mixed-layer depth in
+:math:`z_{\mathrm{h}}^{\mathrm{Sc}}` is used as the mixed-layer depth in
 :eq:`we_parm` as long as any surface-driven entrainment
 remains. If the ``entr_smooth_dec`` switch is off then this transition
 is discontinuous at a :math:`\theta_{v\ell}` difference of 0.5K.
@@ -2273,7 +2293,7 @@ limit is applied to the value of :math:`w_e` determined by
 :eq:`we_parm` such that the inversion cannot rise by more
 than one grid-level in a timestep. With current vertical resolutions and
 timesteps this is not a serious restriction. The constants :math:`A_1`
-and :math:`A_{\rm br}` appeared to be determined within 10-20 % in
+and :math:`A_{\mathrm{br}}` appeared to be determined within 10-20 % in
 `Lock (1998)`_, although only solid cloud sheets were
 simulated (as discussed further in appendix :ref:`Appendix: Definitions of the
 velocity scales <app_vscales>`).
@@ -2298,59 +2318,60 @@ F|_{z_i}`, so that
 
 .. math::
 
-   {\cal H}|_{z_i}  = - w_e \Delta \theta_{\ell}+ F_{\rm net}|_h
+   {\cal H}|_{z_i}  = - w_e \Delta \theta_{\ell}+ F_{\mathrm{net}}|_h
 
 .. math:: :label: discinv
 
    \overline{w'q_t'}_{z_i} = - w_e \Delta q_t
 
 where the total heat flux
-:math:`{\cal H} = \overline{w'\theta_{\ell}'}+ F_{\rm net}` and
+:math:`{\cal H} = \overline{w'\theta_{\ell}'}+ F_{\mathrm{net}}` and
 :math:`F_{\rm net}
 = F- F|_{z_{\rm b}}`. The net radiative flux relative to the base of the
 mixed layers is simply calculated as
 
 .. math::
 
-   F_{\rm net}|_{z_{k+\frac{1}{2}}} = \sum_{k=\mathrm{ \rm NBDSC}}^{k}
-   \mathrm{max}\left[ 
+   F_{\mathrm{net}}|_{z_{k+\frac{1}{2}}} = \sum_{k=\mathrm{
+   \mathrm{NBDSC}}}^{k} \mathrm{max}\left[ 
        - \Delta_{k+\frac{1}{2}} z \, {\cal S}_F(k), \,0 \right]
 
 where NBDSC\ :math:`=1` in SMLs, :math:`{\cal S}_F` are the temperature
 increments (in Ks\ :math:`^{-1}`) from the radiation scheme and
-:math:`F_{\rm net}|_h` is estimated by extrapolating down from
+:math:`F_{\mathrm{net}}|_h` is estimated by extrapolating down from
 :math:`F|_{z_{\mbox{\tiny \rm NTML}+\frac{3}{2}}
 }` using the flux-divergence in grid-level NTML\ :math:`+2` (and
 similarly for DSC layers).
 
 The thermodynamic variables’ entrainment fluxes, then, are imposed
 nominally at the subgrid inversion height (:math:`z_i=`
-:math:`z_{\rm h}` and/or :math:`z_{\rm h}^{\rm Sc}` ), diagnosed as
+:math:`z_{\mathrm{h}}` and/or :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` ), diagnosed
+as
 described in section :ref:`Diagnosis of a sub-grid inversion <sec_sginv>`. The
 required grid-level
-fluxes (at :math:`z_{\mathrm{ \rm NTDSC}+\frac{1}{2}}`, for example)
+fluxes (at :math:`z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}}`, for example)
 are then estimated using linear interpolation of :math:`{\cal H}` and
-:math:`\overline{w'q_t'}` between :math:`z_{\rm h}^{\rm Sc}` and the
+:math:`\overline{w'q_t'}` between :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` and the
 base of the mixed layer:
 
 .. math::
 
-   \overline{w'\theta_{\ell}'}|_{ z_{\mathrm{ \rm NTDSC}+\frac{1}{2}} }  =
-   \overline{w'\theta_{\ell}'}|_{z_{\rm b}}
-   - \frac{ z'_{\mathrm{ \rm NTDSC}+\frac{1}{2}} }{z_{\rm ml}}
+   \overline{w'\theta_{\ell}'}|_{ z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }  =
+   \overline{w'\theta_{\ell}'}|_{z_{\mathrm{b}}}
+   - \frac{ z'_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }{z_{\mathrm{ml}}}
    \left( \tilde{w_e} \Delta \theta_{\ell}+
-   \overline{w'\theta_{\ell}'}|_{z_{\rm b}} - F_{\rm net}|_{h} \right)
-   - F_{\rm net}|_{ z_{\mathrm{ \rm NTDSC}+\frac{1}{2}} }
+   \overline{w'\theta_{\ell}'}|_{z_{\mathrm{b}}} - F_{\mathrm{net}}|_{h} \right)
+   - F_{\mathrm{net}}|_{ z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }
 
 .. math:: :label: fluxinterp
 
-   \overline{w'q_t'}|_{ z_{\mathrm{ \rm NTDSC}+\frac{1}{2}} }  =
-   \overline{w'q_t'}|_{z_{\rm b}}
-   - \frac{ z'_{\mathrm{ \rm NTDSC}+\frac{1}{2}} }{z_{\rm ml}}
-   \left( \tilde{w_e} \Delta q_t + \overline{w'q_t'}|_{z_{\rm b}} \right)
+   \overline{w'q_t'}|_{ z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }  =
+   \overline{w'q_t'}|_{z_{\mathrm{b}}}
+   - \frac{ z'_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }{z_{\mathrm{ml}}}
+   \left( \tilde{w_e} \Delta q_t + \overline{w'q_t'}|_{z_{\mathrm{b}}} \right)
 
-where :math:`z' = z-z_{\rm b}`, and similarly for the SML entrainment
-fluxes (at :math:`z=z_{\mathrm{ \rm NTML}+\frac{1}{2}}`). The
+where :math:`z' = z-z_{\mathrm{b}}`, and similarly for the SML entrainment
+fluxes (at :math:`z=z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`). The
 turbulent fluxes at the base of the mixed layer are assumed zero except
 for the SML where the surface fluxes are used. This interpolation is
 illustrated for a SML in :numref:`Fig. %s <fig:fluxinterp>`.
@@ -2388,21 +2409,21 @@ the parametrization of :math:`w_e` and the model’s subsidence velocity,
 :math:`w_S|_{z_i}`, are used to calculate :math:`z_i` at the next
 time-level (:math:`z_i^{n+1}`). Currently, the latter is found by linear
 interpolation to :math:`z_i` and both are assumed constant in time. If
-:math:`z_i^{n+1} < z_{\mathrm{ \rm NTDSC}+\frac{1}{2}}`, then the
+:math:`z_i^{n+1} < z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}}`, then the
 entrainment fluxes there (given by :eq:`fluxinterp`) are
 multiplied by the fraction of the timestep that :math:`z_i` was above
 this grid-level, namely
-:math:`(z_i-z_{\mathrm{ \rm NTDSC}+\frac{1}{2}})/(z_i - z_i^{n+1})`.
+:math:`(z_i-z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}})/(z_i - z_i^{n+1})`.
 The full entrainment flux at grid-level NTDSC\ :math:`-\frac{1}{2}` must
 then also be specified, given by :eq:`fluxinterp` with
-:math:`z_{\mathrm{ \rm NTDSC}+ \frac{1}{2}}` replaced by
-:math:`z_{\mathrm{ \rm NTDSC}- \frac{1}{2}}`. If :math:`z_i` rises
-above :math:`z_{\mathrm{ \rm NTDSC}+\frac{3}{2}}`, the entrainment
+:math:`z_{\mathrm{ \mathrm{NTDSC}}+ \frac{1}{2}}` replaced by
+:math:`z_{\mathrm{ \mathrm{NTDSC}}- \frac{1}{2}}`. If :math:`z_i` rises
+above :math:`z_{\mathrm{ \mathrm{NTDSC}}+\frac{3}{2}}`, the entrainment
 flux is specified only at this higher grid-level (multiplied by the
 fraction of the timestep that :math:`z_i` is above this half-level) and
 the values of the mixed-layer :math:`K` profiles are used in half-level
 NTDSC\ :math:`+\frac{1}{2}` (these will be non-zero because
-:math:`z_i>z_{\mathrm{ \rm NTDSC}+ \frac{1}{2}}`). Wherever the
+:math:`z_i>z_{\mathrm{ \mathrm{NTDSC}}+ \frac{1}{2}}`). Wherever the
 entrainment fluxes are specified explicitly, the eddy-diffusivities
 (both non-local and local) are set to zero. Also, the mean value of
 :math:`z_i` during the timestep is used in
@@ -2438,8 +2459,8 @@ and
 
 .. math:: :label: we_num
 
-   \tilde{w_S} = - \, \frac{ \Theta^{\rm S}_{\mathrm{ \rm NTML}}
-       ( \Delta_{\mathrm{ \rm NTML}+\frac{1}{2}} z ) }
+   \tilde{w_S} = - \, \frac{ \Theta^{\mathrm{S}}_{\mathrm{ \mathrm{NTML}}}
+       ( \Delta_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} z ) }
      { \Delta \theta_{\ell}}
 
 .. _sec_sginv:
@@ -2487,10 +2508,10 @@ for the model and for a profile with a discontinuous inversion at
 :math:`z_i` are equal, as illustrated by the hatched areas in
 :numref:`Fig. %s <zi_diag>`. To calculate the integral of the discontinuous
 profile, the lapse rate of :math:`\theta_{v\ell}` between grid-levels
-NTML\ :math:`-1` and :math:`NTML`, :math:`\gamma^{ \rm ML}`, is
+NTML\ :math:`-1` and :math:`NTML`, :math:`\gamma^{ \mathrm{ML}}`, is
 extended up to :math:`z_i`, while the stable lapse in the free
 atmosphere, between grid-levels NTML\ :math:`+2` and NTML\ :math:`+3`,
-:math:`\gamma^{\scriptsize \rm FA}`, is extrapolated down. Equating
+:math:`\gamma^{\scriptsize \mathrm{FA}}`, is extrapolated down. Equating
 these areas gives a quadratic equation in :math:`\Delta z_{disc} =
 z_{\mbox{\tiny \rm NTML}+\frac{3}{2}} - z_i` which can be written
 
@@ -2502,25 +2523,26 @@ The coefficients are given by
 
 .. math::
 
-   a  = 0.5 (\gamma^{\scriptsize \rm FA}- \gamma^{ \rm ML})
+   a  = 0.5 (\gamma^{\scriptsize \mathrm{FA}}- \gamma^{ \mathrm{ML}})
 
 .. math::
 
-   b  = - \left( {\theta_{v\ell}}_{\mathrm{ \rm NTML}+2}
-     - \gamma^{\scriptsize \rm FA}(z_{\mathrm{ \rm NTML}+2}-z_{\mathrm{ \rm
-       NTML}+\frac{3}{2}}) \right)
-   + \left( {\theta_{v\ell}}_{\mathrm{ \rm NTML}}
-     + \gamma^{ \rm ML}(z_{\mathrm{ \rm NTML}+\frac{3}{2}}-z_{\mathrm{ \rm NTML}}) \right)
+   b  = - \left( {\theta_{v\ell}}_{\mathrm{ \mathrm{NTML}}+2}
+     - \gamma^{\scriptsize \mathrm{FA}}(z_{\mathrm{
+       \mathrm{NTML}}+2}-z_{\mathrm{ \mathrm{NTML}}+\frac{3}{2}}) \right)
+   + \left( {\theta_{v\ell}}_{\mathrm{ \mathrm{NTML}}}
+     + \gamma^{ \mathrm{ML}}(z_{\mathrm{ \mathrm{NTML}}+\frac{3}{2}}-z_{\mathrm{ \mathrm{NTML}}}) \right)
 
 .. math::
 
-   c  = (z_{\mathrm{ \rm NTML}+\frac{3}{2}}-z_{\mathrm{ \rm NTML}+\frac{1}{2}})
-   \left( {\theta_{v\ell}}_{\mathrm{ \rm NTML}+1} -
-     \left( {\theta_{v\ell}}_{\mathrm{ \rm NTML}} +
-       \gamma^{ \rm ML}\left(
-         \frac{1}{2}(z_{\mathrm{ \rm NTML}+\frac{1}{2}}+z_{\mathrm{ \rm
-         NTML}+\frac{3}{2}})
-         -z_{\mathrm{ \rm NTML}} \right)     \right)
+   c  = (z_{\mathrm{ \mathrm{NTML}}+\frac{3}{2}}-z_{\mathrm{
+   \mathrm{NTML}}+\frac{1}{2}})
+   \left( {\theta_{v\ell}}_{\mathrm{ \mathrm{NTML}}+1} -
+     \left( {\theta_{v\ell}}_{\mathrm{ \mathrm{NTML}}} +
+       \gamma^{ \mathrm{ML}}\left(
+         \frac{1}{2}(z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}+z_{\mathrm{
+         \mathrm{NTML}}+\frac{3}{2}})
+         -z_{\mathrm{ \mathrm{NTML}}} \right)     \right)
    \right)
 
 Clearly, care must be taken to ensure that :math:`z_i` is not only
@@ -2531,11 +2553,11 @@ therefore set to zero and :eq:`zi_interp` is
 recalculated. The case :math:`c<0` suggests the grid-level designated as
 the inversion level should have been considered as part of the mixed
 layer and so :math:`z_i` is set to be fractionally below
-:math:`z_{\mathrm{ \rm NTML}+\frac{3}{2}}` (i.e., as high as possible
+:math:`z_{\mathrm{ \mathrm{NTML}}+\frac{3}{2}}` (i.e., as high as possible
 without attempting to diagnose a subgrid :math:`z_i` in grid-level
 NTML\ :math:`+2`). If :math:`b^2-4ac<0` the quadratic equation has no
 real roots. In this instance :math:`z_i` is set to fractionally below
-:math:`z_{\mathrm{ \rm NTML}+\frac{1}{2}}` and NTML (and therefore
+:math:`z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` and NTML (and therefore
 the eddy-diffusivity profiles) is lowered by a grid-level. In all other
 circumstances, the required root is then
 :math:`\Delta z_{disc} = (-b - (b^2-4ac)^{1/2}
@@ -2545,12 +2567,12 @@ circumstances, the required root is then
 In addition, from variations seen in :math:`z_i` during single-column
 model simulations, the error in :math:`\Delta z_{disc}` is estimated to
 be around 10% of the vertical resolution,
-:math:`\Delta_{\mathrm{ \rm NTML}+\frac{3}{2}} z`. Accordingly, if
+:math:`\Delta_{\mathrm{ \mathrm{NTML}}+\frac{3}{2}} z`. Accordingly, if
 :math:`z_i` is diagnosed as being less than
-:math:`z_{\mathrm{ \rm NTML}+\frac{1}{2}} + 0.1 \, \Delta_{\mathrm{ \rm
-NTML}+\frac{3}{2}} z`,
+:math:`z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} + 0.1 \, \Delta_{\mathrm{
+\mathrm{NTML}}+\frac{3}{2}} z`,
 NTML is lowered a grid-level and :math:`z_i` is set fractionally below
-:math:`z_{\mathrm{ \rm NTML}+\frac{1}{2}}`. This small distance below
+:math:`z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`. This small distance below
 the grid-level is taken to be :math:`(\Delta t/2) \times 10^{-4}` so
 that, were a small rate of rise of :math:`z_i` (of :math:`10^{-4}`
 ms\ :math:`^{-1}`, say) to be diagnosed, then :math:`z_i` would spend at
@@ -2566,20 +2588,20 @@ calculation are calculated from similar integral assumptions:
 
 .. math:: :label: dqt_disc
 
-   \Delta \chi = \left( {\chi}_{\mathrm{ \rm NTML}+1} - {\chi}_{\mathrm{ \rm
-   NTML}} \right) \,
-     \frac{ z_{\mathrm{ \rm NTML}+\frac{3}{2}} - z_{\mathrm{ \rm
-     NTML}+\frac{1}{2}} }
-     { z_{\mathrm{ \rm NTML}+\frac{3}{2}} - z_i }
+   \Delta \chi = \left( {\chi}_{\mathrm{ \mathrm{NTML}}+1} - {\chi}_{\mathrm{
+   \mathrm{NTML}}} \right) \,
+     \frac{ z_{\mathrm{ \mathrm{NTML}}+\frac{3}{2}} - z_{\mathrm{
+     \mathrm{NTML}}+\frac{1}{2}} }
+     { z_{\mathrm{ \mathrm{NTML}}+\frac{3}{2}} - z_i }
 
 with :math:`\chi = \theta_{\ell}` and :math:`q_t`. Note that the lapse
 rate above the inversion has been ignored as there is no guarantee of
 monotonicity in :math:`q_t` in the atmosphere above the inversion. In
 addition, :eq:`dqt_disc` will become increasingly
 inaccurate as :math:`z_i` tends to
-:math:`z_{\mathrm{ \rm NTML}+\frac{3}{2}}` (and so
-:math:`{\chi}_{\mathrm{ \rm NTML}+1}` approaches
-:math:`{\chi}_{\mathrm{ \rm NTML}}`). Consequently, if the fraction
+:math:`z_{\mathrm{ \mathrm{NTML}}+\frac{3}{2}}` (and so
+:math:`{\chi}_{\mathrm{ \mathrm{NTML}}+1}` approaches
+:math:`{\chi}_{\mathrm{ \mathrm{NTML}}}`). Consequently, if the fraction
 on the right hand side of :eq:`dqt_disc` is greater than
 10, double grid-level jumps are used (i.e.,
 :math:`\Delta \chi = {\chi}_{\mbox{\tiny \rm NTML}+2} -
@@ -2639,7 +2661,7 @@ capped by a diagnosed subgrid inversion. The crucial step is to ensure
 that the total flux on the model entrainment grid-level equals the
 idealised total flux profile interpolated to that level. Consider the
 example illustrated in :numref:`Fig. %s <fig:rev_fluxes>` of a well-mixed
-boundary layer up to :math:`\theta`-level :math:`\mathrm{ \rm NTML}`.
+boundary layer up to :math:`\theta`-level :math:`\mathrm{ \mathrm{NTML}}`.
 For the subgrid :math:`q_t` profiles, the turbulent flux divergence
 generates a moistening across the inversion while subsidence generates
 drying. For this example it has been assumed the entrainment rate is
@@ -2648,14 +2670,14 @@ overall there is a weak moistening relative to the mixed layer (the
 total flux gradient is more negative across the inversion than in the
 mixed layer), consistent with the rising tendency of the inversion. For
 the model, the subsidence flux-divergence associated with the inversion
-is split across levels :math:`\mathrm{ \rm NTML}` and
-:math:`\mathrm{ \rm NTML}+1`. To keep the *net* moistening of the
+is split across levels :math:`\mathrm{ \mathrm{NTML}}` and
+:math:`\mathrm{ \mathrm{NTML}}+1`. To keep the *net* moistening of the
 model’s boundary layer and inversion consistent with the total subgrid
 flux profile, the model’s entrainment flux at
-:math:`\mathrm{ \rm NTML}+1/2` (shown by the cross in
+:math:`\mathrm{ \mathrm{NTML}}+1/2` (shown by the cross in
 :numref:`Fig. %s <fig:rev_fluxes>`) must be found by subtracting the
-subsidence flux at :math:`\mathrm{ \rm NTML}+1/2` (diamond) from the
-total flux interpolated to :math:`\mathrm{ \rm NTML}+1/2` (square).
+subsidence flux at :math:`\mathrm{ \mathrm{NTML}}+1/2` (diamond) from the
+total flux interpolated to :math:`\mathrm{ \mathrm{NTML}}+1/2` (square).
 Exactly the same arguments follow for the :math:`\theta_{\ell}` fluxes
 except that the situation is complicated by the addition of the
 radiative flux.
@@ -2690,13 +2712,13 @@ cooling occurring within undulations of the cloudy boundary layer top.
 Similar considerations need to be borne in mind when calculating all the
 non-turbulent fluxes in :eq:`fxtot_zi`. First, the
 radiative flux is extrapolated down from
-:math:`\mathrm{ \rm NTML}+\frac{3}{2}` to :math:`z=z_t` using the
+:math:`\mathrm{ \mathrm{NTML}}+\frac{3}{2}` to :math:`z=z_t` using the
 divergence in the grid-level above the inversion as representative of
 the free-atmospheric divergence. Second, since the microphysical flux is
 generated within the cloud, :math:`F_{\chi}^{ppn}|_{z_t} =
 {F_{\chi}}^{ppn}_{\mbox{\tiny \rm NTML}+\frac{3}{2}}`. Finally, the
-subsidence flux-divergence across level :math:`\mathrm{ \rm NTML}`
-and :math:`\mathrm{ \rm NTML}+1` is assumed to be associated with the
+subsidence flux-divergence across level :math:`\mathrm{ \mathrm{NTML}}`
+and :math:`\mathrm{ \mathrm{NTML}}+1` is assumed to be associated with the
 inversion so :math:`{F_{\chi}}^{Subs}|_{z_h} =
 {F_{\chi}}^{Subs}_{\mbox{\tiny \rm NTML}-\frac{1}{2}}`. Thus, the
 finite-difference form of :eq:`fxtot_zi` becomes
@@ -2704,8 +2726,9 @@ finite-difference form of :eq:`fxtot_zi` becomes
 .. math:: :label: fxtot_zi_fd
 
    F_{\chi}^{Tot}|_{z_h} = - w_e \Delta \chi +
-   F_{\chi}^{rad}|_{z_t} + {F_{\chi}}^{ppn}_{\mathrm{ \rm NTML}+\frac{3}{2}} +
-   {F_{\chi}}^{subs}_{\mathrm{ \rm NTML}-\frac{1}{2}}
+   F_{\chi}^{rad}|_{z_t} + {F_{\chi}}^{ppn}_{\mathrm{
+   \mathrm{NTML}}+\frac{3}{2}} +
+   {F_{\chi}}^{subs}_{\mathrm{ \mathrm{NTML}}-\frac{1}{2}}
 
 Then, assuming a linear profile of :math:`F_{\chi}^{Tot}` in the mixed
 layer, interpolating the total flux to the inversion flux grid-level
@@ -2713,20 +2736,21 @@ gives
 
 .. math:: :label: fxtot_interp
 
-   F_{\chi}^{Tot}|_{ \mathrm{ \rm NTML}+\frac{1}{2} } = F_{\chi}^{Tot}|_{z_{\rm
-   b}} + 
-     \frac{ z'_{\mathrm{ \rm NTML}+\frac{1}{2}} }{z_{\rm ml}} 
-     \left( F_{\chi}^{Tot}|_{z_h} - F_{\chi}^{Tot}|_{z_{\rm b}} \right)
+   F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } =
+   F_{\chi}^{Tot}|_{z_{\mathrm{b}}} + 
+     \frac{ z'_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} }{z_{\mathrm{ml}}} 
+     \left( F_{\chi}^{Tot}|_{z_h} - F_{\chi}^{Tot}|_{z_{\mathrm{b}}} \right)
 
-where :math:`z'` (:math:`=z-z_{\rm b}`) is height above the base of the
-mixed layer at :math:`z=z_{\rm b}`. Finally, the grid-level turbulent
+where :math:`z'` (:math:`=z-z_{\mathrm{b}}`) is height above the base of the
+mixed layer at :math:`z=z_{\mathrm{b}}`. Finally, the grid-level turbulent
 entrainment flux is given by:
 
 .. math:: :label: rev_entflux
 
-   \overline{w'\chi'}|_{ \mathrm{ \rm NTML}+\frac{1}{2} } = F_{\chi}^{Tot}|_{
-   \mathrm{ \rm NTML}+\frac{1}{2} } 
-                          - F_{\chi}^{NT}|_{ \mathrm{ \rm NTML}+\frac{1}{2} }
+   \overline{w'\chi'}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } =
+   F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } 
+                          - F_{\chi}^{NT}|_{ \mathrm{
+                            \mathrm{NTML}}+\frac{1}{2} }
 
 This revised algorithm has several advantages over the previous.
 Firstly, the fluxes for :math:`q_t` and :math:`\theta_{\ell}` are
@@ -2736,7 +2760,7 @@ in order to calculate :math:`\tilde{w_e}` in :eq:`we_num`.
 Secondly, this method makes it much simpler to include all processes,
 and precipitation in particular, in a consistent manner. Thirdly, since
 the total grid-level flux,
-:math:`F_{\chi}^{Tot}|_{\mathrm{ \rm NTML}+\frac{1}{2}}` in
+:math:`F_{\chi}^{Tot}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` in
 :eq:`fxtot_interp`, is used to calculate the
 entrainment fluxes, it is straightforward to ensure that the net budget
 of the inversion grid-level, namely :math:`- (
@@ -2745,7 +2769,7 @@ F_{\chi}^{Tot}|_{\mbox{\tiny \rm NTML}+\frac{1}{2}})/\Delta z`,
 is consistent with the entrainment/subsidence balance. In other words,
 to use :math:`\theta_{\ell}` as an example, if the inversion is rising
 (falling) then
-:math:`F_{\chi}^{Tot}|_{\mathrm{ \rm NTML}+\frac{1}{2}}` is limited
+:math:`F_{\chi}^{Tot}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` is limited
 to ensure that the inversion grid-level will cool (warm). Finally, if
 the inversion is rising we don’t want the inversion grid-level
 :math:`\theta_{\ell}` to cool to less than :math:`\theta_{\ell}` of the
@@ -2754,34 +2778,37 @@ mixed layer by the end of the timestep. In other words, for
 
 .. math::
 
-   \chi_{\mathrm{ \rm NTML}+1}^{n+1}  = \chi_{\mathrm{ \rm NTML}+1}^{n}
+   \chi_{\mathrm{ \mathrm{NTML}}+1}^{n+1}  = \chi_{\mathrm{
+   \mathrm{NTML}}+1}^{n}
    - \frac{\Delta t}{\Delta z} \left(
-     F_{\chi}^{Tot}|_{ \mathrm{ \rm NTML}+\frac{3}{2} } -  F_{\chi}^{Tot}|_{
-     \mathrm{ \rm NTML}+\frac{1}{2} }
+     F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{3}{2} } - 
+     F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} }
    \right)
 
 .. math::
 
-   \chi_{\mathrm{ \rm NTML}}^{n+1}  = \chi_{\mathrm{ \rm NTML}}^{n}
-   - \frac{\Delta t}{z_{\mathrm{ \rm NTML}+\frac{1}{2}}} \left(
-     F_{\chi}^{Tot}|_{ \mathrm{ \rm NTML}+\frac{1}{2} } - 
-     F_{\chi}^{Tot}|_{z_{\rm b}}
+   \chi_{\mathrm{ \mathrm{NTML}}}^{n+1}  = \chi_{\mathrm{ \mathrm{NTML}}}^{n}
+   - \frac{\Delta t}{z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}} \left(
+     F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } - 
+     F_{\chi}^{Tot}|_{z_{\mathrm{b}}}
    \right)
 
 where the superscripts :math:`n` and :math:`n+1` refer to the model
 timestep, although strictly speaking :math:`n+1` refers to fields after
 the boundary layer implicit solver. Requiring that
-:math:`\chi_{\mathrm{ \rm NTML}+1}^{n+1}\geq\chi_{\mathrm{ \rm NTML}}^{n+1}`
+:math:`\chi_{\mathrm{ \mathrm{NTML}}+1}^{n+1}\geq\chi_{\mathrm{
+\mathrm{NTML}}}^{n+1}`
 implies
 
 .. math::
 
-   F_{\chi}^{Tot}|_{ \mathrm{ \rm NTML}+\frac{1}{2} } 
+   F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } 
      \left( 1+ \frac{\Delta z}{z_{ml}}\right)
-     \geq F_{\chi}^{Tot}|_{ \mathrm{ \rm NTML}+\frac{3}{2} } + \Delta z \left(
-       \frac{\chi_{\mathrm{ \rm NTML}}^{n}-\chi_{\mathrm{ \rm
-       NTML}+1}^{n}}{\Delta t}
-       + \frac{F_{\chi}^{Tot}|_{z_{\rm b}}}{z_{ml}}          \right)
+     \geq F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{3}{2} } + \Delta z
+     \left(
+       \frac{\chi_{\mathrm{ \mathrm{NTML}}}^{n}-\chi_{\mathrm{
+       \mathrm{NTML}}+1}^{n}}{\Delta t}
+       + \frac{F_{\chi}^{Tot}|_{z_{\mathrm{b}}}}{z_{ml}}          \right)
 
 The same arguments apply for :math:`q_t`, noting that the free
 atmosphere can be drier or moister than the mixed layer and so these
@@ -2798,15 +2825,15 @@ In the 9B scheme, the discontinuous jumps in :math:`\theta_{\ell}` and
 from integral assumptions similar to those used to diagnose the subgrid
 inversion height, :math:`z_h`, and were given by
 :eq:`dqt_disc`. Note that
-:math:`{\chi}_{\mathrm{ \rm NTML}+2}` does not appear in
+:math:`{\chi}_{\mathrm{ \mathrm{NTML}}+2}` does not appear in
 :eq:`dqt_disc` and so no direct information from the free
 atmosphere is used. Only if the budgets of :math:`\theta_{\ell}` and
-:math:`q_t` in level :math:`\mathrm{ \rm NTML}+1` are entirely
+:math:`q_t` in level :math:`\mathrm{ \mathrm{NTML}}+1` are entirely
 consistent with the rise and fall of the subgrid inversion will
 :eq:`dqt_disc` give accurate results. This will not be the
 case during an assimilation cycle, for example, neither is it likely to
 be the case if the convection scheme is detraining into level
-:math:`\mathrm{ \rm NTML}+1`.
+:math:`\mathrm{ \mathrm{NTML}}+1`.
 
 Instead, a more robust algorithm is used in the 9C scheme and the
 subgrid inversion calculation is only attempted where both
@@ -2816,8 +2843,10 @@ formula used is:
 
 .. math:: :label: dqt_disc_9c
 
-   \Delta \chi = {\chi}_{\mathrm{ \rm NTML}+2} - {\chi}_{\mathrm{ \rm NTML}} 
-                 - \gamma_{\chi} \left( z_{\mathrm{ \rm NTML}+2} - z_h \right)
+   \Delta \chi = {\chi}_{\mathrm{ \mathrm{NTML}}+2} - {\chi}_{\mathrm{
+   \mathrm{NTML}}} 
+                 - \gamma_{\chi} \left( z_{\mathrm{ \mathrm{NTML}}+2} - z_h
+                   \right)
 
 subject to the constraint that the lapse rate adjustment should not
 reduce the two grid-length difference by more than half. The
@@ -2825,17 +2854,17 @@ free-atmospheric lapse rates are given by
 
 .. math::
 
-   \gamma_{\theta_{\ell}}  = {\rm max}\left[ \, 0, \, \frac{
-   {\theta_{\ell}}_{\mathrm{ \rm NTML}+3}-{\theta_{\ell}}_{\mathrm{ \rm
-   NTML}+2} }
-     { z_{\mathrm{ \rm NTML}+3} - z_{\mathrm{ \rm NTML}+2} }
+   \gamma_{\theta_{\ell}}  = {\mathrm{max}}\left[ \, 0, \, \frac{
+   {\theta_{\ell}}_{\mathrm{ \mathrm{NTML}}+3}-{\theta_{\ell}}_{\mathrm{
+   \mathrm{NTML}}+2} }
+     { z_{\mathrm{ \mathrm{NTML}}+3} - z_{\mathrm{ \mathrm{NTML}}+2} }
    \right]
 
 .. math::
 
-   \gamma_{q_t}     = {\rm min}\left[ \, 0, \, \frac{ {q_t}_{\mathrm{ \rm
-   NTML}+3}-{q_t}_{\mathrm{ \rm NTML}+2} }
-     { z_{\mathrm{ \rm NTML}+3} - z_{\mathrm{ \rm NTML}+2} }
+   \gamma_{q_t}     = {\mathrm{min}}\left[ \, 0, \, \frac{ {q_t}_{\mathrm{
+   \mathrm{NTML}}+3}-{q_t}_{\mathrm{ \mathrm{NTML}}+2} }
+     { z_{\mathrm{ \mathrm{NTML}}+3} - z_{\mathrm{ \mathrm{NTML}}+2} }
    \right]
 
 .. _sec_subs_calc:
@@ -2891,12 +2920,13 @@ specified through an eddy diffusivity which is given by
 
 .. math::
 
-   K_h|_{\mathrm{ \rm NTML}+\frac{1}{2}}  = w_e \Delta_{\mathrm{ \rm NTML}+1} z
+   K_h|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}  = w_e \Delta_{\mathrm{
+   \mathrm{NTML}}+1} z
 
 .. math:: :label: khent
 
-   K_m|_{\mathrm{ \rm NTML}}           = Pr \, w_e \Delta_{\mathrm{ \rm
-   NTML}+\frac{1}{2}} z
+   K_m|_{\mathrm{ \mathrm{NTML}}}           = Pr \, w_e \Delta_{\mathrm{
+   \mathrm{NTML}}+\frac{1}{2}} z
 
 noting the Charney-Philips grid implying stresses are staggered from
 scalar fluxes. The Prandtl number, :math:`Pr`, takes the same form as
@@ -2905,11 +2935,11 @@ for the non-local :math:`K` profiles, see section :ref:`The non-local scheme
 
 Substituting :eq:`khent` in
 :eq:`scal_closure` gives, for example,
-:math:`\overline{w'\theta_{\ell}'}|_{\mathrm{ \rm NTML}+\frac{1}{2}} = - w_e
-\Delta_{\mathrm{ \rm NTML}+1} \theta_{\ell}`.
+:math:`\overline{w'\theta_{\ell}'}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} = -
+w_e \Delta_{\mathrm{ \mathrm{NTML}}+1} \theta_{\ell}`.
 Note that this gives entrainment buoyancy fluxes identical to
 :eq:`discinv` as long as there is no buoyancy reversal
-generation of turbulence (i.e.,\ :math:`V_{\rm br}=0`) and if variations
+generation of turbulence (i.e.,\ :math:`V_{\mathrm{br}}=0`) and if variations
 in the grid-level jumps across the timestep are ignored. The former is
 because the other terms in :eq:`we_parm` are inversely
 proportional to :math:`\Delta
@@ -2921,15 +2951,15 @@ The advantages of diagnosing the subgrid inversion are that it allows
 consistency between the turbulent and radiative fluxes and large-scale
 vertical advection, it reduces grid-resolution errors arising from the
 mixed layer depth calculation and it allows a more accurate calculation
-of :math:`V_{\rm br}` and :math:`\alpha_t`. For momentum, because the
+of :math:`V_{\mathrm{br}}` and :math:`\alpha_t`. For momentum, because the
 jumps across inversions are typically small and variable, it seems
 unwise numerically to attempt to specify the inversion stresses
 explicitly and so :eq:`khent` is always used. For the 9C
 version, the entrainment :math:`K_m` given by :eq:`khent` is
 imposed at the height of the temperature inversion
-:math:`z_{\rm h}` (either subgrid or at
-:math:`z_{\mathrm{ \rm NTML}+\frac{1}{2}}`) and
-:math:`K_m|_{\mathrm{ \rm NTML}+\frac{1}{2}}` is calculated from
+:math:`z_{\mathrm{h}}` (either subgrid or at
+:math:`z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`) and
+:math:`K_m|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}` is calculated from
 :eq:`kmsurf` and :eq:`kmtop`, noting the use of
 the :math:`{\cal E}` factors.
 
@@ -2949,7 +2979,7 @@ When this happens, there is no subgrid inversion diagnosis and the
 entrainment parametrization follows the methodology given in
 section :ref:`For momentum (and scalars if no subgrid inversion) <sec_ent_K>`
 to give
-:math:`K_h|_{\mathrm{ \rm NTML}+\frac{1}{2}}`. The diffusion
+:math:`K_h|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`. The diffusion
 coefficient profile within the inversion is then calculated assuming the
 :math:`\theta_{v\ell}` flux profile within the inversion decreases
 following a cosine shape from the standard parametrized entrainment flux
@@ -2957,11 +2987,11 @@ at the inversion base to zero at the inversion top, i.e.:
 
 .. math:: :label: ent_svl
 
-   \overline{w'\theta_{v\ell}'} = \overline{w'\theta_{v\ell}'}|_{\mathrm{ \rm
-   NTML}+\frac{1}{2}}  
+   \overline{w'\theta_{v\ell}'} = \overline{w'\theta_{v\ell}'}|_{\mathrm{
+   \mathrm{NTML}}+\frac{1}{2}}  
                               cos\left(\pi \frac{z'}{2} \right) 
 
-where :math:`z'=(z-z_{\rm h})/\Delta z_i` is scaled height within the
+where :math:`z'=(z-z_{\mathrm{h}})/\Delta z_i` is scaled height within the
 inversion. This flux profile is then converted into a diffusion
 coefficient profile by inverting the standard flux parametrization:
 
@@ -3001,20 +3031,20 @@ equivalent entrainment eddy-diffusivity given by:
 
 .. math:: :label: K_ent_tracer
 
-   K_{\chi}|_{\mathrm{ \rm NTML}+\frac{1}{2}} = - \overline{w'\chi'}_{
-   z_{\mathrm{ \rm NTML}+\frac{1}{2}} }
-                              \frac{\Delta_{\mathrm{ \rm NTML}+1}
-                              z}{\Delta_{\mathrm{ \rm NTML}+1} \chi} 
+   K_{\chi}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} = - \overline{w'\chi'}_{
+   z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} }
+                              \frac{\Delta_{\mathrm{ \mathrm{NTML}}+1}
+                              z}{\Delta_{\mathrm{ \mathrm{NTML}}+1} \chi} 
 
 Note from :eq:`scal_closure` that
 :eq:`K_ent_tracer` gives the parametrized flux if
-:math:`\Delta_{\mathrm{ \rm NTML}+1} \chi` does not change across the
+:math:`\Delta_{\mathrm{ \mathrm{NTML}}+1} \chi` does not change across the
 timestep (see section :ref:`Implicit solution of the diffusion equation
 <sec_implicit>` for a description of the
 implicit numerical solution of :eq:`cons_eqn_scal`).
 As :eq:`K_ent_tracer` involves the potentially
 numerically dangerous calculation of
-:math:`\Delta \chi/\Delta_{\mathrm{ \rm NTML}+1} \chi` (where
+:math:`\Delta \chi/\Delta_{\mathrm{ \mathrm{NTML}}+1} \chi` (where
 :math:`\Delta
 \chi` is the subgrid inversion jump, given by
 :eq:`dqt_disc`), the following constraints are also
@@ -3022,8 +3052,8 @@ ensured:
 
 .. math::
 
-   0 \leq K_{\chi}|_{\mathrm{ \rm NTML}+\frac{1}{2}} 
-     \leq 10 \,K_{\chi}|_{\mathrm{ \rm NTML}-\frac{1}{2}}
+   0 \leq K_{\chi}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} 
+     \leq 10 \,K_{\chi}|_{\mathrm{ \mathrm{NTML}}-\frac{1}{2}}
 
 Surface Exchange
 ================
@@ -3052,8 +3082,8 @@ layer are related to the surface fluxes by:
 
 .. math:: :label: 1.1.3
 
-   \frac{\partial {\rm {\bf v}}}{\partial z}=\frac{ {\rm {\bf \tau }}_{0} }{
-   \rho _0  v_\ast } \frac{ \phi _m (z/L)}{kz},
+   \frac{\partial {\mathrm{\bf v}}}{\partial z}=\frac{ {\mathrm{\bf \tau }}_{0}
+   }{ \rho _0  v_\ast } \frac{ \phi _m (z/L)}{kz},
 
 where subscript 0 represents a surface value and subscript \* represents
 a surface layer scaling quantity. :math:`\phi _{m}` and :math:`\phi
@@ -3094,7 +3124,7 @@ surface turbulent fluxes are:
 
 .. math:: :label: 1.1.9
 
-   \frac{ {\bf \tau }_{0} }{ \rho _{0} }= c_D^{1/2}  v_\ast \Delta {\rm {\bf
+   \frac{ {\bf \tau }_{0} }{ \rho _{0} }= c_D^{1/2}  v_\ast \Delta {\mathrm{\bf
    v}},
 
 where :math:`\Delta`\ X=X\ :math:`_{1}`-X\ :math:`_{0}`.
@@ -3158,8 +3188,8 @@ forms
 
 .. math:: :label: 1.1.18
 
-   \frac{ {\rm {\bf \tau }}_{0} }{ \rho _{0} }= c_D V \Delta {\rm {\bf v}}{ }= 
-   C_D \Delta {\rm {\bf v}},
+   \frac{ {\mathrm{\bf \tau }}_{0} }{ \rho _{0} }= c_D V \Delta {\mathrm{\bf
+   v}}{ }=  C_D \Delta {\mathrm{\bf v}},
 
 where the effective wind speed for surface turbulent exchanges,
 :math:`V`, is defined by
@@ -3198,7 +3228,7 @@ v\ :math:`_{\ast
 
 .. math:: :label: 1.1.24
 
-   v_\ast =  u_\ast \equiv \left| { {\rm {\bf \tau }}_{0} {/} \rho _{0} }
+   v_\ast =  u_\ast \equiv \left| { {\mathrm{\bf \tau }}_{0} {/} \rho _{0} }
    \right|^{1/2}
 
 we have the standard Monin-Obukhov theory and it is easy to deduce that
@@ -3268,16 +3298,17 @@ We can define the **mean gust speed** at height z\ :math:`_{1}` by
 
 .. math:: :label: 1.2.1
 
-   v_g = ( V^2 - \left| {\Delta {{\rm {\bf v}}}} \right|^2 {)}^{{1/2}}.
+   v_g = ( V^2 - \left| {\Delta {{\mathrm{\bf v}}}} \right|^2 {)}^{{1/2}}.
 
 Using the definitions of :math:`V` :eq:`1.1.19` and
 :math:`v_{\ast }` :eq:`1.1.25` it can be deduced that
 
 .. math:: :label: 1.2.2
 
-   v_g^2 =  W_g^2 ( z_1 ) + \frac{1}{2}\left| {\Delta {{\rm {\bf v}}}} \right|{
-   }\left[ {\left( {{ } {\left| {\Delta {{\rm {\bf v}}}} \right|}^2 - W_g^2 (
-   z_1 )} \right)^{1/2} - \left| {\Delta {{\rm {\bf v}}}} \right|} \right]
+   v_g^2 =  W_g^2 ( z_1 ) + \frac{1}{2}\left| {\Delta {{\mathrm{\bf v}}}}
+   \right|{ }\left[ {\left( {{ } {\left| {\Delta {{\mathrm{\bf v}}}} \right|}^2
+   - W_g^2 ( z_1 )} \right)^{1/2} - \left| {\Delta {{\mathrm{\bf v}}}} \right|}
+   \right]
 
 where
 
@@ -3301,7 +3332,7 @@ Equation :eq:`1.2.1` can be rewritten as
 
 .. math:: :label: 1.2.4
 
-   V^2 = \left| {\Delta {{\rm {\bf v}}}} \right|^2 +  v_g^2,
+   V^2 = \left| {\Delta {{\mathrm{\bf v}}}} \right|^2 +  v_g^2,
 
 which is exactly the form of `Godfrey and Beljaars (1991)`_. However
 `Godfrey and Beljaars (1991)`_ define the mean gust speed as
@@ -3589,7 +3620,7 @@ ms\ :math:`^{-1}`), then start the iteration from the neutral limit, so
 .. math:: :label: 1.4.7
 
    v_\ast ^{(0)}=  {\left( {\frac{k}{ \Phi _m^{(0)} }} \right)} \left| {\Delta
-   {{{\rm {\bf v}}}}} \right|
+   {{{\mathrm{\bf v}}}}} \right|
 
 Otherwise (if :math:`\Delta`\ B :math:`<` 0 and :math:`\Delta`\ **v**
 :math:`<` 2 ms\ :math:`^{-1}` ) start from the greater of the neutral
@@ -3610,7 +3641,7 @@ and convective limits for :math:`v_\ast^{(0)}`, so
 .. math:: :label: 1.4.4
 
    v_\ast ^{(0)}=  MAX{\left[ {\left( {\frac{k}{ \Phi _m^{(0)} }} \right)}
-   \left| {\Delta {{{\rm {\bf v}}}}} \right|, \,
+   \left| {\Delta {{{\mathrm{\bf v}}}}} \right|, \,
          {\left[ {  \gamma _t^3 \left( {\frac{k}{ \Phi _h^{(0)} }} \right)  z_i
          \left| {-\Delta B} \right| } \right]}^{ 1/2} \right]}
 
@@ -3633,7 +3664,7 @@ DO n = 1 to N
 
 .. math:: :label: 1.4.10
 
-   u_\ast ^{(n)2}= C_D^{(n-1)} \left| {\Delta {{\rm {\bf v}}}} \right|
+   u_\ast ^{(n)2}= C_D^{(n-1)} \left| {\Delta {{\mathrm{\bf v}}}} \right|
 
 .. math:: :label: 1.4.11
 
@@ -3691,7 +3722,7 @@ stress:
 
 .. math:: :label: 1.4.21
 
-   {\rm {\bf \tau }}_{0} = \rho _0  C_D^{(N)} \Delta {\rm {\bf v}}
+   {\mathrm{\bf \tau }}_{0} = \rho _0  C_D^{(N)} \Delta {\mathrm{\bf v}}
 
 N is the last iteration value. N = 5 is currently used.
 
@@ -3802,8 +3833,8 @@ z\ :math:`_{0m}`, and the observation height z\ :math:`_{ob}` we obtain
 
 .. math:: :label: 1.5.1
 
-   {\rm {\bf v}}_{ob} { = } {\rm {\bf v}}_{0} { +
-     }\frac{ {\rm {\bf \tau }}_{0} }{ \rho _0 v_\ast k} \Phi _m (L,
+   {\mathrm{\bf v}}_{ob} { = } {\mathrm{\bf v}}_{0} { +
+     }\frac{ {\mathrm{\bf \tau }}_{0} }{ \rho _0 v_\ast k} \Phi _m (L,
      z_{ob} + z_{0m} , z_{0m} )
 
 Using the expression for the surface turbulent stress this gives the
@@ -3811,9 +3842,9 @@ interpolation formula
 
 .. math:: :label: 1.5.2
 
-   {\rm {\bf v}}_{ob} { = } {\rm {\bf v}}_{0} { +
+   {\mathrm{\bf v}}_{ob} { = } {\mathrm{\bf v}}_{0} { +
      }\frac{ C_D }{k v_\ast } \Phi _m (L, z_{ob} + z_{0m} , z_{0m} ) (
-     {\rm {\bf v}}_{1} { - } {\rm {\bf v}}_{0} {)}
+     {\mathrm{\bf v}}_{1} { - } {\mathrm{\bf v}}_{0} {)}
 
 For wind z\ :math:`_{ob}` is set to 10m and the last iteration (N)
 values of C\ :math:`_{D}`, L and :math:`v_{\ast }` are used.
@@ -4482,8 +4513,8 @@ When form drag is included via effective roughness lengths equations
 
 .. math:: :label: 2.1.3
 
-   \frac{ {\rm {\bf \tau }}_{{0(eff)}} }{ \rho _{0} }=\frac{k}{ \Phi _m (L , 
-   z_1 +  z_{0m(eff)} ,  z_{0m(eff)} )}  v_{\ast (eff)} \Delta {\rm {\bf v}}
+   \frac{ {\mathrm{\bf \tau }}_{{0(eff)}} }{ \rho _{0} }=\frac{k}{ \Phi _m (L ,
+    z_1 +  z_{0m(eff)} ,  z_{0m(eff)} )}  v_{\ast (eff)} \Delta {\mathrm{\bf v}}
 
 The effective surface scaling velocity, v\ :math:`_{\ast (eff)}` , is
 given by (cf. :eq:`1.1.25`)
@@ -4497,7 +4528,7 @@ where
 
 .. math:: :label: 2.1.5
 
-   u_{\ast (eff)}^2 = \left| { {\rm {\bf \tau }}_{{0(eff)}} {/} \rho _{0} }
+   u_{\ast (eff)}^2 = \left| { {\mathrm{\bf \tau }}_{{0(eff)}} {/} \rho _{0} }
    \right|
 
 The effective roughness for momentum is derived by setting the total
@@ -4512,17 +4543,17 @@ deviation of the unresolved orographic height. Thus
 
 .. math:: :label: 2.1.6
 
-   \frac{ {\rm {\bf \tau }}_{{0(eff)}} }{ \rho _{0} }{ = }\frac{{k } {v}_{{\ast
-   (eff)}} }{ \Phi _{m} {(L , } {z}_{c} { , } {z}_{{0m(eff)}} {)}}{ }{\rm {\bf
-   v}}{(} {z}_{c} {)}
+   \frac{ {\mathrm{\bf \tau }}_{{0(eff)}} }{ \rho _{0} }{ = }\frac{{k }
+   {v}_{{\ast (eff)}} }{ \Phi _{m} {(L , } {z}_{c} { , } {z}_{{0m(eff)}} {)}}{
+   }{\mathrm{\bf v}}{(} {z}_{c} {)}
 
 and
 
 .. math:: :label: 2.1.7
 
-   \frac{ {\rm {\bf \tau }}_{{0(f)}} }{ \rho _{0} }{ = }\frac{{k } {v}_{{\ast
-   (f)}} }{ \Phi _{m} {(L , } {z}_{c} { , } {z}_{{0m}} {)}}{ }{\rm {\bf v}}{(}
-   {z}_{c} {)}
+   \frac{ {\mathrm{\bf \tau }}_{{0(f)}} }{ \rho _{0} }{ = }\frac{{k }
+   {v}_{{\ast (f)}} }{ \Phi _{m} {(L , } {z}_{c} { , } {z}_{{0m}} {)}}{
+   }{\mathrm{\bf v}}{(} {z}_{c} {)}
 
 where the scaling velocity based on the stress over a flat surface,
 v\ :math:`_{\ast 
@@ -4537,7 +4568,8 @@ with
 
 .. math:: :label: 2.1.9
 
-   u_{\ast (f)}^2 = \left| { {\rm {\bf \tau }}_{{0(f)}} {/} \rho _{0} } \right|
+   u_{\ast (f)}^2 = \left| { {\mathrm{\bf \tau }}_{{0(f)}} {/} \rho _{0} }
+   \right|
 
 [The scaling velocity which appears in the
 expression :eq:`1.1.4` for the Monin-Obukhov length is chosen
@@ -4547,9 +4579,9 @@ The orographic stress is given by
 
 .. math:: :label: 2.1.10
 
-   \frac{ {\rm {\bf \tau }}_{{0(p)}} }{ \rho _{0} }{ = }\frac{{1}}{{2}}{ }
-   {c}_{{D(orog)}} { } {f}_{D} {(} {{Ri}}_{B} {)}\frac{{A}}{{S}}{ }\left| {{\rm
-   {\bf v}}{(} {z}_{c} {)}} \right|{ }{\rm {\bf v}}{(} {z}_{c} {)}
+   \frac{ {\mathrm{\bf \tau }}_{{0(p)}} }{ \rho _{0} }{ = }\frac{{1}}{{2}}{ }
+   {c}_{{D(orog)}} { } {f}_{D} {(} {{Ri}}_{B} {)}\frac{{A}}{{S}}{ }\left|
+   {{\mathrm{\bf v}}{(} {z}_{c} {)}} \right|{ }{\mathrm{\bf v}}{(} {z}_{c} {)}
 
 where :math:`A/S` is the total silhouette area of orography in a gridbox
 over the flat surface area of the gridbox taken as an average over all
@@ -4575,7 +4607,7 @@ The stress for the flat surface is related to the total stress by
 
 .. math:: :label: 2.1.13
 
-   {\rm {\bf \tau }}_{{0(f)}} { = } {\rm {\bf \tau
+   {\mathrm{\bf \tau }}_{{0(f)}} { = } {\rm {\bf \tau
        }}_{{0(eff)}} { } {\left( {{1 + }\frac{{1}}{{2}}{ }
            {c}_{{D(orog)}} { } {f}_{D} { }\frac{{A}}{{S}}{ } {\left(
                {\frac{\ln {(} {z}_{c} { / } {z}_{{0m}} {)}}{{k}}}
@@ -4617,7 +4649,7 @@ and :eq:`2.1.13` and :eq:`2.1.14` become
 
 .. math:: :label: 2.1.16
 
-   {\rm {\bf \tau }}_{{0(f)}} = {\rm {\bf \tau
+   {\mathrm{\bf \tau }}_{{0(f)}} = {\rm {\bf \tau
      }}_{{0(eff)}} {\left( {{1 + }\alpha \beta \pi ^{2} { } {f}_{D} { }
          {\left( {\frac{{A}}{{S}}} \right)}^{2} { }} \right)}^{-1}
 
@@ -4757,12 +4789,13 @@ DO n = 1 to N
 
 .. math:: :label: (2.2.15
 
-   u_{\ast (eff)}^{(n)2}= C_{D(eff)}^{(n-1)} \left| {\Delta {{\rm {\bf v}}}}
+   u_{\ast (eff)}^{(n)2}= C_{D(eff)}^{(n-1)} \left| {\Delta {{\mathrm{\bf v}}}}
    \right|
 
 .. math:: :label: (2.2.16
 
-   u_{\ast (f)}^{(n)2}= C_{D(f)}^{(n-1)} \left| {\Delta {{\rm {\bf v}}}} \right|
+   u_{\ast (f)}^{(n)2}= C_{D(f)}^{(n-1)} \left| {\Delta {{\mathrm{\bf v}}}}
+   \right|
 
 .. math:: :label: (2.2.17
 
@@ -4834,15 +4867,16 @@ surface sensible and latent heat fluxes and surface stress:
 
 .. math:: :label: 2.2.30
 
-   {\rm {\bf \tau }}_{{0(eff)}} = \rho _0  C_{D(eff)}^{(N)} \Delta {\rm {\bf v}}
+   {\mathrm{\bf \tau }}_{{0(eff)}} = \rho _0  C_{D(eff)}^{(N)} \Delta
+   {\mathrm{\bf v}}
 
 The stress for a flat surface, if required for output, is calculated
 from
 
 .. math:: :label: 2.2.31
 
-   {\rm {\bf \tau }}_{{0(f)}} { = } \rho _0
-     C_{D(f)}^{(N)} \Delta {\rm {\bf v}}
+   {\mathrm{\bf \tau }}_{{0(f)}} { = } \rho _0
+     C_{D(f)}^{(N)} \Delta {\mathrm{\bf v}}
 
 .. _section_2.3:
 
@@ -4855,17 +4889,17 @@ by the effective roughness length and surface scaling velocity then
 
 .. math:: :label: 2.3.1
 
-   {\rm {\bf v}}_{{ob}} { = } {\rm {\bf v}}_{0} { +
-     }\frac{ {\rm {\bf \tau }}_{{0(eff)}} }{ \rho _0 v_{\ast (eff)} k}
+   {\mathrm{\bf v}}_{{ob}} { = } {\mathrm{\bf v}}_{0} { +
+     }\frac{ {\mathrm{\bf \tau }}_{{0(eff)}} }{ \rho _0 v_{\ast (eff)} k}
      \Phi _m (L, z_{ob} + z_{0m(eff)} , z_{0m(eff)}
 
 Using the expression for the surface turbulent stress this becomes
 
 .. math:: :label: 2.3.2
 
-   {\rm {\bf v}}_{{ob}} { = } {\rm {\bf v}}_{0} { +
+   {\mathrm{\bf v}}_{{ob}} { = } {\mathrm{\bf v}}_{0} { +
      }\frac{ C_{D(eff)} }{ {kv}_{\ast (eff)} } \Phi _m (L, z_{ob} +
-     z_{0m(eff)} , z_{0m(eff)} ) ( {\rm {\bf v}}_1 - {\rm {\bf v}}_{0}
+     z_{0m(eff)} , z_{0m(eff)} ) ( {\mathrm{\bf v}}_1 - {\mathrm{\bf v}}_{0}
      {)}
 
 For wind z\ :math:`_{ob}` is set to 10m and the last iteration (N)
@@ -4876,17 +4910,17 @@ velocity then
 
 .. math:: :label: 2.3.3
 
-   {\rm {\bf v}}_{{ob}} { = } {\rm {\bf v}}_{0} { +
-     }\frac{ {\rm {\bf \tau }}_{{0(f)}} }{ \rho _0 v_{\ast (f)} k} \Phi
+   {\mathrm{\bf v}}_{{ob}} { = } {\mathrm{\bf v}}_{0} { +
+     }\frac{ {\mathrm{\bf \tau }}_{{0(f)}} }{ \rho _0 v_{\ast (f)} k} \Phi
      _m (L, z_{ob} + z_{0m} , z_{0m} )
 
 and substituting for the surface stress this becomes
 
 .. math:: :label: 2.3.4
 
-   {\rm {\bf v}}_{{ob}} { = } {\rm {\bf v}}_{0} { +
+   {\mathrm{\bf v}}_{{ob}} { = } {\mathrm{\bf v}}_{0} { +
      }\frac{ C_{D(f)} }{k v_{\ast (f)} } \Phi _m (L, z_{ob} + z_{0m} ,
-     z_{0m} ) ( {\rm {\bf v}}_1 - {\rm {\bf v}}_{0} {)}
+     z_{0m} ) ( {\mathrm{\bf v}}_1 - {\mathrm{\bf v}}_{0} {)}
 
 Most configurations of the Unified Model currently use the latter
 assumption with the last iteration value of C\ :math:`_{D(f)}`, L and
@@ -4941,14 +4975,14 @@ The turbulent form drag is represented by the term
 
 .. math:: :label: eq:drag
 
-   {\bf f}=\frac{1}{\rho}\frac{\partial}{\partial z}{\bf\tau}_{\rm orog}
+   {\bf f}=\frac{1}{\rho}\frac{\partial}{\partial z}{\bf\tau}_{\mathrm{orog}}
 
 on the right-hand side of the horizontal momentum equation, where
-:math:`{\bf\tau}_{\rm orog}` is the horizontal vector containing the
+:math:`{\bf\tau}_{\mathrm{orog}}` is the horizontal vector containing the
 extra stress imparted on the flow by the sub-grid orography This term is
 included in the Unified Model as an additional explicit (in terms of
 time discretisation) stress. Following `Wood et al. (2001)`_
-we define :math:`{\bf\tau}_{\rm orog}` to be
+we define :math:`{\bf\tau}_{\mathrm{orog}}` to be
 
 .. math:: {\bf\tau}_{\rm orog}(z)=\left({F_p}_x,{F_p}_y\right)e^{-z/\ell},
 
@@ -4959,7 +4993,7 @@ components of the pressure force on the sub-grid orography, and
 
 .. math:: :label: eq:l
 
-   \ell={\rm min}\left(\lambda,\frac{z_h}{3}\right),
+   \ell={\mathrm{min}}\left(\lambda,\frac{z_h}{3}\right),
 
 where :math:`z_h` is the boundary-layer depth and :math:`\lambda`, a
 somewhat ill defined quantity, is related to the horizontal scales of
@@ -4974,7 +5008,7 @@ parametrization (Eq. :eq:`2.1.10`, namely:
 .. math:: :label: eq:dragsteep
 
    \frac{\bf F_p}{\rho_0}=\frac{1}{2}c_{D(orog)} f_D (Ri_{B}) \frac{A}{S}
-     \left\vert{\rm{\bf v}}(\ell) \right\vert{\rm{\bf v}}(\ell),
+     \left\vert{\mathrm{\bf v}}(\ell) \right\vert{\mathrm{\bf v}}(\ell),
 
 the main difference being the dependence on the height scale
 :math:`\ell` rather than :math:`z_c`. Similarly, if the
@@ -4987,9 +5021,9 @@ namely:
    \frac{\bf F_p}{\rho_0} = {\left( {\frac{\kappa}{\zeta_m}} \right)}^{2} 
                               \alpha \beta \pi ^{2} {f}_{D} (Ri_{B}) 
                                {\left( {\frac{A}{S}} \right)}^{2} 
-     \left\vert{\rm{\bf v}}(\ell) \right\vert{\rm{\bf v}}(\ell),
+     \left\vert{\mathrm{\bf v}}(\ell) \right\vert{\mathrm{\bf v}}(\ell),
 
-where :math:`\zeta_m = {\rm log}(\ell/z_{0m})`. There is also an option
+where :math:`\zeta_m = {\mathrm{log}}(\ell/z_{0m})`. There is also an option
 to use the low-hill stress :eq:`eq:draglow` but capped
 by that from the steep hill expression
 :eq:`eq:dragsteep`, to avoid generating huge stresses
@@ -5674,7 +5708,7 @@ but with :math:`\gamma_{1}={\cal I}_{1}`. Here
 
 .. math::
 
-   D={q_{\rm sat}(T_*^{(n)},p_*)-q_{\rm sat}(T_1^{(n)},p_*) \over
+   D={q_{\mathrm{sat}}(T_*^{(n)},p_*)-q_{\mathrm{sat}}(T_1^{(n)},p_*) \over
        T_*^{(n)}-T_1^{(n)}},
 
 .. math:: \psi=f_a+(1-f_a){g_s\over g_s+C_HU_1},
@@ -5916,7 +5950,7 @@ Boundary layer thermal speed: stash 3,355
 This diagnostic is intended for use in quantifying the strength of
 convective thermals for aviation applications. Updraught velocities in
 convective boundary layers will scale with the convective velocity
-scale, :math:`w_*`, given by :math:`w_*^3 = z_{\rm h}\overline{w'b}_S`.
+scale, :math:`w_*`, given by :math:`w_*^3 = z_{\mathrm{h}}\overline{w'b}_S`.
 In addition to the basic convective velocity scale, the strength of
 thermals should also depend on the surface stability — it would be
 possible to have significant heat flux and boundary layer depth in windy
@@ -5949,7 +5983,8 @@ proportional to the standard deviation of the horizontal wind,
 .. math:: :label: windgust
 
    U_{gust} = U_{10m} + W_{1D} \, \sigma_u \,  \frac{1}{k} \,  
-     {\rm log}\left( \frac{5 \, e^{k \, c_{\rm ugn}} + z_{0m(eff)} }   
+     {\mathrm{log}}\left( \frac{5 \, e^{k \, c_{\mathrm{ugn}}} + z_{0m(eff)} } 
+      
        {5 + z_{0m(eff)}} \right)
 
 The factor :math:`W_{1D}` is included only in the scale-dependent
@@ -5958,14 +5993,14 @@ of boundary layer turbulence that are resolved (and so are already
 included in :math:`U_{10m}`). The lowest grid-level value of
 :math:`W_{1D}`, from :eq:`eq-tanh`, is used, noting that
 :math:`W_{1D}` is constant within the boundary layer. The constant
-:math:`c_{\rm ugn}` in :eq:`windgust` is determined from
+:math:`c_{\mathrm{ugn}}` in :eq:`windgust` is determined from
 universal turbulence spectra for a 25% exceeding probability of the
 three-second wind gust (`Beljaars (1987)`_). It is
 included through a function that includes the effective roughness
 length, :math:`z_{0m(eff)}`, in order to take into account the very high
 effective :math:`u_*` values that occur over mountainous terrain (due to
 the orographic form drag parametrization) and so avoid unrealistic high
-gust values. Currently the UM takes :math:`c_{\rm ugn}=4` which was
+gust values. Currently the UM takes :math:`c_{\mathrm{ugn}}=4` which was
 reduced from the value used at ECMWF based on evaluation of the wind
 gust performance. The stability dependence of :math:`\sigma_u` is
 estimated on the basis of the similarity relation from
@@ -5975,8 +6010,9 @@ estimated on the basis of the similarity relation from
 
    \sigma_u =
    \begin{cases}
-     A_{gust} u_*  (1.0 - z_{\rm h}/ (24 L) )^{1/3} & {\rm for}\ L<0 \\
-     A_{gust} u_* & {\rm for}\ L>0
+     A_{gust} u_*  (1.0 - z_{\mathrm{h}}/ (24 L) )^{1/3} & {\mathrm{for}}\ L<0
+     \\
+     A_{gust} u_* & {\mathrm{for}}\ L>0
    \end{cases}
 
 with :math:`A_{gust}=2.29`. For :math:`L` close to zero the wind gust
@@ -6032,9 +6068,9 @@ LES and observations nicely follows the relationship
    \overline{w'^2} = c_{w2} w_*^2 f(z')
 
 where :math:`w_*` is the convective velocity scale and :math:`f` is a
-shape function within the boundary layer (:math:`z'=z/z_{\rm h}`). The
+shape function within the boundary layer (:math:`z'=z/z_{\mathrm{h}}`). The
 shape of this function is very similar to that used in the UM for
-:math:`K_m^{\rm surf}` in :eq:`kmsurf`. We now assume we can
+:math:`K_m^{\mathrm{surf}}` in :eq:`kmsurf`. We now assume we can
 generalise :eq:`w2_scaling` by replacing :math:`w_*`
 with :math:`w_m` (this really ought to be checked against neutral
 boundary layer LES but hasn’t yet been). Setting :math:`f(z')=z'
@@ -6062,7 +6098,7 @@ the non-gradient parametrization in the UM, it follows that
 
 .. math:: :label: bl_scaling
 
-   K_h^{\rm surf}=  \frac{\tau_{turb}}{2} \, \overline{w'^2}
+   K_h^{\mathrm{surf}}=  \frac{\tau_{turb}}{2} \, \overline{w'^2}
 
 Combining :eq:`bl_scaling` with
 :eq:`gen_w2_scaling` and :eq:`kmsurf`,
@@ -6074,14 +6110,14 @@ surface-driven boundary layer mixing we can write:
    h}w_m f(z')
 
 which then gives
-:math:`\tau_{\rm surf} = C_{ws}^{2/3} k z_{\rm h}/ (1.33 w_m)`. An
+:math:`\tau_{\mathrm{surf}} = C_{ws}^{2/3} k z_{\mathrm{h}}/ (1.33 w_m)`. An
 analogous timescale can be derived for top-driven mixing in decoupled
 stratocumulus layers, :math:`\tau_{\rm Sc} = g_1 k z_{\rm ml}/ (1.33 \,
 V_{\rm Sc})`.
 
 There are two options to derive a TKE diagnosis from the Ri-based scheme
 and then combine with the non-local TKE (selected via var_diags_opt).
-One is to assume :math:`\tau_{\rm SBL}=0.7/N` as the timescale for
+One is to assume :math:`\tau_{\mathrm{SBL}}=0.7/N` as the timescale for
 stable boundary layers and combine all these timescales following
 `Suselj et al. (2012)`_) to give:
 
@@ -6090,13 +6126,13 @@ stable boundary layers and combine all these timescales following
    e = K_m \tau_{turb}^{-1}
 
 where
-:math:`\tau_{turb}^{-1} = MAX[ \tau_{\rm surf}^{-1},\tau_{\rm  Sc}^{-1}] +
-\tau_{\rm SBL}^{-1}`.
+:math:`\tau_{turb}^{-1} = MAX[
+\tau_{\mathrm{surf}}^{-1},\tau_{\mathrm{Sc}}^{-1}] + \tau_{\mathrm{SBL}}^{-1}`.
 Note that :eq:`tke_diag` gives :math:`\overline{w'^2}`,
 rather than TKE. As a simple fix to improve the near-surface TKE in
 convective boundary layers, where the horizontal wind variability often
 dominates, the value of :math:`e` given by :eq:`tke_diag`
-at the level of the maximum in :math:`K_m^{\rm surf}` is copied to all
+at the level of the maximum in :math:`K_m^{\mathrm{surf}}` is copied to all
 levels below that height.
 
 The second method diagnoses TKE for the local scheme following the Met
@@ -6119,15 +6155,15 @@ coefficients, i.e.,
 
 .. math:: :label: tke_diag_nl
 
-   e_{nl} = \frac{3}{2} \left( \frac{K_m^{\rm surf}}{\tau_{\rm surf}} 
-                              + \frac{K_m^{\rm Sc}}{\tau_{\rm Sc}} \right)
+   e_{nl} = \frac{3}{2} \left( \frac{K_m^{\mathrm{surf}}}{\tau_{\mathrm{surf}}} 
+                              + \frac{K_m^{\mathrm{Sc}}}{\tau_{\mathrm{Sc}}} \right)
 
 The factor of :math:`3/2` in :eq:`tke_diag_nl` arises
 because we are really diagnosing :math:`\overline{w'^2}` and so here we
 make the assumption of isotropic turbulence to extend this to TKE. As
 before, we do also make the simple fix to improve the near-surface TKE
 in convective boundary layers, but here we copy only the value of
-:math:`e_{nl}` at the level of the maximum in :math:`K_m^{\rm surf}` to
+:math:`e_{nl}` at the level of the maximum in :math:`K_m^{\mathrm{surf}}` to
 all levels of :math:`e_{nl}` below that height. The final TKE is then
 the greater of :math:`e_{nl}` and :math:`e_{loc}` (as is done to combine
 the diffusion coefficients).
@@ -6144,7 +6180,7 @@ convection within the diagnostic. This is given by:
 where :math:`M` is the convective updraft mass flux
 (Pa s\ :math:`^{-1}`) and CCA is the convective cloud area. The final
 diagnostic is then given as the maximum of :math:`e` and
-:math:`e_{\rm conv}`.
+:math:`e_{\mathrm{conv}}`.
 
 If selected, this option also reduces the minimum value used in UKCA by
 an order of magnitude. This is possible, because the minimum is no
@@ -6189,29 +6225,29 @@ Appendix: Definitions of the velocity scales
 As described in `Lock et al. (2000)`_, the parametrization of the
 entrainment rate in convective boundary layers is based on four velocity
 scales, each representative of a turbulence-generating process
-(:math:`V_{\rm heat}` for surface heating, :math:`u_*` for surface shear
-generation, :math:`V_{\rm rad}` for cloud-top radiative cooling and
-:math:`V_{\rm br}` for buoyancy reversal). The velocity scales can be
+(:math:`V_{\mathrm{heat}}` for surface heating, :math:`u_*` for surface shear
+generation, :math:`V_{\mathrm{rad}}` for cloud-top radiative cooling and
+:math:`V_{\mathrm{br}}` for buoyancy reversal). The velocity scales can be
 written
 
 .. math:: :label: vsurf
 
-   V_{\rm heat}^3= z_{\rm ml}\! \left( (2-\zeta_s)\zeta_s \overline{w'b}_S+
-   (1-\zeta_s)^2 [\overline{w'b'}_S]_{\rm sat}\right)
+   V_{\mathrm{heat}}^3= z_{\mathrm{ml}}\! \left( (2-\zeta_s)\zeta_s
+   \overline{w'b}_S+ (1-\zeta_s)^2 [\overline{w'b'}_S]_{\mathrm{sat}}\right)
 
 .. math:: :label: vrad
 
-   V_{\rm rad}^3= z_{\rm ml}\Delta_F\, g \,
+   V_{\mathrm{rad}}^3= z_{\mathrm{ml}}\Delta_F\, g \,
    \left( \beta_T \zeta_r^2 + \tilde{\beta_T} (1-\zeta_r^2) \right)
 
 .. math:: :label: vbr
 
-   V_{\rm br}^3=  A_{\rm br}\chi_s^2 \, \mathrm{max}\left[0,-\delta b\right] \,
-   \Delta b ^{1/2}
+   V_{\mathrm{br}}^3=  A_{\mathrm{br}}\chi_s^2 \, \mathrm{max}\left[0,-\delta
+   b\right] \, \Delta b ^{1/2}
    \, z_c^{3/2} \, C_{fac}
 
 Here,
-:math:`[\overline{w'b'}_S]_{\rm sat}= g ( \tilde{\beta_T}
+:math:`[\overline{w'b'}_S]_{\mathrm{sat}}= g ( \tilde{\beta_T}
 \overline{w'\theta_{\ell}'}_S+ \tilde{\beta_q}\overline{w'q_t'}_S)`,
 where the subscript :math:`_S` indicates the surface flux;
 :math:`\Delta_F` is the divergence of the net radiative flux, :math:`F`
@@ -6220,11 +6256,11 @@ calculation is described in section :ref:`Calculation of \Delta_F <app_deltaf>`
 
 Various depth parameters are given by :math:`\zeta_s =
 (z_{\rm ml}-\tilde{z_c})/z_{\rm ml}`,
-:math:`\zeta = (z_{\rm ml}-z_c)/z_{\rm ml}` and :math:`\zeta_r =
-\zeta + Br (1-\zeta)`. :math:`z_{\rm ml}` is the mixed-layer depth,
+:math:`\zeta = (z_{\mathrm{ml}}-z_c)/z_{\mathrm{ml}}` and :math:`\zeta_r =
+\zeta + Br (1-\zeta)`. :math:`z_{\mathrm{ml}}` is the mixed-layer depth,
 :math:`z_c` is the cloud depth and :math:`\tilde{z_c}` is the
 cloud-fraction weighted cloud depth. The former is used in the
-calculation of :math:`V_{\rm rad}` as it is assumed the radiative
+calculation of :math:`V_{\mathrm{rad}}` as it is assumed the radiative
 cooling will occur predominantly in cloudy air. To allow for a feedback
 in the presence of buoyancy reversal, the parameter :math:`Br` is
 included in :math:`\zeta_r` and :math:`\tilde{\alpha_t}` (in
@@ -6331,11 +6367,11 @@ makes :math:`q_{\ell}` equal to the supersaturation and so will be
 reasonably accurate. Extrapolating this grid-level :math:`q_{\ell}` to
 zero should then give a reasonably accurate measure of cloud-base.
 
-The formula for :math:`V_{\rm br}` was derived using dimensional
+The formula for :math:`V_{\mathrm{br}}` was derived using dimensional
 arguments and comparison with LES data:
 :math:`\chi_s = -{q_{\ell}}_{\rm ct}(1+(L/c_p)\alpha_L) / (
 \Delta q_t - \alpha_L \Delta \theta_{\ell})`, where
-:math:`{q_{\ell}}_{\rm ct}` is the cloud-top liquid water mixing ratio,
+:math:`{q_{\ell}}_{\mathrm{ct}}` is the cloud-top liquid water mixing ratio,
 :math:`L` is the latent heat of vaporisation of water, :math:`c_p` the
 specific heat at constant pressure and T is the temperature;
 :math:`\delta b = g(\tilde{\beta_T} \Delta \theta_{\ell}
@@ -6350,41 +6386,42 @@ inversion is given by
        \left( \beta_T \frac{L_s}{c_p} - 
          \frac{1+c_v}{c_v}\beta_q \right)\Delta q_f \right)
 
-The empirical constant :math:`A_{\rm br}= 0.24`. The calculation of
+The empirical constant :math:`A_{\mathrm{br}}= 0.24`. The calculation of
 :math:`\Delta
 \theta_{\ell}` and :math:`\Delta q_t` is described for a subgrid
 inversion in section :ref:`Diagnosis of a sub-grid inversion <sec_sginv>` or,
 if one is not diagnosed,
-they are taken simply as :math:`\Delta_{\mathrm{ \rm NTML}+1}`. For
+they are taken simply as :math:`\Delta_{\mathrm{ \mathrm{NTML}}+1}`. For
 :math:`\Delta q_{\ell}`, :math:`\Delta q_f` and
-:math:`{q_{\ell}}_{\rm ct}`, in-cloud values extrapolated to :math:`z_i`
-(either subgrid or :math:`z_{\mathrm{ \rm NTML}+\frac{1}{2}}`) from
+:math:`{q_{\ell}}_{\mathrm{ct}}`, in-cloud values extrapolated to :math:`z_i`
+(either subgrid or :math:`z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`) from
 above and below using the adiabatic lapse rates are calculated as:
 
 .. math::
 
-   {q_{\ell}}_{\rm ct} = \frac{{q_{\ell}}_{\mathrm{ \rm
-   NTML}}}{{C_F}^l_{\mathrm{ \rm NTML}}}
-   + (z_i-z_{\mathrm{ \rm NTML}}) \gamma_{q_{\ell}}
+   {q_{\ell}}_{\mathrm{ct}} = \frac{{q_{\ell}}_{\mathrm{
+   \mathrm{NTML}}}}{{C_F}^l_{\mathrm{ \mathrm{NTML}}}}
+   + (z_i-z_{\mathrm{ \mathrm{NTML}}}) \gamma_{q_{\ell}}
 
 .. math::
 
    q_{\ell}^+   = \mathrm{max}\left[ 0, \,
-     \frac{{q_{\ell}}_{\mathrm{ \rm NTML}+2}}{{C_F}^l_{\mathrm{ \rm NTML}+2}}
-     - (z_{\mathrm{ \rm NTML}+2}-z_i) \gamma_{q_{\ell}} \right]
+     \frac{{q_{\ell}}_{\mathrm{ \mathrm{NTML}}+2}}{{C_F}^l_{\mathrm{
+     \mathrm{NTML}}+2}}
+     - (z_{\mathrm{ \mathrm{NTML}}+2}-z_i) \gamma_{q_{\ell}} \right]
 
 and similarly for :math:`q_f` (noting that currently
 :math:`\gamma_{q_f}=0`) and for DSC layers. Then,
 
 .. math::
 
-   \Delta q_{\ell} = {C_F^l}_{\mathrm{ \rm NTML}+2}\, q_{\ell}^+ -
-   {C_F^l}_{\mathrm{ \rm NTML}}\, {q_{\ell}}_{\rm ct}
+   \Delta q_{\ell} = {C_F^l}_{\mathrm{ \mathrm{NTML}}+2}\, q_{\ell}^+ -
+   {C_F^l}_{\mathrm{ \mathrm{NTML}}}\, {q_{\ell}}_{\mathrm{ct}}
 
 .. math::
 
-   \Delta q_f  = {C_F^f}_{\mathrm{ \rm NTML}+2}\, q_f^+ - {C_F^f}_{\mathrm{ \rm
-   NTML}}\, {q_f}_{\rm ct}
+   \Delta q_f  = {C_F^f}_{\mathrm{ \mathrm{NTML}}+2}\, q_f^+ -
+   {C_F^f}_{\mathrm{ \mathrm{NTML}}}\, {q_f}_{\mathrm{ct}}
 
 The only other explicit account of variable cloud fraction is in
 :eq:`vbr` for which it is assumed that buoyancy reversal can
@@ -6393,7 +6430,7 @@ overlap). Thus, the cloud fraction factor, :math:`C_{fac} = \mbox{max}[
 0.0, -\Delta C_F ]`, where
 :math:`\Delta C_F = {C_F}_{\mbox{\tiny \rm NTML}+2} -
 {C_F}_{\mbox{\tiny \rm NTML}}` if a subgrid inversion is diagnosed
-(because :math:`{C_F}_{\mathrm{ \rm NTML}+1}` is currently
+(because :math:`{C_F}_{\mathrm{ \mathrm{NTML}}+1}` is currently
 meaningless) and :math:`\Delta C_F =
 {C_F}_{\mbox{\tiny \rm NTML}+1} - {C_F}_{\mbox{\tiny \rm NTML}}` if not.
 A more complete decomposition is not possible given a cloud scheme in
@@ -6412,8 +6449,8 @@ is continuous. An additional explicit dependence of entrainment on cloud
 fraction was implemented in version 4.5 which reduced the cloud-top
 source terms of entrainment in partially cloudy boundary layers by a
 factor
-:math:`\exp{\left\{-(0.9-{C_F}_{\mathrm{ \rm NTML}})^3/0.075\right\}}`
-for :math:`{C_F}_{\mathrm{ \rm NTML}} < 0.9`. It was argued that
+:math:`\exp{\left\{-(0.9-{C_F}_{\mathrm{ \mathrm{NTML}}})^3/0.075\right\}}`
+for :math:`{C_F}_{\mathrm{ \mathrm{NTML}}} < 0.9`. It was argued that
 partial cloudiness on the scale of the mixed-layer eddies might reduce
 the entrainment efficiency of the cloud-top processes. By reducing the
 parametrized entrainment warming and drying in partially cloudy boundary
@@ -6434,7 +6471,8 @@ Calculation of :math:`\Delta_F`
 -------------------------------
 
 An important term in the entrainment parametrization and
-:math:`K_h^{\rm Sc}` is the velocity scale :math:`V_{\rm rad}`, the cube
+:math:`K_h^{\mathrm{Sc}}` is the velocity scale :math:`V_{\mathrm{rad}}`, the
+cube
 of which is proportional to the net radiative flux difference associated
 with cloud-top, :math:`\Delta_F`. Because radiation tends not to be
 called every timestep, the calculation of :math:`\Delta_F` is done
@@ -6564,7 +6602,7 @@ two steps of the algorithm above which become:
 
 #. the search for the level with maximum LW radiative cooling,
    :math:`k_m`, is restricted to the top half of the mixed layer and
-   below :math:`1.2 \, z_{\rm h}` (rather than level NTML\ :math:`+1`
+   below :math:`1.2 \, z_{\mathrm{h}}` (rather than level NTML\ :math:`+1`
    used above)
 
 #. if the LW flux divergence in level :math:`k_m+1` is relatively weak
@@ -6634,10 +6672,10 @@ can be written
    \overline{w'b}= 
    \begin{cases}
      g \left( \beta_T \overline{w'T_L'} + \beta_q \overline{w'q_t'}\right)
-     & {\rm in\ unsaturated\ air} \\
+     & {\mathrm{in}\ unsaturated\ air} \\
      g \left( \tilde{\beta_T} \overline{w'T_L'} + \tilde{\beta_q}
      \overline{w'q_t'}
-     \right) & {\rm in\ saturated\ air}
+     \right) & {\mathrm{in}\ saturated\ air}
    \end{cases}
 
 where
@@ -6649,7 +6687,7 @@ where
 
 .. math::
 
-   {\rm and}
+   {\mathrm{and}}
    \beta_c  = a_L \left(   \frac{L}{c_p}     \beta_T
      - \frac{1+c_v}{c_v} \beta_q \right)
 
@@ -6821,9 +6859,9 @@ Tests in the SCM showed the heating rate gradients can be very large
 near the surface. Hence to avoid stability problems (since this heating
 increment must be added after the implicit calculation of the stress
 (and heat flux) profiles) the increments are summed over the levels
-within the BL (i.e. up to :math:`z_{\rm h}` ) and then that total
+within the BL (i.e. up to :math:`z_{\mathrm{h}}` ) and then that total
 heating is applied as a linear decrease from the surface to zero over
-:math:`z_{\rm h}` .
+:math:`z_{\mathrm{h}}` .
 
 .. _app_opmods:
 
@@ -7080,7 +7118,7 @@ Appendix: Notation
      - (:math:`=1.1`) threshold for ratio of layer :math:`q_t`-gradients in
        cumulus diagnosis
 
-   * - :math:`\Gamma_{\rm inv}`
+   * - :math:`\Gamma_{\mathrm{inv}}`
      - (:math:`=1.1`) threshold on ratio of environment to parcel
        :math:`\theta_v` gradients
 
@@ -7128,19 +7166,19 @@ Appendix: Notation
    * - NTLOC
      - top :math:`\theta`-level below which :math:`Ri<1`
 
-   * - :math:`z_{\rm h}`
+   * - :math:`z_{\mathrm{h}}`
      - height of top of SML (potentially subgrid)
 
-   * - :math:`z_{\rm h}^{\rm Sc}`
+   * - :math:`z_{\mathrm{h}}^{\mathrm{Sc}}`
      - height of top of DSC layer (potentially subgrid)
 
-   * - :math:`z_{\rm b}`
+   * - :math:`z_{\mathrm{b}}`
      - height of base of DSC layer (subgrid)
 
-   * - :math:`z_{\rm par}`
+   * - :math:`z_{\mathrm{par}}`
      - height of half-level at top of parcel ascent
 
-   * - :math:`z_{\rm loc}`
+   * - :math:`z_{\mathrm{loc}}`
      - height of half-level marking ‘top’ of local :math:`Ri`-based mixing
 
    * - 
@@ -7152,13 +7190,13 @@ Appendix: Notation
    * - :math:`z_c`
      - cloud depth
 
-   * - :math:`z_{\rm ml}`
+   * - :math:`z_{\mathrm{ml}}`
      - mixed layer depth
 
-   * - :math:`K_m^{\rm surf}`, :math:`K_h^{\rm surf}`
+   * - :math:`K_m^{\mathrm{surf}}`, :math:`K_h^{\mathrm{surf}}`
      - :math:`K` profiles for surface-driven turbulence (in SML)
 
-   * - :math:`K_m^{\rm Sc}`, :math:`K_h^{\rm Sc}`
+   * - :math:`K_m^{\mathrm{Sc}}`, :math:`K_h^{\mathrm{Sc}}`
      - :math:`K` profiles for cloud-top-driven turbulence
 
    * - 
@@ -7180,14 +7218,14 @@ Appendix: Notation
      - scaling velocity for momentum mixing in the SML
 
    * - 
-     - (used in :math:`K_m^{\rm surf}`, :math:`\gamma_{\theta_{\ell}}` and the
-       SML parcel perturbation, :math:`\theta_v'`)
+     - (used in :math:`K_m^{\mathrm{surf}}`, :math:`\gamma_{\theta_{\ell}}` and
+       the SML parcel perturbation, :math:`\theta_v'`)
 
    * - :math:`w_*`
      - ‘standard’ convective velocity scale for a cloud-free convective
 
    * - 
-     - boundary layer, :math:`w_*^3 = z_{\rm h}\overline{w'b}_S`
+     - boundary layer, :math:`w_*^3 = z_{\mathrm{h}}\overline{w'b}_S`
 
    * - :math:`u_*`
      - friction velocity (here includes the orographic component)
@@ -7209,8 +7247,8 @@ Appendix: Notation
      - parameters in perturbation calculation, :eq:`dscd_pert`,
 
    * - 
-     - for initial identification of and :math:`z_{\rm ml}` calculation for DSC
-       layers
+     - for initial identification of and :math:`z_{\mathrm{ml}}` calculation
+       for DSC layers
 
    * - :math:`a_L`, :math:`\alpha_L`, :math:`\beta_T`, :math:`\beta_q`,
        :math:`\tilde{\beta_T}`, :math:`\tilde{\beta_q}`
