@@ -53,8 +53,6 @@ program jedi_id_tlm_tests
   use log_mod,                      only : log_event, log_scratch_space, &
                                            LOG_LEVEL_ALWAYS, LOG_LEVEL_ERROR, &
                                            LOG_LEVEL_INFO
-  use namelist_collection_mod,      only : namelist_collection_type
-  use namelist_mod,                 only : namelist_type
 
   ! Jedi emulator objects
   use jedi_lfric_duration_mod,      only : jedi_duration_type
@@ -81,13 +79,11 @@ program jedi_id_tlm_tests
   type( jedi_post_processor_traj_type ) :: pp_traj
 
   ! Local
-  type( namelist_collection_type ), pointer :: configuration
-  type( config_type ),              pointer :: config
+  type( config_type ), pointer :: config
 
   character(:),                 allocatable :: filename
   integer( kind=i_def )                     :: model_communicator
   type( jedi_duration_type )                :: forecast_length
-  type( namelist_type ),            pointer :: jedi_lfric_settings_config
   character( str_def )                      :: forecast_length_str
   real( kind=r_def )                        :: dot_product_1
   real( kind=r_def )                        :: dot_product_2
@@ -117,19 +113,17 @@ program jedi_id_tlm_tests
   call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
   ! Get the configuration
-  configuration => run%get_configuration()
-  config        => run%get_config()
+  config => run%get_config()
 
   ! Get the forecast length
-  jedi_lfric_settings_config => configuration%get_namelist('jedi_lfric_settings')
-  call jedi_lfric_settings_config%get_value( 'forecast_length', forecast_length_str )
+  forecast_length_str = config%jedi_lfric_settings%forecast_length()
   call forecast_length%init(forecast_length_str)
 
   ! Create geometry
-  call geometry%initialise( model_communicator, configuration, config )
+  call geometry%initialise( model_communicator, config )
 
   ! Create state
-  call state%initialise( geometry, configuration )
+  call state%initialise( geometry, config )
 
   ! Create linear model
   call linear_model%initialise( geometry, filename )
@@ -140,7 +134,7 @@ program jedi_id_tlm_tests
   call pp_traj%initialise( linear_model )
 
   ! Initialise non-linear model
-  call nonlinear_model%initialise( configuration )
+  call nonlinear_model%initialise( config )
 
   ! Run non-linear model forecast to populate the trajectory object
   call nonlinear_model%forecast( state, forecast_length, pp_traj )
@@ -148,7 +142,7 @@ program jedi_id_tlm_tests
   ! ---- Perform the adjoint test
 
   ! I11 (= y). Create I11 and randomise.
-  call increment_11%initialise( geometry, configuration )
+  call increment_11%initialise( geometry, config )
   call increment_11%random()
 
   ! Check the norm is not zero

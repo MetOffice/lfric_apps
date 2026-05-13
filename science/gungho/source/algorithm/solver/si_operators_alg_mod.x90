@@ -24,7 +24,6 @@ module si_operators_alg_mod
                                  only: function_space_collection
   use r_solver_field_mod,        only: r_solver_field_type
   use fs_continuity_mod,         only: W2, W3
-  use copy_field_alg_mod,        only: copy_field
   use log_mod,                   only: log_event,      &
                                        LOG_LEVEL_DEBUG, &
                                        LOG_LEVEL_ERROR, &
@@ -484,9 +483,9 @@ contains
     call exner%initialise( w3_fs, halo_depth = req_halo_depth )
     call rho%initialise( w3_fs, halo_depth = req_halo_depth )
     call theta%initialise( wt_fs, halo_depth = req_halo_depth )
-    call copy_field(exner_ref, exner)
-    call copy_field(rho_ref, rho)
-    call copy_field(theta_ref, theta)
+    call invoke( real_to_real_x(exner, exner_ref), &
+                 real_to_real_x(rho, rho_ref),     &
+                 real_to_real_x(theta, theta_ref) )
     if (dry_static_adjust) &
       call invoke( sort_ref_kernel_type(theta) )
 
@@ -496,7 +495,7 @@ contains
     if (moisture_in_solver) then
       call moist_dyn_factor_rdef%initialise( wt_fs )
       call invoke( X_divideby_Y(moist_dyn_factor_rdef, moist_dyn_ref(gas_law), moist_dyn_ref(total_mass)) )
-      call copy_field(moist_dyn_factor_rdef, moist_dyn_factor)
+      call invoke( real_to_real_x(moist_dyn_factor, moist_dyn_factor_rdef) )
     else
       ! Set factor to 1 and everything else will be unchanged
       call invoke( setval_c(moist_dyn_factor, 1.0_r_solver) )
@@ -580,11 +579,11 @@ contains
           call ones%initialise( vector_space = w2_fs )
           w2_rmultiplicity => get_rmultiplicity_fe( W2, mesh%get_id() )
           call rsol_w2_rmultiplicity%initialise( w2_fs )
-          call copy_field(w2_rmultiplicity, rsol_w2_rmultiplicity)
-          call invoke( setval_c(ones,            1.0_r_solver),       &
-                       setval_c(rho_at_u(level), 0.0_r_solver),       &
-                       sample_flux_kernel_type(rho_at_u(level), ones, &
-                                               rsol_w2_rmultiplicity, &
+          call invoke( real_to_real_x(rsol_w2_rmultiplicity, w2_rmultiplicity), &
+                       setval_c(ones,            1.0_r_solver),                 &
+                       setval_c(rho_at_u(level), 0.0_r_solver),                 &
+                       sample_flux_kernel_type(rho_at_u(level), ones,           &
+                                               rsol_w2_rmultiplicity,           &
                                                rho) )
        end if
 
@@ -704,7 +703,7 @@ contains
          call rsol_w2_mask%initialise( vector_space = w2_fs )
          if ( limited_area ) then
            w2_mask => get_mask_fv(W2, mesh%get_id(), prime_mesh_name)
-           call copy_field(w2_mask, rsol_w2_mask)
+           call invoke( real_to_real_x(rsol_w2_mask, w2_mask) )
          else
            ! Create dummy mask arrays with 1 in every entry
            call invoke( setval_c(rsol_w2_mask, 1.0_r_solver) )

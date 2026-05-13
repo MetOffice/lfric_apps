@@ -46,9 +46,9 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! u_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! v_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! w_in_wth
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_star
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! u_in_w3_star
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! v_in_w3_star
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_latest
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! u_in_w3_latest
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! v_in_w3_latest
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! height_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! height_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dt_conv
@@ -258,9 +258,9 @@ contains
   !> @param[in]     u_in_w3              'Zonal' wind at time n
   !> @param[in]     v_in_w3              'Meridional' wind at time n
   !> @param[in]     w_in_wth             'Vertical' wind in theta space
-  !> @param[in]     theta_star           Potential temperature after advection
-  !> @param[in]     u_in_w3_star         'Zonal' wind after advection
-  !> @param[in]     v_in_w3_star         'Meridional' wind after advection
+  !> @param[in]     theta_latest         Latest estimate of Potential temp
+  !> @param[in]     u_in_w3_latest       Latest estimate of 'Zonal' wind
+  !> @param[in]     v_in_w3_latest       Latest estimate of 'Meridional' wind
   !> @param[in]     height_w3            Height of density space above surface
   !> @param[in]     height_wth           Height of theta space above surface
   !> @param[in,out] dt_conv              Convection temperature increment
@@ -463,9 +463,9 @@ contains
                           u_in_w3,                           &
                           v_in_w3,                           &
                           w_in_wth,                          &
-                          theta_star,                        &
-                          u_in_w3_star,                      &
-                          v_in_w3_star,                      &
+                          theta_latest,                      &
+                          u_in_w3_latest,                    &
+                          v_in_w3_latest,                    &
                           height_w3,                         &
                           height_wth,                        &
                           dt_conv,                           &
@@ -842,8 +842,8 @@ contains
                                                         exner_in_w3,        &
                                                         u_in_w3,            &
                                                         v_in_w3,            &
-                                                        u_in_w3_star,       &
-                                                        v_in_w3_star,       &
+                                                        u_in_w3_latest,     &
+                                                        v_in_w3_latest,     &
                                                         height_w3,          &
                                                         heat_flux,          &
                                                         moist_flux,         &
@@ -858,7 +858,7 @@ contains
                                                          exner_in_wth,      &
                                                          w_in_wth, delta,   &
                                                          theta_n,           &
-                                                         theta_star,        &
+                                                         theta_latest,      &
                                                          height_wth,        &
                                                          rhokm_bl, wvar,    &
                                                          cf_liq_n, cf_fro_n,&
@@ -1296,7 +1296,7 @@ contains
 
     do i = 1, row_length
       do k = 1, nlayers
-        theta_conv(i,1,k) = theta_star(map_wth(1,i) + k)
+        theta_conv(i,1,k) = theta_latest(map_wth(1,i) + k)
 
         q_conv(i,1,k)   = m_v(map_wth(1,i) + k)
         qcl_conv(i,1,k) = m_cl(map_wth(1,i) + k)
@@ -1351,8 +1351,8 @@ contains
         do k = 1, nlayers
           u_p(i,1,k) = u_in_w3(map_w3(1,i) + k-1)
           v_p(i,1,k) = v_in_w3(map_w3(1,i) + k-1)
-          u_conv(i,1,k) = u_in_w3_star(map_w3(1,i) + k-1)
-          v_conv(i,1,k) = v_in_w3_star(map_w3(1,i) + k-1)
+          u_conv(i,1,k) = u_in_w3_latest(map_w3(1,i) + k-1)
+          v_conv(i,1,k) = v_in_w3_latest(map_w3(1,i) + k-1)
         end do ! k
       end do
     end if
@@ -2008,7 +2008,7 @@ contains
       end do
     end do
 
-    ! The "latest" (_star) fields used by convection are values
+    ! The "latest" fields used by convection are values
     ! interpolated to departure points by SL advection.
     ! The interpolation is not guaranteed to preserve consistency
     ! between the cloud fraction and cloud water fields.
