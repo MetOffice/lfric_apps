@@ -1,0 +1,12 @@
+diff --git a/documentation/source/science_guide/turbulence_schemes/bl_scheme_doc.rst b/documentation/source/science_guide/turbulence_schemes/bl_scheme_doc.rst
+index 5b373b68..8ff32c06 100644
+--- a/documentation/source/science_guide/turbulence_schemes/bl_scheme_doc.rst
++++ b/documentation/source/science_guide/turbulence_schemes/bl_scheme_doc.rst
+@@ -1810,6 +1810,7 @@ Discussion of some of the revisions
+ 
+ .. list-table:: Convective and Neutral limits for velocity scales
+    :name: tab:vscales
++   :header-rows: 2
+ 
+ 
+    * - Formulation

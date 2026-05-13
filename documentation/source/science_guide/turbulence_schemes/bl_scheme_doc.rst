@@ -239,7 +239,7 @@ been categorised into 7 distinct 'boundary layer types':
   :ref:`The diagnostic parcel ascent and cumulus diagnosis <sec_adiapar>`)
 
 - **Type VI**: Cumulus-capped boundary layer -- no turbulent
-  diffusivities are allowed [1]_ at or above the LCL as the mass-flux
+  diffusivities are allowed [#fnote1]_ at or above the LCL as the mass-flux
   convection scheme operates here (cumulus diagnosis described in
   section :ref:`The diagnostic parcel ascent and cumulus diagnosis
   <sec_adiapar>`)
@@ -285,7 +285,8 @@ top at height :math:`z_{\mathrm{h}}` , as required for
    available.
 
 #. a diagnosis of cumulus-capped layers (if cumulus-capped then NTML and
-   :math:`z_{\mathrm{h}}` are set to the LCL [2]_, if not then to the parcel
+   :math:`z_{\mathrm{h}}` are set to the LCL [#fnote2]_, if not then to the
+   parcel
    top)
 
 Note that this process is only performed for unstable boundary layers
@@ -5132,7 +5133,7 @@ often non-constant and depends on :math:`X` (i.e. the PDE is non-linear)
 and :math:`S` is a forcing term from other processes preceding the
 boundary layer. In the UM these processes are: microphysics, gravity
 wave drag, radiation, dynamics and optionally (using the switch
-i_impsolve_loc) convection [3]_. :math:`S` represents the total tendency
+i_impsolve_loc) convection [#fnote3]_. :math:`S` represents the total tendency
 from these processes. Equations :eq:`eq:sppf1`,
 :eq:`eq:sppf2` applied to :eq:`eq:vdiff1`
 becomes
@@ -7240,15 +7241,15 @@ Appendix: Notation
      - buoyancy parameters, defined in appendix :ref:`Appendix: Derivation and
        definitions of the buoyancy parameters <app_buoyp>`
 
-.. [1]
+.. [#fnote1]
    unless the option to mix across the LCL is selected, see
    section :ref:`Diagnosis of the LCL transition zone thickness <sec_lclmixing>`
 
-.. [2]
+.. [#fnote2]
    unless the option to mix across the LCL is selected, see
    section :ref:`Diagnosis of the LCL transition zone thickness <sec_lclmixing>`
 
-.. [3]
+.. [#fnote3]
    If i_impsolve_loc = 1, the boundary-layer implicit solver is
    performed before the convection call so that :math:`S` excludes the
    convection increments. If i_impsolve_loc = 2, it is performed after
