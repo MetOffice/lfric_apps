@@ -98,6 +98,9 @@ source .venv/bin/activate
 cd documentation
 make lint           # Lint Restructured text
 make clean html     # build Sphinx documentation
+
+# Optionally
+make clean deploy   # deploy html to $HOME/public_html/lfric_apps/<branch>/html
 ```
 
 ### Lint Fortran
