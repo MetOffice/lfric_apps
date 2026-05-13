@@ -142,7 +142,7 @@ module gungho_init_fields_mod
   ! Set these to select how to initialize model prognostic fields
   integer(i_def) :: prognostic_init_choice, ancil_choice
 
-  public create_model_data, finalise_model_data, &
+  public create_model_data, create_physics_model_data, finalise_model_data, &
          initialise_model_data, output_model_data
 
 contains
@@ -505,6 +505,35 @@ subroutine create_model_data( modeldb,      &
       call create_physics_prognostics( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, field_mapper, &
                                        modeldb%clock )
 
+    end if
+
+  end subroutine create_model_data
+
+  subroutine create_physics_model_data( modeldb,      &
+                                        mesh,         &
+                                        twod_mesh,    &
+                                        aerosol_mesh, &
+                                        aerosol_twod_mesh )
+
+
+    implicit none
+
+    type( modeldb_type ), intent(inout)       :: modeldb
+    type( mesh_type ),    intent(in), pointer :: mesh
+    type( mesh_type ),    intent(in), pointer :: twod_mesh
+    type( mesh_type ),    intent(in), pointer :: aerosol_mesh
+    type( mesh_type ),    intent(in), pointer :: aerosol_twod_mesh
+
+    type(field_collection_type), pointer :: depository
+    type(field_collection_type), pointer :: fd_fields
+    type(field_collection_type), pointer :: ancil_fields
+    type(gungho_time_axes_type), pointer :: model_axes
+
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
+    depository => modeldb%fields%get_field_collection("depository")
+    fd_fields => modeldb%fields%get_field_collection("fd_fields")
+    ancil_fields => modeldb%fields%get_field_collection("ancil_fields")
+    
 #ifdef UM_PHYSICS
       ! Create FD prognostic fields
       select case ( prognostic_init_choice )
@@ -529,9 +558,8 @@ subroutine create_model_data( modeldb,      &
                                            mesh, twod_mesh )
       end select
 #endif
-    end if
-
-  end subroutine create_model_data
+    
+  end subroutine create_physics_model_data
 
   !------------------------------------------------------------------------------
   !> @brief Initialises the working data set dependent of namelist

@@ -18,9 +18,10 @@ module gungho_driver_mod
   use gungho_diagnostics_driver_mod, &
                                    only : gungho_diagnostics_driver
   use iau_time_control_mod,        only : calc_iau_ts_end
-  use gungho_init_fields_mod,      only : create_model_data, &
-                                          initialise_model_data, &
-                                          output_model_data, &
+  use gungho_init_fields_mod,      only : create_model_data,         &
+                                          create_physics_model_data, &
+                                          initialise_model_data,     &
+                                          output_model_data,         &
                                           finalise_model_data
   use driver_modeldb_mod,          only : modeldb_type
   use gungho_model_mod,            only : initialise_infrastructure, &
@@ -189,6 +190,9 @@ contains
 
     ! Instantiate the fields stored in model_data
     call create_model_data( modeldb,         &
+                            mesh, twod_mesh, &
+                            aerosol_mesh, aerosol_twod_mesh )
+    call create_physics_model_data( modeldb, &
                             mesh, twod_mesh, &
                             aerosol_mesh, aerosol_twod_mesh )
 

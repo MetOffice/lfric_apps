@@ -14,8 +14,6 @@ module linear_diagnostics_driver_mod
                                         pressure_diag_alg
   use diagnostics_io_mod,        only : write_scalar_diagnostic, &
                                         write_vector_diagnostic
-  use diagnostics_calc_mod,      only : write_vorticity_diagnostic,            &
-                                        write_pv_diagnostic
   use field_collection_mod,      only : field_collection_type
   use field_collection_iterator_mod, &
                                  only : field_collection_iterator_type
@@ -224,8 +222,6 @@ contains
       call write_vector_diagnostic('u', u, &
                                    modeldb%clock, mesh, nodal_output_on_w3)
     end if
-    !call write_vorticity_diagnostic( u, exner, modeldb%clock )
-    !call write_pv_diagnostic( u, theta, rho, exner, modeldb%clock )
 
     call write_vector_diagnostic('ls_u', ls_u, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
