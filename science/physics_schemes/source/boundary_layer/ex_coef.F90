@@ -571,7 +571,7 @@ if ( local_fa==smooth_to_bdys  ) then
 !$OMP PARALLEL DEFAULT(none)                                                   &
 !$OMP SHARED( pdims, bl_levels, z_uv, z_tq, turb_length, ri, ricrit ,          &
 !$OMP         ntpar, ntml_nl, nbdsc, ntdsc, zh_local, zhnl, zhsc, zdsc_base)   &
-!$OMP private( i, k, kl, kb, kt, zbot, ztop, interp, turb_length_layer )
+!$OMP private( i, k, kl, kb, kt, zbot, ztop, interp )
 
   ! Initialise turb_length to zero;
   ! min and max limits will be imposed after calculation
