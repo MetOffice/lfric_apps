@@ -93,6 +93,7 @@ def build_makefile(
     ncores,
     target,
     optlevel,
+    precision,
     psyclone,
     verbose,
 ):
@@ -111,6 +112,11 @@ def build_makefile(
         f"WORKING_DIR={working_path} "
         f"CORE_ROOT_DIR={working_dir / 'scratch' / 'lfric_core'} "
         f"APPS_ROOT_DIR={root_dir} "
+        # Instead of options to control all real precisions, only set ones that
+        # default to 64-bit (r_solver should be 32-bit)
+        f"RDEF_PRECISION={precision} "
+        f"R_TRAN_PRECISION={precision} "
+        f"R_BL_PRECISION={precision} "
     )
     if optlevel:
         make_command += f"PROFILE={optlevel} "
@@ -176,7 +182,13 @@ def main():
         "--optlevel",
         default=None,
         help="The optimisation to build with, eg. fast-debug. Default of the "
-        "the makefile default, usually fast-debug",
+        "makefile default, usually fast-debug",
+    )
+    parser.add_argument(
+        "--precision",
+        default=64,
+        help="The bit precision of real numbers to build with, eg. 32. Defaults"
+        " to the makefile default of 64",
     )
     parser.add_argument(
         "-p",
@@ -237,6 +249,7 @@ def main():
         args.ncores,
         args.target,
         args.optlevel,
+        args.precision,
         args.psyclone,
         args.verbose,
     )
