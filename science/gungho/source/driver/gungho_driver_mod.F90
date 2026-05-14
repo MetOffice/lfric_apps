@@ -134,6 +134,7 @@ contains
     integer(i_def) :: random_seed_size
     real(r_def), allocatable :: real_array(:)
     integer(tik)   :: id
+    logical(l_def) :: iau_outerloop
 
 #ifdef UM_PHYSICS
     type( field_collection_type ), pointer :: field_collection_ptr
@@ -222,17 +223,24 @@ contains
     if ( ( iau ) .and.                               &
        ( ( iau_mode == iau_mode_instantaneous ) .OR. &
          ( iau_mode == iau_mode_time_mixed ) ) ) then
-      if ( .not. checkpoint_read ) then
+      iau_outerloop = .true.
+      if (( .not. checkpoint_read ) .and. ( .not. iau_outerloop )) then
         call update_iau_alg( modeldb,                     &
                              twod_mesh,                   &
                              iau_ainc_active = .true.,    &
                              iau_addinf_active = .false., &
                              iau_bcorr_active = .false.,  &
                              iau_pertinc_active = .false. )
+      else
+        call log_event('skipping IAU update for outer loop', LOG_LEVEL_INFO)
       end if
 
       ! IAU increment fields can now be cleared from the depository
-      call remove_field_collection( modeldb, "iau_fields" )
+      if ( .not. iau_outerloop ) then
+        call remove_field_collection( modeldb, "iau_fields" )
+      else
+        call log_event('keeping IAU field_collection for outer loop', LOG_LEVEL_INFO)
+      end if
 
     end if
 

@@ -602,6 +602,7 @@ subroutine create_model_data( modeldb,      &
     type(field_collection_type), pointer :: lbc_fields
     type(field_collection_type), pointer :: radiation_fields
 
+    logical(l_def) :: iau_outerloop
     character(str_def) :: string
     integer(i_def) :: i
     integer(i_def) :: random_seed_size
@@ -1035,7 +1036,8 @@ subroutine create_model_data( modeldb,      &
       end if
     end if
 
-    if ( iau ) then
+    iau_outerloop = .true.
+    if (( iau ) .and. ( .not. iau_outerloop )) then
       call log_event( 'IAU: read file in initialise', LOG_LEVEL_INFO )
       field_collection_ptr => modeldb%fields%get_field_collection("iau_fields")
       call read_state( field_collection_ptr )
@@ -1046,6 +1048,8 @@ subroutine create_model_data( modeldb,      &
         call read_state( field_collection_ptr )
       end if
 #endif
+    else
+      call log_event('skipping IAU field reading for outer loop', LOG_LEVEL_INFO)
     end if
 
     if ( iau_surf ) then
