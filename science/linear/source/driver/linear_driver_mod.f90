@@ -155,16 +155,18 @@ contains
     end if
 
     ! Get information on nudging and if data is on a different mesh, get this
-    coarse_nudging = modeldb%config%multires_coupling%coarse_nudging()
-    if (coarse_nudging) then
-      nudging_mesh_name = modeldb%config%multires_coupling%nudging_mesh_name()
-      nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
-      nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
-      write( log_scratch_space,'(A,A)' ) "nudging mesh name:", nudging_mesh%get_mesh_name()
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    else
-      nudging_mesh => mesh
-      nudging_twod_mesh => twod_mesh
+    ! Use the prim mesh by default
+    nudging_mesh => mesh
+    nudging_twod_mesh => twod_mesh
+    if ( modeldb%config%formulation%use_multires_coupling() ) then
+      coarse_nudging = modeldb%config%multires_coupling%coarse_nudging()
+      if (coarse_nudging) then
+        nudging_mesh_name = modeldb%config%multires_coupling%nudging_mesh_name()
+        nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
+        nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
+        write( log_scratch_space,'(A,A)' ) "nudging mesh name:", nudging_mesh%get_mesh_name()
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      end if  
     end if
 
     ! Instantiate the fields stored in model_data

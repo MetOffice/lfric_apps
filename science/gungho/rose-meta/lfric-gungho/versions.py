@@ -30,6 +30,7 @@ class vnXX_txxx(MacroUpgrade):
         return config, self.reports
 """
 
+
 class vn31_t118(MacroUpgrade):
     """Upgrade macro for ticket TTTT by Unknown."""
 
@@ -129,7 +130,6 @@ class vn31_t443(MacroUpgrade):
         self.add_setting(
             config, ["namelist:iau_bcorr_io(bcorr1)", "name"], "''"
         )
-
         return config, self.reports
 
 
@@ -144,48 +144,48 @@ class vn31_t464(MacroUpgrade):
         self.add_setting(
             config, ["namelist:cloud", "pc2_turb_horiz"], ".false."
         )
-
         return config, self.reports
 
+
 class vn31_t474(MacroUpgrade):
-    # Upgrade macro for #474 by Mohit Dalvi
-    # Add namelist and related items for Nudging functionality
+    """Upgrade macro for ticket #474 by Mohit Dalvi."""
 
     BEFORE_TAG = "vn3.1_t464"
     AFTER_TAG = "vn3.1_t474"
 
     def upgrade(self, config, meta_config=None):
-        # Add settings - new items in files and multires_coupling
-        self.add_setting( config,
-            ["namelist:files", "nudging_directory"],"''")
-        self.add_setting( config,
-            ["namelist:files", "nudging_filename"],"''")
-
-        self.add_setting( config,
-            ["namelist:multires_coupling", "coarse_nudging"], ".false," )
-        self.add_setting( config,
-            ["namelist:multires_coupling", "nudging_mesh_name"], "''")
-
-        # Add new nudging namelist 
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:files", "nudging_directory"], "''")
+        self.add_setting(config, ["namelist:files", "nudging_filename"], "''")
+        self.add_setting(
+            config, ["namelist:multires_coupling", "coarse_nudging"], ".false.,"
+        )
+        self.add_setting(
+            config, ["namelist:multires_coupling", "nudging_mesh_name"], "''"
+        )
+        # Add new nudging namelist
         # Append after 'multires_coupling' in configuration.nml
-        source = self.get_setting_value( config,
-                ["file:configuration.nml","source"] )
-        source = re.sub(r'(namelist:multires_coupling)',
-                 r'(namelist:multires_coupling)' + '\n' + ' (namelist:nudging)',
-                 source)
-        self.change_setting_value( config,
-                ["file:configuration.nml","source"], source )
-
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        source = re.sub(
+            r"(namelist:multires_coupling)",
+            r"(namelist:multires_coupling)" + "\n" + " (namelist:nudging)",
+            source,
+        )
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
         self.add_setting(config, ["namelist:nudging"])
-        self.add_setting(config, ["namelist:nudging","nudge_data_levels"], 0 )
-        self.add_setting(config,
-                         ["namelist:nudging","nudging_level_bottom"], 0 )
-        self.add_setting(config,
-                         ["namelist:nudging","nudging_level_top"], 0 )
-        self.add_setting(config, ["namelist:nudging","nudge_source"], "''" )
-        self.add_setting(config,
-                         ["namelist:nudging","nudging_width_bottom"], 0 )
-        self.add_setting(config,
-                         ["namelist:nudging","nudging_width_top"], 0 )
+        self.add_setting(config, ["namelist:nudging", "nudge_data_levels"], "0")
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_bottom"], "0"
+        )
+        self.add_setting(config, ["namelist:nudging", "nudging_level_top"], "0")
+        self.add_setting(config, ["namelist:nudging", "nudging_source"], "''")
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_width_bottom"], "0"
+        )
+        self.add_setting(config, ["namelist:nudging", "nudging_width_top"], "0")
 
         return config, self.reports
