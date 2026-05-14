@@ -38,7 +38,6 @@ module semi_implicit_solver_alg_mod
   use field_indices_mod,                  only: isol_p, isol_u, isol_w, isol_uv, &
                                                 igh_p, igh_t, igh_d,             &
                                                 igh_u, igh_w, igh_uv
-  use copy_field_alg_mod,                 only: copy_field
 
   ! Pointers
   use sci_geometric_constants_mod,        only: get_face_selector_ew, &
@@ -619,11 +618,11 @@ contains
     call rhs_rsol(igh_p)%initialise( rhs(igh_p)%get_function_space() )
     ! This is required to put sensible data in the halo so there is something
     ! for enforce_bc_kernel to work with
-    call invoke(setval_c(rhs_rsol(igh_u), 0.0_r_solver) )
-    call copy_field(rhs(igh_u), rhs_rsol(igh_u))
-    call copy_field(rhs(igh_t), rhs_rsol(igh_t))
-    call copy_field(rhs(igh_d), rhs_rsol(igh_d))
-    call copy_field(rhs(igh_p), rhs_rsol(igh_p))
+    call invoke( setval_c(rhs_rsol(igh_u), 0.0_r_solver), &
+                 real_to_real_x(rhs_rsol(igh_u), rhs(igh_u)), &
+                 real_to_real_x(rhs_rsol(igh_t), rhs(igh_t)), &
+                 real_to_real_x(rhs_rsol(igh_d), rhs(igh_d)), &
+                 real_to_real_x(rhs_rsol(igh_p), rhs(igh_p)) )
 
     if ( first_iteration ) then
       ! Modify RHS due to elimination of rho and theta only for inner iteration 1
@@ -712,10 +711,10 @@ contains
                  dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2))
 
     if (  eliminate_variables == eliminate_variables_analytic ) then
-      call copy_field(rhs_tmp, rhs_rdef)
+      call invoke( real_to_real_x(rhs_rdef, rhs_tmp) )
       call inc_theta%initialise( state(igh_t)%get_function_space() )
       call mass_matrix_solver_alg( inc_theta, rhs_rdef )
-      call copy_field(inc_theta, rhs_tmp)
+      call invoke( real_to_real_x(rhs_tmp, inc_theta) )
     else
       call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv) )
     end if
