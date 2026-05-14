@@ -249,7 +249,6 @@ contains
 
       ! Is it necessary/safe to remove this field now?
       ! Did the get trigger an unpack which we need to now remove?
-      ! Based on https://code.metoffice.gov.uk/trac/lfric_apps/ticket/189
       ! call convection_fields%remove_field('convection__pres_cv_base')
 
     end if
