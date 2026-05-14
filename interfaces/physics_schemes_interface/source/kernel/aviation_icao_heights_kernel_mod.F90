@@ -134,6 +134,11 @@ contains
         icao_height(map(1)) = gpm2 + pressure * isa_temp_top / isa_lapse_rateu
     end if
 
+    ! convert to kft
+    if (icao_height(map(1)) /= rmdi) then
+        icao_height(map(1)) = icao_height(map(1)) * mtokft
+    end if
+
   end subroutine aviation_icao_heights_kernel_code
 
 end module aviation_icao_heights_kernel_mod
