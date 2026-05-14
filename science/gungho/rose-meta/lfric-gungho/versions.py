@@ -19,12 +19,15 @@ class UpgradeError(Exception):
 
 
 class vn31_t218(MacroUpgrade):
-    """Upgrade macro for issue #218 by Chris Smith."""
+    """Upgrade macro for ticket #218 by Chris Smith."""
 
     BEFORE_TAG = "vn3.1"
     AFTER_TAG = "vn3.1_t218"
 
     def upgrade(self, config, meta_config=None):
-        self.add_setting(config, ["namelist:initialization", "regravitate"], "'isotherm1'")
-        return config, self.reports
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:initialization", "regravitate"], "'isotherm1'"
+        )
 
+        return config, self.reports

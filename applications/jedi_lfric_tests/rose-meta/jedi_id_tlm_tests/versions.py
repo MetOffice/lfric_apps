@@ -31,3 +31,18 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
+class vn31_t218(MacroUpgrade):
+    """Upgrade macro for ticket #218 by Chris Smith."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t218"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:initialization", "regravitate"], "'isotherm1'"
+        )
+
+        return config, self.reports
