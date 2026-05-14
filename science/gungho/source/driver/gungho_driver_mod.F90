@@ -26,7 +26,8 @@ module gungho_driver_mod
   use gungho_model_mod,            only : initialise_infrastructure, &
                                           initialise_model, &
                                           finalise_infrastructure, &
-                                          finalise_model
+                                          finalise_model, &
+                                          checksum_model
   use gungho_step_mod,             only : gungho_step
   use gungho_time_axes_mod,        only : gungho_time_axes_type, &
                                           get_time_axes_from_collection
@@ -84,7 +85,15 @@ module gungho_driver_mod
                                           iau_mode_instantaneous, &
                                           iau_mode_time_mixed
   use stochastic_physics_config_mod, &
-                                   only : use_random_parameters
+                                   only : use_random_parameters, &
+                                          use_skeb,              &
+                                          use_spt,               &
+                                          stph_spectral_dim
+  use stph_main_alg_mod,           only : spt_array_names,  &
+                                          spt_array_count,  &
+                                          skeb_array_names, &
+                                          skeb_array_count
+
   use stph_rp_main_alg_mod,        only : stph_rp_main_alg
   use flux_calc_all_mod,           only : flux_calc_init, &
                                           flux_calc_step
@@ -137,6 +146,10 @@ contains
     integer(tik)   :: id
 
 #ifdef UM_PHYSICS
+    integer(i_def) :: i
+    type(io_value_type) :: spt_arrays(spt_array_count)
+    type(io_value_type) :: skeb_arrays(skeb_array_count)
+
     type( field_collection_type ), pointer :: field_collection_ptr
     type( field_collection_type ), pointer :: soil_fields
     type( field_collection_type ), pointer :: snow_fields
@@ -385,7 +398,7 @@ contains
     if ( lbc_option == lbc_option_gungho_file .or. &
          lbc_option == lbc_option_um2lfric_file) then
 
-      call update_lbcs_file_alg( modeldb%configuration,     &
+      call update_lbcs_file_alg( modeldb%config,            &
                                  model_axes%lbc_times_list, &
                                  modeldb%clock, lbc_fields )
     endif
@@ -491,9 +504,11 @@ contains
       call finalise_multifile_io( modeldb)
     end if
 
+    ! Output model checksum
+    call checksum_model( modeldb, program_name )
+
     ! Model configuration finalisation
-    call finalise_model( modeldb,               &
-                         program_name )
+    call finalise_model( modeldb )
 
     ! Destroy the fields stored in model_data
     call finalise_model_data( modeldb )
