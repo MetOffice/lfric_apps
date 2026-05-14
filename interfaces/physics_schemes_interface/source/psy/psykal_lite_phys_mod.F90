@@ -10,7 +10,7 @@
 
 module psykal_lite_phys_mod
 
-  use constants_mod,         only : i_def, r_def
+  use constants_mod,         only : i_def, r_def, l_def
   use field_mod,             only : field_type, field_proxy_type
   use integer_field_mod,     only : integer_field_type, integer_field_proxy_type
   use mesh_mod,              only : mesh_type
@@ -991,15 +991,18 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
   !> see https://github.com/stfc/PSyclone/issues/1312
   !> Hence this module could be removed once the PSyclone ticket is
   !> completed
-    SUBROUTINE invoke_geo_on_pres_kernel_type(height_w3, exner_w3, theta_wth, height_wth, exner_wth, nplev, plevs, plev_geopot, &
-&p_zero, kappa, cp, gravity, planet_radius, ex_power)
+    SUBROUTINE invoke_geo_on_pres_kernel_type(geopot_w3, exner_w3, &
+                                              theta_wth, height_wth, exner_wth, &
+                                              nplev, plevs, plev_geopot, &
+                                              p_zero, kappa, cp, gravity, planet_radius, ex_power, shallow)
       USE geo_on_pres_kernel_mod, ONLY: geo_on_pres_code
       USE mesh_mod, ONLY: mesh_type
       REAL(KIND=r_def), intent(in) :: p_zero, kappa, cp, gravity, ex_power, &
                                       planet_radius
       INTEGER(KIND=i_def), intent(in) :: nplev
+      LOGICAL(KIND=l_def), intent(in) :: shallow
       REAL(KIND=r_def), intent(in) :: plevs(nplev)
-      TYPE(field_type), intent(in) :: height_w3, exner_w3, theta_wth, height_wth, exner_wth, plev_geopot
+      TYPE(field_type), intent(in) :: geopot_w3, exner_w3, theta_wth, height_wth, exner_wth, plev_geopot
       INTEGER(KIND=i_def) cell
       INTEGER(KIND=i_def) loop0_start, loop0_stop
       INTEGER(KIND=i_def) nlayers
@@ -1008,19 +1011,19 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       REAL(KIND=r_def), pointer, dimension(:) :: height_wth_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: theta_wth_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: exner_w3_data => null()
-      REAL(KIND=r_def), pointer, dimension(:) :: height_w3_data => null()
-      TYPE(field_proxy_type) height_w3_proxy, exner_w3_proxy, theta_wth_proxy, height_wth_proxy, exner_wth_proxy, plev_geopot_proxy
-      INTEGER(KIND=i_def), pointer :: map_adspc1_height_w3(:,:) => null(), map_adspc2_plev_geopot(:,:) => null(), &
+      REAL(KIND=r_def), pointer, dimension(:) :: geopot_w3_data => null()
+      TYPE(field_proxy_type) geopot_w3_proxy, exner_w3_proxy, theta_wth_proxy, height_wth_proxy, exner_wth_proxy, plev_geopot_proxy
+      INTEGER(KIND=i_def), pointer :: map_adspc1_geopot_w3(:,:) => null(), map_adspc2_plev_geopot(:,:) => null(), &
 &map_wtheta(:,:) => null()
-      INTEGER(KIND=i_def) ndf_adspc1_height_w3, undf_adspc1_height_w3, ndf_wtheta, undf_wtheta, ndf_adspc2_plev_geopot, &
+      INTEGER(KIND=i_def) ndf_adspc1_geopot_w3, undf_adspc1_geopot_w3, ndf_wtheta, undf_wtheta, ndf_adspc2_plev_geopot, &
 &undf_adspc2_plev_geopot
       INTEGER(KIND=i_def) max_halo_depth_mesh
       TYPE(mesh_type), pointer :: mesh => null()
       !
       ! Initialise field and/or operator proxies
       !
-      height_w3_proxy = height_w3%get_proxy()
-      height_w3_data => height_w3_proxy%data
+      geopot_w3_proxy = geopot_w3%get_proxy()
+      geopot_w3_data => geopot_w3_proxy%data
       exner_w3_proxy = exner_w3%get_proxy()
       exner_w3_data => exner_w3_proxy%data
       theta_wth_proxy = theta_wth%get_proxy()
@@ -1034,23 +1037,23 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       !
       ! Initialise number of layers
       !
-      nlayers = height_w3_proxy%vspace%get_nlayers()
+      nlayers = geopot_w3_proxy%vspace%get_nlayers()
       !
       ! Create a mesh object
       !
-      mesh => height_w3_proxy%vspace%get_mesh()
+      mesh => geopot_w3_proxy%vspace%get_mesh()
       max_halo_depth_mesh = mesh%get_halo_depth()
       !
       ! Look-up dofmaps for each function space
       !
-      map_adspc1_height_w3 => height_w3_proxy%vspace%get_whole_dofmap()
+      map_adspc1_geopot_w3 => geopot_w3_proxy%vspace%get_whole_dofmap()
       map_wtheta => theta_wth_proxy%vspace%get_whole_dofmap()
       map_adspc2_plev_geopot => plev_geopot_proxy%vspace%get_whole_dofmap()
       !
-      ! Initialise number of DoFs for adspc1_height_w3
+      ! Initialise number of DoFs for adspc1_geopot_w3
       !
-      ndf_adspc1_height_w3 = height_w3_proxy%vspace%get_ndf()
-      undf_adspc1_height_w3 = height_w3_proxy%vspace%get_undf()
+      ndf_adspc1_geopot_w3 = geopot_w3_proxy%vspace%get_ndf()
+      undf_adspc1_geopot_w3 = geopot_w3_proxy%vspace%get_undf()
       !
       ! Initialise number of DoFs for wtheta
       !
@@ -1071,10 +1074,14 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       !
       DO cell=loop0_start,loop0_stop
         !
-        CALL geo_on_pres_code(nlayers, height_w3_data, exner_w3_data, theta_wth_data, height_wth_data, exner_wth_data, nplev, &
-&plevs, plev_geopot_data, p_zero, kappa, cp, gravity, planet_radius, ex_power, ndf_adspc1_height_w3, undf_adspc1_height_w3, &
-&map_adspc1_height_w3(:,cell), ndf_wtheta, undf_wtheta, map_wtheta(:,cell), ndf_adspc2_plev_geopot, undf_adspc2_plev_geopot, &
-&map_adspc2_plev_geopot(:,cell))
+        CALL geo_on_pres_code(nlayers, geopot_w3_data, exner_w3_data, &
+                              theta_wth_data, height_wth_data, exner_wth_data, &
+                              nplev, plevs, plev_geopot_data, &
+                              p_zero, kappa, cp, gravity, planet_radius, ex_power, shallow, &
+                              ndf_adspc1_geopot_w3, undf_adspc1_geopot_w3, map_adspc1_geopot_w3(:,cell), &
+                              ndf_wtheta, undf_wtheta, map_wtheta(:,cell), &
+                              ndf_adspc2_plev_geopot, undf_adspc2_plev_geopot, &
+                              map_adspc2_plev_geopot(:,cell))
       END DO
       !
       ! Set halos dirty/clean for fields modified in the above loop

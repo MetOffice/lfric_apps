@@ -23,6 +23,7 @@ module pres_lev_diags_alg_mod
   use moist_dyn_mod,           only: num_moist_factors, total_mass
   use planet_config_mod,       only: p_zero, kappa, gravity, cp
   use extrusion_config_mod,    only: planet_radius
+  use formulation_config_mod,  only: shallow
   use planet_constants_mod,    only: ex_power
 
   implicit none
@@ -268,7 +269,8 @@ contains
                                           height_wth, exner_wth,             &
                                           nplev, plevs, plev_geopot,         &
                                           p_zero, kappa, cp, gravity,        &
-                                          planet_radius, ex_power)
+                                          planet_radius, ex_power,           &
+                                          shallow)
       if (plev_geopot_flag) call plev_geopot%write_field()
 
       if (plev_geopot_clim_flag) then

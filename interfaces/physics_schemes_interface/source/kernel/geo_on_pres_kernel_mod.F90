@@ -7,16 +7,16 @@
 
 module geo_on_pres_kernel_mod
 
-  use argument_mod,         only: arg_type,                  &
-                                  GH_FIELD, GH_SCALAR,       &
-                                  GH_READ, GH_WRITE,         &
-                                  GH_INTEGER,                &
-                                  GH_REAL, CELL_COLUMN,      &
-                                  ANY_DISCONTINUOUS_SPACE_1, &
-                                  ANY_DISCONTINUOUS_SPACE_2
-  use fs_continuity_mod,    only: WTHETA
-  use constants_mod,        only: r_def, i_def
-  use kernel_mod,           only: kernel_type
+  use argument_mod,      only: arg_type,                  &
+                               GH_FIELD, GH_SCALAR,       &
+                               GH_READ, GH_WRITE,         &
+                               GH_INTEGER, GH_LOGICAL,    &
+                               GH_REAL, CELL_COLUMN,      &
+                               ANY_DISCONTINUOUS_SPACE_1, &
+                               ANY_DISCONTINUOUS_SPACE_2
+  use fs_continuity_mod, only: WTHETA
+  use constants_mod,     only: r_def, i_def, l_def
+  use kernel_mod,        only: kernel_type
 
   implicit none
 
@@ -25,20 +25,21 @@ module geo_on_pres_kernel_mod
   !> Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: geo_on_pres_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/                                   &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    &
-         arg_type(GH_SCALAR,GH_INTEGER, GH_READ),                          &
+    type(arg_type) :: meta_args(13) = (/                                      &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  WTHETA),                    &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  WTHETA),                    &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  WTHETA),                    &
+         arg_type(GH_SCALAR,GH_INTEGER, GH_READ),                             &
 !        arg_type(GH_SCALAR_ARRAY,GH_REAL, GH_READ, 1), see PSyclone issue #1312
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ),                             &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ),                             &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ),                             &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ),                             &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ)                              &
+         arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_LOGICAL, GH_READ)                              &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -67,6 +68,7 @@ contains
   !> @param[in]     gravity       Acceleration due to gravity
   !> @param[in]     planet_radius Radius of the planet
   !> @param[in]     ex_power      (cp * lapse_rate ) / g
+  !> @param[in]     shallow       If true, gravity is constant
   !> @param[in]     ndf_in        Number of degrees of freedom per cell for in fields
   !> @param[in]     undf_in       Number of total degrees of freedom for in fields
   !> @param[in]     map_in        Dofmap for the cell at the base of the column for in fields
@@ -88,6 +90,7 @@ contains
                               gravity,                         &
                               planet_radius,                   &
                               ex_power,                        &
+                              shallow,                         &
                               ndf_in, undf_in, map_in,         &
                               ndf_wth, undf_wth, map_wth,      &
                               ndf_out, undf_out, map_out)
@@ -115,6 +118,7 @@ contains
     real(kind=r_def),    intent(in) :: p_zero, kappa, cp, gravity, ex_power, &
                                        planet_radius
     real(kind=r_def),    intent(in), dimension(nplev) :: plevs
+    logical(kind=l_def), intent(in) :: shallow
 
     ! Internal variables
     integer(kind=i_def) :: k, level_above, top_df, kp, level_extrap
@@ -154,9 +158,13 @@ contains
             exit
           end if
         end do
-        geo_ht_extrap = height_wth(map_wth(1)+level_extrap) / &
-                        ( 1.0_r_def + height_wth(map_wth(1)+level_extrap) / &
-                                      planet_radius )
+        if ( shallow ) then
+          geo_ht_extrap = height_wth(map_wth(1)+level_extrap)
+        else
+          geo_ht_extrap = height_wth(map_wth(1)+level_extrap) / &
+                          ( 1.0_r_def + height_wth(map_wth(1)+level_extrap) / &
+                                        planet_radius )
+        end if
         geo_ht_lowest = data_in(map_in(1)) / gravity
         h_ref_lev = ( geo_ht_extrap - geo_ht_lowest ) &
                    / (1.0_r_def - (exner_wth(map_wth(1)+level_extrap) / &

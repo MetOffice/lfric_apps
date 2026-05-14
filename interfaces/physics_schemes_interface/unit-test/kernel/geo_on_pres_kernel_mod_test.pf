@@ -8,7 +8,7 @@
 module geo_on_pres_kernel_mod_test
 
   use funit
-  use constants_mod, only : r_def, i_def
+  use constants_mod, only : r_def, i_def, l_def
 
   implicit none
 
@@ -83,13 +83,14 @@ contains
 
   class(geo_on_pres_test_type), intent(inout) :: this
 
-  real(r_def), parameter :: tol = 1.0e-14_r_def
-  real(r_def), parameter :: p_zero = 100000.0_r_def
-  real(r_def), parameter :: kappa = 1.0_r_def
-  real(r_def), parameter :: ex_power = 1.0_r_def
-  real(r_def), parameter :: cp = 1000.0_r_def
-  real(r_def), parameter :: gravity = 10.0_r_def
-  real(r_def), parameter :: planet_radius = 6.4e6_r_def
+  real(r_def),    parameter :: tol = 1.0e-14_r_def
+  real(r_def),    parameter :: p_zero = 100000.0_r_def
+  real(r_def),    parameter :: kappa = 1.0_r_def
+  real(r_def),    parameter :: ex_power = 1.0_r_def
+  real(r_def),    parameter :: cp = 1000.0_r_def
+  real(r_def),    parameter :: gravity = 10.0_r_def
+  real(r_def),    parameter :: planet_radius = 6.4e6_r_def
+  logical(l_def), parameter :: shallow = .true.
 
   ! Input arrays
   this%map_in = 1_i_def
@@ -106,6 +107,8 @@ contains
   this%data_in(1) = 0.0_r_def
   this%data_in(2) = 100.0_r_def
   this%data_in(3) = 1000.0_r_def
+  ! Conver heights to geopotential
+  this%data_in(:) = gravity * this%data_in(:)
   this%height(1) = 0.0_r_def
   this%height(2) = 100.0_r_def
   this%height(3) = 3000.0_r_def
@@ -132,6 +135,7 @@ contains
                          gravity,        &
                          planet_radius,  &
                          ex_power,       &
+                         shallow,        &
                          ndf_in,         &
                          undf_in,        &
                          this%map_in,    &
