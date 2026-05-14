@@ -719,9 +719,9 @@ contains
     logical(kind=l_def) :: checkpoint_reference_fields
 
     ! Namelist parameters
-    character(str_def)           :: prime_mesh_name
-    integer(i_def)               :: lbc_option
-    logical(l_def)               :: l_mcr_precfrac
+    character(str_def) :: prime_mesh_name
+    integer(i_def)     :: lbc_option
+    logical(l_def)     :: l_mcr_precfrac
     logical(l_def)     :: microphysics_casim
     logical(l_def)     :: murk_lbc
     real(r_def)        :: tau_r
