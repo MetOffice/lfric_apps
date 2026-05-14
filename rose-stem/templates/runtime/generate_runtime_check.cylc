@@ -112,6 +112,19 @@
         [[[directives]]]
     {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
 
+{% elif task.startswith("metadata_test") %}
+    {% for family in task_values["plot_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    [[{{task}}]]
+        inherit = {{inherit.str|upper}}
+        script = rose task-run --app-key=validate_output_file_metadata
+        [[[environment]]]
+            INPUT_RESULTS_DIR = {{task_output_dir}}/results
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
 {% endif %}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_check.cylc") %}

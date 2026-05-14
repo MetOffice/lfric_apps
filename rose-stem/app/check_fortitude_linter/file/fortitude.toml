@@ -63,6 +63,7 @@ output-format = "grouped"                #group results by file
 # science/shared:
 "space_from_metadata_mod.F90" = ["C072"]
 "space_from_metadata_mod_test.pf" = ["E001","C121"]
+"lfric_apps_version_mod_test.pf" = ["E001"]
 
 # science/socrates_interface:
 "init_radiation_fields_alg_mod.x90" = ["S101"]
