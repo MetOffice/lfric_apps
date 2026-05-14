@@ -118,15 +118,13 @@ contains
 
     ! Local variables.
     integer(kind=i_def) :: df
-    real(kind=r_def) :: gph_1000, gph_850, gph_500
+    real(kind=r_def) :: gph_1000, gph_850
 
 
     ! Process every DOF in this cell.
     do df = 1, result_ndf
 
       gph_1000 = plev_geopot(source_map(df) + i1000-1)
-      gph_850 = plev_geopot(source_map(df) + i850-1)
-      gph_500 = plev_geopot(source_map(df) + i500-1)
 
       if (thickness_850_flag .and. i850 /= -1) then
         thickness_850(result_map(df)) = &
@@ -138,9 +136,10 @@ contains
           plev_geopot(source_map(df)+i500-1) - gph_1000
       end if
 
-      if(snow_probability_flag) then
+      if(snow_probability_flag .and. i850 /= -1) then
+        gph_850 = plev_geopot(source_map(df) + i850-1)
         snow_probability(result_map(df)) = &
-          5220.0 + 3.86666*gph_1000 - 4.0*gph_850
+          5220.0_r_def + 3.86666_r_def*gph_1000 - 4.0_r_def*gph_850
       end if
 
     end do

@@ -23,14 +23,14 @@ module aviation_icao_heights_kernel_mod
 
   implicit none
 
-  ! the aviation diagnostics kernel type.
+  ! The aviation diagnostics kernel type.
   type, extends(kernel_type) :: aviation_icao_heights_kernel_type
     type(arg_type), dimension(2) :: meta_args = (/ &
 
-      ! output icao height.
+      ! Output icao height.
       arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
 
-      ! input pressure
+      ! Input pressure
       arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1) &
 
       /)
@@ -44,48 +44,47 @@ module aviation_icao_heights_kernel_mod
 contains
 
   subroutine aviation_icao_heights_kernel_code(nlayers, &
-        icao_height, &  ! output icao height.
-        pressure_field, &     ! pressure.
+        icao_height,    &  ! Output icao height.
+        pressure_field, &  ! Pressure.
         ndf, undf, map)
 
-    ! calculate iaco height from the pressure field.
-    ! assumes lowest order w3 data, where ndf is always 1.
+    ! Calculate iaco height from the pressure field.
+    ! Assumes lowest order w3 data, where ndf is always 1.
 
     use constants_mod,                  only: rmdi
     use planet_config_mod,              only: gravity, rd
-    use science_conversions_mod,        only: feet_to_metres
-    use science_aviation_constants_mod, only: mtokft, &
-        isa_lapse_ratel, isa_lapse_rateu, isa_press_bot, &
+    use science_aviation_constants_mod, only: mtokft,             &
+        isa_lapse_ratel, isa_lapse_rateu, isa_press_bot,          &
         isa_press_mid, isa_press_top, isa_temp_bot, isa_temp_top, &
         gpm1, gpm2
 
     implicit none
 
-    ! arguments (kernel)
+    ! Arguments (kernel).
 
-    ! the number of layers in a column.
+    ! The number of layers in a column.
     integer(kind=i_def), intent(in) :: nlayers
 
-    ! number of degrees of freedom (columns) in the cell we're processing.
+    ! Number of degrees of freedom (columns) in the cell we're processing.
     integer(kind=i_def), intent(in) :: ndf
 
-    ! number of unique degrees of freedom in the fields.
+    ! Number of unique degrees of freedom in the fields.
     integer(kind=i_def), intent(in) :: undf
 
-    ! degrees of freedom maps. offsets to the bottom of each column.
+    ! Degrees of freedom maps. offsets to the bottom of each column.
     integer(kind=i_def), intent(in), dimension(ndf) :: map
 
 
-    ! arguments (algorithm)
+    ! Arguments (algorithm)
 
-    ! output icao height.
-    real(kind=r_def), intent(inout), dimension(undf) :: icao_height
+    ! Output icao height.
+    real(kind=r_def), intent(out), dimension(undf) :: icao_height
 
-    ! pressure in pa.
+    ! Pressure in pa.
     real(kind=r_def), intent(in), dimension(undf) :: pressure_field
 
 
-    ! local variables
+    ! Local variables
     integer(kind=i_def) :: df
 
     real(kind=r_def) :: g_over_rd
@@ -101,40 +100,40 @@ contains
 
     pressure = pressure_field(map(1))
 
-    ! setting a safeguard limit to the lowest pressure to prevent
+    ! Setting a safeguard limit to the lowest pressure to prevent
     ! extremely large icao height values near the top at the
     ! atmosphere.
     if ( (pressure >= 0.0_r_def) .and. (pressure <= 1000.0_r_def) ) then
         pressure = 1000.0_r_def
     end if
 
-    ! pressure must not be greater than surface pressure.
+    ! Pressure must not be greater than surface pressure.
     pressure = min(isa_press_bot, pressure)
 
-    ! missing or invalid data?
+    ! Missing or invalid data?
     if (pressure == rmdi .or. pressure <= 0.0_r_def) then
         icao_height(map(1)) = rmdi
 
-    ! heights up to 11,000 gpm
+    ! Heights up to 11,000 gpm
     else if ( pressure > isa_press_mid ) then
         pressure = pressure / isa_press_bot
         pressure = 1.0_r_def - pressure**zp1
         icao_height(map(1)) = pressure * isa_temp_bot / isa_lapse_ratel
 
-    ! heights between 11,000 gpm and 20,000 gpm
+    ! Heights between 11,000 gpm and 20,000 gpm
     else if ( pressure > isa_press_top ) then
         pressure = pressure / isa_press_mid
         pressure = -log(pressure)
         icao_height(map(1)) = gpm1 + pressure * isa_temp_top / g_over_rd
 
-    ! heights above 20,000 gpm
+    ! Heights above 20,000 gpm
     else
         pressure = pressure / isa_press_top
         pressure = 1.0_r_def - pressure**zp2
         icao_height(map(1)) = gpm2 + pressure * isa_temp_top / isa_lapse_rateu
     end if
 
-    ! convert to kft
+    ! Convert to kft
     if (icao_height(map(1)) /= rmdi) then
         icao_height(map(1)) = icao_height(map(1)) * mtokft
     end if

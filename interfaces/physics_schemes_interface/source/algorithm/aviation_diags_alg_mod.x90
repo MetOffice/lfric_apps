@@ -61,8 +61,7 @@ contains
     ! Local variables
 
     ! These flags tell us which results are requested at this time step.
-    logical(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag, &
-            aviation_snow_probability_flag
+    logical(l_def) :: thick_850_flag, thick_500_flag, snow_probability_flag
 
     ! The array of pressure levels.
     integer(i_def) :: nplev
@@ -76,8 +75,7 @@ contains
     real(r_def), parameter :: plev_tol = 0.1_r_def
 
     ! The output fields we produce.
-    type( field_type ) :: aviation_thick_850, aviation_thick_500, &
-            aviation_snow_probability
+    type( field_type ) :: thick_850, thick_500, snow_probability
 
     integer(i_def) :: i
 
@@ -85,18 +83,17 @@ contains
 
 
     ! Check the request flags.
-    aviation_snow_probability_flag = &
-      init_diag(aviation_snow_probability, 'aviation__snow_probability')
-    aviation_thick_850_flag = &
-      init_diag(aviation_thick_850, 'aviation__geopot_thickness_850', &
-        activate=aviation_snow_probability_flag)
-    aviation_thick_500_flag = &
-      init_diag(aviation_thick_500, 'aviation__geopot_thickness_500')
+    snow_probability_flag = &
+      init_diag(snow_probability, 'aviation__snow_probability')
+    thick_850_flag = &
+      init_diag(thick_850, 'aviation__geopot_thickness_850')
+    thick_500_flag = &
+      init_diag(thick_500, 'aviation__geopot_thickness_500')
 
     ! Anything to do?
-    if ( .not. (aviation_thick_850_flag .or. &
-                aviation_thick_500_flag .or. &
-                aviation_snow_probability_flag) ) then
+    if ( .not. (thick_850_flag .or. &
+                thick_500_flag .or. &
+                snow_probability_flag) ) then
       return
     end if
 
@@ -105,23 +102,23 @@ contains
     endif
 
     ! Initialise required fields to 1.
-    if ( aviation_snow_probability_flag ) then
+    if ( snow_probability_flag ) then
       message = 'Section 20: snow probability requested'
       call log_event( message, log_level_debug )
-      call invoke( setval_c(aviation_snow_probability, 0.0_r_def))
+      call invoke( setval_c(snow_probability, 0.0_r_def))
     end if
 
-    if ( aviation_thick_850_flag ) then
+    if ( thick_850_flag ) then
       message = 'Section 20: geopot thick 850 requested'
       call log_event( message, log_level_debug )
       ! Todo: Why 1 and not 0?
-      call invoke( setval_c(aviation_thick_850, 1.0_r_def))
+      call invoke( setval_c(thick_850, 1.0_r_def))
     end if
 
-    if ( aviation_thick_500_flag ) then
+    if ( thick_500_flag ) then
       message = 'Section 20: geopot thick 500 requested'
       call log_event( message, log_level_debug )
-      call invoke( setval_c(aviation_thick_500, 1.0_r_def))
+      call invoke( setval_c(thick_500, 1.0_r_def))
     end if
 
     ! Get the array of pressure levels.
@@ -169,13 +166,13 @@ contains
       return
     end if
 
-    if (aviation_thick_850_flag .and. i850 == -1) then
+    if ((thick_850_flag .or. snow_probability_flag) .and. i850 == -1) then
       message = 'Section 20: could not find 850hPa'
       call log_event( message, log_level_error )
       return
     end if
 
-    if (aviation_thick_500_flag .and. i500 == -1) then
+    if (thick_500_flag .and. i500 == -1) then
       message = 'Section 20: could not find 500hPa'
       call log_event( message, log_level_error )
       return
@@ -183,17 +180,16 @@ contains
 
     ! Call the kernel to subtract the levels.
     ! Todo: Comment why we initialise to 1.0 and not 0.0. I can't remember.
-    call invoke( aviation_thickness_snow_kernel_type(            &
-      aviation_thick_850, aviation_thick_500,           &
-      aviation_snow_probability,                        &
-      plev_geopot,                                      &
-      aviation_thick_850_flag, aviation_thick_500_flag, &
-      aviation_snow_probability_flag, i1000, i850, i500))
+    call invoke( aviation_thickness_snow_kernel_type(        &
+      thick_850, thick_500, snow_probability,                &
+      plev_geopot,                                           &
+      thick_850_flag, thick_500_flag, snow_probability_flag, &
+      i1000, i850, i500))
 
     ! Write the fields
-    if (aviation_thick_850_flag) call aviation_thick_850%write_field()
-    if (aviation_thick_500_flag) call aviation_thick_500%write_field()
-    if (aviation_snow_probability_flag) call aviation_snow_probability%write_field()
+    if (thick_850_flag) call thick_850%write_field()
+    if (thick_500_flag) call thick_500%write_field()
+    if (snow_probability_flag) call snow_probability%write_field()
 
     ! Clean up.
     if (allocated(plevs)) then
@@ -203,13 +199,13 @@ contains
   end subroutine from_plev_geopot
 
 
-  SUBROUTINE icao_heights(convection_fields)
-    ! Calculate iaco heights of top and base of cloud from their pressures.
+  subroutine icao_heights(convection_fields)
+    ! Calculate ICAO heights of top and base of cloud from their pressures.
 
-    ! Arguments
-    TYPE(field_collection_type), INTENT(INOUT) :: convection_fields
+    ! Arguments.
+    type(field_collection_type), intent(inout) :: convection_fields
 
-    ! Locals
+    ! Locals.
     character(len=str_long) :: message
 
     ! Pressure fields to unpack.
@@ -217,14 +213,14 @@ contains
     type(field_type), pointer :: conv_cloud_top_pressure
 
     ! Height fields to create and write.
-    TYPE(field_type) :: conv_cloud_base_icao_height
-    TYPE(field_type) :: conv_cloud_top_icao_height
+    type(field_type) :: conv_cloud_base_icao_height
+    type(field_type) :: conv_cloud_top_icao_height
 
     ! Request flags.
-    LOGICAL(l_def) :: base_height_flag
-    LOGICAL(l_def) :: top_height_flag
+    logical(l_def) :: base_height_flag
+    logical(l_def) :: top_height_flag
 
-    ! which heights are requested this time step?
+    ! Which heights are requested this time step?
     top_height_flag = init_diag( &
       conv_cloud_top_icao_height, 'aviation__conv_cloud_top_icao_height')
 
@@ -232,20 +228,20 @@ contains
       conv_cloud_base_icao_height, 'aviation__conv_cloud_base_icao_height')
 
     if (base_height_flag .or. top_height_flag) then
-      message = 'Section 20: cloud ICAO heights on'
+      message = 'section 20: cloud icao heights on'
       call log_event( message, log_level_debug )
     else
-      ! nothing requested at this time step
+      ! Nothing requested at this time step.
       return
     end if
 
 
-    ! cloud base
-    IF (base_height_flag) THEN
+    ! Cloud base.
+    if (base_height_flag) then
       call convection_fields%get_field( &
               'convection__pres_cv_base', conv_cloud_base_pressure)
       call invoke( &
-        setval_c(conv_cloud_base_icao_height, RMDI), &
+        setval_c(conv_cloud_base_icao_height, rmdi), &
         aviation_icao_heights_kernel_type(conv_cloud_base_icao_height, &
           conv_cloud_base_pressure))
 
@@ -256,14 +252,14 @@ contains
       ! Based on https://code.metoffice.gov.uk/trac/lfric_apps/ticket/189
       ! call convection_fields%remove_field('convection__pres_cv_base')
 
-    END IF
+    end if
 
-    ! could top
-    IF (top_height_flag) THEN
+    ! Cloud top.
+    if (top_height_flag) then
       call convection_fields%get_field( &
               'convection__pres_cv_top', conv_cloud_top_pressure)
       call invoke( &
-        setval_c(conv_cloud_top_icao_height, RMDI), &
+        setval_c(conv_cloud_top_icao_height, rmdi), &
         aviation_icao_heights_kernel_type(conv_cloud_top_icao_height, &
           conv_cloud_top_pressure))
 
@@ -272,8 +268,8 @@ contains
       ! Is it necessary/safe to remove this field now?
       ! call convection_fields%remove_field('convection__pres_cv_top')
 
-    END IF
+    end if
 
-  END SUBROUTINE icao_heights
+  end subroutine icao_heights
 
 end module aviation_diags_alg_mod
