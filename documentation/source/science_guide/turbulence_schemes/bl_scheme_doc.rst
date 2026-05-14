@@ -5271,7 +5271,7 @@ where :math:`k=1,2,\ldots,L-2`,
 
 .. math::
 
-   A_{k}=-{\mathcal{I}}_{1}\frac{\Delta t\noindent
+   A_{k}=-{\mathcal{I}}_{1}\frac{\Delta t
        K_{u}\Big|_{k+1}}{(z_{k+1}-z_{k})(z_{k+3/2}-z_{k+1/2})},\;
      C_{k}=-{\mathcal{I}}_{1}\frac{\Delta
        tK_{u}\Big|_{k}}{(z_{k+1}-z_{k})(z_{k+1/2}-z_{k-1/2})},\;
