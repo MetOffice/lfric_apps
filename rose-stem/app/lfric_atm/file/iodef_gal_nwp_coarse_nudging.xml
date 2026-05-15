@@ -33,7 +33,7 @@
     <file_definition src="./file_def_ancil_gal.xml"/>
     <file_definition src="./file_def_ancil_hadisst.xml"/>
     <file_definition src="./file_def_nudging.xml"/>
-    <file_definition src="./file_def_diags_gal_nwp_nudging.xml"/>
+    <file_definition src="./file_def_diags_idealised.xml"/>
     <file_definition src="./file_def_diags_ver.xml"/>
     <file_definition src="./file_def_diags_name.xml"/>
     <file_definition src="./file_def_initial_diags.xml"/>

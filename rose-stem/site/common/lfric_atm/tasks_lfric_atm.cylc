@@ -282,7 +282,7 @@
         "mpi_parts": 24,
         "log_level": "info",
         "kgo_checks": ["checksum"],
-        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR",
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_nudging-era-coarse-C48_MG" %}
@@ -295,7 +295,7 @@
         "mpi_parts": 24,
         "log_level": "info",
         "kgo_checks": ["checksum"],
-        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR",
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_coarse_aero_threaded-C48_MG" %}

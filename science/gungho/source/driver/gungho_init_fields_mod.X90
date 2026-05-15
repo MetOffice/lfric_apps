@@ -80,7 +80,6 @@ module gungho_init_fields_mod
   use create_gungho_prognostics_mod,      only : create_gungho_prognostics
   use create_physics_prognostics_mod,     only : create_physics_prognostics
   use create_nudging_fields_mod,          only : create_nudging_fields
-  use variable_fields_mod,                only : update_variable_fields
   use field_mapper_mod,                   only : field_mapper_type
   use map_fd_to_prognostics_alg_mod,      only : map_fd_to_prognostics
   use gungho_init_prognostics_driver_mod, only : init_gungho_prognostics

@@ -163,7 +163,7 @@ class vn31_t474(MacroUpgrade):
         self.add_setting(
             config, ["namelist:multires_coupling", "nudging_mesh_name"], "''"
         )
-        # Add new nudging namelist
+        # Add new nudging namelist -with sensible default values
         # Append after 'multires_coupling' in configuration.nml
         source = self.get_setting_value(
             config, ["file:configuration.nml", "source"]
@@ -177,14 +177,14 @@ class vn31_t474(MacroUpgrade):
             config, ["file:configuration.nml", "source"], source
         )
         self.add_setting(config, ["namelist:nudging"])
-        self.add_setting(config, ["namelist:nudging", "nudge_data_levels"], "0")
+        self.add_setting(config, ["namelist:nudging", "nudge_data_levels"], "137")
         self.add_setting(
-            config, ["namelist:nudging", "nudging_level_bottom"], "0"
+            config, ["namelist:nudging", "nudging_level_bottom"], "5"
         )
-        self.add_setting(config, ["namelist:nudging", "nudging_level_top"], "0")
-        self.add_setting(config, ["namelist:nudging", "nudging_source"], "''")
+        self.add_setting(config, ["namelist:nudging", "nudging_level_top"], "52")
+        self.add_setting(config, ["namelist:nudging", "nudging_source"], "'era'")
         self.add_setting(
-            config, ["namelist:nudging", "nudging_width_bottom"], "0"
+            config, ["namelist:nudging", "nudging_width_bottom"], "1"
         )
         self.add_setting(config, ["namelist:nudging", "nudging_width_top"], "0")
 
