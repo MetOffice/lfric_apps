@@ -584,17 +584,17 @@ As standard, the fluxes in :eq:`eq:wb_cont` are then
 expanded using the first-order closure in
 :eq:`scal_closure` as:
 
-.. math::
-
-   \overline{w'\theta_{\ell}'}_k = 
-   -K_h^{\mathrm{surf}}\,\frac{\widetilde{\Delta_k \theta_{\ell}}}{\Delta_k z}
-                -K_h^{\mathrm{Sc}}\,\frac{\Delta_k \theta_{\ell}}{\Delta_k z}
-
 .. math:: :label: eq:wx_std
 
-   \overline{w'q_t'}_k  =  -\left(K_h^{\mathrm{surf}}+ K_h^{\mathrm{Sc}}\right)
-   \,
+   \begin{aligned}
+   \overline{w'\theta_{\ell}'}_k &=& 
+   -K_h^{\mathrm{surf}}\,\frac{\widetilde{\Delta_k \theta_{\ell}}}{\Delta_k z}
+                -K_h^{\mathrm{Sc}}\,\frac{\Delta_k \theta_{\ell}}{\Delta_k z}
+   \\
+   \overline{w'q_t'}_k  &=&  -\left(K_h^{\mathrm{surf}}+
+   K_h^{\mathrm{Sc}}\right) \,
                 \,\frac{\Delta_k q_t}{\Delta_k z}
+   \end{aligned}
 
 where
 :math:`\widetilde{\Delta_k \theta_{\ell}} = \Delta_k \theta_{\ell}-
@@ -760,10 +760,10 @@ expected to occur) and :math:`z_{\mathrm{ \mathrm{NTML}}-1}`.
 .. figure:: blank.svg
    :name: fig:inv_integ
 
-   Subgrid (lines) and model (symbols) fluxes of $\thetal$: turbulent flux
-   (dash-dotted, crosses), radiative flux (dashed, triangles) and total flux
-   (solid). The shaded area illustrates the integrated turbulent flux that
-   would be obtained were (\protect\mbox{\protect\ref{eq:wx_std}}) used.
+   Subgrid (lines) and model (symbols) fluxes of :math:`\thetal`: turbulent
+   flux (dash-dotted, crosses), radiative flux (dashed, triangles) and total
+   flux (solid). The shaded area illustrates the integrated turbulent flux that
+   would be obtained were (\protect\mbox{\protect:eq:`eq:wx_std`}) used.
 
    .. list-table::
       :align: center
@@ -972,14 +972,14 @@ should be considered over more levels.
 
 The asymptotic mixing lengths are given by
 
-.. math::
-
-   \lambda_m =\mathrm{max}\left[\lambda_0,\, 0.15 z_{\mathrm{loc}}, 2 h_B
-   \right]
-
 .. math:: :label: asymp_ml
 
-   \lambda_h =\mathrm{max}\left[\lambda_0,\, 0.15 z_{\mathrm{loc}}\right]
+   \begin{aligned}
+   \lambda_m &=&\mathrm{max}\left[\lambda_0,\, 0.15 z_{\mathrm{loc}}, 2 h_B
+   \right]
+   \\
+   \lambda_h &=&\mathrm{max}\left[\lambda_0,\, 0.15 z_{\mathrm{loc}}\right]
+   \end{aligned}
 
 where :math:`\lambda_0` is a minimum mixing length read in from the
 namelist and :math:`z_{\mathrm{loc}}` is defined below. The orographic
@@ -1068,16 +1068,16 @@ to :math:`\lambda_0`.
 
 For :math:`Ri < 0`, the standard UM stability functions are given by
 
-.. math::
-
-   f_m  = 1 - \frac{g_0 \,Ri}
-           {1+D_m(\tilde{{\mathcal{L}}}_m/\tilde{{\mathcal{L}}}_h)|Ri|^{1/2} }
-
 .. math:: :label: unstable_stab
 
-   f_h  = \frac{1}{Pr_N}\left(1 - \frac{g_0 \,Ri}
+   \begin{aligned}
+   f_m & =& 1 - \frac{g_0 \,Ri}
+           {1+D_m(\tilde{{\mathcal{L}}}_m/\tilde{{\mathcal{L}}}_h)|Ri|^{1/2} }
+   \\
+   f_h & =& \frac{1}{Pr_N}\left(1 - \frac{g_0 \,Ri}
            {1+D_h(\tilde{{\mathcal{L}}}_m/\tilde{{\mathcal{L}}}_h)|Ri|^{1/2}
            }\right)
+   \end{aligned}
 
 with :math:`g_0=10`, :math:`D_m=g_0/4` and :math:`D_h=g_0/25`. If the
 stability dependent Prandtl number option is chosen (see below) the
@@ -1085,13 +1085,13 @@ neutral Prandtl number, :math:`Pr_N`, is set to :math:`0.7`; otherwise
 :math:`Pr_N=1`. Alternatives are those from the Met Office large-eddy
 model (LEM), `Brown (1999) 2`_:
 
-.. math::
-
-   f_m  = (1 - c_{LEM} Ri)^{1/2}
-
 .. math:: :label: unstable_stab_lem
 
-   f_h  = \frac{1}{Pr_N}\left(1 - b_{LEM} Ri\right)^{1/2}
+   \begin{aligned}
+   f_m & =& (1 - c_{LEM} Ri)^{1/2}
+   \\
+   f_h & =& \frac{1}{Pr_N}\left(1 - b_{LEM} Ri\right)^{1/2}
+   \end{aligned}
 
 where :math:`Pr_N = 0.7`, and the constants :math:`b_{LEM}` and
 :math:`c_{LEM}` can take the values 40 and 16 respectively in the
@@ -1122,11 +1122,11 @@ where
 
 .. math::
 
-   A_{Ri}  =  \left(1-g_0 Ri_{t}\right)/\left(1- g_0 Ri_{t}/2\right)^2
-
-.. math::
-
-   B_{Ri}  =  (g_0/2) /\left(1 - g_0 Ri_{t}/2\right)^2
+   \begin{aligned}
+   A_{Ri} & = & \left(1-g_0 Ri_{t}\right)/\left(1- g_0 Ri_{t}/2\right)^2
+   \\
+   B_{Ri} & = & (g_0/2) /\left(1 - g_0 Ri_{t}/2\right)^2
+   \end{aligned}
 
 For the 'SHARPEST' function of `Derbyshire (1997)`_,
 :math:`Ri_{t}=0.1`, while larger values give even sharper reduction of
@@ -1861,10 +1861,10 @@ Discussion of some of the revisions
    :name: fig:stab_dep
 
    Stability dependence of the surface velocity scales, Prandtl number
-   (although I hope something is wrong with my coding of HB here!) and $d$.
-   Solid lines are from HB, dotted from the standard UM and the dashed from the
-   revised formulation. The dash-dotted line for $d$ is a potential
-   modification, as described in the text.
+   (although I hope something is wrong with my coding of HB here!) and
+   :math:`d`. Solid lines are from HB, dotted from the standard UM and the
+   dashed from the revised formulation. The dash-dotted line for :math:`d` is a
+   potential modification, as described in the text.
 
    .. list-table::
       :align: center
@@ -1926,9 +1926,9 @@ removed since the entrainment flux is now carried via the explicit
 .. figure:: blank.svg
    :name: fig:new_ksc
 
-   Standard UM $\khtop$ (solid) and revised (dotted), both scaled by $k z_h
-   \vtopo$. An upside-down version of $\khsurf$ is also shown (dashed) for
-   comparison.
+   Standard UM :math:`\khtop` (solid) and revised (dotted), both scaled by
+   :math:`k z_h \vtopo`. An upside-down version of :math:`\khsurf` is also
+   shown (dashed) for comparison.
 
    .. list-table::
       :align: center
@@ -2070,13 +2070,13 @@ turbulence scheme.
 .. figure:: blank.svg
    :name: fig-blend
 
-   (a) Weighting for the 1D boundary-layer scheme as a function of $\Delta
-   x/z_{\rm turb}$, showing the function of Equation~\ref{eq-tanh} (blue
-   solid), the equation in `Boutle et al. (2014)`_ (black solid) and the TKE
-   partitioning of `Honnert et al. (2011)`_ (mean thick dashed, 5th/95th
-   percentiles thin dashed). (b) Schematic showing the calculation of $z_{\rm
-   turb}$ used in Eq.~\ref{eq-tanh} for a well-mixed layer (black dotted) and a
-   decoupled cloud layer (black solid).
+   (a) Weighting for the 1D boundary-layer scheme as a function of
+   :math:`\Delta x/z_{\mathrm{turb}}`, showing the function of
+   Equation~:eq:`eq-tanh` (blue solid), the equation in `Boutle et al. (2014)`_
+   (black solid) and the TKE partitioning of `Honnert et al. (2011)`_ (mean
+   thick dashed, 5th/95th percentiles thin dashed). (b) Schematic showing the
+   calculation of :math:`z_{\mathrm{turb}}` used in Eq.~:eq:`eq-tanh` for a
+   well-mixed layer (black dotted) and a decoupled cloud layer (black solid).
 
    .. list-table::
       :align: center
@@ -2321,13 +2321,13 @@ distance above, then
 :math:`\overline{w'\theta_{\ell}'}_{z_i}= - w_e \Delta \theta_{\ell}+ F|_h -
 F|_{z_i}`, so that
 
-.. math::
-
-   {\mathcal{H}}|_{z_i}  = - w_e \Delta \theta_{\ell}+ F_{\mathrm{net}}|_h
-
 .. math:: :label: discinv
 
-   \overline{w'q_t'}_{z_i} = - w_e \Delta q_t
+   \begin{aligned}
+   {\mathcal{H}}|_{z_i} & =& - w_e \Delta \theta_{\ell}+ F_{\mathrm{net}}|_h
+   \\
+   \overline{w'q_t'}_{z_i}& =& - w_e \Delta q_t
+   \end{aligned}
 
 where the total heat flux
 :math:`{\mathcal{H}} = \overline{w'\theta_{\ell}'}+ F_{\mathrm{net}}` and
@@ -2359,21 +2359,21 @@ are then estimated using linear interpolation of :math:`{\mathcal{H}}` and
 :math:`\overline{w'q_t'}` between :math:`z_{\mathrm{h}}^{\mathrm{Sc}}` and the
 base of the mixed layer:
 
-.. math::
+.. math:: :label: fluxinterp
 
-   \overline{w'\theta_{\ell}'}|_{ z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }  =
-   \overline{w'\theta_{\ell}'}|_{z_{\mathrm{b}}}
+   \begin{aligned}
+   \overline{w'\theta_{\ell}'}|_{ z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} } &
+   =& \overline{w'\theta_{\ell}'}|_{z_{\mathrm{b}}}
    - \frac{ z'_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }{z_{\mathrm{ml}}}
    \left( \tilde{w_e} \Delta \theta_{\ell}+
    \overline{w'\theta_{\ell}'}|_{z_{\mathrm{b}}} - F_{\mathrm{net}}|_{h} \right)
    - F_{\mathrm{net}}|_{ z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }
-
-.. math:: :label: fluxinterp
-
-   \overline{w'q_t'}|_{ z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }  =
+   \\
+   \overline{w'q_t'}|_{ z_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} } & =&
    \overline{w'q_t'}|_{z_{\mathrm{b}}}
    - \frac{ z'_{\mathrm{ \mathrm{NTDSC}}+\frac{1}{2}} }{z_{\mathrm{ml}}}
    \left( \tilde{w_e} \Delta q_t + \overline{w'q_t'}|_{z_{\mathrm{b}}} \right)
+   \end{aligned}
 
 where :math:`z' = z-z_{\mathrm{b}}`, and similarly for the SML entrainment
 fluxes (at :math:`z=z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}`). The
@@ -2384,10 +2384,10 @@ illustrated for a SML in :numref:`Fig. %s <fig:fluxinterp>`.
 .. figure:: blank.svg
    :name: fig:fluxinterp
 
-   Idealised profiles of (a) $\wqt$ (dash-dotted line) and (b) ${\cal H}$
-   (dotted line), $\wthl$ (dash-dotted) and $F$ (dashed). The continuous lines
-   are the turbulent fluxes on the model grid indicated by the dashed
-   horizontal lines.
+   Idealised profiles of (a) :math:`\wqt` (dash-dotted line) and (b)
+   :math:`{\mathcal{H}}` (dotted line), :math:`\wthl` (dash-dotted) and
+   :math:`F` (dashed). The continuous lines are the turbulent fluxes on the
+   model grid indicated by the dashed horizontal lines.
 
    .. list-table::
       :align: center
@@ -2490,7 +2490,7 @@ it to diffuse out this static instability).
    :name: zi_diag
 
    Schematic illustrating the assumptions behind the subgrid diagnosis of
-   $z_i$.
+   :math:`z_i`.
 
    .. list-table::
       :align: center
@@ -2648,10 +2648,10 @@ large-scale vertical velocity evaluated at the inversion,
 .. figure:: blank.svg
    :name: fig:rev_fluxes
 
-   Subgrid (lines) and model (symbols) profiles and fluxes of, top row, $q_t$
-   and, bottom row, $\thetal$: turbulent fluxes (dash-dotted, crosses),
-   subsidence fluxes (dotted, diamonds), radiative flux (dashed, triangles) and
-   total flux (solid, squares).
+   Subgrid (lines) and model (symbols) profiles and fluxes of, top row,
+   :math:`q_t` and, bottom row, :math:`\thetal`: turbulent fluxes (dash-dotted,
+   crosses), subsidence fluxes (dotted, diamonds), radiative flux (dashed,
+   triangles) and total flux (solid, squares).
 
    .. list-table::
       :align: center
@@ -2923,15 +2923,15 @@ see section :ref:`Diagnosis of a sub-grid inversion <sec_sginv>`, fluxes at the
 mixed layer top are
 specified through an eddy diffusivity which is given by
 
-.. math::
-
-   K_h|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}  = w_e \Delta_{\mathrm{
-   \mathrm{NTML}}+1} z
-
 .. math:: :label: khent
 
-   K_m|_{\mathrm{ \mathrm{NTML}}}           = Pr \, w_e \Delta_{\mathrm{
+   \begin{aligned}
+   K_h|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} & =& w_e \Delta_{\mathrm{
+   \mathrm{NTML}}+1} z
+   \\
+   K_m|_{\mathrm{ \mathrm{NTML}}}          & =& Pr \, w_e \Delta_{\mathrm{
    \mathrm{NTML}}+\frac{1}{2}} z
+   \end{aligned}
 
 noting the Charney-Philips grid implying stresses are staggered from
 scalar fluxes. The Prandtl number, :math:`Pr`, takes the same form as
@@ -4505,15 +4505,15 @@ by effective values, z\ :math:`_{0m(eff)}` and z\ :math:`_{0h(eff)}`.
 When form drag is included via effective roughness lengths equations
 :eq:`1.1.7`-:eq:`1.1.9` become:
 
-.. math::
-
-   \frac{ H_{0(eff)} }{ c_P  \rho _0 }=\frac{-k}{ \Phi _h (L ,  z_1 + 
-   z_{0m(eff)} ,  z_{0h(eff)} )}  v_{\ast (eff)}
-
 .. math:: :label: 2.1.1
 
-   \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m(eff)} - z_{0h(eff)} )}
+   \begin{aligned}
+   \frac{ H_{0(eff)} }{ c_P  \rho _0 }&=&\frac{-k}{ \Phi _h (L ,  z_1 + 
+   z_{0m(eff)} ,  z_{0h(eff)} )}  v_{\ast (eff)}
+   \\
+   && \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m(eff)} - z_{0h(eff)} )}
    \right)
+   \end{aligned}
 
 .. math:: :label: 2.1.2
 
@@ -6307,19 +6307,19 @@ estimate of the height of cloud-base is made using
 :math:`\gamma_{q_{\ell}}` and :math:`\gamma_{q_f}` and added to the
 grid-level based calculation:
 
-.. math::
+.. math:: :label: zc_calc
 
-   z_c = z_c + \frac{\Delta_{k_b+\frac{1}{2}} z}{2}
+   \begin{aligned}
+   z_c &=& z_c + \frac{\Delta_{k_b+\frac{1}{2}} z}{2}
    + \mathrm{min}\left[ \frac{ \Delta_{k_b+\frac{1}{2}}z
        +\Delta_{k_b-\frac{1}{2}}z }{2} C_F^l,
      \frac{ q_{\ell}}{ \gamma_{q_{\ell}} }  \right]/C_F
-
-.. math:: :label: zc_calc
-
-   \left. \hspace{2.4cm}
-   + \mathrm{min}\left[ \frac{ \Delta_{k_b+\frac{1}{2}}z
-       +\Delta_{k_b-\frac{1}{2}}z }{2} C_F^f,
-     \frac{ q_f }{ \gamma_{q_f} }  \right]/C_F \right.
+   \\
+   & & \left. \hspace{2.4cm}
+     + \mathrm{min}\left[ \frac{ \Delta_{k_b+\frac{1}{2}}z
+         +\Delta_{k_b-\frac{1}{2}}z }{2} C_F^f,
+       \frac{ q_f }{ \gamma_{q_f} }  \right]/C_F \right.
+   \end{aligned}
 
 When :math:`\gamma_{q_f}` is set to zero (currently as standard) the
 last term in :eq:`zc_calc` is given by
@@ -6520,9 +6520,10 @@ therefore zero entrainment and turbulent mixing).
 .. figure:: blank.svg
    :name: fig:dradts
 
-   Time series from LES of $\Delta_\radf$ (solid), $\Delta_\radf^{LW} $
-   (dotted), $-\Delta_\radf^{SW} $ (dashed) and the 8A (dash-dot) and 9B (dash-
-   dot-dot-dot) parametrizations of $\Delta_\radf$.
+   Time series from LES of :math:`\Delta_\radf` (solid),
+   :math:`\Delta_\radf^{LW}` (dotted), :math:`-\Delta_\radf^{SW}` (dashed) and
+   the 8A (dash-dot) and 9B (dash-dot-dot-dot) parametrizations of
+   :math:`\Delta_\radf`.
 
    .. list-table::
       :align: center
