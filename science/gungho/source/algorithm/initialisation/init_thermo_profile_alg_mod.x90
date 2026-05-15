@@ -35,12 +35,16 @@ subroutine init_thermo_profile_alg( theta, mr_v, exner )
 use initial_temperature_config_mod, only: temp_prof_size    => profile_size,     &
                                           temp_prof_data    => profile_data,     &
                                           temp_prof_heights => profile_heights,  &
+                                          temp_variable => profile_variable,     &
+                                          profile_variable_potential
                                           perturb,                               &
                                           perturb_random
 
 use initial_vapour_config_mod,      only: vapour_prof_size    => profile_size,     &
                                           vapour_prof_data    => profile_data,     &
-                                          vapour_prof_heights => profile_heights
+                                          vapour_prof_heights => profile_heights,  &
+                                          vapour_variable => profile_variable,     &
+                                          profile_variable_mr
 
 !> @todo Data passed to the kernel via module 'use' statements.
 !>       When PSyclone supports passing of arrays into kernels (issue #1312),
@@ -120,10 +124,13 @@ else
   call invoke( setval_X(mr_v, vapour_specified ) )
 end if
 
-call invoke( vert_balance_kernel_type( theta, mr_v, exner,               &
-                                       temp_specified, vapour_specified, &
-                                       height_wth, height_w3, chi,       &
-                                       panel_id ) )
+if ( temp_variable   /= profile_variable_potential .or. &
+     vapour_variable /= profile_variable_mr ) then
+  call invoke( vert_balance_kernel_type( theta, mr_v, exner,               &
+                                         temp_specified, vapour_specified, &
+                                         height_wth, height_w3, chi,       &
+                                         panel_id ) )
+end if
 
 ! Add a perturbation to potential temperature
 select case(perturb)
