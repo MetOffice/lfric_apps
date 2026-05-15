@@ -1046,6 +1046,7 @@ subroutine create_model_data( modeldb,      &
         field_collection_ptr => modeldb%fields%get_field_collection("iau_pert_fields")
         call read_state( field_collection_ptr )
       end if
+    end if
 #endif
 
     if ( iau_surf ) then
