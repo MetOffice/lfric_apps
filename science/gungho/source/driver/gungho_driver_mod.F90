@@ -81,7 +81,8 @@ module gungho_driver_mod
   use iau_main_alg_mod,            only : iau_main_alg
   use iau_config_mod,              only : iau_mode,               &
                                           iau_mode_instantaneous, &
-                                          iau_mode_time_mixed
+                                          iau_mode_time_mixed,    &
+                                          iau_outerloop
   use stochastic_physics_config_mod, &
                                    only : use_random_parameters
   use stph_rp_main_alg_mod,        only : stph_rp_main_alg
@@ -134,7 +135,6 @@ contains
     integer(i_def) :: random_seed_size
     real(r_def), allocatable :: real_array(:)
     integer(tik)   :: id
-    logical(l_def) :: iau_outerloop
 
 #ifdef UM_PHYSICS
     type( field_collection_type ), pointer :: field_collection_ptr
@@ -219,27 +219,23 @@ contains
 #ifdef UM_PHYSICS
     ! If IAU is active and increments need to be added instantaneously, to the initial
     ! state, then do this now. The IAU should not be activated at this stage in
-    ! the case of a checkpoint-restart.
+    ! the case of a checkpoint-restart or as part of a DA outer loop.
     if ( ( iau ) .and.                               &
        ( ( iau_mode == iau_mode_instantaneous ) .OR. &
          ( iau_mode == iau_mode_time_mixed ) ) ) then
-      iau_outerloop = .true.
-      if (( .not. checkpoint_read ) .and. ( .not. iau_outerloop )) then
+      if ( .not. ( checkpoint_read .or. iau_outerloop )) then
         call update_iau_alg( modeldb,                     &
                              twod_mesh,                   &
                              iau_ainc_active = .true.,    &
                              iau_addinf_active = .false., &
                              iau_bcorr_active = .false.,  &
                              iau_pertinc_active = .false. )
-      else
-        call log_event('skipping IAU update for outer loop', LOG_LEVEL_INFO)
       end if
 
-      ! IAU increment fields can now be cleared from the depository
+      ! IAU increment fields can now be cleared from the depository unless this
+      ! is a DA outer loop application
       if ( .not. iau_outerloop ) then
         call remove_field_collection( modeldb, "iau_fields" )
-      else
-        call log_event('keeping IAU field_collection for outer loop', LOG_LEVEL_INFO)
       end if
 
     end if
