@@ -190,8 +190,7 @@ contains
 
     use subgrid_horizontal_support_mod, only: fourth_order_horizontal_edge,    &
                                               nirvana_horizontal_edge
-    use subgrid_common_support_mod,     only: monotonic_edge,                  &
-                                              subgrid_quadratic_recon
+    use subgrid_common_support_mod,     only: subgrid_quadratic_recon
 
     implicit none
 
