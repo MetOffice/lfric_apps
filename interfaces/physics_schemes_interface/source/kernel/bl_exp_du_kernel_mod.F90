@@ -181,11 +181,11 @@ contains
     real(kind=r_bl), dimension(0:bl_levels-1) :: tau_grad, tau_non_grad, u_sp, &
          rdz_sp, rhokm_sp, ngstress_sp, tau_sp, fd_tau_sp
 
-    total_faces = MIN(                                                         &
-      nfaces,                                                                  &
-      ABS(face_selector_ew(map_w3_2d(1)))                                      &
-      + ABS(face_selector_ns(map_w3_2d(1)))                                    &
-    )
+    if (nfaces == 1) then
+      total_faces = 1
+    else
+      total_faces = ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+    end if
 
     ! loop over all faces of the cell
     do j = 1, total_faces
