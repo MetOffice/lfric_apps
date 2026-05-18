@@ -11,7 +11,8 @@
 !!          without considering the incoming fluxes, to ensure that a field f
 !!          is updated via:
 !!          f(n+1) = f(n) - div(a*F_out) >= 0
-!!          This only gives sensible results for Courant numbers less than 1.
+!!          This only gives sensible results for Courant numbers less than 1,
+!!          which should be the case when fluxes are tendencies from the solver.
 !!          The kernel is designed for the lowest-order finite element spaces.
 
 module flux_limiter_kernel_mod

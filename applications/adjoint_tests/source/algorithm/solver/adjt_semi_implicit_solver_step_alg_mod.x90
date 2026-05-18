@@ -225,7 +225,7 @@ contains
   !> @param[in,out] mr_in                    Input mr
   !> @param[in,out] adj_semi_implicit_solver Adjoint semi-implicit solver
   !> @param[in]     first_iteration          Switch to control which test to do
-  subroutine adjt_semi_implicit_solver_step_alg_common( state, rhs, moist_dyn_gas_law, mr,  &
+  subroutine adjt_semi_implicit_solver_step_alg_common( state, rhs, moist_dyn_gas_law, mr,             &
                                                         state_in, rhs_in, moist_dyn_gas_law_in, mr_in, &
                                                         adj_semi_implicit_solver, first_iteration )
 
