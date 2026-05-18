@@ -167,7 +167,10 @@
   <field id="chemistry__tio" name="tio" long_name="mass_fraction_of_titanium_oxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
   <field id="chemistry__vo" name="vo" long_name="mass_fraction_of_vanadium_oxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />  
   <field id="chemistry__photol_rate_jo1d" name="photol_rate_jo1d" long_name="photolysis_rate_of_ozone_to_1d_oxygen_atom" unit="s-1" grid_ref="full_level_face_grid" />
-  <field id="chemistry__jo1d" name="jO1D" long_name="photolysis_rate_of_ozone_to_1d_oxygen_atom" unit="s-1" grid_ref="full_level_face_grid" />
+  <field id="chemistry__jo1d" name="jO1D" long_name="photolysis_rate_of_ozone_to_1d_oxygen_atom" unit="s-1" grid_ref="full_level_face_grid" >
+    <variable id="um_stash_section" type="int">50</variable>
+    <variable id="um_stash_item"    type="int">228</variable>
+  </field>
   <field id="chemistry__photol_rate_jno2" name="photol_rate_jno2" long_name="photolysis_rate_of_nitrogen_dioxide" unit="s-1" grid_ref="full_level_face_grid" />
   <!-- aerosol diagnostics -->
   <field id="aerosol__murk" name="murk" long_name="simple_single_species_aerosol_murk" unit="microg kg-1" grid_ref="full_level_face_grid" />
