@@ -13,7 +13,7 @@ module smagorinsky_alg_mod
   use extrusion_mod,             only: SHIFTED
   use field_mod,                 only: field_type
   use field_collection_mod,      only: field_collection_type
-  use fs_continuity_mod,         only: W1, W2, W2H, W3
+  use fs_continuity_mod,         only: W1, W2, W2H, W3, Wtheta
   use function_space_mod,        only: function_space_type
   use function_space_collection_mod,                                           &
                                  only: function_space_collection
@@ -31,7 +31,7 @@ module smagorinsky_alg_mod
                                  only: get_height_fv, get_panel_id,            &
                                        get_delta_at_wtheta, get_dx_at_w2,      &
                                        get_dA_at_w2, get_detj_at_w3_fv,        &
-                                       get_dz_at_wtheta,                       &
+                                       get_dz_at_wtheta, get_detj_at_w2_fv,    &
                                        get_face_selector_ew,                   &
                                        get_face_selector_ns
   use physics_constants_mod,     only: get_max_diff
@@ -58,6 +58,12 @@ module smagorinsky_alg_mod
                                  only: tracer_smagorinsky_diff_kernel_type
   use sci_w3_to_w2_average_kernel_mod,                                         &
                                  only: w3_to_w2_average_kernel_type
+  use interp_wtheta_to_w3_kernel_mod,                                          &
+                                 only: interp_wtheta_to_w3_kernel_type
+  use diffusion_momentum_flux_kernel_mod,                                      &
+                                 only: diffusion_momentum_flux_kernel_type
+  use divergence_momentum_flux_kernel_mod,                                     &
+                                 only: divergence_momentum_flux_kernel_type
 
   ! Config
   use cloud_config_mod,          only: pc2_turb_horiz
@@ -111,7 +117,8 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     type(field_type),            intent(inout) :: mr (nummr)
     type(field_collection_type), intent(in)    :: derived_fields
     type(field_collection_type), intent(in)    :: cloud_fields
-    type(field_type),            intent(in)    :: rho, exner, theta, u
+    type(field_type),            intent(in)    :: exner, theta, u
+    type(field_type),            intent(in), target :: rho
     real(kind=r_def),            intent(in)    :: dt
     class(model_clock_type),     intent(in)    :: model_clock
 
@@ -123,18 +130,16 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     type(field_type), pointer :: shear
     type(field_type), pointer :: visc_h
     type(field_type), pointer :: visc_m
-    type(field_type), pointer :: height_w2
-    type(field_type), pointer :: height_w1
     type(field_type), pointer :: dz_wth
     type(field_type), pointer :: rho_in_wth
-    type(field_type)          :: rho_in_w2h
+    type(field_type), pointer :: rho_in_w3
+    type(field_type)          :: rho_in_sh_w2h
     type(field_type), target  :: delta_geo
     type(field_type), pointer :: delta
-    type(field_type), pointer :: dx_at_w2
-    type(field_type), pointer :: panel_id
     type(field_type), pointer :: rmult
-    type(field_type), target  :: visc_w2h
+    type(field_type), target  :: visc_h_sh_w2h
     type(field_type), pointer :: visc_h_ptr
+    type(field_type)          :: visc_m_sh_w2h
     type(field_type), pointer :: max_diff
     type(mesh_type),  pointer :: mesh
     type(mesh_type),  pointer :: shifted_mesh
@@ -150,11 +155,11 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
 
 
     type(function_space_type), pointer :: w2h_sh_fs
-    type(integer_field_type),  pointer :: face_selector_ew, face_selector_ns
-    type(field_type), target :: rho_one
+
+    type(field_type), target :: rho_one_wth
+    type(field_type), target :: rho_one_w3
 
     ! Stencil depth for the Smagorinsky diffusion kernel
-    integer(kind=i_def), parameter :: smag_stencil_depth = 1
     real(kind=r_def),    parameter :: one_third = 1.0_r_def / 3.0_r_def
 
     logical(kind=l_def) :: use_moisture
@@ -172,17 +177,6 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     call dtheta%initialise( theta%get_function_space() )
     call derived_fields%get_field('visc_h', visc_h)
     call derived_fields%get_field('visc_m', visc_m)
-
-    height_w1 => get_height_fv(config, mesh, W1)
-    height_w2 => get_height_fv(config, mesh, W2)
-    dx_at_w2  => get_dx_at_w2(mesh)
-    panel_id  => get_panel_id(mesh)
-
-    face_selector_ew => get_face_selector_ew(mesh)
-    face_selector_ns => get_face_selector_ns(mesh)
-
-
-    call invoke( setval_c(du, 0.0_r_def) )
 
     ! ======================================================================== !
     ! Get mixing coefficients
@@ -249,32 +243,39 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
       w2h_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2H)
       rmult => get_rmultiplicity_fv(W2H, shifted_mesh_id)
 
-      call visc_w2h%initialise(w2h_sh_fs)
-      call rho_in_w2h%initialise(w2h_sh_fs)
+      call visc_h_sh_w2h%initialise(w2h_sh_fs)
+      call visc_m_sh_w2h%initialise(w2h_sh_fs)
+      call rho_in_sh_w2h%initialise(w2h_sh_fs)
 
       ! Get density at W2H points
       if (density_weighted) then
         call derived_fields%get_field('rho_in_wth', rho_in_wth)
+        rho_in_w3 => rho
         call invoke(                                                           &
-            setval_c(rho_in_w2h, 0.0_r_def),                                   &
-            w3_to_w2_average_kernel_type(rho_in_w2h, rho_in_wth, rmult)        &
+            setval_c(rho_in_sh_w2h, 0.0_r_def),                                &
+            w3_to_w2_average_kernel_type(rho_in_sh_w2h, rho_in_wth, rmult)     &
         )
       else
         ! Set rho to 1 everywhere if not using density weighting
-        call rho_one%initialise(theta%get_function_space())
+        call rho_one_wth%initialise(theta%get_function_space())
+        call rho_one_w3%initialise(rho%get_function_space())
         call invoke(                                                           &
-            setval_c(rho_one, 1.0_r_def),                                      &
-            setval_c(rho_in_w2h, 1.0_r_def)                                    &
+            setval_c(rho_one_wth, 1.0_r_def),                                  &
+            setval_c(rho_one_w3, 1.0_r_def),                                   &
+            setval_c(rho_in_sh_w2h, 1.0_r_def)                                 &
         )
-        rho_in_wth => rho_one
+        rho_in_wth => rho_one_wth
+        rho_in_w3 => rho_one_w3
       end if
 
       ! Obtain viscosity at W2H points
       call invoke(                                                             &
-          setval_c(visc_w2h, 0.0_r_def),                                       &
-          w3_to_w2_average_kernel_type(visc_w2h, visc_h, rmult)                &
+          setval_c(visc_h_sh_w2h, 0.0_r_def),                                  &
+          setval_c(visc_m_sh_w2h, 0.0_r_def),                                  &
+          w3_to_w2_average_kernel_type(visc_h_sh_w2h, visc_h, rmult),          &
+          w3_to_w2_average_kernel_type(visc_m_sh_w2h, visc_m, rmult)           &
       )
-      visc_h_ptr => visc_w2h
+      visc_h_ptr => visc_h_sh_w2h
     else
       ! Directly use visc_h
       visc_h_ptr => visc_h
@@ -285,28 +286,23 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     ! ======================================================================== !
     ! Potential temperature:
     call smagorinsky_tracer_alg(                                               &
-        dtheta, theta, visc_h_ptr, rho_in_w2h, rho_in_wth, dt                  &
+        dtheta, theta, visc_h_ptr, rho_in_sh_w2h, rho_in_wth, dt               &
     )
 
     if (use_moisture) then
       ! Water vapour and cloud liquid:
       call smagorinsky_tracer_alg(                                             &
-          dmr_v, mr(imr_v), visc_h_ptr, rho_in_w2h, rho_in_wth, dt             &
+          dmr_v, mr(imr_v), visc_h_ptr, rho_in_sh_w2h, rho_in_wth, dt          &
       )
       call smagorinsky_tracer_alg(                                             &
-          dmr_cl, mr(imr_cl), visc_h_ptr, rho_in_w2h, rho_in_wth, dt           &
+          dmr_cl, mr(imr_cl), visc_h_ptr, rho_in_sh_w2h, rho_in_wth, dt        &
       )
     end if
 
     ! Momentum:
-    call invoke(                                                               &
-        momentum_smagorinsky_kernel_type(                                      &
-            du, u, smag_stencil_depth, dx_at_w2, smag_stencil_depth,           &
-            height_w2, height_w1, visc_m, smag_stencil_depth,                  &
-            panel_id, smag_stencil_depth, face_selector_ew, face_selector_ns   &
-        ),                                                                     &
-        inc_a_times_X(dt, du)                                                  &
-    )
+    call smagorinsky_momentum_alg(config,                                      &
+                                  du, u, visc_m, visc_m_sh_w2h, rho_in_wth,    &
+                                  rho_in_w3, rho_in_sh_w2h)
 
     ! ======================================================================== !
     ! Diagnostics
@@ -488,5 +484,169 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     call invoke( inc_a_times_X(dt, increment) )
 
   end subroutine smagorinsky_tracer_alg
+
+  !> @details Performs Smagorinsky diffusion on a W2 momentum field
+  !> @param[in]     config         Application namelist configuration object
+  !> @param[in,out] du            The diffusion increment for the wind
+  !> @param[in]     u             Input wind field
+  !> @param[in]     visc_m        Viscosity in wtheta points
+  !> @param[in]     visc_m_sh_w2h Viscosity in shifted W2 points
+  !> @param[in]     rho_in_wth    Density in shifted Wtheta points
+  !> @param[in]     rho_in_w3     Density in shifted W3 points
+  !> @param[in]     rho_in_sh_w2h Density in shifted W2 points
+  subroutine smagorinsky_momentum_alg(                                         &
+      config, du, u, visc_m, visc_m_sh_w2h,                                    &
+      rho_in_wth, rho_in_w3, rho_in_sh_w2h                                     &
+  )
+
+    implicit none
+
+    ! Arguments
+    type(config_type), intent(in) :: config
+    type(field_type), intent(inout) :: du
+    type(field_type), intent(in)    :: u
+    type(field_type), intent(in)    :: visc_m
+    type(field_type), intent(in)    :: visc_m_sh_w2h
+    type(field_type), intent(in)    :: rho_in_wth
+    type(field_type), intent(in)    :: rho_in_w3
+    type(field_type), intent(in)    :: rho_in_sh_w2h
+
+    ! Internal variables
+    type(field_type), pointer :: height_w3
+    type(field_type), pointer :: height_wth
+    type(field_type), pointer :: height_w2
+    type(field_type), pointer :: height_w1
+    type(field_type), pointer :: dx_at_w2
+    type(field_type), pointer :: dA_at_w2
+    type(field_type), pointer :: detj_at_w2
+    type(field_type), pointer :: dx_at_sh_w2
+    type(field_type), pointer :: dA_at_sh_w2
+    type(field_type), pointer :: detj_at_sh_w2
+    type(field_type), pointer :: rmult
+    type(field_type), pointer :: panel_id
+    type(mesh_type),  pointer :: mesh, shifted_mesh
+    type(function_space_type), pointer :: w2h_fs, w3_fs
+    type(field_type) :: u_physics
+    type(field_type) :: visc_m_w3
+    type(field_type) :: visc_m_w2h
+    type(field_type) :: rho_in_w2h
+    type(field_type) :: uflux_w3
+    type(field_type) :: vflux_w3
+    type(field_type) :: uflux_w1
+    type(field_type) :: vflux_w1
+    type(field_type) :: wflux_sh_w2h
+    type(integer_field_type),  pointer :: face_selector_ew, face_selector_ns
+
+    ! Stencil depth for the Smagorinsky diffusion kernel
+    integer(kind=i_def), parameter :: smag_stencil_depth = 1
+
+    mesh => u%get_mesh()
+    shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+
+    panel_id => get_panel_id( mesh )
+    dx_at_w2 => get_dx_at_w2( mesh )
+    height_w1 => get_height_fv(config, mesh, W1)
+
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
+
+    if (conservative_diffusion) then
+      height_wth => get_height_fv(config, mesh, Wtheta)
+      height_w3 => get_height_fv(config, mesh, W3)
+      dA_at_w2 => get_dA_at_w2( mesh )
+      detj_at_w2 => get_detj_at_w2_fv( mesh )
+      rmult => get_rmultiplicity_fv(W2H, mesh%get_id())
+
+      dx_at_sh_w2 => get_dx_at_w2( shifted_mesh )
+      dA_at_sh_w2 => get_dA_at_w2( shifted_mesh )
+      detj_at_sh_w2 => get_detj_at_w3_fv( shifted_mesh )
+
+      call u % copy_field_properties( u_physics )
+      call height_w3 % copy_field_properties( visc_m_w3 )
+      call height_w1 % copy_field_properties( uflux_w1 )
+      call height_w1 % copy_field_properties( vflux_w1 )
+      call visc_m_sh_w2h % copy_field_properties( wflux_sh_w2h )
+
+      w2h_fs => function_space_collection%get_fs( mesh, 0, 0, W2H )
+      w3_fs  => function_space_collection%get_fs( mesh, 0, 0, W3  )
+      call visc_m_w2h%initialise( &
+        vector_space=w2h_fs, halo_depth=smag_stencil_depth &
+      )
+      call rho_in_w2h%initialise( &
+        vector_space=w2h_fs, halo_depth=smag_stencil_depth &
+      )
+      call uflux_w3 % initialise( &
+        vector_space=w3_fs, halo_depth=smag_stencil_depth &
+      )
+      call vflux_w3 % initialise( &
+        vector_space=w3_fs, halo_depth=smag_stencil_depth &
+      )
+
+      ! This invoke must be separated from the latter one.
+      ! because it makes wrong meta data of W2 space(ndf_w2, undf_w2, map_w2)
+      ! , passing W2H data as W2 data to a kernel.
+      call invoke(                                                             &
+          setval_C(visc_m_w2h, 0.0_r_def),                                     &
+          setval_C(rho_in_w2h, 0.0_r_def),                                     &
+          interp_wtheta_to_w3_kernel_type(                                     &
+            visc_m_w3, visc_m, height_w3, height_wth                           &
+          ),                                                                   &
+          w3_to_w2_average_kernel_type(                                        &
+            visc_m_w2h, visc_m_w3, rmult                                       &
+          ),                                                                   &
+          w3_to_w2_average_kernel_type(                                        &
+            rho_in_w2h, rho_in_w3, rmult                                       &
+          )                                                                    &
+      )
+
+      ! This invoke must be separated from the former one.
+      call invoke(                                                             &
+          X_divideby_Y(u_physics, u, dA_at_w2),                                &
+          setval_C(uflux_w3, 0.0_r_def),                                       &
+          setval_C(vflux_w3, 0.0_r_def),                                       &
+          setval_C(uflux_w1, 0.0_r_def),                                       &
+          setval_C(vflux_w1, 0.0_r_def),                                       &
+          setval_C(wflux_sh_w2h, 0.0_r_def),                                   &
+          setval_C(du, 0.0_r_def),                                             &
+          diffusion_momentum_flux_kernel_type(                                 &
+            uflux_w3, vflux_w3, uflux_w1, vflux_w1, wflux_sh_w2h,              &
+            u_physics, smag_stencil_depth,                                     &
+            dx_at_w2, smag_stencil_depth,                                      &
+            dA_at_w2, smag_stencil_depth,                                      &
+            dx_at_sh_w2,                                                       &
+            dA_at_sh_w2,                                                       &
+            visc_m_w2h, smag_stencil_depth,                                    &
+            visc_m_sh_w2h, visc_m_w3, rho_in_w3, rho_in_sh_w2h,                &
+            rho_in_w2h, smag_stencil_depth,                                    &
+            panel_id, smag_stencil_depth,                                      &
+            face_selector_ew, face_selector_ns                                 &
+          ),                                                                   &
+          divergence_momentum_flux_kernel_type(                                &
+            du,                                                                &
+            uflux_w3, smag_stencil_depth,                                      &
+            vflux_w3, smag_stencil_depth,                                      &
+            uflux_w1, vflux_w1, wflux_sh_w2h,                                  &
+            detj_at_w2,                                                        &
+            rho_in_wth, rho_in_w2h,                                            &
+            panel_id, smag_stencil_depth,                                      &
+            face_selector_ew, face_selector_ns                                 &
+          ),                                                                   &
+          inc_X_times_Y(du, dA_at_w2)                                          &
+      )
+    else
+      ! Non-conservative Smagorinsky diffusion, using Laplacian directly
+      height_w2 => get_height_fv(config, mesh, W2)
+
+      call invoke(                                                             &
+          setval_C(du, 0.0_r_def),                                             &
+          momentum_smagorinsky_kernel_type(                                    &
+              du, u, smag_stencil_depth, dx_at_w2, smag_stencil_depth,         &
+              height_w2, height_w1, visc_m, smag_stencil_depth,                &
+              panel_id, smag_stencil_depth, face_selector_ew, face_selector_ns &
+          )                                                                    &
+      )
+    end if
+
+  end subroutine smagorinsky_momentum_alg
 
 end module smagorinsky_alg_mod
