@@ -159,3 +159,52 @@ class vn31_t443(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t464(MacroUpgrade):
+    """Upgrade macro for ticket #464 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t443"
+    AFTER_TAG = "vn3.1_t464"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        self.add_setting(
+            config, ["namelist:cloud", "pc2_turb_horiz"], ".false."
+        )
+
+        return config, self.reports
+
+
+class vn31_t382(MacroUpgrade):
+    """Upgrade macro for ticket #382 by Benjamin Went."""
+
+    BEFORE_TAG = "vn3.1_t464"
+    AFTER_TAG = "vn3.1_t382"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric_atm
+        """Set segmentation size for the Boundary Layer"""
+        self.change_setting_value(
+            config, ["namelist:physics", "bl_segment"], "16"
+        )
+
+        return config, self.reports
+
+
+class vn31_t243(MacroUpgrade):
+    """Upgrade macro for ticket #243 by Mike Whitall."""
+
+    BEFORE_TAG = "vn3.1_t382"
+    AFTER_TAG = "vn3.1_t243"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-microphysics
+        nml = "namelist:microphysics"
+        self.add_setting(config, [nml, "l_improve_precfrac_checks"], ".false.")
+
+        # Commands From: rose-meta/um-cloud
+        nml = "namelist:cloud"
+        self.add_setting(config, [nml, "l_ensure_max_in_cloud_pc2"], ".false.")
+
+        return config, self.reports
