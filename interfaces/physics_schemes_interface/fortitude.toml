@@ -8,6 +8,24 @@
 
 file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
 
-select = ["PORT011"]
+select = ["E000", "C001", "C031", "C032", "C043",
+"C051", "C071", "C072", "C091", "C082", "C092",
+"C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
+"PORT011", "PORT012", "PORT021", "FORT001",
+"FORT002", "FORT003", "FORT004", "FORT005"]
 
 output-format = "grouped"                #group results by file
+
+[check.per-file-ignores]
+"set_levels_list.F90" = ["C071"]
+"set_pseudo_list.F90" = ["C071"]
+"photol_kernel_mod.F90" = ["C072"]
+"fastjx_inphot_mod.f90" = ["C072"]
+"umprintmgr.f90" = ["C072", "C132"]
+"ukca_photol_param_mod.f90" = ["C072", "C132"]
+"psykal_lite_phys_mod.F90" = ["C132", "MOD021"]
+"um_sizes_init_mod.f90" = ["MOD021"]
+
+# Leaving out for now (these rules are used in the universal config):
+# S101, C081, C021, C022, C061, S071, E001, C121
+
