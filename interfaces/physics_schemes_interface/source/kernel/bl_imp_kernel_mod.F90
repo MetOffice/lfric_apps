@@ -29,17 +29,16 @@ module bl_imp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_imp_kernel_type
     private
-    type(arg_type) :: meta_args(30) = (/                                          &
+    type(arg_type) :: meta_args(29) = (/                                          &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! loop
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! exner_in_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! m_v_n
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! m_cl_n
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! m_cf_n
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_star
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_latest
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! height_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! height_wth
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! dt_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! m_v
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! m_cl
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! m_cf
@@ -82,10 +81,9 @@ contains
   !> @param[in]     m_v_n                Vapour mixing ratio at time level n
   !> @param[in]     m_cl_n               Cloud liq mixing ratio at time level n
   !> @param[in]     m_cf_n               Cloud fro mixing ratio at time level n
-  !> @param[in]     theta_star           Potential temperature after advection
+  !> @param[in]     theta_latest         Current estimate of potential temp
   !> @param[in]     height_w3            Height of density space above surface
   !> @param[in]     height_wth           Height of theta space above surface
-  !> @param[in]     dt_conv              Convection temperature increment
   !> @param[in]     m_v                  Vapour mixing ration after advection
   !> @param[in]     m_cl                 Cloud liq mixing ratio after advection
   !> @param[in]     m_cf                 Cloud fro mixing ratio after advection
@@ -125,10 +123,9 @@ contains
                          m_v_n,                              &
                          m_cl_n,                             &
                          m_cf_n,                             &
-                         theta_star,                         &
+                         theta_latest,                       &
                          height_w3,                          &
                          height_wth,                         &
-                         dt_conv,                            &
                          m_v,                                &
                          m_cl,                               &
                          m_cf,                               &
@@ -193,9 +190,8 @@ contains
                                                            exner_in_wth,       &
                                                            m_v_n, m_cl_n,      &
                                                            m_cf_n,             &
-                                                           theta_star,         &
+                                                           theta_latest,       &
                                                            height_wth,         &
-                                                           dt_conv,            &
                                                            dtrdz_tq_bl,        &
                                                            m_v, m_cl, m_cf
     integer(kind=i_def), dimension(undf_2d), intent(in) :: blend_height_tq
@@ -310,9 +306,8 @@ contains
     !-----------------------------------------------------------------------
     do i = 1, seg_len
       do k = 1, nlayers
-        t_latest(i,1,k) = theta_star(map_wth(1,i) + k) * &
-                          exner_in_wth(map_wth(1,i) + k) + &
-                          dt_conv(map_wth(1,i) + k)
+        t_latest(i,1,k) = theta_latest(map_wth(1,i) + k) * &
+                          exner_in_wth(map_wth(1,i) + k)
         q_latest(i,1,k)   = m_v(map_wth(1,i) + k)
         qcl_latest(i,1,k) = m_cl(map_wth(1,i) + k)
       end do

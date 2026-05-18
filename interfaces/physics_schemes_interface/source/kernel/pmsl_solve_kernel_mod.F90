@@ -10,7 +10,7 @@ module pmsl_solve_kernel_mod
   use argument_mod,         only: arg_type,                  &
                                   GH_FIELD, GH_SCALAR,       &
                                   GH_READ, GH_WRITE,         &
-                                  GH_REAL, CELL_COLUMN,      &
+                                  GH_REAL, OWNED_AND_HALO_CELL_COLUMN,      &
                                   ANY_DISCONTINUOUS_SPACE_1, &
                                   STENCIL, CROSS2D
   use fs_continuity_mod,    only: WTHETA, W2
@@ -31,7 +31,7 @@ module pmsl_solve_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    & ! height_wth
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
          /) ! exner_out
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = OWNED_AND_HALO_CELL_COLUMN
   contains
     procedure, nopass :: pmsl_solve_code
   end type pmsl_solve_kernel_type
@@ -107,13 +107,13 @@ contains
     ! Calculate which cell in the x branch of the stencil to use
     ! This sets the point to use to be the stencil point (2) if it exists,
     ! or the centre point (1) if it doesn't (i.e. we are at a domain edge)
-    xp1 = smap_2d_size(3)
-    xm1 = smap_2d_size(1)
+    xp1 = min(2,smap_2d_size(3))
+    xm1 = min(2,smap_2d_size(1))
     ! Calculate which cell in the y branch of the stencil to use
     ! This sets the point to use to be the stencil point (2) if it exists,
     ! or the centre point (1) if it doesn't (i.e. we are at a domain edge)
-    yp1 = smap_2d_size(4)
-    ym1 = smap_2d_size(2)
+    yp1 = min(2,smap_2d_size(4))
+    ym1 = min(2,smap_2d_size(2))
 
     ! Only calculated above a certain height or if stencil point exists
     if (height_wth(map_wth(1)) > pmsl_smooth_height .and. &
