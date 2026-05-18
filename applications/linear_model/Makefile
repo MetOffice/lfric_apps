@@ -1,5 +1,5 @@
 ##############################################################################
-# (c) Crown copyright 2017-2024 Met Office. All rights reserved.
+# (c) Crown copyright 2017-2026 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
@@ -11,6 +11,9 @@ export PROFILE ?= fast-debug
 # Select option for PSyclone transformation. Select "none" for no transformation.
 export PSYCLONE_TRANSFORMATION ?= minimum
 
+# This makefile is almost identical to the lfric_atm makefile, but with
+# additions for the linear code.
+
 # This top level makefile is very order sensitive. Source code extraction and
 # generation must happen in a certain order. Due to this we turn off
 # multithreading for this file only. Any called recursively (i.e. with $(MAKE))
@@ -20,6 +23,15 @@ export PSYCLONE_TRANSFORMATION ?= minimum
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+# The lfric_atm application project directory is used for the
+# optimisation options.
+# This is because it must be possible for the linear_model code to be in
+# the same exectuable as the nonlinear lfric_atm code, as is done in jedi.
+# Therefore the linear_model uses exactly the same optimisation
+# options as lfric_atm. Pointing to the lfric_atm options
+# means that the linear_model is always aligned with lfric_atm, even
+# if the lfric_atm options are updated.
+export LFRIC_ATM_DIR := $(APPS_ROOT_DIR)/applications/lfric_atm
 
 export EXTERNAL_DYNAMIC_LIBRARIES = shum
 
@@ -32,6 +44,10 @@ export IGNORE_DEPENDENCIES = c_shum_byteswap \
                              f_shum_is_denormal_mod
 
 
+# The physics components are extracted and built, even though they are not
+# actually used by the linear_model app. This is to ensure that the code runs
+# with the #ifdef UM_PHYSICS set to true, hence enabling both the linear
+# and nonlinear lfric_atm code to be run in the same executable.
 # Note - socrates_interface must come before jules_interface as there are dependencies on each other.
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
@@ -46,9 +62,9 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
 META_VN             ?= HEAD
 export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
 
-# Check PSyclone transformation option is valid
+# Check PSyclone transformation option (from lfric_atm) is valid
 ifneq ("$(PSYCLONE_TRANSFORMATION)","none")
-  export OPTIMISATION_PATH ?= $(wildcard optimisation/$(PSYCLONE_TRANSFORMATION))
+  export OPTIMISATION_PATH ?= $(wildcard $(LFRIC_ATM_DIR)/optimisation/$(PSYCLONE_TRANSFORMATION))
   ifeq ("$(wildcard $(OPTIMISATION_PATH)/psykal/global.py)","")
     $(error PSyclone transformation dir "$(PSYCLONE_TRANSFORMATION)" does not have a global.py script)
   endif
@@ -168,19 +184,13 @@ build: ALWAYS
               PSYCLONE_PHYSICS_FILES="$(PSYCLONE_PHYSICS_FILES)" \
 	          PSYCLONE_DIRECTORIES="$(PSYCLONE_DIRECTORIES)" \
 	          PSYCLONE_PHYSICS_EXCEPTION="$(PSYCLONE_PHYSICS_EXCEPTION)"
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Preprocess and PSyclone Transmute 2)
-	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface/build/psyclone_transmute_pass.mk \
 	          SOURCE_DIR=$(WORKING_DIR) \
-	          OPTIMISATION_PATH_PSY=$(APPS_ROOT_DIR)/applications/$(PROJECT)/$(OPTIMISATION_PATH) \
+	          OPTIMISATION_PATH_PSY=$(OPTIMISATION_PATH) \
 	          PSYCLONE_PASS_NO_SCRIPT="$(PSYCLONE_PASS_NO_SCRIPT)"
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Preprocess and PSyclone Transmute 3)
-	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface/build/psyclone_transmute.mk \
 	          SOURCE_DIR=$(WORKING_DIR) \
-	          OPTIMISATION_PATH_PSY=$(APPS_ROOT_DIR)/applications/$(PROJECT)/$(OPTIMISATION_PATH) \
+	          OPTIMISATION_PATH_PSY=$(OPTIMISATION_PATH) \
 	          PSYCLONE_PHYSICS_FILES="$(PSYCLONE_PHYSICS_FILES)" \
 	          PSYCLONE_PASS_NO_SCRIPT="$(PSYCLONE_PASS_NO_SCRIPT)" \
 	          PSYCLONE_DIRECTORIES="$(PSYCLONE_DIRECTORIES)" \

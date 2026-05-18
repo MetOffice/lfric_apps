@@ -543,6 +543,7 @@ contains
     ancil_fields => modeldb%fields%get_field_collection("ancil_fields")
 
 #ifdef UM_PHYSICS
+    if (use_physics) then
       ! Create FD prognostic fields
       select case ( prognostic_init_choice )
         case ( init_option_fd_start_dump )
@@ -565,6 +566,7 @@ contains
                                            ancil_fields, &
                                            mesh, twod_mesh )
       end select
+    end if
 #endif
 
   end subroutine create_physics_model_data

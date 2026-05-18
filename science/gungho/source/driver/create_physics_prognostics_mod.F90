@@ -183,22 +183,6 @@ contains
     call processor%apply(make_spec('exner_in_wth', main%derived, Wtheta))
     call processor%apply(make_spec('exner_wth_n', main%derived, Wtheta))
 
-    ! W3 fields
-    call processor%apply(make_spec('u_in_w3', main%derived, W3, ckp=.true.))
-    call processor%apply(make_spec('v_in_w3', main%derived, W3, ckp=.true.))
-    call processor%apply(make_spec('w_in_w3', main%derived, W3, ckp=.true.))
-    call processor%apply(make_spec('theta_in_w3', main%derived, W3))
-    call processor%apply(make_spec('wetrho_in_w3', main%derived, W3))
-
-    ! W2 fields
-    call processor%apply(make_spec('u_physics', main%derived, W2))
-    call processor%apply(make_spec('u_star', main%derived, W2))
-    call processor%apply(make_spec('wetrho_in_w2', main%derived, W2))
-
-    ! W2H fields
-    call processor%apply(make_spec('u_in_w2h', main%derived, W2H))
-    call processor%apply(make_spec('v_in_w2h', main%derived, W2H))
-
     if ( boundary_layer == boundary_layer_um .or.                              &
          convection     == convection_um ) then
 
@@ -219,6 +203,13 @@ contains
 
     end if
 
+    ! W3 fields
+    call processor%apply(make_spec('u_in_w3', main%derived, W3))
+    call processor%apply(make_spec('v_in_w3', main%derived, W3))
+    call processor%apply(make_spec('w_in_w3', main%derived, W3))
+    call processor%apply(make_spec('theta_in_w3', main%derived, W3))
+    call processor%apply(make_spec('wetrho_in_w3', main%derived, W3))
+
     if ( boundary_layer               == boundary_layer_um .or.                &
          convection                   == convection_um     .or.                &
          stochastic_physics_placement == stochastic_physics_placement_fast ) then
@@ -227,6 +218,15 @@ contains
       call processor%apply(make_spec('v_in_w3_star', main%derived, W3))
 
     end if
+
+    ! W2 fields
+    call processor%apply(make_spec('u_physics', main%derived, W2))
+    call processor%apply(make_spec('u_star', main%derived, W2))
+    call processor%apply(make_spec('wetrho_in_w2', main%derived, W2))
+
+    ! W2H fields
+    call processor%apply(make_spec('u_in_w2h', main%derived, W2H))
+    call processor%apply(make_spec('v_in_w2h', main%derived, W2H))
 
     ! 2D fields
     if ( encorr_usage /= encorr_usage_none ) then
