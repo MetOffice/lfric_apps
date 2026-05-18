@@ -1566,8 +1566,9 @@ contains
 
         if (photol_scheme /= photol_scheme_off )  then
           call photol_rate_jo1d%write_field('chemistry__photol_rate_jo1d')
+          call photol_rate_jo1d%write_field('chemistry__jo1d')
           call photol_rate_jno2%write_field('chemistry__photol_rate_jno2')
-        end if  
+        end if
       end if    ! chem_scheme_strattrop
 
       call dms%write_field('chemistry__dms')
