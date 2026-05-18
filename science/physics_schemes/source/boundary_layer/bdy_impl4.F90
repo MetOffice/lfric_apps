@@ -40,7 +40,6 @@ subroutine bdy_impl4 (                                                         &
 
 use atm_fields_bounds_mod, only: tdims, pdims, tdims_l
 use bl_diags_mod, only: strnewbldiag
-use tuning_segments_mod, only:  bl_segment_size
 use model_domain_mod, only: model_type, mt_single_column
 use planet_constants_mod, only: cp => cp_bl
 use yomhook, only: lhook, dr_hook
