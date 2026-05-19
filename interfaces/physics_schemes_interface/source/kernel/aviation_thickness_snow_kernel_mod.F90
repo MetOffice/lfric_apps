@@ -140,6 +140,18 @@ contains
         gph_850 = plev_geopot(source_map(df) + i850-1)
         snow_probability(result_map(df)) = &
           5220.0_r_def + 3.86666_r_def*gph_1000 - 4.0_r_def*gph_850
+
+        if (gph_1000 > 1.0e8) then
+            snow_probability(result_map(df)) = 0.0_r_def
+        end if
+
+        ! Limit to percentage.
+        if (snow_probability(result_map(df)) < 0.0_r_def) then
+            snow_probability(result_map(df)) = 0.0_r_def
+        else if (snow_probability(result_map(df)) > 100.0_r_def) then
+            snow_probability(result_map(df)) = 100.0_r_def
+        end if
+
       end if
 
     end do
