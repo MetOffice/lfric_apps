@@ -48,3 +48,4 @@
 | theabro             | Nathan Luke Abraham | NCAS & University of Cambridge  | 2026-04-15 |
 | ss421               | Steven Sandbach    | Met Office                       | 2026-04-20 |
 | MichaelWhitall      | Michael Whitall    | Met Office                       | 2026-04-22 |
+| bblay-mo            | Byron Blay         | Met Office                       | 2026-01-07 |
