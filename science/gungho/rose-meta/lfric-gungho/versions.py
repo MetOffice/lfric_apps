@@ -31,3 +31,21 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+class vn31_t999(MacroUpgrade):
+    """Upgrade macro for xxx by Adrian Lock"""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t999"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        self.add_setting(config,
+                  ["namelist:initial_temperature", "theta_pert_start"],
+                   "0.0")
+        self.add_setting(config,
+                  ["namelist:initial_temperature", "theta_pert_end"],
+                   "0.0")
+        self.add_setting(config,
+                  ["namelist:initial_temperature", "theta_pert_size"],
+                   "0.0")
+        return config, self.reports
