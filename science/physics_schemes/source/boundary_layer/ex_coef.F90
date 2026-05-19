@@ -562,7 +562,7 @@ end do
 !      mixing length to scale with these layer depths
 !----------------------------------------------------------------------------
 if ( local_fa==smooth_to_bdys  ) then
-  ! Calculation of turbulence length-scale based on sub-critical layer depth, 
+  ! Calculation of turbulence length-scale based on sub-critical layer depth,
   ! with interpolation to find accurate base and top height of each layer
   ! between neighbouring sub- and super- critical model-levels.
   ! Also tapers the length-scale down near the top and bottom of each
