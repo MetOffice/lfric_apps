@@ -421,6 +421,7 @@ contains
     type( field_type ) :: photol_rates
     type( field_type ) :: photol_rate_jo1d
     type( field_type ) :: photol_rate_jno2
+    type( field_type ) :: photol_rate_jo3p
     type( field_type ) :: photol_rate_profile
 
     ! Other Photolysis driving fields - pre-set currently
@@ -1021,9 +1022,11 @@ contains
       ! Sample Rates to output; wtheta grid
       call ls_rain_3d%copy_field_properties(photol_rate_jo1d)
       call ls_rain_3d%copy_field_properties(photol_rate_jno2)
+      call ls_rain_3d%copy_field_properties(photol_rate_jo3p)
 
       call invoke( setval_c(photol_rate_jo1d,  0.0_r_def),                     &
-                   setval_c(photol_rate_jno2,  0.0_r_def) )
+                   setval_c(photol_rate_jno2,  0.0_r_def),                     &
+                   setval_c(photol_rate_jo3p,  0.0_r_def) )
       
       ! Only call photolysis if this is a chemistry timestep as photol rates
       ! are only used by chemistry
@@ -1116,6 +1119,11 @@ contains
               case ('jno2')
                 !  jNO2
                 call invoke (  photol_diags_kernel_type(photol_rate_jno2,      &
+                                                        jp1,                   &
+                                                        photol_rates) )
+              case ('jo3b')
+                !  jO(3P)
+                call invoke (  photol_diags_kernel_type(photol_rate_jo3p,      &
                                                         jp1,                   &
                                                         photol_rates) )
               end select
@@ -1566,8 +1574,8 @@ contains
 
         if (photol_scheme /= photol_scheme_off )  then
           call photol_rate_jo1d%write_field('chemistry__photol_rate_jo1d')
-          call photol_rate_jo1d%write_field('chemistry__jo1d')
           call photol_rate_jno2%write_field('chemistry__photol_rate_jno2')
+          call photol_rate_jo3p%write_field('chemistry__photol_rate_jo3p')
         end if
       end if    ! chem_scheme_strattrop
 
