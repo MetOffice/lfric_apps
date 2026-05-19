@@ -388,7 +388,8 @@ contains
     call dx%initialise(fs)
 
     ! Calculate differences
-    call invoke( X_minus_Y( dx, x1, x2 ), X_innerproduct_X(tmp, dx) )
+    call invoke( X_minus_Y( dx, x1, x2 ), &
+                 X_innerproduct_X(tmp, dx) )
     dx_nrm_sq = real(tmp, r_solver)
     call invoke( X_innerproduct_X(tmp, x1) )
     x1_nrm_sq = real(tmp, r_solver)
