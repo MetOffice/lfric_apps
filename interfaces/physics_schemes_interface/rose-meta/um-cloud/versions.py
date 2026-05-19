@@ -42,5 +42,18 @@ class vn31_t464(MacroUpgrade):
         self.add_setting(
             config, ["namelist:cloud", "pc2_turb_horiz"], ".false."
         )
+        return config, self.reports
+
+
+class vn31_t243(MacroUpgrade):
+    """Upgrade macro for ticket #243 by Mike Whitall."""
+
+    BEFORE_TAG = "vn3.1_t464"
+    AFTER_TAG = "vn3.1_t243"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        nml = "namelist:cloud"
+        self.add_setting(config, [nml, "l_ensure_max_in_cloud_pc2"], ".false.")
 
         return config, self.reports
