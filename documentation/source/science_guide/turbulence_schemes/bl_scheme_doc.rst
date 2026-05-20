@@ -587,7 +587,7 @@ expanded using the first-order closure in
 .. math:: :label: eq:wx_std
 
    \begin{aligned}
-   \overline{w'\theta_{\ell}'}_k &=& 
+   \overline{w'\theta_{\ell}'}_k &=&
    -K_h^{\mathrm{surf}}\,\frac{\widetilde{\Delta_k \theta_{\ell}}}{\Delta_k z}
                 -K_h^{\mathrm{Sc}}\,\frac{\Delta_k \theta_{\ell}}{\Delta_k z}
    \\
@@ -2786,7 +2786,7 @@ mixed layer by the end of the timestep. In other words, for
    \chi_{\mathrm{ \mathrm{NTML}}+1}^{n+1}  = \chi_{\mathrm{
    \mathrm{NTML}}+1}^{n}
    - \frac{\Delta t}{\Delta z} \left(
-     F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{3}{2} } - 
+     F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{3}{2} } -
      F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} }
    \right)
 
@@ -2794,7 +2794,7 @@ mixed layer by the end of the timestep. In other words, for
 
    \chi_{\mathrm{ \mathrm{NTML}}}^{n+1}  = \chi_{\mathrm{ \mathrm{NTML}}}^{n}
    - \frac{\Delta t}{z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}} \left(
-     F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } - 
+     F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } -
      F_{\chi}^{Tot}|_{z_{\mathrm{b}}}
    \right)
 
@@ -3077,7 +3077,7 @@ layer are related to the surface fluxes by:
 
 .. math:: :label: 1.1.1
 
-   \frac{\partial T}{\partial z} + \frac{g}{ c_P }=-\frac{ H_0 }{ c_P  \rho _0 
+   \frac{\partial T}{\partial z} + \frac{g}{ c_P }=-\frac{ H_0 }{ c_P  \rho _0
    v_\ast } \frac{ \phi _h (z/L)}{kz}
 
 .. math:: :label: 1.1.2
@@ -3581,7 +3581,7 @@ obtain:
 
 .. math:: :label: 1.3.17
 
-   \Phi _m = \ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0m} }} \right) - 2 \ln 
+   \Phi _m = \ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0m} }} \right) - 2 \ln
    \left( {\frac{1 +  X_1 }{1 +  X_0 }} \right) - \ln  \left( {\frac{1 +  X_1^2
    }{1 +  X_0^2 }} \right)+ 2 \left( { {\tan }^{-1}  X_1 -  {\tan }^{-1}  X_0 }
    \right)
@@ -3596,7 +3596,7 @@ and
 
 .. math:: :label: 1.3.19
 
-   \Phi _h = \ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0h} }} \right) - 2 \ln 
+   \Phi _h = \ln  \left( {\frac{ z_1 +  z_{0m} }{ z_{0h} }} \right) - 2 \ln
    \left( {\frac{1 +  Y_1 }{1 +  Y_0 }} \right)
 
 where
@@ -3718,7 +3718,7 @@ stress:
 
 .. math:: :label: 1.4.19
 
-   H_0= {-c}_P  \rho _0  C_H^{(N)} \left( {\Delta T + \frac{g}{ c_P }( z_1 + 
+   H_0= {-c}_P  \rho _0  C_H^{(N)} \left( {\Delta T + \frac{g}{ c_P }( z_1 +
    z_{0m} -  z_{0h} )} \right)
 
 .. math:: :label: 1.4.20
@@ -3863,7 +3863,7 @@ z\ :math:`_{ob, }` we obtain for the scalar :math:`X`
 
 .. math:: :label: 1.5.3
 
-   X_{ob} =  X_0 + \frac{ F_{X0} }{ \rho _0  v_\ast k}  \Phi _h (L,  z_{ob} + 
+   X_{ob} =  X_0 + \frac{ F_{X0} }{ \rho _0  v_\ast k}  \Phi _h (L,  z_{ob} +
    z_{0h} ,  z_{0h} )
 
 and using the expression for the surface flux :math:`F_{X0}` of the
@@ -3871,7 +3871,7 @@ scalar quantity :math:`X` this gives the interpolation formula
 
 .. math:: :label: 1.5.4
 
-   X_{ob} =  X_0 + \frac{ C_H }{k v_\ast }  \Phi _h (L,  z_{ob} +  z_{0h} , 
+   X_{ob} =  X_0 + \frac{ C_H }{k v_\ast }  \Phi _h (L,  z_{ob} +  z_{0h} ,
    z_{0h} ) ( X_1 -  X_0 )
 
 For temperature and humidity z\ :math:`_{ob}` is set to the screen
@@ -4508,7 +4508,7 @@ When form drag is included via effective roughness lengths equations
 .. math:: :label: 2.1.1
 
    \begin{aligned}
-   \frac{ H_{0(eff)} }{ c_P  \rho _0 }&=&\frac{-k}{ \Phi _h (L ,  z_1 + 
+   \frac{ H_{0(eff)} }{ c_P  \rho _0 }&=&\frac{-k}{ \Phi _h (L ,  z_1 +
    z_{0m(eff)} ,  z_{0h(eff)} )}  v_{\ast (eff)}
    \\
    && \left( {\Delta T + \frac{g}{c_p }( z_1 +  z_{0m(eff)} - z_{0h(eff)} )}
@@ -4570,7 +4570,7 @@ v\ :math:`_{\ast
 
 .. math:: :label: 2.1.8
 
-   v_{\ast (f)}^2 =  u_{\ast (f)}^2 +  \gamma _t^2  w_\ast ^2 +  \gamma _c^2 
+   v_{\ast (f)}^2 =  u_{\ast (f)}^2 +  \gamma _t^2  w_\ast ^2 +  \gamma _c^2
    w_c^2
 
 with
@@ -4609,7 +4609,7 @@ effective momentum roughness is derived
 .. math:: :label: 2.1.12
 
    \frac{\ln (  z_c /  z_{0m(eff)} )}{\ln (  z_c /  z_{0m} )} =  {\left( {1 +
-   \frac{1}{2}  c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c / 
+   \frac{1}{2}  c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c /
    z_{0m} )}{k}} \right)}^2 } \right)}^{-1/2}
 
 The stress for the flat surface is related to the total stress by
@@ -4672,7 +4672,7 @@ z\ :math:`_{c}` is
 
 .. math:: :label: 2.1.18
 
-   \frac{ F_{X0(eff)} }{ \rho _0 } = \frac{k  v_{\ast (eff)} }{ \Phi _h (L , 
+   \frac{ F_{X0(eff)} }{ \rho _0 } = \frac{k  v_{\ast (eff)} }{ \Phi _h (L ,
    z_c ,  z_{0h(eff)} )} (X( z_c ) -  X_0 )
 
 and the surface flux for the flat surface is given by
@@ -4696,7 +4696,7 @@ effective scalar roughness length is derived as
 .. math:: :label: 2.1.21)
 
    \frac{\ln (  z_c /  z_{0h(eff)} )}{\ln (  z_c /  z_{0h} )} =  {\left( {1 +
-   \frac{1}{2}  c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c / 
+   \frac{1}{2}  c_{D(orog)}  f_D \frac{A}{S}  {\left( {\frac{\ln ( z_c /
    z_{0m} )}{k}} \right)}^2 } \right)}^{1/2} \left( {1 - 2.2  f_D \frac{A}{S}}
    \right)
 
@@ -4735,7 +4735,7 @@ iteration from the convective limit, so
 .. math:: :label: (2.2.4
 
    v_{\ast (eff)}^{(0)}= v_{\ast (f)}^{(0)} =  {\left[ {  \gamma _t^3 \left(
-   {\frac{k}{ \Phi _h^{(0)} }} \right)  z_i \left| {-\Delta B} \right| + 
+   {\frac{k}{ \Phi _h^{(0)} }} \right)  z_i \left| {-\Delta B} \right| +
    \gamma _c^2  w_c^2 } \right]}^{ 1/2}
 
 ELSE IF (:math:`\Delta`\ **v** :math:`\ge` 2 ms\ :math:`^{-1}` ) start
@@ -4823,7 +4823,7 @@ DO n = 1 to N
 
 .. math:: :label: (2.2.20
 
-   v_{\ast (f)}^{(n)2}= u_{\ast (f)}^{(n)2} +  \gamma _t^2  w_\ast ^{(n)2} + 
+   v_{\ast (f)}^{(n)2}= u_{\ast (f)}^{(n)2} +  \gamma _t^2  w_\ast ^{(n)2} +
    \gamma _c^2  w_c^2
 
 .. math:: :label: (2.2.21
@@ -4960,7 +4960,7 @@ then
 
 .. math:: :label: 2.3.7
 
-   X_{ob} =  X_0 + \frac{ C_{H(f)} }{k v_{\ast (f)} }  \Phi _h (L,  z_{ob} + 
+   X_{ob} =  X_0 + \frac{ C_{H(f)} }{k v_{\ast (f)} }  \Phi _h (L,  z_{ob} +
    z_{0h} ,  z_{0h} ) ( X_1 -  X_0 )
 
 For temperature and humidity z\ :math:`_{ob}` is set to the screen
@@ -5184,14 +5184,14 @@ Writing equations :eq:`eq:sppf_bl1`,
 
 .. math:: :label: eq:sppf_inc1
 
-   \frac{\delta X}{\Delta t}^{*}  = 
+   \frac{\delta X}{\Delta t}^{*}  =
    ({\mathcal{I}}_{1}-{\mathcal{E}}_{1})\left(\frac{\partial F}{\partial
    z}^{n}+S\right)+{\mathcal{I}}_{1}\frac{\partial}{\partial
    z}\left(K_{X}\frac{\partial\delta X}{\partial z}^{*}\right)
 
 .. math:: :label: eq:sppf_inc2
 
-   \frac{\delta X}{\Delta t}^{n+1}  = 
+   \frac{\delta X}{\Delta t}^{n+1}  =
    ({\mathcal{I}}_{2}-{\mathcal{E}}_{2})\left(\frac{\partial F}{\partial
    z}^{*}+S\right)+{\mathcal{I}}_{2}\frac{\partial}{\partial
    z}\left(K_{X}\frac{\partial\delta X}{\partial z}^{n+1}\right)
@@ -5406,7 +5406,7 @@ and thus the following discretization is obtained, on
 
 .. math::
 
-   \frac{\delta X_{k}^{*}}{\Delta t}  = 
+   \frac{\delta X_{k}^{*}}{\Delta t}  =
    \left({\mathcal{I}}_{1}-{\mathcal{E}}_{1}\right)\left(\frac{F_{k+1/2}^{n}-F_{k-1/2}^{n}}{z_{k+1/2}-z_{k-1/2}}+S_{k}\right)
 
 .. math::
@@ -5713,7 +5713,7 @@ flux for :math:`H` is derived:
 
 .. math::
 
-   \frac{H_{j}^{*}}{c_{p}}  = 
+   \frac{H_{j}^{*}}{c_{p}}  =
    \gamma_{2}\frac{H_{j}^{(n)}}{c_{p}}-\gamma_{1}RK_{PMj}[LD_{j}\psi_{j}RK_{H}(1)_{j}+A_{*j}][c_{p}\delta{T'}_{1}-\beta\overline{H^{*}}]
 
 .. math::
