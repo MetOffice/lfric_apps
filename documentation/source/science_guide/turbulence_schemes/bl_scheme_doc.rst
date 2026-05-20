@@ -257,8 +257,8 @@ Types I to VI are shown schematically in :numref:`Fig. %s <fig:bltypes>`.
    :name: fig:bltypes
 
    Schematic representation of boundary layer types I to VI. The top of the
-   upward arrows indicate the height \zhpar while the top of their solid line
-   portions indicate \zh.
+   upward arrows indicate the height :math:`z_{\mathrm{par}}` while the top of
+   their solid line portions indicate :math:`z_{\mathrm{h}}`.
 
    .. list-table::
       :align: center
@@ -1926,9 +1926,9 @@ removed since the entrainment flux is now carried via the explicit
 .. figure:: blank.svg
    :name: fig:new_ksc
 
-   Standard UM :math:`K_h^{\rm Sc}` (solid) and revised (dotted), both scaled
-   by :math:`k z_h V_{\rm Sc}`. An upside-down version of
-   :math:`K_h^{\rm surf}` is also shown (dashed) for comparison.
+   Standard UM :math:`K_h^{\mathrm{Sc}}` (solid) and revised (dotted), both
+   scaled by :math:`k z_h V_{\mathrm{Sc}}`. An upside-down version of
+   :math:`K_h^{\mathrm{surf}}` is also shown (dashed) for comparison.
 
    .. list-table::
       :align: center
