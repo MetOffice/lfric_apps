@@ -1003,7 +1003,7 @@ do k = nlevels, 1, -1   ! need to work down for cfl_max
           qc_points,cfl_c,cff_c,deltacl_c,deltacf_c,cf_c)
 
     if ( i_pc2_init_logic >= pc2init_logic_smooth ) then
-      ! Smooth initiation logic...
+      ! Smooth initiation logic
 
       ! A) Update cloud-fractions (using either fixed or original code):
       if ( i_pc2_init_logic == pc2init_logic_smooth_fix ) then

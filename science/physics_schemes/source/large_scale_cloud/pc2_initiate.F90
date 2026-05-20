@@ -563,7 +563,7 @@ do k = 1, nlevels
   ! Now scatter back values which have been changed
 
   if ( i_pc2_init_logic >= pc2init_logic_smooth ) then
-    ! Smooth initiation logic...
+    ! Smooth initiation logic
 
     ! A) Update cloud-fractions (using either fixed or original code):
     if ( i_pc2_init_logic == pc2init_logic_smooth_fix ) then
