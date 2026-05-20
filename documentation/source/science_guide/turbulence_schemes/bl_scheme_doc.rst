@@ -42,7 +42,7 @@ the UM.
 
 Several options for higher order closures are available in the 1A
 version of the UM boundary layer scheme and these are documented
-separately in `:umdp:`025``.
+separately in ``:umdp:025``.
 
 .. _sec_closure:
 
@@ -1942,7 +1942,7 @@ The blended scheme
 ==================
 
 For high resolution simulations, the UM has a Smagorinsky-type subgrid
-turbulence scheme, described in `:umdp:`028``. However, this scheme is
+turbulence scheme, described in ``:umdp:028``. However, this scheme is
 only truly applicable for horizontal grid-lengths of order :math:`10` m,
 and any real-world simulation run at lower resolution than this will
 inevitably have unresolved scales somewhere in the domain. Rather than
@@ -2184,7 +2184,7 @@ For current operational convection-permitting model grid sizes (1.5 km
 in the UKV), the representation of cumulus convection remains a
 challenge. One option is to include a grey-zone convection
 parametrization, described in the documentation of that scheme (see
-`:umdp:`027``). Tests in the UKV, though, showed some detriment to the
+``:umdp:027``). Tests in the UKV, though, showed some detriment to the
 spin-up of resolved scale convection (as well as somewhat poor
 discrimination of precipitating versus non-precipitating parametrized
 convection) that led to the development of an alternative strategy,
@@ -6127,7 +6127,7 @@ where :math:`C_{e}=A_{2N}^{3/2}`. Initial tests found that the MONC
 value of :math:`A_{2N}=0.23` gave rather large values of :math:`e_{loc}`
 and so :math:`C_e=0.41` is used. Note that this is an optional value
 used in the higher order closure scheme (see section 2.8.5 of
-`:umdp:`025``). It could also be worth testing the suggested
+``:umdp:025``). It could also be worth testing the suggested
 parametrization in (2.300) there, of
 :math:`C_e=0.19+0.74 \lambda/\Delta z` but this has not yet been
 attempted. The total non-local TKE is computed by adding the TKE from
@@ -6171,7 +6171,7 @@ also corrects a bug in the level indexing of this diagnostic when passed
 to UKCA.
 
 Note that additional diagnostics of the scalar variances are also made
-and those are documented in `:umdp:`029``.
+and those are documented in ``:umdp:029``.
 
 .. _app_neutwind:
 
