@@ -319,8 +319,8 @@ Currently,
 
 .. math:: :label: parcel_pert
 
-   \theta_v' = \mathrm{max} \left[A_{plume}, 
-              \, \mathrm{min} \left[ B_{plume} \sigma_{Tv1}, 
+   \theta_v' = \mathrm{max} \left[A_{plume},
+              \, \mathrm{min} \left[ B_{plume} \sigma_{Tv1},
               \, G_{max}z_{\mathrm{h}}\right] \right]
 
 where :math:`A_{plume}=0.2`, :math:`B_{plume}=3.26`,
@@ -357,7 +357,7 @@ This is identified as the grid-level above which
 
 .. math::
 
-   \frac{d\theta_v}{dz}|_{\mathrm{env}} > 
+   \frac{d\theta_v}{dz}|_{\mathrm{env}} >
      \Gamma_{\mathrm{inv}}\, \frac{d\theta_v}{dz}|_{\mathrm{par}}
 
 where currently the tolerance for identifying inversions by this method,
@@ -379,7 +379,7 @@ Specifically, a logical flag (CUMULUS) is set to true if
 
 .. math::
 
-   \left| \frac{ \Delta_{\mathrm{cld}} q_t}{\Delta_{\mathrm{cld}} z} \right| > 
+   \left| \frac{ \Delta_{\mathrm{cld}} q_t}{\Delta_{\mathrm{cld}} z} \right| >
      C_t \, \left| \frac{ \Delta_{\mathrm{sub}} q_t}{\Delta_{\mathrm{sub}} z}
      \right|
 
@@ -437,8 +437,8 @@ the environment at that grid-level
 
 .. math:: :label: qlpar
 
-   q_{\ell f}^p = \mathrm{max}\left[ 0.0, \, a_L \left( q_t^p - {q_s}_k 
-            - \alpha_L (\theta_{\ell}^p - (g z_k/c_p)-T_k)\right) 
+   q_{\ell f}^p = \mathrm{max}\left[ 0.0, \, a_L \left( q_t^p - {q_s}_k
+            - \alpha_L (\theta_{\ell}^p - (g z_k/c_p)-T_k)\right)
      \right]
 
 where the buoyancy parameters :math:`a_L` and :math:`\alpha_L` are
@@ -577,7 +577,7 @@ can be written as:
    \overline{w'b}= g \left[ (1-C_F) \left(\beta_T \overline{w'\theta_{\ell}'} +
    \beta_q \overline{w'q_t'}\right) +
        C_F \left( \tilde{\beta_T} \overline{w'\theta_{\ell}'} + \tilde{\beta_q}
-       \overline{w'q_t'}\right) 
+       \overline{w'q_t'}\right)
      \right]
 
 As standard, the fluxes in :eq:`eq:wb_cont` are then
@@ -626,8 +626,8 @@ buoyancy consumption of TKE within the mixed layer equals a fraction,
 
    \sum_{z_{k-\frac{1}{2}} > z_i-z_{\mathrm{ml}}}^{z_{k-\frac{1}{2}} < z_i}
      \left|\left[ \overline{w'b}|_{z_{k-\frac{1}{2}}}<0 \right]\right| \,
-     \Delta_k z \, 
-     \leq \, D_t \, 
+     \Delta_k z \,
+     \leq \, D_t \,
      \sum_{z_{k-\frac{1}{2}} > z_i-z_{\mathrm{ml}}}^{z_{k-\frac{1}{2}} < z_i}
      \left[ \overline{w'b}|_{z_{k-\frac{1}{2}}}>0 \right] \, \Delta_k z
 
@@ -825,7 +825,7 @@ region, :math:`\overline{w'q_t'}` is also taken to be constant so that:
 
 .. math::
 
-   \int_{z_h-\Delta z_{rad}}^{z_h} \, \overline{w'q_t'}\, dz = 
+   \int_{z_h-\Delta z_{rad}}^{z_h} \, \overline{w'q_t'}\, dz =
      - \Delta  z_{rad} w_e \Delta q_t
 
 The integrated buoyancy flux is then found from
@@ -963,8 +963,8 @@ this log profile correction, as
 
 .. math::
 
-   \tilde{{\mathcal{L}}}_{X,k-1/2} = \frac{k \Delta_{k-1/2} z}{ 
-       ln\left( \frac{z_k + z_{0m}}{z_{k-1} + z_{0m}} \right) 
+   \tilde{{\mathcal{L}}}_{X,k-1/2} = \frac{k \Delta_{k-1/2} z}{
+       ln\left( \frac{z_k + z_{0m}}{z_{k-1} + z_{0m}} \right)
        + \frac{k \Delta_{k-1/2} z}{\lambda_X} }
 
 If near-surface resolution is increased this logarithmic correction
@@ -1112,7 +1112,7 @@ transitional Richardson number, :math:`Ri_{t}`, as:
 
 .. math::
 
-   f_{\mathrm{stable}} = 
+   f_{\mathrm{stable}} =
    \begin{cases}
      (1 - 5Ri)^2 & {\mathrm{for}}\ 0<Ri<Ri_{t} \\
      (A_{Ri} + B_{Ri} Ri)^{-2} & {\mathrm{for}}\ Ri>Ri_{t}
@@ -1315,7 +1315,7 @@ The general approach is to take :math:`K_{\chi}` in
 .. math:: :label: klnl
 
    K_{\chi} = \mathrm{max} \left[
-   (K_{\chi}^{\mathrm{surf}}+K_{\chi}^{\mathrm{Sc}}), 
+   (K_{\chi}^{\mathrm{surf}}+K_{\chi}^{\mathrm{Sc}}),
                                  K_{\chi}(Ri) \right]
 
 As noted in section :ref:`Model variables and turbulence closure
@@ -1465,7 +1465,7 @@ The form of :math:`w_s` differs between the surface layer
 
 .. math:: :label: ws_defn
 
-   w_s^3 = 
+   w_s^3 =
      \begin{cases}
        2.5 \, \frac{z}{z_{\mathrm{h}}} w_*^3   & {\mathrm{surface}\ layer} \\
        0.25 \, w_*^3                 & {\mathrm{mixed}\ layer}   \\
@@ -1533,7 +1533,7 @@ say). For the UM,
 
 .. math::
 
-   Pr_{\mathrm{surf}} = \frac{\Phi_h}{\Phi_m} 
+   Pr_{\mathrm{surf}} = \frac{\Phi_h}{\Phi_m}
                 = \left( 1 + 16 \, k \frac{z}{z_{\mathrm{h}}} \,
                 \frac{w_*^3}{u_*^3}
                   \right)^{-1/4}
@@ -1619,13 +1619,13 @@ Recall that for :math:`\theta_{\ell}` only we use
 .. math:: :label: wthl
 
    \overline{w'\theta_{\ell}'}= - K_h \frac{\partial \theta_{\ell}}{\partial z}
-   + K_h^{\mathrm{surf}}\gamma_{\theta_{\ell}} 
+   + K_h^{\mathrm{surf}}\gamma_{\theta_{\ell}}
 
 where
 
 .. math:: :label: gradadj
 
-   \gamma_{\theta_{\ell}} = 
+   \gamma_{\theta_{\ell}} =
      \mathrm{min}\left[ A_{ga} \frac{\sigma_{T1}}{z_{\mathrm{h}}}, G_{max}
      \right]
 
@@ -1749,9 +1749,9 @@ So, the new formulation is written:
 
 .. math:: :label: fg_new
 
-   F_{\chi}^{Tot} = F_{\chi}^{NT}|_{z_{\mathrm{b}}} 
+   F_{\chi}^{Tot} = F_{\chi}^{NT}|_{z_{\mathrm{b}}}
      -\left(K_h^{\mathrm{surf}}+
-     K_h^{\mathrm{Sc}}\right)\frac{\partial\overline{\chi}}{\partial z} 
+     K_h^{\mathrm{Sc}}\right)\frac{\partial\overline{\chi}}{\partial z}
      + \overline{w'\chi'}_{ng}^{\mathrm{surf}}+ \overline{w'\chi'}_{ng}^{\mathrm{Sc}}
      + f_2 \left(F_{\chi}|_{z_h} - F_{\chi}^{NT}|_{z_{\mathrm{b}}} \right)
 
@@ -1809,7 +1809,7 @@ except that :math:`w_m` is replaced by its neutral value:
 
 .. math::
 
-   Pr =  Pr_{\mathrm{neut}} 
+   Pr =  Pr_{\mathrm{neut}}
      \frac{u_*^4 + w_*^3 {w_m}^{\mathrm{neut}} / 25}
      {u_*^4 + w_*^3 {w_m}^{\mathrm{neut}} Pr_{\mathrm{neut}}/ (25
      Pr_{\mathrm{conv}} )}
@@ -1829,11 +1829,11 @@ Discussion of some of the revisions
 
    * - Formulation
      - Convective limit
-     - 
+     -
      - Neutral limit
-     - 
+     -
 
-   * - 
+   * -
      - :math:`w_m`
      - :math:`w_h`
      - :math:`w_m`
@@ -1889,10 +1889,10 @@ gradient adjustment parameter:
 
 .. math:: :label: grad_adj
 
-   \gamma_{\chi}= d \frac{\overline{w'\chi'}_S}{w_* z_h} 
-     \hspace{0.5cm} {\mathrm{with}}  \hspace{0.5cm} 
-     d^{HB} = 7.2 w_*^2/w_m^2,  \hspace{0.2cm} 
-     d^{std} = 6.3 w_*/w_m,  \hspace{0.2cm} 
+   \gamma_{\chi}= d \frac{\overline{w'\chi'}_S}{w_* z_h}
+     \hspace{0.5cm} {\mathrm{with}}  \hspace{0.5cm}
+     d^{HB} = 7.2 w_*^2/w_m^2,  \hspace{0.2cm}
+     d^{std} = 6.3 w_*/w_m,  \hspace{0.2cm}
      d^{rev} = 10 w_*/w_h
 
 The inclusion of an extra :math:`w_*/w_m` factor in
@@ -2146,7 +2146,7 @@ and transitioned between these regimes linearly using
 
 .. math::
 
-   \beta = \beta_{\mathrm{bl}}\frac{z_{\mathrm{fa}}-z}{z_{\mathrm{fa}}-z_h} + 
+   \beta = \beta_{\mathrm{bl}}\frac{z_{\mathrm{fa}}-z}{z_{\mathrm{fa}}-z_h} +
              \beta_{\mathrm{fa}}\frac{z-z_h}{z_{\mathrm{fa}}-z_h}
 
 However, because the above method still uses :eq:`eq-tanh`,
@@ -2232,7 +2232,7 @@ the velocity scales <app_vscales>`)
 .. math:: :label: we_parm
 
    w_e =  \frac{ A_1 \, V_{\mathrm{sum}}^3/ z_{\mathrm{ml}}+ g \tilde{\beta_T}
-   \tilde{\alpha_t} 
+   \tilde{\alpha_t}
        \Delta_F}
      {\Delta b + c_T V_{\mathrm{sum}}^2/z_{\mathrm{ml}}}
 
@@ -2338,7 +2338,7 @@ mixed layers is simply calculated as
 .. math::
 
    F_{\mathrm{net}}|_{z_{k+\frac{1}{2}}} = \sum_{k=\mathrm{
-   \mathrm{NBDSC}}}^{k} \mathrm{max}\left[ 
+   \mathrm{NBDSC}}}^{k} \mathrm{max}\left[
        - \Delta_{k+\frac{1}{2}} z \, {\mathcal{S}}_F(k), \,0 \right]
 
 where NBDSC\ :math:`=1` in SMLs, :math:`{\mathcal{S}}_F` are the temperature
@@ -2522,7 +2522,7 @@ z_{\mbox{\tiny \rm NTML}+\frac{3}{2}} - z_i` which can be written
 
 .. math:: :label: zi_interp
 
-   a (\Delta z_{disc})^2  + b \ \Delta z_{disc} +c =0 
+   a (\Delta z_{disc})^2  + b \ \Delta z_{disc} +c =0
 
 The coefficients are given by
 
@@ -2742,8 +2742,8 @@ gives
 .. math:: :label: fxtot_interp
 
    F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } =
-   F_{\chi}^{Tot}|_{z_{\mathrm{b}}} + 
-     \frac{ z'_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} }{z_{\mathrm{ml}}} 
+   F_{\chi}^{Tot}|_{z_{\mathrm{b}}} +
+     \frac{ z'_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} }{z_{\mathrm{ml}}}
      \left( F_{\chi}^{Tot}|_{z_h} - F_{\chi}^{Tot}|_{z_{\mathrm{b}}} \right)
 
 where :math:`z'` (:math:`=z-z_{\mathrm{b}}`) is height above the base of the
@@ -2753,7 +2753,7 @@ entrainment flux is given by:
 .. math:: :label: rev_entflux
 
    \overline{w'\chi'}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } =
-   F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } 
+   F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} }
                           - F_{\chi}^{NT}|_{ \mathrm{
                             \mathrm{NTML}}+\frac{1}{2} }
 
@@ -2807,7 +2807,7 @@ implies
 
 .. math::
 
-   F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} } 
+   F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{1}{2} }
      \left( 1+ \frac{\Delta z}{z_{ml}}\right)
      \geq F_{\chi}^{Tot}|_{ \mathrm{ \mathrm{NTML}}+\frac{3}{2} } + \Delta z
      \left(
@@ -2849,7 +2849,7 @@ formula used is:
 .. math:: :label: dqt_disc_9c
 
    \Delta \chi = {\chi}_{\mathrm{ \mathrm{NTML}}+2} - {\chi}_{\mathrm{
-   \mathrm{NTML}}} 
+   \mathrm{NTML}}}
                  - \gamma_{\chi} \left( z_{\mathrm{ \mathrm{NTML}}+2} - z_h
                    \right)
 
@@ -2993,8 +2993,8 @@ at the inversion base to zero at the inversion top, i.e.:
 .. math:: :label: ent_svl
 
    \overline{w'\theta_{v\ell}'} = \overline{w'\theta_{v\ell}'}|_{\mathrm{
-   \mathrm{NTML}}+\frac{1}{2}}  
-                              cos\left(\pi \frac{z'}{2} \right) 
+   \mathrm{NTML}}+\frac{1}{2}}
+                              cos\left(\pi \frac{z'}{2} \right)
 
 where :math:`z'=(z-z_{\mathrm{h}})/\Delta z_i` is scaled height within the
 inversion. This flux profile is then converted into a diffusion
@@ -3039,7 +3039,7 @@ equivalent entrainment eddy-diffusivity given by:
    K_{\chi}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} = - \overline{w'\chi'}_{
    z_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} }
                               \frac{\Delta_{\mathrm{ \mathrm{NTML}}+1}
-                              z}{\Delta_{\mathrm{ \mathrm{NTML}}+1} \chi} 
+                              z}{\Delta_{\mathrm{ \mathrm{NTML}}+1} \chi}
 
 Note from :eq:`scal_closure` that
 :eq:`K_ent_tracer` gives the parametrized flux if
@@ -3057,7 +3057,7 @@ ensured:
 
 .. math::
 
-   0 \leq K_{\chi}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}} 
+   0 \leq K_{\chi}|_{\mathrm{ \mathrm{NTML}}+\frac{1}{2}}
      \leq 10 \,K_{\chi}|_{\mathrm{ \mathrm{NTML}}-\frac{1}{2}}
 
 Surface Exchange
@@ -3143,7 +3143,7 @@ buoyancy flux in definition :eq:`1.1.4` is
 .. math:: :label: 1.1.11
 
    \Delta B =  g \beta _{T1} \left( {\Delta T + \frac{g}{ c_P }( z_1 + z_{0m} -
-    z_{0h} )} \right) 
+    z_{0h} )} \right)
      +  g \beta _{q1} \Delta q
 
 The **surface exchange coefficients** in
@@ -3281,7 +3281,7 @@ which implies that
 
 .. math:: :label: 1.1.28
 
-   L \sim -( \gamma _t^3 /k)  z_i 
+   L \sim -( \gamma _t^3 /k)  z_i
 
 Thus the low wind speed limits for the sensible and latent heat fluxes
 are obtained by substituting :eq:`1.1.27` into
@@ -3783,7 +3783,7 @@ where :math:`C_D` is the standard drag coefficient,
    \langle{\bf \tau}\rangle = \rho C_D \langle |\bar{\mathbf{u}} +
    {\mathbf{u}}_g({\mathbf{x}})|
      (\bar{\mathbf{u}} + {\mathbf{u}}_g({\mathbf{x}})) \rangle \approx \rho C_D
-     \langle 
+     \langle
      |\bar{\mathbf{u}} + {\mathbf{u}}_g({\mathbf{x}})| \rangle \bar{\mathbf{u}},
 
 which is the product of the enhanced wind speed (including gusts) and
@@ -3910,7 +3910,7 @@ gases. Explicitly, we have
 
 .. math::
 
-   \dot T_{ob, \mathrm{ rad, surf}} = \frac{4\sigma T_s^3}{c_P}  
+   \dot T_{ob, \mathrm{ rad, surf}} = \frac{4\sigma T_s^3}{c_P}
      {\mathcal{K}}(z_{ob}) (T_s-T_{ob}),
 
 where :math:`\dot T_{ob, \mathrm{ rad, surf}}` is the cooling rate of
@@ -4065,8 +4065,8 @@ In all schemes available here the momentum roughness length is given by
 
 .. math:: :label: eq:z0msea
 
-   z_{0m(sea)} = \frac{1.54\times  {10}^{-6} }{ v_\ast } + 
-     \frac{\alpha}{g}  v_\ast ^2 
+   z_{0m(sea)} = \frac{1.54\times  {10}^{-6} }{ v_\ast } +
+     \frac{\alpha}{g}  v_\ast ^2
 
 which is a generalisation of Charnock's formula to include low-wind
 conditions :raw-latex:`\cite[]{Smith88}`. :math:`\alpha` is Charnock's
@@ -4565,7 +4565,7 @@ and
    }{\mathrm{\bf v}}{(} {z}_{c} {)}
 
 where the scaling velocity based on the stress over a flat surface,
-v\ :math:`_{\ast 
+v\ :math:`_{\ast
 (f)}` , is given by
 
 .. math:: :label: 2.1.8
@@ -5028,9 +5028,9 @@ namely:
 
 .. math:: :label: eq:draglow
 
-   \frac{\mathbf{F}_p}{\rho_0} = {\left( {\frac{\kappa}{\zeta_m}} \right)}^{2} 
-                              \alpha \beta \pi ^{2} {f}_{D} (Ri_{B}) 
-                               {\left( {\frac{A}{S}} \right)}^{2} 
+   \frac{\mathbf{F}_p}{\rho_0} = {\left( {\frac{\kappa}{\zeta_m}} \right)}^{2}
+                              \alpha \beta \pi ^{2} {f}_{D} (Ri_{B})
+                               {\left( {\frac{A}{S}} \right)}^{2}
      \left\vert{\mathrm{\bf v}}(\ell) \right\vert{\mathrm{\bf v}}(\ell),
 
 where :math:`\zeta_m = {\mathrm{log}}(\ell/z_{0m})`. There is also an option
@@ -5047,7 +5047,7 @@ the scale height, :math:`\ell`:
 
 .. math::
 
-   Ri_{B \ell} = \frac{ \ell \left( g \left( 
+   Ri_{B \ell} = \frac{ \ell \left( g \left(
         \overline{\beta_T}_{k\ell} ({\theta_{\ell}}_{k\ell}-{\theta_{\ell}}_{1})
       + \overline{\beta_q}_{k\ell} ({q_t}_{k\ell}-{q_t}_{1}) \right)
                                          + \Delta b_{SL} \right) }{U^2(\ell)}
@@ -5099,8 +5099,8 @@ assumed to be positive. The new scheme is written
 .. math:: :label: eq:sppf2
 
    \frac{X^{n+1}-X^{*}}{\Delta
-       t}=-{\mathcal{I}}_{2}\left[K\left(X^{n}\right)^{P}\right]X^{n+1} + 
-           {\mathcal{E}}_{2}\left[K\left(X^{n}\right)^{P}\right]X^{*} + 
+       t}=-{\mathcal{I}}_{2}\left[K\left(X^{n}\right)^{P}\right]X^{n+1} +
+           {\mathcal{E}}_{2}\left[K\left(X^{n}\right)^{P}\right]X^{*} +
      \left({\mathcal{I}}_{2}-{\mathcal{E}}_{2}\right)S,
 
 where
@@ -5176,7 +5176,7 @@ X^{n+1}=X^{n+1}-X^{*}`. Then,
 
 .. math::
 
-   F^{*}=F^{n}+K_{X}\frac{\partial\delta X}{\partial z}^{*},\qquad 
+   F^{*}=F^{n}+K_{X}\frac{\partial\delta X}{\partial z}^{*},\qquad
      F^{n+1}=F^{*}+K_{X}\frac{\partial\delta X}{\partial z}^{n+1}.
 
 Writing equations :eq:`eq:sppf_bl1`,
@@ -5549,33 +5549,33 @@ calculations take place for the scalar variables:
      - set up coefficients for :eq:`eq:dX_disc_top`, :eq:`eq:dX_disc` and do a
        downward sweep;
 
-   * - 
+   * -
      - do a downward sweep using the original implicit scheme to
 
-   * - 
+   * -
      - compute information required by the surface implicit solver;
 
    * - CALL sf_impl2():
      - CALL im_sf_pt2(): compute :math:`F_{JULES}` (scalar implicit fluxes),
 
-   * - 
+   * -
      - using original surface implicit solver;
 
    * - CALL bdy_impl4():
      - set up :eq:`eq:dX_bottom` and complete downward sweep;
 
-   * - 
+   * -
      - back substitute to compute implicit correction :math:`\delta X^{*}`;
 
    * - CALL bdy_impl3():
      - compute explicit flux :math:`F^*=F^n+K_X\frac{\partial \delta
        X^*}{\partial z}`;
 
-   * - 
+   * -
      - set up coefficients for :eq:`eq:dXtop_np1`, :eq:`eq:dXk_np1`,
        :eq:`eq:dX1_np1` and
 
-   * - 
+   * -
      - do a downward sweep;
 
    * - CALL sf_impl2():
@@ -5963,9 +5963,8 @@ proportional to the standard deviation of the horizontal wind,
 
 .. math:: :label: windgust
 
-   U_{gust} = U_{10m} + W_{1D} \, \sigma_u \,  \frac{1}{k} \,  
-     {\mathrm{log}}\left( \frac{5 \, e^{k \, c_{\mathrm{ugn}}} + z_{0m(eff)} } 
-      
+   U_{gust} = U_{10m} + W_{1D} \, \sigma_u \,  \frac{1}{k} \,
+     {\mathrm{log}}\left( \frac{5 \, e^{k \, c_{\mathrm{ugn}}} + z_{0m(eff)} }
        {5 + z_{0m(eff)}} \right)
 
 The factor :math:`W_{1D}` is included only in the scale-dependent
@@ -6137,7 +6136,7 @@ i.e.,
 
 .. math:: :label: tke_diag_nl
 
-   e_{nl} = \frac{3}{2} \left( \frac{K_m^{\mathrm{surf}}}{\tau_{\mathrm{surf}}} 
+   e_{nl} = \frac{3}{2} \left( \frac{K_m^{\mathrm{surf}}}{\tau_{\mathrm{surf}}}
                               + \frac{K_m^{\mathrm{Sc}}}{\tau_{\mathrm{Sc}}} \right)
 
 The factor of :math:`3/2` in :eq:`tke_diag_nl` arises
@@ -6269,7 +6268,7 @@ calculated as
 .. math:: :label: zcld_calc
 
    \tilde{z_c} = \sum_{k=1}^{NTML+1} \left( {C_F}_k
-   \frac{\Delta_{k+\frac{1}{2}} z}{2} 
+   \frac{\Delta_{k+\frac{1}{2}} z}{2}
        + \mathrm{min}\left[C_F^l\frac{\Delta_{k+\frac{1}{2}} z}{2}, \frac{q_{\ell}}{\gamma_{q_{\ell}}} \right]
        + \mathrm{min}\left[C_F^f\frac{\Delta_{k+\frac{1}{2}} z}{2}, \frac{q_f}{\gamma_{q_f}} \right]
      \right)
@@ -6363,9 +6362,9 @@ inversion is given by
 .. math:: :label: dbinv
 
    \Delta b = g \, \left( \beta_T \Delta \theta_{\ell}+ \beta_q \Delta q_t +
-       \left( \beta_T \frac{L}{c_p} - 
-         \frac{1+c_v}{c_v}\beta_q \right)\Delta q_{\ell}+ 
-       \left( \beta_T \frac{L_s}{c_p} - 
+       \left( \beta_T \frac{L}{c_p} -
+         \frac{1+c_v}{c_v}\beta_q \right)\Delta q_{\ell}+
+       \left( \beta_T \frac{L_s}{c_p} -
          \frac{1+c_v}{c_v}\beta_q \right)\Delta q_f \right)
 
 The empirical constant :math:`A_{\mathrm{br}}= 0.24`. The calculation of
@@ -6464,7 +6463,7 @@ In the 9B version, :math:`\Delta_F` is calculated as:
 
 .. math:: :label: ctraddiv
 
-   \Delta_F= \sum_{k=k_m-1}^{k_m+1} \mathrm{max}\left[ 
+   \Delta_F= \sum_{k=k_m-1}^{k_m+1} \mathrm{max}\left[
        - \Delta_{k+\frac{1}{2}} z \, {\mathcal{S}}_F(k), \,0 \right]
 
 where :math:`k_m` is the grid-level with the greatest radiative cooling
@@ -6623,7 +6622,7 @@ Linearising gives
 .. math::
 
    \overline{w'b}= g \left( \beta_T \overline{w'T_L'} + \beta_q
-   \overline{w'q_t'}+ 
+   \overline{w'q_t'}+
        \left( \beta_T \frac{L}{c_p} - \frac{1+c_v}{c_v} \beta_q \right)
        \overline{w'q_{\ell}'} \right)
 
@@ -6652,7 +6651,7 @@ can be written
 
 .. math::
 
-   \overline{w'b}= 
+   \overline{w'b}=
    \begin{cases}
      g \left( \beta_T \overline{w'T_L'} + \beta_q \overline{w'q_t'}\right)
      & {\mathrm{in}\ unsaturated\ air} \\
@@ -6708,7 +6707,7 @@ spherical geometry for simplicity:
 
 .. math:: :label: moisture_cons
 
-   \int (\rho_v + \rho_{\ell}+ \rho_{f})\, d\underline{x} = 
+   \int (\rho_v + \rho_{\ell}+ \rho_{f})\, d\underline{x} =
      \int \rho (q_v + q_{\ell}+ q_{f}) \,d\underline{x} = \int \rho q_t \,
      d\underline{x}
 
@@ -6721,7 +6720,7 @@ terms of mixing ratios as
 
 .. math::
 
-   \int (\rho_v + \rho_{\ell}+ \rho_{f})\, d\underline{x} = 
+   \int (\rho_v + \rho_{\ell}+ \rho_{f})\, d\underline{x} =
      \int \rho_y (m_v + m_{\ell}+ m_{f}) \,d\underline{x} = \int \rho_y m_t \,
      d\underline{x}
 
@@ -6757,7 +6756,7 @@ ratios as:
 .. math:: :label: sl_defn
 
    \theta_{\ell}= T - \frac{L_c}{c_{pd}} m_{\ell}
-     - \frac{L_c+L_f}{c_{pd}} m_f + \frac{g}{c_{pd}} z  
+     - \frac{L_c+L_f}{c_{pd}} m_f + \frac{g}{c_{pd}} z
 
 For saturation calculations a version of QSAT is used that is switchable
 between input specific and mixing ratio variables. The rate of change of
@@ -6879,9 +6878,9 @@ the UKCA code owner before lodging the change.
 
 
    * - Boundary layer inputs to UKCA
-     - 
-     - 
-     - 
+     -
+     -
+     -
 
    * - Sec
      - Item
@@ -7037,7 +7036,7 @@ Appendix: Notation
 
 
    * - Finite difference notation
-     - 
+     -
 
    * - :math:`z_k`
      - height of the :math:`\theta`-level :math:`k`
@@ -7057,14 +7056,14 @@ Appendix: Notation
      - note: real change (i.e., not necessarily finite-difference) in a
        parameter
 
-   * - 
+   * -
      - across the capping inversion (see :eq:`dbinv` and following text)
 
 .. list-table::
 
 
    * - Model variables
-     - 
+     -
 
    * - :math:`\theta_l`, :math:`\theta_{v\ell}`
      - thermodynamic variables defined by :eq:`thetal` and :eq:`thetavl`
@@ -7072,7 +7071,7 @@ Appendix: Notation
    * - :math:`T_v`, :math:`\theta_v`
      - virtual temperature and potential temperature,
 
-   * - 
+   * -
      - defined by :eq:`Tv` and in section (:ref:`Calculation of parcel buoyancy
        excess <sec_parxs>`)
 
@@ -7082,7 +7081,7 @@ Appendix: Notation
    * - :math:`q_t`, :math:`q_v`, :math:`q_s`, :math:`q_{\ell}`, :math:`q_f`
      - specific humidities:
 
-   * - 
+   * -
      - total, vapour, saturated, liquid and frozen water, respectively
 
    * - :math:`C_F`, :math:`C_F^l`, :math:`C_F^f`
@@ -7095,7 +7094,7 @@ Appendix: Notation
 
 
    * - Thresholds
-     - 
+     -
 
    * - :math:`C_t`
      - (:math:`=1.1`) threshold for ratio of layer :math:`q_t`-gradients in
@@ -7105,7 +7104,7 @@ Appendix: Notation
      - (:math:`=1.1`) threshold on ratio of environment to parcel
        :math:`\theta_v` gradients
 
-   * - 
+   * -
      - for identifying capping inversions above the LCL
 
    * - SC_CFTOL
@@ -7119,14 +7118,14 @@ Appendix: Notation
      - (:math:`=0.1`) threshold for the ratio of buoyancy consumption to
        production
 
-   * - 
+   * -
      - before decoupling occurs
 
 .. list-table::
 
 
    * - Layer definitions and parameters
-     - 
+     -
 
    * - SML
      - surface-based mixed layer
@@ -7164,7 +7163,7 @@ Appendix: Notation
    * - :math:`z_{\mathrm{loc}}`
      - height of half-level marking 'top' of local :math:`Ri`-based mixing
 
-   * - 
+   * -
      - (where :math:`Ri>1`)
 
    * - :math:`z_i`
@@ -7182,7 +7181,7 @@ Appendix: Notation
    * - :math:`K_m^{\mathrm{Sc}}`, :math:`K_h^{\mathrm{Sc}}`
      - :math:`K` profiles for cloud-top-driven turbulence
 
-   * - 
+   * -
      - (calculated for both DSC and SML)
 
    * - LCL
@@ -7192,7 +7191,7 @@ Appendix: Notation
 
 
    * - Other parameters
-     - 
+     -
 
    * - :math:`\gamma_{\theta_{\ell}}`
      - gradient adjustment term, given by :eq:`gradadj`
@@ -7200,14 +7199,14 @@ Appendix: Notation
    * - :math:`w_m`
      - scaling velocity for momentum mixing in the SML
 
-   * - 
+   * -
      - (used in :math:`K_m^{\mathrm{surf}}`, :math:`\gamma_{\theta_{\ell}}` and
        the SML parcel perturbation, :math:`\theta_v'`)
 
    * - :math:`w_*`
      - 'standard' convective velocity scale for a cloud-free convective
 
-   * - 
+   * -
      - boundary layer, :math:`w_*^3 = z_{\mathrm{h}}\overline{w'b}_S`
 
    * - :math:`u_*`
@@ -7229,7 +7228,7 @@ Appendix: Notation
    * - :math:`\tau_{rc}`, :math:`z_{rc}`
      - parameters in perturbation calculation, :eq:`dscd_pert`,
 
-   * - 
+   * -
      - for initial identification of and :math:`z_{\mathrm{ml}}` calculation
        for DSC layers
 
