@@ -40,6 +40,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use config_loader_mod, only: final_configuration
+
     implicit none
 
     class(sample_initial_u_test_type), intent(inout) :: this

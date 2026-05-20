@@ -114,7 +114,9 @@ integer, parameter :: i_bm_ez_entpar = 3  ! Construct modes from above and
 logical :: l_ensure_min_in_cloud_qcf = .false.
                                  ! Reduce CFF when qcf is low to
                                  ! ensure a minimum qcf/CFF.
-
+logical :: l_ensure_max_in_cloud_pc2 = .false.
+                                 ! Increase cloud-fractions so-as to remove
+                                 ! silly large in-cloud water contents qc/cf
 logical :: l_micro_eros = .false.
                                  ! If false, erosion is done as part of
                                  ! the convection scheme
@@ -315,7 +317,7 @@ logical, parameter :: l_fixbug_pc2_mixph = .true.
 namelist/RUN_Cloud/ rhcrit, i_eacf, forced_cu, forced_cu_fac,                  &
        cloud_pc2_tol, cloud_pc2_tol_2,                                         &
        dbsdtbs_turb_0, falliceshear_method,                                    &
-       l_ensure_min_in_cloud_qcf,                                              &
+       l_ensure_min_in_cloud_qcf, l_ensure_max_in_cloud_pc2,                   &
        i_pc2_conv_coupling, i_pc2_erosion_method, i_pc2_erosion_numerics,      &
        l_micro_eros,                                                           &
        starticeTKelvin, alliceTdegC, cff_spread_rate, ice_width,               &
@@ -505,6 +507,9 @@ write(lineBuffer,'(A,I0)')' falliceshear_method = ',falliceshear_method
 call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,L1)')' l_ensure_min_in_cloud_qcf = ',                     &
                             l_ensure_min_in_cloud_qcf
+call umPrint(lineBuffer,src='cloud_inputs_mod')
+write(lineBuffer,'(A,L1)')' l_ensure_max_in_cloud_pc2 = ',                     &
+                            l_ensure_max_in_cloud_pc2
 call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,L1)')' l_pc2_check_init = ',l_pc2_check_init
 call umPrint(lineBuffer,src='cloud_inputs_mod')

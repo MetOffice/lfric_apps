@@ -46,9 +46,9 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! u_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! v_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! w_in_wth
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_star
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! u_in_w3_star
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! v_in_w3_star
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_latest
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! u_in_w3_latest
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! v_in_w3_latest
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! height_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! height_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dt_conv
@@ -258,9 +258,9 @@ contains
   !> @param[in]     u_in_w3              'Zonal' wind at time n
   !> @param[in]     v_in_w3              'Meridional' wind at time n
   !> @param[in]     w_in_wth             'Vertical' wind in theta space
-  !> @param[in]     theta_star           Potential temperature after advection
-  !> @param[in]     u_in_w3_star         'Zonal' wind after advection
-  !> @param[in]     v_in_w3_star         'Meridional' wind after advection
+  !> @param[in]     theta_latest         Latest estimate of Potential temp
+  !> @param[in]     u_in_w3_latest       Latest estimate of 'Zonal' wind
+  !> @param[in]     v_in_w3_latest       Latest estimate of 'Meridional' wind
   !> @param[in]     height_w3            Height of density space above surface
   !> @param[in]     height_wth           Height of theta space above surface
   !> @param[in,out] dt_conv              Convection temperature increment
@@ -463,9 +463,9 @@ contains
                           u_in_w3,                           &
                           v_in_w3,                           &
                           w_in_wth,                          &
-                          theta_star,                        &
-                          u_in_w3_star,                      &
-                          v_in_w3_star,                      &
+                          theta_latest,                      &
+                          u_in_w3_latest,                    &
+                          v_in_w3_latest,                    &
                           height_w3,                         &
                           height_wth,                        &
                           dt_conv,                           &
@@ -774,8 +774,8 @@ contains
                                 fldname_n_cor_ins,                             &
                                 fldname_cor_ins_du
 
-    use aerosol_config_mod,        only: glomap_mode,               &
-                                         glomap_mode_dust_and_clim, &
+    use aerosol_config_mod,        only: glomap_mode,                          &
+                                         glomap_mode_dust_and_clim,            &
                                          glomap_mode_ukca
 
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
@@ -785,13 +785,15 @@ contains
     ! UM modules containing switches or global constants
     !---------------------------------------
     use bl_option_mod, only: max_tke
-    use cloud_inputs_mod, only: l_pc2_homog_conv_pressure
-    use cv_run_mod, only: l_mom,                                          &
-                          l_conv_prog_dtheta, l_conv_prog_dq,             &
+    use cloud_inputs_mod, only: l_pc2_homog_conv_pressure,                     &
+                                l_cloud_call_b4_conv,                          &
+                                l_ensure_max_in_cloud_pc2
+    use cv_run_mod, only: l_mom,                                               &
+                          l_conv_prog_dtheta, l_conv_prog_dq,                  &
                           tau_conv_prog_dtheta, tau_conv_prog_dq
     use jules_surface_mod, only: srf_ex_cnv_gust, IP_SrfExWithCnv
-    use mphys_inputs_mod, only: l_mcr_qgraup, l_mcr_qrain, l_mcr_precfrac, &
-         l_mcr_qcf2
+    use mphys_inputs_mod, only: l_mcr_qgraup, l_mcr_qrain, l_mcr_qcf2,         &
+                                l_mcr_precfrac, l_improve_precfrac_checks
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels
     use planet_constants_mod, only: p_zero, kappa, planet_radius, g
     use timestep_mod, only: timestep
@@ -842,8 +844,8 @@ contains
                                                         exner_in_w3,        &
                                                         u_in_w3,            &
                                                         v_in_w3,            &
-                                                        u_in_w3_star,       &
-                                                        v_in_w3_star,       &
+                                                        u_in_w3_latest,     &
+                                                        v_in_w3_latest,     &
                                                         height_w3,          &
                                                         heat_flux,          &
                                                         moist_flux,         &
@@ -858,7 +860,7 @@ contains
                                                          exner_in_wth,      &
                                                          w_in_wth, delta,   &
                                                          theta_n,           &
-                                                         theta_star,        &
+                                                         theta_latest,      &
                                                          height_wth,        &
                                                          rhokm_bl, wvar,    &
                                                          cf_liq_n, cf_fro_n,&
@@ -1296,7 +1298,7 @@ contains
 
     do i = 1, row_length
       do k = 1, nlayers
-        theta_conv(i,1,k) = theta_star(map_wth(1,i) + k)
+        theta_conv(i,1,k) = theta_latest(map_wth(1,i) + k)
 
         q_conv(i,1,k)   = m_v(map_wth(1,i) + k)
         qcl_conv(i,1,k) = m_cl(map_wth(1,i) + k)
@@ -1351,8 +1353,8 @@ contains
         do k = 1, nlayers
           u_p(i,1,k) = u_in_w3(map_w3(1,i) + k-1)
           v_p(i,1,k) = v_in_w3(map_w3(1,i) + k-1)
-          u_conv(i,1,k) = u_in_w3_star(map_w3(1,i) + k-1)
-          v_conv(i,1,k) = v_in_w3_star(map_w3(1,i) + k-1)
+          u_conv(i,1,k) = u_in_w3_latest(map_w3(1,i) + k-1)
+          v_conv(i,1,k) = v_in_w3_latest(map_w3(1,i) + k-1)
         end do ! k
       end do
     end if
@@ -2008,28 +2010,28 @@ contains
       end do
     end do
 
-    ! The "latest" (_star) fields used by convection are values
-    ! interpolated to departure points by SL advection.
-    ! The interpolation is not guaranteed to preserve consistency
-    ! between the cloud fraction and cloud water fields.
-    ! However, various things can go wrong within CoMorph if they
-    ! are inconsistent; especially the routine calc_env_partitions,
-    ! which attempts to calculate the internal properties of
-    ! the in-cloud and clear sub-regions of the grid-box.
-    ! E.g. a common problem is if qcf is large but CFF is small,
-    ! the in-cloud qcf can get implausibly large, which can
-    ! cause the phase-change calculations to yield nonsense.
-    ! Therefore, apply safety checks to the cloud-fractions
-    ! before passing them into convection...
     do i = 1, row_length
       do k = 1, nlayers
         precfrac_star(i,1,k) = precfrac(map_wth(1,i)+k)
       end do
     end do
-    CALL fracs_consistency  ( qcl_conv, qcf_conv, qcf2_conv,                   &
+
+    ! The "latest" fields used by convection are values
+    ! interpolated to departure points by SL advection.
+    ! The interpolation is not guaranteed to preserve consistency
+    ! between the cloud fraction and cloud water fields.
+    ! However, various things can go wrong within CoMorph if they
+    ! are inconsistent.
+    ! Therefore, apply safety checks to the cloud-fractions
+    ! before passing them into convection...
+    if ( ( .not. (l_cloud_call_b4_conv .and. l_ensure_max_in_cloud_pc2) ) .or. &
+         ( l_mcr_precfrac .and. ( .not. l_improve_precfrac_checks ) ) ) then
+      ! Don't need to do this if similar checks already switched on elsewhere
+      CALL fracs_consistency( qcl_conv, qcf_conv, qcf2_conv,                   &
                               qrain_conv, qgraup_conv,                         &
                               cf_liquid_conv, cf_frozen_conv, bulk_cf_conv,    &
                               precfrac_star )
+    end if
 
     ! Note: if not using PC2, the cloud-fraction _star fields do exist
     ! but are just set to values after slow_physics

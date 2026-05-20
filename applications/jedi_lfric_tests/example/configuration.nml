@@ -1,3 +1,6 @@
+&adjoint
+l_compute_annexed_dofs=.true.,
+/
 &base_mesh
 file_prefix='mesh_C12_MG',
 geometry='spherical',

@@ -38,6 +38,9 @@ forecast_length='P0DT6H0M0S',
 
 #### Configure LFRic
 
+&adjoint
+l_compute_annexed_dofs=.true.,
+/
 &base_mesh
 file_prefix='mesh_C12',
 geometry='spherical',
