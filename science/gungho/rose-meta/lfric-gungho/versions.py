@@ -41,11 +41,11 @@ class vn31_t504(MacroUpgrade):
         # Add settings
         self.add_setting(config,
                   ["namelist:initial_temperature", "theta_pert_start"],
-                   "0.0")
+                   "5000.0")
         self.add_setting(config,
                   ["namelist:initial_temperature", "theta_pert_end"],
-                   "0.0")
+                   "7000.0")
         self.add_setting(config,
                   ["namelist:initial_temperature", "theta_pert_size"],
-                   "0.0")
+                   "0.5")
         return config, self.reports
