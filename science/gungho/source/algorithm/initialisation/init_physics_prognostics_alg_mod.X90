@@ -104,13 +104,8 @@ contains
 #ifdef UM_PHYSICS
 
     if ( surface            /= surface_none             .or. &
-         aerosol            /= aerosol_none             .or. &
-         cloud              /= cloud_none               .or. &
-         microphysics       /= microphysics_none        .or. &
          radiation          /= radiation_none           .or. &
-         convection         /= convection_none          .or. &
          orographic_drag    /= orographic_drag_none     .or. &
-         electric           /= electric_none            .or. &
          stochastic_physics /= stochastic_physics_none  .or. &
          boundary_layer     /= boundary_layer_none ) then
 
