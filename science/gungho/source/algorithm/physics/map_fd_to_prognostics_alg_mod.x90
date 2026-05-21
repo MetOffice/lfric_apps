@@ -468,9 +468,10 @@ contains
              ! Compute absolute temperature T = theta * exner
              X_times_Y( temperature, exner_in_wth, theta),                   &
 
-             ! Rebalance exner in vertical, using hydrostatic balance.
+             ! Rebalance exner in vertical, using hydrostatic balance
+             ! preserving absolute temperature.
              ! This integrates down using g (shallow) from eos_level and
-             ! then integrates up using phi (deep).
+             ! then integrates up using phi (deep). 
              hydro_shallow_to_deep_kernel_type( exner, temperature,          &
                                                 c_vert_term,                 &
                                                 moist_dyn, geopotential,     &
@@ -489,15 +490,18 @@ contains
 
              ! Compute absolute temperature T = theta * exner
              X_times_Y( temperature, exner_in_wth, theta),                   &
-             ! Rebalance exner in vertical, using hydrostatic balance.
-             ! This integrates down using g (shallow) from eos_level and
-             ! then integrates up using phi (deep).
+             ! Find exner at level 1 by integrating hydrostatic equation 
+             ! downwards from eos_level, preserving theta. Gravity
+             ! assumed constant.
              hstat_cori_g_const_kernel_type( exner, rho, theta,     &
                                              c_vert_term,           &
                                              moist_dyn(gas_law),    &
                                              moist_dyn(total_mass), &
                                              height_w3, mask,       &
                                              eos_level ),           &
+             ! Find exner at all levels by integrating hydrostatic
+             ! equation upwards from level 1, preserving absolute
+             ! temperature. Gravity is height-dependent.
              regrav_isotherm_kernel_type( exner, temperature,    &
                                           c_vert_term,           &
                                           moist_dyn(gas_law),    &
@@ -507,17 +511,23 @@ contains
                                           mask ) )
       case( regravitate_isotherm3 )
         call invoke( &
+             ! Find exner below eos_level by integrating hydrostatic
+             ! equation downwards, assuming constant gravity.
              hstat_cori_g_const_kernel_type( exner, rho, theta,     &
                                              c_vert_term,           &
                                              moist_dyn(gas_law),    &
                                              moist_dyn(total_mass), &
                                              height_w3, mask,       &
                                              eos_level ),           &
+             ! Find exner in Wtheta space
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,     &
                                               height_wth, height_w3 ), &
 
              ! Compute absolute temperature T = theta * exner
              X_times_Y( temperature, exner_in_wth, theta),       &
+             ! Find exner at all levels by integrating hydrostatic
+             ! equation upwards from level 1, preserving absolute
+             ! temperature. Gravity is height-dependent.
              regrav_isotherm_kernel_type( exner, temperature,    &
                                           c_vert_term,           &
                                           moist_dyn(gas_law),    &
@@ -527,23 +537,26 @@ contains
                                           mask ) )
       case( regravitate_geopot )
         call invoke( &
+             ! Find exner below eos_level by integrating hydrostatic
+             ! equation downwards, assuming constant gravity.
              hstat_cori_g_const_kernel_type( exner, rho, theta,     &
                                              c_vert_term,           &
                                              moist_dyn(gas_law),    &
                                              moist_dyn(total_mass), &
                                              height_w3, mask,       &
                                              eos_level ),           &
+             ! Find exner in Wtheta space
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,     &
                                               height_wth, height_w3 ), &
              ! Compute absolute temperature T = theta * exner
-             X_times_Y( temperature, exner_in_wth, theta),     &
-             regrav_geopot_kernel_type( temperature, theta,    &
-                                        exner,                 &
-                                        c_vert_term,           &
-                                        moist_dyn(gas_law),    &
-                                        moist_dyn(total_mass), &
-                                        height_w3, height_wth, &
-                                        mask ),                &
+             X_times_Y( temperature, exner_in_wth, theta),  &
+             ! Interpolate temperature from heights corresponding to
+             ! geopotential height onto heights of the model grid.
+             regrav_geopot_kernel_type( temperature, exner, &
+                                        height_wth, mask ), &
+             ! Find exner at all levels by integrating hydrostatic
+             ! equation upwards from level 1, preserving absolute
+             ! temperature. Gravity is height-dependent.
              regrav_isotherm_kernel_type( exner, temperature,    &
                                           c_vert_term,           &
                                           moist_dyn(gas_law),    &
