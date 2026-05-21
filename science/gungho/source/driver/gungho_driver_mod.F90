@@ -143,11 +143,11 @@ contains
     character(len=*), parameter :: io_context_name = "gungho_atm"
     integer(i_def) :: random_seed_size
     integer(i_def), allocatable :: integer_array(:)
-    real(r_def),    allocatable :: real_array(:)
     integer(tik)   :: id
 
 #ifdef UM_PHYSICS
     integer(i_def) :: i
+    real(r_def),    allocatable :: real_array(:)
     type(io_value_type) :: spt_arrays(spt_array_count)
     type(io_value_type) :: skeb_arrays(skeb_array_count)
 
