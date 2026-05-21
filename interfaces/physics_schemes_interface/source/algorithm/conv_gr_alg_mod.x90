@@ -522,7 +522,7 @@ contains
     ! Switch UM to running i-first on whole domain
     ncells = mesh%get_last_edge_cell()
     call um_sizes_init(ncells)
-    
+
     ! set increments to zero
     call invoke( setval_c(dt_conv, 0.0_r_def),          &
                  setval_c(dmv_conv, 0.0_r_def),         &

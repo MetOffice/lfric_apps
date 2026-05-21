@@ -14,7 +14,7 @@ module psykal_lite_phys_mod
   use field_mod,             only : field_type, field_proxy_type
   use integer_field_mod,     only : integer_field_type, integer_field_proxy_type
   use mesh_mod,              only : mesh_type
-  
+
   implicit none
   public
 
@@ -72,13 +72,13 @@ contains
     ! Integers for segmentation
     integer :: applicable_points, nlayers, loop_upper_bound, segment, seg_len, &
                l_bound, u_bound, n_segments , seg_target
-    
+
     ! These are in ANY_DISCONTINUOUS_SPACE_1
     integer :: ndf_adspc1_sd_orog, undf_adspc1_sd_orog
 
     integer, allocatable ::    cell_index(:) !dhc record the points with orography
 
-    
+
     type(field_proxy_type) :: du_blk_proxy, dv_blk_proxy,             &
                               du_orog_gwd_proxy, dv_orog_gwd_proxy,   &
                               dtemp_blk_proxy, dtemp_orog_gwd_proxy,  &
@@ -149,9 +149,9 @@ contains
     undf_adspc1_sd_orog = sd_orog_proxy%vspace%get_undf()
 
     ! Temporary variable for loop bound helps OpenMP
-    loop_upper_bound = mesh%get_last_edge_cell()    
-  
-    applicable_points = 0   
+    loop_upper_bound = mesh%get_last_edge_cell()
+
+    applicable_points = 0
     !cell index padded with 0s beyond applicable_points
     allocate(cell_index(loop_upper_bound))
     cell_index = 0

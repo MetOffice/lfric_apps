@@ -33,7 +33,7 @@ contains
   use radiative_gases_config_mod,      only: o3_rad_opt, o3_rad_opt_profile,  &
                                              o3_profile_size, o3_profile_data,&
 					     o3_profile_heights
-					     
+
 !> @todo Data passed to the kernel via module 'use' statements.
 !>       When PSyclone supports passing of arrays into kernels (issue #1312),
 !>       these data should be passed through the argument list of the invoke.

@@ -49,10 +49,10 @@ contains
 !> @param[in,out] conv_frozen_mmr          Convective frozen gridbox MMR
 !> @param[in,out] conv_frozen_number       Convective frozen number conc
 !> @param[in]     temperature_in_wth       Temperature field in wth space
-!> @param[in]     theta                    Potential temperature in wth  
+!> @param[in]     theta                    Potential temperature in wth
 !> @param[in]     cloud_fields             Fields for cloud scheme
 !> @param[in]     convection_fields        Fields for convection scheme
-!> @param[in]     derived_fields           Derived dynamics fields  
+!> @param[in]     derived_fields           Derived dynamics fields
 !> @param[in]     rad_this_tstep           Flag for radiation timestep
 !> @param[in]     rad_inc_this_tstep       Flag for radiation increment timestep
 !> @param[in]     cosp_this_tstep          Flag for COSP this timestep

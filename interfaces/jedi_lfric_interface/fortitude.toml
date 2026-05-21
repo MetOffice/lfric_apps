@@ -18,8 +18,8 @@ output-format = "grouped"                #group results by file
 
 [check.per-file-ignores]
 
-"jedi_lfric_linear_modeldb_driver_mod.f90" = ["S101"]
-"atlas_field_interface_mod.F90" = ["S101"]
+# "jedi_lfric_linear_modeldb_driver_mod.f90" = ["S101"]
+# "atlas_field_interface_mod.F90" = ["S101"]
 "jedi_lfric_field_meta_mod.f90" = ["C061"]
 "jedi_lfric_wind_fields_mod.f90" = ["C061"]
 "atlas_field_interface_test.pf" = ["C021"]
