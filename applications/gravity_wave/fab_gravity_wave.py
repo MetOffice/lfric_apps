@@ -38,9 +38,8 @@ class FabGravityWave(PfUnitMixin, LFRicAppsBase):
                  name: str,
                  root_symbol: Optional[Union[list[str], str]] = None) -> None:
 
-        print("fabgravitywave")
         super().__init__(name=name,
-                         apps_dir=Path(__file__).parent,
+                         app_dir=Path(__file__).parent,
                          root_symbol=root_symbol)
         # Store the root of this apps for later
         this_file = Path(__file__).resolve()

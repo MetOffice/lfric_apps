@@ -47,19 +47,19 @@ class LFRicAppsBase(LFRicBase):
 
     :param name: the name to be used for the workspace. Note that
         the name of the compiler will be added to it.
-    :param apps_dir: the base directory of the application.
+    :param app_dir: the base directory of the application.
     :param root_symbol: the symbol (or list of symbols) of the main
         programs. Defaults to the parameter `name` if not specified.
 
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, name: str,
-                 apps_dir: Path,
+                 app_dir: Path,
                  root_symbol: Optional[Union[list[str], str]] = None
                  ):
         apps_root = Path(__file__).parents[1]
         print("lfricappsbase", apps_root)
-        super().__init__(name=name, apps_dir=apps_dir,
+        super().__init__(name=name, app_dir=app_dir,
                          root_symbol=root_symbol)
 
         # Some transmute function will import helper functions from
