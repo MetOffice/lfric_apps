@@ -1,9 +1,9 @@
 !-------------------------------------------------------------------------------
-! (c) Crown copyright 2025 Met Office. All rights reserved.
+! (c) Crown copyright 2026 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!> @brief Test the tracer 1D FFSL flux computation in the horizontal
+!> @brief Test the tracer 1D TL FFSL flux computation in the horizontal
 
 module tl_ffsl_flux_xy_sphere_kernel_mod_test
 
@@ -128,7 +128,7 @@ contains
     dep_pts = (/ 0.4_r_tran, 0.0_r_tran, 0.4_r_tran, 0.0_r_tran /)
     frac_dry_flux(:) = 1.2_r_tran
     frac_dry_pert(:) = 1.0_r_tran
-    dt = 1.0_r_tran
+    dt = 2.0_r_tran
 
     ! Set up departure point indices
     dep_lowest_k(:) = 0  ! Default is to not include any layers
@@ -199,14 +199,20 @@ contains
       use_tol = 10.0_r_tran*spacing( maxval( flux_pert(1:4) ) )
     end if
 
-    answer_pert = 1.704_r_tran
+    ! flux_pert is computed using the Nirvana reconstruction with a stencil
+    ! composed of field_for_x and field_for_y when crossing the panel boundary
+    ! It is computed as frac_dry_flux*field_reconstruction(dep_cell)/dt
+    answer_pert = 0.852_r_tran
     @assertEqual(answer_pert, flux_pert(1), use_tol)
-    answer_pert = 1.224_r_tran
+    answer_pert = 0.612_r_tran
     @assertEqual(answer_pert, flux_pert(3), use_tol)
 
-    answer_ls = 2.0_r_tran
-    @assertEqual(answer_ls, flux_ls(1), use_tol)
+    ! flux_ls is computed using the ls_field value (from the ls_field_for_x
+    ! and ls_field_for_y stencil) in the departure cell (determined by dep_pts),
+    ! ls_field(dep_cell)*frac_dry_pert/dt
     answer_ls = 1.0_r_tran
+    @assertEqual(answer_ls, flux_ls(1), use_tol)
+    answer_ls = 0.5_r_tran
     @assertEqual(answer_ls, flux_ls(3), use_tol)
 
   end subroutine test_all

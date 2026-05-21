@@ -74,7 +74,7 @@ contains
 !> @param[in]     frac_wind      The fractional vertical ls wind
 !> @param[in]     dep_dist       The vertical ls departure points
 !> @param[in]     frac_wind_pert The fractional vertical perturbation wind
-!> @param[in]     field          The field to construct the first flux
+!> @param[in]     field          The perturbation field to construct the first flux
 !> @param[in]     ls_field       The ls_field to construct the second flux
 !> @param[in]     dla_dz_1       First set of coefficients for the reconstruction of
 !!                               the field at the edge above the cell
@@ -185,7 +185,8 @@ subroutine tl_ffsl_flux_z_nirvana_code( nlayers,         &
   ! ========================================================================== !
   ! EDGE RECONSTRUCTION
   ! ========================================================================== !
-  ! Use Nirvana reconstruction for interpolated edge values
+  ! Use Nirvana reconstruction for interpolated edge values, computing
+  ! edge_above and edge_below from the perturbation field
   call third_order_vertical_edge(                                              &
           field(w3_idx : w3_idx+nlayers-1),                                    &
           dla_dz_1(w3_idx : w3_idx+nlayers-1),                                 &

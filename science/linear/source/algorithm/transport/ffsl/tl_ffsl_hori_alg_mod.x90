@@ -11,7 +11,7 @@ module tl_ffsl_hori_alg_mod
   ! Constants and types
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
-  use fs_continuity_mod,                only: W2H, W2Hbroken
+  use fs_continuity_mod,                only: W2H
   use function_space_mod,               only: function_space_type
   use function_space_collection_mod,    only: function_space_collection
   use sci_geometric_constants_mod,      only: get_panel_id,                    &
@@ -21,7 +21,8 @@ module tl_ffsl_hori_alg_mod
   use log_mod,                          only: log_event, LOG_LEVEL_ERROR
   use mesh_mod,                         only: mesh_type
   use r_tran_field_mod,                 only: r_tran_field_type
-  use timer_mod,                        only: timer
+  use timing_mod,                       only: start_timing, stop_timing,       &
+                                              tik, LPROF
 
   ! Transport control
   use transport_constants_mod,          only: get_detj_at_w3_r_tran,           &
@@ -36,28 +37,19 @@ module tl_ffsl_hori_alg_mod
   use ffsl_hori_alg_mod,                only: ffsl_extra_points,               &
                                               ffsl_hori_cosmic_inner_alg,      &
                                               ffsl_hori_outer_alg
-  use limited_area_lbc_alg_mod,         only: overwrite_blending_zone_rtran
-  use remap_on_extended_mesh_alg_mod,   only: remap_on_extended_mesh
 
   ! Kernels
-  use sci_average_w2_to_w2b_kernel_mod, only: average_w2_to_w2b_kernel_type
   use tl_ffsl_flux_xy_kernel_mod,       only: tl_ffsl_flux_xy_kernel_type
   use tl_ffsl_flux_xy_sphere_kernel_mod, &
                                         only: tl_ffsl_flux_xy_sphere_kernel_type
-  use ffsl_unify_flux_kernel_mod,       only: ffsl_unify_flux_kernel_type
   use fv_divergence_x_kernel_mod,       only: fv_divergence_x_kernel_type
   use fv_divergence_y_kernel_mod,       only: fv_divergence_y_kernel_type
   use fv_divergence_2d_kernel_mod,      only: fv_divergence_2d_kernel_type
 
   ! Configuration options
-  use base_mesh_config_mod,             only: topology, topology_non_periodic, &
+  use base_mesh_config_mod,             only: topology,                        &
                                               topology_fully_periodic,         &
                                               geometry, geometry_spherical
-  use boundaries_config_mod,            only: limited_area,                    &
-                                              transport_boundary_depth,        &
-                                              transport_overwrite_freq,        &
-                                              transport_overwrite_freq_all
-  use io_config_mod,                    only: subroutine_timers
   use linear_config_mod,                only: transport_efficiency
   use transport_config_mod,             only:                                  &
                                           panel_edge_treatment,                &
@@ -85,13 +77,13 @@ contains
   !!          the perturbation field and the perturbation wind with the ls field.
   !!          The advective increment for the perturbation field is (optionally)
   !!          computed.
-  !> @param[in,out] mass_flux_pert     Mass flux from the pert field / ls wind part
-  !> @param[in,out] mass_flux_ls       Mass flux from the ls field / pert wind part
-  !> @param[in,out] adv_inc            The advective increment for the field using
+  !> @param[in,out] mass_flux_pert     ACTIVE  Mass flux from the pert field / ls wind part
+  !> @param[in,out] mass_flux_ls       ACTIVE  Mass flux from the ls field / pert wind part
+  !> @param[in,out] adv_inc            ACTIVE  The advective increment for the field using
   !!                                   both parts of the mass flux. Only used when
   !!                                   specified through the optional logical argument
-  !> @param[in]     field_n            Pert field at the start of the transport step
-  !> @param[in]     ls_field_n         LS field at the start of the transport step
+  !> @param[in]     field_n            ACTIVE  Pert field at the start of the transport step
+  !> @param[in]     ls_field_n         PASSIVE LS field at the start of the transport step
   !> @param[in]     step_dt            The dt for this time step
   !> @param[in,out] transport_controller
   !!                                   Object with metadata and precomputations
@@ -144,7 +136,6 @@ contains
 
     ! Transport options
     logical(kind=l_def) :: to_compute_adv_inc
-    logical(kind=l_def) :: do_overwrite
     integer(kind=i_def) :: splitting
     integer(kind=i_def) :: step
 
@@ -174,11 +165,12 @@ contains
 
     ! Useful constants
     real(kind=r_tran)   :: half_dt
+    integer(tik)        :: id
 
     ! Subroutine name for timer
     character(*), parameter :: routine_name = 'transport.tl_ffsl_hori_splitting_alg'
 
-    if ( subroutine_timers ) call timer(routine_name)
+    if ( LPROF ) call start_timing( id, routine_name )
 
     ! Get pre-computed objects and set pointers --------------------------------
     mesh => ls_field_n%get_mesh()
@@ -209,6 +201,7 @@ contains
     ! For the inner step we transport the perturbation with the ls wind
     ! 1st advective step -------------------------------------------------------
 
+    ! Compute first_increment_x and first_increment_y
     call tl_ffsl_hori_inner_alg( first_increment_x, first_increment_y,         &
                                  field_n, ls_field_n, step_dt,                 &
                                  ffsl_inner_order, ls_transport_controller,    &
@@ -222,21 +215,8 @@ contains
     call invoke( X_minus_bY(ls_field_x, ls_field_n, half_dt, ls_increment_x),  &
                  X_minus_bY(ls_field_y, ls_field_n, half_dt, ls_increment_y) )
 
-    ! Overwrite if needed for LAM
-    do_overwrite = (                                                           &
-      limited_area .and. topology == topology_non_periodic .and.               &
-      transport_overwrite_freq == transport_overwrite_freq_all                 &
-    )
-    if (do_overwrite) then
-      call overwrite_blending_zone_rtran(                                      &
-              field_x, field_n, depth=transport_boundary_depth                 &
-      )
-      call overwrite_blending_zone_rtran(                                      &
-              field_y, field_n, depth=transport_boundary_depth                 &
-      )
-    end if
-
     ! Outer transport step to compute fluxes
+    ! Compute mass_flux_pert and mass_flux_ls
     call tl_ffsl_hori_outer_alg( mass_flux_pert, mass_flux_ls, field_x,        &
                                  field_y, ls_field_x, ls_field_y, step_dt,     &
                                  ls_transport_controller,                      &
@@ -244,7 +224,7 @@ contains
 
     ! Compute advective update, if required -----------------------------------
     if (to_compute_adv_inc) then
-      ! The advective increment ls_u grad f' + dt u' grad ls_f can be computed
+      ! The advective increment ls_u grad f' + u' grad ls_f can be computed
       ! from the mass fluxes from
       ! f'_adv = (f' - dt F_1(f') - dt F_2(ls_u) + dt F_2(s) ls_f_adv )/(s - F(s))
       ! where F = F_1 + F_2 = div(flux), and s=1
@@ -289,6 +269,7 @@ contains
         call dummy_np1%initialise( vector_space = field_fs )
         call ls_increment%initialise( vector_space = field_fs )
         call ls_field_np1%initialise( vector_space = field_fs )
+        ! Compute mass_flux_ls_field
         call ffsl_hori_outer_alg(                                              &
                 mass_flux_ls_field, dummy_x, dummy_y, dummy_np1, ls_field_n,   &
                 ls_field_x, ls_field_y, step_dt, transport_controller,         &
@@ -324,7 +305,7 @@ contains
 
     end if
 
-    if ( subroutine_timers ) call timer(routine_name)
+    if ( LPROF ) call stop_timing( id, routine_name )
 
   end subroutine tl_ffsl_hori_splitting_alg
 
@@ -332,16 +313,23 @@ contains
   !> @brief Performs the inner advective step of horizontal FFSL sweeps for
   !!        the linear model
   !> @details Calculates the advective increment fields corresponding to X and Y
-  !!          transport sweeps, from a single input field. This is used for the
-  !!          inner step of the COSMIC splitting for the linear model.
-  !> @param[in,out] increment_x        Advective increment from x-sweep.
-  !> @param[in,out] increment_y        Advective increment from y-sweep.
-  !> @param[in]     field_n            Field at the start of the transport step
+  !!          transport sweeps, by computing the mass fluxes from the input perturbation
+  !!          field and the input ls field. This is used for the inner step of the
+  !!          COSMIC splitting for the linear model.
+  !> @param[in,out] increment_x        ACTIVE  Advective increment from x-sweep
+  !> @param[in,out] increment_y        ACTIVE  Advective increment from y-sweep
+  !> @param[in]     field_n            ACTIVE  Pert field at the start of the step
+  !> @param[in]     ls_field_n         PASSIVE LS field at the start of the step
   !> @param[in]     dt                 The dt for this time step
   !> @param[in]     order              The order of the reconstruction
-  !> @param[in,out] transport_controller
+  !> @param[in,out] ls_transport_controller
   !!                                   Object with metadata and precomputations
   !!                                   to control the transport of the field
+  !!                                   with ls wind
+  !> @param[in,out] pert_transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the ls field
+  !!                                   with pert wind
   subroutine tl_ffsl_hori_inner_alg( increment_x, increment_y, field_n,        &
                                      ls_field_n, dt, order,                    &
                                      ls_transport_controller,                  &
@@ -381,9 +369,7 @@ contains
 
     ! Fields and increments
     type(r_tran_field_type) :: flux_pert
-    type(r_tran_field_type) :: flux_pert_broken
     type(r_tran_field_type) :: flux_ls
-    type(r_tran_field_type) :: flux_ls_broken
     type(r_tran_field_type) :: ones
     type(r_tran_field_type) :: flux_ones
     type(r_tran_field_type) :: flux_dummy
@@ -406,7 +392,6 @@ contains
     ! Function spaces
     type(function_space_type), pointer :: field_fs
     type(function_space_type), pointer :: w2h_fs
-    type(function_space_type), pointer :: w2b_fs
     type(function_space_type), pointer :: ndepk_fs
 
     ! Transport options
@@ -417,9 +402,9 @@ contains
     integer(kind=i_def) :: mesh_id
     integer(kind=i_def) :: stencil_extent
     integer(kind=i_def) :: extra_points
-    integer(kind=i_def) :: remap_depth
     integer(kind=i_def) :: ndep
     logical(kind=l_def) :: is_cubed_sphere
+    integer(tik)        :: id
 
     ! Get pre-computed objects and set pointers --------------------------------
     mesh_id = field_n%get_mesh_id()
@@ -488,30 +473,24 @@ contains
 
     ! remap the field on an extended cubed sphere, if required -----------------
     ! If needed remap the field on an extended cubed sphere
-    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-      remap_depth = stencil_extent
-      call remap_on_extended_mesh(field_big_halo, field_n, .false.,            &
-                                  transport_metadata%get_enforce_min_value(),  &
-                                  transport_metadata%get_min_value(),          &
-                                  remap_depth)
-    else if ( panel_edge_treatment ==panel_edge_treatment_special_edges .or.   &
-              panel_edge_treatment ==panel_edge_treatment_remapping ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh .or.       &
+         panel_edge_treatment ==panel_edge_treatment_special_edges  .or.       &
+         panel_edge_treatment ==panel_edge_treatment_remapping ) then
       ! These panel edge methods are not yet available for the linear model
       call log_event( "tl_ffsl_hori_inner_alg: special edges or remapping not  &
                        available in the linear model", LOG_LEVEL_ERROR )
-    else
-      call field_big_halo%initialise( field_n%get_function_space(), &
-                                      halo_depth=mesh%get_halo_depth() )
-      call invoke( setval_x(field_big_halo, field_n) )
     end if
+    call field_big_halo%initialise( field_n%get_function_space(), &
+                                      halo_depth=mesh%get_halo_depth() )
     call ls_field_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
-    call invoke( setval_x(ls_field_big_halo, ls_field_n) )
+    call invoke( setval_x(field_big_halo, field_n), &
+                 setval_x(ls_field_big_halo, ls_field_n) )
     ! Copy required as PSyclone doesn't allow the same field to be
     ! used as two kernel arguments
     field_ptr_copy => field_big_halo
     ls_field_ptr_copy => ls_field_big_halo
 
-    if ( subroutine_timers ) call timer('transport.tl_ffsl_hori_sweeps')
+    if ( LPROF ) call start_timing( id, 'transport.tl_ffsl_hori_sweeps' )
 
     ! MASS FLUX COMPUTATION ====================================================
     if (is_cubed_sphere) then
@@ -549,26 +528,7 @@ contains
                                     face_selector_ns, order, ndep, dt ) )
     end if
 
-    if ( subroutine_timers ) call timer('transport.tl_ffsl_hori_sweeps')
-
-    ! fluxes may need unifying to guarantee a unique flux for each face --------
-    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-      if ( subroutine_timers ) call timer('transport.tl_ffsl_flux_unify')
-      w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
-      call flux_ls_broken%initialise( w2b_fs )
-      call flux_pert_broken%initialise( w2b_fs )
-      call invoke( average_w2_to_w2b_kernel_type(flux_pert_broken,             &
-                                                 flux_pert),                   &
-                   average_w2_to_w2b_kernel_type(flux_ls_broken,               &
-                                                 flux_ls),                     &
-                   ffsl_unify_flux_kernel_type(flux_pert,                      &
-                                               flux_pert_broken,               &
-                                               1, panel_id, 1),                &
-                   ffsl_unify_flux_kernel_type(flux_ls,                        &
-                                               flux_ls_broken,                 &
-                                               1, panel_id, 1) )
-      if ( subroutine_timers ) call timer('transport.tl_ffsl_flux_unify')
-    end if
+    if ( LPROF ) call stop_timing( id, 'transport.tl_ffsl_hori_sweeps' )
 
     ! Compute updated advective fields -----------------------------------------
 
@@ -612,7 +572,8 @@ contains
                  X_times_Y(adv_unity_term_y, ls_field_n, unity_increment_y) )
 
     ! Compute updated advective fields -----------------------------------------
-    if ( subroutine_timers ) call timer('transport.tl_ffsl_hori_update')
+    if ( LPROF ) call start_timing( id, 'transport.tl_ffsl_hori_update' )
+
     call invoke( X_plus_Y(flux_for_adv, flux_pert, flux_ls),                         &
                  fv_divergence_x_kernel_type(increment_x, flux_for_adv, detj_at_w3), &
                  fv_divergence_y_kernel_type(increment_y, flux_for_adv, detj_at_w3), &
@@ -622,7 +583,7 @@ contains
     call ffsl_advective_increment(increment_x, field_n, dt, adv_one_x)
     call ffsl_advective_increment(increment_y, field_n, dt, adv_one_y)
 
-    if ( subroutine_timers ) call timer('transport.tl_ffsl_hori_update')
+    if ( LPROF ) call stop_timing( id, 'transport.tl_ffsl_hori_update' )
 
   end subroutine tl_ffsl_hori_inner_alg
 
@@ -634,12 +595,12 @@ contains
   !!          for the linear model, computing the mass flux for the perturbation
   !!          field with the ls wind, and the mass flux for the ls field with the
   !!          perturbation wind.
-  !> @param[in,out] mass_flux_pert     Mass flux from the pert field / ls wind part
-  !> @param[in,out] mass_flux_ls       Mass flux from the ls field / pert wind part
-  !> @param[in]     field_x            Pert field after first x sweep
-  !> @param[in]     field_y            Pert field after first y sweep
-  !> @param[in]     ls_field_x         Ls field after first x sweep
-  !> @param[in]     ls_field_y         Ls field after first y sweep
+  !> @param[in,out] mass_flux_pert     ACTIVE  Mass flux from the pert field / ls wind part
+  !> @param[in,out] mass_flux_ls       ACTIVE  Mass flux from the ls field / pert wind part
+  !> @param[in]     field_x            ACTIVE  Pert field after first x sweep
+  !> @param[in]     field_y            ACTIVE  Pert field after first y sweep
+  !> @param[in]     ls_field_x         PASSIVE Ls field after first x sweep
+  !> @param[in]     ls_field_y         PASSIVE Ls field after first y sweep
   !> @param[in]     dt                 The dt for this time step
   !> @param[in,out] ls_transport_controller
   !!                                   Object with metadata and precomputations
@@ -692,13 +653,9 @@ contains
     type(r_tran_field_type) :: field_y_big_halo
     type(r_tran_field_type) :: ls_field_x_big_halo
     type(r_tran_field_type) :: ls_field_y_big_halo
-    type(r_tran_field_type) :: flux_ls_broken
-    type(r_tran_field_type) :: flux_pert_broken
 
     ! Function spaces
     type(function_space_type), pointer :: field_fs
-    type(function_space_type), pointer :: w2h_fs
-    type(function_space_type), pointer :: w2b_fs
     type(function_space_type), pointer :: ndepk_fs
 
     ! Transport options
@@ -707,8 +664,8 @@ contains
     ! Constants
     integer(kind=i_def) :: mesh_id, step
     integer(kind=i_def) :: stencil_extent
-    integer(kind=i_def) :: remap_depth
     integer(kind=i_def) :: ndep
+    integer(tik)        :: id
 
     integer(kind=i_def) :: extra_points
     logical(kind=l_def) :: is_cubed_sphere
@@ -763,7 +720,6 @@ contains
     )
 
     ! Function spaces
-    w2h_fs => dep_dist%get_function_space()
     field_fs => field_x%get_function_space()
     ndepk_fs => dep_lowest_k%get_function_space()
 
@@ -774,41 +730,23 @@ contains
 
     ! remap the field on an extended cubed sphere, if required -----------------
     ! If needed remap the field on an extended cubed sphere
-    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-      remap_depth = stencil_extent
-      call remap_on_extended_mesh(field_x_big_halo, field_x, .false.,          &
-                                  transport_metadata%get_enforce_min_value(),  &
-                                  transport_metadata%get_min_value(),          &
-                                  remap_depth)
-      call remap_on_extended_mesh(field_y_big_halo, field_y, .false.,          &
-                                  transport_metadata%get_enforce_min_value(),  &
-                                  transport_metadata%get_min_value(),          &
-                                  remap_depth)
-      call remap_on_extended_mesh(ls_field_x_big_halo, ls_field_x, .false.,    &
-                                  transport_metadata%get_enforce_min_value(),  &
-                                  transport_metadata%get_min_value(),          &
-                                  remap_depth)
-      call remap_on_extended_mesh(ls_field_y_big_halo, ls_field_y, .false.,    &
-                                  transport_metadata%get_enforce_min_value(),  &
-                                  transport_metadata%get_min_value(),          &
-                                  remap_depth)
-    else if ( panel_edge_treatment ==panel_edge_treatment_special_edges .or.   &
-              panel_edge_treatment ==panel_edge_treatment_remapping ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh .or.       &
+         panel_edge_treatment ==panel_edge_treatment_special_edges  .or.       &
+         panel_edge_treatment ==panel_edge_treatment_remapping ) then
       ! These panel edge methods are not yet available for the linear model
       call log_event( "tl_ffsl_hori_inner_alg: special edges or remapping not  &
                        available in the linear model", LOG_LEVEL_ERROR )
-    else
-      call field_x_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
-      call field_y_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
-      call ls_field_x_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
-      call ls_field_y_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
-      call invoke( setval_x(field_x_big_halo, field_x),                        &
-                   setval_x(field_y_big_halo, field_y),                        &
-                   setval_x(ls_field_x_big_halo, ls_field_x),                  &
-                   setval_x(ls_field_y_big_halo, ls_field_y) )
     end if
+    call field_x_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
+    call field_y_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
+    call ls_field_x_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
+    call ls_field_y_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
+    call invoke( setval_x(field_x_big_halo, field_x),                        &
+                 setval_x(field_y_big_halo, field_y),                        &
+                 setval_x(ls_field_x_big_halo, ls_field_x),                  &
+                 setval_x(ls_field_y_big_halo, ls_field_y) )
 
-    if ( subroutine_timers ) call timer('transport.tl_ffsl_hori_sweeps')
+    if ( LPROF ) call start_timing( id, 'transport.tl_ffsl_hori_sweeps' )
 
     ! MASS FLUX COMPUTATION ====================================================
     if (is_cubed_sphere) then
@@ -846,26 +784,7 @@ contains
                                     face_selector_ns, order, ndep, dt ) )
     end if
 
-    if ( subroutine_timers ) call timer('transport.tl_ffsl_hori_sweeps')
-
-    ! fluxes may need unifying to guarantee a unique flux for each face --------
-    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-      if ( subroutine_timers ) call timer('transport.tl_ffsl_flux_unify')
-      w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
-      call flux_ls_broken%initialise( w2b_fs )
-      call flux_pert_broken%initialise( w2b_fs )
-      call invoke( average_w2_to_w2b_kernel_type(flux_pert_broken,             &
-                                                 mass_flux_pert),              &
-                   average_w2_to_w2b_kernel_type(flux_ls_broken,               &
-                                                 mass_flux_ls),                &
-                   ffsl_unify_flux_kernel_type(mass_flux_pert,                 &
-                                               flux_pert_broken,               &
-                                               1, panel_id, 1),                &
-                   ffsl_unify_flux_kernel_type(mass_flux_ls,                   &
-                                               flux_ls_broken,                 &
-                                               1, panel_id, 1) )
-      if ( subroutine_timers ) call timer('transport.tl_ffsl_flux_unify')
-    end if
+    if ( LPROF ) call stop_timing( id, 'transport.tl_ffsl_hori_sweeps' )
 
   end subroutine tl_ffsl_hori_outer_alg
 

@@ -671,7 +671,7 @@ contains
       ! ====================================================================== !
       ! Pull out departure point, and separate into integer / frac parts
       ! NB: minus sign in 'direction' because the Y1D stencil runs from S to N
-      displacement(:) = direction*dep_dist(w2h_idx:w2h_idx + nlayers-1)
+      displacement(:) = direction * dep_dist(w2h_idx:w2h_idx + nlayers-1)
       frac_dist(:) = ABS(displacement(:) - REAL(INT(displacement(:), i_def), r_tran))
       sign_disp(:) = INT(SIGN(1.0_r_tran, displacement(:)))
 

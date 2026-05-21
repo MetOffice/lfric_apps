@@ -93,8 +93,15 @@ contains
     frac_wind_pert = (/ 0.0_r_tran, 1.0_r_tran, 1.0_r_tran, -1.0_r_tran,       &
                        -1.0_r_tran, 0.0_r_tran /)
     ! Compute answers
+    ! The flux_pert is computed via the Nirvana scheme and is made up of an
+    ! integer part, sum field*Det(J)/dt, and the fractional part,
+    ! frac_wind*field_reconstruction(dep_cell)/dt
+    ! The integer part is only used if the corresponding dep_pts
+    ! magnitude is greater than 1, and the dep_cell is determined by dep_pts
     answer_pert = (/ 0.0_r_tran,  0.3625_r_tran,  1.125_r_tran, -4.3_r_tran,   &
                     -1.1375_r_tran,  0.0_r_tran /)
+    ! The answers for the ls fluxes will be ls_field(dep_cell)*pert_wind/dt
+    ! where dep_cell is determined by dep_pts
     answer_ls   = (/ 0.0_r_tran,  0.5_r_tran,  1.0_r_tran, -2.5_r_tran,        &
                     -2.5_r_tran,  0.0_r_tran /)
 

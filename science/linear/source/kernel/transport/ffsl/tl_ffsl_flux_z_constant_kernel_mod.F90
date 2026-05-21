@@ -4,16 +4,6 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Computes the mass flux for FFSL using PCM in the z direction.
-!> @details This kernel reconstructs a field using the Piecewise Constant Method
-!!          (PCM), and then computes the mass flux as
-!!          flux = wind * reconstruction
-!!          The PCM reconstruction is equivalent to a first order upwind scheme.
-!!          This kernel is designed to work in the vertical direction only.
-!!
-!!          Note that this kernel only works when field is a W3 field at lowest
-!!          order since it is assumed that ndf_w3 = 1
-
 !> @brief Computes the vertical mass flux using PCM for the tangent linear model.
 !> @details This kernel computes both parts of the vertical flux using the PCM
 !!          scheme for tangent linear model transport. The first part of the flux is

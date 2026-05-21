@@ -180,7 +180,10 @@ contains
 
     ! The field values for the 5 layers are (1.0,2.0,3.0,4.0,5.0)
     ! Note that for negative dep_pts the flux will be negative
-    ! The perturbation flux is given by the field*Det(J) + fraction*field*Det(j)
+    ! The perturbation flux is given by the integer part, sum field*Det(J)/dt,
+    ! and the fractional part, frac_wind*field(dep_cell)/dt
+    ! The integer part is only used if the corresponding dep_pts
+    ! magnitude is greater than 1, and the dep_cell is determined by dep_pts
     @assertEqual(0.0_r_tran,  this%flux_pert(1), tol)
     @assertEqual(0.16_r_tran, this%flux_pert(2), tol)
     @assertEqual(0.7_r_tran,  this%flux_pert(3), tol)
@@ -190,6 +193,7 @@ contains
 
     ! The ls_field values for the 5 layers are (2.0,4.0,6.0,8.0,10.0)
     ! The answers for the ls fluxes will be ls_field(dep_cell)*pert_wind/dt
+    ! where dep_cell is determined by dep_pts
     @assertEqual(0.0_r_tran,  this%flux_ls(1), tol)
     @assertEqual(0.4_r_tran,  this%flux_ls(2), tol)
     @assertEqual(0.4_r_tran,  this%flux_ls(3), tol)
