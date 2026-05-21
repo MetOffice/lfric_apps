@@ -120,7 +120,7 @@
        <!--<field id="readls_h_u3" name="ls_u3" long_name="Upward wind derived from LS values of vertical flux (in computational space)" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />-->
        <!--<field id="h_readls_h_u" name="h_readls_h_u" long_name="Horizontal flux (in computational space) derived from LS values of horizontal flux" standard_name="horizontal_flux" unit="m s-1" grid_ref="half_level_edge_grid" />-->
        <!--<field id="v_readls_h_u" name="v_readls_h_u" long_name="Vertical flux (in computational space) derived from LS values of horizontal flux" standard_name="vertical_flux" unit="m s-1" grid_ref="full_level_face_grid" />-->
-      
+
        <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
        <field id="m_v" name="m_v" long_name="m_v" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_cl" name="m_cl" long_name="m_cl" unit="kg/kg" grid_ref="full_level_face_grid" />
