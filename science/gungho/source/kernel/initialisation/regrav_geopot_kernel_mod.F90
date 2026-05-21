@@ -35,7 +35,7 @@ type, public, extends(kernel_type) :: regrav_geopot_kernel_type
   private
   type(arg_type) :: meta_args(4) = (/                     &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      W3),     &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3),     &
        arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta), &
        arg_type(GH_FIELD, GH_REAL, GH_READ,      W3)      &
        /)
@@ -53,7 +53,7 @@ contains
 
 !> @param[in]  nlayers        Number of layers
 !> @param[in,out] temperature Absolute temperature field
-!> @param[in]  exner          Exner pressure field
+!> @param[in,out] exner       Exner pressure field
 !> @param[in]  height_wth     Height coordinate in wth
 !> @param[in]  w3_mask        LBC mask or Dummy mask for w3 space
 !> @param[in]  ndf_wt         Number of degrees of freedom per cell for wtheta
@@ -86,7 +86,7 @@ subroutine regrav_geopot_code( nlayers,       &
   integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_wt), intent(inout) :: temperature
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: exner
+  real(kind=r_def), dimension(undf_w3), intent(inout) :: exner
   real(kind=r_def), dimension(undf_wt), intent(in)    :: height_wth
   real(kind=r_def), dimension(undf_w3), intent(in)    :: w3_mask
 
