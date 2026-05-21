@@ -12,13 +12,16 @@ module lfricinp_setup_io_mod
 use constants_mod,                 only: str_max_filename
 use file_mod,                      only: FILE_MODE_READ,                       &
                                          FILE_MODE_WRITE
-use log_mod,                       only: log_event, LOG_LEVEL_ERROR
 use lfric_xios_file_mod,           only: lfric_xios_file_type,                 &
                                          OPERATION_TIMESERIES
-use linked_list_mod,               only: linked_list_type
 use lfricinp_um_parameters_mod,    only: fnamelen
+use linked_list_mod,               only: linked_list_type
+use log_mod,                       only: log_event, LOG_LEVEL_ERROR
+
 implicit none
+
 private
+
 public :: io_config, io_fname
 
 integer, parameter              :: max_number_ancfiles = 20

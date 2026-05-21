@@ -33,7 +33,7 @@ module tl_compute_qe_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1 ), & ! ls_land_fraction
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ ),                        & ! log_layer
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ ),                        & ! Blevs_m
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ ),                        & ! blevs_m
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ ),                        & ! e_folding_levs_m
          arg_type(GH_SCALAR, GH_REAL,    GH_READ ),                        & ! u_land_m
          arg_type(GH_SCALAR, GH_REAL,    GH_READ ),                        & ! u_sea_m
@@ -64,7 +64,7 @@ contains
 !! @param[in]     height_wth       Height of wth space levels above surface
 !! @param[in]     ls_land_fraction Land area fraction
 !! @param[in]     log_layer        Number of levels in log layer
-!! @param[in]     Blevs_m          Number of levels in momentum boundary layer
+!! @param[in]     blevs_m          Number of levels in momentum boundary layer
 !! @param[in]     e_folding_levs_m e-folding level in exchange coefficient for momemtum
 !! @param[in]     z_land_m         Effective roughness length for momemtum over land
 !! @param[in]     z_sea_m          Effective roughness length for momemtum over sea
@@ -88,7 +88,7 @@ subroutine tl_compute_qe_code( nlayers,                             &
                                height_wth,                          &
                                ls_land_fraction,                    &
                                log_layer,                           &
-                               Blevs_m,                             &
+                               blevs_m,                             &
                                e_folding_levs_m,                    &
                                u_land_m,                            &
                                u_sea_m,                             &
@@ -109,20 +109,20 @@ subroutine tl_compute_qe_code( nlayers,                             &
   integer(kind=i_def), dimension(ndf_wtheta),  intent(in)    :: map_wtheta
   integer(kind=i_def),                         intent(in)    :: undf_2d, ndf_2d
   integer(kind=i_def), dimension(ndf_2d),      intent(in)    :: map_2d
-  real(kind=r_def),    dimension(undf_w3),     intent(inout) :: Q ! (0:BLevs_m)
-  real(kind=r_def),    dimension(undf_w3),     intent(inout) :: E ! (BLevs_m)
+  real(kind=r_def),    dimension(undf_w3),     intent(inout) :: Q ! (0:blevs_m)
+  real(kind=r_def),    dimension(undf_w3),     intent(inout) :: E ! (blevs_m)
   real(kind=r_def),    dimension(undf_w3),     intent(in)    :: ls_rho
   real(kind=r_def),    dimension(undf_w3),     intent(in)    :: height_w3
   real(kind=r_def),    dimension(undf_wtheta), intent(in)    :: height_wth
   real(kind=r_def),    dimension(undf_2d),     intent(in)    :: ls_land_fraction
-  integer(kind=i_def),                         intent(in)    :: log_layer,Blevs_m,e_folding_levs_m
+  integer(kind=i_def),                         intent(in)    :: log_layer,blevs_m,e_folding_levs_m
   real(kind=r_def),                            intent(in)    :: u_land_m, u_sea_m, z_land_m, z_sea_m, L_0_m
 
   ! Internal variables
   integer(kind=i_def)         :: df, k
   real(kind=r_def)            :: roughness_length_m
   real(kind=r_def), parameter :: Von_Karman = 0.4_r_def
-  real(kind=r_def)            :: L_diff_m(1:BLevs_m)
+  real(kind=r_def)            :: L_diff_m(1:blevs_m)
   real(kind=r_def)            :: u1
   real(kind=r_def)            :: num
   real(kind=r_def)            :: denom
@@ -135,8 +135,8 @@ subroutine tl_compute_qe_code( nlayers,                             &
   ! Vertical numbering (k index) matches that in old Var schemePF_bdy_lyr.f90 (see link above),
   ! in which centre of lowest cell is rho level 1 (allowing for the fact that the PF model is for New Dynamics,
   ! which has an extra rho level which means that W3 k=0 in LFRic is equivalent to rho levels k=1 in VAR).
-  ! L_diff_m(k) defined for 1 <= k <= BLevs_m.
-  do k = 1, BLevs_m
+  ! L_diff_m(k) defined for 1 <= k <= blevs_m.
+  do k = 1, blevs_m
     if (k <= Log_layer) then
       ! num and denom to take log of
       num = height_w3(map_w3(df) + k) - height_wth(map_wtheta(df)) + roughness_length_m
@@ -154,10 +154,10 @@ subroutine tl_compute_qe_code( nlayers,                             &
   ! Define Q and E
   ! E is on cell centres
   ! Q is on centre of horizontal faces - for convenience indexed by centre of cell above
-  ! Q(k) defined for 0 <= k <= BLevs_m
-  ! E(k) defined for 1 <= k <= BLevs_m
+  ! Q(k) defined for 0 <= k <= blevs_m
+  ! E(k) defined for 1 <= k <= blevs_m
   u1 = u_land_m * ls_land_fraction(map_2d(df)) + u_sea_m * (1.0_r_def - ls_land_fraction(map_2d(df)))
-  do k = 0, BLevs_m
+  do k = 0, blevs_m
     if (k == 0) then
       ! num and denom to take log of
       num = height_w3(map_w3(df) + 0) - height_wth(map_wtheta(df) + 0) + roughness_length_m
