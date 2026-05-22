@@ -349,8 +349,6 @@ contains
                                        only : hydrostatic_coriolis_kernel_type
     use hstat_cori_g_const_kernel_mod, &
                                        only : hstat_cori_g_const_kernel_type
-    use hydro_shallow_to_deep_kernel_mod, &
-                                       only : hydro_shallow_to_deep_kernel_type
     use regrav_isotherm_kernel_mod,    only : regrav_isotherm_kernel_type
     use regrav_geopot_kernel_mod,      only : regrav_geopot_kernel_type
     use moist_dyn_mod,                 only : num_moist_factors
@@ -456,29 +454,6 @@ contains
       call theta%copy_field_properties(temperature)
 
       select case( regravitate )
-      case( regravitate_isotherm1 )
-        call invoke( &
-             ! Compute exner from EoS
-             sample_eos_pressure_kernel_type( exner, rho,                    &
-                                              theta, moist_dyn(gas_law) ),   &
-
-             ! Compute exner in Wtheta (required to calculate T)
-             sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,           &
-                                              height_wth, height_w3 ),       &
-
-             ! Compute absolute temperature T = theta * exner
-             X_times_Y( temperature, exner_in_wth, theta),                   &
-
-             ! Rebalance exner in vertical, using hydrostatic balance
-             ! preserving absolute temperature.
-             ! This integrates down using g (shallow) from eos_level and
-             ! then integrates up using phi (deep). 
-             hydro_shallow_to_deep_kernel_type( exner, temperature,          &
-                                                c_vert_term,                 &
-                                                moist_dyn, geopotential,     &
-                                                height_w3, height_wth,       &
-                                                mask, gravity,               &
-                                                cp, eos_level ) )
       case( regravitate_isotherm2 )
         call invoke( &
              ! Compute exner from EoS
