@@ -680,12 +680,12 @@ contains
         do_moist_correction = (                                                &
           use_moisture .and. solver_moisture_conservation                      &
           .and. outer == outer_iterations                                      &
-        )
+          )
         if (do_moist_correction) then
           call log_event(                                                      &
             'Solver moisture correction not implemented in tangent linear',    &
             LOG_LEVEL_ERROR                                                    &
-          )
+            )
         end if
 
       end if ! use_wavedynamics
@@ -910,12 +910,12 @@ contains
         do_moist_correction = (                                                &
           use_moisture .and. solver_moisture_conservation                      &
           .and. outer == outer_iterations                                      &
-        )
+          )
         if (do_moist_correction) then
           call log_event(                                                      &
             'Solver moisture correction not implemented in tangent linear',    &
             LOG_LEVEL_ERROR                                                    &
-          )
+            )
         end if
 
       end if ! use_wavedynamics

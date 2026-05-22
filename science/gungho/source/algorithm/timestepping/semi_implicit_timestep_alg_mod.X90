@@ -1071,14 +1071,14 @@ contains
         do_moist_correction = (                                                &
           self%use_moisture .and. solver_moisture_conservation                 &
           .and. outer == outer_iterations                                      &
-        )
+          )
         if (do_moist_correction) then
           call invoke(                                                         &
               X_plus_Y(rho_star, self%rhs_adv(igh_d), self%state_n(igh_d))     &
-          )
+              )
           call solver_moist_correction_alg(                                    &
               mr, self%state(igh_d), rho_star, dry_flux_solver                 &
-          )
+              )
         end if
 
       else ! when use_wavedynamics=false, just add physics increments here
