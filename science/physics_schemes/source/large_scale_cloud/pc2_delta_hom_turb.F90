@@ -196,7 +196,8 @@ real(kind=real_umphys) :: qcl2
 real(kind=real_umphys) :: sde2
 real(kind=real_umphys) :: w1      ! Weights for 2 solutions
 real(kind=real_umphys) :: w2
-real(kind=real_umphys) :: fac     ! Re-occuring factors stored for convenience
+real(kind=real_umphys) :: dqcfac  ! Stores repeated term 1/2 (s1+s2) dQc/(P+2)
+real(kind=real_umphys) :: alpha_lcrcp
 real(kind=real_umphys) :: cfl_diff
 real(kind=real_umphys) :: qcl_diff
 real(kind=real_umphys) :: a_coef  ! Coefficients in quadratic eqn for weight
@@ -233,7 +234,8 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 !$OMP  sd, cfl_to_m, sky_to_m, g_mqc, dqcdt, qc, dbsdtbs,                      &
 !$OMP  c_1, deltal,                                                            &
 !$OMP  sde, cfc, s1, s2, cfl1, cfc1, qcl1, sde1, cfl2, cfc2, qcl2, sde2,       &
-!$OMP  w1, w2, fac, cfl_diff, qcl_diff, a_coef, b_coef, c_coef, qsl_new, p2al )&
+!$OMP  w1, w2, dqcfac, cfl_diff, qcl_diff, a_coef, b_coef, c_coef, qsl_new,    &
+!$OMP  alpha_lcrcp, p2al )                                                     &
 !$OMP  SHARED(tdims,cfl,t,lcrcp,qcl,p_theta_levels,l_mixing_ratio,             &
 !$OMP     repsilon,r,q,dqin,dtin,dbsdtbs0,dbsdtbs1,                            &
 !$OMP     timestep,dcflpc2,                                                    &
@@ -406,40 +408,40 @@ do k = 1, tdims%k_end
                 ! Precalculate re-occuring factors
                 w1 = s1 - 0.5*dqcdt
                 w2 = s2 + 0.5*dqcdt
-                fac = 0.5*(s1+s2) * dqcdt / (pdf_power+2.0)
+                dqcfac = 0.5*(s1+s2) * dqcdt / (pdf_power+2.0)
                 cfl_diff = cfl2 - cfl1
                 qcl_diff = qcl2 - qcl1
                 ! Compute coefficients of the quadratic equation
-                a_coef = cfl_diff * ( qcl_diff*(s1+s2) - fac*cfl_diff )
-                b_coef = ( sde1*w2 + qcl1*w1 - fac*(cfl1 - cfc1) )*cfl_diff    &
+                a_coef = cfl_diff * ( qcl_diff*(s1+s2) - dqcfac*cfl_diff )
+                b_coef = ( sde1*w2 + qcl1*w1 - dqcfac*(cfl1 - cfc1) )*cfl_diff &
                        + ( cfl1*w2 - cfc1*w1 )*qcl_diff
-                c_coef = sde1*cfl1*w2 - qcl1*cfc1*w1 + fac*cfl1*cfc1
+                c_coef = sde1*cfl1*w2 - qcl1*cfc1*w1 + dqcfac*cfl1*cfc1
                 ! Compute the weight as the solution
                 w2 = -(2.0*c_coef/b_coef)                                      &
                    / ( 1.0 + sqrt( 1.0 - 4.0*a_coef*c_coef/b_coef**2 ) )
                 w2 = min( max( w2, 0.0 ), 1.0 )
-                ! Limit weight to ensure +ive qcl and sde
+                ! Limit weight to ensure no negative qcl, sde, cfl, cfc
                 ! 0 = (1-w2) qcl1 + w2 qcl2 => w2 (qcl2 - qcl1) = -qcl1
                 if ( dqcdt < 0.0 ) then
-                  ! Drying; solution 1 could give -ive qcl or cfl.  Limit w1:
+                  ! Drying; limit contribution from solution 1:
                   if (qcl1<0.0) w2 = max(w2, min(-qcl1/qcl_diff+smallp, 1.0))
                   if (cfl1<0.0) w2 = max(w2, min(-cfl1/cfl_diff+smallp, 1.0))
                 else
-                  ! Moistening; soln 2 could give -ive sde or cfc.  Limit w2:
+                  ! Moistening; limit contribution from solution 2:
                   if (sde2<0.0) w2 = min(w2, max(-sde1/qcl_diff-smallp, 0.0))
                   if (cfc2<0.0) w2 = min(w2, max( cfc1/cfl_diff-smallp, 0.0))
                 end if
                 w1 = 1.0 - w2
                 ! Don't allow s1 > al qsat(T) (implies -ive q in the tail)
                 qsl_new = qsl_tl + alpha*dtin(i,j,k)
-                fac = alpha*lcrcp
+                alpha_lcrcp = alpha*lcrcp
                 p2al = (pdf_power+2.0) / al
                 if ( p2al * (w1*sde1 + w2*sde2) / (w1*cfc1 + w2*cfc2)          &
-                   > qsl_new + fac*(w1*qcl1 + w2*qcl2) ) then
-                  a_coef = fac * qcl_diff * cfl_diff
-                  b_coef = cfl_diff * (qsl_new + fac*qcl1)                     &
-                         + qcl_diff * (p2al - cfc1*fac)
-                  c_coef = sde1*p2al - cfc1 * (qsl_new + fac*qcl1)
+                   > qsl_new + alpha_lcrcp*(w1*qcl1 + w2*qcl2) ) then
+                  a_coef = alpha_lcrcp * qcl_diff * cfl_diff
+                  b_coef = cfl_diff * (qsl_new + alpha_lcrcp*qcl1)             &
+                         + qcl_diff * (p2al - cfc1*alpha_lcrcp)
+                  c_coef = sde1*p2al - cfc1 * (qsl_new + alpha_lcrcp*qcl1)
                   w1 = -(2.0*c_coef/b_coef)                                    &
                      / ( 1.0 + sqrt( 1.0 - 4.0*a_coef*c_coef/b_coef**2 ) )
                   if ( dqcdt < 0.0 ) then
