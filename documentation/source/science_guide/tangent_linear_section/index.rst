@@ -9,7 +9,7 @@
 Linear Model Section
 =======================
 
-This describes the details of the tangent-linear model code for GungHo.
+This describes the scientific aspects of the tangent-linear model code for GungHo.
 
 .. toctree::
     :maxdepth: 2
@@ -18,6 +18,6 @@ This describes the details of the tangent-linear model code for GungHo.
     tangent_linear_coding
     tangent_linear_timestepping
     tangent_linear_components
-    tl_ffsl_transport
-    tangent_linear_lin_state
+    tangent_linear_mol_transport
+    tangent_linear_ffsl_transport
     tangent_linear_tests

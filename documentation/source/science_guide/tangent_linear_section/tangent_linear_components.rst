@@ -1,6 +1,6 @@
 .. _tangent_linear_components:
 
-Components
+Right-hand-side Components
 =====================
 
 Kinetic energy gradient
@@ -163,67 +163,3 @@ The linear model is
    \delta N & = \frac{\partial N}{\partial E} \left( \frac{ \partial E}{\partial \Pi} \delta \Pi + \frac{ \partial E}{\partial \rho} \delta \rho + \frac{ \partial E}{\partial \theta} \delta \theta \right) \\
     &  = - \frac{1}{E} \left( \frac{1-\kappa}{\kappa} \frac{\delta \Pi}{\Pi} - \frac{\delta \rho}{\rho} - \frac{\delta \theta}{\theta} \right)
    \end{aligned}
-
-Method of Lines (MoL) and Runge-Kutta Transport
------------
-
-The nonlinear model is:
-
-.. math::
-
-   \begin{aligned}
-     u^{(i)} & = u^n + \Delta t \sum_{k=0}^{i-1} \beta_{i,k} f(u^{(k)}) \quad i=1,\ldots,m \\
-     u^{n+1} & = u^{(m)}
-     \end{aligned}
-
-In ``rk_alg_timestep``, the :math:`f(u^{(i)})` corresponds to
-``rhs_prediction``, and :math:`\sum_{k=0}^{i-1} \beta_{i,k} f(u^{(k)})`
-corresponds to rhs. (There is also an extra mass matrix inversion, so
-they are not directly equal).
-
-The tangent linear model comprises two steps. First the linearisation
-state is computed:
-
-.. math:: \bar{u}^{(i)} = \bar{u}^n + \Delta t \sum_{k=0}^{i-1} \beta_{i,k} f(\bar{u}^{(k)}) \quad i=1,\ldots,m
-
-then the perturbations are computed:
-
-.. math::
-
-   \begin{aligned}
-     u'^{(i)} & = u'^n + \Delta t \sum_{k=0}^{i-1} \beta_{i,k} f'(u'^{(k)},\bar{u}^{(k)}) \quad i=1,\ldots,m \\
-     u'^{n+1} & = u'^{(m)}
-     \end{aligned}
-
-In the nonlinear model, the method of lines transport code has switches
-to ensure that the transport scheme is upwinding. In the linear model,
-we use the same switches as the nonlinear model. This means that the
-direction is based on the linearisation state wind rather than the
-perturbation wind.
-
-In the nonlinear model,
-
-::
-
-   direction = wind(map_w2(df) + k )*v_dot_n(df)
-   if ( direction > 0.0_r_def ) then
-
-In the linear model,
-
-::
-
-   direction = ls_wind(map_w2(df) + k )*v_dot_n(df)
-   if ( direction > 0.0_r_def ) then
-
-Similarly, where
-
-::
-
-   sign_X(unit_wind,1.0_r_def, advecting_wind)
-
-the corresponding tangent linear uses
-
-::
-
-   sign_X(unit_wind, 1.0_r_def, ls_advecting_wind)
-

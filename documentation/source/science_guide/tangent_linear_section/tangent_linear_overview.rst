@@ -1,6 +1,6 @@
 .. _tangent_linear_overview:
 
-Tangent Linear Model Overview
+Overview
 =======================
 
 In variational data assimilation, the aim is to compute the optimal
@@ -17,7 +17,7 @@ is the observation operator (which we can assume is linear here), and
 :math:`\mathbf{B}` and :math:`\mathbf{R}` are the error covariance
 matrices.
 
-As :math:`N` is nonlinear, there is no unique solution. Therefore, the
+As :math:`N` is nonlinear, there may not be a unique solution and it is difficult to solve. Therefore, the
 problem is rewritten in incremental form, by rewriting the initial state
 in terms of a linearisation state plus a perturbation,
 :math:`\mathbf{x}_0 = \tilde{\mathbf{x}} + \mathbf{\delta x}`, so that

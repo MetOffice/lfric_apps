@@ -1,10 +1,14 @@
 .. _tangent_linear_coding:
 
-Tangent Linear Coding
+General principles
 =====================
 
-To obtain the tangent linear code, we need to differentiate the
-nonlinear model code.
+To obtain the tangent linear model, we need to differentiate the
+nonlinear model. There are two main ways to achieve this: differentiate the nonlinear continuous equations and then discretize, or differentiate the nonlinear discretized equations.
+
+Mainly the approach of differentiating the discretized equations is used here - the so-called line-by-line approach, as each line of code can be treated individually. However, some parts such as the semi-implicit solve take the approach of differentiating the nonlinear equations and then discretizing (although in fact as the solver is already linear, in practice this just means reusing the nonlinear code).
+
+The following examples demonstrate how the line-by-line approach is implemented, to differentiate the discretized equations.
 
 First derivative
 ----------------

@@ -6,12 +6,12 @@ Iterated (Semi-) Implicit Timestepping
 Nonlinear Equations
 -------------------
 
-The nonlinear equations are
+The continous nonlinear equations are
 
 .. math::
 
    \begin{aligned}
-     \frac{\partial u}{\partial t} &= - u . \nabla u - 2 \Omega \times u - \nabla \Phi - c_P \theta \nabla \Pi \\
+     \frac{\partial u}{\partial t} &= - u . \nabla u - 2 \Omega \times u - \nabla \Phi - c_p \theta \nabla \Pi \\
      \frac{\partial \rho}{\partial t} & = - \nabla . (\rho u) \\
      \frac{\partial \theta}{\partial t} & = - u. \nabla \theta
      \end{aligned}
@@ -20,27 +20,10 @@ together with the nonlinear equation of state:
 
 .. math:: \Pi ^{\left( \frac{1-\kappa}{\kappa} \right)} = \frac{R}{p_0} \rho \theta
 
-Linear Equations
-----------------
+where the prognostic variables are :math:`u` the velocity vector, :math:`\rho` the density, :math:`\theta` the potential temperature, and :math:`\Pi` the Exner pressure.  The constants are :math:`\Omega` the rotation vector, :math:`\Phi` the geopotential and :math:`c_p` the specific heat capacity.
 
-The linearized equations are:
-
-.. math::
-
-   \begin{aligned}
-     \frac{\partial \delta u}{\partial t} &= - \bar{u} . \nabla \delta u - \delta {u} . \nabla \bar{ u} - 2 \Omega \times \delta u - c_P \delta \theta \nabla \bar{\Pi} - c_P \bar{\theta} \nabla \delta \Pi \\
-     \frac{\partial \delta \rho}{\partial t} & = - \nabla . (\bar{\rho} \delta u) - \nabla . (\delta \rho \bar{u}) \\
-     \frac{\partial \delta \theta}{\partial t} & = - \bar{u}. \nabla \delta \theta - \delta u. \nabla \bar{\theta}
-     \end{aligned}
-
-together with the linear equation of state:
-
-.. math:: \frac{ \delta \Pi}{\bar{\Pi}}  = \frac{\kappa}{1-\kappa} \left( \frac{\delta \rho}{\bar{\rho}} + \frac{\delta \theta}{\bar{\theta}} \right)
-
-
-Iterated (Semi-) implicit Timestepping
---------------------------
-
+Discretisation
+--------------------
 In the iterated-implicit timestepping, the equations are solved iteratively
 using a Newton method. If the full nonlinear discrete equations are
 written as
@@ -82,7 +65,27 @@ where
 
 .. math:: E = \frac{p_0}{R} \frac{\Pi^{*(1-\kappa)/\kappa}}{\theta^* \rho^*}
 
-We can proceed in a similar way with the linear model, so that
+The procedure is:
+
+- | Let :math:`\mathbf{x}^{n+1}_{(0)} = \mathbf{x}^n`
+  | The first iteration is given by the state at the previous timestep.
+
+- | Set
+    :math:`\mathbf{x}* \equiv (\rho*, \theta*, \Pi* ) = (\rho^n, \theta^n,\Pi^n)`
+  | The reference state is given by the state at the previous timestep
+    (for density, potential temperature and exner pressure only).
+
+- Loop k=1, K
+
+  - | Compute :math:`\mathcal{R}(\mathbf{x}^n, \mathbf{x}^{n+1}_{(k)})`
+
+  - Solve the linear equation for :math:`\mathbf{x}'_{(k+1)}` and
+    hence for :math:`\mathbf{x}^{n+1}_{(k+1)}`.
+
+Linear Equations
+-----------------------
+
+We can proceed in a similar way with the linear model. Using the notation of :math:`\delta \mathbf{x}` is the perturbation and :math:`\mathbf{x}` is the linearisation state,
 
 .. math::
 
@@ -91,98 +94,35 @@ We can proceed in a similar way with the linear model, so that
      \mathcal{L} (\mathbf{x}^*) \delta \mathbf{x}'_{(k)} & = - R ( \mathbf{x}_{(k)}) \delta \mathbf{x}_{(k)}
      \end{aligned}
 
-where :math:`R` is the linearized version of :math:`\mathcal{R}`.
-
-As the operator :math:`\mathcal{L}` is already linear, this does not
-need to be linearized.
-
-Discretisation
---------------------
-
-The nonlinear model evolves the linearisation state
-:math:`\bar{\mathbf{x}}`. The aim is to find the state
-:math:`\bar{\mathbf{x}}^n` at time :math:`t_{n+1}`. This is solved
-iteratively, by letting
-:math:`{\bar{\mathbf{x}}}^{n+1}_{(k+1)} = \bar{\mathbf{x}}^{n+1}_{(k)} + \bar{\mathbf{x}}'_{(k+1)}`
-where :math:`k` is the iteration count.
-
-The increment :math:`\bar{\mathbf{x}}'_{(k+1)}` solves the linear
-equation
-
-.. math:: \mathcal{L}( \bar{\mathbf{x}}*) \bar{\mathbf{x}}'_{(k+1)} = \mathcal{R}^n(\bar{\mathbf{x}}^n) + \mathcal{R}^{n+1}(\bar{\mathbf{x}}^{n+1}_{(k)}) + \mathcal{R}^{adv}(\bar{\mathbf{x}}^n, \bar{\mathbf{x}}^{n+1}_{(k)})
-
-where :math:`\mathcal{L}( \bar{\mathbf{x}}*)` is a linear operator based
-on the reference state :math:`\bar{\mathbf{x}}*`.
+where :math:`R` is the linearized version of :math:`\mathcal{R}`. As the operator :math:`\mathcal{L}` is already linear, this does not need to be linearized.
 
 The procedure is:
 
-- | Let :math:`\bar{\mathbf{x}}^{n+1}_{(0)} = \bar{\mathbf{x}}^n`
-  | The first iteration is given by the state at the previous timestep.
-
-- | Set
-    :math:`\bar{\mathbf{x}}* \equiv (\bar{\rho}*, \bar{\theta}*, \bar{\Pi}* ) = (\bar{\rho}^n, \bar{\theta}^n, \bar{\Pi}^n)`
-  | The reference state is given by the state at the previous timestep
-    (for density, potential temperature and exner pressure only).
-
-- | Compute :math:`\mathcal{R}^n(\bar{\mathbf{x}}^n)`
-  | This is the RHS based on the previous timestep.
-
-- Loop k=1, K
-
-  - | Compute :math:`\mathcal{R}^{n+1}(\bar{\mathbf{x}}^{n+1}_{(k)})`
-      and
-      :math:`\mathcal{R}^{adv}(\bar{\mathbf{x}}^n, \bar{\mathbf{x}}^{n+1}_{(k)})`
-    | This is the RHS and advective terms based on the current timestep.
-
-  - Solve the linear equation for :math:`\bar{\mathbf{x}}'_{(k+1)}` and
-    hence for :math:`\bar{\mathbf{x}}^{n+1}_{(k+1)}`.
-
-The linear model evolves the perturbations :math:`\mathbf{x}`. To find
-the state at time :math:`t_{n+1}`, we follow the same procedure as for
-the nonlinear model, but using the tangent linear versions of the right
-hand side in the equation.
-
-Let
-:math:`{\mathbf{x}}^{n+1}_{(k+1)} = \mathbf{x}^{n+1}_{(k)} + \mathbf{x}'_{(k+1)}`
-where :math:`\mathbf{x}'_{(k+1)}` solves
-
-.. math:: \mathcal{L} ( \bar{\mathbf{x}}*) \mathbf{x}'_{(k+1)} = R^n(\mathbf{x}^n, \bar{\mathbf{x}}^n) + R^{n+1}(\mathbf{x}^{n+1}_{(k)},\bar{\mathbf{x}}^{n+1}_{(k)}) + R^{adv}(\mathbf{x}^n, \mathbf{x}^{n+1}_{(k)},\bar{\mathbf{x}}^n, \bar{\mathbf{x}}^{n+1}_{(k)})
-
-where :math:`R^n` is the tangent linear of :math:`\mathcal{R}^n` etc.
-The tangent linear operators are a function of both the perturbation
-:math:`\mathbf{x}` and the linearisation state :math:`\bar{\mathbf{x}}`.
-
-The procedure is:
-
-- | Let :math:`\mathbf{x}^{n+1}_{(0)} = \mathbf{x}^n`
+- | Let :math:`\delta \mathbf{x}^{n+1}_{(0)} = \delta \mathbf{x}^n`
   | The first iteration is given by the perturbation at the previous
     timestep.
 
 - | Set
-    :math:`\bar{\mathbf{x}}* \equiv (\bar{\rho}*, \bar{\theta}*, \bar{\Pi}* ) = (\bar{\rho}^n, \bar{\theta}^n, \bar{\Pi}^n)`
+    :math:`\mathbf{x}* \equiv (\rho*,\theta*, \Pi* ) = (\rho^n, \theta^n, \Pi^n)`
   | The reference state is given by the linearisation state at the
     previous timestep - so that the linear operator is identical to the
     that in the nonlinear model.
 
-- Compute :math:`R^n(\mathbf{x}^n, \bar{\mathbf{x}}^n)`
-
 - Loop k=1, K
 
   - Compute
-    :math:`R^{n+1}(\mathbf{x}^{n+1}_{(k)},\bar{\mathbf{x}}^{n+1}_{(k)})`
-    and
-    :math:`R^{adv}(\mathbf{x}^n, \mathbf{x}^{n+1}_{(k)},\bar{\mathbf{x}}^n, \bar{\mathbf{x}}^{n+1}_{(k)})`
+    :math:`R ( \mathbf{x}_{(k)}) \delta \mathbf{x}_{(k)}`
 
-  - Solve for :math:`\mathbf{x}'_{(k+1)}` and hence for
-    :math:`\mathbf{x}^{n+1}_{(k+1)}`.
+  - Solve for :math:`\delta \mathbf{x}'_{(k)}` using :math:`\mathcal{L} (\mathbf{x}^*) \delta \mathbf{x}'_{(k)} = R ( \mathbf{x}_{(k)}) \delta \mathbf{x}_{(k)}` and hence for
+    :math:`\delta \mathbf{x}^{n+1}_{(k+1)}`.
 
-The linear solver :math:`\mathcal{L} ( \bar{\mathbf{x}}*)` is exactly
-the same as for the nonlinear model.
+The linear operator :math:`\mathcal{L} ( \bar{\mathbf{x}}*)` is exactly
+the same as for the nonlinear model. The solution of the equation (often known as the solver) uses the same method as the nonlinear model. This could be multi-grid or Krylov iterative methods, or a combination of the both. A very exact line-by=line procedure would linearise every iteration of the solver procedure, using the nonlinear solution at every step. However, this is not necessary and the more linearise then discretize approach is taken, to form the linear equation and then solve.
 
-The right hand side terms :math:`R^n`, :math:`R^{n+1}` and
-:math:`R^{adv}` require the linearisation state at the same iteration.
-Therefore, for an exact tangent linear semi-implicit algorithm, the
+The right hand side term :math:`R ( \mathbf{x}_{(k)}) \delta \mathbf{x}_{(k)}` require both the perturbation :math:`\delta \mathbf{x}_{(k)}` and the linearisation state :math:`\mathbf{x}_{(k)}` at the same iteration. Therefore, for an exact tangent linear semi-implicit algorithm, the
 nonlinear semi-implicit step needs to be run first, and the intermediate
 ``ls_state`` values need to be stored and used in the following tangent
 linear semi-implicit step.
+
+In practice the impact of the variation of the linearisation state through the timestep is very small. Furthermore, the evolution of the linearisation state in the linear model timestepping does not include any physics and will be at a different resolution to the outer loop nonlinear model, and hence will not be very accurate. Therefore, it is advised for both efficiency and accuracy reasons to use the ``fixed_ls`` option. This option applies the ``ls_state`` values set at the beginning of the timestep to all iterations, without recalculation.
 

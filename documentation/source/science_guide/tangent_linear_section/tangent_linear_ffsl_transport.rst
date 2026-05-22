@@ -22,7 +22,6 @@ the form
 
 .. math::
 
-   \label{eq:advective}
        q^{n+1}_{adv} = \frac{q^{n} - \Delta{t} F(u,q^n)}{\sigma - \Delta{t} F(u,\sigma)}
 
 where :math:`\sigma=1` is the unity field, and therefore
@@ -54,15 +53,12 @@ Leaving the conservative perturbation transport equation as
 
 .. math::
 
-   \label{eq:transport_equation}
        \frac{\partial q'}{\partial t} + \nabla \cdot( \bar{u}q' ) + \nabla \cdot( u'\bar{q} ) = 0
 
 Flux Computation
 ----------------------
 
-The flux computation can be split into two parts, corresponding to the
-two terms in equation
-`[eq:transport_equation] <#eq:transport_equation>`__.
+The flux computation can be split into two parts.
 
 The first term, corresponding to :math:`\bar{u}q'`, can be computed
 using standard FFSL operators, provided the scheme is linear (i.e. no
@@ -91,7 +87,7 @@ We can now use the notation
 Advective Update
 --------------------
 
-Following `[eq:advective] <#eq:advective>`__, if we expand the variables
+If we expand the variables
 into linearisation state and perturbation parts we find the flux
 divergences can be written as
 
@@ -105,7 +101,6 @@ and the advective form becomes
 
 .. math::
 
-   \label{eq:advective_linear}
        q^{n+1}_{adv} = \frac{\bar{q} + q' - \Delta{t} F(\bar{u},\bar{q}) - \Delta{t}F_1(\bar{u},q') - \Delta{t}F_2(u',\bar{q}) }{\sigma - \Delta{t} F(\bar{u},\sigma)- \Delta{t} F_2(u',\sigma)}
 
 Let
@@ -127,7 +122,6 @@ Noting that
 
 .. math::
 
-   \label{eq:adv_ls}
        \bar{q}^{n+1}_{adv} = \frac{\bar{N}}{\bar{D}}
 
 then the advective perturbation field can be found from
@@ -145,7 +139,7 @@ Using the first terms of the expansion
                      =& \frac{N'}{\bar{D}} - \frac{\bar{N}D'}{\bar{D}\bar{D}} - \frac{N'D'}{\bar{D}\bar{D}}
    \end{aligned}
 
-Using `[eq:adv_ls] <#eq:adv_ls>`__, and the fact products of prime
+Using the fact products of prime
 variables equals zero, this simplifies to
 
 .. math:: q'^{n+1}_{adv} = \frac{N' - D' \bar{q}^{n+1}_{adv}}{\bar{D}}
