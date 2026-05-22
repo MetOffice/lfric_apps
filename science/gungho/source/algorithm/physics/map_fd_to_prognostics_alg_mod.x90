@@ -387,7 +387,7 @@ contains
     type(mesh_type),       pointer :: mesh
     type(field_type),      pointer :: mask
     type(field_type),      target  :: dummy_mask
-    integer(i_def)                 :: eos_level
+    integer(i_def)                 :: eos_level, nlayers
 
     nullify(geopotential, chi, panel_id, height_w3, &
             height_wth, vert_coriolis, mesh, mask )
@@ -431,7 +431,8 @@ contains
     ! Get the index of the level closest to the height, ignoring the top eta
     ! level as eos_level is to be used for a W3 space rather than Wtheta
     eos_level = get_nearest_level( mesh, eos_height )
-    if ( eos_level == (mesh%get_nlayers() + 1) ) eos_level = eos_level - 1
+    nlayers = mesh%get_nlayers()
+    if ( eos_level == nlayers + 1 ) eos_level = nlayers
 
     if (shallow) then
       ! Initialize the vertical profile by starting with the equation of state at
@@ -518,7 +519,7 @@ contains
                                              moist_dyn(gas_law),    &
                                              moist_dyn(total_mass), &
                                              height_w3, mask,       &
-                                             eos_level ),           &
+                                             nlayers ),             &
              ! Find exner in Wtheta space
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,     &
                                               height_wth, height_w3 ), &
