@@ -4287,10 +4287,10 @@ Two approaches are available in uncoupled configurations of the model.
 
 #. Explicit Treatment of Ice Form Drag
 
-   `L{\ (2012)`_ have suggested a simple
+   `L\ (2012)`_ have suggested a simple
    parametrization of the form drag coefficient of marginal ice that has
    been found to perform well in comparison to aircraft measurements
-   (`Elvidge et al. (2016)`_). `L{\ (2015)`_
+   (`Elvidge et al. (2016)`_). `L\ (2015)`_
    have extended the parametrization to include the effects of
    stability. When coupled to CICE, it is intended that a more elaborate
    scheme will be used, but this scheme is useful for application in
@@ -4303,12 +4303,12 @@ Two approaches are available in uncoupled configurations of the model.
 
    :math:`u(z)` will in general exhibit a mixed character, but it may be
    taken as the developed flow over open sea, as in
-   `L{\ (2012)`_, or may be interpolated between the
+   `L\ (2012)`_, or may be interpolated between the
    developed flows over open sea or pack ice, depending on the ice
-   fraction, as in `L{\ (2015)`_. In principle, it will
+   fraction, as in `L\ (2015)`_. In principle, it will
    be subject to the effects of stability, but since the free-board does
    not much exceed 0.5m, these effects are small
-   (`L{\ (2015)`_) and the flow may be taken as neutral
+   (`L\ (2015)`_) and the flow may be taken as neutral
    up to :math:`h_f`. Hence,
 
    .. math:: :label: eq:int_u2
@@ -4321,18 +4321,18 @@ Two approaches are available in uncoupled configurations of the model.
    the wind on the model's lowest atmospheric level. Because this will
    be significantly above :math:`h_f`, the stability dependence of
    :math:`C_d` should be considered here (again see
-   `L{\ (2015)`_). :math:`U_1` may be interpreted as
+   `L\ (2015)`_). :math:`U_1` may be interpreted as
    the wind at a specific height, or, consistenly with the
    flux-difference form of the momentum equation, as the layer-averaged
    velocity. This distinction affects the numerical value of
    :math:`C_d`, but does not otherwise affect the foregoing equation. If
    using the original version of the scheme
-   (`L{\ (2012)`_), :math:`C_d` must be taken as the
+   (`L\ (2012)`_), :math:`C_d` must be taken as the
    neutral drag coefficient. Note also that various approximations may
    be made in Equation :eq:`eq:int_u2`.
-   `L{\ (2012)`_ approximate
+   `L\ (2012)`_ approximate
    :math:`(\log(h_f/z_0) -1)^2 +1` as :math:`(\log(h_f/z_0) )^2`; while
-   `L{\ (2015)`_ approximate it as
+   `L\ (2015)`_ approximate it as
    :math:`(\log(h_f/z_0) -1)^2`. Here we retain the full expression.
 
    If, in a unit area, there are :math:`N` floes, each of crosswind
@@ -4369,19 +4369,19 @@ Two approaches are available in uncoupled configurations of the model.
       (1-A) C_{ds} L_s + A C_{di} L_i \right ],
 
    where the sheltering factor is taken to be the same over ice and
-   water. `L{\ (2012)`_ provides parametrizations for
+   water. `L\ (2012)`_ provides parametrizations for
    quantities such as :math:`h_f`, while `Elvidge et al. (2016)`_
    provide suggested values for the constants in the scheme, based on
    observations. In using these values in the Unified Model, :math:`c_e`
    should be increased by about 30% to represent the effect of differing
    approximations of the logarithmic wind profile.
 
-   For scalar transfer `L{\ (2015)`_ suggest adding a
+   For scalar transfer `L\ (2015)`_ suggest adding a
    contribution to the sensible heat flux to represent the impact of
    form drag; however, the mechanistic physical basis of the scheme they
    propose is unclear. Moreover, when combined with the interfacial
    drag, this suggests scalar transfer much larger than observed by
-   `Schr{\ (2003)`_. Consequently, no enhancement of the
+   `Schr\ (2003)`_. Consequently, no enhancement of the
    scalar transfer coefficient by form drag is included.
 
    The overall drag coefficients are now set by interpolation in the ice
@@ -4541,10 +4541,10 @@ where
    \right|
 
 The effective roughness for momentum is derived by setting the total
-effective surface stress, **:math:`\tau`**\ :math:`_{0(eff)}`, to the
+effective surface stress, :math:`\boldsymbol{\tau}`\ :math:`_{0(eff)}`, to the
 sum of the surface stress over a flat surface with the same vegetative
-roughness, **:math:`\tau`**\ :math:`_{0(f)}`, and the orographic
-pressure drag force at the surface, **:math:`\tau`**\ :math:`_{0(p)}`.
+roughness, :math:`\boldsymbol{\tau}`\ :math:`_{0(f)}`, and the orographic
+pressure drag force at the surface, :math:`\boldsymbol{\tau}`\ :math:`_{0(p)}`.
 The stresses are evaluated in terms of the velocity at height
 z\ :math:`_{c}` above the surface. z\ :math:`_{c}` is currently set to
 2\ :math:`^{1/2}\sigma _{h}` where :math:`\sigma _{h}` is the standard
@@ -5013,7 +5013,7 @@ constrained to be at least 100 m.
 
 If the steep-hill expression is to be used, the surface stress applied
 is almost identical to that used in the effective roughness
-parametrization (Eq. :eq:`2.1.10`, namely:
+parametrization (Eq. :eq:`2.1.10`), namely:
 
 .. math:: :label: eq:dragsteep
 
@@ -5023,7 +5023,7 @@ parametrization (Eq. :eq:`2.1.10`, namely:
 the main difference being the dependence on the height scale
 :math:`\ell` rather than :math:`z_c`. Similarly, if the
 `Wood and Mason (1993)`_ low-hill expression is used, the surface
-stress is given by the equivalent of (Eq. :eq:`2.1.16`,
+stress is given by the equivalent of (Eq. :eq:`2.1.16`),
 namely:
 
 .. math:: :label: eq:draglow
@@ -5797,7 +5797,7 @@ has to be adjusted if evaporation exhausts any of the moisture stores
 during the timestep or if the tile has a melting snowcover.
 
 Limited evaporation
-^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""
 
 Downward surface moisture fluxes are added to canopy moisture or, if the
 surface temperature is below freezing, snowcover.
@@ -5841,7 +5841,7 @@ surface) is not limited and does not draw on the conserved moisture
 stores.
 
 Snowmelt
-^^^^^^^^
+""""""""
 
 Classical surface energy balance neglects snowmelt heat fluxes. If
 :math:`T_*>T_m` for a snow-covered tile and sufficient snow is
@@ -5879,8 +5879,8 @@ to the tile heat and moisture fluxes.
 The model with the above changes coded seems to work stably but the
 surface fluxes (and therefore the boundary layer increments) are only
 qualitatively correct. They seem to be overestimated by the above
-scheme. [\ *Could it be that coefficients :math:`D_{j}`,
-:math:`\psi_{j}` need to be modified in the second sweep?*]
+scheme. [\ *Could it be that coefficients* :math:`D_{j}` *,*
+:math:`\psi_{j}` *need to be modified in the second sweep?*]
 
 Blending height coupling
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -7275,8 +7275,8 @@ References
 
    A. P. Lock and A. R. Brown and M. R. Bush and G. M. Martin and R. N. B.
    Smith (2000).
-   *{A New Boundary Layer Mixing Scheme. Part I: Scheme Description and
-   Single-Column Model Tests}*.
+   *A New Boundary Layer Mixing Scheme. Part I: Scheme Description and
+   Single-Column Model Tests*.
    Mon. Wea. Rev., 128, 3187-3199.
 
 .. _Lock et al. (2001):
@@ -7290,15 +7290,15 @@ References
 
    G. M. Martin and M. R. Bush and A. R. Brown and A. P. Lock and R. N. B.
    Smith (2000).
-   *{A New Boundary Layer Mixing Scheme. Part II: Tests in Climate and
-   Mesoscale Models}*.
+   *A New Boundary Layer Mixing Scheme. Part II: Tests in Climate and
+   Mesoscale Models*.
    Mon. Wea. Rev., 128, 3200-3217.
 
 .. _Lock (2001):
 
    A. P. Lock (2001).
-   *{The Numerical Representation of Entrainment in Parametrizations of
-   Boundary Layer Turbulent Mixing}*.
+   *The Numerical Representation of Entrainment in Parametrizations of
+   Boundary Layer Turbulent Mixing*.
    Mon. Wea. Rev., 129, 1148-1163.
 
 .. _Brown and Grant (1997):
@@ -7310,16 +7310,16 @@ References
 .. _Wood et al. (2001):
 
    N. Wood and A. R. Brown and F. E. Hewer (2001).
-   *{Parametrizing the effects of orography on the boundary layer: An
-   alternative to effective roughness lengths}*.
+   *Parametrizing the effects of orography on the boundary layer: An
+   alternative to effective roughness lengths*.
    Quart. J. Roy. Meteor. Soc., 127, 759-777.
 
 .. _Brown et al. (2008):
 
    A. R. Brown and R. J. Beare and J. M. Edwards and A. P. Lock and S. J.
    Keogh and S. F. Milton and D. N. Walters (2008).
-   *{Upgrades to the Boundary-Layer Scheme in the Met Office Numerical Weather
-   Prediction Model}*.
+   *Upgrades to the Boundary-Layer Scheme in the Met Office Numerical Weather
+   Prediction Model*.
    Bound.-Layer Meteor., 128, 117-132.
 
 .. _Troen and Mahrt (1986):
@@ -7332,8 +7332,8 @@ References
 .. _Holtslag and Moeng (1991):
 
    A. A. M. Holtslag and C.-H. Moeng (1991).
-   *{Eddy Diffusivity and Countergradient Transport in the Convective
-   Atmospheric Boundary Layer}*.
+   *Eddy Diffusivity and Countergradient Transport in the Convective
+   Atmospheric Boundary Layer*.
    J. Atmos. Sci., 48, 1690-1698.
 
 .. _Lock (1998):
@@ -7365,7 +7365,7 @@ References
 .. _Beljaars and Holtslag (1991):
 
    A.C.M. Beljaars and A.A.M. Holtslag (1991).
-   *{Flux Parametrization over Land Surfaces for Atmospheric Models}*.
+   *Flux Parametrization over Land Surfaces for Atmospheric Models*.
    J. Appl. Meteor., 30, 327-341.
 
 .. _Wood and Mason (1993):
@@ -7384,21 +7384,20 @@ References
 .. _Redelsperger et al. (2000):
 
    J.-L. Redelsperger and F. Guichard and S. Mondon (2000).
-   *{A Parametrization of Mesoscale Enhancement of Surface Fluxes for
-   Large-Scale Models}*.
+   *A Parametrization of Mesoscale Enhancement of Surface Fluxes for
+   Large-Scale Models*.
    J. Climate, 13, 402-421.
 
 .. _Holtslag and Boville (1993):
 
    A. A. M. Holtslag and B. A. Boville (1993).
-   *{Local Versus Nonlocal Boundary-Layer Diffusion in a Global Climate
-   Model}*.
+   *Local Versus Nonlocal Boundary-Layer Diffusion in a Global Climate Model*.
    J. Climate, 6, 1825-1842.
 
 .. _Bolton (1980):
 
    Bolton, D. (1980).
-   *{The Computation of Equivalent Potential Temperature}*.
+   *The Computation of Equivalent Potential Temperature*.
    Mon. Wea. Rev., 108, 1046-1053.
 
 .. _Brown (1996):
@@ -7425,7 +7424,7 @@ References
 .. _Bush et al. (1999):
 
    Bush, M. R. and A. P. Lock and R. N. B. Smith (1999).
-   *{Testing of the new boundary layer scheme in the Mesoscale Model}*.
+   *Testing of the new boundary layer scheme in the Mesoscale Model*.
    NWP Tech Report, 260.
 
 .. _Cullen and James (1994):
@@ -7437,7 +7436,7 @@ References
 .. _Derbyshire (1997):
 
    Derbyshire, S. H. (1997).
-   *{Recommendations for UM parametrization of stable boundary layers}*.
+   *Recommendations for UM parametrization of stable boundary layers*.
    Cardington Tech Note, 38.
 
 .. _Driedonks (1982):
@@ -7449,8 +7448,8 @@ References
 .. _Edwards (2007):
 
    Edwards, J. M. (2007).
-   *{Oceanic Latent Heat Fluxes: Consistency with the atmospheric hydrological
-   and energy cycles and general circulation modeling}*.
+   *Oceanic Latent Heat Fluxes: Consistency with the atmospheric hydrological
+   and energy cycles and general circulation modeling*.
    J. Geophys. Res., 112, D06115.
 
 .. _Essery et al. (2001):
@@ -7485,7 +7484,7 @@ References
 .. _Lock (2012):
 
    Lock, A. P. (2012).
-   *{Stable boundary layer modelling at the Met Office}*.
+   *Stable boundary layer modelling at the Met Office*.
    ECMWF Workshop on Diurnal Cycles and the Stable Boundary Layer, 137-148.
 
 .. _Louis (1979):
@@ -7498,21 +7497,21 @@ References
 
    Mason, P. J. (1986).
    *On the parametrization of orographic drag*.
-   {ECMWF Seminar on Physical Parametrization for Numerical Models of the
-   Atmosphere}, 2, 139-165.
+   ECMWF Seminar on Physical Parametrization for Numerical Models of the
+   Atmosphere, 2, 139-165.
 
 .. _Nicholls and Turton (1986):
 
    Nicholls, S. and J. D. Turton (1986).
-   *{An observational study of the structure of stratiform cloud sheets. Part
-   II: Entrainment}*.
+   *An observational study of the structure of stratiform cloud sheets. Part
+   II: Entrainment*.
    Quart. J. Roy. Meteor. Soc., 112, 461-480.
 
 .. _Stage and Businger (1981):
 
    Stage, S. A. and J. A. Businger (1981).
-   *{A model for entrainment into a cloud-topped marine boundary layer. Part
-   I: Model description and application to a cold-air outbreak episode}*.
+   *A model for entrainment into a cloud-topped marine boundary layer. Part I:
+   Model description and application to a cold-air outbreak episode*.
    J. Atmos. Sci., 38, 2213-2229.
 
 .. _Turton and Nicholls (1987):
@@ -7545,8 +7544,8 @@ References
 .. _Zilitinkevich (1975):
 
    Zilitinkevich, S. S. (1975).
-   *{Comments on ''A model for the dynamics of the inversion above a
-   convective boundary layer''}*.
+   *Comments on ''A model for the dynamics of the inversion above a convective
+   boundary layer''*.
    J. Atmos. Sci., 32, 991-992.
 
 .. _Siems et al. (1990):
@@ -7560,7 +7559,7 @@ References
 
    Mailhot, J. and Lock, A. P. (2004).
    *An examination of several parametrizations of mixing lengths in a stable
-   boundary layer: the {GABLS} case*.
+   boundary layer: the GABLS case*.
 
 .. _Honnert et al. (2011):
 
@@ -7607,17 +7606,17 @@ References
    zone*.
    Q. J. R. Meteorol. Soc., 136, 927-943.
 
-.. _L{\ (2012):
+.. _L\ (2012):
 
-   C. L{\ (2012).
+   C. L\ (2012).
    *A parametrization, based on sea ice morphology of the neutral atmospheric
    drag coefficients for weather prediction and climate models*.
    J. Geophys. Res., 117, D13112.
    https://doi.org/10.1029/2012JD017630
 
-.. _L{\ (2015):
+.. _L\ (2015):
 
-   C. L{\ (2015).
+   C. L\ (2015).
    *A stability-dependent parametrization of transfer coefficients for
    momentum and heat over polar sea to be used in climate models*.
    J. Geophys. Res. Atmos., 120, 552-581.
@@ -7632,9 +7631,9 @@ References
    Atmos. Chem. Phys., 16, 1545-1563.
    https://doi.org/10.5194/acp-16-1545-2016
 
-.. _Schr{\ (2003):
+.. _Schr\ (2003):
 
-   D. Schr{\ (2003).
+   D. Schr\ (2003).
    *On the parameterization of turbulent surface fluxes over heterogeneous sea
    ice surfaces*.
    J. Geophys. Res., 108(C6), 3195.
@@ -7658,7 +7657,6 @@ References
 .. _Hsu et al. (2017):
 
    Hsu, J. and Lien, R. and D'Asaro, E. A. and Sanford, T. B. (2017).
-   *Estimates of Surface Wind Stress and Drag Coefficients in {T}yphoon
-   {M}egi*.
+   *Estimates of Surface Wind Stress and Drag Coefficients in Typhoon Megi*.
    J. Phys. Oceanogr., 47, 545-565.
    https://doi.org/10.1175/JPO-D-16-0069.1
