@@ -272,8 +272,7 @@ contains
     ! --------------------------------------------------------------------------
 
     call semi_implicit_solver_alg_step( state, rhs, dry_flux_solver, &
-                                        moist_dyn_gas_law, mr,       &
-                                        .false., first_iteration )
+                                        moist_dyn_gas_law, mr, first_iteration )
 
     ! --------------------------------------------------------------------------
     ! Compute <Mx,Mx>
@@ -367,7 +366,7 @@ contains
     ! --------------------------------------------------------------------------
 
     call adj_semi_implicit_solver%step( state, rhs, moist_dyn_gas_law, mr, &
-                                        .false., first_iteration )
+                                        first_iteration )
 
     ! --------------------------------------------------------------------------
     ! Compute <AMx,x>
