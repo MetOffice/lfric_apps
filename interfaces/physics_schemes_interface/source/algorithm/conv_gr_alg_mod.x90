@@ -778,20 +778,6 @@ contains
                                   dth_conv_noshal,       &
                                   dmv_conv_noshal)
 
-
-      ! Aviation dependencies to activate pres_cv_base and pres_cv_top
-      if (diag_samp('aviation__conv_cloud_base_icao_height')) then
-        if (.not. convection_fields%field_exists('convection__pres_cv_base')) then
-          call convection_fields%add_field(pres_cv_base)
-        end if
-      end if
-
-      if (diag_samp('aviation__conv_cloud_top_icao_height')) then
-        if (.not. convection_fields%field_exists('convection__pres_cv_top')) then
-          call convection_fields%add_field(pres_cv_top)
-        end if
-      end if
-
     end if
 
     nullify( mesh )

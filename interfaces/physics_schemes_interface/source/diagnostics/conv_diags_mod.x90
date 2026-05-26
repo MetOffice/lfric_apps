@@ -201,12 +201,10 @@ contains
     ! cv_base is zeroed because value tested in kernel
     call invoke( setval_c(cv_base, 0.0_r_def) )
 
-    pres_cv_base_flag = init_diag(pres_cv_base, 'convection__pres_cv_base', &
-      activate=diag_samp('aviation__conv_cloud_base_icao_height'))
+    pres_cv_base_flag = init_diag(pres_cv_base, 'convection__pres_cv_base')
     ! not zeroed because overwritten
 
-    pres_cv_top_flag = init_diag(pres_cv_top, 'convection__pres_cv_top', &
-      activate=diag_samp('aviation__conv_cloud_top_icao_height'))
+    pres_cv_top_flag = init_diag(pres_cv_top, 'convection__pres_cv_top')
     ! not zeroed because overwritten
 
     pres_lowest_cv_base_flag = init_diag(pres_lowest_cv_base, &

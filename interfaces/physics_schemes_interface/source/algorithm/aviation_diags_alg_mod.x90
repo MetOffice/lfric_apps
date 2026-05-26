@@ -23,252 +23,126 @@ module aviation_diags_alg_mod
                                         log_level_always, log_level_error,  &
                                         log_level_info, log_level_debug
 
-  use aviation_thickness_snow_kernel_mod,                                   &
-                                  only: aviation_thickness_snow_kernel_type
-  use aviation_icao_heights_kernel_mod,                                     &
-                                  only: aviation_icao_heights_kernel_type
-
   implicit none
 
 private
-public :: aviation_diags_alg
+public :: write_horizontal_divergence_diagnostic
 
 contains
 
-  ! Algorithm to calculate the section 20 aviation diagnostics.
-  subroutine aviation_diags_alg(plev_geopot, convection_fields)
+  ! todo: rename aviation_something?
+  subroutine write_horizontal_divergence_diagnostic( &
+          wind, clock, main_mesh, element_order_h, element_order_v)
+    use fs_continuity_mod,              only: W2H, W2v, W3
+    use function_space_collection_mod,  only: function_space_collection
+    use model_clock_mod,                only: model_clock_type
+
+    use sci_geometric_constants_mod,    only:           &
+            get_coordinates, get_panel_id,              &
+            get_face_selector_ew, get_face_selector_ns
+
+    use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
+    use transport_constants_mod,        only: get_directional_im3_div_r_tran
+    use transport_enumerated_types_mod, only: direction_h
+    use r_tran_operator_mod,            only: r_tran_operator_type
+
+    use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+
+    use mesh_mod,                       only: mesh_type
+    use integer_field_mod,              only: integer_field_type
+    use initialise_diagnostics_mod,     only: diagnostic_to_be_sampled
+
+    use field_parent_mod,               only: write_interface
+    use lfric_xios_write_mod,           only: write_field_generic
+
+    use diagnostics_io_mod,             only: write_scalar_diagnostic
+    use sci_project_output_mod,         only: project_output
+
+
     implicit none
 
-    ! Arguments
-    type(field_type), intent(in) :: plev_geopot
-    type(field_collection_type), intent(inout) :: convection_fields
+    type(field_type),        intent(in)          :: wind
+    class(model_clock_type), intent(in)          :: clock
+    type(mesh_type),         intent(in), pointer :: main_mesh
 
-    ! calculate thickness from geopotential height at pressure levels.
-    call from_plev_geopot(plev_geopot)
+    integer(kind=i_def), intent(in)      :: element_order_h, element_order_v
 
-    ! calculate icao heights of top and base of cloud from their pressures.
-    call icao_heights(convection_fields)
+    type(mesh_type), pointer             :: target_mesh => null()
 
-  end subroutine aviation_diags_alg
+    type(field_type)                     :: wind_h, wind_v
+    type(field_type)                     :: div_ml, div_ml_h, div_ml_v
+    type(field_type)                     :: div_pl(1)
+    type(field_type), pointer            :: chi(:)
+    type(r_tran_operator_type), pointer  :: div_op
+    type(field_type), pointer            :: panel_id
 
-  SUBROUTINE from_plev_geopot(plev_geopot)
-    ! Calculate diagnostics from plvel_geopot.
-    ! - Thickness from geopotential height at pressure levels.
+    type(integer_field_type), pointer    :: face_selector_ew => null()
+    type(integer_field_type), pointer    :: face_selector_ns => null()
 
-    ! Arguments
-    type(field_type), intent(in) :: plev_geopot
+    procedure(write_interface), pointer  :: tmp_write_ptr
 
-    ! Local variables
-
-    ! These flags tell us which results are requested at this time step.
-    logical(l_def) :: thick_850_flag, thick_500_flag, snow_probability_flag
-
-    ! The array of pressure levels.
-    integer(i_def) :: nplev
-    real(r_def), allocatable :: plevs(:)
-    integer(i_def) :: plevs_alloc_stat
-
-    ! Level indices for the three pressure levels we want to read.
-    integer(i_def) :: i1000, i850, i500
-
-    ! Approximate equality tolerance - is there a common variable somewhere?
-    real(r_def), parameter :: plev_tol = 0.1_r_def
-
-    ! The output fields we produce.
-    type( field_type ) :: thick_850, thick_500, snow_probability
-
-    integer(i_def) :: i
-
-    character(len=str_long) :: message
+    character(len=str_long)              :: message
 
 
-    ! Check the request flags.
-    snow_probability_flag = &
-      init_diag(snow_probability, 'aviation__snow_probability')
-    thick_850_flag = &
-      init_diag(thick_850, 'aviation__geopot_thickness_850')
-    thick_500_flag = &
-      init_diag(thick_500, 'aviation__geopot_thickness_500')
-
-    ! Anything to do?
-    if ( .not. (thick_850_flag .or. &
-                thick_500_flag .or. &
-                snow_probability_flag) ) then
-      return
-    end if
-
-    if ( .not. use_xios_io ) then
+    if (.not. diagnostic_to_be_sampled('aviation__uv_wind_divergence')) then
       return
     endif
 
-    ! Initialise required fields to 1.
-    if ( snow_probability_flag ) then
-      message = 'Section 20: snow probability requested'
-      call log_event( message, log_level_debug )
-      call invoke( setval_c(snow_probability, 0.0_r_def))
+    message = 'Section 20: uv wind divergence requested'
+    call log_event( message, log_level_always )
+
+
+    ! get the horizontal div operator matrix for this mesh
+!    div_op => get_directional_im3_div(wind%get_mesh_id(), direction_h)
+    div_op => get_directional_im3_div_r_tran(wind%get_mesh_id(), direction_h)
+
+
+    ! Split the 3d wind into horizontal and vertical components
+    face_selector_ew => get_face_selector_ew(wind%get_mesh_id())
+    face_selector_ns => get_face_selector_ns(wind%get_mesh_id())
+
+    call wind_h%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W2h ))
+    call wind_v%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W2v ))
+
+    call invoke( split_w2_field_kernel_type( &
+        wind_h, wind_v, wind, face_selector_ew, face_selector_ns ))
+
+
+    ! what function space should div_ml be on?
+    call div_ml%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W3 ))
+
+
+    ! multiply the wind by the div operator matrix to get the div
+    CALL invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
+
+
+    ! Project the field to the output field
+    ! which mesh should we use? this or the one passed in?
+    target_mesh => div_ml%get_mesh()
+    chi      => get_coordinates( target_mesh%get_id() )
+    panel_id => get_panel_id( target_mesh%get_id() )
+
+    call project_output( div_ml, div_pl, chi, panel_id, W3 )
+
+
+    ! todo: this is already done in project_output, with out the xios check
+    if (use_xios_io) then
+      !If using XIOS, we need to set a field I/O method appropriately
+      tmp_write_ptr => write_field_generic
+      call div_pl(1) % set_write_behaviour(tmp_write_ptr)
     end if
 
-    if ( thick_850_flag ) then
-      message = 'Section 20: geopot thick 850 requested'
-      call log_event( message, log_level_debug )
-      ! Todo: Why 1 and not 0?
-      call invoke( setval_c(thick_850, 1.0_r_def))
-    end if
+!    call write_scalar_diagnostic( &
+!        'divergence', div_pl(1), clock, target_mesh, .false. )
+    call write_scalar_diagnostic( &
+        'aviation__uv_wind_divergence', div_pl(1), clock, target_mesh, .false. )
 
-    if ( thick_500_flag ) then
-      message = 'Section 20: geopot thick 500 requested'
-      call log_event( message, log_level_debug )
-      call invoke( setval_c(thick_500, 1.0_r_def))
-    end if
-
-    ! Get the array of pressure levels.
-    nplev = get_axis_dimension('pressure_levels')
-    if (nplev <= 0) then
-      message = 'Section 20: No pressure levels'
-      call log_event( message, log_level_error )
-      return
-    end if
-
-    allocate(plevs(nplev), stat=plevs_alloc_stat)
-    if (plevs_alloc_stat /= 0) then
-      message = 'Section 20: allocate(plevs) failed'
-      call log_event( message, log_level_error )
-      return
-    end if
-    plevs = get_axis_values('pressure_levels',nplev)
-
-    ! Find the level indices for our three pressures of interest.
-    ! Assumes hPa.
-    i1000 = -1
-    i850  = -1
-    i500  = -1
-    do i = 1, nplev
-
-      ! 1000?
-      if (abs(plevs(i) - 100000.0_r_def) < plev_tol) then
-        i1000 = i
-
-      ! 850?
-      else if (abs(plevs(i) - 85000.0_r_def) < plev_tol) then
-        i850 = i
-
-      ! 500?
-      else if (abs(plevs(i) - 50000.0_r_def) < plev_tol) then
-        i500 = i
-
-      end if
-    end do
-
-    ! Check we found the required levels.
-    if (i1000 == -1) then
-      message = 'Section 20: could not find 1000hPa'
-      call log_event( message, log_level_error )
-      return
-    end if
-
-    if ((thick_850_flag .or. snow_probability_flag) .and. i850 == -1) then
-      message = 'Section 20: could not find 850hPa'
-      call log_event( message, log_level_error )
-      return
-    end if
-
-    if (thick_500_flag .and. i500 == -1) then
-      message = 'Section 20: could not find 500hPa'
-      call log_event( message, log_level_error )
-      return
-    end if
-
-    ! Call the kernel to subtract the levels.
-    ! Todo: Comment why we initialise to 1.0 and not 0.0. I can't remember.
-    call invoke( aviation_thickness_snow_kernel_type(        &
-      thick_850, thick_500, snow_probability,                &
-      plev_geopot,                                           &
-      thick_850_flag, thick_500_flag, snow_probability_flag, &
-      i1000, i850, i500))
-
-    ! Write the fields
-    if (thick_850_flag) call thick_850%write_field()
-    if (thick_500_flag) call thick_500%write_field()
-    if (snow_probability_flag) call snow_probability%write_field()
-
-    ! Clean up.
-    if (allocated(plevs)) then
-      deallocate(plevs)
-    end if
-
-  end subroutine from_plev_geopot
+    nullify(tmp_write_ptr)
 
 
-  subroutine icao_heights(convection_fields)
-    ! Calculate ICAO heights of top and base of cloud from their pressures.
-
-    ! Arguments.
-    type(field_collection_type), intent(inout) :: convection_fields
-
-    ! Locals.
-    character(len=str_long) :: message
-
-    ! Pressure fields to unpack.
-    type(field_type), pointer :: conv_cloud_base_pressure
-    type(field_type), pointer :: conv_cloud_top_pressure
-
-    ! Height fields to create and write.
-    type(field_type) :: conv_cloud_base_icao_height
-    type(field_type) :: conv_cloud_top_icao_height
-
-    ! Request flags.
-    logical(l_def) :: base_height_flag
-    logical(l_def) :: top_height_flag
-
-    ! Which heights are requested this time step?
-    top_height_flag = init_diag( &
-      conv_cloud_top_icao_height, 'aviation__conv_cloud_top_icao_height')
-
-    base_height_flag = init_diag( &
-      conv_cloud_base_icao_height, 'aviation__conv_cloud_base_icao_height')
-
-    if (base_height_flag .or. top_height_flag) then
-      message = 'section 20: cloud icao heights on'
-      call log_event( message, log_level_debug )
-    else
-      ! Nothing requested at this time step.
-      return
-    end if
-
-
-    ! Cloud base.
-    if (base_height_flag) then
-      call convection_fields%get_field( &
-              'convection__pres_cv_base', conv_cloud_base_pressure)
-      call invoke( &
-        setval_c(conv_cloud_base_icao_height, rmdi), &
-        aviation_icao_heights_kernel_type(conv_cloud_base_icao_height, &
-          conv_cloud_base_pressure))
-
-      call conv_cloud_base_icao_height%write_field()
-
-      ! Is it necessary/safe to remove this field now?
-      ! Did the get trigger an unpack which we need to now remove?
-      ! call convection_fields%remove_field('convection__pres_cv_base')
-
-    end if
-
-    ! Cloud top.
-    if (top_height_flag) then
-      call convection_fields%get_field( &
-              'convection__pres_cv_top', conv_cloud_top_pressure)
-      call invoke( &
-        setval_c(conv_cloud_top_icao_height, rmdi), &
-        aviation_icao_heights_kernel_type(conv_cloud_top_icao_height, &
-          conv_cloud_top_pressure))
-
-      call conv_cloud_top_icao_height%write_field()
-
-      ! Is it necessary/safe to remove this field now?
-      ! call convection_fields%remove_field('convection__pres_cv_top')
-
-    end if
-
-  end subroutine icao_heights
+  end subroutine write_horizontal_divergence_diagnostic
 
 end module aviation_diags_alg_mod

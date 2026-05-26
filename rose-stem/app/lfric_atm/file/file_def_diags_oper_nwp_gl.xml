@@ -194,11 +194,7 @@
 
     <!-- Section 20 Aviation diagnostics -->
     <field_group operation="instant" freq_op="6h">
-      <field field_ref="aviation__geopot_thickness_850"/>
-      <field field_ref="aviation__geopot_thickness_500"/>
-      <field field_ref="aviation__snow_probability"/>
-      <field field_ref="aviation__conv_cloud_base_icao_height"/>
-      <field field_ref="aviation__conv_cloud_top_icao_height"/>
+      <field field_ref="aviation__uv_wind_divergence"/>
     </field_group>
 
   </file>    
