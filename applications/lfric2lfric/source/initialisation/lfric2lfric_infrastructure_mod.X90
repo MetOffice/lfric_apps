@@ -42,7 +42,6 @@ module lfric2lfric_infrastructure_mod
                                          get_panel_id_inventory
   use init_altitude_mod,           only: init_altitude
   use inventory_by_mesh_mod,       only: inventory_by_mesh_type
-  use io_context_mod,              only: callback_clock_arg
   use linked_list_mod,             only: linked_list_type
   use lfric_xios_context_mod,      only: lfric_xios_context_type
   use lfric_xios_action_mod,       only: advance
@@ -197,7 +196,6 @@ contains
     !------------------------
     ! Pointer for subroutines used in init_io
     procedure(filelist_populator), pointer :: files_init_ptr
-    procedure(callback_clock_arg), pointer :: before_close
 
     ! Source context pointer and temporary context for setup
     type(lfric_xios_context_type)          :: tmp_io_context_src
@@ -426,13 +424,11 @@ contains
     call panel_id_inventory%get_field(mesh_src, panel_id)
 
     ! Using correct chi and panel_id, initialise xios context for source mesh
-    nullify( before_close )
     call io_context_src%initialise_xios_context( modeldb%mpi%get_comm(), &
                                                  chi,                    &
                                                  panel_id,               &
                                                  modeldb%clock,          &
-                                                 modeldb%calendar,       &
-                                                 before_close            )
+                                                 modeldb%calendar        )
 
     !=======================================================================
     ! Initialise source orography
