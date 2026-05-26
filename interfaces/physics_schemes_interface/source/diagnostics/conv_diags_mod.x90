@@ -10,8 +10,8 @@ module conv_diags_mod
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
-  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
-                                         diag_samp => diagnostic_to_be_sampled
+  use initialise_diagnostics_mod,     only : init_diag &
+                                             => init_diagnostic_field
 
   implicit none
 
@@ -197,7 +197,6 @@ contains
     ! not zeroed because overwritten
 
     ! cv_base and _top are dependencies for chemistry, hence need to be 'active'
-    ! They are also used for aviation diagnostics.
     ! cv_base is zeroed because value tested in kernel
     call invoke( setval_c(cv_base, 0.0_r_def) )
 
