@@ -9,7 +9,7 @@
 module jedi_lfric_mesh_interface_test
 
   use constants_mod,                  only: i_def, r_def
-  use configuration_mod,              only: final_configuration
+  use config_loader_mod,              only: final_configuration
   use halo_routing_collection_mod,    only: halo_routing_collection, &
                                             halo_routing_collection_type
   use local_mesh_collection_mod,      only: local_mesh_collection, &
