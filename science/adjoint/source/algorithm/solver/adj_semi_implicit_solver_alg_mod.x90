@@ -302,11 +302,12 @@ contains
   !> @brief Algorithm for timestepping the semi-implicit equations (adjoint)
   !> @param[in,out] state               Prognostic model state
   !> @param[in,out] rhs                 Residuals
+  !> @param[in,out] dry_flux_solver     Solver contributions to dry flux
   !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics
   !!                                    factors
   !> @param[in]     mr                  Mixing ratio array
   !> @param[in]     first_iteration     Flag for first inner iteration
-  subroutine step( self, state, rhs, moist_dyn_gas_law, mr, first_iteration )
+  subroutine step( self, state, rhs, dry_flux_solver, moist_dyn_gas_law, mr, first_iteration )
 
     use solver_constants_mod,                only: get_normalisation_r_solver, get_im3_div_r_solver, get_normalisation
     use mr_indices_mod,                      only: nummr
@@ -328,6 +329,7 @@ contains
     ! Arguments
     class(adj_semi_implicit_solver_type),     intent(inout) :: self
     type(field_type), dimension(bundle_size), intent(inout) :: state, rhs
+    type(field_type),                         intent(inout) :: dry_flux_solver
     type(field_type),                         intent(in)    :: moist_dyn_gas_law
     type(field_type), dimension(nummr),       intent(in)    :: mr
     logical(kind=l_def),                      intent(in)    :: first_iteration
