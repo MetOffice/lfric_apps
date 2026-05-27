@@ -161,3 +161,48 @@ class vn31_t382(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t243(MacroUpgrade):
+    """Upgrade macro for ticket #243 by Mike Whitall."""
+
+    BEFORE_TAG = "vn3.1_t382"
+    AFTER_TAG = "vn3.1_t243"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-microphysics
+        nml = "namelist:microphysics"
+        self.add_setting(config, [nml, "l_improve_precfrac_checks"], ".false.")
+
+        # Commands From: rose-meta/um-cloud
+        nml = "namelist:cloud"
+        self.add_setting(config, [nml, "l_ensure_max_in_cloud_pc2"], ".false.")
+
+        return config, self.reports
+
+
+class vn31_t249(MacroUpgrade):
+    """Upgrade macro for ticket #249 by Mike Whitall."""
+
+    BEFORE_TAG = "vn3.1_t243"
+    AFTER_TAG = "vn3.1_t249"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        # Blank macro needed just to update meta-data version
+        # (apps using the new option 'smooth_fix' under the existing
+        #  multi-option switch 'pc2_init_logic' fail checks against
+        #  the existing meta-data).
+
+        return config, self.reports
+
+class vn31_t77(MacroUpgrade):
+    """Upgrade macro for ticket #77 by Mike Hobson."""
+
+    BEFORE_TAG = "vn3.1_t249"
+    AFTER_TAG = "vn3.1_t77"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        self.add_setting(config, ["namelist:io", "write_initial"], ".true.")
+        return config, self.reports
