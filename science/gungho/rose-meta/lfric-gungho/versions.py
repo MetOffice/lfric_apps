@@ -159,7 +159,6 @@ class vn31_t382(MacroUpgrade):
         self.change_setting_value(
             config, ["namelist:physics", "bl_segment"], "16"
         )
-
         return config, self.reports
 
 
@@ -173,11 +172,9 @@ class vn31_t243(MacroUpgrade):
         # Commands From: rose-meta/um-microphysics
         nml = "namelist:microphysics"
         self.add_setting(config, [nml, "l_improve_precfrac_checks"], ".false.")
-
         # Commands From: rose-meta/um-cloud
         nml = "namelist:cloud"
         self.add_setting(config, [nml, "l_ensure_max_in_cloud_pc2"], ".false.")
-
         return config, self.reports
 
 
@@ -193,8 +190,8 @@ class vn31_t249(MacroUpgrade):
         # (apps using the new option 'smooth_fix' under the existing
         #  multi-option switch 'pc2_init_logic' fail checks against
         #  the existing meta-data).
-
         return config, self.reports
+
 
 class vn31_t77(MacroUpgrade):
     """Upgrade macro for ticket #77 by Mike Hobson."""
@@ -203,6 +200,7 @@ class vn31_t77(MacroUpgrade):
     AFTER_TAG = "vn3.1_t77"
 
     def upgrade(self, config, meta_config=None):
-        # Add settings
+        # Commands From: rose-meta/lfric-gungho
         self.add_setting(config, ["namelist:io", "write_initial"], ".true.")
+
         return config, self.reports

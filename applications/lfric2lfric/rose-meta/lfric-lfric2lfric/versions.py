@@ -223,3 +223,16 @@ class vn31_t249(MacroUpgrade):
         #  the existing meta-data).
 
         return config, self.reports
+
+
+class vn31_t77(MacroUpgrade):
+    """Upgrade macro for ticket #77 by Mike Hobson."""
+
+    BEFORE_TAG = "vn3.1_t249"
+    AFTER_TAG = "vn3.1_t77"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:io", "write_initial"], ".true.")
+
+        return config, self.reports
