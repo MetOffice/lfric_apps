@@ -178,7 +178,8 @@ contains
          ch_nvg, emis_nvg, gs_nvg, infil_nvg, vf_nvg, z0_nvg,               &
          check_jules_nvegparm, print_nlist_jules_nvegparm
     use pftparm, only:                                                      &
-         jules_pftparm_init, print_nlist_jules_pftparm, check_jules_pftparm
+         print_nlist_jules_pftparm, check_jules_pftparm
+    use jules_pftparm_init_mod, only: jules_pftparm_init
 
     use check_compatible_options_mod, only: check_compatible_options
 

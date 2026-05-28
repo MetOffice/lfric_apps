@@ -23,7 +23,7 @@ casim:
 
 jules:
     source: git@github.com:maggiehendry/jules.git
-    ref: a901321ab7be9e26c900d293f68d32d992eba6e8
+    ref: 374ecbf2ef30a22d7310d68cd09646d3539f4989
 
 lfric_apps:
     source:
