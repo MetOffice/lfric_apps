@@ -20,7 +20,6 @@ output-format = "grouped"               #group results by file
 [check.per-file-ignores]
 
 "pressure_gradient_p0_kernel_mod_test.pf" = ["C092"]
-"departure_points_support_mod.F90" = ["MOD021"]
 "psykal_lite_mod.F90" = ["C132", "S071"]
 "psykal_lite_transport_mod.F90" = ["C132", "S071"]
 

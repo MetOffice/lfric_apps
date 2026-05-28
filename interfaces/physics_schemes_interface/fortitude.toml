@@ -23,8 +23,7 @@ output-format = "grouped"                #group results by file
 "fastjx_inphot_mod.f90" = ["C072"]
 "umprintmgr.f90" = ["C072", "C132"]
 "ukca_photol_param_mod.f90" = ["C072", "C132"]
-"psykal_lite_phys_mod.F90" = ["C132", "MOD021"]
-"um_sizes_init_mod.f90" = ["MOD021"]
+"psykal_lite_phys_mod.F90" = ["C132"]
 
 # Leaving out for now (these rules are used in the universal config):
 # C081, C021, C022, C061, S071, E001, C121

@@ -723,7 +723,7 @@ module coupler_mod
         ! Multiple category entry (so will need a multidata lfric field)
         if (index_cat > 0) then
           ! Check if name ends in cpl_cat substring followed by 2 characters
-          if (len(trim(name)) - index_cat+1 - len(cpl_cat) .ne. 2 ) then
+          if (len(trim(name)) - index_cat+1 - len(cpl_cat) /= 2 ) then
             write(log_scratch_space,'(3A)')             &
                "generate_coupling_field_collections : ", &
                "incorrect send variable name in coupling config: ", name
@@ -778,7 +778,7 @@ module coupler_mod
         index_cat = index(name, cpl_cat)
         ! if name ends in cpl_cat substring, check it is the correct length
         if (index_cat > 0 .and. &
-           (index_cat - 1 + len(cpl_cat) + len(cpl_fixed_catno) .ne. &
+           (index_cat - 1 + len(cpl_cat) + len(cpl_fixed_catno) /= &
                                                    len(trim(name)))) then
           write(log_scratch_space,'(3A)')             &
                "generate_coupling_field_collections : ", &

@@ -73,8 +73,6 @@ output-format = "grouped"                #group results by file
 "set_topography_kernel_mod.F90" = ["C081"]
 
 # interfaces/coupled_interface:
-"coupler_mod.F90" = ["MOD021"]
-"value_based_mask_kernel_mod.F90" = ["MOD021"]
 "convert_to_celsius_kernel_mod_test.pf" = ["C121", "E001"]
 "value_based_mask_kernel_mod_test.pf" = ["E001"]
 

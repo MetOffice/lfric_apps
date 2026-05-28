@@ -169,7 +169,7 @@ contains
     end do
 
     ! Check that the value of gw_segment is acceptable as a target length, otherwise use 1 for safety
-    if (gw_segment .le. 0 .or. gw_segment .gt. applicable_points) then
+    if (gw_segment <= 0 .or. gw_segment > applicable_points) then
       seg_target = 1
     else
       seg_target = gw_segment
@@ -179,7 +179,7 @@ contains
 
     ! Call orographic_drag_kernel_code if you have applicable points
     ! seg_len will be seg_target unless you have too few points at the end - l and u bound are of the segment iterated over
-    if (applicable_points .gt. 0) then
+    if (applicable_points > 0) then
       !$omp parallel do default(shared), private(segment, seg_len, l_bound, u_bound), schedule(dynamic)
       do segment=1, n_segments
         seg_len = min(seg_target, applicable_points - (segment - 1) * seg_target)
