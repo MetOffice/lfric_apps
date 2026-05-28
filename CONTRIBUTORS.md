@@ -39,5 +39,6 @@
 | Pierre-siddall      | Pierre Siddall     | Met Office                       | 2026-03-02 |
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
 | ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
+| DrTVockerodtMO      | Terence Vockerodt  | Met Office                       | 2026-01-08 |
 | marcstring          | Marc Stringer      | NCAS, Reading University         | 2026-05-06 |
 | MetBenjaminWent     | Benjamin Went      | Met Office                       | 2025-12-17 |
