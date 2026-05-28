@@ -4287,10 +4287,10 @@ Two approaches are available in uncoupled configurations of the model.
 
 #. Explicit Treatment of Ice Form Drag
 
-   `L\ (2012)`_ have suggested a simple
+   `Lupkes et al. (2012)`_ have suggested a simple
    parametrization of the form drag coefficient of marginal ice that has
    been found to perform well in comparison to aircraft measurements
-   (`Elvidge et al. (2016)`_). `L\ (2015)`_
+   (`Elvidge et al. (2016)`_). `Lupkes and Gryanik (2015)`_
    have extended the parametrization to include the effects of
    stability. When coupled to CICE, it is intended that a more elaborate
    scheme will be used, but this scheme is useful for application in
@@ -4303,12 +4303,12 @@ Two approaches are available in uncoupled configurations of the model.
 
    :math:`u(z)` will in general exhibit a mixed character, but it may be
    taken as the developed flow over open sea, as in
-   `L\ (2012)`_, or may be interpolated between the
+   `Lupkes et al. (2012)`_, or may be interpolated between the
    developed flows over open sea or pack ice, depending on the ice
-   fraction, as in `L\ (2015)`_. In principle, it will
+   fraction, as in `Lupkes and Gryanik (2015)`_. In principle, it will
    be subject to the effects of stability, but since the free-board does
    not much exceed 0.5m, these effects are small
-   (`L\ (2015)`_) and the flow may be taken as neutral
+   (`Lupkes and Gryanik (2015)`_) and the flow may be taken as neutral
    up to :math:`h_f`. Hence,
 
    .. math:: :label: eq:int_u2
@@ -4321,18 +4321,18 @@ Two approaches are available in uncoupled configurations of the model.
    the wind on the model's lowest atmospheric level. Because this will
    be significantly above :math:`h_f`, the stability dependence of
    :math:`C_d` should be considered here (again see
-   `L\ (2015)`_). :math:`U_1` may be interpreted as
+   `Lupkes and Gryanik (2015)`_). :math:`U_1` may be interpreted as
    the wind at a specific height, or, consistenly with the
    flux-difference form of the momentum equation, as the layer-averaged
    velocity. This distinction affects the numerical value of
    :math:`C_d`, but does not otherwise affect the foregoing equation. If
    using the original version of the scheme
-   (`L\ (2012)`_), :math:`C_d` must be taken as the
+   (`Lupkes et al. (2012)`_), :math:`C_d` must be taken as the
    neutral drag coefficient. Note also that various approximations may
    be made in Equation :eq:`eq:int_u2`.
-   `L\ (2012)`_ approximate
+   `Lupkes et al. (2012)`_ approximate
    :math:`(\log(h_f/z_0) -1)^2 +1` as :math:`(\log(h_f/z_0) )^2`; while
-   `L\ (2015)`_ approximate it as
+   `Lupkes and Gryanik (2015)`_ approximate it as
    :math:`(\log(h_f/z_0) -1)^2`. Here we retain the full expression.
 
    If, in a unit area, there are :math:`N` floes, each of crosswind
@@ -4369,19 +4369,19 @@ Two approaches are available in uncoupled configurations of the model.
       (1-A) C_{ds} L_s + A C_{di} L_i \right ],
 
    where the sheltering factor is taken to be the same over ice and
-   water. `L\ (2012)`_ provides parametrizations for
+   water. `Lupkes et al. (2012)`_ provides parametrizations for
    quantities such as :math:`h_f`, while `Elvidge et al. (2016)`_
    provide suggested values for the constants in the scheme, based on
    observations. In using these values in the Unified Model, :math:`c_e`
    should be increased by about 30% to represent the effect of differing
    approximations of the logarithmic wind profile.
 
-   For scalar transfer `L\ (2015)`_ suggest adding a
+   For scalar transfer `Lupkes and Gryanik (2015)`_ suggest adding a
    contribution to the sensible heat flux to represent the impact of
    form drag; however, the mechanistic physical basis of the scheme they
    propose is unclear. Moreover, when combined with the interfacial
    drag, this suggests scalar transfer much larger than observed by
-   `Schr\ (2003)`_. Consequently, no enhancement of the
+   `Schroder et al. (2003)`_. Consequently, no enhancement of the
    scalar transfer coefficient by form drag is included.
 
    The overall drag coefficients are now set by interpolation in the ice
@@ -7606,17 +7606,17 @@ References
    zone*.
    Q. J. R. Meteorol. Soc., 136, 927-943.
 
-.. _L\ (2012):
+.. _Lupkes et al. (2012):
 
-   C. L\ (2012).
+   C. Lupkes and V. M. Gryanik and J. Hartmann and E. L. Andreas (2012).
    *A parametrization, based on sea ice morphology of the neutral atmospheric
    drag coefficients for weather prediction and climate models*.
    J. Geophys. Res., 117, D13112.
    https://doi.org/10.1029/2012JD017630
 
-.. _L\ (2015):
+.. _Lupkes and Gryanik (2015):
 
-   C. L\ (2015).
+   C. Lupkes and V. M. Gryanik (2015).
    *A stability-dependent parametrization of transfer coefficients for
    momentum and heat over polar sea to be used in climate models*.
    J. Geophys. Res. Atmos., 120, 552-581.
@@ -7631,9 +7631,9 @@ References
    Atmos. Chem. Phys., 16, 1545-1563.
    https://doi.org/10.5194/acp-16-1545-2016
 
-.. _Schr\ (2003):
+.. _Schroder et al. (2003):
 
-   D. Schr\ (2003).
+   D. Schroder and T. Vihma and A. Kerber and B. Brummer (2003).
    *On the parameterization of turbulent surface fluxes over heterogeneous sea
    ice surfaces*.
    J. Geophys. Res., 108(C6), 3195.
