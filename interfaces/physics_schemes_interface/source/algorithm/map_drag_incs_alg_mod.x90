@@ -13,6 +13,9 @@ module map_drag_incs_alg_mod
   use map_fd_to_prognostics_alg_mod, only: set_wind
   use drag_incs_kernel_mod,          only: drag_incs_kernel_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
   private
 
@@ -25,17 +28,20 @@ contains
   !>          such that it cannot accelerate the original wind, which can
   !>          occasionally happen when there is a strong gradient between
   !>          W3 points.
+  !> @param[in]     config
   !> @param[in]     du_inc      Zonal wind increment
   !> @param[in]     dv_inc      Meridional wind increment
   !> @param[in]     dw_inc      Vertical wind increment
   !> @param[in]     u           W2 wind field
   !> @param[in,out] du_drag_inc W2 drag increment
 
-  subroutine map_drag_incs_alg(du_inc, dv_inc, dw_inc, u, du_drag_inc)
+  subroutine map_drag_incs_alg(config, du_inc, dv_inc, dw_inc, u, du_drag_inc)
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type( field_type ), intent( in ) :: du_inc
     type( field_type ), intent( in ) :: dv_inc
     type( field_type ), intent( in ) :: dw_inc
@@ -45,7 +51,7 @@ contains
     type( field_type ) :: du_new_drag_inc
 
     ! Mapping back of wind increments
-    call set_wind(du_drag_inc, du_inc, dv_inc, dw_inc)
+    call set_wind(config, du_drag_inc, du_inc, dv_inc, dw_inc)
 
     if (limit_drag_incs) then
       call du_drag_inc%copy_field_properties(du_new_drag_inc)

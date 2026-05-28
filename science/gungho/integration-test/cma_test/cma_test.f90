@@ -360,7 +360,7 @@ program cma_test
   call log_event( 'Initialising test', LOG_LEVEL_INFO )
 
   ! Initialise CMA test module
-  call cma_test_init( mesh )
+  call cma_test_init(config,  mesh)
 
   ! Run all requested tests
   if (do_test_apply_mass_p)             call test_cma_apply_mass_p(tolerance)

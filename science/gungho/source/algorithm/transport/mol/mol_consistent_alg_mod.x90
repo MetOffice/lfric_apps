@@ -38,11 +38,14 @@ module mol_consistent_alg_mod
   use sci_inject_wt_to_sh_w3_kernel_mod, &
                                       only: inject_wt_to_sh_w3_kernel_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   ! Configuration
-  use base_mesh_config_mod,           only: topology, topology_non_periodic
-  use boundaries_config_mod,          only: limited_area, &
-                                            transport_boundary_depth
-  use transport_config_mod,           only: runge_kutta_method
+  use base_mesh_config_mod,  only: topology, topology_non_periodic
+  use boundaries_config_mod, only: limited_area, &
+                                   transport_boundary_depth
+  use transport_config_mod,  only: runge_kutta_method
 
   implicit none
 
@@ -106,12 +109,15 @@ module mol_consistent_alg_mod
     type(flux_precomputations_type),  pointer :: flux_precomputations
     integer(tik)                              :: id
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'transport.mol_consistent' )
 
     ! ------------------------------------------------------------------------ !
     ! Extract pre-existing objects and initialise temporary fields
     ! ------------------------------------------------------------------------ !
 
+    config => transport_controller%get_config()
     prime_extrusion_mesh => mr_in%get_mesh()
     prime_extrusion_mesh_id = prime_extrusion_mesh%get_id()
     mr_function_space = mr_in%which_function_space()
@@ -239,9 +245,9 @@ module mol_consistent_alg_mod
         end do
 
         ! Compute update: rhs_adv = u.grad(rhs_field)
-        call advective_and_flux_alg(dummy, rhs_adv, rhs_field, mr_n,    &
-                                    prime_advecting_wind, direction,    &
-                                    transport_metadata, final_rk_stage, &
+        call advective_and_flux_alg(config, dummy, rhs_adv, rhs_field,     &
+                                    mr_n, prime_advecting_wind, direction, &
+                                    transport_metadata, final_rk_stage,    &
                                     dt_mol_substep, .false., .true.)
 
         ! Update field: f = f^n - dt*rhs
@@ -294,9 +300,10 @@ module mol_consistent_alg_mod
       call invoke( setval_c(flux_X, 0.0_r_tran) )
 
       ! In all cases, compute flux to rho_X
-      call advective_and_flux_alg(flux_X, dummy, mr_for_flux, dummy,         &
+      call advective_and_flux_alg(config, flux_X, dummy, mr_for_flux, dummy, &
                                   dry_flux, direction, transport_metadata,   &
-                                  final_rk_stage, dt_mol_substep, .true., .false.)
+                                  final_rk_stage, dt_mol_substep, .true.,    &
+                                  .false.)
     case ( Wtheta )
       ! Obtain mixing ratio used for reconstruction in shifted W3
       if (enforce_min_value) then
@@ -311,8 +318,8 @@ module mol_consistent_alg_mod
       end if
 
       ! In all cases, compute flux to rho_X
-      call advective_and_flux_alg(flux_X, dummy, mr_sh_w3_for_flux, dummy,   &
-                                  dry_flux, direction, transport_metadata,   &
+      call advective_and_flux_alg(config, flux_X, dummy, mr_sh_w3_for_flux,       &
+                                  dummy, dry_flux, direction, transport_metadata, &
                                   final_rk_stage, dt_mol_substep, .true., .false.)
     end select
 

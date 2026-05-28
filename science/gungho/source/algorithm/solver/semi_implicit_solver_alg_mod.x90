@@ -566,6 +566,9 @@ contains
                           inc_rho_rdef
     real( kind=r_solver ) :: tau_r_dt
     integer( kind=i_def ) :: mesh_id
+
+    type(mesh_type), pointer :: mesh
+
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
     integer(tik)                      :: id_si, id_mix
@@ -573,7 +576,8 @@ contains
     if ( LPROF ) call start_timing( id_si, 'dynamics.solver' )
 
     ! Input fields are r_def fields so preliminary work uses field_types
-    mesh_id = state(igh_p)%get_mesh_id()
+    mesh_id =  state(igh_p)%get_mesh_id()
+    mesh    => state(igh_p)%get_mesh()
 
     ! Normalise theta & u residual
     ! @TODO #416: can these be at r_solver precision?
@@ -674,8 +678,8 @@ contains
     if ( split_w ) then
       inc_uv_rsol => vector_inc%get_field_from_position(isol_uv)
       inc_w_rsol  => vector_inc%get_field_from_position(isol_w)
-      face_selector_ew => get_face_selector_ew( mesh_id )
-      face_selector_ns => get_face_selector_ns( mesh_id )
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
       call invoke( &
         combine_w2_field_kernel_type( inc_uvw_rsol, inc_uv_rsol, inc_w_rsol, &
                                       face_selector_ew, face_selector_ns ) &
@@ -770,8 +774,8 @@ contains
       element_order_h =  bundle_state(igh_u)%get_element_order_h()
       element_order_v =  bundle_state(igh_u)%get_element_order_v()
       mesh => bundle_state(igh_u)%get_mesh()
-      face_selector_ew => get_face_selector_ew( mesh%get_id() )
-      face_selector_ns => get_face_selector_ns( mesh%get_id() )
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
 
       call uv%initialise( function_space_collection%get_fs( mesh, element_order_h, &
                                                             element_order_v, W2h ) )

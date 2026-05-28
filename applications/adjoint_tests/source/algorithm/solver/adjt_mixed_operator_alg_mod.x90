@@ -22,8 +22,6 @@ module adjt_mixed_operator_alg_mod
   use field_indices_mod,                only: isol_p, isol_u, isol_w, isol_uv, &
                                               igh_p, igh_t, igh_d,             &
                                               igh_u, igh_w, igh_uv
-  use sci_geometric_constants_mod,      only: get_face_selector_ew, &
-                                              get_face_selector_ns
   use mixed_operator_alg_mod,           only: mixed_operator_type
   use adj_mixed_operator_alg_mod,       only: adj_mixed_operator_type
   use adj_semi_implicit_solver_alg_mod, only: construct_solver_state
@@ -38,6 +36,9 @@ module adjt_mixed_operator_alg_mod
   use model_clock_mod,                  only: model_clock_type
   use function_space_mod,               only: function_space_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -51,11 +52,14 @@ contains
   !!          the result stored in the other, so we use three vectors to save on
   !!          variables. This differs from other adjoint tests as most adjoint
   !!          routines would increment one argument and set the other to zero.
+  !> @param[in] config
   !> @param[in] mesh        The model mesh
   !> @param[in] model_clock The model clock
-  subroutine adjt_mixed_operator_alg( mesh, model_clock )
+  subroutine adjt_mixed_operator_alg( config, mesh, model_clock )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
@@ -113,7 +117,7 @@ contains
       call invoke(setval_random(moist_dyn(idx)))
     end do
 
-    call compute_si_operators( rhs(igh_t), rhs(igh_d), rhs(igh_p), &
+    call compute_si_operators( config, rhs(igh_t), rhs(igh_d), rhs(igh_p), &
                                model_clock, moist_dyn )
 
     ! Input fields are r_def fields so preliminary work uses field_types

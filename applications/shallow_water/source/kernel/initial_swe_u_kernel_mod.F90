@@ -21,16 +21,14 @@ module initial_swe_u_kernel_mod
   use fs_continuity_mod,       only : W2
   use kernel_mod,              only : kernel_type
 
-  use shallow_water_settings_config_mod, only: swe_test
-
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, &
                                        geometry_spherical
   use finite_element_config_mod, only: coord_system
-  use initial_wind_config_mod,   only: profile_sin_uv,                        &
-                                       profile, sbr_angle_lat, sbr_angle_lon, &
-                                       u0, v0, shear, wavelength
   use planet_config_mod,         only: scaled_radius
+
+  use shallow_water_settings_config_mod, only: swe_test
+
 
   implicit none
 

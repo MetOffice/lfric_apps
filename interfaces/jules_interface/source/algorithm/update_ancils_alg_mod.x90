@@ -25,12 +25,8 @@ module update_ancils_alg_mod
   use jules_sea_seaice_config_mod, only: amip_ice_thick
   use derived_config_mod,          only: l_couple_sea_ice, l_couple_ocean
 
-  ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology, f_lat
-  use finite_element_config_mod, only: element_order_h, element_order_v, &
-                                       coord_system
-  use idealised_config_mod,      only: f_lon
-  use planet_config_mod,         only: scaled_radius
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -41,14 +37,17 @@ contains
 
   !> @details Derive ancillary fields required by the model from ancillary
   !>          fields that are read from file
+  !> @param[in] config
   !> @param[in] time_axis_list (in)     List of time axes
   !> @param[in] clock          (in)     The clock object
   !> @param[in] ancil_fields   (in)     Ancil fields read in
   !> @param[in] surface_fields (in,out) Surface field collection to update
-  subroutine update_ancils_alg(time_axis_list, clock, ancil_fields, &
+  subroutine update_ancils_alg(config, time_axis_list, clock, ancil_fields, &
                                surface_fields)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(linked_list_type),        intent(in) :: time_axis_list
     class(clock_type),             intent(in) :: clock
@@ -72,7 +71,7 @@ contains
 
     if (surface == surface_jules) then
       call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
-      call surface_fields%get_field('tile_fraction', tile_fraction)     
+      call surface_fields%get_field('tile_fraction', tile_fraction)
       call surface_fields%get_field('tile_temperature', tile_temperature)
 
       ! Get the data from ancil_fields (if applicable for your model)
@@ -84,11 +83,7 @@ contains
       end if
 
       twod_mesh => sea_ice_thickness%get_mesh()
-      latitude => get_latitude_fv( W3, twod_mesh%get_id(),           &
-                                   geometry, topology,               &
-                                   element_order_h, element_order_v, &
-                                   coord_system, f_lat, f_lon,       &
-                                   scaled_radius )
+      latitude  => get_latitude_fv(config, twod_mesh, W3)
 
       ! Start at the head of the time_axis linked list
       loop => time_axis_list%get_head()

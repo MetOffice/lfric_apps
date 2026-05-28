@@ -21,25 +21,27 @@ use sci_geometric_constants_mod,   only: get_height_fv
 use locate_tropopause_kernel_mod,  only: locate_tropopause_kernel_type
 use timing_mod,                    only: start_timing, stop_timing, tik, LPROF
 
-! Configuration modules
-use base_mesh_config_mod,      only: geometry
-use finite_element_config_mod, only: coord_system
-use planet_config_mod,         only: scaled_radius
+! Object types
+use config_mod, only: config_type
 
 implicit none
+
 private
 public :: locate_tropopause_alg
 
 contains
 
+! @param[in]     config
 ! @param[in,out] trop_level             Level of tropopause
 ! @param[in]     theta                  Potential temperature
 ! @param[in]     exner_in_wth           Exner pressure on wth space
 ! @param[in]     twod_mesh              Current 2d mesh
 
-subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
-
+subroutine locate_tropopause_alg( config, trop_level, theta, &
+                                  exner_in_wth, twod_mesh )
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type( integer_field_type ), intent(inout) :: trop_level
   type( field_type ), intent(in)    :: theta, exner_in_wth
@@ -53,10 +55,7 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
 
   if ( LPROF ) call start_timing( id_alg, 'locate_tropopause' )
 
-  height_wth => get_height_fv( Wtheta, theta%get_mesh_id(), &
-                               geometry, coord_system,      &
-                               scaled_radius )
-
+  height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
   vector_space=>function_space_collection%get_fs(twod_mesh, 0, 0, W3)
   call trop_level%initialise(vector_space)
 

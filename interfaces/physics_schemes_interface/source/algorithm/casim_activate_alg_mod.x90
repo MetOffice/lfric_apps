@@ -22,10 +22,8 @@ module casim_activate_alg_mod
   use microphysics_config_mod,       only: casim_cdnc_opt, &
                                            casim_cdnc_opt_fixed
 
-  ! Configuration modules
-  use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system
-  use planet_config_mod,         only: scaled_radius
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -39,11 +37,13 @@ contains
   !>         CASIM microphysics. Activates liquid cloud droplets,
   !>         and adjust vapour and temperature, as described in CASIM
   !>         documentation.
+  !>@param[in] config
   !>@param[in] mr                      (in) Mixing ratios, in theta space
   !>@param[in]     cloud_fields        (in) Fields for cloud fractions
   !>@param[in,out] microphysics_fields (in,out) Fields for mphys scheme
   !>@param[in]     initialise          Flag to use routine to initialise fields
-  subroutine casim_activate_alg(theta, mr,                                     &
+  subroutine casim_activate_alg(config,                                        &
+                                theta, mr,                                     &
                                 derived_fields,                                &
                                 cloud_fields,                                  &
                                 microphysics_fields,                           &
@@ -53,6 +53,8 @@ contains
     use casim_ice_act_kernel_mod,  only: casim_ice_act_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: cloud_fields
@@ -85,9 +87,7 @@ contains
       call microphysics_fields%get_field('nl_mphys', nl_mphys)
 
       mesh => cf_liq%get_mesh()
-      height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
-                                   geometry, coord_system, &
-                                   scaled_radius )
+      height_wth => get_height_fv(config, mesh, wtheta)
 
       call invoke( casim_activate_kernel_type( mr(imr_cl),                     &
                                                cf_liq,                         &

@@ -25,6 +25,9 @@ module adjt_poly1d_recon_lookup_alg_mod
                                                    log_scratch_space
   use adj_lookup_table_mod,                 only : adj_lookup_table_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   public :: adjt_poly1d_recon_lookup_alg
@@ -36,14 +39,17 @@ module adjt_poly1d_recon_lookup_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  adj_lookup_table_cache  The lookup table cache
-  subroutine adjt_poly1d_recon_lookup_alg( mesh, adj_lookup_table_cache )
+  subroutine adjt_poly1d_recon_lookup_alg( config ,mesh, adj_lookup_table_cache )
 
     use poly1d_reconstruction_kernel_mod,     only : poly1d_reconstruction_kernel_type
     use invoke_adj_poly1d_recon_lookup_mod,   only : invoke_adj_poly1d_recon_lookup
 
     implicit none
+
+    type(config_type), pointer, intent(in) :: config
 
     ! Arguments
     type(mesh_type),          pointer, intent(in) :: mesh
@@ -91,7 +97,7 @@ module adjt_poly1d_recon_lookup_alg_mod
     mesh_id = mesh%get_id()
     stencil_size = fv_horizontal_order + 1
     ndata = 4*stencil_size
-    coeff => get_hori_wt_mol_coeffs(mesh_id)
+    coeff => get_hori_wt_mol_coeffs(config, mesh)
     stencil_extent = fv_horizontal_order/2_i_def
     order = fv_horizontal_order
     vector_space_wt_md_ptr => function_space_collection%get_fs(              &

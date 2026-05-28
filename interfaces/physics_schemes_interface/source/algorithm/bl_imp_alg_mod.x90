@@ -40,10 +40,8 @@ module bl_imp_alg_mod
                                            blpert_type_theta_star, &
                                            blpert_type_theta_and_moist
 
-  ! Configuration modules
-  use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system
-  use planet_config_mod,         only: scaled_radius
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -56,6 +54,7 @@ contains
   !>@details The UM Boundary Layer scheme does:
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
+  !>@param[in]     config
   !>@param[in,out] dtheta_bl         Theta increment
   !>@param[in,out] du_bl             3D wind increment
   !>@param[in,out] theta_latest      Current estimate of theta
@@ -92,7 +91,8 @@ contains
   !>@param[in]     microphysics_fields Fields for microphysics scheme
   !>@param[in]     outer             Outer loop counter
   !>@param[in]     clock             The clock object
-  subroutine bl_imp_alg(dtheta_bl, du_bl, theta_latest, u_latest, mr,    &
+  subroutine bl_imp_alg(config,                                          &
+                        dtheta_bl, du_bl, theta_latest, u_latest, mr,    &
                         surf_heat_flux, canopy_evap, water_extraction,   &
                         lake_evap, theta_star_surf, qv_star_surf,        &
                         ustar_implicit, t1p5m, q1p5m, qcl1p5m,           &
@@ -112,7 +112,7 @@ contains
     use bl_imp_du_kernel_mod, only: bl_imp_du_kernel_type
 
     implicit none
-
+type(config_type), intent(in) :: config
     type( field_type ), intent( inout )     :: dtheta_bl, du_bl, mr(nummr)
     type( field_type ), intent( out )       :: surf_heat_flux, canopy_evap,   &
                                                water_extraction, lake_evap,   &
@@ -122,7 +122,7 @@ contains
                                                t1p5m_ssi, q1p5m_ssi,          &
                                                qcl1p5m_ssi, t1p5m_land,       &
                                                q1p5m_land, qcl1p5m_land
-    
+
     type( field_type ), intent( in )        :: theta, exner, mr_n(nummr),     &
                                                theta_latest, u_latest
 
@@ -282,25 +282,17 @@ contains
     call surface_fields%get_field('taux_ssi', taux_ssi)
     call surface_fields%get_field('tauy_ssi', tauy_ssi)
 
-    mesh       => theta%get_mesh()
+    mesh => theta%get_mesh()
 
-    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
-                                 geometry, coord_system, &
-                                 scaled_radius )
-    height_w1  => get_height_fv( W1, mesh%get_id(),      &
-                                 geometry, coord_system, &
-                                 scaled_radius )
-    height_w2  => get_height_fv( W2, mesh%get_id(),      &
-                                 geometry, coord_system, &
-                                 scaled_radius )
-    height_w3  => get_height_fv( W3, mesh%get_id(),      &
-                                 geometry, coord_system, &
-                                 scaled_radius )
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w1  => get_height_fv(config, mesh, W1)
+    height_w2  => get_height_fv(config, mesh, W2)
+    height_w3  => get_height_fv(config, mesh, W3)
 
-    dA         => get_da_at_w2(mesh%get_id())
-    rdz        => get_rdz_fd1(mesh%get_id())
-    dtrdz      => get_dtrdz_fd2(mesh%get_id(), model_clock)
-    rdz_w3     => get_rdz_w3( mesh%get_id() )
+    dA         => get_da_at_w2(mesh)
+    rdz        => get_rdz_fd1(config, mesh%get_id())
+    dtrdz      => get_dtrdz_fd2(config, mesh%get_id(), model_clock)
+    rdz_w3     => get_rdz_w3(config, mesh%get_id())
 
     mesh       => zh%get_mesh()
 
@@ -396,7 +388,8 @@ contains
                                       bl_type_ind, rhokh, fqw, ftl, dqw, dtl,  &
                                       dqw_nt, dtl_nt, qw, tl, ct_ctq,          &
                                       dqw1, dtl1, ct_ctq1 ) )
-      call jules_imp_alg( mr, surf_heat_flux, canopy_evap, water_extraction,   &
+      call jules_imp_alg( config,                                              &
+                          mr, surf_heat_flux, canopy_evap, water_extraction,   &
                           lake_evap, derived_fields, radiation_fields,         &
                           turbulence_fields, cloud_fields, surface_fields,     &
                           soil_fields, snow_fields, outer, model_clock, loop,  &

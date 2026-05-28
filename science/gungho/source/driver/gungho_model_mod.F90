@@ -973,7 +973,7 @@ contains
         ! Initialisation for the Socrates radiation scheme
         radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
         dt = real(modeldb%clock%get_seconds_per_step(), r_def)
-        call illuminate_alg( radiation_fields,                    &
+        call illuminate_alg( modeldb%config, radiation_fields,                    &
                              modeldb%clock%get_step(),            &
                              dt)
       end if
@@ -1094,16 +1094,14 @@ contains
                         timestep_method)
         ! Output initial conditions
         if ( write_conservation_diag ) then
-         call conservation_algorithm( rho,              &
-                                      u,                &
-                                      theta,            &
-                                      mr,               &
-                                      exner )
-         if ( use_moisture ) &
-           call moisture_conservation_alg( rho,              &
-                                           mr,               &
-                                           'Before timestep' )
+          call conservation_algorithm( modeldb%config, rho, u, theta, &
+                                       mr, exner )
+          if ( use_moisture ) then
+            call moisture_conservation_alg( modeldb%config, rho, mr, &
+                                            'Before timestep' )
+          end if
         end if
+
       case( method_rk )             ! RK
         ! Initialise the Runge-Kutta timestep method
         allocate( timestep_method, source=rk_timestep_type(modeldb) )
@@ -1113,16 +1111,14 @@ contains
 
         ! Output initial conditions
         if ( write_conservation_diag ) then
-          call conservation_algorithm( rho,              &
-                                       u,                &
-                                       theta,            &
-                                       mr,               &
-                                       exner )
-         if ( use_moisture ) &
-           call moisture_conservation_alg( rho,              &
-                                           mr,               &
-                                           'Before timestep' )
+          call conservation_algorithm( modeldb%config, rho, u, theta, &
+                                       mr, exner )
+          if ( use_moisture ) then
+            call moisture_conservation_alg( modeldb%config, rho, mr, &
+                                            'Before timestep' )
+          end if
         end if
+
       case( method_no_timestepping )
         ! Initialise a null-timestep method
         allocate( timestep_method, source=no_timestep_type() )
@@ -1133,6 +1129,7 @@ contains
                     '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
                     ' Prognostic fields not evolved'
         call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+
 #ifdef UM_PHYSICS
       case( method_jules )  ! jules
         ! Initialise the jules timestep method
@@ -1141,6 +1138,7 @@ contains
         call modeldb%values%add_key_value('timestep_method', &
                       timestep_method)
 #endif
+
       case default
         call log_event("Gungho: Incorrect time stepping option chosen, "// &
                         "stopping program! ",LOG_LEVEL_ERROR)

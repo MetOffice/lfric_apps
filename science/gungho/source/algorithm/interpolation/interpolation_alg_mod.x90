@@ -81,8 +81,10 @@ module interpolation_alg_mod
 
     ! Get geometry data
     mesh => u_in_w2%get_mesh()
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
+
     element_order_h = u_in_w2%get_element_order_h()
     element_order_v = u_in_w2%get_element_order_v()
     if (element_order_h > 0 .or. element_order_v > 0) then
@@ -162,8 +164,10 @@ module interpolation_alg_mod
 
     ! Get geometry data
     mesh => u_in_w2%get_mesh()
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
+
     w3_fs => u_in_w3%get_function_space()
     element_order_h = w3_fs%get_element_order_h()
     element_order_v = w3_fs%get_element_order_v()

@@ -72,7 +72,7 @@ program transport
 
   call log_event( 'Running ' // program_name // ' ...', log_level_trace )
   do while (modeldb%clock%tick())
-    call step_transport( modeldb%clock )
+    call step_transport( modeldb%config, modeldb%clock )
   end do
 
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )

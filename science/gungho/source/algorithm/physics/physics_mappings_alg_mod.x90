@@ -44,6 +44,9 @@ module physics_mappings_alg_mod
                                         only: nodal_xyz_coordinates_kernel_type
   use sci_field_minmax_alg_mod,         only: log_field_minmax
 
+  ! Object types
+  use config_mod, only: config_type
+
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, &
                                        geometry_spherical
@@ -63,11 +66,12 @@ contains
   !>          location for the FD physics codes
   !> @param[in,out] target_field Field in the target space
   !> @param[in]     source_field Field in the source (native) space
-  subroutine map_physics_scalars(target_field, source_field)
+  subroutine map_physics_scalars(config, target_field, source_field)
 
     implicit none
 
     ! Prognostic fields
+    type( config_type ), intent( in ) :: config
     type( field_type ), intent( inout ) :: target_field
     type( field_type ), intent( in )    :: source_field
 
@@ -86,8 +90,8 @@ contains
     ! Currently only coded for fields on the same mesh.
     !
     mesh     => source_field%get_mesh()
-    chi      => get_coordinates( mesh%get_id() )
-    panel_id => get_panel_id( mesh%get_id() )
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
 
     if ( sample_physics_scalars ) then
       ! Determine situation from number of DoFs
@@ -104,12 +108,8 @@ contains
       if (( target_field%which_function_space() == WTHETA ) &
            .and. ( source_field%which_function_space() == W3 ) ) then
         ! Target is lowest order Wtheta, source is lowest order W3
-        height_w3 => get_height_fv( W3, mesh%get_id(),      &
-                                    geometry, coord_system, &
-                                    scaled_radius )
-        height_wt => get_height_fv( WTHETA, mesh%get_id(),  &
-                                    geometry, coord_system, &
-                                    scaled_radius )
+        height_w3 => get_height_fv(config, mesh, W3)
+        height_wt => get_height_fv(config, mesh, WTHETA)
         call invoke( sample_w3_to_wtheta_kernel_type(target_field, source_field, &
                                                      height_wt, height_w3 ) )
 
@@ -161,8 +161,8 @@ contains
     mesh =>  source_field%get_mesh()
 
     ! get chi field
-    chi      => get_coordinates( mesh%get_id() )
-    panel_id => get_panel_id( mesh%get_id() )
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
 
     if (sample_physics_winds) then
 
@@ -249,8 +249,8 @@ contains
     logical(l_def)               :: optimised_conversion
 
     ! get chi field
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
 
     ! Create intermediate fields
     do i = 1,3
@@ -299,8 +299,8 @@ contains
 
     fs_id = wind%which_function_space()
 
-    face_selector_ew => get_face_selector_ew(mesh%get_id())
-    face_selector_ns => get_face_selector_ns(mesh%get_id())
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     select case( fs_id )
       case ( W2 )

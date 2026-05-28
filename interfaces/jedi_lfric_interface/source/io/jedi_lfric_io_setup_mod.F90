@@ -8,7 +8,6 @@
 module jedi_lfric_io_setup_mod
 
   use calendar_mod,              only: calendar_type
-  use config_mod,                only: config_type
   use constants_mod,             only: i_def, r_def
   use driver_fem_mod,            only: init_fem, final_fem
   use empty_io_context_mod,      only: empty_io_context_type
@@ -32,6 +31,9 @@ module jedi_lfric_io_setup_mod
   use lfric_xios_context_mod,   only: lfric_xios_context_type
   use lfric_xios_action_mod,    only: advance
 #endif
+
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 

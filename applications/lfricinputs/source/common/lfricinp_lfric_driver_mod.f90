@@ -85,11 +85,12 @@ type(lfric_xios_context_type), target :: io_context
 
 contains
 
-subroutine lfricinp_initialise_lfric(program_name_arg,                         &
-                                     required_lfric_namelists,                 &
-                                     start_date, time_origin,                  &
-                                     first_step, last_step,                    &
-                                     spinup_period, seconds_per_step)
+function lfricinp_initialise_lfric(program_name_arg,                         &
+                                   required_lfric_namelists,                 &
+                                   start_date, time_origin,                  &
+                                   first_step, last_step,                    &
+                                   spinup_period, seconds_per_step)          &
+                            result(config)
 
 ! Description:
 !  Initialises LFRic infrastructure, MPI, XIOS and halos.
@@ -103,6 +104,8 @@ integer(kind=i_def), intent(in) :: first_step, last_step
 real(r_second),      intent(in) :: spinup_period
 real(r_second),      intent(in) :: seconds_per_step
 
+type(config_type) :: config
+
 type(step_calendar_type), allocatable :: model_calendar
 type(linked_list_type),   pointer     :: file_list => null()
 
@@ -113,8 +116,6 @@ type(inventory_by_mesh_type), pointer :: panel_id_inventory => null()
 procedure(callback_clock_arg), pointer :: before_close => null()
 class(event_actor_type), pointer :: event_actor_ptr
 procedure(event_action), pointer :: context_advance
-
-type(config_type), save :: config
 
 class(extrusion_type),        allocatable :: extrusion
 type(uniform_extrusion_type), allocatable :: extrusion_2d
@@ -288,7 +289,7 @@ call advance(io_context, model_clock)
 
 nullify(chi, panel_id, chi_inventory, panel_id_inventory)
 
-end subroutine lfricinp_initialise_lfric
+end function lfricinp_initialise_lfric
 
 !------------------------------------------------------------------
 

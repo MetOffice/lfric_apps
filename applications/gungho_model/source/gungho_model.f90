@@ -110,7 +110,7 @@ program gungho_model
   call log_event( 'Finalising '//application_name//' ...', log_level_trace )
   call finalise( application_name, modeldb )
 
-  call final_counters(modeldb%config, application_name)
+  call final_counters( modeldb%config, application_name )
   call final_time( modeldb )
   call final_collections()
   call final_timing( application_name )

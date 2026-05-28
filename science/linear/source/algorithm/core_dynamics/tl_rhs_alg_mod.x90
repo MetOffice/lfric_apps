@@ -82,8 +82,8 @@ contains
   !!                state
   !> @param[in]     dlayer_rhs Use damping layer in rhs yes/no
   !> @param[in]     model_clock Time in the model
-subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
-                      ls_state, ls_moist_dyn, compute_eos,                &
+subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn, &
+                      ls_state, ls_moist_dyn, compute_eos,         &
                       dlayer_rhs, model_clock)
 
     implicit none
@@ -140,8 +140,8 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     mesh => base_state(igh_u)%get_mesh()
 
     mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh%get_id())
-    chi          => get_coordinates(mesh%get_id())
-    panel_id     => get_panel_id(mesh%get_id())
+    chi          => get_coordinates(mesh)
+    panel_id     => get_panel_id(mesh)
     mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh%get_id())
 
     ! Using modified velocity mass matrix if using damping layer

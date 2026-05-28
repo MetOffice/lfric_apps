@@ -20,12 +20,8 @@ module spectral_gwd_alg_mod
   use spectral_gwd_diags_mod, only: initialise_diags_for_spectral_gwd, &
                                     output_diags_for_spectral_gwd
 
-  ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology, f_lat
-  use finite_element_config_mod, only: element_order_h, element_order_v, &
-                                       coord_system
-  use idealised_config_mod,      only: f_lon
-  use planet_config_mod,         only: scaled_radius
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -35,6 +31,7 @@ module spectral_gwd_alg_mod
 contains
 
   !> @brief Run the spectral gravity wave drag scheme
+  !> @param[in]     config
   !> @param[in,out] du_spectral_gwd      Increment to zonal wind field
   !> @param[in,out] dv_spectral_gwd      Increment to meridional wind field
   !> @param[in,out] dtheta_spectral_gwd  Increment to theta field
@@ -43,17 +40,20 @@ contains
   !> @param[in]     convection_fields    Fields for convection scheme
   !> @param[in]     theta                Potential temperature in wtheta
   !> @param[in]     u                    Wind in W2
-  subroutine spectral_gwd_alg(du_spectral_gwd, dv_spectral_gwd,         &
-                              dtheta_spectral_gwd,                      &
-                              derived_fields, microphysics_fields,      &
-                              convection_fields, theta, u)
+  subroutine spectral_gwd_alg( config,                              &
+                               du_spectral_gwd, dv_spectral_gwd,    &
+                               dtheta_spectral_gwd,                 &
+                               derived_fields, microphysics_fields, &
+                               convection_fields, theta, u )
 
     ! spectral_gwd kernels
     use spectral_gwd_kernel_mod,     only: spectral_gwd_kernel_type
     use sci_geometric_constants_mod, only: get_latitude_fv, get_height_fv
     use um_sizes_init_mod,           only: um_sizes_init
 
-   implicit none
+    implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent( inout ) :: du_spectral_gwd
     type( field_type ), intent( inout ) :: dv_spectral_gwd
@@ -114,17 +114,9 @@ contains
     mesh      => theta%get_mesh()
     twod_mesh => ls_rain%get_mesh()
 
-    latitude_w3 => get_latitude_fv( W3, twod_mesh%get_id(),           &
-                                    geometry, topology,               &
-                                    element_order_h, element_order_v, &
-                                    coord_system, f_lat, f_lon,       &
-                                    scaled_radius )
-    height_wth  => get_height_fv( Wtheta, mesh%get_id(),  &
-                                  geometry, coord_system, &
-                                  scaled_radius )
-    height_w3   => get_height_fv( W3, mesh%get_id(),      &
-                                  geometry, coord_system, &
-                                  scaled_radius )
+    latitude_w3 => get_latitude_fv(config, twod_mesh, W3)
+    height_wth  => get_height_fv(config, mesh, Wtheta)
+    height_w3   => get_height_fv(config, mesh, W3)
 
     call u_in_w3%copy_field_properties(du_spectral_gwd)
     call v_in_w3%copy_field_properties(dv_spectral_gwd)

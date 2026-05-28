@@ -26,11 +26,11 @@ module vertadvect_forcing_alg_mod
                                            profile_heights
   use prof_temporal_interp_mod,      only: prof_temporal_interp
 
+  ! Object types
+  use config_mod, only: config_type
+
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: element_order_h, element_order_v, &
-                                       coord_system
-  use planet_config_mod,         only: scaled_radius
+  use finite_element_config_mod, only: element_order_h, element_order_v
 
   implicit none
 
@@ -41,6 +41,7 @@ contains
 
   !> @brief Calculate advection tendencies arising from a specified vertical
   !>        velocity profile
+  !> @param[in]     config
   !> @param[in,out] field_increment vertical advection increment to theta
   !> @param[in,out] field_increment vertical advection increment to vapour
   !> @param[in,out] field_increment vertical advection increment to liquid
@@ -52,9 +53,10 @@ contains
   !> @param[in]     twod_mesh Information about the horizontal mesh
   !> @param[in]     dt timestep
   !> @param[in]     time_now Current model time in seconds
-  subroutine vertadvect_forcing_alg( dtheta_forcing, dmv_forcing, dmcl_forcing,&
-                                     du_forcing, theta, mr, rho,               &
-                                     derived_fields,                           &
+  subroutine vertadvect_forcing_alg( config,                                    &
+                                     dtheta_forcing, dmv_forcing, dmcl_forcing, &
+                                     du_forcing, theta, mr, rho,                &
+                                     derived_fields,                            &
                                      twod_mesh, dt, time_now )
 
   use vertadvect_config_mod,   only: number_times, number_heights,             &
@@ -65,6 +67,8 @@ contains
   use mr_indices_mod,          only: nummr, imr_v, imr_cl
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type( field_type ), intent(inout)         :: dtheta_forcing, dmv_forcing,    &
                                                dmcl_forcing, du_forcing
@@ -118,14 +122,10 @@ contains
   ! There's a choice to be made here. Either advect then average, or average
   ! then advect. Choose the latter, replicating what's done in the UM and MONC.
   mesh_id = theta%get_mesh_id()
-  height_wth => get_height_fv( Wtheta, mesh_id,        &
-                               geometry, coord_system, &
-                               scaled_radius )
+  height_wth => get_height_fv(config, mesh, Wtheta)
 
   mesh_id = rho%get_mesh_id()
-  height_w3 => get_height_fv( W3, mesh_id,            &
-                              geometry, coord_system, &
-                              scaled_radius )
+  height_w3 => get_height_fv(config, mesh, W3)
 
   ! Vertical advection of potential temperature
   call horiz_mean_alg( field_mean, nlayers, twod_mesh, theta )
@@ -243,7 +243,7 @@ contains
   end if
 
   call du_vertadv%initialise( vector_space = du_forcing%get_function_space() )
-  call set_wind( du_vertadv, du_in_w3, dv_in_w3, dw_in_wth )
+  call set_wind( config, du_vertadv, du_in_w3, dv_in_w3, dw_in_wth )
   call invoke( inc_X_plus_Y( du_forcing, du_vertadv ) )
 
   end subroutine vertadvect_forcing_alg

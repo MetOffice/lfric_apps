@@ -7,6 +7,9 @@
 !> @brief Apply diffusion or mixing to model variables
 module mixing_alg_mod
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -16,13 +19,14 @@ contains
 
   !> @details Diffuse prognostic fields using Smagorinsky coefficients or
   !>          simple viscosity operator
+  !> @param[in]     config
   !> @param[in,out] mr             mixing ratios
   !> @param[in,out] theta          Potential temperature
   !> @param[in,out] u              3D wind field
   !> @param[in]     derived_fields Group of derived fields
   !> @param[in]     rho            Density
   !> @param[in]     dt             The model timestep length
-  subroutine mixing_alg(mr, theta, u, derived_fields, &
+  subroutine mixing_alg(config, mr, theta, u, derived_fields, &
                         cloud_fields, rho, exner, dt)
 
     use constants_mod,                 only: i_def,r_def
@@ -41,6 +45,8 @@ contains
                                              smagorinsky_placement_end
 
     implicit none
+
+    type( config_type ), intent(in) :: config
 
     ! Prognostic fields
     type( field_type ), intent(inout) :: u, theta
@@ -69,8 +75,8 @@ contains
       call du%initialise( u%get_function_space() )
       call invoke( setval_c(dtheta, 0.0_r_def), &
                    setval_c(du, 0.0_r_def) )
-      call smagorinsky_alg(dtheta, du, mr, theta, u, derived_fields, &
-                           cloud_fields, rho, exner, dt)
+      call smagorinsky_alg(config, dtheta, du, mr, theta, u, &
+                           derived_fields, cloud_fields, rho, exner, dt)
       call invoke( inc_X_plus_Y( theta, dtheta ), &
                    inc_X_plus_Y( u,     du ) )
 
@@ -88,7 +94,7 @@ contains
       call dtheta%initialise( theta%get_function_space() )
       call du%initialise( u%get_function_space() )
 
-      dx_at_w2 => get_dx_at_w2(mesh%get_id())
+      dx_at_w2 => get_dx_at_w2(mesh)
       call invoke( setval_c(du, 0.0_r_def),                                   &
                    tracer_viscosity_kernel_type( dtheta, theta, 1, dx_at_w2,  &
                                                  viscosity_mu ),              &

@@ -36,9 +36,11 @@ module diagnostic_alg_mod
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, &
                                        geometry_spherical
-  use finite_element_config_mod, only: coord_system, coord_system_native, &
-                                       element_order_h, element_order_v
+  use finite_element_config_mod, only: coord_system, coord_system_native
   use planet_config_mod,         only: scaled_radius, cp
+
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -231,8 +233,8 @@ contains
     integer(i_def)                  :: i
 
     ! get chi field
-    chi      => get_coordinates( mesh%get_id() )
-    panel_id => get_panel_id( mesh%get_id() )
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
 
     ! Check if projection required, setup output field and filename
 
@@ -334,8 +336,8 @@ contains
 
     ! Get chi field
     mesh     => field%get_mesh()
-    chi      => get_coordinates( mesh%get_id() )
-    panel_id => get_panel_id( mesh%get_id() )
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
 
     ! Create nodal coordinates, nodal output and levels fields
     ! from the properties of the input field
@@ -453,8 +455,8 @@ contains
       else
 
         ! Project the field to the output field
-        chi      => get_coordinates( mesh%get_id() )
-        panel_id => get_panel_id( mesh%get_id() )
+        chi      => get_coordinates(mesh)
+        panel_id => get_panel_id(mesh)
         call project_output( field, output_field, chi, panel_id, W3 )
 
       end if
@@ -572,8 +574,8 @@ contains
               function_space_collection%get_fs(wind%get_mesh(), element_order_h, &
                                                element_order_v, Wtheta) )
 
-    face_selector_ew => get_face_selector_ew(wind%get_mesh_id())
-    face_selector_ns => get_face_selector_ns(wind%get_mesh_id())
+    face_selector_ew => get_face_selector_ew(wind%get_mesh())
+    face_selector_ns => get_face_selector_ns(wind%get_mesh())
 
     call invoke( split_w2_field_kernel_type(h_wind, v_wind, wind, &
                                             face_selector_ew,     &
@@ -585,6 +587,7 @@ contains
   !> @brief Calculate column totals of dry and wet fields.
   !> @details Calculates column totals for wet + dry air, dry air only and each
   !!          of the different moisture spieces represented by LFRic.
+  !> @param[in] config
   !> @param[in] rho_field  3D dry density field
   !> @param[in] mr         Bundle of moisture mixing ratios (nummr is index for speices X)
   !> @param[in] derived_fields Contains u, v, w and theta fields mapped to W3 space
@@ -592,7 +595,8 @@ contains
   !> @param[in] mesh       The primary mesh
   !> @param[in] twod_mesh  The 2D mesh
 
-  subroutine column_total_diagnostics_alg(rho_field, mr, derived_fields, exner_field, &
+  subroutine column_total_diagnostics_alg(config,                                     &
+                                          rho_field, mr, derived_fields, exner_field, &
                                           mesh, twod_mesh, temperature_correction_rate)
 
     use compute_column_integral_kernel_mod, only: compute_column_integral_kernel_type
@@ -607,6 +611,8 @@ contains
     use dycore_constants_mod,               only: get_geopotential
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_collection_type), intent(in) :: derived_fields
     type(field_type),  intent(in)    :: rho_field
@@ -655,21 +661,13 @@ contains
     if ( rho_field%get_element_order_h() > 0 .or. &
          rho_field%get_element_order_v() > 0 ) then
 
-      height_w3  => get_height_fe( W3, mesh%get_id(), geometry,      &
-                                   element_order_h, element_order_v, &
-                                   coord_system, scaled_radius )
-      height_wth => get_height_fe( Wtheta, mesh%get_id(), geometry,  &
-                                   element_order_h, element_order_v, &
-                                   coord_system, scaled_radius )
+      height_w3  => get_height_fe(config, mesh, W3)
+      height_wth => get_height_fe(config, mesh, Wtheta)
 
     else
 
-      height_w3  => get_height_fv( W3, mesh%get_id(),      &
-                                   geometry, coord_system, &
-                                   scaled_radius )
-      height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
-                                   geometry, coord_system, &
-                                   scaled_radius )
+      height_w3  => get_height_fv(config, mesh, W3)
+      height_wth => get_height_fv(config, mesh, Wtheta)
 
     end if
 
@@ -723,7 +721,7 @@ contains
 
       if (wet_mass_flag .or. X_mass_flag) then
         ! Get mr field on w3
-        call map_physics_scalars(mr_w3, mr(i_mr))  ! argument order is target, source
+        call map_physics_scalars(config, mr_w3, mr(i_mr))  ! argument order is target, source
         call invoke( X_times_Y(rho_moist_X, rho_field, mr_w3) )
         call invoke( compute_column_integral_kernel_type(rho_moist_X, height_w3,          &
                                                     height_wth, tot_col_moist_mass(i_mr), &

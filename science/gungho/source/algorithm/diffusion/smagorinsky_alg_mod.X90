@@ -43,10 +43,8 @@ module smagorinsky_alg_mod
                                        get_dz_at_wtheta
   use fs_continuity_mod,         only: W1, W2
 
-  ! Configuration modules
-  use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system
-  use planet_config_mod,         only: scaled_radius
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -60,6 +58,7 @@ contains
   !> @details Either uses Smagorinsky diffusion coefficients calculated
   !>          in the UM boundary-layer scheme or those calculate locally
   !>          to diffuse quantities in the horizontal
+  !> @param[in]     config
   !> @param[in,out] dtheta_io      Potential temperature increment to update
   !> @param[in,out] du_io          3D wind increment to update
   !> @param[in,out] mr             mixing ratios
@@ -68,10 +67,12 @@ contains
   !> @param[in]     derived_fields Group of derived fields
   !> @param[in]     rho            Density
   !> @param[in]     dt             The model timestep length
-subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
+subroutine smagorinsky_alg(config, dtheta_io, du_io, mr, theta, u, &
                            derived_fields, cloud_fields, rho, exner, dt )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type( field_type ), intent(inout) :: du_io, dtheta_io
@@ -127,15 +128,10 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     call derived_fields%get_field('visc_h', visc_h)
     call derived_fields%get_field('visc_m', visc_m)
 
-    height_w1 => get_height_fv( W1, mesh%get_id(),      &
-                                geometry, coord_system, &
-                                scaled_radius )
-    height_w2 => get_height_fv( W2, mesh%get_id(),      &
-                                geometry, coord_system, &
-                                scaled_radius )
-
-    dx_at_w2 => get_dx_at_w2(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    height_w1 => get_height_fv(config, mesh, W1)
+    height_w2 => get_height_fv(config, mesh, W2)
+    dx_at_w2 => get_dx_at_w2(mesh)
+    panel_id => get_panel_id(mesh)
 
     if ( boundary_layer == boundary_layer_um ) then
 
@@ -187,12 +183,11 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
       call derived_fields%get_field('shear', shear)
       ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
       ! in lfric core as the mininum of the cell horizontal edge lengths
-      delta => get_delta_at_wtheta(mesh%get_id())
+      delta => get_delta_at_wtheta(mesh)
 
       if (smag_l_calc == smag_l_calc_use_geo) then
         ! Use geometric mean mixing length
-        dz_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
-                                    coord_system, scaled_radius )
+        dz_wth => get_dz_at_wtheta(config, mesh)
 
         one_third = 1.0_r_def / 3.0_r_def
         call invoke( inc_X_powint_n( delta, 2 ),                              &
@@ -284,7 +279,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
       ! If we're at the end of timestep, we need to update exner_wth
       if (smagorinsky_placement == smagorinsky_placement_end) then
         call derived_fields%get_field('exner_in_wth', exner_wth)
-        call map_physics_scalars(exner_wth, exner)
+        call map_physics_scalars(config, exner_wth, exner)
       end if
 
       ! dtheta and dmr will be updated with the pc2 response in the alg
@@ -319,8 +314,9 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
                    inc_X_plus_Y( mr(imr_cl), dmr_cl ) )
     end if
 
-    if (write_conservation_diag .and. use_moisture) &
-      call moisture_conservation_alg( rho, mr, 'After mixing' )
+    if (write_conservation_diag .and. use_moisture) then
+      call moisture_conservation_alg( config, rho, mr, 'After mixing' )
+    end if
 
     nullify( height_w1, height_w2 )
 

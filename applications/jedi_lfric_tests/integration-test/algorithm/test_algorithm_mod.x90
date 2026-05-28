@@ -40,12 +40,13 @@ contains
 
   !> @brief     Initialise module.
   !> @details   Initialises the fem & function space wtheta_fs
-  !> @param[in] mesh Mesh to be used
+  !> @param[in] config
+  !> @param[in] mesh   Mesh to be used
   subroutine test_algorithm_initialise( config, mesh_name )
 
     implicit none
 
-    type(config_type), intent(in) :: config
+    type(config_type),  intent(in) :: config
     character(str_def), intent(in) :: mesh_name
     type(mesh_type),    pointer    :: mesh => null()
 

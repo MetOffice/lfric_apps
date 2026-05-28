@@ -201,7 +201,7 @@ contains
     end if
 
     mesh_id = mesh%get_id()
-    chi => get_coordinates(mesh_id)
+    chi => get_coordinates(mesh)
     w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
     w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
     wtheta_fs => function_space_collection%get_fs( mesh, k_h, k_v, Wtheta )
@@ -905,7 +905,7 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
-      chi => get_coordinates(mesh_id)
+      chi => get_coordinates(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
@@ -985,7 +985,7 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
-      chi => get_coordinates(mesh_id)
+      chi => get_coordinates(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
@@ -1133,7 +1133,7 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
-      chi => get_coordinates(mesh_id)
+      chi => get_coordinates(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 

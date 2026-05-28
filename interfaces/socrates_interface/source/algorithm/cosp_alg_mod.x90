@@ -28,16 +28,19 @@ use cosp_diags_mod,  only: initialise_diags_for_cosp, output_diags_for_cosp
 use cosp_kernel_mod, only: cosp_kernel_type
 
 ! Configuration modules
-use base_mesh_config_mod,      only: geometry
-use finite_element_config_mod, only: coord_system
-use planet_config_mod,         only: scaled_radius, p_zero, kappa
+use planet_config_mod, only: p_zero, kappa
+
+! Object types
+use config_mod, only: config_type
 
 implicit none
+
 private
 public :: cosp_alg
 
 contains
 
+!> @param[in]     config
 !> @param[in]     pressure_in_wth          Pressure field in wth space
 !> @param[in]     temperature_in_wth       Temperature field in wth space
 !> @param[in]     exner                    Exner pressure in w3 space
@@ -57,7 +60,7 @@ contains
 !> @param[in]     conv_liquid_mmr          Convective liquid gridbox MMR
 !> @param[in]     conv_frozen_mmr          Convective frozen gridbox MMR
 !> @param[in]     conv_frozen_number       Convective frozen number conc
-subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
+subroutine cosp_alg(config, pressure_in_wth, temperature_in_wth, exner, mr, &
                     derived_fields, radiation_fields, cloud_fields, &
                     aerosol_fields, convection_fields, microphysics_fields, &
                     rand_seed, n_cloud_layer, &
@@ -66,6 +69,8 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
                     conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   ! Dummy variables
   type( field_type ), intent(in) :: pressure_in_wth
@@ -151,13 +156,9 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
   call convection_fields%get_field('conv_snow_3d', conv_snow_3d)
 
   ! Set height on W3 and Wtheta levels
-  mesh => exner%get_mesh()
-  height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
-                               geometry, coord_system, &
-                               scaled_radius )
-  height_w3  => get_height_fv( W3, mesh%get_id(),      &
-                               geometry, coord_system, &
-                               scaled_radius )
+  mesh       => exner%get_mesh()
+  height_wth => get_height_fv(config, mesh, Wtheta)
+  height_w3  => get_height_fv(config, mesh, W3)
 
   ! Set pressure on W3 levels
   call exner%copy_field_properties(pressure_in_w3)

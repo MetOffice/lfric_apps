@@ -126,7 +126,8 @@ contains
 
     ! Call the algorithm
     call log_event( "Running BOUNDARY LAYER EXP", LOG_LEVEL_INFO )
-    call bl_exp_alg( theta, rho, exner, mr_n,          &
+    call bl_exp_alg( modeldb%config,                   &
+                     theta, rho, exner, mr_n,          &
                      derived_fields,                   &
                      radiation_fields,                 &
                      microphysics_fields,              &
@@ -141,7 +142,8 @@ contains
                      modeldb%clock )
 
     call log_event( "Running BOUNDARY LAYER IMP", LOG_LEVEL_INFO )
-    call bl_imp_alg( dtheta_bl, du_bl, theta_latest,  &
+    call bl_imp_alg( modeldb%config,                  &
+                     dtheta_bl, du_bl, theta_latest,  &
                      u_latest, mr_after_slow,         &
                      surf_heat_flux, canopy_evap,     &
                      water_extraction, lake_evap,     &

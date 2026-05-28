@@ -25,16 +25,22 @@ module checks_and_balances_alg_mod
   use sci_geometric_constants_mod, only: get_detJ_at_w2_fe, &
                                          get_detJ_at_w2_fv
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
 contains
 
   !> @details Checks and modifies fields where necessary
+  !> @param[in]    config
   !> @param[inout] state Current state of the model prognostics
   !> @param[in]    dt    The model timestep length
-  subroutine check_fields(state, dt)
+  subroutine check_fields(config, state, dt)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type(field_type), intent( inout ) :: state(bundle_size)
@@ -51,11 +57,10 @@ contains
     if ( element_order_h > 0 .or. &
          element_order_v > 0) then
       ! Get finite element detJ
-      detJ => get_detj_at_w2_fe( state(igh_u)%get_mesh_id(), &
-                                 element_order_h, element_order_v )
+      detJ => get_detj_at_w2_fe( config, state(igh_u)%get_mesh() )
     else
       ! Get finite volume detJ
-      detJ => get_detj_at_w2_fv(state(igh_u)%get_mesh_id())
+      detJ => get_detj_at_w2_fv( state(igh_u)%get_mesh() )
     end if
 
     if (limit_cfl)then

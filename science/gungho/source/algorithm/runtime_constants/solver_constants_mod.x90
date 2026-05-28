@@ -118,8 +118,8 @@ contains
     constant_exists = detj_at_w3_r_solver_inventory%paired_object_exists(mesh_id)
 
     if (.not. constant_exists) then
-      chi => get_coordinates(mesh_id)
-      panel_id => get_panel_id(mesh_id)
+      chi      => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
 
       ! Create the object as it doesn't exist yet
       if ( LPROF ) call start_timing( id, 'runtime_constants.solver' )
@@ -359,8 +359,8 @@ contains
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
-      chi => get_coordinates(mesh_id)
-      panel_id => get_panel_id(mesh_id)
+      chi      => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
       qr => get_qr_fe()
       div => get_div(mesh_id)
       mm_w3_inv_r_solver => get_inverse_mass_matrix_r_solver(W3, mesh_id)
@@ -430,8 +430,8 @@ contains
 
         ! Create constant if it doesn't already exist
         if (.not. constant_exists) then
-          chi => get_coordinates(mesh_id)
-          panel_id => get_panel_id(mesh_id)
+          chi      => get_coordinates(mesh)
+          panel_id => get_panel_id(mesh)
           fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                  element_order_v, space)
 

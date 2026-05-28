@@ -475,10 +475,11 @@ contains
     ! Note that this reset can only occur at most once per timestep.
     reference_reset_freq = nint(reference_reset_time / cast_dt, i_def)
     if ( mod(modeldb%clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) &
-      call compute_si_operators(ls_state(igh_t),          &
-                                ls_state(igh_d),          &
-                                ls_state(igh_p),          &
-                                modeldb%clock,            &
+      call compute_si_operators(modeldb%config,  &
+                                ls_state(igh_t), &
+                                ls_state(igh_d), &
+                                ls_state(igh_p), &
+                                modeldb%clock,   &
                                 ls_moist_dyn_itns(:,1,1))
 
 
@@ -505,7 +506,8 @@ contains
     !==========================================================================
     ls_outer_dynamics_loop: do outer = 1,ls_outer_iterations
 
-      call gungho_transport_control_alg(ls_rhs_adv(:, outer, 1),        &
+      call gungho_transport_control_alg(modeldb%config,                 &
+                                        ls_rhs_adv(:, outer, 1),        &
                                         ls_advected_state,              &
                                         ls_state_itns(igh_u, outer, 1), &
                                         ls_state_n(igh_u),              &
@@ -648,7 +650,7 @@ contains
                    ls_mr_itns(:, next_outer, next_inner) )
             end if
             if (exner_from_eos) then
-              call derive_exner_from_eos( &
+              call derive_exner_from_eos(                            &
                            ls_state_itns(:, next_outer, next_inner), &
                            ls_moist_dyn_itns(gas_law, next_outer, next_inner) )
             end if
@@ -680,7 +682,7 @@ contains
 !--------------------------------------------------------------------
 
     ! Perform some checking on the fields.
-    call check_fields(state, cast_dt)
+    call check_fields(modeldb%config, state, cast_dt)
 
     !--------------------------------------------------------------------
     ! Update state_n and mr_n with start of timestep values
@@ -726,7 +728,8 @@ contains
         ls_outer = outer
       end if
 
-      call tl_transport_control_alg(rhs_adv,                           &
+      call tl_transport_control_alg(modeldb%config,                    &
+                                    rhs_adv,                           &
                                     advected_state,                    &
                                     state(igh_u),                      &
                                     state_n(igh_u),                    &
@@ -906,8 +909,8 @@ contains
     !--------------------------------------------------------------------
     ! Apply mixing
     !--------------------------------------------------------------------
-    call mixing_alg(mr, state(igh_t),                             &
-                    state(igh_u), derived_fields, cloud_fields,   &
+    call mixing_alg(modeldb%config, mr, state(igh_t),           &
+                    state(igh_u), derived_fields, cloud_fields, &
                     state(igh_d), state(igh_p), cast_dt )
 
     ! Update derived variables for time level n+1
@@ -915,9 +918,10 @@ contains
       call tl_moist_dyn_factors_alg(moist_dyn, mr)
     end if
     if (use_physics) then
-      call map_physics_fields_alg(state(igh_u), state(igh_p), &
-                                  state(igh_d), state(igh_t), &
-                                  moist_dyn, derived_fields)
+      call map_physics_fields_alg(modeldb%config, state(igh_u), &
+                                  state(igh_p), state(igh_d),   &
+                                  state(igh_t), moist_dyn,      &
+                                  derived_fields)
     end if
 
     !--------------------------------------------------------------------

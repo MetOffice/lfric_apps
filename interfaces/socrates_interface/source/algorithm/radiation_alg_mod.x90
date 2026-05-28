@@ -39,9 +39,10 @@ use set_thermodynamic_kernel_mod, only: set_thermodynamic_kernel_type
 use radiative_gases_config_mod,   only: h2o_rad_opt, h2o_rad_opt_ancil
 
 ! Configuration modules
-use base_mesh_config_mod,      only: geometry
-use finite_element_config_mod, only: coord_system
-use planet_config_mod,         only: scaled_radius, p_zero, kappa, gravity, cp
+use planet_config_mod, only: p_zero, kappa, gravity, cp
+
+! Object types
+use config_mod, only: config_type
 
 implicit none
 private
@@ -53,6 +54,7 @@ public :: radiation_alg
 
 contains
 
+!> @param[in]     config
 !> @param[in,out] dtheta_rad               Potential temperature increment
 !> @param[in]     theta                    Potential temperature field
 !> @param[in]     exner                    Exner pressure field in density space
@@ -85,7 +87,7 @@ contains
 !> @param[in,out] conv_frozen_mmr          Convective frozen gridbox MMR
 !> @param[in,out] conv_frozen_number       Convective frozen number conc
 !> @param[in]     dt                       Timestep length (s)
-subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
+subroutine radiation_alg(config, dtheta_rad, theta, exner, mr, moist_dyn,     &
                          pressure_in_wth, temperature_in_wth,                 &
                          derived_fields, radiation_fields, cloud_fields,      &
                          microphysics_fields, aerosol_fields,                 &
@@ -101,6 +103,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
                          dt)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type( field_type ), intent( inout ) :: dtheta_rad
   type( field_type ), intent( in ), target :: mr(nummr)
@@ -394,8 +398,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
 
   mesh      => theta%get_mesh()
   twod_mesh => cos_zenith_angle%get_mesh()
-  dz_in_wth => get_dz_at_wtheta( mesh%get_id(), geometry, &
-                                 coord_system, scaled_radius )
+  dz_in_wth => get_dz_at_wtheta(config, mesh)
 
   n_levs = mesh%get_nlayers() + 1
   flux_space => function_space_collection%get_fs(twod_mesh, 0, 0, W3, n_levs)

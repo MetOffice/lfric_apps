@@ -430,8 +430,8 @@ contains
     ! Get the velocity increments and if necessary combine them
     if (split_w) then
 
-      face_selector_ew => get_face_selector_ew(mesh_id)
-      face_selector_ns => get_face_selector_ns(mesh_id)
+      face_selector_ew => get_face_selector_ew(state(igh_p)%get_mesh())
+      face_selector_ns => get_face_selector_ns(state(igh_p)%get_mesh())
 
       p_h = inc_rsol(igh_u)%get_element_order_h()
       p_v = inc_rsol(igh_u)%get_element_order_v()
@@ -546,8 +546,8 @@ contains
       p_h = bundle_state(igh_u)%get_element_order_h()
       p_v = bundle_state(igh_u)%get_element_order_v()
       mesh => bundle_state(igh_u)%get_mesh()
-      face_selector_ew => get_face_selector_ew(mesh%get_id())
-      face_selector_ns => get_face_selector_ns(mesh%get_id())
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
 
       call uv%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2h ))
       call w%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2v ))
@@ -602,8 +602,8 @@ contains
     p_h = bundle_state(igh_u)%get_element_order_h()
     p_v = bundle_state(igh_u)%get_element_order_v()
     mesh => bundle_state(igh_u)%get_mesh()
-    face_selector_ew => get_face_selector_ew(mesh%get_id())
-    face_selector_ns => get_face_selector_ns(mesh%get_id())
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     call uv%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2h ))
     call w%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2v ))

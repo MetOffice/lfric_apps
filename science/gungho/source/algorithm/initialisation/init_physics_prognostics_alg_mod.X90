@@ -34,6 +34,9 @@ module init_physics_prognostics_alg_mod
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -42,6 +45,7 @@ module init_physics_prognostics_alg_mod
 contains
 
   !>@brief Initialisation of physics prognostic fields
+  !> @param[in]     config
   !> @param[in,out] radition_fields Collection of fields for radiation scheme
   !> @param[in,out] microphysics_fields Collection of fields for mphys scheme
   !> @param[in,out] orography_fields Collection of fields for orog drag scheme
@@ -54,7 +58,8 @@ contains
   !> @param[in,out] chemistry_fields Collection of fields for chemistry scheme
   !> @param[in,out] aerosol_fields Collection of fields for aerosol scheme
   !> @param[in,out] stph_fields Collection of fields for stochastic physics
-  subroutine init_physics_prognostics_alg( radiation_fields,                   &
+  subroutine init_physics_prognostics_alg( config,                             &
+                                           radiation_fields,                   &
                                            microphysics_fields,                &
                                            electric_fields,                    &
                                            orography_fields,                   &
@@ -69,6 +74,8 @@ contains
                                            stph_fields)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Collections of fields
     type(field_collection_type), intent(inout) :: radiation_fields
@@ -93,7 +100,7 @@ contains
     ! is off. Jules however can only be initialised if it is switched on
     ! as it uses things from the surface namelist which is not read if
     ! it is switched off.
-    call init_radiation_fields_alg(radiation_fields)
+    call init_radiation_fields_alg(config, radiation_fields)
     call init_microphysics_fields_alg(microphysics_fields)
     if (electric == electric_um) then
       call init_electric_fields_alg(electric_fields)

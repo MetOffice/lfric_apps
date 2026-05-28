@@ -63,6 +63,9 @@ module atl_si_timestep_alg_mod
                                                  tik, LPROF
   use transport_enumerated_types_mod,      only: direction_3d, direction_h, direction_v
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -133,6 +136,7 @@ module atl_si_timestep_alg_mod
 contains
 
   !> @brief Initialisation procedure for the adjoint timestepping algorithm
+  !> @param[in]     config
   !> @param[in,out] u            Change in 3D wind field
   !> @param[in,out] rho          Change in Density
   !> @param[in,out] theta        Change in Potential temperature
@@ -142,13 +146,15 @@ contains
   !> @param[in]     ls_exner     Lin. state for Exner pressure
   !> @param[in]     ls_mr        Lin. state for Mixing ratios
   !> @param[in]     ls_moist_dyn Lin. state for moist dynamical factors
-  subroutine initialise( self, u, rho, theta, exner, mr, &
+  subroutine initialise( self, config, u, rho, theta, exner, mr, &
                          ls_theta, ls_exner, ls_mr, ls_moist_dyn )
 
     implicit none
 
     ! Arguments
     class(atl_si_timestep_type), intent(inout) :: self
+
+    type(config_type),           intent(in)    :: config
     type(field_type),            intent(inout) :: u, rho, theta, exner
     type(field_type),            intent(inout) :: mr(nummr)
     type(field_type),            intent(inout) :: ls_theta, ls_exner
@@ -283,7 +289,7 @@ contains
     end if
 
     call self%adj_solver_lookup_cache%initialise(u%get_mesh())
-    call self%adj_trans_lookup_cache%initialise(u%get_mesh())
+    call self%adj_trans_lookup_cache%initialise(config, u%get_mesh())
 
     call self%adj_semi_implicit_solver%initialise(self%state, self%adj_solver_lookup_cache)
 
@@ -395,7 +401,8 @@ contains
     ! Note that this reset can only occur at most once per timestep.
     reference_reset_freq = nint( reference_reset_time / cast_dt, i_def )
     if (mod( modeldb%clock%get_step() - 1_i_def, reference_reset_freq ) == 0_i_def) &
-      call compute_si_operators( self%ls_state(igh_t), self%ls_state(igh_d), self%ls_state(igh_p), &
+      call compute_si_operators( modeldb%config, self%ls_state(igh_t), &
+                                 self%ls_state(igh_d), self%ls_state(igh_p), &
                                  modeldb%clock, self%ls_moist_dyn_itns(:,1,1) )
 
     ! Compute the time-level n dynamics terms
@@ -403,9 +410,11 @@ contains
     call copy_bundle( self%ls_state_after_slow, self%ls_advected_state, bundle_size )
 
     if ( .not. fixed_ls ) then
-    call rhs_alg( self%ls_rhs_n, varbeta*cast_dt,                                           &
-                  self%ls_state_after_slow, self%ls_state_n, self%ls_moist_dyn_itns(:,1,1), &
-                  compute_eos=.false., compute_rhs_t_d=.true., dlayer_rhs=.false., model_clock=modeldb%clock )
+    call rhs_alg( self%ls_rhs_n, varbeta*cast_dt, &
+                  self%ls_state_after_slow, self%ls_state_n, &
+                  self%ls_moist_dyn_itns(:,1,1), &
+                  compute_eos=.false., compute_rhs_t_d=.true., &
+                  dlayer_rhs=.false., model_clock=modeldb%clock )
 
 
     if (.not. si_momentum_equation) call mass_matrix_solver_alg( self%ls_advected_state(igh_u), self%ls_rhs_n(igh_u) )
@@ -416,7 +425,8 @@ contains
     !---------------------------------------------------------------------------
     ls_outer_dynamics_loop: do outer = 1, self%ls_outer_iterations
 
-      call gungho_transport_control_alg( self%ls_rhs_adv(:,outer,1),        &
+      call gungho_transport_control_alg( modeldb%config,                    &
+                                         self%ls_rhs_adv(:,outer,1),        &
                                          self%ls_advected_state,            &
                                          self%ls_state_itns(igh_u,outer,1), &
                                          self%ls_state_n(igh_u),            &
@@ -728,7 +738,8 @@ contains
                                                          self%theta_fv_inc, mm_wt ), &
                    setval_X( self%rhs_adv(igh_t), self%theta_fv_inc ) )
 
-      call atl_transport_control_alg( self%rhs_adv,                         &
+      call atl_transport_control_alg( modeldb%config,                       &
+                                      self%rhs_adv,                         &
                                       self%advected_state,                  & ! rhs_adv is INOUT,
                                       self%state(igh_u),                    &
                                       self%state_n(igh_u),                  & ! advected_state, state(igh_u), state_n(igh_u) are OUT

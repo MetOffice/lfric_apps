@@ -70,6 +70,9 @@ module transport_driver_mod
                                        element_order_v
   use planet_config_mod,         only: scaled_radius
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -415,7 +418,8 @@ contains
     call transport_prerun_setup( num_base_meshes )
 
     ! Initialise prognostic variables
-    call transport_init_fields_alg( mesh, wind, density, theta, &
+    call transport_init_fields_alg( modeldb%config,             &
+                                    mesh, wind, density, theta, &
                                     tracer_con, tracer_adv,     &
                                     constant, mr, w2_vector,    &
                                     aerosol_mesh, aerosol_wind, &
@@ -481,12 +485,8 @@ contains
 
       if (use_aerosols) then
 
-        height_w3  => get_height_fe( W3, aerosol_mesh%get_id(),                  &
-                                     geometry, element_order_h, element_order_v, &
-                                     coord_system, scaled_radius )
-        height_wth => get_height_fe( Wtheta, aerosol_mesh%get_id(),              &
-                                     geometry, element_order_h, element_order_v, &
-                                     coord_system, scaled_radius )
+        height_w3  => get_height_fe(modeldb%config, aerosol_mesh, W3)
+        height_wth => get_height_fe(modeldb%config, aerosol_mesh, Wtheta)
 
         call write_scalar_diagnostic( 'aerosol_height_w3', height_w3, modeldb%clock, &
                                       aerosol_mesh, nodal_output_on_w3 )
@@ -501,12 +501,8 @@ contains
                                       aerosol_mesh, nodal_output_on_w3 )
       end if
 
-      height_w3  => get_height_fe( W3, mesh%get_id(),                          &
-                                   geometry, element_order_h, element_order_v, &
-                                   coord_system, scaled_radius )
-      height_wth => get_height_fe( Wtheta, mesh%get_id(),                      &
-                                   geometry, element_order_h, element_order_v, &
-                                   coord_system, scaled_radius )
+      height_w3  => get_height_fe(modeldb%config, mesh, W3)
+      height_wth => get_height_fe(modeldb%config, mesh, Wtheta)
 
       call write_scalar_diagnostic( 'height_w3', height_w3, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
@@ -536,7 +532,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Performs a time step.
   !>
-  subroutine step_transport( model_clock )
+  subroutine step_transport( config, model_clock )
 
     use base_mesh_config_mod,   only: prime_mesh_name
     use formulation_config_mod, only: use_multires_coupling
@@ -548,6 +544,7 @@ contains
 
     implicit none
 
+    type(config_type),       intent(in) :: config
     class(model_clock_type), intent(in) :: model_clock
 
     type(mesh_type), pointer :: mesh
@@ -560,7 +557,7 @@ contains
     write(log_scratch_space, '(I1)') kind(1_i_def)
     call log_event( '        i_def kind = '//log_scratch_space , LOG_LEVEL_INFO )
 
-    call mass_conservation( model_clock%get_step(), density, mr, &
+    call mass_conservation( config, model_clock%get_step(), density, mr, &
                             w3_aerosol, wt_aerosol, use_aerosols )
     call log_field_minmax( LOG_LEVEL_INFO, 'rho', density )
     call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )
@@ -584,7 +581,7 @@ contains
 
     if ( LPROF ) call start_timing( id, 'transport_step' )
 
-    call transport_step( model_clock,                          &
+    call transport_step( config, model_clock,                  &
                          wind, density, theta, tracer_con,     &
                          tracer_adv, constant, mr, w2_vector,  &
                          w3_aerosol, wt_aerosol, aerosol_wind, &
@@ -593,7 +590,7 @@ contains
     if ( LPROF ) call stop_timing( id, 'transport_step' )
 
     ! Write out conservation diagnostics
-    call mass_conservation( model_clock%get_step(), density, mr, &
+    call mass_conservation( config, model_clock%get_step(), density, mr, &
                             w3_aerosol, wt_aerosol, use_aerosols )
     call log_field_minmax( LOG_LEVEL_INFO, 'rho', density )
     call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )

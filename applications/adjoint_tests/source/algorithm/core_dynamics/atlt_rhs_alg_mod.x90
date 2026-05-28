@@ -45,8 +45,8 @@ module atlt_rhs_alg_mod
   !> @param[in]  model_clock  The model clock
   subroutine atlt_rhs_alg( mesh, model_clock )
 
-    use tl_rhs_alg_mod,                      only : tl_rhs_alg
-    use atl_rhs_alg_mod,                     only : atl_rhs_alg
+    use tl_rhs_alg_mod,  only: tl_rhs_alg
+    use atl_rhs_alg_mod, only: atl_rhs_alg
 
     implicit none
 
@@ -206,8 +206,8 @@ module atlt_rhs_alg_mod
 
 
     ! Tangent linear
-    call tl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
-                     ls_state, ls_moist_dyn, compute_eos,                &
+    call tl_rhs_alg( rhs, alpha_dt, base_state, state,       &
+                     moist_dyn, ls_state, ls_moist_dyn, compute_eos, &
                      dlayer_rhs, model_clock )
 
     ! < Mx, Mx >
@@ -310,8 +310,8 @@ module atlt_rhs_alg_mod
     rhs_rhs_input_inner_prod(:) = 0.0_r_def
 
     ! Adjoint
-    call atl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
-                      ls_state, ls_moist_dyn, compute_eos,                &
+    call atl_rhs_alg( rhs, alpha_dt, base_state, state,       &
+                      moist_dyn, ls_state, ls_moist_dyn, compute_eos, &
                       dlayer_rhs, model_clock )
 
     ! < AMx, x >

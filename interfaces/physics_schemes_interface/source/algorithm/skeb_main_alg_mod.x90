@@ -7,6 +7,7 @@
 !> @brief Interface to the Stochastic Kinetic Energy Backscatter (SKEB)
 
 module skeb_main_alg_mod
+
     ! Use intrinsic data types and spaces
     use constants_mod,           only: r_def, i_def, l_def, pi
     use fs_continuity_mod,       only: W1, Wtheta, W2, W2H, W3
@@ -18,18 +19,20 @@ module skeb_main_alg_mod
     use function_space_mod,      only: function_space_type
     use mesh_mod,                only: mesh_type
     use operator_mod,            only: operator_type
+
     ! use collections
     use function_space_collection_mod, only: function_space_collection
     use mesh_collection_mod,           only: mesh_collection
+
     ! Physical constants
     use planet_constants_mod, only: planet_radius
 
     ! xios output and timers
-    use io_config_mod, only: write_diag, use_xios_io
     use timing_mod,    only: start_timing, stop_timing, tik, LPROF
+
     ! initialise diagnostics
     use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
-    ! configs
+
     use um_domain_init_mod,            only: level2km, model_wavenumber_max
     use sci_geometric_constants_mod,   only: get_da_at_w2, get_panel_id, &
                                              get_height_fv
@@ -37,11 +40,11 @@ module skeb_main_alg_mod
     use reference_element_mod,         only: T
 
     ! Configuration modules
-    use base_mesh_config_mod,      only: geometry, topology, f_lat
-    use finite_element_config_mod, only: element_order_h, element_order_v, &
-                                         coord_system
-    use idealised_config_mod,      only: f_lon
-    use planet_config_mod,         only: scaled_radius, gravity
+    use planet_config_mod, only: gravity
+    use io_config_mod,     only: write_diag, use_xios_io
+
+    ! Object types
+    use config_mod, only: config_type
 
     implicit none
 
@@ -103,9 +106,10 @@ contains
   !>@param[in,out]     skeb_power_law        Spectral power law
   !>@param[in]         clock                 Model time information
 
-  subroutine skeb_main_alg(du_stph, rho, u, convection_fields, derived_fields, &
-                       skeb_spectral_coeffc, skeb_spectral_coeffs,             &
-                       skeb_power_law, clock)
+  subroutine skeb_main_alg( config,                                             &
+                            du_stph, rho, u, convection_fields, derived_fields, &
+                            skeb_spectral_coeffc, skeb_spectral_coeffs,         &
+                            skeb_power_law, clock )
 
   ! SKEB namelist options
   use stochastic_physics_config_mod,  only:                                         &
@@ -190,7 +194,11 @@ contains
   use enforce_crit_kernel_mod, only: enforce_crit_kernel_type
 
   implicit none
-  !!!! Arguments
+
+  ! Arguments
+
+  type(config_type), intent(in) :: config
+
   ! SKEB increments to the flow
   type( field_type ), intent( inout ) :: du_stph
 
@@ -341,19 +349,20 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !!!!!! Create forcing pattern for SKEB
-  call stph_fp_main_alg(skeb_level_bottom-1_i_def, skeb_level_top-1_i_def,     &
-                        lev_offset, stph_n_min, stph_n_max, stph_spectral_dim, &
-                        skeb_alpha, skeb_power_law,                            &
-                        skeb_spectral_coeffc, skeb_spectral_coeffs,            &
-                        fp_skeb)
+  call stph_fp_main_alg( config,                                                &
+                         skeb_level_bottom-1_i_def, skeb_level_top-1_i_def,     &
+                         lev_offset, stph_n_min, stph_n_max, stph_spectral_dim, &
+                         skeb_alpha, skeb_power_law,                            &
+                         skeb_spectral_coeffc, skeb_spectral_coeffs,            &
+                         fp_skeb )
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  2) Compute convective dissipation  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   call derived_fields%get_field('wetrho_in_w3', wetrho_w3)
   mesh_id = wetrho_w3%get_mesh_id()
-  rdz_w3 => get_rdz_w3(mesh_id)
-  dx_at_w2 => get_dx_at_w2(mesh_id)
+  rdz_w3 => get_rdz_w3(config, mesh_id)
+  dx_at_w2 => get_dx_at_w2(wetrho_w3%get_mesh())
 
   if (skeb_convective_dissipation) then
 
@@ -370,9 +379,7 @@ contains
 
     !!! 2.b call convective dissipation kernel
     ! Call kernel to compute the convective dissipation, get dz at W3 points
-    height_wth => get_height_fv( Wtheta, mesh_id,        &
-                                 geometry, coord_system, &
-                                 scaled_radius )
+    height_wth => get_height_fv(config, wetrho_w3%get_mesh(), Wtheta)
 
     call invoke(skeb_conv_disp_kernel_type(cdisp, wetrho_w3, massflux_diff,     &
                                            cape, height_wth, skeb_level_bottom, &
@@ -412,7 +419,7 @@ contains
     call derived_fields%get_field('w_in_wth', w_in_wth)
     call derived_fields%get_field('u_physics', u_phys)
 
-    panel_id => get_panel_id(mesh_id)
+    panel_id => get_panel_id(wetrho_w3%get_mesh())
     stencil_extent = 1_i_def
 
     call invoke( skeb_vort_div_kernel_type(vorticity, divergence, u_phys,        &
@@ -497,14 +504,12 @@ contains
                setval_c(du_rot_w2, 0.0_r_def), &
                setval_c(du_div_w2, 0.0_r_def) )
 
-  dA => get_da_at_w2(mesh_id)
+  dA => get_da_at_w2(mesh)
 
   if (skeb_rot_du == skeb_rot_du_fe) then
 
     ! Initialise Operators
-    project_w3_to_w1 => get_project_r_dot_to_w1( mesh%get_id(),      &
-                                                 geometry, topology, &
-                                                 coord_system, scaled_radius )
+    project_w3_to_w1 => get_project_r_dot_to_w1(config, mesh)
 
     ! Project k*psif_hat to W1V and take strong curl
     call psif_hat_w1%initialise( vector_space = w1_fs)
@@ -539,12 +544,8 @@ contains
   !!  6)  Compute divergence wind increments !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  mesh_2d  => mesh_collection%get_mesh( mesh, TWOD )
-  latitude => get_latitude_fv( W2, mesh_2d%get_id(),             &
-                               geometry, topology,               &
-                               element_order_h, element_order_v, &
-                               coord_system, f_lat, f_lon,       &
-                               scaled_radius )
+  mesh_2d  => mesh_collection%get_mesh(mesh, TWOD)
+  latitude => get_latitude_fv(config, mesh_2d, W2)
 
   if (skeb_div_du == skeb_div_du_fe) then
 
@@ -600,7 +601,7 @@ contains
                inc_X_plus_Y(du_skeb, du_div_w2) )
 
   ! Apply 1-2-1 smoothing for u,v SKEB wind increments
-  call w2_filter_alg(du_skeb)
+  call w2_filter_alg(config, du_skeb)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  8) Add wind increments to the flow and diagnostics !!

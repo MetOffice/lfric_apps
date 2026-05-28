@@ -19,11 +19,12 @@ module update_energy_correction_alg_mod
   use mesh_mod,                      only: mesh_type
   use sci_geometric_constants_mod,   only: get_da_msl_proj
 
-  ! Configuration modules
-  use base_mesh_config_mod, only: geometry
-  use extrusion_config_mod, only: planet_radius, domain_height
-  use planet_config_mod,    only: cv
+  ! Object types
+  use config_mod, only: config_type
 
+  ! Configuration modules
+  use extrusion_config_mod, only: planet_radius
+  use planet_config_mod,    only: cv
 
   implicit none
 
@@ -32,7 +33,8 @@ module update_energy_correction_alg_mod
 
 contains
 
-  subroutine update_energy_correction_alg( temperature_correction_rate, &
+  subroutine update_energy_correction_alg( config,                      &
+                                           temperature_correction_rate, &
                                            accumulated_fluxes,          &
                                            total_dry_mass,              &
                                            dt, mesh, twod_mesh,         &
@@ -40,6 +42,8 @@ contains
                                            total_energy_previous )
 
     implicit none
+
+    type( config_type ), intent(in) :: config
 
     real( kind=r_def ), intent(inout) :: temperature_correction_rate
     type( field_type ), intent(in)    :: accumulated_fluxes
@@ -65,8 +69,7 @@ contains
     correction_period = reset_hours * 3600.0_r_def
 
     fs_2d => accumulated_fluxes%get_function_space()
-    dA    => get_da_msl_proj( twod_mesh%get_id(), geometry, &
-                              planet_radius, domain_height )
+    dA    => get_da_msl_proj(config, twod_mesh)
 
 
     call invoke( inc_aX_times_Y(dt, accumulated_fluxes, dA),                    &

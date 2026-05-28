@@ -62,6 +62,9 @@ module name_transport_driver_mod
                                        element_order_v
   use name_options_config_mod,   only: transport_density
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -334,7 +337,7 @@ contains
     call name_transport_prerun_setup( num_base_meshes )
 
     ! Initialise prognostic variables
-    call name_transport_init_fields_alg( mesh, wind, density, tracer_con )
+    call name_transport_init_fields_alg( modeldb%config, mesh, wind, density, tracer_con )
 
     ! Initialise all transport-only control algorithm
     call name_transport_init( density, tracer_con )
@@ -372,12 +375,8 @@ contains
       call write_scalar_diagnostic( 'tracer_con', tracer_con, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
 
-      height_w3  => get_height_fe( W3, mesh%get_id(),                          &
-                                   geometry, element_order_h, element_order_v, &
-                                   coord_system, scaled_radius )
-      height_wth => get_height_fe( Wtheta, mesh%get_id(),                      &
-                                   geometry, element_order_h, element_order_v, &
-                                   coord_system, scaled_radius )
+      height_w3  => get_height_fe(modeldb%config, mesh, W3)
+      height_wth => get_height_fe(modeldb%config, mesh, Wtheta)
 
       call write_scalar_diagnostic( 'height_w3', height_w3, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
@@ -406,7 +405,7 @@ contains
   !============================================================================
   !> @brief Performs a time step of the name_transport app.
   !>
-  subroutine step_name_transport( model_clock )
+  subroutine step_name_transport( config, model_clock )
 
     use base_mesh_config_mod,     only: prime_mesh_name
     use io_config_mod,            only: diagnostic_frequency, &
@@ -416,6 +415,7 @@ contains
 
     implicit none
 
+    type(config_type),       intent(in) :: config
     class(model_clock_type), intent(in) :: model_clock
 
     type(mesh_type), pointer :: mesh
@@ -439,7 +439,7 @@ contains
     if ( LPROF ) call start_timing( id, 'name_transport_step' )
 
     ! Transport field
-    call name_transport_step( model_clock, wind, tracer_con, &
+    call name_transport_step( config, model_clock, wind, tracer_con, &
                               density, transport_density )
 
     if ( LPROF ) call stop_timing( id, 'name_transport_step' )

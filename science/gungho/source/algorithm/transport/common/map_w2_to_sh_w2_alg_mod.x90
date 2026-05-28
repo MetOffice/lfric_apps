@@ -48,8 +48,8 @@ contains
     ! Get mesh information
     primary_mesh => w2_field%get_mesh()
     primary_mesh_id = primary_mesh%get_id()
-    face_selector_ew => get_face_selector_ew(primary_mesh_id)
-    face_selector_ns => get_face_selector_ns(primary_mesh_id)
+    face_selector_ew => get_face_selector_ew(primary_mesh)
+    face_selector_ns => get_face_selector_ns(primary_mesh)
 
     ! Map field to shifted mesh
     call invoke( setval_c(w2_field_shifted, 0.0_r_tran),                       &

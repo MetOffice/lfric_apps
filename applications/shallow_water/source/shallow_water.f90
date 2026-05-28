@@ -93,7 +93,7 @@ program shallow_water
 
   call final_time( modeldb )
   call final_collections()
-  call final_counters(modeldb%config, program_name)
+  call final_counters( modeldb%config, program_name )
   call final_timing( program_name )
   call final_logger( program_name )
   call final_config()

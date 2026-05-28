@@ -29,10 +29,8 @@ module conv_comorph_alg_mod
   use map_fd_to_prognostics_alg_mod, only: set_wind
   use physics_mappings_alg_mod, only: map_physics_winds
 
-  ! Configuration modules
-  use base_mesh_config_mod,      only: geometry
-  use finite_element_config_mod, only: coord_system
-  use planet_config_mod,         only: scaled_radius
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -44,6 +42,7 @@ contains
   !>@brief Run the Comorph convection scheme
   !>@details The Comorph convection scheme does:
   !>             vertical mixing of heat, momentum and moisture,
+  !>@param[in]     config
   !>@param[in,out] du_conv_w2          Wind increment in w2
   !>@param[in,out] theta_latest        Current estimate of theta
   !>@param[in,out] u_latest            Current esitmate of wind
@@ -59,7 +58,8 @@ contains
   !>@param[in]     aerosol_fields      Fields for aerosol scheme
   !>@param[in]     microphysics_fields Fields for microphysics scheme
   !>@param[in]     outer             Outer loop counter
-  subroutine conv_comorph_alg(du_conv_w2, theta_latest, u_latest, mr,     &
+  subroutine conv_comorph_alg(config,                                     &
+                         du_conv_w2, theta_latest, u_latest, mr,          &
                          mr_n, rho, exner, theta, derived_fields,         &
                          turbulence_fields, convection_fields,            &
                          cloud_fields, surface_fields, chemistry_fields,  &
@@ -68,6 +68,8 @@ contains
     use conv_comorph_kernel_mod, only: conv_comorph_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent( inout )     :: mr(nummr), du_conv_w2
     type( field_type ), intent( in )        :: mr_n(nummr), theta_latest, u_latest
@@ -281,7 +283,7 @@ contains
     call log_event( 'Running Comorph convection scheme', LOG_LEVEL_DEBUG )
 
     mesh  => rho%get_mesh()
-    delta => get_delta_at_wtheta( mesh%get_id() )
+    delta => get_delta_at_wtheta(mesh)
 
     ! Unpack derived fields
     call derived_fields%get_field('exner_in_wth', exner_in_wth)
@@ -464,12 +466,8 @@ contains
     call microphysics_fields%get_field('ls_rain', ls_rain)
     call microphysics_fields%get_field('ls_snow', ls_snow)
 
-    height_wth => get_height_fv( Wtheta, mesh%get_id(),  &
-                                 geometry, coord_system, &
-                                 scaled_radius )
-    height_w3  => get_height_fv( W3, mesh%get_id(),      &
-                                 geometry, coord_system, &
-                                 scaled_radius )
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w3  => get_height_fv(config, mesh, W3)
 
     ! Initialise the convection diagnostics
     call initialise_diags_for_comorph(lowest_cv_base,       &
@@ -651,7 +649,7 @@ contains
     ! Map the wind increments back to w2 space
     call w_in_wth%copy_field_properties(dw_conv)
     call invoke(setval_c(dw_conv, 0.0_r_def) )
-    call set_wind(du_conv_w2, du_conv, dv_conv, dw_conv)
+    call set_wind(config, du_conv_w2, du_conv, dv_conv, dw_conv)
     call dw_conv%field_final()
 
     if ( LPROF ) call stop_timing( id, 'convection.comorph' )
