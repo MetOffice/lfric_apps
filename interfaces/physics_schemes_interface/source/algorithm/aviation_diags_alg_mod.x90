@@ -116,7 +116,10 @@ contains
 
 
     ! multiply the wind by the div operator matrix to get the div
-    CALL invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
+    call invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
+
+    ! multiply by 1.0e6
+    call invoke(inc_a_times_X(1.0e6_r_def, div_ml))
 
 
     ! Project the field to the output field
