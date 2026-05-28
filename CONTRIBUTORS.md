@@ -30,7 +30,6 @@
 | stevemullerworth    | Steve Mullerworth  | Met Office                       | 2026-01-28 |
 | ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
 | RobWatersMet        | Rob Waters         | University of Cambridge          | 2026-03-24 |
-| mo-lucy-gordon      | Lucy Gordon        | Met Office                       | 2026-03-11 |
 | iboutle             | Ian Boutle         | Met Office                       | 2026-03-04 |
 | ricky-lv426         | Ricky Olivier      | University of Exeter             | 2026-01-12 |
 | mo-alistairp        | Alistair Pirrie    | Met Office                       | 2026-01-19 |
@@ -48,4 +47,4 @@
 | ss421               | Steven Sandbach    | Met Office                       | 2026-04-20 |
 | MichaelWhitall      | Michael Whitall    | Met Office                       | 2026-04-22 |
 | marcstring          | Marc Stringer      | NCAS, Reading University         | 2026-05-06 |
-| MetBenjaminWent     | Benjamin Went      | Met Office                       | 2025-12-17 |
+| cameronbateman-mo   | Cameron Bateman    | Met Office                       | 2026-05-28 |
