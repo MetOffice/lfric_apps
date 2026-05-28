@@ -39,5 +39,13 @@
 | Pierre-siddall      | Pierre Siddall     | Met Office                       | 2026-03-02 |
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
 | ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
+| SamanthaPullen      | Samantha Pullen    | Met Office                       | 2026-04-20 !
+| mo-lottieturner     | Lottie Turner      | Met Office                       | 2026-01-27 |
+| DrTVockerodtMO      | Terence Vockerodt  | Met Office                       | 2026-01-08 |
+| MetBenjaminWent     | Benjamin Went      | Met Office                       | 2026-01-15 |
+| mo-rickywong        | Ricky Wong         | Met Office                       | 2026-02-24 |
+| theabro             | Nathan Luke Abraham | NCAS & University of Cambridge  | 2026-04-15 |
+| ss421               | Steven Sandbach    | Met Office                       | 2026-04-20 |
+| MichaelWhitall      | Michael Whitall    | Met Office                       | 2026-04-22 |
 | marcstring          | Marc Stringer      | NCAS, Reading University         | 2026-05-06 |
 | MetBenjaminWent     | Benjamin Went      | Met Office                       | 2025-12-17 |
