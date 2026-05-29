@@ -302,7 +302,8 @@ module update_iau_inc_alg_mod
     end if
 
     ! Calculate tropopause level
-    call locate_tropopause_alg( trop_level, theta, exner_wth, twod_mesh )
+    call locate_tropopause_alg( trop_level, theta, exner_wth, &
+                                twod_mesh, trop_diag = .false. )
     call log_event('- After locate tropopause  -', log_level_debug)
     call log_field_minmax( log_level_debug, 'theta', theta )
     call log_field_minmax( log_level_debug, 'exner_wth', exner_wth )
