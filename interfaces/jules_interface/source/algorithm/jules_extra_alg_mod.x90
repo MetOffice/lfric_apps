@@ -290,7 +290,8 @@ contains
                                      surface_runoff, sub_surface_runoff,       &
                                      water_table, soil_moist_wilt,             &
                                      soil_moist_crit, soil_moist_sat,          &
-                                     grid_canopy_water,grid_throughfall)
+                                     grid_canopy_water,grid_throughfall,       &
+                                     soil_sat_frac, wetness_under_soil)
 
       ! Output sea ice diagnostics
       call output_diags_for_jules_seaice(tile_fraction, sea_ice_thickness,     &
