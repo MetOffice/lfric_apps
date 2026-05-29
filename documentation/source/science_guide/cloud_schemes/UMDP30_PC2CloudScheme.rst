@@ -1844,7 +1844,7 @@ is a source term due to vertical air motions.
 `Field et al. (2014)`_ modeled vertical velocity as a white-noise
 process with autocorrelation function:
 
-.. math:: \overline{w(t)w(s)} = \sigma_w^2 \tau_{\rm d} \delta(t-s),
+.. math:: \overline{w(t)w(s)} = \sigma_w^2 \tau_{\mathrm{d}} \delta(t-s),
 
 where :math:`\delta` is the Dirac distribution and the intensity of the
 noise, :math:`\sigma_w^2`, will be called the standard derivation of the
@@ -3670,8 +3670,8 @@ Define
    l_{\mathrm{f}}^{\mathrm{'}}}}{\partial \, z}
 
 where the PC2 assumption thus far has been that
-:math:`{\overline{Q}}_{\rm{l, reset}} = 0
-= {\overline{Q}}_{\rm{f, reset}}`.
+:math:`{\overline{Q}}_{\mathrm{l, reset}} = 0
+= {\overline{Q}}_{\mathrm{f, reset}}`.
 
 - The current convection scheme assumes that parcel condensate is single
   phase (ie. either all liquid or all frozen) and this is seriously
@@ -3753,9 +3753,11 @@ are discretized:
    - \left({ SNOW_{\mathrm{k} + 1} \, / \, M_{\mathrm{k} + 1} } \right)
    \end{aligned}
 
-where :math:`EPSS_{\rm{k}} =
-\left({1 + \varepsilon_{\rm{k} + 3 / 4} \, \Delta p_{\rm{k} + 3 / 4}} \right)\,
-\left({1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}} \right)`.
+where :math:`EPSS_{\mathrm{k}} =
+\left({1 + \varepsilon_{\mathrm{k} + 3 / 4} \, \Delta p_{\mathrm{k} + 3 / 4}}
+\right)\,
+\left({1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 / 4}}
+\right)`.
 
 The condensation and precipitation terms in equations
 :eq:`eq:discdmfbydp`,
@@ -3899,8 +3901,8 @@ based upon eqn :eq:`eq:basiclold`:
 Note that, as a side-effect, the ``:umdp:027`` environment equations for
 potential temperature and specific humidity are also altered because the
 condensate is no longer re-evaporated at the end
-(:math:`{\overline{Q}}_{\rm{l, reset}} = 0
-= {\overline{Q}}_{\rm{f, reset}}`):
+(:math:`{\overline{Q}}_{\mathrm{l, reset}} = 0
+= {\overline{Q}}_{\mathrm{f, reset}}`):
 
 .. math:: :label: eq:enviroth
 
