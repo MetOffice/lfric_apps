@@ -16,7 +16,7 @@ module create_nudging_fields_mod
   use function_space_mod,          only : function_space_type
   use gungho_time_axes_mod,        only : gungho_time_axes_type
   use log_mod,                     only : log_event, log_scratch_space,        &
-                                          LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+                                          LOG_LEVEL_TRACE, LOG_LEVEL_ERROR
   use mesh_mod,                    only : mesh_type
 
   use external_forcing_config_mod, only : theta_forcing_nudging,               &
@@ -48,7 +48,7 @@ module create_nudging_fields_mod
 
     type(field_maker_type) :: creator
 
-    call log_event('GungHo: Creating nudging fields...', LOG_LEVEL_INFO)
+    call log_event('GungHo: Creating nudging fields...', LOG_LEVEL_TRACE)
 
     gungho_axes => mapper%get_gungho_axes()
     call gungho_axes%make_nudging_time_axis()
@@ -88,7 +88,7 @@ module create_nudging_fields_mod
               'temperature_nudging_ext_ref', main%none, W3, twod=.true.,       &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &
-              mult='ecmwf_levels', time_axis=axis%nudging                      &
+              mult='nudging_levels', time_axis=axis%nudging                    &
       ))
     end if
 
@@ -97,13 +97,13 @@ module create_nudging_fields_mod
               'u_nudging_ext_ref', main%none, W3, twod=.true.,                 &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &
-              mult='ecmwf_levels', time_axis=axis%nudging                      &
+              mult='nudging_levels', time_axis=axis%nudging                    &
       ))
       call processor%apply(make_spec(                                          &
               'v_nudging_ext_ref', main%none, W3, twod=.true.,                 &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &
-              mult='ecmwf_levels', time_axis=axis%nudging                      &
+              mult='nudging_levels', time_axis=axis%nudging                    &
       ))
     end if
 

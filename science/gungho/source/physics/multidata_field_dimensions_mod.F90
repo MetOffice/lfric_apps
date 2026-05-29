@@ -64,7 +64,7 @@ module multidata_field_dimensions_mod
                 'random_seed_size',                     &
                 'stph_spectral_dimensions',             &
                 'photol_species',                       &
-                'ecmwf_levels'                          &
+                'nudging_levels'                        &
       ]
 #endif
 
@@ -279,7 +279,7 @@ end subroutine sync_multidata_field_dimensions
             else
                dim = 1
             end if
-      case ('ecmwf_levels')
+      case ('nudging_levels')
            dim = nudge_data_levels
       case ('')
             dim = 1 ! ordinary (non-multidata) field

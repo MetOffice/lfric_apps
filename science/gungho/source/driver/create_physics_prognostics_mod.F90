@@ -1755,12 +1755,6 @@ contains
 
     if (aerosol == aerosol_um) then
 
-        if (coarse_rad_aerosol) then
-          mesh_name = aerosol_mesh_name
-        else
-          mesh_name = ''
-        end if
-
         ! Dry diameter Aitken mode (Soluble)
         call processor%apply(make_spec('drydp_ait_sol', main%aerosol, Wtheta,   &
             coarse=coarse_rad_aerosol, coarse_mesh_name=mesh_name, ckp=checkpoint_flag))

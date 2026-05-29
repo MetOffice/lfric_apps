@@ -133,16 +133,16 @@ end function has_xios_io
     class(field_maker_type), intent(in) :: self
     type(field_spec_type), intent(in) :: spec
 
-    type(field_collection_type), pointer :: main_coll => null()
-    type(field_collection_type), pointer :: adv_coll => null()
-    type(field_collection_type), pointer :: depository => null()
-    type(field_collection_type), pointer :: prognostic_fields => null()
-    type(function_space_type), pointer :: space => null()
-    type(mesh_type), pointer :: mesh => null()
-    type(mesh_type), pointer :: twod_mesh => null()
-    type(field_type), pointer :: external_real_field => null()
-    type(time_axis_type), pointer :: time_axis => null()
-    type(integer_field_type), pointer :: external_int_field => null()
+    type(field_collection_type), pointer :: main_coll
+    type(field_collection_type), pointer :: adv_coll
+    type(field_collection_type), pointer :: depository
+    type(field_collection_type), pointer :: prognostic_fields
+    type(function_space_type), pointer :: space
+    type(mesh_type), pointer :: mesh
+    type(mesh_type), pointer :: twod_mesh
+    type(field_type), pointer :: external_real_field
+    type(time_axis_type), pointer :: time_axis
+    type(integer_field_type), pointer :: external_int_field
     logical(l_def) :: advected
     integer(i_def) :: ndata
     integer(i_def) :: i
@@ -150,6 +150,9 @@ end function has_xios_io
     character(str_def) :: field_prefix
     class(clock_type), pointer :: clock
     real(r_second), allocatable :: all_checkpoint_times(:)
+
+    nullify(main_coll,adv_coll,depository,prognostic_fields,space)
+    nullify(mesh,twod_mesh,external_real_field,time_axis,external_int_field)
 
 #ifdef UM_PHYSICS
     ndata = get_ndata_val(spec%mult)
@@ -172,7 +175,7 @@ end function has_xios_io
       end if
     else
       if (spec%coarse) then
-        mesh => mesh_collection%get_mesh(spec%mesh_name)
+        mesh => mesh_collection%get_mesh(spec%coarse_mesh_name)
         if (spec%twod) then
           twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
           space => function_space_collection%get_fs(twod_mesh, spec%order_h, &

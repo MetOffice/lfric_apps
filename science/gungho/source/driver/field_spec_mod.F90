@@ -98,7 +98,7 @@ module field_spec_mod
     logical(l_def)     :: twod      = .false.             ! Is it two-dimensional?
     logical(l_def)     :: empty     = .false.             ! Is it empty (with an empty data array)?
     logical(l_def)     :: coarse    = .false.             ! Is it coarse?
-    character(str_def) :: mesh_name = ''                  ! Name of mesh, or blank string
+    character(str_def) :: coarse_mesh_name = ''           ! Name of the coarse mesh, or blank string
     logical(l_def)     :: is_int    = .false.             ! Is it an integer field?
     logical(l_def)     :: legacy    = .false.             ! Is it a field with legacy checkpointing?
   end type field_spec_type
@@ -241,7 +241,7 @@ contains
     if (present(twod)) field_spec%twod=twod
     if (present(empty)) field_spec%empty=empty
     if (present(coarse)) field_spec%coarse=coarse
-    if (present(coarse_mesh_name)) field_spec%mesh_name=coarse_mesh_name
+    if (present(coarse_mesh_name)) field_spec%coarse_mesh_name=coarse_mesh_name
     if (present(is_int)) field_spec%is_int=is_int
     if (present(legacy)) field_spec%legacy=legacy
 

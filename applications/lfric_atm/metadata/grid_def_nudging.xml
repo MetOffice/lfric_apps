@@ -4,7 +4,7 @@
   <grid id="nudging_input_full_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="nudging_time_axis"/>
-    <axis axis_ref="ecmwf_levels"/>
+    <axis axis_ref="nudging_levels"/>
   </grid>
 
   <grid id="nudging_input_2D_grid">
@@ -15,7 +15,7 @@
 <!-- Grids for outputting diagnostics -->
   <grid id="nudging_ref_full_grid">
     <domain domain_ref="face"/>
-    <axis axis_ref="ecmwf_levels"/>
+    <axis axis_ref="nudging_levels"/>
   </grid>
 
   <grid id="nudging_ref_2D_grid">
