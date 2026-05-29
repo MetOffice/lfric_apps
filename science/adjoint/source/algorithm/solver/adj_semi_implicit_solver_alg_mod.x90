@@ -342,6 +342,7 @@ contains
                                                          inc_uvw_rsol, inc_theta_rsol, &
                                                          inc_rho_rsol, inc_exner_rsol, &
                                                          inc_uv_rsol, inc_w_rsol
+    type(r_solver_field_type)                         :: dry_flux_solver_rsol
     type(r_solver_field_type), pointer                :: rho_at_u, m2_diag, mt_lumped_inv
     type(r_solver_operator_type), pointer             :: div, m3_rho_star, &
                                                          p3theta, p2theta, ptheta2
@@ -420,11 +421,17 @@ contains
     tau_r_dt = real( -tau_r * dt, kind=r_solver )
     call div_u%initialise(vector_space=rhs_rsol(igh_p)%get_function_space())
     call f_star%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
+    call dry_flux_solver_rsol%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
 
-    call invoke( name="adj_si_solver_3",                                  &
+    ! Compute dry flux
+    call invoke( name="adj_si_solver_3",                                       &
+                 setval_c( f_star, 0.0_r_solver ),                             &
+                 real_to_real_X( dry_flux_solver_rsol, dry_flux_solver ),      &
+                 inc_X_plus_bY( f_star, tau_r_dt, dry_flux_solver_rsol ) )
+
+    call invoke( name="adj_si_solver_4",                                  &
                  a_times_x( div_u, tau_r_dt, inc_rho_rsol ),              &
                  setval_x( rhs_rsol(igh_d), inc_rho_rsol ),               &
-                 setval_c( f_star, 0.0_r_solver ),                        &
                  adj_dg_matrix_vector_kernel_type( div_u, f_star, div ),  &
                  inc_x_times_y( f_star, rho_at_u ),                       &
                  inc_x_plus_y( inc_uvw_rsol, f_star ) )
@@ -441,7 +448,7 @@ contains
 
       call inc_uv_rsol%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2h ))
       call inc_w_rsol%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2v ))
-      call invoke( name="adj_si_solver_4",                                            &
+      call invoke( name="adj_si_solver_5",                                            &
                    setval_c( inc_uv_rsol, 0.0_r_solver ),                             &
                    setval_c( inc_w_rsol, 0.0_r_solver ),                              &
                    split_w2_field_kernel_type( inc_uv_rsol, inc_w_rsol, inc_uvw_rsol, &
@@ -485,7 +492,7 @@ contains
         ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
         call rhs_tmp%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
         p2theta => get_p2theta()
-        call invoke( name="adj_si_solver_5",                                             &
+        call invoke( name="adj_si_solver_6",                                             &
                      setval_c( rhs_tmp, 0.0_r_solver ),                                  &
                      enforce_bc_kernel_type(rhs_rsol(igh_u)),                            &
                      inc_X_plus_Y( rhs_tmp, rhs_rsol(igh_u) ),                           &
@@ -495,7 +502,7 @@ contains
                      adj_dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), p3theta ) )
       end if
 
-      call invoke( name="adj_si_solver_6", &
+      call invoke( name="adj_si_solver_7", &
                    adj_dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_d), m3_rho_star ) )
     end if
 

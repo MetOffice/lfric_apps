@@ -582,6 +582,7 @@ contains
                  setval_c( self%state(igh_d), 0.0_r_def ), &
                  setval_c( self%state(igh_t), 0.0_r_def ), &
                  setval_c( self%state(igh_u), 0.0_r_def ), &
+                 setval_c( dry_flux_solver, 0.0_r_def ),   &
                  inc_X_plus_Y( self%state(igh_p), exner ), &
                  inc_X_plus_Y( self%state(igh_d), rho ),   &
                  inc_X_plus_Y( self%state(igh_t), theta ), &
@@ -651,6 +652,7 @@ contains
         ! If self%state is zero, there is no need to call the SI solver
         if (.not. bundle_is_zero( mixed_solver_a_tol, self%state, bundle_size )) then
           call self%adj_semi_implicit_solver%step( self%state, self%rhs_np1, &
+                                                   dry_flux_solver,          &
                                                    moist_dyn(gas_law), mr,   &
                                                    first_iteration=(inner==1) )
         end if
