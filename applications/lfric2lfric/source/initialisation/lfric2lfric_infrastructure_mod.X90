@@ -429,6 +429,7 @@ contains
                                                  panel_id,               &
                                                  modeldb%clock,          &
                                                  modeldb%calendar        )
+    call io_context_src%close_context_definition()
 
     !=======================================================================
     ! Initialise source orography
