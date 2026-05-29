@@ -93,6 +93,8 @@ contains
   !> @param[in]     soil_moist_sat         Soil moisture at saturation
   !> @param[in,out] grid_canopy_water      Grid canopy water
   !> @param[in,out] grid_throughfall       Grid throughfall
+  !> @param[in]     soil_sat_frac          Surface saturation fraction
+  !> @param[in]     wetness_under_soil     Deep soil saturation fraction
 
   subroutine output_diags_for_jules_soil(tile_fraction, soil_moisture_content, &
                                      canopy_water, soil_moisture,              &
@@ -101,7 +103,8 @@ contains
                                      surface_runoff, sub_surface_runoff,       &
                                      water_table, soil_moist_wilt,             &
                                      soil_moist_crit, soil_moist_sat,          &
-                                     grid_canopy_water,grid_throughfall)
+                                     grid_canopy_water,grid_throughfall,       &
+                                     soil_sat_frac, wetness_under_soil)
 
     use jules_control_init_mod, only : n_land_tile
 
@@ -140,6 +143,8 @@ contains
     call soil_moist_wilt%write_field('soil__soil_moist_wilt')
     call soil_moist_crit%write_field('soil__soil_moist_crit')
     call soil_moist_sat%write_field('soil__soil_moist_sat')
+    call soil_sat_frac%write_field('soil__soil_sat_frac')
+    call wetness_under_soil%write_field('soil__wetness_under_soil')
 
     ! Diagnostics locally computed here from other fields
     if (grid_canopy_water_flag) then
