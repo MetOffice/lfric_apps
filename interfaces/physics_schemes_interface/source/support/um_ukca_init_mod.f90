@@ -1057,6 +1057,7 @@ contains
            proc_bl_tracer_mix = bl_tracer_mix,                                 &
            ! UKCA temporary logicals
            l_fix_ukca_hygroscopicities=.false.,                                &
+           l_fix_ukca_n2o5_h2o=.false.,                                        &
            l_fix_ukca_water_content=.true.,                                    &
            ! Return status information
            error_message=ukca_errmsg,                                          &

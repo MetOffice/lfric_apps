@@ -15,6 +15,10 @@ implicit none
 contains
 
 ! Routine to apply consistency-checks on the cloud and precip fractions.
+! Applied on input to and output from CoMorph.
+! Note that the PC2 cloud-scheme and prognostic precip fraction scheme
+! optionally do their own more stringent cloud-fraction checks;
+! the call to this routine before CoMorph can be skipped if those are on.
 subroutine fracs_consistency( qcl_star, qcf_star, qcf2_star,                   &
                               qrain_star, qgraup_star,                         &
                               cf_liquid_star, cf_frozen_star, bulk_cf_star,    &
