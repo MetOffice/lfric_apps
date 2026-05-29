@@ -236,3 +236,15 @@ class vn31_t77(MacroUpgrade):
         self.add_setting(config, ["namelist:io", "write_initial"], ".true.")
 
         return config, self.reports
+
+
+class vn31_t463(MacroUpgrade):
+    """Upgrade macro for ticket #463 by James Bruten."""
+
+    BEFORE_TAG = "vn3.1_t77"
+    AFTER_TAG = "vn3.1_t463"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        # Blank Upgrade Macro
+        return config, self.reports
