@@ -1,0 +1,68 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief Logs the surface coordinates
+
+module log_coordinates_alg_mod
+
+implicit none
+
+private
+public :: log_coordinates_alg
+
+contains
+
+!> @details Print the coordinates at the surface for each column
+!> @param[in] mesh   Mesh to log the coordinates of
+subroutine log_coordinates_alg(mesh)
+
+  use constants_mod,               only: i_def
+  use field_mod,                   only: field_type
+  use fs_continuity_mod,           only: W3
+  use function_space_mod,          only: function_space_type
+  use log_location_kernel_mod,     only: log_location_kernel_type
+  use log_mod,                     only: log_level, LOG_LEVEL_DEBUG
+  use logging_config_mod,          only: log_to_rank_zero_only
+  use mesh_mod,                    only: mesh_type
+  use sci_geometric_constants_mod, only: get_latitude_fv, get_longitude_fv,    &
+                                         get_panel_id
+
+  implicit none
+
+  type(mesh_type),        intent(in) :: mesh
+  type(function_space_type), pointer :: fs
+  type(field_type),          pointer :: latitude
+  type(field_type),          pointer :: longitude
+  type(field_type),          pointer :: panel_id
+  type(field_type)                   :: dummy
+  type(field_type)                   :: big_longitude, big_latitude
+  integer(kind=i_def)                :: mesh_id, depth
+
+  if (log_level() <= LOG_LEVEL_DEBUG .and. .not. log_to_rank_zero_only) then
+    mesh_id = mesh%get_id()
+    latitude => get_latitude_fv(W3, mesh_id)
+    longitude => get_longitude_fv(W3, mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    depth = mesh%get_halo_depth()
+
+    fs => latitude%get_function_space()
+    ! Need a dummy field to pretend to write to
+    call dummy%initialise(fs, halo_depth=depth)
+    ! Want to write to full halo depth, so need big versions of fields
+    call big_longitude%initialise(fs, halo_depth=depth)
+    call big_latitude%initialise(fs, halo_depth=depth)
+
+    call invoke(                                                               &
+        setval_X(big_longitude, longitude),                                    &
+        setval_X(big_latitude, latitude),                                      &
+        log_location_kernel_type(                                              &
+            dummy, big_longitude, big_latitude, panel_id, depth                &
+        )                                                                      &
+    )
+  end if
+
+end subroutine log_coordinates_alg
+
+end module log_coordinates_alg_mod

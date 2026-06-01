@@ -175,7 +175,9 @@ write_fluxes=.false.,
 write_minmax_tseries=.false.,
 /
 &logging
-run_log_level='info',
+log_sums_and_norms=.true.
+log_to_rank_zero_only=.false.
+run_log_level='debug',
 /
 &mixed_solver
 eliminate_variables='discrete',

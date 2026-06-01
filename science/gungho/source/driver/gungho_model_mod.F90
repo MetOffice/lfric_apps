@@ -57,6 +57,7 @@ module gungho_model_mod
                                          CHECKPOINTING, RESTARTING
   use lfric_xios_write_mod,       only : create_checkpoint_list
   use linked_list_mod,            only : linked_list_type
+  use log_coordinates_alg_mod,    only : log_coordinates_alg
   use log_mod,                    only : log_event,          &
                                          log_scratch_space,  &
                                          LOG_LEVEL_INFO,     &
@@ -746,7 +747,6 @@ contains
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
     call chi_inventory%get_field_array(mesh, chi)
 
-
     !=======================================================================
     ! 3.0 Initialise coupling
     !=======================================================================
@@ -863,6 +863,7 @@ contains
                               panel_id_inventory,             &
                               surface_altitude )
 
+    call log_coordinates_alg(mesh)
 
     !=======================================================================
     ! 6.0 Initialise runtime constants

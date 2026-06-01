@@ -1,0 +1,139 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+! @brief Print location of a NaN in a field
+
+module print_nan_loc_alg_mod
+
+implicit none
+
+private
+public :: print_nan_loc_alg
+
+contains
+
+! @details Print the location of a NaN in a field
+! @param[in] field        Field to print info about
+! @param[in] field_name   Name of the field to appear in print messages
+subroutine print_nan_loc_alg(field, log_level_in, field_name)
+
+  use field_mod,               only: field_type
+  use mesh_mod,                only: mesh_type
+  use constants_mod,           only: r_def, str_def, i_def, radians_to_degrees,&
+                                     rmdi
+  use log_mod,                 only: log_event, log_level, log_scratch_space
+  use base_mesh_config_mod,    only: prime_mesh_name
+  use mesh_collection_mod,     only: mesh_collection
+  use fs_continuity_mod,       only: W3, Wtheta, W2, W2H, W2V
+  use sci_geometric_constants_mod,    &
+                                only: get_latitude_fv, get_longitude_fv, &
+                                      get_height_fv
+  use find_nan_kernel_mod,     only: find_nan_kernel_type
+  use extrusion_mod,           only: TWOD
+  use function_space_collection_mod, only: function_space_collection
+  use function_space_mod, only: function_space_type
+
+  implicit none
+
+  type(field_type), intent(in) :: field
+  character(*),     intent(in) :: field_name
+  integer(i_def),   intent(in) :: log_level_in
+
+  integer(i_def)     :: fs_id, fs_id_to_get
+  real(r_def)        :: gnan_lev, gnan_count, &
+                        gnan_lat, gnan_lon, gnan_height
+  type(mesh_type),  pointer :: mesh
+  type(mesh_type),  pointer :: twod_mesh
+  type(field_type), pointer :: latitude
+  type(field_type), pointer :: longitude
+  type(field_type), pointer :: height
+  type(field_type)          :: nan_count, nan_lev, nan_height, nan_lon, nan_lat
+  type(function_space_type), pointer :: w3_2d_fs
+
+  if (log_level() <= log_level_in ) then
+
+    fs_id = field%which_function_space()
+
+    if ( fs_id == Wtheta .or. fs_id == W3 .or. fs_id == W2                     &
+         .or. fs_id == W2H .or. fs_id == W2V ) then
+
+        if (fs_id == W2V .or. fs_id == Wtheta) then
+          fs_id_to_get = W3
+        else
+          fs_id_to_get = fs_id
+        end if
+
+        mesh => field%get_mesh()
+        twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+        w3_2d_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3)
+
+        latitude  => get_latitude_fv( fs_id_to_get, twod_mesh%get_id() )
+        longitude => get_longitude_fv( fs_id_to_get, twod_mesh%get_id() )
+        height => get_height_fv( fs_id_to_get, mesh%get_id() )
+
+        gnan_count = 0.0_r_def
+        gnan_lev = 0.0_r_def
+        gnan_height = 0.0_r_def
+        gnan_lat = 0.0_r_def
+        gnan_lon = 0.0_r_def
+
+        call nan_count%initialise( w3_2d_fs )
+        call nan_lev%initialise( w3_2d_fs )
+        call nan_height%initialise( w3_2d_fs )
+        call nan_lat%initialise( w3_2d_fs )
+        call nan_lon%initialise( w3_2d_fs )
+
+        call invoke(setval_c(nan_lev,    0.0_r_def), &
+                    setval_c(nan_count,  0.0_r_def), &
+                    setval_c(nan_lat,    0.0_r_def), &
+                    setval_c(nan_lon,    0.0_r_def), &
+                    setval_c(nan_height, 0.0_r_def) )
+
+        call invoke(find_nan_kernel_type(field, height,                        &
+                                         latitude, longitude, nan_lev,         &
+                                         nan_count,  nan_lat, nan_lon,         &
+                                         nan_height),                          &
+                    sum_X(gnan_lev,    nan_lev),    &
+                    sum_X(gnan_count,  nan_count),  &
+                    sum_X(gnan_lat,    nan_lat),    &
+                    sum_X(gnan_lon,    nan_lon),    &
+                    sum_X(gnan_height, nan_height) )
+
+        if (gnan_count >= 0.1_r_def) then
+          write(log_scratch_space,'(A,A)') &
+              'Field NaN location ',trim(field_name)
+          call log_event( log_scratch_space, log_level_in )
+
+          write(log_scratch_space,'(A,I16)') &
+          '     at level = ',int(gnan_lev/gnan_count)
+          call log_event( log_scratch_space, log_level_in )
+
+          write(log_scratch_space,'(A,ES16.8E2)') &
+          '    at height = ',gnan_height/gnan_count
+          call log_event( log_scratch_space, log_level_in )
+
+          write(log_scratch_space,'(A,F16.8)') &
+          '  at latitude = ',radians_to_degrees*gnan_lat/gnan_count
+          call log_event( log_scratch_space, log_level_in )
+
+          write(log_scratch_space,'(A,F16.8)') &
+          ' at longitude = ',radians_to_degrees*gnan_lon/gnan_count
+          call log_event( log_scratch_space, log_level_in )
+
+          write(log_scratch_space,'(A,I16)') &
+          '   degeneracy = ',int(gnan_count)
+          call log_event( log_scratch_space, log_level_in )
+        end if
+
+    else
+
+      call log_event( 'stats only works for w3 or wtheta field', log_level_in )
+
+    end if
+
+  end if
+
+end subroutine print_nan_loc_alg
+end module print_nan_loc_alg_mod

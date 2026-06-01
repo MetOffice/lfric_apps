@@ -22,10 +22,13 @@ module fast_physics_alg_mod
   use model_clock_mod,      only: model_clock_type
   use constants_mod,        only: i_def,r_def, l_def
   use log_mod,              only: LOG_LEVEL_INFO, LOG_LEVEL_ERROR, log_event, &
-                                  log_scratch_space
+                                  log_scratch_space, LOG_LEVEL_DEBUG
   use print_field_stats_alg_mod, only: print_field_stats_alg
   use io_config_mod,        only: write_conservation_diag
   use timing_mod,           only: start_timing, stop_timing, tik, LPROF
+  use print_nan_loc_alg_mod,     only: print_nan_loc_alg
+  use sci_field_minmax_alg_mod,  only: log_field_minmax
+
 
   use physics_config_mod,   only: blayer_placement, blayer_placement_fast, &
                                   convection_placement,                    &
@@ -395,13 +398,17 @@ contains
                            derived_fields, rho, dt)
     end if
 
-    call print_field_stats_alg(dtheta, LOG_LEVEL_INFO, printmin=-20.0_r_def, &
-                               printmax=20.0_r_def, name='dtheta fast')
     if (evap_condense_done) then
       call invoke(inc_X_plus_Y(dtheta,      dtheta_cld),     &
                   inc_X_plus_Y(mr(imr_v),   dmr_cld(imr_v)), &
                   inc_X_plus_Y(mr(imr_cl),  dmr_cld(imr_cl)))
     end if
+
+    call print_field_stats_alg(dtheta, LOG_LEVEL_INFO, printmin=-20.0_r_def, &
+                               printmax=20.0_r_def, name='dtheta fast')
+    call print_nan_loc_alg(dtheta, LOG_LEVEL_DEBUG, 'dtheta fast')
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'du fast', du)
+
     if ( use_moisture ) then
       do i_mr = 1, nummr
         call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
