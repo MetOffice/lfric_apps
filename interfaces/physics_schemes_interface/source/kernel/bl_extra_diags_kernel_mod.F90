@@ -314,7 +314,7 @@ contains
     ! map main input fields
     if (.not. associated(visibility_no_precip, empty_real_data)   .or.       &
         .not. associated(visibility_with_precip, empty_real_data) .or.       &
-        .not. associated(visibility_with_dust, empty_real_data) .or.       &
+        .not. associated(visibility_with_dust, empty_real_data)   .or.       &
         .not. associated(fog_fraction, empty_real_data)           .or.       &
         .not. associated(fog_fraction_ssi, empty_real_data)       .or.       &
         .not. associated(fog_fraction_land, empty_real_data)      .or.       &
@@ -334,7 +334,8 @@ contains
 
     ! Visibility
     if ( .not. associated(visibility_no_precip, empty_real_data) .or.        &
-         .not. associated(visibility_with_precip, empty_real_data) ) then
+         .not. associated(visibility_with_precip, empty_real_data) .or.      &
+         .not. associated(visibility_with_dust, empty_real_data) ) then
       call visbty(                                                           &
                   ! inputs
                   p_star, t1p5m_loc, q1p5m_loc, qcl1p5m_loc, aerosol1,       &
