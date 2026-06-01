@@ -22,8 +22,8 @@ casim:
     ref: 2026.03.2
 
 jules:
-    source: git@github.com:maggiehendry/jules.git
-    ref: 374ecbf2ef30a22d7310d68cd09646d3539f4989
+    source: cazld00001l:/var/tmp/persistent/review_copies/jules
+    ref:
 
 lfric_apps:
     source:
@@ -31,15 +31,15 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: 3c9620f2f8ae6e6431c994628aa55002ad306f2d
+    ref: bf236737858c4ed29957124a2f64fd0e4f4fd7be
 
 moci:
     source: git@github.com:MetOffice/moci.git
     ref: 2026.03.2
 
 SimSys_Scripts:
-    source: git@github.com:MetOffice/SimSys_Scripts.git
-    ref: cab3315147a3c7e8546dda559d3da0fccd702f29
+    source: git@github.com:james-bruten-mo/SimSys_Scripts.git
+    ref: 08c29c802b946aeaf3e49c3bf56ebe0411c588ea
 
 socrates:
     source: git@github.com:MetOffice/socrates.git

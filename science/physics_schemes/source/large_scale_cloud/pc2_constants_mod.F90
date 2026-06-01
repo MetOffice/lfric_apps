@@ -105,7 +105,14 @@ integer, parameter :: pc2init_logic_smooth = 3
 ! The diagnostic cloud scheme calculations are performed at any
 ! grid-point where they are expected to yield nonzero liquid water
 ! content.  The diagnosed qcl is then taken as a minimum limit applied
-! to PC2's prognostic qcl.
+! to PC2's prognostic qcl.  The prognostic cfl is smoothly adjusted
+! towards the diagnosed cfl as a function of the qcl increment.
+integer, parameter :: pc2init_logic_smooth_fix = 4
+! As 3, but prognostic cfl is hard-limited by the diagnosed cfl instead
+! of gradually adjusting towards it.  This avoids a numerical problem
+! with option 3 where initiation maintains qcl but allows PC2 erosion
+! to keep reducing cfl, so that in-cloud water content qcl/cfl spuriously
+! increases, leading to erronious precip production.
 
 ! Options for updating ice cloud fraction due to ice cloud fraction
 ! falling in from layer above.
