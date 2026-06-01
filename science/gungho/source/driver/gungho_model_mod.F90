@@ -142,7 +142,8 @@ module gungho_model_mod
   public initialise_infrastructure, &
          initialise_model,          &
          finalise_infrastructure,   &
-         finalise_model
+         finalise_model,            &
+         checksum_model
 contains
 
   !> @brief  Initialise processor object for persisting LFRic fields
@@ -345,7 +346,9 @@ contains
   !> multidata dimensions are completely defined when the XIOS
   !> axis dimensions are being synched.
   !> @param[in] model_clock     The clock providing access to time information
-  subroutine basic_initialisations(mesh,model_clock)
+  !> @param[in] modeldb   The full model database for the model run
+  subroutine basic_initialisations(mesh,model_clock,config)
+
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,     only: use_physics
@@ -354,11 +357,13 @@ contains
                                           surface,            &
                                           surface_jules
 #endif
+    use config_mod,                 only: config_type
 
     implicit none
 
     type( mesh_type ), intent(in), pointer :: mesh
     class(model_clock_type), intent(inout) :: model_clock
+    type(config_type), intent(in) :: config
 
 #ifdef UM_PHYSICS
     integer(i_def) :: ncells
@@ -399,7 +404,7 @@ contains
 
       if (surface == surface_jules) then
         ! Initialisation of Jules physics variables
-        call jules_physics_init()
+        call jules_physics_init(config)
       end if
 
       ! Initialisation of UKCA physics variables
@@ -836,7 +841,7 @@ contains
     !=======================================================================
     ! 4.0 Initialise output
     !=======================================================================
-    call basic_initialisations( mesh, modeldb%clock )
+    call basic_initialisations( mesh, modeldb%clock, modeldb%config )
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
@@ -1107,64 +1112,19 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Finalise the gungho application
   !>
-  !> @param[in,out] modeldb       The working data set for the model run
-  !> @param[in]     program_name  An identifier given to the model run
+  !> @param[in,out] modeldb  The working data set for the model run
   !>
-  subroutine finalise_model( modeldb,       &
-                             program_name )
+  subroutine finalise_model( modeldb )
 
     use io_config_mod, only: write_minmax_tseries
 
     implicit none
 
-    type( modeldb_type ), target,     intent(inout) :: modeldb
-    character(*),         optional,   intent(in)    :: program_name
-
-    type( field_collection_type ), pointer :: diagnostic_fields => null()
-    type( field_collection_type ), pointer :: moisture_fields => null()
-    type( field_array_type ),      pointer :: mr_array
-    type( field_type ),            pointer :: mr(:) => null()
-    type( field_collection_type ), pointer :: fd_fields
-    type( field_collection_type ), pointer :: prognostic_fields => null()
-
-    type( field_type), pointer :: theta => null()
-    type( field_type), pointer :: u => null()
-    type( field_type), pointer :: rho => null()
-    type( field_type), pointer :: exner => null()
+    type( modeldb_type ), intent(inout) :: modeldb
 
     class(timestep_method_type), pointer :: timestep_method
 
-    ! Pointer for setting I/O handlers on fields
-    procedure(write_interface), pointer :: tmp_write_ptr => null()
-
-    if ( present(program_name) ) then
-      ! Get pointers to field collections for use downstream
-      prognostic_fields => modeldb%fields%get_field_collection( &
-                                                           "prognostic_fields")
-      diagnostic_fields => modeldb%fields%get_field_collection( &
-                                                           "diagnostic_fields")
-      moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
-      call moisture_fields%get_field("mr", mr_array)
-      mr => mr_array%bundle
-      fd_fields => modeldb%fields%get_field_collection("fd_fields")
-
-      ! Get pointers to fields in the prognostic/diagnostic field collections
-      ! for use downstream
-      call prognostic_fields%get_field('theta', theta)
-      call prognostic_fields%get_field('u', u)
-      call prognostic_fields%get_field('rho', rho)
-      call prognostic_fields%get_field('exner', exner)
-
-      ! Write checksums to file
-      if (use_moisture) then
-        call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u', &
-                        field_bundle=mr, bundle_name='mr')
-      else
-        call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u')
-      end if
-
-      if (write_minmax_tseries) call minmax_tseries_final()
-    end if
+    if (write_minmax_tseries) call minmax_tseries_final()
 
     ! Finalise the timestep method
     if ( modeldb%values%key_value_exists('timestep_method') ) then
@@ -1175,5 +1135,57 @@ contains
     end if
 
   end subroutine finalise_model
+
+  !---------------------------------------------------------------------------
+  !> @brief Write checksum from modeldb
+  !>
+  !> @param[in,out] modeldb       The working data set for the model run
+  !> @param[in]     program_name  An identifier given to the model run
+  !>
+  subroutine checksum_model( modeldb, &
+                             program_name )
+
+    implicit none
+
+    type( modeldb_type ), target, intent(inout) :: modeldb
+    character(*),                 intent(in)    :: program_name
+
+    type( field_collection_type ), pointer :: moisture_fields
+    type( field_array_type ),      pointer :: mr_array
+    type( field_type ),            pointer :: mr(:)
+    type( field_collection_type ), pointer :: prognostic_fields
+
+    type( field_type), pointer :: theta
+    type( field_type), pointer :: u
+    type( field_type), pointer :: rho
+    type( field_type), pointer :: exner
+
+    nullify(moisture_fields, mr_array, mr, prognostic_fields, &
+            theta, u, rho, exner)
+
+    ! Get pointers to field collections for use downstream
+    prognostic_fields => modeldb%fields%get_field_collection( &
+                                                         "prognostic_fields")
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    mr => mr_array%bundle
+
+    ! Get pointers to fields in the prognostic/diagnostic field collections
+    ! for use downstream
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    ! The exner field is not passed to the checksum and it should be.
+    call prognostic_fields%get_field('exner', exner)
+
+    ! Write checksums to file
+    if (use_moisture) then
+      call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u', &
+                      field_bundle=mr, bundle_name='mr')
+    else
+      call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u')
+    end if
+
+  end subroutine checksum_model
 
 end module gungho_model_mod
