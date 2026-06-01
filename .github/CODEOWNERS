@@ -87,3 +87,4 @@ README.md                               @MetOffice/ssdteam
 
 # Owners of specific documentation sections
 documentation/source/science_guide/cloud_schemes             @paul-barrett
+documentation/source/science_guide/turbulence_schemes        @Adrian-Lock
