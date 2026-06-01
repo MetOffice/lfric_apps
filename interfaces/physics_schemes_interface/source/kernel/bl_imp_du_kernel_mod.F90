@@ -7,7 +7,6 @@
 
 module bl_imp_du_kernel_mod
 
-  use kernel_mod,                    only: kernel_type
   use argument_mod,                  only: arg_type, func_type,                &
                                            GH_FIELD, GH_READ, CELL_COLUMN,     &
                                            ANY_SPACE_1, ANY_SPACE_2,           &

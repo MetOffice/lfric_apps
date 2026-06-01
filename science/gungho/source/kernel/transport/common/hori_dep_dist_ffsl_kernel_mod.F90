@@ -31,7 +31,6 @@ use fs_continuity_mod,             only : W3, W2h
 use constants_mod,                 only : r_tran, i_def, l_def
 use kernel_mod,                    only : kernel_type
 use reference_element_mod,         only : E, W, N, S
-use sci_face_selector_support_mod, only : face_from_face_selector
 
 implicit none
 
