@@ -141,7 +141,9 @@
         application_build_task]) %}
 {% endif %}
 
-
+{# ################################### #}
+{# Create the meshes                   #}
+{# ################################### #}
 
 {# Do we need to run the mesh? #}
 {# Any run task will need mesh unless it is a canned test #}
@@ -169,13 +171,20 @@
                 {% endif %}
                 {% do tasks_to_run.update({mesh_run_task: mesh_dict}) %}
             {% endif %}
-	    {% if mesh_run_task %}
+{# Add the mesh (for resolution res) to the graph, so all meshes are triggered by build #}
+	        {% if mesh_run_task %}
                 {% do graph_sections.append([
                     mesh_build_task,
                     mesh_run_task]) %}
             {% endif %}
         {% endif %}
     {% endfor %}
+    {% if task_values["resolution"] is string %}
+        {% set mesh_run_task = "run_mesh_"~
+                                task_values["resolution"]~"_"~
+                                task_ns.platform~"_"~
+                                site_vars["mesh_build"][task_ns.platform] %}
+    {% endif %}
 {% endif %}
 
 {# Do we need to run an application? #}
