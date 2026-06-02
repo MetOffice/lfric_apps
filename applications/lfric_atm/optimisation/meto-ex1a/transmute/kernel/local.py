@@ -29,8 +29,6 @@ def trans(psyir):
     to each loop.
     '''
 
-    # Variables that appear on the left-hand side of assignments
-    # for which PSyclone dependency errors can be ignored
     fortran_file_name = str(psyir.root.name)
 
     false_dep_vars = []
@@ -42,7 +40,7 @@ def trans(psyir):
 
     # Work through each loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
-        if loop.variable.name == 'i' or loop.variable.name == 'l':
+        if loop.variable.name in ['i', 'l']:
             # Check if any eligible variables appear on the LHS of
             # assignment expressions; these lead to false dependency
             # errors in the parallel loop transformation that can be
