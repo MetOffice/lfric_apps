@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2026 Met Office. All rights reserved.
+! (c) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be brief.
 !-----------------------------------------------------------------------------
@@ -63,8 +63,6 @@ module atlt_rhs_project_eos_alg_mod
     type(field_type) :: ls_rho
     type(field_type) :: ls_theta
     type(field_type) :: ls_moist_dyn_gas
-    ! chi
-    ! panel_id
     type(quadrature_xyoz_type) :: qr_xyoz
 
     ! Copies of input fields used in inner products
