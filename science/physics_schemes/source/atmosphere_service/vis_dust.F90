@@ -28,9 +28,13 @@ implicit none
 character(len=*), parameter, private :: ModuleName = 'VIS_DUST_MOD'
 contains
 
+
+! base_vis - the base visibility on which to include dust visibility
+
+
 ! Based on the UM's pws_vis2_diag, with pws_dustmmr1_em set to zero.
 subroutine vis_dust(                                                   &
-            vis_no_precip,                                             &
+            base_vis,                                                  &
             t1p5m,                                                     &
             p_star,                                                    &
             acc_ins_du,                                                &
@@ -58,7 +62,7 @@ subroutine vis_dust(                                                   &
   ! Todo: the calling code has the number of points hard coded to 1, but we should consider making this more general.
 
   ! Visibility without precip, to which we will add extinction from dust.
-  real(kind=real_umphys), intent(in) :: vis_no_precip(1)
+  real(kind=real_umphys), intent(in) :: base_vis(1)
 
   ! 1.5m temperature
   real(kind=r_def), intent(in) :: t1p5m(1)
@@ -76,6 +80,7 @@ subroutine vis_dust(                                                   &
   real(kind=real_umphys), intent(inout) :: vis_with_dust(1)
 
   ! Overall visibility.
+  ! This is visibility with precip, which we update to include dust.
   real(kind=real_umphys), intent(out) :: vis_overall(1)
 
 
@@ -126,7 +131,7 @@ subroutine vis_dust(                                                   &
   ! Calculate visibility fields
 
   !   Invert visibility to calculate total extinction
-  beta_tot = -lnliminalcontrast / vis_no_precip(1)
+  beta_tot = -lnliminalcontrast / base_vis(1)
 
   !   Add the extinction from dust to the total
   beta_tot = beta_tot + beta_dust

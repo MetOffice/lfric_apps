@@ -51,6 +51,7 @@ module bl_imp_diags_mod
   logical( l_def ) :: vis_no_precip_flag
   logical( l_def ) :: vis_with_precip_flag
   logical( l_def ) :: vis_with_dust_flag
+  logical( l_def ) :: vis_with_precip_dust_flag
   logical( l_def ) :: fog_fraction_flag
   logical( l_def ) :: fog_fraction_ssi_flag
   logical( l_def ) :: fog_fraction_land_flag
@@ -280,6 +281,7 @@ contains
     type( field_type ) :: visibility_with_precip
     type( field_type ) :: visibility_no_precip
     type( field_type ) :: visibility_with_dust
+    type( field_type ) :: visibility_with_precip_dust
     type( field_type ) :: fog_fraction
     type( field_type ) :: fog_fraction_ssi
     type( field_type ) :: fog_fraction_land
@@ -407,6 +409,7 @@ contains
     vis_no_precip_flag = init_diag(visibility_no_precip, 'surface__visibility_no_precip')
     vis_with_precip_flag = init_diag(visibility_with_precip, 'surface__visibility_with_precip')
     vis_with_dust_flag = init_diag(visibility_with_dust, 'surface__visibility_with_dust')
+    vis_with_precip_dust_flag = init_diag(visibility_with_precip_dust, 'surface__visibility_with_precip_dust')
     fog_fraction_flag = init_diag(fog_fraction, 'surface__fog_fraction')
     fog_fraction_ssi_flag = init_diag(fog_fraction_ssi, 'surface__fog_fraction_ssi')
     fog_fraction_land_flag = init_diag(fog_fraction_land, 'surface__fog_fraction_land')
@@ -415,20 +418,16 @@ contains
     dew_point_ssi_flag = init_diag(dew_point_ssi, 'surface__dew_point_ssi')
     dew_point_land_flag = init_diag(dew_point_land, 'surface__dew_point_land')
 
-    ! remove
-    if (vis_with_dust_flag) then
-      call log_event("vis_with_dust_flag is set", LOG_LEVEL_ALWAYS)
-    end if
-
     ! visibility_with_precip / dust requires visibility_no_precip
     ! todo: can't these two flags just go into the activate argument for no_precip?
-    if (.not. vis_no_precip_flag .and. (vis_with_precip_flag .or. vis_with_dust_flag)) then
-      ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
+    if (.not. vis_no_precip_flag .and. &
+        (vis_with_precip_flag .or. vis_with_dust_flag .or. vis_with_precip_dust_flag)) then
+          ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
     end if
 
     if ( wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
          vis_no_precip_flag .or. vis_with_precip_flag .or.                     &
-         vis_with_dust_flag .or.                                               &
+         vis_with_dust_flag .or. vis_with_precip_dust_flag .or.                &
          fog_fraction_flag .or. fog_fraction_ssi_flag .or.                     &
          fog_fraction_land_flag .or. vis_prob_5km_flag .or. dew_point_flag     &
          .or. dew_point_ssi_flag .or. dew_point_land_flag ) then
@@ -458,16 +457,15 @@ contains
                                                dew_point_land,                 &
                                                visibility_with_precip,         &
                                                visibility_no_precip,           &
-                                               visibility_with_dust ) )
+                                               visibility_with_dust,           &
+                                               visibility_with_precip_dust ) )
 
       if (wind_gust_flag) call wind_gust%write_field()
       if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
       if (vis_no_precip_flag) call visibility_no_precip%write_field()
       if (vis_with_precip_flag) call visibility_with_precip%write_field()
-      if (vis_with_dust_flag) then
-        call visibility_with_dust%write_field()
-        call log_event("wrote vis_with_dust_flag", LOG_LEVEL_ALWAYS)
-      end if
+      if (vis_with_dust_flag) call visibility_with_dust%write_field()
+      if (vis_with_precip_dust_flag) call visibility_with_precip_dust%write_field()
       if (fog_fraction_flag) call fog_fraction%write_field()
       if (fog_fraction_ssi_flag) call fog_fraction_ssi%write_field()
       if (fog_fraction_land_flag) call fog_fraction_land%write_field()
