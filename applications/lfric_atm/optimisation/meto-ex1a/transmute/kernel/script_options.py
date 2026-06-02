@@ -33,7 +33,7 @@ SCRIPT_OPTIONS_DICT["bl_exp_kernel_mod"+str(FILE_EXTEN)] = {
         "ent_zrzi",
         "ent_we_lim_dsc",
         "ent_t_frac_dsc",
-        "ent_zrzi_dsc", 
+        "ent_zrzi_dsc",
         "fd_taux",
         "fd_tauy",
         "gradrinr",
@@ -72,7 +72,8 @@ SCRIPT_OPTIONS_DICT["bl_exp_kernel_mod"+str(FILE_EXTEN)] = {
         "dsldzm",
         "wvar",
         "zht",
-        "oblen",   ]
+        "oblen",
+        ]
 }
 
 SCRIPT_OPTIONS_DICT["bl_imp_kernel_mod"+str(FILE_EXTEN)] = {
@@ -87,7 +88,7 @@ SCRIPT_OPTIONS_DICT["bl_imp_kernel_mod"+str(FILE_EXTEN)] = {
         "dqw1_2d",
         "dtl1_2d",
         "ct_ctq1_2d",
-    ]
+        ]
 }
 
 SCRIPT_OPTIONS_DICT["bl_imp2_kernel_mod"+str(FILE_EXTEN)] = {
