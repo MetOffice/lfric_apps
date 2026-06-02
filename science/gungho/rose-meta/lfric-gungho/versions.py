@@ -202,7 +202,6 @@ class vn31_t77(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
         self.add_setting(config, ["namelist:io", "write_initial"], ".true.")
-
         return config, self.reports
 
 
@@ -564,5 +563,23 @@ class vn31_t205(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_vegetation", "l_use_pft_psi"], ".false."
         )
+        return config, self.reports
+
+
+class vn31_t378(MacroUpgrade):
+    """Upgrade macro for ticket #378 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t205"
+    AFTER_TAG = "vn3.1_t378"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "conservative_diffusion"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "density_weighted"], ".true."
+        )
+        self.add_setting(config, ["namelist:mixing", "max_diff_factor"], "1.0")
 
         return config, self.reports
