@@ -215,7 +215,8 @@ contains
                           LOG_LEVEL_INFO )
 
           call invoke(deep_hot_jupiter_kernel_type(dtheta_forcing, theta, &
-                                                   exner_in_wth, chi, panel_id, dt) )
+                                                   exner_in_wth, height_wth, &
+                                                   chi, panel_id, dt) )
 
         case(theta_forcing_temp_tend)
 
