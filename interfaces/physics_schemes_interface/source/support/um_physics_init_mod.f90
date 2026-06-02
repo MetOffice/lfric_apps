@@ -47,6 +47,7 @@ module um_physics_init_mod
                                         free_atm_mix, free_atm_mix_to_sharp,   &
                                         free_atm_mix_ntml_corrected,           &
                                         free_atm_mix_free_trop_layer,          &
+                                        free_atm_mix_smooth_to_boundaries,     &
                                         interp_local, interp_local_gradients,  &
                                         interp_local_cf_dbdz,                  &
                                         new_kcloudtop, p_unstable,             &
@@ -116,6 +117,7 @@ module um_physics_init_mod
                                     two_d_fsd_factor_in => two_d_fsd_factor,   &
                                     pc2_init_logic, pc2_init_logic_original,   &
                                     pc2_init_logic_smooth,                     &
+                                    pc2_init_logic_smooth_fix,                 &
                                     i_pc2_erosion_numerics_explicit,           &
                                     i_pc2_erosion_numerics_implicit,           &
                                     i_pc2_erosion_numerics_analytic,           &
@@ -341,10 +343,11 @@ contains
          DynDiag_ZL_corrn, blend_allpoints, ng_stress,                     &
          BrownGrant97_limited, BrownGrant97_original, lem_std,             &
          lem_adjust, interactive_fluxes, specified_fluxes_only,            &
-         except_disc_inv, ntml_level_corrn, free_trop_layers, sharpest,    &
-         lem_stability, sg_shear_enh_lambda, l_new_kcloudtop, buoy_integ,  &
-         l_reset_dec_thres, DynDiag_ZL_CuOnly, i_interp_local,             &
-         i_interp_local_gradients, l_noice_in_turb, l_use_var_fixes,       &
+         except_disc_inv, ntml_level_corrn, free_trop_layers,              &
+         smooth_to_bdys, sharpest, lem_stability, sg_shear_enh_lambda,     &
+         l_new_kcloudtop, buoy_integ, l_reset_dec_thres, DynDiag_ZL_CuOnly,&
+         i_interp_local, i_interp_local_gradients,                         &
+         l_noice_in_turb, l_use_var_fixes,                                 &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
@@ -463,14 +466,14 @@ contains
     use casim_parent_mod, only: casim_parent, parent_um
     use initialize, only: mphys_init
     use generic_diagnostic_variables, only: casdiags
-    use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,        &
-         i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,   &
-         pc2eros_exp_rh,pc2eros_hybrid_sidesonly, ignore_shear,            &
-         original_but_wrong, acf_cusack, cbl_and_cu, pc2init_smith,        &
-         pc2init_logic_original, pc2init_bimodal, i_pc2_homog_g_cf,        &
-         forced_cu_cca, i_pc2_homog_g_width, pc2init_logic_smooth,         &
-         i_pc2_erosion_explicit, i_pc2_erosion_implicit,                   &
-         i_pc2_erosion_analytic
+    use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,            &
+         i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,       &
+         pc2eros_exp_rh,pc2eros_hybrid_sidesonly, ignore_shear,                &
+         original_but_wrong, acf_cusack, cbl_and_cu, forced_cu_cca,            &
+         pc2init_smith, pc2init_bimodal, i_pc2_homog_g_cf, i_pc2_homog_g_width,&
+         pc2init_logic_original, pc2init_logic_smooth,                         &
+         pc2init_logic_smooth_fix,                                             &
+         i_pc2_erosion_explicit, i_pc2_erosion_implicit, i_pc2_erosion_analytic
     use rad_input_mod, only: two_d_fsd_factor
     use science_fixes_mod, only:  i_fix_mphys_drop_settle, second_fix,      &
          l_pc2_homog_turb_q_neg, l_fix_ccb_cct, l_fix_conv_precip_evap,     &
@@ -737,6 +740,8 @@ contains
           local_fa = ntml_level_corrn
         case(free_atm_mix_free_trop_layer)
           local_fa = free_trop_layers
+        case(free_atm_mix_smooth_to_boundaries)
+          local_fa = smooth_to_bdys
       end select
 
       pstb = 2.0_r_um
@@ -771,9 +776,9 @@ contains
           sg_orog_mixing = sg_shear_enh_lambda
       end select
 
-      ! Switch for corrections to variance diagnostics
-      l_use_var_fixes = .true.
+      ! TKE scaling parameter and switch for fixes to variance diagnostics
       tke_diag_fac  = 1.0_r_bl
+      l_use_var_fixes = .true.
       zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
 
       if (topography == topography_horizon) then
@@ -1134,6 +1139,8 @@ contains
             i_pc2_init_logic = pc2init_logic_original
           case(pc2_init_logic_smooth)
             i_pc2_init_logic = pc2init_logic_smooth
+          case(pc2_init_logic_smooth_fix)
+            i_pc2_init_logic = pc2init_logic_smooth_fix
         end select
         if (pc2ini == pc2ini_smith)   i_pc2_init_method = pc2init_smith
         if (pc2ini == pc2ini_bimodal) i_pc2_init_method = pc2init_bimodal
