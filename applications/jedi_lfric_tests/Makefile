@@ -56,7 +56,7 @@ documentation doc docs: document-uml document-latex document-api
 
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
-include build/project.mk
+-include $(PROJECT_DIR)/build/project.mk
 
 # Include transmute list only if not using minimum or no transformations
 ifeq ($(filter "$(PSYCLONE_TRANSFORMATION)", "none" "minimum"),)
