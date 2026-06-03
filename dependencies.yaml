@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:EdHone/lfric_core.git
-    ref: 351-file-field_group
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 93e73546bb20874f3a8bf79bffca235da4205af5
 
 moci:
     source: git@github.com:MetOffice/moci.git
