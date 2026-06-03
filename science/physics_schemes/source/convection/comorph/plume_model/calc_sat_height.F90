@@ -118,7 +118,7 @@ if ( n_sat > 0 ) then
     ic = index_ic_sat(ic2)
 
     ! Fraction of the way through the level where SS is zero
-    if ( prev_ss(ic2) * next_ss(ic2) >= zero ) then
+    if ( prev_ss(ic) * next_ss(ic) >= zero ) then
       interp = zero
     else
       interp = -prev_ss(ic) / ( next_ss(ic) - prev_ss(ic) )
