@@ -61,6 +61,7 @@ module map_fd_to_prognostics_alg_mod
                                        geometry_spherical, &
                                        topology,           &
                                        topology_fully_periodic
+  use extrusion_config_mod,      only: planet_radius
   use formulation_config_mod,    only: rotating, shallow
   use finite_element_config_mod, only: coord_system, coord_system_native
   use initialization_config_mod, only: model_eos_height,      &
@@ -533,8 +534,8 @@ contains
              X_times_Y( temperature, exner_in_wth, theta),  &
              ! Interpolate temperature from heights corresponding to
              ! geopotential height onto heights of the model grid.
-             regrav_geopot_kernel_type( temperature, exner, &
-                                        height_wth, mask ), &
+             regrav_geopot_kernel_type( temperature, height_wth, &
+                                        planet_radius ),         &
              ! Find exner at all levels by integrating hydrostatic
              ! equation upwards from level 1, preserving absolute
              ! temperature. Gravity is height-dependent.
