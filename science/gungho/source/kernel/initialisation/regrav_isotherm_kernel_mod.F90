@@ -32,16 +32,17 @@ private
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: regrav_isotherm_kernel_type
   private
-  type(arg_type) :: meta_args(9) = (/                      &
-       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3),      &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta),  &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta),  &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta),  &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta),  &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      W3),      &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      W3),      &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta),  &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      W3)       &
+  type(arg_type) :: meta_args(10) = (/                      &
+       arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, W3),      &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta),  &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta),  &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta),  &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta),  &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      W3),      &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      W3),      &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta),  &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      W3),      &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -81,14 +82,13 @@ subroutine regrav_isotherm_code( nlayers,       &
                                  height_w3,     &
                                  height_wth,    &
                                  w3_mask,       &
+                                 cp,            &
                                  ndf_w3,        &
                                  undf_w3,       &
                                  map_w3,        &
                                  ndf_wt,        &
                                  undf_wt,       &
                                  map_wt )
-
-  use planet_config_mod, only: gravity, cp
 
   implicit none
 
@@ -111,6 +111,7 @@ subroutine regrav_isotherm_code( nlayers,       &
   real(kind=r_def), dimension(undf_wt), intent(in)    :: temperature, &
                                                          height_wth
   real(kind=r_def), dimension(undf_wt), intent(in)    :: coriolis_term
+  real(kind=r_def),                     intent(in)    :: cp
 
   ! Internal variables
   integer(kind=i_def) :: k
