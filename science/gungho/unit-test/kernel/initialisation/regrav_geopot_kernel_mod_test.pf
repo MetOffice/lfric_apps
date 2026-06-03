@@ -32,7 +32,7 @@ integer(i_def), parameter :: undf_wt       = nlayers + 1_i_def
 real(r_def),    parameter :: height_domain = 40.0e3_r_def
 real(r_def),    parameter :: T_surf        = 300.0_r_def
 real(r_def),    parameter :: dTdz          = -2.0e-3_r_def
-real(r_def),    parameter :: planet_radius = 6.4e6
+real(r_def),    parameter :: planet_radius = 6.4e6_r_def
 
 integer(i_def), allocatable :: map_wt(:)
 real(r_def),    allocatable :: temperature(:)
@@ -84,6 +84,8 @@ contains
     use regrav_geopot_kernel_mod, only: regrav_geopot_code
 
     implicit none
+
+    class(regrav_geopot_test_type), intent(inout) :: this
 
     integer(i_def) :: k
     real(r_def)    :: target_value, tolerance

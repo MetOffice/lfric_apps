@@ -468,7 +468,7 @@ contains
 
              ! Compute absolute temperature T = theta * exner
              X_times_Y( temperature, exner_in_wth, theta),                   &
-             ! Find exner at level 1 by integrating hydrostatic equation 
+             ! Find exner at level 1 by integrating hydrostatic equation
              ! downwards from eos_level, preserving theta. Gravity
              ! assumed constant.
              hydrostatic_coriolis_kernel_type( exner, rho, theta,               &
