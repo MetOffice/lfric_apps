@@ -490,7 +490,6 @@ contains
     l_point_data       = config%jules_surface%l_point_data()
     orog_drag_param    = real(config%jules_surface%orog_drag_param(), r_um)
     lake_water_conserve_method = use_elake_surft
-    l_inland           = l_inland_in
 
     ! The minimum sea ice fraction
     ! This is 0.0 for coupled models and 0.1 for atmosphere only models
