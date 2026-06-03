@@ -18,10 +18,10 @@ module regrav_geopot_kernel_mod
 use argument_mod,         only: arg_type,              &
                                 GH_FIELD, GH_REAL,     &
                                 GH_READ, GH_READWRITE, &
+                                GH_SCALAR,             &
                                 CELL_COLUMN
 use constants_mod,        only: r_def, i_def
-use extrusion_config_mod, only: planet_radius
-use fs_continuity_mod,    only: Wtheta, W3
+use fs_continuity_mod,    only: Wtheta
 use kernel_mod,           only: kernel_type
 
 implicit none
@@ -33,11 +33,10 @@ private
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: regrav_geopot_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                     &
-       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, Wtheta), &
-       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W3),     &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta), &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      W3)      &
+  type(arg_type) :: meta_args(3) = (/                      &
+       arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, Wtheta), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)               &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -53,61 +52,40 @@ contains
 
 !> @param[in]  nlayers        Number of layers
 !> @param[in,out] temperature Absolute temperature field
-!> @param[in,out] exner       Exner pressure field
 !> @param[in]  height_wth     Height coordinate in wth
-!> @param[in]  w3_mask        LBC mask or Dummy mask for w3 space
+!> @param[in]  planet_radius  Radius of the planet
 !> @param[in]  ndf_wt         Number of degrees of freedom per cell for wtheta
 !> @param[in]  undf_wt        Total number of degrees of freedom for wtheta
 !> @param[in]  map_wt         Dofmap for the cell at column base for wt
-!> @param[in]  ndf_w3         Number of degrees of freedom per cell for w3
-!> @param[in]  undf_w3        Total number of degrees of freedom for w3
-!> @param[in]  map_w3         Dofmap for the cell at column base for w3
 subroutine regrav_geopot_code( nlayers,       &
                                temperature,   &
-                               exner,         &
                                height_wth,    &
-                               w3_mask,       &
+                               planet_radius, &
                                ndf_wt,        &
                                undf_wt,       &
-                               map_wt,        &
-                               ndf_w3,        &
-                               undf_w3,       &
-                               map_w3 )
+                               map_wt )
 
   implicit none
 
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers, &
-                                     ndf_w3,  &
-                                     undf_w3, &
                                      ndf_wt,  &
                                      undf_wt
-  integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
 
   real(kind=r_def), dimension(undf_wt), intent(inout) :: temperature
-  real(kind=r_def), dimension(undf_w3), intent(inout) :: exner
   real(kind=r_def), dimension(undf_wt), intent(in)    :: height_wth
-  real(kind=r_def), dimension(undf_w3), intent(in)    :: w3_mask
+  real(kind=r_def),                     intent(in)    :: planet_radius
 
   ! Internal variables
   integer(kind=i_def) :: k
   real(kind=r_def)    :: height_phys(0:nlayers)
   real(kind=r_def)    :: temp(0:nlayers)
 
-  ! Return if the mask is 0 (with tolerance of 0.5 as mask is real, 0 or 1)
-  ! setting exner to 1
-  if ( w3_mask( map_w3(1) ) < 0.5_r_def ) then
-    do k = 0, nlayers-1
-      exner(map_w3(1) + k ) = 1.0_r_def
-    enddo
-    return
-  end if
-
   ! Height corresponding to height_wth when latter represents geopotential height
   do k = 0, nlayers
-    height_phys(k) = planet_radius * height_wth(map_wt(1)+k) / &
-                    ( planet_radius - height_wth(map_wt(1)+k) )
+    height_phys(k) =   planet_radius * height_wth(map_wt(1)+k) / &
+                     ( planet_radius - height_wth(map_wt(1)+k) )
   end do
 
 ! Temporary storage for T
@@ -130,33 +108,18 @@ real(kind=r_def),    intent(in)    :: zin(nin), fin(nin), zout(nout)
 real(kind=r_def),    intent(inout) :: fout(nout)
 
 integer(kind=i_def) :: kout, kin
-real(kind=r_def)    :: xi, zmin, zmax, f_at_min, f_at_max
-
-if ( zin(1) > zin(nin) ) then
-  zmax = zin(1)
-  zmin = zin(nin)
-  f_at_max = fin(1)
-  f_at_min = fin(nin)
-else
-  zmax = zin(nin)
-  zmin = zin(1)
-  f_at_max = fin(nin)
-  f_at_min = fin(1)
-end if
-
+real(kind=r_def)    :: xi
 
 do kout = 1, nout
-  if ( zout(kout) <= zmin ) then
-    fout(kout) = f_at_min
-  else if ( zout(kout) >= zmax ) then
-    fout(kout) = f_at_max
+  if ( zout(kout) <= zin(1) ) then
+    fout(kout) = fin(1)
+  else if ( zout(kout) >= zin(nin) ) then
+    fout(kout) = fin(nin)
   else
     do kin = 1, nin - 1
-      if ( ( zout(kout) - zin(kin) ) * &
-           ( zin(kin+1) - zout(kout) ) >= 0.0_r_def ) then
+      if ( zin(kin+1) > zout(kout) ) then
         xi = ( zout(kout) - zin(kin) ) / ( zin(kin+1) - zin(kin) )
-        fout(kout) = ( 1.0_r_def - xi ) * log(fin(kin)) + xi * log(fin(kin+1))
-        fout(kout) = exp(fout(kout))
+        fout(kout) = ( 1.0_r_def - xi ) * fin(kin) + xi * fin(kin+1)
       end if
     end do
   end if

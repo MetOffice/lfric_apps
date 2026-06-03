@@ -1,0 +1,102 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test of interpolation from constant gravity geopotential height to true
+!> geopotentail height.
+!>
+module regrav_geopot_kernel_mod_test
+
+use constants_mod,                   only: i_def, r_def
+use, intrinsic :: iso_fortran_env,   only: real64
+use funit
+
+implicit none
+
+private
+public :: regrav_geopot_test_type, test_all
+
+@TestCase
+type, extends(TestCase) :: regrav_geopot_test_type
+  private
+contains
+  procedure setUp
+  procedure tearDown
+  procedure test_all
+end type regrav_geopot_test_type
+
+integer(i_def), parameter :: nlayers       = 3_i_def
+integer(i_def), parameter :: ndf_wt        = 2_i_def
+integer(i_def), parameter :: undf_wt       = nlayers + 1_i_def
+real(r_def),    parameter :: height_domain = 40.0e3_r_def
+real(r_def),    parameter :: T_surf        = 300.0_r_def
+real(r_def),    parameter :: dTdz          = -2.0e-3_r_def
+real(r_def),    parameter :: planet_radius = 6.4e6
+
+integer(i_def), allocatable :: map_wt(:)
+real(r_def),    allocatable :: temperature(:)
+real(r_def),    allocatable :: height_wt(:)
+real(r_def),    allocatable :: height_phys(:)
+
+contains
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(regrav_geopot_test_type), intent(inout) :: this
+
+    integer(i_def) :: k
+
+    allocate( map_wt(ndf_wt) )
+    allocate( temperature(undf_wt) )
+    allocate( height_wt(undf_wt), height_phys(undf_wt) )
+
+    ! Create the model grid
+    map_wt(:) = (/ 1_i_def, 2_i_def /)
+
+    do k = 0, nlayers
+      height_wt(map_wt(1) + k) = k * height_domain / nlayers
+      height_phys(map_wt(1) + k) = height_wt(map_wt(1) + k) /               &
+                                   ( 1.0_r_def - height_wt(map_wt(1) + k) / &
+                                                 planet_radius)
+      temperature(map_wt(1) + k) = T_surf + dTdz * height_phys(map_wt(1) + k)
+    end do
+
+  end subroutine setUp
+
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(regrav_geopot_test_type), intent(inout) :: this
+
+    deallocate( map_wt )
+    deallocate( temperature )
+    deallocate( height_wt, height_phys )
+
+  end subroutine tearDown
+
+  @Test
+  subroutine test_all( this )
+
+    use regrav_geopot_kernel_mod, only: regrav_geopot_code
+
+    implicit none
+
+    integer(i_def) :: k
+    real(r_def)    :: target_value, tolerance
+
+    call regrav_geopot_code( nlayers, temperature, height_wt, planet_radius, &
+                             ndf_wt, undf_wt, map_wt )
+
+    do k = 0, nlayers
+      target_value = T_surf + height_wt(map_wt(1)+k) * dTdz
+      tolerance = 10.0_r_def * spacing(target_value)
+      @assertEqual(target_value, temperature(map_wt(1)+k), tolerance)
+    end do
+
+  end subroutine test_all
+
+end module regrav_geopot_kernel_mod_test

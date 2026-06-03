@@ -61,6 +61,7 @@ module map_fd_to_prognostics_alg_mod
                                        geometry_spherical, &
                                        topology,           &
                                        topology_fully_periodic
+  use extrusion_config_mod,      only: planet_radius
   use formulation_config_mod,    only: rotating, shallow
   use finite_element_config_mod, only: coord_system, coord_system_native
   use initialization_config_mod, only: model_eos_height,      &
@@ -347,10 +348,6 @@ contains
     use sci_enforce_bc_kernel_mod,     only : enforce_bc_kernel_type
     use hydrostatic_coriolis_kernel_mod, &
                                        only : hydrostatic_coriolis_kernel_type
-    use hstat_cori_g_const_kernel_mod, &
-                                       only : hstat_cori_g_const_kernel_type
-    use hydro_shallow_to_deep_kernel_mod, &
-                                       only : hydro_shallow_to_deep_kernel_type
     use regrav_isotherm_kernel_mod,    only : regrav_isotherm_kernel_type
     use regrav_geopot_kernel_mod,      only : regrav_geopot_kernel_type
     use moist_dyn_mod,                 only : num_moist_factors
@@ -378,6 +375,7 @@ contains
     type(field_type )              :: c_vert_term, r_c
     type(field_type )              :: exner_in_wth
     type(field_type )              :: temperature
+    type(field_type )              :: geopotential_g_const
     type(field_type),      pointer :: geopotential
     type(field_type),      pointer :: chi(:)
     type(field_type),      pointer :: panel_id
@@ -387,7 +385,7 @@ contains
     type(mesh_type),       pointer :: mesh
     type(field_type),      pointer :: mask
     type(field_type),      target  :: dummy_mask
-    integer(i_def)                 :: eos_level
+    integer(i_def)                 :: eos_level, nlayers
 
     nullify(geopotential, chi, panel_id, height_w3, &
             height_wth, vert_coriolis, mesh, mask )
@@ -431,7 +429,8 @@ contains
     ! Get the index of the level closest to the height, ignoring the top eta
     ! level as eos_level is to be used for a W3 space rather than Wtheta
     eos_level = get_nearest_level( mesh, eos_height )
-    if ( eos_level == (mesh%get_nlayers() + 1) ) eos_level = eos_level - 1
+    nlayers = mesh%get_nlayers()
+    if ( eos_level == nlayers + 1 ) eos_level = nlayers
 
     if (shallow) then
       ! Initialize the vertical profile by starting with the equation of state at
@@ -453,31 +452,10 @@ contains
       ! by rederiving potential temperature (theta) and density (rho).
       call theta%copy_field_properties(exner_in_wth)
       call theta%copy_field_properties(temperature)
+      call geopotential%copy_field_properties(geopotential_g_const)
+      call invoke( a_times_X( geopotential_g_const, gravity, height_w3 ) )
 
       select case( regravitate )
-      case( regravitate_isotherm1 )
-        call invoke( &
-             ! Compute exner from EoS
-             sample_eos_pressure_kernel_type( exner, rho,                    &
-                                              theta, moist_dyn(gas_law) ),   &
-
-             ! Compute exner in Wtheta (required to calculate T)
-             sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,           &
-                                              height_wth, height_w3 ),       &
-
-             ! Compute absolute temperature T = theta * exner
-             X_times_Y( temperature, exner_in_wth, theta),                   &
-
-             ! Rebalance exner in vertical, using hydrostatic balance
-             ! preserving absolute temperature.
-             ! This integrates down using g (shallow) from eos_level and
-             ! then integrates up using phi (deep). 
-             hydro_shallow_to_deep_kernel_type( exner, temperature,          &
-                                                c_vert_term,                 &
-                                                moist_dyn, geopotential,     &
-                                                height_w3, height_wth,       &
-                                                mask, gravity,               &
-                                                cp, eos_level ) )
       case( regravitate_isotherm2 )
         call invoke( &
              ! Compute exner from EoS
@@ -493,12 +471,13 @@ contains
              ! Find exner at level 1 by integrating hydrostatic equation 
              ! downwards from eos_level, preserving theta. Gravity
              ! assumed constant.
-             hstat_cori_g_const_kernel_type( exner, rho, theta,     &
-                                             c_vert_term,           &
-                                             moist_dyn(gas_law),    &
-                                             moist_dyn(total_mass), &
-                                             height_w3, mask,       &
-                                             eos_level ),           &
+             hydrostatic_coriolis_kernel_type( exner, rho, theta,               &
+                                               c_vert_term,                     &
+                                               moist_dyn, geopotential_g_const, &
+                                               height_w3, mask,                 &
+                                               p_zero, kappa,                   &
+                                               rd, cp,                          &
+                                               eos_level ),                     &
              ! Find exner at all levels by integrating hydrostatic
              ! equation upwards from level 1, preserving absolute
              ! temperature. Gravity is height-dependent.
@@ -513,12 +492,14 @@ contains
         call invoke( &
              ! Find exner below eos_level by integrating hydrostatic
              ! equation downwards, assuming constant gravity.
-             hstat_cori_g_const_kernel_type( exner, rho, theta,     &
-                                             c_vert_term,           &
-                                             moist_dyn(gas_law),    &
-                                             moist_dyn(total_mass), &
-                                             height_w3, mask,       &
-                                             eos_level ),           &
+             hydrostatic_coriolis_kernel_type( exner, rho, theta,               &
+                                               c_vert_term,                     &
+                                               moist_dyn, geopotential_g_const, &
+                                               height_w3, mask,                 &
+                                               p_zero, kappa,                   &
+                                               rd, cp,                          &
+                                               eos_level ),                     &
+
              ! Find exner in Wtheta space
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,     &
                                               height_wth, height_w3 ), &
@@ -539,12 +520,13 @@ contains
         call invoke( &
              ! Find exner below eos_level by integrating hydrostatic
              ! equation downwards, assuming constant gravity.
-             hstat_cori_g_const_kernel_type( exner, rho, theta,     &
-                                             c_vert_term,           &
-                                             moist_dyn(gas_law),    &
-                                             moist_dyn(total_mass), &
-                                             height_w3, mask,       &
-                                             eos_level ),           &
+             hydrostatic_coriolis_kernel_type( exner, rho, theta,               &
+                                               c_vert_term,                     &
+                                               moist_dyn, geopotential_g_const, &
+                                               height_w3, mask,                 &
+                                               p_zero, kappa,                   &
+                                               rd, cp,                          &
+                                               eos_level ),                     &
              ! Find exner in Wtheta space
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,     &
                                               height_wth, height_w3 ), &
@@ -552,8 +534,8 @@ contains
              X_times_Y( temperature, exner_in_wth, theta),  &
              ! Interpolate temperature from heights corresponding to
              ! geopotential height onto heights of the model grid.
-             regrav_geopot_kernel_type( temperature, exner, &
-                                        height_wth, mask ), &
+             regrav_geopot_kernel_type( temperature, height_wth, &
+                                        planet_radius ),         &
              ! Find exner at all levels by integrating hydrostatic
              ! equation upwards from level 1, preserving absolute
              ! temperature. Gravity is height-dependent.
