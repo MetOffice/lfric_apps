@@ -18,17 +18,6 @@ class UpgradeError(Exception):
 
     __str__ = __repr__
 
-class vn31_t401(MacroUpgrade):
-    # Upgrade macro for #401 by Dan Copsey
-
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t401"
-
-    def upgrade(self, config, meta_config=None):
-        # Add settings
-        self.add_setting(config, ["namelist:jules_hydrology", "l_inland"], ".false.")
-        return config, self.reports
-
 """
 Copy this template and complete to add your macro
 class vnXX_txxx(MacroUpgrade):
@@ -400,4 +389,15 @@ class vn31_t205(MacroUpgrade):
             config, ["namelist:jules_vegetation", "l_use_pft_psi"], ".false."
         )
 
+        return config, self.reports
+    
+    class vn31_t401(MacroUpgrade):
+    # Upgrade macro for #401 by Dan Copsey
+
+    BEFORE_TAG = "vn3.1_t205"
+    AFTER_TAG = "vn3.1_t401"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        self.add_setting(config, ["namelist:jules_hydrology", "l_inland"], ".false.")
         return config, self.reports
