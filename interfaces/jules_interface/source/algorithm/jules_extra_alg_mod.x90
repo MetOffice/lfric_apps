@@ -277,6 +277,7 @@ contains
       call output_diags_for_jules_snow(tile_fraction, tile_snow_mass,          &
                                      snowice_melt,                             &
                                      snow_depth, tile_snow_rgrain,             &
+                                     snow_under_canopy, n_snow_layers,         &
                                      snowpack_density, snow_layer_temp,        &
                                      snow_layer_thickness, snow_layer_ice_mass,&
                                      snow_layer_liq_mass, snow_layer_rgrain,   &

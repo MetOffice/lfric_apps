@@ -74,6 +74,7 @@ contains
   subroutine output_diags_for_jules_snow(tile_fraction, tile_snow_mass,        &
                                      snowice_melt,                             &
                                      snow_depth, tile_snow_rgrain,             &
+                                     snow_under_canopy, n_snow_layers,         &
                                      snowpack_density, snow_layer_temp,        &
                                      snow_layer_thickness, snow_layer_ice_mass,&
                                      snow_layer_liq_mass, snow_layer_rgrain,   &
@@ -91,7 +92,8 @@ contains
                                          snow_layer_thickness,                 &
                                          snow_layer_ice_mass,                  &
                                          snow_layer_liq_mass,                  &
-                                         snow_layer_rgrain
+                                         snow_layer_rgrain, snow_under_canopy
+    type( integer_field_type ), intent(in) :: n_snow_layers
 
     ! Diagnostics computed within the kernel
     type( field_type ), intent(in)    :: grid_snow_mass
@@ -107,7 +109,9 @@ contains
     call snowice_melt%write_field('snow__snowice_melt')
     call snow_depth%write_field('snow__snow_depth')
     call tile_snow_rgrain%write_field('snow__tile_snow_rgrain')
+    call n_snow_layers%write_field('snow__n_snow_layers')
     call snowpack_density%write_field('snow__snowpack_density')
+    call snow_under_canopy%write_field('snow__snow_under_canopy')
     call snow_layer_temp%write_field('snow__snow_layer_temp')
     call snow_layer_thickness%write_field('snow__snow_layer_thickness')
     call snow_layer_ice_mass%write_field('snow__snow_layer_ice_mass')
