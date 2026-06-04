@@ -71,3 +71,29 @@ class TestSpatialMetadata:
         Validate that the output file y variable has degrees_north units
         """
         assert load_rootgrp.variables.get("Mesh2d_node_y").units == 'degrees_north'
+
+class TestPackingMetadata:
+    """
+    We use the temperature value as our reference, as this is a floating point
+    value that should be packed to a 16 bit integer in our packed case
+    """
+    def test_temp_variable_unpacked(self, load_rootgrp):
+        """
+        Test that if the variable is unpacked, add_offset and scale_factor
+        are not present in the metadata. Packed dtype is int16
+        """
+        temp = load_rootgrp.variables.get('temperature')
+        if temp.dtype != 'int16':
+            assert not hasattr(temp, 'add_offset')
+            assert not hasattr(temp, 'scale_factor')
+
+    def test_temp_variable_packed(self, load_rootgrp):
+        """
+        Test that if the variable is packed, add_offset and scale_factor
+        are present in the metadata. Packed dtype is int16. We won't check
+        the actual values as these may change between configurations
+        """
+        temp = load_rootgrp.variables.get('temperature')
+        if temp.dtype == 'int16':
+            assert hasattr(temp, 'add_offset')
+            assert hasattr(temp, 'scale_factor')
