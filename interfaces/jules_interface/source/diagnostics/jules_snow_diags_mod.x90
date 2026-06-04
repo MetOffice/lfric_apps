@@ -62,6 +62,8 @@ contains
   !> @param[in]     snowice_melt             Total snow and ice melt on tiles
   !> @param[in]     snow_depth               Depth of snow on tiles
   !> @param[in]     tile_snow_rgrain         Snow grain size on tiles
+  !> @param[in]     snow_under_canopy        Snow beneath the tile canopy
+  !> @param[in]     n_snow_layers            Number of snow layers on tiles
   !> @param[in]     snowpack_density         Density of snow pack on tiles
   !> @param[in]     snow_layer_temp          Temperature of snow layers on tiles
   !> @param[in]     snow_layer_thickness     Thickness of snow layers on tiles
