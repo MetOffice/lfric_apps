@@ -126,6 +126,7 @@
         "src_name": "dynamics",
         "src_type": "global",
 	"mpi_parts": 216,
+	"kgo_checks": [],
     }) %}
 
 {% elif task_ns.conf_name == "oasis_C896_to_Melbourne" %}
@@ -141,6 +142,7 @@
         "src_type": "global",
 	"mpi_parts": 768,
 	"memory": [250, "GB"],
+	"kgo_checks": [],
     }) %}
 
 {% elif task_ns.conf_name == "oasis_C896_to_ukv" %}
@@ -155,6 +157,7 @@
         "src_name": "dynamics",
         "src_type": "global",
 	"mpi_parts": 768,
+	"kgo_checks": [],
     }) %}
 
 {% elif task_ns.conf_name == "canned" %}
