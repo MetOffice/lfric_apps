@@ -20,10 +20,12 @@ contains
   !> @param[in,out] theta          Potential temperature
   !> @param[in,out] u              3D wind field
   !> @param[in]     derived_fields Group of derived fields
+  !> @param[in]     cloud_fields   Group of cloud fields
   !> @param[in]     rho            Density
   !> @param[in]     dt             The model timestep length
+  !> @param[in]     model_clock    The model clock
   subroutine mixing_alg(mr, theta, u, derived_fields, &
-                        cloud_fields, rho, exner, dt)
+                        cloud_fields, rho, exner, dt, model_clock)
 
     use constants_mod,                 only: i_def,r_def
     use log_mod,                       only: log_event,         &
@@ -39,6 +41,7 @@ contains
     use momentum_viscosity_kernel_mod, only: momentum_viscosity_kernel_type
     use physics_config_mod,            only: smagorinsky_placement, &
                                              smagorinsky_placement_end
+    use model_clock_mod,               only: model_clock_type
 
     implicit none
 
@@ -52,6 +55,7 @@ contains
 
     ! Timestepping information
     real( r_def ),      intent(in) :: dt
+    class( model_clock_type ), intent(in) :: model_clock
 
     ! Increment fields
     type( field_type ) :: du, dtheta
@@ -70,7 +74,7 @@ contains
       call invoke( setval_c(dtheta, 0.0_r_def), &
                    setval_c(du, 0.0_r_def) )
       call smagorinsky_alg(dtheta, du, mr, theta, u, derived_fields, &
-                           cloud_fields, rho, exner, dt)
+                           cloud_fields, rho, exner, dt, model_clock)
       call invoke( inc_X_plus_Y( theta, dtheta ), &
                    inc_X_plus_Y( u,     du ) )
 

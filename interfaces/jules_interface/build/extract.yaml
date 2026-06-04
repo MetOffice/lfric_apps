@@ -98,6 +98,7 @@ jules:
     - src/science/params/dust_param_mod.F90
     - src/science/params/nvegparm_mod.F90
     - src/science/params/pftparm_mod.F90
+    - src/science/params/check_jules_nml_values_mod.F90
     - src/science/params/red_io_mod.F90
     - src/science/params/theta_field_sizes_mod.F90
     - src/science/params/trif_mod.F90
