@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:timgraham-Met/lfric_core.git
-    ref: fix_cpl_chkpt
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 9c85548b702ebb4a1542d52a00cf9533545d3f6d
 
 moci:
     source: git@github.com:MetOffice/moci.git
