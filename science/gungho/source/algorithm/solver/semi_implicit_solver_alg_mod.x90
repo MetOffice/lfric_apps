@@ -653,7 +653,7 @@ contains
         ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
         call rhs_tmp%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
         p2theta => get_p2theta()
-        call invoke( setval_c(rhs_tmp, 0.0_r_def),                                   &
+        call invoke( setval_c(rhs_tmp, 0.0_r_solver),                                &
                      matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
                      inc_X_times_Y(rhs_tmp, m2_diag),                                &
                      inc_X_plus_Y(rhs_rsol(igh_u), rhs_tmp),                         &
@@ -720,7 +720,7 @@ contains
     ptheta2 => get_ptheta2()
     mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh_id)
     call rhs_tmp%initialise( vector_space = rhs_rsol(igh_t)%get_function_space() )
-    call invoke( setval_c(rhs_tmp, 0.0_r_def), &
+    call invoke( setval_c(rhs_tmp, 0.0_r_solver), &
                  dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2))
 
     if (  eliminate_variables == eliminate_variables_analytic ) then

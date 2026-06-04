@@ -57,6 +57,7 @@ module adj_semi_implicit_solver_alg_mod
                                                     method_prec_only,                                       &
                                                     si_pressure_monitor_convergence => monitor_convergence, &
                                                     si_pressure_fail_on_non_converged => fail_on_non_converged
+  use adj_copy_field_mod,                     only: adj_copy_field
 
   implicit none
 
@@ -319,6 +320,7 @@ contains
     use adj_dg_matrix_vector_kernel_mod,     only: adj_dg_matrix_vector_kernel_type
     use dg_inc_matrix_vector_kernel_mod,     only: dg_inc_matrix_vector_kernel_type
     use adj_dg_inc_matrix_vector_kernel_mod, only: adj_dg_inc_matrix_vector_kernel_type
+    use adj_combine_w2_field_kernel_mod,     only: adj_combine_w2_field_kernel_type
     use operator_mod,                        only: operator_type, r_solver_operator_type
     use timestepping_config_mod,             only: dt, tau_r
     use sci_enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
@@ -342,11 +344,12 @@ contains
                                                          inc_uvw_rsol, inc_theta_rsol, &
                                                          inc_rho_rsol, inc_exner_rsol, &
                                                          inc_uv_rsol, inc_w_rsol
-    type(r_solver_field_type)                         :: dry_flux_solver_rsol
     type(r_solver_field_type), pointer                :: rho_at_u, m2_diag, mt_lumped_inv
     type(r_solver_operator_type), pointer             :: div, m3_rho_star, &
                                                          p3theta, p2theta, ptheta2
+    type(field_type)                                  :: f_star_rdef
     real(kind=r_solver)                               :: tau_r_dt
+    real(kind=r_def)                                  :: tau_r_dt_rdef
     integer(kind=i_def)                               :: mesh_id
     type(integer_field_type), pointer                 :: face_selector_ew, face_selector_ns
     type(mesh_type), pointer                          :: mesh
@@ -369,8 +372,6 @@ contains
     call rhs_rsol(igh_p)%initialise(rhs(igh_p)%get_function_space())
 
     call invoke( setval_c( rhs_rsol(igh_u), 0.0_r_solver ), &
-                 setval_c( rhs_rsol(igh_t), 0.0_r_solver ), &
-                 setval_c( rhs_rsol(igh_d), 0.0_r_solver ), &
                  setval_c( rhs_rsol(igh_p), 0.0_r_solver ) )
 
     call inc_rsol(igh_u)%initialise(rhs(igh_u)%get_function_space())
@@ -393,11 +394,11 @@ contains
                  real_to_real_x( inc_rho_rsol, state(igh_d) ) )
 
     call rhs_tmp%initialise(vector_space=rhs_rsol(igh_t)%get_function_space())
-    call invoke( name="adj_si_solver_1",                          &
-                 setval_c( rhs_rsol(igh_t), 0.0_r_solver ),       &
-                 setval_c( rhs_tmp, 0.0_r_solver ),               &
-                 inc_X_plus_Y( rhs_rsol(igh_t), inc_theta_rsol ), &
-                 inc_X_minus_Y( rhs_tmp, inc_theta_rsol ) )
+    call invoke( name="adj_si_solver_1",                      &
+                 setval_X( rhs_rsol(igh_t), inc_theta_rsol ), &
+                 a_times_X( rhs_tmp, -1.0_r_solver, inc_theta_rsol ) )
+    ! inc_theta_rsol = 0, but it is internal and no longer used,
+    ! so we save time by omitting the operation.
 
     ! Compute theta increment since solver does not provide one
     ptheta2 => get_ptheta2()
@@ -406,29 +407,29 @@ contains
     if (eliminate_variables == eliminate_variables_analytic) then
       call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
     else
-      call invoke(inc_X_times_Y( rhs_tmp, mt_lumped_inv ))
+      call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv) )
     end if
 
+    ! Compute theta increment since solver does not provide one
     call invoke( name="adj_si_solver_2",                                                 &
                  adj_dg_inc_matrix_vector_kernel_type( rhs_tmp, inc_uvw_rsol, ptheta2 ), &
                  setval_c( rhs_tmp, 0.0_r_solver ) )
 
     ! Get the theta and rho increments
-
-    ! Compute rho increment since solver does not provide one
     div => get_im3_div_r_solver(mesh_id)
     rho_at_u => get_rho_at_u()
-    tau_r_dt = real( -tau_r * dt, kind=r_solver )
+    tau_r_dt = real(-tau_r * dt, kind=r_solver)
+    tau_r_dt_rdef = real(tau_r * dt, kind=r_def)
     call div_u%initialise(vector_space=rhs_rsol(igh_p)%get_function_space())
     call f_star%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
-    call dry_flux_solver_rsol%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
 
     ! Compute dry flux
+    call f_star_rdef%initialise(vector_space=rhs(igh_u)%get_function_space())
     call invoke( name="adj_si_solver_3",                                       &
-                 setval_c( f_star, 0.0_r_solver ),                             &
-                 real_to_real_X( dry_flux_solver_rsol, dry_flux_solver ),      &
-                 inc_X_plus_bY( f_star, tau_r_dt, dry_flux_solver_rsol ) )
+                 a_times_X( f_star_rdef, tau_r_dt_rdef, dry_flux_solver ),     &
+                 real_to_real_X( f_star, f_star_rdef ) )
 
+    ! Compute rho increment since solver does not provide one
     call invoke( name="adj_si_solver_4",                                  &
                  a_times_x( div_u, tau_r_dt, inc_rho_rsol ),              &
                  setval_x( rhs_rsol(igh_d), inc_rho_rsol ),               &
@@ -451,9 +452,8 @@ contains
       call invoke( name="adj_si_solver_5",                                            &
                    setval_c( inc_uv_rsol, 0.0_r_solver ),                             &
                    setval_c( inc_w_rsol, 0.0_r_solver ),                              &
-                   split_w2_field_kernel_type( inc_uv_rsol, inc_w_rsol, inc_uvw_rsol, &
-                                               face_selector_ew, face_selector_ns ),  &
-                   enforce_bc_kernel_type(inc_w_rsol) )
+                   adj_combine_w2_field_kernel_type( inc_uvw_rsol, inc_uv_rsol, inc_w_rsol, &
+                                                     face_selector_ew, face_selector_ns ) )
 
     else
       call log_event( "adj_semi_implicit_solver_type%step: .not. split_w not coded", LOG_LEVEL_ERROR )

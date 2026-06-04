@@ -115,6 +115,8 @@ contains
 
     call invoke( name="adjt_siss_1",                    &
                  setval_random(rhs(igh_u)),             &
+                 inc_X_minus_a(rhs(igh_u), 0.5_r_def),  &
+                 inc_a_times_X(1.0e6_r_def, rhs(igh_u)),&
                  setval_random(rhs(igh_t)),             &
                  setval_random(rhs(igh_p)),             &
                  setval_random(rhs(igh_d)),             &
@@ -137,18 +139,18 @@ contains
 
     call rhs(igh_u)%copy_field_properties(dry_flux_solver)
 
-    call invoke( name="adjt_siss_2",                        &
-                 setval_random(state(igh_u)),               &
-                 setval_random(state(igh_t)),               &
-                 setval_random(state(igh_p)),               &
-                 setval_random(state(igh_d)),               &
-                 setval_random(dry_flux_solver),            &
-                 enforce_bc_kernel_type(state(igh_u)),      &
-                 enforce_bc_kernel_type(dry_flux_solver),   &
-                 setval_x( state_in(igh_u), state(igh_u) ), &
-                 setval_x( state_in(igh_t), state(igh_t) ), &
-                 setval_x( state_in(igh_p), state(igh_p) ), &
-                 setval_x( state_in(igh_d), state(igh_d) ), &
+    call invoke( name="adjt_siss_2",                          &
+                 setval_random(state(igh_u)),                 &
+                 setval_random(state(igh_t)),                 &
+                 setval_random(state(igh_p)),                 &
+                 setval_random(state(igh_d)),                 &
+                 setval_random(dry_flux_solver),              &
+                 enforce_bc_kernel_type(state(igh_u)),        &
+                 enforce_bc_kernel_type(dry_flux_solver),     &
+                 setval_x( state_in(igh_u), state(igh_u) ),   &
+                 setval_x( state_in(igh_t), state(igh_t) ),   &
+                 setval_x( state_in(igh_p), state(igh_p) ),   &
+                 setval_x( state_in(igh_d), state(igh_d) ),   &
                  setval_x( dry_flux_solver_in, dry_flux_solver ) )
 
     ! LS
