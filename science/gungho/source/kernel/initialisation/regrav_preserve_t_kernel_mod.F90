@@ -12,7 +12,7 @@
 !>          gravity g (shallow definition). Then integrate from the surface to
 !>          the top but using the model geopotential (may be defined as shallow
 !>          or deep depending on configuration).
-module regrav_isotherm_kernel_mod
+module regrav_preserve_t_kernel_mod
 
 use argument_mod,               only : arg_type,                 &
                                        GH_FIELD, GH_REAL,        &
@@ -30,7 +30,7 @@ private
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
-type, public, extends(kernel_type) :: regrav_isotherm_kernel_type
+type, public, extends(kernel_type) :: regrav_preserve_t_kernel_type
   private
   type(arg_type) :: meta_args(10) = (/                      &
        arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, W3),      &
@@ -46,13 +46,13 @@ type, public, extends(kernel_type) :: regrav_isotherm_kernel_type
        /)
   integer :: operates_on = CELL_COLUMN
 contains
-  procedure, nopass :: regrav_isotherm_code
+  procedure, nopass :: regrav_preserve_t_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public :: regrav_isotherm_code
+public :: regrav_preserve_t_code
 
 contains
 
@@ -66,13 +66,14 @@ contains
 !> @param[in]  height_w3     Height coordinate in w3
 !> @param[in]  height_wth    Height coordinate in wth
 !> @param[in]  w3_mask       LBC mask or Dummy mask for w3 space
+!> @param[in]  cp            Specific heat capacity at constant pressure
 !> @param[in]  ndf_w3        Number of degrees of freedom per cell for w3
 !> @param[in]  undf_w3       Total number of degrees of freedom for w3
 !> @param[in]  map_w3        Dofmap for the cell at column base for w3
 !> @param[in]  ndf_wt        Number of degrees of freedom per cell for wtheta
 !> @param[in]  undf_wt       Total number of degrees of freedom for wtheta
 !> @param[in]  map_wt        Dofmap for the cell at column base for wt
-subroutine regrav_isotherm_code( nlayers,       &
+subroutine regrav_preserve_t_code( nlayers,       &
                                  exner,         &
                                  temperature,   &
                                  coriolis_term, &
@@ -147,6 +148,6 @@ subroutine regrav_isotherm_code( nlayers,       &
 
   end do
 
-end subroutine regrav_isotherm_code
+end subroutine regrav_preserve_t_code
 
-end module regrav_isotherm_kernel_mod
+end module regrav_preserve_t_kernel_mod
