@@ -108,7 +108,7 @@
 {% do site_groups.update({
     "lfric_atm_nwp_ex1a_developer": [
         "lfric_atm_nwp_gal9-C12_ex1a_cce_fast-debug-32bit",
-	"lfric_atm_nwp_gal9_packing-C12_ex1a_cce_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_packing-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_gal9-C12_ex1a_cce_fast-debug-64bit",
         "lfric_atm_nwp_gal9-C12_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9_debug-C12_ex1a_cce_full-debug-32bit",
