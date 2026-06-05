@@ -148,7 +148,7 @@ contains
                                                     face_selector_ns))
 
 
-      case ( direction_h )        
+      case ( direction_h )
         call invoke( setval_X(u_grad_ls_f, u_grad_f) )
         call atl_hori_wt_update_alg( u_grad_ls_f, wind, ls_wind, ls_adv_field, transport_metadata )
         call invoke( inc_X_minus_Y(u_grad_f, u_grad_ls_f) )
