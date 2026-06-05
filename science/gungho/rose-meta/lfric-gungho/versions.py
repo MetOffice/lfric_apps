@@ -588,7 +588,7 @@ class vn31_t378(MacroUpgrade):
 class vn31_t504(MacroUpgrade):
     """Upgrade macro for 504 by Adrian Lock"""
 
-    BEFORE_TAG = "vn3.1_t205"
+    BEFORE_TAG = "vn3.1_t378"
     AFTER_TAG = "vn3.1_t504"
 
     def upgrade(self, config, meta_config=None):
