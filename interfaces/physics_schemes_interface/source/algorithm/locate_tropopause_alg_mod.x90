@@ -31,11 +31,11 @@ public :: locate_tropopause_alg
 
 contains
 
-! @param[in]     config
-! @param[in,out] trop_level             Level of tropopause
-! @param[in]     theta                  Potential temperature
-! @param[in]     exner_in_wth           Exner pressure on wth space
-! @param[in]     twod_mesh              Current 2d mesh
+! @param[in]     config        Application namelist configuration object
+! @param[in,out] trop_level    Level of tropopause
+! @param[in]     theta         Potential temperature
+! @param[in]     exner_in_wth  Exner pressure on wth space
+! @param[in]     twod_mesh     Current 2d mesh
 
 subroutine locate_tropopause_alg( config, trop_level, theta, &
                                   exner_in_wth, twod_mesh )

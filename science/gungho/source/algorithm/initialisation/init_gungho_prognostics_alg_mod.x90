@@ -80,15 +80,15 @@ module init_gungho_prognostics_alg_mod
   use mr_indices_mod,                  only: nummr, mr_names, imr_v
   use moist_dyn_mod,                   only: num_moist_factors, gas_law
 
+  ! Object types
+  use config_mod, only: config_type
+
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry,           &
                                        geometry_spherical, &
                                        geometry_planar
   use planet_config_mod,         only: gravity, cp, rd, &
                                        p_zero, kappa, recip_epsilon
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -102,9 +102,9 @@ module init_gungho_prognostics_alg_mod
 contains
 
   !> @details This routine initialises the wind field.
-  !> @param[in]     config
-  !> @param[in,out] u          Wind velocity field
-  !> @param[in]     time       time, used for setting analytic profiles
+  !> @param[in]     config  Application namelist configuration object
+  !> @param[in,out] u       Wind velocity field
+  !> @param[in]     time    time, used for setting analytic profiles
   subroutine init_u_field(config, u, time)
 
     implicit none
@@ -254,7 +254,7 @@ contains
 
 
   !> @details This routine initialises the Exner pressure field.
-  !> @param[in]     config
+  !> @param[in]     config     Application namelist configuration object
   !> @param[in,out] exner      Exner pressure field
   !> @param[in]     theta      potential temperature field
   !> @param[in]     moist_dyn  array of fields with moist dynamics factors
@@ -400,7 +400,7 @@ contains
 
 
   !> @details This routine initialises the moisture mixing ratio fields.
-  !> @param[in]     config
+  !> @param[in]     config     Application namelist configuration object
   !> @param[in,out] mr         array of moisture mixing ratio fields
   !> @param[in]     theta      potential temperature field
   !> @param[in,out] exner      Exner pressure field

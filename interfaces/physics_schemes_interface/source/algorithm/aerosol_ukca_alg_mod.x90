@@ -25,7 +25,7 @@ contains
   !>         species provided by UKCA's Offline Oxidants chemistry scheme
   !>         to calculate cloud droplet number concentration (CDNC) and the
   !>         aerosol fields required by RADAER
-  !>@param[in] config
+  !>@param[in] config                Application namelist configuration object
   !>@param[in] chemistry_fields      Fields for UKCA chemistry schemes
   !>@param[in] aerosol_fields        Fields for GLOMAP aerosol scheme
   !>@param[in] radiation_fields      Fields for radiation scheme

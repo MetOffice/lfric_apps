@@ -95,7 +95,7 @@ module setup_test_alg_mod
 
   !=============================================================================
   !> @brief Sets up the transport_controller and tl_transport_controller object with randomised inputs
-  !> @param[in]    config
+  !> @param[in]    config                   Application namelist configuration object
   !> @param[in]    mesh                     The model mesh
   !> @param[in]    model_clock              The model clock
   !> @param[inout] tl_transport_controller  The tl_transport_controller object to set

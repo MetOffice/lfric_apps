@@ -31,7 +31,7 @@ contains
 
   !>@details Add emissions source to murk tracer, then mix using
   !>         UM routine tr_mix
-  !>@param[in]     config
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in]     aerosol_fields    Contains murk
   !>@param[in]     derived_fields    Contains dry density
   !>@param[in]     turbulence_fields Contains things needed for mixing
@@ -95,7 +95,7 @@ contains
     rdz_w3     => get_rdz_w3(config, mesh%get_id())
 
     ! Call emission routine to add source to murk field
-    call tracer_emission_alg(config,murk, murk_source, derived_fields, &
+    call tracer_emission_alg(config, murk, murk_source, derived_fields, &
                              amplitude, murk_source_scaling)
 
     ! Switch UM to running i-first on whole domain

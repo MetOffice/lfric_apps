@@ -31,7 +31,7 @@ contains
   !> @details The radiation fields need to be initialised so that they have a
   !>          value when passed on to the physics at the first time step,
   !>          if the radiation scheme is not used.
-  !> @param[in]     config
+  !> @param[in]     config           Application namelist configuration object
   !> @param[in,out] radiation_fields Collection of fields for radiation scheme
   subroutine init_radiation_fields_alg(config, radiation_fields)
 

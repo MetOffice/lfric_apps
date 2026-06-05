@@ -28,7 +28,7 @@ contains
 
   !> @brief Converts wet density increment to dry density increment and adds
   !>        it to the prognostic density rho.
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] rho            Air density
   !> @param[in]     rho_r2_tot_inc Wet air density total increment
   !> @param[in]     one_minus_qs   One minus total water content

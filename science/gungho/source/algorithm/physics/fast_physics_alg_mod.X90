@@ -102,7 +102,7 @@ contains
   !>          need converting back to FE representation before being seen
   !>          by the solver. All other prognostics (moisture, cloud, etc)
   !>          are updated in-situ here.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] du                  Increment to wind field
   !> @param[in,out] dtheta              Increment to theta field
   !> @param[in,out] mr                  Mixing ratios to be updated

@@ -51,7 +51,7 @@ contains
 
   !=============================================================================
   !> @brief Compute advective update of a Wtheta field for adjoint app.
-  !> @param[in]     config
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] rhs                     ACTIVE Change in Advective increment
   !> @param[in]     adv_field               ACTIVE Change in Field to advect
   !> @param[in]     wind                    ACTIVE Change in Advecting wind field
@@ -179,7 +179,7 @@ contains
 
   !=============================================================================
   !> @brief Compute the adjoint of tangent linear of the horizontal advective update of a Wtheta field.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Horizontal part of u.grad(f)
   !> @param[in]     wind                Advecting wind field
   !> @param[in]     wind_dir            Wind field used to determine direction in kernel
@@ -256,7 +256,7 @@ contains
     if ( panel_edge_treatment /= panel_edge_treatment_none                     &
          .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
-      call remap_on_extended_mesh(config,ls_remap_field,                       &
+      call remap_on_extended_mesh(config, ls_remap_field,                      &
                                   ls_field_big_halo, monotone,                 &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
@@ -317,7 +317,7 @@ contains
 
   !=============================================================================
   !> @brief Adjoint of tangent linear vertical advective update of a Wtheta field.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Vertical part of u.grad(f)
   !> @param[in,out] wind                Advecting wind field
   !> @param[in,out] field               Wtheta field to advect

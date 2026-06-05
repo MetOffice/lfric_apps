@@ -43,7 +43,7 @@ contains
   !!          geopotential height.
   !!          Diagnostics can also be filtered by the Heaviside function
   !!          for climate averaging.
-  !> @param[in]  config
+  !> @param[in]  config          Application namelist configuration object
   !> @param[in]  derived_fields  Group of derived fields
   !> @param[in]  theta_wth       Potential temperature
   !> @param[in]  exner_w3        Exner pressure

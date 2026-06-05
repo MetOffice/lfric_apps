@@ -57,7 +57,7 @@ contains
 !>          onto finite element nodal points in Wtheta. Profiles at
 !>          multiple validity times may be specified, with linear interpolation
 !>          being used to evaluate profiles at the current model time.
-!> @param[in]     config
+!> @param[in]     config          Application namelist configuration object
 !> @param[in,out] du              Forcing increment for wind
 !> @param[in]     derived_fields  Group of derived fields
 !> @param[in]     exner           Exner field

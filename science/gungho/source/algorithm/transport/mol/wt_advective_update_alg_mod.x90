@@ -82,7 +82,7 @@ contains
 
   !=============================================================================
   !> @brief Compute the horizontal advective update of a Wtheta field.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Horizontal part of u.grad(f)
   !> @param[in]     wind                Advecting wind field
   !> @param[in]     wind_dir            Wind field to determine direction in kernel,
@@ -207,7 +207,7 @@ contains
 
   !=============================================================================
   !> @brief Compute the vertical advective update of a Wtheta field.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Vertical part of u.grad(f)
   !> @param[in]     wind                Advecting wind field
   !> @param[in]     field               Wtheta field to advect
@@ -285,7 +285,7 @@ contains
   !> @brief Compute advective update of a Wtheta field.
   !> @details Compute advective update wind.grad(adv_field) using desired spatial
   !!          reconstruction. Options for this are either FE or FV reconstructions.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] rhs                 Advective increment
   !> @param[in]     adv_field           Field to advect
   !> @param[in]     wind                Advecting wind field

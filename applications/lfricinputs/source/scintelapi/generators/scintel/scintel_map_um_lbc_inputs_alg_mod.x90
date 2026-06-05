@@ -121,9 +121,6 @@ function scintel_get_height_w3_fv(mesh) result(height)
   type(field_type),             pointer :: height
 
   logical(l_def)     :: constant_exists
-!  type(field_type)   :: rmultiplicity
-!  type(field_type)   :: nodal_multiplicity
-!  type(field_type)   :: ones
   character(str_def) :: inventory_name
   integer(i_def)     :: depth
 

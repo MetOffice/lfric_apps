@@ -41,7 +41,7 @@ contains
 
   !=============================================================================
   !> @brief Adjoint of reconstruction of a W3 field in the horizontal component of W2
-  !> @param[in]     config
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] field_new               The resulting horizontal W2 field
   !> @param[in,out] field_old               The input W3 field
   !> @param[in]     transport_metadata      Contains transport configuration options
@@ -103,8 +103,8 @@ contains
     if ( panel_edge_treatment /= panel_edge_treatment_none                     &
          .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
-      call remap_on_extended_mesh(config, remap_field,                         &
-                                  field_old_big_halo, monotone,                &
+      call remap_on_extended_mesh(config,                                      &
+                                  remap_field, field_old_big_halo, monotone,   &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)

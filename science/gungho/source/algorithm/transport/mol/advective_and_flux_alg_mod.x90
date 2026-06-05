@@ -39,7 +39,7 @@ contains
   !> @brief Computes the flux F of a density by a wind U: F = density*U, as
   !!        well as the advective increment U.grad(density)
   !> @details Compute the mass flux and advective increment
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] mass_flux           Mass flux field: f = density*wind
   !> @param[in,out] adv_inc             Advective increment: wind.grad(density)
   !> @param[in]     density             Field to advect

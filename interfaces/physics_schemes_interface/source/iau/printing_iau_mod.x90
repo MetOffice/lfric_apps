@@ -195,11 +195,11 @@ module printing_iau_mod
 
   !> @brief   print the iau_fields mean and rms
   !> @details print the mean and rms of the different iau increment fields
-  !> @param[in] config
-  !> @param[in] iau_fields        The collection of iau fields
-  !> @param[in] level             Level of logging. If the configured
-  !>                              log_level is less than or equal to
-  !>                              level, output will be shown.
+  !> @param[in] config      Application namelist configuration object
+  !> @param[in] iau_fields  The collection of iau fields
+  !> @param[in] level       Level of logging. If the configured
+  !>                        log_level is less than or equal to
+  !>                        level, output will be shown.
   subroutine print_meanrms_iau( config, iau_fields, level )
 
     implicit none

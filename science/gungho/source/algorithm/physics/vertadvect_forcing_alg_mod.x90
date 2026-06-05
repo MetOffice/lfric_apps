@@ -41,18 +41,18 @@ contains
 
   !> @brief Calculate advection tendencies arising from a specified vertical
   !>        velocity profile
-  !> @param[in]     config
-  !> @param[in,out] field_increment vertical advection increment to theta
-  !> @param[in,out] field_increment vertical advection increment to vapour
-  !> @param[in,out] field_increment vertical advection increment to liquid
-  !> @param[in,out] vertical advection increment to wind
-  !> @param[in]     theta field to which vertical advection is applied
-  !> @param[in]     vapour field to which vertical advection is applied
-  !> @param[in]     rho Dry air density in same space as field
-  !> @param[in]     height Height of cell interfaces
-  !> @param[in]     twod_mesh Information about the horizontal mesh
-  !> @param[in]     dt timestep
-  !> @param[in]     time_now Current model time in seconds
+  !> @param[in]     config           Application namelist configuration object
+  !> @param[in,out] dtheta_forcing   Vertical advection increment to theta
+  !> @param[in,out] dmv_forcing      Vertical advection increment to vapour
+  !> @param[in,out] dmcl_forcing     Vertical advection increment to liquid
+  !> @param[in,out] du_forcing       Vertical advection increment to wind
+  !> @param[in]     theta            Field to which vertical advection is applied
+  !> @param[in]     mr               Field to which vertical advection is applied
+  !> @param[in]     rho              Dry air density in same space as field
+  !> @param[in]     derived_fields
+  !> @param[in]     twod_mesh        Information about the horizontal mesh
+  !> @param[in]     dt               Timestep
+  !> @param[in]     time_now         Current model time in seconds
   subroutine vertadvect_forcing_alg( config,                                    &
                                      dtheta_forcing, dmv_forcing, dmcl_forcing, &
                                      du_forcing, theta, mr, rho,                &

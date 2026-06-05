@@ -186,7 +186,8 @@ contains
         end do
 
         ! Compute update: rhs = u.grad(rhs_field)
-        call advective_and_flux_alg(config, dummy, rhs, rhs_field,           &
+        call advective_and_flux_alg(config,                                  &
+                                    dummy, rhs, rhs_field,                   &
                                     ls_field_n,ls_advecting_wind, direction, &
                                     ls_transport_metadata, final_rk_stage,   &
                                     dt_mol_substep, .false., .true. )

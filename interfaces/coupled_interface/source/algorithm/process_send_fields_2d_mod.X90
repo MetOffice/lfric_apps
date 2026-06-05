@@ -276,11 +276,11 @@ module process_send_fields_2d_mod
   end subroutine save_marine_fractions
 
   !> @brief Calculate the volume of snow on ice tile in region defined by mask
-  !> @param[in] config
-  !> @param[in] mask_field - the coupling field (contains the region mask)
-  !> @param[in] snow_mass_on_tiles Pointer to the snow mass on tiles field
-  !> @param[in] tile_fraction Pointer to the tile fraction field
-  !> @param[out] imass Total snow mass as scalar
+  !> @param[in]  config        Application namelist configuration object
+  !> @param[in]  mask_field    The coupling field (contains the region mask)
+  !> @param[in]  snow_mass_on_tiles  Pointer to the snow mass on tiles field
+  !> @param[in]  tile_fraction  Pointer to the tile fraction field
+  !> @param[out] imass          Total snow mass as scalar
   subroutine ice_sheet_mass(config, mask_field, &
                             snow_mass_on_tiles, &
                             tile_fraction,      &

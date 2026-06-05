@@ -40,7 +40,7 @@ contains
 
   !> @brief     Initialise module.
   !> @details   Initialises the fem & function space wtheta_fs
-  !> @param[in] config
+  !> @param[in] config Application namelist configuration object
   !> @param[in] mesh   Mesh to be used
   subroutine test_algorithm_initialise( config, mesh_name )
 

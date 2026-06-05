@@ -53,7 +53,7 @@ contains
 
   !>@brief         Run the UM RADAER scheme
   !>@details       The UM RADAER scheme calculates required fields for socrates.
-  !>@param[in]     config
+  !>@param[in]     config                Application namelist configuration object
   !>@param[in]     rho_in_wth            Rho in theta space
   !>@param[in]     radiation_fields      RADAER radiation related fields
   !>@param[in]     theta_in_wth          Potential temperature (theta) wth space

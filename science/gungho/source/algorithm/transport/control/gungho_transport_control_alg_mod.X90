@@ -142,7 +142,7 @@ contains
   !> @brief Advection of prognostic variables for the dynamical core.
   !> @param[in,out] advection_inc   Advection increment of the dynamics
   !!                                prognostics [u, rho, theta, exner]
-  !> @param[in]     config
+  !> @param[in]     config          Application namelist configuration object
   !> @param[in]     advected_fields Fields to advect: [u, rho, theta, exner]
   !> @param[in]     wind_np1        End of timestep wind field
   !> @param[in]     wind_n          Start of timestep wind field

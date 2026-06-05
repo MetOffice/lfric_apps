@@ -64,7 +64,7 @@ module adj_trans_lookup_cache_mod
   !=============================================================================
   !> @brief Initialise the lookup table cache.
   !> @param [in,out] self           Lookup table cache
-  !> @param [in]     config
+  !> @param [in]     config         Application namelist configuration object
   !> @param [in]     mesh           Pointer to mesh
   subroutine adj_trans_lookup_cache_init(self, config, mesh)
 

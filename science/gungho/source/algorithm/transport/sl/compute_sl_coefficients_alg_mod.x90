@@ -42,7 +42,7 @@ contains
   !!          point indices of the interpolation points for vertical semi-
   !!          Lagrangian advective transport. The coefficients are stored as
   !!          W3/Wtheta fields.
-  !> @param[in]     config
+  !> @param[in]     config      Application namelist configuration object
   !> @param[in,out] coeffs      The interpolation coefficients
   !> @param[in,out] sl_indices  The indices of cells to use in interpolation
   !> @param[in]     dep_dist    The vertical departure distances

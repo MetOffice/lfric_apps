@@ -42,7 +42,7 @@ contains
 
   !-----------------------------------------------------------------------------
   !> @brief Initialisation of prognostic fields for the name_transport miniapp.
-  !> @param[in]     config
+  !> @param[in]     config            Application namelist configuration object
   !> @param[in]     mesh              Mesh to initialise variables on
   !> @param[in,out] wind              Transporting wind field (W2)
   !> @param[in,out] density           Density field (in W3)

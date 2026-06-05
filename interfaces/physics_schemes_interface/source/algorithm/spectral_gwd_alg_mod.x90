@@ -31,7 +31,7 @@ module spectral_gwd_alg_mod
 contains
 
   !> @brief Run the spectral gravity wave drag scheme
-  !> @param[in]     config
+  !> @param[in]     config               Application namelist configuration object
   !> @param[in,out] du_spectral_gwd      Increment to zonal wind field
   !> @param[in,out] dv_spectral_gwd      Increment to meridional wind field
   !> @param[in,out] dtheta_spectral_gwd  Increment to theta field

@@ -38,7 +38,7 @@ contains
   !>                due to cloud microphysical processes
   !>                (e.g. latent heating and cooling).
   !>         See UMDP26 for full scheme details
-  !>@param[in]     config
+  !>@param[in]     config         Application namelist configuration object
   !>@param[in]     mr_n           Start of timestep mixing ratios
   !>@param[in]     theta          Potential temperature (theta) in wth space
   !>@param[in]     dry_rho_in_w3  Dry density in the w3 space

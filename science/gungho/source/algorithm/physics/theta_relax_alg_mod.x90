@@ -48,13 +48,13 @@ module theta_relax_alg_mod
 contains
 
   !> @brief Algorithm to calculate Newtonian relaxation of potential temperature
-  !> @param[in]     config
-  !> @param[in,out] dtheta_forcing Relaxation increment
-  !> @param[in]     theta Dry potential temperature
-  !> @param[in]     exner_in_wth Exner mapped to Wtheta space
-  !> @param[in]     twod_mesh Information  about the horizontal mesh
-  !> @param[in]     time_now Current model time in seconds
-  !> @param[in]     nlayers Number of layers in the grid
+  !> @param[in]     config          Application namelist configuration object
+  !> @param[in,out] dtheta_forcing  Relaxation increment
+  !> @param[in]     theta           Dry potential temperature
+  !> @param[in]     exner_in_wth    Exner mapped to Wtheta space
+  !> @param[in]     twod_mesh       Information about the horizontal mesh
+  !> @param[in]     time_now        Current model time in seconds
+  !> @param[in]     nlayers         Number of layers in the grid
   subroutine theta_relax_alg( config, dtheta_forcing, theta, exner_in_wth, &
                               twod_mesh, time_now, nlayers )
 

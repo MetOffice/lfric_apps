@@ -58,7 +58,7 @@ contains
   !> @details Either uses Smagorinsky diffusion coefficients calculated
   !>          in the UM boundary-layer scheme or those calculate locally
   !>          to diffuse quantities in the horizontal
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] dtheta_io      Potential temperature increment to update
   !> @param[in,out] du_io          3D wind increment to update
   !> @param[in,out] mr             mixing ratios

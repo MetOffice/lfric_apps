@@ -60,7 +60,7 @@ contains
   !> @brief Compute advective update of a Wtheta field for tangent linear app.
   !> @details Compute tangent linear advective update using desired spatial
   !!          reconstruction. Options for this are either FE or FV reconstructions.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] rhs                 ACTIVE Change in Advective increment
   !> @param[in]     adv_field           ACTIVE Change in Field to advect
   !> @param[in]     wind                ACTIVE Change in Advecting wind field
@@ -182,7 +182,7 @@ contains
 
   !=============================================================================
   !> @brief Tangent Linear vertical advective update of a Wtheta field.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Vertical part of u.grad(f)
   !> @param[in]     wind                Advecting wind field
   !> @param[in]     field               Wtheta field to advect

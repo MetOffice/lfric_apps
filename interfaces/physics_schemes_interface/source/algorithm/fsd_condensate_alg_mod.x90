@@ -29,7 +29,7 @@ contains
   !>         to determine variability in condensate for use by
   !>         radiation and microphysics scheme.
   !>         See Hill et al (2015, DOI: 10.1002/qj.2506) for full details.
-  !>@param[in]     config
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] f_arr             Array of params for FSD
   !>@param[in,out] cloud_fields      Group of cloud fields
   !>@param[in]     convection_fields Group of convection fields

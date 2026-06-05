@@ -54,7 +54,7 @@ contains
   !>@details The UM Boundary Layer scheme does:
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
-  !>@param[in]     config
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] dtheta_bl         Theta increment
   !>@param[in,out] du_bl             3D wind increment
   !>@param[in,out] theta_latest      Current estimate of theta
@@ -112,7 +112,9 @@ contains
     use bl_imp_du_kernel_mod, only: bl_imp_du_kernel_type
 
     implicit none
-type(config_type), intent(in) :: config
+
+    type(config_type), intent(in) :: config
+
     type( field_type ), intent( inout )     :: dtheta_bl, du_bl, mr(nummr)
     type( field_type ), intent( out )       :: surf_heat_flux, canopy_evap,   &
                                                water_extraction, lake_evap,   &

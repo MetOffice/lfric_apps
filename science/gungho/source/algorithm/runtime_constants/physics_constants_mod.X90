@@ -85,7 +85,7 @@ contains
   ! ========================================================================== !
 
   !> @brief Create geometric fields used in physics schemes
-  !> @param[in] config
+  !> @param[in] config Application namelist configuration object
   !> @param[in] mesh   The mesh to compute the operators for
   subroutine create_mixing_geometries(config, mesh)
 
@@ -223,8 +223,8 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
-  !> @param[in] config
-  !> @param[in] mesh_id  The ID of the mesh to get the object for
+  !> @param[in] config       Application namelist configuration object
+  !> @param[in] mesh_id      The ID of the mesh to get the object for
   !> @param[in] model_clock  The model clock object
   !> @return The dtrdz_fd2 field
   function get_dtrdz_fd2(config, mesh_id, model_clock) result(dtrdz)
@@ -265,7 +265,7 @@ contains
   end function get_dtrdz_fd2
 
   !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
-  !> @param[in] config
+  !> @param[in] config      Application namelist configuration object
   !> @param[in] mesh_id     The ID of the mesh to get the object for
   !> @param[in] model_clock The model clock object
   !> @return The dtrdz_wth field
@@ -308,7 +308,7 @@ contains
   end function get_dtrdz_wth
 
   !> @brief Returns the 1/dz values at lowest-order W1 DoF locations
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The rdz_fd1 field
   function get_rdz_fd1(config, mesh_id) result(rdz)
@@ -336,7 +336,7 @@ contains
   end function get_rdz_fd1
 
   !> @brief Returns the 1/dz values at lowest-order W1 DoF locations
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The rdz_w3 field
   function get_rdz_w3(config, mesh_id) result(rdz)
@@ -364,9 +364,9 @@ contains
   end function get_rdz_w3
 
   !> @brief Returns the max Smagorinsky diffusion allowed in this run at Wtheta
-  !> @param[in] config
-  !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @param[in] model_clock  The model clock object
+  !> @param[in] config      Application namelist configuration object
+  !> @param[in] mesh_id     The ID of the mesh to get the object for
+  !> @param[in] model_clock The model clock object
   !> @return The max_diff_wtheta field
   function get_max_diff(config, mesh_id, model_clock) result(max_diff_smag)
 
@@ -407,8 +407,8 @@ contains
 
 #ifdef UM_PHYSICS
   !> @brief Returns the Legendre Polynomials times the SH amplitude
-  !> @param[in] config
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config   Application namelist configuration object
+  !> @param[in] mesh_id  The ID of the mesh to get the object for
   !> @return The Pnm_max field
   function get_Pnm_star(config, mesh) result(Pnm_star)
 

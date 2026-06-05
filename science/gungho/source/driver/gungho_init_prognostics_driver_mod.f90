@@ -44,9 +44,10 @@ module gungho_init_prognostics_driver_mod
 contains
 
   !> @details A subroutine for initialising prognostic fields for gungho
-  !> @param[in,out] prognostic_fields the collection of prognostics
-  !> @param[in,out] mr Field bundle containing the moisture mixing ratios
-  !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
+  !> @param[in]     config             Application namelist configuration object
+  !> @param[in,out] prognostic_fields  Collection of prognostics
+  !> @param[in,out] mr                 Field bundle containing the moisture mixing ratios
+  !> @param[in,out] moist_dyn          Auxilliary fields for moist dynamics
   subroutine init_gungho_prognostics(config, prognostic_fields, mr, moist_dyn)
 
     implicit none

@@ -26,7 +26,7 @@ module freeze_lev_alg_mod
 contains
 
   !> @details Output diagnostic of wet-bulb freezing level
-  !> @param[in]  config
+  !> @param[in]  config      Application namelist configuration object
   !> @param[in]  theta       potential temperature
   !> @param[in]  mr          Mixing ratios
   !> @param[in]  moist_dyn   Moist dynamics factors

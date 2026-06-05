@@ -50,7 +50,7 @@ module adjt_wind_precomputations_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  config
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
   subroutine adjt_wind_precomputations_initialiser_alg( config, mesh, model_clock )

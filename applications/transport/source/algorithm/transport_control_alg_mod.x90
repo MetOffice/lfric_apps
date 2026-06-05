@@ -240,7 +240,7 @@ contains
   !!          transporting rho, theta, tracer and moisture mixing ratios. The
   !!          transporting wind field is prescribed, but may be updated if a
   !!          time-varying profile has been specified.
-  !> @param[in]     config
+  !> @param[in]     config             Application namelist configuration object
   !> @param[in]     model_clock        Time within the model
   !> @param[in,out] wind               The transporting wind field
   !> @param[in,out] rho                Dry density field to transport

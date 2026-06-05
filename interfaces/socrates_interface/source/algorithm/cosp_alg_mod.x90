@@ -40,7 +40,7 @@ public :: cosp_alg
 
 contains
 
-!> @param[in]     config
+!> @param[in]     config                   Application namelist configuration object
 !> @param[in]     pressure_in_wth          Pressure field in wth space
 !> @param[in]     temperature_in_wth       Temperature field in wth space
 !> @param[in]     exner                    Exner pressure in w3 space

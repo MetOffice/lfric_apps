@@ -198,7 +198,7 @@ contains
   !!        If a 3D flux field is provided, it will be split into components
   !!        for each split step. Otherwise, individual flux fields must be
   !!        passed to this object.
-  !> @param[in] config
+  !> @param[in] config        Application namelist configuration object
   !> @param[in] prime_mesh    The prime extrusion mesh
   !> @param[in] splitting     Splitting to be used for all pre-computations
   !> @param[in] num_substeps  Number of transport substeps

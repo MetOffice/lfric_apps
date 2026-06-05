@@ -40,7 +40,7 @@ contains
   !> @brief Calculate vertical Leonard term fluxes
   !> @details Calculate increments to potential temperature and moisture
   !>          due to the vertical Leonard term fluxes
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] mt_inc_leonard      Moisture increment
   !> @param[in,out] thetal_inc_leonard  Theta increment
   !> @param[in,out] u_inc_leonard       Velocity increment

@@ -185,7 +185,7 @@ contains
   !!          by transporting rho (if required), and tracer_con. The
   !!          transporting wind field is prescribed, but may be updated if a
   !!          time-varying profile has been specified.
-  !> @param[in]     config
+  !> @param[in]     config             Application namelist configuration object
   !> @param[in]     model_clock        Time within the model
   !> @param[in,out] wind               The transporting wind field
   !> @param[in,out] tracer_con         Tracer field to transport conservatively

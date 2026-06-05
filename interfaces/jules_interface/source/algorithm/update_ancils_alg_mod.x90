@@ -37,7 +37,7 @@ contains
 
   !> @details Derive ancillary fields required by the model from ancillary
   !>          fields that are read from file
-  !> @param[in] config
+  !> @param[in] config                  Application namelist configuration object
   !> @param[in] time_axis_list (in)     List of time axes
   !> @param[in] clock          (in)     The clock object
   !> @param[in] ancil_fields   (in)     Ancil fields read in

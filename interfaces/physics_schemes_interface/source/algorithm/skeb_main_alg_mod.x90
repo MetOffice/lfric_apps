@@ -39,12 +39,12 @@ module skeb_main_alg_mod
     use sci_set_any_dof_kernel_mod,    only: set_any_dof_kernel_type
     use reference_element_mod,         only: T
 
+    ! Object types
+    use config_mod, only: config_type
+
     ! Configuration modules
     use planet_config_mod, only: gravity
     use io_config_mod,     only: write_diag, use_xios_io
-
-    ! Object types
-    use config_mod, only: config_type
 
     implicit none
 

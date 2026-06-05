@@ -28,7 +28,7 @@ contains
   !>          such that it cannot accelerate the original wind, which can
   !>          occasionally happen when there is a strong gradient between
   !>          W3 points.
-  !> @param[in]     config
+  !> @param[in]     config      Application namelist configuration object
   !> @param[in]     du_inc      Zonal wind increment
   !> @param[in]     dv_inc      Meridional wind increment
   !> @param[in]     dw_inc      Vertical wind increment

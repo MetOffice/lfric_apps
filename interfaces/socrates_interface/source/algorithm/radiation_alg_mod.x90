@@ -54,7 +54,7 @@ public :: radiation_alg
 
 contains
 
-!> @param[in]     config
+!> @param[in]     config                   Application namelist configuration object
 !> @param[in,out] dtheta_rad               Potential temperature increment
 !> @param[in]     theta                    Potential temperature field
 !> @param[in]     exner                    Exner pressure field in density space

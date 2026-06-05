@@ -54,7 +54,7 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
   !>         NB This version uses winds in w3 space (i.e. A-grid)
-  !>@param[in]     config
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in]     theta             Theta in its native (wth) space
   !>@param[in]     rho               Dry density in its native (w3) space
   !>@param[in]     exner             Exner Pressure in the w3 space

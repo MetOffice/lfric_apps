@@ -44,7 +44,7 @@ contains
   !>          Initial version just calculates PMSL with no smoothing over
   !>          high ground. The UM diagnostic included smoothing of the field
   !>          for orography over 500m. This will be added later.
-  !> @param[in]  config
+  !> @param[in]  config          Application namelist configuration object
   !> @param[in]  exner_w3        exner pressure in w3 space
   !> @param[in]  derived_fields  Group of derived fields
   !> @param[in]  theta_wth       potential temperature

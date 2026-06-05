@@ -32,17 +32,17 @@ contains
   !> @details The LBC inputs are currently provided as specific humidities and
   !>          a total density.  This routine converts them to the equivalent
   !>          mixing ratios and dry density.
-  !> @param[in]     config
-  !> @param[in]     q      vapour specific humidity
-  !> @param[in]     qcl    liquid specific humidity
-  !> @param[in]     qcf    frozen specific humidity
-  !> @param[in]     qrain  rain specific humidity
-  !> @param[in]     rho_r2 wet density multiplied by radius squared
-  !> @param[in,out] m_v    vapour mixing ratio
-  !> @param[in,out] m_cl   liquid mixing ratio
-  !> @param[in,out] m_s    frozen mixing ratio
-  !> @param[in,out] m_r    rain mixing ratio
-  !> @param[in,out] rho    dry density
+  !> @param[in]     config  Application namelist configuration object
+  !> @param[in]     q       vapour specific humidity
+  !> @param[in]     qcl     liquid specific humidity
+  !> @param[in]     qcf     frozen specific humidity
+  !> @param[in]     qrain   rain specific humidity
+  !> @param[in]     rho_r2  wet density multiplied by radius squared
+  !> @param[in,out] m_v     vapour mixing ratio
+  !> @param[in,out] m_cl    liquid mixing ratio
+  !> @param[in,out] m_s     frozen mixing ratio
+  !> @param[in,out] m_r     rain mixing ratio
+  !> @param[in,out] rho     dry density
   subroutine map_um_lbc_inputs( config, q, qcl, qcf, qrain, rho_r2, &
                                 m_v, m_cl, m_s, m_r, rho )
 

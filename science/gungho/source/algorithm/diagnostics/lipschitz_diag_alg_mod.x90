@@ -49,7 +49,7 @@ contains
 
   !===========================================================================!
   !> @brief Computes Lipschitz diagnostics for a given splitting
-  !> @param[in] config
+  !> @param[in] config         Application namelist configuration object
   !> @param[in] splitting      Directional splitting to compute diagnostics for
   !> @param[in] wind           Transporting wind
   !> @param[in] dt_r_tran      The time step
@@ -113,7 +113,7 @@ contains
 
   !===========================================================================!
   !> @brief Computes the Lipschitz numbers for a given splitting
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[out]    max_lipschitz  Maximum Lipschitz number, to be computed
   !> @param[in]     splitting      Directional splitting to use
   !> @param[in]     log_level_in   Logging level to be used
@@ -235,7 +235,7 @@ contains
 
   !===========================================================================!
   !> @brief Computes the 1D Lipschitz numbers for a given wind
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] lipschitz_x    The Lipschitz number in x
   !> @param[in,out] lipschitz_y    The Lipschitz number in y
   !> @param[in,out] lipschitz_z    The vertical Lipschitz number

@@ -58,7 +58,7 @@ contains
 
   !> @details Processes ancils that don't match exactly what the model
   !>          expects into the fields it does
-  !> @param[in] config
+  !> @param[in] config                    Application namelist configuration object
   !> @param[in] ancil_fields     (in)     Ancil fields read in
   !> @param[in] fd_fields        (in)     um2lfric fields read in
   !> @param[in] surface_fields   (in,out) Surface field collection to update

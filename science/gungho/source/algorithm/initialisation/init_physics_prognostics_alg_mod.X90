@@ -45,19 +45,19 @@ module init_physics_prognostics_alg_mod
 contains
 
   !>@brief Initialisation of physics prognostic fields
-  !> @param[in]     config
-  !> @param[in,out] radition_fields Collection of fields for radiation scheme
+  !> @param[in]     config              Application namelist configuration object
+  !> @param[in,out] radition_fields     Collection of fields for radiation scheme
   !> @param[in,out] microphysics_fields Collection of fields for mphys scheme
-  !> @param[in,out] orography_fields Collection of fields for orog drag scheme
-  !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
-  !> @param[in,out] convection_fields Collection of fields for convection scheme
-  !> @param[in,out] cloud_fields Collection of fields for cloud scheme
-  !> @param[in,out] surface_fields Collection of fields for surface scheme
-  !> @param[in,out] soil_fields Collection of fields for soil hydrology scheme
-  !> @param[in,out] snow_fields Collection of fields for snow scheme
-  !> @param[in,out] chemistry_fields Collection of fields for chemistry scheme
-  !> @param[in,out] aerosol_fields Collection of fields for aerosol scheme
-  !> @param[in,out] stph_fields Collection of fields for stochastic physics
+  !> @param[in,out] orography_fields    Collection of fields for orog drag scheme
+  !> @param[in,out] turbulence_fields   Collection of fields for turbulence scheme
+  !> @param[in,out] convection_fields   Collection of fields for convection scheme
+  !> @param[in,out] cloud_fields        Collection of fields for cloud scheme
+  !> @param[in,out] surface_fields      Collection of fields for surface scheme
+  !> @param[in,out] soil_fields         Collection of fields for soil hydrology scheme
+  !> @param[in,out] snow_fields         Collection of fields for snow scheme
+  !> @param[in,out] chemistry_fields    Collection of fields for chemistry scheme
+  !> @param[in,out] aerosol_fields      Collection of fields for aerosol scheme
+  !> @param[in,out] stph_fields         Collection of fields for stochastic physics
   subroutine init_physics_prognostics_alg( config,                             &
                                            radiation_fields,                   &
                                            microphysics_fields,                &

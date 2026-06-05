@@ -43,7 +43,7 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
   !!          the result stored in the other, so we use three vectors to save on
   !!          variables. This differs from other adjoint tests as most adjoint
   !!          routines would increment one argument and set the other to zero.
-  !> @param[in] config
+  !> @param[in] config                  Application namelist configuration object
   !> @param[in] mesh                    The model mesh
   !> @param[in] model_clock             The model clock
   !> @param[in] adj_lookup_table_cache  The lookup table cache

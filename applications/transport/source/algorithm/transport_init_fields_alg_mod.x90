@@ -56,7 +56,7 @@ module transport_init_fields_alg_mod
 contains
 !-----------------------------------------------------------------------------
 !> @brief Initialisation of prognostic fields for the transport miniapp.
-!> @param[in]     config
+!> @param[in]     config            Application namelist configuration object
 !> @param[in]     mesh              Mesh to initialise variables on
 !> @param[in,out] wind              Transporting wind field
 !> @param[in,out] density           Density field (in W3)

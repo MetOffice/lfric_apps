@@ -77,7 +77,7 @@ module update_iau_inc_alg_mod
   !> @ are valid for the time zero only, the 4DVar case, we proceed by adding
   !> @ these increments to the appropriate prognostic_fields.
   !> @ Transformations from mixing ratios to specific humidity and inversely are used
-  !> @param[in]      config
+  !> @param[in]      config             Application namelist configuration object
   !> @param[in,out]  iau_tot_inc        The collection of aggregated iau fields
   !> @param[in]      moist_dyn          Moist_dynamics factors (for 1+sum(m_x))
   !> @param[in]      twod_mesh          Two dimensional mesh, used to calculate tropopause level

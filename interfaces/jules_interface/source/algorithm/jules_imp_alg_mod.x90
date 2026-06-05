@@ -42,7 +42,7 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
   !>         NB This version uses winds in w3 space (i.e. A-grid)
-  !>@param[in]     config
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] mr                Mixing ratios
   !>@param[in,out] surf_heat_flux    Net surface heat flux
   !>@param[in,out] canopy_evap       Canopy evaporation from land tiles

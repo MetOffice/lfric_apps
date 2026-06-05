@@ -48,7 +48,7 @@ contains
   !============================================================================!
   !> @brief Computes the tangent linear flux F and advective increment
   !> @details Compute the tangent linear mass flux and advective increment
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] mass_flux_1         ACTIVE: mass flux to compute from
   !!                                    linear wind and perturbation field
   !> @param[in,out] mass_flux_2         ACTIVE: mass flux to compute from

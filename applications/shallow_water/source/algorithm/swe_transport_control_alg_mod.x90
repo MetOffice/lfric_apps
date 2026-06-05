@@ -134,7 +134,7 @@ contains
   !> @brief Advection of prognostic variables for the shallow water miniapp.
   !> @param[in,out] advection_inc   Advection increment of the shallow water
   !!                                prognostics [u, geopot, buoyancy, q]
-  !> @param[in]     config
+  !> @param[in]     config          Application namelist configuration object
   !> @param[in]     advected_fields Fields to advect: [u, geopot, buoyancy, q]
   !> @param[in]     state_n         Fields at time n
   !> @param[in]     state_np1       Estimate of fields at time n+1
@@ -381,7 +381,7 @@ contains
 
   !=============================================================================
   !> @brief Advection of tracer variables for the shallow water miniapp.
-  !> @param[in]     config
+  !> @param[in]     config          Application namelist configuration object
   !> @param[in,out] tracer_const    Constant tracer to be transported
   !> @param[in,out] tracer_pv       PV tracer to be transported
   !> @param[in,out] tracer_step     Step function tracer to be transported

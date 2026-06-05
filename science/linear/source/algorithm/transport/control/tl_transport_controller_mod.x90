@@ -59,7 +59,7 @@ contains
   !> @details The tangent linear transport controller objects contains the
   !!          transport controller objects for different combinations of linear
   !!          and perturbed winds and densities.
-  !> @param[in] config
+  !> @param[in] config                Application namelist configuration object
   !> @param[in] model_clock           Tracks the time within the model
   !> @param[in] ref_field_rdef        Perturbed reference density to use for
   !!                                  conservative transport of tracers.

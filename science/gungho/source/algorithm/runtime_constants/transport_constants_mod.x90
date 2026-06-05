@@ -174,7 +174,7 @@ contains
   ! ROUTINES FOR CREATING CONSTANTS
   ! ========================================================================== !
   !> @brief Compute remap weights and indices to an extended cubed sphere mesh
-  !> @param[in] config
+  !> @param[in] config Application namelist configuration object
   !> @param[in] mesh   Mesh object to compute remapping weights on
   subroutine initialise_remap_on_extended_mesh(config, mesh)
 
@@ -560,7 +560,7 @@ contains
 
   !> @brief Computes the two sets of coefficients for the third-order FFSL
   !!        edge reconstruction
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to compute the coefficients for
   subroutine compute_third_dl_dz(config, mesh)
 
@@ -612,7 +612,7 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns the Det(J) values at W3 dof locations
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to get detj_r_tran for
   !> @return The Det(J) field
   function get_detj_at_w3_r_tran(config, mesh) result(detj_r_tran)
@@ -690,7 +690,7 @@ contains
   end function get_detj_at_w3_r_tran
 
   !> @brief Returns the Det(J) values at W2 dof locations using the cell above.
-  !> @param[in] config
+  !> @param[in] config Application namelist configuration object
   !> @param[in] mesh   Mesh object to get detj_aw_w2 for.
   !> @return The Det(J) field
   function get_detj_at_w2_above(config, mesh) result(detj_above)
@@ -701,7 +701,6 @@ contains
                                      only: calc_directional_detj_at_w2_kernel_type
 
     implicit none
-
 
     type(config_type),intent(in)          :: config
     type(mesh_type),  intent(in), pointer :: mesh
@@ -763,8 +762,8 @@ contains
   end function get_detj_at_w2_above
 
   !> @brief Returns the Det(J) values at W2 dof locations using the cell below.
-  !> @param[in] config
-  !> @param[in] mesh  Mesh object to get detj_at_w2-below for
+  !> @param[in] config Application namelist configuration object
+  !> @param[in] mesh   Mesh object to get detj_at_w2-below for
   !> @return The Det(J) field
   function get_detj_at_w2_below(config, mesh) result(detj_below)
 
@@ -837,7 +836,7 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns the coefficients for third-order edge above interpolation
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh_id Mesh object to get third_dla_dz for
   !> @return The required coefficients
   function get_third_dla_dz(config, mesh) result(dla_dz)
@@ -868,7 +867,7 @@ contains
   end function get_third_dla_dz
 
   !> @brief Returns the coefficients for third-order edge above interpolation
-  !> @param[in] config
+  !> @param[in] config Application namelist configuration object
   !> @param[in] mesh   Mesh object to get third_dlb_dz for
   !> @return The required coefficients
   function get_third_dlb_dz(config, mesh) result(dlb_dz)
@@ -899,7 +898,7 @@ contains
   end function get_third_dlb_dz
 
   !> @brief Returns the constants for fourth-order edge interpolation
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to get the fourth_dl_dz for
   !> @return The required constant
   function get_fourth_dl_dz(config, mesh) result(dl_dz)
@@ -1246,7 +1245,7 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns a pointer to the extended mesh remap weights
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to get extended mesh weights for
   !> @return The weights for remapping on the extended mesh
   function get_extended_mesh_weights(config, mesh) result(ext_mesh_weights)
@@ -1282,7 +1281,7 @@ contains
   end function get_extended_mesh_weights
 
   !> @brief Returns a pointer to the extended mesh remap indices
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to get_extended_mesh_indices for
   !> @return The indices for remapping on the extended mesh
   function get_extended_mesh_indices(config, mesh) result(ext_mesh_indices)
@@ -1620,7 +1619,7 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns a pointer to the horizontal Wtheta MoL coefficients
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to get horizontal Wtheta MoL coefficients field for
   !> @return The horizontal Wtheta MoL coefficients field
   function get_hori_w3_mol_coeffs(config, mesh) result(mol_coeffs)
@@ -1840,7 +1839,7 @@ contains
   end function get_hori_w3_mol_coeffs
 
   !> @brief Returns a pointer to the vertical Whteta MoL coefficients
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to get vertical Wtheta MoL coefficients for
   !> @return The vertical Wtheta MoL coefficient field
   function get_vert_w3_mol_coeffs(config, mesh) result(mol_coeffs)
@@ -1903,7 +1902,7 @@ contains
   end function get_vert_w3_mol_coeffs
 
   !> @brief Returns a pointer to the reversible vertical Wtheta MoL coefficients
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to get vertical Wtheta MoL coefficient for
   !> @return The vertical Wtheta MoL coefficient field
   function get_reversible_vert_w3_mol_coeffs(config, mesh) result(mol_coeffs)
@@ -1969,8 +1968,8 @@ contains
   end function get_reversible_vert_w3_mol_coeffs
 
   !> @brief Returns a pointer to the horizontal Wtheta MoL coefficients
-  !> @param[in] config
-  !> @param[in] mesh   Mesh object to get horizontal Wtheta MoL coefficents for.
+  !> @param[in] config  Application namelist configuration object
+  !> @param[in] mesh    Mesh object to get horizontal Wtheta MoL coefficents for.
   !> @return The horizontal Wtheta MoL coefficients field
   function get_hori_wt_mol_coeffs(config, mesh) result(mol_coeffs)
 
@@ -2191,7 +2190,7 @@ contains
   end function get_hori_wt_mol_coeffs
 
   !> @brief Returns a pointer to the vertical Whteta MoL coefficients
-  !> @param[in] config
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    Mesh object to get vertical wtheta MoL coefficients for.
   !> @return The vertical Wtheta MoL coefficient field
   function get_vert_wt_mol_coeffs(config, mesh) result(mol_coeffs)
@@ -2249,8 +2248,8 @@ contains
   end function get_vert_wt_mol_coeffs
 
   !> @brief Returns a pointer to the reversible vertical Wtheta MoL coefficients
-  !> @param[in] config
-  !> @param[in] mesh  Mesh object to get vertical wtheta MoL coefficients for
+  !> @param[in] config  Application namelist configuration object
+  !> @param[in] mesh    Mesh object to get vertical wtheta MoL coefficients for
   !> @return The vertical Wtheta MoL coefficient field
   function get_reversible_vert_wt_mol_coeffs(config, mesh) result(mol_coeffs)
 

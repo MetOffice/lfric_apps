@@ -140,7 +140,7 @@ contains
   !!          loop) transport of multiple variables, by:
   !!          - determining the necessary number of transport substeps
   !!          - initialising precomputation objects
-  !> @param[in] config
+  !> @param[in] config             Application namelist configuration object
   !> @param[in] model_clock        Tracks the time within the model
   !> @param[in] ref_field_rdef     The reference density to use for conservative
   !!                               transport of tracers. This argument must be

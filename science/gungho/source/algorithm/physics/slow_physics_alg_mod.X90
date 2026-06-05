@@ -789,7 +789,8 @@ contains
       ! CFMIP Observation Simulator Package (COSP)
       !--------------------------------------------------------------------
       if (cosp_this_tstep) then
-        call cosp_alg(modeldb%config, pressure_in_wth, temperature_in_wth, &
+        call cosp_alg(modeldb%config,                                      &
+                      pressure_in_wth, temperature_in_wth,                 &
                       exner, mr_n, derived_fields, radiation_fields,       &
                       cloud_fields, aerosol_fields, convection_fields,     &
                       microphysics_fields, rand_seed, n_cloud_layer,       &

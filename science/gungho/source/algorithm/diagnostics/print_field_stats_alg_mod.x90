@@ -51,7 +51,7 @@ contains
 !!          information regarding the location of the max and min values
 !!          (latitude, longitude, height). If no user input is provided,
 !!          the location information will always be printed.
-!> @param[in] config
+!> @param[in] config            Application namelist configuration object
 !> @param[in] field             Field to print info about
 !> @param[in] level_of_logging  Compile-time logging level for output, to be
 !!                              compared to the current runtime logging level
@@ -265,7 +265,7 @@ end subroutine print_field_stats_alg_rtran
 !> @brief Steps to be taken before calling the field stats kernel. Designed to
 !!        be shared between different precision implementations of the algorithm
 !!        to print field stats.
-!> @param[in]     config
+!> @param[in]     config             Application namelist configuration object
 !> @param[in]     mesh               Mesh the field being logged is defined on
 !> @param[in]     fs_id              Function space ID of the field being logged
 !> @param[in]     elt_order_h        Element order in horizontal direction

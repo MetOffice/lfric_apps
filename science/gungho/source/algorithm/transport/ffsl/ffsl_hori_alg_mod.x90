@@ -432,7 +432,7 @@ contains
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       monotone_remap = ( monotone /= monotone_none )
       remap_depth = stencil_extent
-      call remap_on_extended_mesh(config,&
+      call remap_on_extended_mesh(config,                                      &
                                   field_big_halo, field_n, monotone_remap,     &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &

@@ -19,13 +19,13 @@ module initial_swe_streamfunc_kernel_mod
   use fs_continuity_mod,       only : W1
   use kernel_mod,              only : kernel_type
 
-  use shallow_water_settings_config_mod, only: swe_test
-
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, &
                                        geometry_spherical
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
+
+  use shallow_water_settings_config_mod, only: swe_test
 
   implicit none
 

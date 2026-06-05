@@ -46,10 +46,10 @@ contains
   !> m_X is the mixing ratio of the X-th moisture species.
   !> The total mass of moist air is the sum of all of these (dry + all moisture species).
   !> This routine is intended to be used at multiple points in the time-step.
-  !> @param[in] config
-  !> @param[in] rho_d Density field
-  !> @param[in] mr Bundle of moisture mixing ratios
-  !> @param[in] stage A string describing the point in time-step
+  !> @param[in] config  Application namelist configuration object
+  !> @param[in] rho_d   Density field
+  !> @param[in] mr      Bundle of moisture mixing ratios
+  !> @param[in] stage   A string describing the point in time-step
   subroutine moisture_conservation_alg( config, rho_d, mr, stage )
 
     implicit none

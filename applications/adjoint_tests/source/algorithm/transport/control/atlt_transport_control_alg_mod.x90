@@ -38,7 +38,7 @@ module atlt_transport_control_alg_mod
 
   !=============================================================================
   !> @brief Adjoint test for atl_transport_control_alg
-  !> @param[in]  config
+  !> @param[in]  config                  Application namelist configuration object
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  model_clock             The model clock
   !> @param[in]  adj_lookup_table_cache  Lookup table cache
@@ -121,7 +121,7 @@ module atlt_transport_control_alg_mod
 
   !=============================================================================
   !> @brief Runs the adjoint test for atl_transport_control_alg for a given set of parameters
-  !> @param[in]  config
+  !> @param[in]  config                   Application namelist configuration object
   !> @param[in]  vector_space_wtheta_ptr  Wtheta function space pointer
   !> @param[in]  vector_space_w2_ptr      W2 function space pointer
   !> @param[in]  vector_space_w3_ptr      W3 function space pointer

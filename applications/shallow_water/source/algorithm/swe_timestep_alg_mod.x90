@@ -382,8 +382,8 @@ contains
   !!          time level n terms. It then loops over the outer iterations and
   !!          calculates the advection terms, and loops over the inner iterations
   !!          and calls the solver. Finally, the prognostic variables are updated.
-  !> @param[in,out] config
-  !> @param[in,out] model_clock
+  !> @param[in,out] config       Application namelist configuration object
+  !> @param[in,out] model_clock  Model clock object
   !> @param[in,out] wind         The wind field
   !> @param[in,out] geopot       The geopotential field
   !> @param[in,out] buoyancy     The buoyancy field
@@ -603,7 +603,7 @@ contains
   !> @details An algorithm for timestepping the shallow water equations
   !>          using an explicit forwards Euler method.
   !>
-  !> @param[in]     config
+  !> @param[in]     config      Application namelist configuration object
   !> @param[in]     model_clock Time within the model
   !> @param[in,out] wind        The wind field
   !> @param[in,out] geopot      The geopotential field
@@ -721,7 +721,7 @@ contains
   !!          \f[ y_2 = 3/4y^n + 1/4 F(y_1) \f]
   !!          \f[ y^{n+1} = 1/3y^n + 2/3 F(y_2) \f]
   !!
-  !> @param[in]     config
+  !> @param[in]     config      Application namelist configuration object
   !> @param[in]     model_clock Time within the model
   !> @param[in,out] wind        The wind field
   !> @param[in,out] geopot      The geopotential field
@@ -874,7 +874,7 @@ contains
   !!          \f[ y^{n+1} = (3/8)*y^n + (1/24)*F(y^n) + (1/4)*F(y_1)
   !!            + (1/6)*F(y_2) + (1/6)*F(y_3) \f]
   !!
-  !> @param[in]     config
+  !> @param[in]     config      Application namelist configuration object
   !> @param[in]     model_clock Time within the model
   !> @param[in,out] wind        The wind field
   !> @param[in,out] geopot      The geopotential field
@@ -882,13 +882,13 @@ contains
   !> @param[in,out] q           The potential vorticity field
   !> @param[in]     s_geopot    The surface geopotential field
 
-  subroutine swe_timestep_alg_rk4(  config,      &
-                                    model_clock, &
-                                    wind,        &
-                                    geopot,      &
-                                    buoyancy,    &
-                                    q,           &
-                                    s_geopot )
+  subroutine swe_timestep_alg_rk4( config,      &
+                                   model_clock, &
+                                   wind,        &
+                                   geopot,      &
+                                   buoyancy,    &
+                                   q,           &
+                                   s_geopot )
 
   implicit none
 

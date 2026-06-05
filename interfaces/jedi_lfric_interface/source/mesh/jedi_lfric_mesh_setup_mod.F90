@@ -35,7 +35,7 @@ contains
   !> @brief Initialise the mesh and store it in the global mesh collection
   !>
   !> @param [out]   mesh_name     The name of the mesh being setup
-  !> @param [in]    config        Application configuration object
+  !> @param [in]    config        Application namelist configuration object
   !> @param [inout] mpi_obj       The mpi communicator
   !> @param [in]    alt_mesh_name The name of an alternative mesh_name to setup
   subroutine initialise_mesh( mesh_name, config, mpi_obj, alt_mesh_name )

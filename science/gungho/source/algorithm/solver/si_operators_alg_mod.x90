@@ -353,7 +353,7 @@ contains
   end subroutine final_si_operators
 
   !> @brief Subroutine to compute the si operators
-  !> @param[in] config
+  !> @param[in] config        Application namelist configuration object
   !> @param[in] theta_ref     Reference Potential temperature
   !> @param[in] rho_ref       Reference Density
   !> @param[in] exner_ref     Reference Exner pressure

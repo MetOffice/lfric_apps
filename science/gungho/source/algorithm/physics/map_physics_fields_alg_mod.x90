@@ -45,13 +45,13 @@ contains
 
   !> @details An algorithm for mapping native FE fields to the lowest order
   !>          equivalents for use in the FD physics codes.
-  !> @param[in]    config
-  !> @param[in]    u 3D wind field
-  !> @param[in]    exner Pressure
-  !> @param[in]    rho Density
-  !> @param[in]    theta Potential temperature
-  !> @param[in]    moist_dyn  Moist dynamics factors
-  !> @param[inout] derived_fields Group of derived fields
+  !> @param[in]    config          Application namelist configuration object
+  !> @param[in]    u               3D wind field
+  !> @param[in]    exner           Pressure
+  !> @param[in]    rho             Density
+  !> @param[in]    theta           Potential temperature
+  !> @param[in]    moist_dyn       Moist dynamics factors
+  !> @param[inout] derived_fields  Group of derived fields
   subroutine map_physics_fields_alg(config, u, exner, rho, theta, &
                                     moist_dyn, derived_fields)
 

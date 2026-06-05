@@ -53,7 +53,7 @@ contains
 !>          pressure is used to calculate the vapour saturation field. We use
 !>          an iterative procedure to arrive at appropriate values.
 !>
-!> @param[in]     config
+!> @param[in]     config      Application namelist configuration object
 !> @param[in]     theta       potential temperature field
 !> @param[in,out] mr          array of moisture mixing ratio fields
 !> @param[in,out] exner       Exner pressure field

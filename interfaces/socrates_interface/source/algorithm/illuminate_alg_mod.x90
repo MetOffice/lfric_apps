@@ -32,7 +32,7 @@ public :: illuminate_alg
 
 contains
 
-!> @param[in]     config
+!> @param[in]     config           Application namelist configuration object
 !> @param[in,out] radiation_fields Fields for radiation scheme
 !> @param[in]     timestep         Model timestep number
 !> @param[in]     dt               Model timestep length

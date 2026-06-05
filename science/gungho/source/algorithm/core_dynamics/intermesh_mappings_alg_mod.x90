@@ -28,6 +28,9 @@ module intermesh_mappings_alg_mod
   use mesh_mod,                       only : mesh_type
   use mr_indices_mod,                 only : nummr
 
+  ! Object types
+  use config_mod, only: config_type
+
   ! Configuration modules
   use multires_coupling_config_mod, only: recovery_order,                 &
                                           recovery_order_constant,        &
@@ -39,9 +42,6 @@ module intermesh_mappings_alg_mod
                                           negative_correction_none,       &
                                           negative_correction_one_by_one, &
                                           negative_correction_consistent
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -70,7 +70,7 @@ module intermesh_mappings_alg_mod
 contains
 
   !> @brief Converts rho field to the shifted mesh
-  !> @param[in]     config
+  !> @param[in]     config       Application namelist configuration object
   !> @param[in,out] shifted_rho  Rho in W3 on the shifted mesh
   !> @param[in]     primary_rho  Rho in W3 on the prime extrusion mesh
   subroutine obtain_shifted_rho(config, shifted_rho, primary_rho)
@@ -764,7 +764,7 @@ contains
   !!          of the new mixing ratios, dependent upon namelist options. If
   !!          reversible prolongation is used, then a correction to prevent
   !!          negative values will be applied.
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] target_bundle  Bundle of mixing ratios to be computed
   !> @param[in]     source_bundle  Input bundle of mixing ratios to be mapped
   !> @param[in]     target_rho     Target dry density in (primary) W3
@@ -853,7 +853,7 @@ contains
   !!          of the new mixing ratio, dependent upon namelist options. If
   !!          reversible prolongation is used, then a correction to prevent
   !!          negative values will be applied.
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] target_mr      Mixing ratio to be computed
   !> @param[in]     source_mr      Input mixing ratio to be mapped
   !> @param[in]     target_rho     Target dry density in (primary) W3
@@ -963,7 +963,7 @@ contains
   !!          used for physics parametrisations) and applies them to a mixing
   !!          ratio state on another mesh. A correction may be applied to ensure
   !!          that negative values have not been generated.
-  !> @param[in]     config
+  !> @param[in]     config        Application namelist configuration object
   !> @param[in,out] target_mr_np1 Updated mixing ratio bundle to be computed (on
   !!                              the target mesh)
   !> @param[in]     target_mr_n   Initial mixing ratio bundle (on target mesh)

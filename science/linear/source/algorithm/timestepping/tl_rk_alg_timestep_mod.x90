@@ -204,7 +204,7 @@ contains
   !!          then uses this to compute the new perturbation using the same
   !!          runge-kutta method but calling the corresponding tangent linear
   !!          kernels.
-  !> @param[in]     config
+  !> @param[in]     config       Application namelist configuration object
   !> @param[in,out] u            Change in 3D wind field
   !> @param[in,out] rho          Change in density
   !> @param[in,out] theta        Change in potential temperature

@@ -49,7 +49,7 @@ contains
 
   !=============================================================================
   !> @brief Compute the adjoint of horizontal advective update of a Wtheta field.
-  !> @param[in]     config
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] u_grad_f                Horizontal part of u.grad(f)
   !> @param[in]     ls_wind                 Linearisation state wind field
   !> @param[in]     wind_dir                Wind field used to determine direction in kernel
@@ -127,8 +127,8 @@ contains
     if ( panel_edge_treatment /= panel_edge_treatment_none                     &
          .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
-      call remap_on_extended_mesh(config, remap_field,                         &
-                                  field_big_halo, monotone,                    &
+      call remap_on_extended_mesh(config,                                      &
+                                  remap_field, field_big_halo, monotone,       &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)

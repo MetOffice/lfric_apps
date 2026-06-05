@@ -424,7 +424,7 @@ contains
 
   !> @details Initialisation procedure for the timestepping algorithm
   !>          Initialises various internal fields
-  !> @param[in]     config
+  !> @param[in]     config            Application namelist configuration object
   !> @param[in,out] u                 3D wind field
   !> @param[in,out] rho               Density
   !> @param[in,out] theta             Potential temperature
@@ -985,7 +985,8 @@ contains
         !--------------------------------------------------------------------
         ! Call the fast physics terms
         !--------------------------------------------------------------------
-        call fast_physics(self%config, self%du, self%dtheta, mr,               &
+        call fast_physics(self%config,                                         &
+                          self%du, self%dtheta, mr,                            &
                           self%state_n(igh_t), self%state_n(igh_d),            &
                           self%state_n(igh_u), self%state_n(igh_p),            &
                           self%mr_n, derived_fields,                           &
@@ -1001,7 +1002,8 @@ contains
                           outer, model_clock, cast_dt)
 
         if (smagorinsky .and. smagorinsky_placement == smagorinsky_placement_outer) then
-          call smagorinsky_alg(self%config, self%dtheta, self%du, mr,          &
+          call smagorinsky_alg(self%config,                                    &
+                               self%dtheta, self%du, mr,                       &
                                self%state(igh_t), self%state(igh_u),           &
                                derived_fields, cloud_fields, self%state(igh_d),&
                                self%state(igh_p), cast_dt)
@@ -1045,7 +1047,7 @@ contains
           ! Compute the time-level n+1 dynamics terms
           !--------------------------------------------------------------------
           if (inner > 1) then
-            call rhs_alg( self%rhs_np1, -varalpha*cast_dt, &
+            call rhs_alg( self%rhs_np1, -varalpha*cast_dt,              &
                           self%state, self%state, moist_dyn,            &
                           compute_eos=.true., compute_rhs_t_d=.false.,  &
                           dlayer_rhs=dlayer_on, model_clock=model_clock )
@@ -1204,7 +1206,8 @@ contains
       end if
 
       if (microphysics_casim) then
-        call casim_activate_alg( self%config,self%state(igh_t), mr,      &
+        call casim_activate_alg( self%config,                            &
+                                 self%state(igh_t), mr,                  &
                                  derived_fields, cloud_fields,           &
                                  microphysics_fields, convection_fields, &
                                  initialise=.false. )
@@ -1218,7 +1221,8 @@ contains
       call moist_dyn_factors_alg(moist_dyn, mr)
     end if
     if (use_physics) then
-      call map_physics_fields_alg( self%config, self%state(igh_u),       &
+      call map_physics_fields_alg( self%config,                          &
+                                   self%state(igh_u),                    &
                                    self%state(igh_p), self%state(igh_d), &
                                    self%state(igh_t), moist_dyn,         &
                                    derived_fields )

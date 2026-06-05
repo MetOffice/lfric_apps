@@ -164,7 +164,7 @@ contains
   !> @brief Constructs the wind_precomputations object from a 3D transporting
   !!        wind field. Splits this wind field into horizontal and vertical
   !!        components.
-  !> @param[in] config
+  !> @param[in] config             Application namelist configuration object
   !> @param[in] prime_mesh         The prime extrusion mesh
   !> @param[in] dt_substep         Time interval for a transport substep
   !> @param[in] transporting_wind  The 3D transporting wind field

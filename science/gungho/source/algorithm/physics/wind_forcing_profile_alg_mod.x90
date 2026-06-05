@@ -44,7 +44,7 @@ contains
   !>          Profiles may be specified at multiple times, with linear
   !>          interpolation used to evaluate the forcing profile at the
   !>          current model time.
-  !> @param[in]     config
+  !> @param[in]     config    Application namelist configuration object
   !> @param[in,out] du        Forcing increment for wind field (m/s)
   !> @param[in]     exner     Exner field
   !> @param[in]     time_now  Current model time (s)

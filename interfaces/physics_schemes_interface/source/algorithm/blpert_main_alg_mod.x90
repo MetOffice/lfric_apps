@@ -28,7 +28,7 @@ contains
   !>@brief Runs the boundary layer stochastic perturbation scheme (BLPERT)
   !>@details
   !>             as documented in UMDP81
-  !>@param[in]         config
+  !>@param[in]         config            Application namelist configuration object
   !>@param[in,out]     dtheta_blpert     Increments for theta
   !>@param[in,out]     dmv_blpert        Increments for mv
   !>@param[in]         mv                moisture field

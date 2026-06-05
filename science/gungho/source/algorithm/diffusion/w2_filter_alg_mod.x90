@@ -26,8 +26,8 @@ contains
 
   !> @details This first samples the W2 winds at W3 points and then projects back.
   !>          The net effect is similar to a 1-2-1 filter of orthogonal wind components.
-  !> @param[in]      config
-  !> @param[inout]   w2_field_inout   Input w2 field that is overwritten on output
+  !> @param[in]      config          Application namelist configuration object
+  !> @param[inout]   w2_field_inout  Input w2 field that is overwritten on output
   subroutine w2_filter_alg(config, w2_field_inout)
 
     use physics_mappings_alg_mod,      only : map_physics_winds

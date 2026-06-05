@@ -38,11 +38,11 @@ module compute_total_energy_alg_mod
   use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
   use timing_mod,                    only: start_timing, stop_timing, tik, LPROF
 
-  ! Configuration modules
-  use planet_config_mod, only: cv, gravity
-
   ! Object types
   use config_mod, only: config_type
+
+  ! Configuration modules
+  use planet_config_mod, only: cv, gravity
 
   implicit none
 
@@ -71,7 +71,7 @@ contains
   !!        which is the true volume element if the integration method is finite
   !!        element. For finite difference integration the assumed mesh is that
   !!        for a spherical planet.
-  !> @param[in]  config
+  !> @param[in]  config         Application namelist configuration object
   !> @param[out] total_energy   Total energy of the atmosphere
   !> @param[in]  derived_fields Contains u and theta fields mapped to W3 space
   !> @param[in]  u              Wind fields

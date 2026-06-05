@@ -19,7 +19,7 @@ contains
 
   !> @details Diffuse prognostic fields using Smagorinsky coefficients or
   !>          simple viscosity operator
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] mr             mixing ratios
   !> @param[in,out] theta          Potential temperature
   !> @param[in,out] u              3D wind field

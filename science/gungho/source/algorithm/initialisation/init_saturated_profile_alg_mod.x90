@@ -65,7 +65,7 @@ contains
 !>          Picard iteration to convergence to the solution. The Exner and rho
 !>          fields are computed by taking hydrostatic balance.
 !>
-!> @param[in]     config
+!> @param[in]     config      Application namelist configuration object
 !> @param[in,out] theta       potential temperature field
 !> @param[in,out] mr          array of moisture mixing ratio fields
 !> @param[in,out] exner       Exner pressure field

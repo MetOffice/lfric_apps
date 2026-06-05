@@ -42,7 +42,7 @@ public :: rad_cloud_alg
 
 contains
 
-!> @param[in]     config
+!> @param[in]     config                   Application namelist configuration object
 !> @param[in,out] rand_seed                Random seed field for cloud generator
 !> @param[in,out] n_cloud_layer            Number of cloud layers for Socrates
 !> @param[in,out] radiative_cloud_fraction Large scale cloud fraction

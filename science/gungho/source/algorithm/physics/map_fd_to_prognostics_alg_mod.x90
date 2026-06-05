@@ -210,11 +210,11 @@ contains
 
   end subroutine map_fd_to_prognostics
 
-  !> @param[in] config
-  !> @param[in,out] u Wind (FE)
-  !> @param[in] u_lon Zonal Wind (FD)
-  !> @param[in] u_lat Meridional Wind (FD)
-  !> @param[in] u_up Upward Wind (FD)
+  !> @param[in] config  Application namelist configuration object
+  !> @param[in,out] u   Wind (FE)
+  !> @param[in] u_lon   Zonal Wind (FD)
+  !> @param[in] u_lat   Meridional Wind (FD)
+  !> @param[in] u_up    Upward Wind (FD)
   subroutine set_wind(config, u, u_lon, u_lat, u_up)
 
     use sci_convert_phys_to_hdiv_kernel_mod, &

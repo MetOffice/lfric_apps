@@ -44,7 +44,7 @@ contains
   !> modules) and Carbon (via triffid and inferno/fire modules). Note: only the
   !> hydrol and snow components are implemented so far.
   !>
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in]     microphysics_fields Fields for mphys scheme
   !> @param[in]     convection_fields   Fields for convection scheme
   !> @param[in,out] surface_fields      Fields for surface scheme

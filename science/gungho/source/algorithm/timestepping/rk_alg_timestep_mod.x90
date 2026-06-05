@@ -212,10 +212,11 @@ contains
   end subroutine rk_alg_step
 
   !> @details Initialises various internal fields for the Runge-Kutta method
-  !> @param[in]    u 3D  wind field
-  !> @param[in]    rho   Density
-  !> @param[in]    theta Potential temperature
-  !> @param[in]    exner Exner pressure
+  !> @param[in]    config  Application namelist configuration object
+  !> @param[in]    u 3D    wind field
+  !> @param[in]    rho     Density
+  !> @param[in]    theta   Potential temperature
+  !> @param[in]    exner   Exner pressure
   subroutine run_init(self, config, u, rho, theta, exner)
 
     implicit none

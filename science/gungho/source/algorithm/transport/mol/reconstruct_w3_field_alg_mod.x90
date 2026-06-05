@@ -80,7 +80,7 @@ contains
   !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
   !!          desired spatial reconstruction.
   !!          Options for this are either FE or FV reconstructions.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           Reconstructed field at W2 points
   !> @param[in]     field_old           Initial W3 field
   !> @param[in]     direction           Splitting direction (h, v, or 3d) to
@@ -157,7 +157,7 @@ contains
   end subroutine reconstruct_w3_field_alg
 
   !> @brief Reconstructs a W3 field in the horizontal component of W2
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           The resulting horizontal W2 field
   !> @param[in]     field_old           The input W3 field
   !> @param[in]     transport_metadata  Contains transport configuration options
@@ -251,7 +251,7 @@ contains
   end subroutine hori_w3_reconstruct_alg
 
   !> @brief Reconstructs a W3 field in the vertical component of W2
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           The resulting vertical W2 field
   !> @param[in]     field_old           The input W3 field
   !> @param[in]     transport_metadata  Contains transport configuration options
@@ -265,7 +265,6 @@ contains
     implicit none
 
     type(config_type), intent(in) :: config
-
 
     type(r_tran_field_type),       intent(inout) :: field_new
     type(r_tran_field_type),       intent(in)    :: field_old

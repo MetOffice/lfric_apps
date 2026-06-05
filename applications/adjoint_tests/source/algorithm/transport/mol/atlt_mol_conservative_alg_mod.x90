@@ -58,11 +58,12 @@ module atlt_mol_conservative_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  config
+  !> @param[in]  config                  Application namelist configuration object
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  model_clock             The model clock
   !> @param[in]  adj_lookup_table_cache  Lookup table cache
-  subroutine atlt_mol_conservative_alg( config, mesh, model_clock, adj_lookup_table_cache )
+  subroutine atlt_mol_conservative_alg( config, mesh, model_clock, &
+                                        adj_lookup_table_cache )
 
     use atl_mol_conservative_alg_mod,        only : atl_mol_conservative_alg
     use tl_mol_conservative_alg_mod,         only : tl_mol_conservative_alg

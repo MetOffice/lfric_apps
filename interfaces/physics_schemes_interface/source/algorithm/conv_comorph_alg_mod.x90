@@ -42,7 +42,7 @@ contains
   !>@brief Run the Comorph convection scheme
   !>@details The Comorph convection scheme does:
   !>             vertical mixing of heat, momentum and moisture,
-  !>@param[in]     config
+  !>@param[in]     config              Application namelist configuration object
   !>@param[in,out] du_conv_w2          Wind increment in w2
   !>@param[in,out] theta_latest        Current estimate of theta
   !>@param[in,out] u_latest            Current esitmate of wind

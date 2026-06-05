@@ -45,7 +45,7 @@ module atlt_transport_controller_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  config
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
   subroutine atlt_transport_controller_initialiser_alg( config, mesh, model_clock )
@@ -103,7 +103,7 @@ module atlt_transport_controller_alg_mod
 
   !=============================================================================
   !> @brief Runs the adjoint test for atl_transport_controller_initialiser for a given set of parameters
-  !> @param[in]  config
+  !> @param[in]  config               Application namelist configuration object
   !> @param[in]  vector_space_w2_ptr  W2 function space pointer
   !> @param[in]  vector_space_w3_ptr  W3 function space pointer
   !> @param[in]  ls_ref_field_rdef    The LS reference field at rdef precision

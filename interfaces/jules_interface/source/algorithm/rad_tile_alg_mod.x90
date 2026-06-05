@@ -55,7 +55,7 @@ public :: rad_tile_alg
 
 contains
 
-! @param[in]     config
+! @param[in]     config                 Application namelist configuration object
 ! @param[in,out] tile_sw_direct_albedo  Tile SW direct albedos
 ! @param[in,out] tile_sw_diffuse_albedo Tile SW diffuse albedos
 ! @param[in,out] tile_swinc_direct_albedo  Tile SWINC direct albedos

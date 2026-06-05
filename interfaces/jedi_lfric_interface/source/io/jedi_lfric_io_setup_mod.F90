@@ -45,7 +45,7 @@ contains
 
   !> @brief Initialise the XIOS context and IO
   !>
-  !> @param [in]    config        Application configuration object
+  !> @param [in]    config        Application namelist configuration object
   !> @param [in]    context_name  The name of the context
   !> @param [in]    mpi           The mpi communicator
   !> @param [in]    file_meta     The file meta data
@@ -110,7 +110,7 @@ contains
 
   !> @brief  Initialises the model I/O and context
   !>
-  !> @param[in] config        Application configuration object
+  !> @param[in] config        Application namelist configuration object
   !> @param[in] context_name  A string identifier for the context
   !> @param[in] communicator  The ID for the model MPI communicator
   !> @param[in] file_meta     The file meta data

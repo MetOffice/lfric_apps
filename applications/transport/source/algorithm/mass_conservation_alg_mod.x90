@@ -40,7 +40,7 @@ module mass_conservation_alg_mod
 contains
 
   !> @brief Subroutine to compute the total mass
-  !> @param[in] config
+  !> @param[in] config      Application namelist configuration object
   !> @param[in] tstep       Current timestep
   !> @param[in] rho_d       Density field
   !> @param[in] mr          Bundle of mixing ratio fields

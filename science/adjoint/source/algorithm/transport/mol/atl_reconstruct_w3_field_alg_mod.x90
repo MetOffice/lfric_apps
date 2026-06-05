@@ -55,7 +55,7 @@ contains
 
   !=============================================================================
   !> @brief Reconstruct a W3 field at W2 points for adjoint app.
-  !> @param[in]     config
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] field_new               ACTIVE  Reconstructed field at W2 points
   !> @param[in,out] field_old               ACTIVE  Initial W3 field
   !> @param[in]     ls_field_old            PASSIVE Initial W3 field
@@ -154,7 +154,7 @@ contains
 
 !=============================================================================
   !> @brief Adjoint of tangent linear reconstruction of a W3 field in W2v
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           The resulting vertical W2 field
   !> @param[in,out] field_old           The input W3 field
   !> @param[in]     ls_field_old        The linearised input W3 field

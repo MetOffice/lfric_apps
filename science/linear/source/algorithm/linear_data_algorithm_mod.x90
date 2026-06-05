@@ -55,7 +55,7 @@ module linear_data_algorithm_mod
   !> @brief   Read the time-varying linearisation state from a file.
   !> @details Initialise the lin state, that is read in and updated using
   !!          a time-axis.
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] ls_times_list  The Lin state time axis list
   !> @param[in]     model_clock    Time within the model.
   !> @param[in,out] ls_fields      The Lin state field collection
@@ -119,7 +119,7 @@ module linear_data_algorithm_mod
   !> @brief   Update the time-varying Lin state from a file.
   !> @details Update the Lin state, that is read in and updated using
   !!          a time-axis.
-  !> @param[in]     config
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in]     ls_times_list  The Lin state time axis list
   !> @param[in]     model_clock    Time within the model.
   !> @param[in,out] ls_fields      The Lin state field collection
@@ -234,7 +234,7 @@ module linear_data_algorithm_mod
   !> @details The horizontal winds are read in as W3, and the vertical
   !!          winds are read in as Wtheta. This combines them into a
   !!          single W2 field.
-  !> @param[in]     config
+  !> @param[in]     config  Application namelist configuration object
   !> @param[in,out] fields  The collection of ls fields
   subroutine derive_ls_winds_from_w3wth( config, fields )
 

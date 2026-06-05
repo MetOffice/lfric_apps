@@ -33,9 +33,9 @@ module checks_and_balances_alg_mod
 contains
 
   !> @details Checks and modifies fields where necessary
-  !> @param[in]    config
-  !> @param[inout] state Current state of the model prognostics
-  !> @param[in]    dt    The model timestep length
+  !> @param[in]    config  Application namelist configuration object
+  !> @param[inout] state   Current state of the model prognostics
+  !> @param[in]    dt      The model timestep length
   subroutine check_fields(config, state, dt)
 
     implicit none

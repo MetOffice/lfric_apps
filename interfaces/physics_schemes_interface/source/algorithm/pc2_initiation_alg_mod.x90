@@ -37,7 +37,7 @@ contains
   !>         PC2 increments to potential temperature returned.
   !>
   !>         See UMDP30 for full scheme details.
-  !>@param[in]     config
+  !>@param[in]     config                     Application namelist configuration object
   !>@param[in,out] mr                (in,out) Current Mixing ratios
   !>@param[in]     theta             (in)     Current Potential temperature
   !>@param[in]     exner_w3          (in)     Current value of enxer in w3 space

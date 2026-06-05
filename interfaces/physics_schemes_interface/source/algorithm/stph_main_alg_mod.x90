@@ -47,7 +47,7 @@ module stph_main_alg_mod
   !>             1) SPT
   !>             2) SKEB2
   !>         See UMDP-081 for full scheme details
-  !>@param[in]         config
+  !>@param[in]         config                  Application namelist configuration object
   !>@param[in,out]     du_stph                 Stochastic Physics increments for winds
   !>@param[in,out]     dtheta_stph             Stochastic Physics increments for theta
   !>@param[in,out]     dmv_stph                Stochastic Physics increment for Water vapour Mixing ratio

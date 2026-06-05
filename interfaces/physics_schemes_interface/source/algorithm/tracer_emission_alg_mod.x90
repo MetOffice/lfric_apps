@@ -28,7 +28,7 @@ module tracer_emission_alg_mod
 contains
 
   !>@details Add emissions source to a tracer field
-  !>@param[in]     config
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] tracer            tracer field to be updated
   !>@param[in]     tracer_emissions  emissions of the tracer field
   !>@param[in]     derived_fields    contains dry rho in wtheta

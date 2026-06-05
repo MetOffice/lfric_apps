@@ -185,7 +185,8 @@ contains
   !!          large, the two terms in the Helmholtz operator might have
   !!          very different magnitude, distorting the test results).
   !>
-  !> @param[in] mesh Mesh to be used
+  !> @param[in] config   Application namelist configuration object
+  !> @param[in] mesh_in  Mesh to be used
   subroutine cma_test_init(config, mesh_in)
 
     implicit none

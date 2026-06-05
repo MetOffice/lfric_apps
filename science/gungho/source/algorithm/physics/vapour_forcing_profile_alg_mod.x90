@@ -39,7 +39,7 @@ contains
 !>          input profile may be either height, in metres, or pressure in
 !>          Pascals. Linear interpolation is used to map the input profile
 !>          onto finite element nodal points in Wtheta.
-!> @param[in]     config
+!> @param[in]     config       Application namelist configuration object
 !> @param[in,out] dmv_forcing  Forcing increment for vapour mixing ratio (kg/kg)
 !> @param[in]     exner_in_wth Exner field mapped into Wtheta space
 !> @param[in]     time_now     Current model time (s)

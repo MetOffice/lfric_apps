@@ -39,21 +39,20 @@ module atlt_poly1d_vert_w3_recon_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  config
-  !> @param[in]  mesh         The model mesh
+  !> @param[in]  config  Application namelist configuration object
+  !> @param[in]  mesh    The model mesh
   subroutine atlt_poly1d_vert_w3_recon_alg( config, mesh )
 
     use tl_poly1d_vert_w3_reconstruction_kernel_mod,  only : tl_poly1d_vert_w3_reconstruction_kernel_type, &
                                                              tl_poly1d_vert_w3_reconstruction_init,        &
                                                              tl_poly1d_vert_w3_reconstruction_final
-    use atl_poly1d_vert_w3_reconstruction_kernel_mod, only : atl_poly1d_vert_w3_reconstruction_init,        &
+    use atl_poly1d_vert_w3_reconstruction_kernel_mod, only : atl_poly1d_vert_w3_reconstruction_init,       &
                                                              atl_poly1d_vert_w3_reconstruction_final
     use invoke_atl_poly1d_vert_w3_recon_mod,          only : invoke_atl_poly1d_vert_w3_recon_kernel_type
 
     implicit none
 
     ! Arguments
-
     type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
 

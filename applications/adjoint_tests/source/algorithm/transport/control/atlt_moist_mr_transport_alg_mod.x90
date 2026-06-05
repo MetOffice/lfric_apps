@@ -53,7 +53,7 @@ module atlt_moist_mr_transport_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !> Determined by testing the equality of inner products < Mx, Mx > and < AMx, x >,
   !> where M is the tangent linear and A is the adjoint.
-  !> @param[in]  config
+  !> @param[in]  config                  Application namelist configuration object
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  model_clock             The model clock
   !> @param[in]  adj_lookup_table_cache  Lookup table cache

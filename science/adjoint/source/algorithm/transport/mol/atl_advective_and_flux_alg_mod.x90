@@ -56,7 +56,7 @@ contains
   !============================================================================!
   !> @brief Computes the tangent linear flux F and advective increment
   !> @details Compute the tangent linear mass flux and advective increment
-  !> @param[in]     config
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] mass_flux_1             ACTIVE: mass flux to compute from
   !!                                        linear wind and perturbation field
   !> @param[in,out] mass_flux_2             ACTIVE: mass flux to compute from
@@ -253,7 +253,8 @@ contains
 
         end if
 
-        call atl_reconstruct_w3_field_alg( config, reconstruction_field, density, ls_density, &
+        call atl_reconstruct_w3_field_alg( config,                                        &
+                                           reconstruction_field, density, ls_density,     &
                                            direction, transport_metadata, final_rk_stage, &
                                            adj_lookup_table_cache )
 
@@ -263,7 +264,8 @@ contains
         end if
 
         if ( do_advective ) then
-          call atl_wt_advective_update_alg( config, adv_inc, density, wind, ls_density, ls_wind, &
+          call atl_wt_advective_update_alg( config,                                            &
+                                            adv_inc, density, wind, ls_density, ls_wind,       &
                                             dt, direction, transport_metadata, final_rk_stage, &
                                             adj_lookup_table_cache )
         end if

@@ -33,7 +33,7 @@ contains
   !> moisture globally by the same small amount to account for this lake
   !> evaporation.
   !>
-  !> @param[in]     config
+  !> @param[in]     config                 Application namelist configuration object
   !> @param[in]     lake_evap              Evaporation from lakes (kg m-2 s-1)
   !> @param[in,out] soil_moisture          Soil moisture content (kg m-2)
   !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture fraction (m3 m-3)

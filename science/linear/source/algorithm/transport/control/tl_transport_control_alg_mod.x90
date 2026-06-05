@@ -41,7 +41,7 @@ contains
   !> @brief Advection of prognostic variables for the tangent linear model.
   !> @param[in,out] advection_inc      ACTIVE Advection increment of the dynamics
   !!                                   prognostics [u, rho, theta, exner]
-  !> @param[in]     config
+  !> @param[in]     config             Application namelist configuration object
   !> @param[in]     advected_fields    ACTIVE Fields to advect: [u, rho, theta, exner]
   !> @param[in]     wind_np1           ACTIVE End of timestep wind field
   !> @param[in]     wind_n             ACTIVE Start of timestep wind field

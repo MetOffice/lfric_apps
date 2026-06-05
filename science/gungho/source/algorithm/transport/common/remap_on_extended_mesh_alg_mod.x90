@@ -33,7 +33,7 @@ module remap_on_extended_mesh_alg_mod
 contains
 
   !> @brief Remap a field to remap_field on an extended cubed sphere mesh
-  !> @param[in]     config
+  !> @param[in]     config           Application namelist configuration object
   !> @param[in,out] remap_field      Field on extended cubed sphere mesh
   !> @param[in]     field            Field on standard cubed sphere mesh
   !> @param[in]     remap_weights    Interpolation weights for remapping

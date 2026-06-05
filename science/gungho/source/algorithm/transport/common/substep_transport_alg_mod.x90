@@ -57,7 +57,7 @@ contains
   !> @details This routine determines the number of substeps required
   !!          (based on estimated horizontal Courant or Lipschitz numbers)
   !!          when substepping the transport
-  !> @param[in]     config
+  !> @param[in]     config     Application namelist configuration object
   !> @param[in,out] substeps   Number of substeps
   !> @param[in]     wind       The advecting wind
   !> @param[in]     dt         Transport time step
@@ -249,7 +249,7 @@ contains
   !> @brief Computes the Lipschitz numbers for various directional splittings
   !!        that could be used in the transport scheme in the case that the
   !!        V-H-V splitting has Lipschitz numbers that exceed 1.
-  !> @param[in]  config
+  !> @param[in]  config          Application namelist configuration object
   !> @param[out] max_lipschitz   Maximum Lipschitz number of best splitting
   !> @param[out] splitting       Enumerator for best splitting to use
   !> @param[in]  wind            Transporting Wind field

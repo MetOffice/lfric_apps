@@ -25,12 +25,12 @@ module spt_main_alg_mod
   use function_space_collection_mod, only: function_space_collection
   use function_space_mod,            only: function_space_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   ! Configuration modules
   use extrusion_config_mod, only: planet_radius
   use io_config_mod,        only: write_diag, use_xios_io
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -68,6 +68,7 @@ contains
   !>                and SPT fields to iodef diagnostics
   !>
   !>         See UMDP-081 for the scheme full details
+  !>@param[in]         config                  Application namelist configuration object
   !>@param[in,out]     dtheta_stph             Stochastic Physics increments for theta
   !>@param[in,out]     dmv_stph                Stochastic Physics increments for mv
   !>@param[in]         theta_latest            Updated potential temperature
@@ -82,7 +83,8 @@ contains
   !>@param[in,out]     spt_power_law           Spectral power law
   !>@param[in]         clock                   Model time information
 
-  subroutine spt_main_alg(config, dtheta_stph, dmv_stph, theta_latest, mv,   &
+  subroutine spt_main_alg(config,                                    &
+                          dtheta_stph, dmv_stph, theta_latest, mv,   &
                           convection_fields,                         &
                           microphysics_fields, radiation_fields,     &
                           derived_fields, orography_fields,          &
@@ -270,7 +272,8 @@ contains
   call invoke( setval_c(fp_spt, 0.0_r_def))
 
   ! Create forcing pattern for SPT
-  call stph_fp_main_alg(config, spt_level_bottom, spt_level_top, lev_offset, &
+  call stph_fp_main_alg(config,                                      &
+                        spt_level_bottom, spt_level_top, lev_offset, &
                         1, stph_n_max, stph_spectral_dim,            &
                         spt_alpha, spt_power_law,                    &
                         spt_spectral_coeffc, spt_spectral_coeffs,    &

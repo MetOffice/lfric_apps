@@ -325,7 +325,7 @@ contains
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
-    call init_fem(  modeldb%config, chi_inventory, panel_id_inventory )
+    call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
 
     call create_runtime_constants()
 

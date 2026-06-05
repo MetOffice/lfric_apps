@@ -123,7 +123,7 @@ contains
   !!          This is used by the dimensionally-split swept-area approach of
   !!          the flux form semi-Lagrangian (FFSL) scheme.
   !!
-  !> @param[in]     config
+  !> @param[in]     config       Application namelist configuration object
   !> @param[in,out] dep_dist     Departure points in the horizontal, a W2h field
   !> @param[in,out] frac_wind    The part of the horizontal wind corresponding
   !!                             to the fractional part of the Courant number.
@@ -450,7 +450,7 @@ contains
   !!          the flux form semi-Lagrangian (FFSL) scheme as well as the
   !!          vertical semi-Lagrangian and SLICE schemes.
   !!
-  !> @param[in]     config
+  !> @param[in]     config            Application namelist configuration object
   !> @param[in,out] dep_dist_z        Departure points in z direction, a W2v field
   !> @param[in,out] frac_vert_wind    The part of the vertical wind related to
   !!                                  the fractional part of the Courant number
@@ -593,7 +593,7 @@ contains
   !> @details Det(J) at vertical W2 dofs can be calculated using either an
   !!          average from the cells either side or from the upwind cell.
   !!
-  !> @param[in]     config
+  !> @param[in]     config          Application namelist configuration object
   !> @param[in]     advecting_wind  Advecting wind to determine upwind direction
   !> @param[in,out] detj_at_w2      Det(J) at W2 dofs
   subroutine select_detj_at_w2( config, advecting_wind, detj_at_w2 )

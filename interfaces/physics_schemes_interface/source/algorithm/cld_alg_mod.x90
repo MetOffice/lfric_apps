@@ -52,7 +52,7 @@ contains
   !>         and adjust vapour and temperature, as described in UMDP29
   !>         (for liquid only for now).
   !>         Parts of PC2 scheme are also done here.
-  !>@param[in]     config
+  !>@param[in]     config                     Application namelist configuration object
   !>@param[in,out] theta_inc         (in,out) Potential temperature increment
   !>@param[in,out] mr                (in,out) Mixing ratios, in theta space
   !>@param[in]     theta             (in)     theta in its native space

@@ -30,12 +30,13 @@ module process_recv_fields_2d_mod
   contains
 
   !> @brief Process ocean and sea ice data coming through the coupler
-  !> @param[in] config
-  !> @param[in] dcpl_rcv field collection of all fields recieved through the coupler
-  !> @param[in] depository field collection of all other relevant fields
-  !> @param[in] n_sea_ice_tile Number of sea ice tiles
-  !> @param[in] T_freeze_h2o_sea Temperature at which sea water freezes (K)
-  !> @param[in] therm_cond_sice Thermal conductivity of sea-ice (W/m/K)
+  !> @param[in] config            Application namelist configuration object
+  !> @param[in] dcpl_rcv          Field collection of all fields recieved
+  !>                              through the coupler
+  !> @param[in] depository        Field collection of all other relevant fields
+  !> @param[in] n_sea_ice_tile    Number of sea ice tiles
+  !> @param[in] T_freeze_h2o_sea  Temperature at which sea water freezes (K)
+  !> @param[in] therm_cond_sice   Thermal conductivity of sea-ice (W/m/K)
   !> @param[in] therm_cond_sice_snow Thermal conductivity of snow
   !>                                 on zero layer sea-ice (W/m/K)
   subroutine process_recv_fields_2d(config, dcpl_rcv,depository,      &

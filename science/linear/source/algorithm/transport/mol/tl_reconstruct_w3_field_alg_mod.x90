@@ -64,7 +64,7 @@ contains
   !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
   !!          desired spatial reconstruction for tangent linear app.
   !!          Options for this are either FE or FV reconstructions.
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           ACTIVE  Reconstructed field at W2 points
   !> @param[in]     field_old           ACTIVE  Initial W3 field
   !> @param[in]     ls_field_old        PASSIVE Initial W3 field
@@ -156,7 +156,7 @@ contains
   end subroutine tl_reconstruct_w3_field_alg
 
   !> @brief Tangent linear reconstruction of a W3 field in W2v
-  !> @param[in]     config
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           The resulting vertical W2 field
   !> @param[in]     field_old           The input W3 field
   !> @param[in]     ls_field_old        The linearised input W3 field

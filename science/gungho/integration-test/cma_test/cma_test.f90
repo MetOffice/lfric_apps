@@ -280,7 +280,7 @@ program cma_test
     inner_halo_tiles = config%partitioning%inner_halo_tiles()
     tile_size_x      = config%partitioning%tile_size_x()
     tile_size_y      = config%partitioning%tile_size_y()
-    end if
+  end if
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialise

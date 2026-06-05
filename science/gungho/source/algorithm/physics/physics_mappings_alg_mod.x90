@@ -64,6 +64,7 @@ contains
 
   !> @details An algorithm to map native FE scalar fields to the appropriate
   !>          location for the FD physics codes
+  !> @param[in]     config Application namelist configuration object
   !> @param[in,out] target_field Field in the target space
   !> @param[in]     source_field Field in the source (native) space
   subroutine map_physics_scalars(config, target_field, source_field)
@@ -71,9 +72,9 @@ contains
     implicit none
 
     ! Prognostic fields
-    type( config_type ), intent( in ) :: config
-    type( field_type ), intent( inout ) :: target_field
-    type( field_type ), intent( in )    :: source_field
+    type( config_type ), intent( in )    :: config
+    type( field_type ),  intent( inout ) :: target_field
+    type( field_type ),  intent( in )    :: source_field
 
     ! quadrature rule
     type( quadrature_xyoz_type ), pointer :: qr

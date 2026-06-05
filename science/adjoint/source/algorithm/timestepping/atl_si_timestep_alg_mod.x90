@@ -136,7 +136,7 @@ module atl_si_timestep_alg_mod
 contains
 
   !> @brief Initialisation procedure for the adjoint timestepping algorithm
-  !> @param[in]     config
+  !> @param[in]     config       Application namelist configuration object
   !> @param[in,out] u            Change in 3D wind field
   !> @param[in,out] rho          Change in Density
   !> @param[in,out] theta        Change in Potential temperature

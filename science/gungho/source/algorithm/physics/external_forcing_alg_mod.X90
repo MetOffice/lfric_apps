@@ -99,7 +99,7 @@ contains
   !>          such that any combination of temperature forcing will work with
   !>          any combination of wind forcing (or either can be set to none
   !>          and unforced).
-  !> @param[in]     config
+  !> @param[in]     config             Application namelist configuration object
   !> @param[in]     derived_fields     Group of derived fields
   !> @param[in]     u                  3D wind field
   !> @param[in]     theta              Theta field
