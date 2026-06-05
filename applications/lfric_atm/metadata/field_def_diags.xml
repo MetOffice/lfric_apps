@@ -331,6 +331,7 @@
   <field id="cloud__cloud_amount_maxrnd" name="cloud_amount_maxrnd" long_name="combined_cloud_amount_maximum_random_overlap" standard_name="cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__ceilometer_cloud_amount_maxrnd" name="ceilometer_cloud_amount_maxrnd" long_name="ceilometer_filtered_combined_cloud_amount_maximum_random_overlap" standard_name="cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__cloud_base_altitude" name="cloud_base_altitude" long_name="cloud_base_altitude_asl_combined_cloud_amount_greater_than_2p5_okta" standard_name="cloud_base_altitude" unit="kilofeet" domain_ref="face" />
+  <field id="cloud__cloud_top_altitude" name="cloud_top_altitude" long_name="cloud_top_altitude_asl_combined_cloud_amount_greater_than_2p5_okta" standard_name="cloud_top_altitude" unit="kilofeet" domain_ref="face" />
   <field id="cloud__very_low_type_cloud_amount" name="very_low_type_cloud_amount" long_name="maximum_combined_cloud_amount_below_111m_asl" unit="1" domain_ref="face" />
   <field id="cloud__low_type_cloud_amount" name="low_type_cloud_amount" long_name="maximum_combined_cloud_amount_between_111_and_1949m_asl" standard_name="low_type_cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__medium_type_cloud_amount" name="medium_type_cloud_amount" long_name="maximum_combined_cloud_amount_between_1949_and_5574m_asl" standard_name="medium_type_cloud_area_fraction" unit="1" domain_ref="face" />
@@ -676,6 +677,15 @@
   <field id="turbulence__ent_t_frac_dsc" name="ent_t_frac_dsc" long_name="fraction_of_time_decoupled_stratocumulus_inversion_is_above_level" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
   <field id="turbulence__ent_zrzi" name="ent_zrzi" long_name="level_height_as_fraction_of_sml_inversion_height_above_mixed_layer_base" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
   <field id="turbulence__ent_zrzi_dsc" name="ent_zrzi_dsc" long_name="level_height_as_fraction_of_dsc_inversion_height_above_mixed_layer_base" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
+  <!-- diffusion diagnostics -->
+  <field id="diffusion__dtheta_smag" name="dtheta_smag" long_name="theta_increment_from_smagorinsky_mixing" unit="K" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmv_smag" name="dmv_smag" long_name="vapour_increment_from_smagorinsky_mixing" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmcl_smag" name="dmcl_smag" long_name="liquid_water_increment_from_smagorinsky_mixing" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dtheta_smag_pc2" name="dtheta_smag_pc2" long_name="theta_increment_from_smagorinsky_mixing_and_pc2_response" unit="K" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmv_smag_pc2" name="dmv_smag_pc2" long_name="vapour_increment_from_smagorinsky_mixing_and_pc2_response" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmcl_smag_pc2" name="dmcl_smag_pc2" long_name="liquid_water_increment_from_smagorinsky_mixing_and_pc2_response" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dcfl_smag_pc2" name="dcfl_smag_pc2" long_name="liquid_cloud_fraction_increment_from_smagorinsky_mixing_and_pc2_response" unit="1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dbcf_smag_pc2" name="dbcf_smag_pc2" long_name="bulk_cloud_fraction_increment_from_smagorinsky_mixing_and_pc2_response" unit="1" grid_ref="full_level_face_grid" />
   <!-- radiation diagnostics: model timestep -->
   <field id="radiation__dtheta_rad" name="dtheta_rad" long_name="theta_increment_from_radiation" unit="K" grid_ref="full_level_face_grid" />
   <field id="radiation__sw_temperature_incr" name="sw_temperature_incr" long_name="temperature_increment_from_sw_radiation" unit="K" grid_ref="full_level_face_grid" />
