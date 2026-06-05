@@ -151,6 +151,8 @@
         "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_azspice_gnu_fast-debug-64bit",
         "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_azspice_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_lfric2um-pseudolevels-C48L70_N48L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_lfric2um-pseudolevels-C48L70_N48L70_azspice_gnu_full-debug-64bit",
     ],
     "lfric2um_azspice": [
         "lfric2um_azspice_developer",
@@ -212,6 +214,8 @@
     "lfric2um_ex1a_developer": [
         "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-pseudolevels-C48L70_N48L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_lfric2um-pseudolevels-C48L70_N48L70_ex1a_gnu_full-debug-64bit",
     ],
     "lfric2um_ex1a": [
         "lfric2um_ex1a_developer",
