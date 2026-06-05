@@ -28,18 +28,18 @@ module tl_wt_advective_update_alg_mod
   use function_space_mod,                 only: function_space_type
   use function_space_collection_mod,      only: function_space_collection
   use mesh_mod,                           only: mesh_type
-  use transport_config_mod,               only: operators,            &
-                                                fv_horizontal_order,  &
-                                                fv_vertical_order,    &
-                                                operators_fv,         &
-                                                operators_fem,        &
+  use transport_config_mod,               only: operators,                     &
+                                                fv_horizontal_order,           &
+                                                fv_vertical_order,             &
+                                                operators_fv,                  &
+                                                operators_fem,                 &
                                                 consistent_metric
-  use log_mod,                            only: log_event,         &
+  use log_mod,                            only: log_event,                     &
                                                 LOG_LEVEL_ERROR
   use tl_poly1d_vert_adv_kernel_mod,      only: tl_poly1d_vert_adv_kernel_type
-  use transport_enumerated_types_mod,     only: direction_v,                  &
-                                                direction_h,                  &
-                                                direction_3d,                 &
+  use transport_enumerated_types_mod,     only: direction_v,                   &
+                                                direction_h,                   &
+                                                direction_3d,                  &
                                                 monotone_koren
   use transport_metadata_mod,             only: transport_metadata_type
   use wt_advective_update_alg_mod,        only: hori_wt_update_alg
@@ -89,20 +89,23 @@ contains
     type(transport_metadata_type), intent(in)    :: transport_metadata
     logical(kind=l_def),           intent(in)    :: final_rk_stage
 
-    type(field_type)                       :: u_grad_f
-    type(field_type)                       :: wind_v
-    type(field_type)                       :: wind_h
-    type(field_type)                       :: ls_wind_v
-    type(field_type)                       :: ls_wind_h
-    type(function_space_type),     pointer :: w2h_fs, w2v_fs
-    type(integer_field_type),      pointer :: face_selector_ew
-    type(integer_field_type),      pointer :: face_selector_ns
-    type(field_type),              pointer :: mt_lumped_inv
-    type(mesh_type),               pointer :: mesh
+    type(field_type)                   :: u_grad_f
+    type(field_type)                   :: u_grad_ls_f
+    type(field_type)                   :: wind_v
+    type(field_type)                   :: wind_h
+    type(field_type)                   :: ls_wind_v
+    type(field_type)                   :: ls_wind_h
+    type(function_space_type), pointer :: w2h_fs, w2v_fs
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    type(field_type),          pointer :: mt_lumped_inv
+    type(mesh_type),           pointer :: mesh
 
     mesh => wind%get_mesh()
     call u_grad_f%initialise( adv_field%get_function_space() )
-    call invoke( setval_c(u_grad_f, 0.0_r_def) )
+    call u_grad_ls_f%initialise( adv_field%get_function_space() )
+    call invoke( setval_c(u_grad_f, 0.0_r_def), &
+                 setval_c(u_grad_ls_f, 0.0_r_def) )
 
     select case( operators )
 
@@ -133,21 +136,29 @@ contains
                                                 face_selector_ew,              &
                                                 face_selector_ns))
 
-        ! Horizontal update
+        ! Horizontal update of ls_u grad pert_f
         call hori_wt_update_alg(u_grad_f, ls_wind_h, ls_wind_h, adv_field, transport_metadata)
-        call hori_wt_update_alg(u_grad_f, wind_h, ls_wind_h, ls_adv_field, transport_metadata)
+        ! Horizontal update of pert_u grad ls_f
+        call hori_wt_update_alg(u_grad_ls_f, wind_h, ls_wind_h, ls_adv_field, transport_metadata)
+        ! Combine gradient terms
+        call invoke( inc_X_plus_Y(u_grad_f, u_grad_ls_f) )
 
         if ( consistent_metric ) then
           call log_event( "TL: consistent metric not implemented", LOG_LEVEL_ERROR )
         end if
 
+        ! Vertical update
         call tl_vert_wt_update_alg(u_grad_f, wind_v, adv_field, &
                                    ls_wind_v, ls_adv_field,     &
                                    transport_metadata, final_rk_stage)
 
       case ( direction_h )
+        ! Horizontal update of ls_u grad pert_f
         call hori_wt_update_alg(u_grad_f, ls_wind, ls_wind, adv_field, transport_metadata)
-        call hori_wt_update_alg(u_grad_f, wind, ls_wind, ls_adv_field, transport_metadata)
+        ! Horizontal update of pert_u grad ls_f
+        call hori_wt_update_alg(u_grad_ls_f, wind, ls_wind, ls_adv_field, transport_metadata)
+        ! Combine gradient terms
+        call invoke( inc_X_plus_Y(u_grad_f, u_grad_ls_f) )
 
       case ( direction_v )
         call tl_vert_wt_update_alg(u_grad_f, wind, adv_field, &
@@ -156,7 +167,6 @@ contains
       case default
         call log_event('T.L. advective update: direction not recognised', LOG_LEVEL_ERROR)
       end select
-
 
     case(operators_fem)
       call log_event( "TL: fem not available", LOG_LEVEL_ERROR )

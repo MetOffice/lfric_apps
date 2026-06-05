@@ -82,6 +82,7 @@ contains
     type(adj_trans_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     type(field_type)                       :: u_grad_f
+    type(field_type)                       :: u_grad_ls_f
     type(field_type)                       :: wind_v
     type(field_type)                       :: wind_h
     type(field_type)                       :: ls_wind_v
@@ -94,6 +95,7 @@ contains
 
     mesh => wind%get_mesh()
     call u_grad_f%initialise( adv_field%get_function_space() )
+    call u_grad_ls_f%initialise( adv_field%get_function_space() )
     mt_lumped_inv => get_inverse_lumped_mass_matrix_fe( Wtheta, mesh%get_id() )
     call invoke( X_times_Y(u_grad_f, rhs, mt_lumped_inv), &
                  setval_c(rhs, 0.0_r_def) )
@@ -136,17 +138,20 @@ contains
                                      transport_metadata, final_rk_stage )
 
         ! Horizontal update
-        call atl_hori_wt_update_alg( u_grad_f, wind_h, ls_wind_h, ls_adv_field, transport_metadata )
+        call invoke( setval_X(u_grad_ls_f, u_grad_f) )
+        call atl_hori_wt_update_alg( u_grad_ls_f, wind_h, ls_wind_h, ls_adv_field, transport_metadata )
+        call invoke( inc_X_minus_Y(u_grad_f, u_grad_ls_f) )
         call adj_hori_wt_update_alg( u_grad_f, ls_wind_h, ls_wind_h, adv_field, transport_metadata, &
                                      adj_lookup_table_cache )
-
         call invoke( adj_split_w2_field_kernel_type(wind_h, wind_v, wind,          &
                                                     face_selector_ew,              &
                                                     face_selector_ns))
 
 
-      case ( direction_h )
-        call atl_hori_wt_update_alg( u_grad_f, wind, ls_wind, ls_adv_field, transport_metadata )
+      case ( direction_h )        
+        call invoke( setval_X(u_grad_ls_f, u_grad_f) )
+        call atl_hori_wt_update_alg( u_grad_ls_f, wind, ls_wind, ls_adv_field, transport_metadata )
+        call invoke( inc_X_minus_Y(u_grad_f, u_grad_ls_f) )
         call adj_hori_wt_update_alg( u_grad_f, ls_wind, ls_wind, adv_field, transport_metadata, &
                                      adj_lookup_table_cache )
 
