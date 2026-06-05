@@ -105,7 +105,7 @@ module process_send_fields_2d_mod
     ! the field was written to the restart file so we set r_acc_step=1
     ! as we still need to divide by sea-ice fraction and copy values from
     ! depository field (dep_fld) to fld ready for coupling.
-    ! In this case acc_step will have been set to zero 
+    ! In this case acc_step will have been set to zero
     ! so we can use this as a test.
 
     call modeldb%values%get_value( 'accumulation_steps', acc_step )
