@@ -35,7 +35,7 @@ module bl_imp_du_kernel_mod
   !> Kernel metadata type.
   type, public, extends(kernel_type) :: bl_imp_du_kernel_type
     private
-    type(arg_type) :: meta_args(23) = (/                                       &
+    type(arg_type) :: meta_args(22) = (/                                       &
         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &! outer
         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),  &! du_bl
         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),  &! dissip
@@ -50,9 +50,8 @@ module bl_imp_du_kernel_mod
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! dtrdz
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! wetrho
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! u_physics
-        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! u_physics_star
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! u_phys_latest
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_2),                &! surf_interp
-        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! du_conv
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  WTheta),                     &! dw_bl
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! dA
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W1),                         &! height_w1
@@ -89,9 +88,8 @@ contains
   !> @param[in]     dtrdz          dt/(r*r*dz) mapped to cell faces
   !> @param[in]     wetrho         Wet density
   !> @param[in]     u_physics      Wind in native space at time n
-  !> @param[in]     u_physics_star Wind in native space after advection
+  !> @param[in]     u_phys_latest  Current estimate of the wind
   !> @param[in]     surf_interp    Surface variables which need interpolating
-  !> @param[in]     du_conv        Wind increment from convection
   !> @param[in]     dw_bl          Vertical wind increment from explicit BL
   !> @param[in]     dA             Area of faces
   !> @param[in]     height_w1      Height of cell top/bottom above surface
@@ -133,9 +131,8 @@ contains
                             dtrdz,            &
                             wetrho,           &
                             u_physics,        &
-                            u_physics_star,   &
+                            u_phys_latest,    &
                             surf_interp,      &
-                            du_conv,          &
                             dw_bl,            &
                             dA,               &
                             height_w1,        &
@@ -189,7 +186,7 @@ contains
          wind10m_neut, tau_ssi, pseudotau
 
     real(kind=r_def), dimension(undf_w2),  intent(in) :: rhokm, dtrdz,         &
-         u_physics, u_physics_star, du_conv, dA, height_w2, wetrho
+         u_physics, u_phys_latest, dA, height_w2, wetrho
     real(kind=r_def), dimension(undf_w2_2d), intent(in) :: tau_land
     real(kind=r_def), dimension(undf_w2_surf), intent(in) :: surf_interp
     real(kind=r_def), dimension(undf_w1),   intent(in) :: height_w1, rdz
@@ -228,9 +225,9 @@ contains
 
       ! Set implicit weights for predictor section
       i1 = (1.0_r_bl + 1.0_r_bl/sqrt2)*(1.0_r_bl + pnonl)
-      e1 = (1.0_r_bl + 1.0_r_bl/sqrt2)*(pnonl + 1.0_r_bl/sqrt2 +          &
+      e1 = (1.0_r_bl + 1.0_r_bl/sqrt2)*(pnonl + 1.0_r_bl/sqrt2 +               &
                                 sqrt(pnonl*(sqrt2 - 1.0_r_bl) + 0.5_r_bl) )
-      e2 = (1.0_r_bl + 1.0_r_bl/sqrt2)*(pnonl + 1.0_r_bl/sqrt2 -          &
+      e2 = (1.0_r_bl + 1.0_r_bl/sqrt2)*(pnonl + 1.0_r_bl/sqrt2 -               &
                                 sqrt(pnonl*(sqrt2 - 1.0_r_bl) + 0.5_r_bl) )
       gamma1 = i1
       gamma2 = i1 - e1
@@ -246,9 +243,7 @@ contains
       !================================================================
 
       do k = 0, bl_levels-1
-        du_nt(k) = u_physics_star(map_w2(df) + k) -                            &
-                   u_physics(map_w2(df) + k) +                                 &
-                   du_conv(map_w2(df) + k)
+        du_nt(k) = u_phys_latest(map_w2(df) + k) - u_physics(map_w2(df) + k)
         dtr_rhodz(k) = dtrdz(map_w2(df) + k) / wetrho(map_w2(df) + k)
         rhokm_sp(k) = rhokm(map_w2(df) + k)
         du_bl_sp(k) = du_bl(map_w2(df) + k)
@@ -305,12 +300,12 @@ contains
       ! 2nd stage of the scheme.
       do k = 1, bl_levels-1
         tau_loc(k) = tau_loc(k) + rhokm_sp(k) *          &
-                         ( du_bl_sp(k) - du_bl_sp(k-1) ) &
+                          ( du_bl_sp(k) - du_bl_sp(k-1) ) &
                           * rdz_sp(k)
       end do
 
-      call matrix_sweep(du_bl_sp, du_1, cq_cm, cq_cm_1, df, gamma1, gamma2,  &
-                        height_w1, dtr_rhodz, tau_loc, du_nt,rhokm_sp,rdz_sp,&
+      call matrix_sweep(du_bl_sp, du_1, cq_cm, cq_cm_1, df, gamma1, gamma2,    &
+                        height_w1, dtr_rhodz, tau_loc, du_nt,rhokm_sp,rdz_sp,  &
                         k_blend, ndf_w1, undf_w1, map_w1)
 
       !================================================================
@@ -354,7 +349,7 @@ contains
       ! first calculate tau
       do k = 1, bl_levels-1
         tau_loc(k) = tau_star(k) + gamma2 * tau_loc(k) + &
-                      gamma1 * rhokm_sp(k) * rdz_sp(k) *  &
+                     gamma1 * rhokm_sp(k) * rdz_sp(k) *  &
                       ( du_bl_sp(k) - du_bl_sp(k-1) )
       end do
 
@@ -364,15 +359,15 @@ contains
       if (fric_heating) then
         do k = 0, bl_levels-2
           dissip(map_w2(df) + k) = tau_loc(k+1) * rdz_sp(k+1) *    &
-                    ( u_physics(map_w2(df) + k+1) + du_bl_sp(k+1) - &
-                        u_physics(map_w2(df) + k) - du_bl_sp(k) )
+                   ( u_physics(map_w2(df) + k+1) + du_bl_sp(k+1) - &
+                     u_physics(map_w2(df) + k) - du_bl_sp(k) )
         end do
 
         ! Add on dissipation in the surface layer
-        dissip(map_w2(df)) = ( tau_loc(0) *                                  &
-                           (u_physics(map_w2(df)) + du_bl_sp(0) ) +          &
-                           dissip(map_w2(df)) *                              &
-                        (height_w2(map_w2(df)+1) - height_w2(map_w2(df))) )/ &
+        dissip(map_w2(df)) = ( tau_loc(0) *                                    &
+                             (u_physics(map_w2(df)) + du_bl_sp(0) ) +          &
+                             dissip(map_w2(df)) *                              &
+                        (height_w2(map_w2(df)+1) - height_w2(map_w2(df))) ) /  &
                         (height_w2(map_w2(df)+1) - height_w1(map_w1(df)))
 
         ! And nothing on the top level
@@ -381,17 +376,17 @@ contains
 
       ! Diagnostic calculations at final iteration only
       if (outer == outer_iterations) then
-        tau_ssi(map_w2_2d(df))  = (tau_ssi_loc + tau_ssi_star)               &
-                                  * dA(map_w2(df))
-        tau_land_loc            = (tau_land_loc + tau_land_star)             &
-                                  * dA(map_w2(df))
-        wind10m(map_w2_2d(df))  = (u_physics(map_w2(df)) + du_bl_sp(0))      &
-                                  * cdr10m * dA(map_w2(df))
-        wind10m_neut(map_w2_2d(df)) =                                        &
-                                 (u_physics(map_w2(df)) + du_bl_sp(0))       &
-                                  * cdr10m_neut * dA(map_w2(df))
+        tau_ssi(map_w2_2d(df))  = (tau_ssi_loc + tau_ssi_star)                 &
+                                   * dA(map_w2(df))
+        tau_land_loc            = (tau_land_loc + tau_land_star)               &
+                                   * dA(map_w2(df))
+        wind10m(map_w2_2d(df))  = (u_physics(map_w2(df)) + du_bl_sp(0))        &
+                                   * cdr10m * dA(map_w2(df))
+        wind10m_neut(map_w2_2d(df)) =                                          &
+                                  (u_physics(map_w2(df)) + du_bl_sp(0))        &
+                                   * cdr10m_neut * dA(map_w2(df))
         ! tau in bottom level is grid-bix mean surface stress for diagnostics
-        tau(map_w2(df)) = fland * tau_land_loc +                             &
+        tau(map_w2(df)) = fland * tau_land_loc +                               &
                           (1.0_r_bl - fland) * tau_ssi(map_w2_2d(df))
         ! save end-of-timestep stress profile for diagnostics
         do k = 1, bl_levels-1
@@ -403,12 +398,12 @@ contains
       ! final increment calculation
       do k = 0, bl_levels-1
         du_bl(map_w2(df) + k) = du_bl_sp(k) -                      &
-              ( u_physics_star(map_w2(df) + k) - u_physics(map_w2(df) + k) )
+              ( u_phys_latest(map_w2(df) + k) - u_physics(map_w2(df) + k) )
       end do
 
-      ! Above BL levels it's just the convection increment
+      ! Above BL levels there's no increment
       do k = bl_levels, nlayers-1
-        du_bl(map_w2(df) + k) = du_conv(map_w2(df) + k)
+        du_bl(map_w2(df) + k) = 0.0_r_def
       end do
 
     end do ! loop over df
