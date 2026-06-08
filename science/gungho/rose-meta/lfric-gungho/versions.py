@@ -605,3 +605,17 @@ class vn31_t504(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t496(MacroUpgrade):
+    """Upgrade macro for ticket #496 by Samantha Pullen."""
+
+    BEFORE_TAG = "vn3.1_t504"
+    AFTER_TAG = "vn3.1_t496"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-iau
+        # Add new setting to iau namelist
+        self.add_setting(config, ["namelist:iau", "iau_outerloop"], ".false.")
+
+        return config, self.reports
