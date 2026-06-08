@@ -35,7 +35,7 @@ real(r_def),    parameter :: T_surf        = 300.0_r_def
 real(r_def),    parameter :: dTdz          = -50.0_r_def / height_domain
 real(r_def),    parameter :: mv_surf       = 0.01_r_def
 real(r_def),    parameter :: planet_radius = 6.4e6_r_def
-real(r_def),    parameter :: cp            = 1000.0_r_drf
+real(r_def),    parameter :: cp            = 1000.0_r_def
 real(r_def),    parameter :: gravity       = 10.0_r_def
 real(r_def),    parameter :: recip_epsilon = 0.6_r_def
 
@@ -93,7 +93,7 @@ contains
     do k = 1, nlayers - 1
       coriolis_term(map_wt(1) + k) =                      &
             ( phi(map_w3(1) + k) - phi(map_w3(1) + k - 1) &
-              - cp * t_virtual(map_wt(1) = k) /           &
+              - cp * t_virtual(map_wt(1) + k) /           &
                      ( 3.0_r_def * wt ) ) / dz
     end do
 
@@ -111,9 +111,12 @@ contains
 
     class(regrav_preserve_t_test_type), intent(inout) :: this
 
-    deallocate( map_wt )
-    deallocate( temperature )
-    deallocate( height_wt, height_phys )
+    deallocate( map_wt, map_w3 )
+    deallocate( temperature, exner, phi )
+    deallocate( mv, moist_dyn_gas, moist_dyn_tot )
+    deallocate( t_virtual )
+    deallocate( coriolis_term, mask_w3 )
+    deallocate( height_wt, height_w3 )
 
   end subroutine tearDown
 
@@ -134,7 +137,7 @@ contains
                                  moist_dyn_gas, moist_dyn_tot, &
                                  phi,                          &
                                  height_w3, height_wt,         &
-                                 w3_mask, cp,                  &
+                                 mask_w3, cp,                  &
                                  ndf_w3, undf_w3, map_w3,      &
                                  ndf_wt, undf_wt, map_wt )
 

@@ -42,7 +42,7 @@ type, public, extends(kernel_type) :: regrav_preserve_t_kernel_type
        arg_type(GH_FIELD,  GH_REAL, GH_READ,      W3),      &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta),  &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,      W3),      &
-       arg_type(GH_SCALAR, GH_REAL, GH_READ)
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)                &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
