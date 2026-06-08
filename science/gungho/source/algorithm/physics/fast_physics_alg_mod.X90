@@ -479,7 +479,7 @@ contains
     !--------------------------------------------------------------------
     if (smagorinsky .and. smagorinsky_placement == smagorinsky_placement_fast) then
       call smagorinsky_alg(config, dtheta, du, mr, theta_star, u_star, &
-                           derived_fields, cloud_fields, rho, exner, dt)
+                           derived_fields, cloud_fields, rho, exner, dt, clock)
     end if
 
     call print_field_stats_alg(config, dtheta, LOG_LEVEL_INFO,            &
