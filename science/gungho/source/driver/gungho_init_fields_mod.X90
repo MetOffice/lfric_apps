@@ -115,7 +115,8 @@ module gungho_init_fields_mod
   use variable_fields_mod,                only : init_variable_fields
   use lfric_xios_time_axis_mod,           only : regridder
   use intermesh_mappings_alg_mod,         only : map_scalar_intermesh
-  use iau_config_mod,                     only : iau_use_pertinc
+  use iau_config_mod,                     only : iau_outerloop, &
+                                                 iau_use_pertinc
   use casim_activate_alg_mod,             only : casim_activate_alg
   use microphysics_config_mod,            only : microphysics_casim
   use stochastic_physics_config_mod,      only : use_spt, &
@@ -1102,18 +1103,18 @@ subroutine create_model_data( modeldb,      &
       end if
     end if
 
-    if ( iau ) then
+#ifdef UM_PHYSICS
+    if (( iau ) .and. ( .not. iau_outerloop )) then
       call log_event( 'IAU: read file in initialise', LOG_LEVEL_INFO )
       field_collection_ptr => modeldb%fields%get_field_collection("iau_fields")
       call read_state( field_collection_ptr )
-#ifdef UM_PHYSICS
       if ( iau_use_pertinc ) then
         call log_event( 'IAU: read pertinc file in initialise', LOG_LEVEL_INFO )
         field_collection_ptr => modeldb%fields%get_field_collection("iau_pert_fields")
         call read_state( field_collection_ptr )
       end if
-#endif
     end if
+#endif
 
     if ( iau_surf ) then
       call log_event( 'IAU: read surf inc file in initialise', LOG_LEVEL_INFO )

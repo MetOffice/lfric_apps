@@ -618,3 +618,40 @@ class vn31_t378(MacroUpgrade):
         self.add_setting(config, ["namelist:mixing", "max_diff_factor"], "1.0")
 
         return config, self.reports
+
+
+class vn31_t504(MacroUpgrade):
+    """Upgrade macro for ticket #504 by Adrian Lock."""
+
+    BEFORE_TAG = "vn3.1_t378"
+    AFTER_TAG = "vn3.1_t504"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:initial_temperature", "theta_pert_start"],
+            "5000.0",
+        )
+        self.add_setting(
+            config, ["namelist:initial_temperature", "theta_pert_end"], "7000.0"
+        )
+        self.add_setting(
+            config, ["namelist:initial_temperature", "theta_pert_size"], "0.5"
+        )
+
+        return config, self.reports
+
+
+class vn31_t496(MacroUpgrade):
+    """Upgrade macro for ticket #496 by Samantha Pullen."""
+
+    BEFORE_TAG = "vn3.1_t504"
+    AFTER_TAG = "vn3.1_t496"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-iau
+        # Add new setting to iau namelist
+        self.add_setting(config, ["namelist:iau", "iau_outerloop"], ".false.")
+
+        return config, self.reports
