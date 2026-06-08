@@ -115,8 +115,6 @@ contains
 
     call invoke( name="adjt_siss_1",                    &
                  setval_random(rhs(igh_u)),             &
-                 inc_X_minus_a(rhs(igh_u), 0.5_r_def),  &
-                 inc_a_times_X(1.0e6_r_def, rhs(igh_u)),&
                  setval_random(rhs(igh_t)),             &
                  setval_random(rhs(igh_p)),             &
                  setval_random(rhs(igh_d)),             &
