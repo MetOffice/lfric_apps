@@ -56,8 +56,8 @@ contains
       pass_str = "PASS"
     end if
 
-    write( log_scratch_space, '(A, A, A, E16.8, A, E16.8)') &
-     name, pass_str, " Convergence rate: ", conv_rate, "  Tolerance: ", tol
+    write( log_scratch_space, '(A, A, A, A, E16.8, A, E16.8)') &
+      trim(name),": ", pass_str, " Convergence rate: ", conv_rate, "  Tolerance: ", tol
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   end subroutine convergence_pass_string
