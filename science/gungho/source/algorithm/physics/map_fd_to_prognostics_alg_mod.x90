@@ -348,7 +348,7 @@ contains
     use sci_enforce_bc_kernel_mod,     only : enforce_bc_kernel_type
     use hydrostatic_coriolis_kernel_mod, &
                                        only : hydrostatic_coriolis_kernel_type
-    use regrav_isotherm_kernel_mod,    only : regrav_isotherm_kernel_type
+    use regrav_preserve_t_kernel_mod,  only : regrav_preserve_t_kernel_type
     use regrav_geopot_kernel_mod,      only : regrav_geopot_kernel_type
     use moist_dyn_mod,                 only : num_moist_factors
     use matrix_vector_kernel_mod,      only : matrix_vector_kernel_type
@@ -481,13 +481,13 @@ contains
              ! Find exner at all levels by integrating hydrostatic
              ! equation upwards from level 1, preserving absolute
              ! temperature. Gravity is height-dependent.
-             regrav_isotherm_kernel_type( exner, temperature,    &
-                                          c_vert_term,           &
-                                          moist_dyn(gas_law),    &
-                                          moist_dyn(total_mass), &
-                                          geopotential,          &
-                                          height_w3, height_wth, &
-                                          mask, cp ) )
+             regrav_preserve_t_kernel_type( exner, temperature,    &
+                                            c_vert_term,           &
+                                            moist_dyn(gas_law),    &
+                                            moist_dyn(total_mass), &
+                                            geopotential,          &
+                                            height_w3, height_wth, &
+                                            mask, cp ) )
       case( regravitate_isotherm3 )
         call invoke( &
              ! Find exner below eos_level by integrating hydrostatic
@@ -509,13 +509,13 @@ contains
              ! Find exner at all levels by integrating hydrostatic
              ! equation upwards from level 1, preserving absolute
              ! temperature. Gravity is height-dependent.
-             regrav_isotherm_kernel_type( exner, temperature,    &
-                                          c_vert_term,           &
-                                          moist_dyn(gas_law),    &
-                                          moist_dyn(total_mass), &
-                                          geopotential,          &
-                                          height_w3, height_wth, &
-                                          mask, cp ) )
+             regrav_preserve_t_kernel_type( exner, temperature,    &
+                                            c_vert_term,           &
+                                            moist_dyn(gas_law),    &
+                                            moist_dyn(total_mass), &
+                                            geopotential,          &
+                                            height_w3, height_wth, &
+                                            mask, cp ) )
       case( regravitate_geopot )
         call invoke( &
              ! Find exner below eos_level by integrating hydrostatic
@@ -539,13 +539,13 @@ contains
              ! Find exner at all levels by integrating hydrostatic
              ! equation upwards from level 1, preserving absolute
              ! temperature. Gravity is height-dependent.
-             regrav_isotherm_kernel_type( exner, temperature,    &
-                                          c_vert_term,           &
-                                          moist_dyn(gas_law),    &
-                                          moist_dyn(total_mass), &
-                                          geopotential,          &
-                                          height_w3, height_wth, &
-                                          mask, cp ) )
+             regrav_preserve_t_kernel_type( exner, temperature,    &
+                                            c_vert_term,           &
+                                            moist_dyn(gas_law),    &
+                                            moist_dyn(total_mass), &
+                                            geopotential,          &
+                                            height_w3, height_wth, &
+                                            mask, cp ) )
       end select
       call invoke( &
              ! Recompute exner in Wtheta (required to calculate theta)

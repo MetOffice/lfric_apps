@@ -8,8 +8,7 @@
 !>
 module regrav_preserve_t_kernel_mod_test
 
-use constants_mod,                   only: i_def, r_def
-use, intrinsic :: iso_fortran_env,   only: real64
+use constants_mod,                   only: i_def, r_def, rmdi
 use funit
 
 implicit none
@@ -29,15 +28,23 @@ end type regrav_preserve_t_test_type
 integer(i_def), parameter :: nlayers       = 3_i_def
 integer(i_def), parameter :: ndf_wt        = 2_i_def
 integer(i_def), parameter :: undf_wt       = nlayers + 1_i_def
-real(r_def),    parameter :: height_domain = 40.0e3_r_def
+integer(i_def), parameter :: ndf_w3        = 1_i_def
+integer(i_def), parameter :: undf_w3       = nlayers
+real(r_def),    parameter :: height_domain = 10.0e3_r_def
 real(r_def),    parameter :: T_surf        = 300.0_r_def
-real(r_def),    parameter :: dTdz          = -2.0e-3_r_def
+real(r_def),    parameter :: dTdz          = -50.0_r_def / height_domain
+real(r_def),    parameter :: mv_surf       = 0.01_r_def
 real(r_def),    parameter :: planet_radius = 6.4e6_r_def
+real(r_def),    parameter :: cp            = 1000.0_r_drf
+real(r_def),    parameter :: gravity       = 10.0_r_def
+real(r_def),    parameter :: recip_epsilon = 0.6_r_def
 
-integer(i_def), allocatable :: map_wt(:)
-real(r_def),    allocatable :: temperature(:)
-real(r_def),    allocatable :: height_wt(:)
-real(r_def),    allocatable :: height_phys(:)
+integer(i_def), allocatable :: map_wt(:), map_w3(:)
+real(r_def),    allocatable :: temperature(:), exner(:), phi(:)
+real(r_def),    allocatable :: mv(:), moist_dyn_gas(:), moist_dyn_tot(:)
+real(r_def),    allocatable :: t_virtual(:)
+real(r_def),    allocatable :: coriolis_term(:), mask_w3(:)
+real(r_def),    allocatable :: height_wt(:), height_w3(:)
 
 contains
 
@@ -48,21 +55,53 @@ contains
     class(regrav_preserve_t_test_type), intent(inout) :: this
 
     integer(i_def) :: k
+    real(r_def)    :: eta, wt
 
-    allocate( map_wt(ndf_wt) )
-    allocate( temperature(undf_wt) )
-    allocate( height_wt(undf_wt), height_phys(undf_wt) )
+    allocate( map_wt(ndf_wt), map_w3(ndf_w3) )
+    allocate( temperature(undf_wt), exner(undf_w3), phi(undf_w3) )
+    allocate( mv(undf_wt), moist_dyn_gas(undf_wt), moist_dyn_tot(undf_wt) )
+    allocate( t_virtual(undf_wt) )
+    allocate( coriolis_term(undf_wt), mask_w3(undf_w3) )
+    allocate( height_wt(undf_wt), height_w3(undf_w3) )
 
     ! Create the model grid
     map_wt(:) = (/ 1_i_def, 2_i_def /)
+    map_w3(1) = 1_i_def
 
+    ! Uniform mesh
+    wt = 0.5_r_def
     do k = 0, nlayers
-      height_wt(map_wt(1) + k) = k * height_domain / nlayers
-      height_phys(map_wt(1) + k) = height_wt(map_wt(1) + k) /               &
-                                   ( 1.0_r_def - height_wt(map_wt(1) + k) / &
-                                                 planet_radius)
+      eta = k / float(nlayers)
+      height_wt(map_wt(1) + k) = eta * height_domain
       temperature(map_wt(1) + k) = T_surf + dTdz * height_phys(map_wt(1) + k)
+      mv(map_wt(1) + k) = mv_surf * ( 1.0 - sqrt(eta) )
     end do
+
+    moist_dyn_gas = 1.0_r_def + recip_epsilon * mv
+    moist_dyn_tot = 1.0 + mv
+    t_virtual = temperature * moist_dyn_gas / moist_dyn_tot
+
+    do k = 0, nlayers - 1
+      height_w3(map_w3(1) + k) = 0.5_r_def * ( height_wt(map_wt(2) + k) - &
+                                               height_wt(map_wt(1) + k) )
+      phi(map_w3(1) + k) = gravity * height_w3(map_w3(1) + k) / &
+                           ( 1.0_r_def + height_w3(map_w3(1) + k) / planet_radius)
+    end do
+
+    ! Compute Coriolis term so that exner is half value at layer below.
+    coriolis_term = rmdi
+    do k = 1, nlayers - 1
+      coriolis_term(map_wt(1) + k) =                      &
+            ( phi(map_w3(1) + k) - phi(map_w3(1) + k - 1) &
+              - cp * t_virtual(map_wt(1) = k) /           &
+                     ( 3.0_r_def * wt ) ) / dz
+    end do
+
+    ! Integration starts from lowest layer
+    exner( map_w3(1) ) = 1.0_r_def
+
+    ! Don't apply mask
+    mask_w3 = 1.0
 
   end subroutine setUp
 
@@ -90,13 +129,21 @@ contains
     integer(i_def) :: k
     real(r_def)    :: target_value, tolerance
 
-    call regrav_preserve_t_code( nlayers, temperature, height_wt, planet_radius, &
-                             ndf_wt, undf_wt, map_wt )
+    call regrav_preserve_t_code( nlayers, exner, temperature,  &
+                                 coriolis_term,                &
+                                 moist_dyn_gas, moist_dyn_tot, &
+                                 phi,                          &
+                                 height_w3, height_wt,         &
+                                 w3_mask, cp,                  &
+                                 ndf_w3, undf_w3, map_w3,      &
+                                 ndf_wt, undf_wt, map_wt )
 
-    do k = 0, nlayers
-      target_value = T_surf + height_wt(map_wt(1)+k) * dTdz
+    ! Exner decreases by half at each successive layer
+    target_value = 1.0_r_def
+    do k = 1, nlayers - 1
+      target_value = 0.5_r_def * target_value
       tolerance = 10.0_r_def * spacing(target_value)
-      @assertEqual(target_value, temperature(map_wt(1)+k), tolerance)
+      @assertEqual(target_value, exner( map_w3(1) + k ), tolerance)
     end do
 
   end subroutine test_all

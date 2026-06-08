@@ -74,22 +74,22 @@ contains
 !> @param[in]  undf_wt       Total number of degrees of freedom for wtheta
 !> @param[in]  map_wt        Dofmap for the cell at column base for wt
 subroutine regrav_preserve_t_code( nlayers,       &
-                                 exner,         &
-                                 temperature,   &
-                                 coriolis_term, &
-                                 moist_dyn_gas, &
-                                 moist_dyn_tot, &
-                                 phi,           &
-                                 height_w3,     &
-                                 height_wth,    &
-                                 w3_mask,       &
-                                 cp,            &
-                                 ndf_w3,        &
-                                 undf_w3,       &
-                                 map_w3,        &
-                                 ndf_wt,        &
-                                 undf_wt,       &
-                                 map_wt )
+                                   exner,         &
+                                   temperature,   &
+                                   coriolis_term, &
+                                   moist_dyn_gas, &
+                                   moist_dyn_tot, &
+                                   phi,           &
+                                   height_w3,     &
+                                   height_wth,    &
+                                   w3_mask,       &
+                                   cp,            &
+                                   ndf_w3,        &
+                                   undf_w3,       &
+                                   map_w3,        &
+                                   ndf_wt,        &
+                                   undf_wt,       &
+                                   map_wt )
 
   implicit none
 
