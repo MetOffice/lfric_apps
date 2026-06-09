@@ -525,7 +525,7 @@ contains
                l_radaer ) ) then
 
           call locate_tropopause_alg( trop_level, theta_aero, exner_in_wth_aero, &
-                                      aerosol_twod_mesh )
+                                      aerosol_twod_mesh, trop_diag = .true. )
         end if
 
         !--------------------------------------------------------------------
@@ -1087,6 +1087,7 @@ contains
                     inc_X_plus_Y(theta_updated,dtheta) )
         call pc2_checks_alg( mr,                & ! Current state IN
                              theta_updated,     & ! Current state IN
+                             exner,             & ! Current state IN
                              derived_fields,    & ! Current state IN
                              cloud_fields,      & ! Current state IN
                              dtheta_pc2_checks, & ! Increments OUT

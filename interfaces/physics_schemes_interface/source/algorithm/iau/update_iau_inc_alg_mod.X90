@@ -264,7 +264,7 @@ module update_iau_inc_alg_mod
     ! PC2 cloud and humidity adjustments
     if ( iau_pc2 ) then
 
-      call iau_pc2_assimilation( exner_wth, exner_earlier_wth,     &
+      call iau_pc2_assimilation( exner, exner_wth, exner_earlier_wth,          &
                                  theta, theta_earlier,             &
                                  m_v, mv_earlier ,                 &
                                  m_cl, mcl_earlier,                &
@@ -302,7 +302,8 @@ module update_iau_inc_alg_mod
     end if
 
     ! Calculate tropopause level
-    call locate_tropopause_alg( trop_level, theta, exner_wth, twod_mesh )
+    call locate_tropopause_alg( trop_level, theta, exner_wth, &
+                                twod_mesh, trop_diag = .false. )
     call log_event('- After locate tropopause  -', log_level_debug)
     call log_field_minmax( log_level_debug, 'theta', theta )
     call log_field_minmax( log_level_debug, 'exner_wth', exner_wth )
