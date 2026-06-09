@@ -25,8 +25,7 @@ Future work:
     PSyclone as of version 3.1 is not capable of fully
     determining which variables need to be set PRIVATE, since many of these
     are arrays (and using `privatise_arrays` has not been found to work). The
-    suggested fix from STFC is to use `explicitly_private_symbols`, which is
-    captured in `mark_explicit_privates` from `transmute_functions`.
+    suggested fix from STFC is to use the `force_private` option.
     The workaround is to set anything beginning in `seg_` to PRIVATE, since
     these variables are the ones used in the chunking and therefore need to
     be private to each thread.
@@ -42,7 +41,6 @@ from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 from psyclone.psyir.symbols import DataSymbol
 from transmute_psytrans.transmute_functions import (
     first_priv_red_init,
-    mark_explicit_privates,
 )
 
 OMP_TRANS = OMPParallelLoopTrans()
@@ -74,7 +72,7 @@ def trans(psyir):
         # some non-PURE subroutines called within this loop
         "force": True,
         # several WRITE statements used for diagnostics
-        "node-type-check": False,
+        "node_type_check": False,
     }
     # For the coarse-grained approach, we have *one* loop we want to work on
     # - the loop over segments. This gives almost complete coverage for GLOMAP,
@@ -84,13 +82,12 @@ def trans(psyir):
         # identify the loop in question - the loop over segments
         if hasattr(loop.stop_expr, "name") and loop.stop_expr.name in ["nseg"]:
             try:
+                # Manually select private symbols
                 symbols_to_add = get_private_symbols_from_name(loop, "seg_")
                 # add a few more symbols that don't fit this syntax
                 symbols_to_add.extend(
                     ["i_end", "i_end_cp", "j", "nbs_index", "y"]
                 )
-                # set some symbols to be PRIVATE
-                mark_explicit_privates(loop, symbols_to_add)
                 # CCE compiler fix - initialise some FIRSTPRIVATE variables
                 first_priv_red_init(
                     loop,
@@ -120,7 +117,7 @@ def trans(psyir):
                     insert_at_start=True,
                 )
                 OMPParallelLoopTrans(omp_schedule="dynamic").apply(
-                    loop, options=opts
+                    loop, force_private=symbols_to_add, **opts
                 )
 
             except TransformationError as err:

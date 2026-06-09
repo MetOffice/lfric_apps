@@ -9,7 +9,7 @@ module map_w2_to_sh_w2_alg_mod
 
   use sci_consist_w2_to_sh_w2_kernel_mod, &
                                only: consist_w2_to_sh_w2_kernel_type
-  use constants_mod,           only: i_def
+  use constants_mod,           only: i_def, r_tran
   use extrusion_mod,           only: SHIFTED
   use fs_continuity_mod,       only: Wtheta
   use sci_geometric_constants_mod,   &
