@@ -140,7 +140,6 @@ contains
         ! Horizontal update
         call invoke( setval_X(u_grad_ls_f, u_grad_f) )
         call atl_hori_wt_update_alg( u_grad_ls_f, wind_h, ls_wind_h, ls_adv_field, transport_metadata )
-        call invoke( inc_X_minus_Y(u_grad_f, u_grad_ls_f) )
         call adj_hori_wt_update_alg( u_grad_f, ls_wind_h, ls_wind_h, adv_field, transport_metadata, &
                                      adj_lookup_table_cache )
         call invoke( adj_split_w2_field_kernel_type(wind_h, wind_v, wind,          &
@@ -151,7 +150,6 @@ contains
       case ( direction_h )
         call invoke( setval_X(u_grad_ls_f, u_grad_f) )
         call atl_hori_wt_update_alg( u_grad_ls_f, wind, ls_wind, ls_adv_field, transport_metadata )
-        call invoke( inc_X_minus_Y(u_grad_f, u_grad_ls_f) )
         call adj_hori_wt_update_alg( u_grad_f, ls_wind, ls_wind, adv_field, transport_metadata, &
                                      adj_lookup_table_cache )
 
