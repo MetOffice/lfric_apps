@@ -988,7 +988,7 @@ contains
           call smagorinsky_alg(self%dtheta, self%du, mr, self%state(igh_t),    &
                                self%state(igh_u),                              &
                                derived_fields, cloud_fields, self%state(igh_d),&
-                               self%state(igh_p), cast_dt)
+                               self%state(igh_p), cast_dt, model_clock)
         end if
 
         if (use_wavedynamics) then
@@ -1157,7 +1157,7 @@ contains
     !--------------------------------------------------------------------
     call mixing_alg(mr, self%state(igh_t),                                     &
                     self%state(igh_u), derived_fields, cloud_fields,           &
-                    self%state(igh_d), self%state(igh_p), cast_dt )
+                    self%state(igh_d), self%state(igh_p), cast_dt, model_clock)
 
     ! ----------------------------------------------------------------------
     ! Call cloud scheme to generate cloud and latent heating after pressure
