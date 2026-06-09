@@ -43,16 +43,20 @@ module aviation_icao_heights_kernel_mod
 
 contains
 
+  !> @brief Calculate icao height from the pressure field.
+  !>        Assumes lowerst order W3 data, where ndf is always 1.
+  !> @param[in]     nlayers         The number of layers in a column.
+  !> @param[out]    icao_height     Output icao height in kft.
+  !> @param[in]     pressure_field  Pressure in pa.
+  !> @param[in]     ndf             Number of DOFs in the cell.
+  !> @param[in]     undf            Number of DOFs in the field.
+  !> @param[in]     map             Dofmap to the bottom cell.
   subroutine aviation_icao_heights_kernel_code(nlayers, &
-        icao_height,    &  ! Output icao height.
-        pressure_field, &  ! Pressure.
+        icao_height, pressure_field,                    &
         ndf, undf, map)
 
-    ! Calculate iaco height from the pressure field.
-    ! Assumes lowest order w3 data, where ndf is always 1.
-
     use constants_mod,                  only: rmdi
-    use planet_config_mod,              only: gravity, rd
+    use planet_config_mod,              only: g_over_r
     use science_aviation_constants_mod, only: mtokft,             &
         isa_lapse_ratel, isa_lapse_rateu, isa_press_bot,          &
         isa_press_mid, isa_press_top, isa_temp_bot, isa_temp_top, &
@@ -61,42 +65,27 @@ contains
     implicit none
 
     ! Arguments (kernel).
-
-    ! The number of layers in a column.
     integer(kind=i_def), intent(in) :: nlayers
-
-    ! Number of degrees of freedom (columns) in the cell we're processing.
     integer(kind=i_def), intent(in) :: ndf
-
-    ! Number of unique degrees of freedom in the fields.
     integer(kind=i_def), intent(in) :: undf
-
-    ! Degrees of freedom maps. offsets to the bottom of each column.
     integer(kind=i_def), intent(in), dimension(ndf) :: map
 
-
     ! Arguments (algorithm)
-
-    ! Output icao height.
     real(kind=r_def), intent(out), dimension(undf) :: icao_height
-
-    ! Pressure in pa.
     real(kind=r_def), intent(in), dimension(undf) :: pressure_field
 
 
     ! Local variables
     integer(kind=i_def) :: df
 
-    real(kind=r_def) :: g_over_rd
     real(kind=r_def) :: zp1
     real(kind=r_def) :: zp2
 
     real(kind=r_def) :: pressure
 
 
-    g_over_rd = gravity / rd
-    zp1 = isa_lapse_ratel / g_over_rd
-    zp2 = isa_lapse_rateu / g_over_rd
+    zp1 = isa_lapse_ratel / g_over_r
+    zp2 = isa_lapse_rateu / g_over_r
 
     pressure = pressure_field(map(1))
 
@@ -111,7 +100,7 @@ contains
     pressure = min(isa_press_bot, pressure)
 
     ! Missing or invalid data?
-    if (pressure == rmdi .or. pressure <= 0.0_r_def) then
+    if (pressure == rmdi) then
         icao_height(map(1)) = rmdi
 
     ! Heights up to 11,000 gpm
@@ -124,7 +113,7 @@ contains
     else if ( pressure > isa_press_top ) then
         pressure = pressure / isa_press_mid
         pressure = -log(pressure)
-        icao_height(map(1)) = gpm1 + pressure * isa_temp_top / g_over_rd
+        icao_height(map(1)) = gpm1 + pressure * isa_temp_top / g_over_r
 
     ! Heights above 20,000 gpm
     else

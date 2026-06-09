@@ -2728,7 +2728,7 @@ contains
           if (cct(i,1) > 0) then
             pres_cv_top(map_2d(1,i)) = p_rho_levels(i,1,cct(i,1))
           else
-            pres_cv_top(map_2d(1,i)) = 0.0_r_def
+            pres_cv_top(map_2d(1,i)) = rmdi
           end if
         end do
       end if
@@ -2737,7 +2737,7 @@ contains
           if (ccb(i,1) > 0) then
             pres_cv_base(map_2d(1,i)) = p_rho_levels(i,1,ccb(i,1))
           else
-            pres_cv_base(map_2d(1,i))= 0.0_r_def
+            pres_cv_base(map_2d(1,i))= rmdi
           end if
         end do
       end if
@@ -2748,7 +2748,7 @@ contains
           if (lctop(i,1) > 0) then
             pres_lowest_cv_top(map_2d(1,i)) = p_rho_levels(i,1,lctop(i,1))
           else
-            pres_lowest_cv_top(map_2d(1,i)) = 0.0_r_def
+            pres_lowest_cv_top(map_2d(1,i)) = rmdi
           end if
         end do
       end if
@@ -2757,7 +2757,7 @@ contains
           if (lcbase(i,1) > 0) then
             pres_lowest_cv_base(map_2d(1,i)) = p_rho_levels(i,1,lcbase(i,1))
           else
-            pres_lowest_cv_base(map_2d(1,i))= 0.0_r_def
+            pres_lowest_cv_base(map_2d(1,i))= rmdi
           end if
         end do
       end if

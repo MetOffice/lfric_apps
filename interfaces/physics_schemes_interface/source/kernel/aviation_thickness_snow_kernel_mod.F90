@@ -55,6 +55,31 @@ module aviation_thickness_snow_kernel_mod
 
 contains
 
+
+  !> @brief Calculate thickness and snow probability from the geopotential height at pressure levels.
+  !>        Assumes lowest order W3 data, where ndf is always 1.
+  !>        Thickness:
+  !>          Subtract geopotential heights at 850 and 500 hPa from that at 1000 hPa.
+  !>        Snow probability:
+  !>          Implement Boyden (1964), using 850 and 1000 hPa.
+  !>          See https://github.com/MetOffice/Section20/issues/21
+  !> @param[in]     nlayers                 The number of layers in a column.
+  !> @param[out]    thickness_850           Output geopot thickness between 1000 and 850 hPa in m.
+  !> @param[out]    thickness_500           Output geopot thickness between 1000 and 500 hPa in m.
+  !> @param[out]    snow_probability        Output snow probability in percentage.
+  !> @param[in]     plev_geopot             Geopotential height at pressure levels in m.
+  !> @param[in]     thickness_850_flag      thickness_850 request flag.
+  !> @param[in]     thickness_500_flag      thickness_500 request flag.
+  !> @param[in]     snow_probability_flag   snow_probability request flag.
+  !> @param[in]     i1000                   Index of 1000 hPa level in plev_geopot.
+  !> @param[in]     i850                    Index of 850 hPa level in plev_geopot.
+  !> @param[in]     i500                    Index of 500 hPa level in plev_geopot.
+  !> @param[in]     result_ndf              Number of DOFs in the result cell.
+  !> @param[in]     result_undf             Number of DOFs in the result field.
+  !> @param[in]     result_map              Dofmap to the result's bottom cell.
+  !> @param[in]     source_ndf              Number of DOFs in the source cell.
+  !> @param[in]     source_undf             Number of DOFs in the source field.
+  !> @param[in]     source_map              Dofmap to the source's bottom cell.
   subroutine aviation_thickness_snow_kernel_code(nlayers, &
              ! output fields.
              thickness_850, thickness_500, snow_probability, &
@@ -72,39 +97,19 @@ contains
              result_ndf, result_undf, result_map, &
              source_ndf, source_undf, source_map)
 
-    ! Thickness:
-    ! Subtract geopotential heights at 850 and 500 hPa from that at 1000 hPa.
-    !
-    ! Snow probability:
-    ! Implement Boyden (1964), using 850 and 1000 hPa.
-    ! See https://github.com/MetOffice/Section20/issues/21
-
     implicit none
 
     ! Arguments (kernel).
-
-    ! The number of layers in a column.
     integer(kind=i_def), intent(in) :: nlayers
-
-    ! Number of degrees of freedom (columns) in the cell we're processing.
     integer(kind=i_def), intent(in) :: result_ndf, source_ndf
-
-    ! Number of unique degrees of freedom in the fields.
     integer(kind=i_def), intent(in) :: result_undf, source_undf
-
-    ! Degrees of freedom maps. offsets to the bottom of each column.
     integer(kind=i_def), intent(in), dimension(result_ndf) :: result_map
     integer(kind=i_def), intent(in), dimension(source_ndf) :: source_map
 
-
     ! Arguments (algorithm).
-
-    ! Output thickness fields.
     real(kind=r_def), intent(out), dimension(result_undf) :: thickness_850
     real(kind=r_def), intent(out), dimension(result_undf) :: thickness_500
     real(kind=r_def), intent(out), dimension(result_undf) :: snow_probability
-
-    ! Geopotential height at pressure levels.
     real(kind=r_def), intent(in), dimension(source_undf) :: plev_geopot
 
     ! Request flags.
@@ -112,7 +117,7 @@ contains
     logical(kind=l_def), intent(in) :: thickness_500_flag
     logical(kind=l_def), intent(in) :: snow_probability_flag
 
-    ! Level indices. for i850 and i500, -1 means "not requested".
+    ! Level indices.
     integer(kind=i_def), intent(in) :: i1000, i850, i500
 
 
