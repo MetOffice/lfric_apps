@@ -83,7 +83,8 @@ module gungho_driver_mod
   use iau_main_alg_mod,            only : iau_main_alg
   use iau_config_mod,              only : iau_mode,               &
                                           iau_mode_instantaneous, &
-                                          iau_mode_time_mixed
+                                          iau_mode_time_mixed,    &
+                                          iau_outerloop
   use stochastic_physics_config_mod, &
                                    only : use_random_parameters, &
                                           use_skeb,              &
@@ -255,11 +256,11 @@ contains
 #ifdef UM_PHYSICS
     ! If IAU is active and increments need to be added instantaneously, to the initial
     ! state, then do this now. The IAU should not be activated at this stage in
-    ! the case of a checkpoint-restart.
+    ! the case of a checkpoint-restart or as part of a DA outer loop.
     if ( ( iau ) .and.                               &
        ( ( iau_mode == iau_mode_instantaneous ) .OR. &
          ( iau_mode == iau_mode_time_mixed ) ) ) then
-      if ( .not. checkpoint_read ) then
+      if ( .not. ( checkpoint_read .or. iau_outerloop )) then
         call update_iau_alg( modeldb,                     &
                              twod_mesh,                   &
                              iau_ainc_active = .true.,    &
@@ -268,8 +269,11 @@ contains
                              iau_pertinc_active = .false. )
       end if
 
-      ! IAU increment fields can now be cleared from the depository
-      call remove_field_collection( modeldb, "iau_fields" )
+      ! IAU increment fields can now be cleared from the depository unless this
+      ! is a DA outer loop application
+      if ( .not. iau_outerloop ) then
+        call remove_field_collection( modeldb, "iau_fields" )
+      end if
 
     end if
 
