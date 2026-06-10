@@ -56,7 +56,7 @@ contains
         ndf, undf, map)
 
     use constants_mod,                  only: rmdi
-    use planet_config_mod,              only: g_over_r
+    use planet_constants_mod,              only: g_over_r
     use science_aviation_constants_mod, only: mtokft,             &
         isa_lapse_ratel, isa_lapse_rateu, isa_press_bot,          &
         isa_press_mid, isa_press_top, isa_temp_bot, isa_temp_top, &
