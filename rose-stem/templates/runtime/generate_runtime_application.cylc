@@ -26,7 +26,7 @@
 {% if task_values["app_name"] == "canned_test" %}
     {% set script_str.name = script_str.name~" --command-key=$RUN_METHOD" %}
 {% else %}
-    {% if task_ns.application != "lfricinputs" %}
+    {% if task_ns.application != "lfricinputs" and task_ns.application != "lfric2lfric" %}
         {% set script_str.name = script_str.name~" --opt-conf-key="~task_values["resolution"] %}
     {% endif %}
     {% for opt_conf in task_values["opt_confs"] %}
