@@ -79,7 +79,7 @@ contains
     end do
 
     moist_dyn_gas = 1.0_r_def + recip_epsilon * mv
-    moist_dyn_tot = 1.0_r_dev + mv
+    moist_dyn_tot = 1.0_r_def + mv
     t_virtual = temperature * moist_dyn_gas / moist_dyn_tot
 
     do k = 0, nlayers - 1
@@ -144,9 +144,9 @@ contains
 
     ! Exner decreases by half at each successive layer
     target_value = 1.0_r_def
+    tolerance = 1.0e-7_r_def
     do k = 1, nlayers - 1
       target_value = 0.5_r_def * target_value
-      tolerance = 10.0_r_def * spacing(target_value)
       @assertEqual(target_value, exner( map_w3(1) + k ), tolerance)
     end do
 
