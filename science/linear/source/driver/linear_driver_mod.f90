@@ -8,10 +8,6 @@ module linear_driver_mod
 
   use constants_mod,              only : i_def, r_def, imdi, l_def, str_def, &
                                          i_medium
-  use external_forcing_config_mod,  only : theta_forcing,                      &
-                                         theta_forcing_nudging,                &
-                                         wind_forcing,                         &
-                                         wind_forcing_nudging
   use extrusion_mod,              only : TWOD
   use field_array_mod,            only : field_array_type
   use field_mod,                  only : field_type
@@ -42,7 +38,7 @@ module linear_driver_mod
   use log_mod,                    only : log_event,         &
                                          log_scratch_space, &
                                          LOG_LEVEL_ALWAYS,  &
-                                         LOG_LEVEL_INFO
+                                         LOG_LEVEL_TRACE
   use linear_model_data_mod,      only : linear_create_ls, &
                                          linear_init_ls,   &
                                          linear_init_pert
@@ -148,7 +144,7 @@ contains
       aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
       aerosol_twod_mesh => mesh_collection%get_mesh(aerosol_mesh, TWOD)
       write( log_scratch_space,'(A,A)' ) "aerosol mesh name:", aerosol_mesh%get_mesh_name()
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     else
       aerosol_mesh => mesh
       aerosol_twod_mesh => twod_mesh
@@ -165,7 +161,7 @@ contains
         nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
         nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
         write( log_scratch_space,'(A,A)' ) "nudging mesh name:", nudging_mesh%get_mesh_name()
-        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        call log_event( log_scratch_space, LOG_LEVEL_TRACE )
       end if
     end if
 

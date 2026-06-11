@@ -46,10 +46,6 @@ module jedi_lfric_linear_modeldb_driver_mod
   use constants_mod,                only : r_def, l_def, str_def
   use driver_config_mod,            only : init_config
   use driver_time_mod,              only : init_time, final_time
-  use external_forcing_config_mod,  only : theta_forcing,                      &
-                                           theta_forcing_nudging,              &
-                                           wind_forcing,                       &
-                                           wind_forcing_nudging
   use extrusion_mod,                only : TWOD
   use gungho_init_fields_mod,       only : create_model_data, &
                                            finalise_model_data

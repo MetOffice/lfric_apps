@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2025 Met Office. All rights reserved.
+! (c) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -8,6 +8,7 @@ module create_nudging_fields_mod
 
   use clock_mod,                   only : clock_type
   use constants_mod,               only : i_def, l_def, str_def
+  use driver_modeldb_mod,          only : modeldb_type
   use field_mod,                   only : field_type
   use field_collection_mod,        only : field_collection_type
   use field_mapper_mod,            only : field_mapper_type
@@ -23,6 +24,7 @@ module create_nudging_fields_mod
                                           theta_forcing,                       &
                                           wind_forcing_nudging,                &
                                           wind_forcing
+
   implicit none
 
   public :: create_nudging_fields
@@ -33,16 +35,16 @@ module create_nudging_fields_mod
   !> @brief   Create and add nudging fields.
   !> @details Create reference fields to for nudging in the derived field
   !!          collection. On every timestep these fields will be updated.
+  !> @param[in]    modeldb    The dataset for this run
   !> @param[in]    mesh       The current 3d mesh
-  !> @param[in]    twod_mesh  The current 2d mesh (not used here)
+  !> @param[in]    twod_mesh  The current 2d mesh
   !> @param[in]    mapper     Provides access to the field collections
-  !> @param[in]    clock      The model clock
-  subroutine create_nudging_fields(mesh, twod_mesh, mapper, clock)
+  subroutine create_nudging_fields(modeldb, mesh, twod_mesh, mapper)
     implicit none
+    type(modeldb_type), intent(in)          :: modeldb
     type(mesh_type), intent(in), pointer    :: mesh
     type(mesh_type), intent(in), pointer    :: twod_mesh
     type(field_mapper_type), intent(in)     :: mapper
-    class(clock_type), intent(in)           :: clock
 
     type(gungho_time_axes_type), pointer    :: gungho_axes
 
@@ -53,7 +55,7 @@ module create_nudging_fields_mod
     gungho_axes => mapper%get_gungho_axes()
     call gungho_axes%make_nudging_time_axis()
 
-    call creator%init(mesh, twod_mesh, mapper, clock)
+    call creator%init(mesh, twod_mesh, mapper, modeldb%clock)
 
     call process_nudging_fields(creator)
 
@@ -63,19 +65,26 @@ module create_nudging_fields_mod
 
   !> @brief Iterate over active nudging fields and apply an arbitrary
   !! processor to the field specifiers.
+  !> @param        processor   Processor to be applied to field specifiers
   subroutine process_nudging_fields(processor)
     use field_spec_mod,                only : main => main_coll_dict,          &
                                               axis => time_axis_dict,          &
                                               processor_type,                  &
                                               make_spec
-    use multires_coupling_config_mod,  only : coarse_nudging,                  &
-                                              nudging_mesh_name
+
+    use multires_coupling_config_mod, only: coarse_nudging,                    &
+                                            nudging_mesh_name
 
     implicit none
 
-    class(processor_type) :: processor
+    class(processor_type)            :: processor
 
     !------ Fields updated directly from nudging file-----------------
+
+    ! The surface pressure field from data file is used to re-create the
+    !  vertical grid (sigma or pressure-levels) of the source data while
+    !  remapping from nudging to model grid. Hence this field is needed
+    !  when any one of theta or wind is forced.
     call processor%apply(make_spec(                                            &
             'surface_pressure_nudging_ext_ref', main%none, W3,                 &
             coarse=coarse_nudging,                                             &

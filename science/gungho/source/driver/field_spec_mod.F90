@@ -14,6 +14,9 @@ module field_spec_mod
 
   implicit none
 
+  !> The enumerator values in the collections need to be unique for each field,
+  !> and nominally within a specific range for each collection type
+
   !> @brief Dictionary of main field collections
   type :: main_coll_dict_type
     integer(i_def) :: derived
@@ -36,9 +39,6 @@ module field_spec_mod
     procedure :: check => main_coll_check
   end type main_coll_dict_type
 
-  !> @brief Map main collection enumerators to collections.
-  !> Enumerator values need to be unique for each field, and nominally
-  !> within a specific range for each collection type
   integer(i_def), parameter :: enum_derived = 107
   integer(i_def), parameter :: enum_radiation = 120
   integer(i_def), parameter :: enum_microphysics = 129
@@ -53,16 +53,17 @@ module field_spec_mod
   integer(i_def), parameter :: enum_chemistry = 222
   integer(i_def), parameter :: enum_aerosol = 238
   integer(i_def), parameter :: enum_stph = 241
-  integer(i_def), parameter :: enum_lbc = 252
-  integer(i_def), parameter :: enum_none = 279
-  
+  integer(i_def), parameter :: enum_main_lbc = 252
+  integer(i_def), parameter :: enum_main_none = 279
+
+  !> @brief Map main collection enumerators to collections.
   type(main_coll_dict_type), parameter :: main_coll_dict &
     = main_coll_dict_type( &
       enum_derived, enum_radiation, enum_microphysics,     &
       enum_electric, enum_orography, enum_turbulence,      &
       enum_convection, enum_cloud, enum_surface, enum_soil, &
       enum_snow, enum_chemistry, enum_aerosol, enum_stph,  &
-      enum_lbc, enum_none                                  &
+      enum_main_lbc, enum_main_none                        &
      )
 
   !> @brief Dictionary of advected field collections
@@ -74,9 +75,17 @@ module field_spec_mod
     integer(i_def) :: last_con   ! Con_fields_last_outer
   end type adv_coll_dict_type
 
+  integer(i_def), parameter :: enum_adv_none = 387
+  integer(i_def), parameter :: enum_all_adv = 391
+  integer(i_def), parameter :: enum_last_adv = 395
+  integer(i_def), parameter :: enum_all_con = 399
+  integer(i_def), parameter :: enum_last_con = 412
+
   !> @brief Map advected field enumerators to collections.
   type(adv_coll_dict_type), parameter :: adv_coll_dict &
-    = adv_coll_dict_type(387,391,395,399,412)
+    = adv_coll_dict_type( enum_adv_none, enum_all_adv, &
+                          enum_last_adv, enum_all_con, &
+                          enum_last_con )
 
   !> @brief Dictionary of moisture field arrays
   type :: moist_arr_dict_type
@@ -86,9 +95,16 @@ module field_spec_mod
     integer(i_def) :: moist_dyn_ref ! moist_dyn_ref array
   end type moist_arr_dict_type
 
+  integer(i_def), parameter :: enum_moist_none = 445
+  integer(i_def), parameter :: enum_mr = 450
+  integer(i_def), parameter :: enum_moist_dyn = 454
+  integer(i_def), parameter :: enum_moist_dyn_ref = 461
+
    !> @brief Map moisture array enumerators to moisture array.
   type(moist_arr_dict_type), parameter :: moist_arr_dict &
-    = moist_arr_dict_type(445,450,454,461)
+    = moist_arr_dict_type( enum_moist_none, enum_mr,     &
+                           enum_moist_dyn,               &
+                           enum_moist_dyn_ref )
 
   !> @brief Dictionary of time axes
     type :: time_axis_dict_type
@@ -98,9 +114,15 @@ module field_spec_mod
     integer(i_def) :: nudging       ! nudging time axis
   end type time_axis_dict_type
 
+  integer(i_def), parameter :: enum_time_none = 525
+  integer(i_def), parameter :: enum_time_lbc = 529
+  integer(i_def), parameter :: enum_ls = 536
+  integer(i_def), parameter :: enum_nudging = 542
+
    !> @brief Map moisture array enumerators to moisture array.
-  type(time_axis_dict_type), parameter :: time_axis_dict &
-    = time_axis_dict_type(525,529,536,542)
+  type(time_axis_dict_type), parameter :: time_axis_dict  &
+    = time_axis_dict_type( enum_time_none, enum_time_lbc, &
+                           enum_ls, enum_nudging )
 
   ! request function space discovery
   integer, parameter :: missing_fs = imdi

@@ -90,9 +90,7 @@ module gungho_init_fields_mod
   use ageofair_alg_mod,                   only : init_ageofair
   use transport_config_mod,               only : transport_ageofair
   use external_forcing_config_mod,        only : theta_forcing_nudging,        &
-                                                 theta_forcing,                &
-                                                 wind_forcing_nudging,         &
-                                                 wind_forcing
+                                                 wind_forcing_nudging
 #ifdef COUPLED
   use coupler_mod,                      only : zero_coupling_send_fields
 #endif
@@ -375,6 +373,8 @@ subroutine create_model_data( modeldb,           &
 
     type(gungho_time_axes_type), pointer :: model_axes
 
+    integer(i_def) :: theta_forcing
+    integer(i_def) :: wind_forcing
     !-------------------------------------------------------------------------
     ! Select how to initialize model prognostic fields
     !-------------------------------------------------------------------------
@@ -514,10 +514,13 @@ subroutine create_model_data( modeldb,           &
                                        prognostic_fields, &
                                        modeldb )
 
+    theta_forcing = modeldb%config%external_forcing%theta_forcing()
+    wind_forcing = modeldb%config%external_forcing%wind_forcing()
+
     if ( wind_forcing == wind_forcing_nudging .or.                             &
          theta_forcing == theta_forcing_nudging ) then
       call create_nudging_fields(                                              &
-          nudging_mesh, nudging_twod_mesh, field_mapper, modeldb%clock         &
+          modeldb, nudging_mesh, nudging_twod_mesh, field_mapper               &
       )
     end if
 
@@ -629,6 +632,10 @@ subroutine create_model_data( modeldb,           &
     integer(i_def) :: i
     integer(i_def) :: random_seed_size
     integer(i_def), allocatable :: ranseed(:)
+
+    integer(i_def) :: theta_forcing
+    integer(i_def) :: wind_forcing
+
 #ifdef UM_PHYSICS
     integer(i_def) :: ensemble_number
     real(r_def), allocatable :: power_law(:)
@@ -875,6 +882,9 @@ subroutine create_model_data( modeldb,           &
 
 
       ! Initialise reading of nudging fields
+      theta_forcing = modeldb%config%external_forcing%theta_forcing()
+      wind_forcing = modeldb%config%external_forcing%wind_forcing()
+
       if ( wind_forcing == wind_forcing_nudging .or.                           &
           theta_forcing == theta_forcing_nudging ) then
         ! Initialise time interpolation
