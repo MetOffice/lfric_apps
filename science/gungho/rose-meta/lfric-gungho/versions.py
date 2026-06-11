@@ -124,12 +124,16 @@ class vn31_t11(MacroUpgrade):
                     )
         elif partitioner_dest == "'cubedsphere'":
             if destination_mesh_name == "'dynamics'":
-                self.add_setting(
-                    config,
-                    ["namelist:lfric2lfric", "destination_mesh_name"],
-                    "'cubedsphere_l0",
-                    forced=True,
-                    )
+                destination_mesh_prefix = self.get_setting_value(
+                   config, ["namelist:lfric2lfric", "destination_mesh_prefix"]
+                   )
+                if destination_mesh_prefix != '${MESH_DIR}/seuk_MG/mesh_seuk_MG':
+                    self.add_setting(
+                        config,
+                        ["namelist:lfric2lfric", "destination_mesh_name"],
+                        "'cubedsphere_l0",
+                        forced=True,
+                        )
             elif destination_mesh_name == "'multigrid_l1'":
                 self.add_setting(
                     config,
@@ -161,16 +165,12 @@ class vn31_t11(MacroUpgrade):
                     )
         elif partitioner_source == "'cubedsphere'":
             if source_mesh_name == "'dynamics'":
-                destination_mesh_prefix = self.get_setting_value(
-                   config, ["namelist:lfric2lfric", "destination_mesh_prefix"]
-                   )
-                if destination_mesh_prefix \= '${MESH_DIR}/seuk_MG/mesh_seuk_MG':
-                    self.add_setting(
-                        config,
-                        ["namelist:lfric2lfric", "source_mesh_name"],
-                        "'cubedsphere_l0",
-                        forced=True,
-                        )
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "source_mesh_name"],
+                    "'cubedsphere_l0",
+                    forced=True,
+                    )
             elif source_mesh_name == "'multigrid_l1'":
                 self.add_setting(
                     config,
