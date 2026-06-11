@@ -30,11 +30,11 @@ class vnXX_txxx(MacroUpgrade):
 """
 
 
-class vn31_t11a(MacroUpgrade):
+class vn31_t11(MacroUpgrade):
     """Upgrade macro for ticket TTTT by Unknown."""
 
     BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t11a"
+    AFTER_TAG = "vn3.1_t11"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
@@ -100,91 +100,83 @@ class vn31_t11a(MacroUpgrade):
                     "'cubedsphere_l0','cubedsphere_l1'",
                     forced=True,
                 )
-
-        return config, self.reports
-
-class vn31_t11b(MacroUpgrade):
-    """Upgrade macro for ticket TTTT by Unknown."""
-
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t11b"
-
-    def upgrade(self, config, meta_config=None):
-        
-        if config.get_value(["namelist:partitioning(destination)"]) is not None:        
-            partitioner_dest = self.get_setting_value(
-                config, ["namelist:partitioning(destination)", "partitioner"]
-                )
-            destination_mesh_name = self.get_setting_value(
-                config, ["namelist:lfric2lfric", "destination_mesh_name"]
-                )
-            if partitioner_dest == "'planar'":
-                if destination_mesh_name == "'dynamics'":
-                    self.add_setting(
-                        config,
-                        ["namelist:lfric2lfric", "destination_mesh_name"],
-                        "'planar_l0",
-                        forced=True,
-                        )
-                elif destination_mesh_name == "'multigrid_l1'":
-                    self.add_setting(
-                        config,
-                        ["namelist:lfric2lfric", "destination_mesh_name"],
-                        "'planar_l1",
-                        forced=True,
-                        )
-            elif partitioner_dest == "'cubedsphere'":
-                if destination_mesh_name == "'dynamics'":
-                    self.add_setting(
-                        config,
-                        ["namelist:lfric2lfric", "destination_mesh_name"],
-                        "'cubedsphere_l0",
-                        forced=True,
-                        )
-                elif destination_mesh_name == "'multigrid_l1'":
-                    self.add_setting(
-                        config,
-                        ["namelist:lfric2lfric", "destination_mesh_name"],
-                        "'cubedsphere_l1",
-                        forced=True,
-                        )
-
-        if config.get_value(["namelist:partitioning(source)"]) is not None:              
-            partitioner_source = self.get_setting_value(
-                config, ["namelist:partitioning(source)", "partitioner"]
-                )
-            source_mesh_name = self.get_setting_value(
-                config, ["namelist:lfric2lfric", "source_mesh_name"]
-                )
-            if partitioner_source == "'planar'":
-                if source_mesh_name == "'dynamics'":
-                    self.add_setting(
-                        config,
-                        ["namelist:lfric2lfric", "source_mesh_name"],
-                        "'planar_l0",
-                        forced=True,
-                        )
-                elif source_mesh_name == "'multigrid_l1'":
-                    self.add_setting(
-                        config,
-                        ["namelist:lfric2lfric", "source_mesh_name"],
-                        "'planar_l1",
-                        forced=True,
-                        )
-            elif partitioner_source == "'cubedsphere'":
-                if source_mesh_name == "'dynamics'":
+              
+        partitioner_dest = self.get_setting_value(
+            config, ["namelist:partitioning(destination)", "partitioner"]
+            )
+        destination_mesh_name = self.get_setting_value(
+            config, ["namelist:lfric2lfric", "destination_mesh_name"]
+            )
+        if partitioner_dest == "'planar'":
+            if destination_mesh_name == "'dynamics'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "destination_mesh_name"],
+                    "'planar_l0",
+                    forced=True,
+                    )
+            elif destination_mesh_name == "'multigrid_l1'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "destination_mesh_name"],
+                    "'planar_l1",
+                    forced=True,
+                    )
+        elif partitioner_dest == "'cubedsphere'":
+            if destination_mesh_name == "'dynamics'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "destination_mesh_name"],
+                    "'cubedsphere_l0",
+                    forced=True,
+                    )
+            elif destination_mesh_name == "'multigrid_l1'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "destination_mesh_name"],
+                    "'cubedsphere_l1",
+                    forced=True,
+                    )
+            
+        partitioner_source = self.get_setting_value(
+            config, ["namelist:partitioning(source)", "partitioner"]
+            )
+        source_mesh_name = self.get_setting_value(
+            config, ["namelist:lfric2lfric", "source_mesh_name"]
+            )
+        if partitioner_source == "'planar'":
+            if source_mesh_name == "'dynamics'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "source_mesh_name"],
+                    "'planar_l0",
+                    forced=True,
+                    )
+            elif source_mesh_name == "'multigrid_l1'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "source_mesh_name"],
+                    "'planar_l1",
+                    forced=True,
+                    )
+        elif partitioner_source == "'cubedsphere'":
+            if source_mesh_name == "'dynamics'":
+                destination_mesh_prefix = self.get_setting_value(
+                   config, ["namelist:lfric2lfric", "destination_mesh_prefix"]
+                   )
+                if destination_mesh_prefix \= '${MESH_DIR}/seuk_MG/mesh_seuk_MG':
                     self.add_setting(
                         config,
                         ["namelist:lfric2lfric", "source_mesh_name"],
                         "'cubedsphere_l0",
                         forced=True,
                         )
-                elif source_mesh_name == "'multigrid_l1'":
-                    self.add_setting(
-                        config,
-                        ["namelist:lfric2lfric", "source_mesh_name"],
-                        "'cubedsphere_l1",
-                        forced=True,
-                        )
+            elif source_mesh_name == "'multigrid_l1'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "source_mesh_name"],
+                    "'cubedsphere_l1",
+                    forced=True,
+                    )
 
         return config, self.reports
