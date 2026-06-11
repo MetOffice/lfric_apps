@@ -77,7 +77,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @test
   subroutine test_rmdi ( this )
-    use aviation_icao_heights_kernel_mod, only: aviation_icao_heights_kernel_code
+!    use aviation_icao_heights_kernel_mod, only: aviation_icao_heights_kernel_code
 
     implicit none
 
