@@ -122,7 +122,14 @@ class vn31_t11(MacroUpgrade):
                     forced=True,
                 )
         elif partitioner_dest == "'cubedsphere'":
-            if destination_mesh_name == "'multigrid_l1'":
+            if destination_mesh_name == "'dynamics'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "destination_mesh_name"],
+                    "'planar_l0",
+                    forced=True,
+                )
+            elif destination_mesh_name == "'multigrid_l1'":
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "destination_mesh_name"],
