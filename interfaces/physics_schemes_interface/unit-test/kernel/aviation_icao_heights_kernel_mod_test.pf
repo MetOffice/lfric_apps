@@ -9,13 +9,13 @@
 module aviation_icao_heights_kernel_mod_test
 
   use funit
-  use constants_mod,                  only: rmdi
-!  use aviation_icao_heights_kernel_mod, only : aviation_icao_heights_kernel_code
+  use constants_mod,                    only: i_def, r_def, rmdi
+!  use feign_config_mod,                 only: feign_extrusion_config
 
   implicit none
 
   private
-  public :: test_rmdi, test_low_safeguard
+  public :: test_rmdi
 
   @TestCase
   type, extends(TestCase), public  :: aviation_icao_heights_test_type
@@ -28,7 +28,6 @@ module aviation_icao_heights_kernel_mod_test
       procedure setUp
       procedure tearDown
       procedure test_rmdi
-      procedure test_low_safeguard
 
   end type aviation_icao_heights_test_type
 
@@ -39,10 +38,6 @@ module aviation_icao_heights_kernel_mod_test
 
   integer(kind=i_def), parameter :: arr_len       = undf
 
-! integer(kind=i_def), parameter :: mode_dimen    =  n_radaer_mode + 1_i_def
-! integer(kind=i_def), parameter :: mmr_arr_len   = (nlayers + 1) * (n_radaer_mode + 1)
-
-
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -52,6 +47,14 @@ contains
     implicit none
 
     class(aviation_icao_heights_test_type), intent(inout) :: this
+
+!    call feign_extrusion_config( planet_radius=6000000.0_r_def,              &
+!                                 domain_height=10.0_r_def,                   &
+!                                 method=method_uniform,                      &
+!                                 number_of_layers=2_i_def,                   &
+!                                 stretching_method=stretching_method_linear, &
+!                                 stretching_height=1.0_r_def,                &
+!                                 eta_values=(/0.5_r_def/) )
 
     allocate(this%icao_heights(arr_len), &
              this%pressure(arr_len),    &
@@ -74,7 +77,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @test
   subroutine test_rmdi ( this )
-    use aviation_icao_heights_kernel_mod, only : aviation_icao_heights_code
+    use aviation_icao_heights_kernel_mod, only: aviation_icao_heights_kernel_code
+
     implicit none
 
     class(aviation_icao_heights_test_type), intent(inout) :: this
