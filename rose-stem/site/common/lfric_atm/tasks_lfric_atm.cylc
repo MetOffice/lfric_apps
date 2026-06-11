@@ -248,8 +248,6 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "error",
-        "xios_info_level": 1,
-        "xios_print_file": true,
         "xios_info_level": 50,
     }) %}
 
