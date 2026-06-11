@@ -30,11 +30,11 @@ class vnXX_txxx(MacroUpgrade):
 """
 
 
-class vn31_t11(MacroUpgrade):
+class vn31_t11a(MacroUpgrade):
     """Upgrade macro for ticket TTTT by Unknown."""
 
     BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t11"
+    AFTER_TAG = "vn3.1_t11a"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
@@ -100,6 +100,17 @@ class vn31_t11(MacroUpgrade):
                     "'cubedsphere_l0','cubedsphere_l1'",
                     forced=True,
                 )
+
+        return config, self.reports
+
+class vn31_t11b(MacroUpgrade):
+    """Upgrade macro for ticket TTTT by Unknown."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t11b"
+
+    def upgrade(self, config, meta_config=None):
+        
         if config.get_value(["namelist:partitioning(destination)"]) is not None:        
             partitioner_dest = self.get_setting_value(
                 config, ["namelist:partitioning(destination)", "partitioner"]
@@ -137,6 +148,7 @@ class vn31_t11(MacroUpgrade):
                         "'cubedsphere_l1",
                         forced=True,
                         )
+
         if config.get_value(["namelist:partitioning(source)"]) is not None:              
             partitioner_source = self.get_setting_value(
                 config, ["namelist:partitioning(source)", "partitioner"]
