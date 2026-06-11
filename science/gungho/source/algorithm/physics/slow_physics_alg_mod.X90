@@ -525,7 +525,7 @@ contains
                l_radaer ) ) then
 
           call locate_tropopause_alg( trop_level, theta_aero, exner_in_wth_aero, &
-                                      aerosol_twod_mesh )
+                                      aerosol_twod_mesh, trop_diag = .true. )
         end if
 
         !--------------------------------------------------------------------
