@@ -706,7 +706,7 @@
         "tsteps": 360,
         "mpi_parts": 2560,
         "xios_nodes": 4,
-        "mpi_parts_xios" : 128,
+        "mpi_parts_xios" : 64,
         "log_level": "info",
         "wallclock": 60,
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
