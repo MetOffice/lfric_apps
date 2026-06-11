@@ -47,7 +47,7 @@ socrates:
 
 socrates-spectral:
     source: git@github.com:MetOffice/socrates-spectral.git
-    ref: stable
+    ref: 2026.03.2
 
 ukca:
     source: git@github.com:MetOffice/ukca.git
