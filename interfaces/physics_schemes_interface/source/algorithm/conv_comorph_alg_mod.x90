@@ -7,7 +7,7 @@
 
 module conv_comorph_alg_mod
 
-  use constants_mod,        only: i_def
+  use constants_mod,        only: i_def, rmdi
   use field_mod,            only: field_type
   use integer_field_mod,    only: integer_field_type
   use field_collection_mod, only: field_collection_type

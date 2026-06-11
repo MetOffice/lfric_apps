@@ -15,7 +15,7 @@ module conv_comorph_kernel_mod
                                       ANY_DISCONTINUOUS_SPACE_1, &
                                       ANY_DISCONTINUOUS_SPACE_2, &
                                       ANY_DISCONTINUOUS_SPACE_3
-  use constants_mod,           only : i_def, i_um, r_def, r_um
+  use constants_mod,           only : i_def, i_um, r_def, r_um, rmdi
   use empty_data_mod,          only : empty_real_data
   use fs_continuity_mod,       only : W3, Wtheta
   use kernel_mod,              only : kernel_type
