@@ -73,6 +73,8 @@
     'find . -regex ".*PET0+\..+\.Log" -exec cp {} $TASK_OUTPUT_DIR \;',
     'ls -sh $TASK_OUTPUT_DIR/results > $ROSE_TASK_LOG_DIR/results_file_sizes.log',
     'find . -name timer.txt -exec cp {} $ROSE_TASK_LOG_DIR \;',
+    'find . -name "xios_client_*.out"  -exec cat {} + > $ROSE_TASK_LOG_DIR/xios_client_collated.out ',
+    'find . -name "xios_server_*.out"  -exec cat {} + > $ROSE_TASK_LOG_DIR/xios_server_collated.out ',
     'test -f '~task_values["app_name"]~
         '-checksums.txt && cp $CYLC_TASK_WORK_DIR/'~
         task_values["app_name"]~'-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',

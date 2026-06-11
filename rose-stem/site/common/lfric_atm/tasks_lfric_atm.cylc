@@ -215,6 +215,8 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "info",
+        "xios_info_level": 1,
+        "xios_print_file": true,
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
         "memory_plot_ex": true,
     }) %}
@@ -230,6 +232,8 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "info",
+        "xios_info_level": 1,
+        "xios_print_file": true,
         "memory_plot_ex": true,
     }) %}
 
@@ -244,6 +248,8 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "error",
+        "xios_info_level": 1,
+        "xios_print_file": true,
         "xios_info_level": 50,
     }) %}
 
@@ -258,6 +264,8 @@
         "wallclock": 10,
         "xios_nodes": 4,
         "mpi_parts_xios" : 16,
+        "xios_info_level": 1,
+        "xios_print_file": true,
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
@@ -470,6 +478,8 @@
         "log_level": "info",
         "log_to_rank_zero_only": ".true.",
         "memory_plot_ex": true,
+        "xios_info_level": 1,
+        "xios_print_file": true,
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
