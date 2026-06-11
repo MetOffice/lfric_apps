@@ -508,7 +508,7 @@ contains
              X_times_Y( temperature, exner_in_wth, theta),       &
              ! Find exner at all levels by integrating hydrostatic
              ! equation upwards from level 1, preserving absolute
-             ! temperature. Gravity is height-dependent.
+             ! temperature
              regrav_preserve_t_kernel_type( exner, temperature,    &
                                             c_vert_term,           &
                                             moist_dyn(gas_law),    &
@@ -518,8 +518,8 @@ contains
                                             mask, cp ) )
       case( regravitate_geopot )
         call invoke( &
-             ! Find exner below eos_level by integrating hydrostatic
-             ! equation downwards, assuming constant gravity.
+             ! Find exner at all layers beneath eos_level by integrating hydrostatic
+             ! equation downwards, assuming constant gravity
              hydrostatic_coriolis_kernel_type( exner, rho, theta,               &
                                                c_vert_term,                     &
                                                moist_dyn, geopotential_g_const, &
@@ -533,12 +533,12 @@ contains
              ! Compute absolute temperature T = theta * exner
              X_times_Y( temperature, exner_in_wth, theta),  &
              ! Interpolate temperature from heights corresponding to
-             ! geopotential height onto heights of the model grid.
+             ! geopotential height onto the model grid
              regrav_geopot_kernel_type( temperature, height_wth, &
                                         planet_radius ),         &
              ! Find exner at all levels by integrating hydrostatic
              ! equation upwards from level 1, preserving absolute
-             ! temperature. Gravity is height-dependent.
+             ! temperature
              regrav_preserve_t_kernel_type( exner, temperature,    &
                                             c_vert_term,           &
                                             moist_dyn(gas_law),    &
