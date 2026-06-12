@@ -202,6 +202,10 @@ contains
   subroutine icao_heights(convection_fields)
     ! Calculate ICAO heights of top and base of cloud from their pressures.
 
+    ! we can't access this from the kernel
+    use planet_constants_mod,  only: g_over_r
+
+
     ! Arguments.
     type(field_collection_type), intent(inout) :: convection_fields
 
@@ -219,6 +223,7 @@ contains
     ! Request flags.
     logical(l_def) :: base_height_flag
     logical(l_def) :: top_height_flag
+
 
     ! Which heights are requested this time step?
     top_height_flag = init_diag( &
@@ -243,7 +248,7 @@ contains
       call invoke( &
         setval_c(conv_cloud_base_icao_height, rmdi), &
         aviation_icao_heights_kernel_type(conv_cloud_base_icao_height, &
-          conv_cloud_base_pressure))
+          conv_cloud_base_pressure, real(g_over_r, kind=r_def)))
 
       call conv_cloud_base_icao_height%write_field()
 
@@ -260,7 +265,7 @@ contains
       call invoke( &
         setval_c(conv_cloud_top_icao_height, rmdi), &
         aviation_icao_heights_kernel_type(conv_cloud_top_icao_height, &
-          conv_cloud_top_pressure))
+          conv_cloud_top_pressure, real(g_over_r, kind=r_def)))
 
       call conv_cloud_top_icao_height%write_field()
 

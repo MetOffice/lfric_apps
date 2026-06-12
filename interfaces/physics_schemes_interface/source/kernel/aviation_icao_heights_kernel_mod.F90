@@ -25,13 +25,16 @@ module aviation_icao_heights_kernel_mod
 
   ! The aviation diagnostics kernel type.
   type, extends(kernel_type) :: aviation_icao_heights_kernel_type
-    type(arg_type), dimension(2) :: meta_args = (/ &
+    type(arg_type), dimension(3) :: meta_args = (/ &
 
       ! Output icao height.
       arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
 
       ! Input pressure
-      arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1) &
+      arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1), &
+
+      ! g_over_r
+      arg_type(gh_scalar, gh_real, gh_read) &
 
       /)
 
@@ -48,15 +51,15 @@ contains
   !> @param[in]     nlayers         The number of layers in a column.
   !> @param[out]    icao_height     Output icao height in kft.
   !> @param[in]     pressure_field  Pressure in pa.
+  !> @param[in]     g_over_r        Constant must be passed in.
   !> @param[in]     ndf             Number of DOFs in the cell.
   !> @param[in]     undf            Number of DOFs in the field.
   !> @param[in]     map             Dofmap to the bottom cell.
   subroutine aviation_icao_heights_kernel_code(nlayers, &
-        icao_height, pressure_field,                    &
+        icao_height, pressure_field, g_over_r,          &
         ndf, undf, map)
 
     use constants_mod,                  only: rmdi
-    use planet_constants_mod,              only: g_over_r
     use science_aviation_constants_mod, only: mtokft,             &
         isa_lapse_ratel, isa_lapse_rateu, isa_press_bot,          &
         isa_press_mid, isa_press_top, isa_temp_bot, isa_temp_top, &
@@ -73,6 +76,7 @@ contains
     ! Arguments (algorithm)
     real(kind=r_def), intent(out), dimension(undf) :: icao_height
     real(kind=r_def), intent(in), dimension(undf) :: pressure_field
+    real(kind=r_def), intent(in) :: g_over_r
 
 
     ! Local variables
