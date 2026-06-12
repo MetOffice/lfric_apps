@@ -81,6 +81,7 @@ module um_physics_init_mod
                                 dzrad_disc_opt_in      => dzrad_disc_opt,      &
                                 dzrad_disc_opt_level_ntm1,                     &
                                 dzrad_disc_opt_smooth_1p5,                     &
+                                improved_tke_diag_in   => improved_tke_diag,   &
                                 l_use_sml_dsc_fixes_in => l_use_sml_dsc_fixes, &
                                 l_converge_ga_in       => l_converge_ga,       &
                                 num_sweeps_bflux_in    => num_sweeps_bflux
@@ -351,7 +352,7 @@ contains
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
-         l_use_sml_dsc_fixes, l_converge_ga
+         l_use_sml_dsc_fixes, l_converge_ga, improved_tke_diag
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
@@ -786,6 +787,7 @@ contains
         l_skyview = .true.
       end if
 
+      improved_tke_diag   = improved_tke_diag_in
       l_use_sml_dsc_fixes = l_use_sml_dsc_fixes_in
       l_converge_ga       = l_converge_ga_in
       num_sweeps_bflux    = num_sweeps_bflux_in
