@@ -249,7 +249,6 @@ ls_option='none',
 read_w2h_wind=.false.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
-w0_orography_mapping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_density
