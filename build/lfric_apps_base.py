@@ -9,7 +9,9 @@ import logging
 import os
 from pathlib import Path
 import sys
-from typing import Optional, Union
+from typing import Iterable, Optional, Tuple, Union
+
+from fab.api import Exclude, Include
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +59,7 @@ class LFRicAppsBase(LFRicBase):
                  app_dir: Path,
                  root_symbol: Optional[Union[list[str], str]] = None
                  ):
-        apps_root = Path(__file__).parents[1]
-        print("lfricappsbase", apps_root)
+        self._lfric_apps_root = Path(__file__).parents[1]
         super().__init__(name=name, app_dir=app_dir,
                          root_symbol=root_symbol)
 
@@ -66,10 +67,17 @@ class LFRicAppsBase(LFRicBase):
         # this path.
         # TODO: until we upgrade lfric_core with a new version which
         #       will allow us to use:
-        # self.add_python_path(apps_root / "interfaces" /
+        # self.add_python_path(self.lfric_apps_root / "interfaces" /
         self._add_python_paths.append(
-            apps_root / "interfaces" / "physics_schemes_interface" /
+            self.lfric_apps_root / "interfaces" / "physics_schemes_interface" /
             "build" / "transmute_psytrans")
+
+    @property
+    def lfric_apps_root(self) -> Path:
+        """
+        :returns: the path to the LFRic_apps root directory
+        """
+        return self._lfric_apps_root
 
     def define_command_line_options(
             self,
@@ -93,10 +101,59 @@ class LFRicAppsBase(LFRicBase):
                             default="$LFRIC_CORE")
         return parser
 
-    def configurator_step(self) -> None:
+    def get_dependencies_info(self) -> Tuple[Optional[Path], list[str]]:
+        """
+        Most applications in lfric_apps now need jules. So, add the
+        dependencies.yaml file, but restrict it to the jules repository.
+
+        :returns: the path to the dependencies.yaml file to use and a list
+            of repositories to extract.
+
+        """
+        return self.lfric_apps_root / "dependencies.yaml", ["jules"]
+
+    def find_source_files_step(
+            self,
+            path_filters: Optional[Iterable[Union[Exclude, Include]]] = None
+            ) -> None:
+        """
+        Most applications don't need jules, so by default exclude it (any
+        # applications that need it must add it to their path_filters
+
+        :param path_filters: optional list of path filters to be passed to
+            Fab find_source_files, default is None.
+        """
+        if path_filters:
+            path_filters = list(path_filters)
+        else:
+            path_filters = []
+
+        if "jules" in self.dependency_info.get_repo_names():
+            # In general, jules should not be compiled for most applications
+            # # (it needs very specific exclude/include specifications), since
+            # most applications don't need it. So, we ignore science/jules.
+            # The exclude is inserted at the beginning, to allow e.g.
+            # lfric_atm to add its own Include to overwrite the exclude
+            # (last entry takes precedence in case of same length)
+            path_filters.insert(0, Exclude("science/jules"))
+        super().find_source_files_step(path_filters)
+
+    def configurator_step(self,
+                          include_paths: Optional[list[Path]] = None) -> None:
         """
         Overwrite the configurator step of the base class to
         provide an additional include directory.
+
+        :param include_paths: optional additional include paths
         """
-        apps_root = Path(__file__).parents[1]
-        super().configurator_step(include_paths=[apps_root])
+        if include_paths:
+            # Make a copy to avoid modifying the caller's list
+            include_paths = include_paths[:]
+        else:
+            include_paths = []
+
+        # Most apps now need jules when running the configurator.
+        if "jules" in self.dependency_info.get_repo_names():
+            include_paths.append(self.config.source_root / "science" / "jules")
+        include_paths.append(self.lfric_apps_root)
+        super().configurator_step(include_paths=include_paths)
