@@ -603,7 +603,6 @@ class vn31_t504(MacroUpgrade):
         self.add_setting(
             config, ["namelist:initial_temperature", "theta_pert_size"], "0.5"
         )
-
         return config, self.reports
 
 
@@ -617,7 +616,6 @@ class vn31_t496(MacroUpgrade):
         # Commands From: rose-meta/um-iau
         # Add new setting to iau namelist
         self.add_setting(config, ["namelist:iau", "iau_outerloop"], ".false.")
-
         return config, self.reports
 
 
@@ -632,7 +630,6 @@ class vn31_t487(MacroUpgrade):
         self.add_setting(
             config, ["namelist:blayer", "improved_tke_diag"], ".false."
         )
-
         return config, self.reports
 
 
@@ -643,6 +640,7 @@ class vn31_t180(MacroUpgrade):
     AFTER_TAG = "vn3.1_t180"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
         # Get values
         n_orog_smooth = self.get_setting_value(
             config, ["namelist:initialization", "n_orog_smooth"]
@@ -653,7 +651,6 @@ class vn31_t180(MacroUpgrade):
         coord_order = self.get_setting_value(
             config, ["namelist:finite_element", "coord_order"]
         )
-
         # Add new settings
         self.add_setting(
             config, ["namelist:orography", "n_orog_smooth"], n_orog_smooth
@@ -664,7 +661,6 @@ class vn31_t180(MacroUpgrade):
         self.add_setting(
             config, ["namelist:orography", "orography_order"], coord_order
         )
-
         # Remove old settings
         self.remove_setting(
             config, ["namelist:initialization", "n_orog_smooth"]
