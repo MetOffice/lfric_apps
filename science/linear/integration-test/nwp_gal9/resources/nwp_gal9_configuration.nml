@@ -157,11 +157,9 @@ init_option='fd_start_dump',
 lbc_option='none',
 ls_option='file',
 model_eos_height=100,
-n_orog_smooth=0,
 read_w2h_wind=.true.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
-w0_orography_mapping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_density
@@ -269,6 +267,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='ancil',
+orography_order=1,
+n_orog_smooth=0,
+w0_multigrid_mapping=.false.
 /
 &partitioning
 generate_inner_halos=.false.,
