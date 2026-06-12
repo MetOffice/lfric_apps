@@ -25,6 +25,6 @@ class vn31_t218(MacroUpgrade):
     AFTER_TAG = "vn3.1_t218"
 
     def upgrade(self, config, meta_config=None):
-        self.add_setting(config, ["namelist:initialization", "regravitate"], "'isotherm1'")
+        self.add_setting(config, ["namelist:initialization", "regrav_interp"], "0")
         return config, self.reports
 
