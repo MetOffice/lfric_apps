@@ -293,16 +293,14 @@ contains
                                      surface_runoff, sub_surface_runoff,       &
                                      water_table, soil_moist_wilt,             &
                                      soil_moist_crit, soil_moist_sat,          &
-                                     grid_canopy_water,grid_throughfall)
+                                     grid_canopy_water,grid_throughfall,       &
+                                     inland_basin_flow)
 
       ! Output sea ice diagnostics
       call output_diags_for_jules_seaice(tile_fraction, sea_ice_thickness,     &
                                     sea_ice_temperature, sea_ice_conductivity, &
                                     sea_ice_pensolar, melt_pond_fraction,      &
                                     melt_pond_depth)
-
-      ! Output extra coupling diagnostics
-      call inland_basin_flow%write_field('soil__inland_basin_flow')
 
     end if
 
