@@ -451,7 +451,7 @@ contains
       call geopotential%copy_field_properties(geopotential_g_const)
 
       call invoke( &
-             a_times_X( geopotential_g_const, gravity, height_w3 ), & 
+             a_times_X( geopotential_g_const, gravity, height_w3 ), &
              ! Find exner at all layers beneath eos_level by integrating hydrostatic
              ! equation downwards, assuming constant gravity
              hydrostatic_coriolis_kernel_type( exner, rho, theta,               &
