@@ -14,11 +14,10 @@ module aviation_icao_heights_kernel_mod
 
   use argument_mod,         only: arg_type,            &
                                   gh_field, gh_scalar, gh_logical, &
-                                  gh_read, gh_write, gh_integer, &
+                                  gh_read, gh_write, &
                                   gh_real, cell_column, &
-                                  any_discontinuous_space_1, &
-                                  any_discontinuous_space_2
-  use constants_mod,        only: r_def, i_def, l_def
+                                  any_discontinuous_space_1
+  use constants_mod,        only: r_def, i_def
   use kernel_mod,           only: kernel_type
 
   implicit none
@@ -80,7 +79,6 @@ contains
 
 
     ! Local variables
-    integer(kind=i_def) :: df
 
     real(kind=r_def) :: zp1
     real(kind=r_def) :: zp2
