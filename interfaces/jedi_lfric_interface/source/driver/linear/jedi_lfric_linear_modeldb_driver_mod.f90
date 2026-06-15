@@ -68,7 +68,6 @@ module jedi_lfric_linear_modeldb_driver_mod
   use linear_step_mod,              only : linear_step
   use mesh_mod,                     only : mesh_type
   use mesh_collection_mod,          only : mesh_collection
-  use namelist_mod,                 only : namelist_type
 
   implicit none
 
@@ -102,9 +101,6 @@ contains
     type( mesh_type ),               pointer :: twod_mesh
     type( mesh_type ),               pointer :: aerosol_mesh
     type( mesh_type ),               pointer :: aerosol_twod_mesh
-    type( namelist_type ),           pointer :: base_mesh_nml
-    type( namelist_type ),           pointer :: multires_coupling_nml
-    type( namelist_type ),           pointer :: initialization_nml
     type( lfric_xios_context_type ), pointer :: io_context
     character( len=str_def )                 :: prime_mesh_name
     character( len=str_def )                 :: aerosol_mesh_name
@@ -114,12 +110,10 @@ contains
     character(len=*), parameter :: io_context_name = "gungho_atm"
 
     nullify( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh )
-    nullify( base_mesh_nml, multires_coupling_nml, initialization_nml )
 
     ! 1. Initialise modeldb field collections, configuration and mpi.
     modeldb%mpi => mpi_obj
-    call modeldb%configuration%initialise( modeldb_name, table_len=10 )
-
+    call modeldb%config%initialise( modeldb_name )
     call modeldb%values%initialise('values', 5)
 
     ! Create the depository, prognostics and diagnostics field collections
@@ -139,7 +133,7 @@ contains
     call modeldb%io_contexts%initialise(modeldb_name, table_len=100)
 
     call init_config( filename, gungho_required_namelists, &
-                      modeldb%configuration )
+                      config=modeldb%config )
 
     ! 2. Setup some model modeldb%values and initialise infrastructure
     call modeldb%values%add_key_value( 'temperature_correction_rate', 0.0_r_def )
@@ -156,24 +150,18 @@ contains
     ! 3. Setup the required mesh's and create the modeldb fields
 
     ! Get primary and 2D meshes for initialising model data
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     mesh => mesh_collection%get_mesh(prime_mesh_name)
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     ! Get aerosol ancillary configuration logical
-    initialization_nml => modeldb%configuration%get_namelist('initialization')
-    call initialization_nml%get_value( 'coarse_aerosol_ancil', &
-                                       coarse_aerosol_ancil )
-    call initialization_nml%get_value( 'coarse_ozone_ancil', &
-                                       coarse_ozone_ancil )
+    coarse_aerosol_ancil = modeldb%config%initialization%coarse_aerosol_ancil()
+    coarse_ozone_ancil   = modeldb%config%initialization%coarse_ozone_ancil()
+
     if (coarse_aerosol_ancil .or. coarse_ozone_ancil) then
       ! For now use the coarsest mesh
-      multires_coupling_nml => &
-        modeldb%configuration%get_namelist('multires_coupling')
-      call multires_coupling_nml%get_value( 'aerosol_mesh_name', &
-                                            aerosol_mesh_name )
-      aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
+      aerosol_mesh_name = modeldb%config%multires_coupling%aerosol_mesh_name()
+      aerosol_mesh      => mesh_collection%get_mesh(aerosol_mesh_name)
       aerosol_twod_mesh => mesh_collection%get_mesh(aerosol_mesh, TWOD)
       write( log_scratch_space, '(A,A)' ) "aerosol mesh name:", &
                                          aerosol_mesh%get_mesh_name()
@@ -208,7 +196,7 @@ contains
 
     ! Close IO context and clock so that it is not linked to XIOS
     call modeldb%io_contexts%get_io_context(io_context_name, io_context)
-    call io_context%finalise_xios_context()   
+    call io_context%finalise_xios_context()
     call final_time( modeldb )
 
     call log_event( "end of initialise_modeldb: initialise_linear_model", &
@@ -230,10 +218,9 @@ contains
     logical( kind=l_def )          :: clock_running
     type( mesh_type ),     pointer :: mesh
     type( mesh_type ),     pointer :: twod_mesh
-    type( namelist_type ), pointer :: base_mesh_nml
     character( len=str_def )       :: prime_mesh_name
 
-    nullify(mesh, twod_mesh, base_mesh_nml)
+    nullify(mesh, twod_mesh)
 
     ! 1. Tick the clock and check its still running
     clock_running = modeldb%clock%tick()
@@ -246,8 +233,7 @@ contains
     end if
 
     ! Get mesh
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     mesh => mesh_collection%get_mesh(prime_mesh_name)
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
