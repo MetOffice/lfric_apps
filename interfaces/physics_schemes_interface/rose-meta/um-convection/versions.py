@@ -18,19 +18,18 @@ class UpgradeError(Exception):
 
     __str__ = __repr__
 
+
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
+
 
 class vn31_t368(MacroUpgrade):
     """Upgrade macro for ticket #368 by Ian Boutle."""
@@ -43,8 +42,8 @@ class vn31_t368(MacroUpgrade):
         self.add_setting(
             config, ["namelist:convection", "llcs_first_outer"], ".false."
         )
-
         return config, self.reports
+
 
 class vn31_t360(MacroUpgrade):
     """Upgrade macro for ticket #360 by Ian Boutle."""

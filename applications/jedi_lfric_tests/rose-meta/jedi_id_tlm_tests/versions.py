@@ -724,3 +724,86 @@ class vn31_t180(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t360(MacroUpgrade):
+    """Upgrade macro for ticket #360 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t180"
+    AFTER_TAG = "vn3.1_t360"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-stochastic_physics
+        self.add_setting(
+            config,
+            ["namelist:stochastic_physics", "rp_mp_ci"],
+            "1.0,1.0,1.0",
+        )
+
+        # Commands From: rose-meta/um-microphysics
+        self.add_setting(config, ["namelist:microphysics", "aut_qc"], "2.47")
+        self.add_setting(config, ["namelist:microphysics", "ai"], "2.57e-2")
+        upd_precfrac_opt = self.get_setting_value(
+            config, ["namelist:microphysics", "i_update_precfrac"]
+        )
+        self.remove_setting(
+            config, ["namelist:microphysics", "i_update_precfrac"]
+        )
+        self.add_setting(
+            config,
+            ["namelist:microphysics", "update_precfrac_opt"],
+            upd_precfrac_opt,
+        )
+
+        # Commands From: rose-meta/um-convection
+        # 0.66 and 1.2 are tuned GC6 values (0.5 and 0.8 originally)
+        self.add_setting(config, ["namelist:convection", "r_det"], "0.5")
+        self.add_setting(
+            config, ["namelist:convection", "cca_md_scaling"], "0.8"
+        )
+        # These settings are unchanged
+        self.add_setting(
+            config, ["namelist:convection", "prog_ent_grad"], "-1.1"
+        )
+        self.add_setting(
+            config, ["namelist:convection", "prog_ent_int"], "-2.9"
+        )
+        self.add_setting(config, ["namelist:convection", "prog_ent_max"], "2.5")
+        self.add_setting(config, ["namelist:convection", "cpress_term"], "0.3")
+        self.add_setting(config, ["namelist:convection", "ent_fac_sh"], "1.0")
+        self.add_setting(config, ["namelist:convection", "mparwtr"], "1.0e-3")
+        self.add_setting(config, ["namelist:convection", "thpixs_mid"], "0.5")
+        self.add_setting(config, ["namelist:convection", "c_mass_sh"], "0.03")
+        cv_scheme = self.get_setting_value(
+            config, ["namelist:convection", "cv_scheme"]
+        )
+        if cv_scheme == "'comorph'":
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dtheta"], ".false."
+            )
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dq"], ".false."
+            )
+        else:
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dtheta"], ".true."
+            )
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dq"], ".true."
+            )
+
+        # Commands From: rose-meta/um-aerosol
+        self.add_setting(
+            config, ["namelist:aerosol", "ukca_scale_marine_pom_ems"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "marine_pom_ems_scaling"], "1.0"
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "ukca_scale_sea_salt_ems"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "sea_salt_ems_scaling"], "1.0"
+        )
+
+        return config, self.reports
