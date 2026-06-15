@@ -71,6 +71,12 @@ rose-stem/lib/                         @james-bruten-mo                    # @je
 rose-stem/bin/                         @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/common/            @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/macros/            @james-bruten-mo                    # @jennyhickson
+rose-stem/site/common                  @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/azngarch                @james-bruten-mo                    # @jennyhickson
+rose-stem/site/meto                    @james-bruten-mo                    # @jennyhickson
+rose-stem/site/esnz                    @tinyendian @JorgeBornemann
+rose-stem/site/ncas                    @SimonWNCAS
+rose-stem/site/nci                     @davelee2804
 rose-stem/app                          # Mostly updated by macros, no codeowner
 **/rose-meta/**/version*.py            @james-bruten-mo                    # @jennyhickson
 build/                                 @MetOffice/ssdteam @hiker
