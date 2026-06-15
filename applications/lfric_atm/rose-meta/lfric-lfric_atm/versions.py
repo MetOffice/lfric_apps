@@ -635,3 +635,57 @@ class vn31_t496(MacroUpgrade):
         self.add_setting(config, ["namelist:iau", "iau_outerloop"], ".false.")
 
         return config, self.reports
+
+
+class vn31_t487(MacroUpgrade):
+    """Upgrade macro for ticket #487 by Adrian Lock."""
+
+    BEFORE_TAG = "vn3.1_t496"
+    AFTER_TAG = "vn3.1_t487"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-boundary_layer
+        self.add_setting(
+            config, ["namelist:blayer", "improved_tke_diag"], ".false."
+        )
+
+        return config, self.reports
+
+
+class vn31_t180(MacroUpgrade):
+    """Upgrade macro for ticket #180 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t487"
+    AFTER_TAG = "vn3.1_t180"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Get values
+        n_orog_smooth = self.get_setting_value(
+            config, ["namelist:initialization", "n_orog_smooth"]
+        )
+        w0_mapping = self.get_setting_value(
+            config, ["namelist:initialization", "w0_orography_mapping"]
+        )
+        coord_order = self.get_setting_value(
+            config, ["namelist:finite_element", "coord_order"]
+        )
+        # Add new settings
+        self.add_setting(
+            config, ["namelist:orography", "n_orog_smooth"], n_orog_smooth
+        )
+        self.add_setting(
+            config, ["namelist:orography", "w0_multigrid_mapping"], w0_mapping
+        )
+        self.add_setting(
+            config, ["namelist:orography", "orography_order"], coord_order
+        )
+        # Remove old settings
+        self.remove_setting(
+            config, ["namelist:initialization", "n_orog_smooth"]
+        )
+        self.remove_setting(
+            config, ["namelist:initialization", "w0_orography_mapping"]
+        )
+
+        return config, self.reports
