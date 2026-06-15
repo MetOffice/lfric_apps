@@ -13,7 +13,7 @@
 module aviation_icao_heights_kernel_mod
 
   use argument_mod,         only: arg_type,            &
-                                  gh_field, gh_scalar, gh_logical, &
+                                  gh_field, gh_scalar, &
                                   gh_read, gh_write, gh_integer, &
                                   gh_real, cell_column, &
                                   any_discontinuous_space_1, &
