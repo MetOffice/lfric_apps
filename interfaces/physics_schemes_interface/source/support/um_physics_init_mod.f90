@@ -81,6 +81,7 @@ module um_physics_init_mod
                                 dzrad_disc_opt_in      => dzrad_disc_opt,      &
                                 dzrad_disc_opt_level_ntm1,                     &
                                 dzrad_disc_opt_smooth_1p5,                     &
+                                improved_tke_diag_in   => improved_tke_diag,   &
                                 l_use_sml_dsc_fixes_in => l_use_sml_dsc_fixes, &
                                 l_converge_ga_in       => l_converge_ga,       &
                                 num_sweeps_bflux_in    => num_sweeps_bflux
@@ -117,6 +118,7 @@ module um_physics_init_mod
                                     two_d_fsd_factor_in => two_d_fsd_factor,   &
                                     pc2_init_logic, pc2_init_logic_original,   &
                                     pc2_init_logic_smooth,                     &
+                                    pc2_init_logic_smooth_fix,                 &
                                     i_pc2_erosion_numerics_explicit,           &
                                     i_pc2_erosion_numerics_implicit,           &
                                     i_pc2_erosion_numerics_analytic,           &
@@ -350,7 +352,7 @@ contains
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
-         l_use_sml_dsc_fixes, l_converge_ga
+         l_use_sml_dsc_fixes, l_converge_ga, improved_tke_diag
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
@@ -465,14 +467,14 @@ contains
     use casim_parent_mod, only: casim_parent, parent_um
     use initialize, only: mphys_init
     use generic_diagnostic_variables, only: casdiags
-    use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,        &
-         i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,   &
-         pc2eros_exp_rh,pc2eros_hybrid_sidesonly, ignore_shear,            &
-         original_but_wrong, acf_cusack, cbl_and_cu, pc2init_smith,        &
-         pc2init_logic_original, pc2init_bimodal, i_pc2_homog_g_cf,        &
-         forced_cu_cca, i_pc2_homog_g_width, pc2init_logic_smooth,         &
-         i_pc2_erosion_explicit, i_pc2_erosion_implicit,                   &
-         i_pc2_erosion_analytic
+    use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,            &
+         i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,       &
+         pc2eros_exp_rh,pc2eros_hybrid_sidesonly, ignore_shear,                &
+         original_but_wrong, acf_cusack, cbl_and_cu, forced_cu_cca,            &
+         pc2init_smith, pc2init_bimodal, i_pc2_homog_g_cf, i_pc2_homog_g_width,&
+         pc2init_logic_original, pc2init_logic_smooth,                         &
+         pc2init_logic_smooth_fix,                                             &
+         i_pc2_erosion_explicit, i_pc2_erosion_implicit, i_pc2_erosion_analytic
     use rad_input_mod, only: two_d_fsd_factor
     use science_fixes_mod, only:  i_fix_mphys_drop_settle, second_fix,      &
          l_pc2_homog_turb_q_neg, l_fix_ccb_cct, l_fix_conv_precip_evap,     &
@@ -785,6 +787,7 @@ contains
         l_skyview = .true.
       end if
 
+      improved_tke_diag   = improved_tke_diag_in
       l_use_sml_dsc_fixes = l_use_sml_dsc_fixes_in
       l_converge_ga       = l_converge_ga_in
       num_sweeps_bflux    = num_sweeps_bflux_in
@@ -1138,6 +1141,8 @@ contains
             i_pc2_init_logic = pc2init_logic_original
           case(pc2_init_logic_smooth)
             i_pc2_init_logic = pc2init_logic_smooth
+          case(pc2_init_logic_smooth_fix)
+            i_pc2_init_logic = pc2init_logic_smooth_fix
         end select
         if (pc2ini == pc2ini_smith)   i_pc2_init_method = pc2init_smith
         if (pc2ini == pc2ini_bimodal) i_pc2_init_method = pc2init_bimodal
