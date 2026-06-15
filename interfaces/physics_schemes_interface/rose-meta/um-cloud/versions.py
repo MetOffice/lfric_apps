@@ -73,9 +73,9 @@ class vn31_t249(MacroUpgrade):
 
         return config, self.reports
 
-      
+
 class vn31_t247(MacroUpgrade):
-    # Upgrade macro for Issue #247 by Mike Whitall
+    """Upgrade macro for Issue #247 by Mike Whitall."""
 
     BEFORE_TAG = "vn3.1_t249"
     AFTER_TAG = "vn3.1_t247"

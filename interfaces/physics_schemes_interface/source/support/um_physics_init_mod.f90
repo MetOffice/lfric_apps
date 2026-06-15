@@ -102,8 +102,6 @@ module um_physics_init_mod
                                         cloud_call_b4_conv,                    &
                                         l_ensure_max_in_cloud_pc2_in           &
                                           => l_ensure_max_in_cloud_pc2,        &
-                                        dbsdtbs_turb_0_in => dbsdtbs_turb_0,   &
-                                        ent_coef_bm_in => ent_coef_bm,         &
                                         ez_max, bm_ez_opt, bm_ez_opt_orig,     &
                                         bm_ez_opt_subcrit, bm_ez_opt_entpar,   &
                                         pc2_erosion_numerics,                  &
@@ -480,8 +478,8 @@ contains
          pc2init_smith, pc2init_bimodal, i_pc2_homog_g_cf,                     &
          i_pc2_homog_g_width, i_pc2_homog_g_rev,                               &
          pc2init_logic_original, pc2init_logic_smooth,                         &
-         pc2init_logic_smooth_fix, i_pc2_erosion_explicit                      &
-         , i_pc2_erosion_implicit, i_pc2_erosion_analytic
+         pc2init_logic_smooth_fix, i_pc2_erosion_explicit,                     &
+         i_pc2_erosion_implicit, i_pc2_erosion_analytic
     use rad_input_mod, only: two_d_fsd_factor
     use science_fixes_mod, only:  i_fix_mphys_drop_settle, second_fix,      &
          l_pc2_homog_turb_q_neg, l_fix_ccb_cct, l_fix_conv_precip_evap,     &
