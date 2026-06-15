@@ -37,8 +37,6 @@ use constants_mod,        only: r_def, i_def
 use fs_continuity_mod,    only: Wtheta
 use kernel_mod,           only: kernel_type
 
-use, intrinsic :: iso_fortran_env, only: real64
-
 implicit none
 
 private
@@ -98,8 +96,8 @@ subroutine regrav_geopot_code( nlayers,       &
 
   ! Physical height corresponding to geopotential height = height_wth
   do k = 0, nlayers
-    height_phys(k) =   real(planet_radius, kind=real64) * height_wth(map_wt(1)+k) / &
-                     ( real(planet_radius, kind=real64) - height_wth(map_wt(1)+k) )
+    height_phys(k) = height_wth(map_wt(1)+k) / &
+                     ( 1.0_r_def - height_wth(map_wt(1)+k) / planet_radius )
   end do
 
 ! Temporary storage for T
