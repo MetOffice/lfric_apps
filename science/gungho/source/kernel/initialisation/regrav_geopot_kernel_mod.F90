@@ -131,6 +131,7 @@ do kout = 1, nout
       if ( zin(kin+1) > zout(kout) ) then
         xi = ( zout(kout) - zin(kin) ) / ( zin(kin+1) - zin(kin) )
         fout(kout) = ( 1.0_r_def - xi ) * fin(kin) + xi * fin(kin+1)
+        exit
       end if
     end do
   end if
