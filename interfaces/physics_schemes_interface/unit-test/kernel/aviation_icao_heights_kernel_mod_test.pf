@@ -28,11 +28,6 @@ module aviation_icao_heights_kernel_mod_test
       real(kind=r_def), allocatable :: icao_heights(:)
       real(kind=r_def), allocatable :: expect(:)
 
-      ! g / dry air gas constant. Can't seem to import from planet_constants.
-      real(kind=r_def) :: g_over_r = 0.034163195_r_def
-      real(kind=r_def) :: tolerance  = 1.0e-3_r_def
-
-
     contains
       procedure setUp
       procedure tearDown
@@ -43,6 +38,10 @@ module aviation_icao_heights_kernel_mod_test
 
   end type aviation_icao_heights_test_type
 
+  ! g / dry air gas constant. Can't seem to import from planet_constants.
+  real(kind=r_def) :: g_over_r = 0.034163195_r_def
+  real(kind=r_def) :: tolerance  = 1.0e-3_r_def
+
   integer(kind=i_def), parameter :: nlayers       = -999_i_def
   integer(kind=i_def), parameter :: ndf           = 1_i_def
   integer(kind=i_def), parameter :: undf          = 2_i_def
@@ -50,14 +49,13 @@ module aviation_icao_heights_kernel_mod_test
 
   integer(kind=i_def), parameter :: arr_len       = undf
 
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @before
   subroutine setUp( this )
-
     implicit none
-
     class(aviation_icao_heights_test_type), intent(inout) :: this
 
     allocate(this%icao_heights(arr_len), &
@@ -69,9 +67,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @after
   subroutine tearDown( this )
-
     implicit none
-
     class(aviation_icao_heights_test_type), intent(inout) :: this
 
     deallocate(this%icao_heights, this%pressure, this%expect)
@@ -89,10 +85,10 @@ contains
 
     this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
     call aviation_icao_heights_kernel_code( nlayers,              &
-               this%icao_heights, this%pressure, this%g_over_r,   &
+               this%icao_heights, this%pressure, g_over_r,   &
                ndf, undf, map )
 
-    @assertEqual( this%icao_heights, this%expect )
+    @assertEqual( this%expect, this%icao_heights )
 
   end subroutine test_rmdi
 
@@ -107,10 +103,10 @@ contains
 
     this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
     call aviation_icao_heights_kernel_code( nlayers,              &
-               this%icao_heights, this%pressure, this%g_over_r,   &
+               this%icao_heights, this%pressure, g_over_r,   &
                ndf, undf, map )
 
-    @assertEqual( this%expect, this%icao_heights, this%tolerance )
+    @assertEqual( this%expect, this%icao_heights, tolerance )
 
   end subroutine test_low_low
 
@@ -125,10 +121,10 @@ contains
 
     this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
     call aviation_icao_heights_kernel_code( nlayers,              &
-               this%icao_heights, this%pressure, this%g_over_r,   &
+               this%icao_heights, this%pressure, g_over_r,   &
                ndf, undf, map )
 
-    @assertEqual( this%expect, this%icao_heights, this%tolerance )
+    @assertEqual( this%expect, this%icao_heights, tolerance )
 
   end subroutine test_low_high
 
@@ -143,10 +139,10 @@ contains
 
     this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
     call aviation_icao_heights_kernel_code( nlayers,              &
-               this%icao_heights, this%pressure, this%g_over_r,   &
+               this%icao_heights, this%pressure, g_over_r,   &
                ndf, undf, map )
 
-    @assertEqual( this%expect, this%icao_heights, this%tolerance )
+    @assertEqual( this%expect, this%icao_heights, tolerance )
 
   end subroutine test_mid_low
 
@@ -161,10 +157,10 @@ contains
 
     this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
     call aviation_icao_heights_kernel_code( nlayers,              &
-               this%icao_heights, this%pressure, this%g_over_r,   &
+               this%icao_heights, this%pressure, g_over_r,   &
                ndf, undf, map )
 
-    @assertEqual( this%expect, this%icao_heights, this%tolerance )
+    @assertEqual( this%expect, this%icao_heights, tolerance )
 
   end subroutine test_mid_high
 
@@ -179,10 +175,10 @@ contains
 
     this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
     call aviation_icao_heights_kernel_code( nlayers,              &
-               this%icao_heights, this%pressure, this%g_over_r,   &
+               this%icao_heights, this%pressure, g_over_r,   &
                ndf, undf, map )
 
-    @assertEqual( this%expect, this%icao_heights, this%tolerance )
+    @assertEqual( this%expect, this%icao_heights, tolerance )
 
   end subroutine test_high_low
 
@@ -193,14 +189,15 @@ contains
     class(aviation_icao_heights_test_type), intent(inout) :: this
 
     this%pressure = (/ 500.0_r_def,   -999.0_r_def /)
+!    this%expect = (/   101.886_r_def, -999.0_r_def /)
     this%expect = (/   101.886_r_def, -999.0_r_def /)
 
     this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
     call aviation_icao_heights_kernel_code( nlayers,              &
-               this%icao_heights, this%pressure, this%g_over_r,   &
+               this%icao_heights, this%pressure, g_over_r,   &
                ndf, undf, map )
 
-    @assertEqual( this%expect, this%icao_heights, this%tolerance )
+    @assertEqual( this%expect, this%icao_heights, tolerance )
 
   end subroutine test_high_limit
 
