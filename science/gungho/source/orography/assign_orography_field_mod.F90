@@ -46,10 +46,6 @@ module assign_orography_field_mod
   use fs_continuity_mod,              only : W0, Wchi
   use function_space_mod,             only : BASIS
 
-  ! TODO #180: this can be removed when surface altitude is passed in at W0
-  use function_space_collection_mod,  only : function_space_collection
-  use surface_altitude_alg_mod,       only : surface_altitude_alg
-
   implicit none
 
   private
@@ -190,11 +186,6 @@ contains
 
     type(field_proxy_type)       :: sfc_alt_proxy
 
-    ! TODO #180: this will be removed when input surface altitude is in W0
-    type(field_type)             :: surface_altitude_w0
-    integer(kind=i_def)          :: surface_order_h, surface_order_v
-    type(mesh_type),     pointer :: sf_mesh
-
     real(kind=r_def),    pointer :: nodes(:,:)
     integer(kind=i_def)          :: dim_sf, df, df_sf, depth
 
@@ -296,35 +287,6 @@ contains
       call chi(2)%copy_field_serial(chi_in(2))
       call chi(3)%copy_field_serial(chi_in(3))
 
-      ! ---------------------------------------------------------------------- !
-      ! Copy surface altitude to W0
-      ! ---------------------------------------------------------------------- !
-      ! TODO #180: this section will be removed when surface altitude is passed
-      ! in at W0
-      if ( present(surface_altitude) ) then
-        ! Set up the surface altitude field on W0 points
-        sf_mesh => surface_altitude%get_mesh()
-        surface_order_h = surface_altitude%get_element_order_h()
-        surface_order_v = surface_altitude%get_element_order_v()
-        call surface_altitude_w0%initialise( vector_space =           &
-           function_space_collection%get_fs(sf_mesh, surface_order_h, &
-                                            surface_order_v, W0),     &
-                                             halo_depth = sf_mesh%get_halo_depth() )
-
-        if (surface_altitude%which_function_space() == W0) then
-          call surface_altitude%copy_field_serial(surface_altitude_w0)
-        else
-          call surface_altitude_alg( surface_altitude_w0, surface_altitude )
-        end if
-
-        call log_field_minmax( LOG_LEVEL_INFO, 'srf_alt', surface_altitude )
-        call log_field_minmax( LOG_LEVEL_INFO, 'srf_alt_w0', &
-                                                      surface_altitude_w0 )
-
-        nullify ( sf_mesh )
-      end if
-      ! ---------------------------------------------------------------------- !
-
       ! Break encapsulation and get the proxy
       chi_proxy(1) = chi(1)%get_proxy()
       chi_proxy(2) = chi(2)%get_proxy()
@@ -333,7 +295,7 @@ contains
       chi_in_proxy(2) = chi_in(2)%get_proxy()
       chi_in_proxy(3) = chi_in(3)%get_proxy()
       panel_id_proxy = panel_id%get_proxy()
-      sfc_alt_proxy = surface_altitude_w0%get_proxy()
+      sfc_alt_proxy = surface_altitude%get_proxy()
 
       undf_chi = chi_proxy(1)%vspace%get_undf()
       ndf_chi  = chi_proxy(1)%vspace%get_ndf()
