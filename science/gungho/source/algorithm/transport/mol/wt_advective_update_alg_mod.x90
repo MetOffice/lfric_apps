@@ -65,7 +65,6 @@ module wt_advective_update_alg_mod
   use transport_metadata_mod,             only: transport_metadata_type
   use polyh_wtheta_koren_kernel_mod,      only: polyh_wtheta_koren_kernel_type
   use polyv_wtheta_koren_kernel_mod,      only: polyv_wtheta_koren_kernel_type
-  use copy_field_alg_mod,                 only: copy_field
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
 
@@ -385,7 +384,7 @@ contains
           ! Consistent wind will be vertical only -- initialise as wind_v
           height_rdef => get_height_fv(Wtheta, mesh%get_id())
           call height%initialise( vector_space = height_rdef%get_function_space() )
-          call copy_field( height_rdef, height )
+          call invoke( real_to_real_x(height, height_rdef) )
           chi => get_coordinates(mesh%get_id())
           call u_grad_z%initialise( u_grad_f%get_function_space() )
           call consistent_wind%initialise( wind_v%get_function_space() )
@@ -451,8 +450,8 @@ contains
     end if
 
     call mt_lumped_inv_r_tran%initialise(mt_lumped_inv_r_def%get_function_space())
-    call copy_field(mt_lumped_inv_r_def, mt_lumped_inv_r_tran)
-    call invoke( X_times_Y(rhs, u_grad_f, mt_lumped_inv_r_tran) )
+    call invoke( real_to_real_x(mt_lumped_inv_r_tran, mt_lumped_inv_r_def), &
+                 X_times_Y(rhs, u_grad_f, mt_lumped_inv_r_tran) )
 
   end subroutine wt_advective_update_alg
 

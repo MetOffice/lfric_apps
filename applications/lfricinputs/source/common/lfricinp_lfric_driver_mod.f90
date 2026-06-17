@@ -11,45 +11,44 @@ use log_mod,                    only: log_event, log_scratch_space,            &
                                       LOG_LEVEL_ALWAYS
 
 ! LFRic Modules
-use add_mesh_map_mod,           only: assign_mesh_maps
-use config_mod,                 only: config_type
-use create_mesh_mod,            only: create_mesh
-use driver_collections_mod,     only: init_collections, final_collections
-use driver_mesh_mod,            only: init_mesh
-use driver_fem_mod,             only: init_fem
-use driver_log_mod,             only: init_logger, final_logger
-use derived_config_mod,         only: set_derived_config
-use event_mod,                  only: event_action
-use event_actor_mod,            only: event_actor_type
-use extrusion_mod,              only: extrusion_type,         &
-                                      uniform_extrusion_type, &
-                                      TWOD
-use field_collection_mod,       only: field_collection_type
-use field_mod,                  only: field_type
-use sci_geometric_constants_mod,      &
-                                only: get_chi_inventory, get_panel_id_inventory
-use gungho_extrusion_mod,       only: create_extrusion
-use halo_comms_mod,             only: initialise_halo_comms
-use inventory_by_mesh_mod,      only: inventory_by_mesh_type
-use model_clock_mod,            only: model_clock_type
-use io_context_mod,             only: callback_clock_arg
-use lfric_xios_context_mod,     only: lfric_xios_context_type
-use lfric_xios_action_mod,      only: advance
-use lfric_xios_driver_mod,      only: lfric_xios_initialise, &
-                                      lfric_xios_finalise
-use lfricinp_setup_io_mod,      only: io_config
-use linked_list_mod,            only: linked_list_type
-use mesh_mod,                   only: mesh_type
-use mesh_collection_mod,        only: mesh_collection
-use step_calendar_mod,          only: step_calendar_type
+use add_mesh_map_mod,            only: assign_mesh_maps
+use config_mod,                  only: config_type
+use create_mesh_mod,             only: create_mesh
+use driver_collections_mod,      only: init_collections, final_collections
+use driver_mesh_mod,             only: init_mesh
+use driver_fem_mod,              only: init_fem
+use driver_log_mod,              only: init_logger, final_logger
+use derived_config_mod,          only: set_derived_config
+use event_mod,                   only: event_action
+use event_actor_mod,             only: event_actor_type
+use extrusion_mod,               only: extrusion_type,         &
+                                       uniform_extrusion_type, &
+                                       TWOD
+use field_collection_mod,        only: field_collection_type
+use field_mod,                   only: field_type
+use gungho_extrusion_mod,        only: create_extrusion
+use halo_comms_mod,              only: initialise_halo_comms
+use inventory_by_mesh_mod,       only: inventory_by_mesh_type
+use lfric_xios_context_mod,      only: lfric_xios_context_type
+use lfric_xios_action_mod,       only: advance
+use lfric_xios_driver_mod,       only: lfric_xios_initialise, &
+                                       lfric_xios_finalise
+use lfricinp_setup_io_mod,       only: io_config
+use linked_list_mod,             only: linked_list_type
+use mesh_mod,                    only: mesh_type
+use mesh_collection_mod,         only: mesh_collection
+use model_clock_mod,             only: model_clock_type
+use sci_geometric_constants_mod, only: get_chi_inventory,      &
+                                       get_panel_id_inventory
+use step_calendar_mod,           only: step_calendar_type
 
 ! Interface to mpi
-use lfric_mpi_mod,              only: global_mpi, create_comm, destroy_comm, &
-                                      lfric_comm_type
+use lfric_mpi_mod,               only: global_mpi, create_comm, destroy_comm, &
+                                       lfric_comm_type
 
 ! Configuration modules
-use base_mesh_config_mod,       only: geometry_spherical, &
-                                      geometry_planar
+use base_mesh_config_mod,        only: geometry_spherical, &
+                                       geometry_planar
 
 ! lfricinp modules
 use lfricinp_um_parameters_mod, only: fnamelen
@@ -110,7 +109,6 @@ type(field_type), pointer :: chi(:) => null()
 type(field_type), pointer :: panel_id => null()
 type(inventory_by_mesh_type), pointer :: chi_inventory => null()
 type(inventory_by_mesh_type), pointer :: panel_id_inventory => null()
-procedure(callback_clock_arg), pointer :: before_close => null()
 class(event_actor_type), pointer :: event_actor_ptr
 procedure(event_action), pointer :: context_advance
 
@@ -255,7 +253,7 @@ file_list => io_context%get_filelist()
 call io_config%init_lfricinp_files(file_list)
 call io_context%initialise( xios_ctx )
 call io_context%initialise_xios_context( comm, chi, panel_id, &
-                                         model_clock, model_calendar, before_close )
+                                         model_clock, model_calendar )
 ! Attach context advancement to the model's clock
 context_advance => advance
 event_actor_ptr => io_context

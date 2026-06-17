@@ -101,11 +101,9 @@
     {% do LOG.debug("Not Running Physics Schemes") %}
 
     {% for item in ["casim",
-                    "jules",
                     "ukca",
                     "socrates",
-                    "socrates-spectral",
-                    "um_aux"] %}
+                    "socrates-spectral"] %}
 
         {% do dependencies.pop(item, None) %}
 

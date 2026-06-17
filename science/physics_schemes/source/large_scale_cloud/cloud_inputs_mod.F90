@@ -114,7 +114,9 @@ integer, parameter :: i_bm_ez_entpar = 3  ! Construct modes from above and
 logical :: l_ensure_min_in_cloud_qcf = .false.
                                  ! Reduce CFF when qcf is low to
                                  ! ensure a minimum qcf/CFF.
-
+logical :: l_ensure_max_in_cloud_pc2 = .false.
+                                 ! Increase cloud-fractions so-as to remove
+                                 ! silly large in-cloud water contents qc/cf
 logical :: l_micro_eros = .false.
                                  ! If false, erosion is done as part of
                                  ! the convection scheme
@@ -315,7 +317,7 @@ logical, parameter :: l_fixbug_pc2_mixph = .true.
 namelist/RUN_Cloud/ rhcrit, i_eacf, forced_cu, forced_cu_fac,                  &
        cloud_pc2_tol, cloud_pc2_tol_2,                                         &
        dbsdtbs_turb_0, falliceshear_method,                                    &
-       l_ensure_min_in_cloud_qcf,                                              &
+       l_ensure_min_in_cloud_qcf, l_ensure_max_in_cloud_pc2,                   &
        i_pc2_conv_coupling, i_pc2_erosion_method, i_pc2_erosion_numerics,      &
        l_micro_eros,                                                           &
        starticeTKelvin, alliceTdegC, cff_spread_rate, ice_width,               &
@@ -350,11 +352,12 @@ use ereport_mod,    only: ereport
 use pc2_constants_mod, only: acf_off, acf_cusack, acf_brooks,                  &
        rhcpt_off, rhcpt_tke_based, i_cld_pc2,                                  &
        i_cld_off, i_cld_smith, i_cld_bimodal,                                  &
-       i_pc2_homog_g_cf, i_pc2_homog_g_width,                                  &
+       i_pc2_homog_g_cf, i_pc2_homog_g_width, i_pc2_homog_g_rev,               &
        pc2eros_exp_rh, pc2eros_hybrid_sidesonly,                               &
        i_pc2_erosion_explicit, i_pc2_erosion_implicit, i_pc2_erosion_analytic, &
        pc2init_smith, pc2init_bimodal,                                         &
-       pc2init_logic_original, pc2init_logic_simplified, pc2init_logic_smooth, &
+       pc2init_logic_original, pc2init_logic_simplified,                       &
+       pc2init_logic_smooth, pc2init_logic_smooth_fix,                         &
        cbl_and_cu, forced_cu_cca
 use cv_run_mod, only: i_convection_vn, i_convection_vn_5a, i_convection_vn_6a, &
                       i_cv_comorph, l_param_conv
@@ -391,7 +394,7 @@ call chk_var(ice_fraction_method,'ice_fraction_method',                        &
 if ( i_cld_vn == i_cld_pc2) then
 
   call chk_var(i_pc2_homog_g_method,'i_pc2_homog_g_method',                    &
-               [i_pc2_homog_g_cf, i_pc2_homog_g_width])
+               [i_pc2_homog_g_cf, i_pc2_homog_g_width, i_pc2_homog_g_rev])
 
   call chk_var(i_pc2_erosion_method,'i_pc2_erosion_method',                    &
        [pc2eros_exp_rh, pc2eros_hybrid_sidesonly])
@@ -405,7 +408,7 @@ if ( i_cld_vn == i_cld_pc2) then
 
   call chk_var(i_pc2_init_logic,'i_pc2_init_logic',                            &
        [pc2init_logic_original, pc2init_logic_simplified,                      &
-        pc2init_logic_smooth])
+        pc2init_logic_smooth, pc2init_logic_smooth_fix])
 
   call chk_var(forced_cu,'forced_cu',                                          &
        [off, on, cbl_and_cu, forced_cu_cca])
@@ -505,6 +508,9 @@ write(lineBuffer,'(A,I0)')' falliceshear_method = ',falliceshear_method
 call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,L1)')' l_ensure_min_in_cloud_qcf = ',                     &
                             l_ensure_min_in_cloud_qcf
+call umPrint(lineBuffer,src='cloud_inputs_mod')
+write(lineBuffer,'(A,L1)')' l_ensure_max_in_cloud_pc2 = ',                     &
+                            l_ensure_max_in_cloud_pc2
 call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,L1)')' l_pc2_check_init = ',l_pc2_check_init
 call umPrint(lineBuffer,src='cloud_inputs_mod')
