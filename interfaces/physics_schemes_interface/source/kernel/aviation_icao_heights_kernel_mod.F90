@@ -3,13 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!
-! Section 20 aviation diagnostics kernel.
-!
-! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file currently belongs in section: physics_schemes_interface
-! whilst discussions are ongoing about its final location.
-!
+!> @brief Calculate icao height.
+!>
 module aviation_icao_heights_kernel_mod
 
   use argument_mod,         only: arg_type,            &
@@ -46,7 +41,7 @@ module aviation_icao_heights_kernel_mod
 contains
 
   !> @brief Calculate icao height from the pressure field.
-  !>        Assumes lowerst order W3 data, where ndf is always 1.
+  !> @details Assumes lowest order W3 data, where ndf is always 1.
   !> @param[in]     nlayers         The number of layers in a column.
   !> @param[out]    icao_height     Output icao height in kft.
   !> @param[in]     pressure_field  Pressure in pa.

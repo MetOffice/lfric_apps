@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> Test aviation_thickness_snow_kernel
+!> @brief Test aviation_thickness_snow_kernel
 !>
 
 module aviation_thickness_snow_kernel_mod_test

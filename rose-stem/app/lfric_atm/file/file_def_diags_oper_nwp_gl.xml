@@ -49,6 +49,7 @@
       <field field_ref="convection__pres_lowest_cv_base"/>
       <field field_ref="convection__pres_lowest_cv_top"/>
       <field field_ref="convection__cca_2d"/>
+      <field field_ref="convection__snow_probability"/>
       <field field_ref="cloud__very_low_type_cloud_amount"/>
       <field field_ref="cloud__low_type_cloud_amount"/>
       <field field_ref="cloud__medium_type_cloud_amount"/>
@@ -140,7 +141,11 @@
       <field field_ref="surface__leaf_area_index"/>
       <field field_ref="soil__soil_moisture_content"/> 
       <field field_ref="surface__grid_canopy_water"/> 
-      <field field_ref="cloud__cloud_amount_rnd"/> 
+      <field field_ref="cloud__cloud_amount_rnd"/>
+      <field field_ref="convection__geopot_thickness_850"/>
+      <field field_ref="convection__geopot_thickness_500"/>
+      <field field_ref="convection__conv_cloud_base_icao_height"/>
+      <field field_ref="convection__conv_cloud_top_icao_height"/>
     </field_group>     
     
     <field_group operation="average" freq_op="3h" prec="4">  
@@ -192,16 +197,7 @@
         <field field_ref="processed__sw_aer_optical_depth_rts"/>
     </field_group>
 
-    <!-- Section 20 Aviation diagnostics -->
-    <field_group operation="instant" freq_op="6h">
-      <field field_ref="aviation__geopot_thickness_850"/>
-      <field field_ref="aviation__geopot_thickness_500"/>
-      <field field_ref="aviation__snow_probability"/>
-      <field field_ref="aviation__conv_cloud_base_icao_height"/>
-      <field field_ref="aviation__conv_cloud_top_icao_height"/>
-    </field_group>
-
-  </file>    
+  </file>
   
   
   <file id="lfric_gl_model_levs_diags_1hr" name="results/lfric_gl_model_levs_diags_1hr" output_freq="1h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">

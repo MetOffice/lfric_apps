@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> Test aviation_icao_heights_kernel
+!> @brief Test aviation_icao_heights_kernel
 !>
 
 module aviation_icao_heights_kernel_mod_test

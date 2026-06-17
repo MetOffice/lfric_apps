@@ -266,9 +266,9 @@ contains
     end if
 
     ! Geopotential height on pressure levels
-    aviation_geopot_flag = diag_samp('aviation__geopot_thickness_850') .or. &
-                           diag_samp('aviation__geopot_thickness_500') .or. &
-                           diag_samp('aviation__snow_probability')
+    aviation_geopot_flag = diag_samp('convection__geopot_thickness_850') .or. &
+                           diag_samp('convection__geopot_thickness_500') .or. &
+                           diag_samp('convection__snow_probability')
     plev_geopot_clim_flag = diag_samp('plev__geopot_clim')
     plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', &
             activate=plev_geopot_clim_flag .or. aviation_geopot_flag)

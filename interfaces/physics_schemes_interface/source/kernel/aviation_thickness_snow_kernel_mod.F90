@@ -3,14 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!
-! Section 20 aviation diagnostics kernel.
-! This kernel calculates geopotential thickness and snow probabbility.
-!
-! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file currently belongs in section: physics_schemes_interface
-! whilst discussions are ongoing about its final location.
-!
+!> @brief Calculate geopotential thickness and snow probabbility.
+!>
 module aviation_thickness_snow_kernel_mod
 
   use argument_mod,         only: arg_type,            &
@@ -56,13 +50,14 @@ module aviation_thickness_snow_kernel_mod
 contains
 
 
-  !> @brief Calculate thickness and snow probability from the geopotential height at pressure levels.
-  !>        Assumes lowest order W3 data, where ndf is always 1.
-  !>        Thickness:
-  !>          Subtract geopotential heights at 850 and 500 hPa from that at 1000 hPa.
-  !>        Snow probability:
-  !>          Implement Boyden (1964), using 850 and 1000 hPa.
-  !>          See https://github.com/MetOffice/Section20/issues/21
+  !> @brief Calculate geopotential thickness and snow probabbility
+  !>        from geopotential height at pressure levels.
+  !> @details Assumes lowest order W3 data, where ndf is always 1.
+  !>          Thickness:
+  !>            Subtract geopotential heights at 850 and 500hPa from 1000hPa.
+  !>          Snow probability:
+  !>            Implement Boyden (1964), using 850 and 1000 hPa.
+  !>            See https://github.com/MetOffice/Section20/issues/21
   !> @param[in]     nlayers                 The number of layers in a column.
   !> @param[out]    thickness_850           Output geopot thickness between 1000 and 850 hPa in m.
   !> @param[out]    thickness_500           Output geopot thickness between 1000 and 500 hPa in m.

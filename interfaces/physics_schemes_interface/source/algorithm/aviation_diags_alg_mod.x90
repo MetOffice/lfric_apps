@@ -3,25 +3,17 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!
-! The main entry point for calculating section 20 aviation diagnostics.
-!
-! Code Owner: Please refer to the UM file CodeOwners.txt
-! This file currently belongs in section: physics_schemes_interface
-! whilst discussions are ongoing about its final location.
-!
+!> @brief Calculate aviation section 20 diagnostics.
+!>
 module aviation_diags_alg_mod
 
   use constants_mod,              only: r_def, i_def, l_def, str_long, RMDI
   use field_mod,                  only: field_type
   use field_collection_mod,       only: field_collection_type
-  use io_config_mod,              only: use_xios_io
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
   use lfric_xios_diag_mod,        only: get_axis_dimension, get_axis_values
-  use log_mod,                    only: log_event,                          &
-                                        log_level_always, log_level_error,  &
-                                        log_level_info, log_level_debug
+  use log_mod,                    only: log_event, log_level_error
 
   use aviation_thickness_snow_kernel_mod,                                   &
                                   only: aviation_thickness_snow_kernel_type
@@ -35,25 +27,30 @@ public :: aviation_diags_alg
 
 contains
 
-  ! Algorithm to calculate the section 20 aviation diagnostics.
+  !> @brief Calculate aviation section 20 diagnostics.
+  !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
+  !> @param[inout]  convection_fields  Collection of convection fields,
+  !>                                   including cloud base and top pressures.
   subroutine aviation_diags_alg(plev_geopot, convection_fields)
     implicit none
 
     ! Arguments
-    type(field_type), intent(in) :: plev_geopot
+    type(field_type), intent(in)               :: plev_geopot
     type(field_collection_type), intent(inout) :: convection_fields
 
-    ! calculate thickness from geopotential height at pressure levels.
+    ! Calculate geopotential thickness and snow probbability.
     call from_plev_geopot(plev_geopot)
 
-    ! calculate icao heights of top and base of cloud from their pressures.
+    ! Calculate icao heights of top and base of cloud from their pressures.
     call icao_heights(convection_fields)
 
   end subroutine aviation_diags_alg
 
-  SUBROUTINE from_plev_geopot(plev_geopot)
-    ! Calculate diagnostics from plvel_geopot.
-    ! - Thickness from geopotential height at pressure levels.
+  !> @brief Calculate geopotential thickness and snow probabbility
+  !>        from geopotential height at pressure levels.
+  !> @param[in]    plev_geopot    Geopotential height at pressure levels in m.
+  subroutine from_plev_geopot(plev_geopot)
+    implicit none
 
     ! Arguments
     type(field_type), intent(in) :: plev_geopot
@@ -84,11 +81,11 @@ contains
 
     ! Check the request flags.
     snow_probability_flag = &
-      init_diag(snow_probability, 'aviation__snow_probability')
+      init_diag(snow_probability, 'convection__snow_probability')
     thick_850_flag = &
-      init_diag(thick_850, 'aviation__geopot_thickness_850')
+      init_diag(thick_850, 'convection__geopot_thickness_850')
     thick_500_flag = &
-      init_diag(thick_500, 'aviation__geopot_thickness_500')
+      init_diag(thick_500, 'convection__geopot_thickness_500')
 
     ! Anything to do?
     if ( .not. (thick_850_flag .or. &
@@ -97,43 +94,17 @@ contains
       return
     end if
 
-    if ( .not. use_xios_io ) then
-      return
-    endif
-
-    ! Initialise required fields to 1.
-    if ( snow_probability_flag ) then
-      message = 'Section 20: snow probability requested'
-      call log_event( message, log_level_debug )
-      call invoke( setval_c(snow_probability, 0.0_r_def))
-    end if
-
-    if ( thick_850_flag ) then
-      message = 'Section 20: geopot thick 850 requested'
-      call log_event( message, log_level_debug )
-      ! Todo: Why 1 and not 0?
-      call invoke( setval_c(thick_850, 1.0_r_def))
-    end if
-
-    if ( thick_500_flag ) then
-      message = 'Section 20: geopot thick 500 requested'
-      call log_event( message, log_level_debug )
-      call invoke( setval_c(thick_500, 1.0_r_def))
-    end if
-
     ! Get the array of pressure levels.
     nplev = get_axis_dimension('pressure_levels')
     if (nplev <= 0) then
       message = 'Section 20: No pressure levels'
       call log_event( message, log_level_error )
-      return
     end if
 
     allocate(plevs(nplev), stat=plevs_alloc_stat)
     if (plevs_alloc_stat /= 0) then
       message = 'Section 20: allocate(plevs) failed'
       call log_event( message, log_level_error )
-      return
     end if
     plevs = get_axis_values('pressure_levels',nplev)
 
@@ -163,19 +134,16 @@ contains
     if (i1000 == -1) then
       message = 'Section 20: could not find 1000hPa'
       call log_event( message, log_level_error )
-      return
     end if
 
     if ((thick_850_flag .or. snow_probability_flag) .and. i850 == -1) then
       message = 'Section 20: could not find 850hPa'
       call log_event( message, log_level_error )
-      return
     end if
 
     if (thick_500_flag .and. i500 == -1) then
       message = 'Section 20: could not find 500hPa'
       call log_event( message, log_level_error )
-      return
     end if
 
     ! Call the kernel to subtract the levels.
@@ -199,12 +167,15 @@ contains
   end subroutine from_plev_geopot
 
 
+  !> @brief Calculate ICAO heights of top and base of cloud from their pressures.
+  !> @param[inout]  convection_fields  Collection of convection fields,
+  !>                                   including cloud base and top pressures.
   subroutine icao_heights(convection_fields)
-    ! Calculate ICAO heights of top and base of cloud from their pressures.
 
-    ! we can't access this from the kernel
+    ! we can't access this from the kernel so we pass it in
     use planet_constants_mod,  only: g_over_r
 
+    implicit none
 
     ! Arguments.
     type(field_collection_type), intent(inout) :: convection_fields
@@ -227,15 +198,12 @@ contains
 
     ! Which heights are requested this time step?
     top_height_flag = init_diag( &
-      conv_cloud_top_icao_height, 'aviation__conv_cloud_top_icao_height')
+      conv_cloud_top_icao_height, 'convection__conv_cloud_top_icao_height')
 
     base_height_flag = init_diag( &
-      conv_cloud_base_icao_height, 'aviation__conv_cloud_base_icao_height')
+      conv_cloud_base_icao_height, 'convection__conv_cloud_base_icao_height')
 
-    if (base_height_flag .or. top_height_flag) then
-      message = 'section 20: cloud icao heights on'
-      call log_event( message, log_level_debug )
-    else
+    if (.not. (base_height_flag .or. top_height_flag)) then
       ! Nothing requested at this time step.
       return
     end if
@@ -252,7 +220,7 @@ contains
 
       call conv_cloud_base_icao_height%write_field()
 
-      ! Is it necessary/safe to remove this field now?
+      ! Todo: Is it necessary/safe to remove this field now?
       ! Did the get trigger an unpack which we need to now remove?
       ! call convection_fields%remove_field('convection__pres_cv_base')
 
@@ -269,7 +237,7 @@ contains
 
       call conv_cloud_top_icao_height%write_field()
 
-      ! Is it necessary/safe to remove this field now?
+      ! Todo: Is it necessary/safe to remove this field now?
       ! call convection_fields%remove_field('convection__pres_cv_top')
 
     end if
