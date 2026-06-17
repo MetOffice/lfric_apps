@@ -15,7 +15,6 @@ module solver_constants_mod
 
   ! Infrastructure
   use constants_mod,                      only: i_def, r_def, l_def, str_def
-  use copy_field_alg_mod,                 only: copy_field
   use sci_geometric_constants_mod,        only: get_coordinates,               &
                                                 get_panel_id
   use sci_fem_constants_mod,              only: get_qr_fe
@@ -513,7 +512,7 @@ contains
                                              element_order_v, space)
       call inventory%add_field(normalisation_r_solver, fs, mesh)
 
-      call copy_field(normalisation_r_def, normalisation_r_solver)
+      call invoke( real_to_real_x(normalisation_r_solver, normalisation_r_def) )
 
       if ( LPROF ) call stop_timing( id, 'runtime_constants.solver' )
     end if
