@@ -308,6 +308,39 @@ contains
                             id_as_name=.true.)
           end do
         end if
+
+        if(l_esm_couple) then
+          call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_w10", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_solar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_heatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_train", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tsnow", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsurf", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsub", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_evap", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_topmelt", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceheatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_sublimation", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceskint", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+        end if
 #endif
       end if
     end if
@@ -338,6 +371,38 @@ contains
         end if
 #endif
       end if
+      if(l_esm_couple) then
+        call add_field( persistor%ckp_inp, "lf_taux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tauy", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_w10", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_solar", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_heatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_train", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tsnow", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsurf", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsub", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_evap", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_topmelt", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceheatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_sublimation", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceskint", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_pensolar", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+      end if
     end if
 
 
@@ -355,7 +420,9 @@ contains
   !> multidata dimensions are completely defined when the XIOS
   !> axis dimensions are being synched.
   !> @param[in] model_clock     The clock providing access to time information
-  subroutine basic_initialisations(mesh,model_clock)
+  !> @param[in] modeldb   The full model database for the model run
+  subroutine basic_initialisations(mesh,model_clock,config)
+
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,     only: use_physics
@@ -364,11 +431,13 @@ contains
                                           surface,            &
                                           surface_jules
 #endif
+    use config_mod,                 only: config_type
 
     implicit none
 
     type( mesh_type ), intent(in), pointer :: mesh
     class(model_clock_type), intent(inout) :: model_clock
+    type(config_type), intent(in) :: config
 
 #ifdef UM_PHYSICS
     integer(i_def) :: ncells
@@ -409,7 +478,7 @@ contains
 
       if (surface == surface_jules) then
         ! Initialisation of Jules physics variables
-        call jules_physics_init()
+        call jules_physics_init(config)
       end if
 
       ! Initialisation of UKCA physics variables
@@ -846,7 +915,7 @@ contains
     !=======================================================================
     ! 4.0 Initialise output
     !=======================================================================
-    call basic_initialisations( mesh, modeldb%clock )
+    call basic_initialisations( mesh, modeldb%clock, modeldb%config )
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
