@@ -668,7 +668,6 @@ class vn31_t180(MacroUpgrade):
         self.remove_setting(
             config, ["namelist:initialization", "w0_orography_mapping"]
         )
-
         return config, self.reports
 
 
@@ -685,7 +684,6 @@ class vn31_t360(MacroUpgrade):
             ["namelist:stochastic_physics", "rp_mp_ci"],
             "1.0,1.0,1.0",
         )
-
         # Commands From: rose-meta/um-microphysics
         self.add_setting(config, ["namelist:microphysics", "aut_qc"], "2.47")
         self.add_setting(config, ["namelist:microphysics", "ai"], "2.57e-2")
@@ -700,7 +698,6 @@ class vn31_t360(MacroUpgrade):
             ["namelist:microphysics", "update_precfrac_opt"],
             upd_precfrac_opt,
         )
-
         # Commands From: rose-meta/um-convection
         # 0.66 and 1.2 are tuned GC6 values (0.5 and 0.8 originally)
         self.add_setting(config, ["namelist:convection", "r_det"], "0.5")
@@ -737,7 +734,6 @@ class vn31_t360(MacroUpgrade):
             self.add_setting(
                 config, ["namelist:convection", "l_conv_prog_dq"], ".true."
             )
-
         # Commands From: rose-meta/um-aerosol
         self.add_setting(
             config, ["namelist:aerosol", "ukca_scale_marine_pom_ems"], ".false."
@@ -751,7 +747,6 @@ class vn31_t360(MacroUpgrade):
         self.add_setting(
             config, ["namelist:aerosol", "sea_salt_ems_scaling"], "1.0"
         )
-
         return config, self.reports
 
 
@@ -792,17 +787,21 @@ class vn31_t247(MacroUpgrade):
         self.add_setting(config, [nml, "bm_ez_opt"], bm_ez_opt)
         self.add_setting(config, [nml, "pc2_erosion_numerics"], pc2_erosion_num)
         self.add_setting(config, [nml, "pc2_init_method"], pc2_init_method)
-
         return config, self.reports
+
 
 class vn31_t394(MacroUpgrade):
     """Upgrade macro for ticket #394 by Thomas Bendall."""
 
-    BEFORE_TAG = "vn3.1_t243"
+    BEFORE_TAG = "vn3.1_t247"
     AFTER_TAG = "vn3.1_t394"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
         self.add_setting(
-            config, ["namelist:formulation", "solver_moisture_conservation"], ".false."
+            config,
+            ["namelist:formulation", "solver_moisture_conservation"],
+            ".false.",
         )
+
         return config, self.reports

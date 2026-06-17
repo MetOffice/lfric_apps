@@ -832,3 +832,20 @@ class vn31_t247(MacroUpgrade):
         self.add_setting(config, [nml, "pc2_init_method"], pc2_init_method)
 
         return config, self.reports
+
+
+class vn31_t394(MacroUpgrade):
+    """Upgrade macro for ticket #394 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t247"
+    AFTER_TAG = "vn3.1_t394"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:formulation", "solver_moisture_conservation"],
+            ".false.",
+        )
+
+        return config, self.reports
