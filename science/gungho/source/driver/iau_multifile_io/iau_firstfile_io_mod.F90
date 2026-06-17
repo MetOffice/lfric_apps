@@ -117,6 +117,8 @@ contains
                                              chi, panel_id,               &
                                              modeldb%clock, tmp_calendar, &
                                              start_at_zero=.true. )
+    call io_context%close_context_definition()
+
     ! Finalise XIOS context
     call io_context%finalise_xios_context()
 
