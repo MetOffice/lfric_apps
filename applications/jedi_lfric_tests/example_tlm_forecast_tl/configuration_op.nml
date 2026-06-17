@@ -108,7 +108,7 @@ start_dump_filename='',
 /
 &finite_element
 cellshape='quadrilateral',
-coord_order=1,
+coord_order=2,
 coord_order_nonprime=1,
 coord_space='Wchi',
 coord_system='native',
@@ -178,11 +178,9 @@ init_option='analytic',
 lbc_option='none',
 ls_option='analytic',
 model_eos_height=100,
-n_orog_smooth=0,
 read_w2h_wind=.true.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
-w0_orography_mapping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_density
@@ -237,6 +235,7 @@ write_conservation_diag=.false.,
 write_diag=.true.,
 write_dump=.false.,
 write_fluxes=.false.,
+write_initial=.true.
 write_minmax_tseries=.false.,
 /
 &linear
@@ -272,6 +271,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='ancil',
+orography_order=2,
+n_orog_smooth=0,
+w0_multigrid_mapping=.true.
 /
 &partitioning
 panel_decomposition='auto',

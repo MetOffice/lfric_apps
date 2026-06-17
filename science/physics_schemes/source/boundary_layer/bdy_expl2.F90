@@ -82,7 +82,7 @@ use bl_option_mod, only:                                                       &
     nl_bl_levels, local_fa, free_trop_layers, to_sharp_across_1km,             &
     sbl_op, equilibrium_sbl, one_third, two_thirds, blending_option,           &
     blend_except_cu, blend_cth_shcu_only, sg_shear, sg_shear_enh_lambda,       &
-    max_tke, tke_diag_fac, smooth_to_bdys,                                     &
+    max_tke, tke_diag_fac, improved_tke_diag, smooth_to_bdys,                  &
     i_interp_local, i_interp_local_gradients, i_interp_local_cf_dbdz,          &
     shallow_cu_maxtop, sc_cftol, near_neut_z_on_l, zero, one, one_half
 use cloud_inputs_mod, only: i_rhcpt, forced_cu, i_cld_vn, i_pc2_init_method,   &
@@ -2189,10 +2189,10 @@ if (BL_diag%l_tke) then
 
   ! Combine the, separately calculated, local and non-local TKE diagnostics
 
-!$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
+!$OMP  PARALLEL DEFAULT(none) private(i, j, k)                                 &
 !$OMP  SHARED(BL_diag, tke_nl, tke_loc, rho_wet_tq, weight_1dbl,               &
-!$OMP         tke_diag_fac, bl_levels, pdims)                                  &
-!$OMP  private(i, j, k)
+!$OMP         improved_tke_diag, tke_diag_fac, bl_levels, pdims)
+!$OMP  do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
@@ -2207,16 +2207,26 @@ if (BL_diag%l_tke) then
         ! Multiply by tuning factor
         BL_diag%tke(i,j,k) = tke_diag_fac * BL_diag%tke(i,j,k)
 
-        ! Keep TKE below a sensible max value of max_tke
-        BL_diag%tke(i,j,k) = min( max_tke, BL_diag%tke(i,j,k) )
-        ! Applying this limit can occasionally cause the length-scale
-        ! Km / sqrt(w_var) to become unrealistically large, since no
-        ! equivalent limiting is done on Km.
-
       end do
     end do
   end do
-!$OMP end PARALLEL do
+!$OMP end do
+
+  ! Keep TKE below a sensible max value of max_tke.
+  if ( .not. improved_tke_diag ) then
+    ! Under improved_tke_diag, application of the limit is moved to after
+    ! setting bl_w_var, so that the length-scale Km/sqrt(w_var) is preserved.
+!$OMP do SCHEDULE(STATIC)
+    do k = 2, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
+          BL_diag%tke(i,j,k) = min( max_tke, BL_diag%tke(i,j,k) )
+        end do
+      end do
+    end do
+!$OMP end do
+  end if
+!$OMP end PARALLEL
 
   if ( i_bm_ez_opt == i_bm_ez_entpar ) then
     ! Calculate mixing-length to pass to bimodal cloud scheme,
@@ -2322,6 +2332,22 @@ if (BL_diag%l_tke) then
 !$OMP end PARALLEL
 
   end if ! l_subgrid_qcl_mp .or. l_wvar_for_conv
+
+  ! Keep TKE below a sensible max value of max_tke.
+  if ( improved_tke_diag ) then
+    ! Under improved_tke_diag, apply the limit here, after setting bl_w_var,
+    ! so that the length-scale Km/sqrt(w_var) is preserved.
+!$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none) PRIVATE( i, j, k )           &
+!$OMP  SHARED( bl_levels, pdims,  BL_diag )
+    do k = 2, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
+          BL_diag%tke(i,j,k) = min( max_tke, BL_diag%tke(i,j,k) )
+        end do
+      end do
+    end do
+!$OMP end PARALLEL do
+  end if
 
   ! At this point, tke_nl really contained 1.5*sigma_w^2. To make it look
   ! a bit more like TKE near the surface, we will keep it constant below
