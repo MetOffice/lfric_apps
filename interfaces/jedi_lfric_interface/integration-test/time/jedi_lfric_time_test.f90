@@ -10,7 +10,8 @@
 !!         jedi_lfric_time_test.py.
 program jedi_lfric_time_test
 
-  use configuration_mod,               only : final_configuration, &
+  use config_mod,                      only : config_type
+  use config_loader_mod,               only : final_configuration, &
                                               read_configuration
   use constants_mod,                   only : i_def, r_def, l_def
   use halo_comms_mod,                  only : initialise_halo_comms, &
@@ -39,7 +40,6 @@ program jedi_lfric_time_test
                                               finalise_logging,   &
                                               LOG_LEVEL_ERROR,    &
                                               LOG_LEVEL_INFO
-  use namelist_collection_mod,         only : namelist_collection_type
 
   implicit none
 
@@ -51,7 +51,7 @@ program jedi_lfric_time_test
 
   character(:), allocatable :: filename
 
-  type(namelist_collection_type), save :: configuration
+  type(config_type), save :: config
 
   ! Variables used for parsing command line arguments
   integer(i_def)   :: length, status, nargs
@@ -171,8 +171,10 @@ program jedi_lfric_time_test
   end select
 
   ! Setup configuration, and initialise tests
-  call configuration%initialise( program_name, table_len=10 )
-  call read_configuration( filename, configuration )
+  call config%initialise( program_name )
+
+  call read_configuration( filename, config=config )
+
   call test_jedi_interface_init()
 
   if ( do_test_init_string_err ) then

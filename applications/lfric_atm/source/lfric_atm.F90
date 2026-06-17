@@ -17,6 +17,7 @@
 program lfric_atm
 
   use cli_mod,                only: parse_command_line
+  use constants_mod,          only: l_def, str_max_filename
 #ifdef MCT
   use coupler_mod,            only: set_cpl_name
 #endif
@@ -30,11 +31,9 @@ program lfric_atm
   use driver_modeldb_mod,     only: modeldb_type
   use gungho_driver_mod,      only: initialise, step, finalise
   use lfric_mpi_mod,          only: global_mpi
-  use namelist_mod,           only: namelist_type
   use timing_mod,             only: init_timing, final_timing, &
                                     start_timing, stop_timing, &
                                     tik, LPROF
-  use io_config_mod,          only: timer_output_path
 
   implicit none
 
@@ -47,16 +46,15 @@ program lfric_atm
 #endif
   character(:), allocatable    :: filename
   integer(tik)                 :: id_setup
-  type(namelist_type), pointer :: io_nml
 
-  logical :: lsubroutine_timers
+  character(str_max_filename) :: timer_output_path
+  logical(l_def)              :: subroutine_timers
 
   call parse_command_line( filename )
 
   modeldb%mpi => global_mpi
 
-  call modeldb%configuration%initialise( application_name, &
-                                         table_len=10 )
+  call modeldb%config%initialise( application_name )
   call modeldb%values%initialise( 'values', 5 )
 
   ! Create the depository, prognostics and diagnostics field collections
@@ -83,26 +81,31 @@ program lfric_atm
   call init_comm( application_name, modeldb )
 
   call init_config( filename, gungho_required_namelists, &
-                    modeldb%configuration )
+                    config=modeldb%config )
+
   call init_logger( modeldb%mpi%get_comm(), application_name )
 
-  io_nml => modeldb%configuration%get_namelist('io')
-  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
-  call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers, application_name, timer_output_path )
-  nullify( io_nml )
-  if ( LPROF ) call start_timing( id_setup, '__setup__' )
+  subroutine_timers = modeldb%config%io%subroutine_timers()
+  timer_output_path = modeldb%config%io%timer_output_path()
 
+  call init_timing( modeldb%mpi%get_comm(), subroutine_timers, &
+                    application_name, timer_output_path )
+
+  if ( LPROF ) call start_timing( id_setup, '__setup__ ')
 
   call init_collections()
   call init_time( modeldb )
   call init_counters( application_name )
+  call initialise( application_name, modeldb )
+
   deallocate( filename )
 
-  call initialise( application_name, modeldb )
   if ( LPROF ) call stop_timing( id_setup, '__setup__' )
+
   do while (modeldb%clock%tick())
     call step( modeldb )
   end do
+
   call finalise( application_name, modeldb )
 
   call final_counters( application_name )
