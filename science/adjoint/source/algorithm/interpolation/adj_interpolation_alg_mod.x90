@@ -126,14 +126,19 @@ module adj_interpolation_alg_mod
   !> @param[in, out] u_in_w3  Zonal component on W3 to adjoint-interpolate to
   !> @param[in, out] v_in_w3  Meridional component on W3 to adjoint-interpolate to
   !> @param[in, out] w_in_wth Vertical component on Wtheta to adjoint-interpolate to
-  subroutine adj_interp_w3wth_to_w2_alg(u_in_w2, u_in_w3, v_in_w3, w_in_wth)
+  !> @param[in]      geometry Mesh geometry enumeration value
+  !> @param[in]      topology Mesh topology enumeration value
+  subroutine adj_interp_w3wth_to_w2_alg(u_in_w2, u_in_w3, v_in_w3, w_in_wth, &
+                                        geometry, topology)
 
     implicit none
 
-    type(field_type), intent(inout) :: u_in_w2
-    type(field_type), intent(inout) :: u_in_w3
-    type(field_type), intent(inout) :: v_in_w3
-    type(field_type), intent(inout) :: w_in_wth
+    type(field_type),    intent(inout) :: u_in_w2
+    type(field_type),    intent(inout) :: u_in_w3
+    type(field_type),    intent(inout) :: v_in_w3
+    type(field_type),    intent(inout) :: w_in_wth
+    integer(kind=i_def), intent(in)    :: geometry
+    integer(kind=i_def), intent(in)    :: topology
 
     ! Local
     integer(kind=i_def)                :: element_order_h
