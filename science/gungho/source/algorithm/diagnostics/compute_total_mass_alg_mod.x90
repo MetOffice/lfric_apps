@@ -79,9 +79,10 @@ contains
 
     integer( kind=i_def ) :: element_order_h
     integer( kind=i_def ) :: element_order_v
-    integer( kind=i_def ) :: mesh_id, method_to_use
+!    integer( kind=i_def ) :: mesh_id, method_to_use
+    integer( kind=i_def ) :: method_to_use
 
-    mesh_id = mesh%get_id()
+!   mesh_id = mesh%get_id()
     element_order_h = rho%get_element_order_h()
     element_order_v = rho%get_element_order_v()
 
@@ -117,9 +118,9 @@ contains
                                                  element_order_v, W3 )
 
       if (element_order_h == 0 .and. element_order_v == 0) then
-        mm_w3 => get_mass_matrix_fv( W3, mesh_id )
+        mm_w3 => get_mass_matrix_fv( config, mesh, W3 )
       else
-        mm_w3 => get_mass_matrix_fe( W3, mesh_id )
+        mm_w3 => get_mass_matrix_fe( config, mesh, W3 )
       end if
 
       ! Initialise Mass

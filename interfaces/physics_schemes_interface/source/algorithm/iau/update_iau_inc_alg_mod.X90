@@ -226,14 +226,14 @@ module update_iau_inc_alg_mod
     call invoke( inc_X_plus_Y( theta, theta_tot_inc ) )
 
     call log_event( '- After theta -', log_level_debug )
-    call print_meanrms_field( theta, log_level_debug )
+    call print_meanrms_field( config, theta, log_level_debug )
 
     ! Exner
     call invoke( inc_X_plus_Y( exner,  exner_tot_inc ) )
     call map_physics_scalars( config, exner_wth, exner )
 
     call log_event( '- After exner -', log_level_debug )
-    call print_meanrms_field( exner, log_level_debug )
+    call print_meanrms_field( config, exner, log_level_debug )
 
     ! Wind after transformation from W3 space
     call u % copy_field_properties( u_inc )
@@ -250,7 +250,7 @@ module update_iau_inc_alg_mod
 
     call log_event( '- After wind -', log_level_debug )
     call log_field_minmax( log_level_debug, 'wind', u )
-    call print_meanrms_field( u, log_level_debug, 'wind' )
+    call print_meanrms_field( config, u, log_level_debug, 'wind' )
 
     ! Humidity mixing ratios
     call iau_humidity_inc( q_tot_inc, qcl_tot_inc, qcf_tot_inc, moist_dyn, &
@@ -262,10 +262,10 @@ module update_iau_inc_alg_mod
     call log_field_minmax( log_level_debug, 'm_cl', m_cl )
     call log_field_minmax( log_level_debug, 'm_s', m_s )
     call log_field_minmax( log_level_debug, 'm_r', m_r )
-    call print_meanrms_field( m_v, log_level_debug )
-    call print_meanrms_field( m_cl, log_level_debug )
-    call print_meanrms_field( m_s, log_level_debug )
-    call print_meanrms_field( m_r, log_level_debug )
+    call print_meanrms_field( config, m_v, log_level_debug )
+    call print_meanrms_field( config, m_cl, log_level_debug )
+    call print_meanrms_field( config, m_s, log_level_debug )
+    call print_meanrms_field( config, m_r, log_level_debug )
 
     ! PC2 cloud and humidity adjustments
     if ( iau_pc2 ) then
@@ -282,7 +282,7 @@ module update_iau_inc_alg_mod
 
       call log_event( '- After pc2_assimilation -', log_level_debug )
       call print_minmax_cld( cloud_fields, log_level_debug )
-      call print_meanrms_cld( cloud_fields, log_level_debug )
+      call print_meanrms_cld( config, cloud_fields, log_level_debug )
     end if
 
     ! Calculate temperature and exner_wth from updated theta and exner
@@ -312,8 +312,8 @@ module update_iau_inc_alg_mod
     call log_event('- After locate tropopause  -', log_level_debug)
     call log_field_minmax( log_level_debug, 'theta', theta )
     call log_field_minmax( log_level_debug, 'exner_wth', exner_wth )
-    call print_meanrms_field( theta, log_level_debug )
-    call print_meanrms_field( exner_wth, log_level_debug )
+    call print_meanrms_field( config, theta, log_level_debug )
+    call print_meanrms_field( config, exner_wth, log_level_debug )
 
     ! Mixing ratios checks: remove supersaturation and constrain humidities
     ! above and below tropopause.
@@ -323,8 +323,8 @@ module update_iau_inc_alg_mod
     call log_event('- After iau_humidity_checks -', log_level_debug)
     call log_field_minmax( log_level_debug, 'temperature', temperature )
     call log_field_minmax( log_level_debug, 'pressure', pressure )
-    call print_meanrms_field( temperature, log_level_debug )
-    call print_meanrms_field( pressure, log_level_debug )
+    call print_meanrms_field( config, temperature, log_level_debug )
+    call print_meanrms_field( config, pressure, log_level_debug )
 
     ! Air density
     if ( iau_wet_density ) then
@@ -335,7 +335,7 @@ module update_iau_inc_alg_mod
 
     call log_event( '- After dry_rho -', log_level_debug )
     call log_field_minmax( log_level_debug, 'rho', rho )
-    call print_meanrms_field( rho, log_level_debug )
+    call print_meanrms_field( config, rho, log_level_debug )
 
   end subroutine add_iau_inc
 
@@ -671,7 +671,7 @@ module update_iau_inc_alg_mod
 
     call log_event( '- Minmax and mean/rms prognostic fields before IAU -', log_level_debug )
     call print_minmax_prog( prognostic_fields, log_level_debug )
-    call print_meanrms_prog( prognostic_fields, log_level_debug )
+    call print_meanrms_prog( modeldb%config, prognostic_fields, log_level_debug )
 
     if ( iau_ainc_active ) then
       call log_event( '- Minmax and mean/rms IAU increment fields -', log_level_info )
@@ -698,9 +698,9 @@ module update_iau_inc_alg_mod
 
     call log_event( '- Minmax and mean/rms prognostic fields after IAU -', log_level_debug )
     call print_minmax_prog( prognostic_fields, log_level_debug )
-    call print_meanrms_prog( prognostic_fields, log_level_debug )
+    call print_meanrms_prog( modeldb%config, prognostic_fields, log_level_debug )
     call print_minmax_cld( cloud_fields, log_level_debug )
-    call print_meanrms_cld( cloud_fields, log_level_debug )
+    call print_meanrms_cld( modeldb%config, cloud_fields, log_level_debug )
 
   end subroutine update_iau_alg
 

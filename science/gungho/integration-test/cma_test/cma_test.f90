@@ -363,14 +363,14 @@ program cma_test
   call cma_test_init(config,  mesh)
 
   ! Run all requested tests
-  if (do_test_apply_mass_p)             call test_cma_apply_mass_p(tolerance)
-  if (do_test_apply_mass_v)             call test_cma_apply_mass_v(tolerance)
-  if (do_test_apply_div_v)              call test_cma_apply_div_v(tolerance)
-  if (do_test_multiply_div_v_mass_v)    call test_cma_multiply_div_v_mass_v(tolerance)
-  if (do_test_multiply_grad_v_div_v)    call test_cma_multiply_grad_v_div_v(tolerance)
-  if (do_test_add)                      call test_cma_add(tolerance)
-  if (do_test_apply_inv)                call test_cma_apply_inv(tolerance)
-  if (do_test_diag_dhmdht)              call test_cma_diag_DhMDhT(tolerance)
+  if (do_test_apply_mass_p)             call test_cma_apply_mass_p(config, tolerance)
+  if (do_test_apply_mass_v)             call test_cma_apply_mass_v(config, tolerance)
+  if (do_test_apply_div_v)              call test_cma_apply_div_v(config, tolerance)
+  if (do_test_multiply_div_v_mass_v)    call test_cma_multiply_div_v_mass_v(config, tolerance)
+  if (do_test_multiply_grad_v_div_v)    call test_cma_multiply_grad_v_div_v(config, tolerance)
+  if (do_test_add)                      call test_cma_add(config, tolerance)
+  if (do_test_apply_inv)                call test_cma_apply_inv(config, tolerance)
+  if (do_test_diag_dhmdht)              call test_cma_diag_DhMDhT(config, tolerance)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Finalise and close down

@@ -90,7 +90,9 @@ contains
       ! Regrid source field depending on regrid method
       select case (regrid_method)
         case (regrid_method_map)
-          call lfric2lfric_map_regrid(field_dst, field_src)
+          call lfric2lfric_map_regrid(modeldb%config, &
+                                      field_dst,      &
+                                      field_src)
 
         case (regrid_method_lfric2lfric)
           write(log_scratch_space, '(A)') &

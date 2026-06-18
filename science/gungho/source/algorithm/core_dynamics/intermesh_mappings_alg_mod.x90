@@ -105,8 +105,8 @@ contains
       detj_primary => get_detj_at_w3_fe(config, prime_extrusion_mesh)
       detj_shifted => get_detj_at_w3_fe(config, shifted_mesh)
     else
-      detj_primary => get_detj_at_w3_fv(prime_extrusion_mesh)
-      detj_shifted => get_detj_at_w3_fv(shifted_mesh)
+      detj_primary => get_detj_at_w3_fv(config, prime_extrusion_mesh)
+      detj_shifted => get_detj_at_w3_fv(config, shifted_mesh)
     end if
 
     sh_w3_fs => function_space_collection%get_fs(shifted_mesh,    &
@@ -395,7 +395,7 @@ contains
   !> @brief Conservative restriction of a W3 field (such as a density)
   !> @param[in,out] target_field  Target field, on a coarse mesh
   !> @param[in]     source_field  Source field, on a fine mesh
-  subroutine restrict_rho( target_field, source_field )
+  subroutine restrict_rho( config, target_field, source_field )
 
     use sci_restrict_scalar_weighted_kernel_mod, &
                                      only: restrict_scalar_weighted_kernel_type
@@ -403,11 +403,14 @@ contains
 
     implicit none
 
-    type(field_type),           intent(in)    :: source_field
-    type(field_type),           intent(inout) :: target_field
-    type(field_type),           pointer       :: weights
+    type(config_type), intent(in) :: config
 
-    weights => get_intermesh_weights_w3_rdef(source_field%get_mesh(), &
+    type(field_type), intent(in)    :: source_field
+    type(field_type), intent(inout) :: target_field
+    type(field_type), pointer       :: weights
+
+    weights => get_intermesh_weights_w3_rdef(config,                  &
+                                             source_field%get_mesh(), &
                                              target_field%get_mesh())
 
     call invoke( name='restrict_scalar_weighted',                              &
@@ -418,7 +421,7 @@ contains
   !> @brief Conservative injection (prolong) of a W3 field (such as a density)
   !> @param[in,out] target_field  Target field, on a fine mesh
   !> @param[in]     source_field  Source field, on a coarse mesh
-  subroutine inject_rho( target_field, source_field )
+  subroutine inject_rho( config, target_field, source_field )
 
     use sci_prolong_scalar_weighted_kernel_mod, &
                                       only: prolong_scalar_weighted_kernel_type
@@ -426,11 +429,13 @@ contains
 
     implicit none
 
-    type(field_type),           intent(in)    :: source_field
-    type(field_type),           intent(inout) :: target_field
-    type(field_type),           pointer       :: weights
+    type(config_type), intent(in)    :: config
+    type(field_type),  intent(in)    :: source_field
+    type(field_type),  intent(inout) :: target_field
+    type(field_type),  pointer       :: weights
 
-    weights => get_intermesh_weights_w3_rdef(target_field%get_mesh(), &
+    weights => get_intermesh_weights_w3_rdef(config,                  &
+                                             target_field%get_mesh(), &
                                              source_field%get_mesh())
 
     call invoke(                                                       &
@@ -442,12 +447,14 @@ contains
   !> @brief Conservative, reversible prolongation of a W3 field (e.g. a density)
   !> @param[in,out] target_field  Target field, on a fine mesh
   !> @param[in]     source_field  Source field, on a coarse mesh
-  subroutine prolong_rho_reversible( target_field, source_field )
+  subroutine prolong_rho_reversible( config, target_field, source_field )
 
     implicit none
 
-    type(field_type),           intent(in)    :: source_field
-    type(field_type),           intent(inout) :: target_field
+    type(config_type), intent(in)    :: config
+    type(field_type),  intent(in)    :: source_field
+    type(field_type),  intent(inout) :: target_field
+
     type(field_type)                          :: recovered_field_fine
     type(field_type)                          :: recovered_field_coarse
     type(field_type)                          :: mass_correction_fine
@@ -465,9 +472,9 @@ contains
 
     ! Call other operators to get fields needed for reversible reconstruction
     call prolong_scalar_simple(recovered_field_fine, source_field, recovery_order)
-    call restrict_rho(recovered_field_coarse, recovered_field_fine)
+    call restrict_rho(config, recovered_field_coarse, recovered_field_fine)
     call invoke( X_minus_Y(mass_correction_coarse, source_field, recovered_field_coarse) )
-    call inject_rho(mass_correction_fine, mass_correction_coarse)
+    call inject_rho(config, mass_correction_fine, mass_correction_coarse)
     ! Add together constituent fields
     call invoke( X_plus_Y(target_field, recovered_field_fine, mass_correction_fine) )
 
@@ -480,12 +487,14 @@ contains
   !!          routines.
   !> @param[in,out] target_field  Target field, on any mesh
   !> @param[in]     source_field  Source field, on any mesh
-  subroutine map_rho_intermesh( target_field, source_field )
+  subroutine map_rho_intermesh( config, target_field, source_field )
 
     implicit none
 
-    type(field_type),           intent(in)    :: source_field
-    type(field_type),           intent(inout) :: target_field
+    type(config_type), intent(in) :: config
+
+    type(field_type), intent(in)    :: source_field
+    type(field_type), intent(inout) :: target_field
 
     type(mesh_type),           pointer :: source_mesh
     type(mesh_type),           pointer :: target_mesh
@@ -504,11 +513,11 @@ contains
       call invoke( setval_X(target_field, source_field))
 
     else if ( source_ncells > target_ncells ) then
-      call restrict_rho(target_field, source_field)
+      call restrict_rho(config, target_field, source_field)
 
     else
       if ( recovery_order == recovery_order_constant ) then
-        call inject_rho(target_field, source_field)
+        call inject_rho(config, target_field, source_field)
 
       else if ( reconstruction == reconstruction_simple ) then
         ! Cannot do conservative simple reconstruction, so piggy-back on the
@@ -517,7 +526,7 @@ contains
 
       else
         ! Reversible reconstruction
-        call prolong_rho_reversible(target_field, source_field)
+        call prolong_rho_reversible(config, target_field, source_field)
 
       end if
     end if
@@ -622,10 +631,12 @@ contains
   !!                                 (coarse) mesh
   !> @param[in]     source_rho_sh_w3 Dry density in shifted W3, on the source
   !!                                 (fine) mesh
-  subroutine restrict_mr( target_field, source_field, &
+  subroutine restrict_mr( config, target_field, source_field, &
                           target_rho_sh_w3, source_rho_sh_w3 )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),    intent(inout) :: target_field
     type(field_type),    intent(in)    :: source_field
@@ -649,7 +660,7 @@ contains
     call invoke( X_times_Y(rho_X_source, source_rho_sh_w3, source_field) )
 
     ! Restrict as a density
-    call restrict_rho(rho_X_target, rho_X_source)
+    call restrict_rho(config, rho_X_target, rho_X_source)
 
     ! Convert back to mixing ratio
     call invoke( X_divideby_Y(target_field, rho_X_target, target_rho_sh_w3) )
@@ -663,10 +674,12 @@ contains
   !!                                 (fine) mesh
   !> @param[in]     source_rho_sh_w3 Dry density in shifted W3, on the source
   !!                                 (coarse) mesh
-  subroutine inject_mr( target_field, source_field, &
+  subroutine inject_mr( config, target_field, source_field, &
                         target_rho_sh_w3, source_rho_sh_w3 )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),    intent(inout) :: target_field
     type(field_type),    intent(in)    :: source_field
@@ -690,7 +703,7 @@ contains
     call invoke( X_times_Y(rho_X_source, source_rho_sh_w3, source_field) )
 
     ! Mass-conservative injection using the density
-    call inject_rho(rho_X_target, rho_X_source)
+    call inject_rho(config, rho_X_target, rho_X_source)
 
     ! Convert back to mixing ratio
     call invoke( X_divideby_Y(target_field, rho_X_target, target_rho_sh_w3) )
@@ -712,10 +725,12 @@ contains
   !!                                 (fine) mesh
   !> @param[in]     source_rho_sh_w3 Dry density in shifted W3, on the source
   !!                                 (coarse) mesh
-  subroutine prolong_mr_reversible( target_field, inject_field, source_field, &
+  subroutine prolong_mr_reversible( config, target_field, inject_field, source_field, &
                                     target_rho_sh_w3, source_rho_sh_w3 )
 
     implicit none
+
+    type(config_type), intent(in)    :: config
 
     type(field_type),    intent(inout) :: target_field
     type(field_type),    intent(inout) :: inject_field
@@ -747,9 +762,10 @@ contains
       call prolong_scalar_simple(rev_correction_fine, recovered_field_coarse, recovery_order_constant)
     else
       ! Conservative prolongation
-      call inject_mr(inject_field, source_field, target_rho_sh_w3, source_rho_sh_w3)
-      call restrict_mr(recovered_field_coarse, recovered_field_fine, source_rho_sh_w3, target_rho_sh_w3)
-      call inject_mr(rev_correction_fine, recovered_field_coarse, target_rho_sh_w3, source_rho_sh_w3)
+      call inject_mr(config, inject_field, source_field, target_rho_sh_w3, source_rho_sh_w3)
+      call restrict_mr(config, recovered_field_coarse, recovered_field_fine, &
+                       source_rho_sh_w3, target_rho_sh_w3)
+      call inject_mr(config, rev_correction_fine, recovered_field_coarse, target_rho_sh_w3, source_rho_sh_w3)
     end if
 
     ! Apply reversible correction
@@ -815,9 +831,9 @@ contains
         allocate(inject_bundle(bundle_size))
         call clone_bundle(target_bundle, inject_bundle, bundle_size)
         do imr = 1, bundle_size
-          call prolong_mr_reversible(target_bundle(imr), inject_bundle(imr), &
-                                      source_bundle(imr), target_rho_sh_w3,   &
-                                      source_rho_sh_w3)
+          call prolong_mr_reversible(config, target_bundle(imr), inject_bundle(imr), &
+                                     source_bundle(imr), target_rho_sh_w3,   &
+                                     source_rho_sh_w3)
         end do
         call lambda%initialise( source_bundle(1)%get_function_space() )
         call invoke( setval_c(lambda, 0.0_r_def) )
@@ -910,7 +926,7 @@ contains
           call restrict_scalar(target_mr, source_mr)
         else
           ! Conservative restriction, using dry density
-          call restrict_mr(target_mr, source_mr, &
+          call restrict_mr(config, target_mr, source_mr, &
                            target_rho_sh_w3, source_rho_sh_w3)
         end if
 
@@ -925,7 +941,7 @@ contains
               call prolong_scalar_simple(target_mr, source_mr, recovery_order_constant)
           else
             ! Conservative injection, using dry density
-            call inject_mr(target_mr, source_mr, &
+            call inject_mr(config, target_mr, source_mr, &
                            target_rho_sh_w3, source_rho_sh_w3)
           end if
 
@@ -937,7 +953,7 @@ contains
         else
           ! Conservation is handled by prolongation routine so no if statement
           call target_mr%copy_field_properties(inject_mr_field)
-          call prolong_mr_reversible(target_mr, inject_mr_field, &
+          call prolong_mr_reversible(config, target_mr, inject_mr_field, &
                                      source_mr, target_rho_sh_w3,   &
                                      source_rho_sh_w3)
           ! Perform negative correction (if specified)
@@ -1042,7 +1058,7 @@ contains
         else
           ! Conservative restriction, using dry density
           do imr = 1, bundle_size
-            call restrict_mr(target_mr_inc(imr), source_mr_inc(imr), &
+            call restrict_mr(config, target_mr_inc(imr), source_mr_inc(imr), &
                              target_rho_sh_w3, source_rho_sh_w3)
           end do
         end if
@@ -1064,7 +1080,7 @@ contains
           else
             ! Conservative injection, using dry density
             do imr = 1, bundle_size
-              call inject_mr(target_mr_inc(imr), source_mr_inc(imr), &
+              call inject_mr(config, target_mr_inc(imr), source_mr_inc(imr), &
                              target_rho_sh_w3, source_rho_sh_w3)
             end do
           end if
@@ -1081,7 +1097,7 @@ contains
           allocate(dummy_bundle(bundle_size))
           call clone_bundle(target_mr_np1, dummy_bundle, bundle_size)
           do imr = 1, bundle_size
-            call prolong_mr_reversible(target_mr_inc(imr), dummy_bundle(imr), &
+            call prolong_mr_reversible(config, target_mr_inc(imr), dummy_bundle(imr), &
                                        source_mr_inc(imr), target_rho_sh_w3,   &
                                        source_rho_sh_w3)
           end do
@@ -1106,7 +1122,7 @@ contains
             end do
           else
             do imr = 1, bundle_size
-              call inject_mr(inject_mr_np1(imr), source_mr_np1(imr), &
+              call inject_mr(config, inject_mr_np1(imr), source_mr_np1(imr), &
                              target_rho_sh_w3, source_rho_sh_w3)
             end do
           end if

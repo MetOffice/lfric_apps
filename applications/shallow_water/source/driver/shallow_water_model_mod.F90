@@ -304,7 +304,7 @@ module shallow_water_model_mod
     call prognostic_fields%get_field("q", q)
 
     ! Initialise transport and shallow water model
-    call swe_timestep_alg_init( mesh, wind, geopot, buoyancy, q )
+    call swe_timestep_alg_init( modeldb%config, mesh, wind, geopot, buoyancy, q )
 
     call log_event( 'shallow_water: Miniapp initialised', LOG_LEVEL_INFO )
 

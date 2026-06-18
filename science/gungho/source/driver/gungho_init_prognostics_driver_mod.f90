@@ -94,7 +94,7 @@ contains
     ! Call subroutine to set up Exner and rho
     if ( test /= test_bryan_fritsch ) then
       call init_exner_field( config, exner, theta, moist_dyn, initial_time )
-      call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+      call init_rho_field( config, rho, theta, exner, moist_dyn, initial_time )
     end if
 
     if ( test == test_grabowski_clark ) then

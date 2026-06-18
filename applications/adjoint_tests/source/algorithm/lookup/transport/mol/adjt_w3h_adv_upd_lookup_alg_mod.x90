@@ -25,6 +25,7 @@ module adjt_w3h_adv_upd_lookup_alg_mod
   use sci_fem_constants_mod,           only : get_inverse_mass_matrix_fe
   use adj_lookup_table_mod,            only : adj_lookup_table_type
 
+use config_mod, only: config_type
   implicit none
 
   public :: adjt_w3h_adv_upd_lookup_alg
@@ -38,7 +39,7 @@ module adjt_w3h_adv_upd_lookup_alg_mod
   !>          where M is the tangent linear and A is the adjoint.
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  adj_lookup_table_cache  The lookup table cache
-  subroutine adjt_w3h_adv_upd_lookup_alg( mesh, adj_lookup_table_cache )
+  subroutine adjt_w3h_adv_upd_lookup_alg( config, mesh, adj_lookup_table_cache )
 
     use w3h_advective_update_kernel_mod,     only : w3h_advective_update_kernel_type
     use invoke_adj_w3h_adv_upd_lookup_mod,   only : invoke_adj_w3h_adv_upd_lookup_kernel_type
@@ -46,6 +47,7 @@ module adjt_w3h_adv_upd_lookup_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
     type(mesh_type),          pointer, intent(in) :: mesh
     type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
@@ -101,7 +103,7 @@ module adjt_w3h_adv_upd_lookup_alg_mod
     call wind%initialise( vector_space=vector_space_w2_ptr, name='wind' )
     call advective_increment_input%initialise( vector_space=vector_space_w3_ptr, name='advective_increment_input' )
     call tracer_input%initialise( vector_space=vector_space_w3_md_ptr, name='tracer_input' )
-    m3_inv => get_inverse_mass_matrix_fe( W3, mesh%get_id() )
+    m3_inv => get_inverse_mass_matrix_fe( config, mesh, W3 )
     advective_increment_inner_prod = 0.0_r_def
     tracer_inner_prod = 0.0_r_def
 

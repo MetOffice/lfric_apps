@@ -26,6 +26,7 @@ module swe_predictors_alg_mod
   use derived_config_mod,         only: bundle_size
   use transport_config_mod,       only: use_density_predictor, &
                                         cap_density_predictor
+use config_mod, only: config_type
 
   ! Algorithms and Kernels
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
@@ -50,12 +51,14 @@ contains
   !> @param[in]     rhs_n          The RHS terms for u at time n
   !> @param[in]     minus_beta_dt  The time n centring parameter multiplied
   !!                               by the model timestep length
-  subroutine swe_predictors_alg( advected_state, &
+  subroutine swe_predictors_alg( config, advected_state, &
                                  wind,           &
                                  rhs_n,          &
                                  minus_beta_dt )
 
     implicit none
+
+type(config_type), intent(in) :: config
 
     ! Arguments
     type( field_vector_type ), intent(inout) :: advected_state
@@ -73,7 +76,7 @@ contains
     type(operator_type), pointer :: im3_div => null()
 
     ! Predictor of the wind field (u-beta*dt*rhs)
-    call mass_matrix_solver_alg(advected_state%vector(isw_u), rhs_n)
+    call mass_matrix_solver_alg(config, advected_state%vector(isw_u), rhs_n)
 
     ! Geopotential predictor
     if ( use_density_predictor ) then
@@ -82,7 +85,7 @@ contains
       ! div_factor = 1 - beta*dt*m3_inv*div*wind_n
 
       ! Get div operator
-      im3_div  => get_im3_div_fe(advected_state%vector(isw_g)%get_mesh_id())
+      im3_div  => get_im3_div_fe(config, advected_state%vector(isw_g)%get_mesh())
 
       ! Initialise fields used in divergence factor computation
       call divergence%initialise( advected_state%vector(isw_g)%get_function_space() )

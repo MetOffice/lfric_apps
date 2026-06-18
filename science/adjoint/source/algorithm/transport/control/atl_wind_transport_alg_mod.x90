@@ -38,6 +38,9 @@ module atl_wind_transport_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use sci_field_minmax_alg_mod,       only: log_field_minmax
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -98,7 +101,11 @@ contains
     type(function_space_type), pointer :: w2b_fs
     integer(tik)                       :: id
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'atl_wind_transport' )
+
+    config => tl_transport_controller%get_config()
 
     ! ------------------------------------------------------------------------ !
     ! Semi-implicit formulation
@@ -126,8 +133,8 @@ contains
         w2b_fs => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2broken )
         chi      => get_coordinates(mesh)
         panel_id => get_panel_id(mesh)
-        mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
-        mm_w2b_inv => get_inverse_mass_matrix_fe(W2broken, mesh%get_id())
+        mm_w2 => get_mass_matrix_fe(config, mesh, W2)
+        mm_w2b_inv => get_inverse_mass_matrix_fe(config, mesh, W2broken)
         rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
         project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
         project_ydot_to_w2 => get_project_ydot_to_w2(mesh)

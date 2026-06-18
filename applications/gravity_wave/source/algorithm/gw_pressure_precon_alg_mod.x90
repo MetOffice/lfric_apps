@@ -28,13 +28,18 @@ module gw_pressure_precon_alg_mod
                                       LOG_LEVEL_ERROR, &
                                       log_scratch_space
   use columnwise_operator_mod, only : columnwise_operator_type
-  use constants_mod,           only : i_def, r_solver, l_def
+  use constants_mod,           only : i_def, r_def, r_solver, l_def
   use operator_mod,            only : operator_type
   use operator_mod,            only : r_solver_operator_type
   use sci_hierarchical_preconditioner_mod, &
                                only : abstract_hierarchical_preconditioner_type
   use sci_r_solver_field_vector_mod, &
                                only : r_solver_field_vector_type
+
+  use config_mod, only: config_type
+
+use base_mesh_config_mod, only: topology_fully_periodic, topology_non_periodic, &
+geometry_spherical, geometry_planar
 
   ! Columnwise operator kernels
   use sci_columnwise_op_app_kernel_mod, &
@@ -84,17 +89,20 @@ contains
   !>
   !> @param[in] level Multigrid level
   !> @return self The constructed preconditioner object
-  function gw_pressure_preconditioner_constructor(level) result(self)
+  function gw_pressure_preconditioner_constructor(config, level) result(self)
 
     use log_mod,                           only: log_event, LOG_LEVEL_INFO
     use timestepping_config_mod,           only: dt, alpha
     use gravity_wave_constants_config_mod, only: cs_square
     use initial_temperature_config_mod,    only: bvf_square
     use runtime_tools_mod,                 only: get_hierarchical_mesh_id
+
     implicit none
 
     type(gw_pressure_preconditioner_type) :: self
-    integer(kind=i_def), intent(in)       :: level
+
+    type(config_type),   intent(in) :: config
+    integer(kind=i_def), intent(in) :: level
 
     call log_event( 'Constructing pressure preconditioner...', &
          LOG_LEVEL_INFO )
@@ -105,7 +113,7 @@ contains
     self%level = level
     self%mesh_id = get_hierarchical_mesh_id(level)
 
-    call self%build_Hz()
+    call self%build_Hz(config)
 
     call log_event( 'done', LOG_LEVEL_INFO )
 
@@ -114,13 +122,11 @@ contains
   !> @brief Build the vertical Helmholtz matrix \f$H_z\f$ in CMA representation.
   !>
   !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
-  subroutine build_Hz(self)
+  subroutine build_Hz(self, config)
 
     use sci_fem_constants_mod,                  only : get_qr_fe
     use solver_constants_mod,                   only : get_inverse_mass_matrix_r_solver
     use field_mod,                              only : field_type
-    use finite_element_config_mod,              only : element_order_h, &
-                                                       element_order_v
     use fs_continuity_mod,                      only : W3, W2h, W2v
     use function_space_mod,                     only : function_space_type
     use function_space_collection_mod,          only : function_space_collection
@@ -154,6 +160,8 @@ contains
 
     ! Instance of type
     class(gw_pressure_preconditioner_type), intent(inout) :: self
+
+    type(config_type), intent(in) :: config
 
     ! Pointers to mass matrices and derivative operators
     type(mesh_type),              pointer :: mesh => null()
@@ -190,19 +198,42 @@ contains
     integer(kind=i_def) :: mesh_id
     logical(kind=l_def) :: extend_mesh
 
+    integer(i_def) :: order_h, order_v
+    integer(i_def) :: geometry, topology, coord_system
+    real(r_def)    :: scaled_radius
+
     mesh_id = self%mesh_id
 
     ! Set pointers to vertical operators
     mesh => mesh_collection%get_mesh(mesh_id)
+
+    if (mesh%is_geometry_spherical()) then
+      geometry = geometry_spherical
+    else
+      geometry = geometry_planar
+    end if
+
+    if (mesh%is_topology_periodic()) then
+      topology = topology_fully_periodic
+    else if (mesh%is_topology_non_periodic()) then
+      topology = topology_non_periodic
+    else
+      call log_event('Unsupported topology selection',log_level_error)
+    end if
+
+    order_h       = config%finite_element%element_order_h()
+    order_v       = config%finite_element%element_order_v()
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     qr => get_qr_fe()
-    w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
-                                               element_order_v, W3 )
-    w2v_fs => function_space_collection%get_fs( mesh, element_order_h, &
-                                                element_order_v, W2V )
-    w2h_fs => function_space_collection%get_fs( mesh, element_order_h, &
-                                                element_order_v, W2H )
+    w3_fs  => function_space_collection%get_fs( mesh, order_h, order_v, W3 )
+    w2v_fs => function_space_collection%get_fs( mesh, order_h, order_v, W2V )
+    w2h_fs => function_space_collection%get_fs( mesh, order_h, order_v, W2H )
+
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
+
     call div_v_r_def%initialise( w3_fs, w2v_fs )
     call invoke( compute_div_operator_kernel_type( div_v_r_def, chi,    &
                                                    panel_id, qr ) )
@@ -219,13 +250,17 @@ contains
     call mm_w3%initialise( w3_fs, w3_fs )
     call invoke( name="create_W3_mass_matrix",                                  &
                  compute_mass_matrix_kernel_w_scalar_type(mm_w3, chi, panel_id, &
-                                                          extend_mesh, qr) )
-    mm_w3_inv => get_inverse_mass_matrix_r_solver(W3, mesh_id)
+                                                          extend_mesh, &
+geometry, topology, coord_system, scaled_radius, &
+qr) )
+    mm_w3_inv => get_inverse_mass_matrix_r_solver(config, mesh, W3)
 
     ! Take a copy of the vertical mass matrix since we need to apply the BCs
     call mm%initialise( w2v_fs, w2v_fs )
     call mm_w2v_noBC%initialise( mm%get_fs_to(), mm%get_fs_from() )
-    call invoke( compute_mass_matrix_kernel_w2_type(mm, chi, panel_id, qr), &
+    call invoke( compute_mass_matrix_kernel_w2_type(mm, chi, panel_id,&
+geometry, topology, coord_system, scaled_radius, &
+ qr), &
                  operator_setval_x_kernel_type( mm_w2v_noBC, mm ) )
     mm_w2v = mm_w2v_noBC%deep_copy()
     ! Now apply BCs
@@ -234,7 +269,9 @@ contains
     ! Get horizontal velocity mass matrix
     call mm%initialise( w2h_fs, w2h_fs )
     call mm_w2h%initialise( mm%get_fs_to(), mm%get_fs_from() )
-    call invoke( compute_mass_matrix_kernel_w2_type(mm, chi, panel_id, qr), &
+    call invoke( compute_mass_matrix_kernel_w2_type(mm, chi, panel_id, &
+geometry, topology, coord_system, scaled_radius, &
+qr), &
                  operator_setval_x_kernel_type( mm_w2h, mm ) )
 
     ! Construct weak gradient as transpose of divergence
@@ -333,10 +370,12 @@ contains
   !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
   !> @param[in] x Field vector containing the right hand side of the pressure
   !> @param[in,out] y Field vector containing the solution
-  subroutine apply_gw_pressure_preconditioner(self, x, y)
+  subroutine apply_gw_pressure_preconditioner(self, config, x, y)
 
     implicit none
     class(gw_pressure_preconditioner_type), intent(inout) :: self
+
+type(config_type), intent(in) :: config
     class(abstract_vector_type),            intent(in)    :: x
     class(abstract_vector_type),            intent(inout) :: y
 
@@ -393,12 +432,16 @@ contains
   !>
   !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
   !> @param[in,out] other Coarsed version on next multigrid level
-  subroutine coarsen_gw_pressure_preconditioner(self, other)
+  subroutine coarsen_gw_pressure_preconditioner(self, config, other)
+
     implicit none
+
     class(gw_pressure_preconditioner_type), intent(inout) :: self
+
+    type(config_type), intent(in) :: config
     class(abstract_hierarchical_preconditioner_type), allocatable, intent(inout) :: other
     allocate(other, &
-             source=gw_pressure_preconditioner_type(self%level+1))
+             source=gw_pressure_preconditioner_type(config, self%level+1))
   end subroutine coarsen_gw_pressure_preconditioner
 
   !> @brief Destructor

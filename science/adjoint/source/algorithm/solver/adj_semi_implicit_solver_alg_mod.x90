@@ -58,12 +58,16 @@ module adj_semi_implicit_solver_alg_mod
                                                     si_pressure_monitor_convergence => monitor_convergence, &
                                                     si_pressure_fail_on_non_converged => fail_on_non_converged
 
+use config_mod, only: config_type
   implicit none
 
   private
 
   type, public :: adj_semi_implicit_solver_type
     private
+
+    type(config_type), pointer :: config
+
     type(adj_pressure_operator_type)                   :: adj_pressure_operator
     class(abstract_preconditioner_type),   allocatable :: adj_pressure_preconditioner
     class(abstract_iterative_solver_type), allocatable :: adj_pressure_solver
@@ -92,8 +96,9 @@ contains
   !> @param[in]  adj_lookup_table_cache          The lookup table cache
   !> @param[out] adj_pressure_operator_out       Output adjoint (Helmholtz) pressure operator
   !> @param[out] adj_pressure_preconditioner_out Output adjoint (Helmholtz) pressure preconditioner
-  subroutine create_adj_pressure_preconditioner( state, adj_lookup_table_cache, &
-                                                 adj_pressure_operator_out, adj_pressure_preconditioner_out )
+  subroutine create_adj_pressure_preconditioner( config, state, adj_lookup_table_cache, &
+                                                 adj_pressure_operator_out, &
+                                                 adj_pressure_preconditioner_out )
 
     use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
                                              preconditioner_none,                        &
@@ -101,7 +106,7 @@ contains
                                              preconditioner_multigrid
 
     implicit none
-
+type(config_type), intent(in) :: config
     ! Prognostic fields
     type(field_type), dimension(bundle_size), intent(in) :: state
     type(adj_solver_lookup_cache_type),       intent(in) :: adj_lookup_table_cache
@@ -132,7 +137,7 @@ contains
       case(PRECONDITIONER_MULTIGRID)
         adj_helmholtz_preconditioner = adj_pressure_preconditioner_type(level=1_i_def)
         allocate( adj_pressure_preconditioner_out, &
-                  source = multigrid_preconditioner_type( state(igh_p)%get_function_space(), &
+                  source = multigrid_preconditioner_type( config, state(igh_p)%get_function_space(), &
                                                           adj_pressure_operator_out,         &
                                                           adj_helmholtz_preconditioner ) )
       case default
@@ -263,16 +268,20 @@ contains
 
   !> @brief Initialisation procedure for the adjoint semi-implicit solver
   !> @param[in] state Prognostic state for the solver
-  subroutine initialise( self, state, adj_lookup_table_cache )
+  subroutine initialise( self, config, state, adj_lookup_table_cache )
 
     implicit none
+
+    type(config_type), intent(in), target :: config
 
     ! Arguments
     class(adj_semi_implicit_solver_type),       intent(inout) :: self
     type(field_type), dimension(bundle_size),   intent(in)    :: state
     type(adj_solver_lookup_cache_type),         intent(in)    :: adj_lookup_table_cache
 
-    call create_adj_pressure_preconditioner( state,                      &
+    self%config => config
+
+    call create_adj_pressure_preconditioner( config, state,              &
                                              adj_lookup_table_cache,     &
                                              self%adj_pressure_operator, &
                                              self%adj_pressure_preconditioner )
@@ -308,7 +317,9 @@ contains
   !> @param[in]     first_iteration     Flag for first inner iteration
   subroutine step( self, state, rhs, moist_dyn_gas_law, mr, first_iteration )
 
-    use solver_constants_mod,                only: get_normalisation_r_solver, get_im3_div_r_solver, get_normalisation
+    use solver_constants_mod,                only: get_normalisation_r_solver, &
+                                                   get_im3_div_r_solver, &
+                                                   get_normalisation
     use mr_indices_mod,                      only: nummr
     use si_operators_alg_mod,                only: get_m3_rho_star, get_rho_at_u, &
                                                    get_p2theta, get_p3theta, get_ptheta2
@@ -354,11 +365,12 @@ contains
 
     ! Input fields are r_def fields so preliminary work uses field_types
 
-    mesh_id = state(igh_p)%get_mesh_id()
+    mesh_id =  state(igh_p)%get_mesh_id()
+    mesh    => state(igh_p)%get_mesh()
 
     ! Normalise theta & u residual
-    t_normalisation => get_normalisation( Wtheta, mesh_id )
-    u_normalisation => get_normalisation( W2, mesh_id )
+    t_normalisation => get_normalisation(self%config, mesh, Wtheta)
+    u_normalisation => get_normalisation(self%config, mesh, W2)
 
     call rhs_rsol(igh_u)%initialise(rhs(igh_u)%get_function_space())
     call rhs_rsol(igh_t)%initialise(rhs(igh_t)%get_function_space())
@@ -398,7 +410,7 @@ contains
 
     ! Compute theta increment since solver does not provide one
     ptheta2 => get_ptheta2()
-    mt_lumped_inv => get_normalisation_r_solver( Wtheta, mesh_id )
+    mt_lumped_inv => get_normalisation_r_solver(self%config, mesh, Wtheta)
 
     if (eliminate_variables == eliminate_variables_analytic) then
       call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
@@ -413,7 +425,7 @@ contains
     ! Get the theta and rho increments
 
     ! Compute rho increment since solver does not provide one
-    div => get_im3_div_r_solver(mesh_id)
+    div => get_im3_div_r_solver(self%config, mesh)
     rho_at_u => get_rho_at_u()
     tau_r_dt = real( -tau_r * dt, kind=r_solver )
     call div_u%initialise(vector_space=rhs_rsol(igh_p)%get_function_space())
@@ -460,7 +472,7 @@ contains
     ! Solve the semi-implicit operator
     if ( LPROF ) call start_timing( id_mix, 'adj_solver.mixed_solver' )
     call vector_inc%set_scalar(0.0_r_def)
-    call self%adj_mixed_solver%apply( vector_inc, vector_rhs )
+    call self%adj_mixed_solver%apply( self%config, vector_inc, vector_rhs )
     if ( LPROF ) call stop_timing( id_mix, 'adj_solver.mixed_solver' )
 
     call deconstruct_solver_state( vector_inc, rhs_rsol )
@@ -478,7 +490,7 @@ contains
         call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
       else
         p3theta => get_p3theta()
-        m2_diag => get_normalisation_r_solver( W2, mesh_id )
+        m2_diag => get_normalisation_r_solver(self%config, mesh, W2)
         ! Set rhs_p = rhs_p + P_{3,theta} * rhs_theta
         ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
         call rhs_tmp%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())

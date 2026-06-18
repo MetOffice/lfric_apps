@@ -493,8 +493,8 @@ contains
     call u_in_w3%copy_field_properties(u_in_w3_latest)
     call u_in_w3%copy_field_properties(v_in_w3_latest)
     call u_in_w3%copy_field_properties(w_in_w3_latest)
-    call map_physics_winds(u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, &
-                           u_latest)
+    call map_physics_winds( config, u_in_w3_latest, v_in_w3_latest, &
+                            w_in_w3_latest, u_latest )
     call w_in_w3_latest%field_final()
 
     call invoke( conv_comorph_kernel_type( outer, rho, rho_in_wth,            &

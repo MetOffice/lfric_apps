@@ -96,10 +96,11 @@ module printing_iau_mod
   !> @param[in] level             Level of logging. If the configured
   !>                              log_level is less than or equal to
   !>                              level, output will be shown.
-  subroutine print_meanrms_prog( prognostic_fields, level )
+  subroutine print_meanrms_prog( config, prognostic_fields, level )
 
     implicit none
 
+    type(config_type), intent(in) :: config
     type( field_collection_type ), intent(in) :: prognostic_fields
     integer( kind = i_def ),       intent(in) :: level
 
@@ -108,34 +109,34 @@ module printing_iau_mod
     if( log_level() <= level ) then
 
       call prognostic_fields % get_field( 'theta', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'exner', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'u', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'm_v', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'm_cl', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'm_ci', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'm_r', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'm_s', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'm_g', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       call prognostic_fields % get_field( 'rho', prog_field )
-      call print_meanrms_field( prog_field, level )
+      call print_meanrms_field( config, prog_field, level )
 
       nullify( prog_field )
 
@@ -217,25 +218,25 @@ module printing_iau_mod
     if( log_level() <= level ) then
 
       call iau_fields % get_field( 'theta_inc', iau_field )
-      call print_meanrms_field( iau_field, level )
+      call print_meanrms_field( config, iau_field, level )
 
       call iau_fields % get_field( 'exner_inc', iau_field )
-      call print_meanrms_field( iau_field, level )
+      call print_meanrms_field( config, iau_field, level )
 
       call iau_fields % get_field( 'u_in_w3_inc', iau_field )
-      call print_meanrms_field( iau_field, level )
+      call print_meanrms_field( config, iau_field, level )
 
       call iau_fields % get_field( 'v_in_w3_inc', iau_field )
-      call print_meanrms_field( iau_field, level )
+      call print_meanrms_field( config, iau_field, level )
 
       call iau_fields % get_field( 'q_inc', iau_field )
-      call print_meanrms_field( iau_field, level )
+      call print_meanrms_field( config, iau_field, level )
 
       call iau_fields % get_field( 'qcl_inc', iau_field )
-      call print_meanrms_field( iau_field, level )
+      call print_meanrms_field( config, iau_field, level )
 
       call iau_fields % get_field( 'qcf_inc', iau_field )
-      call print_meanrms_field( iau_field, level )
+      call print_meanrms_field( config, iau_field, level )
 
       if ( iau_wet_density ) then
         call iau_fields % get_field( 'rho_r2_inc', iau_field )
@@ -246,10 +247,10 @@ module printing_iau_mod
         call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ),       &
                      inc_X_divideby_Y( iau_field, radius_w3 ),              &
                      inc_X_divideby_Y( iau_field, radius_w3 ) )
-        call print_meanrms_field( iau_field, level, 'wetrho_inc' )
+        call print_meanrms_field( config, iau_field, level, 'wetrho_inc' )
       else
         call iau_fields % get_field( 'rho_inc', iau_field )
-        call print_meanrms_field( iau_field, level )
+        call print_meanrms_field( config, iau_field, level )
       end if
 
     end if
@@ -296,10 +297,11 @@ module printing_iau_mod
   !> @param[in] level         Level of logging. If the configured
   !>                          log_level is less than or equal to
   !>                          level, output will be shown.
-  subroutine print_meanrms_cld( cloud_fields, level )
+  subroutine print_meanrms_cld( config, cloud_fields, level )
 
     implicit none
 
+    type(config_type), intent(in) :: config
     type( field_collection_type ), intent(in) :: cloud_fields
     integer( kind = i_def ),       intent(in) :: level
 
@@ -308,16 +310,16 @@ module printing_iau_mod
     if( log_level() <= level ) then
 
       call cloud_fields % get_field( 'area_fraction', cld_field )
-      call print_meanrms_field( cld_field, level )
+      call print_meanrms_field( config, cld_field, level )
 
       call cloud_fields % get_field( 'bulk_fraction', cld_field )
-      call print_meanrms_field( cld_field, level )
+      call print_meanrms_field( config, cld_field, level )
 
       call cloud_fields % get_field( 'frozen_fraction', cld_field )
-      call print_meanrms_field( cld_field, level )
+      call print_meanrms_field( config, cld_field, level )
 
       call cloud_fields % get_field( 'liquid_fraction', cld_field )
-      call print_meanrms_field( cld_field, level )
+      call print_meanrms_field( config, cld_field, level )
 
       nullify( cld_field )
 

@@ -49,6 +49,9 @@ module adj_mixed_schur_preconditioner_alg_mod
   use split_w2_field_kernel_mod,            only: split_w2_field_kernel_type
   use sci_enforce_bc_kernel_mod,            only: enforce_bc_kernel_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -118,11 +121,12 @@ contains
   !> @brief Adjoint of apply_mixed_schur_preconditioner
   !> @param[in]     x Field vector containing the residuals
   !> @param[in,out] y Field vector containing the solution to be calculated
-  subroutine apply_adj_mixed_schur_preconditioner( self, x, y )
+  subroutine apply_adj_mixed_schur_preconditioner( self, config, x, y )
 
     implicit none
 
     class(adj_mixed_schur_preconditioner_type), intent(inout) :: self
+type(config_type), intent(in) :: config
     class(abstract_vector_type),                intent(in)    :: x
     class(abstract_vector_type),                intent(inout) :: y
 
@@ -155,7 +159,7 @@ contains
 
     ! STEP 3: Back substitute to obtain other fields
 
-    call self%adj_back_substitute(yy)
+    call self%adj_back_substitute(config, yy)
     ! yy is IN(OUT)
     ! self%pressure_x is OUT
 
@@ -172,7 +176,7 @@ contains
     ! Solve pressure system
     call log_event( 'Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG )
     if ( LPROF ) call start_timing( id_solve, 'adj_schur_precon.pressure_solver' )
-    call self%adj_pressure_solver%apply( self%pressure_x, self%pressure_b )
+    call self%adj_pressure_solver%apply( config, self%pressure_x, self%pressure_b )
     if ( LPROF ) call stop_timing( id_solve, 'adj_schur_precon.pressure_solver' )
 
     ! STEP 1: Build RHS for Helmholtz system
@@ -181,7 +185,7 @@ contains
     call self%pressure_x%export_field( pressure_b_field, 1 )
     call self%pressure_b%import_field( pressure_b_field, 1 )
 
-    call self%adj_build_pressure_rhs(xx)
+    call self%adj_build_pressure_rhs(config, xx)
     ! self%pressure_b is IN
     ! xx is OUT
 
@@ -202,11 +206,13 @@ contains
 
   !> @brief Adjoint of build_pressure_rhs
   !> @param[in] rhs0 Initial residuals of the mixed system
-  subroutine adj_build_pressure_rhs( self, rhs0 )
+  subroutine adj_build_pressure_rhs( self, config, rhs0 )
 
     implicit none
 
     class(adj_mixed_schur_preconditioner_type), intent(inout) :: self
+
+type(config_type), intent(in) :: config
     type(r_solver_field_vector_type), target,   intent(in)    :: rhs0
 
     type(r_solver_operator_type), pointer :: m3_rho_star, ptheta2, p3theta, compound_div
@@ -215,6 +221,7 @@ contains
     real(kind=r_solver),        parameter :: minus_one = -1.0_r_solver
     type(r_solver_field_type)             :: rhs_uvw
     integer(kind=i_def)                   :: mesh_id
+type(mesh_type), pointer :: mesh
     type(r_solver_field_type),  pointer   :: rhs_uv, rhs_p, rhs_w, rhs
 
     type(integer_field_type), pointer :: face_selector_ew
@@ -238,6 +245,7 @@ contains
     end if
 
     mesh_id = rhs_uv%get_mesh_id()
+    mesh => rhs_uv%get_mesh()
 
     call rhs_uvw%initialise(vector_space=self%rhs_u%get_function_space())
     if (split_w) then
@@ -263,7 +271,7 @@ contains
     if (eliminate_variables == eliminate_variables_analytic) then
       call log_event( "adj_build_pressure_rhs: eliminate_variables == eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
     else
-      mt_lumped_inv => get_normalisation_r_solver( Wtheta, mesh_id )
+      mt_lumped_inv => get_normalisation_r_solver(config, mesh, Wtheta)
       call rhs_d%initialise(rhs%get_function_space())
 
       call invoke(setval_c( rhs_d, 0.0_r_solver ))
@@ -310,17 +318,19 @@ contains
 
   !> @brief Adjoint of back_substitute
   !> @param[in,out] state Solution of the mixed system
-  subroutine adj_back_substitute( self, state )
+  subroutine adj_back_substitute( self, config, state )
 
     implicit none
 
     class(adj_mixed_schur_preconditioner_type), intent(inout) :: self
+type(config_type), intent(in) :: config
     type(r_solver_field_vector_type),           intent(inout) :: state
 
     type(r_solver_field_type),    pointer :: u_normalisation, Hb_lumped_inv
     type(r_solver_operator_type), pointer :: div_star
     type(r_solver_field_type)             :: u_inc
     integer(kind=i_def)                   :: mesh_id
+    type(mesh_type), pointer       :: mesh
 
     type(r_solver_field_type), pointer :: state_uv, state_p, state_w, exner_inc
 
@@ -332,13 +342,15 @@ contains
 
     exner_inc => self%pressure_x%get_field_from_position(1)
 
-    mesh_id = self%rhs_u%get_mesh_id()
+    mesh_id =  self%rhs_u%get_mesh_id()
+    mesh    => self%rhs_u%get_mesh()
+
 
     ! Create increment fields
 
     ! u increment
     call u_inc%initialise(vector_space=self%rhs_u%get_function_space())
-    u_normalisation => get_normalisation_r_solver( W2, mesh_id )
+    u_normalisation => get_normalisation_r_solver(config, mesh, W2)
     div_star        => get_div_star()
     Hb_lumped_inv   => get_Hb_lumped_inv()
     ! u' = ru + BC[HB * unorm * D * p']

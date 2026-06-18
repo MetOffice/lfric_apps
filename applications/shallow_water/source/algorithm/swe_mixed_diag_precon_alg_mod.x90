@@ -30,7 +30,7 @@ module swe_mixed_diag_precon_alg_mod
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
   use vector_mod,                         only: abstract_vector_type
-
+use config_mod, only: config_type
   implicit none
 
   private
@@ -68,26 +68,29 @@ contains
   !>
   !> @param[in] state Current state (passed as a field-vector)
   !> @return    self  The constructed preconditioner object
-  function swe_mixed_diag_preconditioner_constructor(state) result(self)
+  function swe_mixed_diag_preconditioner_constructor(config, state) result(self)
 
     use sci_fem_constants_mod, only: get_mass_matrix_diagonal_fe
 
     implicit none
 
+    type(config_type), intent(in) :: config
     type(field_vector_type), intent(in) :: state
     type(swe_mixed_diag_preconditioner_type)  :: self
 
     ! Mesh ID
-    integer(kind=i_def) :: mesh_id
+!    integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh
 
     call log_event('Constructing shallow water mixed diag preconditioner...', &
                    LOG_LEVEL_INFO )
 
-    mesh_id = state%vector(isw_u)%get_mesh_id()
+!    mesh_id = state%vector(isw_u)%get_mesh_id()
+    mesh => state%vector(isw_u)%get_mesh()
 
-    self%mm_diagonal_u => get_mass_matrix_diagonal_fe(W2, mesh_id)
-    self%mm_diagonal_p => get_mass_matrix_diagonal_fe(w3, mesh_id)
-    self%mm_diagonal_b => get_mass_matrix_diagonal_fe(W3, mesh_id)
+    self%mm_diagonal_u => get_mass_matrix_diagonal_fe(config, mesh, W2)
+    self%mm_diagonal_p => get_mass_matrix_diagonal_fe(config, mesh, W3)
+    self%mm_diagonal_b => get_mass_matrix_diagonal_fe(config, mesh, W3)
 
     call log_event( 'done', LOG_LEVEL_INFO )
 
@@ -104,11 +107,13 @@ contains
   !!                     \f$(\textbf{R}_u,R_gp,r_b)\f$
   !> @param[in,out] y    Field-vector containing the solution
   !!                     \f$(\textbf{U},GP,B)\f$ to be calculated
-  subroutine apply_swe_mixed_diag_preconditioner(self, x, y)
+  subroutine apply_swe_mixed_diag_preconditioner(self, config, x, y)
 
     implicit none
 
     class(swe_mixed_diag_preconditioner_type), intent(inout) :: self
+
+    type(config_type), intent(in)    :: config
     class(abstract_vector_type),               intent(in)    :: x
     class(abstract_vector_type),               intent(inout) :: y
 

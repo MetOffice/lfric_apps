@@ -131,7 +131,7 @@ module mol_conservative_alg_mod
     advecting_wind => wind_precomputations%get_wind(mesh_id, direction)
 
     enforce_min_value = transport_metadata%get_enforce_min_value()
-    div => get_directional_im3_div_r_tran(mesh_id, direction)
+    div => get_directional_im3_div_r_tran(config, mesh, direction)
 
     call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
     allocate( rk_field(nstage) )

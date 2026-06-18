@@ -17,6 +17,8 @@ module transport_stats_mod
                                                LOG_LEVEL_INFO
   use sci_field_minmax_alg_mod,          only: get_field_minmax
 
+use config_mod, only: config_type
+
   implicit none
 
   private
@@ -30,7 +32,7 @@ contains
   !> @param[in] field       The transported field
   !> @param[in] true_field  The true field to compare against
   !> @param[in] field_name  String to print out next to statistics
-  subroutine write_transport_stats( field, true_field, field_name )
+  subroutine write_transport_stats( config, field, true_field, field_name )
 
     use norm_alg_mod,     only: l2_norm_alg,              &
                                 rel_l2_error_alg,         &
@@ -40,6 +42,7 @@ contains
 
     implicit none
 
+    type(config_type),       intent(in) :: config
     type(field_type),       intent(in) :: field, true_field
     character(len=str_def), intent(in) :: field_name
     real(kind=r_def)                   :: min_field, max_field, volume
@@ -54,12 +57,14 @@ contains
     ! true_field min and max
     call get_field_minmax( true_field, min_field0, max_field0 )
 
-    volume = volume_normalisation_alg(field)
-    l2_field = l2_norm_alg(field)
-    l2_field0 = l2_norm_alg(true_field)
-    l2_error = rel_l2_error_alg(field, true_field)
-    diss = dissipation_error_alg(field, true_field)
-    disp = dispersion_error_alg(field, true_field)
+    volume = volume_normalisation_alg(config, field)
+
+    l2_field  = l2_norm_alg(config, field)
+    l2_field0 = l2_norm_alg(config, true_field)
+    l2_error  = rel_l2_error_alg(config, field, true_field)
+
+    diss = dissipation_error_alg(config, field, true_field)
+    disp = dispersion_error_alg(config, field, true_field)
 
     ! Normalise disp and diss errors to compare them with relative l2 error
     if ((l2_field0 / sqrt(volume)) > EPS) then

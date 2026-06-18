@@ -533,7 +533,7 @@ contains
        chi      => get_coordinates(mesh)
        panel_id => get_panel_id(mesh)
 
-       u_normalisation => get_normalisation_r_solver(W2, mesh%get_id())
+       u_normalisation => get_normalisation_r_solver(config, mesh, W2)
 
        ! Set reference theta_v, by multiply theta by moisture factor
        call theta_v%initialise( vector_space = theta%get_function_space(),     &
@@ -556,7 +556,7 @@ contains
                       sample_field_kernel_type(exner_in_wth, multiplicity, exner) )
        end if
 
-       m3_inv => get_inverse_mass_matrix_r_solver( W3, mesh%get_id() )
+       m3_inv => get_inverse_mass_matrix_r_solver(config, mesh, W3)
        const1 = real(tau_t*tau_u*dt**2*cp, r_solver)
        select case(eos_method)
        case(eos_method_sampled)
@@ -604,7 +604,7 @@ contains
        const1 = real(tau_u*dt*cp, r_solver)
        const2 = real(tau_t*dt, r_solver)
        const3 = real(tau_r*dt, r_solver)
-       div => get_im3_div_r_solver(mesh%get_id())
+       div => get_im3_div_r_solver(config, mesh)
 
        if ( p2theta_vert ) then
          ! The projection operators are restricted to use the vertical only
@@ -664,14 +664,13 @@ contains
        ! Compute Hb_lumped_inv field
        ! mass matrix should include damping layer and lagged-orography terms
        ! if these options are not true, this matrix won't contain the terms
-       m2 => get_w2_mass_matrix(                                               &
-          w2_lagged_damping_layer_matrix, mesh%get_id(), model_clock           &
-      )
+       m2 => get_w2_mass_matrix( config, mesh, w2_lagged_damping_layer_matrix, &
+                                 model_clock )
 
        call m2_r_solver%initialise( w2_fs, w2_fs )
        call invoke( operator_setval_x_kernel_type( m2_r_solver, m2 ) )
-       u_normalisation => get_normalisation_r_solver(W2, mesh%get_id())
-       t_normalisation => get_normalisation_r_solver(Wtheta, mesh%get_id())
+       u_normalisation => get_normalisation_r_solver(config, mesh, W2)
+       t_normalisation => get_normalisation_r_solver(config, mesh, Wtheta)
 
        call m2_u%initialise( vector_space = w2_fs )
        call ones%initialise( vector_space = w2_fs )

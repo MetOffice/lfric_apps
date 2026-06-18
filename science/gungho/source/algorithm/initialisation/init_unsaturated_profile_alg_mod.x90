@@ -157,7 +157,7 @@ subroutine init_unsaturated_profile_alg( config, theta, mr, exner, rho, moist_dy
                                                 p_zero ) )
 
     ! Check tolerance and break if we are close enough
-    errornorm = rel_l2_error_alg( latest_rel_hum, specified_rel_hum )
+    errornorm = rel_l2_error_alg( config, latest_rel_hum, specified_rel_hum )
     write(log_scratch_space, '(A,I5,A,E32.24)') &
       'Outer iteration: ', outer_count, ', Error-norm: ', errornorm
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
@@ -179,7 +179,7 @@ subroutine init_unsaturated_profile_alg( config, theta, mr, exner, rho, moist_dy
                                                   p_zero ) )
 
       ! Check tolerance and break if we are close enough
-      errornorm = rel_l2_error_alg( latest_rel_hum, specified_rel_hum )
+      errornorm = rel_l2_error_alg( config, latest_rel_hum, specified_rel_hum )
       write(log_scratch_space, '(A,I5,A,E32.24)') &
         'Inner iteration: ', inner_count, ', Error-norm: ', errornorm
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
@@ -209,7 +209,7 @@ subroutine init_unsaturated_profile_alg( config, theta, mr, exner, rho, moist_dy
   call init_mr_fields( config, mr, theta, exner, rho, moist_dyn )
 
   ! Adjust the dry density field so that the pressure is kept the same
-  call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+  call init_rho_field( config, rho, theta, exner, moist_dyn, initial_time )
 
   !----------------------------------------------------------------------------!
   ! Finalise internal fields and pointers

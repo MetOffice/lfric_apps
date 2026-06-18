@@ -455,10 +455,10 @@ contains
     ! rhs = u_grad_f * mt_lumped_inv
     if (element_order_h > 0 .or. element_order_v > 0) then
       ! Use finite element mass matrix
-      mt_lumped_inv_r_def => get_inverse_lumped_mass_matrix_fe(Wtheta, mesh%get_id())
+      mt_lumped_inv_r_def => get_inverse_lumped_mass_matrix_fe(config, mesh, Wtheta)
     else
       ! Use finite volume mass matrix
-      mt_lumped_inv_r_def => get_inverse_lumped_mass_matrix_fv(Wtheta, mesh%get_id())
+      mt_lumped_inv_r_def => get_inverse_lumped_mass_matrix_fv(config, mesh, Wtheta)
     end if
 
     call mt_lumped_inv_r_tran%initialise(mt_lumped_inv_r_def%get_function_space())

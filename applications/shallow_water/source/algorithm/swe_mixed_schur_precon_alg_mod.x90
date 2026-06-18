@@ -93,6 +93,10 @@ module swe_mixed_schur_precon_alg_mod
   use vector_mod,                         only: abstract_vector_type
   use sci_field_minmax_alg_mod,           only: log_field_minmax
 
+  ! Object types
+  use config_mod, only: config_type
+  use mesh_mod,   only: mesh_type
+
   implicit none
 
   private
@@ -169,7 +173,7 @@ contains
   !> @param[in] Hb_lumped_inv Lumped inverse \f$\tilde{H}_b^{-1}\f$
   !> @param[in] geopot_solver Solver object for Helmholtz system
   !> @return    self          The constructed preconditioner object
-  function swe_mixed_schur_preconditioner_constructor( state,          &
+  function swe_mixed_schur_preconditioner_constructor( config, state,  &
                                                        Hb_lumped_inv,  &
                                                        geopot_solver ) &
                                                        result(self)
@@ -181,6 +185,7 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
     type(field_vector_type), intent(in) :: state
     type(field_type), intent(in) :: Hb_lumped_inv
     class(abstract_iterative_solver_type), target, intent(in) :: &
@@ -192,11 +197,13 @@ contains
     type(field_type)                           :: ones, M_lumped
     type(operator_type), pointer               :: Mb => null()
     integer(kind=i_def)                        :: mesh_id
+    type(mesh_type), pointer :: mesh
 
     call log_event( 'Constructing shallow water mixed preconditioner...', &
                     LOG_LEVEL_INFO )
 
-    mesh_id = state%vector(isw_u)%get_mesh_id()
+    mesh_id =  state%vector(isw_u)%get_mesh_id()
+    mesh    => state%vector(isw_u)%get_mesh()
 
     self%alpha = 0.5_r_def
 
@@ -226,7 +233,7 @@ contains
     call ones%initialise(vector_space = wb)
     call M_lumped%initialise(vector_space = wb)
     call self%Mb_lumped_inv%initialise(vector_space = wb)
-    Mb => get_mass_matrix_fe(W3, mesh_id)
+    Mb => get_mass_matrix_fe(config, mesh, W3)
 
     call invoke( setval_c( ones, 1.0_r_def ),                     &
                  setval_c( M_lumped, 0.0_r_def ),                 &
@@ -256,13 +263,15 @@ contains
   !!                     \f$(\textbf{R}_u,R_p,r_b)\f$
   !> @param[in,out] y    Field-vector containing the solution
   !!                     \f$(\textbf{U},P,B)\f$ to be calculated
-  subroutine apply_swe_mixed_schur_preconditioner(self, x, y)
+  subroutine apply_swe_mixed_schur_preconditioner(self, config, x, y)
 
     implicit none
 
     class(swe_mixed_schur_preconditioner_type), intent(inout) :: self
-    class(abstract_vector_type),                intent(in)    :: x
-    class(abstract_vector_type),                intent(inout) :: y
+
+    type(config_type),           intent(in)    :: config
+    class(abstract_vector_type), intent(in)    :: x
+    class(abstract_vector_type), intent(inout) :: y
 
     ! Workaround for PSyclone to get pointers of the correct type for y
     type(field_type), pointer :: y_vec_u => null(), &
@@ -287,7 +296,7 @@ contains
                      setval_c( y_vec_b, 0.0_r_def ) )
 
         ! STEP 1: Build RHS for Helmholtz system
-        call self%build_geopot_rhs(x)
+        call self%build_geopot_rhs(config, x)
 
         ! STEP 2: Solve Helmholtz system
         ! Krylov solver to obtain geopotential increment
@@ -297,7 +306,7 @@ contains
         ! Copy RHS into 1-component field-vector
         call self%geopot_b%import_field(self%rhs_p,1)
         call log_event('Schur preconditioner geopotential solve:', LOG_LEVEL_INFO)
-        call self%swe_geopot_solver%apply(self%geopot_x,self%geopot_b)
+        call self%swe_geopot_solver%apply(config, self%geopot_x,self%geopot_b)
         ! Copy solution out of 1-component field-vector
         call self%geopot_x%export_field(self%p_inc,1)
 
@@ -330,7 +339,7 @@ contains
   !> @param[in,out] self Instance of type swe_mixed_schur_preconditioner_type
   !> @param[in]     rhs0 Initial residuals \f$(\textbf{R}_u,R_p,R_b)\f$ of the
   !!                     mixed system
-  subroutine build_geopot_rhs(self,rhs0)
+  subroutine build_geopot_rhs(self, config, rhs0)
 
     use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
@@ -341,13 +350,16 @@ contains
     implicit none
 
     class(swe_mixed_schur_preconditioner_type), intent(inout) :: self
-    type(field_vector_type),                    intent(in)    :: rhs0
+
+    type(config_type),       intent(in) :: config
+    type(field_vector_type), intent(in) :: rhs0
 
     type(operator_type), pointer :: div => null(), M3_inv => null()
     real(kind=r_def) :: const1, const2
 
     ! Mesh ID
     integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh
 
     ! Thermal shallow water case
     ! rhs_u = R_u + alpha * dt * ref_gp/2 * D^T * Mb^-1 * R_b
@@ -356,7 +368,8 @@ contains
     ! rhs_u = R_u
     ! rhs_p = R_p - alpha * dt * ref_gp * M3^-1 * D * HB^-1 * rhs_u
 
-    mesh_id = rhs0%vector(isw_u)%get_mesh_id()
+    mesh_id =  rhs0%vector(isw_u)%get_mesh_id()
+    mesh    => rhs0%vector(isw_u)%get_mesh()
 
     div => get_div(mesh_id)
 
@@ -375,7 +388,7 @@ contains
     end if
 
     ! Compute rhs_p
-    M3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+    M3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
     const2 = -self%alpha*dt*ref_gp
     call invoke( X_times_Y( self%hb_ru, self%rhs_u, self%Hb_lumped_inv ),          &
                  dg_matrix_vector_kernel_type( self%rhs_p_tmp,self%hb_ru, div ),   &

@@ -264,12 +264,14 @@ contains
   !> @param[in] rho               Transported dry density field
   !> @param[in] tracer_con        Transported conservative tracer field
   !> @param[in] transport_density Flag to show if density was transported
-  subroutine name_transport_final( rho, tracer_con, transport_density )
+  subroutine name_transport_final(config, rho, tracer_con, transport_density )
 
     use transport_stats_mod,          only: write_transport_stats
     use split_transport_utils_mod,    only: finalise_split_transport_utils
 
     implicit none
+
+    type(config_type),    intent(in) :: config
 
     ! Prognostic fields
     type(field_type),    intent(in) :: rho, tracer_con
@@ -281,10 +283,10 @@ contains
     ! Calculate and write out statistics
     if (transport_density) then
       field_name = 'rho'
-      call write_transport_stats(rho, rho0, field_name)
+      call write_transport_stats(config, rho, rho0, field_name)
     end if
     field_name = 'tracer_con'
-    call write_transport_stats(tracer_con, tracer_con0, field_name)
+    call write_transport_stats(config, tracer_con, tracer_con0, field_name)
 
     call finalise_split_transport_utils()
 

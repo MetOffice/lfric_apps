@@ -40,7 +40,7 @@ module cma_test_algorithm_mod
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
-  use constants_mod,                  only : i_def, l_def, r_solver
+  use constants_mod,                  only : i_def, r_def, l_def, r_solver
   use columnwise_operator_mod,        only : columnwise_operator_type
   use function_space_mod,             only : function_space_type
   use function_space_collection_mod,  only : function_space_collection
@@ -70,8 +70,7 @@ module cma_test_algorithm_mod
   use matrix_vector_kernel_mod,         only : matrix_vector_kernel_type
   use dg_inc_matrix_vector_kernel_mod,  only : dg_inc_matrix_vector_kernel_type
   use transpose_matrix_vector_kernel_mod, only : transpose_matrix_vector_kernel_type
-  use sci_transpose_matrix_kernel_mod, &
-                                      only : transpose_matrix_kernel_type
+  use sci_transpose_matrix_kernel_mod,  only : transpose_matrix_kernel_type
   use sci_mm_diagonal_kernel_mod,         only : mm_diagonal_kernel_type
   use sci_mm_diagonal_assembled_kernel_mod, only : mm_diagonal_assembled_kernel_type
   use sci_enforce_operator_bc_kernel_mod, only : enforce_operator_bc_kernel_type
@@ -91,9 +90,10 @@ module cma_test_algorithm_mod
   use config_mod, only: config_type
 
   ! Configuration modules
-  use finite_element_config_mod, only : element_order_h, &
-                                        element_order_v, &
-                                        coord_order
+  use base_mesh_config_mod, only: geometry_planar,       &
+                                  geometry_spherical,    &
+                                  topology_non_periodic, &
+                                  topology_fully_periodic
 
   implicit none
 
@@ -195,13 +195,45 @@ contains
     type(mesh_type),   intent(in), pointer :: mesh_in
 
     ! Local variables
-    type( mesh_type ),  pointer :: twod_mesh
-    integer(kind=i_def) :: i
+    type(mesh_type),  pointer :: twod_mesh
+    integer(i_def) :: i
+
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+    integer(i_def) :: coord_system
+    integer(i_def) :: coord_order
+    integer(i_def) :: order_h
+    integer(i_def) :: order_v
+    real(r_def)    :: scaled_radius
+    logical(l_def) :: rehabilitate
 
     ! Return if module has already been initialised
     if (is_initialised) return
 
     mesh => mesh_in
+
+    if (mesh%is_geometry_spherical()) then
+      geometry= geometry_spherical
+    else
+      geometry= geometry_planar
+    end if
+
+    if (mesh%is_topology_periodic()) then
+      topology = topology_fully_periodic
+    else if (mesh%is_topology_non_periodic()) then
+      topology = topology_non_periodic
+    else
+      call log_event('Unsupported topology option',&
+                     log_level_error)
+    end if
+
+    coord_order  = config%finite_element%coord_order()
+    coord_system = config%finite_element%coord_system()
+    order_h      = config%finite_element%element_order_h()
+    order_v      = config%finite_element%element_order_v()
+    rehabilitate = config%finite_element%rehabilitate()
+
+    scaled_radius = config%planet%scaled_radius()
 
     ! Set up coordinate field
     if ( coord_order == 0 ) then
@@ -238,18 +270,9 @@ contains
     qr = quadrature_xyoz_type(3, quadrature_rule)
 
     ! Extract function spaces from mesh
-    fs_vel_v    => function_space_collection%get_fs(mesh,            &
-                                                    element_order_h, &
-                                                    element_order_v, &
-                                                    W2V)
-    fs_vel_h    => function_space_collection%get_fs(mesh,            &
-                                                    element_order_h, &
-                                                    element_order_v, &
-                                                    W2H)
-    fs_pressure => function_space_collection%get_fs(mesh,            &
-                                                    element_order_h, &
-                                                    element_order_v, &
-                                                    W3)
+    fs_vel_v    => function_space_collection%get_fs(mesh, order_h, order_v, W2V)
+    fs_vel_h    => function_space_collection%get_fs(mesh, order_h, order_v, W2H)
+    fs_pressure => function_space_collection%get_fs(mesh, order_h, order_v, W3)
     ! Create temporary fields for testing
     call p_in%initialise( fs_pressure )
     call p_tmp%initialise( fs_pressure )
@@ -269,16 +292,24 @@ contains
     call div_h_r_def%initialise( fs_pressure, fs_vel_h )
     call grad_v_r_def%initialise( fs_vel_v, fs_pressure )
 
-    call invoke( compute_mass_matrix_kernel_w2_type( mm_vel_v_r_def, chi, panel_id, qr ),    &
-                 compute_mass_matrix_kernel_w3_type( mm_pressure_r_def, chi, panel_id, qr ), &
-                 compute_div_operator_kernel_type( div_v_r_def, chi, panel_id, qr ),         &
-                 transpose_matrix_kernel_type( div_v_r_def, grad_v_r_def ) )
+    call invoke(                                                              &
+        compute_mass_matrix_kernel_w2_type( mm_vel_v_r_def, chi, panel_id,    &
+                                            geometry, topology, coord_system, &
+                                            scaled_radius, qr ),              &
+        compute_mass_matrix_kernel_w3_type( mm_pressure_r_def, chi, panel_id, &
+                                            geometry, topology, coord_system, &
+                                            scaled_radius, rehabilitate, qr ),&
+        compute_div_operator_kernel_type( div_v_r_def, chi, panel_id, qr ),   &
+        transpose_matrix_kernel_type( div_v_r_def, grad_v_r_def ) )
 
     ! These invokes are split to avoid issues with passing two different W2
     ! operators (on W2h and W2v) to compute_mass_matrix_kernel_w2_type within
     ! the same invoke
-    call invoke( compute_mass_matrix_kernel_w2_type( mm_vel_h_r_def, chi, panel_id, qr ), &
-                 compute_div_operator_kernel_type( div_h_r_def, chi, panel_id, qr ) )
+    call invoke(                                                              &
+        compute_mass_matrix_kernel_w2_type( mm_vel_h_r_def, chi, panel_id,    &
+                                            geometry, topology, coord_system, &
+                                            scaled_radius, qr ),              &
+        compute_div_operator_kernel_type( div_h_r_def, chi, panel_id, qr ) )
 
 
     ! Create r_solver versions and copy over
@@ -368,13 +399,15 @@ contains
   !> @param[in] x2 Second field to compare
   !> @param[in] tolerance Tolerance \f$\epsilon\f$
   !> @param[in] label Label for comparison
-  subroutine compare_fields(x1, x2, tolerance, label)
+  subroutine compare_fields(config, x1, x2, tolerance, label)
 
     use, intrinsic :: iso_fortran_env, only: real64
     use constants_mod,                 only: r_def
     use sci_psykal_light_mod,          only: invoke_rdouble_X_innerproduct_X
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Passed parameters
     type(r_solver_field_type), intent(in) :: x1
@@ -391,10 +424,14 @@ contains
     character(len=4)          :: pass_str
     type(function_space_type), pointer :: fs => null()
 
+    integer(i_def) :: order_h
+    integer(i_def) :: order_v
+
+    order_h = config%finite_element%element_order_h()
+    order_v = config%finite_element%element_order_v()
+
     ! Extract function space for creation of temporary fields
-    fs => function_space_collection%get_fs(mesh,            &
-                                           element_order_h, &
-                                           element_order_v, &
+    fs => function_space_collection%get_fs(mesh, order_h, order_v, &
                                            x1%which_function_space())
 
     call dx%initialise(fs)
@@ -535,8 +572,12 @@ contains
   !!          and compare the results.
   !>
   !> @param[in] tolerance Error tolerance for comparison
-  subroutine test_cma_apply_mass_p(tolerance)
+  subroutine test_cma_apply_mass_p(config, tolerance)
+
     implicit none
+
+    type(config_type), intent(in) :: config
+
     real(kind=r_solver), intent(in) :: tolerance
     character(len=32) :: label = "apply pressure mass matrix"
 
@@ -550,7 +591,8 @@ contains
                  dg_inc_matrix_vector_kernel_type( p_out,            &
                                                    p_in,             &
                                                    mm_pressure ) )
-    call compare_fields(p_out, p_out_cma, tolerance, label)
+    call compare_fields(config, p_out, p_out_cma, tolerance, label)
+
   end subroutine test_cma_apply_mass_p
 
   !> @brief Test application of (vertical-only) velocity mass matrix.
@@ -558,14 +600,17 @@ contains
   !!          both as a LMA and as a CMA and compare the results.
   !>
   !> @param[in] tolerance Error tolerance for comparison
-  subroutine test_cma_apply_mass_v(tolerance)
+  subroutine test_cma_apply_mass_v(config, tolerance)
+
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_solver), intent(in) :: tolerance
     character(len=32) :: label = "apply vert velocity mass matrix"
 
     call invoke( assign_field_random_kernel_type( u_v_in, 1.0_r_solver ), &
-                 enforce_bc_kernel_type( u_v_in ),                     &
+                 enforce_bc_kernel_type( u_v_in ),                        &
                  setval_c( u_v_out,     0.0_r_solver ),                   &
                  setval_c( u_v_out_cma, 0.0_r_solver ),                   &
     ! Apply velocity mass matrix in CMA representation
@@ -578,7 +623,8 @@ contains
                  matrix_vector_kernel_type( u_v_out,                   &
                                             u_v_in,                    &
                                             mm_vel_v ) )
-    call compare_fields(u_v_out, u_v_out_cma, tolerance, label)
+    call compare_fields(config, u_v_out, u_v_out_cma, tolerance, label)
+
   end subroutine test_cma_apply_mass_v
 
   !> @brief Test application of (vertical-only) divergence operator.
@@ -586,14 +632,17 @@ contains
   !!          both as a LMA and as a CMA and compare the results.
   !>
   !> @param[in] tolerance Error tolerance for comparison
-  subroutine test_cma_apply_div_v(tolerance)
+  subroutine test_cma_apply_div_v(config, tolerance)
+
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_solver), intent(in) :: tolerance
     character(len=32) :: label = "apply vert divergence"
 
     call invoke( assign_field_random_kernel_type( u_v_in, 1.0_r_solver ), &
-                 enforce_bc_kernel_type( u_v_in ),                     &
+                 enforce_bc_kernel_type( u_v_in ),                        &
                  setval_c( p_out,     0.0_r_solver ),                     &
                  setval_c( p_out_cma, 0.0_r_solver ),                     &
     ! Apply divergence operator in CMA representation
@@ -604,7 +653,8 @@ contains
                  dg_inc_matrix_vector_kernel_type( p_out,              &
                                                    u_v_in,             &
                                                    div_v ) )
-    call compare_fields(p_out, p_out_cma, tolerance, label)
+    call compare_fields(config, p_out, p_out_cma, tolerance, label)
+
   end subroutine test_cma_apply_div_v
 
   !> @brief Test multiplication of two CMA operators (divergence and
@@ -615,8 +665,11 @@ contains
   !!          of the two operators in LMA representation.
   !>
   !> @param[in] tolerance Error tolerance for comparison
-  subroutine test_cma_multiply_div_v_mass_v(tolerance)
+  subroutine test_cma_multiply_div_v_mass_v(config, tolerance)
+
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_solver), intent(in) :: tolerance
 
@@ -650,7 +703,7 @@ contains
                                             u_v_tmp,         &
                                             div_v ) )
 
-    call compare_fields(p_out, p_out_cma, tolerance, label)
+    call compare_fields(config, p_out, p_out_cma, tolerance, label)
 
   end subroutine test_cma_multiply_div_v_mass_v
 
@@ -661,8 +714,11 @@ contains
   !!          operators in LMA representation.
   !>
   !> @param[in] tolerance Error tolerance for comparison
-  subroutine test_cma_multiply_grad_v_div_v(tolerance)
+  subroutine test_cma_multiply_grad_v_div_v(config, tolerance)
+
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_solver), intent(in) :: tolerance
 
@@ -698,7 +754,7 @@ contains
                                             p_tmp,           &
                                             grad_v ) )
 
-    call compare_fields(u_v_out, u_v_out_cma, tolerance, label)
+    call compare_fields(config, u_v_out, u_v_out_cma, tolerance, label)
 
   end subroutine test_cma_multiply_grad_v_div_v
 
@@ -709,8 +765,11 @@ contains
   !!          to applying the operators individually.
   !>
   !> @param[in] tolerance Error tolerance for comparison
-  subroutine test_cma_add(tolerance)
+  subroutine test_cma_add(config, tolerance)
+
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_solver), intent(in) :: tolerance
     type(columnwise_operator_type) :: helmholtz_cma
@@ -736,7 +795,7 @@ contains
     call invoke( columnwise_op_app_kernel_type( p_out_cma, &
                                                 p_in,      &
                                                 helmholtz_cma ) )
-    call compare_fields(p_out, p_out_cma, tolerance, label)
+    call compare_fields(config, p_out, p_out_cma, tolerance, label)
 
   end subroutine test_cma_add
 
@@ -749,8 +808,11 @@ contains
   !!          \f$u_{in}\f$ which should be identical.
   !>
   !> @param[in] tolerance Error tolerance for comparison
-  subroutine test_cma_apply_inv(tolerance)
+  subroutine test_cma_apply_inv(config, tolerance)
+
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_solver), intent(in) :: tolerance
     type(columnwise_operator_type) :: helmholtz_cma
@@ -776,7 +838,7 @@ contains
     call invoke( columnwise_op_appinv_kernel_type( p_out_cma, &
                                                    p_tmp,     &
                                                    helmholtz_cma ) )
-    call compare_fields(p_in, p_out_cma, tolerance, label)
+    call compare_fields(config, p_in, p_out_cma, tolerance, label)
 
   end subroutine test_cma_apply_inv
 
@@ -792,8 +854,12 @@ contains
   !!          This test currently only works reliably on one processor.
   !>
   !> @param[in] tolerance Error tolerance for comparison
-  subroutine test_cma_diag_DhMDhT(tolerance)
+  subroutine test_cma_diag_DhMDhT(config, tolerance)
+
     implicit none
+
+    type(config_type), intent(in) :: config
+
     type(columnwise_operator_type) :: diag_DhMDhT_cma
     real(kind=r_solver), intent(in) :: tolerance
     character(len=32) :: label = "diag D_h.M_{u,h,inv}.D_h^T"
@@ -841,7 +907,7 @@ contains
                  X_times_Y( p_out_masked,     p_out,     p_in ), &
                  X_times_Y( p_out_masked_cma, p_out_cma, p_in ) )
 
-    call compare_fields(p_out_masked, p_out_masked_cma, tolerance,label)
+    call compare_fields(config, p_out_masked, p_out_masked_cma, tolerance,label)
 
   end subroutine test_cma_diag_DhMDhT
 

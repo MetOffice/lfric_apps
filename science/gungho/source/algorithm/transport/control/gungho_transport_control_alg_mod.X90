@@ -467,7 +467,7 @@ contains
         ! Restrict quantities to the coarse mesh
         call map_w2_intermesh(aerosol_wind_n, wind_n)
         call map_w2_intermesh(aerosol_wind_np1, wind_np1)
-        call map_rho_intermesh(aerosol_reference_rho, rho_d_n_ptr)
+        call map_rho_intermesh(config, aerosol_reference_rho, rho_d_n_ptr)
 
         ! Set up new transport controller for coarser mesh
         call aerosol_transport_controller%initialise(config,                   &

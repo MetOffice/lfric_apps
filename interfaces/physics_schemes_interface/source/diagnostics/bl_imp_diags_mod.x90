@@ -15,6 +15,8 @@ module bl_imp_diags_mod
   use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
                                          samp_diag => diagnostic_to_be_sampled
 
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -173,7 +175,8 @@ contains
   !> @param[in,out] dacf_bl                  BL increment to area cloud fraction
   !> @param[in,out] dcfl_bl                  BL increment to liquid cloud fraction
   !> @param[in,out] dcff_bl                  BL increment to frozen cloud fraction
-  subroutine output_diags_for_bl_imp(zh, du_bl_w2,                             &
+  subroutine output_diags_for_bl_imp(config,                                   &
+                                     zh, du_bl_w2,                             &
                                      wspd10m, u10m, v10m,                      &
                                      wind10m_neut_w2,                          &
                                      wspd10m_neut, u10m_neut, v10m_neut,       &
@@ -188,6 +191,8 @@ contains
                                      dacf_bl, dcfl_bl, dcff_bl)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields input, used in calculations
     type( field_type ), intent(in)    :: mv, mcl, ms,                          &
@@ -240,7 +245,7 @@ contains
       if (.not. du_bl_flag) ignore = init_diag(du_bl, 'turbulence__du_bl', activate=.true.)
       if (.not. dv_bl_flag) ignore = init_diag(dv_bl, 'turbulence__dv_bl', activate=.true.)
       if (.not. dw_bl_flag) ignore = init_diag(dw_bl, 'turbulence__dw_bl', activate=.true.)
-      call map_physics_winds(du_bl,dv_bl,dw_bl,du_bl_w2)
+      call map_physics_winds(config, du_bl, dv_bl, dw_bl, du_bl_w2)
     end if
     if (du_bl_flag) call du_bl%write_field()
     if (dv_bl_flag) call dv_bl%write_field()
@@ -297,7 +302,7 @@ contains
       if (.not. u10m_neut_flag) ignore = init_diag(u10m_neut, 'surface__u10m_neut', activate=.true.)
       if (.not. v10m_neut_flag) ignore = init_diag(v10m_neut, 'surface__v10m_neut', activate=.true.)
       call zh%copy_field_properties(w10m_neut)
-      call map_physics_winds(u10m_neut, v10m_neut, w10m_neut, wind10m_neut_w2)
+      call map_physics_winds(config, u10m_neut, v10m_neut, w10m_neut, wind10m_neut_w2)
     end if
     if (wspd10m_neut_flag) then
       ! Calculate the neutral 10m windspeed
@@ -320,7 +325,7 @@ contains
       if (.not. pseudotaux_flag) ignore = init_diag(pseudotaux, 'surface__pseudotaux', activate=.true.)
       if (.not. pseudotauy_flag) ignore = init_diag(pseudotauy, 'surface__pseudotauy', activate=.true.)
       call pseudotaux%copy_field_properties(pseudotauz)
-      call map_physics_winds(pseudotaux, pseudotauy, pseudotauz, pseudotau_w2)
+      call map_physics_winds(config, pseudotaux, pseudotauy, pseudotauz, pseudotau_w2)
     end if
     if (pseudotaux_flag) call pseudotaux%write_field()
     if (pseudotauy_flag) call pseudotauy%write_field()

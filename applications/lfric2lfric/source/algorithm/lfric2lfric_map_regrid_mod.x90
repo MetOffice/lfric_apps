@@ -18,6 +18,8 @@ module lfric2lfric_map_regrid_mod
   use log_mod,                   only: log_event, log_scratch_space, &
                                        log_level_info
 
+  use config_mod, only: config_type
+
   ! lfric2lfric modules
   use lfric2lfric_face_conserv_c2f_kernel_mod, only:                          &
                                    lfric2lfric_face_conserv_c2f_kernel_type
@@ -53,13 +55,15 @@ contains
   !>                          after regridding the field in the
   !>                          source mesh
   !> @param[in]  field_src    Field in the source mesh
-  subroutine lfric2lfric_map_regrid(field_dst, field_src)
+  subroutine lfric2lfric_map_regrid(config, field_dst, field_src)
     ! Description:
     !  Main processing field loop in lfric2lfric. Loops over requested fields,
     !  reads field on all ranks, loops over levels, gather full level data
     !  onto rank 0, perform regridding and write to disk.
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), pointer,      intent(out) :: field_dst
     type(field_type), pointer,      intent(in)  :: field_src
@@ -97,12 +101,16 @@ contains
     select case (fs)
       case (Wtheta)
         if (coarse_to_fine) then
-          weights => get_intermesh_weights_w3_rdef(mesh_dst_2d, mesh_src_2d)
+          weights => get_intermesh_weights_w3_rdef( config,      &
+                                                    mesh_dst_2d, &
+                                                    mesh_src_2d )
           call invoke(name = "map_wtheta_c2f_kernel",                         &
                     lfric2lfric_face_noconserv_c2f_kernel_type(field_dst,     &
                                                  field_src, weights))
         else
-          weights => get_intermesh_weights_w3_rdef(mesh_src_2d, mesh_dst_2d)
+          weights => get_intermesh_weights_w3_rdef( config,      &
+                                                    mesh_src_2d, &
+                                                    mesh_dst_2d )
           call invoke(name = "map_wtheta_f2c_kernel",                         &
                     lfric2lfric_face_noconserv_f2c_kernel_type(field_dst,     &
                                                  field_src, weights))
@@ -116,24 +124,32 @@ contains
         ! 2D fields use Wtheta weigthts
         if (nlayers == 1) then
           if (coarse_to_fine) then
-            weights => get_intermesh_weights_w3_rdef(mesh_dst, mesh_src)
+            weights => get_intermesh_weights_w3_rdef( config,   &
+                                                      mesh_dst, &
+                                                      mesh_src )
             call invoke(name = "map_w3_2d_c2f_kernel",                        &
                       lfric2lfric_face_noconserv_c2f_kernel_type(field_dst,   &
                                                    field_src, weights))
           else
-            weights => get_intermesh_weights_w3_rdef(mesh_src, mesh_dst)
+            weights => get_intermesh_weights_w3_rdef( config,   &
+                                                      mesh_src, &
+                                                      mesh_dst )
             call invoke(name = "map_w3_2d_f2c_kernel",                        &
                       lfric2lfric_face_noconserv_f2c_kernel_type(field_dst,   &
                                                    field_src, weights))
           end if
         else
           if (coarse_to_fine) then
-            weights => get_intermesh_weights_w3_rdef(mesh_dst, mesh_src)
+            weights => get_intermesh_weights_w3_rdef( config,   &
+                                                      mesh_dst, &
+                                                      mesh_src )
             call invoke(name = "map_w3_c2f_kernel",                           &
                       lfric2lfric_face_conserv_c2f_kernel_type(field_dst,     &
                                                    field_src, weights))
           else
-            weights => get_intermesh_weights_w3_rdef(mesh_src, mesh_dst)
+            weights => get_intermesh_weights_w3_rdef( config,   &
+                                                      mesh_src, &
+                                                      mesh_dst )
             call invoke(name = "map_w3_f2c_kernel",                           &
                       lfric2lfric_face_conserv_f2c_kernel_type(field_dst,     &
                                                    field_src, weights))

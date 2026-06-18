@@ -36,6 +36,7 @@ module atl_end_transport_step_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use adj_flux_precomputations_mod,   only: adj_initialise_step
 
+  use config_mod, only: config_type
   implicit none
 
   private
@@ -122,6 +123,7 @@ contains
     integer(kind=i_def)                   :: mesh_id, step
     integer(kind=i_def)                   :: ref_step
     type(mesh_type),              pointer :: mesh
+    type(config_type),            pointer :: config
     type(r_tran_field_type)               :: increment
     type(r_tran_field_type)               :: flux, sum_flux
     type(r_tran_field_type),      pointer :: field_start
@@ -134,9 +136,12 @@ contains
     ! Pointers for accessing transport_counter fields
     type(r_tran_field_type), pointer      :: flux_ptr
 
+
+    config => flux_precomp_ls_wind%get_config()
+
     ! Extract transport runtime
-    mesh => field_np1%get_mesh()
-    mesh_id = mesh%get_id()
+    mesh    => field_np1%get_mesh()
+    mesh_id =  mesh%get_id()
     enforce_min_value = transport_metadata%get_enforce_min_value()
     is_dry_field = ( trim( transport_metadata%get_name() ) == trim(dry_field_name))
 
@@ -178,7 +183,7 @@ contains
     if ( final_split_step ) then
 
       field_start => transport_counter%get_field_n()
-      div => get_directional_im3_div_r_tran( mesh_id, direction_3d )
+      div => get_directional_im3_div_r_tran( config, mesh, direction_3d )
       w2_fs => function_space_collection%get_fs(                               &
           mesh, element_order_h, element_order_v, W2                           &
       )

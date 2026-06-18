@@ -26,6 +26,9 @@ module si_diagnostics_mod
 
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -48,11 +51,14 @@ module si_diagnostics_mod
 
 contains
 
-  subroutine output_diags_for_si(state, state_n, state_after_slow, mr, mr_n,   &
+  subroutine output_diags_for_si(config,                                       &
+                                 state, state_n, state_after_slow, mr, mr_n,   &
                                  mr_after_slow, mr_after_adv, derived_fields,  &
                                  du_fast, dtheta_fast, dtheta_cld)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), dimension(bundle_size), intent(in) :: state, state_n, &
                                                             state_after_slow
@@ -115,7 +121,7 @@ contains
       if (.not. dw_tot_flag) ignore = init_diag(dw_tot, 'processed__dw_tot', activate=.true.)
       call state(igh_u)%copy_field_properties(du_w2_tot)
       call invoke(X_minus_Y(du_w2_tot,state(igh_u),state_n(igh_u)))
-      call map_physics_winds(du_tot,dv_tot,dw_tot,du_w2_tot)
+      call map_physics_winds(config, du_tot, dv_tot, dw_tot, du_w2_tot)
     end if
     if (du_tot_flag) call du_tot%write_field()
     if (dv_tot_flag) call dv_tot%write_field()
@@ -168,7 +174,7 @@ contains
         if (.not. dw_adv_flag) ignore = init_diag(dw_adv, 'advection__dw_adv', activate=.true.)
         call state(igh_u)%copy_field_properties(du_w2_adv)
         call invoke(X_minus_Y(du_w2_adv,u_star,state_after_slow(igh_u)))
-        call map_physics_winds(du_adv,dv_adv,dw_adv,du_w2_adv)
+        call map_physics_winds(config, du_adv, dv_adv, dw_adv, du_w2_adv)
       end if
       if (du_adv_flag) call du_adv%write_field()
       if (dv_adv_flag) call dv_adv%write_field()
@@ -230,7 +236,7 @@ contains
         call state(igh_u)%copy_field_properties(du_w2_solv)
         call invoke(X_minus_Y(du_w2_solv,state(igh_u),u_star), &
                 inc_X_minus_Y(du_w2_solv,du_fast))
-        call map_physics_winds(du_solv,dv_solv,dw_solv,du_w2_solv)
+        call map_physics_winds(config, du_solv, dv_solv, dw_solv, du_w2_solv)
       end if
       if (du_solv_flag) call du_solv%write_field()
       if (dv_solv_flag) call dv_solv%write_field()

@@ -332,7 +332,7 @@ contains
                    matrix_vector_kernel_type(r_u, u_lat, u_lat_map), &
                    matrix_vector_kernel_type(r_u, u_up, u_up_map),   &
                    enforce_bc_kernel_type( r_u ) )
-      call mass_matrix_solver_alg(u, r_u)
+      call mass_matrix_solver_alg(config, u, r_u)
     end if
 
     if ( LPROF ) call stop_timing( id, 'mappings.set_wind' )
@@ -425,7 +425,7 @@ contains
       call invoke( setval_c(r_c, 0.0_r_def),                                   &
                    dg_inc_matrix_vector_kernel_type(r_c, u, vert_coriolis),    &
                    enforce_bc_kernel_type(r_c) )
-      call mass_matrix_solver_alg(c_vert_term, r_c, bc_flag=.true.)
+      call mass_matrix_solver_alg(config, c_vert_term, r_c, bc_flag=.true.)
       ! Enforce that result is zero at domain bottom and top
       call invoke( enforce_bc_kernel_type(c_vert_term) )
     end if ! associated(vert_coriolis)

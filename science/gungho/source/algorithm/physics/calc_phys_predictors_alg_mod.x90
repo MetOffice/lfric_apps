@@ -27,6 +27,7 @@ module calc_phys_predictors_alg_mod
   use boundaries_config_mod,    only: limited_area, transport_boundary_depth
   use base_mesh_config_mod,     only: topology, topology_non_periodic
 
+use config_mod, only: config_type
   implicit none
 
   private
@@ -46,11 +47,12 @@ contains
   !> @param[in]     lbc_fields       Group of lateral boundary fields
   !> @param[in]     clock            The model clock
 
-subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
+subroutine calc_phys_predictors_alg( config, derived_fields, rhs_np1, rhs_adv, &
                                      rhs_n, state, state_after_slow,   &
                                      lbc_fields, model_clock )
 
     implicit none
+type(config_type), intent(in) :: config
     ! Prognostic fields
     type( field_collection_type ), intent(inout) :: derived_fields
 
@@ -84,7 +86,7 @@ subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
       ! theta_star can be directly guessed from advection terms
       call dtheta%initialise( rhs_adv(igh_t)%get_function_space() )
       call invoke( X_plus_Y(dtheta, rhs_adv(igh_t), rhs_n(igh_t)) )
-      call mass_matrix_solver_alg(theta_star, dtheta)
+      call mass_matrix_solver_alg(config, theta_star, dtheta)
       call dtheta%field_final()
 
       ! Compute u_star = u_np1 + M^-1(-rhs_np1 + rhs_n + rhs_a)
@@ -94,9 +96,9 @@ subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
                    aX_plus_Y(rhsu_np1,-1.0_r_def, rhs_np1(igh_u), rhs_n(igh_u)), &
                    inc_X_plus_Y(rhsu_np1, rhs_adv(igh_u)) )
       if ( horizontal_physics_predictor ) then
-        call hori_mass_matrix_solver_alg(du, rhsu_np1)
+        call hori_mass_matrix_solver_alg(config, du, rhsu_np1)
       else
-        call mass_matrix_solver_alg(du, rhsu_np1 )
+        call mass_matrix_solver_alg(config, du, rhsu_np1 )
       end if
       call invoke( X_plus_Y(u_star, du, state(igh_u)) )
       call rhsu_np1%field_final()

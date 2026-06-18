@@ -24,7 +24,8 @@ module tl_derive_exner_from_eos_alg_mod
                                         only: tl_sample_eos_pressure_kernel_type
 
   ! Object types
-  use mesh_mod, only: mesh_type
+  use mesh_mod,   only: mesh_type
+  use config_mod, only: config_type
 
   implicit none
 
@@ -42,7 +43,8 @@ contains
   !> @param[inout] ls_state             Lin state for Prognostic model state
   !> @param[in]    ls_moist_dyn_gas_law Lin state for Gas law component of
   !>                                    moist dynamics factors
-  subroutine tl_derive_exner_from_eos( state,             &
+  subroutine tl_derive_exner_from_eos( config,            &
+                                       state,             &
                                        moist_dyn_gas_law, &
                                        ls_state,          &
                                        ls_moist_dyn_gas_law )
@@ -56,6 +58,7 @@ contains
 
     implicit none
 
+    type( config_type ),                         intent( in )    :: config
     type( field_type ), dimension(bundle_size), intent( inout ) :: state
     type( field_type ),                         intent( in )    :: moist_dyn_gas_law
     type( field_type ), dimension(bundle_size), intent( in )    :: ls_state
@@ -70,7 +73,7 @@ contains
 
     mesh => state(igh_p)%get_mesh()
 
-    m3_inv   => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    m3_inv   => get_inverse_mass_matrix_fe(config, mesh, W3)
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
     qr => get_qr_fe()

@@ -101,7 +101,7 @@ contains
 
     mesh => wind%get_mesh()
     call u_grad_f%initialise( adv_field%get_function_space() )
-    mt_lumped_inv => get_inverse_lumped_mass_matrix_fe( Wtheta, mesh%get_id() )
+    mt_lumped_inv => get_inverse_lumped_mass_matrix_fe(config, mesh, Wtheta)
     call invoke( X_times_Y(u_grad_f, rhs, mt_lumped_inv), &
                  setval_c(rhs, 0.0_r_def) )
 

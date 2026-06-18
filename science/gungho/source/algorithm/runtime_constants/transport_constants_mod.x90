@@ -63,6 +63,7 @@ module transport_constants_mod
                                   geometry_spherical, &
                                   geometry_planar, &
                                   topology, &
+                                  topology_non_periodic, &
                                   topology_fully_periodic
   use finite_element_config_mod, only: coord_system, &
                                        coord_system_xyz
@@ -656,7 +657,7 @@ contains
         chi => get_coordinates(mesh)
         if (element_order_h == 0 .and. element_order_v == 0) then
           ! Get the finite volume det(J) field
-          detj_r_def => get_detj_at_w3_fv(mesh)
+          detj_r_def => get_detj_at_w3_fv(config, mesh)
         else
           ! Get the finite element det(J) field
           detj_r_def => get_detj_at_w3_fe(config, mesh)
@@ -956,16 +957,18 @@ contains
   !> @param[in] space   The space of the desired mass matrix
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The mass matrix operator
-  function get_mass_matrix_r_tran(space, mesh_id) result(mm_r_tran)
+  function get_mass_matrix_r_tran(config, mesh, space) &
+                           result(mm_r_tran)
 
     use sci_fem_constants_mod, only: get_mass_matrix_fe, &
                                      get_mass_matrix_fv
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: space
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
+    integer(i_def),    intent(in)          :: space
+
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
     type(operator_type),          pointer :: mm_r_def
@@ -992,8 +995,7 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = inventory%paired_object_exists(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       ! Get relevant element orders
@@ -1002,9 +1004,9 @@ contains
 
       ! Create constant if it doesn't already exist
       if (element_order_h == 0 .and. element_order_v == 0) then
-        mm_r_def => get_mass_matrix_fv(space, mesh_id)
+        mm_r_def => get_mass_matrix_fv(config, mesh, space)
       else
-        mm_r_def => get_mass_matrix_fe(space, mesh_id)
+        mm_r_def => get_mass_matrix_fe(config, mesh, space)
       end if
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
@@ -1029,16 +1031,18 @@ contains
   !> @param[in] space   Enumerator for the function space of the operator
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The inverse mass matrix operator at r_tran precision
-  function get_inverse_mass_matrix_r_tran(space, mesh_id) result(mm_inv_r_tran)
+  function get_inverse_mass_matrix_r_tran(config, mesh, space) &
+                                   result(mm_inv_r_tran)
 
     use sci_fem_constants_mod, only: get_inverse_mass_matrix_fe, &
                                      get_inverse_mass_matrix_fv
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: space
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
+    integer(i_def),    intent(in)          :: space
+
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
     type(operator_type),          pointer :: mm_inv_r_def
@@ -1065,8 +1069,7 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = inventory%paired_object_exists(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       ! Get relevant element orders
@@ -1075,9 +1078,9 @@ contains
 
       ! Create constant if it doesn't already exist
       if (element_order_h == 0 .and. element_order_v == 0) then
-        mm_inv_r_def => get_inverse_mass_matrix_fv(space, mesh_id)
+        mm_inv_r_def => get_inverse_mass_matrix_fv(config, mesh, space)
       else
-        mm_inv_r_def => get_inverse_mass_matrix_fe(space, mesh_id)
+        mm_inv_r_def => get_inverse_mass_matrix_fe(config, mesh, space)
       end if
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
@@ -1105,27 +1108,30 @@ contains
   !> @param[in] mesh_id   The ID of the mesh to get the object for
   !> @param[in] direction The enumerator for the direction
   !> @return The inv_m3 * div operator
-  function get_directional_im3_div(mesh_id, direction) result(div_op)
+  function get_directional_im3_div(config, mesh, direction) &
+                            result(div_op)
 
     use sci_fem_constants_mod,          only: get_im3_div_fe, &
                                               get_im3_div_fv
     use transport_enumerated_types_mod, only: direction_3d
 
     implicit none
-    integer(kind=i_def),   intent(in) :: mesh_id
-    integer(kind=i_def),   intent(in) :: direction
-    integer(kind=i_def)               :: element_order_h, &
-                                         element_order_v
-    type(operator_type),      pointer :: div_op
+
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
+    integer(i_def),    intent(in)          :: direction
+
+    integer(kind=i_def)          :: element_order_h, element_order_v
+    type(operator_type), pointer :: div_op
 
     select case (direction)
     case (direction_3d)
       element_order_h = get_element_order_h_transport()
       element_order_v = get_element_order_v_transport()
       if (element_order_h == 0 .and. element_order_v == 0) then
-        div_op => get_im3_div_fv(mesh_id)
+        div_op => get_im3_div_fv(config, mesh)
       else
-        div_op => get_im3_div_fe(mesh_id)
+        div_op => get_im3_div_fe(config, mesh)
       end if
     case default
       call log_event( "rdef im3_div operator only exists for 3D direction", LOG_LEVEL_ERROR )
@@ -1138,7 +1144,8 @@ contains
   !> @param[in] mesh_id   The ID of the mesh to get the object for
   !> @param[in] direction The enumerator for the direction
   !> @return The inv_m3 * div operator
-  function get_directional_im3_div_r_tran(mesh_id, direction) result(im3_div_r_tran)
+  function get_directional_im3_div_r_tran(config, mesh, direction) &
+                                   result(im3_div_r_tran)
 
     use sci_fem_constants_mod,          only: get_inverse_mass_matrix_fe, &
                                               get_inverse_mass_matrix_fv, &
@@ -1151,9 +1158,12 @@ contains
                                               direction_3d
     implicit none
 
-    integer(kind=i_def),       intent(in) :: mesh_id
-    integer(kind=i_def),       intent(in) :: direction
-    type(mesh_type),              pointer :: mesh => null()
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
+    integer(i_def),    intent(in)          :: direction
+
+
+!  integer(kind=i_def),       intent(in) :: mesh_id
     type(inventory_by_mesh_type), pointer :: inventory
     character(len=str_def)                :: inventory_name
     logical(kind=l_def)                   :: constant_exists
@@ -1193,8 +1203,8 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = inventory%paired_object_exists(mesh_id)
+!    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
@@ -1215,10 +1225,10 @@ contains
 
       if (element_order_h == 0 .and. element_order_v == 0) then
         qr => get_qr_fv()
-        mm_w3_inv => get_inverse_mass_matrix_fv(W3, mesh_id)
+        mm_w3_inv => get_inverse_mass_matrix_fv(config, mesh, W3)
       else
         qr => get_qr_fe()
-        mm_w3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+        mm_w3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
       end if
 
       w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
@@ -1675,6 +1685,27 @@ contains
 
     class(reference_element_type), pointer :: reference_element
 
+    integer(i_def) :: geometry, topology, coord_system
+    real(r_def)    :: scaled_radius
+
+    if (mesh%is_geometry_spherical()) then
+      geometry= geometry_spherical
+    else
+      geometry= geometry_planar
+    end if
+
+    if (mesh%is_topology_periodic()) then
+      topology = topology_fully_periodic
+    else if (mesh%is_topology_non_periodic()) then
+      topology = topology_non_periodic
+    else
+      call log_event('get_curl_fe: Unsupported topology selection',&
+                      log_level_error)
+    end if
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     ! Initialise inventory if it hasn't been done so already
     if (.not. hori_w3_mol_coeffs_inventory%is_initialised()) then
       call hori_w3_mol_coeffs_inventory%initialise(name="hori_w3_mol_coeffs")
@@ -1694,9 +1725,9 @@ contains
       if (.not. (oned_reconstruction .and. extended_mesh)) then
         ! @TODO #416: this should be done with detj_at_w3_r_tran
         if (element_order_h == 0 .and. element_order_v == 0) then
-          mm_w3_diag => get_mass_matrix_diagonal_fv(W3, mesh%get_id())
+          mm_w3_diag => get_mass_matrix_diagonal_fv(config, mesh, W3)
         else
-          mm_w3_diag => get_mass_matrix_diagonal_fe(W3, mesh%get_id())
+          mm_w3_diag => get_mass_matrix_diagonal_fe(config, mesh, W3)
         end if
 
       end if
@@ -1777,6 +1808,10 @@ contains
                                                               chi,             &
                                                               panel_id,        &
                                                               extended_mesh,   &
+                                                              geometry,        &
+                                                              topology,        &
+                                                              coord_system,    &
+                                                              scaled_radius,   &
                                                               qr_fem),         &
                      setval_c(mm_w3_diag_tmp, 0.0_r_def),                      &
                      mm_diagonal_kernel_type(mm_w3_diag_tmp, mm_w3) )
@@ -2024,6 +2059,27 @@ contains
     class(reference_element_type),   pointer :: reference_element
     integer(tik)                             :: id
 
+    integer(i_def) :: geometry, topology, coord_system
+    real(r_def)    :: scaled_radius
+
+    if (mesh%is_geometry_spherical()) then
+      geometry= geometry_spherical
+    else
+      geometry= geometry_planar
+    end if
+
+    if (mesh%is_topology_periodic()) then
+      topology = topology_fully_periodic
+    else if (mesh%is_topology_non_periodic()) then
+      topology = topology_non_periodic
+    else
+      call log_event('get_curl_fe: Unsupported topology selection',&
+                      log_level_error)
+    end if
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     ! Initialise inventory if it hasn't been done so already
     if (.not. hori_wt_mol_coeffs_inventory%is_initialised()) then
       call hori_wt_mol_coeffs_inventory%initialise(name="hori_wt_mol_coeffs")
@@ -2042,9 +2098,9 @@ contains
 
       if (.not. (oned_reconstruction .and. extended_mesh)) then
         if (element_order_h == 0 .and. element_order_v == 0) then
-          mm_wt_diag => get_mass_matrix_diagonal_fv(Wtheta, mesh%get_id())
+          mm_wt_diag => get_mass_matrix_diagonal_fv(config, mesh, Wtheta)
         else
-          mm_wt_diag => get_mass_matrix_diagonal_fe(Wtheta, mesh%get_id())
+          mm_wt_diag => get_mass_matrix_diagonal_fe(config, mesh, Wtheta)
         end if
       end if
 
@@ -2124,6 +2180,10 @@ contains
                                                               chi,             &
                                                               panel_id,        &
                                                               extended_mesh,   &
+                                                              geometry,        &
+                                                              topology,        &
+                                                              coord_system,    &
+                                                              scaled_radius,   &
                                                               qr_fem),         &
                      setval_c(mm_wt_diag_tmp, 0.0_r_def),                      &
                      mm_diagonal_kernel_type(mm_wt_diag_tmp, mm_wt) )

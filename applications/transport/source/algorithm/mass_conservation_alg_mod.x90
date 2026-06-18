@@ -106,7 +106,7 @@ contains
       ! Compute mass of W3 aerosol
       call coarse_rho_d%initialise( w3_aerosol%get_function_space() )
       call rho_X%initialise( w3_aerosol%get_function_space() )
-      call map_rho_intermesh(coarse_rho_d, rho_d)
+      call map_rho_intermesh(config, coarse_rho_d, rho_d)
       call invoke( X_times_Y(rho_X, coarse_rho_d, w3_aerosol) )
       call compute_total_mass_alg( config, total_w3_aerosol_mass, rho_X, &
                                    coarse_mesh, method=integral_method_fe )

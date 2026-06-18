@@ -16,6 +16,9 @@ module divergence_alg_mod
   use mesh_mod,                        only: mesh_type
   use operator_mod,                    only: operator_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -26,21 +29,23 @@ contains
   !> @brief Subroutine to compute divergence of a W2 field
   !> @param[in,out] divergence   W3 divergence field to be computed
   !> @param[in]     wind         W2 field field
-  subroutine divergence_alg( divergence, wind )
+  subroutine divergence_alg( config, divergence, wind )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(inout) :: divergence
     type(field_type), intent(in)    :: wind
 
     ! Internal variables
     type(field_type)             :: div_u
-    type(operator_type), pointer :: mm_w3_inv => null()
-    type(operator_type), pointer :: div => null()
-    type(mesh_type),     pointer :: mesh => null()
+    type(operator_type), pointer :: mm_w3_inv
+    type(operator_type), pointer :: div
+    type(mesh_type),     pointer :: mesh
 
     mesh      => wind%get_mesh()
-    mm_w3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    mm_w3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
     div       => get_div(mesh%get_id())
 
     call div_u%initialise( vector_space=divergence%get_function_space() )

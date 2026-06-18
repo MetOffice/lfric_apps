@@ -37,11 +37,14 @@ module swe_mixed_operator_alg_mod
   use log_mod,                           only: log_event,       &
                                                LOG_LEVEL_ERROR, &
                                                log_scratch_space
-  use mesh_mod,                          only: mesh_type
   use operator_mod,                      only: operator_type
   use sci_field_vector_mod,              only: field_vector_type
   use sci_linear_operator_mod,           only: abstract_linear_operator_type
   use vector_mod,                        only: abstract_vector_type
+
+  ! Object types
+  use config_mod, only: config_type
+  use mesh_mod,   only: mesh_type
 
   implicit none
 
@@ -142,7 +145,7 @@ contains
   !> @param[in,out] self Instance of the swe mixed operator
   !> @param[in]     x    Field vector to be read
   !> @param[in,out] y    Field vector to be written
-  subroutine apply_swe_mixed_operator(self, x, y)
+  subroutine apply_swe_mixed_operator(self, config, x, y)
 
     use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
     use operator_mod,                       only: operator_type
@@ -157,6 +160,7 @@ contains
     implicit none
 
     class(swe_mixed_operator_type), intent(inout) :: self
+    type(config_type),    intent(in)    :: config
     class(abstract_vector_type),    intent(in)    :: x
     class(abstract_vector_type),    intent(inout) :: y
 
@@ -187,13 +191,13 @@ contains
     end select
 
     ! Extract buoyancy mass matrix
-    mm_wb => get_mass_matrix_fe(W3, mesh%get_id())
+    mm_wb => get_mass_matrix_fe(config, mesh, W3)
     ! Extract velocity mass matrix
-    mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
+    mm_w2 => get_mass_matrix_fe(config, mesh, W2)
     ! Extract divergence operator
     div   => get_div(mesh%get_id())
     ! Extract inverse geopotential mass matrix
-    m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    m3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
 
     ! Set auxiliary constants
     const1 = -alpha*dt

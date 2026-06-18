@@ -16,6 +16,8 @@ module minmax_tseries_mod
   use mesh_mod,                          only: mesh_type
   use fs_continuity_mod,                 only: W1, W2
 
+  use config_mod, only: config_type
+
   implicit none
 
   integer(i_def), private :: unitno
@@ -54,15 +56,18 @@ contains
 !> @param[in] field       Field to output
 !> @param[in] field_name Name of field to output
 !> @param[in] mesh       Mesh all fields are on
- subroutine minmax_tseries(field, field_name, mesh)
+ subroutine minmax_tseries(config, mesh, field, field_name)
    use scalar_mod, only : scalar_type
 
    implicit none
 
-   type(field_type), intent(in)    :: field
-   character(len=*), intent(in)    :: field_name
+   type(config_type), intent(in)          :: config
+   type(mesh_type),   intent(in), pointer :: mesh
 
-   type(mesh_type),  intent(in), pointer :: mesh
+   type(field_type), intent(in) :: field
+   character(len=*), intent(in) :: field_name
+
+
 
    ! Internal variables
    type(field_type)                   :: nodal_output(3)
@@ -90,8 +95,10 @@ contains
 
    else
      ! Scalar field
-     call scalar_nodal_diagnostic_alg( nodal_output, nodal_coordinates, level, &
-                                       field_name, field, mesh, .false. )
+     call scalar_nodal_diagnostic_alg( config, nodal_output,     &
+                                       nodal_coordinates, level, &
+                                       field_name, field, mesh,  &
+                                       .false. )
    end if
 
    do i = 1,3

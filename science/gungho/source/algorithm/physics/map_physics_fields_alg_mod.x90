@@ -113,7 +113,7 @@ contains
     call derived_fields%get_field('u_in_w3', u_in_w3)
     call derived_fields%get_field('v_in_w3', v_in_w3)
     call derived_fields%get_field('w_in_w3', w_in_w3)
-    call map_physics_winds(u_in_w3, v_in_w3, w_in_w3, u)
+    call map_physics_winds(config, u_in_w3, v_in_w3, w_in_w3, u)
 
     call derived_fields%get_field('u_in_w2h', u_in_w2h)
     call derived_fields%get_field('v_in_w2h', v_in_w2h)
@@ -136,7 +136,7 @@ contains
                                printmin=-10.0_r_def, printmax=10.0_r_def)
 
     if (log_level() <= LOG_LEVEL_DEBUG) then
-      call divergence_diagnostic_alg(divergence, l2, u, mesh)
+      call divergence_diagnostic_alg(config, mesh, divergence, l2, u)
       call print_field_stats_alg(config, divergence, LOG_LEVEL_DEBUG,          &
                                  printmin=-0.001_r_def, printmax=0.001_r_def,  &
                                  name='divergence')

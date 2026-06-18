@@ -76,7 +76,7 @@ contains
                  setval_c(w2_h_filtered, 0.0_r_def) )
 
     ! Sample winds at the W3 points
-    call map_physics_winds(u_lon, u_lat, u_up, w2_field_inout)
+    call map_physics_winds(config, u_lon, u_lat, u_up, w2_field_inout)
 
     ! Project back to W2 points
     call set_wind(config, w2_h_filtered, u_lon, u_lat, u_up_wt)

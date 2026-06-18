@@ -208,7 +208,7 @@ subroutine init_saturated_profile_alg( config, theta, mr, exner, rho, moist_dyn 
                                         recip_epsilon ) )
 
       ! Check tolerance and break if we are close enough
-      errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
+      errornorm = rel_l2_error_alg( config, latest_theta_e, specified_theta_e )
       write(log_scratch_space, '(A,I5,A,E32.24)') &
         'Outer iteration: ', outer_count, ', Error-norm: ', errornorm
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
@@ -231,7 +231,7 @@ subroutine init_saturated_profile_alg( config, theta, mr, exner, rho, moist_dyn 
                                           recip_epsilon ) )
 
         ! Check tolerance and break if we are close enough
-        errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
+        errornorm = rel_l2_error_alg( config, latest_theta_e, specified_theta_e )
         write(log_scratch_space, '(A,I5,A,E32.24)') &
           'Middle iteration: ', theta_count, ', Error-norm: ', errornorm
         call log_event(log_scratch_space, LOG_LEVEL_INFO)
@@ -252,7 +252,7 @@ subroutine init_saturated_profile_alg( config, theta, mr, exner, rho, moist_dyn 
                                             p_zero, recip_epsilon ) )
 
           ! Check tolerance and break if we are close enough
-          errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
+          errornorm = rel_l2_error_alg( config, latest_theta_e, specified_theta_e )
           write(log_scratch_space, '(A,I5,A,E32.24)') &
             'Inner iteration: ', inner_count, ', Error-norm: ', errornorm
           call log_event(log_scratch_space, LOG_LEVEL_INFO)
@@ -291,7 +291,7 @@ subroutine init_saturated_profile_alg( config, theta, mr, exner, rho, moist_dyn 
   end if
 
   ! Finally find the dry density, presumably from equation of state
-  call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+  call init_rho_field( config, rho, theta, exner, moist_dyn, initial_time )
 
   !----------------------------------------------------------------------------!
   ! Finalise internal fields and pointers

@@ -122,6 +122,8 @@ module mixed_schur_preconditioner_alg_mod
   use boundaries_config_mod,           only: limited_area
   use mixed_solver_config_mod,         only: eliminate_variables,          &
                                              eliminate_variables_analytic
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -243,9 +245,10 @@ contains
   !!              \f$(\textbf{R}_u, R_t, R_r, R_t)\f$
   !> @param[in,out] y Field vector containing the solution
   !!                  \f$(\textbf{U},\theta,\rho,\Pi)\f$ to be calculated
-  subroutine apply_mixed_schur_preconditioner(self, x, y)
+  subroutine apply_mixed_schur_preconditioner(self, config, x, y)
     implicit none
     class(mixed_schur_preconditioner_type), intent(inout) :: self
+type(config_type), intent(in) :: config
     class(abstract_vector_type),            intent(in)    :: x
     class(abstract_vector_type),            intent(inout) :: y
     integer(tik)                                          :: id_precon, &
@@ -258,7 +261,7 @@ contains
        select type(y)
        type is(r_solver_field_vector_type)
          ! STEP 1: Build RHS for Helmholtz system
-         call self%build_pressure_rhs(x)
+         call self%build_pressure_rhs(config, x)
 
          ! STEP 2: Solve Helmholtz system
          ! Krylov solver to obtain pressure increment
@@ -269,12 +272,12 @@ contains
 
          ! Solve pressure system
          call log_event('Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG)
-         call self%pressure_solver%apply(self%pressure_x, self%pressure_b)
+         call self%pressure_solver%apply(config, self%pressure_x, self%pressure_b)
 
          if ( LPROF ) call stop_timing(id_solve, 'schur_precon.pressure_solver')
 
           ! STEP 3: Back substitute to obtain other fields
-          call self%back_substitute(y)
+          call self%back_substitute(config, y)
        class default
           write(log_scratch_space, '(a)') &
                "mixed_schur_preconditioner_mod: incorrect vector_type argument y"
@@ -300,7 +303,7 @@ contains
   !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
   !> @param[in]     rhs0 Initial residuals \f$(\textbf{R}_u,R_t,R_d,R_p)\f$
   !!                     of the mixed system
-  subroutine build_pressure_rhs(self, rhs0)
+  subroutine build_pressure_rhs(self, config, rhs0)
 
     use dg_matrix_vector_kernel_mod,      only: dg_matrix_vector_kernel_type
     use apply_variable_hx_kernel_mod,     only: apply_variable_hx_kernel_type
@@ -311,6 +314,8 @@ contains
     use combine_w2_field_kernel_mod,      only: combine_w2_field_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     class( mixed_schur_preconditioner_type ),   intent( inout ) :: self
     type( r_solver_field_vector_type ), target, intent(in)      :: rhs0
@@ -329,6 +334,7 @@ contains
     type( r_solver_field_type ),  pointer   :: w2_mask, &
                                                w3_mask
     integer( kind=i_def )                   :: mesh_id
+    type(mesh_type), pointer                  :: mesh
     integer( kind=i_def )                   :: element_order_h
     integer( kind=i_def )                   :: element_order_v
     type( r_solver_field_type ),  pointer   :: rhs_uv, &
@@ -347,7 +353,8 @@ contains
     rhs_uv => rhs0%vector(isol_uv)
     rhs_p  => rhs0%vector(isol_p)
 
-    mesh_id = rhs_uv%get_mesh_id()
+    mesh_id =  rhs_uv%get_mesh_id()
+    mesh    => rhs_uv%get_mesh()
 
     element_order_h = rhs_uv%get_element_order_h()
     element_order_v = rhs_uv%get_element_order_v()
@@ -389,7 +396,7 @@ contains
     else
       ! r_pi = rhs_pi + P03*M0^-1*rhs_t + M3rho*M3^-1*rhs_r
       ! r_rho already contains M3^-1 factor
-      mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh_id)
+      mt_lumped_inv => get_normalisation_r_solver(config, mesh, Wtheta)
       call rhs_d%initialise( rhs%get_function_space() )
       call invoke( setval_c( rhs_d, 0.0_r_solver ) )
       if ( element_order_h == 0 .and. element_order_v == 0 ) then
@@ -429,7 +436,7 @@ contains
   !>
   !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
   !> @param[in,out] state Solution \f$(\textbf{U},\theta,\rho,\Pi)\f$ of the mixed system
-  subroutine back_substitute(self, state)
+  subroutine back_substitute(self, config, state)
 
     use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
     use operator_mod,                    only: r_solver_operator_type
@@ -438,7 +445,11 @@ contains
     use fs_continuity_mod,               only: W2
     use scaled_matrix_vector_kernel_mod, only: scaled_matrix_vector_kernel_type
     use schur_backsub_kernel_mod,        only: schur_backsub_kernel_type
+
     implicit none
+
+    type(config_type), intent(in) :: config
+
     class( mixed_schur_preconditioner_type ), intent( inout ) :: self
     type( r_solver_field_vector_type ),       intent( inout ) :: state
 
@@ -448,6 +459,8 @@ contains
     type( r_solver_field_type )             :: u_inc
     type(r_solver_field_type),      pointer :: w2_mask
     integer( kind=i_def )                   :: mesh_id
+
+    type(mesh_type), pointer :: mesh
 
     type(r_solver_field_type), pointer :: state_uv, &
                                           state_p,  &
@@ -462,12 +475,13 @@ contains
 
     exner_inc => self%pressure_x%get_field_from_position(1)
 
-    mesh_id = self%rhs_u%get_mesh_id()
+    mesh_id =  self%rhs_u%get_mesh_id()
+    mesh    => self%rhs_u%get_mesh()
 
     ! Create increment fields
 
     ! u increment
-    u_normalisation => get_normalisation_r_solver(W2, mesh_id)
+    u_normalisation => get_normalisation_r_solver(config, mesh, W2)
     div_star        => get_div_star()
     Hb_lumped_inv   => get_Hb_lumped_inv()
     ! u' = ru + BC[HB * unorm * D * p']

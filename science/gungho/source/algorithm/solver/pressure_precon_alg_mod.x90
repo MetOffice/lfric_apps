@@ -21,6 +21,7 @@
 
 module pressure_precon_alg_mod
 
+use config_mod, only: config_type
   use constants_mod,           only : i_def, r_def
   use log_mod,                 only : log_event, &
                                       LOG_LEVEL_INFO, &
@@ -100,12 +101,16 @@ contains
   !> @param[in,out] self Instance of type pressure_preconditioner_type
   !> @param[in] x Field vector containing the right hand side of the pressure
   !> @param[in,out] y Field vector containing the solution
-  subroutine apply_pressure_preconditioner(self, x, y)
+  subroutine apply_pressure_preconditioner(self, config, x, y)
+
     use si_operators_alg_mod,     only: get_tri_precon
     use sci_tri_solve_kernel_mod, only: tri_solve_kernel_type
     use r_solver_field_mod,       only: r_solver_field_type
+
     implicit none
+
     class(pressure_preconditioner_type), intent(inout) :: self
+    type(config_type),         intent(in)    :: config
     class(abstract_vector_type),         intent(in)    :: x
     class(abstract_vector_type),         intent(inout) :: y
 
@@ -141,9 +146,10 @@ contains
   !>
   !> @param[in,out] self Instance of type pressure_preconditioner_type
   !> @param[in,out] other Coarsed version on next multigrid level
-  subroutine coarsen_pressure_preconditioner(self,other)
+  subroutine coarsen_pressure_preconditioner(self, config, other)
     implicit none
     class(pressure_preconditioner_type), intent(inout) :: self
+    type(config_type), intent(in) :: config
     class(abstract_hierarchical_preconditioner_type), allocatable, intent(inout) :: other
     allocate(other, &
              source = pressure_preconditioner_type(self%level+1) )

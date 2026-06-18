@@ -23,6 +23,7 @@ module tl_physics_alg_mod
   use sci_field_bundle_builtins_mod,       only: clone_bundle, copy_bundle, set_bundle_scalar
   use operator_mod,                        only: operator_type
 
+!use config_mod, only: config_type
   implicit none
 
   private
@@ -82,7 +83,7 @@ subroutine tl_physics_alg(modeldb,    &
 
   if (LPROF) call start_timing(id, 'tl_physics_alg')
 
-  mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+  mm_vel => get_mass_matrix_fe(modeldb%config, mesh, W2)
 
   ! Run linear boundary layer scheme  to compute increment to u perturbation
 
@@ -102,7 +103,7 @@ subroutine tl_physics_alg(modeldb,    &
                aX_plus_Y( rhsu_np1, -1.0_r_def, rhs_np1(igh_u), rhs_n(igh_u) ), &
                inc_X_plus_Y( rhsu_np1, rhs_adv(igh_u) ) )
 
-  call mass_matrix_solver_alg( du, rhsu_np1 )
+  call mass_matrix_solver_alg( modeldb%config, du, rhsu_np1 )
 
   call invoke( X_plus_Y( u_star, du, state(igh_u) ) )
 

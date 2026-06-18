@@ -13,6 +13,7 @@
 module compute_vorticity_alg_mod
 
   use constants_mod, only: r_def, i_def, l_def
+  use config_mod, only: config_type
 
   implicit none
 
@@ -25,7 +26,7 @@ contains
   !> @param[in,out] xi Vorticity field = curl(u)
   !> @param[in]     u Velocity field
   !> @param[in]     weak_form_u Is u in weak form or not
-  subroutine compute_vorticity_alg(xi, u, weak_form_u, w1_flag)
+  subroutine compute_vorticity_alg(config, xi, u, weak_form_u, w1_flag)
 
     use field_mod,                      only: field_type
     use operator_mod,                   only: operator_type
@@ -48,6 +49,7 @@ contains
 
     implicit none
 
+    type(config_type),    intent(in)          :: config
     type(field_type),     intent(inout)       :: xi
     type(field_type),     intent(in)          :: u
     logical(kind=l_def),  intent(in)          :: weak_form_u
@@ -75,7 +77,7 @@ contains
       ! Advect u^* = M^-1 * <v,{u + beta*dt*[coriolis + pgf + grad(phi+K)]}>
       call advected_u%initialise( vector_space = u%get_function_space()  )
       call invoke( setval_c(advected_u, 0.0_r_def) )
-      call mass_matrix_solver_alg(advected_u, u)
+      call mass_matrix_solver_alg(config, advected_u, u)
     else
       ! Advect u
       call u%copy_field_properties(advected_u)
@@ -91,11 +93,11 @@ contains
     if ( w1_vorticity_flag ) then
       ! Compute vorticity in W1 as the weak curl of the W2 winds
       if (use_fe) then
-        m1_lumped_inv => get_inverse_lumped_mass_matrix_fe(W1, mesh%get_id())
-        curl          => get_curl_fe(mesh%get_id())
+        m1_lumped_inv => get_inverse_lumped_mass_matrix_fe(config, mesh, W1)
+        curl          => get_curl_fe(config, mesh)
       else
-        m1_lumped_inv => get_inverse_lumped_mass_matrix_fv(W1, mesh%get_id())
-        curl          => get_curl_fv(mesh%get_id())
+        m1_lumped_inv => get_inverse_lumped_mass_matrix_fv(config, mesh, W1)
+        curl          => get_curl_fv(config, mesh)
       end if
 
       call r_xi%initialise( vector_space = xi%get_function_space() )
@@ -103,7 +105,7 @@ contains
                     transpose_matrix_vector_kernel_type(r_xi, advected_u, curl), &
                     enforce_bc_kernel_type(r_xi),                                &
                     setval_c(xi, 0.0_r_def) )
-      call mass_matrix_solver_alg(xi, r_xi)
+      call mass_matrix_solver_alg(config, xi, r_xi)
     else
       ! Compute vorticity in W2 as the strong curl of the projected W1 winds
       if (use_fe) then
@@ -118,7 +120,7 @@ contains
       call invoke( setval_c(r_u, 0.0_r_def),                                   &
                    setval_c(u_in_w1, 0.0_r_def),                               &
                    w2_to_w1_projection_kernel_type(r_u, advected_u, qr) )
-      call mass_matrix_solver_alg( u_in_w1, r_u, .false.)
+      call mass_matrix_solver_alg( config, u_in_w1, r_u, .false.)
       call invoke( strong_curl_kernel_type(xi, u_in_w1) )
     end if
 

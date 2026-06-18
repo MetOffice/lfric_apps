@@ -194,7 +194,7 @@ contains
                                                      sbr_angle_lon,            &
                                                      u0, v0, qr ) )
         ! We do not want to force zero stream function at boundaries
-        call mass_matrix_solver_alg(psi, r_psi, bc_flag=.false.)
+        call mass_matrix_solver_alg(config, psi, r_psi, bc_flag=.false.)
         call invoke( name = "get_u_from_curl_of_psi", &
                      strong_curl_kernel_type(u, psi) )
         ! Prevent any flux out from the domain
@@ -218,7 +218,7 @@ contains
                                             domain_max_x, domain_max_y,    &
                                             qr ),                          &
                      enforce_bc_kernel_type( r_u ) )
-        call mass_matrix_solver_alg(u, r_u)
+        call mass_matrix_solver_alg(config, u, r_u)
       end if
     end if
 
@@ -334,11 +334,13 @@ contains
   !> @param[in]     exner      Exner pressure field
   !> @param[in]     moist_dyn  array of fields with moist dynamics factors
   !> @param[in]     time       time, used for setting analytic profiles
-  subroutine init_rho_field(rho, theta, exner, moist_dyn, time)
+  subroutine init_rho_field(config, rho, theta, exner, moist_dyn, time)
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(field_type), intent(inout) :: rho
     type(field_type), intent(in)    :: theta
     type(field_type), intent(in)    :: exner
@@ -365,10 +367,10 @@ contains
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
     if (element_order_h > 0 .or. element_order_v > 0) then
-      m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+      m3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
       qr => get_qr_fe()
     else
-      m3_inv => get_inverse_mass_matrix_fv(W3, mesh%get_id())
+      m3_inv => get_inverse_mass_matrix_fv(config, mesh, W3)
       qr => get_qr_fv()
     end if
 
@@ -469,7 +471,8 @@ contains
                                                     chi, panel_id, gravity,  &
                                                     p_zero, rd, cp, planet_radius ) )
 
-        call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+        call init_rho_field( config, rho, theta, exner, &
+                             moist_dyn, initial_time )
       end if
     end if
 

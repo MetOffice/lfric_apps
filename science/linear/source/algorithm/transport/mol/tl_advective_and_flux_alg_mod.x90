@@ -175,7 +175,7 @@ contains
           call adv_inc_1%initialise( density%get_function_space() )
           call adv_inc_2%initialise( density%get_function_space() )
 
-          m3_inv => get_inverse_mass_matrix_fe( W3, density%get_mesh_id() )
+          m3_inv => get_inverse_mass_matrix_fe( config, density%get_mesh(), W3 )
           call invoke( setval_c( adv_inc_1, 0.0_r_def ), &
                        setval_c( adv_inc_2, 0.0_r_def )  )
           ! Different advective update kernel dependent on direction

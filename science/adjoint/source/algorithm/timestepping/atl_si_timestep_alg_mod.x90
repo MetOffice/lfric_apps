@@ -74,6 +74,8 @@ module atl_si_timestep_alg_mod
 
     private
 
+    type(config_type), pointer :: config
+
     ! Perturbation
     type(field_type), allocatable :: state(:)
     type(field_type), allocatable :: state_initial(:)
@@ -154,7 +156,7 @@ contains
     ! Arguments
     class(atl_si_timestep_type), intent(inout) :: self
 
-    type(config_type),           intent(in)    :: config
+    type(config_type),target,    intent(in)    :: config
     type(field_type),            intent(inout) :: u, rho, theta, exner
     type(field_type),            intent(inout) :: mr(nummr)
     type(field_type),            intent(inout) :: ls_theta, ls_exner
@@ -163,7 +165,18 @@ contains
 
     ! Local variables
     integer(kind=i_def) :: outer, inner
+    logical(l_def) :: limited_area
 
+    limited_area = config%boundaries%limited_area()
+
+    ! Compute the LAM LBCs and RHS
+    if (limited_area) then
+      call log_event( "atl_si_timestep_type%step: "//&
+                      "No limited area for adjoint", &
+                      log_level_error )
+    end if
+
+    self%config => config
     self%use_moisture = (moisture_formulation /= moisture_formulation_dry)
 
     ! Allocate internal state field arrays
@@ -289,9 +302,10 @@ contains
     end if
 
     call self%adj_solver_lookup_cache%initialise(u%get_mesh())
-    call self%adj_trans_lookup_cache%initialise(config, u%get_mesh())
+    call self%adj_trans_lookup_cache%initialise(self%config, u%get_mesh())
 
-    call self%adj_semi_implicit_solver%initialise(self%state, self%adj_solver_lookup_cache)
+    call self%adj_semi_implicit_solver%initialise( self%config, self%state, &
+                                                   self%adj_solver_lookup_cache )
 
     call log_event( "atl_si_timestep_type%init: initialised timestepping algorithm", LOG_LEVEL_INFO )
 
@@ -349,11 +363,11 @@ contains
     qr => get_qr_fe()
 
     ! Get mesh
-    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
+    prime_mesh_name = self%config%base_mesh%prime_mesh_name()
     mesh => mesh_collection%get_mesh(prime_mesh_name)
 
-    mm_wt  => get_mass_matrix_fe( Wtheta, mesh%get_id() )
-    mm_vel => get_mass_matrix_fe( W2,     mesh%get_id() )
+    mm_wt  => get_mass_matrix_fe( self%config, mesh, Wtheta )
+    mm_vel => get_mass_matrix_fe( self%config, mesh, W2 )
 
     ! If off-centring is being spun up then modify the alpha value
     if (spinup_alpha .and. modeldb%clock%is_spinning_up()) then
@@ -401,7 +415,7 @@ contains
     ! Note that this reset can only occur at most once per timestep.
     reference_reset_freq = nint( reference_reset_time / cast_dt, i_def )
     if (mod( modeldb%clock%get_step() - 1_i_def, reference_reset_freq ) == 0_i_def) &
-      call compute_si_operators( modeldb%config, self%ls_state(igh_t), &
+      call compute_si_operators( self%config, self%ls_state(igh_t), &
                                  self%ls_state(igh_d), self%ls_state(igh_p), &
                                  modeldb%clock, self%ls_moist_dyn_itns(:,1,1) )
 
@@ -410,14 +424,18 @@ contains
     call copy_bundle( self%ls_state_after_slow, self%ls_advected_state, bundle_size )
 
     if ( .not. fixed_ls ) then
-    call rhs_alg( self%ls_rhs_n, varbeta*cast_dt, &
+    call rhs_alg( self%config, self%ls_rhs_n, varbeta*cast_dt, &
                   self%ls_state_after_slow, self%ls_state_n, &
                   self%ls_moist_dyn_itns(:,1,1), &
                   compute_eos=.false., compute_rhs_t_d=.true., &
                   dlayer_rhs=.false., model_clock=modeldb%clock )
 
 
-    if (.not. si_momentum_equation) call mass_matrix_solver_alg( self%ls_advected_state(igh_u), self%ls_rhs_n(igh_u) )
+    if (.not. si_momentum_equation) then
+      call mass_matrix_solver_alg( self%config, &
+                                   self%ls_advected_state(igh_u), &
+                                   self%ls_rhs_n(igh_u) )
+    end if
       ! Predictor of the wind field (u - beta * dt * rhs) to be advected if using explicit advection
 
     !---------------------------------------------------------------------------
@@ -425,7 +443,7 @@ contains
     !---------------------------------------------------------------------------
     ls_outer_dynamics_loop: do outer = 1, self%ls_outer_iterations
 
-      call gungho_transport_control_alg( modeldb%config,                    &
+      call gungho_transport_control_alg( self%config,                       &
                                          self%ls_rhs_adv(:,outer,1),        &
                                          self%ls_advected_state,            &
                                          self%ls_state_itns(igh_u,outer,1), &
@@ -436,17 +454,22 @@ contains
                                          cheap_update=.false. )
 
       ! Convert theta increment to weak form
-      call invoke( setval_X( self%theta_fv_inc, self%ls_rhs_adv(igh_t,outer,1) ),     &
-                   setval_c( self%ls_rhs_adv(igh_t,outer,1), 0.0_r_def ),             &
-                   dg_inc_matrix_vector_kernel_type( self%ls_rhs_adv(igh_t,outer,1), self%theta_fv_inc, mm_wt ) )
+      call invoke( setval_X( self%theta_fv_inc, self%ls_rhs_adv(igh_t,outer,1) ),    &
+                   setval_c( self%ls_rhs_adv(igh_t,outer,1), 0.0_r_def ),            &
+                   dg_inc_matrix_vector_kernel_type( self%ls_rhs_adv(igh_t,outer,1), &
+                                                     self%theta_fv_inc, mm_wt ) )
 
       if (use_wavedynamics) then
         ! Use advective update to guess n + 1 level scalar fields.
         if (guess_np1) then
           ! Update factors for moist dynamics
-          if (self%use_moisture) call moist_dyn_factors_alg( self%ls_moist_dyn_itns(:,outer,1), self%ls_mr_itns(:,outer,1) )
-          call update_prognostic_scalars_alg( self%ls_state_itns(:,outer,1), &
-                                              self%ls_rhs_n,                   &
+          if (self%use_moisture) then
+            call moist_dyn_factors_alg( self%ls_moist_dyn_itns(:,outer,1), &
+                                        self%ls_mr_itns(:,outer,1) )
+          end if
+          call update_prognostic_scalars_alg( self%config,                   &
+                                              self%ls_state_itns(:,outer,1), &
+                                              self%ls_rhs_n,                 &
                                               self%ls_rhs_adv(:,outer,1),    &
                                               self%ls_rhs_phys(:,outer,1),   &
                                               self%ls_moist_dyn_itns(gas_law,outer,1) )
@@ -471,7 +494,8 @@ contains
           if (next_outer <= outer_iterations .and. next_inner <= inner_iterations) then
 
             ! Compute the time-level n + 1 dynamics terms
-            call rhs_alg( self%ls_rhs_np1(:,outer,inner),        &
+            call rhs_alg( self%config,                           &
+                          self%ls_rhs_np1(:,outer,inner),        &
                           -varalpha*cast_dt,                     &
                           self%ls_state_itns(:,outer,inner),     &
                           self%ls_state_itns(:,outer,inner),     &
@@ -480,9 +504,6 @@ contains
                           compute_rhs_t_d=.true.,                &
                           dlayer_rhs=dlayer_on,                  &
                           model_clock=modeldb%clock )
-
-            ! Compute the LAM LBCs and RHS
-            if (limited_area) call log_event( "atl_si_timestep_type%step: No limited area for adjoint", LOG_LEVEL_ERROR )
 
             ! Compute the residuals
 
@@ -497,8 +518,6 @@ contains
                              self%ls_rhs_adv(:,outer,inner), &
                              self%ls_rhs_np1(:,outer,inner), &
                              bundle_size )
-
-            if (limited_area) call log_event( "atl_si_timestep_type%step: No limited area for adjoint", LOG_LEVEL_ERROR )
 
             ! Accelerators for inner loop convergence
             if (inner > 1) then
@@ -532,18 +551,20 @@ contains
                                 nummr )
             end if
 
-            call semi_implicit_solver_alg_step( self%ls_state_itns(:,next_outer,next_inner),             &
+            call semi_implicit_solver_alg_step( self%config,                                             &
+                                                self%ls_state_itns(:,next_outer,next_inner),             &
                                                 self%ls_rhs_np1(:,outer,inner),                          &
                                                 self%ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                                                 self%ls_mr_itns(:,next_outer,next_inner),                &
                                                 first_iteration=(inner==1) )
+
             ! If not already done, update factors for moist dynamics
             if (.not. guess_np1 .and. self%use_moisture) then
               call moist_dyn_factors_alg( self%ls_moist_dyn_itns(:,next_outer,next_inner), &
                                           self%ls_mr_itns(:,next_outer,next_inner) )
             end if
             if (exner_from_eos) then
-              call derive_exner_from_eos( self%ls_state_itns(:,next_outer,next_inner), &
+              call derive_exner_from_eos( self%config, self%ls_state_itns(:,next_outer,next_inner), &
                                           self%ls_moist_dyn_itns(gas_law, next_outer, next_inner) )
             end if
 
@@ -594,7 +615,10 @@ contains
 
     if (self%use_moisture) call atl_moist_dyn_factors_alg( moist_dyn, mr )
 
-    if (smagorinsky) call log_event( "atl_si_timestep_type%step: smagorinsky (in call to mixing_alg) not coded", LOG_LEVEL_ERROR )
+    if (smagorinsky) then
+      call log_event( "atl_si_timestep_type%step: smagorinsky (in call to mixing_alg) not coded", &
+                      LOG_LEVEL_ERROR )
+    end if
 
     ! Adjoint of boundary layer stabilisation
     if (l_stabilise_bl) then
@@ -632,14 +656,19 @@ contains
            ls_inner = inner
         end if
 
-        write( log_scratch_space, '(A,2I3)' ) 'atl_si_timestep_type%step: TL loop indices (o, i): ', outer, inner
+        write( log_scratch_space, '(A,2I3)' ) &
+            'atl_si_timestep_type%step: TL loop indices (o, i): ', outer, inner
         call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
         ! LAM overwrite and blend LBCs
-        if (limited_area) call log_event( "atl_si_timestep_type%step: No limited area for adjoint", LOG_LEVEL_ERROR )
+        if (limited_area) then
+          call log_event( "atl_si_timestep_type%step: No limited area for adjoint", &
+                          LOG_LEVEL_ERROR )
+        end if
 
         if (exner_from_eos) then
-          call atl_derive_exner_from_eos(self%state,         & ! (p,d,t) out,in,in
+          call atl_derive_exner_from_eos(self%config,        &
+                                         self%state,         & ! (p,d,t) out,in,in
                                          moist_dyn(gas_law), & ! in
                                          self%ls_state,      &
                                          ls_moist_dyn(gas_law))
@@ -651,7 +680,7 @@ contains
         ! Solve adjoint of semi-implicit system: A * inc = rhs
         !-----------------------------------------------------------------------
 
-        mixed_solver_a_tol = modeldb%config%mixed_solver%mixed_solver_a_tol()
+        mixed_solver_a_tol = self%config%mixed_solver%mixed_solver_a_tol()
 
         ! If self%state is zero, there is no need to call the SI solver
         if (.not. bundle_is_zero( mixed_solver_a_tol, self%state, bundle_size )) then
@@ -678,7 +707,7 @@ contains
             call set_bundle_scalar( 0.0_r_def, self%state1, bundle_size )
             call set_bundle_scalar( 0.0_r_def, self%state2, bundle_size )
 
-            call atl_rhs_alg( self%rhs_np1,                                &
+            call atl_rhs_alg( self%config, self%rhs_np1,                   &
                               -varalpha*cast_dt,                           &
                               self%state1,                                 &
                               self%state2,                                 &
@@ -719,7 +748,7 @@ contains
       call set_bundle_scalar( 0.0_r_def, self%state1, bundle_size )
       call set_bundle_scalar( 0.0_r_def, self%state2, bundle_size )
 
-      call atl_rhs_alg( self%rhs_np1,                                &
+      call atl_rhs_alg( self%config, self%rhs_np1,                   &
                         -varalpha*cast_dt,                           &
                         self%state1,                                 &
                         self%state2,                                 &
@@ -738,7 +767,7 @@ contains
                                                          self%theta_fv_inc, mm_wt ), &
                    setval_X( self%rhs_adv(igh_t), self%theta_fv_inc ) )
 
-      call atl_transport_control_alg( modeldb%config,                       &
+      call atl_transport_control_alg( self%config,                          &
                                       self%rhs_adv,                         &
                                       self%advected_state,                  & ! rhs_adv is INOUT,
                                       self%state(igh_u),                    &
@@ -762,7 +791,9 @@ contains
 
      if (.not. si_momentum_equation) then
        call invoke(enforce_bc_kernel_type(self%advected_state(igh_u))) ! bc enforcement
-       call mass_matrix_solver_alg( rhs_n_igh_u, self%advected_state(igh_u) )
+       call mass_matrix_solver_alg( self%config, &
+                                    rhs_n_igh_u, &
+                                    self%advected_state(igh_u) )
        call invoke(inc_x_plus_y( self%rhs_n(igh_u), rhs_n_igh_u ))
        call invoke(setval_c( self%advected_state(igh_u), 0.0_r_def ))
      else
@@ -772,9 +803,10 @@ contains
     call add_bundle( self%state_after_slow, self%advected_state, self%state_after_slow, bundle_size )
     call set_bundle_scalar( 0.0_r_def, self%advected_state, bundle_size )
 
-    call atl_rhs_alg( self%rhs_n, varbeta * cast_dt, self%state_after_slow, &
-                      self%state_n, moist_dyn, self%ls_state_n,             &
-                      self%ls_moist_dyn_itns(:, 1,1), .false., .false., modeldb%clock )
+    call atl_rhs_alg( self%config, self%rhs_n, varbeta * cast_dt, &
+                      self%state_after_slow, self%state_n, moist_dyn, &
+                      self%ls_state_n, self%ls_moist_dyn_itns(:, 1,1), &
+                      .false., .false., modeldb%clock )
 
     call copy_bundle( self%state, self%state_copy, bundle_size )
     call add_bundle( self%state_copy, self%state_after_slow, self%state, bundle_size )

@@ -52,6 +52,8 @@ module tl_rhs_alg_mod
   use fs_continuity_mod,                   only: W1, W2, W3, Wtheta
   use function_space_collection_mod,       only: function_space_collection
 
+use config_mod, only: config_type
+
   implicit none
 
   private
@@ -82,11 +84,13 @@ contains
   !!                state
   !> @param[in]     dlayer_rhs Use damping layer in rhs yes/no
   !> @param[in]     model_clock Time in the model
-subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn, &
+subroutine tl_rhs_alg(config, rhs, alpha_dt, base_state, state, moist_dyn, &
                       ls_state, ls_moist_dyn, compute_eos,         &
                       dlayer_rhs, model_clock)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_def),             intent(in)    :: alpha_dt
     logical(kind=l_def),          intent(in)    :: dlayer_rhs
@@ -139,16 +143,16 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn, &
 
     mesh => base_state(igh_u)%get_mesh()
 
-    mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh%get_id())
+    mm_wtheta    => get_mass_matrix_fe(config, mesh, Wtheta)
     chi          => get_coordinates(mesh)
     panel_id     => get_panel_id(mesh)
-    mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    mm_w3_inv    => get_inverse_mass_matrix_fe(config, mesh, W3)
 
     ! Using modified velocity mass matrix if using damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh%get_id(), model_clock)
+      mm_vel => get_w2_mass_matrix(config, mesh, w2_damping_layer_matrix, model_clock)
     else
-      mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+      mm_vel => get_mass_matrix_fe(config, mesh, W2)
     end if
 
     u     => state(igh_u)
@@ -179,7 +183,7 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn, &
                     function_space_collection%get_fs(mesh, element_order_h,  &
                                                      element_order_v,        &
                                                      vorticity_fs) )
-    call compute_vorticity_alg(ls_vorticity, ls_u, .false.)
+    call compute_vorticity_alg(config, ls_vorticity, ls_u, .false.)
 
     call rhs_tmp%initialise( vector_space=rhs(igh_u)%get_function_space() )
     call rhs_eos%initialise( vector_space=rhs(igh_p)%get_function_space() )
@@ -228,7 +232,7 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn, &
         call invoke( tl_kinetic_energy_gradient_kernel_type( rhs_tmp, u, ls_u,  &
                                                              chi, panel_id, qr ) )
         ! Compute the vorticity
-        call compute_vorticity_alg(vorticity, u, .false.)
+        call compute_vorticity_alg(config, vorticity, u, .false.)
         if ( vorticity_in_w1 ) then
           call invoke( tl_vorticity_advection_kernel_type( rhs_tmp, u, vorticity,  &
                                                            ls_u, ls_vorticity,     &

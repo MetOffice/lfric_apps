@@ -31,6 +31,9 @@ module lam_rhs_alg_mod
   use field_indices_mod,           only: igh_u, igh_t, igh_d, igh_p
   use sci_operator_algebra_kernel_mod, only: operator_setval_x_kernel_type
 
+use mesh_mod, only: mesh_type
+use config_mod,only: config_type
+
   implicit none
 
   private
@@ -87,11 +90,12 @@ contains
   !> @param[in]     model_clock Time in the model
   !> @param[in]     finest_mesh_name Name of the finest mesh
   !> @param[in]     tau_r Relaxation parameter for density in semi-implicit method
-  subroutine calc_rhs_lbc( rhs, lbc_fields, model_clock, finest_mesh_name, &
+  subroutine calc_rhs_lbc( config, rhs, lbc_fields, model_clock, finest_mesh_name, &
                            tau_r )
 
     implicit none
 
+    type(config_type),            intent(in) :: config
     type(field_type),            intent(inout) :: rhs(bundle_size)
     type(field_collection_type), intent(in)    :: lbc_fields
     class(model_clock_type),     intent(in)    :: model_clock
@@ -114,6 +118,7 @@ contains
     real(r_def)                  :: dt
     real(r_def)                  :: tau_r_dt
     integer(i_def)               :: mesh_id
+    type(mesh_type), pointer           :: mesh
 
     type(r_solver_field_type), pointer :: r_solver_rho_at_u => null()
     integer(tik)                 :: id
@@ -121,6 +126,7 @@ contains
     if ( LPROF ) call start_timing( id, 'dynamics.rhs_lbc' )
 
     mesh_id = rhs(igh_u)%get_mesh_id()
+    mesh => rhs(igh_u)%get_mesh()
 
     dt = real(model_clock%get_seconds_per_step(), r_def)
     tau_r_dt = tau_r*dt
@@ -134,10 +140,10 @@ contains
     wtheta_mask => get_mask_fe(Wtheta, mesh_id, finest_mesh_name)
 
     ! Obtain operators from runtime constants
-    div => get_im3_div_fe(mesh_id)
+    div => get_im3_div_fe(config, mesh)
 
     ! m2 (or dl) + tau_u*dt*coriolis (lagged if required)
-    mm_vel => get_w2_mass_matrix(w2_si_matrix, mesh_id, model_clock)
+    mm_vel => get_w2_mass_matrix(config, mesh, w2_si_matrix, model_clock)
 
     ! Obtain operators from SI operators
     r_solver_rho_at_u => get_rho_at_u()

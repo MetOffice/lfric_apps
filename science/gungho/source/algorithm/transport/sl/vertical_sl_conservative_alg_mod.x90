@@ -51,7 +51,10 @@ module vertical_sl_conservative_alg_mod
   use transport_constants_mod,         only: get_mass_matrix_r_tran, &
                                              get_inverse_mass_matrix_r_tran
 
-  ! Configs
+  ! Object types
+  use config_mod, only: config_type
+
+  ! Configuration modules
   use transport_config_mod,            only: slice_order,                      &
                                              slice_order_linear,               &
                                              slice_order_parabola,             &
@@ -78,7 +81,7 @@ contains
   !> @param[in,out]  transport_controller   Object containing metadata and
   !!                                        precomputations for controlling the
   !!                                        transport of the field
-  subroutine vertical_sl_conservative_alg( field_np1, field_n,                 &
+  subroutine vertical_sl_conservative_alg( field_np1, field_n, &
                                            transport_controller )
 
     implicit none
@@ -119,7 +122,11 @@ contains
     logical(kind=l_def)                      :: final_split_step
     integer(tik)                             :: id
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'transport.slice_vertical' )
+
+    config => transport_controller%get_config()
 
     if ( slice_order /= slice_order_linear  .and. &
          slice_order /= slice_order_cubic   .and. &
@@ -170,8 +177,8 @@ contains
     call invoke( setval_X( field_np1, field_n ) )
 
     call mass%initialise( vector_space = field_n%get_function_space() )
-    mm_w3 => get_mass_matrix_r_tran(W3, field_n%get_mesh_id())
-    mm_w3_inv => get_inverse_mass_matrix_r_tran(W3, field_n%get_mesh_id())
+    mm_w3     => get_mass_matrix_r_tran(config, field_n%get_mesh(), W3)
+    mm_w3_inv => get_inverse_mass_matrix_r_tran(config, field_n%get_mesh(), W3)
 
     call invoke( name="vertical_remap",                                         &
        dg_matrix_vector_kernel_type(mass, field_np1, mm_w3),                    &

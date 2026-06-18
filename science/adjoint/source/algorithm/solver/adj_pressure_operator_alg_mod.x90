@@ -28,7 +28,7 @@ module adj_pressure_operator_alg_mod
                                                              stop_timing, &
                                                              tik, LPROF
   use si_operators_alg_mod,                            only: get_helmholtz_operator
-
+use config_mod, only: config_type
   implicit none
 
   private
@@ -93,11 +93,12 @@ contains
   !> @brief Apply adjoint Helmholtz operator
   !> @param[in]     x Field to apply operator to
   !> @param[in,out] y Resulting field
-  subroutine apply_adj_pressure_operator( self, x, y )
+  subroutine apply_adj_pressure_operator( self, config, x, y )
 
     implicit none
 
     class(adj_pressure_operator_type), intent(inout) :: self
+    type(config_type),       intent(in)    :: config
     class(abstract_vector_type),       intent(in)    :: x
     class(abstract_vector_type),       intent(inout) :: y
 
@@ -178,11 +179,12 @@ contains
   !> @brief Return coarsened operator on next level of multigrid hierarchy
   !>@param[in]     fs_coarse       Coarse level function space
   !>@param[in,out] coarse_operator Coarsened version of the operator
-  subroutine coarsen_adj_pressure_operator( self, coarse_operator )
+  subroutine coarsen_adj_pressure_operator( self, config, coarse_operator )
 
     implicit none
 
     class(adj_pressure_operator_type), intent(in) :: self
+type(config_type), intent(in) :: config
     class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
 
     allocate( coarse_operator, &

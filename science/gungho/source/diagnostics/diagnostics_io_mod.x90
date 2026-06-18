@@ -34,6 +34,9 @@ module diagnostics_io_mod
   use field_parent_mod,              only: write_interface
   use fs_continuity_mod,             only: W3
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
   private
   public :: write_scalar_diagnostic, &
@@ -53,9 +56,11 @@ contains
 !!> @param[in] W3_project  Logical to allow projection to W3
 !-------------------------------------------------------------------------------
 
-subroutine write_scalar_diagnostic( field_name, field, &
-                                    clock, mesh, W3_project )
+subroutine write_scalar_diagnostic( config, mesh, field_name, field, &
+                                    clock, W3_project )
   implicit none
+
+  type(config_type), intent(in) :: config
 
   character(len=*),        intent(in)    :: field_name
   type(field_type),        intent(in)    :: field
@@ -94,8 +99,9 @@ subroutine write_scalar_diagnostic( field_name, field, &
                          ".m" ))
 
     ! Call diagnostic processing to create nodal field
-    call scalar_nodal_diagnostic_alg( output_field, nodal_coordinates, &
-                                      level, field_name, field,        &
+    call scalar_nodal_diagnostic_alg( config, output_field,     &
+                                      nodal_coordinates, level, &
+                                      field_name, field,        &
                                       mesh, .false. )
 
     ! Call write routine
@@ -114,8 +120,9 @@ subroutine write_scalar_diagnostic( field_name, field, &
 
 
       ! Call diagnostic processing to create nodal field
-      call scalar_nodal_diagnostic_alg( output_field, nodal_coordinates, &
-                                        level, field_name, field,        &
+      call scalar_nodal_diagnostic_alg( config, output_field,     &
+                                        nodal_coordinates, level, &
+                                        field_name, field,        &
                                         mesh, .true. )
 
       ! Call write routine
@@ -129,7 +136,8 @@ subroutine write_scalar_diagnostic( field_name, field, &
     ! XIOS UGRID output
 
     ! Call diagnostic processing to create ugrid field
-    call scalar_ugrid_diagnostic_alg( output_field, field_name, field, &
+    call scalar_ugrid_diagnostic_alg( config, output_field, &
+                                      field_name, field,    &
                                       mesh, .false. )
 
     ! Set a field I/O method appropriately
@@ -168,14 +176,17 @@ end subroutine write_scalar_diagnostic
 !!> @param[in] W3_project  Logical to allow projection to W3
 !-------------------------------------------------------------------------------
 
-subroutine write_vector_diagnostic( field_name, field, &
-                                    clock, mesh, W3_project )
+subroutine write_vector_diagnostic( config, mesh, field_name, field, &
+                                    clock, W3_project )
   implicit none
+
+  type(config_type), intent(in)          :: config
+  type(mesh_type),   intent(in), pointer :: mesh
 
   character(len=*),          intent(in)    :: field_name
   type(field_type),          intent(in)    :: field
   class(model_clock_type),   intent(in)    :: clock
-  type(mesh_type),  pointer, intent(in)    :: mesh
+
   logical,                   intent(in)    :: W3_project
 
   integer(i_def), parameter       :: nodal_output_unit = 21
@@ -246,7 +257,7 @@ subroutine write_vector_diagnostic( field_name, field, &
       output_dim = 3
 
       ! Project the field to the output field
-      call project_output( temp_field, projected_field, chi, panel_id, W3 )
+      call project_output( config, temp_field, projected_field, chi, panel_id, W3 )
 
       do i =1,output_dim
          ! Write the component number into a new field name
@@ -261,8 +272,10 @@ subroutine write_vector_diagnostic( field_name, field, &
                              ".m"))
 
          ! Call scalar output on each component
-         call scalar_nodal_diagnostic_alg( output_field(i), nodal_coordinates,        &
-                                           level, field_name_new, projected_field(i), &
+         call scalar_nodal_diagnostic_alg( config, output_field(i),  &
+                                           nodal_coordinates, level, &
+                                           field_name_new,           &
+                                           projected_field(i),       &
                                            mesh, .false.)
 
          ! Call write routine

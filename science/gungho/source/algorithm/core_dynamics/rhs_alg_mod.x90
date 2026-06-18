@@ -58,6 +58,8 @@ module rhs_alg_mod
   use w2_vorticity_advection_kernel_mod,   only: w2_vorticity_advection_kernel_type
   use pressure_gradient_p0_kernel_mod,     only: pressure_gradient_p0_kernel_type
 
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -92,10 +94,12 @@ contains
   !> @param[in]     compute_rhs_t_d Compute rhs for the potential temperature
   !!                                and density
   !> @param[in]     model_clock     Time in the model
-  subroutine rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
+  subroutine rhs_alg( config, rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
                       compute_rhs_t_d, dlayer_rhs, model_clock )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_def),             intent(in)    :: alpha_dt
     logical(kind=l_def),          intent(in)    :: dlayer_rhs
@@ -113,24 +117,31 @@ contains
      .and. (rhs(igh_u)%get_element_order_v() == 0) &
      .and. (.not. si_momentum_equation)            &
      .and. (eos_method == eos_method_sampled) ) then
-      call rhs_default_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                            compute_rhs_t_d, dlayer_rhs, model_clock )
+      call rhs_default_alg( config,                                      &
+                            rhs, alpha_dt, base_state, state, moist_dyn, &
+                            compute_eos, compute_rhs_t_d, dlayer_rhs,    &
+                            model_clock )
     else
-      call rhs_general_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                            compute_rhs_t_d, dlayer_rhs, model_clock )
+      call rhs_general_alg( config,                                      &
+                            rhs, alpha_dt, base_state, state, moist_dyn, &
+                            compute_eos, compute_rhs_t_d, dlayer_rhs,    &
+                            model_clock )
     end if
 
   end subroutine rhs_alg
 
   !> @brief rhs algorithm for the default setup ( lowest order elements,
   !!        explicit momentum advection, global and sampled eos)
-  subroutine rhs_default_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                              compute_rhs_t_d, dlayer_rhs, model_clock )
+  subroutine rhs_default_alg( config,                                      &
+                              rhs, alpha_dt, base_state, state, moist_dyn, &
+                              compute_eos, compute_rhs_t_d, dlayer_rhs,    &
+                              model_clock )
 
     implicit none
 
-    real(kind=r_def),             intent(in)    :: alpha_dt
-    logical(kind=l_def),          intent(in)    :: dlayer_rhs
+    type(config_type),   intent(in) :: config
+    real(kind=r_def),    intent(in) :: alpha_dt
+    logical(kind=l_def), intent(in) :: dlayer_rhs
 
     ! Form of state and rhs is [u,theta,rho,exner]
     type(field_type), target,     intent(in)    :: base_state(bundle_size)
@@ -153,10 +164,11 @@ contains
                                  rho_base     => null(), &
                                  exner        => null()
 
-    type(field_type)    :: rhs_u
-    integer(kind=i_def) :: mesh_id
-    type(field_type)    :: theta_v
-    integer(tik)        :: id
+    type(mesh_type), pointer :: mesh
+
+    type(field_type) :: rhs_u
+    type(field_type) :: theta_v
+    integer(tik)     :: id
 
 
     ! For continuous fields the default looping depth is to the depth 1 halo
@@ -167,16 +179,16 @@ contains
 
     if ( LPROF ) call start_timing( id, 'dynamics.rhs_alg' )
 
-    mesh_id = base_state(igh_u)%get_mesh_id()
+    mesh => base_state(igh_u)%get_mesh()
 
-    geopotential => get_geopotential(mesh_id)
-    mm_wtheta    => get_mass_matrix_fv(Wtheta, mesh_id)
+    geopotential => get_geopotential(mesh%get_id())
+    mm_wtheta    => get_mass_matrix_fv(config, mesh, Wtheta)
 
     ! Using modified velocity mass matrix if needing damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
+      mm_vel => get_w2_mass_matrix(config, mesh, w2_damping_layer_matrix, model_clock)
     else
-      mm_vel => get_mass_matrix_fv(W2, mesh_id)
+      mm_vel => get_mass_matrix_fv(config, mesh, W2)
     end if
 
     u     => state(igh_u)
@@ -197,7 +209,7 @@ contains
 
     ! Compute rhs_u
     if ( rotating ) then
-      coriolis => get_coriolis(mesh_id)
+      coriolis => get_coriolis(mesh%get_id())
       call invoke( matrix_vector_kernel_type( rhs_u, u, coriolis ) )
     end if
     call theta_v%initialise( theta%get_function_space(), halo_depth = req_halo_depth )
@@ -240,10 +252,12 @@ contains
   end subroutine rhs_default_alg
 
   !> @brief rhs algorithm for any generic setup
-  subroutine rhs_general_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
+  subroutine rhs_general_alg( config, rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
                               compute_rhs_t_d, dlayer_rhs, model_clock )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(kind=r_def),             intent(in)    :: alpha_dt
     logical(kind=l_def),          intent(in)    :: dlayer_rhs
@@ -295,20 +309,20 @@ contains
 
     if ( LPROF ) call start_timing( id, 'dynamics.rhs_alg' )
 
-    mesh_id = base_state(igh_u)%get_mesh_id()
-    mesh => base_state(igh_u)%get_mesh()
+    mesh_id =  base_state(igh_u)%get_mesh_id()
+    mesh    => base_state(igh_u)%get_mesh()
 
     geopotential => get_geopotential(mesh%get_id())
-    mm_wtheta    => get_mass_matrix_fe( Wtheta, mesh%get_id())
+    mm_wtheta    => get_mass_matrix_fe(config, mesh, Wtheta)
     chi          => get_coordinates(mesh)
     panel_id     => get_panel_id(mesh)
-    mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    mm_w3_inv    => get_inverse_mass_matrix_fe(config, mesh, W3)
 
     ! Using modified velocity mass matrix if needing damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
+      mm_vel => get_w2_mass_matrix(config, mesh, w2_damping_layer_matrix, model_clock)
     else
-      mm_vel => get_mass_matrix_fe(w2, mesh%get_id())
+      mm_vel => get_mass_matrix_fe(config, mesh, W2)
     end if
 
     u     => state(igh_u)
@@ -367,7 +381,7 @@ contains
                     function_space_collection%get_fs(mesh, element_order_h, &
                                                      element_order_v,       &
                                                      vorticity_fs) )
-        call compute_vorticity_alg(vorticity, u, .false.)
+        call compute_vorticity_alg(config, vorticity, u, .false.)
         if ( vorticity_in_w1 ) then
           call invoke( vorticity_advection_kernel_type(rhs_tmp, u, vorticity, &
                                                        chi, panel_id, qr_exact) )
@@ -384,7 +398,7 @@ contains
     end if
 
     if ( rotating ) then
-      coriolis => get_coriolis(mesh_id)
+      coriolis => get_coriolis(mesh%get_id())
       call invoke( matrix_vector_kernel_type( rhs_tmp, u, coriolis ) )
     end if
 

@@ -279,14 +279,14 @@ contains
 
         if ( LPROF ) call start_timing( id_iter, 'transport.iterative_min_val' )
 
-        div => get_directional_im3_div_r_tran(mesh%get_id(), direction_3d)
+        div => get_directional_im3_div_r_tran(config, mesh, direction_3d)
         ! TODO #3706: the flux limiter should use r_tran precision
         if (k_h == 0 .and. k_v == 0) then
           ! Use the FV divergence operator
-          div_r_def => get_im3_div_fv(mesh%get_id())
+          div_r_def => get_im3_div_fv(config, mesh)
         else
           ! Use the FE divergence operator
-          div_r_def => get_im3_div_fe(mesh%get_id())
+          div_r_def => get_im3_div_fe(config, mesh)
         end if
 
         min_value = transport_metadata%get_min_value()
@@ -320,7 +320,7 @@ contains
 
       else if (operators == operators_fem) then
         ! Finite element transport, so need full divergence operator
-        div => get_directional_im3_div_r_tran(mesh%get_id(), direction_3d)
+        div => get_directional_im3_div_r_tran(config, mesh, direction_3d)
         call invoke( dg_matrix_vector_kernel_type(increment, sum_flux, div), &
                      X_minus_Y(field_np1, field_start, increment) )
 
@@ -650,11 +650,13 @@ contains
         select case( mr_function_space )
         case ( W3 )
           ! TODO #3706: the flux limiter should use r_tran precision
-          div_r_def => get_im3_div_fv(prime_extrusion_mesh%get_id())
-          div => get_directional_im3_div_r_tran(prime_extrusion_mesh_id, direction_3d)
+          div_r_def => get_im3_div_fv(config, prime_extrusion_mesh)
+          div => get_directional_im3_div_r_tran(config, prime_extrusion_mesh, &
+                                                direction_3d)
         case ( Wtheta )
-          div_r_def => get_im3_div_fv(shifted_mesh%get_id())
-          div => get_directional_im3_div_r_tran(shifted_mesh%get_id(), direction_3d)
+          div_r_def => get_im3_div_fv(config, shifted_mesh)
+          div => get_directional_im3_div_r_tran(config, shifted_mesh, &
+                                                direction_3d)
         end select
 
         min_value = transport_metadata%get_min_value()

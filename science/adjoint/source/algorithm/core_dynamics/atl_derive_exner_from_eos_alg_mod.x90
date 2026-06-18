@@ -23,6 +23,10 @@ module atl_derive_exner_from_eos_alg_mod
   use atl_sample_eos_pressure_kernel_mod, &
                                         only: atl_sample_eos_pressure_kernel_type
 
+  ! Object types
+  use config_mod, only: config_type
+  use mesh_mod,   only: mesh_type
+
   implicit none
 
   private
@@ -39,7 +43,7 @@ contains
   !> @param[inout] ls_state             Lin state for Prognostic model state
   !> @param[in]    ls_moist_dyn_gas_law Lin state for Gas law component of
   !>                                    moist dynamics factors
-  subroutine atl_derive_exner_from_eos( state,             &
+  subroutine atl_derive_exner_from_eos( config, state,             &
                                         moist_dyn_gas_law, &
                                         ls_state,          &
                                         ls_moist_dyn_gas_law )
@@ -53,6 +57,8 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     type( field_type ), dimension(bundle_size), intent( inout ) :: state
     type( field_type ),                         intent( inout ) :: moist_dyn_gas_law
     type( field_type ), dimension(bundle_size), intent( in )    :: ls_state
@@ -63,16 +69,19 @@ contains
     type( operator_type ),        pointer :: m3_inv
     type( quadrature_xyoz_type ), pointer :: qr
 
+    type(mesh_type), pointer :: mesh
+
     integer( kind=i_def ) :: mesh_id
     integer( kind=i_def ) :: element_order_h, element_order_v
 
-    mesh_id = state(igh_p)%get_mesh_id()
+    mesh_id =  state(igh_p)%get_mesh_id()
+    mesh    => state(igh_p)%get_mesh()
     element_order_h = state(igh_p)%get_element_order_h()
     element_order_v = state(igh_p)%get_element_order_v()
 
     chi      => get_coordinates(state(igh_p)%get_mesh())
     panel_id => get_panel_id(state(igh_p)%get_mesh())
-    m3_inv  => get_inverse_mass_matrix_fe(W3, mesh_id)
+    m3_inv  => get_inverse_mass_matrix_fe(config, mesh, W3)
     qr => get_qr_fe()
 
     select case(eos_method)

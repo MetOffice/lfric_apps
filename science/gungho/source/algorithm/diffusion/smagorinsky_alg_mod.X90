@@ -279,18 +279,15 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     ! Perform Smagorinsky diffusion on tracers and momentum
     ! ======================================================================== !
     ! Potential temperature:
-    call smagorinsky_tracer_alg(                                               &
-        dtheta, theta, visc_h_ptr, rho_in_w2h, rho_in_wth, dt                  &
-    )
+    call smagorinsky_tracer_alg( config, dtheta, theta, visc_h_ptr, &
+                                 rho_in_w2h, rho_in_wth, dt )
 
     if (use_moisture) then
       ! Water vapour and cloud liquid:
-      call smagorinsky_tracer_alg(                                             &
-          dmr_v, mr(imr_v), visc_h_ptr, rho_in_w2h, rho_in_wth, dt             &
-      )
-      call smagorinsky_tracer_alg(                                             &
-          dmr_cl, mr(imr_cl), visc_h_ptr, rho_in_w2h, rho_in_wth, dt           &
-      )
+      call smagorinsky_tracer_alg( config, dmr_v, mr(imr_v), visc_h_ptr, &
+                                   rho_in_w2h, rho_in_wth, dt )
+      call smagorinsky_tracer_alg( config, dmr_cl, mr(imr_cl), visc_h_ptr, &
+                                   rho_in_w2h, rho_in_wth, dt )
     end if
 
     ! Momentum:
@@ -406,11 +403,12 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
   !> @param[in]     rho_in_wth  The density field at Wtheta points. Unused if
   !!                            not using conservative diffusion.
   !> @param[in]     dt          Timestep length
-  subroutine smagorinsky_tracer_alg(                                           &
-      increment, tracer, visc_h, rho_in_w2h, rho_in_wth, dt                    &
-  )
+  subroutine smagorinsky_tracer_alg( config, increment, tracer, visc_h, &
+                                     rho_in_w2h, rho_in_wth, dt )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(field_type), intent(inout) :: increment
@@ -446,7 +444,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
       w3_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W3)
       w2h_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2H)
       dA => get_dA_at_w2(shifted_mesh)
-      volume => get_detj_at_w3_fv(shifted_mesh)
+      volume => get_detj_at_w3_fv(config, shifted_mesh)
       rmult => get_rmultiplicity_fv(W2H, shifted_mesh_id)
       dx_at_w2 => get_dx_at_w2(shifted_mesh)
 

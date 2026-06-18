@@ -17,6 +17,9 @@ module derive_exner_from_eos_alg_mod
   use log_mod,                            only: log_event, &
                                                 LOG_LEVEL_ERROR
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -27,7 +30,7 @@ contains
   !> @brief An algorithm for specifying exner from the equation of state
   !> @param[inout] state               Prognostic model state
   !> @param[in]    moist_dyn_gas_law   Gas law component of moist dynamics factors
-  subroutine derive_exner_from_eos( state, moist_dyn_gas_law )
+  subroutine derive_exner_from_eos( config, state, moist_dyn_gas_law )
 
     use operator_mod,                  only: operator_type
     use sci_geometric_constants_mod,   only: get_coordinates, &
@@ -47,6 +50,8 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     type( field_type ), dimension(bundle_size), intent( inout ) :: state
     type( field_type ),                         intent( in )    :: moist_dyn_gas_law
 
@@ -62,7 +67,7 @@ contains
 
     mesh => state(igh_p)%get_mesh()
 
-    m3_inv   => get_inverse_mass_matrix_fe( W3, mesh%get_id() )
+    m3_inv   => get_inverse_mass_matrix_fe(config, mesh, W3)
     chi      => get_coordinates( mesh )
     panel_id => get_panel_id( mesh )
     qr       => get_qr_fe()

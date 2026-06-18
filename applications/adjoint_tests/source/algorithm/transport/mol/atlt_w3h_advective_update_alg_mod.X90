@@ -8,7 +8,6 @@ module atlt_w3h_advective_update_alg_mod
 
   use field_mod, only : field_type
   use function_space_mod,            only : function_space_type
-  use mesh_mod,                      only : mesh_type
   use function_space_collection_mod, only : function_space_collection
   use finite_element_config_mod,     only : element_order_h, element_order_v
   use fs_continuity_mod,             only : W2, W3
@@ -21,6 +20,10 @@ module atlt_w3h_advective_update_alg_mod
                                             log_scratch_space
   use sci_fem_constants_mod,         only : get_inverse_mass_matrix_fe
 
+  ! Objects types
+  use config_mod, only: config_type
+  use mesh_mod,   only: mesh_type
+
   implicit none
 
   public :: atlt_w3h_advective_update_alg
@@ -32,7 +35,7 @@ module atlt_w3h_advective_update_alg_mod
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
   !> @param[in]  mesh         The model mesh
-  subroutine atlt_w3h_advective_update_alg( mesh )
+  subroutine atlt_w3h_advective_update_alg( config, mesh )
 
     use tl_w3h_advective_update_kernel_mod,  only : tl_w3h_advective_update_kernel_type
     use atl_w3h_advective_update_kernel_mod, only : atl_w3h_advective_update_kernel_type
@@ -40,7 +43,8 @@ module atlt_w3h_advective_update_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
 
     ! Internal arguments for kernels
     type(field_type)             :: advective_increment
@@ -95,7 +99,7 @@ module atlt_w3h_advective_update_alg_mod
     call wind%initialise( vector_space=vector_space_w2_ptr, name='wind' )
     call advective_increment_input%initialise( vector_space=vector_space_w3_ptr, name='advective_increment_input' )
     call wind_input%initialise( vector_space=vector_space_w2_ptr, name='wind_input' )
-    m3_inv => get_inverse_mass_matrix_fe( W3, mesh%get_id() )
+    m3_inv => get_inverse_mass_matrix_fe( config, mesh, W3 )
 
     advective_increment_inner_prod = 0.0_r_def
     wind_inner_prod = 0.0_r_def

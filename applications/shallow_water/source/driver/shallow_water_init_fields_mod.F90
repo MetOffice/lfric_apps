@@ -64,8 +64,8 @@ contains
     prognostic_fields => modeldb%fields%get_field_collection("prognostics")
 
     ! Create prognostics
-    call create_shallow_water_prognostics( mesh,                         &
-                                           depository,                   &
+    call create_shallow_water_prognostics(  mesh, &
+                                           depository,           &
                                            prognostic_fields )
 
   end subroutine create_model_data
@@ -99,7 +99,7 @@ contains
       call read_checkpoint(depository, &
                        modeldb%clock%get_first_step() - 1, checkpoint_stem_name)
     else                                      ! No check point to start from
-      call swe_init_fields_alg(mesh,                &
+      call swe_init_fields_alg(modeldb%config, mesh,                &
                                s_geopot,            &
                                prognostic_fields)
     end if

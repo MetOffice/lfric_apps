@@ -33,6 +33,7 @@ module tl_end_of_transport_step_alg_mod
                                             direction_v
   use transport_metadata_mod,         only: transport_metadata_type
 
+use config_mod, only: config_type
   implicit none
 
   private
@@ -109,7 +110,7 @@ contains
   !!                                      transport step
   !> @param[in]     transport_metadata    Contains the configuration options for
   !!                                      transporting the field
-  subroutine tl_end_of_conservative_step_alg(field_np1, field_in,              &
+  subroutine tl_end_of_conservative_step_alg(config, field_np1, field_in,      &
                                              flux_ls_wind, flux_pert_wind,     &
                                              flux_precomp_ls_wind,             &
                                              flux_precomp_pert_wind,           &
@@ -119,6 +120,8 @@ contains
     use transport_config_mod, only: cheap_update, dry_field_name
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(r_tran_field_type),         intent(inout) :: field_np1
@@ -165,7 +168,7 @@ contains
     if ( final_split_step ) then
 
       field_start => transport_counter%get_field_n()
-      div => get_directional_im3_div_r_tran(mesh_id, direction_3d)
+      div => get_directional_im3_div_r_tran(config, mesh, direction_3d)
       w2_fs => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
       call increment%initialise(field_np1%get_function_space())
       call sum_flux%initialise(w2_fs)

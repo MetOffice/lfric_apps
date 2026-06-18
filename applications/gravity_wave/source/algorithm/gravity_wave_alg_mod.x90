@@ -67,6 +67,7 @@ module gravity_wave_alg_mod
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
 
+use config_mod, only: config_type
   implicit none
 
   private
@@ -108,7 +109,7 @@ contains
   !> @param[in] wind     The 3D wind field
   !> @param[in] pressure The pressure field
   !> @param[in] buoyancy The buoyancy field
-  subroutine gravity_wave_alg_init( mesh, wind, pressure, buoyancy)
+  subroutine gravity_wave_alg_init( config, mesh, wind, pressure, buoyancy)
 
     use quadrature_xyoz_mod,           only: quadrature_xyoz_type
     use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
@@ -160,7 +161,8 @@ contains
     implicit none
 
     ! Mesh
-    type(mesh_type), intent(in), pointer :: mesh
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: wind, pressure, buoyancy
@@ -216,7 +218,7 @@ contains
     call invoke( compute_q_operator_type(Q, qr) )
 
     ! *** Construct Helmholtz operator
-    gw_pressure_operator = gw_pressure_operator_type(level=1_i_def)
+    gw_pressure_operator = gw_pressure_operator_type(config, level=1_i_def)
 
     ! *** Allocate polymorphic solver- and preconditioner objects ***
 
@@ -247,11 +249,11 @@ contains
                   source = pressure_diag_preconditioner_type() )
     else if (helmholtz_preconditioner == PRECONDITIONER_TRIDIAGONAL) then
        allocate (gw_pressure_preconditioner, &
-                 source = gw_pressure_preconditioner_type(level=1_i_def))
+                 source = gw_pressure_preconditioner_type(config, level=1_i_def))
     else if (helmholtz_preconditioner == PRECONDITIONER_MULTIGRID) then
-       gw_Hz_preconditioner = gw_pressure_preconditioner_type(level=1_i_def)
+       gw_Hz_preconditioner = gw_pressure_preconditioner_type(config, level=1_i_def)
        allocate ( gw_pressure_preconditioner, &
-                  source = multigrid_preconditioner_type(p_fs,                 &
+                  source = multigrid_preconditioner_type(config, p_fs,         &
                                                          gw_pressure_operator, &
                                                          gw_Hz_preconditioner) )
     else
@@ -373,14 +375,14 @@ contains
     type is ( gw_mixed_schur_preconditioner_type )
        ! Schur-complement preconditioner
        gw_mixed_preconditioner = &
-           gw_mixed_schur_preconditioner_type(state%vector(igw_u)%get_function_space(), &
+           gw_mixed_schur_preconditioner_type(config, state%vector(igw_u)%get_function_space(), &
                                               state%vector(igw_p)%get_function_space(), &
                                               state%vector(igw_b)%get_function_space(), &
                                               gw_pressure_operator%get_Hb_lumped_inv(), &
                                               gw_pressure_solver)
     type is ( gw_mixed_diag_preconditioner_type )
        ! Diagonal preconditioner
-       gw_mixed_preconditioner = gw_mixed_diag_preconditioner_type(mesh)
+       gw_mixed_preconditioner = gw_mixed_diag_preconditioner_type(config, mesh)
     type is ( null_preconditioner_type )
        ! Null preconditioner
        gw_mixed_preconditioner = null_preconditioner_type()
@@ -531,7 +533,7 @@ contains
     !=== Do a single timestep ==============================================!
     mesh => wind%get_mesh()
     div => get_div(mesh%get_id())
-    m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    m3_inv => get_inverse_mass_matrix_fe(modeldb%config, mesh, W3)
 
     if ( limited_area ) then
 
@@ -604,7 +606,7 @@ contains
                  real_to_real_x( rhs_n%vector(igw_p), rdef_rhs_n%vector(igw_p)), &
                  real_to_real_x( rhs_n%vector(igw_b), rdef_rhs_n%vector(igw_b)) )
     call state_inc%set_scalar(0.0_r_def)
-    call gw_mixed_solver%apply(state_inc, rhs_n)
+    call gw_mixed_solver%apply(modeldb%config, state_inc, rhs_n)
     call invoke( real_to_real_x( rdef_state_inc%vector(igw_u), state_inc%vector(igw_u)), &
                  real_to_real_x( rdef_state_inc%vector(igw_p), state_inc%vector(igw_p)), &
                  real_to_real_x( rdef_state_inc%vector(igw_b), state_inc%vector(igw_b)) )

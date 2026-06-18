@@ -22,7 +22,7 @@ module gw_pressure_operator_alg_mod
                                only: abstract_hierarchical_linear_operator_type
   use vector_mod,                         only: abstract_vector_type
   use r_solver_field_mod,                 only: r_solver_field_type
-  use constants_mod,                      only: i_def, r_solver, l_def
+  use constants_mod,                      only: i_def, r_def, r_solver, l_def
   use solver_constants_mod,               only: get_inverse_mass_matrix_r_solver
   use fs_continuity_mod,                  only: W0, W2, W3, Wtheta
   use sci_r_solver_field_vector_mod,      only: r_solver_field_vector_type
@@ -46,6 +46,10 @@ module gw_pressure_operator_alg_mod
                                                 b_space_wtheta
   use multigrid_mod,                      only: multigrid_function_space_chain
 
+  use config_mod, only: config_type
+
+  use base_mesh_config_mod, only: geometry_planar,geometry_spherical,&
+                                  topology_fully_periodic, topology_non_periodic
   implicit none
 
   type, public, extends(abstract_hierarchical_linear_operator_type) :: &
@@ -98,7 +102,8 @@ contains
   !>
   !> @param[in] level Multigrid level
   !> @return Instance of the Helmholtz operator
-  function gw_pressure_operator_constructor(level) result(self)
+  function gw_pressure_operator_constructor(config, level) result(self)
+
     use field_mod,                          only: field_type
     use sci_geometric_constants_mod,        only: get_coordinates, get_panel_id
     use function_space_mod,                 only: function_space_type
@@ -126,6 +131,9 @@ contains
     implicit none
 
     type(gw_pressure_operator_type)     :: self
+
+    type(config_type), intent(in) :: config
+
     integer(kind=i_def), intent(in)     :: level
     type(function_space_type), pointer  :: wu => null(), &
                                            wb => null(), &
@@ -145,6 +153,9 @@ contains
     logical(kind=l_def)                 :: extend_mesh
     type(operator_type)                 :: div_r_def
 
+    integer(i_def) :: order_h, order_v
+    integer(i_def) :: geometry, topology, coord_system
+    real(r_def)    :: scaled_radius
 
     call log_event( 'Constructing pressure operator...', LOG_LEVEL_INFO )
 
@@ -160,20 +171,37 @@ contains
       mesh => mesh_collection%get_mesh( chain_mesh_tags(level) )
     end if
 
-    wp => function_space_collection%get_fs( mesh, element_order_h, &
-                                            element_order_v, W3 )
-    wu => function_space_collection%get_fs( mesh, element_order_h, &
-                                            element_order_v, W2 )
+    if (mesh%is_geometry_spherical()) then
+      geometry= geometry_spherical
+    else
+      geometry= geometry_planar
+    end if
+
+    if (mesh%is_topology_periodic()) then
+      topology = topology_fully_periodic
+    else if (mesh%is_topology_non_periodic()) then
+      topology = topology_non_periodic
+    else
+      call log_event('get_detj_at_w3_fe: Unsupported topology selection',log_level_error)
+    end if
+
+    order_h       = config%finite_element%element_order_h()
+    order_v       = config%finite_element%element_order_v()
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
+    wp => function_space_collection%get_fs( mesh, order_h, order_v, W3 )
+    wu => function_space_collection%get_fs( mesh, order_h, order_v, W2 )
+
     select case(b_space)
       case(b_space_w0)
-         wb => function_space_collection%get_fs( mesh, element_order_h, &
-                                                 element_order_v, W0 )
+      wb => function_space_collection%get_fs( mesh, order_h, order_v, W0 )
+
       case(b_space_w3)
-         wb => function_space_collection%get_fs( mesh, element_order_h, &
-                                                 element_order_v, W3 )
+      wb => function_space_collection%get_fs( mesh, order_h, order_v, W3 )
+
       case(b_space_wtheta)
-         wb => function_space_collection%get_fs( mesh, element_order_h, &
-                                                 element_order_v, Wtheta )
+      wb => function_space_collection%get_fs( mesh, order_h, order_v, Wtheta )
     end select
 
     ! Temporaries required in operator application
@@ -181,17 +209,20 @@ contains
     call self%div_grad_p%initialise( vector_space = wp )
 
     ! Compute inverse approximate \tilde{M}_b^{-1}
-    qr = quadrature_xyoz_type(element_order_h+2, element_order_h+2, &
-                              element_order_v+2, quadrature_rule)
+    qr = quadrature_xyoz_type(order_h+2, order_h+2, &
+                              order_v+2, quadrature_rule)
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
     extend_mesh = .false.
+
     call ones%initialise( vector_space = wb )
     call M_lumped%initialise( vector_space = wb )
     call Mb_lumped_inv%initialise( vector_space = wb )
     call Mb%initialise( wb, wb )
     call invoke( compute_mass_matrix_kernel_w_scalar_type(Mb, chi, panel_id, &
-                                                          extend_mesh, qr),  &
+                                                          extend_mesh,&
+geometry, topology, coord_system, scaled_radius, &
+ qr),  &
                  setval_c( ones,     1.0_r_solver ),                         &
                  setval_c( M_lumped, 0.0_r_solver ),                         &
                  matrix_vector_kernel_type(M_lumped, ones, Mb),              &
@@ -209,17 +240,20 @@ contains
     call Mm%initialise( wu , wu )
     call Mu%initialise( wu , wu )
     const1 = self%alpha**2*real(dt**2*bvf_square, r_solver)
-    call invoke( compute_mass_matrix_kernel_w2_type(Mm, chi, panel_id, qr), &
-                 operator_setval_x_kernel_type( Mu, Mm ),                   &
-                 setval_c(ones_u,     1.0_r_solver),                        &
-                 setval_c(M_lumped_u, 0.0_r_solver),                        &
-                 setval_c(QT1,        0.0_r_solver),                        &
-                 transpose_matrix_vector_kernel_type(QT1, ones_u, Q),       &
-                 inc_X_times_Y(QT1, Mb_lumped_inv),                         &
-                 matrix_vector_kernel_type(M_lumped_u, QT1, Q),             &
-                 inc_a_times_X(const1, M_lumped_u),                         &
-                 matrix_vector_kernel_type(M_lumped_u, ones_u, Mu),         &
-                 X_divideby_Y(self%Hb_lumped_inv, ones_u, M_lumped_u) )
+    call invoke( &
+        compute_mass_matrix_kernel_w2_type( Mm, chi, panel_id, geometry, &
+                                            topology, coord_system,      &
+                                            scaled_radius, qr ),         &
+        operator_setval_x_kernel_type( Mu, Mm ),                         &
+        setval_c(ones_u,     1.0_r_solver),                              &
+        setval_c(M_lumped_u, 0.0_r_solver),                              &
+        setval_c(QT1,        0.0_r_solver),                              &
+        transpose_matrix_vector_kernel_type(QT1, ones_u, Q),             &
+        inc_X_times_Y(QT1, Mb_lumped_inv),                               &
+        matrix_vector_kernel_type(M_lumped_u, QT1, Q),                   &
+        inc_a_times_X(const1, M_lumped_u),                               &
+        matrix_vector_kernel_type(M_lumped_u, ones_u, Mu),               &
+        X_divideby_Y(self%Hb_lumped_inv, ones_u, M_lumped_u) )
 
     ! Compute div
     call self%div%initialise( wp, wu )
@@ -282,13 +316,16 @@ contains
   !> @param[in,out] self Instance of gw_pressure_operator_type
   !> @param[in] x Field \f$x\f$ to apply operator to
   !> @param[in,out] y Resulting field \f$y=Hx\f$ in pressure space
-  subroutine apply_gw_pressure_operator(self, x, y)
+  subroutine apply_gw_pressure_operator(self, config, x, y)
+
     use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
     use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
     use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
 
     implicit none
     class(gw_pressure_operator_type), intent(inout) :: self
+
+    type(config_type),      intent(in)    :: config
     class(abstract_vector_type),      intent(in)    :: x
     class(abstract_vector_type),      intent(inout) :: y
     real(kind=r_solver) :: const
@@ -313,7 +350,7 @@ contains
         y_vec => y%get_field_from_position(1)
 
         mesh    => x%vector(1)%get_mesh()
-        M3_inv => get_inverse_mass_matrix_r_solver(W3, mesh%get_id())
+        M3_inv => get_inverse_mass_matrix_r_solver(config, mesh, W3)
         const = self%alpha**2*real(dt**2*cs_square, r_solver)
         call invoke( setval_c(self%grad_p, 0.0_r_solver),             &
                      transpose_matrix_vector_kernel_type(self%grad_p, &
@@ -358,13 +395,14 @@ contains
   !> @param[in] self Instance of gw_pressure_operator_type
   !> @param[in,out] coarse_operator Coarsened version of the operator on
   !!                                the next multigrid level
-  subroutine coarsen_gw_pressure_operator(self,coarse_operator)
+  subroutine coarsen_gw_pressure_operator(self,config,coarse_operator)
     use function_space_mod, only: function_space_type
     implicit none
     class(gw_pressure_operator_type), intent(in) :: self
+type(config_type), intent(in) :: config
     class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
     allocate(coarse_operator, &
-             source=gw_pressure_operator_type(self%level+1))
+             source=gw_pressure_operator_type(config, self%level+1))
   end subroutine coarsen_gw_pressure_operator
 
   !> @brief Finalizer for the Helmholtz operator.

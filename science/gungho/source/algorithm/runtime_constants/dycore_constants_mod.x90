@@ -34,6 +34,8 @@ module dycore_constants_mod
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
 
+  ! Object types
+  use config_mod, only: config_type
 
   ! Configuration
   use finite_element_config_mod,          only: element_order_h, &
@@ -260,7 +262,7 @@ contains
   !!            to pass it from all parts of the model (in particular from the
   !!            apply method in the mixed operator)
   !> @return A generalised W2 mass matrix operator for the dynamical core
-  function get_w2_mass_matrix(w2_op_name, mesh_id, model_clock) result(dynamics_mm_w2)
+  function get_w2_mass_matrix(config, mesh, w2_op_name, model_clock) result(dynamics_mm_w2)
 
     use compute_dl_matrix_kernel_mod, only: compute_dl_matrix_kernel_type
     use damping_layer_config_mod,     only: dl_base, dl_str
@@ -277,10 +279,17 @@ contains
 
     implicit none
 
-    integer(kind=i_def),               intent(in) :: w2_op_name
-    integer(kind=i_def),               intent(in) :: mesh_id
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
+    integer(i_def),    intent(in)          :: w2_op_name
+
     class(model_clock_type), optional, intent(in) :: model_clock
-    type(mesh_type),                      pointer :: mesh
+
+
+!!$    integer(kind=i_def),               intent(in) :: w2_op_name
+!!$    integer(kind=i_def),               intent(in) :: mesh_id
+!!$    class(model_clock_type), optional, intent(in) :: model_clock
+!!$    type(mesh_type),                      pointer :: mesh
     logical(kind=l_def)                           :: constant_exists
     type(function_space_type),            pointer :: fs
     type(inventory_by_mesh_type),         pointer :: inventory
@@ -339,8 +348,8 @@ contains
         stop
     end select
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = inventory%paired_object_exists(mesh_id)
+!    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       ! Create the relevant W2 mass matrices
@@ -355,7 +364,7 @@ contains
       ! ====================================================================== !
       ! DAMPING LAYER MATRIX
       ! ====================================================================== !
-      if (mm_w2_dl_inventory%paired_object_exists(mesh_id)) then
+      if (mm_w2_dl_inventory%paired_object_exists(mesh%get_id())) then
         ! Get existing matrix
         call mm_w2_dl_inventory%get_operator(mesh, mm_w2_dl)
       else
@@ -389,7 +398,7 @@ contains
           if ( LPROF ) call stop_timing( id, 'runtime_constants.dycore' )
         else
           ! No damping layer, just copy the W2 mass matrix on this level
-          mm_w2 => get_mass_matrix_fe(W2, mesh_id)
+          mm_w2 => get_mass_matrix_fe(config, mesh, W2)
           call invoke( operator_setval_x_kernel_type(mm_w2_dl, mm_w2) )
         end if
       end if
@@ -399,7 +408,7 @@ contains
       ! ====================================================================== !
       ! @TODO: logic here is probably not optimal
       if (w2_op_name /= w2_damping_layer_matrix) then
-        if (mm_w2_dl_lagged_inventory%paired_object_exists(mesh_id)) then
+        if (mm_w2_dl_lagged_inventory%paired_object_exists(mesh%get_id())) then
           ! Get existing matrix
           call mm_w2_dl_lagged_inventory%get_operator(mesh, mm_w2_dl_lagged)
         else
@@ -444,7 +453,7 @@ contains
         else
           const = 0.0_r_def
         end if
-        coriolis => get_coriolis(mesh_id)
+        coriolis => get_coriolis(mesh%get_id())
 
         ! Compute the si W2 mass matrix: mm_w2_si = mm_w2 + damping_layer +
         ! coriolis

@@ -403,7 +403,7 @@ contains
   if (skeb_numerical_dissipation == skeb_numerical_dissipation_fe) then
 
     ! Call algorithm
-    call skeb_ndisp_alg(u,ndisp)
+    call skeb_ndisp_alg(config, u, ndisp)
 
   else if (skeb_numerical_dissipation == skeb_numerical_dissipation_fd) then
 
@@ -521,7 +521,7 @@ contains
     ! quadrature points
     call invoke( matrix_vector_kernel_type(r_psif_hat, psif_hat, project_w3_to_w1) )
 
-    call mass_matrix_solver_alg(psif_hat_w1, r_psif_hat)
+    call mass_matrix_solver_alg(config, psif_hat_w1, r_psif_hat)
 
     ! Take strong curl of F hat on W1 space, extract horizontal components
     call invoke ( strong_curl_kernel_type(du_rot_w2, psif_hat_w1), &
@@ -561,7 +561,7 @@ contains
                   set_any_dof_kernel_type(r_du_div_w2, T, 0.0_r_def) )
 
     ! Integrate quadrature points
-    call mass_matrix_solver_alg(du_div_w2, r_du_div_w2)
+    call mass_matrix_solver_alg(config, du_div_w2, r_du_div_w2)
 
     ! Scale by -1 in the Northerm hemisphere
     ! This first creates a temporary copy of the field
@@ -631,7 +631,8 @@ contains
       if (.not. dv_rot_skeb_flag) ignore=init_diag(dv_rot_skeb, 'stochastic__dv_rot_skeb', activate=.true.)
       ! dw_rot is zero by default, it does not have a xios diagnostic needed
       call du_rot_skeb%copy_field_properties(dw_rot_skeb)
-      call map_physics_winds(du_rot_skeb, dv_rot_skeb, dw_rot_skeb, du_rot_w2)
+      call map_physics_winds( config, du_rot_skeb, dv_rot_skeb, &
+                              dw_rot_skeb, du_rot_w2 )
       if (du_rot_skeb_flag) call du_rot_skeb%write_field('stochastic__du_rot_skeb')
       if (dv_rot_skeb_flag) call dv_rot_skeb%write_field('stochastic__dv_rot_skeb')
     end if
@@ -644,7 +645,8 @@ contains
       if (.not. dv_div_skeb_flag) ignore=init_diag(dv_div_skeb, 'stochastic__dv_div_skeb', activate=.true.)
       ! dw_div is zero by default, no diagnostic needed
       call du_div_skeb%copy_field_properties(dw_div_skeb)
-      call map_physics_winds(du_div_skeb, dv_div_skeb, dw_div_skeb, du_div_w2)
+      call map_physics_winds( config, du_div_skeb, dv_div_skeb, &
+                              dw_div_skeb, du_div_w2 )
       if (du_div_skeb_flag) call du_div_skeb%write_field('stochastic__du_div_skeb')
       if (dv_div_skeb_flag) call dv_div_skeb%write_field('stochastic__dv_div_skeb')
     end if
@@ -657,7 +659,8 @@ contains
       if (.not. dv_tot_skeb_flag) ignore=init_diag(dv_tot_skeb, 'stochastic__dv_tot_skeb', activate=.true.)
       ! dw_tot is zero by default, no diagnostic needed
       call du_tot_skeb%copy_field_properties(dw_tot_skeb)
-      call map_physics_winds(du_tot_skeb, dv_tot_skeb, dw_tot_skeb, du_skeb)
+      call map_physics_winds( config, du_tot_skeb, dv_tot_skeb, &
+                              dw_tot_skeb, du_skeb )
       if (du_tot_skeb_flag) call du_tot_skeb%write_field('stochastic__du_tot_skeb')
       if (dv_tot_skeb_flag) call dv_tot_skeb%write_field('stochastic__dv_tot_skeb')
     end if
@@ -671,6 +674,7 @@ contains
   ! @param[out] skeb_power_law Power law array
   ! @param[in]  clock          Model clock
   subroutine skeb_init_power_law(skeb_power_law, clock)
+
     use stochastic_physics_config_mod, only: skeb_decorrelation_time, &
                                              skeb_total_backscatter,  &
                                              stph_n_min, stph_n_max

@@ -11,6 +11,7 @@
 module compute_pv_alg_mod
 
   use constants_mod, only: r_def, i_def, l_def
+  use config_mod,    only: config_type
 
   implicit none
 
@@ -24,7 +25,7 @@ contains
   !> @param[in]     u Velocity field
   !> @param[in]     theta Potential temperature field
   !> @param[in]     rho   Density field
-  subroutine compute_pv_alg(pv, u, theta, rho)
+  subroutine compute_pv_alg(config, pv, u, theta, rho)
 
     use field_mod,                      only: field_type
     use operator_mod,                   only: operator_type
@@ -49,6 +50,8 @@ contains
                                               get_panel_id
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),     intent(inout) :: pv
     type(field_type),     intent(in)    :: u
@@ -78,17 +81,17 @@ contains
     panel_id => get_panel_id(mesh)
     if (use_fe) then
       qr => get_qr_fe( )
-      m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+      m3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
       w0_rmultiplicity => get_rmultiplicity_fe(W0, mesh%get_id())
     else
       qr => get_qr_fv( )
-      m3_inv => get_inverse_mass_matrix_fv(W3, mesh%get_id())
+      m3_inv => get_inverse_mass_matrix_fv(config, mesh, W3)
       w0_rmultiplicity => get_rmultiplicity_fv(W0, mesh%get_id())
     end if
 
     call xi%initialise( vector_space = &
     function_space_collection%get_fs(mesh, element_order_h, element_order_v, W1) )
-    call compute_vorticity_alg(xi, u, .false., w1_flag=.true.)
+    call compute_vorticity_alg(config, xi, u, .false., w1_flag=.true.)
 
     call theta_in_w0%initialise(vector_space = &
     function_space_collection%get_fs(mesh, element_order_h, element_order_v, W0) )

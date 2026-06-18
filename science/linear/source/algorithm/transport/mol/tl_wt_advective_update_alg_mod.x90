@@ -173,7 +173,7 @@ contains
       call log_event( "TL: fem not available", LOG_LEVEL_ERROR )
     end select
 
-    mt_lumped_inv => get_inverse_lumped_mass_matrix_fe(Wtheta, mesh%get_id())
+    mt_lumped_inv => get_inverse_lumped_mass_matrix_fe(config, mesh, Wtheta)
 
     ! Scale by lumped inverse mass matrix
     call invoke( X_times_Y(rhs, u_grad_f, mt_lumped_inv) )

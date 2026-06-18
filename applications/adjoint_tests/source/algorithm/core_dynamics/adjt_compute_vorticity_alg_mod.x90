@@ -19,6 +19,8 @@ module adjt_compute_vorticity_alg_mod
   use fs_continuity_mod,                   only : W1, W2
   use function_space_collection_mod,       only : function_space_collection
 
+  use config_mod, only: config_type
+
   implicit none
 
   public
@@ -31,7 +33,7 @@ module adjt_compute_vorticity_alg_mod
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
   !> @param[in]  mesh         The model mesh
-  subroutine adjt_compute_vorticity_alg( mesh )
+  subroutine adjt_compute_vorticity_alg(config, mesh)
 
     use compute_vorticity_alg_mod,           only : compute_vorticity_alg
     use adj_compute_vorticity_alg_mod,       only : adj_compute_vorticity_alg
@@ -39,7 +41,8 @@ module adjt_compute_vorticity_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
 
     ! Arguments for tl and adj calls
     type(field_type)            :: xi
@@ -101,7 +104,7 @@ module adjt_compute_vorticity_alg_mod
                  setval_x( u_input, u ) )
 
     ! Tangent linear
-    call compute_vorticity_alg( xi, u, weak_form_u )
+    call compute_vorticity_alg(config, xi, u, weak_form_u)
 
     ! < Mx, Mx >
     call invoke( x_innerproduct_x( xi_inner_prod, xi ), &
@@ -130,7 +133,7 @@ module adjt_compute_vorticity_alg_mod
     u_u_input_inner_prod = 0.0_r_def
 
     ! Adjoint
-    call adj_compute_vorticity_alg( xi, u, weak_form_u )
+    call adj_compute_vorticity_alg(config, xi, u, weak_form_u)
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( xi_xi_input_inner_prod,         &

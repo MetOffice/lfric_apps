@@ -69,7 +69,7 @@ module adj_flux_precomputations_mod
     type(r_tran_field_type),                          pointer :: detj_w3
     type(r_tran_field_type)                                   :: tmp_field
 
-    type(config_type) :: config
+    type(config_type), pointer :: config
 
     if (use_shifted_mesh()) then
       call log_event("adj_flux_pc_init: shifted mesh computations not yet implemented.", LOG_LEVEL_ERROR)
@@ -89,7 +89,7 @@ module adj_flux_precomputations_mod
 
       mesh_id = flux_pc%get_mesh_id_from_idx( 1_i_def )
 
-      config = flux_pc%get_config()
+      config => flux_pc%get_config()
       mesh => mesh_collection%get_mesh(mesh_id)
 
       fpc_ref_field => flux_pc%get_ref_field( mesh_id, 1_i_def )

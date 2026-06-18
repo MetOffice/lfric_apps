@@ -128,7 +128,7 @@ contains
       space_dim = 1_i_def
       qr => get_qr_fv()
       call projected_field(1)%initialise( vector_space = target_field%get_function_space() )
-      call galerkin_projection_algorithm( projected_field, source_field, &
+      call galerkin_projection_algorithm( config, projected_field, source_field, &
                                           chi, panel_id, qr )
       call invoke( setval_X(target_field, projected_field(1)) )
     end if
@@ -143,9 +143,12 @@ contains
   !> @param[inout] u2_field Component of wind in the target space
   !> @param[inout] u3_field Component of wind in the target space
   !> @param[in]    source_field Wind field in the source (native) space
-  subroutine map_physics_winds(u1_field, u2_field, u3_field, source_field)
+  subroutine map_physics_winds(config, &
+                               u1_field, u2_field, u3_field, source_field)
 
     implicit none
+
+    type( config_type ), intent(in) :: config
 
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u1_field, u2_field, u3_field
@@ -209,7 +212,7 @@ contains
       call projected_field(1)%initialise( vector_space = u1_field%get_function_space() )
       call projected_field(2)%initialise( vector_space = u2_field%get_function_space() )
       call projected_field(3)%initialise( vector_space = u3_field%get_function_space() )
-      call galerkin_projection_algorithm( projected_field, source_field, &
+      call galerkin_projection_algorithm( config, projected_field, source_field, &
                                           chi, panel_id, qr )
       call invoke( name = "copy_wind_fields2",             &
                    setval_X(u1_field, projected_field(1)), &

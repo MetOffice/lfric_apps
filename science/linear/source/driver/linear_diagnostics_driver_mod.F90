@@ -74,16 +74,20 @@ contains
     call ls_fields%get_field('ls_exner', ls_exner)
 
     ! Scalar fields
-    call write_scalar_diagnostic('ls_rho', ls_rho, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('ls_theta', ls_theta, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('ls_exner', ls_exner, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_scalar_diagnostic(modeldb%config, mesh, &
+                                 'ls_rho', ls_rho,     &
+                                 modeldb%clock, nodal_output_on_w3)
+    call write_scalar_diagnostic(modeldb%config, mesh, &
+                                 'ls_theta', ls_theta, &
+                                 modeldb%clock, nodal_output_on_w3)
+    call write_scalar_diagnostic(modeldb%config, mesh, &
+                                 'ls_exner', ls_exner, &
+                                 modeldb%clock, nodal_output_on_w3)
 
     ! Vector fields
-    call write_vector_diagnostic('ls_u', ls_u, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_vector_diagnostic(modeldb%config, mesh, &
+                                 'ls_u', ls_u,         &
+                                 modeldb%clock, nodal_output_on_w3)
 
 
     ! Fluxes - horizontal and vertical (if reading linearisation
@@ -92,18 +96,21 @@ contains
       if (ls_read_w2h) then
         call ls_fields%get_field('ls_v_u', ls_v_u)
         call ls_fields%get_field('ls_h_u', ls_h_u)
-        call write_scalar_diagnostic('readls_v_u', ls_v_u, &
-                                     modeldb%clock, mesh, nodal_output_on_w3)
-        call write_vector_diagnostic('readls_h_u', ls_h_u, &
-                                     modeldb%clock, mesh, nodal_output_on_w3)
+        call write_scalar_diagnostic(modeldb%config, mesh, &
+                                     'readls_v_u', ls_v_u, &
+                                     modeldb%clock, nodal_output_on_w3)
+        call write_vector_diagnostic(modeldb%config, mesh, &
+                                     'readls_h_u', ls_h_u, &
+                                     modeldb%clock, nodal_output_on_w3)
       end if
     end if
 
     ! Moisture fields
     if (moisture_formulation /= moisture_formulation_dry) then
       do i=1,nummr
-        call write_scalar_diagnostic( 'ls_'//trim(mr_names(i)), ls_mr(i), &
-                                      modeldb%clock, mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( modeldb%config, mesh,               &
+                                      'ls_'//trim(mr_names(i)), ls_mr(i), &
+                                      modeldb%clock, nodal_output_on_w3 )
       end do
     end if
 

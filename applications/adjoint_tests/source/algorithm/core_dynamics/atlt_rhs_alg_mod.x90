@@ -29,7 +29,7 @@ module atlt_rhs_alg_mod
   use adjoint_test_parameters_mod,         only : ls_u_range, ls_theta_range,   &
                                                   ls_rho_range, ls_exner_range, &
                                                   ls_md1_range, ls_md2_range, ls_md3_range
-
+use config_mod, only: config_type
   implicit none
 
   public
@@ -43,14 +43,15 @@ module atlt_rhs_alg_mod
   !>          where M is the tangent linear and A is the adjoint.
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine atlt_rhs_alg( mesh, model_clock )
+  subroutine atlt_rhs_alg( config, mesh, model_clock )
 
-    use tl_rhs_alg_mod,                      only : tl_rhs_alg
-    use atl_rhs_alg_mod,                     only : atl_rhs_alg
+    use tl_rhs_alg_mod,  only: tl_rhs_alg
+    use atl_rhs_alg_mod, only: atl_rhs_alg
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
 
@@ -206,7 +207,7 @@ module atlt_rhs_alg_mod
 
 
     ! Tangent linear
-    call tl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
+    call tl_rhs_alg( config, rhs, alpha_dt, base_state, state, moist_dyn,        &
                      ls_state, ls_moist_dyn, compute_eos,                &
                      dlayer_rhs, model_clock )
 
@@ -310,7 +311,7 @@ module atlt_rhs_alg_mod
     rhs_rhs_input_inner_prod(:) = 0.0_r_def
 
     ! Adjoint
-    call atl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
+    call atl_rhs_alg( config, rhs, alpha_dt, base_state, state, moist_dyn,        &
                       ls_state, ls_moist_dyn, compute_eos,                &
                       dlayer_rhs, model_clock )
 

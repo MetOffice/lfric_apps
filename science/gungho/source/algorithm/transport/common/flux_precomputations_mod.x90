@@ -452,7 +452,7 @@ contains
       ! Set first reference field for this object ------------------------------
       if (mesh%get_id() /= self%mesh_ids(1)) then
         ! Restrict field to the mesh for this precomputation object
-        weights_w3 => get_intermesh_weights_w3_rtran(mesh, prime_mesh)
+        weights_w3 => get_intermesh_weights_w3_rtran(config, mesh, prime_mesh)
         call invoke( name='restrict_ref_field',                                &
                      restrict_scalar_weighted_kernel_type(self%ref_field(1,1), &
                                                           ref_field,           &

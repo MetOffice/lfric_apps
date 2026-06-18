@@ -44,6 +44,9 @@ module diagnostics_calc_mod
   use sci_geometric_constants_mod,   only: get_coordinates,      &
                                            get_panel_id
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
   private
   public :: write_divergence_diagnostic, &
@@ -63,12 +66,16 @@ contains
 !!> @param[in] mesh        Mesh
 !-------------------------------------------------------------------------------
 
-subroutine write_divergence_diagnostic(u_field, clock, mesh)
+subroutine write_divergence_diagnostic(config, mesh, u_field, clock)
+
   implicit none
+
+  type(config_type), intent(in)          :: config
+  type(mesh_type),   intent(in), pointer :: mesh
 
   type(field_type),        intent(in)    :: u_field
   class(model_clock_type), intent(in)    :: clock
-  type(mesh_type),         intent(in), pointer :: mesh
+
 
   type(field_type)                :: div_field
   real(r_def)                     :: l2_norm
@@ -80,7 +87,8 @@ subroutine write_divergence_diagnostic(u_field, clock, mesh)
       diagnostic_to_be_sampled('init_divergence') ) then
 
     ! Create the divergence diagnostic
-    call divergence_diagnostic_alg( div_field, l2_norm, u_field, mesh )
+    call divergence_diagnostic_alg( config, mesh, div_field, &
+                                    l2_norm, u_field )
 
     write( log_scratch_space, '(A,E16.8)' )  &
          'L2 of divergence =',l2_norm
@@ -92,8 +100,8 @@ subroutine write_divergence_diagnostic(u_field, clock, mesh)
       call div_field%set_write_behaviour(tmp_write_ptr)
     end if
 
-    call write_scalar_diagnostic( 'divergence', div_field, &
-                                  clock, mesh, .false. )
+    call write_scalar_diagnostic( config, mesh, 'divergence', &
+                                  div_field, clock, .false. )
 
     nullify(tmp_write_ptr)
 
@@ -111,23 +119,27 @@ end subroutine write_divergence_diagnostic
 !!> @param[in] mesh          Mesh
 !-------------------------------------------------------------------------------
 
-subroutine write_hydbal_diagnostic( theta_field, moist_dyn_field, exner_field,  &
-                                    mesh )
+subroutine write_hydbal_diagnostic( config, mesh, theta_field, moist_dyn_field, &
+                                    exner_field )
 
   use logging_config_mod, only: run_log_level, run_log_level_debug
 
   implicit none
 
+  type(config_type), intent(in)          :: config
+  type(mesh_type),   intent(in), pointer :: mesh
+
   type(field_type), intent(in)    :: theta_field
   type(field_type), intent(in)    :: moist_dyn_field(num_moist_factors)
   type(field_type), intent(in)    :: exner_field
-  type(mesh_type),  intent(in), pointer :: mesh
+
 
   real(r_def)                     :: l2_norm = 0.0_r_def
 
   if (run_log_level == run_log_level_debug) then
-    call hydbal_diagnostic_alg(l2_norm, theta_field, moist_dyn_field,          &
-                               exner_field, mesh)
+    call hydbal_diagnostic_alg(config, mesh, l2_norm,        &
+                               theta_field, moist_dyn_field, &
+                               exner_field)
 
     write( log_scratch_space, '(A,E16.8)' )  &
         'L2 of hydrostatic imbalance =', l2_norm
@@ -147,12 +159,13 @@ end subroutine write_hydbal_diagnostic
 !> @param[in] clock     Model clock object
 !-------------------------------------------------------------------------------
 
-subroutine write_vorticity_diagnostic(u_field, exner, clock)
+subroutine write_vorticity_diagnostic(config, u_field, exner, clock)
 #ifdef UM_PHYSICS
   use pres_lev_diags_alg_mod, only: pres_lev_field_alg
 #endif
   implicit none
 
+  type(config_type),       intent(in) :: config
   type(field_type),        intent(in) :: u_field, exner
   class(model_clock_type), intent(in) :: clock
 
@@ -187,7 +200,7 @@ subroutine write_vorticity_diagnostic(u_field, exner, clock)
 
   if (xi_modlev_flag .or. plev_xi3_flag) then
 
-    call vorticity_diagnostic_alg(vorticity, u_field)
+    call vorticity_diagnostic_alg(config, vorticity, u_field)
 
     if (use_xios_io) then
 
@@ -198,7 +211,9 @@ subroutine write_vorticity_diagnostic(u_field, exner, clock)
       panel_id => get_panel_id(mesh)
 
       ! Project the field to the output field
-      call project_output( vorticity, projected_field, chi, panel_id, W3 )
+      call project_output( config, vorticity,    &
+                           projected_field, chi, &
+                           panel_id, W3 )
 
 #ifdef UM_PHYSICS
       if (plev_xi3_flag) then
@@ -232,8 +247,9 @@ subroutine write_vorticity_diagnostic(u_field, exner, clock)
 
     else
 
-      call write_vector_diagnostic('xi', vorticity, clock, &
-                                 vorticity%get_mesh(), nodal_output_on_w3)
+      call write_vector_diagnostic( config, vorticity%get_mesh(), &
+                                    'xi', vorticity, clock,       &
+                                    nodal_output_on_w3 )
 
     end if
 
@@ -252,11 +268,13 @@ end subroutine write_vorticity_diagnostic
 !> @param[in] exner     The exner pressure (Pa)
 !> @param[in] clock     The model clock object
 !-------------------------------------------------------------------------------
-subroutine write_pv_diagnostic(u_field, theta, rho, exner, clock)
+subroutine write_pv_diagnostic(config, u_field, theta, rho, exner, clock)
 
   use pres_lev_diags_alg_mod, only: pres_lev_field_alg
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type(field_type),        intent(in) :: u_field
   type(field_type),        intent(in) :: theta
@@ -277,13 +295,14 @@ subroutine write_pv_diagnostic(u_field, theta, rho, exner, clock)
 
   if (pv_modlev_flag .or. plev_pv_flag) then
 
-    call potential_vorticity_diagnostic_alg(pv, u_field, theta, rho)
+    call potential_vorticity_diagnostic_alg(config, pv, u_field, theta, rho)
 
     if (plev_pv_flag) call pres_lev_field_alg(pv, exner, plev_pv, xi3_axis)
 
     if (pv_modlev_flag) then
-      call write_scalar_diagnostic('potential_vorticity', pv, clock, &
-                                    pv%get_mesh(), add_W3_version)
+      call write_scalar_diagnostic( config,  pv%get_mesh(),    &
+                                    'potential_vorticity', pv, &
+                                    clock, add_W3_version )
     end if
 
   end if
@@ -298,9 +317,11 @@ end subroutine write_pv_diagnostic
 !> @param[in] rho       The density field (kg/m3)
 !> @param[in] clock     The model clock object
 !-------------------------------------------------------------------------------
-subroutine write_pv_diagnostic(u_field, theta, rho, clock)
+subroutine write_pv_diagnostic(config, u_field, theta, rho, clock)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type(field_type),        intent(in) :: u_field
   type(field_type),        intent(in) :: theta
@@ -316,10 +337,11 @@ subroutine write_pv_diagnostic(u_field, theta, rho, clock)
 
   if (pv_modlev_flag) then
 
-    call potential_vorticity_diagnostic_alg(pv, u_field, theta, rho)
+    call potential_vorticity_diagnostic_alg(config, pv, u_field, theta, rho)
 
-    call write_scalar_diagnostic('potential_vorticity', pv, clock, &
-                                  pv%get_mesh(), add_W3_version)
+    call write_scalar_diagnostic( config, pv%get_mesh(), &
+                                  'potential_vorticity', &
+                                  pv, clock, add_W3_version )
 
   end if
 

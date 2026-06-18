@@ -328,7 +328,12 @@ contains
         call invoke( matrix_vector_kernel_type( rhs_prediction(igh_u,stage),   &
                                                 ls_state_stage(igh_u,stage), coriolis ) )
       end if
-      call compute_vorticity_alg(ls_vorticity(stage), ls_state_stage(igh_u,stage), .false.)
+
+      call compute_vorticity_alg( config,                      &
+                                  ls_vorticity(stage),         &
+                                  ls_state_stage(igh_u,stage), &
+                                  .false. )
+
       if ( vorticity_in_w1 ) then
         call invoke( vorticity_advection_kernel_type(rhs_prediction(igh_u,stage), &
                                                      ls_state_stage(igh_u,stage), &
@@ -372,16 +377,16 @@ contains
         call invoke( setval_X(inc(igh_t), rhs(igh_t)) )
       else
         ! Use full mass matrix
-        call mass_matrix_solver_alg( inc(igh_t), rhs(igh_t) )
+        call mass_matrix_solver_alg( config, inc(igh_t), rhs(igh_t) )
       end if
-      call mass_matrix_solver_alg( inc(igh_u), rhs(igh_u) )
+      call mass_matrix_solver_alg( config, inc(igh_u), rhs(igh_u) )
       call invoke( setval_X(inc(igh_d), rhs(igh_d)) )
 
       ! Add increments
       call invoke( setval_c(inc(igh_p), 0.0_r_def) )
       call bundle_axpy(cast_dt, inc, ls_state_n, ls_state_stage(:,stage + 1), bundle_size)
       ! Recompute exner from eos
-      m3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+      m3_inv => get_inverse_mass_matrix_fe(config, u%get_mesh(), W3)
       call invoke( project_eos_pressure_kernel_type( ls_state_stage(igh_p,stage+1), &
                                                      ls_state_stage(igh_d,stage+1), &
                                                      ls_state_stage(igh_t,stage+1), &
@@ -419,7 +424,7 @@ contains
                                                 state(igh_u), coriolis ) )
       end if
 
-      call compute_vorticity_alg(vorticity, state(igh_u), .false.)
+      call compute_vorticity_alg( config, vorticity, state(igh_u), .false. )
 
       if ( vorticity_in_w1 ) then
         call invoke( tl_vorticity_advection_kernel_type(rhs_prediction(igh_u,stage),   &
@@ -470,9 +475,9 @@ contains
         call invoke( setval_X(inc(igh_t), rhs(igh_t)) )
       else
         ! Use full mass matrix
-        call mass_matrix_solver_alg( inc(igh_t), rhs(igh_t) )
+        call mass_matrix_solver_alg( config, inc(igh_t), rhs(igh_t) )
       end if
-      call mass_matrix_solver_alg( inc(igh_u), rhs(igh_u) )
+      call mass_matrix_solver_alg( config, inc(igh_u), rhs(igh_u) )
       call invoke( setval_X(inc(igh_d), rhs(igh_d)) )
 
       ! Add increments
@@ -480,7 +485,7 @@ contains
       call bundle_axpy(cast_dt, inc, state_n, state, bundle_size)
 
      ! Recompute exner from eos
-      m3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+      m3_inv => get_inverse_mass_matrix_fe(config, u%get_mesh(), W3)
       call invoke( tl_project_eos_pressure_kernel_type(              &
                           state(igh_p), state(igh_d), state(igh_t),  &
                           moist_dyn(gas_law),                        &

@@ -87,7 +87,7 @@ contains
                                              chem_timestep,                    &
                                              photol_scheme, photol_scheme_off, &
                                              photol_scheme_prescribed,         &
-                                             photol_scheme_fastjx    
+                                             photol_scheme_fastjx
 
     use sci_field_minmax_alg_mod,      only: log_field_minmax
     use microphysics_config_mod,       only: microphysics_casim
@@ -988,7 +988,7 @@ contains
 
     ! Get detj on shifted W3 grid (to use as grid_volume)
     shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
-    detj_shifted => get_detj_at_w3_fv(shifted_mesh)
+    detj_shifted => get_detj_at_w3_fv(config, shifted_mesh)
 
     ! The call to um_sizes_init is required to ensure that the parent
     ! callback routine bl_tracer_mix passed to UKCA is compatible with

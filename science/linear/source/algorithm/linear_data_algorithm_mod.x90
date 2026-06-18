@@ -656,7 +656,7 @@ module linear_data_algorithm_mod
 
     call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
     call init_exner_field( modeldb%config, ls_exner, ls_theta, ls_moist_dyn, initial_time )
-    call init_rho_field( ls_rho, ls_theta, ls_exner, ls_moist_dyn, initial_time )
+    call init_rho_field( modeldb%config, ls_rho, ls_theta, ls_exner, ls_moist_dyn, initial_time )
     call init_mr_fields( modeldb%config, ls_mr, ls_theta, ls_exner, ls_rho, ls_moist_dyn )
 
     nullify( ls_theta, ls_rho, ls_u, ls_exner, ls_moist_dyn, ls_mr )

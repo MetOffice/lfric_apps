@@ -492,7 +492,7 @@ contains
           ! Map data to coarse aerosol fields
           call map_scalar_field(theta_coarse, theta)
           call map_scalar_field(exner_coarse, exner)
-          call map_rho_intermesh(rho_coarse, rho)
+          call map_rho_intermesh(modeldb%config, rho_coarse, rho)
           call map_scalar_field(exner_in_wth_coarse, exner_in_wth)
           call map_physics_scalars(modeldb%config, rho_in_wth_coarse, rho_coarse)
           call map_mr_bundle_intermesh(modeldb%config, mr_n_coarse, mr_n, &

@@ -30,6 +30,8 @@ module multigrid_preconditioner_alg_mod
   use sci_preconditioner_mod,   only: abstract_preconditioner_type
   use vector_mod,               only: abstract_vector_type
 
+use config_mod, only: config_type
+
   implicit none
 
   private
@@ -99,7 +101,7 @@ contains
   !> @param[in] H_op Pressure operator on finest level
   !> @param[in] Hz_prec Pressure preconditioner on finest level
   !> @return self The constructed multigrid_preconditioner type
-  function multigrid_preconditioner_constructor(p_fs, &
+  function multigrid_preconditioner_constructor(config,p_fs, &
                                                 H_op, &
                                                 Hz_prec) result(self)
     use multigrid_config_mod, only : smooth_relaxation, &
@@ -108,6 +110,8 @@ contains
                                      n_coarsesmooth,    &
                                      multigrid_chain_nitems
     implicit none
+
+type(config_type), intent(in) :: config
     type(function_space_type), intent(in) :: p_fs
     class(abstract_hierarchical_linear_operator_type) :: H_op
     class(abstract_hierarchical_preconditioner_type) :: Hz_prec
@@ -125,7 +129,7 @@ contains
     call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
     ! Construct fields and operators on all multigrid levels
-    call self%construct_multigrid_fields(p_fs, H_op, Hz_prec)
+    call self%construct_multigrid_fields(config, p_fs, H_op, Hz_prec)
 
   end function multigrid_preconditioner_constructor
 
@@ -139,7 +143,7 @@ contains
   !> @param[in] p_fs Function space of pressure field
   !> @param[in] H_operator_fine Pressure operator on finest level
   !> @param[in] Hz_preconditioner_fine Pressure preconditioner on finest level
-  subroutine construct_multigrid_fields(self,                  &
+  subroutine construct_multigrid_fields(self, config,                 &
                                         p_fs,                  &
                                         H_operator_fine,       &
                                         Hz_preconditioner_fine )
@@ -148,6 +152,7 @@ contains
 
     implicit none
     class(multigrid_preconditioner_type),              intent(inout) :: self
+type(config_type), intent(in) :: config
     type(function_space_type), target,                 intent(in)    :: p_fs
     class(abstract_hierarchical_linear_operator_type), intent(in)    :: H_operator_fine
     class(abstract_hierarchical_preconditioner_type),  intent(in)    :: Hz_preconditioner_fine
@@ -196,14 +201,16 @@ contains
        call self%u_mg(level)%initialise_field( 1, fs )
        call self%b_mg(level)%initialise_field( 1, fs )
        call self%r_mg(level)%initialise_field( 1, fs )
+
        if (level > 1) then
           ! Coarsen linear operator
-          call self%linear_operators(level-1)%H_operator%coarsen( &
-                  self%linear_operators(level)%H_operator )
+          call self%linear_operators(level-1)%H_operator%coarsen(config, &
+                    self%linear_operators(level)%H_operator )
           ! Coarsen preconditioner
-          call self%linear_operators(level-1)%Hz_preconditioner%coarsen( &
-                  self%linear_operators(level)%Hz_preconditioner)
+          call self%linear_operators(level-1)%Hz_preconditioner%coarsen(config, &
+                    self%linear_operators(level)%Hz_preconditioner)
        end if
+
        if (limited_area) then
          self%mask_mg(level) = r_solver_field_vector_type( 1 )
          call self%mask_mg(level)%initialise_field( 1,fs )
@@ -227,7 +234,7 @@ contains
   !> @param[in] level Current multigrid level
   !> @param[in] initial_solution_is_zero Can we implicitly assume that the
   !!                                     solution is zero?
-  recursive subroutine vcycle(self,level,initial_solution_is_zero)
+  recursive subroutine vcycle(self, config, level, initial_solution_is_zero)
 
     use sci_restrict_scalar_unweighted_kernel_mod, &
                                     only: restrict_scalar_unweighted_kernel_type
@@ -241,6 +248,7 @@ contains
     implicit none
 
     class(multigrid_preconditioner_type), intent(inout) :: self
+    type(config_type),                  intent(in)    :: config
     integer(kind=i_def),                  intent(in)    :: level
     logical(kind=l_def),                  intent(in)    :: initial_solution_is_zero
 
@@ -253,14 +261,15 @@ contains
 
     ! Call smoother on coarsest level
     if (level == self%n_level) then
-      call self%smooth(self%n_coarsesmooth,level,.true.)
+      call self%smooth(config, self%n_coarsesmooth, level, .true.)
     else
       ! Presmooth solution u^{(ell)}
 
-      call self%smooth(self%n_presmooth, level, initial_solution_is_zero)
+      call self%smooth(config, self%n_presmooth, level, initial_solution_is_zero)
 
       ! Calculate residual r^{(ell)} = b^{(ell)} - H.u^{(ell)}
-      call self%linear_operators(level)%H_operator%apply(self%u_mg(level), &
+      call self%linear_operators(level)%H_operator%apply(config,           &
+                                                         self%u_mg(level), &
                                                          self%r_mg(level) )
 
       rvec_mg => self%r_mg(level)%get_field_from_position(1)
@@ -281,7 +290,7 @@ contains
 
       end if
       ! Recursive call to V-cycle
-      call self%vcycle(level+1,.true.)
+      call self%vcycle(config, level+1,.true.)
 
       ! Prolong and add solution from coarser level
       ! u^{(ell)} = u^{(ell)} + P u^{(ell+1)}
@@ -298,7 +307,7 @@ contains
                      prolong_scalar_unweighted_kernel_type(uvec_mg, uvec_mg_coarse) )
       endif
       ! Postsmooth u^{(ell)}
-      call self%smooth(self%n_postsmooth, level, .false.)
+      call self%smooth(config, self%n_postsmooth, level, .false.)
 
     end if
 
@@ -312,9 +321,12 @@ contains
   !> @param[in,out] self Instance of type multigrid_preconditioner_type
   !> @param[in] x abstract_vector_type
   !> @param[in,out] y abstract_vector_type
-  subroutine apply_multigrid_preconditioner(self,x,y)
+  subroutine apply_multigrid_preconditioner(self, config, x, y)
+
     implicit none
+
     class(multigrid_preconditioner_type), intent(inout) :: self
+    type(config_type),          intent(in)    :: config
     class(abstract_vector_type),          intent(in)    :: x
     class(abstract_vector_type),          intent(inout) :: y
 
@@ -331,7 +343,7 @@ contains
           bvec_mg => self%b_mg(1)%get_field_from_position(1)
           call invoke(setval_X(bvec_mg, x_vec ))
           ! Solve using a multigrid V-cycle
-          call self%vcycle(1, .true.)
+          call self%vcycle(config, 1, .true.)
           ! Copy out solution on finest level
           y_vec => y%get_field_from_position(1)
           uvec_mg => self%u_mg(1)%get_field_from_position(1)
@@ -365,9 +377,11 @@ contains
   !> @param[in] initial_solution_is_zero Can we implicitly assume that
   !!                                     \f$ u^{(\ell)} \f$ is zero before
   !!                                     the first iteration?
-  subroutine smooth(self,nsmooth,level,initial_solution_is_zero)
+  subroutine smooth(self, config, nsmooth, level, initial_solution_is_zero)
     implicit none
     class(multigrid_preconditioner_type), intent(inout) :: self
+
+    type(config_type), intent(in) :: config
     integer(kind=i_def), intent(in) :: nsmooth
     integer(kind=i_def), intent(in) :: level
     logical(kind=l_def), intent(in) :: initial_solution_is_zero
@@ -388,7 +402,8 @@ contains
 
     if (initial_solution_is_zero) then
        ! First iteration
-       call self%linear_operators(level)%Hz_preconditioner%apply(self%b_mg(level), &
+       call self%linear_operators(level)%Hz_preconditioner%apply(config,&
+                                                                 self%b_mg(level), &
                                                                  self%r_mg(level))
        const = self%rho_smooth
        uvec_mg => self%u_mg(level)%get_field_from_position(1)
@@ -404,12 +419,12 @@ contains
     const = -self%rho_smooth
     do i = i_first, nsmooth
        ! Calculate res = H.u^{(ell)} - b^{(ell)}
-       call self%linear_operators(level)%H_operator%apply(self%u_mg(level), res)
+       call self%linear_operators(level)%H_operator%apply(config, self%u_mg(level), res)
        bvec_mg => self%b_mg(level)%get_field_from_position(1)
        rvec_mg => res%get_field_from_position(1)
        call invoke( inc_X_minus_Y (rvec_mg, bvec_mg))
             ! Calculate r^{(ell)} = H_z^{-1}.(H.u^{(ell)} - b^{(ell)})
-       call self%linear_operators(level)%Hz_preconditioner%apply(res, self%r_mg(level))
+       call self%linear_operators(level)%Hz_preconditioner%apply(config, res, self%r_mg(level))
             ! Calculate u^{(ell)} = u^{(ell)} - rho*H_z^{-1}.(H.u^{(ell)} - b^{(ell)})
        uvec_mg => self%u_mg(level)%get_field_from_position(1)
        rvec_mg => self%r_mg(level)%get_field_from_position(1)

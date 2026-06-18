@@ -279,7 +279,7 @@ contains
                               buoyancy ) )
       ! The increment is now pointwise. Depending upon the temporal discretisation
       ! this may need converting into weak form by multiplying by the mass matrix
-      mm_wb => get_mass_matrix_fe(W3, buoyancy%get_mesh_id() )
+      mm_wb => get_mass_matrix_fe(config, buoyancy%get_mesh(), W3 )
       call buoy_inc%initialise( vector_space = &
                                 buoyancy_np1%get_function_space() )
       call invoke( setval_X(buoy_inc, advection_inc%vector(isw_b)),       &

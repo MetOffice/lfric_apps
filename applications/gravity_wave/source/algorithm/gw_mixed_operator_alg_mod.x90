@@ -41,6 +41,9 @@ module gw_mixed_operator_alg_mod
   use limited_area_constants_mod,        only: get_mask_r_solver
   use vector_mod,                        only: abstract_vector_type
 
+  use config_mod, only: config_type
+  use mesh_mod, only: mesh_type
+
   implicit none
 
   private
@@ -93,6 +96,7 @@ contains
     use quadrature_xyoz_mod,           only: quadrature_xyoz_type
     use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
     use compute_q_operator_kernel_mod, only: compute_q_operator_type
+
     implicit none
 
     type(gw_mixed_operator_type)          :: self
@@ -129,7 +133,7 @@ contains
   !> @param[in,out] self Instance of the gravity wave mixed operator
   !> @param[in] x Field vector to be read
   !> @param[in,out] y Field vector to be written
-  subroutine apply_gw_mixed_operator(self, x, y)
+  subroutine apply_gw_mixed_operator(self, config, x, y)
 
     use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
     use operator_mod,                       only: r_solver_operator_type, operator_type
@@ -150,6 +154,9 @@ contains
     implicit none
 
     class(gw_mixed_operator_type), intent(inout) :: self
+
+    type(config_type), intent(in)    :: config
+
     class(abstract_vector_type),   intent(in)    :: x
     class(abstract_vector_type),   intent(inout) :: y
 
@@ -162,6 +169,8 @@ contains
     type(r_solver_field_type),    pointer :: wtheta_mask => null()
     type(r_solver_operator_type)          :: div
     integer(kind=i_def)                   :: buoyancy_space, mesh_id
+
+    type(mesh_type), pointer :: mesh
 
     ! Auxiliary constants to group invokes
     real(kind=r_solver) :: const1, const2, const3
@@ -178,6 +187,7 @@ contains
     select type (y)
     type is (r_solver_field_vector_type)
       mesh_id = y%vector(igw_u)%get_mesh_id()
+      mesh => y%vector(igw_u)%get_mesh()
     class default
        write(log_scratch_space, '(A)') &
              "gw_mixed_operator_alg_mod: incorrect vector_type argument y"
@@ -194,17 +204,17 @@ contains
        buoyancy_space = Wtheta
     end select
 
-    mm => get_mass_matrix_fe(buoyancy_space, mesh_id)
+    mm => get_mass_matrix_fe(config, mesh, buoyancy_space)
     call mm_wt%initialise( mm%get_fs_to(), mm%get_fs_from() )
     call invoke( operator_setval_x_kernel_type( mm_wt, mm ) )
 
     ! Extract velocity mass matrix
-    mm => get_mass_matrix_fe(W2, mesh_id)
+    mm => get_mass_matrix_fe(config, mesh, W2)
     call mm_w2%initialise( mm%get_fs_to(), mm%get_fs_from() )
     call invoke( operator_setval_x_kernel_type( mm_w2, mm ) )
 
     ! Extract divergence operator
-    im3_div   => get_im3_div_r_solver(mesh_id)
+    im3_div   => get_im3_div_r_solver(config, mesh)
     div_r_def => get_div(mesh_id)
     call div%initialise( div_r_def%get_fs_to(), div_r_def%get_fs_from() )
 

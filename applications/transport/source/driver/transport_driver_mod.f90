@@ -462,25 +462,41 @@ contains
     ! Output initial conditions
     if (modeldb%clock%is_initialisation() .and. write_diag) then
 
-      call write_vector_diagnostic( 'u', wind, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'rho', density, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'theta', theta, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_con', tracer_con, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_adv', tracer_adv, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'constant', constant, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'm_v', mr(1), modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'divergence', divergence, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
+      call write_vector_diagnostic( modeldb%config, mesh, 'u', &
+                                    wind, modeldb%clock,       &
+                                    nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( modeldb%config, mesh, 'rho', &
+                                    density, modeldb%clock,      &
+                                    nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( modeldb%config, mesh, 'theta', &
+                                    theta, modeldb%clock,          &
+                                    nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( modeldb%config, mesh, 'tracer_con', &
+                                    tracer_con, modeldb%clock,          &
+                                    nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( modeldb%config, mesh, 'tracer_adv', &
+                                    tracer_adv, modeldb%clock,          &
+                                    nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( modeldb%config, mesh, 'constant', &
+                                    constant, modeldb%clock,          &
+                                    nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( modeldb%config, mesh, 'm_v', &
+                                    mr(1), modeldb%clock,        &
+                                    nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( modeldb%config, mesh, 'divergence', &
+                                    divergence, modeldb%clock,          &
+                                    nodal_output_on_w3 )
       if (use_w2_vector) then
-        call write_vector_diagnostic( 'w2_vector', w2_vector, modeldb%clock, &
-                                      mesh, nodal_output_on_w3 )
+        call write_vector_diagnostic( modeldb%config, mesh, 'w2_vector', &
+                                      w2_vector, modeldb%clock,          &
+                                      nodal_output_on_w3 )
       end if
 
       if (use_aerosols) then
@@ -488,26 +504,37 @@ contains
         height_w3  => get_height_fe(modeldb%config, aerosol_mesh, W3)
         height_wth => get_height_fe(modeldb%config, aerosol_mesh, Wtheta)
 
-        call write_scalar_diagnostic( 'aerosol_height_w3', height_w3, modeldb%clock, &
-                                      aerosol_mesh, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'aerosol_height_wth', height_wth, modeldb%clock, &
-                                      aerosol_mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( modeldb%config, aerosol_mesh,   &
+                                      'aerosol_height_w3', height_w3, &
+                                      modeldb%clock, nodal_output_on_w3 )
 
-        call write_vector_diagnostic( 'aerosol_wind', aerosol_wind, modeldb%clock, &
-                                      aerosol_mesh, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'w3_aerosol', w3_aerosol, modeldb%clock, &
-                                      aerosol_mesh, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'wt_aerosol', wt_aerosol, modeldb%clock, &
-                                      aerosol_mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( modeldb%config, aerosol_mesh,     &
+                                      'aerosol_height_wth', height_wth, &
+                                      modeldb%clock, nodal_output_on_w3 )
+
+        call write_vector_diagnostic( modeldb%config, aerosol_mesh, &
+                                      'aerosol_wind', aerosol_wind, &
+                                      modeldb%clock, nodal_output_on_w3 )
+
+        call write_scalar_diagnostic( modeldb%config, aerosol_mesh, &
+                                      'w3_aerosol', w3_aerosol,     &
+                                      modeldb%clock, nodal_output_on_w3 )
+
+        call write_scalar_diagnostic( modeldb%config, aerosol_mesh, &
+                                      'wt_aerosol', wt_aerosol,     &
+                                      modeldb%clock, nodal_output_on_w3 )
       end if
 
       height_w3  => get_height_fe(modeldb%config, mesh, W3)
       height_wth => get_height_fe(modeldb%config, mesh, Wtheta)
 
-      call write_scalar_diagnostic( 'height_w3', height_w3, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'height_wth', height_wth, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
+      call write_scalar_diagnostic( modeldb%config, mesh, 'height_w3', &
+                                    height_w3, modeldb%clock,          &
+                                    nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( modeldb%config, mesh, 'height_wth', &
+                                    height_wth, modeldb%clock,          &
+                                    nodal_output_on_w3 )
 
     end if
 
@@ -614,35 +641,45 @@ contains
          .and. write_diag ) then
 
       ! Compute divergence
-      call divergence_alg( divergence, wind )
+      call divergence_alg( config, divergence, wind )
 
-      call write_vector_diagnostic( 'u', wind,                &
-                                    model_clock, mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'rho', density,           &
-                                    model_clock, mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'theta', theta,           &
-                                    model_clock, mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_con', tracer_con, &
-                                    model_clock, mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_adv', tracer_adv, &
-                                    model_clock, mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'constant', constant,     &
-                                    model_clock, mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'm_v', mr(1),             &
-                                    model_clock, mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'divergence', divergence, &
-                                    model_clock, mesh, nodal_output_on_w3 )
+      call write_vector_diagnostic( config, mesh, 'u', wind,                &
+                                    model_clock, nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( config, mesh, 'rho', density,           &
+                                    model_clock, nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( config, mesh, 'theta', theta,           &
+                                    model_clock, nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( config, mesh, 'tracer_con', tracer_con, &
+                                    model_clock, nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( config, mesh, 'tracer_adv', tracer_adv, &
+                                    model_clock, nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( config, mesh, 'constant', constant,     &
+                                    model_clock, nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( config, mesh, 'm_v', mr(1),             &
+                                    model_clock, nodal_output_on_w3 )
+
+      call write_scalar_diagnostic( config, mesh, 'divergence', divergence, &
+                                    model_clock, nodal_output_on_w3 )
       if (use_w2_vector) then
-        call write_vector_diagnostic( 'w2_vector', w2_vector,   &
-                                      model_clock, mesh, nodal_output_on_w3 )
+        call write_vector_diagnostic( config, mesh, 'w2_vector', w2_vector,   &
+                                      model_clock, nodal_output_on_w3 )
       end if
       if (use_aerosols) then
-        call write_vector_diagnostic( 'aerosol_wind', aerosol_wind, model_clock, &
-                                      aerosol_mesh, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'w3_aerosol', w3_aerosol,   &
-                                      model_clock, aerosol_mesh, nodal_output_on_w3 )
-        call write_scalar_diagnostic( 'wt_aerosol', wt_aerosol,   &
-                                      model_clock, aerosol_mesh, nodal_output_on_w3 )
+        call write_vector_diagnostic( config, aerosol_mesh, 'aerosol_wind', &
+                                      aerosol_wind, model_clock,            &
+                                      nodal_output_on_w3 )
+        call write_scalar_diagnostic( config, aerosol_mesh, 'w3_aerosol', &
+                                      w3_aerosol, model_clock,            &
+                                      nodal_output_on_w3 )
+        call write_scalar_diagnostic( config, aerosol_mesh, 'wt_aerosol', &
+                                      wt_aerosol, model_clock,            &
+                                      nodal_output_on_w3 )
       end if
     end if
 
@@ -660,8 +697,9 @@ contains
     character(*),        intent(in)    :: program_name
     class(modeldb_type), intent(inout) :: modeldb
 
-    call transport_final( density, theta, tracer_con, tracer_adv, &
-                          constant, mr, w2_vector, w3_aerosol, wt_aerosol )
+    call transport_final( modeldb%config, density, theta,       &
+                          tracer_con, tracer_adv, constant, mr, &
+                          w2_vector, w3_aerosol, wt_aerosol )
 
     !--------------------------------------------------------------------------
     ! Model finalise

@@ -48,6 +48,7 @@ module swe_rhs_alg_mod
   ! Other
   use field_indices_mod,              only: isw_u, isw_g, isw_b
 
+use config_mod, only: config_type
   implicit none
 
   private
@@ -64,7 +65,7 @@ contains
   !> @param[in]     alpha_dt The offcentering parameter multiplied by the time step
   !> @param[in]     state    The current model prognostic state
   !> @param[in]     s_geopot The surface geopotential
-  subroutine swe_rhs_alg( rhs,      &
+  subroutine swe_rhs_alg( config, rhs,      &
                           alpha_dt, &
                           state,    &
                           s_geopot )
@@ -83,6 +84,8 @@ contains
                                  only: transpose_matrix_vector_kernel_type
 
     implicit none
+
+    type(config_type), intent(in)    :: config
 
     ! Form of state and rhs is [u, geopot, buoyancy]
     type(field_vector_type), intent(inout) :: rhs
@@ -134,8 +137,8 @@ contains
     call total_geopot%initialise( vector_space=rhs%vector(isw_g)%get_function_space() )
 
     ! Get mass matrices
-    mm_vel => get_mass_matrix_fe(W2,mesh%get_id())
-    mm_wb  => get_mass_matrix_fe(W3,mesh%get_id())
+    mm_vel => get_mass_matrix_fe(config, mesh, W2)
+    mm_wb  => get_mass_matrix_fe(config, mesh, W3)
 
     ! Set constants
     minus_alpha_dt = - alpha_dt

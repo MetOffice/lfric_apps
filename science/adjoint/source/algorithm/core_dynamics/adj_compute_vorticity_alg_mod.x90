@@ -8,7 +8,7 @@
 module adj_compute_vorticity_alg_mod
 
   use constants_mod, only: r_def, i_def, l_def
-
+use config_mod, only: config_type
   implicit none
 
   private
@@ -20,7 +20,7 @@ contains
   !> @param[in,out] xi Vorticity field = curl(u)
   !> @param[in]     u Velocity field
   !> @param[in]     weak_form_u Is u in weak form or not
-  subroutine adj_compute_vorticity_alg(xi, u, weak_form_u, w1_flag)
+  subroutine adj_compute_vorticity_alg(config, xi, u, weak_form_u, w1_flag)
 
     use field_mod,                      only : field_type
     use operator_mod,                   only : operator_type
@@ -43,6 +43,7 @@ contains
 
     implicit none
 
+    type(config_type),     intent(in)       :: config
     type(field_type),     intent(inout)       :: xi
     type(field_type),     intent(inout)       :: u
     logical(kind=l_def),  intent(in)          :: weak_form_u
@@ -78,12 +79,12 @@ contains
 
     if ( w1_vorticity_flag ) then
       ! Compute adjoint of vorticity in W1 as the weak curl of the W2 winds
-      m1_lumped_inv => get_inverse_lumped_mass_matrix_fe(W1, mesh%get_id())
-      curl          => get_curl_fe(mesh%get_id())
+      m1_lumped_inv => get_inverse_lumped_mass_matrix_fe(config, mesh, W1)
+      curl          => get_curl_fe(config, mesh)
 
       call r_xi%initialise( vector_space = xi%get_function_space() )
       call invoke( setval_c( r_xi, 0.0_r_def ) )
-      call mass_matrix_solver_alg( r_xi, xi )
+      call mass_matrix_solver_alg(config, r_xi, xi )
       call invoke( setval_c(xi, 0.0_r_def),                                         &
                    enforce_bc_kernel_type(r_xi),                                    &
                    adj_transpose_matrix_vector_kernel_type(r_xi, advected_u, curl), &
@@ -98,7 +99,7 @@ contains
       call invoke( setval_c( u_in_w1, 0.0_r_def ), &
                    setval_c( r_u, 0.0_r_def ) )
       call invoke( adj_strong_curl_kernel_type(xi, u_in_w1) )
-      call mass_matrix_solver_alg( r_u, u_in_w1, .false.)
+      call mass_matrix_solver_alg(config, r_u, u_in_w1, .false.)
       call invoke( adj_w2_to_w1_projection_kernel_type(r_u, advected_u, qr), &
                    setval_c(u_in_w1, 0.0_r_def),                             &
                    setval_c(r_u, 0.0_r_def)                                  &
@@ -106,7 +107,7 @@ contains
     end if
 
     if ( weak_form_u ) then
-      call mass_matrix_solver_alg(advected_u, u)
+      call mass_matrix_solver_alg(config, advected_u, u)
     else
       call invoke( inc_X_plus_Y(u, advected_u) )
     end if

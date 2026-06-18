@@ -323,7 +323,7 @@ contains
     ! Set reference density for aerosol transport
     aerosol_w3_fs => function_space_collection%get_fs(aerosol_mesh, 0, 0, W3)
     call aerosol_reference_rho%initialise( aerosol_w3_fs )
-    call map_rho_intermesh(aerosol_reference_rho, rho)
+    call map_rho_intermesh(config, aerosol_reference_rho, rho)
 
     ! Initialise the main transport controller ---------------------------------
     call transport_controller%initialise( config, model_clock, rho, wind )
@@ -404,7 +404,7 @@ contains
       )
       ! Convert rhs_u residual back into increment
       call invoke( setval_c(w2_vector_inc, 0.0_r_def) )
-      call mass_matrix_solver_alg(w2_vector_inc, rhs_w2)
+      call mass_matrix_solver_alg(config, w2_vector_inc, rhs_w2)
       call invoke( X_plus_Y(w2_vector, w2_vector_n, w2_vector_inc) )
     end if
 
@@ -459,13 +459,15 @@ contains
   !> @param[in] w2_vector   Transported vector-valued field in W2
   !> @param[in] w3_aerosol  Transported tracer in W3 on coarse mesh
   !> @param[in] wt_aerosol  Transported tracer in Wtheta on coarse mesh
-  subroutine transport_final( rho, theta, tracer_con, tracer_adv, &
+  subroutine transport_final( config, rho, theta, tracer_con, tracer_adv, &
                               constant, mr, w2_vector, w3_aerosol, wt_aerosol )
 
     use transport_stats_mod,          only: write_transport_stats
     use split_transport_utils_mod,    only: finalise_split_transport_utils
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type(field_type), intent(in) :: rho, theta, tracer_con, tracer_adv
@@ -477,29 +479,29 @@ contains
 
     ! Calculate and write out statistics
     field_name = 'rho'
-    call write_transport_stats(rho, rho0, field_name)
+    call write_transport_stats(config, rho, rho0, field_name)
     field_name = 'theta'
-    call write_transport_stats(theta, theta0, field_name)
+    call write_transport_stats(config, theta, theta0, field_name)
     field_name = 'tracer_con'
-    call write_transport_stats(tracer_con, tracer_con0, field_name)
+    call write_transport_stats(config, tracer_con, tracer_con0, field_name)
     field_name = 'tracer_adv'
-    call write_transport_stats(tracer_adv, tracer_adv0, field_name)
+    call write_transport_stats(config, tracer_adv, tracer_adv0, field_name)
     field_name = 'constant'
-    call write_transport_stats(constant, constant0, field_name)
+    call write_transport_stats(config, constant, constant0, field_name)
     field_name = 'mr'
-    call write_transport_stats(mr(1), mr0(1), field_name)
+    call write_transport_stats(config, mr(1), mr0(1), field_name)
     ! NB: transport tests aren't designed to give meaningful answers for vector
     if (use_w2_vector) then
       field_name = 'w2_vector'
-      call write_transport_stats(w2_vector, w2_vector0, field_name)
+      call write_transport_stats(config, w2_vector, w2_vector0, field_name)
     end if
     if (use_w3_aerosol) then
       field_name = 'w3_aerosol'
-      call write_transport_stats(w3_aerosol, w3_aerosol0, field_name)
+      call write_transport_stats(config, w3_aerosol, w3_aerosol0, field_name)
     end if
     if (use_wt_aerosol) then
       field_name = 'wt_aerosol'
-      call write_transport_stats(wt_aerosol, wt_aerosol0, field_name)
+      call write_transport_stats(config, wt_aerosol, wt_aerosol0, field_name)
     end if
 
     call finalise_split_transport_utils()

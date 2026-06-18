@@ -17,6 +17,8 @@ module fem_advective_update_alg_mod
   use r_tran_operator_mod,         only: r_tran_operator_type
   use transport_constants_mod,     only: get_directional_im3_div_r_tran
 
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -33,9 +35,11 @@ contains
   !> @param[in]      direction  Direction of the transport
   !> @param[in]      dt         The time step
   !----------------------------------------------------------------------------
-  subroutine fem_advective_update_alg(increment, field, recon, wind, direction, dt)
+  subroutine fem_advective_update_alg(config, increment, field, recon, wind, direction, dt)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(r_tran_field_type), intent(inout) :: increment
@@ -66,7 +70,8 @@ contains
     minus_one_over_dt = -1.0_r_tran/dt
     recon_fs => recon%get_function_space()
     field_fs => field%get_function_space()
-    div => get_directional_im3_div_r_tran(field%get_mesh_id(), direction)
+    div => get_directional_im3_div_r_tran( config, field%get_mesh(), &
+                                           direction )
 
     ! Initialise fields
     call flux%initialise( vector_space=recon_fs )

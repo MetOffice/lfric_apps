@@ -232,7 +232,7 @@ subroutine transport_init_fields_alg( config,       &
 
     ! Set winds and divergence
     call init_u_field( config, wind, initial_time )
-    call divergence_alg( divergence, wind )
+    call divergence_alg( config, divergence, wind )
     call map_w2_intermesh( aerosol_wind, wind )
 
     ! ======================================================================== !

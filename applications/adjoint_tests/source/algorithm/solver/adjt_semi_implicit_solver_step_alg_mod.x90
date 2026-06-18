@@ -35,7 +35,7 @@ module adjt_semi_implicit_solver_step_alg_mod
   use function_space_mod,               only: function_space_type
   use field_array_mod,                  only: field_array_type
   use field_collection_mod,             only: field_collection_type
-
+use config_mod, only: config_type
   implicit none
 
   private
@@ -156,7 +156,8 @@ contains
 
     call compute_si_operators( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                model_clock, ls_moist_dyn )
-    call adj_semi_implicit_solver%initialise(rhs, adj_lookup_table_cache)
+    call adj_semi_implicit_solver%initialise(modeldb%config, rhs, &
+                                             adj_lookup_table_cache)
 
     ! Set up moist_dyn_gas_law & mr
     call moist_dyn_gas_law%initialise(vector_space=vector_space_wtheta_ptr)
@@ -180,9 +181,10 @@ contains
     ! Test with first_iteration = .true.
     ! --------------------------------------------------------------------------
 
-    call adjt_semi_implicit_solver_step_alg_common( state, rhs, moist_dyn_gas_law, mr,             &
-                                                    state_in, rhs_in, moist_dyn_gas_law_in, mr_in, &
-                                                    adj_semi_implicit_solver, .true. )
+    call adjt_semi_implicit_solver_step_alg_common(             &
+             modeldb%config, state, rhs, moist_dyn_gas_law, mr, &
+             state_in, rhs_in, moist_dyn_gas_law_in, mr_in,     &
+             adj_semi_implicit_solver, .true. )
 
     ! --------------------------------------------------------------------------
     ! Test with first_iteration = .false.
@@ -204,9 +206,10 @@ contains
                  setval_x( state(igh_p), state_in(igh_p) ),           &
                  setval_x( state(igh_d), state_in(igh_d) ) )
 
-    call adjt_semi_implicit_solver_step_alg_common( state, rhs, moist_dyn_gas_law, mr,             &
-                                                    state_in, rhs_in, moist_dyn_gas_law_in, mr_in, &
-                                                    adj_semi_implicit_solver, .false. )
+    call adjt_semi_implicit_solver_step_alg_common(             &
+             modeldb%config, state, rhs, moist_dyn_gas_law, mr, &
+             state_in, rhs_in, moist_dyn_gas_law_in, mr_in,     &
+             adj_semi_implicit_solver, .false. )
 
     call adj_semi_implicit_solver%finalise()
 
@@ -225,12 +228,12 @@ contains
   !> @param[in,out] mr_in                    Input mr
   !> @param[in,out] adj_semi_implicit_solver Adjoint semi-implicit solver
   !> @param[in]     first_iteration          Switch to control which test to do
-  subroutine adjt_semi_implicit_solver_step_alg_common( state, rhs, moist_dyn_gas_law, mr,             &
+  subroutine adjt_semi_implicit_solver_step_alg_common( config, state, rhs, moist_dyn_gas_law, mr,             &
                                                         state_in, rhs_in, moist_dyn_gas_law_in, mr_in, &
                                                         adj_semi_implicit_solver, first_iteration )
 
     implicit none
-
+type(config_type), intent(in) :: config
     ! Prognostic fields
     type(field_type), dimension(bundle_size), intent(inout) :: state
     type(field_type), dimension(bundle_size), intent(inout) :: rhs
@@ -265,7 +268,8 @@ contains
     ! Step the semi-implicit solver (i.e., forward code, Mx)
     ! --------------------------------------------------------------------------
 
-    call semi_implicit_solver_alg_step( state, rhs, moist_dyn_gas_law, mr, &
+    call semi_implicit_solver_alg_step( config, state, rhs, &
+                                        moist_dyn_gas_law, mr,      &
                                         first_iteration )
 
     ! --------------------------------------------------------------------------

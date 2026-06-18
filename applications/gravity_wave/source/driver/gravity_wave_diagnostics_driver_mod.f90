@@ -18,6 +18,9 @@ module gravity_wave_diagnostics_driver_mod
   use model_clock_mod,      only : model_clock_type
   use diagnostics_io_mod,   only : write_scalar_diagnostic, &
                                    write_vector_diagnostic
+
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -33,28 +36,32 @@ contains
   !> @param [in]    W3_project  Flag that determines if vector fields should be
   !>                            projected to W3
   !>
-  subroutine gravity_wave_diagnostics_driver( mesh,        &
-                                              wind,        &
-                                              pressure,    &
-                                              buoyancy,    &
-                                              model_clock, &
+  subroutine gravity_wave_diagnostics_driver( config, mesh, &
+                                              wind,         &
+                                              pressure,     &
+                                              buoyancy,     &
+                                              model_clock,  &
                                               W3_project )
 
     implicit none
+
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
+
     type( field_type ),      intent(inout)       :: wind
     type( field_type ),      intent(inout)       :: buoyancy
     type( field_type ),      intent(inout)       :: pressure
-    type( mesh_type  ),      intent(in), pointer :: mesh
+
     class(model_clock_type), intent(in)          :: model_clock
     logical,                 intent(in)          :: W3_project
 
     ! Calculation and output of diagnostics
-    call write_vector_diagnostic( 'wind', wind, &
-                                  model_clock, mesh, W3_project )
-    call write_scalar_diagnostic( 'pressure', pressure, &
-                                  model_clock, mesh, W3_project )
-    call write_scalar_diagnostic( 'buoyancy', buoyancy, &
-                                  model_clock, mesh, W3_project )
+    call write_vector_diagnostic( config, mesh, 'wind', wind, &
+                                  model_clock, W3_project )
+    call write_scalar_diagnostic( config, mesh, 'pressure', pressure, &
+                                  model_clock, W3_project )
+    call write_scalar_diagnostic( config, mesh, 'buoyancy', buoyancy, &
+                                  model_clock, W3_project )
 
   end subroutine gravity_wave_diagnostics_driver
 

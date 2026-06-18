@@ -561,7 +561,7 @@ contains
       call gungho_transport_control_alg_init( mesh )
 
       ! Construct semi-implicit solver
-      call semi_implicit_solver_alg_init( self%state )
+      call semi_implicit_solver_alg_init( self%config, self%state )
     end if
 
     nullify(mesh)
@@ -764,11 +764,11 @@ contains
 
     if (element_order_h == 0 .and. element_order_v == 0) then
       ! Lowest order so use finite volume constants
-      mm_wt  => get_mass_matrix_fv(Wtheta, mesh%get_id())
-      mm_vel => get_mass_matrix_fv(W2, mesh%get_id())
+      mm_wt  => get_mass_matrix_fv(self%config, mesh, Wtheta)
+      mm_vel => get_mass_matrix_fv(self%config, mesh, W2)
     else
-      mm_wt  => get_mass_matrix_fe(Wtheta, mesh%get_id())
-      mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+      mm_wt  => get_mass_matrix_fe(self%config, mesh, Wtheta)
+      mm_vel => get_mass_matrix_fe(self%config, mesh, W2)
     end if
 
     !--------------------------------------------------------------------
@@ -881,7 +881,7 @@ contains
     !--------------------------------------------------------------------
     ! Compute the time-level n dynamics terms
     !--------------------------------------------------------------------
-    call rhs_alg( self%rhs_n, varbeta*cast_dt,                    &
+    call rhs_alg( self%config, self%rhs_n, varbeta*cast_dt,       &
                   self%state_after_slow, self%state_n, moist_dyn, &
                   compute_eos=.false., compute_rhs_t_d=.true.,    &
                   dlayer_rhs=.false., model_clock=model_clock )
@@ -890,7 +890,7 @@ contains
     ! Set the moisture to be transported to point to the moisture after slow physics
     mr_to_adv => self%mr_after_slow
     ! Set predictors for transport
-    call predictors_alg(self%advected_state, self%state_n(igh_u), &
+    call predictors_alg(self%config, self%advected_state, self%state_n(igh_u), &
                         self%rhs_n(igh_u),varbeta,model_clock)
 
     !==========================================================================
@@ -930,7 +930,7 @@ contains
           call copy_bundle(self%rhs_adv, self%adv_inc_prev, bundle_size)
           ! Update advected state, moisture, and tracers to be transported
           ! in the next outer iteration transport call
-          call mass_matrix_solver_alg( self%du, self%rhs_adv(igh_u) )
+          call mass_matrix_solver_alg( self%config, self%du, self%rhs_adv(igh_u) )
           call invoke( inc_X_plus_Y(self%advected_state(igh_d), self%rhs_adv(igh_d) ), &
                        inc_X_plus_Y(self%advected_state(igh_t), self%rhs_adv(igh_t) ), &
                        inc_X_plus_Y(self%advected_state(igh_u), self%du ) )
@@ -959,7 +959,7 @@ contains
                                                       self%dtheta, mm_wt) )
 
         ! Compute the time-level n+1 dynamics terms
-        call rhs_alg( self%rhs_np1, -varalpha*cast_dt,              &
+        call rhs_alg( self%config, self%rhs_np1, -varalpha*cast_dt, &
                       self%state, self%state, moist_dyn,            &
                       compute_eos=.true., compute_rhs_t_d=.true.,   &
                       dlayer_rhs=dlayer_on, model_clock=model_clock )
@@ -974,8 +974,9 @@ contains
         !--------------------------------------------------------------------
         ! setting predictors for fast physics
         !--------------------------------------------------------------------
-        call calc_phys_predictors_alg( derived_fields, self%rhs_np1, self%rhs_adv,    &
-                                       self%rhs_n, self%state, self%state_after_slow, &
+        call calc_phys_predictors_alg( self%config, derived_fields,            &
+                                       self%rhs_np1, self%rhs_adv, self%rhs_n, &
+                                       self%state, self%state_after_slow,      &
                                        lbc_fields, model_clock )
 
         if (outer == outer_iterations .and. self%output_cld_incs) then
@@ -1030,9 +1031,9 @@ contains
         if ( guess_np1 ) then
           ! Update factors for moist dynamics
           if (self%use_moisture) call moist_dyn_factors_alg(moist_dyn, mr)
-          call update_prognostic_scalars_alg(self%state, self%rhs_n, self%rhs_adv, &
-                                             self%rhs_phys,                        &
-                                             moist_dyn(gas_law))
+          call update_prognostic_scalars_alg(self%config, self%state,  &
+                                             self%rhs_n, self%rhs_adv, &
+                                             self%rhs_phys, moist_dyn(gas_law))
         end if
 
         !============================================================================
@@ -1047,7 +1048,7 @@ contains
           ! Compute the time-level n+1 dynamics terms
           !--------------------------------------------------------------------
           if (inner > 1) then
-            call rhs_alg( self%rhs_np1, -varalpha*cast_dt,              &
+            call rhs_alg( self%config, self%rhs_np1, -varalpha*cast_dt, &
                           self%state, self%state, moist_dyn,            &
                           compute_eos=.true., compute_rhs_t_d=.false.,  &
                           dlayer_rhs=dlayer_on, model_clock=model_clock )
@@ -1057,8 +1058,8 @@ contains
           !--------------------------------------------------------------------
           if ( limited_area .and. inner == 1 .and. outer == 1 ) then
             call lam_solver_lbc(self%state(igh_u), lbc_fields, prime_mesh_name)
-            call calc_rhs_lbc(self%rhs_lbc, lbc_fields, model_clock, prime_mesh_name, &
-                              tau_r)
+            call calc_rhs_lbc(self%config, self%rhs_lbc, lbc_fields, &
+                              model_clock, prime_mesh_name, tau_r)
           end if
 
           !--------------------------------------------------------------------
@@ -1103,10 +1104,9 @@ contains
           !--------------------------------------------------------------------
           ! Solve semi-implicit system: A*inc = rhs, and incement state by inc
           !--------------------------------------------------------------------
-          call semi_implicit_solver_alg_step( self%state, self%rhs_np1, &
-                                              moist_dyn(gas_law),       &
-                                              mr,                       &
-                                              first_iteration=(inner==1) )
+          call semi_implicit_solver_alg_step( self%config, self%state,          &
+                                              self%rhs_np1, moist_dyn(gas_law), &
+                                              mr, first_iteration=(inner==1) )
 
           if (write_moisture_diag) then
             call moisture_conservation_alg(self%config, self%state(igh_d), mr, &
@@ -1118,7 +1118,7 @@ contains
             call moist_dyn_factors_alg(moist_dyn, mr)
 
           if (exner_from_eos) then
-            call derive_exner_from_eos( self%state, &
+            call derive_exner_from_eos( self%config, self%state, &
                                         moist_dyn(gas_law) )
           end if
 
@@ -1253,10 +1253,11 @@ contains
     end if
     if (write_diag .and. use_xios_io .and. &
          mod(model_clock%get_step(),diagnostic_frequency) == 0 ) then
-      call output_diags_for_si(self%state, self%state_n, self%state_after_slow,&
-                               mr, self%mr_n, self%mr_after_slow,              &
-                               self%mr_after_adv, derived_fields,              &
-                               self%du, self%dtheta, self%dtheta_cld)
+      call output_diags_for_si(self%config, self%state, self%state_n, &
+                               self%state_after_slow, mr, self%mr_n,  &
+                               self%mr_after_slow, self%mr_after_adv, &
+                               derived_fields, self%du, self%dtheta, &
+                               self%dtheta_cld)
     end if
 
     !--------------------------------------------------------------------

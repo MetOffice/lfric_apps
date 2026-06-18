@@ -35,7 +35,8 @@ module create_shallow_water_prognostics_mod
   use log_mod,                            only: log_event,      &
                                                 LOG_LEVEL_INFO, &
                                                 LOG_LEVEL_ERROR
-  use mesh_mod,                           only: mesh_type
+ ! use config_mod, only: config_type
+  use mesh_mod,   only: mesh_type
 
   implicit none
 
@@ -57,8 +58,9 @@ module create_shallow_water_prognostics_mod
                                                prognostics )
 
     implicit none
+!    type(mesh_type), intent(in)          :: config
+    type(mesh_type), intent(in), pointer :: mesh
 
-    type(mesh_type), pointer,    intent(in)    :: mesh
     type(field_collection_type), intent(inout) :: depository
     type(field_collection_type), intent(inout) :: prognostics
 

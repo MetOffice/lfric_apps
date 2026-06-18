@@ -108,7 +108,7 @@ module tl_si_timestep_alg_mod
   use mixing_config_mod,           only: smagorinsky
 
   use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
-
+use config_mod, only: config_type
   implicit none
 
   private
@@ -171,13 +171,14 @@ contains
   !> @param[in]     ls_exner  Lin. state for Exner pressure
   !> @param[in]     ls_mr     Lin. state for Mixing ratios
   !> @param[in]     ls_moist_dyn Lin. state for moist dynamical factors
-  subroutine tl_semi_implicit_alg_init( mesh, u, rho, theta, exner, mr,   &
+  subroutine tl_semi_implicit_alg_init( config, mesh, u, rho, theta, exner, mr,   &
                                         ls_u, ls_rho, ls_theta, ls_exner, &
                                         ls_mr, ls_moist_dyn, partial_init )
 
     implicit none
 
     ! Mesh
+    type(config_type),  intent( in )          :: config
     type(mesh_type),    intent( in ), pointer :: mesh
 
     ! Prognostic fields
@@ -333,7 +334,7 @@ contains
     if (full_init) then
       call create_si_operators( mesh )
       call gungho_transport_control_alg_init( mesh )
-      call semi_implicit_solver_alg_init( state )
+      call semi_implicit_solver_alg_init( config, state )
     end if
 
     call log_event( "semi_implicit_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO )
@@ -409,8 +410,8 @@ contains
 
     qr => get_qr_fe()
 
-    mm_wt  => get_mass_matrix_fe(Wtheta, mesh%get_id())
-    mm_vel => get_mass_matrix_fe(W2,     mesh%get_id())
+    mm_wt  => get_mass_matrix_fe(modeldb%config, mesh, Wtheta)
+    mm_vel => get_mass_matrix_fe(modeldb%config, mesh, W2)
 
     !--------------------------------------------------------------------
     ! If off-centring is being spun up then modify the alpha value
@@ -475,12 +476,12 @@ contains
     ! Note that this reset can only occur at most once per timestep.
     reference_reset_freq = nint(reference_reset_time / cast_dt, i_def)
     if ( mod(modeldb%clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) &
-      call compute_si_operators(modeldb%config,  &
-                                ls_state(igh_t), &
-                                ls_state(igh_d), &
-                                ls_state(igh_p), &
-                                modeldb%clock,   &
-                                ls_moist_dyn_itns(:,1,1))
+      call compute_si_operators( modeldb%config,  &
+                                 ls_state(igh_t), &
+                                 ls_state(igh_d), &
+                                 ls_state(igh_p), &
+                                 modeldb%clock,   &
+                                 ls_moist_dyn_itns(:,1,1) )
 
 
     !--------------------------------------------------------------------
@@ -490,7 +491,8 @@ contains
 
     if ( .not. fixed_ls ) then
 
-    call rhs_alg( ls_rhs_n, varbeta*cast_dt, ls_state_after_slow, &
+    call rhs_alg( modeldb%config,                                 &
+                  ls_rhs_n, varbeta*cast_dt, ls_state_after_slow, &
                   ls_state_n, ls_moist_dyn_itns(:,1,1),           &
                   compute_eos=.false., compute_rhs_t_d=.true.,    &
                   dlayer_rhs=.false., model_clock=modeldb%clock )
@@ -498,7 +500,9 @@ contains
     if ( .not. si_momentum_equation ) then
       ! Predictor of the wind field (u-beta*dt*rhs) to be advected if using
       ! explicit advection
-      call mass_matrix_solver_alg(ls_advected_state(igh_u), ls_rhs_n(igh_u))
+      call mass_matrix_solver_alg( modeldb%config,           &
+                                   ls_advected_state(igh_u), &
+                                   ls_rhs_n(igh_u) )
     end if
 
     !==========================================================================
@@ -506,15 +510,15 @@ contains
     !==========================================================================
     ls_outer_dynamics_loop: do outer = 1,ls_outer_iterations
 
-      call gungho_transport_control_alg(modeldb%config,                 &
-                                        ls_rhs_adv(:, outer, 1),        &
-                                        ls_advected_state,              &
-                                        ls_state_itns(igh_u, outer, 1), &
-                                        ls_state_n(igh_u),              &
-                                        ls_mr_itns(:, outer, 1),        &
-                                        ls_mr_after_slow(:),            &
-                                        modeldb%clock, outer,           &
-                                        cheap_update = .false. )
+      call gungho_transport_control_alg( modeldb%config,                 &
+                                         ls_rhs_adv(:, outer, 1),        &
+                                         ls_advected_state,              &
+                                         ls_state_itns(igh_u, outer, 1), &
+                                         ls_state_n(igh_u),              &
+                                         ls_mr_itns(:, outer, 1),        &
+                                         ls_mr_after_slow(:),            &
+                                         modeldb%clock, outer,           &
+                                         cheap_update = .false. )
 
       ! Convert theta increment to weak form
       call invoke( setval_X(theta_fv_inc, ls_rhs_adv(igh_t, outer, 1)),          &
@@ -531,12 +535,12 @@ contains
             call moist_dyn_factors_alg( ls_moist_dyn_itns(:, outer, 1), &
                                         ls_mr_itns(:, outer, 1) )
           end if
-          call update_prognostic_scalars_alg(        &
-                         ls_state_itns(:, outer, 1), &
-                         ls_rhs_n,                   &
-                         ls_rhs_adv(:, outer, 1),    &
-                         ls_rhs_phys(:, outer, 1),   &
-                         ls_moist_dyn_itns(gas_law, outer, 1) )
+          call update_prognostic_scalars_alg( modeldb%config,             &
+                                              ls_state_itns(:, outer, 1), &
+                                              ls_rhs_n,                   &
+                                              ls_rhs_adv(:, outer, 1),    &
+                                              ls_rhs_phys(:, outer, 1),   &
+                                              ls_moist_dyn_itns(gas_law, outer, 1) )
         end if
 
         !=====================================================================
@@ -566,7 +570,8 @@ contains
             !--------------------------------------------------------------------
             ! Compute the time-level n+1 dynamics terms
             !--------------------------------------------------------------------
-            call rhs_alg( ls_rhs_np1(:, outer, inner),        &
+            call rhs_alg( modeldb%config,                     &
+                          ls_rhs_np1(:, outer, inner),        &
                           -varalpha*cast_dt,                  &
                           ls_state_itns(:, outer, inner),     &
                           ls_state_itns(:, outer, inner),     &
@@ -637,7 +642,7 @@ contains
                                 nummr )
             end if
 
-            call semi_implicit_solver_alg_step(                                &
+            call semi_implicit_solver_alg_step(modeldb%config,                 &
                            ls_state_itns(:, next_outer, next_inner),           &
                            ls_rhs_np1(:, outer, inner),                        &
                            ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
@@ -650,7 +655,7 @@ contains
                    ls_mr_itns(:, next_outer, next_inner) )
             end if
             if (exner_from_eos) then
-              call derive_exner_from_eos(                            &
+              call derive_exner_from_eos(modeldb%config,             &
                            ls_state_itns(:, next_outer, next_inner), &
                            ls_moist_dyn_itns(gas_law, next_outer, next_inner) )
             end if
@@ -699,7 +704,8 @@ contains
     !--------------------------------------------------------------------
     ! Compute the time-level n dynamics terms
     !--------------------------------------------------------------------
-    call tl_rhs_alg( rhs_n, varbeta*cast_dt, state_after_slow, state_n, &
+    call tl_rhs_alg( modeldb%config,                                    &
+                     rhs_n, varbeta*cast_dt, state_after_slow, state_n, &
                      moist_dyn, ls_state_n, ls_moist_dyn_itns(:, 1,1),  &
                      .false., .false., model_clock=modeldb%clock )
 
@@ -709,7 +715,9 @@ contains
     if ( .not. si_momentum_equation ) then
       ! Predictor of the wind field (u-beta*dt*rhs) to be advected if using
       ! explicit advection
-      call mass_matrix_solver_alg(advected_state(igh_u), rhs_n(igh_u))
+      call mass_matrix_solver_alg( modeldb%config,        &
+                                   advected_state(igh_u), &
+                                   rhs_n(igh_u) )
       if ( use_density_predictor ) then
         call log_event('T.L. si timestep: transport with density predictor not yet implemented', &
                        LOG_LEVEL_ERROR)
@@ -753,7 +761,8 @@ contains
       ! For the first inner loop, it needs to be called before entering.
       ! This is because rhs_np1 is used to calculate u_star in tl_bdy_lyr_alg.
       if (use_wavedynamics) then
-        call tl_rhs_alg( rhs_np1,                             &
+        call tl_rhs_alg( modeldb%config,                      &
+                         rhs_np1,                             &
                          -varalpha*cast_dt,                   &
                          state,                               &
                          state,                               &
@@ -805,7 +814,8 @@ contains
           !--------------------------------------------------------------------
           ! Only call tl_rhs_alg if inner > 1 as for inner===1 it is already called early (see comment above)
           if (inner > 1) then
-            call tl_rhs_alg(rhs_np1,                                  &
+            call tl_rhs_alg(modeldb%config,                           &
+                            rhs_np1,                                  &
                             -varalpha*cast_dt,                        &
                             state,                                    &
                             state,                                    &
@@ -853,7 +863,8 @@ contains
           ! If rhs_np1 is zero, there is no need to call the SI solver
           if ( .not. &
                bundle_is_zero(mixed_solver_a_tol, rhs_np1, bundle_size) ) then
-            call semi_implicit_solver_alg_step( state, rhs_np1,      &
+            call semi_implicit_solver_alg_step( modeldb%config,      &
+                                                state, rhs_np1,      &
                                                 moist_dyn(gas_law),  &
                                                 mr,                  &
                                                 first_iteration=(inner==1) )
@@ -865,7 +876,8 @@ contains
           end if
 
           if (exner_from_eos) then
-            call tl_derive_exner_from_eos( state,              &
+            call tl_derive_exner_from_eos( modeldb%config,     &
+                                           state,              &
                                            moist_dyn(gas_law), &
                                            ls_state,           &
                                            ls_moist_dyn(gas_law) )
@@ -909,20 +921,20 @@ contains
     !--------------------------------------------------------------------
     ! Apply mixing
     !--------------------------------------------------------------------
-    call mixing_alg(modeldb%config, mr, state(igh_t),           &
-                    state(igh_u), derived_fields, cloud_fields, &
-                    state(igh_d), state(igh_p), cast_dt,        &
-                    modeldb%clock )
+    call mixing_alg( modeldb%config, mr, state(igh_t),           &
+                     state(igh_u), derived_fields, cloud_fields, &
+                     state(igh_d), state(igh_p), cast_dt,        &
+                     modeldb%clock )
 
     ! Update derived variables for time level n+1
     if (use_moisture) then
       call tl_moist_dyn_factors_alg(moist_dyn, mr)
     end if
     if (use_physics) then
-      call map_physics_fields_alg(modeldb%config, state(igh_u), &
-                                  state(igh_p), state(igh_d),   &
-                                  state(igh_t), moist_dyn,      &
-                                  derived_fields)
+      call map_physics_fields_alg( modeldb%config, state(igh_u), &
+                                   state(igh_p), state(igh_d),   &
+                                   state(igh_t), moist_dyn,      &
+                                   derived_fields )
     end if
 
     !--------------------------------------------------------------------

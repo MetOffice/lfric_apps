@@ -40,7 +40,7 @@ module gw_init_fields_alg_mod
 
   ! Handles
   use fs_continuity_mod,                 only: W0, W2, W3, Wtheta
-
+use config_mod, only: config_type
   implicit none
 
   private
@@ -51,9 +51,11 @@ contains
   !>          all solvers.
   !> @param[inout] prognostics  The prognostic variables
   !>                            (wind buoyancy and pressure)
-  subroutine gw_init_fields_alg( wind, pressure, buoyancy )
+  subroutine gw_init_fields_alg(config, wind, pressure, buoyancy )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type( field_type ), intent(inout) :: wind
@@ -109,7 +111,7 @@ contains
                  initial_u_kernel_type( r_u, chi, panel_id, initial_time, &
                                         domain_max_x, domain_max_y,       &
                                         qr ) )
-    call mass_matrix_solver_alg(wind, r_u)
+    call mass_matrix_solver_alg(config, wind, r_u)
 
     call log_event( 'gravity_wave: Initialised prognostic fields', LOG_LEVEL_INFO )
 

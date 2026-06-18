@@ -151,7 +151,7 @@ contains
               call invoke( X_times_Y(mass_flux, reconstruction_field, wind) )
             end if
             if ( do_advective ) then
-              call fem_advective_update_alg(adv_inc, density, reconstruction_field, &
+              call fem_advective_update_alg(config, adv_inc, density, reconstruction_field, &
                                             wind, direction, dt)
             end if
 
@@ -201,7 +201,7 @@ contains
 
             ! Compute the advective update m3_inv * u.grad(density)
             if ( do_advective ) then
-              m3_inv => get_inverse_mass_matrix_fv( W3, density%get_mesh_id() )
+              m3_inv => get_inverse_mass_matrix_fv(config, density%get_mesh(), W3)
               call invoke( setval_c( adv_inc, 0.0_r_tran ) )
               ! Different advective update kernel dependent on direction
               if ( do_horizontal ) then

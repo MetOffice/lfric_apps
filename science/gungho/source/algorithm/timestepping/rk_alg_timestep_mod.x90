@@ -394,7 +394,7 @@ contains
                                                 self%state(igh_u), coriolis ) )
       end if
       if ( vector_invariant ) then
-        call compute_vorticity_alg(self%vorticity, self%state(igh_u), .false.)
+        call compute_vorticity_alg(self%config, self%vorticity, self%state(igh_u), .false.)
         if ( vorticity_in_w1 ) then
           call invoke( vorticity_advection_kernel_type(self%rhs_prediction(igh_u,stage),  &
                                                        self%state(igh_u), self%vorticity, &
@@ -432,9 +432,9 @@ contains
         call invoke( setval_X(self%inc(igh_t), self%rhs(igh_t)) )
       else
         ! Use full mass matrix
-        call mass_matrix_solver_alg( self%inc(igh_t), self%rhs(igh_t) )
+        call mass_matrix_solver_alg( self%config, self%inc(igh_t), self%rhs(igh_t) )
       end if
-      call mass_matrix_solver_alg( self%inc(igh_u), self%rhs(igh_u) )
+      call mass_matrix_solver_alg( self%config, self%inc(igh_u), self%rhs(igh_u) )
       call invoke( setval_X(self%inc(igh_d), self%rhs(igh_d)) )
 
       ! Add increments
@@ -442,7 +442,7 @@ contains
       call bundle_axpy( real(model_clock%get_seconds_per_step(), r_def), &
                         self%inc, self%state_n, self%state, bundle_size)
       ! Recompute exner from eos
-      m3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+      m3_inv => get_inverse_mass_matrix_fe(self%config, u%get_mesh(), W3)
       call invoke( project_eos_pressure_kernel_type( self%state(igh_p), self%state(igh_d),  &
                                                      self%state(igh_t), moist_dyn(gas_law), &
                                                      chi, panel_id, m3_inv, qr ) )

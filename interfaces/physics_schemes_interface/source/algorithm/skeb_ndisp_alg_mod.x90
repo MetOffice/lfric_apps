@@ -26,7 +26,7 @@ module skeb_ndisp_alg_mod
     use base_mesh_config_mod,      only: geometry, &
                                          geometry_spherical
     use initialise_diagnostics_mod, only: diagnostic_to_be_sampled
-
+use config_mod, only: config_type
     implicit none
 
     private
@@ -49,7 +49,7 @@ module skeb_ndisp_alg_mod
   !>@param[in]         u            Wind on W2
   !>@param[in,out]     ndisp        Numerical dissipation
 
-  subroutine skeb_ndisp_alg(u, ndisp)
+  subroutine skeb_ndisp_alg(config, u, ndisp)
 
   ! timestep and constant
   use timestepping_config_mod,   only: dt
@@ -83,6 +83,8 @@ module skeb_ndisp_alg_mod
 
 
   implicit none
+
+type(config_type), intent(in) :: config
   !!!! Arguments
   ! Fields
   type( field_type ), intent(in)    :: u
@@ -164,8 +166,8 @@ module skeb_ndisp_alg_mod
 
   ! Initialise Operators
   div_h            => get_div_h(mesh%get_id())
-  m3_inv           => get_inverse_mass_matrix_fv(W3, mesh%get_id())
-  curl             => get_curl_fv(mesh%get_id())
+  m3_inv           => get_inverse_mass_matrix_fv(config, mesh, W3)
+  curl             => get_curl_fv(config, mesh)
   face_selector_ew => get_face_selector_ew(mesh)
   face_selector_ns => get_face_selector_ns(mesh)
 
@@ -193,7 +195,7 @@ module skeb_ndisp_alg_mod
                setval_c(xi, 0.0_r_def) )
 
   ! Integrate quadrature points
-  call mass_matrix_solver_alg(xi, r_xi)
+  call mass_matrix_solver_alg(config, xi, r_xi)
   ! Set horizontal components to be zero to mimic W1V
   call invoke( set_w1h_dofs_kernel_type(xi, 0.0_r_def) )
 
@@ -217,7 +219,7 @@ module skeb_ndisp_alg_mod
                setval_c(grad_div_u, 0.0_r_def) )
 
   ! Integrate quadrature
-  call mass_matrix_solver_alg(grad_div_u, r_u)
+  call mass_matrix_solver_alg(config, grad_div_u, r_u)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  4)  Do Norm of gradients of vorticity and divergence  !!

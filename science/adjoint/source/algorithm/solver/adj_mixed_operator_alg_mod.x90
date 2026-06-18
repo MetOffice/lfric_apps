@@ -58,6 +58,9 @@ module adj_mixed_operator_alg_mod
                                                          tik, LPROF
   use vector_mod,                                  only: abstract_vector_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -75,9 +78,11 @@ contains
   !> @brief Applies the adjoint mixed operator to the vector.
   !> @param[in]     x Field vector to be read
   !> @param[in,out] y Field vector to be written
-  subroutine apply_adj_mixed_operator(self, x, y)
+  subroutine apply_adj_mixed_operator(self, config, x, y)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     class(adj_mixed_operator_type), intent(inout)    :: self
     class(abstract_vector_type),    intent(in)       :: x
@@ -128,9 +133,9 @@ contains
     end if
 
     ! Obtain operators from runtime constants
-    mt_lumped_inv => get_normalisation_r_solver( Wtheta, mesh%get_id() )
-    m2_diag       => get_normalisation_r_solver( W2, mesh%get_id() )
-    mm_vel => get_w2_mass_matrix_r_solver( w2_si_matrix, mesh%get_id() )
+    mt_lumped_inv => get_normalisation_r_solver(config, mesh, Wtheta)
+    m2_diag       => get_normalisation_r_solver(config, mesh, W2)
+    mm_vel => get_w2_mass_matrix_r_solver(config, mesh, w2_si_matrix)
 
     ! Obtain operators from SI operators
     p2theta       => get_p2theta()

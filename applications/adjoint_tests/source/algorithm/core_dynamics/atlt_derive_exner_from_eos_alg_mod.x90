@@ -22,6 +22,7 @@ module atlt_derive_exner_from_eos_alg_mod
   use fs_continuity_mod,                   only : W3, Wtheta
   use function_space_collection_mod,       only : function_space_collection
 
+use config_mod, only: config_type
   implicit none
 
   public
@@ -34,7 +35,7 @@ module atlt_derive_exner_from_eos_alg_mod
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
   !> @param[in]  mesh         The model mesh
-  subroutine atlt_derive_exner_from_eos_alg( mesh )
+  subroutine atlt_derive_exner_from_eos_alg(config, mesh)
 
     use tl_derive_exner_from_eos_alg_mod,    only : tl_derive_exner_from_eos
     use atl_derive_exner_from_eos_alg_mod,   only : atl_derive_exner_from_eos
@@ -42,7 +43,8 @@ module atlt_derive_exner_from_eos_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
 
     ! Arguments for tl and atl calls
     ! Form of state and rhs is [u,theta,rho,exner]
@@ -111,7 +113,7 @@ module atlt_derive_exner_from_eos_alg_mod
                  setval_random( ls_moist_dyn ) )
 
     ! Tangent linear
-    call tl_derive_exner_from_eos( state, moist_dyn, ls_state, ls_moist_dyn )
+    call tl_derive_exner_from_eos( config, state, moist_dyn, ls_state, ls_moist_dyn )
 
     ! < Mx, Mx >
     call invoke( x_innerproduct_x( state_inner_prod(igh_t), state(igh_t) ),           &
@@ -151,7 +153,7 @@ module atlt_derive_exner_from_eos_alg_mod
     moist_dyn_moist_dyn_input_inner_prod = 0.0_r_def
 
     ! Adjoint
-    call atl_derive_exner_from_eos( state, moist_dyn, ls_state, ls_moist_dyn )
+    call atl_derive_exner_from_eos( config, state, moist_dyn, ls_state, ls_moist_dyn )
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( state_state_input_inner_prod(igh_t),           &
