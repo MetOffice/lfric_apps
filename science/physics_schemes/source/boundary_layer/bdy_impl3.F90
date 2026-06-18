@@ -313,7 +313,7 @@ end do
 !$OMP end do
 
 do k = blm1, 2, -1
-  !$OMP do SCHEDULE(STATIC)
+  !$OMP do SCHEDULE(DYNAMIC)
   do i = tdims%i_start, tdims%i_end
     r_sq = r_rho_levels(i,j,k)*r_rho_levels(i,j,k)
     rr_sq = r_rho_levels(i,j,k+1)*r_rho_levels(i,j,k+1)
@@ -330,12 +330,9 @@ do k = blm1, 2, -1
           gamma1(i,j)*(r_sq*rhokh(i,j,k))*rdz_charney_grid(i,j,k)
     dqw(i,j,k) = (dqw(i,j,k) - at*dqw(i,j,k+1) )
     dtl(i,j,k) = (dtl(i,j,k) - at*dtl(i,j,k+1) )
-
+    !y(i) = 1/x(i)
     temp(i) = ( 1 / ( one - ct_ctq(i,j,k) -                                        &
           at*( one + ct_ctq(i,j,k+1) ) ) )
-      
-    !y(i) = 1/x(i)
-
     dqw(i,j,k) = temp(i) * dqw(i,j,k)
     dtl(i,j,k) = temp(i) * dtl(i,j,k)
     ct_ctq(i,j,k) = temp(i) * ct_ctq(i,j,k)
@@ -401,11 +398,9 @@ if ( .not. l_correct ) then
       ! pack
       dqw1(i,j,k) =  (dqw1(i,j,k) - at*dqw1(i,j,k+1) )
       dtl1(i,j,k) =  (dtl1(i,j,k) - at*dtl1(i,j,k+1) )
-
+      !y(i) = 1/x(i)
       temp(i) = ( 1 / ( one - ctctq1(i,j,k) -                                      &
             at*( one + ctctq1(i,j,k+1) ) ) )
-
-      !y(i) = 1/x(i)
       dqw1(i,j,k) = temp(i) * dqw1(i,j,k)
       dtl1(i,j,k) = temp(i) * dtl1(i,j,k)
       ctctq1(i,j,k) = temp(i) * ctctq1(i,j,k)
