@@ -223,7 +223,7 @@ blm1 = bl_levels-1
 !$OMP  ct_prod, k_blend_tq,                                                    &
 !$OMP  gamma_in,lcrcp,lsrcp, temp)                                             &
 !$OMP  private(k,i,r_sq,rbt,                                                   &
-!$OMP  at,am,rbm,rr_sq,ii)
+!$OMP  at,am,rbm,rr_sq)
 
 if ( l_correct ) then
 
