@@ -174,9 +174,8 @@ real(kind=r_bl) ::                                                             &
                 ! calculate the coefficients of surface fluxes for
                 ! implicit coupling at level k_blend_tq
 
-real(kind=r_bl) ::                                                             &
-temp(pdims%i_end*pdims%j_end),                                                 &
-temp_out(pdims%i_end*pdims%j_end)
+real(kind=r_bl), allocatable ::                                                &
+  temp(:,:)
                           ! temp for pressure grid vector division
 
 !  Local scalars :-
@@ -228,6 +227,8 @@ tdims_seg_block = min(tdims_omp_block, tdims%i_len)
 
 blm1 = bl_levels-1
 
+allocate(temp(tdims%i_end, max_threads))
+
 !$OMP  PARALLEL DEFAULT(none) SHARED(tdims_seg_block,l_correct,bl_levels,      &
 !$OMP  blm1,tdims, dqw_nt,dtl_nt,q_latest,qcl_latest,                          &
 !$OMP  gamma1,q,qcl,qcf,t_latest,t,ftl,rhokh,dtl,rdz_charney_grid,dqw,         &
@@ -236,8 +237,8 @@ blm1 = bl_levels-1
 !$OMP  dtrdz_charney_grid,gamma2,ct_ctq,dqw1,dtl1,ctctq1,model_type,           &
 !$OMP  dqw1_1,dtl1_1,ctctq1_1,                                                 &
 !$OMP  ct_prod, k_blend_tq,                                                    &
-!$OMP  gamma_in,lcrcp,lsrcp)                                                   &
-!$OMP  private(k,i,r_sq,rbt,temp,l,temp_out,                                   &
+!$OMP  gamma_in,lcrcp,lsrcp, temp)                                             &
+!$OMP  private(k,i,r_sq,rbt,                                                   &
 !$OMP  at,am,rbm,rr_sq,ii)
 
 if ( l_correct ) then
@@ -330,7 +331,6 @@ end do
 !$OMP do SCHEDULE(STATIC)
 do ii = tdims%i_start, tdims%i_end, tdims_seg_block
   do k = blm1, 2, -1
-    l = 0
     do i = ii, min(ii+tdims_seg_block-1, tdims%i_end)
       r_sq = r_rho_levels(i,j,k)*r_rho_levels(i,j,k)
       rr_sq = r_rho_levels(i,j,k+1)*r_rho_levels(i,j,k+1)
@@ -345,21 +345,17 @@ do ii = tdims%i_start, tdims%i_end, tdims_seg_block
             rdz_charney_grid(i,j,k+1)
       ct_ctq(i,j,k) = -dtrdz_charney_grid(i,j,k) *                             &
             gamma1(i,j)*(r_sq*rhokh(i,j,k))*rdz_charney_grid(i,j,k)
-      l = l + 1
-      temp(l) = ( one - ct_ctq(i,j,k) -                                        &
-            at*( one + ct_ctq(i,j,k+1) ) )
       dqw(i,j,k) = (dqw(i,j,k) - at*dqw(i,j,k+1) )
       dtl(i,j,k) = (dtl(i,j,k) - at*dtl(i,j,k+1) )
-    end do
 
-    call oneover_v(l, temp, temp_out)
+      temp(i,ii) = ( 1 / ( one - ct_ctq(i,j,k) -                                        &
+            at*( one + ct_ctq(i,j,k+1) ) ) )
+        
+      !y(i) = 1/x(i)
 
-    l = 0
-    do i = ii, min(ii+tdims_seg_block-1, tdims%i_end)
-      l = l + 1
-      dqw(i,j,k) = temp_out(l) * dqw(i,j,k)
-      dtl(i,j,k) = temp_out(l) * dtl(i,j,k)
-      ct_ctq(i,j,k) = temp_out(l) * ct_ctq(i,j,k)
+      dqw(i,j,k) = temp(i,ii) * dqw(i,j,k)
+      dtl(i,j,k) = temp(i,ii) * dtl(i,j,k)
+      ct_ctq(i,j,k) = temp(i,ii) * ct_ctq(i,j,k)
     end do
 
   end do !blm1,2,-1
@@ -411,7 +407,6 @@ if ( .not. l_correct ) then
 !$OMP do SCHEDULE(STATIC)
   do ii = tdims%i_start, tdims%i_end, tdims_seg_block
     do k = blm1, 2, -1
-      l = 0
       do i = ii, min(ii+tdims_seg_block-1, tdims%i_end)
         r_sq = r_rho_levels(i,j,k)*r_rho_levels(i,j,k)
         rr_sq = r_rho_levels(i,j,k+1)*r_rho_levels(i,j,k+1)
@@ -424,20 +419,16 @@ if ( .not. l_correct ) then
         ctctq1(i,j,k) = -dtrdz_charney_grid(i,j,k) *                           &
           gamma_in(k)*(r_sq*rhokh(i,j,k))*rdz_charney_grid(i,j,k)
         ! pack
-        l = l + 1
-        temp(l) = ( one - ctctq1(i,j,k) -                                      &
-              at*( one + ctctq1(i,j,k+1) ) )
         dqw1(i,j,k) =  (dqw1(i,j,k) - at*dqw1(i,j,k+1) )
         dtl1(i,j,k) =  (dtl1(i,j,k) - at*dtl1(i,j,k+1) )
-      end do
 
-      call oneover_v(l, temp, temp_out)
-      l = 0
-      do i = ii, min(ii+tdims_seg_block-1, tdims%i_end)
-        l = l + 1
-        dqw1(i,j,k) = temp_out(l) * dqw1(i,j,k)
-        dtl1(i,j,k) = temp_out(l) * dtl1(i,j,k)
-        ctctq1(i,j,k) = temp_out(l) * ctctq1(i,j,k)
+        temp(i,ii) = ( 1 / ( one - ctctq1(i,j,k) -                                      &
+              at*( one + ctctq1(i,j,k+1) ) ) )
+
+        !y(i) = 1/x(i)
+        dqw1(i,j,k) = temp(i,ii) * dqw1(i,j,k)
+        dtl1(i,j,k) = temp(i,ii) * dtl1(i,j,k)
+        ctctq1(i,j,k) = temp(i,ii) * ctctq1(i,j,k)
       end do
     end do !blm1,2,-1
   end do
