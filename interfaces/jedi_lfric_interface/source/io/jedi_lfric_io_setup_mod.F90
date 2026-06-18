@@ -27,7 +27,7 @@ module jedi_lfric_io_setup_mod
   use jedi_lfric_init_files_mod, only: jedi_lfric_init_files
 
 #ifdef USE_XIOS
-  use io_context_mod,           only: io_context_type, callback_clock_arg
+  use io_context_mod,           only: io_context_type
   use lfric_xios_context_mod,   only: lfric_xios_context_type
   use lfric_xios_action_mod,    only: advance
 #endif
@@ -111,8 +111,6 @@ contains
   !> @param[in] chi           The model's coordinate fields
   !> @param[in] panel_id      The model's panel ID fields
   !> @param[in] model_clock   The model clock
-  !> @param[in] before_close  Optional routine to be called before
-  !>                          context closes
   subroutine init_io( context_name,  &
                       communicator,  &
                       file_meta,     &
@@ -120,8 +118,7 @@ contains
                       io_context,    &
                       chi,           &
                       panel_id,      &
-                      model_clock,   &
-                      before_close )
+                      model_clock )
 
     implicit none
 
@@ -133,21 +130,14 @@ contains
     type(field_type),                       intent(in) :: chi(:)
     type(field_type),                       intent(in) :: panel_id
     type(model_clock_type),              intent(inout) :: model_clock
-    procedure(callback_clock_arg), optional            :: before_close
 
 
     ! Local
-    procedure(callback_clock_arg), pointer :: before_close_ptr => null()
     integer(i_def) :: rc
     type(linked_list_type), pointer :: file_list
     class(event_actor_type), pointer :: event_actor_ptr
     procedure(event_action), pointer :: context_advance
     type(lfric_comm_type)            :: lfric_comm
-
-    ! Allocate XIOS IO context types
-    if (present(before_close)) then
-      before_close_ptr => before_close
-    end if
 
     allocate( lfric_xios_context_type::io_context, stat=rc )
     if (rc /= 0) then
@@ -168,12 +158,16 @@ contains
       call lfric_comm%set_comm_mpi_val(communicator)
       call io_context%initialise_xios_context( lfric_comm,            &
                                                chi, panel_id,         &
-                                               model_clock, calendar, &
-                                               before_close_ptr )
+                                               model_clock, calendar )
+
       ! Attach context advancement to the model's clock
       context_advance => advance
       event_actor_ptr => io_context
       call model_clock%add_event( context_advance, event_actor_ptr )
+
+      ! Close definition of I/O context
+      call io_context%close_context_definition()
+
     end select
 
   end subroutine init_io

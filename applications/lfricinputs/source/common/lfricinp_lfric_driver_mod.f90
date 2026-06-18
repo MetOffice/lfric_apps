@@ -29,7 +29,6 @@ use field_mod,                   only: field_type
 use gungho_extrusion_mod,        only: create_extrusion
 use halo_comms_mod,              only: initialise_halo_comms
 use inventory_by_mesh_mod,       only: inventory_by_mesh_type
-use io_context_mod,              only: callback_clock_arg
 use lfric_xios_context_mod,      only: lfric_xios_context_type
 use lfric_xios_action_mod,       only: advance
 use lfric_xios_driver_mod,       only: lfric_xios_initialise, &
@@ -110,7 +109,6 @@ type(field_type), pointer :: chi(:) => null()
 type(field_type), pointer :: panel_id => null()
 type(inventory_by_mesh_type), pointer :: chi_inventory => null()
 type(inventory_by_mesh_type), pointer :: panel_id_inventory => null()
-procedure(callback_clock_arg), pointer :: before_close => null()
 class(event_actor_type), pointer :: event_actor_ptr
 procedure(event_action), pointer :: context_advance
 
@@ -255,7 +253,7 @@ file_list => io_context%get_filelist()
 call io_config%init_lfricinp_files(file_list)
 call io_context%initialise( xios_ctx )
 call io_context%initialise_xios_context( comm, chi, panel_id, &
-                                         model_clock, model_calendar, before_close )
+                                         model_clock, model_calendar )
 ! Attach context advancement to the model's clock
 context_advance => advance
 event_actor_ptr => io_context
