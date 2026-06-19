@@ -968,7 +968,7 @@ class vn31_t16(MacroUpgrade):
             self.add_setting(
                 config,
                 ["namelist:multires_coupling", "multires_coupling_mesh_tags"],
-                "'cubedsphere_l0','cubedsphere_l2'":
+                "'cubedsphere_l0','cubedsphere_l2'",
                 forced=True,
             )
         orography_mesh_name = self.get_setting_value(
