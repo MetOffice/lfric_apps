@@ -173,4 +173,45 @@ class vn31_t16(MacroUpgrade):
                     forced=True,
                 )
 
+        aerosol_mesh_name = self.get_setting_value(
+            config, ["namelist:multires_coupling", "aerosol_mesh_name"]        
+        if aerosol_mesh_name == "'multigrid_l2'":
+            self.add_setting(
+                config,
+                ["namelist:multires_coupling", "aerosol_mesh_name"],
+                "'cubedsphere_l2",
+                forced=True,
+            )
+        multires_coupling_mesh_tags = self.get_setting_value(
+            config, ["namelist:multires_coupling", "multires_coupling_mesh_tags"]        
+        if multires_coupling_mesh_tags == "'dynamics','multigrid_l2'":
+            self.add_setting(
+                config,
+                ["namelist:multires_coupling", "multires_coupling_mesh_tags"],
+                "'cubedsphere_l0','cubedsphere_l2'":
+                forced=True,
+            )
+        orography_mesh_name = self.get_setting_value(
+            config, ["namelist:multires_coupling", "orography_mesh_name"]        
+        if orography_mesh_name == "'dynamics'":
+            self.add_setting(
+                config,
+                ["namelist:multires_coupling", "orography_mesh_name"],
+                "'cubedsphere_l0",
+                forced=True,
+            )
+            
+        physics_mesh_name = self.get_setting_value(
+            config, ["namelist:multires_coupling", "physics_mesh_name"]
+                        
+        if physics_mesh_name == "'dynamics'":
+            self.add_setting(
+                config,
+                ["namelist:multires_coupling", "physics_mesh_name"],
+                "'cubedsphere_l0",
+                forced=True,
+            )
+
+
+            
         return config, self.reports
