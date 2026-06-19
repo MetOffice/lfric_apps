@@ -833,10 +833,28 @@ class vn31_t247(MacroUpgrade):
 
         return config, self.reports
 
+
+class vn31_t394(MacroUpgrade):
+    """Upgrade macro for ticket #394 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t247"
+    AFTER_TAG = "vn3.1_t394"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:formulation", "solver_moisture_conservation"],
+            ".false.",
+        )
+
+        return config, self.reports
+
+
 class vn31_t324(MacroUpgrade):
     """Upgrade macro for ticket #324 by Ricky Wong."""
 
-    BEFORE_TAG = "vn3.1_t247"
+    BEFORE_TAG = "vn3.1_t394"
     AFTER_TAG = "vn3.1_t324"
 
     def upgrade(self, config, meta_config=None):

@@ -85,6 +85,7 @@ jules:
     - src/science/deposition/deposition_ukca_var_mod.F90
     - src/science/params/blend_h_mod.F90
     - src/science/params/c_bvoc_mod.F90
+    - src/science/params/c_irrigation_mod.F90
     - src/science/params/c_kappai_mod.F90
     - src/science/params/c_rmol_mod.F90
     - src/science/params/c_sicehc_mod.F90
