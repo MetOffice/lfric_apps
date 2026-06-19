@@ -43,6 +43,12 @@ contains
     ! ./
     use adjt_sci_psykal_builtin_alg_mod,            only : adjt_convert_cart2sphere_vector_alg
 
+    ! ./algebra
+    use adjt_matrix_vector_alg_mod,                 only : adjt_matrix_vector_alg
+    use adjt_dg_matrix_vector_alg_mod,              only : adjt_dg_matrix_vector_alg
+    use adjt_dg_inc_matrix_vector_alg_mod,          only : adjt_dg_inc_matrix_vector_alg
+    use adjt_transpose_matrix_vector_alg_mod,       only : adjt_transpose_matrix_vector_alg
+
     ! ./inter_function_space
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
 
@@ -95,6 +101,14 @@ contains
     use atlt_transport_control_alg_mod,             only : atlt_transport_control_alg
 
     ! ./core_dynamics
+    use atlt_hydrostatic_alg_mod,                   only : atlt_hydrostatic_alg
+    use atlt_kinetic_energy_gradient_alg_mod,       only : atlt_kinetic_energy_gradient_alg
+    use atlt_moist_dyn_gas_alg_mod,                 only : atlt_moist_dyn_gas_alg
+    use atlt_moist_dyn_mass_alg_mod,                only : atlt_moist_dyn_mass_alg
+    use atlt_project_eos_pressure_alg_mod,          only : atlt_project_eos_pressure_alg
+    use atlt_rhs_project_eos_alg_mod,               only : atlt_rhs_project_eos_alg
+    use atlt_rhs_sample_eos_alg_mod,                only : atlt_rhs_sample_eos_alg
+    use atlt_sample_eos_pressure_alg_mod,           only : atlt_sample_eos_pressure_alg
     use atlt_pressure_gradient_bd_alg_mod,          only : atlt_pressure_gradient_bd_alg
     use atlt_rhs_alg_mod,                           only : atlt_rhs_alg
     use adjt_compute_vorticity_alg_mod,             only : adjt_compute_vorticity_alg
@@ -131,8 +145,8 @@ contains
     chi => get_coordinates( mesh%get_id() )
     panel_id => get_panel_id( mesh%get_id() )
     twod_mesh => mesh_collection%get_mesh( mesh, TWOD )
-    call adj_solver_lookup_cache%initialise(mesh)
-    call adj_trans_lookup_cache%initialise(mesh)
+    call adj_solver_lookup_cache%initialise( mesh )
+    call adj_trans_lookup_cache%initialise( mesh )
 
     call log_event( "TESTING generated adjoint kernels", LOG_LEVEL_INFO )
     call run_gen_adj_kernel_tests( mesh, chi, panel_id )
@@ -151,6 +165,14 @@ contains
     call adjt_w3h_adv_upd_lookup_alg( mesh, adj_trans_lookup_cache )
 
     ! ./core_dynamics
+    call atlt_hydrostatic_alg( mesh )
+    call atlt_kinetic_energy_gradient_alg( mesh, chi, panel_id )
+    call atlt_moist_dyn_gas_alg( mesh )
+    call atlt_moist_dyn_mass_alg( mesh )
+    call atlt_project_eos_pressure_alg( mesh, chi, panel_id )
+    call atlt_rhs_project_eos_alg( mesh, chi, panel_id )
+    call atlt_rhs_sample_eos_alg( mesh )
+    call atlt_sample_eos_pressure_alg( mesh )
     call atlt_pressure_gradient_bd_alg( mesh )
 
     ! ./linear_physics
@@ -158,6 +180,12 @@ contains
 
     ! ./inter_function_space
     call adjt_sci_convert_hdiv_field_alg( mesh, chi, panel_id )
+
+    ! ./algebra
+    call adjt_matrix_vector_alg( mesh )
+    call adjt_dg_matrix_vector_alg( mesh )
+    call adjt_dg_inc_matrix_vector_alg( mesh )
+    call adjt_transpose_matrix_vector_alg( mesh )
 
     call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
     ! ./
