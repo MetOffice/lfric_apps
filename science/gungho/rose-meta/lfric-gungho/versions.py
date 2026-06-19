@@ -810,7 +810,7 @@ class vn31_t394(MacroUpgrade):
 
         return config, self.reports
     
-    class vn31_t16(MacroUpgrade):
+class vn31_t16(MacroUpgrade):
     """Upgrade macro for ticket TTTT by Unknown."""
 
     BEFORE_TAG = "vn3.1_t394"
