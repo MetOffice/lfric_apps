@@ -32,8 +32,6 @@ lfric_apps:
 lfric_core:
     source: git@github.com:mcdalvi/lfric_core.git
     ref: vn3.1_read_coarse_2d
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: a53c2ac1c21c25fe6dae2e39df88f8f8c5e4abf2
 
 moci:
     source: git@github.com:MetOffice/moci.git
