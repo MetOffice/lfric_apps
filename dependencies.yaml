@@ -22,8 +22,8 @@ casim:
     ref: 2026.03.2
 
 jules:
-    source: git@github.com:DanCopsey/jules.git
-    ref: inland_flow
+    source: cazld00001l:/var/tmp/persistent/review_copies/jules
+    ref:
 
 lfric_apps:
     source:
@@ -31,7 +31,7 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: 93e73546bb20874f3a8bf79bffca235da4205af5
+    ref: a53c2ac1c21c25fe6dae2e39df88f8f8c5e4abf2
 
 moci:
     source: git@github.com:MetOffice/moci.git
