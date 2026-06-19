@@ -850,3 +850,18 @@ class vn31_t394(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn31_t401(MacroUpgrade):
+    """Upgrade macro for ticket #401 by Dan Copsey."""
+
+    BEFORE_TAG = "vn3.1_t394"
+    AFTER_TAG = "vn3.1_t401"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        self.add_setting(
+            config, ["namelist:jules_hydrology", "l_inland"], ".false."
+        )
+
+        return config, self.reports

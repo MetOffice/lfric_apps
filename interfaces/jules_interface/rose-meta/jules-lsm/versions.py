@@ -18,6 +18,7 @@ class UpgradeError(Exception):
 
     __str__ = __repr__
 
+
 """
 Copy this template and complete to add your macro
 class vnXX_txxx(MacroUpgrade):
@@ -388,9 +389,9 @@ class vn31_t205(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_vegetation", "l_use_pft_psi"], ".false."
         )
-
         return config, self.reports
-    
+
+
 class vn31_t401(MacroUpgrade):
     """Upgrade macro for ticket #401 by Dan Copsey."""
 
@@ -398,6 +399,9 @@ class vn31_t401(MacroUpgrade):
     AFTER_TAG = "vn3.1_t401"
 
     def upgrade(self, config, meta_config=None):
-        # Add settings
-        self.add_setting(config, ["namelist:jules_hydrology", "l_inland"], ".false.")
+        # Commands From: rose-meta/jules-lsm
+        self.add_setting(
+            config, ["namelist:jules_hydrology", "l_inland"], ".false."
+        )
+
         return config, self.reports
