@@ -15,8 +15,6 @@ module linear_driver_mod
   use io_value_mod,               only : io_value_type
   use section_choice_config_mod,  only : stochastic_physics, &
                                          stochastic_physics_um
-  use gungho_diagnostics_driver_mod, &
-                                  only : gungho_diagnostics_driver
   use gungho_model_mod,           only : initialise_infrastructure, &
                                          initialise_model, &
                                          finalise_infrastructure, &
@@ -31,7 +29,6 @@ module linear_driver_mod
   use gungho_time_axes_mod,       only : gungho_time_axes_type, &
                                          get_time_axes_from_collection
   use init_fd_prognostics_mod,    only : init_fd_prognostics_dump
-  use initial_output_mod,         only : write_initial_output
   use initialization_config_mod,  only : init_option_fd_start_dump, &
                                          ls_option_file
   use io_context_mod,             only : io_context_type
@@ -45,7 +42,8 @@ module linear_driver_mod
   use linear_model_mod,           only : initialise_linear_model, &
                                          finalise_linear_model
   use linear_diagnostics_driver_mod, &
-                                  only : linear_diagnostics_driver
+                                  only : linear_diagnostics_driver, &
+                                         linear_write_initial_output
   use linear_step_mod,            only : linear_step
   use linear_data_algorithm_mod,  only : update_ls_file_alg
   use mesh_mod,                   only : mesh_type
@@ -188,8 +186,8 @@ contains
     nodal_output_on_w3 = modeldb%config%io%nodal_output_on_w3()
 
     ! Initial output
-    call write_initial_output( modeldb, mesh, twod_mesh, &
-                               io_context_name, nodal_output_on_w3 )
+    call linear_write_initial_output( modeldb, mesh, twod_mesh, &
+                                      io_context_name, nodal_output_on_w3 )
 
     ! Linear model configuration initialisation
     call initialise_linear_model( mesh,        &
@@ -259,11 +257,10 @@ contains
          .and. ( write_diag ) ) then
 
       ! Calculation and output diagnostics
-      call gungho_diagnostics_driver( modeldb, mesh, twod_mesh, &
-                                      nodal_output_on_w3 )
 
-      call linear_diagnostics_driver( mesh,    &
-                                      modeldb, &
+      call linear_diagnostics_driver( modeldb,   &
+                                      mesh,      &
+                                      twod_mesh, &
                                       nodal_output_on_w3 )
     end if
 

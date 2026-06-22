@@ -15,7 +15,6 @@ module iau_firstfile_io_mod
   use field_mod,                 only: field_type
   use file_mod,                  only: FILE_MODE_READ
   use inventory_by_mesh_mod,     only: inventory_by_mesh_type
-  use io_context_mod,            only: callback_clock_arg
   use lfric_string_mod,          only: split_string
   use lfric_xios_context_mod,    only: lfric_xios_context_type
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
@@ -70,10 +69,6 @@ contains
 
     logical(l_def) :: use_xios_io
 
-    procedure(callback_clock_arg), pointer :: before_close
-
-    nullify(before_close)
-
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
@@ -121,8 +116,9 @@ contains
     call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
                                              chi, panel_id,               &
                                              modeldb%clock, tmp_calendar, &
-                                             before_close,                &
                                              start_at_zero=.true. )
+    call io_context%close_context_definition()
+
     ! Finalise XIOS context
     call io_context%finalise_xios_context()
 
