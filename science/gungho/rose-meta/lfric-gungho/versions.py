@@ -828,54 +828,54 @@ class vn31_t16(MacroUpgrade):
             self.change_setting_value(
                 config,
                 ["namelist:base_mesh", "prime_mesh_name"],
-                "'planar_l0'",
+                "'l0_planar'",
             )
             if multigrid_chain_nitems == "4":
                 self.add_setting(
                     config,
                     ["namelist:multigrid", "chain_mesh_tags"],
-                    "'planar_l0','planar_l1','planar_l2','planar_l3'",
+                    "'l0_planar','l1_planar','l2_planar','l3_planar'",
                     forced=True,
                 )
             elif multigrid_chain_nitems == "3":
                 self.add_setting(
                     config,
                     ["namelist:multigrid", "chain_mesh_tags"],
-                    "'planar_l0','planar_l1','planar_l2'",
+                    "'l0_planar','l1_planar','l2_planar'",
                     forced=True,
                 )
             elif multigrid_chain_nitems == "2":
                 self.add_setting(
                     config,
                     ["namelist:multigrid", "chain_mesh_tags"],
-                    "'planar_l0','planar_l1'",
+                    "'l0_planar','l1_planar'",
                     forced=True,
                 )
         else:
             self.change_setting_value(
                 config,
                 ["namelist:base_mesh", "prime_mesh_name"],
-                "'cubedsphere_l0'",
+                "'l0_cubedsphere'",
             )
             if multigrid_chain_nitems == "4":
                 self.add_setting(
                     config,
                     ["namelist:multigrid", "chain_mesh_tags"],
-                    "'cubedsphere_l0','cubedsphere_l1','cubedsphere_l2','cubedsphere_l3'",
+                    "'l0_cubedsphere','l1_cubedsphere','l2_cubedsphere','l3_cubedsphere'",
                     forced=True,
                 )
             elif multigrid_chain_nitems == "3":
                 self.add_setting(
                     config,
                     ["namelist:multigrid", "chain_mesh_tags"],
-                    "'cubedsphere_l0','cubedsphere_l1','cubedsphere_l2'",
+                    "'l0_cubedsphere','l1_cubedsphere','l2_cubedsphere'",
                     forced=True,
                 )
             elif multigrid_chain_nitems == "2":
                 self.add_setting(
                     config,
                     ["namelist:multigrid", "chain_mesh_tags"],
-                    "'cubedsphere_l0','cubedsphere_l1'",
+                    "'l0_cubedsphere','l1_cubedsphere'",
                     forced=True,
                 )
         partitioner_dest = self.get_setting_value(
@@ -889,14 +889,14 @@ class vn31_t16(MacroUpgrade):
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "destination_mesh_name"],
-                    "'planar_l0",
+                    "'l0_planar",
                     forced=True,
                 )
             elif destination_mesh_name == "'multigrid_l1'":
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "destination_mesh_name"],
-                    "'planar_l1",
+                    "'l1_planar",
                     forced=True,
                 )
         elif partitioner_dest == "'cubedsphere'":
@@ -904,14 +904,14 @@ class vn31_t16(MacroUpgrade):
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "destination_mesh_name"],
-                    "'planar_l0",
+                    "'l0_planar",
                     forced=True,
                 )
             elif destination_mesh_name == "'multigrid_l1'":
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "destination_mesh_name"],
-                    "'cubedsphere_l1",
+                    "'l1_cubedsphere",
                     forced=True,
                 )
         partitioner_source = self.get_setting_value(
@@ -925,14 +925,14 @@ class vn31_t16(MacroUpgrade):
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "source_mesh_name"],
-                    "'planar_l0",
+                    "'l0_planar",
                     forced=True,
                 )
             elif source_mesh_name == "'multigrid_l1'":
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "source_mesh_name"],
-                    "'planar_l1",
+                    "'l1_planar",
                     forced=True,
                 )
         elif partitioner_source == "'cubedsphere'":
@@ -940,14 +940,14 @@ class vn31_t16(MacroUpgrade):
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "source_mesh_name"],
-                    "'cubedsphere_l0",
+                    "'l0_cubedsphere",
                     forced=True,
                 )
             elif source_mesh_name == "'multigrid_l1'":
                 self.add_setting(
                     config,
                     ["namelist:lfric2lfric", "source_mesh_name"],
-                    "'cubedsphere_l1",
+                    "'l1_cubedsphere",
                     forced=True,
                 )
 
@@ -957,7 +957,7 @@ class vn31_t16(MacroUpgrade):
             self.add_setting(
                 config,
                 ["namelist:multires_coupling", "aerosol_mesh_name"],
-                "'cubedsphere_l2",
+                "'l2_cubedsphere",
                 forced=True,
             )
         multires_coupling_mesh_tags = self.get_setting_value(
@@ -966,7 +966,7 @@ class vn31_t16(MacroUpgrade):
             self.add_setting(
                 config,
                 ["namelist:multires_coupling", "multires_coupling_mesh_tags"],
-                "'cubedsphere_l0','cubedsphere_l2'",
+                "'l0_cubedsphere','l2_cubedsphere'",
                 forced=True,
             )
         orography_mesh_name = self.get_setting_value(
@@ -975,7 +975,7 @@ class vn31_t16(MacroUpgrade):
             self.add_setting(
                 config,
                 ["namelist:multires_coupling", "orography_mesh_name"],
-                "'cubedsphere_l0",
+                "'l0_cubedsphere",
                 forced=True,
             )
             
@@ -986,7 +986,19 @@ class vn31_t16(MacroUpgrade):
             self.add_setting(
                 config,
                 ["namelist:multires_coupling", "physics_mesh_name"],
-                "'cubedsphere_l0",
+                "'l0_cubedsphere",
                 forced=True,
             )
+
+        blpert_mesh_name = self.get_setting_value(
+            config, ["namelist:stochastic_physics", "blpert_mesh_name"])
+
+        if blpert_mesh_name == "'multigrid_l3'":
+            self.add_setting(
+                config,
+                ["namelist:stochastic_physics", "blpert_mesh_name"],
+                "'l3_planar",
+                forced=True,
+            )
+
         return config, self.reports

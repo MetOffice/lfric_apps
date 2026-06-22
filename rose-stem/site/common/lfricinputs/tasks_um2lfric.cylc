@@ -10,7 +10,7 @@
     {% do task_dict.update({
         "opt_confs": ["aquaplanet"],
         "resolution": "C48",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N48",
         "source_grid_levs": "38",
         "source_grid_type": "global",
@@ -27,7 +27,7 @@
     {% do task_dict.update({
         "opt_confs": ["aquaplanet"],
         "resolution": "C96",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N48",
         "source_grid_levs": "38",
         "source_grid_type": "global",
@@ -44,7 +44,7 @@
     {% do task_dict.update({
         "opt_confs": ["aquaplanet"],
         "resolution": "C12",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N48",
         "source_grid_levs": "38",
         "source_grid_type": "global",
@@ -61,7 +61,7 @@
     {% do task_dict.update({
         "opt_confs": ["basicgal"],
         "resolution": "C12",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N96",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -78,7 +78,7 @@
     {% do task_dict.update({
         "opt_confs": ["basicgal"],
         "resolution": "C96",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N96",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -95,7 +95,7 @@
     {% do task_dict.update({
         "opt_confs": ["nwp_gal9"],
         "resolution": "C12",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N320",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -112,7 +112,7 @@
     {% do task_dict.update({
         "opt_confs": ["nwp_gal9"],
         "resolution": "C48",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N320",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -129,7 +129,7 @@
     {% do task_dict.update({
         "opt_confs": ["nwp_gal9"],
         "resolution": "C224",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N320",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -148,7 +148,7 @@
     {% do task_dict.update({
         "opt_confs": ["protogal"],
         "resolution": "C48",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N320",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -165,7 +165,7 @@
     {% do task_dict.update({
         "opt_confs": ["protogal"],
         "resolution": "C12",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N320",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -182,7 +182,7 @@
     {% do task_dict.update({
         "opt_confs": ["protogal_chem"],
         "resolution": "C48",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N48",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -199,7 +199,7 @@
     {% do task_dict.update({
         "opt_confs": ["protogal_chem"],
         "resolution": "C12",
-        "mesh_name": "cubedsphere_l0",
+        "mesh_name": "l0_cubedsphere",
         "source_grid_res": "N48",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -219,7 +219,7 @@
     {% do task_dict.update({
         "opt_confs": ["aquaplanet_lam"],
         "resolution": "aquaplanet_lam",
-        "mesh_name": "planar_l0",
+        "mesh_name": "l0_planar",
         "source_grid_res": "",
         "source_grid_levs": "70",
         "source_grid_type": "regional",
@@ -236,7 +236,7 @@
     {% do task_dict.update({
         "opt_confs": ["aquaplanet_lbc"],
         "resolution": "aquaplanet_lam",
-        "mesh_name": "planar_l0",
+        "mesh_name": "l0_planar",
         "source_grid_res": "",
         "source_grid_levs": "70",
         "source_grid_type": "regional",
@@ -254,7 +254,7 @@
     {% do task_dict.update({
         "opt_confs": ["falklands_lam"],
         "resolution": "falklands",
-        "mesh_name": "planar_l0",
+        "mesh_name": "l0_planar",
         "panel_decomp": "custom",
         "source_grid_res": "",
         "source_grid_levs": "70",
@@ -273,7 +273,7 @@
     {% do task_dict.update({
         "opt_confs": ["var_seuk_lam"],
         "resolution": "var_seuk",
-        "mesh_name": "planar_l0",
+        "mesh_name": "l0_planar",
         "source_grid_res": "",
         "source_grid_levs": "70",
         "source_grid_type": "regional",
