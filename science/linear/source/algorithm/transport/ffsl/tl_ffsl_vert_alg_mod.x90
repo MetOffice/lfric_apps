@@ -68,7 +68,7 @@ contains
   !!                                   specified through the optional logical argument
   !> @param[in]     field_n            ACTIVE  Pert field at the start of the transport step
   !> @param[in]     ls_field_n         PASSIVE LS field at the start of the transport step
-  !> @param[in]     step_dt            The dt for this time step
+  !> @param[in]     step_dt            The time step size for this transport step
   !> @param[in,out] transport_controller
   !!                                   Object with metadata and precomputations
   !!                                   to control the transport of the ls field
@@ -246,7 +246,7 @@ contains
   !> @param[in,out] mass_flux_ls       ACTIVE  Mass flux from the ls field / pert wind part
   !> @param[in]     field_n            ACTIVE  Pert field at the start of the transport step
   !> @param[in]     ls_field_n         PASSIVE Ls field at the start of the transport step
-  !> @param[in]     step_dt            The dt for this time step
+  !> @param[in]     step_dt            The time step size for this transport step
   !> @param[in,out] ls_transport_controller
   !!                                   Object with metadata and precomputations
   !!                                   to control the transport of the pert field

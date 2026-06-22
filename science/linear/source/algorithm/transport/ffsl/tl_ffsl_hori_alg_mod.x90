@@ -255,11 +255,17 @@ contains
       call invoke( X_plus_Y(adv_ones, adv_one_x, adv_one_y),                   &
                    inc_X_minus_Y(adv_ones, ones) )
 
-      ! Compute unity advection with second flux term
-      call tl_ffsl_hori_outer_alg( mass_flux_dummy, mass_flux_ones, ones,      &
-                                   ones, ones, ones, step_dt,                  &
-                                   ls_transport_controller,                    &
-                                   pert_transport_controller, 0 )
+      ! Compute unity advection with second flux term.
+      ! The unity field can be split into linearisation and perturbation states,
+      ! where the perturbation is zero and the ls_field is unity. We therefore
+      ! use unity ("ones") for each field input and only use the second flux term.
+      call tl_ffsl_hori_outer_alg(                                             &
+                          mass_flux_dummy, mass_flux_ones,                     &
+                          field_x = ones, field_y = ones,                      &
+                          ls_field_x = ones, ls_field_y = ones, dt = step_dt,  &
+                          ls_transport_controller=ls_transport_controller,     &
+                          pert_transport_controller=pert_transport_controller, &
+                          order = 0 )
 
       if ( .not. transport_efficiency ) then
         ! Compute ls_field advective step
@@ -320,7 +326,7 @@ contains
   !> @param[in,out] increment_y        ACTIVE  Advective increment from y-sweep
   !> @param[in]     field_n            ACTIVE  Pert field at the start of the step
   !> @param[in]     ls_field_n         PASSIVE LS field at the start of the step
-  !> @param[in]     dt                 The dt for this time step
+  !> @param[in]     dt                 The time step size for this transport step
   !> @param[in]     order              The order of the reconstruction
   !> @param[in,out] ls_transport_controller
   !!                                   Object with metadata and precomputations
@@ -385,9 +391,10 @@ contains
     type(r_tran_field_type),   pointer :: ls_field_ptr_copy
     type(r_tran_field_type),   pointer :: field_ptr_copy
     type(r_tran_field_type),   target  :: ones_big_halo
-    type(r_tran_field_type),   pointer :: ones_ptr_copy
-    type(r_tran_field_type),   pointer :: ones_ptr_copy_copy
-    type(r_tran_field_type),   pointer :: ones_ptr_copy_again
+    ! Copies of unity field
+    type(r_tran_field_type),   pointer :: ones_ptr_copy_1
+    type(r_tran_field_type),   pointer :: ones_ptr_copy_2
+    type(r_tran_field_type),   pointer :: ones_ptr_copy_3
 
     ! Function spaces
     type(function_space_type), pointer :: field_fs
@@ -539,23 +546,25 @@ contains
     call flux_dummy%initialise( vector_space = w2h_fs )
     call invoke( setval_c(ones, 1.0_r_tran) )
 
+    ! Copies of unity field as PSyclone doesn't allow the same
+    ! field to be used as two kernel arguments
     call ones_big_halo%initialise(field_fs, halo_depth=mesh%get_halo_depth())
     call invoke( setval_x(ones_big_halo, ones) )
-    ones_ptr_copy => ones_big_halo
-    ones_ptr_copy_copy => ones_big_halo
-    ones_ptr_copy_again => ones_big_halo
+    ones_ptr_copy_1 => ones_big_halo
+    ones_ptr_copy_2 => ones_big_halo
+    ones_ptr_copy_3 => ones_big_halo
 
     ! Compute unity advection with second flux term
     call invoke( setval_c(flux_ones, 0.0_r_tran),                              &
                  setval_c(flux_dummy, 0.0_r_tran),                             &
                  tl_ffsl_flux_xy_kernel_type(                                  &
                                   flux_dummy, flux_ones,                       &
-                                  ones_ptr_copy, stencil_extent,               &
+                                  ones_ptr_copy_1, stencil_extent,             &
                                   detj_at_w3, dep_stencil_extent,              &
-                                  ones_ptr_copy_copy, stencil_extent,          &
+                                  ones_ptr_copy_2, stencil_extent,             &
                                   detj_at_w3_copy, dep_stencil_extent,         &
                                   ones_big_halo, stencil_extent,               &
-                                  ones_ptr_copy_again, stencil_extent,         &
+                                  ones_ptr_copy_3, stencil_extent,             &
                                   dep_dist, frac_ls_wind, frac_pert_wind,      &
                                   dep_lowest_k, dep_highest_k,                 &
                                   face_selector_ew,                            &
@@ -601,7 +610,7 @@ contains
   !> @param[in]     field_y            ACTIVE  Pert field after first y sweep
   !> @param[in]     ls_field_x         PASSIVE Ls field after first x sweep
   !> @param[in]     ls_field_y         PASSIVE Ls field after first y sweep
-  !> @param[in]     dt                 The dt for this time step
+  !> @param[in]     dt                 The time step size for this transport step
   !> @param[in,out] ls_transport_controller
   !!                                   Object with metadata and precomputations
   !!                                   to control the transport of the pert field
@@ -662,7 +671,8 @@ contains
     integer(kind=i_def) :: splitting
 
     ! Constants
-    integer(kind=i_def) :: mesh_id, step
+    integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: step
     integer(kind=i_def) :: stencil_extent
     integer(kind=i_def) :: ndep
     integer(tik)        :: id

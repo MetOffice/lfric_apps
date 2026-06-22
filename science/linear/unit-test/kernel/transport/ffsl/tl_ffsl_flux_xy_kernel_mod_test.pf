@@ -124,10 +124,6 @@ contains
     frac_dry_pert(:) = 1.0_r_tran
     dt = 2.0_r_tran
 
-    ! Set up departure point indices
-    dep_lowest_k(:) = 0  ! Default is to not include any layers
-    dep_highest_k(:) = -1  ! Default is to not include any layers
-
     ! Call kernel
     call tl_ffsl_flux_xy_code( nlayers,          &
                                flux_pert,        &
