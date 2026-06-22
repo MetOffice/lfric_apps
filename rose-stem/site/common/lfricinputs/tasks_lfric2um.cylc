@@ -10,7 +10,7 @@
     {% do task_dict.update({
         "opt_confs": [],
         "resolution": "C48",
-        "mesh_name": "dynamics",
+        "mesh_name": "cubedsphere_l0",
         "source_grid_res": "C48",
         "source_grid_levs": "38",
         "source_grid_type": "global",
@@ -26,7 +26,7 @@
     {% do task_dict.update({
         "opt_confs": ["performance"],
         "resolution": "C224",
-        "mesh_name": "dynamics",
+        "mesh_name": "cubedsphere_l0",
         "source_grid_res": "C224",
         "source_grid_levs": "70",
         "source_grid_type": "global",
@@ -43,7 +43,7 @@
     {% do task_dict.update({
         "opt_confs": ["um_lam"],
         "resolution": "C48",
-        "mesh_name": "dynamics",
+        "mesh_name": "cubedsphere_l0",
         "source_grid_res": "C48",
         "source_grid_levs": "70",
         "source_grid_type": "global",
