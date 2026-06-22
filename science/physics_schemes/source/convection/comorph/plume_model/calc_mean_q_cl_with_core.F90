@@ -78,7 +78,6 @@ real(kind=real_cvprec), parameter :: almost_one = one - sqrt_min_delta
 nc = 0
 do ic = 1, n_points
   ! The implied edge qcl will be negative if core_qcl > cmr * mean_qcl
-  !IF ( core_q_cl(ic) > par_mean_fields(ic,i_q_cl) * core_mean_ratio(ic) ) THEN
   if ( core_q_cl(ic) / core_mean_ratio(ic) > par_mean_fields(ic,i_q_cl) ) then
     nc = nc + 1
     index_ic(nc) = ic
