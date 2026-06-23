@@ -36,7 +36,6 @@ module iau_multifile_io_mod
 #endif
   use iau_time_control_mod,        only: calc_iau_ts_num
   use inventory_by_mesh_mod,       only: inventory_by_mesh_type
-  use io_context_mod,              only: callback_clock_arg
   use lfric_xios_context_mod,      only: lfric_xios_context_type
   use linked_list_mod,             only: linked_list_type
   use lfric_xios_action_mod,       only: advance_read_only
@@ -80,8 +79,10 @@ contains
     type(iau_ainc_io_nml_type),   pointer :: iau_ainc_io_nml
     type(iau_bcorr_io_nml_type),  pointer :: iau_bcorr_io_nml
 
+
     character(str_max_filename) :: filename
 
+    character(str_def) :: name
     character(str_def) :: iau_incs
     integer(i_def)     :: iau_time
 
@@ -95,11 +96,12 @@ contains
       call iter_addinf%initialise(modeldb%config%iau_addinf_io)
       do while (iter_addinf%has_next())
         iau_addinf_io_nml => iter_addinf%next()
+        name = iau_addinf_io_nml%name()
         filename = iau_addinf_io_nml%filename()
         iau_time = iau_addinf_io_nml%start_time()
 
-        call init_iau_incs_io( modeldb, trim(iau_incs), &
-                               iau_time, filename )
+        call init_iau_incs_io( modeldb, trim(iau_incs),  &
+                               iau_time, name, filename )
       end do
     end if
 
@@ -109,11 +111,12 @@ contains
       call iter_ainc%initialise(modeldb%config%iau_ainc_io)
       do while (iter_ainc%has_next())
         iau_ainc_io_nml => iter_ainc%next()
+        name = iau_ainc_io_nml%name()
         filename = iau_ainc_io_nml%filename()
         iau_time = iau_ainc_io_nml%start_time()
 
-        call init_iau_incs_io( modeldb, trim(iau_incs), &
-                               iau_time, filename )
+        call init_iau_incs_io( modeldb, trim(iau_incs),  &
+                               iau_time, name, filename )
       end do
     end if
 
@@ -128,11 +131,12 @@ contains
       call iter_bcorr%initialise(modeldb%config%iau_bcorr_io)
       do while (iter_bcorr%has_next())
         iau_bcorr_io_nml => iter_bcorr%next()
+        name = iau_bcorr_io_nml%name()
         filename = iau_bcorr_io_nml%filename()
         iau_time = iau_bcorr_io_nml%start_time()
 
-        call init_iau_incs_io( modeldb, trim(iau_incs), &
-                               iau_time, filename )
+        call init_iau_incs_io( modeldb, trim(iau_incs),  &
+                               iau_time, name, filename )
       end do
     end if
 
@@ -145,14 +149,15 @@ contains
   !> @param[inout] modeldb  Modeldb object
   !> @param[in]    iau_incs Type of IAU increment
   !> @param[in]    nml_name Name of multifile namelist
-  subroutine init_iau_incs_io(modeldb, iau_incs, iau_time, filename)
+  subroutine init_iau_incs_io(modeldb, iau_incs, iau_time, name, filename)
     implicit none
 
     type(modeldb_type), intent(inout), target :: modeldb
 
     character(*),       intent(in) :: iau_incs
     integer(i_def),     intent(in) :: iau_time
-    character(str_def), intent(in) :: filename
+    character(str_def), intent(in) :: name
+    character(str_max_filename), intent(in) :: filename
 
 
     type(lfric_xios_context_type), pointer :: io_context
@@ -169,7 +174,7 @@ contains
     multifile_start_timestep = calc_iau_ts_num (model_clock, iau_time)
     multifile_stop_timestep  = multifile_start_timestep + 1_i_def
 
-    context_name = "multifile_context_" // trim(filename)
+    context_name = "multifile_context_" // trim(name)
     call context_init(modeldb, context_name, multifile_start_timestep, &
                       multifile_stop_timestep)
 
@@ -199,14 +204,14 @@ contains
     type(iau_ainc_io_nml_type),   pointer :: iau_ainc_io_nml
     type(iau_bcorr_io_nml_type),  pointer :: iau_bcorr_io_nml
 
-    character(str_max_filename) :: filename
+    character(str_def) :: name
 
     if ( iau_use_addinf ) then
       call iter_addinf%initialise(modeldb%config%iau_addinf_io)
       do while (iter_addinf%has_next())
         iau_addinf_io_nml => iter_addinf%next()
-        filename = iau_addinf_io_nml%filename()
-        call step_multifile_io(io_context_name, modeldb, filename)
+        name = iau_addinf_io_nml%name()
+        call step_multifile_io(io_context_name, modeldb, name)
       end do
     end if
 
@@ -215,8 +220,8 @@ contains
       call iter_ainc%initialise(modeldb%config%iau_ainc_io)
       do while (iter_ainc%has_next())
         iau_ainc_io_nml => iter_ainc%next()
-        filename = iau_ainc_io_nml%filename()
-        call step_multifile_io(io_context_name, modeldb, filename)
+        name = iau_ainc_io_nml%name()
+        call step_multifile_io(io_context_name, modeldb, name)
       end do
     end if
 
@@ -225,8 +230,8 @@ contains
       call iter_bcorr%initialise(modeldb%config%iau_bcorr_io)
       do while (iter_bcorr%has_next())
         iau_bcorr_io_nml => iter_bcorr%next()
-        filename = iau_bcorr_io_nml%filename()
-        call step_multifile_io(io_context_name, modeldb, filename)
+        name = iau_bcorr_io_nml%name()
+        call step_multifile_io(io_context_name, modeldb, name)
       end do
     end if
 #endif
@@ -237,13 +242,13 @@ contains
   !>
   !> @param[in]    io_context_name Name of main context
   !> @param[inout] modeldb         Model database object
-  !> @param[in]    filename        File associated with context
-  subroutine step_multifile_io( io_context_name, modeldb, filename )
+  !> @param[in]    name            Name associated with context
+  subroutine step_multifile_io( io_context_name, modeldb, name )
 
     implicit none
 
     character(*),       intent(in)    :: io_context_name ! main context name
-    character(*),       intent(in)    :: filename
+    character(*),       intent(in)    :: name
     type(modeldb_type), intent(inout) :: modeldb
 
     type(inventory_by_mesh_type),  pointer :: chi_inventory
@@ -260,14 +265,11 @@ contains
     character(str_def) :: time_start
 
     procedure(event_action), pointer       :: context_advance
-    procedure(callback_clock_arg), pointer :: before_close
-
-    nullify(before_close)
 
     chi_inventory      => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
-    context_name = "multifile_context_" // trim(filename)
+    context_name = "multifile_context_" // trim(name)
     call modeldb%io_contexts%get_io_context(context_name, io_context)
 
     if (modeldb%clock%get_step() == io_context%get_stop_time()) then
@@ -291,8 +293,8 @@ contains
       call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
                                                chi, panel_id,               &
                                                modeldb%clock, tmp_calendar, &
-                                               before_close,                &
                                                start_at_zero=.true. )
+      call io_context%close_context_definition()
 
       ! Attach context advancement to the model's clock
       context_advance => advance_read_only

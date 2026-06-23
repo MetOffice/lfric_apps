@@ -35,7 +35,8 @@ subroutine init_thermo_profile_alg( theta, mr_v )
 use initial_temperature_config_mod, only: temp_prof_size    => profile_size,    &
                                           temp_prof_data    => profile_data,    &
                                           temp_prof_heights => profile_heights, &
-                                          perturb,                              &
+                                          perturb, theta_pert_size,             &
+                                          theta_pert_start, theta_pert_end,     &
                                           perturb_random
 
 use initial_vapour_config_mod,      only: vapour_prof_size    => profile_size,   &
@@ -103,7 +104,8 @@ end if
 ! Add a perturbation to potential temperature
 select case(perturb)
 case(perturb_random)
-  call invoke( random_perturb_kernel_type( theta, height_wth ) )
+  call invoke( random_perturb_kernel_type( theta, height_wth, theta_pert_size, &
+                                           theta_pert_start, theta_pert_end ) )
 end select
 
 end subroutine init_thermo_profile_alg

@@ -18,15 +18,17 @@ module gungho_driver_mod
   use gungho_diagnostics_driver_mod, &
                                    only : gungho_diagnostics_driver
   use iau_time_control_mod,        only : calc_iau_ts_end
-  use gungho_init_fields_mod,      only : create_model_data, &
-                                          initialise_model_data, &
-                                          output_model_data, &
+  use gungho_init_fields_mod,      only : create_model_data,         &
+                                          create_physics_model_data, &
+                                          initialise_model_data,     &
+                                          output_model_data,         &
                                           finalise_model_data
   use driver_modeldb_mod,          only : modeldb_type
   use gungho_model_mod,            only : initialise_infrastructure, &
                                           initialise_model, &
                                           finalise_infrastructure, &
-                                          finalise_model
+                                          finalise_model, &
+                                          checksum_model
   use gungho_step_mod,             only : gungho_step
   use gungho_time_axes_mod,        only : gungho_time_axes_type, &
                                           get_time_axes_from_collection
@@ -63,6 +65,7 @@ module gungho_driver_mod
                                           stochastic_physics,    &
                                           stochastic_physics_um
   use io_value_mod,                only : io_value_type
+  use integer_io_value_mod,        only : integer_io_value_type
   use time_config_mod,             only : timestep_start
   use timing_mod,                  only : start_timing, stop_timing, &
                                           tik, LPROF
@@ -81,7 +84,8 @@ module gungho_driver_mod
   use iau_main_alg_mod,            only : iau_main_alg
   use iau_config_mod,              only : iau_mode,               &
                                           iau_mode_instantaneous, &
-                                          iau_mode_time_mixed
+                                          iau_mode_time_mixed,    &
+                                          iau_outerloop
   use stochastic_physics_config_mod, &
                                    only : use_random_parameters, &
                                           use_skeb,              &
@@ -136,15 +140,16 @@ contains
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
 
     type(io_value_type) :: temp_corr_io_value
-    type(io_value_type) :: random_seed_io_value
+    type(integer_io_value_type) :: random_seed_io_value
 
     character(len=*), parameter :: io_context_name = "gungho_atm"
     integer(i_def) :: random_seed_size
-    real(r_def), allocatable :: real_array(:)
+    integer(i_def), allocatable :: integer_array(:)
     integer(tik)   :: id
 
 #ifdef UM_PHYSICS
     integer(i_def) :: i
+    real(r_def),    allocatable :: real_array(:)
     type(io_value_type) :: spt_arrays(spt_array_count)
     type(io_value_type) :: skeb_arrays(skeb_array_count)
 
@@ -191,12 +196,12 @@ contains
     if ( stochastic_physics == stochastic_physics_um ) then
       ! Random seed for stochastic physics
       call random_seed(size = random_seed_size)
-      allocate(real_array(random_seed_size))
-      real_array(1:random_seed_size) = 0.0_r_def
-      call random_seed_io_value%init("random_seed", real_array)
+      allocate(integer_array(random_seed_size))
+      integer_array = 0
+      call random_seed_io_value%init("random_seed", integer_array)
       call modeldb%values%add_key_value( 'random_seed_io_value', &
                                          random_seed_io_value )
-      deallocate(real_array)
+      deallocate(integer_array)
 #ifdef UM_PHYSICS
       if (use_spt) then
         allocate(real_array(stph_spectral_dim))
@@ -223,6 +228,9 @@ contains
 
     ! Instantiate the fields stored in model_data
     call create_model_data( modeldb,         &
+                            mesh, twod_mesh, &
+                            aerosol_mesh, aerosol_twod_mesh )
+    call create_physics_model_data( modeldb, &
                             mesh, twod_mesh, &
                             aerosol_mesh, aerosol_twod_mesh )
 
@@ -252,11 +260,11 @@ contains
 #ifdef UM_PHYSICS
     ! If IAU is active and increments need to be added instantaneously, to the initial
     ! state, then do this now. The IAU should not be activated at this stage in
-    ! the case of a checkpoint-restart.
+    ! the case of a checkpoint-restart or as part of a DA outer loop.
     if ( ( iau ) .and.                               &
        ( ( iau_mode == iau_mode_instantaneous ) .OR. &
          ( iau_mode == iau_mode_time_mixed ) ) ) then
-      if ( .not. checkpoint_read ) then
+      if ( .not. ( checkpoint_read .or. iau_outerloop )) then
         call update_iau_alg( modeldb,                     &
                              twod_mesh,                   &
                              iau_ainc_active = .true.,    &
@@ -265,8 +273,11 @@ contains
                              iau_pertinc_active = .false. )
       end if
 
-      ! IAU increment fields can now be cleared from the depository
-      call remove_field_collection( modeldb, "iau_fields" )
+      ! IAU increment fields can now be cleared from the depository unless this
+      ! is a DA outer loop application
+      if ( .not. iau_outerloop ) then
+        call remove_field_collection( modeldb, "iau_fields" )
+      end if
 
     end if
 
@@ -503,30 +514,18 @@ contains
     type(modeldb_type), intent(inout) :: modeldb
     integer(tik)                      :: id
 
-#ifdef COUPLED
-    type( field_collection_type ), pointer :: depository => null()
-#endif
-
     if ( LPROF ) call start_timing(id, 'gungho_driver.finalise')
-
-#ifdef COUPLED
-    if (l_esm_couple) then
-       depository => modeldb%fields%get_field_collection("depository")
-       ! Ensure coupling fields are updated at the end of a cycle to ensure the values
-       ! stored in and recovered from checkpoint dumps are correct and reproducible
-       ! when (re)starting subsequent runs!
-       call cpl_fld_update(modeldb)
-    endif
-#endif
 
     ! Multifile io finalisation
     if( multifile_io ) then
       call finalise_multifile_io( modeldb)
     end if
 
+    ! Output model checksum
+    call checksum_model( modeldb, program_name )
+
     ! Model configuration finalisation
-    call finalise_model( modeldb,               &
-                         program_name )
+    call finalise_model( modeldb )
 
     ! Destroy the fields stored in model_data
     call finalise_model_data( modeldb )

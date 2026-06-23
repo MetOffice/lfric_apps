@@ -52,18 +52,29 @@ module create_physics_prognostics_mod
                                              easyaerosol_sw, easyaerosol_lw,    &
                                              murk_prognostic, murk
   use section_choice_config_mod,      only : cloud, cloud_um,                   &
+                                             cloud_none,                        &
                                              aerosol, aerosol_um,               &
+                                             aerosol_none,                      &
                                              radiation, radiation_socrates,     &
+                                             radiation_none,                    &
                                              boundary_layer,                    &
                                              boundary_layer_um,                 &
+                                             boundary_layer_none,               &
                                              electric, electric_um,             &
+                                             electric_none,                     &
                                              iau_sst,                           &
                                              surface, surface_jules,            &
+                                             surface_none,                      &
                                              orographic_drag,                   &
                                              orographic_drag_um,                &
+                                             orographic_drag_none,              &
                                              convection, convection_um,         &
+                                             convection_none,                   &
+                                             microphysics,                      &
+                                             microphysics_none,                 &
                                              stochastic_physics,                &
-                                             stochastic_physics_um
+                                             stochastic_physics_um,             &
+                                             stochastic_physics_none
   use cloud_config_mod,               only : scheme,                            &
                                              scheme_pc2
   use convection_config_mod,          only : cv_scheme, cv_scheme_comorph
@@ -171,13 +182,7 @@ contains
     call processor%apply(make_spec('wetrho_in_wth', main%derived, Wtheta))
     call processor%apply(make_spec('exner_in_wth', main%derived, Wtheta))
     call processor%apply(make_spec('exner_wth_n', main%derived, Wtheta))
-
-    if ( boundary_layer == boundary_layer_um .or.                              &
-         convection     == convection_um ) then
-
-      call processor%apply(make_spec('theta_star', main%derived, Wtheta))
-
-    end if
+    call processor%apply(make_spec('theta_star', main%derived, Wtheta))
 
     if ( boundary_layer == boundary_layer_um .or.                              &
          convection     == convection_um     .or.                              &
@@ -199,15 +204,6 @@ contains
     call processor%apply(make_spec('theta_in_w3', main%derived, W3))
     call processor%apply(make_spec('wetrho_in_w3', main%derived, W3))
 
-    if ( boundary_layer               == boundary_layer_um .or.                &
-         convection                   == convection_um     .or.                &
-         stochastic_physics_placement == stochastic_physics_placement_fast ) then
-
-      call processor%apply(make_spec('u_in_w3_star', main%derived, W3))
-      call processor%apply(make_spec('v_in_w3_star', main%derived, W3))
-
-    end if
-
     ! W2 fields
     call processor%apply(make_spec('u_physics', main%derived, W2))
     call processor%apply(make_spec('u_star', main%derived, W2))
@@ -224,6 +220,13 @@ contains
     end if
 
 #ifdef UM_PHYSICS
+
+  if ( surface            /= surface_none             .or. &
+       radiation          /= radiation_none           .or. &
+       orographic_drag    /= orographic_drag_none     .or. &
+       stochastic_physics /= stochastic_physics_none  .or. &
+       boundary_layer     /= boundary_layer_none ) then
+
     !========================================================================
     ! Fields owned by the radiation scheme
     !========================================================================
@@ -956,6 +959,7 @@ contains
                                    empty = (.not. l_urban2t) ))
     call processor%apply(make_spec('urbemisc', main%surface, W3, twod=.true., &
                                    empty = (.not. l_urban2t)))
+
     ! 2D fields, need checkpointing for urban-2-tile schemes
     call processor%apply(make_spec('urbwrr', main%surface, twod=.true., &
                                    ckp=l_urban2t, empty = (.not. l_urban2t) ))
@@ -1053,6 +1057,8 @@ contains
     ! 2D fields, don't need checkpointing
     call processor%apply(make_spec('soil_moist_avail', main%soil, W3, twod=.true.))
     call processor%apply(make_spec('thermal_cond_wet_soil', main%soil, W3,      &
+        twod=.true.))
+    call processor%apply(make_spec('inland_basin_flow', main%soil, W3,          &
         twod=.true.))
 
     !========================================================================
@@ -1896,6 +1902,8 @@ contains
       call processor%apply(make_spec('blpert_flag', main%stph, W3, &
           twod=.true., is_int=.true., ckp=checkpoint_flag, empty=is_empty))
     end if
+
+  end if
 
 #endif
 

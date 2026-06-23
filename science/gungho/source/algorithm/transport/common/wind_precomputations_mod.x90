@@ -167,7 +167,7 @@ contains
                                               transporting_wind,               &
                                               wind_n, wind_np1 )
 
-    use map_w2_to_sh_w2_alg_mod,   only: map_w2_to_sh_w2_alg
+    use map_w2_to_sh_w2_alg_mod,   only: map_w2_to_sh_w2_alg_rtran
     use split_transport_utils_mod, only: get_max_num_fractions, use_shifted_mesh
 
     implicit none
@@ -285,7 +285,7 @@ contains
           shifted_mesh, k_h, k_v, W2                                           &
       )
       call self%wind_3d(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_3d(2), self%wind_3d(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_3d(2), self%wind_3d(1))
     end if
 
     ! Split the wind into horizontal and vertical components
@@ -325,7 +325,7 @@ contains
     if (num_meshes == 2) then
       ! Compute the transporting wind on the shifted mesh
       call self%wind_n(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_n(2), self%wind_n(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_n(2), self%wind_n(1))
     end if
 
     ! Store end-of-time step wind (if provided, otherwise use 3D wind)
@@ -341,7 +341,7 @@ contains
     if (num_meshes == 2) then
       ! Compute the transporting wind on the shifted mesh
       call self%wind_np1(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_np1(2), self%wind_np1(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_np1(2), self%wind_np1(1))
     end if
 
     ! Set logicals for "computed" variables to be false
