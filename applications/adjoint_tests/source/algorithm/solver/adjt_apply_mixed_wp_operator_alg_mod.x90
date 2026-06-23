@@ -1,0 +1,233 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for adj_apply_mixed_wp_operator_kernel
+module adjt_apply_mixed_wp_operator_alg_mod
+
+  use field_mod,                     only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod,     only : element_order_h, element_order_v
+  use fs_continuity_mod,             only : W2, W2h, W2v, W3, Wtheta
+  use operator_mod,                  only : operator_type
+  use constants_mod,                 only : i_def, r_def, EPS
+  use setop_random_alg_mod,          only : setop_random_alg
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_DEBUG
+
+  implicit none
+
+  public :: adjt_apply_mixed_wp_operator_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for adj_apply_mixed_wp_operator.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in] mesh        Mesh object
+  subroutine adjt_apply_mixed_wp_operator_alg(mesh)
+
+    use apply_mixed_wp_operator_kernel_mod,     only : apply_mixed_wp_operator_kernel_type
+    use adj_apply_mixed_wp_operator_kernel_mod, only : adj_apply_mixed_wp_operator_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type)    :: lhs_w
+    type(field_type)    :: lhs_p
+    type(field_type)    :: wind_uv
+    type(field_type)    :: wind_w
+    type(field_type)    :: exner
+    type(operator_type) :: pt2
+    type(field_type)    :: mt_lumped_inv
+    type(operator_type) :: mu_cd
+    type(operator_type) :: p2t
+    type(operator_type) :: grad
+    type(field_type)    :: norm_u
+    type(operator_type) :: m3p
+    type(operator_type) :: q32
+    type(operator_type) :: p3t
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: lhs_w_input
+    type(field_type) :: lhs_p_input
+    type(field_type) :: wind_uv_input
+    type(field_type) :: wind_w_input
+    type(field_type) :: exner_input
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w2h_ptr
+    type(function_space_type), pointer :: vector_space_w2v_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+
+    ! Inner products
+    real(kind=r_def) :: lhs_w_inner_prod
+    real(kind=r_def) :: lhs_p_inner_prod
+    real(kind=r_def) :: wind_uv_inner_prod
+    real(kind=r_def) :: wind_w_inner_prod
+    real(kind=r_def) :: exner_inner_prod
+    real(kind=r_def) :: lhs_w_sf
+    real(kind=r_def) :: lhs_p_sf
+    real(kind=r_def) :: wind_uv_sf
+    real(kind=r_def) :: wind_w_sf
+    real(kind=r_def) :: exner_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: lhs_w_lhs_w_input_inner_prod
+    real(kind=r_def) :: lhs_p_lhs_p_input_inner_prod
+    real(kind=r_def) :: wind_uv_wind_uv_input_inner_prod
+    real(kind=r_def) :: wind_w_wind_w_input_inner_prod
+    real(kind=r_def) :: exner_exner_input_inner_prod
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def) :: machine_tol
+    real(kind=r_def) :: relative_diff
+
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
+    vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2h)
+    vector_space_w2v_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2v)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, wtheta)
+
+    call lhs_w%initialise(vector_space=vector_space_w2v_ptr, name='lhs_w')
+    call lhs_p%initialise(vector_space=vector_space_w3_ptr, name='lhs_p')
+    call wind_uv%initialise(vector_space=vector_space_w2h_ptr, name='wind_uv')
+    call wind_w%initialise(vector_space=vector_space_w2v_ptr, name='wind_w')
+    call exner%initialise(vector_space=vector_space_w3_ptr, name='exner')
+
+    call lhs_w%copy_field_properties(lhs_w_input)
+    call lhs_p%copy_field_properties(lhs_p_input)
+    call wind_uv%copy_field_properties(wind_uv_input)
+    call wind_w%copy_field_properties(wind_w_input)
+    call exner%copy_field_properties(exner_input)
+
+    call mt_lumped_inv%initialise(vector_space=vector_space_wtheta_ptr, name='mt_lumped_inv')
+    call norm_u%initialise(vector_space=vector_space_w2_ptr, name='norm_u')
+    call pt2%initialise(vector_space_wtheta_ptr, vector_space_w2_ptr)
+    call mu_cd%initialise(vector_space_w2_ptr, vector_space_w2_ptr)
+    call p2t%initialise(vector_space_w2_ptr, vector_space_wtheta_ptr)
+    call grad%initialise(vector_space_w2_ptr, vector_space_w3_ptr)
+    call m3p%initialise(vector_space_w3_ptr, vector_space_w3_ptr)
+    call q32%initialise(vector_space_w3_ptr, vector_space_w2_ptr)
+    call p3t%initialise(vector_space_w3_ptr, vector_space_wtheta_ptr)
+
+    lhs_w_inner_prod = 0.0_r_def
+    lhs_p_inner_prod = 0.0_r_def
+    wind_uv_inner_prod = 0.0_r_def
+    wind_w_inner_prod = 0.0_r_def
+    exner_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(lhs_w), setval_x(lhs_w_input, lhs_w),       &
+                 setval_random(lhs_p), setval_x(lhs_p_input, lhs_p),       &
+                 setval_random(wind_uv), setval_x(wind_uv_input, wind_uv), &
+                 setval_random(wind_w), setval_x(wind_w_input, wind_w),    &
+                 setval_random(exner), setval_x(exner_input, exner),       &
+                 setval_random(mt_lumped_inv), setval_random(norm_u) )
+    call setop_random_alg(pt2)
+    call setop_random_alg(mu_cd)
+    call setop_random_alg(p2t)
+    call setop_random_alg(grad)
+    call setop_random_alg(m3p)
+    call setop_random_alg(q32)
+    call setop_random_alg(p3t)
+
+    call invoke( apply_mixed_wp_operator_kernel_type(lhs_w, lhs_p,       &
+                                                     wind_uv, wind_w,    &
+                                                     exner,              &
+                                                     pt2, mt_lumped_inv, &
+                                                     mu_cd, p2t,         &
+                                                     grad, norm_u,       &
+                                                     m3p, q32, p3t),     &
+                 x_innerproduct_x(lhs_w_inner_prod, lhs_w),              &
+                 x_innerproduct_x(lhs_p_inner_prod, lhs_p),              &
+                 x_innerproduct_x(wind_uv_inner_prod, wind_uv),          &
+                 x_innerproduct_x(wind_w_inner_prod, wind_w),            &
+                 x_innerproduct_x(exner_inner_prod, exner) )
+
+    write( log_scratch_space, * ) "adjt_apply_mixed_wp_operator inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "lhs_w inner product = ", lhs_w_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "lhs_p inner product = ", lhs_p_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "wind_uv inner product = ", wind_uv_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "wind_w inner product = ", wind_w_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "exner inner product = ", exner_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+
+    lhs_w_sf = 1.0_r_def / (lhs_w_inner_prod + EPS)
+    lhs_p_sf = 1.0_r_def / (lhs_p_inner_prod + EPS)
+    wind_uv_sf = 1.0_r_def / (wind_uv_inner_prod + EPS)
+    wind_w_sf = 1.0_r_def / (wind_w_inner_prod + EPS)
+    exner_sf = 1.0_r_def / (exner_inner_prod + EPS)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + lhs_w_inner_prod * lhs_w_sf
+    inner1 = inner1 + lhs_p_inner_prod * lhs_p_sf
+    inner1 = inner1 + wind_uv_inner_prod * wind_uv_sf
+    inner1 = inner1 + wind_w_inner_prod * wind_w_sf
+    inner1 = inner1 + exner_inner_prod * exner_sf
+
+    call invoke( inc_a_times_X( lhs_w_sf, lhs_w ),     &
+                 inc_a_times_X( lhs_p_sf, lhs_p ),     &
+                 inc_a_times_X( wind_uv_sf, wind_uv ), &
+                 inc_a_times_X( wind_w_sf, wind_w ),   &
+                 inc_a_times_X( exner_sf, exner )  )
+
+    lhs_w_lhs_w_input_inner_prod = 0.0_r_def
+    lhs_p_lhs_p_input_inner_prod = 0.0_r_def
+    wind_uv_wind_uv_input_inner_prod = 0.0_r_def
+    wind_w_wind_w_input_inner_prod = 0.0_r_def
+    exner_exner_input_inner_prod = 0.0_r_def
+
+    call invoke( adj_apply_mixed_wp_operator_kernel_type(lhs_w, lhs_p,                       &
+                                                         wind_uv, wind_w,                    &
+                                                         exner,                              &
+                                                         pt2, mt_lumped_inv,                 &
+                                                         mu_cd, p2t,                         &
+                                                         grad, norm_u,                       &
+                                                         m3p, q32, p3t),                     &
+                 x_innerproduct_y(lhs_w_lhs_w_input_inner_prod, lhs_w, lhs_w_input),         &
+                 x_innerproduct_y(lhs_p_lhs_p_input_inner_prod, lhs_p, lhs_p_input),         &
+                 x_innerproduct_y(wind_uv_wind_uv_input_inner_prod, wind_uv, wind_uv_input), &
+                 x_innerproduct_y(wind_w_wind_w_input_inner_prod, wind_w, wind_w_input),     &
+                 x_innerproduct_y(exner_exner_input_inner_prod, exner, exner_input) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + lhs_w_lhs_w_input_inner_prod
+    inner2 = inner2 + lhs_p_lhs_p_input_inner_prod
+    inner2 = inner2 + wind_uv_wind_uv_input_inner_prod
+    inner2 = inner2 + wind_w_wind_w_input_inner_prod
+    inner2 = inner2 + exner_exner_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED apply_mixed_wp_operator_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED apply_mixed_wp_operator_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine adjt_apply_mixed_wp_operator_alg
+
+end module adjt_apply_mixed_wp_operator_alg_mod
