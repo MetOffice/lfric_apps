@@ -34,6 +34,9 @@ time_step='P0DT1H0M0S',
 adjoint_test_tolerance=1.0e-3,
 forecast_length='P0DT6H0M0S',
 /
+&adjoint
+l_compute_annexed_dofs=.true.,
+/
 &base_mesh
 file_prefix='mesh_C12_MG',
 geometry='spherical',
@@ -110,7 +113,9 @@ start_dump_filename='',
 /
 &finite_element
 cellshape='quadrilateral',
-coord_order=1,
+coord_order=2,
+coord_order_nonprime=1,
+coord_space='Wchi',
 coord_system='native',
 element_order_h=0,
 element_order_v=0,
@@ -133,6 +138,7 @@ p2theta_vert=.true.,
 rotating=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
+solver_moisture_conservation=.false.,
 theta_moist_source=.false.,
 use_multires_coupling=.false.,
 use_physics=.true.,
@@ -188,11 +194,9 @@ coarse_ozone_ancil=.false.,
 init_option='analytic',
 lbc_option='none',
 ls_option='analytic',
-n_orog_smooth=0,
 read_w2h_wind=.true.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
-w0_orography_mapping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_density
@@ -250,6 +254,7 @@ write_conservation_diag=.false.,
 write_diag=.true.,
 write_dump=.false.,
 write_fluxes=.false.,
+write_initial=.true.
 write_minmax_tseries=.false.,
 /
 &linear
@@ -310,6 +315,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='ancil',
+orography_order=2,
+n_orog_smooth=0,
+w0_multigrid_mapping=.true.
 /
 &partitioning
 generate_inner_halos=.false.,

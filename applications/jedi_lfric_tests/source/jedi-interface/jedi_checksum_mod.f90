@@ -58,7 +58,6 @@ contains
 
     use constants_mod,          only: i_def
     use formulation_config_mod, only: moisture_formulation_dry
-    use namelist_mod,           only: namelist_type
 
     implicit none
 
@@ -73,11 +72,11 @@ contains
     type(field_type),            pointer :: theta
     type(field_type),            pointer :: u
     type(field_type),            pointer :: rho
-    type(namelist_type),         pointer :: formulation_nml
-    integer(kind=i_def)                  :: moisture_formulation
+
+    integer(i_def) :: moisture_formulation
 
     nullify(moisture_fields, prognostic_fields, mr_array)
-    nullify(mr, theta, u, rho, formulation_nml)
+    nullify(mr, theta, u, rho)
 
     ! Get the fields to checksum
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
@@ -90,8 +89,7 @@ contains
     mr => mr_array%bundle
 
     ! Get configuration to inform if moisture is output
-    formulation_nml => modeldb%configuration%get_namelist('formulation')
-    call formulation_nml%get_value( 'moisture_formulation', moisture_formulation )
+    moisture_formulation = modeldb%config%formulation%moisture_formulation()
 
     ! Write checksums to file
     if (moisture_formulation /= moisture_formulation_dry) then

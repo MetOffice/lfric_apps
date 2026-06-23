@@ -134,6 +134,7 @@ subroutine process_o2a_code(nlayers, sea_surf_temp, sea_surf_temp_pert, &
   integer(kind=i_def) :: i
   real(kind=r_def)    :: total_sea_ice_fraction
   real(kind=r_def)    :: recip_sea_ice_fraction
+  real(kind=r_def)    :: recip_gbm_melt_pond_fraction
 
   if (l_couple_ocean) then
     if (sea_surf_temp(map_ocn(1))>1.0_r_def) then
@@ -202,6 +203,7 @@ subroutine process_o2a_code(nlayers, sea_surf_temp, sea_surf_temp_pert, &
                                         (therm_cond_sice/therm_cond_sice_snow)
 
         ! Undo sea ice fraction scaling done on ocean side of coupler
+        ! Melt pond thickness needs to be divided by grid box mean melt pond fraction
         if ( sea_ice_fraction(map_ice(1) + i) > 0.0_r_def ) then
           recip_sea_ice_fraction = 1.0_r_def / sea_ice_fraction(map_ice(1) + i)
           sea_ice_thickness(map_ice(1) + i) = sea_ice_thickness(map_ice(1) + i)  &
@@ -212,6 +214,15 @@ subroutine process_o2a_code(nlayers, sea_surf_temp, sea_surf_temp_pert, &
                                               * recip_sea_ice_fraction
           sea_ice_conductivity(map_ice(1)+i) = sea_ice_conductivity(map_ice(1)+i)&
                                               * recip_sea_ice_fraction
+
+          if (melt_pond_fraction(map_ice(1) + i) > 0.0_r_def ) then
+            recip_gbm_melt_pond_fraction = 1.0_r_def / &
+              melt_pond_fraction(map_ice(1) + i)
+            melt_pond_depth(map_ice(1)+i) = melt_pond_depth(map_ice(1)+i)        &
+                                            * recip_gbm_melt_pond_fraction
+          end if
+          melt_pond_fraction(map_ice(1)+i) = melt_pond_fraction(map_ice(1)+i)    &
+                                             * recip_sea_ice_fraction
         end if
 
         ! Apply bounds to sea ice layer temperatures

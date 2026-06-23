@@ -22,9 +22,25 @@ module init_physics_prognostics_alg_mod
   use init_aerosol_fields_alg_mod,      only : init_aerosol_fields_alg
   use init_stph_fields_alg_mod,         only : init_stph_fields_alg
 
-  use section_choice_config_mod, only: surface, surface_jules, &
-                                       aerosol, aerosol_um,    &
-                                       electric, electric_um
+  use section_choice_config_mod, only: surface, surface_jules,  &
+                                       surface_none,            &
+                                       aerosol, aerosol_um,     &
+                                       aerosol_none,            &
+                                       cloud, cloud_none,       &
+                                       microphysics,            &
+                                       microphysics_none,       &
+                                       radiation,               &
+                                       radiation_none,          &
+                                       convection,              &
+                                       convection_none,         &
+                                       orographic_drag,         &
+                                       orographic_drag_none,    &
+                                       boundary_layer,          &
+                                       boundary_layer_none,     &
+                                       stochastic_physics,      &
+                                       stochastic_physics_none, &
+                                       electric, electric_um,   &
+                                       electric_none
 
   use aerosol_config_mod,        only: glomap_mode,               &
                                        glomap_mode_dust_and_clim, &
@@ -87,37 +103,44 @@ contains
 
 #ifdef UM_PHYSICS
 
-    ! Only actually initialise the fields if we're using the external code
-    ! Most things need calling regardless of whether the scheme is on,
-    ! because we initialise fields used by other schemes if the scheme
-    ! is off. Jules however can only be initialised if it is switched on
-    ! as it uses things from the surface namelist which is not read if
-    ! it is switched off.
-    call init_radiation_fields_alg(radiation_fields)
-    call init_microphysics_fields_alg(microphysics_fields)
-    if (electric == electric_um) then
-      call init_electric_fields_alg(electric_fields)
-    end if
-    call init_orography_fields_alg(orography_fields)
-    call init_turbulence_fields_alg(turbulence_fields)
-    call init_convection_fields_alg(convection_fields)
-    call init_cloud_fields_alg(cloud_fields)
-    call init_surface_fields_alg(surface_fields)
-    if (surface == surface_jules) then
-      call init_soil_fields_alg(soil_fields)
-      call init_snow_fields_alg(snow_fields)
-    end if
-    if ( ( aerosol == aerosol_um .and.          &
-         ( glomap_mode == glomap_mode_ukca .or. &
-           glomap_mode == glomap_mode_dust_and_clim ) ) .or. &
-         ( chem_scheme == chem_scheme_flexchem ) ) then
-      call init_chemistry_fields_alg(chemistry_fields)
-    end if
-    call init_aerosol_fields_alg(aerosol_fields)
+    if ( surface            /= surface_none             .or. &
+         radiation          /= radiation_none           .or. &
+         orographic_drag    /= orographic_drag_none     .or. &
+         stochastic_physics /= stochastic_physics_none  .or. &
+         boundary_layer     /= boundary_layer_none ) then
 
-    call init_stph_fields_alg(stph_fields)
+      ! Only actually initialise the fields if we're using the external code
+      ! Most things need calling regardless of whether the scheme is on,
+      ! because we initialise fields used by other schemes if the scheme
+      ! is off. Jules however can only be initialised if it is switched on
+      ! as it uses things from the surface namelist which is not read if
+      ! it is switched off.
+      call init_radiation_fields_alg(radiation_fields)
+      call init_microphysics_fields_alg(microphysics_fields)
+      if (electric == electric_um) then
+        call init_electric_fields_alg(electric_fields)
+      end if
+      call init_orography_fields_alg(orography_fields)
+      call init_turbulence_fields_alg(turbulence_fields)
+      call init_convection_fields_alg(convection_fields)
+      call init_cloud_fields_alg(cloud_fields)
+      call init_surface_fields_alg(surface_fields)
+      if (surface == surface_jules) then
+        call init_soil_fields_alg(soil_fields)
+        call init_snow_fields_alg(snow_fields)
+      end if
+      if ( ( aerosol == aerosol_um .and.          &
+           ( glomap_mode == glomap_mode_ukca .or. &
+             glomap_mode == glomap_mode_dust_and_clim ) ) .or. &
+           ( chem_scheme == chem_scheme_flexchem ) ) then
+        call init_chemistry_fields_alg(chemistry_fields)
+      end if
+      call init_aerosol_fields_alg(aerosol_fields)
 
-    call log_event( 'Physics field collections initialised', LOG_LEVEL_INFO )
+      call init_stph_fields_alg(stph_fields)
+
+      call log_event( 'Physics field collections initialised', LOG_LEVEL_INFO )
+    end if
 
 #endif
 
