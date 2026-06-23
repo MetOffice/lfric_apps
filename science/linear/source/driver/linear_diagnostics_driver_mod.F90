@@ -162,7 +162,7 @@ contains
     call moisture_fields%get_field("ls_mr", ls_mr_array)
     ls_mr => ls_mr_array%bundle
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
-    panel_id => get_panel_id(mesh%get_id())
+    panel_id => get_panel_id(mesh)
 
     call prognostic_fields%get_field('theta', theta)
     call prognostic_fields%get_field('u', u)
@@ -279,8 +279,9 @@ contains
       call pressure_diag_alg(exner_in_wth)
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
-      call column_total_diagnostics_alg(rho, mr, derived_fields, exner, &
-                                        mesh, twod_mesh,                &
+      call column_total_diagnostics_alg(modeldb%config, rho, mr, &
+                                        derived_fields, exner,   &
+                                        mesh, twod_mesh,         &
                                         temp_corr_io_value%data(1))
 
     end if
