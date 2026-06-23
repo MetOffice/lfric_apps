@@ -89,8 +89,10 @@ module fast_physics_alg_mod
   use blpert_main_alg_mod, only: blpert_main_alg
 #endif
 
-  implicit none
+  ! Object types
+  use config_mod, only: config_type
 
+  implicit none
 
 contains
 
@@ -100,6 +102,7 @@ contains
   !>          need converting back to FE representation before being seen
   !>          by the solver. All other prognostics (moisture, cloud, etc)
   !>          are updated in-situ here.
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] du                  Increment to wind field
   !> @param[in,out] dtheta              Increment to theta field
   !> @param[in,out] mr                  Mixing ratios to be updated
@@ -125,19 +128,22 @@ contains
   !> @param[in]     clock               The clock object
   !> @param[in]     dt                  The model timestep length
   !!                                    diagnostics
-    subroutine fast_physics(du, dtheta, mr, theta, rho, u_n, exner, mr_n, &
-                            derived_fields, radiation_fields,             &
-                            microphysics_fields, orography_fields,                &
-                            turbulence_fields, convection_fields, cloud_fields,   &
-                            surface_fields, soil_fields, snow_fields,             &
-                            chemistry_fields, aerosol_fields, stph_fields,        &
-                            spt_spectral_coeffc, spt_spectral_coeffs,             &
-                            spt_power_law,                                        &
-                            skeb_spectral_coeffc, skeb_spectral_coeffs,           &
-                            skeb_power_law,                                       &
+    subroutine fast_physics(config,                                             &
+                            du, dtheta, mr, theta, rho, u_n, exner, mr_n,       &
+                            derived_fields, radiation_fields,                   &
+                            microphysics_fields, orography_fields,              &
+                            turbulence_fields, convection_fields, cloud_fields, &
+                            surface_fields, soil_fields, snow_fields,           &
+                            chemistry_fields, aerosol_fields, stph_fields,      &
+                            spt_spectral_coeffc, spt_spectral_coeffs,           &
+                            spt_power_law,                                      &
+                            skeb_spectral_coeffc, skeb_spectral_coeffs,         &
+                            skeb_power_law,                                     &
                             outer, clock, dt)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Fields
     type( field_type ), intent( inout ) :: du, dtheta
@@ -226,7 +232,7 @@ contains
 
     if (write_conservation_diag .and. outer == outer_iterations .and. &
         use_moisture ) then
-      call moisture_conservation_alg( rho, mr, 'Before fast' )
+      call moisture_conservation_alg( config, rho, mr, 'Before fast' )
     end if
 
     !--------------------------------------------------------------------
@@ -245,7 +251,8 @@ contains
     !--------------------------------------------------------------------
     if (boundary_layer == boundary_layer_um) then
       if(blayer_placement == blayer_placement_b4conv) then
-        call bl_imp_alg(dtheta, du, theta_latest, u_latest, mr,             &
+        call bl_imp_alg(config,                                             &
+                        dtheta, du, theta_latest, u_latest, mr,             &
                         surf_heat_flux, canopy_evap, water_extraction,      &
                         lake_evap, theta_star_surf, qv_star_surf,           &
                         ustar_implicit, t1p5m, q1p5m, qcl1p5m,              &
@@ -263,7 +270,8 @@ contains
 
     ! Balance cloud before the rest of fast physics
     if (cloud_call_b4_conv) then
-      call cld_alg( dtheta, mr,                                              &
+      call cld_alg( config,                                                  &
+                    dtheta, mr,                                              &
                     theta_latest, exner, rho,                                &
                     derived_fields, turbulence_fields,                       &
                     cloud_fields, convection_fields,                         &
@@ -306,14 +314,16 @@ contains
                          convection_fields, outer)
       else if ( cv_scheme == cv_scheme_gregory_rowntree ) then
         ! Call the UM Gregory Rowntree convection scheme
-        call conv_gr_alg(du, theta_latest, u_latest, mr, rho, exner,      &
+        call conv_gr_alg(config,                                          &
+                         du, theta_latest, u_latest, mr, rho, exner,      &
                          derived_fields,                                  &
                          turbulence_fields, convection_fields,            &
                          cloud_fields, surface_fields, chemistry_fields,  &
                          aerosol_fields, microphysics_fields, outer)
       else if ( cv_scheme == cv_scheme_comorph ) then
         ! Call the Comorph convection scheme
-        call conv_comorph_alg(du, theta_latest, u_latest, mr, mr_n,       &
+        call conv_comorph_alg(config,                                     &
+                         du, theta_latest, u_latest, mr, mr_n,            &
                          rho, exner, theta, derived_fields,               &
                          turbulence_fields, convection_fields,            &
                          cloud_fields, surface_fields, chemistry_fields,  &
@@ -344,7 +354,8 @@ contains
     !--------------------------------------------------------------------
     if (boundary_layer == boundary_layer_um) then
       if(blayer_placement == blayer_placement_fast) then
-        call bl_imp_alg(dtheta, du, theta_latest, u_latest, mr,             &
+        call bl_imp_alg(config,                                             &
+                        dtheta, du, theta_latest, u_latest, mr,             &
                         surf_heat_flux, canopy_evap, water_extraction,      &
                         lake_evap, theta_star_surf, qv_star_surf,           &
                         ustar_implicit, t1p5m, q1p5m, qcl1p5m,              &
@@ -365,7 +376,8 @@ contains
            (blayer_placement == blayer_placement_fast .or. &
             blayer_placement == blayer_placement_b4conv) .and. &
            outer == outer_iterations ) then
-        call jules_extra_alg(microphysics_fields, convection_fields,        &
+        call jules_extra_alg(config,                                        &
+                             microphysics_fields, convection_fields,        &
                              surface_fields, soil_fields, snow_fields,      &
                              surf_heat_flux, canopy_evap,                   &
                              water_extraction, lake_evap, dt)
@@ -395,14 +407,15 @@ contains
       ! We only calculate stochastic increments on the first outer loop
       ! The increments are stored in module scope for subsequent iterations
       if ( outer == 1_i_def )then
-        call stph_main_alg( du_stph, dtheta_stph, dmv_stph,                  &
-                          theta_latest, mr(imr_v), rho, u_n, convection_fields,&
-                          microphysics_fields, radiation_fields,             &
-                          derived_fields, orography_fields,                  &
-                          spt_spectral_coeffc, spt_spectral_coeffs,          &
-                          spt_power_law,                                     &
-                          skeb_spectral_coeffc, skeb_spectral_coeffs,        &
-                          skeb_power_law, clock)
+        call stph_main_alg(config,                                       &
+                           du_stph, dtheta_stph, dmv_stph, theta_latest, &
+                           mr(imr_v), rho, u_n, convection_fields,       &
+                           microphysics_fields, radiation_fields,        &
+                           derived_fields, orography_fields,             &
+                           spt_spectral_coeffc, spt_spectral_coeffs,     &
+                            spt_power_law,                               &
+                           skeb_spectral_coeffc, skeb_spectral_coeffs,   &
+                           skeb_power_law, clock)
 
       end if
       ! Adding stochastic physics theta, mv and winds
@@ -416,8 +429,9 @@ contains
       if (blpert_type /= blpert_type_off) then
         call dtheta_stph%copy_field_properties(dtheta_blpert)
         call dmv_stph%copy_field_properties(dmv_blpert)
-        call blpert_main_alg(dtheta_blpert, dmv_blpert, mr(imr_v),           &
-                             theta_star_surf, qv_star_surf,                  &
+        call blpert_main_alg(config,                               &
+                             dtheta_blpert, dmv_blpert, mr(imr_v), &
+                             theta_star_surf, qv_star_surf,        &
                              turbulence_fields, stph_fields, outer, clock)
         call invoke(inc_X_plus_Y(theta_latest, dtheta_blpert), &
                     inc_X_plus_Y(mr(imr_v), dmv_blpert) )
@@ -464,20 +478,22 @@ contains
     ! Smagorinsky horizontal mixing
     !--------------------------------------------------------------------
     if (smagorinsky .and. smagorinsky_placement == smagorinsky_placement_fast) then
-      call smagorinsky_alg(dtheta, du, mr, theta_star, u_star, &
+      call smagorinsky_alg(config, dtheta, du, mr, theta_star, u_star, &
                            derived_fields, cloud_fields, rho, exner, dt, clock)
     end if
 
-    call print_field_stats_alg(dtheta, LOG_LEVEL_INFO, printmin=-20.0_r_def, &
-                               printmax=20.0_r_def, name='dtheta fast')
+    call print_field_stats_alg(config, dtheta, LOG_LEVEL_INFO,            &
+                               printmin=-20.0_r_def, printmax=20.0_r_def, &
+                               name='dtheta fast')
 
     if ( use_moisture ) then
       do i_mr = 1, nummr
         call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
       end do
 
-      if (write_conservation_diag .and. outer == outer_iterations) &
-        call moisture_conservation_alg( rho, mr, 'After fast' )
+      if (write_conservation_diag .and. outer == outer_iterations) then
+        call moisture_conservation_alg( config, rho, mr, 'After fast' )
+      end if
     end if
 
     if ( LPROF ) call stop_timing( id, 'fast_physics' )

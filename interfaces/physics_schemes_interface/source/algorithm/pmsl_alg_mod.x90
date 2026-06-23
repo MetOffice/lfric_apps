@@ -27,6 +27,9 @@ module pmsl_alg_mod
   use physics_config_mod, only: pmsl_halo_calcs
   use sci_psykal_builtin_light_mod, only: invoke_copy_field_halo
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
   private
 
@@ -41,12 +44,13 @@ contains
   !>          Initial version just calculates PMSL with no smoothing over
   !>          high ground. The UM diagnostic included smoothing of the field
   !>          for orography over 500m. This will be added later.
+  !> @param[in]  config          Application namelist configuration object
   !> @param[in]  exner_w3        exner pressure in w3 space
   !> @param[in]  derived_fields  Group of derived fields
   !> @param[in]  theta_wth       potential temperature
   !> @param[in]  twod_mesh       Current 2d mesh
 
-  subroutine pmsl_alg(exner_w3, derived_fields, theta_wth, twod_mesh)
+  subroutine pmsl_alg(config, exner_w3, derived_fields, theta_wth, twod_mesh)
 
     use pmsl_kernel_mod, only: pmsl_kernel_type
     use pmsl_fgeo_kernel_mod, only: pmsl_fgeo_kernel_type
@@ -56,6 +60,7 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent(in)            :: exner_w3
     type( field_collection_type ), intent(in) :: derived_fields
@@ -98,8 +103,8 @@ contains
 
       ! Unpack fields
       call derived_fields%get_field('exner_in_wth', exner_wth)
-      height_w3       => get_height_fv(W3, exner_w3%get_mesh_id())
-      height_wth      => get_height_fv(Wtheta, theta_wth%get_mesh_id())
+      height_w3  => get_height_fv(config, exner_w3%get_mesh(), W3)
+      height_wth => get_height_fv(config, theta_wth%get_mesh(), Wtheta)
 
       ! Find level above boundary layer to use in PMSL calculation
       ! domain_height is the top model height and is the same everywhere
@@ -139,8 +144,8 @@ contains
       call f_func%initialise(vector_space, halo_depth=max_halo_depth)
       call exner_sm%initialise(vector_space, halo_depth=max_halo_depth)
 
-      dx_at_w2 => get_dx_at_w2(theta_wth%get_mesh_id())
-      panel_id => get_panel_id(theta_wth%get_mesh_id())
+      dx_at_w2 => get_dx_at_w2(theta_wth%get_mesh())
+      panel_id => get_panel_id(theta_wth%get_mesh())
 
       ! Calculate geostrophic winds and forcing function
       call invoke(pmsl_fgeo_kernel_type(exner_wth, sten_size, theta_wth,       &

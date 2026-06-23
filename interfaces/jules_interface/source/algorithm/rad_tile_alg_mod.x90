@@ -42,6 +42,9 @@ use socrates_init_mod, only: wavelength_short, wavelength_long, &
 use sw_rad_tile_kernel_mod, only: sw_rad_tile_kernel_type
 use lw_rad_tile_kernel_mod, only: lw_rad_tile_kernel_type
 
+! Object types
+use config_mod, only: config_type
+
 implicit none
 private
 
@@ -52,6 +55,7 @@ public :: rad_tile_alg
 
 contains
 
+! @param[in]     config                 Application namelist configuration object
 ! @param[in,out] tile_sw_direct_albedo  Tile SW direct albedos
 ! @param[in,out] tile_sw_diffuse_albedo Tile SW diffuse albedos
 ! @param[in,out] tile_swinc_direct_albedo  Tile SWINC direct albedos
@@ -66,7 +70,8 @@ contains
 ! @param[in]     snow_fields            Fields for snow scheme
 ! @param[in]     twod_mesh              Current 2d mesh
 ! @param[in]     timestep               Current timestep number
-subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+subroutine rad_tile_alg(config,                                              &
+                        tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
                         tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
                         tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
                         radiation_fields, orography_fields,                  &
@@ -74,6 +79,8 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
                         twod_mesh, timestep)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type( field_type ), intent( inout ) :: tile_sw_direct_albedo
   type( field_type ), intent( inout ) :: tile_sw_diffuse_albedo
@@ -221,7 +228,7 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
     call derived_fields%get_field('u_in_w3', u_in_w3)
     call derived_fields%get_field('v_in_w3', v_in_w3)
 
-    dz_wth            => get_dz_at_wtheta(u_in_w3%get_mesh_id())
+    dz_wth => get_dz_at_wtheta(config, u_in_w3%get_mesh())
 
     ! SW albedos only required on radiation timesteps
     if (radiation == radiation_socrates .and. &

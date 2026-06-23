@@ -476,9 +476,10 @@ contains
                                    ancil_fields,                        &
                                    regrid_operation,                    &
                                    regrid_lowest_order )
-      call update_ancils_alg( model_axes%ancil_times_list, &
-                              modeldb%clock,                       &
-                              ancil_fields,                        &
+      call update_ancils_alg( modeldb%config,              &
+                              model_axes%ancil_times_list, &
+                              modeldb%clock,               &
+                              ancil_fields,                &
                               surface_fields)
     end if
 

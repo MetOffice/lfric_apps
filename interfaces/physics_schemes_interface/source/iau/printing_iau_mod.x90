@@ -19,6 +19,10 @@ module printing_iau_mod
   use fs_continuity_mod,           only: W3
   use sci_geometric_constants_mod, only: get_height_fv
 
+  ! Object types
+  use config_mod, only: config_type
+  use mesh_mod,   only: mesh_type
+
   implicit none
 
   private
@@ -191,21 +195,24 @@ module printing_iau_mod
 
   !> @brief   print the iau_fields mean and rms
   !> @details print the mean and rms of the different iau increment fields
-  !> @param[in] iau_fields        The collection of iau fields
-  !> @param[in] level             Level of logging. If the configured
-  !>                              log_level is less than or equal to
-  !>                              level, output will be shown.
-  subroutine print_meanrms_iau( iau_fields, level )
+  !> @param[in] config      Application namelist configuration object
+  !> @param[in] iau_fields  The collection of iau fields
+  !> @param[in] level       Level of logging. If the configured
+  !>                        log_level is less than or equal to
+  !>                        level, output will be shown.
+  subroutine print_meanrms_iau( config, iau_fields, level )
 
     implicit none
 
+    type( config_type ),           intent(in) :: config
     type( field_collection_type ), intent(in) :: iau_fields
     integer( kind = i_def ),       intent(in) :: level
 
     type( field_type ), pointer               :: iau_field
     type( field_type ), pointer               :: height_w3
     type( field_type )                        :: radius_w3
-    integer( kind=i_def )                     :: mesh_id
+
+    type(mesh_type), pointer :: mesh
 
     if( log_level() <= level ) then
 
@@ -233,8 +240,8 @@ module printing_iau_mod
       if ( iau_wet_density ) then
         call iau_fields % get_field( 'rho_r2_inc', iau_field )
         ! Divide by r2 to create wet density
-        mesh_id = iau_field%get_mesh_id()
-        height_w3 => get_height_fv(W3, mesh_id)
+        mesh => iau_field%get_mesh()
+        height_w3 => get_height_fv(config, mesh, W3)
         call iau_field%copy_field_properties(radius_w3)
         call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ),       &
                      inc_X_divideby_Y( iau_field, radius_w3 ),              &

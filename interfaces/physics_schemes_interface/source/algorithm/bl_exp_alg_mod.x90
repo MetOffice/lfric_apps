@@ -41,6 +41,9 @@ module bl_exp_alg_mod
   use bl_exp_diags_mod,   only: initialise_diags_for_bl_exp, &
                                 output_diags_for_bl_exp
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -53,6 +56,7 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
   !>         NB This version uses winds in w3 space (i.e. A-grid)
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in]     theta             Theta in its native (wth) space
   !>@param[in]     rho               Dry density in its native (w3) space
   !>@param[in]     exner             Exner Pressure in the w3 space
@@ -71,7 +75,7 @@ contains
   !>@param[in]     t1_sd_2d            StDev of level 1 temperature
   !>@param[in]     q1_sd_2d            StDev of level 1 humidity
   !>@param[in]     model_clock         Time in the model
-  subroutine bl_exp_alg(theta, rho, exner, mr_n,                 &
+  subroutine bl_exp_alg(config, theta, rho, exner, mr_n,                  &
                         derived_fields, radiation_fields,                 &
                         microphysics_fields, dmr_mphys, orography_fields, &
                         turbulence_fields, convection_fields,             &
@@ -85,6 +89,8 @@ contains
     use planet_constants_mod, only: lcrcp_def, lsrcp_def
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent( in )        :: theta, rho, exner, mr_n(nummr)
     type( field_type ), intent( in )        :: dmr_mphys ( nummr )
@@ -321,20 +327,22 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth       => get_height_fv( Wtheta, mesh%get_id() )
-    height_w3        => get_height_fv( W3, mesh%get_id() )
-    face_selector_ew => get_face_selector_ew( mesh%get_id() )
-    face_selector_ns => get_face_selector_ns( mesh%get_id() )
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w3  => get_height_fv(config, mesh, W3)
+
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
+
     ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
     ! in lfric core as the mininum of the cell horizontal edge lengths
-    delta            => get_delta_at_wtheta( mesh%get_id() )
-    max_diff_smag    => get_max_diff( mesh%get_id(), model_clock )
-    dA               => get_da_at_w2( mesh%get_id() )
-    rdz_fd1          => get_rdz_fd1( mesh%get_id() )
-    rdz_w3           => get_rdz_w3( mesh%get_id() )
-    dtrdz_wth        => get_dtrdz_wth( mesh%get_id(), model_clock )
+    delta            => get_delta_at_wtheta(mesh)
+    max_diff_smag    => get_max_diff(config, mesh%get_id(), model_clock)
+    dA               => get_da_at_w2(mesh)
+    rdz_fd1          => get_rdz_fd1(config, mesh%get_id())
+    rdz_w3           => get_rdz_w3(config, mesh%get_id())
+    dtrdz_wth        => get_dtrdz_wth(config, mesh%get_id(), model_clock )
     w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() )
-    dz_wth           => get_dz_at_wtheta( mesh%get_id() )
+    dz_wth           => get_dz_at_wtheta(config, mesh)
 
     ! Initialise diagnostics
     call initialise_diags_for_bl_exp(zht, oblen)
@@ -423,7 +431,7 @@ contains
       call theta%copy_field_properties(fd_tauz)
       call invoke(setval_c(fd_tauz, 0.0_r_def))
       ! Calculate form drag stress in w2
-      call set_wind(fd_tau_w2,fd_taux,fd_tauy,fd_tauz)
+      call set_wind(config, fd_tau_w2,fd_taux,fd_tauy,fd_tauz)
       call invoke(inc_X_divideby_Y(fd_tau_w2, dA))
       if ( LPROF ) call start_timing( id, 'bl.explicit' )
     end if

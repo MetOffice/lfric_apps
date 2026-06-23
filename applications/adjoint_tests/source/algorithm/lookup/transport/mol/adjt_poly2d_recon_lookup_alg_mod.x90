@@ -26,6 +26,9 @@ module adjt_poly2d_recon_lookup_alg_mod
     use transport_constants_mod,              only : get_hori_wt_mol_coeffs
     use adj_lookup_table_mod,                 only : adj_lookup_table_type
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   public :: adjt_poly2d_recon_lookup_alg
@@ -37,14 +40,19 @@ module adjt_poly2d_recon_lookup_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config                  Application namelist configuration object
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  fspace_enum             The function space to test
   !> @param[in]  adj_lookup_table_cache  The lookup table cache
-  subroutine adjt_poly2d_recon_lookup_alg( mesh, fspace_enum, adj_lookup_table_cache )
+  subroutine adjt_poly2d_recon_lookup_alg( config, mesh, fspace_enum, &
+                                           adj_lookup_table_cache )
+
     use poly2d_reconstruction_kernel_mod,     only : poly2d_reconstruction_kernel_type
     use invoke_adj_poly2d_recon_lookup_mod,   only : invoke_adj_poly2d_recon_lookup
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(mesh_type),          pointer, intent(in) :: mesh
@@ -101,7 +109,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     end if
 
     ndata = 4
-    coeff => get_hori_wt_mol_coeffs(mesh_id)
+    coeff => get_hori_wt_mol_coeffs(config, mesh)
     stencil_extent = fv_horizontal_order/2_i_def
     vector_space_wt_md_ptr => function_space_collection%get_fs( &
       mesh, element_order_h, element_order_v, fspace_enum, ndata=ndata, ndata_first=.false. &

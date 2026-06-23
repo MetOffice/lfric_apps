@@ -40,6 +40,8 @@ module atlt_end_transport_step_alg_mod
                                                   counter_field_n_inp_prod_rtran
   use init_from_controller_alg_mod,        only : init_counter_fieldvals, &
                                                   init_flux_pc_fieldvals
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -54,9 +56,10 @@ module atlt_end_transport_step_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine atlt_end_adv_step_alg( mesh, model_clock )
+  subroutine atlt_end_adv_step_alg(config,  mesh, model_clock )
 
     use tl_end_of_transport_step_alg_mod,    only : tl_end_of_advective_step_alg
     use atl_end_transport_step_alg_mod,      only : atl_end_advective_step_alg
@@ -64,6 +67,7 @@ module atlt_end_transport_step_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
 
@@ -102,7 +106,9 @@ module atlt_end_transport_step_alg_mod
     real(kind=r_tran) :: machine_tol
     real(kind=r_tran) :: relative_diff
 
-    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs )
+    call setup_test_tl_transport_controller( config, mesh, model_clock, &
+                                             tl_transport_controller,   &
+                                             dummy, dummy_vs )
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
     transport_metadata => pert_transport_controller%get_transport_metadata()
     transport_counter => pert_transport_controller%get_transport_counter()
@@ -190,9 +196,10 @@ module atlt_end_transport_step_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine atlt_end_con_step_alg( mesh, model_clock )
+  subroutine atlt_end_con_step_alg(config,  mesh, model_clock )
 
     use tl_end_of_transport_step_alg_mod,    only : tl_end_of_conservative_step_alg
     use atl_end_transport_step_alg_mod,      only : atl_end_conservative_step_alg
@@ -200,6 +207,7 @@ module atlt_end_transport_step_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
 
@@ -263,7 +271,9 @@ module atlt_end_transport_step_alg_mod
     real(kind=r_tran) :: machine_tol
     real(kind=r_tran) :: relative_diff
 
-    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, tctr_field_n, tctr_field_n_vs )
+    call setup_test_tl_transport_controller(config,  mesh, model_clock, &
+                                            tl_transport_controller,    &
+                                            tctr_field_n, tctr_field_n_vs )
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
     transport_metadata => pert_transport_controller%get_transport_metadata()

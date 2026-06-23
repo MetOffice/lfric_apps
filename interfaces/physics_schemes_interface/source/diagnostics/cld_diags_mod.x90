@@ -7,6 +7,7 @@
 !> @brief Set up fields for cloud diagnostics
 
 module cld_diags_mod
+
   use clock_mod,               only: clock_type
   use constants_mod,           only: l_def, i_def, r_def, str_def
   use mr_indices_mod,          only: nummr, imr_cl, imr_ci, imr_r, imr_s
@@ -27,6 +28,9 @@ module cld_diags_mod
 
   use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
                                          samp_diag => diagnostic_to_be_sampled
+
+  ! Object types
+  use config_mod, only: config_type
 
   implicit none
 
@@ -85,7 +89,8 @@ contains
   end subroutine initialise_diags_for_cld
 
   !> @brief Output diagnostics from cld_alg
-  subroutine output_diags_for_cld( sskew_bm, svar_bm, svar_tb, &
+  subroutine output_diags_for_cld( config,                     &
+                                   sskew_bm, svar_bm, svar_tb, &
                                    cloud_fields,               &
                                    convection_fields,          &
                                    derived_fields,             &
@@ -95,6 +100,8 @@ contains
                                    exner_wth )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Diagnostics computed within the kernels
     type( field_type ),            intent(in) :: sskew_bm, svar_bm, svar_tb
@@ -250,8 +257,9 @@ contains
           cloud_fraction_below_1000feet_asl_flag ) then
 
         mesh       => combined_cld_amount%get_mesh()
-        height_w3  => get_height_fv(W3, mesh%get_id())
-        height_wth => get_height_fv(Wtheta, mesh%get_id())
+        height_w3  => get_height_fv(config, mesh, W3)
+        height_wth => get_height_fv(config, mesh, Wtheta)
+
         call derived_fields%get_field('rho_in_wth', rho_in_wth)
         call cloud_fields%get_field('frozen_fraction', cf_frozen)
 
@@ -295,7 +303,7 @@ contains
 
       ! Need to know height to remove any spurious icing index in stratosphere
       mesh => theta%get_mesh()
-      height_wth => get_height_fv( Wtheta, mesh%get_id() )
+      height_wth => get_height_fv(config, mesh, Wtheta)
 
     end if
 

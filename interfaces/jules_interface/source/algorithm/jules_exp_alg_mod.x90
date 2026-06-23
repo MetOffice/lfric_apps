@@ -367,8 +367,8 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth       => get_height_fv( Wtheta, mesh%get_id() )
-    height_w3        => get_height_fv( W3, mesh%get_id() )
+    height_wth => get_height_fv(modeldb%config, mesh, Wtheta)
+    height_w3  => get_height_fv(modeldb%config, mesh, W3)
 
     call initialise_diags_for_jules_exp(z0h_eff, gross_prim_prod, &
                                         soil_respiration)

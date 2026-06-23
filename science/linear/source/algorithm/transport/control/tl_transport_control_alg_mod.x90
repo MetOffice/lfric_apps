@@ -21,6 +21,9 @@ module tl_transport_control_alg_mod
   use transport_metadata_mod,            only: transport_metadata_type
   use transport_metadata_collection_mod, only: transport_metadata_collection
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -38,6 +41,7 @@ contains
   !> @brief Advection of prognostic variables for the tangent linear model.
   !> @param[in,out] advection_inc      ACTIVE Advection increment of the dynamics
   !!                                   prognostics [u, rho, theta, exner]
+  !> @param[in]     config             Application namelist configuration object
   !> @param[in]     advected_fields    ACTIVE Fields to advect: [u, rho, theta, exner]
   !> @param[in]     wind_np1           ACTIVE End of timestep wind field
   !> @param[in]     wind_n             ACTIVE Start of timestep wind field
@@ -50,7 +54,7 @@ contains
   !> @param[in]     model_clock        Time within the model
   !> @param[in]     outer              Outer (advection) iteration number
   !>
-  subroutine tl_transport_control_alg(advection_inc, advected_fields,          &
+  subroutine tl_transport_control_alg(config, advection_inc, advected_fields,  &
                                       wind_np1, wind_n, mr_out, mr_in,         &
                                       ls_advected_fields,                      &
                                       ls_wind_np1, ls_wind_n, ls_mr_in,        &
@@ -70,6 +74,8 @@ contains
                                                tik, LPROF
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(field_type),            intent(inout) :: advection_inc(bundle_size)
@@ -111,11 +117,10 @@ contains
     end if
 
     ! Initialise the transport controllers -------------------------------------
-    call tl_transport_controller%initialise(                                   &
+    call tl_transport_controller%initialise( config,                           &
             model_clock, advected_fields(igh_d), ls_advected_fields(igh_d),    &
             wind_n, wind_np1, ls_wind_n, ls_wind_np1,                          &
-            outer=outer, cheap_update_step=cheap_update_step                   &
-    )
+            outer=outer, cheap_update_step=cheap_update_step )
 
     ! ======================================================================== !
     ! TRANSPORT OF PROGNOSTICS

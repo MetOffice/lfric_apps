@@ -25,6 +25,9 @@ module atlt_reconstruct_w3_field_alg_mod
   use transport_metadata_mod,              only : transport_metadata_type
   use transport_enumerated_types_mod,      only : direction_3d
 
+  ! Object type
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -38,10 +41,12 @@ module atlt_reconstruct_w3_field_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config                  Application namelist configuration object
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  model_clock             The model clock
   !> @param[in]  adj_lookup_table_cache  Lookup table cache
-  subroutine atlt_reconstruct_w3_field_alg( mesh, model_clock, adj_lookup_table_cache )
+  subroutine atlt_reconstruct_w3_field_alg( config, mesh, model_clock, &
+                                            adj_lookup_table_cache )
 
     use atl_reconstruct_w3_field_alg_mod,    only : atl_reconstruct_w3_field_alg
     use tl_reconstruct_w3_field_alg_mod,     only : tl_reconstruct_w3_field_alg
@@ -49,6 +54,7 @@ module atlt_reconstruct_w3_field_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),                 intent(in) :: config
     type(mesh_type),          pointer, intent(in) :: mesh
     type(model_clock_type),            intent(in) :: model_clock
     type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
@@ -117,7 +123,7 @@ module atlt_reconstruct_w3_field_alg_mod
                  setval_random( ls_field_old ) )
 
     ! Tangent linear
-    call tl_reconstruct_w3_field_alg( field_new, field_old, ls_field_old, &
+    call tl_reconstruct_w3_field_alg( config, field_new, field_old, ls_field_old, &
                                       direction, transport_metadata, final_rk_stage )
 
     ! < Mx, Mx >
@@ -147,8 +153,9 @@ module atlt_reconstruct_w3_field_alg_mod
     field_old_field_old_input_inner_prod = 0.0_r_def
 
     ! Adjoint
-    call atl_reconstruct_w3_field_alg( field_new, field_old, ls_field_old,            &
-                                       direction, transport_metadata, final_rk_stage, &
+    call atl_reconstruct_w3_field_alg( config, field_new, field_old,       &
+                                       ls_field_old, direction,            &
+                                       transport_metadata, final_rk_stage, &
                                        adj_lookup_table_cache )
 
     ! < AMx, x >
@@ -181,9 +188,10 @@ module atlt_reconstruct_w3_field_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine atlt_vert_w3_reconstruct_alg( mesh, model_clock )
+  subroutine atlt_vert_w3_reconstruct_alg( config, mesh, model_clock )
 
     use atl_reconstruct_w3_field_alg_mod,    only : atl_vert_w3_reconstruct_alg
     use tl_reconstruct_w3_field_alg_mod,     only : tl_vert_w3_reconstruct_alg
@@ -191,6 +199,7 @@ module atlt_reconstruct_w3_field_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
 
@@ -255,8 +264,9 @@ module atlt_reconstruct_w3_field_alg_mod
                  setval_random( ls_field_old ) )
 
     ! Tangent linear
-    call tl_vert_w3_reconstruct_alg( field_new, field_old, ls_field_old, &
-                                     transport_metadata, final_rk_stage )
+    call tl_vert_w3_reconstruct_alg( config, field_new, field_old,     &
+                                     ls_field_old, transport_metadata, &
+                                     final_rk_stage )
 
     ! < Mx, Mx >
     call invoke( x_innerproduct_x( field_new_inner_prod, field_new ), &
@@ -285,8 +295,9 @@ module atlt_reconstruct_w3_field_alg_mod
     field_old_field_old_input_inner_prod = 0.0_r_def
 
     ! Adjoint
-    call atl_vert_w3_reconstruct_alg( field_new, field_old, ls_field_old, &
-                                      transport_metadata, final_rk_stage )
+    call atl_vert_w3_reconstruct_alg( config, field_new, field_old,     &
+                                      ls_field_old, transport_metadata, &
+                                      final_rk_stage )
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( field_new_field_new_input_inner_prod, &

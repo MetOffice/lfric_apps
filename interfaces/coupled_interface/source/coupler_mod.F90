@@ -599,7 +599,7 @@ module coupler_mod
 
     call iter%initialise(cpl_rcv_2d)
     do
-      if (.not.iter%has_next())exit
+      if (.not. iter%has_next()) exit
       field => iter%next()
       select type(field)
       type is (field_type)
@@ -625,23 +625,23 @@ module coupler_mod
       ierror = 1
     end if
 
-    if(ierror == 0) then
+    if (ierror == 0) then
 
       ! If exchange is successful then process the data that has
       ! come through the coupler
-      call process_recv_fields_2d(cpl_rcv_2d, depository, &
+      call process_recv_fields_2d(modeldb%config, cpl_rcv_2d, depository, &
                                   n_sea_ice_tile, T_freeze_h2o_sea,  &
                                   therm_cond_sice, therm_cond_sice_snow )
 
       ! Update the prognostics
       call iter%initialise(cpl_rcv_2d)
       do
-        if(.not.iter%has_next())exit
+        if (.not. iter%has_next()) exit
         field => iter%next()
         call cpl_rcv_2d%get_field( &
                                trim(field%get_name()), field_ptr)
         call field_ptr%write_field(trim(field%get_name()))
-        call coupler_update_prognostics(field_ptr, depository)
+        call coupler_update_prognostics(modeldb%config, field_ptr, depository)
       end do
 
     end if

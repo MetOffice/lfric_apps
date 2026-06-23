@@ -28,6 +28,9 @@ module jules_extra_alg_mod
   ! Other algorithms
   use lake_water_correction_alg_mod, only: lake_water_correction
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -41,6 +44,7 @@ contains
   !> modules) and Carbon (via triffid and inferno/fire modules). Note: only the
   !> hydrol and snow components are implemented so far.
   !>
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in]     microphysics_fields Fields for mphys scheme
   !> @param[in]     convection_fields   Fields for convection scheme
   !> @param[in,out] surface_fields      Fields for surface scheme
@@ -51,7 +55,8 @@ contains
   !> @param[in]     water_extraction    Extraction of water from each soil layer (kg m-2 s-1)
   !> @param[in]     lake_evap           Evaporation from lakes GBM
   !> @param[in]     dt                  Timestep length (s)
-  subroutine jules_extra_alg(microphysics_fields, convection_fields,      &
+  subroutine jules_extra_alg(config,                                      &
+                             microphysics_fields, convection_fields,      &
                              surface_fields, soil_fields, snow_fields,    &
                              surf_heat_flux,                              &
                              canopy_evap, water_extraction, lake_evap, dt)
@@ -60,6 +65,8 @@ contains
     use um_sizes_init_mod,      only: um_sizes_init
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in)    :: microphysics_fields
     type( field_collection_type ), intent(in)    :: convection_fields
@@ -265,7 +272,7 @@ contains
                            throughfall) )
 
     if ( lake_water_conservation ) then
-      call lake_water_correction(lake_evap, soil_moisture,                     &
+      call lake_water_correction(config, lake_evap, soil_moisture,             &
                                  unfrozen_soil_moisture, soil_moist_sat,       &
                                  soil_moist_wilt, tile_fraction, dt)
     end if

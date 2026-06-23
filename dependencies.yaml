@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: a53c2ac1c21c25fe6dae2e39df88f8f8c5e4abf2
+    source: git@github.com:mo-rickywong/lfric_core.git
+    ref: RmGlobalCfg_CoreDriver
 
 moci:
     source: git@github.com:MetOffice/moci.git

@@ -62,7 +62,6 @@ module external_forcing_alg_mod
   use mesh_mod,                        only: mesh_type
   use mr_indices_mod,                  only: nummr
   use io_config_mod,                   only: write_diag, use_xios_io
-  use planet_config_mod,               only: kappa
   use section_choice_config_mod,       only: cloud, cloud_um
   use cloud_config_mod,                only: scheme, scheme_pc2
 
@@ -83,6 +82,13 @@ module external_forcing_alg_mod
 
   use external_forcing_diagnostics_mod, only: write_forcing_diagnostics
 
+  ! Object types
+  use config_mod, only: config_type
+
+
+  ! Configuration modules
+  use planet_config_mod, only: kappa
+
   implicit none
 
   private
@@ -95,6 +101,7 @@ contains
   !>          such that any combination of temperature forcing will work with
   !>          any combination of wind forcing (or either can be set to none
   !>          and unforced).
+  !> @param[in]     config             Application namelist configuration object
   !> @param[in]     derived_fields     Group of derived fields
   !> @param[in]     u                  3D wind field
   !> @param[in]     theta              Theta field
@@ -115,7 +122,8 @@ contains
   !> @param[in,out] theta_forcing_done Flag to say if theta code run
   !> @param[in,out] vapour_forcing_done Flag to say if vapour code run
   !> @param[in,out] wind_forcing_done  Flag to say if wind code run
-  subroutine external_forcing_alg(derived_fields, u, theta, exner,             &
+  subroutine external_forcing_alg(config,                                      &
+                                  derived_fields, u, theta, exner,             &
                                   exner_in_wth, rho, mr_n, cloud_fields,       &
                                   twod_mesh, dt, time_now, dtheta_forcing,     &
                                   du_forcing, dmv_forcing, dmcl_forcing,       &
@@ -124,6 +132,8 @@ contains
                                   wind_forcing_done)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent( in ) :: derived_fields, cloud_fields
     type( field_type ), intent( in )            :: u, theta, exner, exner_in_wth, rho
@@ -163,7 +173,7 @@ contains
     if ( LPROF ) call start_timing( id, 'external_forcing' )
 
     mesh => theta%get_mesh()
-    height_wth => get_height_fv( Wtheta, mesh%get_id() )
+    height_wth => get_height_fv(config, mesh, Wtheta)
 
     if ( theta_forcing /= theta_forcing_none .or. theta_relaxation .or.           &
          vertadvect_forcing ) then
@@ -173,8 +183,8 @@ contains
 
     if (theta_forcing /= theta_forcing_none) then
 
-      chi => get_coordinates( mesh%get_id() )
-      panel_id => get_panel_id( mesh%get_id() )
+      chi      => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
 
       select case(theta_forcing)
 
@@ -225,7 +235,7 @@ contains
 
         case(theta_forcing_temp_tend)
 
-          call temp_tend_profile_alg( dtheta_forcing, exner_in_wth, time_now )
+          call temp_tend_profile_alg( config, dtheta_forcing, exner_in_wth, time_now )
 
         case default
 
@@ -248,7 +258,7 @@ contains
 
     if ( theta_relaxation ) then
       nlayers = mesh%get_nlayers()
-      call theta_relax_alg( dtheta_forcing, theta, exner_in_wth, &
+      call theta_relax_alg( config, dtheta_forcing, theta, exner_in_wth, &
                             twod_mesh, time_now, nlayers )
       theta_forcing_done = .true.
     end if
@@ -263,7 +273,7 @@ contains
                           LOG_LEVEL_INFO )
 
           w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() ) ! 1/multiplicity of w2
-          dA => get_da_at_w2( mesh%get_id() )
+          dA => get_da_at_w2( mesh )
 
           call derived_fields%get_field('u_physics', u_physics)
 
@@ -292,7 +302,7 @@ contains
           call invoke(setval_X(u_smoothed, u))
 
           do order = 1, filtering_order
-            call w2_filter_alg(u_smoothed)
+            call w2_filter_alg(config, u_smoothed)
           end do
           call invoke(X_minus_Y(du_forcing, u_smoothed, u))
 
@@ -312,13 +322,13 @@ contains
           ! wind component by setting the returned vertical wind increment to
           ! zero.
           !
-          panel_id => get_panel_id(mesh%get_id())
-          height_w1 => get_height_fv(W1, mesh%get_id())
-          height_w2 => get_height_fv(W2, mesh%get_id())
+          panel_id  => get_panel_id(mesh)
+          height_w1 => get_height_fv(config, mesh, W1)
+          height_w2 => get_height_fv(config, mesh, W2)
 
-          dx_at_w2 => get_dx_at_w2(mesh%get_id())
-          face_selector_ew => get_face_selector_ew(mesh%get_id())
-          face_selector_ns => get_face_selector_ns(mesh%get_id())
+          dx_at_w2 => get_dx_at_w2(mesh)
+          face_selector_ew => get_face_selector_ew(mesh)
+          face_selector_ns => get_face_selector_ns(mesh)
 
           call visc_m%initialise( vector_space = theta%get_function_space())
           call dx%initialise( vector_space = dx_at_w2%get_function_space() )
@@ -360,7 +370,7 @@ contains
 
           call du_forcing%initialise( vector_space = u%get_function_space() )
 
-          call wind_forcing_profile_alg( du_forcing, exner, time_now )
+          call wind_forcing_profile_alg( config, du_forcing, exner, time_now )
 
         case default
 
@@ -381,7 +391,7 @@ contains
         call invoke(setval_c(du_forcing, 0.0_r_def))
       end if
 
-      call geostrophic_forcing_alg( du_forcing, derived_fields, exner, time_now )
+      call geostrophic_forcing_alg( config, du_forcing, derived_fields, exner, time_now )
 
       wind_forcing_done = .true.
 
@@ -390,7 +400,7 @@ contains
     nullify( mesh )
 
     if ( vertadvect_forcing ) then
-      if ( .not.vapour_forcing_done) then
+      if ( .not. vapour_forcing_done) then
         call dmv_forcing%initialise( vector_space = theta%get_function_space() )
         call invoke( setval_c(dmv_forcing, 0.0_r_def) )
         call dmcl_forcing%initialise( vector_space = theta%get_function_space() )
@@ -402,7 +412,8 @@ contains
         call invoke(setval_c(du_forcing, 0.0_r_def))
       end if
 
-      call vertadvect_forcing_alg( dtheta_forcing, dmv_forcing, dmcl_forcing,    &
+      call vertadvect_forcing_alg( config,                                       &
+                                   dtheta_forcing, dmv_forcing, dmcl_forcing,    &
                                    du_forcing, theta, mr_n, rho, derived_fields, &
                                    twod_mesh, dt, time_now )
       theta_forcing_done  = .true.
@@ -432,7 +443,8 @@ contains
 
         case(vapour_forcing_profile)
 
-          call vapour_forcing_profile_alg( dmv_forcing, exner_in_wth, time_now )
+          call vapour_forcing_profile_alg( config, dmv_forcing, &
+                                           exner_in_wth, time_now )
 
         case default
 

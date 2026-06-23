@@ -28,6 +28,10 @@ module leonard_term_alg_mod
   use log_mod,                    only: log_event, LOG_LEVEL_INFO
   use model_clock_mod,            only: model_clock_type
 
+  ! Object types
+  use config_mod, only: config_type
+  use mesh_mod,   only: mesh_type
+
   implicit none
 
   private
@@ -39,6 +43,7 @@ contains
   !> @brief Calculate vertical Leonard term fluxes
   !> @details Calculate increments to potential temperature and moisture
   !>          due to the vertical Leonard term fluxes
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] mt_inc_leonard      Moisture increment
   !> @param[in,out] thetal_inc_leonard  Theta increment
   !> @param[in,out] u_inc_leonard       Velocity increment
@@ -50,7 +55,8 @@ contains
   !> @param[in]     derived_fields      Group of derived fields
   !> @param[in]     dt                  The model timestep length
   !> @param[in]     model_clock         Time in the model
-subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
+subroutine leonard_term_alg(config,                             &
+                            mt_inc_leonard, thetal_inc_leonard, &
                             u_inc_leonard, mr, theta, u, rho,   &
                             turbulence_fields, derived_fields,  &
                             dt, model_clock )
@@ -63,6 +69,8 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     use nlsizes_namelist_mod, only: bl_levels
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent(inout) :: u_inc_leonard
     type( field_type ), intent(inout) :: mt_inc_leonard
@@ -97,6 +105,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     type( integer_field_type ), pointer :: face_selector_ns
 
     ! local variables
+    type(mesh_type), pointer :: mesh
     integer(kind=i_def) :: mesh_id
     integer(kind=i_def), parameter :: stencil_depth = 1
     integer(tik)       :: id
@@ -112,7 +121,8 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
 
     if ( LPROF ) call start_timing( id, 'leonard_term' )
 
-    mesh_id = theta%get_mesh_id()
+    mesh    => theta%get_mesh()
+    mesh_id =  theta%get_mesh_id()
 
     ! Unpack derived fields
     call derived_fields%get_field('exner_in_wth', exner_in_wth)
@@ -124,14 +134,15 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     ! Unpack turbulence fields
     call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
 
-    dtrdz_fd2  => get_dtrdz_fd2(mesh_id, model_clock)
-    height_wth => get_height_fv(Wtheta, mesh_id)
-    height_w3  => get_height_fv(W3, mesh_id)
-    height_w2  => get_height_fv(W2, mesh_id)
-    height_w1  => get_height_fv(W1, mesh_id)
-    panel_id   => get_panel_id(mesh_id)
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    dtrdz_fd2  => get_dtrdz_fd2(config, mesh_id, model_clock)
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w3  => get_height_fv(config, mesh, W3)
+    height_w2  => get_height_fv(config, mesh, W2)
+    height_w1  => get_height_fv(config, mesh, W1)
+    panel_id   => get_panel_id(mesh)
+
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     ! Set-up arrays for local fields
     call rho%copy_field_properties(kl)

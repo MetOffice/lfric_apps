@@ -10,6 +10,7 @@ module process_inputs_alg_mod
   use field_mod,            only : field_type
   use fs_continuity_mod,    only : W3
   use mesh_mod,             only : mesh_type
+  use mesh_collection_mod,  only : mesh_collection
   use integer_field_mod,    only : integer_field_type
   use constants_mod,        only : i_def
 
@@ -45,6 +46,9 @@ module process_inputs_alg_mod
   use log_mod,                    only : log_event, log_scratch_space,  &
                                          LOG_LEVEL_ERROR
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -54,17 +58,20 @@ contains
 
   !> @details Processes ancils that don't match exactly what the model
   !>          expects into the fields it does
+  !> @param[in] config                    Application namelist configuration object
   !> @param[in] ancil_fields     (in)     Ancil fields read in
   !> @param[in] fd_fields        (in)     um2lfric fields read in
   !> @param[in] surface_fields   (in,out) Surface field collection to update
   !> @param[in] soil_fields      (in,out) Soil field collection to update
   !> @param[in] snow_fields      (in,out) Snow field collection to update
   !> @param[in] radiation_fields (in,out) Radiation field collection to update
-  subroutine process_inputs_alg(ancil_fields, fd_fields, &
+  subroutine process_inputs_alg(config, ancil_fields, fd_fields, &
                                 surface_fields, soil_fields, snow_fields, &
                                 radiation_fields)
 
     implicit none
+
+    type(config_type ), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: ancil_fields
     type( field_collection_type ), intent(in) :: fd_fields
@@ -129,8 +136,9 @@ contains
     type( field_type ), pointer :: horizon_angle  => null()
     type( field_type ), pointer :: horizon_aspect => null()
 
-    type( mesh_type ),  pointer :: twod_mesh => null()
-    type( field_type ), pointer :: latitude  => null()
+    type( mesh_type ),  pointer :: mesh
+    type( mesh_type ),  pointer :: twod_mesh
+    type( field_type ), pointer :: latitude
 
     integer( i_def ) :: n_horizon_angle, n_horizon_layer
 
@@ -225,8 +233,11 @@ contains
         end if
       end if
 
+      nullify(twod_mesh, latitude, mesh)
+
       twod_mesh => sea_ice_thickness%get_mesh()
-      latitude => get_latitude_fv( W3, twod_mesh%get_id() )
+      mesh      => mesh_collection%get_mesh(trim(config%base_mesh%prime_mesh_name()))
+      latitude  => get_latitude_fv(config, twod_mesh, W3)
 
       ! Surface fields
       if (init_option == init_option_fd_start_dump) then
@@ -246,14 +257,14 @@ contains
       call invoke(process_ssi_kernel_type( sea_ice_fraction,                  &
                                            sea_ice_thickness,                 &
                                            tile_fraction, latitude,           &
-                                           amip_ice_thick, l_couple_sea_ice),     &
+                                           amip_ice_thick, l_couple_sea_ice), &
                   multi_insert_kernel_type(tile_temperature, tstar_sea,       &
                                            first_sea_tile, n_sea_tile ))
 
       ! In a coupled model with inland lakes we need to initialise the sea-ice
       ! conductivity. This will be overwritten by values from SI3 except at
       ! lake points.
-      if ((sea_ice_source == sea_ice_source_surf ) .and.                     &
+      if ((sea_ice_source == sea_ice_source_surf ) .and.                      &
            (l_couple_sea_ice)) then
            call surface_fields%get_field('sea_ice_conductivity',              &
                                           sea_ice_conductivity)

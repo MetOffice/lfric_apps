@@ -30,6 +30,9 @@ module mol_advective_alg_mod
   use boundaries_config_mod,          only: limited_area, transport_boundary_depth
   use transport_config_mod,           only: runge_kutta_method
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
 
   public  :: mol_advective_alg
@@ -75,6 +78,7 @@ contains
     type(wind_precomputations_type), pointer :: wind_precomputations
     integer(tik)                             :: id
 
+    type(config_type), pointer :: config
 
     if ( LPROF ) call start_timing( id, 'transport.mol_advective' )
 
@@ -82,8 +86,9 @@ contains
     ! Extract pre-existing objects and initialise temporary fields
     ! ------------------------------------------------------------------------ !
 
-    mesh_id = field%get_mesh_id()
-    mesh => field%get_mesh()
+    config  => transport_controller%get_config()
+    mesh    => field%get_mesh()
+    mesh_id =  field%get_mesh_id()
 
     wind_precomputations => transport_controller%get_wind_precomputations()
     transport_counter => transport_controller%get_transport_counter()
@@ -134,8 +139,8 @@ contains
         end do
 
         ! Compute update: rhs = u.grad(rhs_field)
-        call advective_and_flux_alg(dummy, rhs, rhs_field, field_n,     &
-                                    advecting_wind, direction,          &
+        call advective_and_flux_alg(config, dummy, rhs, rhs_field,      &
+                                    field_n, advecting_wind, direction, &
                                     transport_metadata, final_rk_stage, &
                                     dt_mol_substep, .false., .true. )
 

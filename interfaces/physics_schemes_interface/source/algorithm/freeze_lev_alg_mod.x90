@@ -15,6 +15,9 @@ module freeze_lev_alg_mod
   use sci_geometric_constants_mod, only: get_height_fv
   use fs_continuity_mod,           only: Wtheta
 
+  ! Object types
+  use config_mod, only: config_type
+
   implicit none
   private
 
@@ -23,17 +26,20 @@ module freeze_lev_alg_mod
 contains
 
   !> @details Output diagnostic of wet-bulb freezing level
+  !> @param[in]  config      Application namelist configuration object
   !> @param[in]  theta       potential temperature
   !> @param[in]  mr          Mixing ratios
   !> @param[in]  moist_dyn   Moist dynamics factors
   !> @param[in]  exner_wth   exner pressure in wth space
-  subroutine freeze_lev_alg(theta, mr, moist_dyn, exner_wth)
+  subroutine freeze_lev_alg(config, theta, mr, moist_dyn, exner_wth)
 
     use freeze_lev_kernel_mod, only: freeze_lev_kernel_type
 
     implicit none
 
     ! Arguments
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent(in) :: theta
     type( field_type ), intent(in) :: exner_wth
@@ -46,7 +52,7 @@ contains
 
     if (init_diag(freeze_lev, 'processed__freeze_lev') .and. use_xios_io) then
 
-      height_wth => get_height_fv(Wtheta, theta%get_mesh_id())
+      height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
 
       call invoke( freeze_lev_kernel_type(theta, mr(imr_v),                  &
                                           moist_dyn(total_mass), exner_wth,  &
