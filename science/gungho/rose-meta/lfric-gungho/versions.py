@@ -950,6 +950,13 @@ class vn31_t16(MacroUpgrade):
                     "'l1_cubedsphere",
                     forced=True,
                 )
+        if source_mesh_name == "'C12'":
+                self.add_setting(
+                    config,
+                    ["namelist:lfric2lfric", "source_mesh_name"],
+                    "'l1_cubedsphere",
+                    forced=True,
+                )
 
         aerosol_mesh_name = self.get_setting_value(
             config, ["namelist:multires_coupling", "aerosol_mesh_name"])        
