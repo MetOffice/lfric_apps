@@ -17,8 +17,6 @@ module aviation_diags_alg_mod
 
   use aviation_thickness_snow_kernel_mod,                                   &
                                   only: aviation_thickness_snow_kernel_type
-  use aviation_icao_heights_kernel_mod,                                     &
-                                  only: aviation_icao_heights_kernel_type
 
   implicit none
 
@@ -29,9 +27,8 @@ contains
 
   !> @brief Calculate aviation section 20 diagnostics.
   !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
-  !> @param[inout]  convection_fields  Collection of convection fields,
   !>                                   including cloud base and top pressures.
-  subroutine aviation_diags_alg(plev_geopot, convection_fields)
+  subroutine aviation_diags_alg(plev_geopot)
     implicit none
 
     ! Arguments
@@ -40,9 +37,6 @@ contains
 
     ! Calculate geopotential thickness and snow probbability.
     call from_plev_geopot(plev_geopot)
-
-    ! Calculate icao heights of top and base of cloud from their pressures.
-    call icao_heights(convection_fields)
 
   end subroutine aviation_diags_alg
 
@@ -166,82 +160,5 @@ contains
 
   end subroutine from_plev_geopot
 
-
-  !> @brief Calculate ICAO heights of top and base of cloud from their pressures.
-  !> @param[inout]  convection_fields  Collection of convection fields,
-  !>                                   including cloud base and top pressures.
-  subroutine icao_heights(convection_fields)
-
-    ! we can't access this from the kernel so we pass it in
-    use planet_constants_mod,  only: g_over_r
-
-    implicit none
-
-    ! Arguments.
-    type(field_collection_type), intent(inout) :: convection_fields
-
-    ! Locals.
-    character(len=str_long) :: message
-
-    ! Pressure fields to unpack.
-    type(field_type), pointer :: conv_cloud_base_pressure
-    type(field_type), pointer :: conv_cloud_top_pressure
-
-    ! Height fields to create and write.
-    type(field_type) :: conv_cloud_base_icao_height
-    type(field_type) :: conv_cloud_top_icao_height
-
-    ! Request flags.
-    logical(l_def) :: base_height_flag
-    logical(l_def) :: top_height_flag
-
-
-    ! Which heights are requested this time step?
-    top_height_flag = init_diag( &
-      conv_cloud_top_icao_height, 'convection__conv_cloud_top_icao_height')
-
-    base_height_flag = init_diag( &
-      conv_cloud_base_icao_height, 'convection__conv_cloud_base_icao_height')
-
-    if (.not. (base_height_flag .or. top_height_flag)) then
-      ! Nothing requested at this time step.
-      return
-    end if
-
-
-    ! Cloud base.
-    if (base_height_flag) then
-      call convection_fields%get_field( &
-              'convection__pres_cv_base', conv_cloud_base_pressure)
-      call invoke( &
-        setval_c(conv_cloud_base_icao_height, rmdi), &
-        aviation_icao_heights_kernel_type(conv_cloud_base_icao_height, &
-          conv_cloud_base_pressure, real(g_over_r, kind=r_def)))
-
-      call conv_cloud_base_icao_height%write_field()
-
-      ! Todo: Is it necessary/safe to remove this field now?
-      ! Did the get trigger an unpack which we need to now remove?
-      ! call convection_fields%remove_field('convection__pres_cv_base')
-
-    end if
-
-    ! Cloud top.
-    if (top_height_flag) then
-      call convection_fields%get_field( &
-              'convection__pres_cv_top', conv_cloud_top_pressure)
-      call invoke( &
-        setval_c(conv_cloud_top_icao_height, rmdi), &
-        aviation_icao_heights_kernel_type(conv_cloud_top_icao_height, &
-          conv_cloud_top_pressure, real(g_over_r, kind=r_def)))
-
-      call conv_cloud_top_icao_height%write_field()
-
-      ! Todo: Is it necessary/safe to remove this field now?
-      ! call convection_fields%remove_field('convection__pres_cv_top')
-
-    end if
-
-  end subroutine icao_heights
 
 end module aviation_diags_alg_mod

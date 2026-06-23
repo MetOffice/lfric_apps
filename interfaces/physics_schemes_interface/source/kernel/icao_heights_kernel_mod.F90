@@ -5,7 +5,7 @@
 !-------------------------------------------------------------------------------
 !> @brief Calculate icao height.
 !>
-module aviation_icao_heights_kernel_mod
+module icao_heights_kernel_mod
 
   use argument_mod,         only: arg_type,            &
                                   gh_field, gh_scalar, &
@@ -18,7 +18,7 @@ module aviation_icao_heights_kernel_mod
   implicit none
 
   ! The aviation diagnostics kernel type.
-  type, extends(kernel_type) :: aviation_icao_heights_kernel_type
+  type, extends(kernel_type) :: icao_heights_kernel_type
     type(arg_type), dimension(3) :: meta_args = (/ &
 
       ! Output icao height.
@@ -35,8 +35,8 @@ module aviation_icao_heights_kernel_mod
     integer :: operates_on = cell_column
 
     contains
-      procedure, nopass :: code => aviation_icao_heights_kernel_code
-    end type aviation_icao_heights_kernel_type
+      procedure, nopass :: code => icao_heights_kernel_code
+    end type icao_heights_kernel_type
 
 contains
 
@@ -49,7 +49,7 @@ contains
   !> @param[in]     ndf             Number of DOFs in the cell.
   !> @param[in]     undf            Number of DOFs in the field.
   !> @param[in]     map             Dofmap to the bottom cell.
-  subroutine aviation_icao_heights_kernel_code(nlayers, &
+  subroutine icao_heights_kernel_code(nlayers, &
         icao_height, pressure_field, g_over_r,          &
         ndf, undf, map)
 
@@ -122,6 +122,6 @@ contains
         icao_height(map(1)) = icao_height(map(1)) * mtokft
     end if
 
-  end subroutine aviation_icao_heights_kernel_code
+  end subroutine icao_heights_kernel_code
 
-end module aviation_icao_heights_kernel_mod
+end module icao_heights_kernel_mod
