@@ -146,6 +146,7 @@ class vn31_t464(MacroUpgrade):
         )
         return config, self.reports
 
+
 class vn31_t382(MacroUpgrade):
     """Upgrade macro for ticket #382 by Benjamin Went."""
 
@@ -802,8 +803,8 @@ class vn31_t394(MacroUpgrade):
             ["namelist:formulation", "solver_moisture_conservation"],
             ".false.",
         )
-
         return config, self.reports
+
 
 class vn31_t401(MacroUpgrade):
     """Upgrade macro for ticket #401 by Dan Copsey."""
@@ -816,8 +817,9 @@ class vn31_t401(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_hydrology", "l_inland"], ".false."
         )
-
         return config, self.reports
+
+
 class vn31_t474(MacroUpgrade):
     """Upgrade macro for ticket #474 by Mohit Dalvi."""
 
@@ -829,7 +831,9 @@ class vn31_t474(MacroUpgrade):
         self.add_setting(config, ["namelist:files", "nudging_directory"], "''")
         self.add_setting(config, ["namelist:files", "nudging_filename"], "''")
         self.add_setting(
-            config, ["namelist:multires_coupling", "coarse_nudging"], ".false.",
+            config,
+            ["namelist:multires_coupling", "coarse_nudging"],
+            ".false.",
         )
         self.add_setting(
             config, ["namelist:multires_coupling", "nudging_mesh_name"], "''"
@@ -848,13 +852,21 @@ class vn31_t474(MacroUpgrade):
             config, ["file:configuration.nml", "source"], source
         )
         self.add_setting(config, ["namelist:nudging"])
-        self.add_setting(config, ["namelist:nudging", "nudge_data_levels"], "137")
+        self.add_setting(
+            config, ["namelist:nudging", "nudge_data_levels"], "137"
+        )
         self.add_setting(
             config, ["namelist:nudging", "nudging_level_bottom"], "5"
         )
-        self.add_setting(config, ["namelist:nudging", "nudging_level_top"], "52")
-        self.add_setting(config, ["namelist:nudging", "nudging_source"], "'era'")
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_top"], "52"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_source"], "'era'"
+        )
         self.add_setting(
             config, ["namelist:nudging", "nudging_width_bottom"], "1"
         )
         self.add_setting(config, ["namelist:nudging", "nudging_width_top"], "0")
+
+        return config, self.reports
