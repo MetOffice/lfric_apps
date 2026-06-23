@@ -1,0 +1,597 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief   The tangent linear test for multiple timesteps
+!!         (Taylor remainder convergence).
+!>@details Test whether the tangent linear code is tangent linear
+!!         to the corresponding nonlinear code, for multiple timesteps,
+!!         using the Taylor remainder convergence test.
+module tl_test_timesteps_random_alg_mod
+  use sci_assign_field_random_kernel_mod, &
+                                      only: assign_field_random_kernel_type
+  use constants_mod,                  only: i_timestep, i_def, r_def, l_def, &
+                                            str_def
+  use field_array_mod,                only: field_array_type
+  use field_mod,                      only: field_type
+  use sci_field_bundle_builtins_mod,  only: clone_bundle
+  use field_collection_mod,           only: field_collection_type
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use formulation_config_mod,         only: moisture_formulation,    &
+                                            moisture_formulation_dry
+  use fs_continuity_mod,              only: W2, W3, Wtheta
+  use function_space_collection_mod,  only: function_space_collection
+  use gungho_step_mod,                only: gungho_step
+  use gungho_model_mod,               only: initialise_model, &
+                                            finalise_model
+  use driver_modeldb_mod,             only: modeldb_type
+  use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_ERROR
+  use linear_step_mod,                only: linear_step
+  use linear_model_mod,               only: initialise_linear_model, &
+                                            finalise_linear_model
+  use mesh_mod,                       only: mesh_type
+  use model_clock_mod,                only: model_clock_type
+  use moist_dyn_mod,                  only: num_moist_factors
+  use mr_indices_mod,                 only: nummr
+  use semi_implicit_solver_alg_mod,   only: semi_implicit_solver_alg_final
+  use si_operators_alg_mod,           only: final_si_operators
+  use timestepping_config_mod,        only: dt,                   &
+                                            method,               &
+                                            method_rk
+  use time_config_mod,                only: timestep_start, timestep_end
+  use tl_test_convergence_rate_check, only: convergence_rate_check
+  use validity_test_config_mod,       only: number_gamma_values,     &
+                                            update_ls_frequency
+  use moist_dyn_factors_alg_mod,      only: moist_dyn_factors_alg
+  use tl_moist_dyn_factors_alg_mod,   only: tl_moist_dyn_factors_alg
+
+  implicit none
+
+  private convergence_pass_string
+  public test_timesteps_random
+
+  contains
+
+  !> @brief Test the tangent linear runge-kutta algorithm.
+  !> @param[in] modeldb       The working data set for a model run
+  !> @param[in] mesh          The current 3d mesh
+  !> @param[in] twod_mesh     The current 2d mesh
+  !> @param[in] model_clock   Time within the model.
+  !>
+  subroutine test_timesteps_random( modeldb,    &
+                                    mesh,       &
+                                    twod_mesh,  &
+                                    model_clock )
+
+    implicit none
+
+    type(modeldb_type), target,    intent(inout) :: modeldb
+    type(mesh_type), pointer,      intent(in)    :: mesh
+    type(mesh_type), pointer,      intent(in)    :: twod_mesh
+    class(model_clock_type),       intent(in)    :: model_clock
+
+    character(str_def) :: label = "timesteps"
+
+    type(field_collection_type), pointer :: prognostic_fields
+    type(field_collection_type), pointer :: ls_fields
+
+    type(field_type), pointer :: ls_u
+    type(field_type), pointer :: ls_rho
+    type(field_type), pointer :: ls_theta
+    type(field_type), pointer :: ls_exner
+    type(field_type), pointer :: ls_moist_dyn(:)
+    type(field_type), pointer :: ls_mr(:)
+
+    type(field_type), pointer :: u
+    type(field_type), pointer :: rho
+    type(field_type), pointer :: theta
+    type(field_type), pointer :: exner
+    type(field_type), pointer :: moist_dyn(:)
+    type(field_type), pointer :: mr(:)
+
+    type(field_type), dimension(nummr) :: p_mr
+    type(field_type), dimension(nummr) :: n1_mr
+    type(field_type), dimension(nummr) :: n2_mr
+    type(field_type), dimension(nummr) :: r_mr
+    type(field_type), dimension(nummr) :: diff_mr
+    type(field_type) :: p_u, p_rho, p_theta, p_exner
+    type(field_type) :: n1_u, n1_rho, n1_theta, n1_exner
+    type(field_type) :: n2_u, n2_rho, n2_theta, n2_exner
+    type(field_type) :: r_u, r_rho, r_theta, r_exner
+    type(field_type) :: diff_u, diff_rho, diff_theta, diff_exner
+
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_array_type), pointer      :: mr_array
+    type(field_array_type), pointer      :: moist_dyn_array
+    type(field_array_type), pointer      :: ls_mr_array
+    type(field_array_type), pointer      :: ls_moist_dyn_array
+
+    real(r_def) :: gamma_u, gamma_rho, gamma_exner, gamma_theta, gamma_mr
+    real(r_def) :: norm_u, norm_rho, norm_exner, norm_theta, norm_mr
+    real(r_def) :: norm_mr_tmp
+    real(r_def) :: norm_diff, norm_diff_prev
+    real(r_def) :: norm_u_prev, norm_rho_prev, norm_exner_prev
+    real(r_def) :: norm_theta_prev, norm_mr_prev
+
+    real(r_def), parameter :: tol = 9.e-1_r_def
+
+    integer(i_def)   :: n, i, t
+    character(len=4) :: pass_str
+    logical(l_def)   :: use_moisture
+
+    call log_event( "TL Test: " // trim(label), &
+                     LOG_LEVEL_INFO )
+
+    use_moisture = ( moisture_formulation /= moisture_formulation_dry )
+
+    if ( method == method_rk .and. use_moisture ) then
+        call log_event(                                                     &
+             'Not possible to use Runge Kutta time stepping with moisture', &
+             log_level_error )
+    end if
+
+    prognostic_fields => modeldb%fields%get_field_collection( &
+                                           "prognostic_fields")
+    ls_fields => modeldb%fields%get_field_collection("ls_fields")
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
+    mr => mr_array%bundle
+    moist_dyn => moist_dyn_array%bundle
+    call moisture_fields%get_field("ls_mr", ls_mr_array)
+    call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
+    ls_mr => ls_mr_array%bundle
+    ls_moist_dyn => ls_moist_dyn_array%bundle
+
+    ! Input
+    call ls_fields%get_field('ls_u', ls_u)
+    call ls_fields%get_field('ls_rho', ls_rho)
+    call ls_fields%get_field('ls_theta', ls_theta)
+    call ls_fields%get_field('ls_exner', ls_exner)
+
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('exner', exner)
+
+    call r_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call r_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call r_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call r_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+    call clone_bundle(mr, r_mr, nummr)
+
+    call p_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call p_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call p_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call p_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+    call clone_bundle(mr, p_mr, nummr)
+
+    call n1_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call n1_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call n1_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call n1_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+    call clone_bundle(mr, n1_mr, nummr)
+
+    call n2_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call n2_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call n2_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call n2_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+    call clone_bundle(mr, n2_mr, nummr)
+
+    call diff_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call diff_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call diff_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call diff_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+    call clone_bundle(mr, diff_mr, nummr)
+
+    call invoke( assign_field_random_kernel_type( r_u, 1.0_r_def ) ,     &
+                 assign_field_random_kernel_type( r_rho, 1.0_r_def ) ,   &
+                 assign_field_random_kernel_type( r_theta, 1.0_r_def ) , &
+                 assign_field_random_kernel_type( r_exner, 1.0_r_def ) )
+
+    do i = 1, nummr
+      call invoke( assign_field_random_kernel_type( r_mr(i), 1.0_r_def ) )
+    end do
+
+    gamma_u = 1.e4_r_def
+    gamma_theta = 1.0_r_def
+    gamma_rho = 1.e0_r_def
+    gamma_exner = 6.5e-1_r_def
+
+    if ( use_moisture ) then
+      gamma_mr = 1.e-3_r_def
+    else
+      gamma_mr = 0.0_r_def
+    end if
+
+    gamma_u = gamma_u /24.0_r_def
+    gamma_theta = gamma_theta / 24.0_r_def
+    gamma_rho = gamma_rho / 24.0_r_def
+    gamma_exner = gamma_exner / 24.0_r_def
+    gamma_mr = gamma_mr / 24.0_r_def
+
+    do n = 1, number_gamma_values
+      gamma_u = gamma_u / 2.0_r_def
+      gamma_theta = gamma_theta / 2.0_r_def
+      gamma_rho = gamma_rho / 2.0_r_def
+      gamma_exner = gamma_exner / 2.0_r_def
+      gamma_mr = gamma_mr / 2.0_r_def
+
+      !  Initial conditions for nonlinear perturbed
+      call invoke( aX_plus_Y( n1_u, gamma_u, r_u, ls_u ),                  &
+                   aX_plus_Y( n1_theta, gamma_theta, r_theta, ls_theta ),  &
+                   aX_plus_Y( n1_rho, gamma_rho, r_rho, ls_rho ),          &
+                   aX_plus_Y( n1_exner, gamma_exner, r_exner, ls_exner ) )
+
+      do i = 1, nummr
+        call invoke( aX_plus_Y( n1_mr(i), gamma_mr,  &
+                                r_mr(i), ls_mr(i) ) )
+      end do
+
+      !  Initial conditions for nonlinear unperturbed
+      call invoke( setval_X( n2_u, ls_u ),          &
+                   setval_X( n2_theta, ls_theta ),  &
+                   setval_X( n2_rho, ls_rho ),      &
+                   setval_X( n2_exner, ls_exner ) )
+
+      do i = 1, nummr
+        call invoke( setval_X( n2_mr(i), ls_mr(i) ) )
+      end do
+
+      ! Initial conditions for the linear
+      call invoke( a_times_X( p_u, gamma_u, r_u ),              &
+                   a_times_X( p_theta, gamma_theta, r_theta ),  &
+                   a_times_X( p_rho, gamma_rho, r_rho ),        &
+                   a_times_X( p_exner, gamma_exner, r_exner ) )
+
+      do i = 1, nummr
+        call invoke( a_times_X( p_mr(i), gamma_mr, &
+                                r_mr(i) ) )
+      end do
+
+      ! Multiple timesteps
+      do t = parse_instance(timestep_start), parse_instance(timestep_end)
+
+!------------------------------------------------------------------------
+!  Nonlinear model run with perturbed state
+!------------------------------------------------------------------------
+        call invoke( setval_X( u, n1_u ),         &
+                     setval_X( theta, n1_theta ), &
+                     setval_X( rho, n1_rho ),     &
+                     setval_X( exner, n1_exner ) )
+        do i = 1, nummr
+          call invoke( setval_X( mr(i), n1_mr(i) ) )
+        enddo
+        call  moist_dyn_factors_alg( moist_dyn, mr )
+
+        ! Clean up solvers and timestep method left over from running
+        ! the model to set up model state and linear state
+        call final_si_operators()
+        call semi_implicit_solver_alg_final()
+        call finalise_model(modeldb)
+
+        call initialise_model( mesh,  &
+                               modeldb )
+
+        call gungho_step( mesh,       &
+                          twod_mesh,  &
+                          modeldb,    &
+                          model_clock )
+
+        call finalise_model(modeldb)
+
+        call invoke( setval_X( n1_u, u ),         &
+                     setval_X( n1_theta, theta ), &
+                     setval_X( n1_rho, rho ),     &
+                     setval_X( n1_exner, exner) )
+
+        do i = 1, nummr
+          call invoke( setval_X( n1_mr(i), mr(i) ) )
+        end do
+
+!------------------------------------------------------------------------
+!  Linear model run
+!------------------------------------------------------------------------
+        call invoke( setval_X( u, p_u ),         &
+                     setval_X( theta, p_theta ), &
+                     setval_X( rho, p_rho ),     &
+                     setval_X( exner, p_exner) )
+        do i = 1, nummr
+          call invoke( setval_X( mr(i), p_mr(i) ) )
+        end do
+        call tl_moist_dyn_factors_alg( moist_dyn, mr )
+
+        ! Set the linearisation state
+        ! The linearisation state is copied from the nonlinear run,
+        ! every few timesteps.
+        if ( mod(t, update_ls_frequency) == 0 ) then
+          call invoke( setval_X( ls_u, n2_u ),         &
+                       setval_X( ls_theta, n2_theta ), &
+                       setval_X( ls_rho, n2_rho ),     &
+                       setval_X( ls_exner, n2_exner) )
+          do i = 1, nummr
+            call invoke( setval_X( ls_mr(i), n2_mr(i) ) )
+          enddo
+          call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
+        endif
+
+        call finalise_linear_model()
+        call initialise_linear_model( mesh,  &
+                                      modeldb )
+
+        call linear_step( mesh,       &
+                          twod_mesh,  &
+                          modeldb,    &
+                          model_clock )
+
+        call finalise_linear_model()
+
+
+        call invoke( setval_X( p_u, u ),         &
+                     setval_X( p_theta, theta ), &
+                     setval_X( p_rho, rho ),     &
+                     setval_X( p_exner, exner) )
+        do i = 1, nummr
+          call invoke( setval_X( p_mr(i), mr(i) ) )
+        enddo
+
+!------------------------------------------------------------------------
+!  Nonlinear model run with un-perturbed state
+!------------------------------------------------------------------------
+        call invoke( setval_X( u, n2_u ),          &
+                     setval_X( theta, n2_theta ),  &
+                     setval_X( rho, n2_rho ),      &
+                     setval_X( exner, n2_exner ) )
+
+        do i = 1, nummr
+          call invoke( setval_X( mr(i), n2_mr(i) ) )
+        end do
+
+        call moist_dyn_factors_alg( moist_dyn, mr )
+
+
+        call initialise_model( mesh,  &
+                               modeldb )
+
+        call gungho_step( mesh,       &
+                          twod_mesh,  &
+                          modeldb,    &
+                          model_clock )
+
+        call finalise_model(modeldb)
+
+        call invoke( setval_X( n2_u, u ),          &
+                     setval_X( n2_theta, theta ),  &
+                     setval_X( n2_rho, rho ),      &
+                     setval_X( n2_exner, exner ) )
+
+        do i = 1, nummr
+          call invoke( setval_X( n2_mr(i), mr(i) ) )
+          call invoke( setval_X( ls_mr(i), mr(i) ) )
+        end do
+
+      end do ! timesteps loop
+
+!------------------------------------------------------------------------
+!  Calculate norms
+!------------------------------------------------------------------------
+      call invoke( X_minus_Y( diff_u, n1_u, n2_u ),                  &
+                   inc_X_minus_Y( diff_u, p_u ),                     &
+                   X_innerproduct_X( norm_u, diff_u ) )
+      call invoke( X_minus_Y( diff_rho, n1_rho, n2_rho ),            &
+                   inc_X_minus_Y( diff_rho, p_rho ),                 &
+                   X_innerproduct_X( norm_rho, diff_rho ) )
+      call invoke( X_minus_Y( diff_exner, n1_exner, n2_exner ),      &
+                   inc_X_minus_Y( diff_exner, p_exner ),             &
+                   X_innerproduct_X( norm_exner, diff_exner ) )
+      call invoke( X_minus_Y( diff_theta, n1_theta, n2_theta ),      &
+                   inc_X_minus_Y( diff_theta, p_theta ),             &
+                   X_innerproduct_X( norm_theta, diff_theta ) )
+
+      norm_mr=0.0_r_def
+      do i = 1, nummr
+        call invoke( &
+          X_minus_Y( diff_mr(i), n1_mr(i), n2_mr(i) ), &
+          inc_X_minus_Y( diff_mr(i), p_mr(i) ),               &
+          X_innerproduct_X( norm_mr_tmp, diff_mr(i) ) )
+          norm_mr = norm_mr + norm_mr_tmp
+      end do
+
+      norm_diff = norm_rho + norm_theta + norm_exner + norm_u + norm_mr
+
+!----------------------------------------------------------------------------
+!   Print values out to enable plotting a graph
+!----------------------------------------------------------------------------
+      write( log_scratch_space,                  &
+            '( A, E32.12, A, E32.12 )' )         &
+             ' gamma_total = ' , gamma_u,        &
+             ' norm = ' , norm_diff
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      write( log_scratch_space,                  &
+            '(A, E32.12, A, E32.12)' )           &
+             ' gamma_rho = ' , gamma_u,          &
+             ' norm = ' , norm_rho
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      write( log_scratch_space,                  &
+            '(A, E32.12, A, E32.12)' )           &
+             ' gamma_exner = ' , gamma_u,        &
+             ' norm = ' , norm_exner
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      write( log_scratch_space,                  &
+            '(A, E32.12, A, E32.12)' )           &
+             ' gamma_theta = ' , gamma_u,        &
+             ' norm = ' , norm_theta
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      write( log_scratch_space,                  &
+            '(A, E32.12, A, E32.12)' )           &
+             ' gamma_u = ' , gamma_u,            &
+             ' norm = ' , norm_u
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      write( log_scratch_space,                   &
+            '(A, E32.12, A, E32.12)' )            &
+             ' gamma_mr = ' , gamma_u,            &
+             ' norm = ' , norm_mr
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+!----------------------------------------------------------------------------
+!   Test that gives a PASS or FAIL
+!----------------------------------------------------------------------------
+      if (n == 2) then
+
+        pass_str = "PASS"
+
+        write( log_scratch_space, '(A)' ) &
+               "TL Test: " // trim(label)
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+        write( log_scratch_space, '(A)' ) "Total "
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        call convergence_pass_string( norm_diff, norm_diff_prev, pass_str, tol )
+
+        write( log_scratch_space, '(A)' ) "Theta "
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        call convergence_pass_string( norm_theta, norm_theta_prev, pass_str, tol )
+
+        write( log_scratch_space, '(A)' ) "Rho "
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        call convergence_pass_string( norm_rho, norm_rho_prev, pass_str, tol )
+
+        write( log_scratch_space, '(A)' ) "Exner "
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        call convergence_pass_string( norm_exner, norm_exner_prev, pass_str, tol )
+
+        write( log_scratch_space, '(A)' ) "u "
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+        call convergence_pass_string( norm_u, norm_u_prev, pass_str, tol )
+
+        if ( use_moisture ) then
+          write( log_scratch_space, '(A)' ) "mr "
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+          call convergence_pass_string( norm_mr, norm_mr_prev, pass_str, tol )
+        end if
+
+        write( log_scratch_space,'("   test",A32," : ",A4)' ) trim(label), pass_str
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      end if
+
+      norm_diff_prev = norm_diff
+      norm_rho_prev = norm_rho
+      norm_theta_prev = norm_theta
+      norm_exner_prev = norm_exner
+      norm_u_prev = norm_u
+      norm_mr_prev = norm_mr
+
+    end do ! Loop over values of gamma
+
+  end subroutine test_timesteps_random
+
+  !> @brief   Test the convergence rate.
+  !> @details If the convergence rate is not close to 4, within the
+  !!          specified tolerance, then change the pass string to FAIL.
+  !!          This is a special routine for this particular test, to allow
+  !!          for norms that have already had the square root applied.
+  !> @param[in] norm_diff       Current norm
+  !> @param[in] norm_diff_prev  Previous norm
+  !> @param[inout] pass_str     Pass string (either PASS or FAIL)
+  !> @param[in] tol             Test Tolerance
+  subroutine convergence_pass_string( norm_diff, norm_diff_prev, pass_str, tol )
+    implicit none
+
+    real(r_def),           intent(in)    :: norm_diff, norm_diff_prev
+    character(len=4),      intent(inout) :: pass_str
+    real(r_def),           intent(in)    :: tol
+
+    real(r_def) :: conv_rate
+    conv_rate =  norm_diff_prev / norm_diff
+
+    conv_rate =  norm_diff_prev / norm_diff
+    write( log_scratch_space, '(A, E16.8)') &
+        "Convergence rate: ", conv_rate
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    if ( abs( conv_rate - 4.0_r_def ) >= tol ) then
+      pass_str = "FAIL"
+    endif
+
+  end subroutine convergence_pass_string
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Converts a string to a timestep number.
+  !>
+  !> @param[in] string Correctly formatted timestep number.
+  !> @return Timestep number.
+  !>
+  function parse_instance( string ) result(instance)
+
+    implicit none
+
+    character(*),      intent(in) :: string
+    integer(i_timestep)           :: instance
+
+    integer :: string_size
+    integer :: format_size
+    integer :: status
+    character(:), allocatable :: fmt
+
+    ! The "I0" formatting string does not work for input. Instead the exact
+    ! number of digits to be read must be requested. Thus we need to construct
+    ! a format string from the size of the string.
+    !
+    string_size = len(string)
+    format_size = string_size + 3
+    allocate( character(format_size) :: fmt, stat=status )
+    if ( status /= 0 ) then
+        call log_event(                                           &
+             'TL test parse_instance: Unable to allocate format', &
+             log_level_error )
+    end if
+    write( fmt, '("(I", I0, ")")' ) string_size
+    read( string, fmt ) instance
+    deallocate( fmt )
+
+    if ( instance < 0 ) then
+      call log_event(                                             &
+         'TL test parse_instance: Instances may not be negative', &
+         log_level_error )
+    end if
+
+  end function parse_instance
+
+end module tl_test_timesteps_random_alg_mod

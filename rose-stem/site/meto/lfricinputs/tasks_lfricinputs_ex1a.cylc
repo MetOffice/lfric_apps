@@ -17,6 +17,12 @@
         "memory": [96, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "um2lfric-nwp_gal9-N320L70_C224L70" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"],
+    }) %}
+
 {% endif %}
 
 {% if task_dict %}
@@ -27,7 +33,7 @@
             "yproc": 14,
         }) %}
     {% endif %}
-    {% if task_dict["app_name"] == "um2lfric" %}
+    {% if task_dict["app_name"] == "um2lfric" and task_ns.conf_name != "um2lfric-nwp_gal9-N320L70_C224L70"%}
         {% do task_dict.update({
             "xios_nodes": 1,
             "mpi_parts_xios": 1,

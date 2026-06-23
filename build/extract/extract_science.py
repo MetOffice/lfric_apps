@@ -1,35 +1,19 @@
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
+
 import argparse
-import subprocess
+import logging
 import os
-import tempfile
 import yaml
-from shutil import rmtree
 from pathlib import Path
-from typing import Dict, List
+from shutil import copytree
+from get_git_sources import clone_and_merge, run_command
 
 
-def run_command(command):
-    """
-    Run a subprocess command and check output
-    Inputs:
-        - command, str with command to run
-    """
-    command = command.split()
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        timeout=120,
-        shell=False,
-        check=False,
-    )
-    if result.returncode:
-        raise RuntimeError(
-            f"The command '{command}' failed with error:\n\n{result.stderr}"
-        )
-
-
-def load_yaml(fpath: Path) -> Dict:
+def load_yaml(fpath: Path) -> dict:
     """
     Read in the dependencies.yaml file
     """
@@ -40,55 +24,75 @@ def load_yaml(fpath: Path) -> Dict:
     return sources
 
 
-def clone_dependency(values: Dict, temp_dep: Path) -> None:
+def copy_rose_meta(rose_meta_dest: Path, clone_loc: Path) -> None:
     """
-    Clone the physics dependencies into a temporary directory
+    Copy rose-meta contents from extracted dependency to rose_meta_dest
     """
 
-    source = values["source"]
-    ref = values["ref"]
+    rose_meta_orig = clone_loc / "rose-meta"
 
-    commands = (
-        f"git -C {temp_dep} init",
-        f"git -C {temp_dep} remote add origin {source}",
-        f"git -C {temp_dep} fetch origin {ref}",
-        f"git -C {temp_dep} checkout FETCH_HEAD"
-    )
-    for command in commands:
-        run_command(command)
+    for directory in rose_meta_orig.iterdir():
+        copytree(directory, rose_meta_dest / directory.name, dirs_exist_ok=True)
 
 
-def extract_files(dependency: str, values: Dict, files: List[str], working: Path):
+def copy_extracted_files(
+    dependency: str, extract_lists: dict, working: Path, clone_loc: Path
+) -> None:
+    """
+    Copy extracted files to the working dir based on extract list
+    """
+
+    files = extract_lists[dependency]
+
+    # make the working directory location
+    working_dir = working / dependency
+    working_dir.mkdir(parents=True, exist_ok=True)
+
+    # rsync extract files from clone loc to the working directory
+    copy_command = "rsync --include='**/' "
+    for extract_file in files:
+        if not extract_file:
+            continue
+        if Path(clone_loc / extract_file).is_dir():
+            extract_file = extract_file.rstrip("/")
+            extract_file += "/**"
+        copy_command += f"--include='{extract_file}' "
+    copy_command += f"--exclude='*' -avmq {clone_loc}/ {working_dir}"
+    run_command(copy_command)
+
+
+def extract_files(
+    dependencies: dict,
+    working: Path,
+    meta: Path,
+    rose_meta: str = "",
+    extract_lists: dict = {},
+) -> None:
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
     Then delete the temporary directory
     """
 
-    tempdir = Path(tempfile.mkdtemp())
-    if (
-        "PHYSICS_ROOT" not in os.environ
-        or not Path(os.environ["PHYSICS_ROOT"]).exists()
-    ):
-        temp_dep = tempdir / dependency
-        temp_dep.mkdir(parents=True)
-        clone_dependency(values, temp_dep)
-    else:
-        temp_dep = Path(os.environ["PHYSICS_ROOT"]) / dependency
+    mirror_loc = os.getenv("MIRROR_LOC", "")
+    use_mirrors = bool(mirror_loc)
+    mirror_loc = Path(mirror_loc)
 
-    working_dep = working / dependency
+    for dependency, sources in dependencies.items():
+        if dependency not in extract_lists and dependency != rose_meta:
+            continue
 
-    # make the working directory location
-    working_dep.mkdir(parents=True)
+        # If the PHYSICS_ROOT environment variable is provided, then use sources there
+        if "PHYSICS_ROOT" in os.environ and Path(os.environ["PHYSICS_ROOT"]).exists():
+            clone_loc = Path(os.environ["PHYSICS_ROOT"]) / dependency
+        else:
+            clone_loc = working.parent / "scratch" / dependency
+            clone_and_merge(dependency, sources, clone_loc, use_mirrors, mirror_loc)
 
-    for extract_file in files:
-        source_file = temp_dep / extract_file
-        dest_file = working_dep / extract_file
-        run_command(f"mkdir -p {dest_file.parents[0]}")
-        copy_command = f"cp -r {source_file} {dest_file}"
-        run_command(copy_command)
-
-    rmtree(tempdir)
+        if rose_meta:
+            copy_rose_meta(meta, clone_loc)
+        else:
+            copy_extracted_files(dependency, extract_lists, working, clone_loc)
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,10 +105,15 @@ def parse_args() -> argparse.Namespace:
         "-d",
         "--dependencies",
         default="./dependencies.yaml",
-        help="The dependencies file for the apps working copy.",
+        help="The dependencies file for the apps working copy",
     )
+    parser.add_argument("-w", "--working", default=".", help="Build location")
     parser.add_argument(
-        "-w", "--working", default=".", help="Location to perform extract steps in."
+        "-m",
+        "--meta_dir",
+        default=None,
+        help="Path to store externally extracted rose-meta. Used if --rose-meta set. "
+        "Defaults to args.working/../rose-meta",
     )
     parser.add_argument(
         "-e",
@@ -112,23 +121,45 @@ def parse_args() -> argparse.Namespace:
         default="./extract.yaml",
         help="Path to file containing extract lists",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "-r",
+        "--rose_meta",
+        type=str,
+        default="",
+        help="Should be a repository in the dependencies file. If set, copy the "
+        "dependencies rose-meta directory contents to working/../rose-meta. "
+        "If set, the extract file will be ignored, and just rose-metadata copied",
+    )
+
+    args = parser.parse_args()
+    args.working = Path(args.working)
+    if args.meta_dir is None:
+        args.meta_dir = args.working.parent / "rose-meta"
+    else:
+        args.meta_dir = Path(args.meta_dir)
+    return args
 
 
 def main():
     args: argparse.Namespace = parse_args()
 
-    extract_lists: Dict = load_yaml(args.extract)
-    dependencies: Dict = load_yaml(args.dependencies)
+    logging.basicConfig(level=logging.INFO)
 
-    for dependency in dependencies:
-        if dependency in extract_lists:
-            extract_files(
-                dependency,
-                dependencies[dependency],
-                extract_lists[dependency],
-                Path(args.working),
-            )
+    dependencies: dict = load_yaml(args.dependencies)
+
+    # If args.rose_meta is set then extract rose-meta contents from that repo
+    if args.rose_meta:
+        extract_files(
+            dependencies, args.working, args.meta_dir, rose_meta=args.rose_meta
+        )
+    # If args.rose_meta is not set, then extract files based on the provided extract list
+    else:
+        extract_files(
+            dependencies,
+            args.working,
+            args.meta_dir,
+            extract_lists=load_yaml(args.extract),
+        )
 
 
 if __name__ == "__main__":

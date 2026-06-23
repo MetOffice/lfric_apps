@@ -1,0 +1,42 @@
+@@ -45,12 +45,7 @@
+     integer(kind=i_def) :: offset
+     real(kind=r_tran) :: w
+     real(kind=r_tran) :: dtdz
+-    real(kind=r_tran) :: t_u
+-    real(kind=r_tran) :: t_d
+ 
+-    dtdz = 0.0_r_tran
+-    t_u = 0.0_r_tran
+-    t_d = 0.0_r_tran
+     if (ndf_w2 == 2) then
+       df = 1
+       offset = 0
+@@ -61,23 +56,16 @@
+     do k = nlayers - 1, 0, -1
+       w = 0.5 * wind(k + map_w2(df)) + 0.5 * wind(k + map_w2(df) + 1)
+       ik = cell * nlayers + k - nlayers + 1
+-      dtdz = dtdz + advective_increment(map_w3(1) + k) * w * REAL(m3_inv(ik,1,1), r_tran)
+-      t_d = t_d + (-dtdz)
+-      t_u = t_u + dtdz
+-      dtdz = 0.0
++      dtdz = advective_increment(map_w3(1) + k) * w * REAL(m3_inv(ik,1,1), r_tran)
+       if (w <= 0.0_r_tran .AND. k < nlayers - 1) then
+-        tracer(map_md(1) + offset + k + 1) = tracer(map_md(1) + offset + k + 1) + t_u
+-        t_u = 0.0
++        tracer(map_md(1) + offset + k + 1) = tracer(map_md(1) + offset + k + 1) + dtdz
+       else
+-        tracer(map_md(1) + offset + nlayers + k) = tracer(map_md(1) + offset + nlayers + k) + t_u
+-        t_u = 0.0
++        tracer(map_md(1) + offset + nlayers + k) = tracer(map_md(1) + offset + nlayers + k) + dtdz
+       end if
+       if (w > 0.0_r_tran .AND. k > 0) then
+-        tracer(map_md(1) + offset + nlayers + k - 1) = tracer(map_md(1) + offset + nlayers + k - 1) + t_d
+-        t_d = 0.0
++        tracer(map_md(1) + offset + nlayers + k - 1) = tracer(map_md(1) + offset + nlayers + k - 1) - dtdz
+       else
+-        tracer(map_md(1) + offset + k) = tracer(map_md(1) + offset + k) + t_d
+-        t_d = 0.0
++        tracer(map_md(1) + offset + k) = tracer(map_md(1) + offset + k) - dtdz
+       end if
+     enddo
+ 

@@ -5,6 +5,7 @@ destination_geometry    = 'spherical',
 destination_mesh_name   = 'dynamics',
 destination_meshfile_prefix = 'mesh_C24_MG',
 destination_topology    = 'fully_periodic',
+mode                    = 'ics',
 origin_domain           = 'global',
 prepartitioned_meshes   = .false.,
 regrid_method           = 'oasis',
@@ -72,13 +73,13 @@ coord_order             = 1,
 /
 
 &partitioning
-  mesh_type             = 'destination',
+  mesh_target           = 'destination',
   partitioner           = 'cubedsphere',
   panel_decomposition   = 'auto',
 /
 
 &partitioning
-  mesh_type             = 'source',
+  mesh_target           = 'source',
   partitioner           = 'cubedsphere',
   panel_decomposition   = 'auto',
 /

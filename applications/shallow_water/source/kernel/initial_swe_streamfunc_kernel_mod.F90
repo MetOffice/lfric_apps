@@ -18,8 +18,13 @@ module initial_swe_streamfunc_kernel_mod
   use constants_mod,           only : r_def, i_def, PI
   use fs_continuity_mod,       only : W1
   use kernel_mod,              only : kernel_type
+
+  use base_mesh_config_mod,      only: geometry, topology, &
+                                       geometry_spherical
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
   use shallow_water_settings_config_mod, &
-                              only : swe_test
+                                 only: swe_test
 
   implicit none
 
@@ -86,8 +91,6 @@ contains
 
     use analytic_swe_streamfunction_profiles_mod, &
                                               only: analytic_swe_streamfunction
-    use base_mesh_config_mod,                 only: geometry, &
-                                                    geometry_spherical
     use sci_coordinate_jacobian_mod,          only: coordinate_jacobian, &
                                                     coordinate_jacobian_inverse
     use coord_transform_mod,                  only: sphere2cart_vector
@@ -135,7 +138,11 @@ contains
       chi_3_cell(df) = chi_3( map_chi(df) )
     end do
 
-    call coordinate_jacobian( ndf_chi,        &
+    call coordinate_jacobian( coord_system,   &
+                              geometry,       &
+                              topology,       &
+                              scaled_radius,  &
+                              ndf_chi,        &
                               nqp_h,          &
                               nqp_v,          &
                               chi_1_cell,     &

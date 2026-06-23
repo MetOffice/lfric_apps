@@ -8,7 +8,7 @@
 -  type, public, extends(kernel_type) :: adj_horizontal_mass_flux_kernel_type
 +  type, public, extends(kernel_type) :: atl_horizontal_mass_flux_kernel_type
    type(ARG_TYPE) :: META_ARGS(4) = (/ &
-     arg_type(gh_field, gh_real, gh_inc, any_w2), &
+     arg_type(gh_field, gh_real, gh_read, any_w2), &
      arg_type(gh_field, gh_real, gh_read, any_w2), &
 @@ -11,15 +11,15 @@
      arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1)/)
@@ -30,7 +30,18 @@
  &undf_md, map_md)
      integer(kind=i_def), parameter :: nfaces = 4
      integer(kind=i_def), intent(in) :: nlayers
-@@ -53,6 +53,6 @@
+@@ -39,9 +39,7 @@
+     real(kind=r_def) :: direction
+     real(kind=r_def), dimension(nfaces) :: v_dot_n
+ 
+-    v_dot_n(:) = 1.0_r_def
+-    v_dot_n(1) = -1.00000000000000
+-    v_dot_n(nfaces) = -1.00000000000000
++    v_dot_n = (/ -1.0_r_def, 1.0_r_def, 1.0_r_def, -1.0_r_def /)
+     do df = nfaces, 1, -1
+       do k = nlayers - 1, 0, -1
+         direction = ls_wind(k + map_w2(df)) * v_dot_n(df)
+@@ -52,6 +50,6 @@
        enddo
      enddo
  

@@ -22,6 +22,10 @@ module compute_entropy_kernel_mod
   use fs_continuity_mod, only : W3, Wtheta
   use kernel_mod,        only : kernel_type
 
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -160,7 +164,8 @@ subroutine compute_entropy_code( nlayers,                             &
       chi_2_e(df) = chi_2( loc )
       chi_3_e(df) = chi_3( loc )
     end do
-    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi_1_e, chi_2_e, chi_3_e,  &
+    call coordinate_jacobian(coord_system, geometry, topology, scaled_radius,  &
+                             ndf_chi, nqp_h, nqp_v, chi_1_e, chi_2_e, chi_3_e, &
                              ipanel, chi_basis, chi_diff_basis, jac, dj)
 
     do df = 1, ndf_wtheta

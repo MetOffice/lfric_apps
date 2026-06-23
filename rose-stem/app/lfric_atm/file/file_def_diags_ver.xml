@@ -1,7 +1,7 @@
 <file_definition>
 
   <!-- T+0ish fields -->
-  <file id="lfric_ver_tp0" name="lfric_ver_tp0" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_ver_tp0" name="results/lfric_ver_tp0" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
     <field_group operation="once" freq_op="1ts" prec="4">
       <field field_ref="orography"/>
       <field field_ref="processed__pmsl"/>
@@ -35,7 +35,7 @@
   </file>
 
   <!-- Verification fields - 6 hourly - instant (can be used for diagnostics) -->
-  <file id="lfric_ver" name="lfric_ver" output_freq="6h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_ver" name="results/lfric_ver" output_freq="6h" convention="UGRID" enabled=".TRUE.">
     <field_group operation="instant" freq_op="6h" prec="4">
       <field field_ref="orography"/>
       <field field_ref="processed__pmsl"/>

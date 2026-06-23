@@ -9,18 +9,18 @@ module skeb_biharm_diss_kernel_mod
   use argument_mod,      only: arg_type, GH_FIELD,          &
                                GH_REAL, GH_WRITE, GH_READ,  &
                                CELL_COLUMN, GH_INTEGER,     &
-                               GH_SCALAR, STENCIL, CROSS
+                               GH_SCALAR, STENCIL, CROSS,   &
+                               GH_LOGICAL
   use fs_continuity_mod, only: W3, Wtheta, W1, W2
-  use constants_mod,     only: r_def, i_def
+  use constants_mod,     only: r_def, i_def, l_def
   use kernel_mod,        only: kernel_type
-  use empty_data_mod,    only: empty_real_data
 
   implicit none
 
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: skeb_biharm_diss_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                       &
+    type(arg_type) :: meta_args(11) = (/                      &
     arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                & ! ndisp
     arg_type(GH_FIELD, GH_REAL, GH_READ, W1),                 & ! vorticity
     arg_type(GH_FIELD, GH_REAL, GH_READ, W3, STENCIL(CROSS)), & ! divergence
@@ -29,7 +29,9 @@ module skeb_biharm_diss_kernel_mod
     arg_type(GH_SCALAR, GH_INTEGER, GH_READ ),                & ! skeb_level_top
     arg_type(GH_SCALAR, GH_REAL, GH_READ ),                   & ! dt
     arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                & ! norm_xi
-    arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3)                 & ! norm_div
+    arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),                & ! norm_div
+    arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                 & ! norm_xi_flag
+    arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                  & ! norm_div_flag
 
     /)
     integer :: operates_on = CELL_COLUMN
@@ -60,6 +62,8 @@ contains
   !> @param[in]    ndf_w2      Number of DOFs per cell for w2 space
   !> @param[in]    undf_w2     Number of unique DOFs  for w2 space
   !> @param[in]    map_w2      dofmap for the cell at the base of the column for w2 space
+  !> @param[in]    norm_xi_flag  Control whether norm_xi calculation is needed
+  !> @param[in]    norm_div_flag  Control whether norm_div calculation is needed
 
   subroutine skeb_biharm_diss_code(nlayers,           &
                                    ndisp,             &
@@ -73,6 +77,8 @@ contains
                                    dt,                &
                                    norm_xi,           &
                                    norm_div,          &
+                                   norm_xi_flag,      &
+                                   norm_div_flag,     &
                                    ndf_w3,            &
                                    undf_w3,           &
                                    map_w3,            &
@@ -94,6 +100,8 @@ contains
     integer(kind=i_def), intent(in),  dimension(ndf_w2)   :: map_w2
     integer(kind=i_def), intent(in),  dimension(ndf_w3,map_w3_sten_size) :: map_w3_sten
     integer(kind=i_def), intent(in),  dimension(ndf_w1)   :: map_w1
+    logical(kind=l_def), intent(in) :: norm_xi_flag
+    logical(kind=l_def), intent(in) :: norm_div_flag
 
     ! Fields
     real(kind=r_def),    intent(in),    dimension(undf_w1)  :: vorticity
@@ -156,10 +164,10 @@ contains
       ndisp(map_w3(1)+k-1) = (biharmonic_x_div + biharmonic_y_div + &
                               biharmonic_x_xi + biharmonic_y_xi) * amp_K
 
-      if (.not. associated(norm_xi, empty_real_data)) then
+      if (norm_xi_flag) then
         norm_xi(map_w3(1)+k-1) = biharmonic_x_xi + biharmonic_y_xi
       end if
-      if (.not. associated(norm_div, empty_real_data)) then
+      if (norm_div_flag) then
         norm_div(map_w3(1)+k-1) = biharmonic_x_div + biharmonic_y_div
       end if
 

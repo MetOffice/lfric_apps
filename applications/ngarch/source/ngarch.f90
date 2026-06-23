@@ -8,9 +8,9 @@
 !> @details Runs a GungHo model with a custom step method
 program ngarch
 
-  use cli_mod,                     only : get_initial_filename
+  use cli_mod,                     only : parse_command_line
+  use constants_mod,               only : l_def, str_max_filename, precision_real
   use driver_collections_mod,      only : init_collections, final_collections
-  use constants_mod,               only : precision_real
   use driver_comm_mod,             only : init_comm, final_comm
   use driver_config_mod,           only : init_config, final_config
   use driver_log_mod,              only : init_logger, final_logger
@@ -20,6 +20,7 @@ program ngarch
   use log_mod,                     only : log_event,       &
                                           log_level_trace, &
                                           log_scratch_space
+  use timing_mod,                  only : init_timing, final_timing
 
   use ngarch_mod,            only : ngarch_required_namelists
   use gungho_driver_mod,     only : initialise, finalise, step
@@ -28,11 +29,17 @@ program ngarch
   implicit none
 
   ! The technical and scientific state
-  type( modeldb_type )        :: modeldb
-  character(*), parameter     :: application_name = "ngarch"
-  character(:), allocatable   :: filename
+  type( modeldb_type ) :: modeldb
 
-  call modeldb%configuration%initialise( application_name, table_len=10 )
+  character(*), parameter   :: application_name = "ngarch"
+  character(:), allocatable :: filename
+
+  character(str_max_filename) :: timer_output_path
+  logical(l_def)              :: subroutine_timers
+
+  call parse_command_line( filename )
+
+  call modeldb%config%initialise( application_name )
   call modeldb%values%initialise( 'values', 5 )
 
   ! Create the field collections in modeldb
@@ -53,16 +60,22 @@ program ngarch
 
   call modeldb%io_contexts%initialise(application_name, 100)
 
-
   modeldb%mpi => global_mpi
+
   call init_comm( application_name, modeldb )
-  call get_initial_filename( filename )
-  call init_config( filename,                  &
-                    ngarch_required_namelists, &
-                    modeldb%configuration )
+  call init_config( filename, ngarch_required_namelists, &
+                    config=modeldb%config )
+
   deallocate( filename )
 
   call init_logger( modeldb%mpi%get_comm(), application_name )
+
+  subroutine_timers = modeldb%config%io%subroutine_timers()
+  timer_output_path = modeldb%config%io%timer_output_path()
+
+  call init_timing( modeldb%mpi%get_comm(), subroutine_timers, &
+                    application_name, timer_output_path )
+
   call init_collections()
   call init_time( modeldb )
 
@@ -79,6 +92,7 @@ program ngarch
   call finalise( application_name, modeldb )
   call final_time( modeldb )
   call final_collections()
+  call final_timing( application_name )
   call final_logger( application_name )
   call final_config()
   call final_comm( modeldb )

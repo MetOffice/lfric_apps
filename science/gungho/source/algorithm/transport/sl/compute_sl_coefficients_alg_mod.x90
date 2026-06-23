@@ -76,7 +76,6 @@ contains
     select case (order)
     case (vertical_sl_order_cubic)
       hermite = .false.
-      hermite = .true.
       call invoke ( name='sl_cubic_coeff',                                     &
                     compute_vertical_cubic_coef_kernel_type(                   &
                         dep_dist, height,                                      &

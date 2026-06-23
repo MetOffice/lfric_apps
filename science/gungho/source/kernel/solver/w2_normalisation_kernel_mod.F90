@@ -25,6 +25,10 @@ module w2_normalisation_kernel_mod
   use fs_continuity_mod, only : W2, Wchi
   use kernel_mod,        only : kernel_type
 
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -136,15 +140,19 @@ subroutine w2_normalisation_code(nlayers,                 &
       chi_2_cell(df) = chi_2(map_chi(df) + k)
       chi_3_cell(df) = chi_3(map_chi(df) + k)
     end do
-    call coordinate_jacobian(ndf_chi, &
-                             ndf, &
-                             chi_1_cell, &
-                             chi_2_cell, &
-                             chi_3_cell, &
-                             ipanel,     &
-                             chi_basis,  &
+    call coordinate_jacobian(coord_system,   &
+                             geometry,       &
+                             topology,       &
+                             scaled_radius,  &
+                             ndf_chi,        &
+                             ndf,            &
+                             chi_1_cell,     &
+                             chi_2_cell,     &
+                             chi_3_cell,     &
+                             ipanel,         &
+                             chi_basis,      &
                              chi_diff_basis, &
-                             jacobian, &
+                             jacobian,       &
                              dj)
     do df = 1,ndf
       JTJ =  matmul(transpose(jacobian(:,:,df)),jacobian(:,:,df))

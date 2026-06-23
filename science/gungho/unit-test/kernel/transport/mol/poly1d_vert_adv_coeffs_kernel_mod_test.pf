@@ -80,6 +80,7 @@ contains
                                  wind_mono_top_depth = 0,                                  &
                                  adjust_theta = .false.,                                   &
                                  adjust_theta_above = 0.0_r_def,                           &
+                                 adjust_tracer_equation = .false.,                         &
                                  adjust_vhv_wind=.false.,                                  &
                                  dry_field_name='tracer',                                  &
                                  profile_size = 1,                                         &
@@ -297,7 +298,7 @@ contains
 
   subroutine tearDown( this )
 
-    use configuration_mod, only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 

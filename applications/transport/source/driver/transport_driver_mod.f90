@@ -11,7 +11,7 @@ module transport_driver_mod
   use add_mesh_map_mod,                 only: assign_mesh_maps
   use sci_checksum_alg_mod,             only: checksum_alg
   use check_configuration_mod,          only: get_required_stencil_depth
-  use configuration_mod,                only: final_configuration
+  use config_loader_mod,                only: final_configuration
   use constants_mod,                    only: i_def, l_def, &
                                               r_def, r_second, str_def
   use create_mesh_mod,                  only: create_mesh, create_extrusion
@@ -49,9 +49,9 @@ module transport_driver_mod
   use mesh_collection_mod,              only: mesh_collection
   use model_clock_mod,                  only: model_clock_type
   use mr_indices_mod,                   only: nummr
-  use namelist_mod,                     only: namelist_type
   use runtime_constants_mod,            only: create_runtime_constants
-  use timer_mod,                        only: timer
+  use timing_mod,                       only: start_timing, stop_timing, &
+                                              tik, LPROF
   use transport_init_fields_alg_mod,    only: transport_init_fields_alg
   use transport_control_alg_mod,        only: transport_prerun_setup,          &
                                               transport_init, transport_step,  &
@@ -125,6 +125,7 @@ contains
     character(len=str_def), allocatable :: chain_mesh_tags(:)
     character(len=str_def)              :: aerosol_mesh_name
     character(len=str_def)              :: prime_mesh_name
+    integer(kind=i_def),    allocatable :: stencil_depths(:)
 
     logical(kind=l_def) :: use_multires_coupling
     logical(kind=l_def) :: l_multigrid
@@ -132,7 +133,6 @@ contains
     logical(kind=l_def) :: apply_partition_check
 
     integer(kind=i_def) :: geometry
-    integer(kind=i_def) :: stencil_depth
     real(kind=r_def)    :: domain_bottom
     real(kind=r_def)    :: domain_height
     real(kind=r_def)    :: scaled_radius
@@ -142,58 +142,33 @@ contains
     logical(kind=l_def) :: write_diag
     logical(kind=l_def) :: use_xios_io
 
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: formulation_nml
-    type(namelist_type), pointer :: extrusion_nml
-    type(namelist_type), pointer :: planet_nml
-    type(namelist_type), pointer :: multigrid_nml
-    type(namelist_type), pointer :: multires_coupling_nml
-    type(namelist_type), pointer :: io_nml
-
     integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
 
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
-    formulation_nml => modeldb%configuration%get_namelist('formulation')
-    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
-    planet_nml      => modeldb%configuration%get_namelist('planet')
-    io_nml          => modeldb%configuration%get_namelist('io')
+    l_multigrid           = modeldb%config%formulation%l_multigrid()
+    use_multires_coupling = modeldb%config%formulation%use_multires_coupling()
 
-    call formulation_nml%get_value( 'l_multigrid', l_multigrid )
-    call formulation_nml%get_value( 'use_multires_coupling', &
-                                    use_multires_coupling )
     if (use_multires_coupling) then
-      multires_coupling_nml => modeldb%configuration%get_namelist('multires_coupling')
-      call multires_coupling_nml%get_value( 'aerosol_mesh_name', &
-                                            aerosol_mesh_name )
-      multires_coupling_nml => null()
+      aerosol_mesh_name = modeldb%config%multires_coupling%aerosol_mesh_name()
     end if
 
     if (l_multigrid) then
-      multigrid_nml => modeldb%configuration%get_namelist('multigrid')
-      call multigrid_nml%get_value( 'chain_mesh_tags', chain_mesh_tags )
-      multigrid_nml => null()
+      chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
     end if
 
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-    call extrusion_nml%get_value( 'method', method )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
-    call io_nml%get_value( 'nodal_output_on_w3', nodal_output_on_w3 )
-    call io_nml%get_value( 'write_diag', write_diag )
-    call io_nml%get_value( 'use_xios_io', use_xios_io )
-
-    base_mesh_nml   => null()
-    extrusion_nml   => null()
-    formulation_nml => null()
-    planet_nml      => null()
-    io_nml          => null()
+    prime_mesh_name    = modeldb%config%base_mesh%prime_mesh_name()
+    geometry           = modeldb%config%base_mesh%geometry()
+    prepartitioned     = modeldb%config%base_mesh%prepartitioned()
+    method             = modeldb%config%extrusion%method()
+    domain_height      = modeldb%config%extrusion%domain_height()
+    number_of_layers   = modeldb%config%extrusion%number_of_layers()
+    scaled_radius      = modeldb%config%planet%scaled_radius()
+    nodal_output_on_w3 = modeldb%config%io%nodal_output_on_w3()
+    write_diag         = modeldb%config%io%write_diag()
+    use_xios_io        = modeldb%config%io%use_xios_io()
 
     !-----------------------------------------------------------------------
     ! Initialise infrastructure
@@ -283,18 +258,22 @@ contains
 
     ! 1.3a Initialise prime/2d meshes
     ! ---------------------------------------------------------
-    stencil_depth = get_required_stencil_depth()
+    allocate(stencil_depths(num_base_meshes))
+    call get_required_stencil_depth( stencil_depths,  &
+                                     base_mesh_names, &
+                                     modeldb%config )
+
     apply_partition_check = .false.
     if ( .not. prepartitioned .and. &
          ( l_multigrid .or. use_multires_coupling ) ) then
       apply_partition_check = .true.
     end if
 
-    call init_mesh( modeldb%configuration,        &
+    call init_mesh( modeldb%config,               &
                     modeldb%mpi%get_comm_rank(),  &
                     modeldb%mpi%get_comm_size(),  &
                     base_mesh_names,              &
-                    extrusion, stencil_depth,     &
+                    extrusion, stencil_depths,    &
                     apply_partition_check )
 
     call create_mesh( base_mesh_names, extrusion_2d, &
@@ -446,11 +425,20 @@ contains
 
     end if
 
-    if (allocated(base_mesh_names))  deallocate(base_mesh_names)
-    if (allocated(meshes_to_shift))  deallocate(meshes_to_shift)
-    if (allocated(meshes_to_double)) deallocate(meshes_to_double)
-
+    if (allocated(base_mesh_names))     deallocate(base_mesh_names)
+    if (allocated(meshes_to_shift))     deallocate(meshes_to_shift)
+    if (allocated(meshes_to_double))    deallocate(meshes_to_double)
+    if (allocated(twod_names))          deallocate(twod_names)
+    if (allocated(shifted_names))       deallocate(shifted_names)
+    if (allocated(double_names))        deallocate(double_names)
+    if (allocated(extrusion))           deallocate(extrusion)
+    if (allocated(extrusion_2d))        deallocate(extrusion_2d)
+    if (allocated(extrusion_shifted))   deallocate(extrusion_shifted)
+    if (allocated(extrusion_double))    deallocate(extrusion_double)
+    if (allocated(chain_mesh_tags))     deallocate(chain_mesh_tags)
+    if (allocated(stencil_depths))      deallocate(stencil_depths)
     if (allocated(extra_io_mesh_names)) deallocate(extra_io_mesh_names)
+
     nullify(chi_inventory, panel_id_inventory, mesh, aerosol_mesh)
 
   end subroutine initialise_transport
@@ -464,7 +452,6 @@ contains
     use formulation_config_mod, only: use_multires_coupling
     use io_config_mod,          only: diagnostic_frequency, &
                                       nodal_output_on_w3,   &
-                                      subroutine_timers,    &
                                       write_diag
     use multires_coupling_config_mod, only: aerosol_mesh_name
     use sci_field_minmax_alg_mod,     only: log_field_minmax
@@ -475,6 +462,7 @@ contains
 
     type(mesh_type), pointer :: mesh
     type(mesh_type), pointer :: aerosol_mesh
+    integer(tik)             :: id
 
     call log_event( 'Miniapp will run with default precision set as:', LOG_LEVEL_INFO )
     write(log_scratch_space, '(I1)') kind(1.0_r_def)
@@ -504,7 +492,7 @@ contains
       'Start of timestep ', model_clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    if ( subroutine_timers ) call timer( 'transport step' )
+    if ( LPROF ) call start_timing( id, 'transport_step' )
 
     call transport_step( model_clock,                          &
                          wind, density, theta, tracer_con,     &
@@ -512,7 +500,7 @@ contains
                          w3_aerosol, wt_aerosol, aerosol_wind, &
                          nummr_to_transport )
 
-    if ( subroutine_timers ) call timer( 'transport step' )
+    if ( LPROF ) call stop_timing( id, 'transport_step' )
 
     ! Write out conservation diagnostics
     call mass_conservation( model_clock%get_step(), density, mr, &

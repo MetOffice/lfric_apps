@@ -375,7 +375,7 @@ contains
          cff_earliest, qt_force, tl_force, t_inc_pc2, q_inc_pc2, qcl_inc_pc2,&
          bcf_inc_pc2, cfl_inc_pc2, sskew, svar_turb, svar_bm, qcf_total,     &
          ri_bm, tgrad_in, mix_len_in, tau_dec_in, tau_hom_in, tau_mph_in,    &
-         wvar_in
+         wvar_in, z_rho
     real(r_bl), dimension(seg_len,1,nlayers) ::                              &
          r_rho_levels, rho_wet_tq
 
@@ -387,24 +387,16 @@ contains
 
     ! profile field on boundary layer levels
     real(r_bl), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh,           &
-         bq_gb, bt_gb, dtrdz_charney_grid, rdz_charney_grid, rhokh_mix, qw,  &
-         tl, dqw, dtl, fqw_star, ftl_star
-
-    ! profile fields on u/v points and all levels
-    real(r_bl), dimension(seg_len,1,nlayers) :: r_u, r_v
+         bq_gb, bt_gb, dtrdz_charney_grid, rdz_charney_grid, qw,             &
+         tl, dqw, dtl, fqw_star, ftl_star, ct_ctq, dqw_nt, dtl_nt
 
     ! profile fields on u/v points and BL levels
-    real(r_bl), dimension(seg_len,1,bl_levels) :: taux, tauy,                &
-         rhokm_u, rhokm_v, dissip_u, dissip_v, taux_star, tauy_star, cq_cm_u,&
-         cq_cm_v, ct_ctq, dqw_nt, dtl_nt, du_star, dv_star
-
-    ! profile fields from level 2 upwards
-    real(r_bl), dimension(seg_len,1,2:bl_levels) :: rdz_u, rdz_v
+    real(r_bl), dimension(seg_len,1,bl_levels) ::                            &
+         dissip_u, dissip_v
 
     ! profile fields from level 0 upwards
     real(r_um), dimension(seg_len,1,0:nlayers) ::                            &
          p_theta_levels, p_rho_minus_one
-    real(r_bl), dimension(seg_len,1,0:nlayers) :: r_theta_levels
 
     ! single level real fields
     real(r_um), dimension(seg_len,1) ::                                      &
@@ -535,29 +527,26 @@ contains
          ! IN levels, switches
          bl_levels,  l_correct,                                              &
          ! IN data :
-         gamma1, gamma2, rhokm_u, rhokm_v,                                   &
-         rdz_charney_grid, r_rho_levels, dtrdz_charney_grid,rdz_u,rdz_v,     &
-         ct_ctq,cq_cm_u,cq_cm_v,dqw_nt,dtl_nt,                               &
+         gamma1, gamma2,                                                     &
+         rdz_charney_grid, r_rho_levels, dtrdz_charney_grid,                 &
+         ct_ctq,dqw_nt,dtl_nt,                                               &
          ! INOUT data :
-         qw,tl,fqw,ftl,taux,tauy,fqw_star,ftl_star,taux_star,tauy_star,      &
-         r_u,r_v,du_star,dv_star,dqw,dtl,rhokh,bl_diag,                      &
+         qw,tl,fqw,ftl,fqw_star,ftl_star,                                    &
+         dqw,dtl,rhokh,bl_diag,                                              &
          ! OUT data
-         t_latest,q_latest,rhokh_mix                                         &
+         t_latest,q_latest                                                   &
          )
 
     if (loop == 2) then
 
       do i = 1, seg_len
-        do k = 0, nlayers
-          ! height of theta levels from centre of planet
-          r_theta_levels(i,1,k) = height_wth(map_wth(1,i) + k) + planet_radius
-        end do
         zh(i,1) = zh_2d(map_2d(1,i))
       end do
       do k = 1, nlayers
         do i = 1, seg_len
           ! height of levels above surface
-          z_theta(i,1,k) = r_theta_levels(i,1,k)-r_theta_levels(i,1,0)
+          z_theta(i,1,k) = height_wth(map_wth(1,i) + k) - height_wth(map_wth(1,i))
+          z_rho(i,1,k) = height_w3(map_w3(1,i) + k-1) - height_wth(map_wth(1,i))
         end do
       end do
 
@@ -587,9 +576,9 @@ contains
           nblyr(i,1) = 1
           k = 1
 
-          weight1 = r_rho_levels(i,1,k+1) - r_theta_levels(i,1,0)
-          weight2 = r_theta_levels(i,1,k) - r_theta_levels(i,1,0)
-          weight3 = r_rho_levels(i,1,k+1) - r_theta_levels(i,1,k)
+          weight1 = z_rho(i,1,k+1)
+          weight2 = z_theta(i,1,k)
+          weight3 = z_rho(i,1,k+1) - z_theta(i,1,k)
           ftl_m = weight2 * ftl(i,1,k+1) + weight3 * ftl(i,1,k)
           fqw_m = weight2 * fqw(i,1,k+1) + weight3 * fqw(i,1,k)
           f_buoy_m = g*( bt_gb(i,1,k)*(ftl_m/cp) +                             &
@@ -601,15 +590,14 @@ contains
 
           ! Save level 1 heating increment for redistribution over
           ! boundary layer
-          fric_heating_blyr(i,1) = fric_heating_inc *                          &
-                       (r_rho_levels(i,1,2)-r_theta_levels(i,1,0))
+          fric_heating_blyr(i,1) = fric_heating_inc * z_rho(i,1,2)
         end do
 
         do k = 2, bl_levels-1
           do i = 1, seg_len
-            weight1 = r_rho_levels(i,1,k+1) - r_rho_levels(i,1,k)
-            weight2 = r_theta_levels(i,1,k) - r_rho_levels(i,1,k)
-            weight3 = r_rho_levels(i,1,k+1) - r_theta_levels(i,1,k)
+            weight1 = z_rho(i,1,k+1) - z_rho(i,1,k)
+            weight2 = z_theta(i,1,k) - z_rho(i,1,k)
+            weight3 = z_rho(i,1,k+1) - z_theta(i,1,k)
             ftl_m = weight2 * ftl(i,1,k+1) + weight3 * ftl(i,1,k)
             fqw_m = weight2 * fqw(i,1,k+1) + weight3 * fqw(i,1,k)
 
@@ -628,7 +616,7 @@ contains
               nblyr(i,1) = k
               fric_heating_blyr(i,1) = fric_heating_blyr(i,1) +                &
                                        fric_heating_incv(i,1) *                &
-                                  (r_rho_levels(i,1,k+1)-r_rho_levels(i,1,k))
+                                  (z_rho(i,1,k+1)-z_rho(i,1,k))
             else
               t_latest(i,1,k) = t_latest(i,1,k) + fric_heating_incv(i,1)
               if (bl_diag%l_dtfric) then
@@ -644,8 +632,7 @@ contains
         ! for lack of BL mixing of these increments
         !-----------------------------------------------------------------------
         do i = 1, seg_len
-          z_blyr = r_rho_levels(i,1,nblyr(i,1)+1)                              &
-                 - r_theta_levels(i,1,0)
+          z_blyr = z_rho(i,1,nblyr(i,1)+1)
           fric_heating_blyr(i,1) = fric_heating_blyr(i,1) / z_blyr
 
           do k = 1, nblyr(i,1)

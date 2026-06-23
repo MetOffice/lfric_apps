@@ -31,7 +31,6 @@ module transport_constants_mod
   use integer_field_mod,                  only: integer_field_type
   use inventory_by_mesh_mod,              only: inventory_by_mesh_type
   use inventory_by_local_mesh_mod,        only: inventory_by_local_mesh_type
-  use io_config_mod,                      only: subroutine_timers
   use local_mesh_mod,                     only: local_mesh_type
   use log_mod,                            only: log_event, log_scratch_space,  &
                                                 LOG_LEVEL_ERROR,               &
@@ -48,7 +47,8 @@ module transport_constants_mod
   use reference_element_mod,              only: reference_element_type
   use r_tran_field_mod,                   only: r_tran_field_type
   use sci_field_minmax_alg_mod,           only: get_field_minmax
-  use timer_mod,                          only: timer
+  use timing_mod,                         only: start_timing, stop_timing, &
+                                                tik, LPROF
 
   ! Kernels
   use sci_operator_algebra_kernel_mod,    only: operator_setval_x_kernel_type
@@ -183,8 +183,9 @@ contains
 
     logical(kind=l_def) :: linear_remap
     integer(kind=i_def) :: ndata, halo_depth
+    integer(tik)        :: id
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
     if (.not. ext_mesh_weights_inventory%is_initialised()) then
       call ext_mesh_weights_inventory%initialise(name="extended_mesh_weights")
@@ -227,7 +228,7 @@ contains
             linear_remap, ndata                                                &
     )
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
 
   end subroutine initialise_remap_on_extended_mesh
 
@@ -257,8 +258,9 @@ contains
     type(field_type),             pointer :: panel_id
     integer(kind=i_def)                   :: ncolumns_1d
     integer(kind=i_def),        parameter :: MINUS_FAR_AWAY = -FAR_AWAY
+    integer(tik)                          :: id
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
     ! Initialise inventories if they haven't already been
     if (.not. panel_edge_dist_inventory%is_initialised()) then
@@ -306,7 +308,7 @@ contains
                    int_setval_c(panel_edge_dist(4), MINUS_FAR_AWAY) )
     end if
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
 
   end subroutine compute_panel_edge_dists
 
@@ -333,10 +335,11 @@ contains
     type(field_type),             pointer :: panel_edge_coords_y(:)
     type(field_type),             pointer :: chi(:)
     type(field_type),             pointer :: panel_id
+    integer(kind=tik)                     :: id
 
     panel_edge_dist => get_panel_edge_dist(mesh_id)
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
     ! Initialise inventories if they haven't already been
     if (.not. panel_edge_coords_x_inventory%is_initialised()) then
@@ -368,7 +371,7 @@ contains
                                                panel_edge_dist,                &
                                                depth, field_depth) )
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
 
   end subroutine compute_panel_edge_coords
 
@@ -400,6 +403,7 @@ contains
     type(function_space_type), pointer :: w3_fs
 
     integer(kind=i_def) :: ndata, max_halo_depth, remap_depth, cross_depth
+    integer(kind=tik)   :: id
 
     ! Get pointers to coordinates and masks for panel edges
     chi => get_coordinates(mesh_id)
@@ -408,7 +412,7 @@ contains
     panel_edge_coords_x => get_panel_edge_coords_x(mesh_id)
     panel_edge_coords_y => get_panel_edge_coords_y(mesh_id)
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
     ! Set up fields on 2D mesh in multidata W3 space
     mesh => mesh_collection%get_mesh(mesh_id)
@@ -479,7 +483,7 @@ contains
                                 remap_depth)                                   &
     )
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
 
   end subroutine compute_panel_edge_weights
 
@@ -503,8 +507,9 @@ contains
     type(function_space_type), pointer :: w3_fs
 
     integer(kind=i_def) :: max_halo_depth, cross_depth
+    integer(kind=tik)   :: id
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
     ! Set up fields on 2D mesh in multidata W3 space
     mesh => mesh_collection%get_mesh(mesh_id)
@@ -539,7 +544,7 @@ contains
     call invoke_halo_mask_xy_kernel_type(halo_mask_x, halo_mask_y, halo_mask,  &
                                          cross_depth, max_halo_depth)
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
 
   end subroutine compute_halo_masks
 
@@ -559,6 +564,7 @@ contains
     type(r_tran_field_type)               :: dz_w3_rtran
     type(field_type),             pointer :: dz_w3_rdef
     type(function_space_type),    pointer :: w3_fs
+    integer(tik)                          :: id
 
     ! Check inventory is initialised
     if (.not. third_dla_dz_inventory%is_initialised()) then
@@ -573,7 +579,7 @@ contains
 
     mesh => mesh_collection%get_mesh(mesh_id)
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
     w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
@@ -586,7 +592,7 @@ contains
 
     call invoke( ffsl_third_dldz_kernel_type(dla_dz, dlb_dz, dz_w3_rtran) )
 
-    if ( subroutine_timers ) call timer('runtime_constants.transport')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
 
   end subroutine compute_third_dl_dz
 
@@ -617,6 +623,7 @@ contains
     type(field_type),             pointer :: panel_id
     type(field_type),             pointer :: detj_r_def
     type(function_space_type),    pointer :: w3_fs
+    integer(tik)                          :: id
 
     ! Check inventory is initialised
     if (.not. detj_at_w3_r_tran_inventory%is_initialised()) then
@@ -646,7 +653,7 @@ contains
       panel_id => get_panel_id(mesh_id)
 
       ! Create the object as it doesn't exist yet
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
       w3_fs => function_space_collection%get_fs(mesh,                          &
                                                 element_order_h,               &
@@ -662,7 +669,7 @@ contains
       else
         call copy_field(detj_r_def, detj_r_tran)
       end if
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Get existing constant
@@ -693,6 +700,7 @@ contains
     integer(kind=i_def)                   :: detj_direction
     integer(kind=i_def)                   :: element_order_h, &
                                              element_order_v
+    integer(tik)                          :: id
 
     ! Check inventory is initialised
     if (.not. detj_at_w2_above_inventory%is_initialised()) then
@@ -718,7 +726,7 @@ contains
       end if
 
       ! Create the object as it doesn't exist yet
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
       detj_direction = 1
       w2_fs => function_space_collection%get_fs(mesh,                          &
@@ -731,7 +739,7 @@ contains
                    calc_directional_detj_at_w2_kernel_type(detj_above,         &
                                                            chi, panel_id,      &
                                                            detj_direction) )
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Get existing constant
@@ -762,6 +770,7 @@ contains
     integer(kind=i_def)                   :: detj_direction
     integer(kind=i_def)                   :: element_order_h, &
                                              element_order_v
+    integer(tik)                          :: id
 
     ! Check inventory is initialised
     if (.not. detj_at_w2_below_inventory%is_initialised()) then
@@ -786,7 +795,7 @@ contains
       end if
 
       ! Create the object as it doesn't exist yet
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
       detj_direction = 0
       w2_fs => function_space_collection%get_fs(mesh,                          &
@@ -799,7 +808,7 @@ contains
                    calc_directional_detj_at_w2_kernel_type(detj_below,         &
                                                            chi, panel_id,      &
                                                            detj_direction) )
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Get existing constant
@@ -887,6 +896,7 @@ contains
     type(r_tran_field_type)               :: dz_w3_rtran
     type(field_type),             pointer :: dz_w3_rdef
     type(function_space_type),    pointer :: w2v_fs
+    integer(tik)                          :: id
 
     ! Check inventory is initialised
     if (.not. fourth_dl_dz_inventory%is_initialised()) then
@@ -900,7 +910,7 @@ contains
     if (.not. constant_exists) then
 
       ! Create the object as it doesn't exist yet
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
       w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2v)
 
@@ -912,7 +922,7 @@ contains
 
       call invoke( ffsl_fourth_dldz_kernel_type(dl_dz, dz_w3_rtran) )
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Get existing constant
@@ -946,6 +956,7 @@ contains
     character(len=str_def)                :: inventory_name
     integer(kind=i_def)                   :: element_order_h, &
                                              element_order_v
+    integer(tik)                          :: id
 
     ! Point to appropriate inventory for this space
     select case (space)
@@ -978,7 +989,7 @@ contains
         mm_r_def => get_mass_matrix_fe(space, mesh_id)
       end if
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
       fs => function_space_collection%get_fs(mesh,                             &
                                              element_order_h,                  &
@@ -988,7 +999,7 @@ contains
 
       call invoke( operator_setval_x_kernel_type(mm_r_tran, mm_r_def) )
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Return existing constant
@@ -1018,6 +1029,7 @@ contains
     character(len=str_def)                :: inventory_name
     integer(kind=i_def)                   :: element_order_h, &
                                              element_order_v
+    integer(tik)                          :: id
 
     ! Point to appropriate inventory for this space
     select case (space)
@@ -1050,7 +1062,7 @@ contains
         mm_inv_r_def => get_inverse_mass_matrix_fe(space, mesh_id)
       end if
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
       fs => function_space_collection%get_fs(mesh,                             &
                                              element_order_h,                  &
@@ -1060,7 +1072,7 @@ contains
 
       call invoke( operator_setval_x_kernel_type(mm_inv_r_tran, mm_inv_r_def) )
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Return existing constant
@@ -1139,6 +1151,7 @@ contains
     integer(kind=i_def)                   :: fs_id
     integer(kind=i_def)                   :: element_order_h, &
                                              element_order_v
+    integer(tik)                          :: id
 
     ! Point to appropriate inventory for this space
     select case (direction)
@@ -1195,14 +1208,14 @@ contains
       w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
                                                  element_order_v, W3 )
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
         call div%initialise( w3_fs, w2_fs )
         call im3_div%initialise( w3_fs, w2_fs )
         call inventory%add_operator(im3_div_r_tran, w3_fs, w2_fs, mesh)
         call invoke( compute_div_operator_kernel_type(div, chi, panel_id, qr), &
                      operator_x_times_y_kernel_type(im3_div, mm_w3_inv, div),  &
                      operator_setval_x_kernel_type(im3_div_r_tran, im3_div) )
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     call inventory%get_operator(mesh, im3_div_r_tran)
@@ -1634,6 +1647,7 @@ contains
     integer(kind=i_def)                 :: nqp_xy, nqp_z, nqp_xyz
     integer(kind=i_def)                 :: element_order_h, element_order_v
     real(kind=r_def)                    :: transform_radius, chi3_max
+    integer(tik)                        :: id
 
     class(reference_element_type), pointer :: reference_element
 
@@ -1667,7 +1681,7 @@ contains
       chi => get_coordinates(mesh%get_id())
       panel_id => get_panel_id(mesh%get_id())
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
       reference_element => mesh%get_reference_element()
 
@@ -1792,7 +1806,7 @@ contains
                                                     qr, qrf) )
       end if
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
 
     end if
 
@@ -1822,6 +1836,7 @@ contains
     logical(kind=l_def)                 :: constant_exists
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
     type(quadrature_xyoz_type)          :: qr
+    integer(tik)                        :: id
 
     ! Initialise inventory if it hasn't been done so already
     if (.not. vert_w3_mol_coeffs_inventory%is_initialised()) then
@@ -1835,7 +1850,7 @@ contains
     if (.not. constant_exists) then
       height => get_height_fv(Wtheta, mesh%get_id())
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
       ndata_v = 2*(fv_vertical_order + 1)
       nqp_xyz = fv_vertical_order + 1_i_def
       qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
@@ -1854,7 +1869,7 @@ contains
                                                        ndata_v,                &
                                                        fv_vertical_order,      &
                                                        qr) )
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Return constant
@@ -1884,6 +1899,7 @@ contains
     logical(kind=l_def)                 :: constant_exists
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
     type(quadrature_xyoz_type)          :: qr
+    integer(tik)                        :: id
 
     ! Initialise inventory if it hasn't been done so already
     if (.not. rev_vert_w3_mol_coeffs_inventory%is_initialised()) then
@@ -1899,7 +1915,7 @@ contains
     if (.not. constant_exists) then
       height => get_height_fv(Wtheta, mesh%get_id())
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
       vertical_order = fv_vertical_order - 1
       ndata_v = fv_vertical_order
       nqp_xyz = fv_vertical_order + 1_i_def
@@ -1918,7 +1934,7 @@ contains
                                                        ndata_v,                &
                                                        vertical_order,         &
                                                        qr) )
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Return constant
@@ -1980,6 +1996,7 @@ contains
     real(kind=r_def)                    :: transform_radius, chi3_max
     type(quadrature_rule_gauss_lobatto_type) :: gauss_lobatto_quadrature
     class(reference_element_type),   pointer :: reference_element
+    integer(tik)                             :: id
 
     ! Initialise inventory if it hasn't been done so already
     if (.not. hori_wt_mol_coeffs_inventory%is_initialised()) then
@@ -2009,7 +2026,7 @@ contains
       chi => get_coordinates(mesh%get_id())
       panel_id => get_panel_id(mesh%get_id())
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
 
       reference_element => mesh%get_reference_element()
 
@@ -2138,7 +2155,7 @@ contains
                                                     qr, qre) )
       end if
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
 
     end if
 
@@ -2166,6 +2183,7 @@ contains
     integer(kind=i_def)                :: vertical_order
     integer(kind=i_def)                :: ndata_v
     logical(kind=l_def)                :: constant_exists
+    integer(tik)                       :: id
 
     ! Initialise inventory if it hasn't been done so already
     if (.not. vert_wt_mol_coeffs_inventory%is_initialised()) then
@@ -2179,7 +2197,7 @@ contains
     if (.not. constant_exists) then
       height => get_height_fv(Wtheta, mesh%get_id())
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
       vertical_order = fv_vertical_order + 1
       ndata_v = 2*(vertical_order + 1)
       ! Set up function space
@@ -2195,7 +2213,7 @@ contains
                                                       height,                  &
                                                       ndata_v,                 &
                                                       vertical_order) )
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Return constant
@@ -2221,6 +2239,7 @@ contains
     type(function_space_type), pointer :: multidata_fs
     integer(kind=i_def)                :: ndata_v
     logical(kind=l_def)                :: constant_exists
+    integer(tik)                       :: id
 
     ! Initialise inventory if it hasn't been done so already
     if (.not. rev_vert_wt_mol_coeffs_inventory%is_initialised()) then
@@ -2236,7 +2255,7 @@ contains
     if (.not. constant_exists) then
       height => get_height_fv(Wtheta, mesh%get_id())
 
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
       ndata_v = 2*(fv_vertical_order + 1)
       ! Set up function space
       multidata_fs => function_space_collection%get_fs(                        &
@@ -2251,7 +2270,7 @@ contains
                                                       height,                  &
                                                       ndata_v,                 &
                                                       fv_vertical_order) )
-      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
 
     ! Return constant

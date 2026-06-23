@@ -14,15 +14,15 @@ use fs_continuity_mod,       only: W3, Wtheta
 use sci_geometric_constants_mod,   &
                              only: get_height_fv
 use integer_field_mod,       only: integer_field_type
-use io_config_mod,           only: write_diag, use_xios_io, subroutine_timers
+use io_config_mod,           only: write_diag, use_xios_io
 use mesh_mod,                only: mesh_type
 use mphys_inputs_mod,        only: x1r, x2r
 use mphys_psd_mod,           only: x1g, x2g, x4g
 use microphysics_config_mod, only: microphysics_casim
 use mr_indices_mod,          only: nummr, imr_v, imr_cl, imr_s, imr_ci
 use planet_config_mod,       only: p_zero, kappa
-use timer_mod,               only: timer
-use log_mod,                 only: log_event, LOG_LEVEL_INFO
+use timing_mod,              only: start_timing, stop_timing, tik, LPROF
+use log_mod,                 only: log_event, LOG_LEVEL_DEBUG
 
 use cosp_config_mod, only: n_subcol_gen
 use cosp_diags_mod,  only: initialise_diags_for_cosp, output_diags_for_cosp
@@ -89,10 +89,11 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
   type( field_type ) :: pressure_in_w3, mr_ice, n_ice
   real( r_def ) :: inv_kappa
   real( r_def ) :: cosp_x1r, cosp_x2r, cosp_x1g, cosp_x2g, cosp_x4g
+  integer( tik )  :: id
 
   ! Unpacked fields from collections
   type( field_type ), pointer :: rho_in_wth          => null()
-  type( field_type ), pointer :: lit_fraction        => null()
+  type( field_type ), pointer :: lit_fraction_cosp   => null()
   type( field_type ), pointer :: liquid_fraction     => null()
   type( field_type ), pointer :: frozen_fraction     => null()
   type( field_type ), pointer :: sigma_ml
@@ -122,12 +123,14 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
     cloud_thermal_absorptivity, cloud_solar_extinction
 
 
-  call log_event( 'slow_physics: Running COSP', LOG_LEVEL_INFO )
+  call log_event( 'slow_physics: Running COSP', LOG_LEVEL_DEBUG )
+
+  if ( LPROF ) call start_timing( id, 'cosp' )
 
   ! Unpack fields from collections
   call derived_fields%get_field('rho_in_wth', rho_in_wth)
 
-  call radiation_fields%get_field('lit_fraction', lit_fraction)
+  call radiation_fields%get_field('lit_fraction_cosp', lit_fraction_cosp)
 
   call cloud_fields%get_field('liquid_fraction', liquid_fraction)
   call cloud_fields%get_field('frozen_fraction', frozen_fraction)
@@ -189,7 +192,6 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
     cloud_thermal_absorptivity, cloud_solar_extinction)
 
   ! Run COSP
-  if ( subroutine_timers ) call timer("cosp")
   call invoke( cosp_kernel_type( &
     pressure_in_wth, temperature_in_wth, rho_in_wth, height_wth, &
     pressure_in_w3, height_w3, &
@@ -201,7 +203,7 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
     conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number, &
     sigma_ml, sigma_mi, cloud_drop_no_conc, &
     ls_rain_3d, conv_rain_3d, conv_snow_3d, &
-    lit_fraction, rand_seed, n_cloud_layer, &
+    lit_fraction_cosp, rand_seed, n_cloud_layer, &
     n_subcol_gen, &
     cosp_x1r, cosp_x2r, cosp_x1g, cosp_x2g, cosp_x4g, &
     sunlit_mask, &
@@ -216,7 +218,7 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
     calipso_total_backscatter, &
     calipso_cfad_sr_40_lvls, &
     cloud_thermal_absorptivity, cloud_solar_extinction ) )
-  if ( subroutine_timers ) call timer("cosp")
+  if ( LPROF ) call stop_timing( id, 'cosp' )
 
   ! Output diagnostics
   if (write_diag .and. use_xios_io) then
