@@ -365,7 +365,6 @@ subroutine radaer_code( nlayers,                                               &
   use nlsizes_namelist_mod,              only: row_length, rows
 
   use ukca_mode_setup,                   only: nmodes, ncp_max,                &
-                                               mode_nuc_sol,                   &
                                                mode_ait_sol, mode_acc_sol,     &
                                                mode_cor_sol, mode_ait_insol,   &
                                                mode_acc_insol, mode_cor_insol, &
@@ -596,21 +595,6 @@ subroutine radaer_code( nlayers,                                               &
   real(r_um),dimension( row_length*rows, nlayers, n_radaer_mode, n_sw_band) :: &
                                                            aer_sw_asymmetry_um
 
-  integer, parameter :: i_ukca_tune_bc = i_ukca_bc_tuned
-  integer, parameter :: i_glomap_clim_tune_bc = i_ukca_bc_tuned
-  logical, parameter :: l_nitrate = .false. ! Make this a namelist option later
-  logical, parameter :: l_sustrat = .true.  ! Make this a namelist option later
-                                            ! l_sustrat=.true. for ga9
-  logical, parameter :: l_cornarrow_ins = .false.
-                                            ! Make this a namelist option later
-
-  integer(i_um) :: ncp_max_x_nmodes
-  integer(i_um) :: i_cpnt_index( ncp_max, nmodes )
-  integer(i_um) :: i_cpnt_type( ncp_max * nmodes )
-  integer(i_um) :: i_mode_type( nmodes )
-  integer(i_um) :: n_cpnt_in_mode( nmodes )
-  logical       :: l_soluble( nmodes )
-
   ! By convention, arrays are inverted in UM radiation code
   ! Since we are calling from LFRic, arrays will not be inverted
   ! This matters for determining whether a level is above the tropopause
@@ -643,8 +627,6 @@ subroutine radaer_code( nlayers,                                               &
 
   !-----------------------------------------------------------------------
 
-  ncp_max_x_nmodes = ncp_max * nmodes
-
   npd_profile = row_length * rows
 
   npd_exclude_lw = SIZE( lw_index_exclude, 1 )
@@ -657,39 +639,6 @@ subroutine radaer_code( nlayers,                                               &
   !-----------------------------------------------------------------------
   ! Populate ukca_radaer element arrays
   ! Note that nucleation mode gets ignored in some of these
-  !-----------------------------------------------------------------------
-
-  ! No nucleation mode
-  l_soluble(1:nmodes) =  (/.true., .true., .true., .false.,                    &
-                           .false.,.false.,.false.,.false./)
-
-  ! No nucleation mode
-  n_cpnt_in_mode(1:nmodes) = (/ 3, 5, 5, 2, 1, 1, -1, -1 /)
-
-  ! No nucleation mode
-  i_mode_type(1:nmodes)    = (/ 1, 2, 3, 1, 2, 3, -1, -1 /)
-
-  ! No nucleation mode
-  i_cpnt_index(cp_su, 1:nmodes)=(/  1,  4,  9, 14, 16, 17, -1, -1 /)
-  i_cpnt_index(cp_bc, 1:nmodes)=(/  2,  5, 10, 15, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_oc, 1:nmodes)=(/  3,  6, 11, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_cl, 1:nmodes)=(/ -1,  7, 12, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_du, 1:nmodes)=(/ -1,  8, 13, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_so, 1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_no3,1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_nn, 1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
-  i_cpnt_index(cp_nh4,1:nmodes)=(/ -1, -1, -1, -1, -1, -1, -1, -1 /)
-
-  i_cpnt_type(1:ncp_max_x_nmodes) = (/ 1,  2,  3,  1,  2,  3,  4,  5,  1,      &
-                                       2,  3,  4,  5,  2,  3,  5,  5, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1,      &
-                                      -1, -1, -1, -1, -1, -1, -1, -1, -1 /)
-
-  !-----------------------------------------------------------------------
 
   l_aod_ukca_ait_sol = ( .not. associated( aod_ukca_ait_sol, empty_real_data ))
   l_aaod_ukca_ait_sol= ( .not. associated(aaod_ukca_ait_sol, empty_real_data ))
@@ -1267,18 +1216,6 @@ subroutine radaer_code( nlayers,                                               &
       ! Variables related to waveband exclusion
       l_exclude_lw,                                                            &
       l_exclude_sw,                                                            &
-      ! UKCA_RADAER structure (input)
-      nmodes,                                                                  &
-      ncp_max,                                                                 &
-      ncp_max_x_nmodes,                                                        &
-      i_cpnt_index,                                                            &
-      i_cpnt_type,                                                             &
-      i_mode_type,                                                             &
-      l_nitrate,                                                               &
-      l_soluble,                                                               &
-      l_sustrat,                                                               &
-      l_cornarrow_ins,                                                         &
-      n_cpnt_in_mode,                                                          &
       ! Modal diameters from UKCA module (input)
       ukca_dry_diam_um,                                                        &
       ukca_wet_diam_um,                                                        &
