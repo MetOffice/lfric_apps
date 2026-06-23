@@ -12,9 +12,7 @@ module adjt_assemble_w2h_from_w2hb_alg_mod
   use function_space_collection_mod, only : function_space_collection
   use finite_element_config_mod,     only : element_order_h, element_order_v
   use fs_continuity_mod,             only : W2broken, W2h
-  use operator_mod,                  only : operator_type
   use constants_mod,                 only : i_def, r_def, EPS
-  use setop_random_alg_mod,          only : setop_random_alg
   use log_mod,                       only : log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_ERROR,   &
@@ -66,8 +64,8 @@ module adjt_assemble_w2h_from_w2hb_alg_mod
 
     ! Test parameters and variables
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
-    real(kind=r_def) :: machine_tol
-    real(kind=r_def) :: relative_diff
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
 
     vector_space_w2b_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2broken)
     vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2h)
