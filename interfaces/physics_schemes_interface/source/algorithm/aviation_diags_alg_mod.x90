@@ -33,7 +33,6 @@ contains
 
     ! Arguments
     type(field_type), intent(in)               :: plev_geopot
-    type(field_collection_type), intent(inout) :: convection_fields
 
     ! Calculate geopotential thickness and snow probbability.
     call from_plev_geopot(plev_geopot)
