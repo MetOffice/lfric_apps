@@ -140,55 +140,55 @@ def ord2_corr(src_field, src_mask, rank_src):
     """calculate lon and lat gradients to correct
        destination values for conservative
        weights """
-#we need
+    #we need
     src_mask_r = np.reshape(src_mask, (rank_src[1], rank_src[0]))
     grad_lon = np.zeros((rank_src[0]*rank_src[1], 1), dtype=np.float64)
     grad_lat = np.zeros((rank_src[0]*rank_src[1], 1), dtype=np.float64)
-#find unique source grid points
+    #find unique source grid points
     for j in range(rank_src[1]):
         for i in range(rank_src[0]):
             delew = .5
             delsn = .5
             ipt = j*rank_src[0]+i
             if(src_mask_r[j, i]):
-#find N,E,S,W points for col[i], use fortran indexing (starts with 1)
-#follow scrip approach. Incorrect for NEMO grid for global model!
-#find i-1 and i+1
-#i-1
+                #find N,E,S,W points for col[i], use fortran indexing (starts with 1)
+                #follow scrip approach. Incorrect for NEMO grid for global model!
+                #find i-1 and i+1
+                #i-1
                 ipt_m1 = i - 1
                 if ipt_m1 < 0:
                     ipt_m1 = rank_src[0] -1 + ipt_m1
-#account for mask i-1
+                #account for mask i-1
                 if(src_mask_r[j, ipt_m1] == 0):
                     ipt_m1 = i
                     delew = 1.
-#i+1
+                #i+1
                 ipt_p1 = i + 1
                 if ipt_p1 > rank_src[0] -1:
                     ipt_p1 = ipt_p1 - rank_src[1] - 1
-#account for mask i+1
+                #account for mask i+1
                 if(src_mask_r[j, ipt_p1] == 0):
                     ipt_p1 = i
                     delew = 1.
-#j+1
+                #j+1
                 jpt_p1 = j + 1
                 if(jpt_p1 > rank_src[1]) - 1:
                     jpt_p1 = j
                     delsn = 1.
-#account for mask j+1
+                #account for mask j+1
                 if src_mask_r[jpt_p1, i] == 0:
                     jpt_p1 = j
                     delsn = 1.
-#j-1
+                #j-1
                 jpt_m1 = j - 1
                 if jpt_m1 < 0:
                     jpt_m1 = j
                     delsn = 1.
-#account for mask j-1
+                #account for mask j-1
                 if src_mask_r[jpt_m1, i] == 0:
                     jpt_m1 = j
                     delsn = 1.
-#shift index python (0.0) fortran (1,1)
+                #shift index python (0.0) fortran (1,1)
                 ipt_w = j*rank_src[0]+ipt_m1
                 ipt_e = j*rank_src[0]+ipt_p1
                 jpt_n = jpt_p1*rank_src[0]+i
