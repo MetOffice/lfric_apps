@@ -205,6 +205,7 @@ module printing_iau_mod
     type( field_type ), pointer               :: iau_field
     type( field_type ), pointer               :: height_w3
     type( field_type )                        :: radius_w3
+    type( field_type )                        :: wetrho_inc
     integer( kind=i_def )                     :: mesh_id
 
     if( log_level() <= level ) then
@@ -236,10 +237,12 @@ module printing_iau_mod
         mesh_id = iau_field%get_mesh_id()
         height_w3 => get_height_fv(W3, mesh_id)
         call iau_field%copy_field_properties(radius_w3)
+        call iau_field%copy_field_properties(wetrho_inc)
         call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ),       &
-                     inc_X_divideby_Y( iau_field, radius_w3 ),              &
-                     inc_X_divideby_Y( iau_field, radius_w3 ) )
-        call print_meanrms_field( iau_field, level, 'wetrho_inc' )
+                     setval_X( wetrho_inc, iau_field ),                     &
+                     inc_X_divideby_Y( wetrho_inc, radius_w3 ),             &
+                     inc_X_divideby_Y( wetrho_inc, radius_w3 ) )
+        call print_meanrms_field( wetrho_inc, level, 'wetrho_inc' )
       else
         call iau_fields % get_field( 'rho_inc', iau_field )
         call print_meanrms_field( iau_field, level )
