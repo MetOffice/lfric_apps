@@ -27,8 +27,10 @@ module gungho_model_mod
   use create_gungho_prognostics_mod, only : process_gungho_prognostics
   use create_lbcs_mod,            only : process_lbc_fields
   use create_mesh_mod,            only : create_mesh
+  use create_nudging_fields_mod,  only : process_nudging_fields
   use create_physics_prognostics_mod, only : &
                                             process_physics_prognostics
+  use config_mod,                 only : config_type
   use derived_config_mod,         only : set_derived_config, l_esm_couple, &
                                          l_couple_sea_ice, l_couple_ocean
   use extrusion_mod,              only : extrusion_type,              &
@@ -246,12 +248,16 @@ contains
 
   !> @brief Enable active state fields for checkpointing; sync xios axis dimensions;
   !>        set up scaled diagnostics fields
+  !> @param[in] config       Argument providing access to model configuration
   !> @param[in] clock        The clock providing access to time information
-  subroutine before_context_close(clock)
+  subroutine before_context_close(config,clock)
 
     use multidata_field_dimensions_mod, only: sync_multidata_field_dimensions
     use time_dimensions_mod,            only: sync_time_dimensions
     use boundaries_config_mod,          only: limited_area
+    use external_forcing_config_mod,    only: theta_forcing_nudging,           &
+                                              wind_forcing_nudging,            &
+                                              external_forcing_is_loaded
     use formulation_config_mod,         only: use_physics
     use section_choice_config_mod,      only: stochastic_physics, &
                                               stochastic_physics_um
@@ -260,17 +266,29 @@ contains
     use io_config_mod,                  only: checkpoint_read, checkpoint_write
 
     implicit none
-    class(clock_type), intent(in) :: clock
+    type(config_type), intent(in)  :: config
+    class(clock_type), intent(in)  :: clock
 
     type(persistor_type) :: persistor
-
-    real(r_second) :: DT
+    real(r_second)       :: DT
+    integer(i_def)       :: theta_forcing
+    integer(i_def)       :: wind_forcing
+    logical(l_def)       :: to_process_nudging_fields
 #ifdef UM_PHYSICS
     integer(i_def) :: i
 #endif
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
+
+    if ( external_forcing_is_loaded() ) then
+      theta_forcing = config%external_forcing%theta_forcing()
+      wind_forcing = config%external_forcing%wind_forcing()
+      to_process_nudging_fields = ( theta_forcing == theta_forcing_nudging     &
+         .or. wind_forcing == wind_forcing_nudging )
+    else
+      to_process_nudging_fields = .false.
+    end if
 
     call persistor%init(clock)
     call process_gungho_prognostics(persistor)
@@ -299,6 +317,39 @@ contains
                             mode=CHECKPOINTING, operation="once",   &
                             id_as_name=.true.)
           end do
+        end if
+
+        if(l_esm_couple) then
+          call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_w10", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_solar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_heatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_train", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tsnow", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsurf", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsub", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_evap", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_topmelt", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceheatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_sublimation", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceskint", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
         end if
 #endif
       end if
@@ -330,12 +381,46 @@ contains
         end if
 #endif
       end if
+      if(l_esm_couple) then
+        call add_field( persistor%ckp_inp, "lf_taux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tauy", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_w10", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_solar", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_heatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_train", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tsnow", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsurf", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsub", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_evap", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_topmelt", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceheatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_sublimation", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceskint", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_pensolar", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+      end if
     end if
 
 
     if (limited_area) call process_lbc_fields(persistor)
     if (use_physics) then
       call process_physics_prognostics(persistor)
+      if (to_process_nudging_fields)   &
+         call process_nudging_fields(config, persistor)
       call sync_multidata_field_dimensions()
       call sync_time_dimensions()
     end if
@@ -346,7 +431,9 @@ contains
   !> multidata dimensions are completely defined when the XIOS
   !> axis dimensions are being synched.
   !> @param[in] model_clock     The clock providing access to time information
-  subroutine basic_initialisations(mesh,model_clock)
+  !> @param[in] modeldb   The full model database for the model run
+  subroutine basic_initialisations(mesh,model_clock,config)
+
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,     only: use_physics
@@ -355,11 +442,13 @@ contains
                                           surface,            &
                                           surface_jules
 #endif
+    use config_mod,                 only: config_type
 
     implicit none
 
     type( mesh_type ), intent(in), pointer :: mesh
     class(model_clock_type), intent(inout) :: model_clock
+    type(config_type), intent(in) :: config
 
 #ifdef UM_PHYSICS
     integer(i_def) :: ncells
@@ -400,7 +489,7 @@ contains
 
       if (surface == surface_jules) then
         ! Initialisation of Jules physics variables
-        call jules_physics_init()
+        call jules_physics_init(config)
       end if
 
       ! Initialisation of UKCA physics variables
@@ -790,9 +879,9 @@ contains
 
        ! Set up collections to hold 2d coupling fields
        call modeldb%fields%add_empty_field_collection("cpl_snd_2d" , &
-                                                 table_len = 30)
+                                                 table_len = 1)
        call modeldb%fields%add_empty_field_collection("cpl_rcv_2d" , &
-                                                 table_len = 30)
+                                                 table_len = 1)
 
        cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
        cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
@@ -837,7 +926,7 @@ contains
     !=======================================================================
     ! 4.0 Initialise output
     !=======================================================================
-    call basic_initialisations( mesh, modeldb%clock )
+    call basic_initialisations( mesh, modeldb%clock, modeldb%config )
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 

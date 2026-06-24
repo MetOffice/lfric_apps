@@ -1,0 +1,130 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Corrects moisture mixing ratios to ensure local mass conservation
+!!        after the linear solver
+module solver_moist_correction_alg_mod
+
+  ! Infrastructure
+  use constants_mod,                 only: i_def
+  use extrusion_mod,                 only: SHIFTED
+  use field_mod,                     only: field_type
+  use fs_continuity_mod,             only: W2, W3
+  use function_space_mod,            only: function_space_type
+  use function_space_collection_mod, only: function_space_collection
+  use mesh_mod,                      only: mesh_type
+  use mesh_collection_mod,           only: mesh_collection
+  use timer_mod,                     only: timer
+  use mr_indices_mod,                only: nummr, nummr_to_transport
+
+  ! Algorithms
+  use sci_geometric_constants_mod,   only: get_detj_at_w3_fv
+  use intermesh_mappings_alg_mod,    only: obtain_shifted_rho
+  use map_w2_to_sh_w2_alg_mod,       only: map_w2_to_sh_w2_alg_rdef
+  use moisture_conservation_alg_mod, only: moisture_conservation_alg
+
+  ! Kernels
+  use flux_limiter_kernel_mod,       only: flux_limiter_kernel_type
+  use fv_divergence_3d_kernel_mod,   only: fv_divergence_3d_kernel_type
+  use upwind_tracer_flux_kernel_mod, only: upwind_tracer_flux_kernel_type
+
+  ! Config
+  use io_config_mod,                 only: subroutine_timers,                  &
+                                           write_conservation_diag
+
+  implicit none
+
+  private
+  public :: solver_moist_correction_alg
+
+contains
+
+!> @brief Corrects moisture mixing ratios to ensure local mass conservation
+!!        after the linear solver
+!> @param[in,out] mr        Array of moisture mixing ratios
+!> @param[in]     rho_np1   Density of dry air, after solver
+!> @param[in]     rho_star  Density of dry air, after transport
+!> @param[in]     dry_flux  Dry mass flux associated with solver increment
+subroutine solver_moist_correction_alg(mr, rho_np1, rho_star, dry_flux)
+
+  implicit none
+
+  ! Arguments
+  type(field_type), intent(inout) :: mr(nummr)
+  type(field_type), intent(in)    :: rho_np1
+  type(field_type), intent(in)    :: rho_star
+  type(field_type), intent(in)    :: dry_flux
+
+  ! Local variables
+  type(mesh_type),           pointer :: mesh
+  type(mesh_type),           pointer :: shifted_mesh
+  integer(kind=i_def)                :: i, shifted_mesh_id
+  type(function_space_type), pointer :: w2_sh_fs
+  type(function_space_type), pointer :: w3_sh_fs
+  type(field_type),          pointer :: volume_shifted
+  type(field_type)                   :: rho_star_shifted
+  type(field_type)                   :: rho_np1_shifted
+  type(field_type)                   :: rho_X_star
+  type(field_type)                   :: rho_X_inc
+  type(field_type)                   :: rho_X_np1
+  type(field_type)                   :: dry_flux_shifted
+  type(field_type)                   :: tracer_flux
+
+  if ( subroutine_timers ) call timer('dynamics.solver_moist_correct')
+
+  ! Calculate rho and dry flux at shifted W2
+  mesh => rho_np1%get_mesh()
+  shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+  shifted_mesh_id = shifted_mesh%get_id()
+
+  w2_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2)
+  w3_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W3)
+  volume_shifted => get_detj_at_w3_fv(shifted_mesh_id)
+
+  ! Initialise fields
+  call rho_star_shifted%initialise(w3_sh_fs)
+  call rho_np1_shifted%initialise(w3_sh_fs)
+  call rho_X_star%initialise(w3_sh_fs)
+  call rho_X_inc%initialise(w3_sh_fs)
+  call rho_X_np1%initialise(w3_sh_fs)
+  call dry_flux_shifted%initialise(w2_sh_fs)
+  call tracer_flux%initialise(w2_sh_fs)
+
+  ! Map densities and dry flux to shifted mesh
+  call obtain_shifted_rho(rho_star_shifted, rho_star)
+  call obtain_shifted_rho(rho_np1_shifted, rho_np1)
+  call map_w2_to_sh_w2_alg_rdef(dry_flux_shifted, dry_flux)
+
+  ! For each species, increment the mixing ratio conservatively
+  do i = 1, nummr_to_transport
+    call invoke(                                                               &
+      ! Calculate tracer density at W3 points
+      X_times_Y(rho_X_star, rho_star_shifted, mr(i)),                          &
+      ! Calculate tracer flux as product of dry flux and upwind mixing ratio
+      setval_c(tracer_flux, 0.0_r_def),                                        &
+      upwind_tracer_flux_kernel_type(tracer_flux, dry_flux_shifted, mr(i)),    &
+      ! Limit flux
+      flux_limiter_kernel_type(tracer_flux, rho_X_star, volume_shifted),       &
+      ! Calculate increment as divergence of flux
+      fv_divergence_3d_kernel_type(rho_X_inc, tracer_flux, volume_shifted),    &
+      ! Update tracer density with increment
+      X_minus_Y(rho_X_np1, rho_X_star, rho_X_inc),                             &
+      ! Recalculate tracer mixing ratio, dividing by the final density
+      X_divideby_Y(mr(i), rho_X_np1, rho_np1_shifted),                         &
+      ! Enforce numerical non-negativity
+      inc_max_aX(0.0_r_def, mr(i))                                             &
+    )
+  end do
+
+  if (write_conservation_diag) then
+    call moisture_conservation_alg(rho_np1, mr, 'After solver_correction' )
+  end if
+
+  if ( subroutine_timers ) call timer('dynamics.solver_moist_correct')
+
+end subroutine solver_moist_correction_alg
+
+end module solver_moist_correction_alg_mod
