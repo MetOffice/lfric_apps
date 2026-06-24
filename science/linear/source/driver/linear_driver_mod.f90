@@ -35,7 +35,7 @@ module linear_driver_mod
   use log_mod,                    only : log_event,         &
                                          log_scratch_space, &
                                          LOG_LEVEL_ALWAYS,  &
-                                         LOG_LEVEL_INFO
+                                         LOG_LEVEL_TRACE
   use linear_model_data_mod,      only : linear_create_ls, &
                                          linear_init_ls,   &
                                          linear_init_pert
@@ -76,11 +76,15 @@ contains
     type( mesh_type ),     pointer :: twod_mesh
     type( mesh_type ),     pointer :: aerosol_mesh
     type( mesh_type ),     pointer :: aerosol_twod_mesh
+    type( mesh_type ),     pointer :: nudging_mesh
+    type( mesh_type ),     pointer :: nudging_twod_mesh
 
     character( len=str_def )       :: prime_mesh_name
     character( len=str_def )       :: aerosol_mesh_name
+    character( len=str_def )       :: nudging_mesh_name
     logical( kind=l_def )          :: coarse_aerosol_ancil
     logical( kind=l_def )          :: coarse_ozone_ancil
+    logical( kind=l_def )          :: coarse_nudging
     integer( kind=i_def )          :: init_option
     logical( kind=l_def )          :: nodal_output_on_w3
 
@@ -94,6 +98,7 @@ contains
     real(r_def), allocatable :: real_array(:)
 
     nullify( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, depository )
+    nullify( nudging_mesh, nudging_twod_mesh )
 
     depository => modeldb%fields%get_field_collection("depository")
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
@@ -133,16 +138,29 @@ contains
 
     ! If aerosol data is on a different mesh, get this
     if (coarse_aerosol_ancil .or. coarse_ozone_ancil) then
-      ! For now use the coarsest mesh
       aerosol_mesh_name = modeldb%config%multires_coupling%aerosol_mesh_name()
-
       aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
       aerosol_twod_mesh => mesh_collection%get_mesh(aerosol_mesh, TWOD)
       write( log_scratch_space,'(A,A)' ) "aerosol mesh name:", aerosol_mesh%get_mesh_name()
-      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     else
       aerosol_mesh => mesh
       aerosol_twod_mesh => twod_mesh
+    end if
+
+    ! Get information on nudging and if data is on a different mesh, get this
+    ! Use the prim mesh by default
+    nudging_mesh => mesh
+    nudging_twod_mesh => twod_mesh
+    if ( modeldb%config%formulation%use_multires_coupling() ) then
+      coarse_nudging = modeldb%config%multires_coupling%coarse_nudging()
+      if (coarse_nudging) then
+        nudging_mesh_name = modeldb%config%multires_coupling%nudging_mesh_name()
+        nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
+        nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
+        write( log_scratch_space,'(A,A)' ) "nudging mesh name:", nudging_mesh%get_mesh_name()
+        call log_event( log_scratch_space, LOG_LEVEL_TRACE )
+      end if
     end if
 
     ! Instantiate the fields stored in model_data
@@ -150,7 +168,9 @@ contains
                             mesh,         &
                             twod_mesh,    &
                             aerosol_mesh, &
-                            aerosol_twod_mesh )
+                            aerosol_twod_mesh, &
+                            nudging_mesh, &
+                            nudging_twod_mesh )
 
     ! Instantiate the fields required to read the initial
     ! conditions from a file.

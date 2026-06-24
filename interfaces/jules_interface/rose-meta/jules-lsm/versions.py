@@ -389,5 +389,19 @@ class vn31_t205(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_vegetation", "l_use_pft_psi"], ".false."
         )
+        return config, self.reports
+
+
+class vn31_t401(MacroUpgrade):
+    """Upgrade macro for ticket #401 by Dan Copsey."""
+
+    BEFORE_TAG = "vn3.1_t205"
+    AFTER_TAG = "vn3.1_t401"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        self.add_setting(
+            config, ["namelist:jules_hydrology", "l_inland"], ".false."
+        )
 
         return config, self.reports

@@ -109,7 +109,7 @@ contains
     use c_z0h_z0m, only: c_z0h_z0m_print, c_z0h_z0m_check, z0h_z0m
     use jules_hydrology_mod, only: check_jules_hydrology,                   &
          print_nlist_jules_hydrology, l_hydrology, l_top, l_var_rainfrac,   &
-         nfita, ti_max, ti_wetl, zw_max
+         nfita, ti_max, ti_wetl, zw_max, l_inland
     use jules_irrig_mod, only: l_irrig_dmd
     use jules_radiation_mod, only: i_sea_alb_method,                        &
                                    l_embedded_snow, l_mask_snow_orog,       &
@@ -198,6 +198,7 @@ contains
     ! JULES hydrology settings - contained in module jules_hydrology
     ! ----------------------------------------------------------------
     l_hydrology    = config%jules_hydrology%l_hydrology()
+    l_inland       = config%jules_hydrology%l_inland()
     l_top          = .true.
     l_var_rainfrac = config%jules_hydrology%l_var_rainfrac()
     nfita          = 30
