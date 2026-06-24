@@ -38,10 +38,10 @@
         "opt_confs": ["ral_seuk","oasis"],
         "resolution": "seuk_MG",
         "dst_mesh": "seuk_MG",
-        "dst_name": "multigrid_l1",
+        "dst_name": "l1_planar",
         "dst_type": "regional",
         "src_mesh": "seuk_MG",
-        "src_name": "dynamics",
+        "src_name": "l0_planar",
         "src_type": "regional",
     }) %}
 
@@ -51,10 +51,10 @@
         "opt_confs": ["ral_seuk","oasis"],
         "resolution": "seuk_MG",
         "dst_mesh": "seuk_MG",
-        "dst_name": "multigrid_l1",
+        "dst_name": "l1_planar",
         "dst_type": "regional",
         "src_mesh": "seuk_MG",
-        "src_name": "dynamics",
+        "src_name": "l0_planar",
         "src_type": "regional",
         "mpi_parts": 4,
     }) %}
@@ -130,10 +130,10 @@
         "opt_confs": ["clim_gal9","oasis"],
         "resolution": "C24_C12",
         "dst_mesh": "C24_C12",
-        "dst_name": "C24",
+        "dst_name": "l0_cubedsphere",
         "dst_type": "global",
         "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_name": "l1_cubedsphere",
         "src_type": "global",
     }) %}
 
@@ -143,10 +143,10 @@
         "opt_confs": ["clim_gal9","oasis"],
         "resolution": "C24_C12",
         "dst_mesh": "C24_C12",
-        "dst_name": "C24",
+        "dst_name": "l0_cubedsphere",
         "dst_type": "global",
         "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_name": "l1_cubedsphere",
         "src_type": "global",
         "mpi_parts": 6,
     }) %}
@@ -157,10 +157,10 @@
         "opt_confs": ["clim_gal9_ral_seuk","oasis"],
         "resolution": "C12_C16_lam",
         "dst_mesh": "seuk_MG",
-        "dst_name": "dynamics",
+        "dst_name": "l0_planar",
         "dst_type": "regional",
         "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_name": "l1_cubedsphere",
         "src_type": "global",
     }) %}
 
@@ -170,10 +170,10 @@
         "opt_confs": ["clim_gal9_ral_seuk","oasis", "multi-cpu"],
         "resolution": "C12_C16_lam",
         "dst_mesh": "seuk_MG",
-        "dst_name": "dynamics",
+        "dst_name": "l0_planar",
         "dst_type": "regional",
         "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_name": "l1_cubedsphere",
         "src_type": "global",
         "mpi_parts": 4,
     }) %}
@@ -184,10 +184,10 @@
         "opt_confs": ["clim_gal9_ral_seuk","oasis","lbc"],
         "resolution": "C12_C16_lam",
         "dst_mesh": "seuk_MG",
-        "dst_name": "dynamics-lbc",
+        "dst_name": "l0_planar-lbc",
         "dst_type": "regional",
         "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_name": "l1_cubedsphere",
         "src_type": "global",
     }) %}
 
@@ -197,10 +197,10 @@
         "opt_confs": ["clim_gal9_ral_seuk","oasis","lbc", "multi-cpu"],
         "resolution": "C12_C16_lam",
         "dst_mesh": "seuk_MG",
-        "dst_name": "dynamics-lbc",
+        "dst_name": "l0_planar-lbc",
         "dst_type": "regional",
         "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_name": "l1_cubedsphere",
         "src_type": "global",
         "mpi_parts": 4,
     }) %}
