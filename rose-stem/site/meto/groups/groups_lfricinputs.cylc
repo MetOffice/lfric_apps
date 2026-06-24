@@ -218,6 +218,10 @@
         "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit",
     ],
+    "lfric2um_ex1a_r2o": [
+        "lfricinputs_lfric2um-r2o-C224L70_N512L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-r2o-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",
+    ],
     "lfric2um_ex1a_weekly": [
         "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",

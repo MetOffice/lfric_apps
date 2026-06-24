@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+
+  <context id = "gungho_atm">
+
+    <axis_definition>
+      <axis id="vert_axis_half_levels" name="half_levels"/>
+      <axis id="vert_axis_full_levels" name="full_levels"/>
+      <axis id="radiation_levels" name="radiation_levels"/>
+      <axis id="land_tiles" name="land_tiles" n_glo="9"/>
+      <axis id="surface_tiles" name="surface_tiles" n_glo="11"/>
+      <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" n_glo="27"/>
+      <axis id="soil_levels" name="soil_levels" n_glo="4"/>
+      <axis id="plant_func_types" name="plant_func_types" n_glo="5"/>
+      <axis id="monthly_climatology" name="monthly_climatology" n_glo="12"/>
+    </axis_definition>
+
+    <grid_definition>
+      <grid id="node_grid">
+	<domain domain_ref="node"/>
+	<axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_face_grid">
+	<domain domain_ref="face"/>
+	<axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="full_level_face_grid">
+	<domain domain_ref="face"/>
+	<axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_edge_grid">
+	<domain domain_ref="edge"/>
+	<axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="soil_levels_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="soil_levels"/>
+      </grid>
+      <grid id="surface_tiles_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="surface_tiles"/>
+      </grid>
+      <grid id="snow_layers_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="snow_layers_and_tiles"/>
+      </grid>
+      <grid id="3D_monthly_grid">
+	<domain domain_ref="face"/>
+	<axis axis_ref="vert_axis_full_levels"/>
+	<axis axis_ref="monthly_climatology"/>
+      </grid>
+      <grid id="pft_monthly_grid">
+	<domain domain_ref="face"/>
+	<axis axis_ref="plant_func_types"/>
+	<axis axis_ref="monthly_climatology"/>
+      </grid>
+    </grid_definition>
+
+    <file_definition
+	type="one_file"
+	time_counter="none">
+
+      <!-- File definition for lfric checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group id="lfric_checkpoint_read_field_group" >
+	<field id="read_u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
+	<field id="read_v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
+	<field id="read_w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="instant" />
+    <field id="read_rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="instant" />
+	<field id="read_qv" name="qv" long_name="specific_humidity" standard_name="specific_humidity" unit="kg kg-1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_qsnow" name="qsnow" long_name="specific_snow" standard_name="mass_fraction_of_snow_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_qcl" name="qcl" long_name="specific_cloud_liquid_water" standard_name="mass_fraction_of_cloud_liquid_water_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_m_cf" name="m_cf" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_area_fraction" name="area_fraction" long_name="cloud_area_fraction" unit="1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_bulk_fraction" name="bulk_fraction" long_name="cloud_bulk_fraction" unit="1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="instant" />
+	<field id="read_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="instant" />
+	<field id="read_z0m" name="z0m" long_name="surface_roughness_length" unit="m" domain_ref="face" operation="instant" />
+	<field id="read_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="instant" />
+	<field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" domain_ref="face" operation="instant" />
+ 	<field id="read_sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" operation="instant" />
+<!-- soil_levels fields
+	<field id="read_layer_soil_moisture_content" name="layer_soil_moisture_content" long_name="mass_content_of_water_in_soil_layer" unit="kg m-2" grid_ref="soil_levels_face_grid" operation="instant" />
+	<field id="read_soil_temperature" name="soil_temperature" long_name="Soil temperature" unit="K" grid_ref="soil_levels_face_grid" operation="instant" />
+	<field id="read_unfrozen_soil_moisture" name="unfrozen_soil_moisture" long_name="mass_fraction_of_unfrozen_water_in_saturated_soil_moisture" unit=" " grid_ref="soil_levels_face_grid" operation="instant" />
+	<field id="read_frozen_soil_moisture" name="frozen_soil_moisture" long_name="mass_fraction_of_frozen_water_in_saturated_soil_moisture" unit=" " grid_ref="soil_levels_face_grid" operation="instant" />
+-->
+<!-- surface_tiles fields
+	<field id="read_canopy_water_content" name="canopy_water_content" long_name="canopy_water_amount" unit="kg m-2" grid_ref="surface_tiles_face_grid" operation="instant" />
+	<field id="read_snow_rgrain" name="snow_rgrain" long_name="tile_snow_grain_size" unit="microns" grid_ref="surface_tiles_face_grid" operation="instant" />
+	<field id="read_tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" grid_ref="surface_tiles_face_grid" operation="instant" />
+	<field id="read_snow_mass_on_tiles" name="snow_mass_on_tiles" long_name="surface_snow_amount" unit="kg m-2" grid_ref="surface_tiles_face_grid" operation="instant" />
+	<field id="read_snow_depth" name="snow_depth" long_name="snow_depth" unit="m" grid_ref="surface_tiles_face_grid" operation="instant" />
+	<field id="read_snowpack_density" name="snowpack_density" long_name="snowpack_density" unit="kg m-3" grid_ref="surface_tiles_face_grid" operation="instant" />
+-->
+<!-- snow_layers_and_tiles fields
+	<field id="read_snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness" unit="m" grid_ref="snow_layers_face_grid" operation="instant" />
+	<field id="read_snow_layer_ice_mass" name="snow_layer_ice_mass" long_name="snow_layer_ice_mass" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
+	<field id="read_snow_layer_liq_mass" name="snow_layer_liq_mass" long_name="snow_layer_liquid_mass" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
+	<field id="read_snow_layer_temp" name="snow_layer_temp" long_name="snow_layer_temperature" unit="K" grid_ref="snow_layers_face_grid" operation="instant" />
+	<field id="read_snow_layer_rgrain" name="snow_layer_rgrain" long_name="snow_layer_grain_size" unit="microns" grid_ref="snow_layers_face_grid" operation="instant" />
+    -->
+       </field_group>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_size_factor" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
+        <variable id = "print_file" type="bool">$XIOS_PRINT_FILE</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>
