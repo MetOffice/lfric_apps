@@ -14,10 +14,10 @@ TRANSMUTE_INCLUDE_METHOD ?= specify_include
 #
 MACRO_ARGS := $(addprefix -D,$(PRE_PROCESS_MACROS))
 
-# Find the specific files we wish to pre process and psyclone from physics source
+# Find the specific files we wish to transmute psyclone from physics source
 # Set our target dependency to the version of the file we are to generate after
 # The preprocessing step. #
-# .xu90 files are to represent preprocessed source, bound for psyclone,
+# .xu90 files are to represent preprocessed source, bound for transmute psyclone,
 # but are not psykal files, denoted by .x90
 #
 ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_include")
@@ -49,25 +49,8 @@ include $(LFRIC_BUILD)/fortran.mk
 #
 pre_process: $(SOURCE_xu_FILES)
 
-# Make a copy of target file,
-# Preprocess target file,
-# Remove original F90, see psyclone step
+# Move the pre-processed source to an .xu90 file
 #
-# For the nvidia compiler, they only output into f90,
-# we need to move any f90 files to xu90 files for psyclone.
-# It also seems to place them at the root of the working dir.
-# See ticket Apps#624 for further context
-#
-ifeq ("$(FORTRAN_COMPILER)", "nvfortran")
-$(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.F90
-	echo Pre processing $<
-	$(FPP) $(FPPFLAGS) $(MACRO_ARGS) -o $@ $<
+$(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.f90
+	echo Moving $< to xu90 for Transmute
 	-mv $(SOURCE_DIR)/$*.f90 $@
-	-mv $(shell basename $*.f90) $@
-	rm $<
-else
-$(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.F90
-	echo Pre processing $<
-	$(FPP) $(FPPFLAGS) $(MACRO_ARGS) $< >$@
-	rm $<
-endif
