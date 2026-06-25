@@ -123,7 +123,7 @@ contains
     transport_metadata_collection = transport_metadata_collection_type()
 
     ! Set up configs using namelist entries
-    do i=1, profile_size
+    do i = 1, profile_size
 
       write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(i)),' transport metadata'
       call log_event(log_scratch_space, LOG_LEVEL_INFO)

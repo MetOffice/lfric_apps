@@ -279,7 +279,7 @@ contains
         topology = topology_non_periodic
 
       case default
-        call log_event("Invalid geometry for mesh initialisation", &
+        call log_event("Invalid topology for mesh initialisation", &
                        log_level_error)
     end select
 
