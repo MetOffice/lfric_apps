@@ -7,6 +7,8 @@
 
 module bl_imp_alg_mod
 
+  ! Object types
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, l_def
   use model_clock_mod,               only: model_clock_type
   use field_mod,                     only: field_type
@@ -41,9 +43,6 @@ module bl_imp_alg_mod
   use stochastic_physics_config_mod, only: blpert_type, &
                                            blpert_type_theta_star, &
                                            blpert_type_theta_and_moist
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

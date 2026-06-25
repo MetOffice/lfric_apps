@@ -8,15 +8,13 @@
 
 module blpert_main_alg_mod
 
+  use clock_mod,            only: clock_type
+  use config_mod,           only: config_type
   use constants_mod,        only: i_def, r_def, l_def
   use field_collection_mod, only: field_collection_type
   use field_mod,            only: field_type, field_proxy_type
   use integer_field_mod,    only: integer_field_type
-  use clock_mod,            only: clock_type
   use timing_mod,           only: start_timing, stop_timing, tik, LPROF
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

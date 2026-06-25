@@ -7,6 +7,8 @@
 !> @brief Process ocean and sea ice data coming through the coupler
 
 module process_recv_fields_2d_mod
+
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def
   use process_send_fields_2d_mod,    only: save_marine_fractions
   use field_mod,                     only: field_type
@@ -18,10 +20,7 @@ module process_recv_fields_2d_mod
   use log_mod,                       only: log_event, LOG_LEVEL_INFO
   use mesh_mod,                      only: mesh_type
   use sci_multi_insert_kernel_mod,   only: multi_insert_kernel_type
-  use derived_config_mod,         only: l_couple_ocean, l_couple_sea_ice
-
-  ! Object types
-  use config_mod, only: config_type
+  use derived_config_mod,            only: l_couple_ocean, l_couple_sea_ice
 
   implicit none
 

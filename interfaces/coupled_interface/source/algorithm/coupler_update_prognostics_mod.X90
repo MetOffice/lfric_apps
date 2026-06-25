@@ -8,6 +8,8 @@
 !> @brief from the coupler
 
 module coupler_update_prognostics_mod
+
+  use config_mod,                    only: config_type
   use field_mod,                     only: field_type, field_proxy_type
   use fs_continuity_mod,             only: W3
   use function_space_mod,            only: function_space_type
@@ -35,9 +37,6 @@ module coupler_update_prognostics_mod
   use derived_config_mod,            only: l_couple_sea_ice
 #endif
   use sci_field_minmax_alg_mod,      only: log_field_minmax
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

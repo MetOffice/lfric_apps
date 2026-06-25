@@ -7,6 +7,7 @@
 
 module cld_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def, str_def
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
@@ -35,9 +36,6 @@ module cld_alg_mod
   use cld_diags_mod,                 only: initialise_diags_for_cld,      &
                                            output_diags_for_cld
   use um_sizes_init_mod,             only: um_sizes_init
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -145,9 +143,7 @@ contains
 
     ! Map updated pressure into wtheta space
     call derived_fields%get_field('exner_in_wth', exner_wth)
-    if (.not. call_b4_conv) then
-      call map_physics_scalars(config, exner_wth, exner)
-    end if
+    if (.not. call_b4_conv) call map_physics_scalars(config, exner_wth, exner)
 
     call cloud_fields%get_field('bulk_fraction', cf_bulk)
     call cloud_fields%get_field('area_fraction', cf_area)

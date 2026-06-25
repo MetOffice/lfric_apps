@@ -7,6 +7,7 @@
 
 module rad_tile_alg_mod
 
+use config_mod,                    only: config_type
 use field_mod,                     only: field_type
 use field_collection_mod,          only: field_collection_type
 use function_space_collection_mod, only: function_space_collection
@@ -41,9 +42,6 @@ use socrates_init_mod, only: wavelength_short, wavelength_long, &
 
 use sw_rad_tile_kernel_mod, only: sw_rad_tile_kernel_type
 use lw_rad_tile_kernel_mod, only: lw_rad_tile_kernel_type
-
-! Object types
-use config_mod, only: config_type
 
 implicit none
 private
