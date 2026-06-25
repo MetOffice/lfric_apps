@@ -298,9 +298,10 @@ contains
     ! ------------------------------------------------------------------------ !
 
     splitting = splitting_strang_hvh
-    call lipschitz_splitting_alg( config, max_lipschitz, splitting_strang_hvh, &
-                                  LOG_LEVEL_DEBUG, lipschitz_x, lipschitz_y,   &
-                                  lipschitz_z )
+    call lipschitz_splitting_alg(                                              &
+            config, max_lipschitz, splitting_strang_hvh, LOG_LEVEL_DEBUG,      &
+            lipschitz_x, lipschitz_y, lipschitz_z                              &
+    )
 
     if (max_lipschitz < 0.95_r_tran) then
       ! This splitting is stable, so use it as it will be cheaper than VHVHV
@@ -308,10 +309,10 @@ contains
 
     else
       ! Try VHVHV splittings
-      call lipschitz_splitting_alg( config, max_lipschitz_tmp,              &
-                                    splitting_vhvhv_third, LOG_LEVEL_DEBUG, &
-                                    lipschitz_x, lipschitz_y, lipschitz_z )
-
+      call lipschitz_splitting_alg(                                            &
+              config, max_lipschitz_tmp, splitting_vhvhv_third,                &
+              LOG_LEVEL_DEBUG, lipschitz_x, lipschitz_y, lipschitz_z           &
+      )
       if (max_lipschitz_tmp < max_lipschitz) then
         splitting = splitting_vhvhv_third
         max_lipschitz = max_lipschitz_tmp
@@ -320,7 +321,10 @@ contains
       call lipschitz_splitting_alg( config, max_lipschitz_tmp,                &
                                     splitting_vhvhv_quarter, LOG_LEVEL_DEBUG, &
                                     lipschitz_x, lipschitz_y, lipschitz_z )
-
+      call lipschitz_splitting_alg(                                            &
+              config, max_lipschitz_tmp, splitting_vhvhv_quarter,              &
+              LOG_LEVEL_DEBUG, lipschitz_x, lipschitz_y, lipschitz_z           &
+      )
       if (max_lipschitz_tmp < max_lipschitz) then
         splitting = splitting_vhvhv_quarter
         max_lipschitz = max_lipschitz_tmp

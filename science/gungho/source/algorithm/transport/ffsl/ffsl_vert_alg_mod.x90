@@ -280,9 +280,9 @@ contains
     type(config_type), pointer :: config
 
     ! Get pre-computed objects and set pointers --------------------------------
-    config  => transport_controller%get_config()
-    mesh    => field_n%get_mesh()
-    mesh_id =  field_n%get_mesh_id()
+    config => transport_controller%get_config()
+    mesh => field_n%get_mesh()
+    mesh_id = field_n%get_mesh_id()
 
     transport_counter  => transport_controller%get_transport_counter()
     transport_metadata => transport_controller%get_transport_metadata()

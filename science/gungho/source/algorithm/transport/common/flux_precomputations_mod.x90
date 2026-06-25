@@ -1128,12 +1128,11 @@ contains
           detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
           call invoke( X_minus_Y(tmp_mass, ref_mass_prev, increment),      &
                        X_divideby_Y(tmp_field, tmp_mass, detj_w3) )
-          call remap_on_extended_mesh( self%config,                    &
-                                       self%ref_field(mesh_idx, step), &
-                                       tmp_field, self%ref_monotone,   &
-                                       self%ref_enforce_min_value,     &
-                                       self%ref_min_value, halo_depth )
-
+          call remap_on_extended_mesh(                                         &
+              self%config,                                                     &
+              self%ref_field(mesh_idx, step), tmp_field, self%ref_monotone,    &
+              self%ref_enforce_min_value, self%ref_min_value, halo_depth       &
+          )
           call invoke_deep_X_times_Y(self%ref_mass(mesh_idx, step),            &
                                      self%ref_field(mesh_idx, step), detj_w3)
 
@@ -1894,7 +1893,8 @@ contains
       ! Remap field in y
       call invoke( setval_X(tmp_mass, self%ref_mass_y(mesh_idx, step_idx)),    &
                    X_divideby_Y(tmp_field, tmp_mass, detj_w3) )
-      call remap_on_extended_mesh(self%config,                                 &
+      call remap_on_extended_mesh(                                             &
+          self%config,                                                         &
           self%ref_field_y(mesh_idx, step_idx), tmp_field, self%ref_monotone,  &
           self%ref_enforce_min_value, self%ref_min_value, halo_depth           &
       )
@@ -2156,11 +2156,13 @@ contains
       ! We're about to fail... log the Lipschitz numbers and field stats
       ! Protect this behind a log level check to avoid potentially hanging here
       if (log_at_level(LOG_LEVEL_INFO)) then
-        call lipschitz_diag_alg(self%config,                                   &
+        call lipschitz_diag_alg(                                               &
+                self%config,                                                   &
                 self%splitting, self%transporting_wind,                        &
                 self%dt, LOG_LEVEL_WARNING                                     &
         )
-        call print_field_stats_alg_rtran(self%config,                          &
+        call print_field_stats_alg_rtran(                                      &
+                self%config,                                                   &
                 field, LOG_LEVEL_WARNING, 0.0_r_tran, HUGE(1.0_r_tran),        &
                 field_name                                                     &
         )

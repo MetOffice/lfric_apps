@@ -376,7 +376,7 @@ contains
     end if
 
     ! Get pre-computed fields
-    detj_at_w3      => get_detj_at_w3_r_tran(config, mesh)
+    detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
     detj_at_w3_copy => get_detj_at_w3_r_tran(config, mesh)
     adv_one_x => wind_precomputations%get_adv_unity_x(mesh_id, splitting, step)
     adv_one_y => wind_precomputations%get_adv_unity_y(mesh_id, splitting, step)
@@ -600,9 +600,9 @@ contains
     type(config_type), pointer :: config
 
     ! Get pre-computed objects and set pointers --------------------------------
-    config  => transport_controller%get_config()
-    mesh    => field_x%get_mesh()
-    mesh_id =  field_x%get_mesh_id()
+    config => transport_controller%get_config()
+    mesh => field_x%get_mesh()
+    mesh_id = field_x%get_mesh_id()
 
     transport_counter => transport_controller%get_transport_counter()
     transport_metadata => transport_controller%get_transport_metadata()
@@ -669,7 +669,7 @@ contains
       )
     else
       ! Reset unity for advective/conservative forms
-      dry_mass_n      => get_detj_at_w3_r_tran(config, mesh)
+      dry_mass_n => get_detj_at_w3_r_tran(config, mesh)
       dry_mass_n_copy => get_detj_at_w3_r_tran(config, mesh)
       dry_mass_x => wind_precomputations%get_adv_detj_x(                       &
           mesh_id, splitting, step                                             &
