@@ -599,7 +599,7 @@ module coupler_mod
 
     call iter%initialise(cpl_rcv_2d)
     do
-      if (.not. iter%has_next()) exit
+      if (.not.iter%has_next()) exit
       field => iter%next()
       select type(field)
       type is (field_type)
@@ -636,7 +636,7 @@ module coupler_mod
       ! Update the prognostics
       call iter%initialise(cpl_rcv_2d)
       do
-        if (.not. iter%has_next()) exit
+        if (.not.iter%has_next()) exit
         field => iter%next()
         call cpl_rcv_2d%get_field( &
                                trim(field%get_name()), field_ptr)

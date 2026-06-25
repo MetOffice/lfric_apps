@@ -43,7 +43,7 @@ contains
     implicit none
 
     character(len=*),              intent(out) :: mesh_name
-    type(config_type),             intent(in)  :: config
+    type(config_type),              intent(in) :: config
     !> @todo: This should be intent in but when calling the method I get
     !> a compiler failure
     class(lfric_mpi_type),       intent(inout) :: mpi_obj

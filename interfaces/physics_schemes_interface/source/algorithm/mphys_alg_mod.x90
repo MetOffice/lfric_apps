@@ -152,7 +152,7 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth => get_height_fv(config, mesh, wtheta)
+    height_wth => get_height_fv(config, mesh, Wtheta)
     height_w3  => get_height_fv(config, mesh, W3)
 
     call theta%copy_field_properties(dcfl_mphys)

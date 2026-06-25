@@ -94,7 +94,8 @@ module process_send_fields_0d_mod
   call depository%get_field("tile_snow_mass", snow_mass_on_tiles_ptr)
   call depository%get_field('tile_fraction', tile_fraction_ptr)
 
-  call ice_sheet_mass( modeldb%config, fld,    &
+  call ice_sheet_mass( modeldb%config, &
+                       fld,            &
                        snow_mass_on_tiles_ptr, &
                        tile_fraction_ptr,      &
                        scalar )

@@ -99,7 +99,7 @@ contains
     allocate(plevs(nplev))
     plevs = get_axis_values('pressure_levels',nplev)
     call derived_fields%get_field('exner_in_wth', exner_wth)
-    height_wth => get_height_fv(config, exner_w3%get_mesh(), wtheta)
+    height_wth => get_height_fv(config, exner_w3%get_mesh(), Wtheta)
 
     ! Heaviside function
     plev_heaviside_flag = init_diag(plev_heaviside, 'plev__heaviside')

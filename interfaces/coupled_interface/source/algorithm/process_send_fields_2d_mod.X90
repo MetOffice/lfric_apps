@@ -283,7 +283,8 @@ module process_send_fields_2d_mod
   !> @param[in]  snow_mass_on_tiles  Pointer to the snow mass on tiles field
   !> @param[in]  tile_fraction  Pointer to the tile fraction field
   !> @param[out] imass          Total snow mass as scalar
-  subroutine ice_sheet_mass(config, mask_field, &
+  subroutine ice_sheet_mass(config,  &
+                            mask_field, &
                             snow_mass_on_tiles, &
                             tile_fraction,      &
                             imass)
