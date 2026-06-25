@@ -131,9 +131,9 @@ contains
 
     mesh_id = mesh%get_id()
 
-    height_w1  => get_height_fv(config, mesh, W1)
-    height_w2  => get_height_fv(config, mesh, W2)
-    height_w3  => get_height_fv(config, mesh, W3)
+    height_w1 => get_height_fv(config, mesh, W1)
+    height_w2 => get_height_fv(config, mesh, W2)
+    height_w3 => get_height_fv(config, mesh, W3)
     height_wth => get_height_fv(config, mesh, Wtheta)
     delta_at_wtheta => get_delta_at_wtheta(mesh)
 

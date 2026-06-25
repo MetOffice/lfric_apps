@@ -17,7 +17,7 @@ module dycore_constants_mod
   ! Infrastructure
   use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
                                                 r_second, EPS
-  use sci_geometric_constants_mod,        only: get_coordinates, &
+  use sci_geometric_constants_mod,        only: get_coordinates,               &
                                                 get_panel_id
   use sci_fem_constants_mod,              only: get_qr_fe
   use field_mod,                          only: field_type
@@ -117,7 +117,7 @@ contains
     if (.not. constant_exists) then
       w2_fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                 element_order_v, W2)
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
       qr => get_qr_fe()
 
@@ -173,7 +173,7 @@ contains
       ! As this operator is used for initialisation, it always uses lowest-order
       w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
       wt_fs => function_space_collection%get_fs(mesh, 0, 0, Wtheta)
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
       qr => get_qr_fe()
 
@@ -372,7 +372,7 @@ contains
 
         ! Create damping layer mass matrix -------------------------------------
         if (dlayer_on) then
-          chi      => get_coordinates(mesh)
+          chi => get_coordinates(mesh)
           panel_id => get_panel_id(mesh)
           qr => get_qr_fe()
 
