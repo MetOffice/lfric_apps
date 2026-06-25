@@ -1,0 +1,301 @@
+<file_definition>
+
+  <!-- Ancillary files applicable to all setups -->
+  <file id="orography_mean_ancil" name="orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="surface_altitude" name="surface_altitude" long_name="surface_altitude" unit="m" operation="once" domain_ref="face"/>
+  </file>
+
+  <file id="sea_ancil" name="sea_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="sea_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="chloro_sea_data" name="mass_concentration_of_chlorophyll_a_in_sea_water" long_name="Mass concentration of chlorophyll A in sea water" unit="kg m-3" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+  </file>
+
+  <file id="albedo_vis_ancil" name="albedo_vis_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="albedo_vis_time" name="time" unit="days" operation="once" axis_ref="monthly_climatology"/>
+    <field id="albedo_obs_vis_data" name="surface_diffuse_albedo_of_photosynthetically_active_radiation_assuming_no_snow" long_name="surface_diffuse_albedo_of_photosynthetically_active_radiation_assuming_no_snow" unit="1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+  </file>
+
+  <file id="albedo_nir_ancil" name="albedo_nir_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="albedo_nir_time" name="time" unit="days" operation="once" axis_ref="monthly_climatology"/>
+    <field id="albedo_obs_nir_data" name="surface_diffuse_albedo_of_near_infra_red_radiation_assuming_no_snow" long_name="surface_diffuse_albedo_of_near_infra_red_radiation_assuming_no_snow" unit="1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+  </file>
+
+  <file id="soil_ancil" name="soil_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="soil_albedo" name="soil_albedo" long_name="soil_albedo" unit="1" operation="once" domain_ref="face"/>
+    <field id="soil_thermal_cond" name="soil_thermal_conductivity" long_name="soil_thermal_conductivity" unit="Wm-1K-1" operation="once" domain_ref="face"/>
+    <field id="soil_moist_wilt" name="volume_fraction_of_condensed_water_in_soil_at_wilting_point" long_name="soil_moisture_at_wilting_point" unit="m3 m-3" operation="once" domain_ref="face" />
+    <field id="soil_moist_crit" name="volume_fraction_of_condensed_water_in_soil_at_critical_point" long_name="soil_moisture_at_critical_point" unit="m3 m-3" operation="once" domain_ref="face" />
+    <field id="soil_moist_sat" name="soil_porosity" long_name="soil_moisture_at_saturation" unit="m3 m-3" operation="once" domain_ref="face" />
+    <field id="soil_cond_sat" name="soil_hydraulic_conductivity_at_saturation" long_name="soil_conductivity_at_saturation" unit="kg m-2 s-1" operation="once" domain_ref="face" />
+    <field id="soil_thermal_cap" name="soil_thermal_capacity" long_name="soil_thermal_capacity" unit="J K-1 m-3" operation="once" domain_ref="face" />
+    <field id="soil_suction_sat" name="soil_suction_at_saturation" long_name="soil_suction_at_saturation" unit="1" operation="once" domain_ref="face" />
+    <field id="clapp_horn_b" name="m01s00i207" long_name="exponent_for_soil_moisture_functions" unit="1" operation="once" domain_ref="face" />
+  </file>
+
+  <file id="soil_rough_ancil" name="soil_rough_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="soil_roughness" name="surface_roughness_length" long_name="soil_surface_roughness_length" unit="m" operation="once" domain_ref="face"/>
+  </file>
+
+  <file id="urban_ancil" name="urban_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="urbwrr" name="urbwrr" long_name="Urban width repeating ratio" unit="1" operation="once" domain_ref="face"/>
+    <field id="urbhwr" name="urbhwr" long_name="Urban height-to-width ratio" unit="1" operation="once" domain_ref="face"/>
+    <field id="urbhgt" name="urbhgt" long_name="Urban building height" unit="1" operation="once" domain_ref="face"/>
+  </file>
+
+  <file id="plant_func_ancil" name="plant_func_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="plant_func_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="canopy_height_data" name="canopy_height" long_name="canopy_height" unit="1" operation="once" grid_ref="pft_monthly_grid"/>
+    <field id="leaf_area_index_data" name="leaf_area_index" long_name="leaf_area_index" unit="1" operation="once" grid_ref="pft_monthly_grid"/>
+  </file>
+
+  <file id="ozone_ancil" name="ozone_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="ozone_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="ozone_data" name="mass_fraction_of_ozone_in_air" long_name="mass_fraction_of_ozone_in_air" unit="1" operation="instant" grid_ref="variable_3D_monthly_grid"/>
+  </file>
+
+  <!-- The following dust fields will need adding here when available in the ancillary file: acc_sol_du, cor_sol_du, n_acc_ins, acc_ins_du, n_cor_ins, cor_ins_du -->
+  <!-- Note that variable names have changed in code and will need to changed in the ancillary file in future,  e.g. OC to OM-->
+  <file id="aerosols_ancil" name="aerosols_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="aerosols_time" name="time" unit="days" operation="once" axis_ref="monthly_climatology"/>
+    <field id="n_ait_sol_data" name="AiSo___103" long_name="aitken_soluble_mode_number" unit="1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="ait_sol_su_data" name="AiSoSU_104" long_name="aitken_soluble_mode_h2so4_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="ait_sol_bc_data" name="AiSoBC_105" long_name="aitken_soluble_mode_black_carbon_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="ait_sol_om_data" name="AiSoOC_106" long_name="aitken_soluble_mode_organic_matter_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="n_acc_sol_data" name="AcSo___107" long_name="accumulation_soluble_mode_number" unit="1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="acc_sol_su_data" name="AcSoSU_108" long_name="accumulation_soluble_mode_h2so4_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="acc_sol_bc_data" name="AcSoBC_109" long_name="accumulation_soluble_mode_black_carbon_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="acc_sol_om_data" name="AcSoOC_110" long_name="accumulation_soluble_mode_organic_matter_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="acc_sol_ss_data" name="AcSoSS_111" long_name="accumulation_soluble_mode_sea_salt_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="n_cor_sol_data" name="CoSo___113" long_name="coarse_soluble_mode_number" unit="1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="cor_sol_su_data" name="CoSoSU_114" long_name="coarse_soluble_mode_h2so4_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="cor_sol_bc_data" name="CoSoBC_115" long_name="coarse_soluble_mode_black_carbon_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="cor_sol_om_data" name="CoSoOC_116" long_name="coarse_soluble_mode_organic_matter_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="cor_sol_ss_data" name="CoSoSS_117" long_name="coarse_soluble_mode_sea_salt_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="n_ait_ins_data" name="AiIn___119" long_name="aitken_insoluble_mode_number" unit="1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="ait_ins_bc_data" name="AiInBC_120" long_name="aitken_insoluble_mode_black_carbon_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+    <field id="ait_ins_om_data" name="AiInOC_121" long_name="aitken_insoluble_mode_organic_matter_mmr" unit="kg kg-1" operation="once" grid_ref="variable_3D_monthly_grid"/>
+  </file>
+
+  <!-- UKCA emission files -->
+     <file id="emiss_c2h6_ancil" name="emiss_c2h6_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c2h6_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_c2h6_data" name="emissions_C2H6" long_name="C2H6 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_c3h8_ancil" name="emiss_c3h8_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c3h8_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_c3h8_data" name="emissions_C3H8" long_name="C3H8 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_c5h8_ancil" name="emiss_c5h8_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_c5h8_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_c5h8_data" name="emissions_C5H8" long_name="Biogenic surface C5H8 emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_ch4_ancil" name="emiss_ch4_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_ch4_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_ch4_data" name="emissions_CH4" long_name="CH4 surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_co_ancil" name="emiss_co_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_co_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_co_data" name="emissions_CO" long_name="CO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_hcho_ancil" name="emiss_hcho_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_hcho_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_hcho_data" name="emissions_HCHO" long_name="HCHO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_me2co_ancil" name="emiss_me2co_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_me2co_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_me2co_data" name="emissions_Me2CO" long_name="Me2CO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_mecho_ancil" name="emiss_mecho_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_mecho_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_mecho_data" name="emissions_MeCHO" long_name="MeCHO surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_nh3_ancil" name="emiss_nh3_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_nh3_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_nh3_data" name="emissions_NH3" long_name="ammonia gas emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_no_ancil" name="emiss_no_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_no_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_no_data" name="emissions_NO" long_name="NOx surface emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_meoh_ancil" name="emiss_meoh_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_meoh_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_meoh_data" name="emissions_MeOH" long_name="Biogenic surface methanol (CH3OH) emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+      </file>
+
+     <file id="emiss_no_aircrft_ancil" name="emiss_no_aircrft_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <field id="em_no_aircrft_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+      <field id="emiss_no_aircrft_data" name="emissions_NO_aircrft" long_name="NOx aircraft emissions" unit="kg m-2 s-1" operation="instant" grid_ref="3D_monthly_grid"/>
+      </file>
+
+  <file id="emiss_bc_biofuel_ancil" name="emiss_bc_biofuel_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_bc_bf_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_bc_biofuel_data" name="emissions_BC_biofuel" long_name="BC biofuel surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_bc_fossil_ancil" name="emiss_bc_fossil_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_bc_ff_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_bc_fossil_data" name="emissions_BC_fossil" long_name="BC fossil fuel surf emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_bc_biomass_ancil" name="emiss_bc_biomass_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_bc_bb_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="emiss_bc_biomass_data" name="emissions_BC_biomass" long_name="BC biomass 3D emissions" unit="kg m-2 s-1" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+
+  <file id="emiss_bc_biomass_hi_ancil" name="emiss_bc_biomass_hi_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_bc_bb_hi_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_bc_biomass_high_data" name="emissions_BC_biomass_high" long_name="BC biomass high-level emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_bc_biomass_lo_ancil" name="emiss_bc_biomass_lo_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_bc_bb_lo_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_bc_biomass_low_data" name="emissions_BC_biomass_low" long_name="BC biomass low-level emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_dms_land_ancil" name="emiss_dms_land_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_dms_lnd_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="emiss_dms_land_data" name="emissions_DMS" long_name="DMS emissions expressed as sulfur" unit="kg(S) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+  </file>
+
+  <file id="dms_conc_ocean_ancil" name="dms_conc_ocean_ancil"  mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="dms_ocn_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="dms_conc_ocean_data" name="mole_concentration_of_dimethyl_sulfide_in_sea_water" long_name="mole_concentration_of_dimethyl_sulfide_in_sea_water" unit="nmoles l-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+  </file>
+
+  <file id="emiss_monoterp_ancil" name="emiss_monoterp_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_mterp_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="emiss_monoterp_data" name="emissions_Monoterp" long_name="Monoterpene surf emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+  </file>
+
+  <file id="emiss_om_biofuel_ancil" name="emiss_om_biofuel_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_om_bf_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_om_biofuel_data" name="emissions_OC_biofuel" long_name="OC biofuel surf emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_om_fossil_ancil" name="emiss_om_fossil_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_om_ff_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_om_fossil_data" name="emissions_OC_fossil" long_name="OC fossil fuel surf emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_om_biomass_ancil" name="emiss_om_biomass_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_om_bb_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="emiss_om_biomass_data" name="emissions_OC_biomass" long_name="OC biomass 3D emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+
+  <file id="emiss_om_biomass_hi_ancil" name="emiss_om_biomass_hi_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_om_bb_hi_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_om_biomass_high_data" name="emissions_OC_biomass_high" long_name="OC biomass high-level emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_om_biomass_lo_ancil" name="emiss_om_biomass_lo_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_om_bb_lo_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_om_biomass_low_data" name="emissions_OC_biomass_low" long_name="OC biomass low-level emissions expressed as carbon" unit="kg(C) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_so2_low_ancil" name="emiss_so2_low_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_so2_lo_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
+    <field id="emiss_so2_low_data" name="emissions_SO2_all_low_kgSO2" long_name="SO2 low level emissions" unit="kg(SO2) m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
+  </file>
+
+  <file id="emiss_so2_high_ancil" name="emiss_so2_high_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="em_so2_hi_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="emiss_so2_high_data" name="emissions_SO2_high" long_name="SO2 high level emissions expressed as sulfur" unit="kg(S) m-2 s-1" operation="instant" domain_ref="face" axis_ref="monthly_climatology"/>
+  </file>
+
+  <file id="emiss_so2_nat_ancil" name="emiss_so2_nat_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="emiss_so2_nat" name="emissions_SO2_nat_kgSO2" long_name="SO2 natural emissions" unit="kg(SO2) m-2 s-1" operation="once" grid_ref="full_level_face_grid"/>
+  </file>
+
+  <file id="soil_dust_ancil" name="soil_dust_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="soil_clay" name="volume_fraction_of_clay_in_soil" long_name="volume_fraction_of_clay_in_soil" unit="m3 m-3" operation="once" domain_ref="face"/>
+    <field id="soil_sand" name="volume_fraction_of_sand_in_soil" long_name="volume_fraction_of_sand_in_soil" unit="m3 m-3" operation="once" domain_ref="face"/>
+    <field id="dust_mrel" name="mass_fraction_of_dust_in_size_bins" long_name="mass_fraction_of_dust_in_size_bins" unit="kg kg-1" operation="once" domain_ref="face" axis_ref="dust_divisions" />
+  </file>
+
+  <file id="emiss_murk_ancil" name="emiss_murk_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="murk_time" name="time"  unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="murk_source_data" name="m01s00i057" long_name="emissions_of_murk_aerosol" unit="kg m-2 s-1" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+
+  <!--- UKCA Offline Oxidant ancils -->
+  <file id="h2o2_limit_ancil" name="h2o2_limit_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="h2o2_limit_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="h2o2_limit_data" name="H2O2" long_name="H2O2 mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+
+  <file id="ho2_ancil" name="ho2_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="ho2_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="ho2_data" name="HO2" long_name="HO2 mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+
+  <file id="no3_ancil" name="no3_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="no3_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="no3_data" name="NO3" long_name="NO3 mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+
+  <file id="o3_ancil" name="o3_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="o3_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="o3_data" name="O3" long_name="O3 mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+
+  <file id="oh_ancil" name="oh_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="oh_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="oh_data" name="OH" long_name="OH mass mixing ratio" unit="1" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+
+  <file id="snow_analysis_ancil" name="snow_analysis_ancil" mode="read" output_freq="1mo"  convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="snow_time" name="time" unit="hours" operation="once" axis_ref="one_time_axis"/>
+    <field id="tile_snow_rgrain_in_data" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" operation="instant" grid_ref="one_time_tile_grid"/>
+    <field id="tile_snow_mass_in_data" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2"  operation="instant" grid_ref="one_time_tile_grid"/>
+    <field id="snow_under_canopy_in_data" name="snow_under_canopy" long_name="snow_under_canopy" unit="kg m-2" operation="instant" grid_ref="one_time_tile_grid"/>
+    <field id="snow_depth_in_data" name="snow_depth" long_name="snow_depth" unit="m" operation="instant" grid_ref="one_time_tile_grid"/>
+    <field id="snowpack_density_in_data" name="snowpack_density" long_name="snowpack_density" unit="kg m-3" operation="instant" grid_ref="one_time_tile_grid"/>
+    <field id="n_snow_layers_in_data" name="n_snow_layers_real" long_name="number_of_snow_layers" unit="1" operation="instant"  grid_ref="one_time_tile_grid"/>
+    <field id="snow_layer_thickness_data" name="tile_snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
+    <field id="snow_layer_temp_data" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
+    <field id="snow_layer_ice_mass_data" name="snow_layer_ice_mass" long_name="snow_layer_ice_mass" unit="kg m-2" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
+    <field id="snow_layer_liq_mass_data" name="snow_layer_liq_mass" long_name="snow_layer_liquid_mass" unit="kg m-2" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
+    <field id="snow_layer_rgrain_data" name="snow_layer_rgrain" long_name="snow_layer_grain_size" unit="microns" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
+  </file>
+
+  <!--- Easy Aerosol ancils -->
+  <file id="cloud_drop_no_conc_ancil" name="cloud_drop_no_conc_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="cloud_drop_no_conc_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="cloud_drop_no_conc_data" name="cloud_drop_no_conc" long_name="cloud_droplet_number_concentration" unit="m-3" operation="instant" grid_ref="3D_monthly_grid"/>
+  </file>
+  <file id="easy_asymmetry_sw_ancil" name="easy_asymmetry_sw_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="easy_asymmetry_sw_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="easy_asymmetry_sw_data" name="easy_asymmetry_sw" long_name="asymmetry parameter of EasyAerosol" unit="1" operation="instant" grid_ref="full_level_face_grid_sw_bands_monthly"/>
+  </file>
+  <file id="easy_asymmetry_lw_ancil" name="easy_asymmetry_lw_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="easy_asymmetry_lw_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="easy_asymmetry_lw_data" name="easy_asymmetry_lw" long_name="asymmetry parameter of EasyAerosol" unit="1" operation="instant" grid_ref="full_level_face_grid_lw_bands_monthly"/>
+  </file>
+  <file id="easy_absorption_sw_ancil" name="easy_absorption_sw_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="easy_absorption_sw_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="easy_absorption_sw_data" name="easy_absorption_sw" long_name="absorption coefficient of EasyAerosol" unit="m-1" operation="instant" grid_ref="full_level_face_grid_sw_bands_monthly"/>
+  </file>
+  <file id="easy_absorption_lw_ancil" name="easy_absorption_lw_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="easy_absorption_lw_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="easy_absorption_lw_data" name="easy_absorption_lw" long_name="absorption coefficient of EasyAerosol" unit="m-1" operation="instant" grid_ref="full_level_face_grid_lw_bands_monthly"/>
+  </file>
+  <file id="easy_extinction_sw_ancil" name="easy_extinction_sw_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="easy_extinction_sw_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="easy_extinction_sw_data" name="easy_extinction_sw" long_name="extinction coefficient of EasyAerosol" unit="m-1" operation="instant" grid_ref="full_level_face_grid_sw_bands_monthly"/>
+  </file>
+  <file id="easy_extinction_lw_ancil" name="easy_extinction_lw_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="easy_extinction_lw_time" name="time" unit="hours" operation="once" axis_ref="monthly_climatology"/>
+    <field id="easy_extinction_lw_data" name="easy_extinction_lw" long_name="extinction coefficient of EasyAerosol" unit="m-1" operation="instant" grid_ref="full_level_face_grid_lw_bands_monthly"/>
+  </file>
+
+</file_definition>

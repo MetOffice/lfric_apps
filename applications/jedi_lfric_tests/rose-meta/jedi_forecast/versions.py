@@ -931,4 +931,15 @@ class vn31_t474(MacroUpgrade):
         )
         self.add_setting(config, ["namelist:nudging", "nudging_width_top"], "0")
 
+
+class vn31_t512(MacroUpgrade):
+    # Upgrade macro for #512 by Steven Sandbach
+
+    BEFORE_TAG = "vn3.1_t474"
+    AFTER_TAG = "vn3.1_t512"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+
+
         return config, self.reports
