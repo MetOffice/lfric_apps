@@ -52,27 +52,27 @@ public :: lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
 
 contains
 
-  !> @brief Performs the weighted injection-prolongation for scalar fields
-  !> @param[in]     nlayers                  Number of layers in a model column (in the destination field)
-  !> @param[in,out] destination_field        The destination field to interpolate onto
-  !> @param[in]     source_field             Source field to be interpolated
-  !> @param[in]     source_layers            Number of layers in the source field
-  !> @param[in]     ncell                    Number of cells in the partition
-  !!                                         of both grids
-  !> @param[in]     source_heights           Heights of vertical layers in the source field
-  !> @param[in]     dest_heights             Heights of vertical layers in the destination field
-  !> @param[in]     ndf_dest                 Num of DoFs per cell on the destination grid
-  !> @param[in]     undf_dest                Total num of DoFs on the destination grid
-  !!                                         for this mesh partition
-  !> @param[in]     map_dest                 DoFmap of cells on the destination grid
-  !> @param[in]     ndf_source               Num of DoFs per cell on the source grid
-  !> @param[in]     undf_source              Total num of DoFs on the source
-  !!                                         grid for this mesh partition
-  !> @param[in]     map_source               DoFmap of cells on the source grid
+!> @brief Performs the weighted injection-prolongation for scalar fields
+!> @param[in]     nlayers                  Number of layers in a model column (in the destination field)
+!> @param[in,out] destination_field        The destination field to interpolate onto
+!> @param[in]     source_field             Source field to be interpolated
+!> @param[in]     source_layers            Number of layers in the source field
+!> @param[in]     ncell                    Number of cells in the partition
+!!                                         of both grids
+!> @param[in]     source_heights           Heights of vertical layers in the source field
+!> @param[in]     dest_heights             Heights of vertical layers in the destination field
+!> @param[in]     ndf_dest                 Num of DoFs per cell on the destination grid
+!> @param[in]     undf_dest                Total num of DoFs on the destination grid
+!!                                         for this mesh partition
+!> @param[in]     map_dest                 DoFmap of cells on the destination grid
+!> @param[in]     ndf_source               Num of DoFs per cell on the source grid
+!> @param[in]     undf_source              Total num of DoFs on the source
+!!                                         grid for this mesh partition
+!> @param[in]     map_source               DoFmap of cells on the source grid
 
-  ! R_SINGLE PRECISION
-  ! ==================
-  subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
+! R_SINGLE PRECISION
+! ==================
+subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
                                           nlayers,                            &
                                           destination_field,                  &
                                           source_field,                       &
@@ -87,34 +87,36 @@ contains
                                           undf_source,                        &
                                           map_source)
 
-    implicit none
+  implicit none
 
-    integer(kind=i_def), intent(in)    :: nlayers
-    integer(kind=i_def), intent(in)    :: ncell
-    integer(kind=i_def), intent(in)    :: source_layers
-    integer(kind=i_def), intent(in)    :: ndf_dest, ndf_source
-    integer(kind=i_def), intent(in)    :: undf_dest, undf_source
-    integer(kind=i_def), intent(in), dimension(ndf_dest)    :: map_dest(ndf_dest)
-    integer(kind=i_def), intent(in), dimension(ndf_source)  :: map_source(ndf_source)
-    real(kind=r_single), intent(inout), dimension(ndf_dest) :: destination_field(undf_dest)
-    real(kind=r_single), intent(in), dimension(ndf_source)  :: source_field(undf_source)
-    real(kind=r_single), intent(in), dimension(ndf_dest)    :: dest_heights(undf_dest)
-    real(kind=r_single), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
+  integer(kind=i_def), intent(in)    :: nlayers
+  integer(kind=i_def), intent(in)    :: ncell
+  integer(kind=i_def), intent(in)    :: source_layers
+  integer(kind=i_def), intent(in)    :: ndf_dest, ndf_source
+  integer(kind=i_def), intent(in)    :: undf_dest, undf_source
+  integer(kind=i_def), intent(in), dimension(ndf_dest)    :: map_dest(ndf_dest)
+  integer(kind=i_def), intent(in), dimension(ndf_source)  :: map_source(ndf_source)
+  real(kind=r_single), intent(inout), dimension(ndf_dest) :: destination_field(undf_dest)
+  real(kind=r_single), intent(in), dimension(ndf_source)  :: source_field(undf_source)
+  real(kind=r_single), intent(in), dimension(ndf_dest)    :: dest_heights(undf_dest)
+  real(kind=r_single), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
 
-    integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers), source_top_df, dest_top_df
+  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers), source_top_df, dest_top_df
+  integer(kind=i_def) :: d_h, s_h_top, s_h_bottom, s_h_below
 
-    ! Assume lowest order W3 or Wtheta space
-    df = 1
-    ! Loop is 0 -> nlayers-1 for W3 fields, but 0 -> nlayers for Wtheta fields
-    dest_top_df = nlayers - 2 + ndf_dest
-    source_top_df = source_layers - 2 + ndf_source
-    ! Number of multidata values per grid cell
-    multidata = undf_dest/((dest_top_df+1)*ncell) - 1
+  ! Assume lowest order W3 or Wtheta space
+  df = 1
+  ! Loop is 0 -> nlayers-1 for W3 fields, but 0 -> nlayers for Wtheta fields
+  dest_top_df = nlayers - 2 + ndf_dest
+  source_top_df = source_layers - 2 + ndf_source
+  ! Number of multidata values per grid cell
+  multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
   do kk = 1, dest_top_df
+    level_below(kk) = source_layers
     do k = 1, source_top_df
-      if ( (source_heights(k) > dest_heights(kk)) .AND.                       &
-           (level_below(kk) == source_layers) ) THEN
+      if ( (source_heights(k) > dest_heights(kk)) .and.                       &
+           (level_below(kk) == source_layers) ) then
         level_below(kk) = k-1
           ! potential optimisation: start from level_below(kk-1)
       end if
@@ -122,70 +124,61 @@ contains
   end do
 
   do m = 0, multidata
-    do kk = 1, dest_top_df
+
+     do kk = 1, dest_top_df
+   
       ! EXTRAPOLATION METHOD - ! Linear extrapolation at top and bottom
 
-      ! IF ( desired_r(j) > r_at_data(j,data_levels) ) THEN
-      if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                  &
-          > source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
+      d_h = map_dest(df) + m*(dest_top_df+1) + kk
+      
+      s_h_top = map_source(df) + m*(source_top_df+1) + source_top_df
+      s_h_bottom = map_source(df) + m*(source_top_df+1)
+      s_h_below = map_source(df) + m*(source_top_df+1) + level_below(kk)
+       
+      if (dest_heights(d_h) > source_heights(s_h_top)) then
 
         ! If requested level is above top of model, do linear
         ! extrapolation using data on top and second top levels.
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + source_top_df)
+ 
+         destination_field(d_h) = source_field(s_h_top) + &
+              (dest_heights(d_h) - source_heights(s_h_top)) * &
+              (source_field(s_h_top) - source_field(s_h_top -1))/ &
+              (source_heights(s_h_top) - source_heights(s_h_top-1))
+              
+      else if (dest_heights(d_h) == source_heights(s_h_top)) then
 
-      ! SHARKS
-      ! data_out(j) = data_in(j,data_levels) + (desired_r(j)                     &
-      !             - r_at_data(j,data_levels)) * (data_in(j,data_levels)        &
-      !             - data_in(j,data_levels-1))/(r_at_data(j,data_levels)        &
-      !             - r_at_data(j,data_levels-1))
-
-      ! ELSE IF (desired_r(j) == r_at_data(j,data_levels) ) THEN
-      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                  &
-               == source_heights(map_source(df) + m*(source_top_df+1) + source_top_df)) then
-
-        ! data_out(j) = data_in(j,data_levels)
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1) + source_top_df)
-
-      ! IF ( desired_r(j) < r_at_data(j,1) ) THEN
-      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                  &
-               < source_heights(map_source(df) + m*(source_top_df+1))) then
+        destination_field(d_h) = source_field(s_h_top)
+        
+      else if (dest_heights(d_h) < source_heights(s_h_bottom)) then
 
         ! If requested level is below bottom of model, do linear
         ! extrapolation using data on first and second levels.
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1))
+         !destination_field(d_h) = source_field(s_h_bottom)
+         destination_field(d_h) = source_field(s_h_bottom) + &
+              (dest_heights(d_h) - source_heights(s_h_bottom)) * &
+              (source_field(s_h_bottom) - source_field(s_h_bottom +1)) / &
+              (source_heights(s_h_bottom) - source_heights(s_h_bottom +1))
+         
+      else if (dest_heights(d_h) == source_heights(s_h_bottom)) then
 
-      ! SHARKS
-      ! data_out(j) = data_in(j,1) + (desired_r(j)                               &
-      !             - r_at_data(j,1)) * (data_in(j,1)                            &
-      !             - data_in(j,2))/(r_at_data(j,1) - r_at_data(j,2))
-
-      ! ELSE IF (desired_r(j) == r_at_data(j,1) ) THEN
-      else if (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)                  &
-               == source_heights(map_source(df) + m*(source_top_df+1))) then
-
-        ! data_out(j) = data_in(j,1)
-        destination_field(map_dest(df) + m*(dest_top_df+1) + kk) = source_field(map_source(df) + m*(source_top_df+1))
-
+        destination_field(d_h) = source_field(s_h_bottom)
+       
       else
 
       ! Linearly interpolate
 
       ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
       !          / (sh(lb(kk)+1) - sh(lb(kk)))
-      destination_field(map_dest(df) + m*(dest_top_df+1) + kk) =           &
-                  ( (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)    &
-                     - source_heights(map_source(df) + m*(source_top_df+1) + level_below(kk)) )     &
-                    * source_field(map_source(df) + m*(source_top_df+1) + level_below(kk)+1)     &
-                   - (dest_heights(map_dest(df) + m*(dest_top_df+1) + kk)     &
-                      - source_heights(map_source(df) + m*(source_top_df+1) + level_below(kk)+1))     &
-                     * source_field(map_source(df) + m*(source_top_df+1) + level_below(kk)) )     &
-                  / ( source_heights(map_source(df) + m*(source_top_df+1) + level_below(kk)+1)     &
-                     - source_heights(map_source(df) + m*(source_top_df+1) + level_below(kk)) )
+      destination_field(d_h) =           &
+                  ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)     &
+                  - (dest_heights(d_h) - source_heights(s_h_below + 1)) * source_field(s_h_below) )   &
+                  / ( source_heights(s_h_below + 1)  - source_heights(s_h_below) )
+     
       end if
     end do
   end do
 
-  end subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
+end subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
 
   ! R_DOUBLE PRECISION
   ! ==================

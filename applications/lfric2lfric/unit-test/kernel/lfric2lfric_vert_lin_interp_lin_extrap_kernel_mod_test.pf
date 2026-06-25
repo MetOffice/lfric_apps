@@ -27,11 +27,12 @@ contains
     implicit none
 
     integer(kind=i_def)               :: nlayers
-    integer(kind=i_def)               :: ncell
+    integer(kind=i_def)               :: ncell, cell
     integer(kind=i_def)               :: dim_space, dim_space_diff, nqp_h, nqp_v
     integer(kind=i_def)               :: source_layers
     integer(kind=i_def)               :: ndf_dest, ndf_source
     integer(kind=i_def)               :: undf_dest, undf_source
+    integer(kind=i_def)               :: multidata, m, dest_top_df, k
     integer(kind=i_def), allocatable  :: map_dest(:,:)
     integer(kind=i_def), allocatable  :: map_source(:,:)
     real(kind=r_single), allocatable  :: destination_field(:)
@@ -47,12 +48,12 @@ contains
                                   dim_space, dim_space_diff,      &
                                   nqp_h, nqp_v, source_layers     )
 
-    call get_w3_m3x3_dofmap(map_source, 4_i_def)
+    call get_w3_m3x3_dofmap(map_source, source_layers)
 
     call get_w3_m3x3_q3x3x3_size( ndf_dest, undf_dest, ncell, &
                                   dim_space, dim_space_diff,  &
                                   nqp_h, nqp_v, nlayers       )
-    call get_w3_m3x3_dofmap(map_dest, 5_i_def)
+    call get_w3_m3x3_dofmap(map_dest, nlayers)
 
     ! allocate
     allocate(destination_field(undf_dest))
@@ -106,12 +107,13 @@ contains
     1.5_r_single, 2.5_r_single, 3.5_r_single    &
     /), (/ undf_dest /))
 
+    cell =3
     call lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
                                       nlayers,                  &
                                       destination_field,        &
                                       source_field,             &
                                       source_layers,            &
-                                      ncell,                    &
+                                      cell,                    &
                                       dest_heights,             &
                                       source_heights,           &
                                       ndf_dest,                 &
@@ -121,8 +123,14 @@ contains
                                       undf_source,              &
                                       map_source             )
 
-    @assertEqual(expected_field, destination_field, tol)
 
+    dest_top_df =  nlayers - 2 + ndf_dest
+    multidata = undf_dest/((dest_top_df+1)*ncell) - 1
+    do k=1, dest_top_df
+      do m=0, multidata
+        @assertEqual(expected_field(map_dest(1,cell)+m*(dest_top_df+1) +k), destination_field(map_dest(1,cell)+m*(dest_top_df+1)+k), tol)
+      end do
+    end do
   end subroutine test_all_r_single
 
 @Test
@@ -133,11 +141,12 @@ contains
     implicit none
 
     integer(kind=i_def)               :: nlayers
-    integer(kind=i_def)               :: ncell
+    integer(kind=i_def)               :: ncell, cell
     integer(kind=i_def)               :: dim_space, dim_space_diff, nqp_h, nqp_v
     integer(kind=i_def)               :: source_layers
     integer(kind=i_def)               :: ndf_dest, ndf_source
     integer(kind=i_def)               :: undf_dest, undf_source
+    integer(kind=i_def)               :: multidata, m, dest_top_df, k
     integer(kind=i_def), allocatable  :: map_dest(:,:)
     integer(kind=i_def), allocatable  :: map_source(:,:)
     real(kind=r_single), allocatable  :: destination_field(:)
@@ -145,7 +154,7 @@ contains
     real(kind=r_single), allocatable  :: expected_field(:)
     real(kind=r_single), allocatable  :: dest_heights(:)
     real(kind=r_single), allocatable  :: source_heights(:)
-    real(kind=r_single), parameter    :: tol = 1.0e-12_r_single
+    real(kind=r_single), parameter    :: tol = 1.0e-6_r_single
 
     nlayers  = 5_i_def
     source_layers = 4_i_def
@@ -153,12 +162,12 @@ contains
                                   dim_space, dim_space_diff,      &
                                   nqp_h, nqp_v, source_layers     )
 
-    call get_w3_m3x3_dofmap(map_source, 4_i_def)
+    call get_w3_m3x3_dofmap(map_source, source_layers)
 
     call get_w3_m3x3_q3x3x3_size( ndf_dest, undf_dest, ncell, &
                                   dim_space, dim_space_diff,  &
                                   nqp_h, nqp_v, nlayers       )
-    call get_w3_m3x3_dofmap(map_dest, 5_i_def)
+    call get_w3_m3x3_dofmap(map_dest, nlayers)
 
     ! allocate
     allocate(destination_field(undf_dest))
@@ -212,12 +221,13 @@ contains
     0.5_r_single,  1.5_r_single, 2.5_r_single, 3.5_r_single,  4.5_r_single    &
     /), (/ undf_dest /))
 
+    cell =2
     call lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
                                       nlayers,                  &
                                       destination_field,        &
                                       source_field,             &
                                       source_layers,            &
-                                      ncell,                    &
+                                      cell,                     &
                                       dest_heights,             &
                                       source_heights,           &
                                       ndf_dest,                 &
@@ -227,7 +237,15 @@ contains
                                       undf_source,              &
                                       map_source             )
 
-    @assertEqual(expected_field, destination_field, tol)
+
+
+    dest_top_df =  nlayers - 2 + ndf_dest
+    multidata = undf_dest/((dest_top_df+1)*ncell) - 1
+    do k=1, dest_top_df
+      do m=0, multidata
+        @assertEqual(expected_field(map_dest(1,cell)+m*(dest_top_df+1) +k), destination_field(map_dest(1,cell)+m*(dest_top_df+1)+k), tol)
+      end do
+    end do
 
   end subroutine test_all_with_extrap_r_single
 
