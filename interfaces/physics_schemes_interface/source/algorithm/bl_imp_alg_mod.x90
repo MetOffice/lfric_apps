@@ -119,7 +119,7 @@ contains
                                                t1p5m_ssi, q1p5m_ssi,          &
                                                qcl1p5m_ssi, t1p5m_land,       &
                                                q1p5m_land, qcl1p5m_land
-    
+
     type( field_type ), intent( in )        :: theta, exner, mr_n(nummr),     &
                                                theta_latest, u_latest
 
@@ -424,7 +424,7 @@ contains
     flag_blpert = (blpert_type == blpert_type_theta_star .or. &
                    blpert_type == blpert_type_theta_and_moist)
 
-    if ((use_xios_io .and. write_diag .and. diag_step .and. & 
+    if ((use_xios_io .and. write_diag .and. diag_step .and. &
          outer == outer_iterations) .or. flag_blpert) then
       call taux%copy_field_properties(tauz)
       call ustar_implicit%copy_field_properties(theta_star_surf)

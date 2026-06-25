@@ -65,7 +65,7 @@ contains
 
     if (surface == surface_jules) then
       call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
-      call surface_fields%get_field('tile_fraction', tile_fraction)     
+      call surface_fields%get_field('tile_fraction', tile_fraction)
       call surface_fields%get_field('tile_temperature', tile_temperature)
 
       ! Get the data from ancil_fields (if applicable for your model)

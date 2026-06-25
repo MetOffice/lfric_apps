@@ -90,14 +90,14 @@ contains
     type(r_solver_operator_type), intent(in) :: div_star, ptheta2v, compound_div, m3_exner_star, p3theta
     integer(kind=i_def), intent(in) :: stencil_depth
     integer(kind=i_def) :: stencil_size
-    integer(kind=i_def) cell
-    integer(kind=i_def) nlayers
-    type(r_solver_operator_proxy_type) div_star_proxy, ptheta2v_proxy, compound_div_proxy, m3_exner_star_proxy, p3theta_proxy
-    type(r_solver_field_proxy_type) helmholtz_operator_proxy(9)
-    type(r_solver_field_proxy_type) hb_lumped_inv_proxy, u_normalisation_proxy, t_normalisation_proxy, &
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: nlayers
+    type(r_solver_operator_proxy_type) :: div_star_proxy, ptheta2v_proxy, compound_div_proxy, m3_exner_star_proxy, p3theta_proxy
+    type(r_solver_field_proxy_type) :: helmholtz_operator_proxy(9)
+    type(r_solver_field_proxy_type) :: hb_lumped_inv_proxy, u_normalisation_proxy, t_normalisation_proxy, &
                            w2_mask_proxy
     integer(kind=i_def), pointer :: map_w2(:,:) => null(), map_w3(:,:) => null(), map_wtheta(:,:) => null()
-    integer(kind=i_def) ndf_w3, undf_w3, ndf_w2, undf_w2, ndf_wtheta, undf_wtheta
+    integer(kind=i_def) :: ndf_w3, undf_w3, ndf_w2, undf_w2, ndf_wtheta, undf_wtheta
     type(mesh_type), pointer :: mesh => null()
     INTEGER(KIND=i_def) :: hb_lumped_inv_max_branch_length
     integer(kind=i_def), pointer :: hb_lumped_inv_stencil_sizes(:,:) => null()
@@ -105,7 +105,7 @@ contains
     type(stencil_2d_dofmap_type), pointer :: hb_lumped_inv_stencil_map => null()
     integer(kind=i_def) :: i,j
     integer(kind=i_def), allocatable :: cell_stencil(:)
-    integer(kind=i_def) nfaces_re_h
+    integer(kind=i_def) :: nfaces_re_h
     class(reference_element_type), pointer :: reference_element => null()
     !
     ! Initialise field and/or operator proxies
@@ -277,21 +277,21 @@ contains
     type(r_solver_operator_type), intent(in) :: div_star, m3_exner_star, Q32
     integer(kind=i_def), intent(in) :: stencil_depth
     integer(kind=i_def) :: stencil_size
-    integer(kind=i_def) cell
-    integer(kind=i_def) nlayers
-    type(r_solver_operator_proxy_type) div_star_proxy, m3_exner_star_proxy, Q32_proxy
-    type(r_solver_field_proxy_type) helmholtz_operator_proxy(9)
-    type(r_solver_field_proxy_type) hb_lumped_inv_proxy, u_normalisation_proxy, &
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: nlayers
+    type(r_solver_operator_proxy_type) :: div_star_proxy, m3_exner_star_proxy, Q32_proxy
+    type(r_solver_field_proxy_type) :: helmholtz_operator_proxy(9)
+    type(r_solver_field_proxy_type) :: hb_lumped_inv_proxy, u_normalisation_proxy, &
                            w2_mask_proxy
     integer(kind=i_def), pointer :: map_w2(:,:) => null(), map_w3(:,:) => null()
-    integer(kind=i_def) ndf_w3, undf_w3, ndf_w2, undf_w2
+    integer(kind=i_def) :: ndf_w3, undf_w3, ndf_w2, undf_w2
     type(mesh_type), pointer :: mesh => null()
-    integer(kind=i_def) hb_lumped_inv_stencil_size
+    integer(kind=i_def) :: hb_lumped_inv_stencil_size
     integer(kind=i_def), pointer :: hb_lumped_inv_stencil_dofmap(:,:,:) => null()
     type(stencil_dofmap_type), pointer :: hb_lumped_inv_stencil_map => null()
     integer(kind=i_def) :: i
     integer(kind=i_def), allocatable :: cell_stencil(:)
-    integer(kind=i_def) nfaces_re_h
+    integer(kind=i_def) :: nfaces_re_h
     class(reference_element_type), pointer :: reference_element => null()
     !
     ! Initialise field and/or operator proxies
@@ -605,18 +605,18 @@ stencil_dofmap(:,:,cell), ndf_adspc1_target_field, &
     use mesh_mod, only: mesh_type
     type(field_type),    intent(in) :: target_field, source_field
     integer(kind=i_def), intent(in) :: ndata
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers
-    type(field_proxy_type) target_field_proxy, source_field_proxy
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers
+    type(field_proxy_type) :: target_field_proxy, source_field_proxy
     integer(kind=i_def), pointer :: map_adspc1_target_field(:,:) => null(), map_adspc2_source_field(:,:) => null()
-    integer(kind=i_def) ndf_adspc1_target_field, undf_adspc1_target_field, ndf_adspc2_source_field, undf_adspc2_source_field
-    integer(kind=i_def) ncell_source_field, ncpc_source_field_target_field_x, ncpc_source_field_target_field_y
+    integer(kind=i_def) :: ndf_adspc1_target_field, undf_adspc1_target_field, ndf_adspc2_source_field, undf_adspc2_source_field
+    integer(kind=i_def) :: ncell_source_field, ncpc_source_field_target_field_x, ncpc_source_field_target_field_y
     integer(kind=i_def), pointer :: cell_map_target_field(:,:,:) => null()
     type(mesh_map_type), pointer :: mmap_source_field_target_field => null()
-    integer(kind=i_def) max_halo_depth_mesh_target_field
+    integer(kind=i_def) :: max_halo_depth_mesh_target_field
     type(mesh_type), pointer :: mesh_target_field => null()
-    integer(kind=i_def) max_halo_depth_mesh_source_field
+    integer(kind=i_def) :: max_halo_depth_mesh_source_field
     type(mesh_type), pointer :: mesh_source_field => null()
     !
     ! Initialise field and/or operator proxies
