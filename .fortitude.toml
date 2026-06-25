@@ -1,0 +1,22 @@
+[check]
+file-extensions = [
+    "f90",
+    "F90",
+    "x90",
+    "X90",
+    "pf",
+]
+select = ["S101"]
+# select = [
+#     "E",    # error rules
+#     "C",    # correctness rules
+#     "S",    # style rules
+#     "PORT", # portability rules
+#     "OB",   # obsolescence rules
+#     "MOD",  # modernisation rules
+# ]
+ignore = [
+    "C003"
+]
+line-length = 132
+output-format = "grouped"

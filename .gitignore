@@ -68,3 +68,8 @@ interfaces/**/bin
 interfaces/**/documents
 interfaces/**/working
 interfaces/**/test
+
+# venv
+.venv/
+uv.lock
+*.egg-info/
