@@ -70,7 +70,6 @@ module adjt_poly2d_recon_lookup_alg_mod
     integer(kind=i_def)                 :: stencil_size
 
     ! Internal variables for initialising and saving input fields
-    integer(kind=i_def)                 :: mesh_id
     type(function_space_type),  pointer :: vector_space_wt_md_ptr
     type(function_space_type),  pointer :: vector_space_wtheta_ptr
     type(r_tran_field_type)             :: reconstruction_input
@@ -101,7 +100,6 @@ module adjt_poly2d_recon_lookup_alg_mod
     nullify(coeff, vector_space_wt_md_ptr, vector_space_wtheta_ptr, &
             lookup, lookup_field, num_sets_field)
 
-    mesh_id = mesh%get_id()
     if (mod(fv_horizontal_order, 2) == 0) then
       stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
     else
