@@ -1,0 +1,151 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+! The main entry point for calculating section 20 aviation diagnostics.
+!
+! Code Owner: Please refer to the UM file CodeOwners.txt
+! This file currently belongs in section: physics_schemes_interface
+! whilst discussions are ongoing about its final location.
+!
+module aviation_diags_alg_mod
+
+  use constants_mod,              only: r_def, i_def, l_def, str_long, RMDI
+  use field_mod,                  only: field_type
+  use field_collection_mod,       only: field_collection_type
+  use io_config_mod,              only: use_xios_io
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  use lfric_xios_diag_mod,        only: get_axis_dimension, get_axis_values
+  use log_mod,                    only: log_event,                          &
+                                        log_level_always, log_level_error,  &
+                                        log_level_info, log_level_debug
+
+  implicit none
+
+private
+public :: write_horizontal_divergence_diagnostic
+
+contains
+
+  ! todo: rename aviation_something?
+  subroutine write_horizontal_divergence_diagnostic( &
+          wind, clock, main_mesh, element_order_h, element_order_v)
+    use fs_continuity_mod,              only: W2H, W2v, W3
+    use function_space_collection_mod,  only: function_space_collection
+    use model_clock_mod,                only: model_clock_type
+
+    use sci_geometric_constants_mod,    only:           &
+            get_coordinates, get_panel_id,              &
+            get_face_selector_ew, get_face_selector_ns
+
+    use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
+    use transport_constants_mod,        only: get_directional_im3_div_r_tran
+    use transport_enumerated_types_mod, only: direction_h
+    use r_tran_operator_mod,            only: r_tran_operator_type
+
+    use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+
+    use mesh_mod,                       only: mesh_type
+    use integer_field_mod,              only: integer_field_type
+    use initialise_diagnostics_mod,     only: diagnostic_to_be_sampled
+
+    use field_parent_mod,               only: write_interface
+    use lfric_xios_write_mod,           only: write_field_generic
+
+    use diagnostics_io_mod,             only: write_scalar_diagnostic
+    use sci_project_output_mod,         only: project_output
+
+
+    implicit none
+
+    type(field_type),        intent(in)          :: wind
+    class(model_clock_type), intent(in)          :: clock
+    type(mesh_type),         intent(in), pointer :: main_mesh
+
+    integer(kind=i_def), intent(in)      :: element_order_h, element_order_v
+
+    type(mesh_type), pointer             :: target_mesh => null()
+
+    type(field_type)                     :: wind_h, wind_v
+    type(field_type)                     :: div_ml, div_ml_h, div_ml_v
+    type(field_type)                     :: div_pl(1)
+    type(field_type), pointer            :: chi(:)
+    type(r_tran_operator_type), pointer  :: div_op
+    type(field_type), pointer            :: panel_id
+
+    type(integer_field_type), pointer    :: face_selector_ew => null()
+    type(integer_field_type), pointer    :: face_selector_ns => null()
+
+    procedure(write_interface), pointer  :: tmp_write_ptr
+
+    character(len=str_long)              :: message
+
+
+    if (.not. diagnostic_to_be_sampled('aviation__uv_wind_divergence')) then
+      return
+    endif
+
+    message = 'Section 20: uv wind divergence requested'
+    call log_event( message, log_level_always )
+
+
+    ! get the horizontal div operator matrix for this mesh
+!    div_op => get_directional_im3_div(wind%get_mesh_id(), direction_h)
+    div_op => get_directional_im3_div_r_tran(wind%get_mesh_id(), direction_h)
+
+
+    ! Split the 3d wind into horizontal and vertical components
+    face_selector_ew => get_face_selector_ew(wind%get_mesh_id())
+    face_selector_ns => get_face_selector_ns(wind%get_mesh_id())
+
+    call wind_h%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W2h ))
+    call wind_v%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W2v ))
+
+    call invoke( split_w2_field_kernel_type( &
+        wind_h, wind_v, wind, face_selector_ew, face_selector_ns ))
+
+
+    ! what function space should div_ml be on?
+    call div_ml%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W3 ))
+
+
+    ! multiply the wind by the div operator matrix to get the div
+    call invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
+
+    ! multiply by 1.0e6
+    call invoke(inc_a_times_X(1.0e6_r_def, div_ml))
+
+
+    ! Project the field to the output field
+    ! which mesh should we use? this or the one passed in?
+    target_mesh => div_ml%get_mesh()
+    chi      => get_coordinates( target_mesh%get_id() )
+    panel_id => get_panel_id( target_mesh%get_id() )
+
+    call project_output( div_ml, div_pl, chi, panel_id, W3 )
+
+
+    ! todo: this is already done in project_output, with out the xios check
+    if (use_xios_io) then
+      !If using XIOS, we need to set a field I/O method appropriately
+      tmp_write_ptr => write_field_generic
+      call div_pl(1) % set_write_behaviour(tmp_write_ptr)
+    end if
+
+!    call write_scalar_diagnostic( &
+!        'divergence', div_pl(1), clock, target_mesh, .false. )
+    call write_scalar_diagnostic( &
+        'aviation__uv_wind_divergence', div_pl(1), clock, target_mesh, .false. )
+
+    nullify(tmp_write_ptr)
+
+
+  end subroutine write_horizontal_divergence_diagnostic
+
+end module aviation_diags_alg_mod

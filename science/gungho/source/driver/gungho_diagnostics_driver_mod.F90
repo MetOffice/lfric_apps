@@ -59,6 +59,7 @@ module gungho_diagnostics_driver_mod
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
+  use aviation_diags_alg_mod,    only : write_horizontal_divergence_diagnostic
 #endif
 
   implicit none
@@ -135,6 +136,9 @@ contains
     integer(kind=i_def),    allocatable :: fs_ids(:)
     character(len=str_def), allocatable :: fs_names(:)
 
+    integer :: element_order_h, element_order_v
+
+
     if ( LPROF ) call start_timing( id, 'gungho_diagnostics_driver' )
 
     call log_event("Gungho: writing diagnostic output", LOG_LEVEL_DEBUG)
@@ -158,6 +162,9 @@ contains
     call prognostic_fields%get_field('u', u)
     call prognostic_fields%get_field('rho', rho)
     call prognostic_fields%get_field('exner', exner)
+
+    element_order_h = theta%get_element_order_h()
+    element_order_v = theta%get_element_order_v()
 
     ! Scalar fields
     call write_scalar_diagnostic('rho', rho, &
@@ -335,6 +342,9 @@ contains
       call pres_lev_diags_alg(derived_fields, theta, exner, mr, moist_dyn)
       ! Wet bulb freezing level
       call freeze_lev_alg(theta, mr, moist_dyn, exner_in_wth)
+      ! Aviation diagnostics
+      call write_horizontal_divergence_diagnostic( &
+        u, modeldb%clock, mesh, element_order_h, element_order_v)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')

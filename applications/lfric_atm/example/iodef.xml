@@ -94,6 +94,10 @@
 	<field field_ref="forcing__dt_force" />
       </file>
 
+	<file id="lfric_diags_aviation" name="lfric_diags_aviation" output_freq="6h" convention="UGRID" enabled=".TRUE.">
+		<field field_ref="aviation__uv_wind_divergence"/>
+	</file>
+
       <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
         <field field_ref="theta" operation="average" />
         <field field_ref="exner" operation="average" />
