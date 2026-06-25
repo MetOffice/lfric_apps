@@ -12,6 +12,7 @@
 
 module transport_init_fields_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: r_def, i_def, radians_to_degrees
   use domain_mod,                        only: domain_type
   use divergence_alg_mod,                only: divergence_alg
@@ -43,9 +44,6 @@ module transport_init_fields_alg_mod
   use quadrature_xyoz_mod,               only: quadrature_xyoz_type
   use set_rho_kernel_mod,                only: set_rho_kernel_type
   use set_tracer_field_kernel_mod,       only: set_tracer_field_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -90,9 +90,9 @@ program solver
   real(r_def)    :: domain_bottom
   real(r_def)    :: domain_height
   real(r_def)    :: scaled_radius
-  logical(l_def) :: check_partitions
 
-  logical(l_def) :: inner_halo_tiles
+  logical :: check_partitions
+  logical :: inner_halo_tiles
 
   integer(i_def), allocatable :: tile_size(:,:)
   integer(i_def) :: i

@@ -97,13 +97,14 @@ module shallow_water_model_mod
     real(r_def)    :: domain_bottom
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
-    logical(l_def) :: check_partitions
-    logical(l_def) :: prepartitioned
-    logical(l_def) :: inner_halo_tiles
+
+    logical :: check_partitions
+    logical :: prepartitioned
+    logical :: inner_halo_tiles
+    logical :: use_multigrid
+
     integer(i_def) :: tile_size_x
     integer(i_def) :: tile_size_y
-
-    logical(l_def) :: l_multigrid
 
     integer(i_def), allocatable :: tile_size(:,:)
     integer(i_def), allocatable :: multigrid_tile_size(:,:)
@@ -114,8 +115,8 @@ module shallow_water_model_mod
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    l_multigrid = modeldb%config%formulation%l_multigrid()
-    if (l_multigrid) then
+    use_multigrid = modeldb%config%formulation%l_multigrid()
+    if (use_multigrid) then
       chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
     end if
 
@@ -204,7 +205,7 @@ module shallow_water_model_mod
     allocate(tile_size(2, size(base_mesh_names)))
     tile_size(1,:) = tile_size_x
     tile_size(2,:) = tile_size_y
-    if (l_multigrid) then
+    if (use_multigrid) then
       multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
                                                      base_mesh_names, &
                                                      extrusion )
@@ -228,7 +229,7 @@ module shallow_water_model_mod
     allocate(tile_size(2, size(base_mesh_names)))
     tile_size(1,:) = tile_size_x
     tile_size(2,:) = tile_size_y
-    if (l_multigrid) then
+    if (use_multigrid) then
       multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
                                                      base_mesh_names, &
                                                      extrusion_2d )
