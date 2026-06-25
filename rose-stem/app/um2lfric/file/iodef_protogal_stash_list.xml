@@ -1,8 +1,8 @@
-<!-- This file was created for the Proto-GAL milestone in 2022. Beyond fixing 
+<!-- This file was created for the Proto-GAL milestone in 2022. Beyond fixing
      fields that are broken (including adding the exner field to the output when
      that functionality is working) this file should not be added to or edited.
-     Not all fields processed by this file are for use in the LFRic model itself. 
-     Some are used by other applications, e.g. the IAU, but are included here to 
+     Not all fields processed by this file are for use in the LFRic model itself.
+     Some are used by other applications, e.g. the IAU, but are included here to
      test their regrid functionality.
 -->
 <?xml version="1.0" encoding="UTF-8"?>
@@ -57,9 +57,9 @@
       <!-- UM2LFRIc fields used in checkpoint -->
       <field_group id="um2lfric_fields" freq_op="1ts" operation="once"  enabled=".TRUE." >
 	<!-- Fields for Aquaplanet -->
-	<field id="ew_wind" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="ns_wind" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" />
-	<field id="upward_wind" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+        <field id="u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+        <field id="v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+        <field id="w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
 	<field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
 	<field id="rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" />
 	<field id="m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
@@ -134,9 +134,9 @@
 
       <!-- File definition for checkpoint write -->
       <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
-	<field field_ref="ew_wind"/>
-	<field field_ref="ns_wind"/>
-	<field field_ref="upward_wind"/>
+	<field field_ref="u_in_w3"/>
+	<field field_ref="v_in_w3"/>
+	<field field_ref="w_in_wth"/>
 	<field field_ref="theta"/>
 	<field field_ref="rho" />
 	<field field_ref="m_v" />
