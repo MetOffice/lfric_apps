@@ -94,14 +94,6 @@
 	<field field_ref="forcing__dt_force" />
       </file>
 
-	<file id="lfric_aviation" name="lfric_aviation" output_freq="6h" convention="UGRID" enabled=".TRUE.">
-		<field field_ref="convection__geopot_thickness_850"/>
-		<field field_ref="convection__geopot_thickness_500"/>
-		<field field_ref="convection__snow_probability"/>
-		<field field_ref="convection__conv_cloud_base_icao_height"/>
-		<field field_ref="convection__conv_cloud_top_icao_height"/>
-	</file>
-
       <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
         <field field_ref="theta" operation="average" />
         <field field_ref="exner" operation="average" />
