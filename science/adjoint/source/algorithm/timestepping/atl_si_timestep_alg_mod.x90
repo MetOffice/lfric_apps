@@ -403,10 +403,11 @@ contains
     ! The reference_reset_time is specified in the configuration namelist.
     ! Note that this reset can only occur at most once per timestep.
     reference_reset_freq = nint( reference_reset_time / cast_dt, i_def )
-    if (mod( modeldb%clock%get_step() - 1_i_def, reference_reset_freq ) == 0_i_def) &
-      call compute_si_operators( modeldb%config, self%ls_state(igh_t), &
+    if (mod( modeldb%clock%get_step() - 1_i_def, reference_reset_freq ) == 0_i_def) then
+      call compute_si_operators( modeldb%config, self%ls_state(igh_t),       &
                                  self%ls_state(igh_d), self%ls_state(igh_p), &
                                  modeldb%clock, self%ls_moist_dyn_itns(:,1,1) )
+    end if
 
     ! Compute the time-level n dynamics terms
 

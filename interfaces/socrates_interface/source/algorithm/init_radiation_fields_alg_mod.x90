@@ -101,7 +101,7 @@ contains
     call radiation_fields%get_field('ozone', ozone)
     if ( o3_rad_opt == o3_rad_opt_profile ) then
       mesh => ozone%get_mesh()
-      height_o3 => get_height_fv(config, ozone%get_mesh(), Wtheta)
+      height_o3 => get_height_fv(config, mesh, Wtheta)
       profile_size                    = o3_profile_size
       profile_data(1:profile_size)    = o3_profile_data(1:o3_profile_size)
       profile_heights(1:profile_size) = o3_profile_heights(1:o3_profile_size)
