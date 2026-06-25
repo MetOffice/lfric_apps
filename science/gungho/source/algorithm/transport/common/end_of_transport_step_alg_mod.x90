@@ -8,6 +8,7 @@
 
 module end_of_transport_step_alg_mod
 
+  use base_mesh_config_mod,           only: topology, topology_non_periodic
   use boundaries_config_mod,          only: limited_area,                      &
                                             transport_boundary_depth,          &
                                             transport_overwrite_freq,          &
@@ -18,6 +19,7 @@ module end_of_transport_step_alg_mod
                                             check_any_wt_eqn_conservative
   use conservative_neg_fix_kernel_mod, &
                                       only: conservative_neg_fix_kernel_type
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_tran, l_def, r_def
   use sci_enforce_lower_bound_kernel_mod, &
                                       only: enforce_lower_bound_kernel_type
@@ -81,12 +83,6 @@ module end_of_transport_step_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use sci_field_minmax_alg_mod,       only: get_field_minmax
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
-
-  ! Configuration modules
-  use base_mesh_config_mod, only: topology, topology_non_periodic
 
   implicit none
 
