@@ -245,6 +245,8 @@ contains
       do i=1,nummr
         call write_scalar_diagnostic( 'ls_'//trim(mr_names(i)), ls_mr(i), &
                                       modeldb%clock, mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( trim(mr_names(i)), mr(i),           &
+                                      modeldb%clock, mesh, nodal_output_on_w3 )
       end do
     end if
 
