@@ -14,6 +14,7 @@ module external_forcing_alg_mod
                                              theta_forcing_shallow_hot_jupiter,  &
                                              theta_forcing_deep_hot_jupiter,     &
                                              theta_forcing_temp_tend,            &
+                                             theta_forcing_nudging,              &
                                              theta_relaxation,                   &
                                              vapour_forcing,                     &
                                              vapour_forcing_none,                &
@@ -24,6 +25,7 @@ module external_forcing_alg_mod
                                              wind_forcing_filtering,             &
                                              wind_forcing_diffusion,             &
                                              wind_forcing_profile,               &
+                                             wind_forcing_nudging,               &
                                              vertadvect_forcing,                 &
                                              geostrophic_forcing,                &
                                              filtering_order,                    &
@@ -227,6 +229,9 @@ contains
 
           call temp_tend_profile_alg( dtheta_forcing, exner_in_wth, time_now )
 
+        case(theta_forcing_nudging)
+          ! DO nothing - placeholder for future, field will not be modified
+
         case default
 
           call log_event( 'slow_physics: Incorrect theta_forcing option', &
@@ -355,6 +360,12 @@ contains
           call invoke(X_minus_Y(du_forcing, u_smoothed, u))
 
           nullify(panel_id, height_w1, height_w2, dx_at_w2)
+
+        case ( wind_forcing_nudging )
+
+          ! Placeholder for future, only initialise forcing field
+          call du_forcing%initialise( vector_space = u%get_function_space() )
+          call invoke(setval_c(du_forcing, 0.0_r_def))
 
         case( wind_forcing_profile )
 

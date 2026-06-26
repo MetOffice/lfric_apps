@@ -668,7 +668,6 @@ class vn31_t180(MacroUpgrade):
         self.remove_setting(
             config, ["namelist:initialization", "w0_orography_mapping"]
         )
-
         return config, self.reports
 
 
@@ -685,7 +684,6 @@ class vn31_t360(MacroUpgrade):
             ["namelist:stochastic_physics", "rp_mp_ci"],
             "1.0,1.0,1.0",
         )
-
         # Commands From: rose-meta/um-microphysics
         self.add_setting(config, ["namelist:microphysics", "aut_qc"], "2.47")
         self.add_setting(config, ["namelist:microphysics", "ai"], "2.57e-2")
@@ -700,7 +698,6 @@ class vn31_t360(MacroUpgrade):
             ["namelist:microphysics", "update_precfrac_opt"],
             upd_precfrac_opt,
         )
-
         # Commands From: rose-meta/um-convection
         # 0.66 and 1.2 are tuned GC6 values (0.5 and 0.8 originally)
         self.add_setting(config, ["namelist:convection", "r_det"], "0.5")
@@ -737,7 +734,6 @@ class vn31_t360(MacroUpgrade):
             self.add_setting(
                 config, ["namelist:convection", "l_conv_prog_dq"], ".true."
             )
-
         # Commands From: rose-meta/um-aerosol
         self.add_setting(
             config, ["namelist:aerosol", "ukca_scale_marine_pom_ems"], ".false."
@@ -751,7 +747,6 @@ class vn31_t360(MacroUpgrade):
         self.add_setting(
             config, ["namelist:aerosol", "sea_salt_ems_scaling"], "1.0"
         )
-
         return config, self.reports
 
 
@@ -792,5 +787,86 @@ class vn31_t247(MacroUpgrade):
         self.add_setting(config, [nml, "bm_ez_opt"], bm_ez_opt)
         self.add_setting(config, [nml, "pc2_erosion_numerics"], pc2_erosion_num)
         self.add_setting(config, [nml, "pc2_init_method"], pc2_init_method)
+        return config, self.reports
+
+
+class vn31_t394(MacroUpgrade):
+    """Upgrade macro for ticket #394 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t247"
+    AFTER_TAG = "vn3.1_t394"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:formulation", "solver_moisture_conservation"],
+            ".false.",
+        )
+        return config, self.reports
+
+
+class vn31_t401(MacroUpgrade):
+    """Upgrade macro for ticket #401 by Dan Copsey."""
+
+    BEFORE_TAG = "vn3.1_t394"
+    AFTER_TAG = "vn3.1_t401"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        self.add_setting(
+            config, ["namelist:jules_hydrology", "l_inland"], ".false."
+        )
+        return config, self.reports
+
+
+class vn31_t474(MacroUpgrade):
+    """Upgrade macro for ticket #474 by Mohit Dalvi."""
+
+    BEFORE_TAG = "vn3.1_t401"
+    AFTER_TAG = "vn3.1_t474"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:files", "nudging_directory"], "''")
+        self.add_setting(config, ["namelist:files", "nudging_filename"], "''")
+        self.add_setting(
+            config,
+            ["namelist:multires_coupling", "coarse_nudging"],
+            ".false.",
+        )
+        self.add_setting(
+            config, ["namelist:multires_coupling", "nudging_mesh_name"], "''"
+        )
+        # Add new nudging namelist -with sensible default values
+        # Append after 'multires_coupling' in configuration.nml
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        source = re.sub(
+            r"(namelist:multires_coupling)",
+            r"namelist:multires_coupling)" + "\n" + " (namelist:nudging",
+            source,
+        )
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
+        self.add_setting(config, ["namelist:nudging"])
+        self.add_setting(
+            config, ["namelist:nudging", "nudge_data_levels"], "137"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_bottom"], "5"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_top"], "52"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_source"], "'era'"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_width_bottom"], "1"
+        )
+        self.add_setting(config, ["namelist:nudging", "nudging_width_top"], "0")
 
         return config, self.reports

@@ -38,6 +38,8 @@
 | Pierre-siddall      | Pierre Siddall     | Met Office                       | 2026-03-02 |
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
 | ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
+| hsrumbold           | Heather Rumbold    | Met Office                       | 2026-05-06 |
+| pdearnshaw          | Paul Earnshaw      | Met Office                       | 2026-05-07 |
 | SamanthaPullen      | Samantha Pullen    | Met Office                       | 2026-04-20 !
 | mo-lottieturner     | Lottie Turner      | Met Office                       | 2026-01-27 |
 | DrTVockerodtMO      | Terence Vockerodt  | Met Office                       | 2026-01-08 |
@@ -49,6 +51,7 @@
 | sergisiso           | Sergi Siso         | UKRI-STFC                        | 2026-06-09 |
 | arporter            | Andrew Porter      | UKRI-STFC                        | 2026-06-09 |
 | LonelyCat124        | Aidan Chalk        | UKRI-STFC                        | 2026-06-09 |
+| DanCopsey           | Dan Copsey         | Met Office                       | 2026-05-14 |
 | marcstring          | Marc Stringer      | NCAS, Reading University         | 2026-05-06 |
 | cameronbateman-mo   | Cameron Bateman    | Met Office                       | 2026-05-28 |
 | davelee2804         | David Lee          | Bureau of Meteorology, Australia | 2026-06-02 |
