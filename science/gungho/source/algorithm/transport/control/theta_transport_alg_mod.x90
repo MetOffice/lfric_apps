@@ -134,7 +134,7 @@ contains
 
     type(config_type), pointer :: config
 
-    config =>  transport_controller%get_config()
+    config => transport_controller%get_config()
 
     ! ------------------------------------------------------------------------ !
     ! Convert to the particular potential temperature to be transported
