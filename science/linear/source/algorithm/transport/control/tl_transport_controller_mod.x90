@@ -21,7 +21,7 @@ module tl_transport_controller_mod
   use transport_metadata_mod,         only: transport_metadata_type
 
   ! Object types
-  use config_mod,only: config_type
+  use config_mod, only: config_type
 
   implicit none
 
@@ -99,18 +99,17 @@ contains
     integer(kind=i_def),       optional, intent(in)    :: outer
     logical(kind=l_def),       optional, intent(in)    :: cheap_update_step
 
-
     self%config => config
 
-    call self%ls_wind_ls_rho_controller%initialise(self%config,                &
+    call self%ls_wind_ls_rho_controller%initialise( self%config,               &
             model_clock, ls_ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,  &
             outer=outer, cheap_update_step=cheap_update_step )
 
-    call self%ls_wind_pert_rho_controller%initialise(self%config,              &
+    call self%ls_wind_pert_rho_controller%initialise( self%config,             &
             model_clock, ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,     &
             outer=outer, cheap_update_step=cheap_update_step )
 
-    call self%pert_wind_ls_rho_controller%initialise(self%config,              &
+    call self%pert_wind_ls_rho_controller%initialise( self%config,             &
             model_clock, ls_ref_field_rdef, wind_n_rdef, wind_np1_rdef,        &
             outer=outer, cheap_update_step=cheap_update_step )
 
@@ -224,6 +223,9 @@ contains
 
   end function get_pert_wind_ls_rho_controller
 
+  !> @brief Return the configuration object used to initialise this
+  !         transport controller object.
+  !> @return config <config_type> object used to initialise the controller.
   function get_config(self) result (config)
 
    implicit none

@@ -131,7 +131,8 @@ contains
                                                  face_selector_ns ) )
     else
       ! We read in cell centred zonal/meridional winds
-      call set_wind(modeldb%config, u, ew_wind_in_w3, ns_wind_in_w3, upward_wind_in_wtheta )
+      call set_wind( modeldb%config, u, ew_wind_in_w3, &
+                     ns_wind_in_w3, upward_wind_in_wtheta )
     end if
 
    call log_field_minmax( LOG_LEVEL_INFO, 'theta pert', theta )
