@@ -481,7 +481,7 @@ contains
     ! logging level is appropriate
     if (log_at_level(LOG_LEVEL_DEBUG) .and. .not. logged_lipschitz) then
       call lipschitz_diag_alg(                                                 &
-              self%config,                                                     &            
+              self%config,                                                     &
               self%reference_splitting, self%transporting_wind,                &
               dt_rtran, LOG_LEVEL_DEBUG                                        &
       )
@@ -695,7 +695,6 @@ contains
           call lipschitz_diag_alg(                                             &
                   self%config,                                                 &
                   self%reference_splitting, self%transporting_wind,            &
-                  self%reference_splitting, self%transporting_wind,            &
                   self%dt_substep, LOG_LEVEL_WARNING                           &
           )
 
@@ -838,7 +837,7 @@ contains
 
       if (allocated(self%wind_np1_rtran)) then
         call self%wind_precomputations%initialise(                             &
-                self%config,                                                   &                     
+                self%config,                                                   &
                 mesh, self%dt_substep, self%transporting_wind,                 &
                 wind_n=self%wind_n_rtran, wind_np1=self%wind_np1_rtran         &
         )

@@ -474,7 +474,6 @@ contains
         call aerosol_transport_controller%initialise(                          &
                 config,                                                        &
                 model_clock, aerosol_reference_rho, aerosol_wind_n,            &
-                model_clock, aerosol_reference_rho, aerosol_wind_n,            &
                 aerosol_wind_np1, outer, cheap_update_step=.false.             &
         )
         ! Copy dry density flux for the whole timestep into flux precomputations
