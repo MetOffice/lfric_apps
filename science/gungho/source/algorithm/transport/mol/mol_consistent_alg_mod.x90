@@ -86,6 +86,8 @@ module mol_consistent_alg_mod
     logical(kind=l_def)                       :: final_rk_stage
     logical(kind=l_def)                       :: final_substep
     logical(kind=l_def)                       :: final_split_step
+    logical(kind=l_def)                       :: do_flux
+    logical(kind=l_def)                       :: do_advective
     real(kind=r_tran)                         :: dt_mol_substep, scaling
     real(kind=r_tran),            allocatable :: rk_weights(:,:)
     type(mesh_type),                  pointer :: prime_extrusion_mesh
@@ -215,6 +217,8 @@ module mol_consistent_alg_mod
     ! ------------------------------------------------------------------------ !
     ! Do advective form until last stage of last substep
     ! ------------------------------------------------------------------------ !
+    do_flux = .false.
+    do_advective = .true.
     substep_loop: do substep = 1, number_substeps
 
       final_substep = ( substep == number_substeps )
@@ -300,10 +304,12 @@ module mol_consistent_alg_mod
       call invoke( setval_c(flux_X, 0.0_r_tran) )
 
       ! In all cases, compute flux to rho_X
-      call advective_and_flux_alg(config, flux_X, dummy, mr_for_flux, dummy, &
-                                  dry_flux, direction, transport_metadata,   &
-                                  final_rk_stage, dt_mol_substep, .true.,    &
-                                  .false.)
+      do_flux = .true.
+      do_advective = .false.
+      call advective_and_flux_alg( config, flux_X, dummy, mr_for_flux, dummy, &
+                                   dry_flux, direction, transport_metadata,   &
+                                   final_rk_stage, dt_mol_substep, do_flux,   &
+                                   do_advective )
     case ( Wtheta )
       ! Obtain mixing ratio used for reconstruction in shifted W3
       if (enforce_min_value) then
@@ -318,9 +324,12 @@ module mol_consistent_alg_mod
       end if
 
       ! In all cases, compute flux to rho_X
-      call advective_and_flux_alg(config, flux_X, dummy, mr_sh_w3_for_flux,       &
-                                  dummy, dry_flux, direction, transport_metadata, &
-                                  final_rk_stage, dt_mol_substep, .true., .false.)
+      do_flux = .true.
+      do_advective = .false.
+      call advective_and_flux_alg( config, flux_X, dummy, mr_sh_w3_for_flux,       &
+                                   dummy, dry_flux, direction, transport_metadata, &
+                                   final_rk_stage, dt_mol_substep,                 &
+                                   do_flux, do_advective )
     end select
 
     ! Need to scale flux to get correct time step
