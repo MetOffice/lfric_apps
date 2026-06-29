@@ -10,10 +10,6 @@ module compute_geopotential_kernel_mod_test
   use constants_mod, only : i_def, r_def, l_def
   use funit
 
-  ! Configuration modules
-  use base_mesh_config_mod,      only: GEOMETRY_SPHERICAL
-  use finite_element_config_mod, only: COORD_SYSTEM_XYZ
-
   implicit none
 
   private
@@ -23,7 +19,7 @@ module compute_geopotential_kernel_mod_test
   type, extends(TestCase) :: compute_geopotential_kernel_test_type
     private
     integer(i_def), allocatable :: map(:)
-    real(r_def),    allocatable :: x(:), y(:), z(:), phi(:), basis(:,:,:)
+    real(r_def),    allocatable :: z(:), phi(:)
   contains
     procedure setUp
     procedure tearDown
@@ -37,9 +33,6 @@ module compute_geopotential_kernel_mod_test
   real(r_def), parameter :: gravity  = 10.0_r_def
   real(r_def), parameter :: radius   = 6000000.0_r_def
 
-  integer(i_def), parameter :: coord_system = COORD_SYSTEM_XYZ
-  integer(i_def), parameter :: geometry     = GEOMETRY_SPHERICAL
-
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -50,10 +43,7 @@ contains
     class(compute_geopotential_kernel_test_type), intent(inout) :: this
 
     allocate( this%map(ndf), &
-              this%x(undf),  &
-              this%y(undf),  &
-              this%z(undf),  &
-              this%phi(undf) )
+              this%z(undf) )
 
   end subroutine setUp
 
@@ -64,7 +54,7 @@ contains
 
     class(compute_geopotential_kernel_test_type), intent(inout) :: this
 
-    deallocate( this%map, this%x, this%y, this%z, this%phi, this%basis )
+    deallocate( this%map, this%z, this%phi )
 
   end subroutine tearDown
 
@@ -83,23 +73,16 @@ contains
 
     real(r_def) :: answer
 
-    allocate(this%basis(1,ndf,ndf))
-
     this%map(1) = 1
-    this%x(1)   = 0.0_r_def
-    this%y(1)   = 0.0_r_def
     this%z(1)   = radius + 10000.0_r_def
 
-    this%basis(1,1,1) = 1.0_r_def
 
     ! Test shallow geometry
     shallow = .true.
     call compute_geopotential_code( nlayers,                          &
-                                    this%phi, this%x, this%y, this%z, &
-                                    gravity, radius, coord_system,    &
-                                    shallow, geometry,                &
-                                    ndf, undf, this%map, ndf, undf,   &
-                                    this%map, this%basis )
+                                    this%phi, this%z,                 &
+                                    gravity, radius, shallow,         &
+                                    ndf, undf, this%map )
 
     ! answer = gravity * (z - radius)
     answer = gravity * 10000.0_r_def
@@ -108,11 +91,9 @@ contains
     ! Test deep geometry
     shallow = .false.
     call compute_geopotential_code( nlayers,                          &
-                                    this%phi, this%x, this%y, this%z, &
-                                    gravity, radius, coord_system,    &
-                                    shallow, geometry,                &
-                                    ndf, undf, this%map, ndf, undf,   &
-                                    this%map, this%basis )
+                                    this%phi, this%z,                 &
+                                    gravity, radius, shallow,         &
+                                    ndf, undf, this%map )
 
     ! answer = radius * gravity * (1 - (radius/(radius + height))
     answer = 60000000.0_r_def * ( 1.0_r_def - 6000000.0_r_def/6010000.0_r_def)
