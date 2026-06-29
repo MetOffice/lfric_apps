@@ -774,7 +774,7 @@ end if
 ! 0.  Calculate top-of-b.l. velocity scales and Prandtl number.
 !-----------------------------------------------------------------------
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private(i, k, ii, i_wt, c_ws, wstar3, pr_neut, pr_conv, w_m_neut,   &
+!$OMP  private(i, k, ii, i_wt, c_ws, wstar3, pr_neut, pr_conv, w_m_neut,       &
 !$OMP  zeta_s_fac, sf_term, sf_shear_term, zeta_r_sq, ir_term, zr,             &
 !$OMP  evap_term, dz_inv, l_rad, alpha_t, dr_term, zil_corr,                   &
 !$OMP  rhokh_ent, frac_top,wsl_dzrad_int, wqw_dzrad_int, db_ratio, zb_ktop,    &
@@ -1948,13 +1948,9 @@ end do ! ii
 !$OMP end do
 
 end if  ! test in kprof_cu
-! $OMP end parallel
 
 ! ----------------------------------------------------------------------
 
-! $OMP  PARALLEL DEFAULT(SHARED)                                                &
-! $OMP  private(i, k, iic, z_pr, wb_scld, wb_cld, cld_frac, l, j1, i1,           &
-! $OMP  ic, n_sweep)
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   l = i - pdims%i_start + 1 + pdims%i_len * (j - pdims%j_start)
@@ -1969,15 +1965,9 @@ end do
 !$OMP end do
 !$OMP end parallel
 
-! $OMP MASTER
 c_len=pdims%i_len*pdims%j_len
-! $OMP end MASTER
-! $OMP BARRIER
 
 do n_sweep = 1, num_sweeps_bflux
-! $OMP BARRIER
-
-! $OMP MASTER
 
           ! Compress to_do and ind_todo (will have new length c_len)
   call excfnl_cci(c_len, to_do, ind_todo)
@@ -1987,20 +1977,11 @@ do n_sweep = 1, num_sweeps_bflux
   todo_inner(1:c_len_i) = to_do(1:c_len_i)
   ind_todo_i(1:c_len_i) = ind_todo(1:c_len_i)
 
-! $OMP end MASTER
-! $OMP BARRIER
-
   do ns = 1, n_steps
-! $OMP BARRIER
-
-! $OMP MASTER
 
               ! Calculate active elements and compress
     call excfnl_compin(up, wb_ratio, dec_thres, 1,                             &
                        c_len_i, ind_todo_i, todo_inner)
-
-! $OMP end MASTER
-! $OMP BARRIER
 
     !cdir nodep
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
@@ -2178,7 +2159,6 @@ do n_sweep = 1, num_sweeps_bflux
 !$OMP end parallel
 
 end do ! n_sweep
-! $OMP end parallel
 
 ! ----------------------------------------------------------------------
 
@@ -2389,13 +2369,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do ! i
 end do ! ii
 !$OMP end do
-! $OMP end parallel
 
 ! ----------------------------------------------------------------------
 
-! $OMP  PARALLEL DEFAULT(SHARED)                                                &
-! $OMP  private(i, k, f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld,             &
-! $OMP  wb_cld, cld_frac, l, j1, i1, ic, n_sweep, ns, interp)
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   l = i - pdims%i_start + 1 + pdims%i_len * (j - pdims%j_start)
@@ -2410,15 +2386,9 @@ end do ! i
 !$OMP end do
 !$OMP end parallel
 
-! $OMP MASTER
 c_len=pdims%i_len*pdims%j_len
-! $OMP end MASTER
-! $OMP BARRIER
 
 do n_sweep = 1, num_sweeps_bflux
-! $OMP BARRIER
-
-! $OMP MASTER
 
           ! Compress to_do and ind_todo (will have new length c_len)
   call excfnl_cci(c_len, to_do, ind_todo)
@@ -2428,23 +2398,15 @@ do n_sweep = 1, num_sweeps_bflux
   todo_inner(1:c_len_i) = to_do(1:c_len_i)
   ind_todo_i(1:c_len_i) = ind_todo(1:c_len_i)
 
-! $OMP end MASTER
-! $OMP BARRIER
-
   do ns = 1, n_steps
-! $OMP BARRIER
-
-! $OMP MASTER
 
               ! Calculate active elements and compress
     call excfnl_compin(up, wb_ratio, dec_thres, 2,                             &
                        c_len_i, ind_todo_i, todo_inner)
-! $OMP end MASTER
-! $OMP BARRIER
 
     !cdir nodep
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private(k, f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld,             &
+!$OMP  private(k, f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld,               &
 !$OMP  wb_cld, cld_frac, l, j1, i1, ic, n_sweep, ns, interp)
 !$OMP do SCHEDULE(STATIC)
     do ic = 1, c_len_i
@@ -2689,7 +2651,6 @@ do n_sweep = 1, num_sweeps_bflux
 !$OMP end parallel
 
 end do  ! loop over sweeps
-! $OMP end parallel
 
 ! ----------------------------------------------------------------------
 
@@ -2925,10 +2886,10 @@ end do ! ii
 ! 4.  Calculate height dependent turbulent
 !     transport coefficients within the mixing layer.
 !-----------------------------------------------------------------------
-!$OMP  PARALLEL DEFAULT(SHARED)                                                &
+!$OMP  PARALLEL DEFAULT(SHARED)                                                    &
 !$OMP  private(i, k, ii, factor, z_ratio, z_pr, zh_pr, w_m_hb_3, zk_uv,            &
 !$OMP  rhokm_dsct, zk_tq, Prandtl, w_h_uv, w_h_tq, w_m_uv, w_m_tq,                 &
-!$OMP  c_ws, pr_neut, pr_conv, wstar3,       &
+!$OMP  c_ws, pr_neut, pr_conv, wstar3,                                             &
 !$OMP  w_s_cubed_tq, w_s_cubed_uv, c_tke, ng_stress_calculate)
 ! Reset identifiers of base of decoupled layer mixing
 
