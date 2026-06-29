@@ -708,7 +708,7 @@ integer :: ind_todo_i(pdims%i_end*pdims%j_end)
 
 integer :: i1, j1, l
 
-integer            :: jj, ii         !Cache blocking - loop index(s)
+integer            :: iic, ii         !Cache blocking - loop index(s)
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -779,7 +779,7 @@ end if
 !$OMP  evap_term, dz_inv, l_rad, alpha_t, dr_term, zil_corr,                   &
 !$OMP  rhokh_ent, frac_top,wsl_dzrad_int, wqw_dzrad_int, db_ratio, zb_ktop,    &
 !$OMP  f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld, wb_cld, cld_frac,        &
-!$OMP  l_apply_surf_ent, interp,rho_we_dsc_no_surf, k_inv)
+!$OMP  l_apply_surf_ent, interp,rho_we_dsc_no_surf, k_inv, l)
 
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
@@ -1948,13 +1948,13 @@ end do ! ii
 !$OMP end do
 
 end if  ! test in kprof_cu
-!$OMP end parallel
+! $OMP end parallel
 
 ! ----------------------------------------------------------------------
 
-!$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private(i, k, jj, z_pr, wb_scld, wb_cld, cld_frac, l, j1, i1,           &
-!$OMP  ic, n_sweep)
+! $OMP  PARALLEL DEFAULT(SHARED)                                                &
+! $OMP  private(i, k, iic, z_pr, wb_scld, wb_cld, cld_frac, l, j1, i1,           &
+! $OMP  ic, n_sweep)
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   l = i - pdims%i_start + 1 + pdims%i_len * (j - pdims%j_start)
@@ -1967,16 +1967,17 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do
+!$OMP end parallel
 
-!$OMP MASTER
+! $OMP MASTER
 c_len=pdims%i_len*pdims%j_len
-!$OMP end MASTER
-!$OMP BARRIER
+! $OMP end MASTER
+! $OMP BARRIER
 
 do n_sweep = 1, num_sweeps_bflux
-!$OMP BARRIER
+! $OMP BARRIER
 
-!$OMP MASTER
+! $OMP MASTER
 
           ! Compress to_do and ind_todo (will have new length c_len)
   call excfnl_cci(c_len, to_do, ind_todo)
@@ -1986,22 +1987,25 @@ do n_sweep = 1, num_sweeps_bflux
   todo_inner(1:c_len_i) = to_do(1:c_len_i)
   ind_todo_i(1:c_len_i) = ind_todo(1:c_len_i)
 
-!$OMP end MASTER
-!$OMP BARRIER
+! $OMP end MASTER
+! $OMP BARRIER
 
   do ns = 1, n_steps
-!$OMP BARRIER
+! $OMP BARRIER
 
-!$OMP MASTER
+! $OMP MASTER
 
               ! Calculate active elements and compress
     call excfnl_compin(up, wb_ratio, dec_thres, 1,                             &
                        c_len_i, ind_todo_i, todo_inner)
 
-!$OMP end MASTER
-!$OMP BARRIER
+! $OMP end MASTER
+! $OMP BARRIER
 
     !cdir nodep
+!$OMP  PARALLEL DEFAULT(SHARED)                                                &
+!$OMP  private(k, iic, z_pr, wb_scld, wb_cld, cld_frac, j1, i1,                &
+!$OMP  ic)
 !$OMP do SCHEDULE(STATIC)
     do ic = 1, c_len_i
       j1=(ind_todo_i(ic)-1)/pdims%i_end+1
@@ -2039,10 +2043,10 @@ do n_sweep = 1, num_sweeps_bflux
     !..Integrate buoyancy flux profile given this ZSML_TOP
 
 !$OMP do SCHEDULE(STATIC)
-    do jj = 1, c_len_i, bl_segment_size
+    do iic = 1, c_len_i, bl_segment_size
       do k = 2, bl_levels-1
         !cdir nodep
-        do ic = jj, min(jj+bl_segment_size-1, c_len_i)
+        do ic = iic, min(iic+bl_segment_size-1, c_len_i)
           j1=(ind_todo_i(ic)-1)/pdims%i_end+1
           i1=ind_todo_i(ic)-(j1-1)*pdims%i_end
 
@@ -2124,17 +2128,20 @@ do n_sweep = 1, num_sweeps_bflux
         end do ! ic c_len_i
       end do ! k
 
-      do ic = jj, min(jj+bl_segment_size-1, c_len_i)
+      do ic = iic, min(iic+bl_segment_size-1, c_len_i)
         j1=(ind_todo_i(ic)-1)/pdims%i_end+1
         i1=ind_todo_i(ic)-(j1-1)*pdims%i_end
         wb_ratio(i1,j1) = wbn_int(i1,j1)/wbp_int(i1,j1)
       end do ! ic c_len_i
-    end do ! jj
+    end do ! iic
 !$OMP end do
+!$OMP end parallel
 
   end do  ! loop stepping up through ML (N_steps)
 
   !cdir nodep
+!$OMP  PARALLEL DEFAULT(SHARED)                                                &
+!$OMP  private(ic, l, j1, i1)
 !$OMP do SCHEDULE(STATIC)
   do ic = 1, c_len
     l=ind_todo(ic)
@@ -2168,14 +2175,15 @@ do n_sweep = 1, num_sweeps_bflux
 
   end do ! c_len
 !$OMP end do
+!$OMP end parallel
 
 end do ! n_sweep
-!$OMP end parallel
+! $OMP end parallel
 
 ! ----------------------------------------------------------------------
 
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private(i, k, ii, wsl_dzrad_int, wqw_dzrad_int, z_pr, interp, k_inv)
+!$OMP  private(i, k, ii, wsl_dzrad_int, wqw_dzrad_int, z_pr, interp, k_inv, l)
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end,bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
@@ -2381,13 +2389,13 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do ! i
 end do ! ii
 !$OMP end do
-!$OMP end parallel
+! $OMP end parallel
 
 ! ----------------------------------------------------------------------
 
-!$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private(i, k, f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld,             &
-!$OMP  wb_cld, cld_frac, l, j1, i1, ic, n_sweep, ns, interp)
+! $OMP  PARALLEL DEFAULT(SHARED)                                                &
+! $OMP  private(i, k, f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld,             &
+! $OMP  wb_cld, cld_frac, l, j1, i1, ic, n_sweep, ns, interp)
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   l = i - pdims%i_start + 1 + pdims%i_len * (j - pdims%j_start)
@@ -2400,16 +2408,17 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do ! i
 !$OMP end do
+!$OMP end parallel
 
-!$OMP MASTER
+! $OMP MASTER
 c_len=pdims%i_len*pdims%j_len
-!$OMP end MASTER
-!$OMP BARRIER
+! $OMP end MASTER
+! $OMP BARRIER
 
 do n_sweep = 1, num_sweeps_bflux
-!$OMP BARRIER
+! $OMP BARRIER
 
-!$OMP MASTER
+! $OMP MASTER
 
           ! Compress to_do and ind_todo (will have new length c_len)
   call excfnl_cci(c_len, to_do, ind_todo)
@@ -2419,21 +2428,24 @@ do n_sweep = 1, num_sweeps_bflux
   todo_inner(1:c_len_i) = to_do(1:c_len_i)
   ind_todo_i(1:c_len_i) = ind_todo(1:c_len_i)
 
-!$OMP end MASTER
-!$OMP BARRIER
+! $OMP end MASTER
+! $OMP BARRIER
 
   do ns = 1, n_steps
-!$OMP BARRIER
+! $OMP BARRIER
 
-!$OMP MASTER
+! $OMP MASTER
 
               ! Calculate active elements and compress
     call excfnl_compin(up, wb_ratio, dec_thres, 2,                             &
                        c_len_i, ind_todo_i, todo_inner)
-!$OMP end MASTER
-!$OMP BARRIER
+! $OMP end MASTER
+! $OMP BARRIER
 
     !cdir nodep
+!$OMP  PARALLEL DEFAULT(SHARED)                                                &
+!$OMP  private(k, f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld,             &
+!$OMP  wb_cld, cld_frac, l, j1, i1, ic, n_sweep, ns, interp)
 !$OMP do SCHEDULE(STATIC)
     do ic = 1, c_len_i
       j1=(ind_todo_i(ic)-1)/pdims%i_end+1
@@ -2473,10 +2485,10 @@ do n_sweep = 1, num_sweeps_bflux
     !..Integrate buoyancy flux profile given this ZDSC_BASE
 
 !$OMP do SCHEDULE(STATIC)
-    do jj = 1, c_len_i, bl_segment_size
+    do iic = 1, c_len_i, bl_segment_size
       do k = 2, bl_levels-1
         !cdir nodep
-        do ic = jj, min(jj+bl_segment_size-1, c_len_i)
+        do ic = iic, min(iic+bl_segment_size-1, c_len_i)
           j1=(ind_todo_i(ic)-1)/pdims%i_end+1
           i1=ind_todo_i(ic)-(j1-1)*pdims%i_end
 
@@ -2609,7 +2621,7 @@ do n_sweep = 1, num_sweeps_bflux
           end if ! K
         end do ! ic c_len_i
       end do ! K
-    end do ! jj
+    end do ! iic
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
@@ -2619,10 +2631,13 @@ do n_sweep = 1, num_sweeps_bflux
       wb_ratio(i1,j1)=wbn_int(i1,j1)/wbp_int(i1,j1)
     end do ! ic c_len_i
 !$OMP end do
+!$OMP end parallel
 
   end do  ! loop stepping up through ML
 
   !cdir nodep
+!$OMP  PARALLEL DEFAULT(SHARED)                                                &
+!$OMP  private(ic, l, j1, i1)
 !$OMP do SCHEDULE(STATIC)
   do ic = 1, c_len
     l=ind_todo(ic)
@@ -2671,9 +2686,10 @@ do n_sweep = 1, num_sweeps_bflux
 
   end do ! c_len
 !$OMP end do
+!$OMP end parallel
 
 end do  ! loop over sweeps
-!$OMP end parallel
+! $OMP end parallel
 
 ! ----------------------------------------------------------------------
 
