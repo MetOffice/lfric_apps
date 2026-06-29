@@ -204,8 +204,9 @@ contains
     type(coupler_exchange_2d_type)       :: coupler_exchange_2d
     integer(kind=i_def)                  :: ierror
     logical(kind=l_def)                  :: is_running
-    logical(kind=l_def)                  :: extrusion_change
-
+    logical(kind=l_def)                  :: vertical_change
+    logical(kind=l_def)                  :: horizontal_change
+    
     !------------------------
     ! XIOS contexts
     !------------------------
@@ -240,11 +241,6 @@ contains
     call dst_extrusion_nml%get_value( 'number_of_layers', dst_number_of_layers )
     call dst_extrusion_nml%get_value( 'domain_height', dst_domain_height )
 
-    extrusion_change=.false.
-    if ( src_extrusion_method \= dst_extrusion_method ) then extrusion_change=.true.
-    if ( src_number_of_layers \= dst_number_of_layers ) then extrusion_change=.true.
-    if ( src_domain_height \= dst_domain_height )       then extrusion_change=.true.
-
     ! Check lfric2lfric configuration settings are allowed
     call lfric2lfric_check_configuration( lfric2lfric_nml )
 
@@ -259,6 +255,14 @@ contains
     call finite_element_nml%get_value( 'element_order_h', element_order_h)
     call finite_element_nml%get_value( 'element_order_v', element_order_v)
 
+    vertical_change = .false.
+    if ( src_extrusion_method \= dst_extrusion_method ) then vertical_change = .true.
+    if ( src_number_of_layers \= dst_number_of_layers ) then vertical_change = .true.
+    if ( src_domain_height \= dst_domain_height )       then vertical_change = .true.
+    
+    horizontal_change = .false.
+    if ( mesh_names(dst) \= mesh_names(src) ) then horizontal_change = .true.
+    
     !=======================================================================
     ! Mesh
     !=======================================================================
@@ -328,7 +332,7 @@ contains
 
     end select
 
-    if (extrusion_change) then
+    if (vertical_change) then
 
       select case (dst_extrusion_method)
         case (method_uniform, method_quadratic, method_geometric)
@@ -398,8 +402,7 @@ contains
                     src_extrusion,               &
                     stencil_depth, regrid_method )
     
-    ! If dst extrusion is different to src extrusion
-    if (extrusion_change) then
+    if (vertical_change) then
       allocate( mesh_names_dst_ext, source=mesh_names )
       do i=1, size(mesh_names)
         mesh_names_dst_ext(i) = trim(mesh_names(i))//'_dst_ext'
@@ -432,9 +435,19 @@ contains
     !-----------------------------------------------------------------------
     mesh_src      => mesh_collection%get_mesh(trim(mesh_names(src)))
     twod_mesh_src => mesh_collection%get_mesh(trim(twod_names(src)))
-    mesh_dst      => mesh_collection%get_mesh(trim(mesh_names(dst)))
-    twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
 
+    if (vertical_change) then
+      mesh_dst      => mesh_collection%get_mesh(trim(mesh_names_dst_ext(dst)))
+      twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
+    else
+      mesh_dst      => mesh_collection%get_mesh(trim(mesh_names(dst)))
+      twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
+    end if
+
+    if (vertical_change and horizontal_change) then
+       mesh_inter   => mesh_collection%get_mesh(trim(mesh_names_dst(dst)))
+    end if
+      
     ! Log this change
     call log_event('Source mesh set to: ' // mesh_names(src),         &
                    log_level_debug)
@@ -456,12 +469,21 @@ contains
     files_init_ptr => init_lfric2lfric_dst_files
 
     ! Initialise the IO context with all the required info
-    call init_io( context_dst,                      &
-                  mesh_names(dst),                  &
-                  modeldb,                          &
-                  chi_inventory,                    &
-                  panel_id_inventory,               &
-                  populate_filelist=files_init_ptr  )
+    if (vertical_change) then
+      call init_io( context_dst,                      &
+                    mesh_names_dst_ext(dst),           &
+                    modeldb,                          &
+                    chi_inventory,                    &
+                    panel_id_inventory,               &
+                    populate_filelist=files_init_ptr  )
+    else
+       call init_io( context_dst,                     &
+                    mesh_names(dst),                  &
+                    modeldb,                          &
+                    chi_inventory,                    &
+                    panel_id_inventory,               &
+                    populate_filelist=files_init_ptr  )
+    end if
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context_dst)
 
