@@ -1,3 +1,0 @@
-Inner product checksum zh = 7FF0000000000000
-Inner product checksum rho = FFFFFFFFFFFFFFFF
-Inner product checksum theta = FFFFFFFFFFFFFFFF
