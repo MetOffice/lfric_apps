@@ -1983,10 +1983,10 @@ do n_sweep = 1, num_sweeps_bflux
     call excfnl_compin(up, wb_ratio, dec_thres, 1,                             &
                        c_len_i, ind_todo_i, todo_inner)
 
-    !cdir nodep
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private(k, iic, z_pr, wb_scld, wb_cld, cld_frac, j1, i1,                &
 !$OMP  ic)
+    !cdir nodep
 !$OMP do SCHEDULE(STATIC)
     do ic = 1, c_len_i
       j1=(ind_todo_i(ic)-1)/pdims%i_end+1
@@ -2119,10 +2119,9 @@ do n_sweep = 1, num_sweeps_bflux
 !$OMP end parallel
 
   end do  ! loop stepping up through ML (N_steps)
-
-  !cdir nodep
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private(ic, l, j1, i1)
+  !cdir nodep
 !$OMP do SCHEDULE(STATIC)
   do ic = 1, c_len
     l=ind_todo(ic)
@@ -2404,10 +2403,10 @@ do n_sweep = 1, num_sweeps_bflux
     call excfnl_compin(up, wb_ratio, dec_thres, 2,                             &
                        c_len_i, ind_todo_i, todo_inner)
 
-    !cdir nodep
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private(k, f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld,               &
 !$OMP  wb_cld, cld_frac, l, j1, i1, ic, n_sweep, ns, interp)
+    !cdir nodep
 !$OMP do SCHEDULE(STATIC)
     do ic = 1, c_len_i
       j1=(ind_todo_i(ic)-1)/pdims%i_end+1
@@ -2597,8 +2596,8 @@ do n_sweep = 1, num_sweeps_bflux
 
   end do  ! loop stepping up through ML
 
-  !cdir nodep
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
+  !cdir nodep
 !$OMP  private(ic, l, j1, i1)
 !$OMP do SCHEDULE(STATIC)
   do ic = 1, c_len
