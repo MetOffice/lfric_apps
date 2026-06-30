@@ -14,6 +14,7 @@
 module transport_controller_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def, r_tran, r_def, IMDI, &
                                             str_def
   use extrusion_mod,                  only: SHIFTED, TWOD
@@ -62,9 +63,6 @@ module transport_controller_mod
   ! Config
   use departure_points_config_mod,    only: share_stencil_extent
   use transport_config_mod,           only: dep_pt_stencil_extent
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

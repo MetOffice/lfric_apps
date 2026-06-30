@@ -48,6 +48,7 @@ module external_forcing_alg_mod
   use pc2_force_response_alg_mod,      only: pc2_force_response_alg
 #endif
   ! Derived Types
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, r_def, l_def
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
@@ -63,6 +64,7 @@ module external_forcing_alg_mod
                                              get_face_selector_ns
   use mesh_mod,                        only: mesh_type
   use mr_indices_mod,                  only: nummr
+  use planet_config_mod,               only: kappa
   use io_config_mod,                   only: write_diag, use_xios_io
   use section_choice_config_mod,       only: cloud, cloud_um
   use cloud_config_mod,                only: scheme, scheme_pc2
@@ -83,13 +85,6 @@ module external_forcing_alg_mod
   use w2_filter_alg_mod,               only: w2_filter_alg
 
   use external_forcing_diagnostics_mod, only: write_forcing_diagnostics
-
-  ! Object types
-  use config_mod, only: config_type
-
-
-  ! Configuration modules
-  use planet_config_mod, only: kappa
 
   implicit none
 

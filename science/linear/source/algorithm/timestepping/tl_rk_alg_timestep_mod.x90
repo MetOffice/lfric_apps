@@ -7,6 +7,7 @@
 !>@brief Tangent linear for the Runge-Kutta time-discretisation.
 module tl_rk_alg_timestep_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def,r_def
   use fs_continuity_mod,                  only: W3
   use log_mod,                            only: log_event,         &
@@ -90,9 +91,6 @@ module tl_rk_alg_timestep_mod
                                                 tik, LPROF
 
   use sci_field_minmax_alg_mod,           only: log_field_minmax
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

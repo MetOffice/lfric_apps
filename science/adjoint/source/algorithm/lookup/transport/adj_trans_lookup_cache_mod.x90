@@ -8,14 +8,13 @@
 module adj_trans_lookup_cache_mod
 
   use adj_lookup_table_mod,            only: adj_lookup_table_type
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, l_def
   use fs_continuity_mod,               only: W3, Wtheta, &
                                              W2, W2H
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
                                              LOG_LEVEL_ERROR
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

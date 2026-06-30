@@ -8,6 +8,7 @@
 module mol_consistent_alg_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_tran, i_def, l_def
   use extrusion_mod,                  only: SHIFTED
   use fs_continuity_mod,              only: W3, Wtheta
@@ -37,9 +38,6 @@ module mol_consistent_alg_mod
   ! Kernels
   use sci_inject_wt_to_sh_w3_kernel_mod, &
                                       only: inject_wt_to_sh_w3_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration
   use base_mesh_config_mod,  only: topology, topology_non_periodic

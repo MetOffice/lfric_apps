@@ -7,7 +7,6 @@
 !> @brief Apply diffusion or mixing to model variables
 module mixing_alg_mod
 
-  ! Object types
   use config_mod, only: config_type
 
   implicit none

@@ -23,6 +23,7 @@
 
 module wind_precomputations_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def, str_def, imdi,       &
                                             r_tran, EPS_R_TRAN
   use extrusion_mod,                  only: SHIFTED, TWOD
@@ -58,9 +59,6 @@ module wind_precomputations_alg_mod
                                             direction_3d
   use transport_constants_mod,        only: get_element_order_h_transport,     &
                                             get_element_order_v_transport
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

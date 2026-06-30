@@ -9,6 +9,7 @@
 module ffsl_vert_alg_mod
 
   ! Constants and types
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use fs_continuity_mod,                only: W2V
@@ -47,9 +48,6 @@ module ffsl_vert_alg_mod
                                         only: ffsl_flux_z_rev_nirvana_kernel_type
   use fv_difference_z_kernel_mod,       only: fv_difference_z_kernel_type
   use fv_divergence_z_kernel_mod,       only: fv_divergence_z_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use transport_config_mod, only: ffsl_unity_3d, &

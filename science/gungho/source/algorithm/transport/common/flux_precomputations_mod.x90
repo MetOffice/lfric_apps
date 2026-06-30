@@ -34,6 +34,7 @@ module flux_precomputations_alg_mod
                                             transport_overwrite_freq_all,      &
                                             transport_overwrite_freq_final,    &
                                             transport_overwrite_freq_split_step
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def, str_def, imdi,       &
                                             r_tran, EPS_R_TRAN, r_def
   use departure_points_config_mod,    only: share_stencil_extent
@@ -84,9 +85,6 @@ module flux_precomputations_alg_mod
   use transport_enumerated_types_mod, only: direction_h,                       &
                                             direction_v,                       &
                                             direction_3d
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

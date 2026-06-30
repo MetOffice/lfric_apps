@@ -8,6 +8,7 @@
 
 module init_unsaturated_profile_alg_mod
 
+use config_mod,                      only: config_type
 use constants_mod,                   only: r_def, i_def
 use sci_field_bundle_builtins_mod,   only: set_bundle_scalar, clone_bundle
 use field_mod,                       only: field_type
@@ -28,9 +29,6 @@ use physics_mappings_alg_mod,        only: map_physics_scalars
 use planet_config_mod,               only: rd, p_zero, kappa, &
                                            recip_epsilon
 use relative_humidity_kernel_mod,    only: relative_humidity_kernel_type
-
-! Object types
-use config_mod, only: config_type
 
 implicit none
 

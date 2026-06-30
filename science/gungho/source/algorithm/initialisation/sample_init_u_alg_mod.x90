@@ -6,6 +6,7 @@
 !> @brief Initialise wind components by sampling specified profiles
 module sample_init_u_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, l_def, rmdi
   use field_mod,                     only: field_type
   use fs_continuity_mod,             only: W3, Wtheta
@@ -32,9 +33,6 @@ module sample_init_u_alg_mod
                                            profile_heights
   use function_space_collection_mod, only: function_space_collection
   use mesh_mod,                      only: mesh_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

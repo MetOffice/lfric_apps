@@ -10,6 +10,7 @@
 
 module name_transport_init_fields_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: r_def, i_def, radians_to_degrees
   use domain_mod,                        only: domain_type
   use field_mod,                         only: field_type
@@ -28,9 +29,6 @@ module name_transport_init_fields_alg_mod
                                                get_panel_id
   use set_name_field_kernel_mod,         only: set_name_field_kernel_type
   use set_rho_kernel_mod,                only: set_rho_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

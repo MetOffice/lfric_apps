@@ -9,6 +9,7 @@
 module ffsl_hori_alg_mod
 
   ! Constants and types
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use fs_continuity_mod,                only: W2H, W2Hbroken
@@ -85,9 +86,6 @@ module ffsl_hori_alg_mod
                                           ffsl_inner_order,                    &
                                           ffsl_outer_order,                    &
                                           ffsl_unity_3d
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

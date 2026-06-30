@@ -11,6 +11,7 @@
 module compute_sl_coefficients_alg_mod
 
   ! Constants and types
+  use config_mod,                               only: config_type
   use constants_mod,                            only: i_def, l_def
   use r_tran_field_mod,                         only: r_tran_field_type
   use field_mod,                                only: field_type
@@ -24,9 +25,6 @@ module compute_sl_coefficients_alg_mod
   use compute_vertical_linear_coef_kernel_mod,  only: compute_vertical_linear_coef_kernel_type
   use compute_vertical_cubic_coef_kernel_mod,   only: compute_vertical_cubic_coef_kernel_type
   use compute_vertical_quintic_coef_kernel_mod, only: compute_vertical_quintic_coef_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

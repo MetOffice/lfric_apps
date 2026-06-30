@@ -1,0 +1,77 @@
+Missing key for profile enumeration in orography namelist.
+Missing key for profile enumeration in orography namelist.
+-> report :  Memory report : Context <lfric2lfric_source> : server side : total memory used for buffer 981730 bytes
+-> report :  Memory report : Context <lfric2lfric_source_server> : client side : total memory used for buffer 981730 bytes
+-> report :  Memory report : Context <lfric2lfric_source_server> : server side : total memory used for buffer 981594 bytes
+-> report :  Memory report : Context <lfric2lfric_source> : client side : total memory used for buffer 981594 bytes
+-> report :  Memory report : Context <lfric2lfric_destination> : server side : total memory used for buffer 1963100 bytes
+-> report :  Memory report : Context <lfric2lfric_destination_server> : client side : total memory used for buffer 1963100 bytes
+-> report :  Memory report : Context <lfric2lfric_destination_server> : server side : total memory used for buffer 3926251 bytes
+-> report :  Memory report : Context <lfric2lfric_destination> : client side : total memory used for buffer 3926251 bytes
+-> report :  Performance report : Whole time from XIOS init and finalize: 0 s
+-> report :  Performance report : total time spent for XIOS : 1.52317 s
+-> report :  Performance report : time spent for waiting free buffer : 3.0695e-05 s
+-> report :  Performance report : Ratio : inf %
+-> report :  Performance report : This ratio must be close to zero. Otherwise it may be usefull to increase buffer size or numbers of server
+-> report :  Memory report : Minimum buffer size required : 3926106 bytes
+-> report :  Memory report : increasing it by a factor will increase performance, depending of the volume of data wrote in file at each time step of the file
+20260623161258.879+0100:INFO : Runtime message logging severity set to log level: INFO
+20260623161258.880+0100:INFO : Setting up partition mesh(es)
+20260623161258.880+0100:INFO : Reading global mesh: "C24"
+20260623161258.889+0100:INFO : Reading global mesh: "C12"
+20260623161259.056+0100:INFO :    ... "C24"(id:1) based on mesh "C24"
+20260623161259.067+0100:INFO :    ... "C12"(id:2) based on mesh "C12"
+20260623161259.067+0100:INFO : Adding intergrid map "C24"-->"C12"
+20260623161259.067+0100:INFO : Adding intergrid map "C12"-->"C24"
+20260623161259.069+0100:INFO :    ... "C24_2d"(id:3) based on mesh "C24"
+20260623161259.069+0100:INFO :    ... "C12_2d"(id:4) based on mesh "C12"
+20260623161259.069+0100:INFO : FEM specifics: creating function spaces...
+20260623161259.250+0100:INFO : FEM specifics created
+20260623161301.002+0100:S1:INFO : lfric2lfric: Initialising miniapp ...
+20260623161301.013+0100:S1:INFO : Found variable: zh
+20260623161301.017+0100:S1:INFO : Found variable: theta
+20260623161301.017+0100:S1:INFO : Found variable: rho
+20260623161301.018+0100:S1:INFO : Adding zh to field collection source_fields
+20260623161301.018+0100:S1:INFO : Adding theta to field collection source_fields
+20260623161301.018+0100:S1:INFO : Adding rho to field collection source_fields
+20260623161301.018+0100:S1:INFO : Adding zh to field collection target_fields
+20260623161301.018+0100:S1:INFO : Adding theta to field collection target_fields
+20260623161301.018+0100:S1:INFO : Adding rho to field collection target_fields
+20260623161301.018+0100:S1:INFO : lfric2lfric: Miniapp initialised
+20260623161301.018+0100:S1:INFO : Adding intergrid map "C24_2d"-->"C12_2d"
+20260623161301.018+0100:S1:INFO : Adding intergrid map "C12_2d"-->"C24_2d"
+20260623161301.021+0100:S1:INFO : Reading zh
+20260623161301.022+0100:S1:INFO : Reading rho
+20260623161301.022+0100:S1:INFO : Reading theta
+ Dest. Regrid geometry:   1589812962  1589812962   858515690
+ Dest. Regrrd topology:   1164715474   230757428  1164715474
+20260623161301.028+0100:S1:INFO : Processing lfric field zh
+ Regridding via map method
+ Regridding via non-W2
+ On W3 
+               0 destination
+41EC942AC03AF332
+41EC942AC03AF332
+20260623161301.042+0100:S1:INFO : Processing lfric field rho
+ Regridding via map method
+ Regridding via non-W2
+ On W3 
+               0 destination
+40FA7F5C1F732D71
+40FA7F5C1F732D71
+20260623161301.820+0100:S1:INFO : Processing lfric field theta
+ Regridding via map method
+ Regridding via non-W2
+ On Wtheta 
+               0 destination
+ coarse_to_fine
+40AAB8CE546AAC51 weights
+4232EB3465F6170A source
+               0 destination
+4252B9378905BFA5 destination
+4252B9378905BFA5
+20260623161301.832+0100:S1:INFO : Writing zh
+20260623161302.162+0100:S1:INFO : Writing rho
+20260623161302.169+0100:S1:INFO : Writing theta
+20260623161302.179+0100:S1:INFO : lfric2lfric: Miniapp completed
+20260623161302.188+0100:S1:INFO : lfric2lfric application completed.

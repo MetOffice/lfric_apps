@@ -7,6 +7,7 @@
 
 module illuminate_alg_mod
 
+use config_mod,              only: config_type
 use constants_mod,           only: i_def, i_timestep, r_def, l_def
 use field_mod,               only: field_type
 use field_collection_mod,    only: field_collection_type
@@ -17,9 +18,6 @@ use sci_geometric_constants_mod,   &
                              only: get_latitude_fv, get_longitude_fv
 use illuminate_kernel_mod,   only: illuminate_kernel_type
 use timing_mod,              only: start_timing, stop_timing, tik, LPROF
-
-! Object types
-use config_mod, only: config_type
 
 implicit none
 

@@ -8,6 +8,7 @@
 module atl_mol_advective_alg_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def
   use field_mod,                      only: field_type
   use mesh_mod,                       only: mesh_type
@@ -30,9 +31,6 @@ module atl_mol_advective_alg_mod
   ! Configuration
   use transport_config_mod,           only: runge_kutta_method
   use linear_config_mod,              only: transport_efficiency
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -7,7 +7,6 @@
 
 module bl_imp_alg_mod
 
-  ! Object types
   use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, l_def
   use model_clock_mod,               only: model_clock_type

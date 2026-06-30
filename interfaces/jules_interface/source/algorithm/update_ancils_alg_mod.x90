@@ -6,7 +6,6 @@
 !>@brief Processing of ancillary files
 module update_ancils_alg_mod
 
-
   use clock_mod,            only: clock_type
   use config_mod,           only: config_type
   use constants_mod,        only: str_def

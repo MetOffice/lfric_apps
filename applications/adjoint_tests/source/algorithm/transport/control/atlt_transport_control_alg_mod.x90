@@ -7,6 +7,7 @@
 module atlt_transport_control_alg_mod
 
   use adj_trans_lookup_cache_mod,          only : adj_trans_lookup_cache_type
+  use config_mod,                          only : config_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
   use constants_mod,                       only : r_def, i_def, l_def
@@ -25,9 +26,6 @@ module atlt_transport_control_alg_mod
   use mr_indices_mod,                      only : nummr
   use field_indices_mod,                   only : igh_u, igh_t, &
                                                   igh_d, igh_p
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -7,6 +7,7 @@
 
 module theta_transport_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def, l_def
   use dg_inc_matrix_vector_kernel_mod, &
                                       only: dg_inc_matrix_vector_kernel_type
@@ -58,9 +59,6 @@ module theta_transport_alg_mod
   use transport_rho_times_field_alg_mod,                                       &
                                       only: transport_rho_times_field_alg
   use transport_enumerated_types_mod, only: direction_3d
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use finite_element_config_mod, only: element_order_h, element_order_v

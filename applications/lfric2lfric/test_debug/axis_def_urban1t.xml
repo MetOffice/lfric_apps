@@ -1,0 +1,8 @@
+<!-- Axis definitions for a 9-tile land surface -->
+<!-- TODO : #325 Define fields to initialise for lfric2lfric miniapp -->
+<axis_definition>
+  <axis id="land_tiles" name="land_tiles" n_glo="9"/>
+  <axis id="surface_tiles" name="surface_tiles" n_glo="11"/>
+  <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" n_glo="27"/>
+  <axis id="land_tile_rad_band" name="land_tile_rad_band" n_glo="18"/>
+</axis_definition>

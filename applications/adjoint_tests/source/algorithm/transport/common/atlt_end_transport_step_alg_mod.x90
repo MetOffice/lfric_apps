@@ -7,6 +7,7 @@
 
 module atlt_end_transport_step_alg_mod
 
+  use config_mod,                          only : config_type
   use field_mod,                           only : field_type
   use r_tran_field_mod,                    only : r_tran_field_type
   use function_space_mod,                  only : function_space_type
@@ -40,8 +41,6 @@ module atlt_end_transport_step_alg_mod
                                                   counter_field_n_inp_prod_rtran
   use init_from_controller_alg_mod,        only : init_counter_fieldvals, &
                                                   init_flux_pc_fieldvals
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

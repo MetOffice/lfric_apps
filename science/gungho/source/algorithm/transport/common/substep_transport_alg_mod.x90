@@ -10,6 +10,7 @@ module substep_transport_alg_mod
   ! Constants and types
   use check_configuration_mod,           only: check_any_splitting_hvh, &
                                                check_any_splitting_vhv
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, l_def, r_def, r_tran
   use field_mod,                         only: field_type
   use fs_continuity_mod,                 only: W2H, W2V, W3
@@ -30,9 +31,6 @@ module substep_transport_alg_mod
   use hori_dep_dist_eulerian_kernel_mod, only: hori_dep_dist_eulerian_kernel_type
   use lipschitz_diag_alg_mod,            only: lipschitz_computation_alg
   use sci_field_minmax_alg_mod,          only: get_field_minmax
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use departure_points_config_mod,       only: horizontal_limit, &

@@ -12,6 +12,7 @@
 module tl_transport_controller_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def
   use field_mod,                      only: field_type
   use model_clock_mod,                only: model_clock_type
@@ -19,9 +20,6 @@ module tl_transport_controller_mod
   ! Transport objects
   use transport_controller_mod,       only: transport_controller_type
   use transport_metadata_mod,         only: transport_metadata_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

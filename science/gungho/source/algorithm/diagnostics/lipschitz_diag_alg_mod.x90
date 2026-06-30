@@ -9,6 +9,7 @@
 module lipschitz_diag_alg_mod
 
   ! Constants and types
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, r_tran, l_def, i_def, str_def
   use r_tran_field_mod,                only: r_tran_field_type
   use function_space_mod,              only: function_space_type
@@ -34,9 +35,6 @@ module lipschitz_diag_alg_mod
   use split_w2_field_kernel_mod,       only: split_w2_field_kernel_type
 
   use print_field_stats_alg_mod,       only: print_field_stats_alg_rtran
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -18,6 +18,7 @@
 !!                      size as an integer argument.
 module tl_reconstruct_w3_field_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order_h, element_order_v
@@ -45,9 +46,6 @@ module tl_reconstruct_w3_field_alg_mod
   use reconstruct_w3_field_alg_mod,   only: hori_w3_reconstruct_alg
   use sci_combine_multidata_field_kernel_mod, &
                                       only: combine_multidata_field_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -10,6 +10,7 @@ module name_transport_driver_mod
 
   use add_mesh_map_mod,                   only: assign_mesh_maps
   use check_configuration_mod,            only: get_required_stencil_depth
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, l_def, &
                                                 r_def, r_second, str_def
   use create_mesh_mod,                    only: create_mesh, create_extrusion
@@ -61,9 +62,6 @@ module name_transport_driver_mod
                                        element_order_h, &
                                        element_order_v
   use name_options_config_mod,   only: transport_density
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

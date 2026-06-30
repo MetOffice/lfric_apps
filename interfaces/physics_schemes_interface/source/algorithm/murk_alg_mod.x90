@@ -7,6 +7,7 @@
 
 module murk_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: r_def, i_def
   use integer_field_mod,             only: integer_field_type
   use field_mod,                     only: field_type
@@ -18,9 +19,6 @@ module murk_alg_mod
   use fs_continuity_mod,             only: W3, Wtheta
   use mesh_mod,                      only: mesh_type
   use um_sizes_init_mod,             only: um_sizes_init
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

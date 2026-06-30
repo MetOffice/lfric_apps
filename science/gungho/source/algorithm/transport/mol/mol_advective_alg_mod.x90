@@ -8,6 +8,7 @@
 module mol_advective_alg_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, r_tran
   use mesh_mod,                       only: mesh_type
   use r_tran_field_mod,               only: r_tran_field_type
@@ -29,9 +30,6 @@ module mol_advective_alg_mod
   use base_mesh_config_mod,           only: topology, topology_non_periodic
   use boundaries_config_mod,          only: limited_area, transport_boundary_depth
   use transport_config_mod,           only: runge_kutta_method
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

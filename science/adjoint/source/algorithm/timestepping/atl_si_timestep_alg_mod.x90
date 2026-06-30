@@ -8,6 +8,7 @@
 module atl_si_timestep_alg_mod
 
   use atl_moist_dyn_factors_alg_mod,       only: atl_moist_dyn_factors_alg
+  use config_mod,                          only: config_type
   use constants_mod,                       only: i_def, r_def, l_def, str_def
   use log_mod,                             only: log_event, log_scratch_space, &
                                                  LOG_LEVEL_INFO, LOG_LEVEL_ERROR
@@ -62,9 +63,6 @@ module atl_si_timestep_alg_mod
   use timing_mod,                          only: start_timing, stop_timing, &
                                                  tik, LPROF
   use transport_enumerated_types_mod,      only: direction_3d, direction_h, direction_v
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -7,20 +7,16 @@
 !> @brief Apply water vapour tendency forcing to the water vapour field
 module vapour_forcing_profile_alg_mod
 
+use config_mod,                  only: config_type
 use constants_mod,               only: i_def, l_def, r_def
-use kernel_mod,                  only: kernel_type
 use field_mod,                   only: field_type
 use fs_continuity_mod,           only: Wtheta
-use sci_geometric_constants_mod, only: get_height_fv
+use kernel_mod,                  only: kernel_type
 use log_mod,                     only: log_event, LOG_LEVEL_ERROR
+use mesh_mod,                    only: mesh_type
+use planet_config_mod,           only: kappa, p_zero
+use sci_geometric_constants_mod, only: get_height_fv
 use timestepping_config_mod,     only: dt
-
-! Object types
-use config_mod, only: config_type
-use mesh_mod,   only: mesh_type
-
-! Configuration modules
-use planet_config_mod, only: kappa, p_zero
 
 implicit none
 

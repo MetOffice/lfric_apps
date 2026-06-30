@@ -6,6 +6,7 @@
 !> @brief Prepares the radiation fields
 module init_radiation_fields_alg_mod
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, r_def, l_def, pi
   use kernel_mod,                      only: kernel_type
 
@@ -14,11 +15,8 @@ module init_radiation_fields_alg_mod
   use field_collection_mod,            only: field_collection_type
 
   use fs_continuity_mod,               only: Wtheta
+  use mesh_mod,                        only: mesh_type
   use sci_geometric_constants_mod,     only: get_height_fv
-
-  ! Object types
-  use config_mod, only: config_type
-  use mesh_mod,   only: mesh_type
 
   implicit none
 

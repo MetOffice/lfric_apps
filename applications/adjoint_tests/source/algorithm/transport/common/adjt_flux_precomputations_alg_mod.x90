@@ -6,6 +6,7 @@
 !> @brief Module containing handwritten adjoint test for adj_flux_precomputations_mod routines
 module adjt_flux_precomputations_alg_mod
 
+  use config_mod,                          only : config_type
   use field_mod,                           only : field_type
   use r_tran_field_mod,                    only : r_tran_field_type
   use mesh_mod,                            only : mesh_type
@@ -34,9 +35,6 @@ module adjt_flux_precomputations_alg_mod
                                                   flux_pc_ref_field_inp_prod_rtran, &
                                                   flux_pc_ref_mass_prod_rtran,      &
                                                   flux_pc_ref_mass_inp_prod_rtran
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -10,6 +10,7 @@
 module adjt_apply_helmholtz_op_lookup_alg_mod
 
   use adj_solver_lookup_cache_mod,   only: adj_solver_lookup_cache_type
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def, r_solver
   use field_mod,                     only: field_type
   use finite_element_config_mod,     only: element_order_h, element_order_v
@@ -26,9 +27,6 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
   use adj_lookup_table_mod,          only: adj_lookup_table_type
   use sci_r_solver_field_vector_mod, only: r_solver_field_vector_type
   use si_operators_alg_mod,          only: compute_si_operators, get_helmholtz_operator
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

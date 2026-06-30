@@ -7,6 +7,7 @@
 
 module name_transport_control_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, r_def, l_def, str_def
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
@@ -22,9 +23,6 @@ module name_transport_control_alg_mod
   use transport_controller_mod,          only: transport_controller_type
   use transport_metadata_mod,            only: transport_metadata_type
   use transport_metadata_collection_mod, only: transport_metadata_collection_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

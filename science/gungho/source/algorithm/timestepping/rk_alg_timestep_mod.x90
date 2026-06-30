@@ -10,6 +10,7 @@
 !>          equations using a multistage explicit Runge-Kutta algorithm.
 module rk_alg_timestep_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def, l_def
   use fs_continuity_mod,                  only: W1, W2, W3
   use log_mod,                            only: log_event,         &
@@ -90,9 +91,6 @@ module rk_alg_timestep_mod
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
   use sci_field_minmax_alg_mod,           only: log_field_minmax
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

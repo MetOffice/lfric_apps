@@ -10,6 +10,7 @@ module init_gungho_prognostics_alg_mod
   use log_mod,                         only: log_event,         &
                                              LOG_LEVEL_ERROR,   &
                                              LOG_LEVEL_INFO
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, radians_to_degrees
   use domain_mod,                      only: domain_type
   use extrusion_config_mod,            only: planet_radius
@@ -79,9 +80,6 @@ module init_gungho_prognostics_alg_mod
   use fs_continuity_mod,               only: W1, W3, Wtheta
   use mr_indices_mod,                  only: nummr, mr_names, imr_v
   use moist_dyn_mod,                   only: num_moist_factors, gas_law
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry,           &

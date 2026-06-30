@@ -6,6 +6,7 @@
 !> @brief Module containing setup of transport_controller objects for adjoint tests
 module setup_test_alg_mod
 
+  use config_mod,                          only : config_type
   use constants_mod,                       only : r_def, i_def, l_def
   use field_mod,                           only : field_type
   use r_tran_field_mod,                    only : r_tran_field_type
@@ -24,9 +25,6 @@ module setup_test_alg_mod
   use transport_metadata_collection_mod,   only : transport_metadata_collection
   use transport_controller_mod,            only : transport_controller_type
   use transport_counter_mod,               only : transport_counter_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

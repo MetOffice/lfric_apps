@@ -6,6 +6,8 @@
 !>@brief Initialisation of prognostic fields
 module init_physics_prognostics_alg_mod
 
+
+  use config_mod,                       only : config_type
   use field_collection_mod,             only : field_collection_type
 #ifdef UM_PHYSICS
   use init_radiation_fields_alg_mod,    only : init_radiation_fields_alg
@@ -49,9 +51,6 @@ module init_physics_prognostics_alg_mod
 #endif
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

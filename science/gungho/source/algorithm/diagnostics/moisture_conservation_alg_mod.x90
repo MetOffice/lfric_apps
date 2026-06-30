@@ -8,6 +8,7 @@
 module moisture_conservation_alg_mod
 
   use compute_total_mass_alg_mod,      only: compute_total_mass_alg
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, l_def
   use energy_correction_config_mod,    only: integral_method_fe
   use extrusion_mod,                   only: SHIFTED
@@ -28,9 +29,6 @@ module moisture_conservation_alg_mod
                                              get_panel_id
   use timing_mod,                      only: start_timing, stop_timing, &
                                              tik, LPROF
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

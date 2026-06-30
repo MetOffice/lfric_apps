@@ -9,6 +9,7 @@
 module skeb_main_alg_mod
 
     ! Use intrinsic data types and spaces
+    use config_mod,              only: config_type
     use constants_mod,           only: r_def, i_def, l_def, pi
     use fs_continuity_mod,       only: W1, Wtheta, W2, W2H, W3
     use extrusion_mod,           only: TWOD
@@ -38,9 +39,6 @@ module skeb_main_alg_mod
                                              get_height_fv
     use sci_set_any_dof_kernel_mod,    only: set_any_dof_kernel_type
     use reference_element_mod,         only: T
-
-    ! Object types
-    use config_mod, only: config_type
 
     ! Configuration modules
     use planet_config_mod, only: gravity

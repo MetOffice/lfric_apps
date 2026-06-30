@@ -8,18 +8,16 @@
 
 module stph_fp_main_alg_mod
 
-  use constants_mod,       only: r_def, i_def, str_def, pi
-  use extrusion_mod,       only: TWOD
-  use field_mod,           only: field_type
-  use fs_continuity_mod,   only: W3
-  use mesh_mod,            only: mesh_type
-  use mesh_collection_mod, only: mesh_collection
-  use timing_mod,          only: start_timing, stop_timing, tik, LPROF
+  use config_mod,           only: config_type
+  use constants_mod,        only: r_def, i_def, str_def, pi
+  use extrusion_mod,        only: TWOD
+  use field_mod,            only: field_type
+  use fs_continuity_mod,    only: W3
+  use mesh_mod,             only: mesh_type
+  use mesh_collection_mod,  only: mesh_collection
+  use timing_mod,           only: start_timing, stop_timing, tik, LPROF
   use level_heights_mod,    only: eta_theta_levels
   use extrusion_config_mod, only: domain_height
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

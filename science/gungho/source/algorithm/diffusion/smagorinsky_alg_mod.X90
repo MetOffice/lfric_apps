@@ -8,6 +8,7 @@
 module smagorinsky_alg_mod
 
   ! Infrastructure
+  use config_mod,                only: config_type
   use constants_mod,             only: i_def, r_def, l_def
   use extrusion_mod,             only: SHIFTED
   use field_mod,                 only: field_type
@@ -71,9 +72,6 @@ module smagorinsky_alg_mod
   use physics_config_mod,        only: smagorinsky_placement,                  &
                                        smagorinsky_placement_outer,            &
                                        smagorinsky_placement_end
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

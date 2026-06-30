@@ -7,18 +7,16 @@
 !> @brief Apply wind tendency forcing to the horizontal wind component fields
 module wind_forcing_profile_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def
-  use kernel_mod,                    only: kernel_type
   use field_mod,                     only: field_type
   use fs_continuity_mod,             only: Wtheta, W3
   use function_space_collection_mod, only: function_space_collection
-  use sci_geometric_constants_mod,   only: get_height_fv
+  use kernel_mod,                    only: kernel_type
   use log_mod,                       only: log_event, LOG_LEVEL_ERROR
   use map_fd_to_prognostics_alg_mod, only: set_wind
-
-  ! Object types
-  use config_mod, only: config_type
-  use mesh_mod,   only: mesh_type
+  use mesh_mod,                      only: mesh_type
+  use sci_geometric_constants_mod,   only: get_height_fv
 
   ! Configuration modules
   use planet_config_mod,       only: kappa, p_zero

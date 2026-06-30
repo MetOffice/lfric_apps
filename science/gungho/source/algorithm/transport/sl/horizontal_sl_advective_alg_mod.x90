@@ -13,6 +13,7 @@
 module horizontal_sl_advective_alg_mod
 
   ! Constants and types
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use integer_field_mod,                only: integer_field_type
@@ -58,8 +59,6 @@ module horizontal_sl_advective_alg_mod
                                           panel_edge_treatment,                &
                                           panel_edge_treatment_extended_mesh,  &
                                           ffsl_unity_3d
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

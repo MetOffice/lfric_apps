@@ -40,6 +40,7 @@ module cma_test_algorithm_mod
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, l_def, r_solver
   use columnwise_operator_mod,        only : columnwise_operator_type
   use function_space_mod,             only : function_space_type
@@ -86,9 +87,6 @@ module cma_test_algorithm_mod
   use sci_columnwise_op_scaledadd_kernel_mod, only : columnwise_op_scaledadd_kernel_type
   use sci_columnwise_op_asm_m2v_lumped_inv_krnl_mod, &
                               only : columnwise_op_asm_m2v_lumped_inv_krnl_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use finite_element_config_mod, only : element_order_h, &

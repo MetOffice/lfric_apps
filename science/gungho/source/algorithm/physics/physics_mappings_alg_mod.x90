@@ -7,6 +7,7 @@
 !>@brief A wrapper for mappings of FE fields to physics fields
 module physics_mappings_alg_mod
 
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_def, i_def, l_def
   use sci_fem_constants_mod,            only: get_rmultiplicity_fv, get_qr_fv
   use field_mod,                        only: field_type
@@ -43,9 +44,6 @@ module physics_mappings_alg_mod
   use sci_nodal_xyz_coordinates_kernel_mod, &
                                         only: nodal_xyz_coordinates_kernel_type
   use sci_field_minmax_alg_mod,         only: log_field_minmax
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, &

@@ -14,6 +14,7 @@
 module transport_constants_mod
 
   ! Infrastructure
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
                                                 r_tran, radians_to_degrees
   use domain_mod,                         only: domain_type
@@ -53,10 +54,6 @@ module transport_constants_mod
   use sci_operator_algebra_kernel_mod,    only: operator_setval_x_kernel_type
   use sci_operator_x_times_y_kernel_mod,  only: operator_x_times_y_kernel_type
   use panel_edge_support_mod,             only: FAR_AWAY
-
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry,               &

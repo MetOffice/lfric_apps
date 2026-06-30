@@ -7,10 +7,12 @@
 !>@brief Interface to vertical Leonard Term code
 module leonard_term_alg_mod
 
+  use config_mod,                 only: config_type
   use constants_mod,              only: i_def, r_def
   use field_mod,                  only: field_type
   use field_collection_mod,       only: field_collection_type
   use integer_field_mod,          only: integer_field_type
+  use mesh_mod,                   only: mesh_type
   use mr_indices_mod,             only: nummr, imr_v, imr_cl
 
   use formulation_config_mod,     only: moisture_formulation,    &
@@ -27,10 +29,6 @@ module leonard_term_alg_mod
   use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
   use log_mod,                    only: log_event, LOG_LEVEL_INFO
   use model_clock_mod,            only: model_clock_type
-
-  ! Object types
-  use config_mod, only: config_type
-  use mesh_mod,   only: mesh_type
 
   implicit none
 

@@ -6,6 +6,7 @@
 !>@brief  Additional code to initialise the linearisation state.
 module linear_data_algorithm_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def, str_def
   use field_array_mod,                only: field_array_type
   use sci_field_bundle_builtins_mod,  only: set_bundle_scalar
@@ -33,9 +34,6 @@ module linear_data_algorithm_mod
   use mesh_mod,                       only: mesh_type
   use sci_field_minmax_alg_mod,       only: log_field_minmax
   use map_fd_to_prognostics_alg_mod,  only: set_wind
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

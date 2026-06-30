@@ -22,11 +22,11 @@ module um_domain_init_mod
   use constants_mod,               only : i_um, r_um, rmdi, i_def, r_def
   use conversions_mod,             only : pi_over_180
   use field_mod,                   only : field_type
-  use mesh_mod,                    only: mesh_type
-  use local_mesh_mod,              only: local_mesh_type
+  use mesh_mod,                    only : mesh_type
+  use local_mesh_mod,              only : local_mesh_type
   use log_mod,                     only : log_event,   &
                                           log_scratch_space, &
-                                    log_level_error
+                                          log_level_error
 
   implicit none
 
