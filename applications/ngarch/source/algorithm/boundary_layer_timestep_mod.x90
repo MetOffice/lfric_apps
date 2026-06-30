@@ -49,15 +49,18 @@ contains
     class( boundary_layer_timestep_type ), intent(inout) :: self
     type( modeldb_type ), intent(in), target             :: modeldb
 
-    type( field_type ),       pointer :: u, theta, rho, exner, u_physics, &
-                                         u_star, theta_star, u_physics_star
+    type( field_type ),       pointer :: u, theta, rho, exner, u_physics
     type( field_type )                :: mr_n(nummr), mr_after_slow(nummr),  &
                                          dmr_mphys(nummr), dtheta_bl, du_bl, &
+                                         theta_latest, u_latest,             &
                                          surf_heat_flux, canopy_evap,        &
                                          water_extraction, lake_evap,        &
                                          theta_star_surf, qv_star_surf,      &
                                          recip_l_mo_sea, rhostar,            &
-                                         t1_sd_2d, q1_sd_2d
+                                         t1_sd_2d, q1_sd_2d, ustar_implicit, &
+                                         t1p5m, q1p5m, qcl1p5m, t1p5m_ssi,   &
+                                         q1p5m_ssi, qcl1p5m_ssi, t1p5m_land, &
+                                         q1p5m_land, qcl1p5m_land
     type( field_array_type ), pointer :: mr
 
     type(field_collection_type), pointer :: prognostic_fields,   &
@@ -106,13 +109,11 @@ contains
     ! Set up local fields
     call u%copy_field_properties( du_bl )
     call theta%copy_field_properties( dtheta_bl )
+    call u%copy_field_properties( u_latest )
+    call theta%copy_field_properties( theta_latest )
 
-    ! Set star fields to their non star counterparts
-    call derived_fields%get_field( "u_star", u_star )
-    call derived_fields%get_field( "theta_star", theta_star )
-
-    call invoke( setval_X( u_star, u ), &
-                 setval_X( theta_star, theta ))
+    call invoke( setval_X( u_latest, u ), &
+                 setval_X( theta_latest, theta ))
 
     ! JULES needs to run for bl_exp
     call jules_exp_alg( modeldb, theta, mr_n,                               &
@@ -140,12 +141,17 @@ contains
                      modeldb%clock )
 
     call log_event( "Running BOUNDARY LAYER IMP", LOG_LEVEL_INFO )
-    call bl_imp_alg( dtheta_bl, du_bl, mr_after_slow, &
+    call bl_imp_alg( dtheta_bl, du_bl, theta_latest,  &
+                     u_latest, mr_after_slow,         &
                      surf_heat_flux, canopy_evap,     &
                      water_extraction, lake_evap,     &
                      theta_star_surf,                 &
                      qv_star_surf,                    &
-                     theta, exner, mr_n, rho,         &
+                     ustar_implicit, t1p5m, q1p5m,    &
+                     qcl1p5m, t1p5m_ssi, q1p5m_ssi,   &
+                     qcl1p5m_ssi, t1p5m_land,         &
+                     q1p5m_land, qcl1p5m_land,        &
+                     theta, exner, mr_n,              &
                      derived_fields,                  &
                      radiation_fields,                &
                      orography_fields,                &

@@ -123,7 +123,7 @@ contains
 
     ! ------------------------------------------------------------------------ !
     ! Transport dry density
-    call log_event( "Transporting density...", LOG_LEVEL_INFO)
+    call log_event( "TL transporting density...", LOG_LEVEL_INFO)
     transport_metadata =>                                                      &
         transport_metadata_collection%get_transport_metadata('density')
 
@@ -137,7 +137,7 @@ contains
 
     ! ------------------------------------------------------------------------ !
     ! Transport wind field
-    call log_event( "Transporting wind...", LOG_LEVEL_INFO)
+    call log_event( "TL transporting wind...", LOG_LEVEL_INFO)
     transport_metadata =>                                                      &
         transport_metadata_collection%get_transport_metadata('wind')
 
@@ -156,9 +156,7 @@ contains
     ! ------------------------------------------------------------------------ !
     ! Transport moisture mixing ratio fields
     if ( moisture_formulation /= moisture_formulation_dry ) then
-      call log_event(                                                          &
-              "Transporting moisture mixing ratio fields...", LOG_LEVEL_INFO   &
-      )
+      call log_event( "TL transporting moisture mixing ratio fields...", LOG_LEVEL_INFO)
       transport_metadata =>                                                    &
           transport_metadata_collection%get_transport_metadata('moisture')
       call tl_moist_mr_transport_alg(                                          &
@@ -171,7 +169,7 @@ contains
     ! Transport potential temperature (must be after moisture)
     ! NB: moisture not passed through as theta_vd transport not yet implemented
     ! Note: theta increment is pointwise
-    call log_event( "Transporting potential temperature...", LOG_LEVEL_INFO)
+    call log_event( "TL transporting potential temperature...", LOG_LEVEL_INFO)
     transport_metadata =>                                                      &
         transport_metadata_collection%get_transport_metadata('potential_temperature')
 
