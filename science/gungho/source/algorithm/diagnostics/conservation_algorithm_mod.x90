@@ -87,8 +87,7 @@ contains
                         total_potential, total_internal,     &
                         total_moist_int
     real(kind=r_def) :: total_entropy_phys_dry, &
-                        total_entropy_dyn_dry,  &
-                        surface_geopotential
+                        total_entropy_dyn_dry
     type(mesh_type), pointer :: mesh => null()
     integer(tik)             :: id
 
@@ -112,8 +111,6 @@ contains
     chi          => get_coordinates(mesh%get_id())
     panel_id     => get_panel_id(mesh%get_id())
 
-    surface_geopotential = planet_radius*gravity
-
 
     ! Initialise Mass, Energy and Axial Angular Momentum fields
     call kinetic_uv%initialise( vector_space = w3_fs )
@@ -133,8 +130,7 @@ contains
                                                 potential, internal,      &
                                                 moist_int,                &
                                                 u, rho, exner, theta, mr, &
-                                                geopotential,             &
-                                                surface_geopotential, chi,&
+                                                geopotential, chi,        &
                                                 panel_id, cv, qr),        &
                  sum_X(total_kinetic_uv, kinetic_uv),                     &
                  sum_X(total_kinetic_w, kinetic_w),                       &
