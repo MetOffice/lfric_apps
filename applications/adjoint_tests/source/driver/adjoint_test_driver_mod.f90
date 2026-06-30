@@ -53,6 +53,8 @@ contains
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
 
     !./transport/ffsl
+    use adjt_subgrid_common_support_mod,            only : adjt_subgrid_quadratic_recon
+    use adjt_subgrid_vertical_support_mod,          only : adjt_third_order_vertical_edge
     use atlt_ffsl_flux_z_constant_alg_mod,          only : atlt_ffsl_flux_z_constant_alg
 
     ! ./transport/mol
@@ -196,6 +198,10 @@ contains
     call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
     ! ./
     call adjt_convert_cart2sphere_vector_alg( mesh )
+
+    ! ./transport/ffsl
+    call adjt_subgrid_quadratic_recon( mesh%get_nlayers() )
+    call adjt_third_order_vertical_edge( mesh%get_nlayers() )
 
     call log_event( "TESTING adjoint algorithms", LOG_LEVEL_INFO )
     ! ./interpolation

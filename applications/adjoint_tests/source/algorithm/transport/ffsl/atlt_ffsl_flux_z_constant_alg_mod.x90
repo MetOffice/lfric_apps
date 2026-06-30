@@ -52,7 +52,6 @@ module atlt_ffsl_flux_z_constant_alg_mod
     type(r_tran_field_type)    :: detj
     real(kind=r_tran)          :: dt
 
-
     ! Copies of input fields used in inner products
     type(r_tran_field_type) :: flux_pert_input
     type(r_tran_field_type) :: flux_ls_input
