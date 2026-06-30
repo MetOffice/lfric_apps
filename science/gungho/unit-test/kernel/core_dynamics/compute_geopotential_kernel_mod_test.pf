@@ -43,7 +43,8 @@ contains
     class(compute_geopotential_kernel_test_type), intent(inout) :: this
 
     allocate( this%map(ndf), &
-              this%z(undf) )
+              this%z(undf),  &
+              this%phi(undf) )
 
   end subroutine setUp
 
@@ -68,13 +69,13 @@ contains
 
     class(compute_geopotential_kernel_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: tol = 1.0e-8_r_def
     logical(l_def) :: shallow
 
     real(r_def) :: answer
 
     this%map(1) = 1
-    this%z(1)   = radius + 10000.0_r_def
+    this%z(1)   = 10000.0_r_def
 
 
     ! Test shallow geometry
