@@ -1121,7 +1121,7 @@ contains
                 call invoke (  photol_diags_kernel_type(photol_rate_jno2,      &
                                                         jp1,                   &
                                                         photol_rates) )
-              case ('jo3b')
+              case ('jo3p')
                 !  jO(3P)
                 call invoke (  photol_diags_kernel_type(photol_rate_jo3p,      &
                                                         jp1,                   &
