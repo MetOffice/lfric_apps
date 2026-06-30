@@ -78,8 +78,10 @@ contains
   !> @param[in]     base_state   The model prognostic state to which increments are added
   !> @param[in]     state        The current model prognostic state
   !> @param[in]     moist_dyn    Factors relating to moist dynamics
-  !> @param[in]     ls_state     ?????
-  !> @param[in]     ls_moist_dyn ?????
+  !> @param[in]     ls_state     The current model prognostic
+  !!                             linearisation state
+  !> @param[in]     ls_moist_dyn The moist dynamics factors of the
+  !!                             linearisation state
   !> @param[in]     compute_eos  Flag to control computation of the equation of
   !!                             state
   !> @param[in]     dlayer_rhs   Use damping layer in rhs yes/no
