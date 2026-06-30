@@ -11,7 +11,9 @@ from pathlib import Path
 import sys
 from typing import Iterable, Optional, Tuple, Union
 
-from fab.api import Exclude, Include
+from fab.api import Exclude, git_checkout, Include
+
+from dependency_info import DependencyInfo
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +74,21 @@ class LFRicAppsBase(LFRicBase):
             self.lfric_apps_root / "interfaces" / "physics_schemes_interface" /
             "build" / "transmute_psytrans")
 
+        self._dependency_info = DependencyInfo(*self.get_dependencies_info())
+
     @property
     def lfric_apps_root(self) -> Path:
         """
         :returns: the path to the LFRic_apps root directory
         """
         return self._lfric_apps_root
+
+    @property
+    def dependency_info(self) -> DependencyInfo:
+        """
+        :returns: the dependency info used for this application.
+        """
+        return self._dependency_info
 
     def define_command_line_options(
             self,
@@ -103,6 +114,16 @@ class LFRicAppsBase(LFRicBase):
 
     def get_dependencies_info(self) -> Tuple[Optional[Path], list[str]]:
         """
+        This function returns a tuple, consisting of the the path to the
+        dependency.yaml file to use, and a list of repository names (from the
+        dependency.yaml file). If no dependency.yaml file is required for the
+        apps, the first component can be None. If the list of repository names
+        is not empty, only entries in the dependencies.yaml file that are
+        contained in the specified list will be read. This is frequently used
+        by applications that only need some of the repositories listed in
+        dependencies.yaml (e.g. typically jules) to avoid checking out all
+        other lfric_atm dependencies listed in the yaml file).
+
         Most applications in lfric_apps now need jules. So, add the
         dependencies.yaml file, but restrict it to the jules repository.
 
@@ -111,6 +132,45 @@ class LFRicAppsBase(LFRicBase):
 
         """
         return self.lfric_apps_root / "dependencies.yaml", ["jules"]
+
+    def grab_files_step(self) -> None:
+        '''
+        This method overwrites the base class grab_files_step. It includes all
+        the LFRic core directories that are commonly required for building
+        LFRic applications. It also grabs optimisation scripts, and the psydata
+        directory for profiling, if required.
+        '''
+        super().grab_files_step()
+
+        # Checkout repositories that are required:
+        # ----------------------------------------
+        # Call site-specific updates, which allows usage of mirrors.
+        self.site_config.update_repos(self.dependency_info)
+
+        for repo in self.dependency_info.get_repo_names():
+            if repo in ["lfric_apps", "lfric_core", "SimSys_Scripts"]:
+                # For now don't support checking out the apps or core repo
+                # (they must be already checked out), and ignore the
+                # SimSys_sripts repository, which is not needed.
+                logger.info(f"Ignoring repository '{repo}'.")
+                continue
+
+            repo_infos = self.dependency_info.get_repo_info(repo)
+
+            for repo_info in repo_infos:
+                logger.info(f"Extracting '{repo}' from '{repo_info.source}' "
+                            f" to 'science/{repo}', "
+                            f"revisions {repo_info.ref}")
+                try:
+                    git_checkout(self.config,
+                                 repo_info.source,
+                                 dst_label=f'science/{repo}',
+                                 revision=repo_info.ref)
+                except RuntimeError as error:
+                    logger.error(f"Cannot checkout '{repo}' from "
+                                 f"'{repo_info.source}' revision "
+                                 f"'{repo_info.ref}': {error}. ")
+                    sys.exit(-1)
 
     def find_source_files_step(
             self,
@@ -130,7 +190,7 @@ class LFRicAppsBase(LFRicBase):
 
         if "jules" in self.dependency_info.get_repo_names():
             # In general, jules should not be compiled for most applications
-            # # (it needs very specific exclude/include specifications), since
+            # (it needs very specific exclude/include specifications), since
             # most applications don't need it. So, we ignore science/jules.
             # The exclude is inserted at the beginning, to allow e.g.
             # lfric_atm to add its own Include to overwrite the exclude
