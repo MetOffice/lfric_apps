@@ -782,7 +782,7 @@ end if
 !$OMP  l_apply_surf_ent, interp,rho_we_dsc_no_surf, k_inv, l)
 
 !cdir collapse
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
 
@@ -906,7 +906,7 @@ end do
 !$OMP end do
 
 !cdir collapse
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     !-----------------------------------------------------------------------
@@ -1201,7 +1201,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end do ! i
   end do ! k
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 ! Set flags for iterating wb integral to calculate depth of mixing,
 ! one each for KSURF and K_TOP.  Note these will be updated depending on
@@ -1220,7 +1220,7 @@ end do ! i
 !$OMP end do
 
 !cdir collapse
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     if ( bflux_surf(i,j)  >   zero) then
@@ -1274,7 +1274,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end if
   end do ! i
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 if ( l_converge_ga ) then
   ! Set gradient adjustment terms consistent with zh = z_inv
@@ -1332,7 +1332,7 @@ do ii = pdims%j_start, pdims%i_end, bl_segment_size
     end do ! ii
   end do ! k
 end do ! i
-!$OMP end do
+!$OMP end do nowait
 
 ! ----------------------------------------------------------------------
 ! 2.1.1 Estimate wb integral over radiatively cooled cloud-top region,
@@ -1345,8 +1345,9 @@ end do ! i
 !           - only ignoring top grid level of integration which
 !             shouldn't be important/relevant for cloud-free layers.
 ! ----------------------------------------------------------------------
+
 !cdir collapse
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     if ( test_well_mixed(i,j) ) then
@@ -1469,9 +1470,9 @@ end if ! model_type
 !       (and up to next theta-level, namely Z_TQ(KSURF) )
 !       assuming a linear profile going to zero at ZWB0
 ! ----------------------------------------------------------------------
-!cdir collapse
 
-!$OMP do SCHEDULE(DYNAMIC)
+!cdir collapse
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
 
@@ -1502,7 +1503,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
   end do ! i
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 
 if (model_type == mt_single_column) then
@@ -1520,7 +1521,7 @@ end if ! model_type
 ! 2.1.3 Loop over well-mixed boundary layer integrating WB
 !-----------------------------------------------------------------------
 
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do k = 2, bl_levels-1
     do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
@@ -1651,14 +1652,14 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end do ! i
   end do ! k
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 ! ----------------------------------------------------------------------
 ! 2.1.4 Test WB_Ratio to see if well-mixed layer allowed
 !-----------------------------------------------------------------------
-!cdir collapse
 
-!$OMP do SCHEDULE(DYNAMIC)
+!cdir collapse
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     if (l_wtrac) iset_wtrac(i,j) = 0
@@ -1823,7 +1824,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
   end do ! i
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 ! Set water tracer fields in the same manner as water in last loop
 if (l_wtrac) then
@@ -1852,9 +1853,9 @@ end if    ! l_wtrac
 !--------------------------------------------------------------------
 !     If boundary layer is stable then ignore surface driven mixing.
 !--------------------------------------------------------------------
-!cdir collapse
 
-!$OMP do SCHEDULE(DYNAMIC)
+!cdir collapse
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
 
@@ -1905,7 +1906,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end if ! ksurf_iterate(i,j)
   end do ! i
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 ! ----------------------------------------------------------------------
 ! 2.2.1 Include ksurf iteration for SML under cumulus too
@@ -1915,7 +1916,7 @@ if (kprof_cu == buoy_integ .or. kprof_cu == buoy_integ_low) then
   lcl_fac = one
   if (kprof_cu == buoy_integ_low) lcl_fac = one_half
 
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     if ( cumulus(i,j) .and. .not. dsc(i,j) .and.                               &
@@ -1945,7 +1946,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end if
   end do ! i
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 end if  ! test in kprof_cu
 
@@ -2154,7 +2155,7 @@ do n_sweep = 1, num_sweeps_bflux
     !..continues in the same direction (but with reduced increment).
 
   end do ! c_len
-!$OMP end do
+!$OMP end do nowait
 !$OMP end parallel
 
 end do ! n_sweep
@@ -2163,7 +2164,7 @@ end do ! n_sweep
 
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private(i, k, ii, wsl_dzrad_int, wqw_dzrad_int, z_pr, interp, k_inv, l)
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end,bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     ntml_new(i,j) = 2
@@ -2213,14 +2214,14 @@ do ii = pdims%i_start, pdims%i_end,bl_segment_size
     end do ! i
   end do ! k
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 ! ----------------------------------------------------------------------
 ! 2.3 Now repeat the above procedure to find the base of the
 !     top-driven K profile, ZDSC_BASE, in a decoupled cloud layer
 ! ----------------------------------------------------------------------
 !cdir collapse
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
 
@@ -2256,9 +2257,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
   end do ! i
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     if ( ktop_iterate(i,j) .and. wb_dzrad_int(i,j)  <   zero ) then
@@ -2367,7 +2368,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     wb_dzrad_int(i,j) = max( rbl_eps, wb_dzrad_int(i,j) )
   end do ! i
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 ! ----------------------------------------------------------------------
 
@@ -2405,7 +2406,7 @@ do n_sweep = 1, num_sweeps_bflux
 
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private(k, f2, fsc, z_ratio, z_pr, wslng, wqwng, wb_scld,               &
-!$OMP  wb_cld, cld_frac, l, j1, i1, ic, n_sweep, ns, interp)
+!$OMP  wb_cld, cld_frac, l, j1, i1, ic, n_sweep, interp)
     !cdir nodep
 !$OMP do SCHEDULE(STATIC)
     do ic = 1, c_len_i
@@ -2646,15 +2647,20 @@ do n_sweep = 1, num_sweeps_bflux
     !..continues in the same direction (but with reduced increment).
 
   end do ! c_len
-!$OMP end do
+!$OMP end do nowait
 !$OMP end parallel
 
 end do  ! loop over sweeps
 
 ! ----------------------------------------------------------------------
 
-!$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private(i, k, ii, factor, gamma_wbs)
+! $OMP  PARALLEL DEFAULT(SHARED)                                                &
+! $OMP  private(i, k, ii, factor, gamma_wbs)
+!$OMP  PARALLEL DEFAULT(SHARED)                                                    &
+!$OMP  private(i, k, ii, factor, gamma_wbs, z_ratio, z_pr, zh_pr, w_m_hb_3, zk_uv,            &
+!$OMP  rhokm_dsct, zk_tq, Prandtl, w_h_uv, w_h_tq, w_m_uv, w_m_tq,                 &
+!$OMP  c_ws, pr_neut, pr_conv, wstar3, c_tke,                                      &
+!$OMP  w_s_cubed_tq, w_s_cubed_uv, ng_stress_calculate)
 ! Convert integrated WB to profiles of WB itself for diagnostics
 if (model_type == mt_single_column) then
 
@@ -2794,7 +2800,7 @@ end if  ! test on kprof_cu
 !-----------------------------------------------------------------------
 !cdir collapse
 
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     k=ntml(i,j)+1
@@ -2879,29 +2885,21 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end do ! i
 end do ! ii
 !$OMP end do
-!$OMP end parallel
 
 !-----------------------------------------------------------------------
 ! 4.  Calculate height dependent turbulent
 !     transport coefficients within the mixing layer.
 !-----------------------------------------------------------------------
-!$OMP  PARALLEL DEFAULT(SHARED)                                                    &
-!$OMP  private(i, k, ii, factor, z_ratio, z_pr, zh_pr, w_m_hb_3, zk_uv,            &
-!$OMP  rhokm_dsct, zk_tq, Prandtl, w_h_uv, w_h_tq, w_m_uv, w_m_tq,                 &
-!$OMP  c_ws, pr_neut, pr_conv, wstar3,                                             &
-!$OMP  w_s_cubed_tq, w_s_cubed_uv, c_tke, ng_stress_calculate)
 ! Reset identifiers of base of decoupled layer mixing
 
-!$OMP MASTER
-
 !cdir collapse
+!$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   scbase(i,j) = .false.
   nbdsc(i,j)  = 0
 end do
+!$OMP end do
 
-!$OMP end MASTER
-!$OMP BARRIER
 
 !-------------------------------------------------------------
 ! Calculate RHOK(H/M)_TOP, top-down turbulent mixing profiles
@@ -3061,7 +3059,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end do ! i
   end do ! k
 end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 !----------------------------------------------------
 ! Now K_SURF profiles
@@ -3174,7 +3172,7 @@ if (flux_grad  ==  LockWhelan2006) then
       end do ! i
     end do ! k
   end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 else
   !----------------------------------------------------
@@ -3328,7 +3326,7 @@ else
       end do ! i
     end do ! k
   end do ! ii
-!$OMP end do
+!$OMP end do nowait
 
 end if  ! Test on Flux_grad
 
