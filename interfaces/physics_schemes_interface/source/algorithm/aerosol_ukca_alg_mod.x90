@@ -421,6 +421,7 @@ contains
     type( field_type ) :: photol_rates
     type( field_type ) :: photol_rate_jo1d
     type( field_type ) :: photol_rate_jno2
+    type( field_type ) :: photol_rate_jo3p
     type( field_type ) :: photol_rate_profile
 
     ! Other Photolysis driving fields - pre-set currently
@@ -433,7 +434,6 @@ contains
     ! photolysis_rates_rts field, which is currently a diagnostic
     type( field_type ) :: photol_rates_rts_jo2
     type( field_type ) :: photol_rates_rts_jo2b
-    type( field_type ) :: photol_rates_rts_jo3p
 
     ! Derived fields (to be derived from current state after modification
     ! during the timestep)
