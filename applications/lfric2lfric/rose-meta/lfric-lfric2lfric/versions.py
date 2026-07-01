@@ -49,7 +49,6 @@ class vn31_t192(MacroUpgrade):
             ["namelist:partitioning(destination)", "mesh_type"],
             ["namelist:partitioning(destination)", "mesh_target"],
         )
-
         return config, self.reports
 
 
@@ -76,7 +75,6 @@ class vn31_t363(MacroUpgrade):
         """Set segmentation size limit for short and long wave radiation kernels"""
         self.add_setting(config, ["namelist:physics", "sw_segment_limit"], "32")
         self.add_setting(config, ["namelist:physics", "lw_segment_limit"], "32")
-
         return config, self.reports
 
 
@@ -92,7 +90,6 @@ class vn31_t348(MacroUpgrade):
         self.add_setting(
             config, ["namelist:physics", "pmsl_halo_calcs"], ".true."
         )
-
         return config, self.reports
 
 
@@ -107,7 +104,6 @@ class vn31_t368(MacroUpgrade):
         self.add_setting(
             config, ["namelist:convection", "llcs_first_outer"], ".false."
         )
-
         return config, self.reports
 
 
@@ -130,7 +126,6 @@ class vn31_t238(MacroUpgrade):
             ["namelist:finite_element", "coord_order_nonprime"],
             coord_order,
         )
-
         return config, self.reports
 
 
@@ -156,7 +151,6 @@ class vn31_t443(MacroUpgrade):
         self.add_setting(
             config, ["namelist:iau_bcorr_io(bcorr1)", "name"], "''"
         )
-
         return config, self.reports
 
 
@@ -171,7 +165,6 @@ class vn31_t464(MacroUpgrade):
         self.add_setting(
             config, ["namelist:cloud", "pc2_turb_horiz"], ".false."
         )
-
         return config, self.reports
 
 
@@ -187,7 +180,6 @@ class vn31_t382(MacroUpgrade):
         self.change_setting_value(
             config, ["namelist:physics", "bl_segment"], "16"
         )
-
         return config, self.reports
 
 
@@ -201,11 +193,9 @@ class vn31_t243(MacroUpgrade):
         # Commands From: rose-meta/um-microphysics
         nml = "namelist:microphysics"
         self.add_setting(config, [nml, "l_improve_precfrac_checks"], ".false.")
-
         # Commands From: rose-meta/um-cloud
         nml = "namelist:cloud"
         self.add_setting(config, [nml, "l_ensure_max_in_cloud_pc2"], ".false.")
-
         return config, self.reports
 
 
@@ -221,7 +211,6 @@ class vn31_t249(MacroUpgrade):
         # (apps using the new option 'smooth_fix' under the existing
         #  multi-option switch 'pc2_init_logic' fail checks against
         #  the existing meta-data).
-
         return config, self.reports
 
 
@@ -234,7 +223,6 @@ class vn31_t77(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
         self.add_setting(config, ["namelist:io", "write_initial"], ".true.")
-
         return config, self.reports
 
 
@@ -596,7 +584,6 @@ class vn31_t205(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_vegetation", "l_use_pft_psi"], ".false."
         )
-
         return config, self.reports
 
 
@@ -615,7 +602,6 @@ class vn31_t378(MacroUpgrade):
             config, ["namelist:mixing", "density_weighted"], ".true."
         )
         self.add_setting(config, ["namelist:mixing", "max_diff_factor"], "1.0")
-
         return config, self.reports
 
 
@@ -638,7 +624,6 @@ class vn31_t504(MacroUpgrade):
         self.add_setting(
             config, ["namelist:initial_temperature", "theta_pert_size"], "0.5"
         )
-
         return config, self.reports
 
 
@@ -652,7 +637,6 @@ class vn31_t496(MacroUpgrade):
         # Commands From: rose-meta/um-iau
         # Add new setting to iau namelist
         self.add_setting(config, ["namelist:iau", "iau_outerloop"], ".false.")
-
         return config, self.reports
 
 
@@ -667,7 +651,6 @@ class vn31_t487(MacroUpgrade):
         self.add_setting(
             config, ["namelist:blayer", "improved_tke_diag"], ".false."
         )
-
         return config, self.reports
 
 
@@ -706,7 +689,6 @@ class vn31_t180(MacroUpgrade):
         self.remove_setting(
             config, ["namelist:initialization", "w0_orography_mapping"]
         )
-
         return config, self.reports
 
 
@@ -723,7 +705,6 @@ class vn31_t360(MacroUpgrade):
             ["namelist:stochastic_physics", "rp_mp_ci"],
             "1.0,1.0,1.0",
         )
-
         # Commands From: rose-meta/um-microphysics
         self.add_setting(config, ["namelist:microphysics", "aut_qc"], "2.47")
         self.add_setting(config, ["namelist:microphysics", "ai"], "2.57e-2")
@@ -738,7 +719,6 @@ class vn31_t360(MacroUpgrade):
             ["namelist:microphysics", "update_precfrac_opt"],
             upd_precfrac_opt,
         )
-
         # Commands From: rose-meta/um-convection
         # 0.66 and 1.2 are tuned GC6 values (0.5 and 0.8 originally)
         self.add_setting(config, ["namelist:convection", "r_det"], "0.5")
@@ -775,7 +755,6 @@ class vn31_t360(MacroUpgrade):
             self.add_setting(
                 config, ["namelist:convection", "l_conv_prog_dq"], ".true."
             )
-
         # Commands From: rose-meta/um-aerosol
         self.add_setting(
             config, ["namelist:aerosol", "ukca_scale_marine_pom_ems"], ".false."
@@ -789,7 +768,6 @@ class vn31_t360(MacroUpgrade):
         self.add_setting(
             config, ["namelist:aerosol", "sea_salt_ems_scaling"], "1.0"
         )
-
         return config, self.reports
 
 
@@ -830,7 +808,6 @@ class vn31_t247(MacroUpgrade):
         self.add_setting(config, [nml, "bm_ez_opt"], bm_ez_opt)
         self.add_setting(config, [nml, "pc2_erosion_numerics"], pc2_erosion_num)
         self.add_setting(config, [nml, "pc2_init_method"], pc2_init_method)
-
         return config, self.reports
 
 
@@ -847,7 +824,6 @@ class vn31_t394(MacroUpgrade):
             ["namelist:formulation", "solver_moisture_conservation"],
             ".false.",
         )
-
         return config, self.reports
 
 
@@ -862,5 +838,119 @@ class vn31_t401(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_hydrology", "l_inland"], ".false."
         )
+        return config, self.reports
+
+
+class vn31_t474(MacroUpgrade):
+    """Upgrade macro for ticket #474 by Mohit Dalvi."""
+
+    BEFORE_TAG = "vn3.1_t401"
+    AFTER_TAG = "vn3.1_t474"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:files", "nudging_directory"], "''")
+        self.add_setting(config, ["namelist:files", "nudging_filename"], "''")
+        self.add_setting(
+            config,
+            ["namelist:multires_coupling", "coarse_nudging"],
+            ".false.",
+        )
+        self.add_setting(
+            config, ["namelist:multires_coupling", "nudging_mesh_name"], "''"
+        )
+        # Add new nudging namelist -with sensible default values
+        # Append after 'multires_coupling' in configuration.nml
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        source = re.sub(
+            r"(namelist:multires_coupling)",
+            r"namelist:multires_coupling)" + "\n" + " (namelist:nudging",
+            source,
+        )
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
+        self.add_setting(config, ["namelist:nudging"])
+        self.add_setting(
+            config, ["namelist:nudging", "nudge_data_levels"], "137"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_bottom"], "5"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_top"], "52"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_source"], "'era'"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_width_bottom"], "1"
+        )
+        self.add_setting(config, ["namelist:nudging", "nudging_width_top"], "0")
+        return config, self.reports
+
+
+class vn31_t324(MacroUpgrade):
+    """Upgrade macro for ticket #324 by Ricky Wong."""
+
+    BEFORE_TAG = "vn3.1_t474"
+    AFTER_TAG = "vn3.1_t324"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-driver
+        # Only add in new configuration settings if the namelists
+        # are already present
+        #
+        if config.get(["namelist:partitioning"]) is not None:
+            self.add_setting(
+                config, ["namelist:partitioning", "inner_halo_tiles"], ".false."
+            )
+            self.add_setting(
+                config, ["namelist:partitioning", "tile_size_x"], "1"
+            )
+            self.add_setting(
+                config, ["namelist:partitioning", "tile_size_y"], "1"
+            )
+        if config.get(["namelist:multigrid"]) is not None:
+            self.add_setting(
+                config,
+                ["namelist:multigrid", "coarsen_multigrid_tiles"],
+                ".false.",
+            )
+            self.add_setting(
+                config, ["namelist:multigrid", "max_tiled_multigrid_level"], "1"
+            )
+
+        # Commands From: rose-meta/lfric-lfric2lfric
+        if config.get(["namelist:partitioning(source)"]) is not None:
+            self.add_setting(
+                config,
+                ["namelist:partitioning(source)", "inner_halo_tiles"],
+                ".false.",
+            )
+            self.add_setting(
+                config, ["namelist:partitioning(source)", "tile_size_x"], "1"
+            )
+            self.add_setting(
+                config, ["namelist:partitioning(source)", "tile_size_y"], "1"
+            )
+        if config.get(["namelist:partitioning(destination)"]) is not None:
+            self.add_setting(
+                config,
+                ["namelist:partitioning(destination)", "inner_halo_tiles"],
+                ".false.",
+            )
+            self.add_setting(
+                config,
+                ["namelist:partitioning(destination)", "tile_size_x"],
+                "1",
+            )
+            self.add_setting(
+                config,
+                ["namelist:partitioning(destination)", "tile_size_y"],
+                "1",
+            )
 
         return config, self.reports

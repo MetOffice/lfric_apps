@@ -35,6 +35,8 @@
   <axis id="photolysis_pathways" name="photolysis_pathways" />
   <axis id="photol_species" name="photol_species" />
   <axis id="one_time_axis" name="one_time_axis" n_glo="1" />
+  <axis id="nudging_time_axis" name="nudging_time_axis" />
+  <axis id="nudging_levels" name="nudging_levels" />
 
   <axis id="random_seed_size" name="random_seed_size" />
   <axis id="stph_spectral_dimensions" name="stph_spectral_dimensions" />
