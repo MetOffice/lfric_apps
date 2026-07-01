@@ -7,6 +7,7 @@
 
 module atl_wind_transport_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def
   use sci_enforce_bc_kernel_mod,      only: enforce_bc_kernel_type
   use sci_fem_constants_mod,          only: get_mass_matrix_fe,         &
@@ -37,9 +38,6 @@ module atl_wind_transport_alg_mod
   use atl_transport_field_mod,        only: atl_transport_field
   use transport_metadata_mod,         only: transport_metadata_type
   use sci_field_minmax_alg_mod,       only: log_field_minmax
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

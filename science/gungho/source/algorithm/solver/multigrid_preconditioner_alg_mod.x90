@@ -9,6 +9,7 @@
 module multigrid_preconditioner_alg_mod
 
   use base_mesh_config_mod,     only: prime_mesh_name
+  use config_mod,               only: config_type
   use boundaries_config_mod,    only: limited_area
   use constants_mod,            only: i_def, r_solver, l_def
   use function_space_mod,       only: function_space_type
@@ -29,8 +30,6 @@ module multigrid_preconditioner_alg_mod
                                 only: abstract_hierarchical_preconditioner_type
   use sci_preconditioner_mod,   only: abstract_preconditioner_type
   use vector_mod,               only: abstract_vector_type
-
-use config_mod, only: config_type
 
   implicit none
 

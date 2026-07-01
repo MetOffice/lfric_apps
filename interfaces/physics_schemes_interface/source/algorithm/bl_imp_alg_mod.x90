@@ -80,7 +80,7 @@ contains
   !>@param[in]     exner             Exner Pressure in the w3 space
   !>@param[in]     mr_n              Mixing ratios at time level n
   !>@param[in]     derived_fields    Group of derived fields
-  !>@param[in]     radition_fields   Fields for radiation scheme
+  !>@param[in]     radiation_fields  Fields for radiation scheme
   !>@param[in]     orography_fields  Fields for orog drag scheme
   !>@param[in,out] turbulence_fields Fields for turbulence scheme
   !>@param[in]     convection_fields Fields for convection scheme

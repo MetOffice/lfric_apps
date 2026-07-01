@@ -8,6 +8,7 @@
 !>        equations
 module rhs_alg_mod
 
+  use config_mod,                          only: config_type
   use constants_mod,                       only: r_def, r_second, i_def, l_def
   use model_clock_mod,                     only: model_clock_type
   use log_mod,                             only: log_event, &
@@ -57,8 +58,6 @@ module rhs_alg_mod
   use function_space_collection_mod,       only: function_space_collection
   use w2_vorticity_advection_kernel_mod,   only: w2_vorticity_advection_kernel_type
   use pressure_gradient_p0_kernel_mod,     only: pressure_gradient_p0_kernel_type
-
-  use config_mod, only: config_type
 
   implicit none
 
@@ -309,8 +308,8 @@ contains
 
     if ( LPROF ) call start_timing( id, 'dynamics.rhs_alg' )
 
-    mesh_id =  base_state(igh_u)%get_mesh_id()
-    mesh    => base_state(igh_u)%get_mesh()
+    mesh_id = base_state(igh_u)%get_mesh_id()
+    mesh => base_state(igh_u)%get_mesh()
 
     geopotential => get_geopotential(mesh%get_id())
     mm_wtheta    => get_mass_matrix_fe(config, mesh, Wtheta)

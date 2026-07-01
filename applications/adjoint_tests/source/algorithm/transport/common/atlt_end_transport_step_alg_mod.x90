@@ -198,7 +198,7 @@ module atlt_end_transport_step_alg_mod
   !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine atlt_end_con_step_alg(config, mesh, model_clock )
+  subroutine atlt_end_con_step_alg(config, mesh, model_clock)
 
     use tl_end_of_transport_step_alg_mod,    only : tl_end_of_conservative_step_alg
     use atl_end_transport_step_alg_mod,      only : atl_end_conservative_step_alg

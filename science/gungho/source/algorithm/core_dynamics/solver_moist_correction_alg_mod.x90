@@ -85,7 +85,7 @@ subroutine solver_moist_correction_alg(config, mr, rho_np1, rho_star, dry_flux)
 
   w2_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2)
   w3_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W3)
-  volume_shifted => get_detj_at_w3_fv(shifted_mesh)
+  volume_shifted => get_detj_at_w3_fv(config, shifted_mesh)
 
   ! Initialise fields
   call rho_star_shifted%initialise(w3_sh_fs)

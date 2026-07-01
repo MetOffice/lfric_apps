@@ -34,9 +34,6 @@ module diagnostic_alg_mod
                                            LOG_LEVEL_ERROR
   use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
 
-  ! Object types
-  use config_mod, only: config_type
-
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, &
                                        geometry_spherical

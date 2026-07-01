@@ -56,11 +56,12 @@ module transport_constants_mod
   use panel_edge_support_mod,             only: FAR_AWAY
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry,               &
-                                       geometry_spherical,     &
-                                       geometry_planar,        &
-                                       topology,               &
-                                       topology_fully_periodic
+  use base_mesh_config_mod,      only: geometry,                &
+                                       geometry_spherical,      &
+                                       geometry_planar,         &
+                                       topology,                &
+                                       topology_fully_periodic, &
+                                       topology_non_periodic
   use finite_element_config_mod, only: coord_system,           &
                                        coord_system_xyz
 
@@ -1686,8 +1687,11 @@ contains
 
     if (mesh%is_geometry_spherical()) then
       geometry= geometry_spherical
-    else
+    else if (mesh%is_geometry_planar()) then
       geometry= geometry_planar
+    else
+      call log_event( 'Unsupported geometry selection', &
+                      log_level_error )
     end if
 
     if (mesh%is_topology_periodic()) then
@@ -1695,8 +1699,8 @@ contains
     else if (mesh%is_topology_non_periodic()) then
       topology = topology_non_periodic
     else
-      call log_event('get_curl_fe: Unsupported topology selection',&
-                      log_level_error)
+      call log_event( 'Unsupported topology selection', &
+                      log_level_error )
     end if
 
     coord_system  = config%finite_element%coord_system()

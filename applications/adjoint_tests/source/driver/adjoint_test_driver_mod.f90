@@ -158,6 +158,7 @@ contains
     call atlt_poly_adv_update_alg( mesh )
     call atlt_poly1d_vert_w3_recon_alg( modeldb%config, mesh )
     call atlt_w3h_advective_update_alg( modeldb%config, mesh )
+
     ! -- Lookup table solutions.
     call adjt_poly1d_recon_lookup_alg( modeldb%config, mesh, adj_trans_lookup_cache )
     call adjt_poly2d_recon_lookup_alg( modeldb%config, mesh, Wtheta, adj_trans_lookup_cache )

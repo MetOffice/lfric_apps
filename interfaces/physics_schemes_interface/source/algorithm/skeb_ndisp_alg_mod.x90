@@ -9,6 +9,7 @@
 module skeb_ndisp_alg_mod
 
     ! Use intrinsic data types and spaces
+    use config_mod,           only: config_type
     use constants_mod,        only: r_def, i_def
     use fs_continuity_mod,    only: W1, W2H, W2, W3
     ! use types
@@ -27,7 +28,7 @@ module skeb_ndisp_alg_mod
     use base_mesh_config_mod,      only: geometry, &
                                          geometry_spherical
     use initialise_diagnostics_mod, only: diagnostic_to_be_sampled
-use config_mod, only: config_type
+
     implicit none
 
     private

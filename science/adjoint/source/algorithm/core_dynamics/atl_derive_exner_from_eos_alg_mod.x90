@@ -7,11 +7,13 @@
 !> @brief Adjoint of tangent linear deriving exner from equation of state.
 module atl_derive_exner_from_eos_alg_mod
 
+  use config_mod,                       only: config_type
   use constants_mod,                    only: i_def
   use fs_continuity_mod,                only: W3
   use field_mod,                        only: field_type
   use log_mod,                          only: log_event, &
                                               LOG_LEVEL_ERROR
+  use mesh_mod,                         only: mesh_type
   use derived_config_mod,               only: bundle_size
   use field_indices_mod,                only: igh_p, igh_t, igh_d, &
                                               igh_u, igh_w, igh_uv
@@ -22,10 +24,6 @@ module atl_derive_exner_from_eos_alg_mod
                                         only: atl_project_eos_pressure_kernel_type
   use atl_sample_eos_pressure_kernel_mod, &
                                         only: atl_sample_eos_pressure_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
-  use mesh_mod,   only: mesh_type
 
   implicit none
 

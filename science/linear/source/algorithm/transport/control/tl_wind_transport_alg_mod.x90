@@ -7,6 +7,7 @@
 
 module tl_wind_transport_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def
   use sci_dg_convert_hdiv_field_kernel_mod, &
                                       only: dg_convert_hdiv_field_kernel_type
@@ -38,7 +39,6 @@ module tl_wind_transport_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use sci_field_minmax_alg_mod,       only: log_field_minmax
 
-use config_mod, only: config_type
   implicit none
 
   private
@@ -98,10 +98,12 @@ contains
     type(function_space_type),  pointer :: w2_fs
     type(function_space_type),  pointer :: w2b_fs
     integer(tik)                        :: id
-type(config_type), pointer :: config
+    type(config_type),          pointer :: config
+
     if ( LPROF ) call start_timing( id, 'tl_wind_transport' )
 
-config => tl_transport_controller%get_config()
+    config => tl_transport_controller%get_config()
+
     ! ------------------------------------------------------------------------ !
     ! Semi-implicit formulation
     ! ------------------------------------------------------------------------ !

@@ -4,6 +4,7 @@
 !>        equations
 module tl_rhs_alg_mod
 
+  use config_mod,                          only: config_type
   use constants_mod,                       only: r_def, i_def, l_def
   use model_clock_mod,                     only: model_clock_type
   use log_mod,                             only: log_event, &
@@ -52,8 +53,6 @@ module tl_rhs_alg_mod
   use fs_continuity_mod,                   only: W1, W2, W3, Wtheta
   use function_space_collection_mod,       only: function_space_collection
 
-use config_mod, only: config_type
-
   implicit none
 
   private
@@ -88,9 +87,9 @@ contains
   !!                             state
   !> @param[in]     dlayer_rhs   Use damping layer in rhs yes/no
   !> @param[in]     model_clock  Time in the model
-subroutine tl_rhs_alg(config, rhs, alpha_dt, base_state, state,       &
-                      moist_dyn, ls_state, ls_moist_dyn, compute_eos, &
-                      dlayer_rhs, model_clock)
+subroutine tl_rhs_alg( config, rhs, alpha_dt, base_state, state,       &
+                       moist_dyn, ls_state, ls_moist_dyn, compute_eos, &
+                       dlayer_rhs, model_clock )
 
     implicit none
 

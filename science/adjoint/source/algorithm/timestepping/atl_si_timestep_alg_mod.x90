@@ -154,7 +154,7 @@ contains
     ! Arguments
     class(atl_si_timestep_type), intent(inout) :: self
 
-    type(config_type),target,    intent(in)    :: config
+    type(config_type), target,   intent(in)    :: config
     type(field_type),            intent(inout) :: u, rho, theta, exner
     type(field_type),            intent(inout) :: mr(nummr)
     type(field_type),            intent(inout) :: ls_theta, ls_exner
@@ -163,16 +163,6 @@ contains
 
     ! Local variables
     integer(kind=i_def) :: outer, inner
-    logical(l_def) :: limited_area
-
-    limited_area = config%boundaries%limited_area()
-
-    ! Compute the LAM LBCs and RHS
-    if (limited_area) then
-      call log_event( "atl_si_timestep_type%step: "//&
-                      "No limited area for adjoint", &
-                      log_level_error )
-    end if
 
     self%config => config
     self%use_moisture = (moisture_formulation /= moisture_formulation_dry)
@@ -299,9 +289,8 @@ contains
       call set_bundle_scalar( 0.0_r_def, self%ls_mr_after_slow, nummr )
     end if
 
-    call self%adj_solver_lookup_cache%initialise(u%get_mesh())
-    call self%adj_trans_lookup_cache%initialise(self%config, u%get_mesh())
-
+    call self%adj_solver_lookup_cache%initialise( u%get_mesh() )
+    call self%adj_trans_lookup_cache%initialise( self%config, u%get_mesh() )
     call self%adj_semi_implicit_solver%initialise( self%config, self%state, &
                                                    self%adj_solver_lookup_cache )
 

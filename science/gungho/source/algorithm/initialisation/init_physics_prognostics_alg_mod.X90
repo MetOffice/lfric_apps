@@ -61,7 +61,7 @@ contains
 
   !>@brief Initialisation of physics prognostic fields
   !> @param[in]     config              Application namelist configuration object
-  !> @param[in,out] radition_fields     Collection of fields for radiation scheme
+  !> @param[in,out] radiation_fields    Collection of fields for radiation scheme
   !> @param[in,out] microphysics_fields Collection of fields for mphys scheme
   !> @param[in,out] orography_fields    Collection of fields for orog drag scheme
   !> @param[in,out] turbulence_fields   Collection of fields for turbulence scheme

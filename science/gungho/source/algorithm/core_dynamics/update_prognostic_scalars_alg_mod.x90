@@ -7,7 +7,7 @@
 !> @brief Update to the dynamics scalars based upon advection updates
 module update_prognostic_scalars_alg_mod
 
-use config_mod, only: config_type
+  use config_mod, only: config_type
 
   implicit none
 

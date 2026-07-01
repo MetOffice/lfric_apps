@@ -8,6 +8,7 @@
 !> @details This step is usually applied after the solver.
 module derive_exner_from_eos_alg_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def
   use field_mod,                          only: field_type
   use derived_config_mod,                 only: bundle_size
@@ -16,9 +17,6 @@ module derive_exner_from_eos_alg_mod
                                                 tik, LPROF
   use log_mod,                            only: log_event, &
                                                 LOG_LEVEL_ERROR
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
