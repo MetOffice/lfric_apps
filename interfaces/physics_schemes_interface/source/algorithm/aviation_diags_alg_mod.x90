@@ -29,13 +29,15 @@ contains
 
   ! todo: rename aviation_something?
   subroutine write_horizontal_divergence_diagnostic( &
-          wind, clock, main_mesh, element_order_h, element_order_v)
+          wind, exner_w3, clock, main_mesh, element_order_h, element_order_v)
     use fs_continuity_mod,              only: W2H, W2v, W3
     use function_space_collection_mod,  only: function_space_collection
     use model_clock_mod,                only: model_clock_type
 
+!    use sci_geometric_constants_mod,    only:           &
+!            get_coordinates, get_panel_id,              &
+!            get_face_selector_ew, get_face_selector_ns
     use sci_geometric_constants_mod,    only:           &
-            get_coordinates, get_panel_id,              &
             get_face_selector_ew, get_face_selector_ns
 
     use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
@@ -47,18 +49,23 @@ contains
 
     use mesh_mod,                       only: mesh_type
     use integer_field_mod,              only: integer_field_type
-    use initialise_diagnostics_mod,     only: diagnostic_to_be_sampled
+!    use initialise_diagnostics_mod,     only: diagnostic_to_be_sampled
+    use initialise_diagnostics_mod,     only: init_diag => init_diagnostic_field
 
-    use field_parent_mod,               only: write_interface
-    use lfric_xios_write_mod,           only: write_field_generic
+!    use field_parent_mod,               only: write_interface
+!    use lfric_xios_write_mod,           only: write_field_generic
 
-    use diagnostics_io_mod,             only: write_scalar_diagnostic
-    use sci_project_output_mod,         only: project_output
+!    use diagnostics_io_mod,             only: write_scalar_diagnostic
+!    use sci_project_output_mod,         only: project_output
+
+    use psykal_lite_phys_mod,           only: invoke_pres_interp_kernel_type
+    use planet_config_mod,              only: p_zero, kappa
 
 
     implicit none
 
     type(field_type),        intent(in)          :: wind
+    type(field_type),        intent(in)          :: exner_w3
     class(model_clock_type), intent(in)          :: clock
     type(mesh_type),         intent(in), pointer :: main_mesh
 
@@ -67,21 +74,30 @@ contains
     type(mesh_type), pointer             :: target_mesh => null()
 
     type(field_type)                     :: wind_h, wind_v
-    type(field_type)                     :: div_ml, div_ml_h, div_ml_v
-    type(field_type)                     :: div_pl(1)
-    type(field_type), pointer            :: chi(:)
+!    type(field_type)                     :: div_ml, div_ml_h, div_ml_v
+!    type(field_type)                     :: div_pl(1)
+    type(field_type)                     :: div_ml, div_pl
+!    type(field_type), pointer            :: chi(:)
+!    type(field_type), pointer            :: panel_id
     type(r_tran_operator_type), pointer  :: div_op
-    type(field_type), pointer            :: panel_id
 
     type(integer_field_type), pointer    :: face_selector_ew => null()
     type(integer_field_type), pointer    :: face_selector_ns => null()
 
-    procedure(write_interface), pointer  :: tmp_write_ptr
+!    procedure(write_interface), pointer  :: tmp_write_ptr
+
+    integer(i_def)              :: nplev
+    real(r_def), allocatable    :: plevs(:)
+    logical(l_def)              :: div_flag
 
 
-    if (.not. diagnostic_to_be_sampled('aviation__uv_wind_divergence')) then
-      return
-    endif
+!    if (.not. diagnostic_to_be_sampled('aviation__uv_wind_divergence')) then
+!      return
+!    endif
+
+    ! requested this time step?
+    div_flag = init_diag(div_pl, 'aviation__uv_wind_divergence')
+    if (.not. div_flag) return
 
     ! Get the horizontal div operator matrix for this mesh.
     div_op => get_directional_im3_div_r_tran(wind%get_mesh_id(), direction_h)
@@ -108,26 +124,38 @@ contains
     call invoke(inc_a_times_X(1.0e6_r_def, div_ml))
 
 
-    ! Project the field to the output field.
-    !!! Reviewer: which mesh should we use?
-    target_mesh => div_ml%get_mesh()
-    chi      => get_coordinates( target_mesh%get_id() )
-    panel_id => get_panel_id( target_mesh%get_id() )
+!    ! Project the field to the output field.
+!    !!! Reviewer: which mesh should we use?
+!    target_mesh => div_ml%get_mesh()
+!    chi      => get_coordinates( target_mesh%get_id() )
+!    panel_id => get_panel_id( target_mesh%get_id() )
+!
+!    call project_output( div_ml, div_pl, chi, panel_id, W3 )
+!
+!
+!    ! todo: this is already done in project_output, with out the xios check
+!    if (use_xios_io) then
+!      ! If using XIOS, we need to set a field I/O method appropriately
+!      tmp_write_ptr => write_field_generic
+!      call div_pl(1) % set_write_behaviour(tmp_write_ptr)
+!    end if
+!
+!    call write_scalar_diagnostic( &
+!        'aviation__uv_wind_divergence', div_pl(1), clock, target_mesh, .false. )
+!
+!    nullify(tmp_write_ptr)
 
-    call project_output( div_ml, div_pl, chi, panel_id, W3 )
+    ! Convert from model levels to pressure levels.
+    nplev = get_axis_dimension('pressure_levels')
+    allocate(plevs(nplev))
+    plevs = get_axis_values('pressure_levels', nplev)
+    call invoke_pres_interp_kernel_type(div_ml, exner_w3, nplev, plevs, &
+                                        div_pl, p_zero, kappa)
 
+    ! Write and clean up.
+    call plev_div%write_field()
+    deallocate(plevs)
 
-    ! todo: this is already done in project_output, with out the xios check
-    if (use_xios_io) then
-      ! If using XIOS, we need to set a field I/O method appropriately
-      tmp_write_ptr => write_field_generic
-      call div_pl(1) % set_write_behaviour(tmp_write_ptr)
-    end if
-
-    call write_scalar_diagnostic( &
-        'aviation__uv_wind_divergence', div_pl(1), clock, target_mesh, .false. )
-
-    nullify(tmp_write_ptr)
 
   end subroutine write_horizontal_divergence_diagnostic
 
