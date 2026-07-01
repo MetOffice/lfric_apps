@@ -11,7 +11,7 @@
 
 module lfric2lfric_init_mod
 
-  use constants_mod,              only: i_def, r_def, str_def
+  use constants_mod,              only: i_def, r_def, str_def, l_def
   use driver_modeldb_mod,         only: modeldb_type
   use field_collection_mod,       only: field_collection_type
   use lfric_xios_context_mod,     only: lfric_xios_context_type

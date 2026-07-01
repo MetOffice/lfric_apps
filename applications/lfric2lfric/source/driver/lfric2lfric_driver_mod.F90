@@ -7,7 +7,7 @@
 !>
 module lfric2lfric_driver_mod
 
-  use constants_mod,            only: str_def, i_def, l_def, r_second
+  use constants_mod,            only: str_def, i_def, l_def, r_def, r_second
   use driver_fem_mod,           only: final_fem
   use driver_io_mod,            only: final_io
   use driver_modeldb_mod,       only: modeldb_type
@@ -35,7 +35,8 @@ module lfric2lfric_driver_mod
                                             context_dst, context_src,  &
                                             source_collection_name,    &
                                             target_collection_name,    &
-                                            interm_collection_name
+                                            interm_collection_name,    &
+                                            src, dst
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
   use lfric2lfric_vert_mod,           only: lfric2lfric_vert
 
@@ -117,6 +118,8 @@ contains
     real(kind=r_def)        :: src_domain_height
     real(kind=r_def)        :: dst_domain_height
 
+    logical(l_def)          :: horizontal_change, vertical_change
+
     ! Namelist pointers
     files_nml       => modeldb%configuration%get_namelist('files')
     lfric2lfric_nml => modeldb%configuration%get_namelist('lfric2lfric')
@@ -143,19 +146,26 @@ contains
     call dst_extrusion_nml%get_value( 'domain_height', dst_domain_height )
 
     vertical_change = .false.
-    if ( src_extrusion_method \= dst_extrusion_method ) then vertical_change = .true.
-    if ( src_number_of_layers \= dst_number_of_layers ) then vertical_change = .true.
-    if ( src_domain_height \= dst_domain_height )       then vertical_change = .true.
-    
+    if ( src_extrusion_method /= dst_extrusion_method ) then
+      vertical_change = .true.
+    end if
+    if ( src_number_of_layers /= dst_number_of_layers ) then
+      vertical_change = .true.
+    end if
+    if ( src_domain_height /= dst_domain_height ) then
+      vertical_change = .true.
+    end if
     horizontal_change = .false.
-    if ( mesh_names(dst) \= mesh_names(src) ) then horizontal_change = .true.
+    if ( mesh_names(dst) /= mesh_names(src) ) then
+      horizontal_change = .true.
+    end if
 
     ! Point to source and target field collections
     source_fields => modeldb%fields%get_field_collection(source_collection_name)
     target_fields => modeldb%fields%get_field_collection(target_collection_name)
 
     if (horizontal_change .and. vertical_change) then
-       interm_fields => modeldb%fields%get_field_collection(intermediate_collection_name)
+       interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
        
     else if (horizontal_change .and. .not. vertical_change) then
        interm_fields =>  modeldb%fields%get_field_collection(target_collection_name)

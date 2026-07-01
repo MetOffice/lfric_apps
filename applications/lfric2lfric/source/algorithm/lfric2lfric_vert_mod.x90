@@ -1,5 +1,6 @@
 module lfric2lfric_vert_mod
 
+  use constants_mod,            only: str_def
   use field_parent_mod,         only: field_parent_type
   use field_mod,                only: field_type
   use field_collection_mod,     only: field_collection_type
@@ -47,7 +48,7 @@ contains
       call log_event(log_scratch_space, log_level_info)
       ! Dummy initialisation - to be replaced with actual
       ! vertical regridding
-      call setval_X(field_dst, 1.0_r_def)
+      call invoke(setval_C(field_dst, 1.0_r_def))
    enddo
     
   end subroutine lfric2lfric_vert
