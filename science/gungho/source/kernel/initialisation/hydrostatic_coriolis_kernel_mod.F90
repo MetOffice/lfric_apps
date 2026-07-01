@@ -16,10 +16,11 @@ module hydrostatic_coriolis_kernel_mod
 use argument_mod,               only : arg_type, func_type,      &
                                        GH_FIELD, GH_REAL,        &
                                        GH_SCALAR, GH_INTEGER,    &
+                                       GH_LOGICAL,               &
                                        GH_READ, GH_WRITE,        &
                                        ANY_SPACE_9, ANY_SPACE_1, &
                                        GH_BASIS, CELL_COLUMN, GH_EVALUATOR
-use constants_mod,              only : r_def, i_def
+use constants_mod,              only : r_def, i_def, l_def
 use fs_continuity_mod,          only : Wtheta, W3
 use kernel_mod,                 only : kernel_type
 use reference_element_mod,      only : B
@@ -33,7 +34,7 @@ private
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: hydrostatic_coriolis_kernel_type
   private
-  type(arg_type) :: meta_args(13) = (/                      &
+  type(arg_type) :: meta_args(14) = (/                      &
        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),      &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),      &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  Wtheta),  &
@@ -46,7 +47,8 @@ type, public, extends(kernel_type) :: hydrostatic_coriolis_kernel_type
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),           &
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),           &
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),           &
-       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)            &
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),           &
+       arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ)            &
        /)
   type(func_type) :: meta_funcs(2) = (/                     &
        func_type(W3,     GH_BASIS),                         &
@@ -82,6 +84,7 @@ contains
 !! @param[in]  cp            Specific heat of dry air at constant pressure
 !! @param[in]  eos_index     Vertical level at which the equation of state
 !!                           is satisfied
+!! @param[in]  exner_from_rho Calculate initial exner value from input rho  
 !! @param[in]  ndf_w3        Number of degrees of freedom per cell for w3
 !! @param[in]  undf_w3       Total number of degrees of freedom for w3
 !! @param[in]  map_w3        Dofmap for the cell at column base for w3
@@ -106,6 +109,7 @@ subroutine hydrostatic_coriolis_code( nlayers,       &
                                       rd,            &
                                       cp,            &
                                       eos_index,     &
+                                      exner_from_rho,&
                                       ndf_w3,        &
                                       undf_w3,       &
                                       map_w3,        &
@@ -126,6 +130,7 @@ subroutine hydrostatic_coriolis_code( nlayers,       &
   integer(kind=i_def), dimension(ndf_w3),       intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_wt),       intent(in) :: map_wt
   integer(kind=i_def),                          intent(in) :: eos_index
+  logical(kind=l_def),                          intent(in) :: exner_from_rho
 
   real(kind=r_def), dimension(undf_w3),      intent(inout) :: exner
   real(kind=r_def), dimension(undf_w3),         intent(in) :: rho,           &
@@ -160,31 +165,33 @@ subroutine hydrostatic_coriolis_code( nlayers,       &
 
   eos_index_m1 = eos_index - 1
 
-  k = eos_index_m1
+  if (exner_from_rho) then
+    k = eos_index_m1
 
-  do df3 = 1, ndf_w3
-    rho_e( df3 ) = rho( map_w3(df3) + k)
-  end do
-
-  do dft = 1, ndf_wt
-    theta_moist_e( dft ) = theta( map_wt(dft) + k) * moist_dyn_gas( map_wt(dft) + k )
-  end do
-
-  do df = 1, ndf_w3
-
-    rho_cell = 0.0_r_def
     do df3 = 1, ndf_w3
-      rho_cell = rho_cell + rho_e( df3 )*basis_w3( 1,df3,df )
+      rho_e( df3 ) = rho( map_w3(df3) + k)
     end do
 
-    theta_moist = 0.0_r_def
     do dft = 1, ndf_wt
-      theta_moist = theta_moist + theta_moist_e( dft )*basis_wt( 1,dft,df )
+      theta_moist_e( dft ) = theta( map_wt(dft) + k) * moist_dyn_gas( map_wt(dft) + k )
     end do
 
-    exner( map_w3(df) + k ) = ( rd*rho_cell*theta_moist/p_zero ) &
-                              **( kappa/( 1.0_r_def-kappa ) )
-  end do
+    do df = 1, ndf_w3
+
+      rho_cell = 0.0_r_def
+      do df3 = 1, ndf_w3
+        rho_cell = rho_cell + rho_e( df3 )*basis_w3( 1,df3,df )
+      end do
+
+      theta_moist = 0.0_r_def
+      do dft = 1, ndf_wt
+        theta_moist = theta_moist + theta_moist_e( dft )*basis_wt( 1,dft,df )
+      end do
+
+      exner( map_w3(df) + k ) = ( rd*rho_cell*theta_moist/p_zero ) &
+                                **( kappa/( 1.0_r_def-kappa ) )
+    end do
+  end if
 
   ! Exner on other levels from hydrostatic balance
   ! Compute exner at level k-1 from exner at level k plus other terms.

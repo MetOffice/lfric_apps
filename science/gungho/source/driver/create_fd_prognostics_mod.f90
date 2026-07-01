@@ -29,7 +29,9 @@ module create_fd_prognostics_mod
                                              ancil_option_updating,       &
                                              read_w2h_wind,               &
                                              sst_source,                  &
-                                             sst_source_start_dump
+                                             sst_source_start_dump,       &
+                                             init_exner_method,           &
+                                             init_exner_method_dump
   use nlsizes_namelist_mod,           only : sm_levels
   use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
   use jules_physics_init_mod,         only : snow_lev_tile
@@ -72,6 +74,7 @@ contains
     type( field_type ) :: ns_wind_in_w3 ! V wind
     type( field_type ) :: h_wind_in_w2h ! Horizontal wind (i.e. on W2h dofs)
     type( field_type ) :: dry_rho_in_w3 ! Dry rho
+    type( field_type ) :: exner_in_w3   ! Exner pressure
     ! Vertical theta levels
     type( field_type ) :: upward_wind_in_wtheta ! W wind
     type( field_type ) :: theta_in_wtheta ! Potential temp
@@ -134,6 +137,17 @@ contains
     call dry_rho_in_w3%set_write_behaviour(tmp_write_ptr)
 
     call fd_field_collection%add_field(dry_rho_in_w3)
+
+    if (init_exner_method == init_exner_method_dump) then
+      call exner_in_w3%initialise( vector_space = &
+           function_space_collection%get_fs(mesh, 0, 0, W3),  &
+           name='exner_in_w3')
+
+      call exner_in_w3%set_read_behaviour(tmp_read_ptr)
+      call exner_in_w3%set_write_behaviour(tmp_write_ptr)
+
+      call fd_field_collection%add_field(exner_in_w3)
+    end if
 
     !========================================================================
     ! Wtheta fields - theta levels
