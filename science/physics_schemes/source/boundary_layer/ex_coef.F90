@@ -41,7 +41,7 @@ use bl_option_mod, only:  WeightLouisToLong, Variable_RiC, cbl_op,             &
    sg_orog_mixing, ricrit_sharp, pr_max,                                       &
    local_fa,Prandtl,ishear_bl,L_SBLco,Muw_SBL,Mwt_SBL,sbl_op,                  &
    LockMailhot2004, lem_stability, lem_std, lem_conven,                        &
-   lem_adjust, cbl_mix_fac_nml,                                                &
+   lem_adjust, cbl_mix_fac_nml, improved_tke_diag,                             &
    off, on, sharpest, sharp_sea_long_land, sharp_sea_mes_land,                 &
    louis_tails, sharp_sea_louis_land, long_tails, mes_tails, ritrans,          &
    neut_cbl, lambda_min_nml, lambda_max_nml,                                   &
@@ -1340,8 +1340,8 @@ do k = 2, bl_levels
 !$OMP SHARED( k, pdims,BL_diag,elm,elh,ri,func,prandtl_number,cbl_op,r_pr_n,   &
 !$OMP         l_subfilter_vert,l_subfilter_horiz,fm_3d,fh_3d,rhokm,rhokh,      &
 !$OMP         rho_wet_tq,dvdzm,l_mr_physics,local_fa,tke_loc,subb,subc,g0,dm,  &
-!$OMP         dh  )       &
-!$OMP PRIVATE( i, fm, fh, rtmri, rpr )
+!$OMP         dh,improved_tke_diag  )                                          &
+!$OMP PRIVATE( i, fm, fh, rtmri, rpr, rifac )
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
@@ -1406,11 +1406,39 @@ do k = 2, bl_levels
 
     if (BL_diag%l_tke) then
       rpr = fh / max(fm, tiny(one) )
-      tke_loc(i,j,k) = ( r_c_tke*elm(i,j,k)*dvdzm(i,j,k)*dvdzm(i,j,k)          &
-                          *(rhokm(i,j,k)/rho_wet_tq(i,j,k-1))                  &
-                          *max( one_half, min( 10.0_r_bl,                      &
-                          one - ri(i,j,k)*rpr ) )                              &
-                        )**two_thirds
+      ! Option to ensure consistent TKE and Km in unstable conditions...
+      !
+      ! We have set the stability function:
+      ! fm = (1.0-subc*Ri)^1/2
+      ! For large negative Ri, this goes to:
+      ! fm ~ (-Ri)^1/2
+      !    = (-db/dz)^1/2 / dv/dz
+      ! Therefore Km = fm L^2 dv/dz goes to:
+      ! Km = L^2 (-db/dz)^1/2
+      ! (i.e. in the limit of weak shear and strong buoyant instability,
+      !  the shear cancels out and Km is a function of db/dz instead,
+      !  which makes physical sense).
+      ! To get TKE consistent with Km, the same should happen in our formula
+      ! for local TKE.  The TKE formula below is:
+      ! TKE = ( L (dv/dz)^2 Km ( 1 - Ri/Pr ) )^2/3
+      ! When Ri is large and negative, we have:
+      ! 1 - Ri/Pr ~ -1/Pr db/dz / (dv/dz)^2
+      ! So the (dv/dz)^2 terms cancel, which is nicely consistent.
+      ! HOWEVER, the original version applies an ad-hoc max limit of 10
+      ! to this term, which breaks the scaling.  This results in local TKE
+      ! going to zero in the limit of weak shear, even if there is
+      ! plenty of buoyant instability to produce TKE (and this is reflected
+      ! in Km not going to zero).  Remove this ad-hoc limit under a switch
+      ! to keep TKE consistent with Km:
+      if ( improved_tke_diag ) then
+        rifac = max( one_half, one - ri(i,j,k)*rpr )
+      else
+        rifac = max( one_half, min( 10.0_r_bl, one - ri(i,j,k)*rpr ) )
+      end if
+      tke_loc(i,j,k) = ( r_c_tke*elm(i,j,k)*dvdzm(i,j,k)*dvdzm(i,j,k)        &
+                         *(rhokm(i,j,k)/rho_wet_tq(i,j,k-1))                 &
+                         *rifac                                              &
+                       )**two_thirds
     end if
   end do !i
 !$OMP end do

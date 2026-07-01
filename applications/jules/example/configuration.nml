@@ -45,7 +45,7 @@ start_dump_filename='',
 /
 &finite_element
 cellshape='quadrilateral',
-coord_order=1,
+coord_order=2,
 coord_order_nonprime=1,
 coord_space='Wchi',
 coord_system='native',
@@ -70,6 +70,7 @@ p2theta_vert=.true.,
 rotating=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
+solver_moisture_conservation=.true.,
 use_multires_coupling=.false.,
 use_physics=.true.,
 use_wavedynamics=.false.,
@@ -114,11 +115,9 @@ coarse_ozone_ancil=.false.,
 init_option='analytic',
 lbc_option='none',
 ls_option='none',
-n_orog_smooth=0,
 read_w2h_wind=.false.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
-w0_orography_mapping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_pressure
@@ -672,6 +671,9 @@ split_w=.true.,
 /
 &orography
 orog_init_option='none',
+orography_order=2,
+n_orog_smooth=0,
+w0_multigrid_mapping=.true.
 /
 &partitioning
 generate_inner_halos=.false.,

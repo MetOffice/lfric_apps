@@ -655,3 +655,265 @@ class vn31_t496(MacroUpgrade):
         self.add_setting(config, ["namelist:iau", "iau_outerloop"], ".false.")
 
         return config, self.reports
+
+
+class vn31_t487(MacroUpgrade):
+    """Upgrade macro for ticket #487 by Adrian Lock."""
+
+    BEFORE_TAG = "vn3.1_t496"
+    AFTER_TAG = "vn3.1_t487"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-boundary_layer
+        self.add_setting(
+            config, ["namelist:blayer", "improved_tke_diag"], ".false."
+        )
+
+        return config, self.reports
+
+
+class vn31_t180(MacroUpgrade):
+    """Upgrade macro for ticket #180 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t487"
+    AFTER_TAG = "vn3.1_t180"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Get values
+        n_orog_smooth = self.get_setting_value(
+            config, ["namelist:initialization", "n_orog_smooth"]
+        )
+        w0_mapping = self.get_setting_value(
+            config, ["namelist:initialization", "w0_orography_mapping"]
+        )
+        coord_order = self.get_setting_value(
+            config, ["namelist:finite_element", "coord_order"]
+        )
+        # Add new settings
+        self.add_setting(
+            config, ["namelist:orography", "n_orog_smooth"], n_orog_smooth
+        )
+        self.add_setting(
+            config, ["namelist:orography", "w0_multigrid_mapping"], w0_mapping
+        )
+        self.add_setting(
+            config, ["namelist:orography", "orography_order"], coord_order
+        )
+        # Remove old settings
+        self.remove_setting(
+            config, ["namelist:initialization", "n_orog_smooth"]
+        )
+        self.remove_setting(
+            config, ["namelist:initialization", "w0_orography_mapping"]
+        )
+
+        return config, self.reports
+
+
+class vn31_t360(MacroUpgrade):
+    """Upgrade macro for ticket #360 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t180"
+    AFTER_TAG = "vn3.1_t360"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-stochastic_physics
+        self.add_setting(
+            config,
+            ["namelist:stochastic_physics", "rp_mp_ci"],
+            "1.0,1.0,1.0",
+        )
+
+        # Commands From: rose-meta/um-microphysics
+        self.add_setting(config, ["namelist:microphysics", "aut_qc"], "2.47")
+        self.add_setting(config, ["namelist:microphysics", "ai"], "2.57e-2")
+        upd_precfrac_opt = self.get_setting_value(
+            config, ["namelist:microphysics", "i_update_precfrac"]
+        )
+        self.remove_setting(
+            config, ["namelist:microphysics", "i_update_precfrac"]
+        )
+        self.add_setting(
+            config,
+            ["namelist:microphysics", "update_precfrac_opt"],
+            upd_precfrac_opt,
+        )
+
+        # Commands From: rose-meta/um-convection
+        # 0.66 and 1.2 are tuned GC6 values (0.5 and 0.8 originally)
+        self.add_setting(config, ["namelist:convection", "r_det"], "0.5")
+        self.add_setting(
+            config, ["namelist:convection", "cca_md_scaling"], "0.8"
+        )
+        # These settings are unchanged
+        self.add_setting(
+            config, ["namelist:convection", "prog_ent_grad"], "-1.1"
+        )
+        self.add_setting(
+            config, ["namelist:convection", "prog_ent_int"], "-2.9"
+        )
+        self.add_setting(config, ["namelist:convection", "prog_ent_max"], "2.5")
+        self.add_setting(config, ["namelist:convection", "cpress_term"], "0.3")
+        self.add_setting(config, ["namelist:convection", "ent_fac_sh"], "1.0")
+        self.add_setting(config, ["namelist:convection", "mparwtr"], "1.0e-3")
+        self.add_setting(config, ["namelist:convection", "thpixs_mid"], "0.5")
+        self.add_setting(config, ["namelist:convection", "c_mass_sh"], "0.03")
+        cv_scheme = self.get_setting_value(
+            config, ["namelist:convection", "cv_scheme"]
+        )
+        if cv_scheme == "'comorph'":
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dtheta"], ".false."
+            )
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dq"], ".false."
+            )
+        else:
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dtheta"], ".true."
+            )
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dq"], ".true."
+            )
+
+        # Commands From: rose-meta/um-aerosol
+        self.add_setting(
+            config, ["namelist:aerosol", "ukca_scale_marine_pom_ems"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "marine_pom_ems_scaling"], "1.0"
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "ukca_scale_sea_salt_ems"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "sea_salt_ems_scaling"], "1.0"
+        )
+
+        return config, self.reports
+
+
+class vn31_t247(MacroUpgrade):
+    """Upgrade macro for ticket #247 by Mike Whitall."""
+
+    BEFORE_TAG = "vn3.1_t360"
+    AFTER_TAG = "vn3.1_t247"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        # Add new switch controlling PC2 homogeneous forcing option.
+        # Previously, this was hardwired in um_physics_init to use one
+        # option if using the comorph convection scheme and another if not.
+        # So need to implement the same logic here:
+        # Load "cv_scheme" from the convection namelist
+        nml = "namelist:convection"
+        cv_scheme = self.get_setting_value(config, [nml, "cv_scheme"])
+        if cv_scheme == "'comorph'":
+            # Use the "weight by PDF width" option if using comorph
+            pc2_homog_g = "'width'"
+        else:
+            # Use the "weight as a function of cloud-fraction" option otherwise
+            pc2_homog_g = "'cf'"
+        # Add new settings with the specified option
+        nml = "namelist:cloud"
+        self.add_setting(config, [nml, "pc2_homog_g_method"], pc2_homog_g)
+        # Rename some other cloud-scheme namelist inputs for clarity...
+        nml = "namelist:cloud"
+        bm_ez_opt = self.get_setting_value(config, [nml, "i_bm_ez_opt"])
+        pc2_erosion_num = self.get_setting_value(
+            config, [nml, "i_pc2_erosion_numerics"]
+        )
+        pc2_init_method = self.get_setting_value(config, [nml, "pc2ini"])
+        self.remove_setting(config, [nml, "i_bm_ez_opt"])
+        self.remove_setting(config, [nml, "i_pc2_erosion_numerics"])
+        self.remove_setting(config, [nml, "pc2ini"])
+        self.add_setting(config, [nml, "bm_ez_opt"], bm_ez_opt)
+        self.add_setting(config, [nml, "pc2_erosion_numerics"], pc2_erosion_num)
+        self.add_setting(config, [nml, "pc2_init_method"], pc2_init_method)
+
+        return config, self.reports
+
+
+class vn31_t394(MacroUpgrade):
+    """Upgrade macro for ticket #394 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t247"
+    AFTER_TAG = "vn3.1_t394"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:formulation", "solver_moisture_conservation"],
+            ".false.",
+        )
+
+        return config, self.reports
+
+
+class vn31_t401(MacroUpgrade):
+    """Upgrade macro for ticket #401 by Dan Copsey."""
+
+    BEFORE_TAG = "vn3.1_t394"
+    AFTER_TAG = "vn3.1_t401"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        self.add_setting(
+            config, ["namelist:jules_hydrology", "l_inland"], ".false."
+        )
+
+        return config, self.reports
+
+
+class vn31_t474(MacroUpgrade):
+    """Upgrade macro for ticket #474 by Mohit Dalvi."""
+
+    BEFORE_TAG = "vn3.1_t401"
+    AFTER_TAG = "vn3.1_t474"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:files", "nudging_directory"], "''")
+        self.add_setting(config, ["namelist:files", "nudging_filename"], "''")
+        self.add_setting(
+            config,
+            ["namelist:multires_coupling", "coarse_nudging"],
+            ".false.",
+        )
+        self.add_setting(
+            config, ["namelist:multires_coupling", "nudging_mesh_name"], "''"
+        )
+        # Add new nudging namelist -with sensible default values
+        # Append after 'multires_coupling' in configuration.nml
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        source = re.sub(
+            r"(namelist:multires_coupling)",
+            r"namelist:multires_coupling)" + "\n" + " (namelist:nudging",
+            source,
+        )
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
+        self.add_setting(config, ["namelist:nudging"])
+        self.add_setting(
+            config, ["namelist:nudging", "nudge_data_levels"], "137"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_bottom"], "5"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_top"], "52"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_source"], "'era'"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_width_bottom"], "1"
+        )
+        self.add_setting(config, ["namelist:nudging", "nudging_width_top"], "0")
+
+        return config, self.reports

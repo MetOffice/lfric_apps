@@ -28,7 +28,7 @@ module multidata_field_dimensions_mod
 #ifdef UM_PHYSICS
       !                   1         2         3
       !          123456789012345678901234567890
-      character(30), parameter :: multidata_items(34) = &
+      character(30), parameter :: multidata_items(35) = &
             [character(30) ::                           &
                 'plant_func_types',                     &
                 'sea_ice_categories',                   &
@@ -63,7 +63,8 @@ module multidata_field_dimensions_mod
                 'photolysis_pathways',                  &
                 'random_seed_size',                     &
                 'stph_spectral_dimensions',             &
-                'photol_species'                        &
+                'photol_species',                       &
+                'nudging_levels'                        &
       ]
 #endif
 
@@ -167,6 +168,7 @@ end subroutine sync_multidata_field_dimensions
     use aerosol_config_mod,      only: l_radaer
     use chemistry_config_mod,    only: chem_scheme, chem_scheme_strattrop
     use um_ukca_init_mod,        only: n_phot_spc
+    use nudging_config_mod,      only: nudge_data_levels
 #endif
 
     use log_mod,                 only: log_event, LOG_LEVEL_ERROR,             &
@@ -277,6 +279,8 @@ end subroutine sync_multidata_field_dimensions
             else
                dim = 1
             end if
+      case ('nudging_levels')
+           dim = nudge_data_levels
       case ('')
             dim = 1 ! ordinary (non-multidata) field
 #endif

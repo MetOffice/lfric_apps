@@ -23,7 +23,7 @@ casim:
 
 jules:
     source: git@github.com:MetOffice/jules.git
-    ref: 3647a42962613d1f50d02d7660c86dece056f87c
+    ref: 1ea67b41d505cf50cc79c2a40de9d203e44e1794
 
 lfric_apps:
     source:
@@ -31,7 +31,7 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: 1b3978bcc6f4ec4fc0683854b9a5b82a63225919
+    ref: b85ebadea45edeef7ca47152454cc8757fbd97cc
 
 moci:
     source: git@github.com:MetOffice/moci.git
