@@ -120,7 +120,7 @@ contains
     integer(i_def)               :: init_eos_height
     logical(l_def)               :: read_w2h_wind
     logical(l_def)               :: init_sort_theta
-    logical(l_def)               :: init_exner_method
+    integer(i_def)               :: init_exner_method
     type(namelist_type), pointer :: initialization_nml
 
     initialization_nml => configuration%get_namelist('initialization')
