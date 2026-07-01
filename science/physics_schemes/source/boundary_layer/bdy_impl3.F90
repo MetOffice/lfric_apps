@@ -42,7 +42,6 @@ subroutine bdy_impl3 (                                                         &
 use atm_fields_bounds_mod, only: pdims, tdims, tdims_l
 use bl_option_mod, only: one
 use planet_constants_mod, only: lcrcp => lcrcp_bl, lsrcp => lsrcp_bl
-use vectlib_mod, only: oneover_v => oneover_v_interface
 use model_domain_mod, only: model_type, mt_single_column
 use yomhook, only: lhook, dr_hook
 use parkind1, only: jprb, jpim
