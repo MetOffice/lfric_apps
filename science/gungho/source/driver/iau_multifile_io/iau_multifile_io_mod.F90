@@ -36,7 +36,6 @@ module iau_multifile_io_mod
 #endif
   use iau_time_control_mod,        only: calc_iau_ts_num
   use inventory_by_mesh_mod,       only: inventory_by_mesh_type
-  use io_context_mod,              only: callback_clock_arg
   use lfric_xios_context_mod,      only: lfric_xios_context_type
   use linked_list_mod,             only: linked_list_type
   use lfric_xios_action_mod,       only: advance_read_only
@@ -266,9 +265,6 @@ contains
     character(str_def) :: time_start
 
     procedure(event_action), pointer       :: context_advance
-    procedure(callback_clock_arg), pointer :: before_close
-
-    nullify(before_close)
 
     chi_inventory      => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
@@ -297,8 +293,8 @@ contains
       call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
                                                chi, panel_id,               &
                                                modeldb%clock, tmp_calendar, &
-                                               before_close,                &
                                                start_at_zero=.true. )
+      call io_context%close_context_definition()
 
       ! Attach context advancement to the model's clock
       context_advance => advance_read_only

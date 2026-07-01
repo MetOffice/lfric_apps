@@ -94,7 +94,7 @@ module ffsl_hori_alg_mod
   public  :: ffsl_hori_cosmic_inner_alg
   public  :: ffsl_hori_outer_alg
   public  :: ffsl_hori_swift_inner_alg
-  private :: ffsl_extra_points
+  public  :: ffsl_extra_points
   private :: monotone_option_special_edges
 
 contains

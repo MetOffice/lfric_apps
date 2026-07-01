@@ -78,7 +78,7 @@ integer :: ic
 l_any_activate = .false.
 do ic = 1, n_points
   ! If zero condensed water mixing ratio present
-  if ( q_cond(ic) == zero ) then
+  if ( .not. q_cond(ic) > zero ) then
     ! If at or above liquid saturation point
     if ( q_vap(ic) >= qsat_liq_ref(ic)                                         &
                     + dqsatdT_liq(ic)                                          &
@@ -86,8 +86,8 @@ do ic = 1, n_points
       q_cond(ic) = q_activate
       ! Note: technically we have added water from nowhere
       ! here; however, q_activate is set to the smallest
-      ! possible non-zero floating-point number, using tiny.
-      ! This is almost certainly smaller than q_vap * epsilon,
+      ! possible non-zero floating-point number, using TINY.
+      ! This is almost certainly smaller than q_vap * EPSILON,
       ! so that subtracting it from the water vapour would
       ! make no difference to the floating-point
       ! representation of q_vap.  Therefore, it will make
