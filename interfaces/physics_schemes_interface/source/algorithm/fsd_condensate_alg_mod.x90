@@ -8,17 +8,18 @@
 
 module fsd_condensate_alg_mod
 
+  use config_mod,           only: config_type
   use constants_mod,        only: i_def
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use mesh_mod,             only: mesh_type
   use sci_geometric_constants_mod, only: get_delta_at_wtheta, get_dz_at_wtheta
 
-   implicit none
+  implicit none
 
-   private
+  private
 
-   public fsd_condensate_alg
+  public fsd_condensate_alg
 
 contains
   !>@brief   Calculate fractional standard deviation (FSD) condensate
@@ -26,17 +27,19 @@ contains
   !>         to determine variability in condensate for use by
   !>         radiation and microphysics scheme.
   !>         See Hill et al (2015, DOI: 10.1002/qj.2506) for full details.
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] f_arr             Array of params for FSD
   !>@param[in,out] cloud_fields      Group of cloud fields
   !>@param[in]     convection_fields Group of convection fields
 
-  subroutine fsd_condensate_alg( f_arr, cloud_fields, convection_fields )
+  subroutine fsd_condensate_alg( config, f_arr, cloud_fields, convection_fields )
 
     use fsd_condensate_kernel_mod, only: fsd_condensate_kernel_type
     use timing_mod,                only: start_timing, stop_timing, tik, LPROF
 
     implicit none
 
+    type(config_type),             intent(in)    :: config
     type( field_type ),            intent(inout) :: f_arr
     type( field_collection_type ), intent(in)    :: cloud_fields
     type( field_collection_type ), intent(in)    :: convection_fields
@@ -64,8 +67,8 @@ contains
 
     mesh => area_fraction%get_mesh()
 
-    delta  => get_delta_at_wtheta(mesh%get_id())
-    dz_wth => get_dz_at_wtheta(mesh%get_id())
+    delta  => get_delta_at_wtheta(mesh)
+    dz_wth => get_dz_at_wtheta(config, mesh)
 
     call invoke ( fsd_condensate_kernel_type ( sigma_ml,        & ! fsd of condensate
                                                f_arr,           & ! fsd parameters

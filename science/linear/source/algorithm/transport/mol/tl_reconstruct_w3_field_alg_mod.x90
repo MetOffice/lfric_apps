@@ -18,6 +18,7 @@
 !!                      size as an integer argument.
 module tl_reconstruct_w3_field_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: element_order_h, element_order_v
@@ -61,6 +62,7 @@ contains
   !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
   !!          desired spatial reconstruction for tangent linear app.
   !!          Options for this are either FE or FV reconstructions.
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           ACTIVE  Reconstructed field at W2 points
   !> @param[in]     field_old           ACTIVE  Initial W3 field
   !> @param[in]     ls_field_old        PASSIVE Initial W3 field
@@ -68,11 +70,13 @@ contains
   !!                                    compute reconstruction
   !> @param[in]     transport_metadata  Contains transport configuration options
   !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine tl_reconstruct_w3_field_alg(field_new, field_old, ls_field_old, &
-                                         direction,                 &
+  subroutine tl_reconstruct_w3_field_alg(config, field_new, field_old, &
+                                         ls_field_old, direction,      &
                                          transport_metadata, final_rk_stage)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),              intent(in)    :: field_old
     type(field_type),              intent(in)    :: ls_field_old
@@ -116,9 +120,9 @@ contains
           call field_new_v%initialise( vector_space=w3md_v_fs )
 
           ! Reconstruct W3 field separately in horizontal and vertical
-          call hori_w3_reconstruct_alg(field_new_h, field_old, &
+          call hori_w3_reconstruct_alg(config, field_new_h, field_old, &
                                        transport_metadata)
-          call tl_vert_w3_reconstruct_alg(field_new_v, field_old, &
+          call tl_vert_w3_reconstruct_alg(config, field_new_v, field_old, &
                                           ls_field_old, transport_metadata,  &
                                           final_rk_stage)
 
@@ -131,10 +135,10 @@ contains
         nullify( w3md_h_fs, w3md_v_fs )
 
         case ( direction_h )
-          call hori_w3_reconstruct_alg(field_new, field_old, &
+          call hori_w3_reconstruct_alg(config, field_new, field_old, &
                                        transport_metadata)
         case ( direction_v )
-          call tl_vert_w3_reconstruct_alg(field_new, field_old, &
+          call tl_vert_w3_reconstruct_alg(config, field_new, field_old, &
                                           ls_field_old, transport_metadata, &
                                           final_rk_stage)
         case default
@@ -150,12 +154,13 @@ contains
   end subroutine tl_reconstruct_w3_field_alg
 
   !> @brief Tangent linear reconstruction of a W3 field in W2v
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           The resulting vertical W2 field
   !> @param[in]     field_old           The input W3 field
   !> @param[in]     ls_field_old        The linearised input W3 field
   !> @param[in]     transport_metadata  Contains transport configuration options
   !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine tl_vert_w3_reconstruct_alg(field_new, field_old,             &
+  subroutine tl_vert_w3_reconstruct_alg(config, field_new, field_old,     &
                                         ls_field_old, transport_metadata, &
                                         final_rk_stage)
 
@@ -163,6 +168,8 @@ contains
                                        get_reversible_vert_w3_mol_coeffs
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),              intent(inout) :: field_new
     type(field_type),              intent(in)    :: field_old
@@ -188,11 +195,11 @@ contains
 
     if ( reversible ) then
       ndata_v = fv_vertical_order
-      vert_flux_coeffs => get_reversible_vert_w3_mol_coeffs(mesh_id)
+      vert_flux_coeffs => get_reversible_vert_w3_mol_coeffs(config, mesh)
       vertical_order = fv_vertical_order - 1_i_def
     else
       ndata_v = 2*(fv_vertical_order + 1)
-      vert_flux_coeffs => get_vert_w3_mol_coeffs(mesh_id)
+      vert_flux_coeffs => get_vert_w3_mol_coeffs(config, mesh)
       vertical_order = fv_vertical_order
     end if
 

@@ -208,8 +208,8 @@ contains
       call log_event(                                                           &
         'unsupported function space W1 in ' // routine_name, log_level_error)
     case (W2)
-      face_selector_ew => get_face_selector_ew(field%get_mesh_id())
-      face_selector_ns => get_face_selector_ns(field%get_mesh_id())
+      face_selector_ew => get_face_selector_ew(field%get_mesh())
+      face_selector_ns => get_face_selector_ns(field%get_mesh())
       call invoke( split_w2_field_kernel_type(h_field, v_field, field, &
                                               face_selector_ew,        &
                                               face_selector_ns) )
@@ -262,8 +262,8 @@ contains
       call log_event(                                                           &
         'unsupported function space W1 in ' // routine_name, log_level_error)
     case (W2)
-      face_selector_ew => get_face_selector_ew(field%get_mesh_id())
-      face_selector_ns => get_face_selector_ns(field%get_mesh_id())
+      face_selector_ew => get_face_selector_ew(field%get_mesh())
+      face_selector_ns => get_face_selector_ns(field%get_mesh())
       call invoke( combine_w2_field_kernel_type(field, h_field, v_field, &
                                                 face_selector_ew,        &
                                                 face_selector_ns) )
@@ -732,18 +732,19 @@ subroutine create_model_data( modeldb,           &
     ! Initialise all the physics fields here. We'll then re initialise
     ! them below if need be
     if (use_physics) then
-          call init_physics_prognostics_alg( radiation_fields,                       &
-                                             microphysics_fields,                    &
-                                             electric_fields,                        &
-                                             orography_fields,                       &
-                                             turbulence_fields,                      &
-                                             convection_fields,                      &
-                                             cloud_fields,                           &
-                                             surface_fields,                         &
-                                             soil_fields,                            &
-                                             snow_fields,                            &
-                                             chemistry_fields,                       &
-                                             aerosol_fields,                         &
+          call init_physics_prognostics_alg( modeldb%config,      &
+                                             radiation_fields,    &
+                                             microphysics_fields, &
+                                             electric_fields,     &
+                                             orography_fields,    &
+                                             turbulence_fields,   &
+                                             convection_fields,   &
+                                             cloud_fields,        &
+                                             surface_fields,      &
+                                             soil_fields,         &
+                                             snow_fields,         &
+                                             chemistry_fields,    &
+                                             aerosol_fields,      &
                                              stph_fields)
 
     end if
@@ -798,10 +799,10 @@ subroutine create_model_data( modeldb,           &
         ! Initialise prognostics analytically according to
         ! namelist options
 
-        call init_gungho_prognostics( prognostic_fields,                    &
-                                      mr_array%bundle,                      &
-                                      moist_dyn_array%bundle                &
-                                      )
+        call init_gungho_prognostics( modeldb%config,    &
+                                      prognostic_fields, &
+                                      mr_array%bundle,   &
+                                      moist_dyn_array%bundle )
 
       case ( init_option_checkpoint_dump )
 
@@ -929,8 +930,9 @@ subroutine create_model_data( modeldb,           &
       if (.not. checkpoint_read .and. zero_w2v_wind) then
         call set_any_dof_alg(u, T, 0.0_r_def)
       end if
-      call map_physics_fields_alg(u, exner, rho, theta,     &
-                                  moist_dyn_array%bundle,     &
+      call map_physics_fields_alg(modeldb%config, u,      &
+                                  exner, rho, theta,      &
+                                  moist_dyn_array%bundle, &
                                   derived_fields)
 
 
@@ -952,7 +954,8 @@ subroutine create_model_data( modeldb,           &
       ! Initialise Casim numbers if they aren't coming from an LFRic dump
       if (microphysics_casim .and. &
            ( prognostic_init_choice /= init_option_checkpoint_dump ) ) then
-        call casim_activate_alg( theta, mr_array%bundle,                   &
+        call casim_activate_alg( modeldb%config,                           &
+                                 theta, mr_array%bundle,                   &
                                  derived_fields,                           &
                                  cloud_fields,                             &
                                  microphysics_fields,                      &
@@ -982,11 +985,12 @@ subroutine create_model_data( modeldb,           &
             if (init_option == init_option_fd_start_dump) then
                  call read_state( ancil_fields )
             end if
-            call process_inputs_alg( ancil_fields,                      &
-                                                        fd_fields,      &
-                                     surface_fields,                    &
-                                     soil_fields,                       &
-                                     snow_fields,                       &
+            call process_inputs_alg( modeldb%config, &
+                                     ancil_fields,   &
+                                     fd_fields,      &
+                                     surface_fields, &
+                                     soil_fields,    &
+                                     snow_fields,    &
                                      radiation_fields )
 
             ! Free up any prognostics not required
@@ -1078,12 +1082,13 @@ subroutine create_model_data( modeldb,           &
 
       ! Initialise energy correction
       if ( encorr_usage /= encorr_usage_none ) then
-        call compute_total_mass_alg( total_dry_mass, rho, mesh )
+        call compute_total_mass_alg( modeldb%config, total_dry_mass, rho, mesh )
 
-        call compute_total_energy_alg( total_energy_previous,                 &
-                                       derived_fields,                        &
-                                       u, theta, exner, rho,                  &
-                                       mr_array%bundle,                       &
+        call compute_total_energy_alg( modeldb%config,        &
+                                       total_energy_previous, &
+                                       derived_fields,        &
+                                       u, theta, exner, rho,  &
+                                       mr_array%bundle,       &
                                        mesh, twod_mesh )
 
         ! Initialise flux sum to zero

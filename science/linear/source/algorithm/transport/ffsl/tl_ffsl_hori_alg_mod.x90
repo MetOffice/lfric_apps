@@ -9,6 +9,7 @@
 module tl_ffsl_hori_alg_mod
 
   ! Constants and types
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use fs_continuity_mod,                only: W2H
@@ -122,6 +123,7 @@ contains
 
     ! Internal variables -------------------------------------------------------
     ! Pointers to existing objects
+    type(config_type),               pointer :: config
     type(mesh_type),                 pointer :: mesh
     type(transport_metadata_type),   pointer :: transport_metadata
     type(transport_counter_type),    pointer :: transport_counter
@@ -173,6 +175,7 @@ contains
     if ( LPROF ) call start_timing( id, routine_name )
 
     ! Get pre-computed objects and set pointers --------------------------------
+    config => transport_controller%get_config()
     mesh => ls_field_n%get_mesh()
     transport_metadata => pert_transport_controller%get_transport_metadata()
     transport_counter => pert_transport_controller%get_transport_counter()
@@ -230,7 +233,7 @@ contains
       ! where F = F_1 + F_2 = div(flux), and s=1
 
       ! Get det(J) and step/splitting information
-      detj_at_w3 => get_detj_at_w3_r_tran(ls_field_n%get_mesh_id())
+      detj_at_w3 => get_detj_at_w3_r_tran(config, ls_field_n%get_mesh())
       step = transport_counter%get_split_step_of_substep_counter()
       splitting = transport_metadata%get_splitting()
 
@@ -357,6 +360,7 @@ contains
     type(transport_metadata_type),   pointer :: transport_metadata
     type(wind_precomputations_type), pointer :: ls_wind_precomputations
     type(wind_precomputations_type), pointer :: pert_wind_precomputations
+    type(config_type),               pointer :: config
     type(mesh_type),                 pointer :: mesh
     type(r_tran_field_type),         pointer :: dep_dist
     type(r_tran_field_type),         pointer :: detj_at_w3
@@ -414,6 +418,7 @@ contains
     integer(tik)        :: id
 
     ! Get pre-computed objects and set pointers --------------------------------
+    config => ls_transport_controller%get_config()
     mesh_id = field_n%get_mesh_id()
     mesh => field_n%get_mesh()
     transport_counter => pert_transport_controller%get_transport_counter()
@@ -432,13 +437,13 @@ contains
     )
 
     if (is_cubed_sphere) then
-      panel_id => get_panel_id(mesh_id)
+      panel_id => get_panel_id(mesh)
       panel_edge_dist => get_panel_edge_dist(mesh_id)
     end if
 
     ! Get pre-computed fields
-    detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
-    detj_at_w3_copy => get_detj_at_w3_r_tran(mesh_id)
+    detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
+    detj_at_w3_copy => get_detj_at_w3_r_tran(config, mesh)
     adv_one_x => ls_wind_precomputations%get_adv_unity_x(mesh_id, splitting, step)
     adv_one_y => ls_wind_precomputations%get_adv_unity_y(mesh_id, splitting, step)
     dep_dist => ls_wind_precomputations%get_dep_dist_xy(                       &
@@ -459,8 +464,8 @@ contains
     dep_highest_k => ls_wind_precomputations%get_dep_highest_k(                &
         mesh_id, splitting, step, outer_step=.false.                           &
     )
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     ! Function spaces
     w2h_fs => dep_dist%get_function_space()
@@ -680,7 +685,10 @@ contains
     integer(kind=i_def) :: extra_points
     logical(kind=l_def) :: is_cubed_sphere
 
+    type(config_type), pointer :: config
+
     ! Get pre-computed objects and set pointers --------------------------------
+    config => ls_transport_controller%get_config()
     mesh_id = field_x%get_mesh_id()
     mesh => field_x%get_mesh()
     transport_counter => pert_transport_controller%get_transport_counter()
@@ -690,8 +698,8 @@ contains
     splitting = transport_metadata%get_splitting()
 
     ! Get pre-computed fields
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     ! Whether computation is on the cubed sphere
     is_cubed_sphere = (                                                        &
@@ -700,15 +708,15 @@ contains
     )
 
     if (is_cubed_sphere) then
-      panel_id => get_panel_id(mesh_id)
+      panel_id => get_panel_id(mesh)
       panel_edge_dist => get_panel_edge_dist(mesh_id)
     end if
 
     ! Point to appropriate pre-computed fields ---------------------------------
     ls_wind_precomputations   => ls_transport_controller%get_wind_precomputations()
     step = transport_counter%get_split_step_of_substep_counter()
-    dry_mass_x => get_detj_at_w3_r_tran(mesh_id)
-    dry_mass_y => get_detj_at_w3_r_tran(mesh_id)
+    dry_mass_x => get_detj_at_w3_r_tran(config, mesh)
+    dry_mass_y => get_detj_at_w3_r_tran(config, mesh)
     dep_dist => ls_wind_precomputations%get_dep_dist_xy(                       &
         mesh_id, splitting, step, .false.                                      &
     )
