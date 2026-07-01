@@ -34,8 +34,10 @@ module lfric2lfric_driver_mod
   use lfric2lfric_infrastructure_mod, only: initialise_infrastructure, &
                                             context_dst, context_src,  &
                                             source_collection_name,    &
-                                            target_collection_name
+                                            target_collection_name,    &
+                                            interm_collection_name
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
+  use lfric2lfric_vert_mod,           only: lfric2lfric_vert
 
   implicit none
 
@@ -92,6 +94,8 @@ contains
     ! Local parameters
     type(namelist_type), pointer :: files_nml
     type(namelist_type), pointer :: lfric2lfric_nml
+    type(namelist_type), pointer :: src_extrusion_nml
+    type(namelist_type), pointer :: dst_extrusion_nml
 
     integer(kind=i_def)          :: step, time_steps
     logical(kind=l_def)          :: is_running
@@ -101,22 +105,64 @@ contains
 
     type(field_collection_type),   pointer :: source_fields
     type(field_collection_type),   pointer :: target_fields
+    type(field_collection_type),   pointer :: interm_fields
 
     type(lfric_xios_context_type), pointer :: io_context
+
+    character(len=str_def)  :: mesh_names(2)
+    integer(kind=i_def)     :: src_extrusion_method
+    integer(kind=i_def)     :: dst_extrusion_method
+    integer(kind=i_def)     :: src_number_of_layers
+    integer(kind=i_def)     :: dst_number_of_layers
+    real(kind=r_def)        :: src_domain_height
+    real(kind=r_def)        :: dst_domain_height
 
     ! Namelist pointers
     files_nml       => modeldb%configuration%get_namelist('files')
     lfric2lfric_nml => modeldb%configuration%get_namelist('lfric2lfric')
+    src_extrusion_nml  => modeldb%configuration%get_namelist('extrusion', &
+                                                             'source')
+    dst_extrusion_nml  => modeldb%configuration%get_namelist('extrusion', &
+                                                             'destination')
 
     ! Extract configuration variables
     call files_nml%get_value( 'start_dump_filename', start_dump_filename )
     call files_nml%get_value( 'checkpoint_stem_name', checkpoint_stem_name )
     call lfric2lfric_nml%get_value( 'mode', mode )
     call lfric2lfric_nml%get_value( 'regrid_method', regrid_method )
+    
+    call lfric2lfric_nml%get_value( 'destination_mesh_name', &
+                                             mesh_names(dst) )
+    call lfric2lfric_nml%get_value( 'source_mesh_name', &
+                                             mesh_names(src) )
+    call src_extrusion_nml%get_value( 'method', src_extrusion_method )
+    call src_extrusion_nml%get_value( 'number_of_layers', src_number_of_layers )
+    call src_extrusion_nml%get_value( 'domain_height', src_domain_height )
+    call dst_extrusion_nml%get_value( 'method', dst_extrusion_method )
+    call dst_extrusion_nml%get_value( 'number_of_layers', dst_number_of_layers )
+    call dst_extrusion_nml%get_value( 'domain_height', dst_domain_height )
+
+    vertical_change = .false.
+    if ( src_extrusion_method \= dst_extrusion_method ) then vertical_change = .true.
+    if ( src_number_of_layers \= dst_number_of_layers ) then vertical_change = .true.
+    if ( src_domain_height \= dst_domain_height )       then vertical_change = .true.
+    
+    horizontal_change = .false.
+    if ( mesh_names(dst) \= mesh_names(src) ) then horizontal_change = .true.
 
     ! Point to source and target field collections
     source_fields => modeldb%fields%get_field_collection(source_collection_name)
     target_fields => modeldb%fields%get_field_collection(target_collection_name)
+
+    if (horizontal_change .and. vertical_change) then
+       interm_fields => modeldb%fields%get_field_collection(intermediate_collection_name)
+       
+    else if (horizontal_change .and. .not. vertical_change) then
+       interm_fields =>  modeldb%fields%get_field_collection(target_collection_name)
+       
+    else if (vertical_change .and. .not. horizontal_change) then
+       interm_fields =>  modeldb%fields%get_field_collection(source_collection_name)
+    end if
 
     ! Read fields and perform the regridding
     if (mode == mode_ics) then
@@ -124,9 +170,14 @@ contains
                            start_timestep,     &
                            start_dump_filename )
 
-      call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
-                              target_fields, regrid_method)
-
+      if (horizontal_change) then
+        call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
+                                interm_fields, regrid_method)
+      end if
+      if (vertical_change) then
+        call lfric2lfric_vert(interm_fields, target_fields)
+      end if
+      
       ! Write output
       call modeldb%io_contexts%get_io_context(context_dst, io_context)
       call io_context%set_current()
@@ -148,8 +199,13 @@ contains
 
         call read_state(source_fields)
 
-        call lfric2lfric_regrid(modeldb, oasis_clock, source_fields, &
-                                target_fields, regrid_method)
+        if (horizontal_change) then
+          call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
+                                  interm_fields, regrid_method)
+        end if
+        if (vertical_change) then
+          call lfric2lfric_vert(interm_fields, target_fields)
+        end if
 
         is_running = modeldb%clock%tick()
 

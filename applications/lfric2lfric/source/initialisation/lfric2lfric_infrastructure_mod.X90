@@ -113,6 +113,7 @@ module lfric2lfric_infrastructure_mod
   ! Source and destination field collection names
   character(len=*), public, parameter  :: source_collection_name = "source_fields"
   character(len=*), public, parameter  :: target_collection_name = "target_fields"
+  character(len=*), public, parameter  :: interm_collection_name = "intermediate_fields"
 
   integer(kind=i_def), public, parameter :: dst = 1     ! destination mesh, destination extrusion
   integer(kind=i_def), public, parameter :: src = 2     ! source mesh,      source extrusion
@@ -155,8 +156,11 @@ contains
     type(mesh_type),     pointer :: twod_mesh_src
     type(mesh_type),     pointer :: mesh_dst
     type(mesh_type),     pointer :: twod_mesh_dst
-    type(mesh_type),     pointer :: orography_twod_mesh
-    type(mesh_type),     pointer :: orography_mesh
+    type(mesh_type),     pointer :: mesh_interm
+    type(mesh_type),     pointer :: orography_twod_mesh_src
+    type(mesh_type),     pointer :: orography_mesh_src
+    type(mesh_type),     pointer :: orography_twod_mesh_dst
+    type(mesh_type),     pointer :: orography_mesh_dst
 
     class(extrusion_type),        allocatable :: src_extrusion
     class(extrusion_type),        allocatable :: dst_extrusion
@@ -402,14 +406,20 @@ contains
                     src_extrusion,               &
                     stencil_depth, regrid_method )
     
+
+    allocate( mesh_names_dst_ext, source=mesh_names )
+
     if (vertical_change) then
-      allocate( mesh_names_dst_ext, source=mesh_names )
       do i=1, size(mesh_names)
         mesh_names_dst_ext(i) = trim(mesh_names(i))//'_dst_ext'
       end do
       call create_mesh( mesh_names, &
                         dst_extrusion, &
                         alt_name=mesh_names_dst_ext )
+    else
+      do i=1, size(mesh_names)
+        mesh_names_dst_ext(i) = trim(mesh_names(i))
+      end do  
     end if
       
     allocate( twod_names, source=mesh_names )
@@ -433,30 +443,36 @@ contains
     !-----------------------------------------------------------------------
     ! Assign pointers to the correct meshes
     !-----------------------------------------------------------------------
+    ! If the source extrusion is the same as the destination extrusion,
+    ! mesh_dst = mesh_interm and only horizontal interpolation is applied.
+    !
+    ! If the source mesh is the same as the destination mesh,
+    ! mesh_src = mesh_interm and only vertical interpolation is applied.
+    !
+    ! The source meshes
     mesh_src      => mesh_collection%get_mesh(trim(mesh_names(src)))
     twod_mesh_src => mesh_collection%get_mesh(trim(twod_names(src)))
 
-    if (vertical_change) then
-      mesh_dst      => mesh_collection%get_mesh(trim(mesh_names_dst_ext(dst)))
-      twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
-    else
-      mesh_dst      => mesh_collection%get_mesh(trim(mesh_names(dst)))
-      twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
-    end if
+    ! The interim mesh (horizontal interpolation of mesh_names(src)
+    ! to mesh_names(dst))
+    mesh_interm => mesh_collection%get_mesh(trim(mesh_names(dst)))
 
-    if (vertical_change and horizontal_change) then
-       mesh_inter   => mesh_collection%get_mesh(trim(mesh_names_dst(dst)))
-    end if
-      
+    ! The destination mesh (vertical interpolation of mesh_names(dst) to
+    ! mesh_names_dst_ext(dst)
+    mesh_dst      => mesh_collection%get_mesh(trim(mesh_names_dst_ext(dst)))
+    twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
+ 
     ! Log this change
     call log_event('Source mesh set to: ' // mesh_names(src),         &
                    log_level_debug)
     call log_event('Source 2D mesh set to: ' // twod_names(src),      &
                    log_level_debug)
-    call log_event('Destination mesh set to: ' // mesh_names(dst),    &
+    call log_event('Destination mesh set to: ' // mesh_names_dst_ext(dst),    &
                    log_level_debug)
     call log_event('Destination 2D mesh set to: ' // twod_names(dst), &
                    log_level_debug)
+    call log_event('Intermediate mesh set to: ' // mesh_names(dst),    &
+                    log_level_debug)
 
     !=======================================================================
     ! Setup I/O system
@@ -469,21 +485,13 @@ contains
     files_init_ptr => init_lfric2lfric_dst_files
 
     ! Initialise the IO context with all the required info
-    if (vertical_change) then
-      call init_io( context_dst,                      &
-                    mesh_names_dst_ext(dst),           &
-                    modeldb,                          &
-                    chi_inventory,                    &
-                    panel_id_inventory,               &
-                    populate_filelist=files_init_ptr  )
-    else
-       call init_io( context_dst,                     &
-                    mesh_names(dst),                  &
-                    modeldb,                          &
-                    chi_inventory,                    &
-                    panel_id_inventory,               &
-                    populate_filelist=files_init_ptr  )
-    end if
+    call init_io( context_dst,                      &
+                  mesh_names_dst_ext(dst),          &
+                  modeldb,                          &
+                  chi_inventory,                    &
+                  panel_id_inventory,               &
+                  populate_filelist=files_init_ptr  )
+   
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context_dst)
 
@@ -511,11 +519,11 @@ contains
                                     halo_depth = twod_mesh_dst%get_halo_depth())
 
       ! Get pointers to the destination mesh:
-      orography_mesh => mesh_collection%get_mesh(mesh_names(dst))
-      orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
+      orography_mesh_dst => mesh_collection%get_mesh(mesh_names(dst))
+      orography_twod_mesh_dst => mesh_collection%get_mesh(orography_mesh, TWOD)
 
       ! Set up surface altitude field - this will be used to generate orography
-      call init_altitude( orography_twod_mesh, surface_altitude_dst )
+      call init_altitude( orography_twod_mesh_dst, surface_altitude_dst )
     end if
 
     !-----------------------------------------------------------------------
@@ -554,35 +562,39 @@ contains
          orog_init_option == orog_init_option_start_dump ) then
 
       ! Get pointers to the source mesh:
-      orography_mesh => mesh_collection%get_mesh(mesh_names(src))
-      orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
+      orography_mesh_src => mesh_collection%get_mesh(mesh_names(src))
+      orography_twod_mesh_src => mesh_collection%get_mesh(orography_mesh, TWOD)
 
       call surface_altitude_src%initialise(vector_space,         &
                                     name='surface_altitude_src', &
                                     halo_depth = twod_mesh_src%get_halo_depth())
 
       ! Set up surface altitude field - this will be used to generate orography
-      call init_altitude( orography_twod_mesh, surface_altitude_src )
+      call init_altitude( orography_twod_mesh_src, surface_altitude_src )
     end if
 
     !=======================================================================
     ! Create and initialise prognostic fields
     !=======================================================================
     if (mode == mode_ics) then
-      call init_lfric2lfric( modeldb, context_src, context_dst,               &
-                             start_dump_filename, mode,                       &
-                             source_collection_name, mesh_src, twod_mesh_src, &
-                             target_collection_name, mesh_dst, twod_mesh_dst )
+      call init_lfric2lfric( modeldb, context_src, context_dst,                  &
+                             start_dump_filename, mode,                          &
+                             horizontal_change, vertical_change,                 &
+                             source_collection_name, mesh_src,    twod_mesh_src, &
+                             interm_collection_name, mesh_interm, twod_mesh_dst, &
+                             target_collection_name, mesh_dst,    twod_mesh_dst )
     else if (mode == mode_lbc) then
       call lfric2lfric_nml%get_value( 'source_file_lbc', source_file_lbc )
-      call init_lfric2lfric( modeldb, context_src, context_dst,               &
-                             source_file_lbc, mode,                           &
-                             source_collection_name, mesh_src, twod_mesh_src, &
-                             target_collection_name, mesh_dst, twod_mesh_dst )
+      call init_lfric2lfric( modeldb, context_src, context_dst,                  &
+                             source_file_lbc, mode,                              &
+                             horizontal_change, vertical_change,                 &
+                             source_collection_name, mesh_src,    twod_mesh_src, &
+                             interm_collection_name, mesh_interm, twod_mesh_dst, &
+                             target_collection_name, mesh_dst,    twod_mesh_dst )
     end if
 
     !=======================================================================
-    ! Initialize variables for each regrid method
+    ! Initialize variables for each horizontal regrid method
     !=======================================================================
     select case (regrid_method)
       case (regrid_method_map)
@@ -613,7 +625,7 @@ contains
         call log_event( log_scratch_space, log_level_error )
 #endif
     end select
-
+    
     !=======================================================================
     ! The lateral boundary conditions of limited-area models (LAMs) are
     ! implemented by updating the data values at the boundaries with values
@@ -671,10 +683,18 @@ contains
       call blend_orography(surface_altitude_dst, surface_altitude_src_on_dst, &
                            mesh_names(dst))
 
-      call setup_orography_alg( mesh_names(dst:dst),            &
-                                orography_mesh%get_mesh_name(), &
-                                chi_inventory,                  &
-                                panel_id_inventory,             &
+      ! Adjust the chi fields to account for the orography
+      ! --------------------------------------------------------
+      call setup_orography_alg( mesh_names(src),                    &
+                                orography_mesh_src%get_mesh_name(), &
+                                chi_inventory,                      &
+                                panel_id_inventory,                 &
+                                surface_altitude_src )
+
+      call setup_orography_alg( mesh_names_dst_ext(dst),            &
+                                orography_mesh_dst%get_mesh_name(), &
+                                chi_inventory,                      &
+                                panel_id_inventory,                 &
                                 surface_altitude_dst )
     end if
 

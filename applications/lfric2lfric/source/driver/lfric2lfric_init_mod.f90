@@ -40,17 +40,25 @@ module lfric2lfric_init_mod
   !!                                          will hold the file to be written
   !> @param [in]       start_dump_filename    File to get field names from
   !> @param [in]       mode                   Process ics or lbcs
+  !> @param [in]       horizontal_change      Logical for horizontal regridding
+  !> @param [in]       vertical_change        Logical for vertical regridding
   !> @param [in]       origin_collection_name Holds the origin fields
   !> @param [in]       origin_mesh            Mesh to initialise 3D fields
   !> @param [in]       origin_twod_mesh       Mesh to initialise 2D fields
+  !> @param [in]       interm_collection_name Holds the intermediate fields
+  !> @param [in]       interm_mesh            Mesh for intermediate 3D fields
+  !> @param [in]       interm_twod_mesh       Mesh for intermediate 2D fields
   !> @param [in]       target_collection_name Holds target fields
   !> @param [in]       target_mesh            Mesh for target 3D fields
   !> @param [in]       target_twod_mesh       Mesh for target 2D fields
-  subroutine init_lfric2lfric( modeldb, context_src, context_dst, &
-                               start_dump_filename, mode,         &
-                               origin_collection_name,            &
-                               origin_mesh, origin_twod_mesh,     &
-                               target_collection_name,            &
+  subroutine init_lfric2lfric( modeldb, context_src, context_dst,  &
+                               start_dump_filename, mode,          &
+                               horizontal_change, vertical_change, &
+                               origin_collection_name,             &
+                               origin_mesh, origin_twod_mesh,      &
+                               interm_collection_name,             &
+                               interm_mesh, interm_twod_mesh,      &
+                               target_collection_name,             &
                                target_mesh, target_twod_mesh  )
 
     implicit none
@@ -60,10 +68,14 @@ module lfric2lfric_init_mod
     character(len=*),   intent(in)          :: context_dst
     character(len=*),   intent(in)          :: start_dump_filename
     integer(i_def),     intent(in)          :: mode
+    logical(l_def),     intent(in)          :: horizontal_change
+    logical(l_def),     intent(in)          :: vertical_change
     character(len=*),   intent(in)          :: origin_collection_name
     type(mesh_type),    intent(in), pointer :: origin_mesh
     type(mesh_type),    intent(in), pointer :: origin_twod_mesh
-    ! Optionals
+    character(len=*),   intent(in)          :: interm_collection_name
+    type(mesh_type),    intent(in), pointer :: interm_mesh
+    type(mesh_type),    intent(in), pointer :: interm_twod_mesh
     character(len=*),   intent(in)          :: target_collection_name
     type(mesh_type),    intent(in), pointer :: target_mesh
     type(mesh_type),    intent(in), pointer :: target_twod_mesh
@@ -116,9 +128,6 @@ module lfric2lfric_init_mod
     field_collection => &
                     modeldb%fields%get_field_collection(target_collection_name)
 
-    call modeldb%io_contexts%get_io_context(context_dst, io_context)
-    call io_context%set_current()
-
     if (mode == mode_ics) then
       prefix = 'checkpoint_'
     else if (mode == mode_lbc) then
@@ -133,7 +142,33 @@ module lfric2lfric_init_mod
                         prefix )
     end do
 
+    !--------------------------------------------------------------------------
+    ! Initialise Intermediate Fields
+    !--------------------------------------------------------------------------
+    if (horizontal_change .and. vertical_change) then
+      call modeldb%fields%add_empty_field_collection(interm_collection_name)
+      field_collection => &
+                      modeldb%fields%get_field_collection(interm_collection_name)
+
+      if (mode == mode_ics) then
+        prefix = 'checkpoint_'
+      else if (mode == mode_lbc) then
+        prefix = 'lbc_'
+      end if
+
+      do i = 1, num_fields
+        call field_maker( field_collection, &
+                          config_list(i),   &
+                          interm_mesh,      &
+                          interm_twod_mesh, &
+                          prefix )
+      end do
+    end if
+      
     call modeldb%io_contexts%get_io_context(context_src, io_context)
+    call io_context%set_current()
+
+    call modeldb%io_contexts%get_io_context(context_dst, io_context)
     call io_context%set_current()
 
     ! Now finished with config_list, deallocate

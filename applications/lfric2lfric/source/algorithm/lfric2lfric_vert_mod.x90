@@ -1,0 +1,55 @@
+module lfric2lfric_vert_mod
+
+  use field_parent_mod,         only: field_parent_type
+  use field_mod,                only: field_type
+  use field_collection_mod,     only: field_collection_type
+  use field_collection_iterator_mod, only: &
+                                      field_collection_iterator_type
+  use log_mod,                  only: log_event, &
+                                      log_level_info, &
+                                      log_scratch_space
+
+  implicit none
+  
+  private
+  public :: lfric2lfric_vert
+
+contains
+
+  subroutine lfric2lfric_vert( source_fields, target_fields )
+
+    implicit none
+
+    type(field_collection_type),   intent(inout) :: source_fields
+    type(field_collection_type),   intent(inout) :: target_fields
+
+    type(field_collection_iterator_type) :: iter
+
+    class(field_parent_type), pointer :: field     => null()
+    type(field_type),         pointer :: field_src => null()
+    type(field_type),         pointer :: field_dst => null()
+
+    character(len=str_def)   :: field_name
+
+    ! Main loop over fields to be processed
+    call iter%initialise(source_fields)
+    do
+      ! Locate the field to be processed in the field collections
+      if ( .not.iter%has_next() ) exit
+      field => iter%next()
+      field_name = field%get_name()
+
+      call source_fields%get_field(field_name, field_src)
+      call target_fields%get_field(field_name, field_dst)
+
+      write(log_scratch_space, '(A,A)') "Processing lfric field ", &
+                                           trim(field_name)
+      call log_event(log_scratch_space, log_level_info)
+      ! Dummy initialisation - to be replaced with actual
+      ! vertical regridding
+      call setval_X(field_dst, 1.0_r_def)
+   enddo
+    
+  end subroutine lfric2lfric_vert
+
+end module lfric2lfric_vert_mod
