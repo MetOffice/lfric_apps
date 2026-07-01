@@ -111,7 +111,7 @@ contains
   !> @param[in]     exner               Exner pressure on w3 space
   !> @param[in]     mr_n                Mixing ratios at start of timestep
   !> @param[in]     derived_fields      Group of derived fields
-  !> @param[in]     radition_fields     Fields for radiation scheme
+  !> @param[in]     radiation_fields    Fields for radiation scheme
   !> @param[in]     microphysics_fields Fields for microphysics scheme
   !> @param[in]     orography_fields    Fields for orographic drag scheme
   !> @param[in,out] turbulence_fields   Fields for turbulence scheme
