@@ -50,6 +50,8 @@ contains
     use psykal_lite_phys_mod,           only: invoke_pres_interp_kernel_type
     use planet_config_mod,              only: p_zero, kappa
 
+    use lfric_xios_diag_mod,            only: get_axis_dimension, &
+                                              get_axis_values
 
     implicit none
 
