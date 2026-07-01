@@ -807,32 +807,23 @@ subroutine radaer_code( nlayers,                                               &
 
   allocate( ukca_mode_mix_ratio_um( 1, nlayers, n_radaer_mode ) )
 
-  allocate( aer_lw_absorption_um( 1, nlayers, n_radaer_mode,    &
-                                  n_lw_band ) )
+  allocate( aer_lw_absorption_um( 1, nlayers, n_radaer_mode, n_lw_band ) )
 
-  allocate( aer_lw_scattering_um( 1, nlayers, n_radaer_mode,    &
-                                  n_lw_band ) )
+  allocate( aer_lw_scattering_um( 1, nlayers, n_radaer_mode, n_lw_band ) )
 
-  allocate( aer_lw_asymmetry_um( 1, nlayers, n_radaer_mode,     &
-                                 n_lw_band ) )
+  allocate( aer_lw_asymmetry_um( 1, nlayers, n_radaer_mode, n_lw_band ) )
 
-  allocate( aer_sw_absorption_um( 1, nlayers, n_radaer_mode,    &
-                                  n_sw_band ) )
+  allocate( aer_sw_absorption_um( 1, nlayers, n_radaer_mode, n_sw_band ) )
 
-  allocate( aer_sw_scattering_um( 1, nlayers, n_radaer_mode,    &
-                                  n_sw_band ) )
+  allocate( aer_sw_scattering_um( 1, nlayers, n_radaer_mode, n_sw_band ) )
 
-  allocate( aer_sw_asymmetry_um( 1, nlayers, n_radaer_mode,     &
-                                 n_sw_band ) )
+  allocate( aer_sw_asymmetry_um( 1, nlayers, n_radaer_mode, n_sw_band ) )
 
-  allocate( aod_ukca_all_modes_um( 1, npd_ukca_aod_wavel,       &
-                                   n_ukca_mode ) )
+  allocate( aod_ukca_all_modes_um( 1, npd_ukca_aod_wavel, n_ukca_mode ) )
 
-  allocate( sod_ukca_all_modes_um( 1, npd_ukca_aod_wavel,       &
-                                   n_ukca_mode ) )
+  allocate( sod_ukca_all_modes_um( 1, npd_ukca_aod_wavel, n_ukca_mode ) )
 
-  allocate( aaod_ukca_all_modes_um(1, npd_ukca_aod_wavel,       &
-                                   n_ukca_mode ) )
+  allocate( aaod_ukca_all_modes_um( 1, npd_ukca_aod_wavel, n_ukca_mode ) )
 
   !-----------------------------------------------------------------------
   ! Segmentation and openmp would start here
