@@ -84,7 +84,7 @@ contains
 !! @param[in]  cp            Specific heat of dry air at constant pressure
 !! @param[in]  eos_index     Vertical level at which the equation of state
 !!                           is satisfied
-!! @param[in]  exner_from_rho Calculate initial exner value from input rho  
+!! @param[in]  exner_from_rho Calculate initial exner value from input rho
 !! @param[in]  ndf_w3        Number of degrees of freedom per cell for w3
 !! @param[in]  undf_w3       Total number of degrees of freedom for w3
 !! @param[in]  map_w3        Dofmap for the cell at column base for w3

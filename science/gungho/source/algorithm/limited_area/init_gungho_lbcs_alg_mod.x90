@@ -500,7 +500,7 @@ module init_gungho_lbcs_alg_mod
       recompute_rho = .true.   ! Recompute rho in hydrostatic_balance
       exner_from_rho = .false. ! Use input exner at eos level
     end select
-      
+
     ! Initialize hydrostatically balanced exner field.
     call hydrostatic_balance( lbc_exner, lbc_rho, lbc_theta, &
                               lbc_u, lbc_moist_dyn,          &
