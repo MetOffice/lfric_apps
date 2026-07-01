@@ -10,6 +10,7 @@ module gungho_init_prognostics_driver_mod
   use log_mod,                          only: log_event,         &
                                               LOG_LEVEL_ERROR,   &
                                               LOG_LEVEL_INFO
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_def, i_def
   use init_gungho_prognostics_alg_mod,  only: init_u_field,      &
                                               init_theta_field,  &
@@ -32,9 +33,6 @@ module gungho_init_prognostics_driver_mod
   use mr_indices_mod,                   only: nummr, imr_v
   use moist_dyn_mod,                    only: num_moist_factors
   use moist_dyn_factors_alg_mod,        only: moist_dyn_factors_alg
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

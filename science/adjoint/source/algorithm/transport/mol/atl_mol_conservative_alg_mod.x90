@@ -8,6 +8,7 @@
 module atl_mol_conservative_alg_mod
 
   ! Infrastructure
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, l_def
   use field_mod,                       only: field_type
   use log_mod,                         only: log_event,         &
@@ -47,9 +48,6 @@ module atl_mol_conservative_alg_mod
                                              dry_field_name,     &
                                              operators,          &
                                              operators_fem
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

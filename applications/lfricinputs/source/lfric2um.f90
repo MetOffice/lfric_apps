@@ -5,6 +5,8 @@
 ! *****************************COPYRIGHT*******************************
 program lfric2um
 
+use config_mod, only: config_type
+
 ! lfricinputs modules
 use lfricinp_create_lfric_fields_mod,     only: lfricinp_create_lfric_fields
 use lfricinp_um_grid_mod,                 only: um_grid
@@ -23,9 +25,6 @@ use lfric2um_initialise_um_mod,           only: lfric2um_initialise_um,        &
                                                 um_output_file
 use lfric2um_initialise_lfric2um_mod,     only: lfric2um_initialise_lfric2um
 use lfric2um_main_loop_mod,               only: lfric2um_main_loop
-
-! Object types
-use config_mod, only: config_type
 
 implicit none
 

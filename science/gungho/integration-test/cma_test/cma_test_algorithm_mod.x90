@@ -40,7 +40,8 @@ module cma_test_algorithm_mod
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
-  use constants_mod,                  only : i_def, r_def, l_def, r_solver
+  use config_mod,                     only : config_type
+  use constants_mod,                  only : i_def, l_def, r_solver
   use columnwise_operator_mod,        only : columnwise_operator_type
   use function_space_mod,             only : function_space_type
   use function_space_collection_mod,  only : function_space_collection
@@ -85,9 +86,6 @@ module cma_test_algorithm_mod
   use sci_columnwise_op_scaledadd_kernel_mod, only : columnwise_op_scaledadd_kernel_type
   use sci_columnwise_op_asm_m2v_lumped_inv_krnl_mod, &
                               only : columnwise_op_asm_m2v_lumped_inv_krnl_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use base_mesh_config_mod, only: geometry_planar,       &
@@ -214,8 +212,11 @@ contains
 
     if (mesh%is_geometry_spherical()) then
       geometry= geometry_spherical
-    else
+    else (mesh%is_geometry_planar()) then
       geometry= geometry_planar
+    else
+      call log_event( 'Unsupported geometry option', &
+                      log_level_error )
     end if
 
     if (mesh%is_topology_periodic()) then
@@ -223,8 +224,8 @@ contains
     else if (mesh%is_topology_non_periodic()) then
       topology = topology_non_periodic
     else
-      call log_event('Unsupported topology option',&
-                     log_level_error)
+      call log_event( 'Unsupported topology option',&
+                      log_level_error )
     end if
 
     coord_order  = config%finite_element%coord_order()

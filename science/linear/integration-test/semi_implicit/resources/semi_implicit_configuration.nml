@@ -66,6 +66,7 @@ moisture_formulation='traditional',
 rotating=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
+solver_moisture_conservation=.false.,
 use_multires_coupling=.false.,
 use_physics=.false.,
 use_wavedynamics=.true.,
@@ -176,6 +177,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='none',
+orography_order=1,
+n_orog_smooth=0,
+w0_multigrid_mapping=.false.
 /
 &partitioning
 panel_decomposition='auto',

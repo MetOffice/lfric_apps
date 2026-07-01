@@ -149,9 +149,9 @@ module linear_step_mod
                                    mr,             &
                                    exner )
       if ( moisture_formulation /= moisture_formulation_dry ) then
-        call moisture_conservation_alg( modeldb%config,   &
-                                        rho,              &
-                                        mr,               &
+        call moisture_conservation_alg( modeldb%config, &
+                                        rho,            &
+                                        mr,             &
                                         'After timestep' )
       end if
 

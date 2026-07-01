@@ -175,6 +175,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='none',
+orography_order=1,
+n_orog_smooth=0,
+w0_multigrid_mapping=.false.
 /
 &partitioning
 partitioner='cubedsphere',

@@ -80,7 +80,7 @@ start_dump_filename='final_pert',
 /
 &finite_element
 cellshape='quadrilateral',
-coord_order=1,
+coord_order=2,
 coord_order_nonprime=1,
 coord_space='Wchi',
 coord_system='native',
@@ -105,6 +105,7 @@ p2theta_vert=.true.,
 rotating=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
+solver_moisture_conservation=.false.,
 theta_moist_source=.false.,
 use_multires_coupling=.false.,
 use_physics=.true.,
@@ -161,11 +162,9 @@ init_option='fd_start_dump',
 lbc_option='none',
 ls_option='file',
 model_eos_height=100,
-n_orog_smooth=0,
 read_w2h_wind=.true.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
-w0_orography_mapping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_density
@@ -286,6 +285,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='ancil',
+orography_order=2,
+n_orog_smooth=0,
+w0_multigrid_mapping=.true.
 /
 &partitioning
 generate_inner_halos=.false.,

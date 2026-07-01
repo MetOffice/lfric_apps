@@ -8,6 +8,7 @@
 
 module adj_flux_precomputations_mod
 
+  use config_mod,                   only : config_type
   use constants_mod,                only : r_tran, i_def
   use r_tran_field_mod,             only : r_tran_field_type
   use integer_field_mod,            only : integer_field_type
@@ -25,9 +26,6 @@ module adj_flux_precomputations_mod
                                            panel_edge_treatment_extended_mesh
   use transport_constants_mod,      only : get_detj_at_w3_r_tran
   use extrusion_mod,                only : PRIME_EXTRUSION
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

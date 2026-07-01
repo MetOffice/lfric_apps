@@ -6,6 +6,7 @@
 !> @brief Prepares the radiation fields
 module init_radiation_fields_alg_mod
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, r_def, l_def, pi
   use kernel_mod,                      only: kernel_type
 
@@ -14,11 +15,8 @@ module init_radiation_fields_alg_mod
   use field_collection_mod,            only: field_collection_type
 
   use fs_continuity_mod,               only: Wtheta
+  use mesh_mod,                        only: mesh_type
   use sci_geometric_constants_mod,     only: get_height_fv
-
-  ! Object types
-  use config_mod, only: config_type
-  use mesh_mod,   only: mesh_type
 
   implicit none
 
@@ -101,7 +99,7 @@ contains
     call radiation_fields%get_field('ozone', ozone)
     if ( o3_rad_opt == o3_rad_opt_profile ) then
       mesh => ozone%get_mesh()
-      height_o3 => get_height_fv(config, ozone%get_mesh(), Wtheta)
+      height_o3 => get_height_fv(config, mesh, Wtheta)
       profile_size                    = o3_profile_size
       profile_data(1:profile_size)    = o3_profile_data(1:o3_profile_size)
       profile_heights(1:profile_size) = o3_profile_heights(1:o3_profile_size)

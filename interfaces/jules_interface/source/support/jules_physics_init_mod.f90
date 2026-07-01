@@ -9,6 +9,7 @@
 module jules_physics_init_mod
 
   ! Other LFRic modules used
+  use config_mod,             only : config_type
   use constants_mod,          only : r_um, i_um, i_def, r_def
   use jules_control_init_mod, only : n_sea_ice_tile, n_land_tile
   use jules_radiation_config_mod, only :                                       &
@@ -53,6 +54,7 @@ module jules_physics_init_mod
 
   ! JULES modules used
   use cropparm,                 only: cropparm_alloc
+  use c_irrigation_mod,         only: c_irrigation_alloc
   use c_z0h_z0m,                only: c_z0h_z0m_alloc
   use jules_irrig_mod,          only: irrig_vars_alloc
   use metstats_mod,             only: metstats_allocate
@@ -99,8 +101,6 @@ contains
   !> @param[in] config   The config of the model run
   subroutine jules_physics_init(config)
 
-    use config_mod,     only: config_type
-
     ! JULES modules containing things that need setting
     use ancil_info, only: land_pts, nsurft, nmasst
     use bl_option_mod, only: on
@@ -108,7 +108,7 @@ contains
     use c_z0h_z0m, only: c_z0h_z0m_print, c_z0h_z0m_check, z0h_z0m
     use jules_hydrology_mod, only: check_jules_hydrology,                   &
          print_nlist_jules_hydrology, l_hydrology, l_top, l_var_rainfrac,   &
-         nfita, ti_max, ti_wetl, zw_max
+         nfita, ti_max, ti_wetl, zw_max, l_inland
     use jules_irrig_mod, only: l_irrig_dmd
     use jules_radiation_mod, only: i_sea_alb_method,                        &
                                    l_embedded_snow, l_mask_snow_orog,       &
@@ -197,6 +197,7 @@ contains
     ! JULES hydrology settings - contained in module jules_hydrology
     ! ----------------------------------------------------------------
     l_hydrology    = config%jules_hydrology%l_hydrology()
+    l_inland       = config%jules_hydrology%l_inland()
     l_top          = .true.
     l_var_rainfrac = config%jules_hydrology%l_var_rainfrac()
     nfita          = 30
@@ -588,6 +589,8 @@ contains
     call irrig_vars_alloc(npft, l_irrig_dmd)
 
     call cropparm_alloc(ncpft,l_crop)
+
+    call c_irrigation_alloc(ntype)
 
     call c_z0h_z0m_alloc(ntype)
 

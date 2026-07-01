@@ -23,6 +23,7 @@
 
 module wind_precomputations_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def, str_def, imdi,       &
                                             r_tran, EPS_R_TRAN
   use extrusion_mod,                  only: SHIFTED, TWOD
@@ -58,9 +59,6 @@ module wind_precomputations_alg_mod
                                             direction_3d
   use transport_constants_mod,        only: get_element_order_h_transport,     &
                                             get_element_order_v_transport
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -177,7 +175,7 @@ contains
                                               dt_substep, transporting_wind, &
                                               wind_n, wind_np1 )
 
-    use map_w2_to_sh_w2_alg_mod,   only: map_w2_to_sh_w2_alg
+    use map_w2_to_sh_w2_alg_mod,   only: map_w2_to_sh_w2_alg_rtran
     use split_transport_utils_mod, only: get_max_num_fractions, use_shifted_mesh
 
     implicit none
@@ -298,7 +296,7 @@ contains
           shifted_mesh, k_h, k_v, W2                                           &
       )
       call self%wind_3d(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_3d(2), self%wind_3d(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_3d(2), self%wind_3d(1))
     end if
 
     ! Split the wind into horizontal and vertical components
@@ -338,7 +336,7 @@ contains
     if (num_meshes == 2) then
       ! Compute the transporting wind on the shifted mesh
       call self%wind_n(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_n(2), self%wind_n(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_n(2), self%wind_n(1))
     end if
 
     ! Store end-of-time step wind (if provided, otherwise use 3D wind)
@@ -354,7 +352,7 @@ contains
     if (num_meshes == 2) then
       ! Compute the transporting wind on the shifted mesh
       call self%wind_np1(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_np1(2), self%wind_np1(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_np1(2), self%wind_np1(1))
     end if
 
     ! Set logicals for "computed" variables to be false
@@ -868,7 +866,8 @@ contains
         call dummy_lowest_k%initialise(depk_fs)
         call dummy_highest_k%initialise(depk_fs)
 
-        call calc_hori_dep_pts(self%config,                                    &
+        call calc_hori_dep_pts(                                                &
+                self%config,                                                   &
                 self%dep_dist_xy(mesh_idx, frac_idx), dummy_frac_wind,         &
                 dummy_lowest_k, dummy_highest_k,                               &
                 self%wind_n(mesh_idx), self%wind_np1(mesh_idx), dt_split_step  &
@@ -944,7 +943,8 @@ contains
         call dummy_frac_wind%initialise(w2v_fs)
         call dummy_cfl%initialise(w2v_fs)
 
-        call calc_vert_dep_pts(self%config,                                    &
+        call calc_vert_dep_pts(                                                &
+                self%config,                                                   &
                 self%dep_dist_z(mesh_idx, frac_idx), dummy_frac_wind,          &
                 dummy_cfl, self%wind_n(mesh_idx), self%wind_np1(mesh_idx),     &
                 dt_split_step, compute_dep_cfl                                 &
@@ -1296,7 +1296,8 @@ contains
       call self%dep_courant_vert(mesh_idx)%initialise(w2v_fs)
 
       compute_cfl_dep = .true.
-      call calc_vert_dep_pts(self%config,                                      &
+      call calc_vert_dep_pts(                                                  &
+              self%config,                                                     &
               dep_dist_z, frac_vert_wind, self%dep_courant_vert(mesh_idx),     &
               self%wind_n(mesh_idx), self%wind_np1(mesh_idx), self%dt_substep, &
               compute_cfl_dep                                                  &

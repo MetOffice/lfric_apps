@@ -9,20 +9,18 @@
 
 module init_thermo_profile_alg_mod
 
+use config_mod,                  only: config_type
 use constants_mod,               only: r_def, i_def, l_def, rmdi
 use kernel_mod,                  only: kernel_type
 use field_mod,                   only: field_type
 use formulation_config_mod,      only: moisture_formulation,    &
                                        moisture_formulation_dry
 use fs_continuity_mod,           only: Wtheta
+use mesh_mod,                    only: mesh_type
 use sci_geometric_constants_mod, only: get_height_fe,   &
                                        get_height_fv,   &
                                        get_coordinates, &
                                        get_panel_id
-
-! Object types
-use config_mod, only: config_type
-use mesh_mod,   only: mesh_type
 
 implicit none
 

@@ -6,12 +6,13 @@
 !>@brief Processing of ancillary files
 module update_ancils_alg_mod
 
-  use clock_mod,            only : clock_type
-  use constants_mod,        only : str_def
-  use field_collection_mod, only : field_collection_type
-  use field_mod,            only : field_type
-  use fs_continuity_mod,    only : W3
-  use mesh_mod,             only : mesh_type
+  use clock_mod,            only: clock_type
+  use config_mod,           only: config_type
+  use constants_mod,        only: str_def
+  use field_collection_mod, only: field_collection_type
+  use field_mod,            only: field_type
+  use fs_continuity_mod,    only: W3
+  use mesh_mod,             only: mesh_type
 
   use section_choice_config_mod,   only: surface, surface_jules
   use process_ssi_kernel_mod,      only: process_ssi_kernel_type
@@ -24,9 +25,6 @@ module update_ancils_alg_mod
   use sci_geometric_constants_mod, only: get_latitude_fv
   use jules_sea_seaice_config_mod, only: amip_ice_thick
   use derived_config_mod,          only: l_couple_sea_ice, l_couple_ocean
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -16,6 +16,7 @@
 module calc_dep_pts_alg_mod
 
   ! Infrastructure
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, r_tran, l_def
   use field_mod,                         only: field_type
   use fs_continuity_mod,                 only: W2, W2H
@@ -32,6 +33,8 @@ module calc_dep_pts_alg_mod
                                                tik, LPROF
 
   ! Configs
+  use base_mesh_config_mod,              only: geometry, geometry_spherical,   &
+                                               topology, topology_fully_periodic
   use departure_points_config_mod,       only: horizontal_method,              &
                                                horizontal_method_euler,        &
                                                horizontal_method_timeaverage,  &
@@ -96,14 +99,6 @@ module calc_dep_pts_alg_mod
                                                get_detj_at_w2_fe,              &
                                                get_detj_at_w2_fv,              &
                                                get_panel_id
-
-  ! Object types
-  use config_mod, only: config_type
-
-  ! Configuration modules
-  use base_mesh_config_mod, only: geometry, geometry_spherical, &
-                                  topology, topology_fully_periodic
-
   implicit none
 
   private

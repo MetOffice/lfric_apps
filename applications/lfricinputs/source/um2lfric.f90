@@ -6,6 +6,7 @@
 program um2lfric
 
 ! lfricinputs modules
+use config_mod,                    only: config_type
 use lfricinp_lfric_driver_mod,     only: lfricinp_initialise_lfric,     &
                                          lfricinp_finalise_lfric, mesh, &
                                          twod_mesh, lfric_fields
@@ -31,9 +32,6 @@ use um2lfric_regrid_and_output_data_mod, &
 use um2lfric_check_input_data_mod, only: um2lfric_check_input_data
 use um2lfric_read_um_file_mod,     only: um2lfric_close_um_file, &
                                          um_input_file
-
-! Object types
-use config_mod, only: config_type
 
 implicit none
 

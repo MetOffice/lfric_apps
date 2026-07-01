@@ -7,6 +7,7 @@
 !>        diagnostics for different I/O methods
 module diagnostic_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def, str_max_filename
   use mesh_mod,                      only: mesh_type
   use function_space_collection_mod, only: function_space_collection

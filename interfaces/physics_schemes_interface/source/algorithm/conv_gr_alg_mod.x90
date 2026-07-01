@@ -7,6 +7,7 @@
 
 module conv_gr_alg_mod
 
+  use config_mod,           only: config_type
   use constants_mod,        only: i_def
   use field_mod,            only: field_type
   use integer_field_mod,    only: integer_field_type
@@ -29,9 +30,6 @@ module conv_gr_alg_mod
   use mesh_mod,             only: mesh_type
   use map_fd_to_prognostics_alg_mod, only: set_wind
   use physics_mappings_alg_mod, only: map_physics_winds
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -98,6 +98,7 @@ moisture_formulation='traditional',
 rotating=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
+solver_moisture_conservation=.true.,
 theta_moist_source=.true.
 use_physics=.true.,
 use_wavedynamics=.false.,
@@ -168,6 +169,7 @@ write_minmax_tseries=.false.,
 /
 &jules_hydrology
 l_hydrology=.true.,
+l_inland=.false.,
 l_var_rainfrac=.false.
 /
 &jules_model_environment_lfric

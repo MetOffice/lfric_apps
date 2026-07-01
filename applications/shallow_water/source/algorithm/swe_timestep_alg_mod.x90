@@ -11,6 +11,8 @@
 !!          shallow water equations.
 module swe_timestep_alg_mod
 
+  use config_mod, only: config_type
+
   ! Constants
   use constants_mod,                  only: i_def, r_def
   use field_indices_mod,              only: isw_u, &
@@ -68,9 +70,6 @@ module swe_timestep_alg_mod
                                             gcr_type,                       &
                                             conjugate_gradient_type,        &
                                             precondition_only_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

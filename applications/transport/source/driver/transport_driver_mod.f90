@@ -12,6 +12,7 @@ module transport_driver_mod
   use sci_checksum_alg_mod,             only: checksum_alg
   use check_configuration_mod,          only: get_required_stencil_depth
   use config_loader_mod,                only: final_configuration
+  use config_mod,                       only: config_type
   use constants_mod,                    only: i_def, l_def, r_def, r_second, &
                                               str_def, imdi
   use create_mesh_mod,                  only: create_mesh, create_extrusion
@@ -69,9 +70,6 @@ module transport_driver_mod
                                        element_order_h, &
                                        element_order_v
   use planet_config_mod,         only: scaled_radius
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -136,11 +134,11 @@ contains
     character(len=str_def)              :: prime_mesh_name
     integer(kind=i_def),    allocatable :: stencil_depths(:)
 
-    logical(kind=l_def) :: use_multires_coupling
-    logical(kind=l_def) :: l_multigrid
-    logical(kind=l_def) :: prepartitioned
-    logical(kind=l_def) :: inner_halo_tiles
-    logical(kind=l_def) :: check_partitions
+    logical :: use_multires_coupling
+    logical :: l_multigrid
+    logical :: prepartitioned
+    logical :: inner_halo_tiles
+    logical :: check_partitions
 
     integer(kind=i_def) :: geometry
     integer(kind=i_def) :: topology
@@ -152,9 +150,9 @@ contains
     integer(i_def)      :: tile_size_x
     integer(i_def)      :: tile_size_y
 
-    logical(kind=l_def) :: nodal_output_on_w3
-    logical(kind=l_def) :: write_diag
-    logical(kind=l_def) :: use_xios_io
+    logical :: nodal_output_on_w3
+    logical :: write_diag
+    logical :: use_xios_io
 
     integer(i_def), allocatable :: tile_size(:,:)
     integer(i_def), allocatable :: multigrid_tile_size(:,:)

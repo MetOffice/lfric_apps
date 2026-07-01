@@ -7,6 +7,7 @@
 
 module print_field_stats_alg_mod
 
+  use config_mod,               only: config_type
   use field_mod,                only: field_type
   use r_tran_field_mod,         only: r_tran_field_type
   use mesh_mod,                 only: mesh_type
@@ -23,16 +24,13 @@ module print_field_stats_alg_mod
   use extrusion_mod,            only: TWOD
   use sci_field_minmax_alg_mod, only: get_field_minmax
 
-  ! Object types
-  use config_mod, only: config_type
+  implicit none
 
-implicit none
+  private
 
-private
-
-public  :: print_field_stats_alg
-public  :: print_field_stats_alg_rtran
-private :: post_print_field_stats_alg
+  public  :: print_field_stats_alg
+  public  :: print_field_stats_alg_rtran
+  private :: post_print_field_stats_alg
 
 contains
 

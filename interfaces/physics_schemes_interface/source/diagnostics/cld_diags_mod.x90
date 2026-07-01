@@ -8,6 +8,7 @@
 
 module cld_diags_mod
 
+  use config_mod,              only: config_type
   use clock_mod,               only: clock_type
   use constants_mod,           only: l_def, i_def, r_def, str_def
   use mr_indices_mod,          only: nummr, imr_cl, imr_ci, imr_r, imr_s
@@ -28,9 +29,6 @@ module cld_diags_mod
 
   use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
                                          samp_diag => diagnostic_to_be_sampled
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

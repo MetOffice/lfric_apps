@@ -14,6 +14,7 @@ module conservation_algorithm_mod
   use compute_energetics_kernel_mod,   only: compute_energetics_kernel_type
   use compute_entropy_kernel_mod,      only: compute_entropy_kernel_type
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, i_timestep
   use energy_correction_config_mod,    only: integral_method_fe
   use function_space_collection_mod,   only: function_space_collection
@@ -38,9 +39,6 @@ module conservation_algorithm_mod
                                              tik, LPROF
   use initialise_diagnostics_mod,      only: diagnostic_to_be_sampled
   use extrusion_config_mod,            only: planet_radius
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

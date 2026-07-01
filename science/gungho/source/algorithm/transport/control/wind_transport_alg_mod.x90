@@ -130,8 +130,8 @@ config => transport_controller%get_config()
         ! Cartesian coordinates and then map back to computational form
 
         mesh => wind_n%get_mesh()
-        w3_fs    => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
-        chi      => get_coordinates(mesh)
+        w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
+        chi => get_coordinates(mesh)
         panel_id => get_panel_id(mesh)
 
         ! -------------------------------------------------------------------- !

@@ -10,6 +10,7 @@
 
 module process_send_fields_2d_mod
 
+  use config_mod,                     only: config_type
   use field_mod,                      only: field_type
   use field_collection_mod,           only: field_collection_type
   use function_space_mod,             only: function_space_type
@@ -32,9 +33,6 @@ module process_send_fields_2d_mod
 
   use convert_to_celsius_kernel_mod,  only: convert_to_celsius_kernel_type
   use convert_to_marine_fraction_mod, only: convert_to_marine_fraction_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -285,7 +283,8 @@ module process_send_fields_2d_mod
   !> @param[in]  snow_mass_on_tiles  Pointer to the snow mass on tiles field
   !> @param[in]  tile_fraction  Pointer to the tile fraction field
   !> @param[out] imass          Total snow mass as scalar
-  subroutine ice_sheet_mass(config, mask_field, &
+  subroutine ice_sheet_mass(config,  &
+                            mask_field, &
                             snow_mass_on_tiles, &
                             tile_fraction,      &
                             imass)

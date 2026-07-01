@@ -7,6 +7,7 @@
 !> @brief Module containing adjoint tests for the adj_transport_controller routines
 module adjt_transport_controller_alg_mod
 
+  use config_mod,                         only : config_type
   use constants_mod,                      only : i_def, r_def, l_def
   use field_mod,                          only : field_type
   use r_tran_field_mod,                   only : r_tran_field_type
@@ -29,8 +30,6 @@ module adjt_transport_controller_alg_mod
                                                  ctrlr_wind_npdt_inp_prod_rdef,     &
                                                  ctrlr_transporting_wind_prod_rdef, &
                                                  ctrlr_transporting_wind_inp_prod_rdef
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

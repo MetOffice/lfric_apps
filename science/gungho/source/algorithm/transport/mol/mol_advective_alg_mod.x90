@@ -8,6 +8,7 @@
 module mol_advective_alg_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, r_tran
   use mesh_mod,                       only: mesh_type
   use r_tran_field_mod,               only: r_tran_field_type
@@ -29,9 +30,6 @@ module mol_advective_alg_mod
   use base_mesh_config_mod,           only: topology, topology_non_periodic
   use boundaries_config_mod,          only: limited_area, transport_boundary_depth
   use transport_config_mod,           only: runge_kutta_method
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -66,6 +64,9 @@ contains
     integer(kind=i_def)                      :: splitting
     real(kind=r_tran)                        :: dt_mol_substep
     logical(kind=l_def)                      :: final_rk_stage
+    logical(kind=l_def)                      :: do_flux
+    logical(kind=l_def)                      :: do_advective
+
     type(mesh_type),                 pointer :: mesh
     type(r_tran_field_type),         pointer :: advecting_wind
     type(r_tran_field_type)                  :: rhs, field_n
@@ -119,6 +120,9 @@ contains
     end do
     call rhs_field%initialise( field%get_function_space() )
 
+    do_flux = .false.
+    do_advective = .true.
+
     ! Perform the number of rk-stages and substeps required
     substep_loop: do substeps = 1, number_substeps
 
@@ -142,7 +146,7 @@ contains
         call advective_and_flux_alg(config, dummy, rhs, rhs_field,      &
                                     field_n, advecting_wind, direction, &
                                     transport_metadata, final_rk_stage, &
-                                    dt_mol_substep, .false., .true. )
+                                    dt_mol_substep, do_flux, do_advective )
 
         ! Update field: f = f^n - dt*rhs
         call invoke( X_minus_bY(field_np1, field_n, dt_mol_substep, rhs) )

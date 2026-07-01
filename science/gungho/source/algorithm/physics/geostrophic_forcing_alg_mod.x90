@@ -7,6 +7,7 @@
 !> @brief Apply geostrophic forcing to the horizontal wind component fields
 module geostrophic_forcing_alg_mod
 
+use config_mod,                    only: config_type
 use constants_mod,                 only: i_def, r_def, l_def
 use kernel_mod,                    only: kernel_type
 use field_mod,                     only: field_type
@@ -19,9 +20,6 @@ use log_mod,                       only: log_event, LOG_LEVEL_ERROR
 use map_fd_to_prognostics_alg_mod, only: set_wind
 use mesh_mod,                      only: mesh_type
 use timestepping_config_mod,       only: dt
-
-!  Object types
-use config_mod, only: config_type
 
 ! Configuration modules
 use base_mesh_config_mod, only: f_lat

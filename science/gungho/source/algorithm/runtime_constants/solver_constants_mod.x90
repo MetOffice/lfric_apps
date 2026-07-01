@@ -121,7 +121,7 @@ contains
     constant_exists = detj_at_w3_r_solver_inventory%paired_object_exists(mesh_id)
 
     if (.not. constant_exists) then
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
 
       ! Create the object as it doesn't exist yet
@@ -374,7 +374,7 @@ contains
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
       qr => get_qr_fe()
       div => get_div(mesh%get_id())
@@ -449,7 +449,7 @@ contains
 
         ! Create constant if it doesn't already exist
         if (.not. constant_exists) then
-          chi      => get_coordinates(mesh)
+          chi => get_coordinates(mesh)
           panel_id => get_panel_id(mesh)
           fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                  element_order_v, space)

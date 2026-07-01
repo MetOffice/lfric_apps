@@ -20,6 +20,7 @@ module reconstruct_w3_field_alg_mod
 
   use sci_combine_multidata_field_kernel_mod, &
                                       only: combine_multidata_field_kernel_type
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, str_def
   use r_tran_field_mod,               only: r_tran_field_type
   use field_mod,                      only: field_type
@@ -61,9 +62,6 @@ module reconstruct_w3_field_alg_mod
 
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

@@ -6,8 +6,10 @@
 !> @brief Interface to the orographic drag parametrization scheme
 
 module orographic_drag_alg_mod
-  use constants_mod, only: i_def
-  use field_mod, only: field_type
+
+  use config_mod,           only: config_type
+  use constants_mod,        only: i_def
+  use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci, imr_s
   use microphysics_config_mod, only: microphysics_casim
@@ -25,9 +27,6 @@ module orographic_drag_alg_mod
                            use_xios_io
   use orographic_drag_diags_mod, only: initialise_diags_for_orographic_drag, &
                                        output_diags_for_orographic_drag
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 

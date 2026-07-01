@@ -19,10 +19,12 @@ module fast_physics_alg_mod
                                        heat_capacity_h2o,        &
                                        gas_constant_h2o
 
-  use model_clock_mod,      only: model_clock_type
+
+  use config_mod,           only: config_type
   use constants_mod,        only: i_def,r_def, l_def
   use log_mod,              only: LOG_LEVEL_INFO, LOG_LEVEL_ERROR, log_event, &
                                   log_scratch_space
+  use model_clock_mod,      only: model_clock_type
   use print_field_stats_alg_mod, only: print_field_stats_alg
   use io_config_mod,        only: write_conservation_diag, write_diag, &
                                   use_xios_io
@@ -88,9 +90,6 @@ module fast_physics_alg_mod
   use stph_main_alg_mod, only: stph_main_alg
   use blpert_main_alg_mod, only: blpert_main_alg
 #endif
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -212,6 +211,9 @@ contains
     type( field_type ), pointer :: dtheta_stph => null()
     type( field_type ), pointer :: dmv_stph => null()
 
+    type( field_type), pointer :: cca => null()
+    type( field_type), pointer :: ccw => null()
+
     type( field_type ), pointer :: departure_exner_wth
     type( field_type ), pointer :: precfrac => null()
 #endif
@@ -246,6 +248,18 @@ contains
                 setval_X(u_latest, u_star) )
 
 #ifdef UM_PHYSICS
+
+    if ( cv_scheme == cv_scheme_comorph ) then
+      ! Initialise convective cloud fields to zero (both comorph and implicit
+      ! BL forced_cu code may update them only at some grid-points).
+      ! This is needed if using comorph or forced_cu==forced_cu_cca (at present
+      ! forced_cu_cca is enforced in um_physics_init_mod if using comorph).
+      call convection_fields%get_field('cca', cca)
+      call convection_fields%get_field('ccw', ccw)
+      call invoke( setval_c(cca, 0.0_r_def),                                   &
+                   setval_c(ccw, 0.0_r_def) )
+    end if
+
     !--------------------------------------------------------------------
     ! UM implicit boundary layer
     !--------------------------------------------------------------------

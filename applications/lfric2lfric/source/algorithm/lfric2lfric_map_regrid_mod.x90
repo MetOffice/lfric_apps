@@ -7,6 +7,7 @@
 module lfric2lfric_map_regrid_mod
 
   ! lfric modules
+  use config_mod,                only: config_type
   use constants_mod,             only: i_def, r_def, l_def
   use fs_continuity_mod,         only: W3, Wtheta
   use function_space_mod,        only: function_space_type
@@ -17,8 +18,6 @@ module lfric2lfric_map_regrid_mod
   use extrusion_mod,             only: TWOD
   use log_mod,                   only: log_event, log_scratch_space, &
                                        log_level_info
-
-  use config_mod, only: config_type
 
   ! lfric2lfric modules
   use lfric2lfric_face_conserv_c2f_kernel_mod, only:                          &
@@ -63,10 +62,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in) :: config
-
-    type(field_type), pointer,      intent(out) :: field_dst
-    type(field_type), pointer,      intent(in)  :: field_src
+    type(config_type), intent(in)    :: config
+    type(field_type),  intent(inout) :: field_dst
+    type(field_type),  intent(in)    :: field_src
 
     type(function_space_type),  pointer :: vector_space
     type(field_type),           pointer :: weights

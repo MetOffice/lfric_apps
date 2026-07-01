@@ -14,6 +14,7 @@
 module physics_constants_mod
 
   ! Infrastructure
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
                                                 r_second, EPS
   use extrusion_mod,                      only: TWOD, PRIME_EXTRUSION
@@ -33,9 +34,6 @@ module physics_constants_mod
   use model_clock_mod,                    only: model_clock_type
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
@@ -131,9 +129,9 @@ contains
 
     mesh_id = mesh%get_id()
 
-    height_w1  => get_height_fv(config, mesh, W1)
-    height_w2  => get_height_fv(config, mesh, W2)
-    height_w3  => get_height_fv(config, mesh, W3)
+    height_w1 => get_height_fv(config, mesh, W1)
+    height_w2 => get_height_fv(config, mesh, W2)
+    height_w3 => get_height_fv(config, mesh, W3)
     height_wth => get_height_fv(config, mesh, Wtheta)
     delta_at_wtheta => get_delta_at_wtheta(mesh)
 

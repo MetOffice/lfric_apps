@@ -8,6 +8,7 @@
 
 module init_saturated_profile_alg_mod
 
+use config_mod,                      only: config_type
 use constants_mod,                   only: r_def, i_def
 use driver_water_constants_mod,      only: heat_capacity_h2o_vapour, &
                                            heat_capacity_h2o
@@ -37,9 +38,6 @@ use planet_config_mod,               only: rd, p_zero, kappa, cp, recip_epsilon
 use theta_e_kernel_mod,              only: theta_e_kernel_type
 use transport_config_mod,            only: theta_variable, &
                                            theta_variable_moist
-
-! Object types
-use config_mod, only: config_type
 
 implicit none
 

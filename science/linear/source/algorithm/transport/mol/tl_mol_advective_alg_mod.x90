@@ -8,6 +8,7 @@
 module tl_mol_advective_alg_mod
 
   ! Infrastructure
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_def, i_def, l_def
   use field_mod,                        only: field_type
   use log_mod,                          only: log_event, LOG_LEVEL_ERROR
@@ -25,9 +26,6 @@ module tl_mol_advective_alg_mod
   use transport_counter_mod,            only: transport_counter_type
   use transport_metadata_mod,           only: transport_metadata_type
   use wind_precomputations_alg_mod,     only: wind_precomputations_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use transport_config_mod, only: runge_kutta_method

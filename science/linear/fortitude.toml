@@ -20,5 +20,10 @@ output-format = "grouped"                #group results by file
 # Leaving out for now (these rules are used in the universal config):
 # C081, E001, C121
 
+[check.per-file-ignores]
+# science/linear
+"tl_ffsl_flux_xy_kernel_mod_test.pf" = ["C001"]
+"tl_ffsl_flux_xy_sphere_kernel_mod_test.pf" = ["C001"]
+
 
 

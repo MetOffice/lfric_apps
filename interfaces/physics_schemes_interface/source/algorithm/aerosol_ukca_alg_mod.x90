@@ -7,11 +7,9 @@
 
 module aerosol_ukca_alg_mod
 
-  ! Object types
   use config_mod,      only: config_type
   use mesh_mod,        only: mesh_type
   use model_clock_mod, only: model_clock_type
-
 
   implicit none
 

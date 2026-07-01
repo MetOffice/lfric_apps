@@ -29,7 +29,6 @@ module initial_swe_u_kernel_mod
 
   use shallow_water_settings_config_mod, only: swe_test
 
-
   implicit none
 
   !---------------------------------------------------------------------------

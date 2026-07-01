@@ -37,7 +37,6 @@ module iau_multifile_io_mod
 #endif
   use iau_time_control_mod,        only: calc_iau_ts_num
   use inventory_by_mesh_mod,       only: inventory_by_mesh_type
-  use io_context_mod,              only: callback_clock_arg
   use lfric_xios_context_mod,      only: lfric_xios_context_type
   use linked_list_mod,             only: linked_list_type
   use lfric_xios_action_mod,       only: advance_read_only
@@ -272,9 +271,6 @@ contains
     real(r_def)    :: scaled_radius
 
     procedure(event_action), pointer       :: context_advance
-    procedure(callback_clock_arg), pointer :: before_close
-
-    nullify(before_close)
 
     geometry      = modeldb%config%base_mesh%geometry()
     topology      = modeldb%config%base_mesh%topology()
@@ -308,10 +304,10 @@ contains
       call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
                                                chi, panel_id,               &
                                                modeldb%clock, tmp_calendar, &
-                                               before_close,                &
                                                geometry, topology,          &
                                                coord_system, scaled_radius, &
                                                start_at_zero=.true. )
+      call io_context%close_context_definition()
 
       ! Attach context advancement to the model's clock
       context_advance => advance_read_only

@@ -8,6 +8,7 @@
 module mol_conservative_alg_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, str_def, r_tran
   use log_mod,                        only: log_scratch_space, log_event, &
                                             LOG_LEVEL_INFO
@@ -36,10 +37,6 @@ module mol_conservative_alg_mod
 
   ! Kernels
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
-
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use base_mesh_config_mod,  only: topology, topology_non_periodic

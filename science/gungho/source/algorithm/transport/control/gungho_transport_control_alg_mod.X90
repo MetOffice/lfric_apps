@@ -7,6 +7,7 @@
 
 module gungho_transport_control_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, r_def, l_def, r_tran, &
                                                PRECISION_R_TRAN
   use extrusion_mod,                     only: SHIFTED
@@ -36,9 +37,6 @@ module gungho_transport_control_alg_mod
                                                check_any_eqn_consistent
   use timing_mod,                        only: start_timing, stop_timing, &
                                                tik, LPROF
-  ! Object types
-  use config_mod, only: config_type
-
   implicit none
 
   private
@@ -447,7 +445,8 @@ contains
         ! Transport is now with transporting wind for the whole time step, not
         ! the difference in winds from the cheap update
         call transport_controller%finalise()
-        call transport_controller%initialise(config,                           &
+        call transport_controller%initialise(                                  &
+                config,                                                        &
                 model_clock, rho_d_n_ptr, wind_n, wind_np1,                    &
                 outer=outer, cheap_update_step=.false.                         &
         )
@@ -470,7 +469,8 @@ contains
         call map_rho_intermesh(config, aerosol_reference_rho, rho_d_n_ptr)
 
         ! Set up new transport controller for coarser mesh
-        call aerosol_transport_controller%initialise(config,                   &
+        call aerosol_transport_controller%initialise(                          &
+                config,                                                        &
                 model_clock, aerosol_reference_rho, aerosol_wind_n,            &
                 aerosol_wind_np1, outer, cheap_update_step=.false.             &
         )

@@ -8,16 +8,12 @@
 
 module lake_water_correction_alg_mod
 
+  use config_mod,                 only: config_type
   use constants_mod,              only: l_def, r_def
   use field_mod,                  only: field_type, field_proxy_type
-  use mesh_mod,                   only: mesh_type
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
-
-  ! Configuration modules
-  use surface_config_mod, only: check_soilm_negatives
-
-  ! Object types
-  use config_mod, only: config_type
+  use mesh_mod,                   only: mesh_type
+  use surface_config_mod,         only: check_soilm_negatives
 
   implicit none
 

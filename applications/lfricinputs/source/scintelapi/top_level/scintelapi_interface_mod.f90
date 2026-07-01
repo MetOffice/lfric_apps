@@ -12,6 +12,7 @@ module scintelapi_interface_mod
 use log_mod,                   only: log_event, log_scratch_space,             &
                                      LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 use scintelapi_namelist_mod,   only: scintelapi_nl, required_lfric_namelists
+use config_mod,                only: config_type
 use constants_def_mod,         only: field_kind_name_len, field_name_len,      &
                                      gen_id_len, genpar_len,                   &
                                      field_id_list_max_size, empty_string, rmdi
@@ -36,9 +37,6 @@ use lfricinp_lfric_driver_mod, only: lfricinp_initialise_lfric, model_clock,   &
                                      lfric_nl_fname
 use lfricinp_setup_io_mod,     only: io_fname
 use lfricinp_read_command_line_args_mod, only: lfricinp_read_command_line_args
-
-! Object types
-use config_mod, only: config_type
 
 implicit none
 

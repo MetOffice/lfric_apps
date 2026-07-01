@@ -14,6 +14,7 @@
 module transport_constants_mod
 
   ! Infrastructure
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
                                                 r_tran, radians_to_degrees
   use domain_mod,                         only: domain_type
@@ -54,18 +55,13 @@ module transport_constants_mod
   use sci_operator_x_times_y_kernel_mod,  only: operator_x_times_y_kernel_type
   use panel_edge_support_mod,             only: FAR_AWAY
 
-
-  ! Object types
-  use config_mod, only: config_type
-
   ! Configuration modules
-  use base_mesh_config_mod, only: geometry, &
-                                  geometry_spherical, &
-                                  geometry_planar, &
-                                  topology, &
-                                  topology_non_periodic, &
-                                  topology_fully_periodic
-  use finite_element_config_mod, only: coord_system, &
+  use base_mesh_config_mod,      only: geometry,               &
+                                       geometry_spherical,     &
+                                       geometry_planar,        &
+                                       topology,               &
+                                       topology_fully_periodic
+  use finite_element_config_mod, only: coord_system,           &
                                        coord_system_xyz
 
   implicit none
@@ -233,8 +229,8 @@ contains
     )
 
     ! Get pointers to coordinates
-    chi      => get_coordinates(mesh)
-    chi_ext  => get_extended_coordinates(config, mesh)
+    chi => get_coordinates(mesh)
+    chi_ext => get_extended_coordinates(config, mesh)
     panel_id => get_panel_id(mesh)
 
     ! Compute remap weights and indices
@@ -424,7 +420,7 @@ contains
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     ! Get pointers to coordinates and masks for panel edges
-    chi      => get_coordinates(mesh)
+    chi => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
     panel_edge_dist => get_panel_edge_dist(mesh_id)
     panel_edge_coords_x => get_panel_edge_coords_x(mesh_id)
@@ -703,8 +699,8 @@ contains
 
     implicit none
 
-    type(config_type),intent(in)          :: config
-    type(mesh_type),  intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     logical(kind=l_def)                   :: constant_exists
     type(field_type),             pointer :: detj_above
@@ -729,7 +725,7 @@ contains
       element_order_h = get_element_order_h_transport()
       element_order_v = get_element_order_v_transport()
 
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
       if (element_order_h == 0 .and. element_order_v == 0) then
         ! Get the finite volume det(J) field
@@ -800,7 +796,7 @@ contains
       ! Get relevant element orders
       element_order_h = get_element_order_h_transport()
       element_order_v = get_element_order_v_transport()
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
       if (element_order_h == 0 .and. element_order_v == 0) then
         ! Get the finite volume det(J) field
@@ -1220,7 +1216,7 @@ contains
       element_order_h = get_element_order_h_transport()
       element_order_v = get_element_order_v_transport()
 
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
 
       if (element_order_h == 0 .and. element_order_v == 0) then
@@ -1732,7 +1728,7 @@ contains
 
       end if
 
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
@@ -2104,7 +2100,7 @@ contains
         end if
       end if
 
-      chi      => get_coordinates(mesh)
+      chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
@@ -2171,7 +2167,7 @@ contains
 
       ! Compute diagonal mass matrix for extended mesh -------------------------
       if (oned_reconstruction .and. extended_mesh) then
-        chi   => get_extended_coordinates(config, mesh)
+        chi => get_extended_coordinates(config, mesh)
         wt_fs => function_space_collection%get_fs( mesh, 0, 0, Wtheta )
         call mm_wt%initialise( wt_fs, wt_fs )
         call mm_wt_diag_tmp%initialise( wt_fs )

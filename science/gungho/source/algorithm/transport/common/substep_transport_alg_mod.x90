@@ -10,6 +10,7 @@ module substep_transport_alg_mod
   ! Constants and types
   use check_configuration_mod,           only: check_any_splitting_hvh, &
                                                check_any_splitting_vhv
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, l_def, r_def, r_tran
   use field_mod,                         only: field_type
   use fs_continuity_mod,                 only: W2H, W2V, W3
@@ -30,9 +31,6 @@ module substep_transport_alg_mod
   use hori_dep_dist_eulerian_kernel_mod, only: hori_dep_dist_eulerian_kernel_type
   use lipschitz_diag_alg_mod,            only: lipschitz_computation_alg
   use sci_field_minmax_alg_mod,          only: get_field_minmax
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use departure_points_config_mod,       only: horizontal_limit, &
@@ -298,9 +296,10 @@ contains
     ! ------------------------------------------------------------------------ !
 
     splitting = splitting_strang_hvh
-    call lipschitz_splitting_alg( config, max_lipschitz, splitting_strang_hvh, &
-                                  LOG_LEVEL_DEBUG, lipschitz_x, lipschitz_y,   &
-                                  lipschitz_z )
+    call lipschitz_splitting_alg(                                              &
+            config, max_lipschitz, splitting_strang_hvh, LOG_LEVEL_DEBUG,      &
+            lipschitz_x, lipschitz_y, lipschitz_z                              &
+    )
 
     if (max_lipschitz < 0.95_r_tran) then
       ! This splitting is stable, so use it as it will be cheaper than VHVHV
@@ -308,10 +307,10 @@ contains
 
     else
       ! Try VHVHV splittings
-      call lipschitz_splitting_alg( config, max_lipschitz_tmp,              &
-                                    splitting_vhvhv_third, LOG_LEVEL_DEBUG, &
-                                    lipschitz_x, lipschitz_y, lipschitz_z )
-
+      call lipschitz_splitting_alg(                                            &
+              config, max_lipschitz_tmp, splitting_vhvhv_third,                &
+              LOG_LEVEL_DEBUG, lipschitz_x, lipschitz_y, lipschitz_z           &
+      )
       if (max_lipschitz_tmp < max_lipschitz) then
         splitting = splitting_vhvhv_third
         max_lipschitz = max_lipschitz_tmp
@@ -320,7 +319,10 @@ contains
       call lipschitz_splitting_alg( config, max_lipschitz_tmp,                &
                                     splitting_vhvhv_quarter, LOG_LEVEL_DEBUG, &
                                     lipschitz_x, lipschitz_y, lipschitz_z )
-
+      call lipschitz_splitting_alg(                                            &
+              config, max_lipschitz_tmp, splitting_vhvhv_quarter,              &
+              LOG_LEVEL_DEBUG, lipschitz_x, lipschitz_y, lipschitz_z           &
+      )
       if (max_lipschitz_tmp < max_lipschitz) then
         splitting = splitting_vhvhv_quarter
         max_lipschitz = max_lipschitz_tmp

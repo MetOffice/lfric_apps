@@ -10,6 +10,7 @@
 module intermesh_mappings_alg_mod
 
   use check_configuration_mod,        only : check_moisture_advective
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, r_def, l_def
   use sci_enforce_lower_bound_kernel_mod, &
                                       only : enforce_lower_bound_kernel_type
@@ -27,9 +28,6 @@ module intermesh_mappings_alg_mod
   use mesh_collection_mod,            only : mesh_collection
   use mesh_mod,                       only : mesh_type
   use mr_indices_mod,                 only : nummr
-
-  ! Object types
-  use config_mod, only: config_type
 
   ! Configuration modules
   use multires_coupling_config_mod, only: recovery_order,                 &

@@ -296,6 +296,10 @@ module coupler_mod
     call add_cpl_field(depository, prognostic_fields, &
          'lf_svnocean', vector_space, checkpoint_restart_flag)
 
+   ! From TRIP river model
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_inland_flow', vector_space, checkpoint_restart_flag)
+
   end subroutine create_coupling_fields
 
 
@@ -595,7 +599,7 @@ module coupler_mod
 
     call iter%initialise(cpl_rcv_2d)
     do
-      if (.not. iter%has_next()) exit
+      if (.not.iter%has_next()) exit
       field => iter%next()
       select type(field)
       type is (field_type)
@@ -632,7 +636,7 @@ module coupler_mod
       ! Update the prognostics
       call iter%initialise(cpl_rcv_2d)
       do
-        if (.not. iter%has_next()) exit
+        if (.not.iter%has_next()) exit
         field => iter%next()
         call cpl_rcv_2d%get_field( &
                                trim(field%get_name()), field_ptr)

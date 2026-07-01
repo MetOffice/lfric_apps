@@ -7,6 +7,7 @@
 
 module rad_cloud_alg_mod
 
+use config_mod,                    only: config_type
 use constants_mod,                 only: r_def, i_def, l_def
 use empty_data_mod,                only: empty_real_data, empty_integer_data
 use field_collection_mod,          only: field_collection_type
@@ -32,9 +33,6 @@ use science_conversions_mod,   only: zero_degrees_celsius
 use casim_ice_act_kernel_mod, only: casim_ice_act_kernel_type
 use cv_run_mod,              only: l_param_conv
 use microphysics_config_mod, only: microphysics_casim
-
-! Object types
-use config_mod, only: config_type
 
 implicit none
 private

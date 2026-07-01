@@ -6,13 +6,14 @@
 !>@brief Processing of ancillary files
 module process_inputs_alg_mod
 
-  use field_collection_mod, only : field_collection_type
-  use field_mod,            only : field_type
-  use fs_continuity_mod,    only : W3
-  use mesh_mod,             only : mesh_type
-  use mesh_collection_mod,  only : mesh_collection
-  use integer_field_mod,    only : integer_field_type
-  use constants_mod,        only : i_def
+  use config_mod,           only: config_type
+  use field_collection_mod, only: field_collection_type
+  use field_mod,            only: field_type
+  use fs_continuity_mod,    only: W3
+  use mesh_mod,             only: mesh_type
+  use mesh_collection_mod,  only: mesh_collection
+  use integer_field_mod,    only: integer_field_type
+  use constants_mod,        only: i_def
 
   use initialization_config_mod,  only: sst_source, sst_source_start_dump, &
                                         init_option, init_option_fd_start_dump, &
@@ -43,11 +44,8 @@ module process_inputs_alg_mod
   use set_topography_kernel_mod,  only: set_topography_kernel_type
   use sci_geometric_constants_mod,      &
                                   only: get_latitude_fv
-  use log_mod,                    only : log_event, log_scratch_space,  &
-                                         LOG_LEVEL_ERROR
-
-  ! Object types
-  use config_mod, only: config_type
+  use log_mod,                    only: log_event, log_scratch_space,  &
+                                        LOG_LEVEL_ERROR
 
   implicit none
 

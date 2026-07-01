@@ -8,6 +8,7 @@
 
 module swe_transport_control_alg_mod
 
+  use config_mod,                        only: config_type
   use combine_w2_field_kernel_mod,       only: combine_w2_field_kernel_type
   use constants_mod,                     only: i_def, r_def, l_def, r_tran
   use derived_config_mod,                only: bundle_size
@@ -47,9 +48,6 @@ module swe_transport_control_alg_mod
   use transport_metadata_mod,            only: transport_metadata_type
   use transport_metadata_collection_mod, only: transport_metadata_collection_type
   use vorticity_advection_kernel_mod,    only: vorticity_advection_kernel_type
-
-  ! Object types
-  use config_mod, only: config_type
 
   implicit none
 
