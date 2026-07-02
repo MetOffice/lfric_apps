@@ -36,7 +36,7 @@ use initial_temperature_config_mod, only: temp_prof_size    => profile_size,    
                                           temp_prof_data    => profile_data,     &
                                           temp_prof_heights => profile_heights,  &
                                           temp_variable => profile_variable,     &
-                                          profile_variable_potential
+                                          profile_variable_potential,            &
                                           perturb,                               &
                                           perturb_random
 
