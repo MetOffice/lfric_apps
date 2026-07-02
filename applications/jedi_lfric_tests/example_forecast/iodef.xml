@@ -1,93 +1,233 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <simulation>
 
-  <!-- file suitable for global NWP runs -->
-
-  <!-- In this version we have ONE context  -->
   <context id = "gungho_atm">
 
-    <!-- Include variable definitions -->
-    <variable_definition src="../../lfric_atm/metadata/variable_def_main.xml"/>
+  <!-- Include variable definitions -->
+  <variable_definition src="../../lfric_atm/metadata/variable_def_main.xml"/>
 
-    <!-- Include axis definitions -->
-    <axis_definition src="../../lfric_atm/metadata/axis_def_main.xml"/>
-    <axis_definition src="./xios_files/axis_def_plev.xml"/>
+  <!-- Include axis definitions -->
+  <axis_definition src="../../lfric_atm/metadata/axis_def_main.xml"/>
 
-    <!-- Include domain definitions -->
-    <domain_definition src="../../lfric_atm/metadata/domain_def_main.xml"/>
+  <!-- Include domain definitions -->
+  <domain_definition src="../../lfric_atm/metadata/domain_def_main.xml"/>
+    
+  <!-- Include grid definitions -->
+  <grid_definition src="../../lfric_atm/metadata/grid_def_main.xml"/>
 
-    <!-- Include grid definitions -->
-    <grid_definition src="../../lfric_atm/metadata/grid_def_main.xml"/>
-    <grid_definition src="../../lfric_atm/metadata/grid_def_aero_ctl.xml"/>
-    <grid_definition src="../../lfric_atm/metadata/grid_def_radaer_ctl.xml"/>
+  <!-- Include field definitions -->
+  <field_definition src="../../lfric_atm/metadata/lfric_dictionary.xml"/>
+  <field_definition src="../../lfric_atm/metadata/field_def_diags.xml"/>
+  <field_definition src="../../lfric_atm/metadata/field_def_initial_diags.xml"/>
 
-    <!-- Include field definitions -->
-    <field_definition src="../../lfric_atm/metadata/lfric_dictionary.xml"/>
-    <field_definition src="../../lfric_atm/metadata/field_def_diags.xml"/>
-    <field_definition src="../../lfric_atm/metadata/field_def_initial_diags.xml"/>
+   <field_definition prec="8" >
 
-    <!-- Include file definitions -->
-    <file_definition src="./xios_files/file_def_check_restart.xml"/>
-    <file_definition src="./xios_files/file_def_ancil_main.xml"/>
-    <file_definition src="./xios_files/file_def_ancil_gal.xml"/>
-    <file_definition src="./xios_files/file_def_ancil_hadisst.xml"/>
-    <file_definition src="./xios_files/file_def_diags_gal_nwp.xml"/>
-    <file_definition src="./xios_files/file_def_diags_ver.xml"/>
-    <file_definition src="./xios_files/file_def_diags_name.xml"/>
-    <file_definition src="./xios_files/file_def_initial_diags.xml"/>
+     <!-- Checkpoint group -->
+     <field_group id="checkpoint_fields" operation="once"  enabled=".FALSE." >
+    </field_group>
 
-    <!-- Local file definitions -->
-    <file_definition type="one_file" time_counter="none">
+     <!-- derived fields group -->
+     <field_group id="derived_fields" freq_op="1ts" operation="instant" enabled=".TRUE." >
+       <field id="velocity_w2v" name="velocity_w2v" long_name="vertical wind on physics points" standard_name="vertical_velocity" unit="ms-1" grid_ref="full_level_face_grid" />
+       <field id="rho_in_wth" name="rho_in_wth" long_name="dry air density on wtheta points" standard_name="air_density" unit="kg m-3" grid_ref="full_level_face_grid" />
+       <field id="wetrho_in_wth" name="wetrho_in_wth" long_name="wet air density on wtheta points" standard_name="air_density" unit="kg m-3" grid_ref="full_level_face_grid" />
+       <field id="exner_in_wth" name="exner_in_wth" long_name="Exner pressure on wtheta points" standard_name="air_pressure" unit="1" grid_ref="full_level_face_grid" />
+       <field id="exner_wth_n" name="exner_wth_n" long_name="start_of_timestep_exner_pressure_at_cell_interfaces" unit="1" grid_ref="full_level_face_grid" />
+       <field id="theta_star" name="theta_star" long_name="air potential temperature: physics predictor" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+       <field id="shear" name="shear" long_name="3D wind shear" unit="s-1" grid_ref="full_level_face_grid" />
+       <field id="u_in_w3" name="u_in_w3" long_name="physics U wind on W3 points" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+       <field id="v_in_w3" name="v_in_w3" long_name="physics V wind on W3 points" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+       <field id="w_in_w3" name="w_in_w3" long_name="physics W wind on W3 points" standard_name="upward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+       <field id="u_in_w3_star" name="u_in_w3_star" long_name="physics U wind on W3 points: physics predictor" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+       <field id="v_in_w3_star" name="v_in_w3_star" long_name="physics V wind on W3 points: physics predictor" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+       <field id="w_in_w3_star" name="w_in_w3_star" long_name="physics W wind on W3 points: physics predictor" standard_name="upward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+       <field id="theta_in_w3" name="theta_in_w3" long_name="air potential temperature on W3 points" standard_name="air_potential_temperature" unit="K" grid_ref="half_level_face_grid" />
+       <field id="wetrho_in_w3" name="wetrho_in_w3" long_name="wet air density on w3 points" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+     </field_group>
 
-      <!-- File definition for writing an FD dump -->
+      <!-- Initial conditions group -->
+     <field_group id="initial_fields" freq_op="1ts" operation="once" enabled=".TRUE." >
+       <field id="init_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+       <field id="init_m_v" name="m_v" long_name="m_v" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_m_cl" name="m_cl" long_name="m_cl" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_m_r" name="m_r" long_name="m_r" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_m_ci" name="m_ci" long_name="m_ci" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_m_s" name="m_s" long_name="m_s"  unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_m_g" name="m_g" long_name="m_g"  unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="init_xi1" name="xi1" long_name="Xi1" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="init_xi2" name="xi2" long_name="Xi2" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="init_xi3" name="xi3" long_name="Xi3" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="init_u_in_w2h" name="u_in_w2h" long_name="eastward_wind" standard_name="eastward_wind"  unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_v_in_w2h" name="v_in_w2h" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_w_in_wth" name="w_in_wth" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="init_divergence" name="divergence" long_name="divergence_of_wind" standard_name="divergence_of_wind" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="init_potential_vorticity" name="potential_vorticity" long_name="potential_vorticity" standard_name="potential_vorticity" unit="m2 s-1 K kg-1" grid_ref="half_level_face_grid" />
+       <field id="init_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
+       <field id="init_height_w3" name="height_w3" long_name="height_of_cell_centres_above_earth_radius" unit="m" grid_ref="half_level_face_grid" />
+       <field id="init_height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" unit="m" grid_ref="full_level_face_grid" />
+       <field id="init_height_w0" name="height_w0" long_name="height_of_cell_vertices_above_earth_radius" unit="m" grid_ref="node_grid" />
+       <field id="init_height_w2h" name="height_w2h" long_name="height_of_cell_faces_above_earth_radius" unit="m" grid_ref="half_level_edge_grid" />
+       <field id="init_ageofair" name="ageofair" long_name="ageofair" unit="s" grid_ref="half_level_face_grid" />
+       <field id="init_area_at_msl" name="cell_area" long_name="grid_cell_area" standard_name="grid_cell_area" unit="m2" domain_ref="face"/>
+     </field_group>
+
+     <!-- FD fields group -->
+     <field_group id="physics_fd_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
+       <field id="ew_wind_in_w3" name="ew_wind_in_w3" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="ns_wind_in_w3" name="ns_wind_in_w3" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+       <field id="theta_in_wtheta" name="theta_in_wtheta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+       <field id="ozone_in_wtheta" name="ozone_in_wtheta" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" />
+       <field id="upward_wind_in_wtheta" name="upward_wind_in_wtheta" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="dry_rho_in_w3" name="dry_rho_in_w3" long_name="air_density" unit="1" grid_ref="half_level_face_grid" />
+       <field id="mv_in_wtheta" name="mv_in_wtheta" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" />
+       <field id="mcl_in_wtheta" name="mcl_in_wtheta" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" />
+       <field id="mcf_in_wtheta" name="mcf_in_wtheta" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" />
+     </field_group>
+
+     <field_group id="masks" freq_op="1ts" operation="once" enabled=".TRUE." >
+       <field id="w3_mask" name="w3_mask" long_name="w3_mask" unit="1"  grid_ref="half_level_face_grid"/>
+       <field id="wtheta_mask" name="wtheta_mask" long_name="wtheta_mask" unit="1"  grid_ref="full_level_face_grid"/>
+       <field id="w3lbc_mask" name="w3lbc_mask" long_name="w3lbc_mask" unit="1"  grid_ref="half_level_face_grid"/>
+       <field id="wthetalbc_mask" name="wthetalbc_mask" long_name="wthetalbc_mask" unit="1"  grid_ref="full_level_face_grid"/>
+       <field id="w3blend_mask" name="w3blend_mask" long_name="w3blend_mask" unit="1"  grid_ref="half_level_face_grid"/>
+       <field id="wthetablend_mask" name="wthetablend_mask" long_name="wthetablend_mask" unit="1"  grid_ref="full_level_face_grid"/>
+       <field id="onion_layers" name="onion_layers" long_name="onion_layers" unit="1"  grid_ref="half_level_face_grid"/>
+       <field id="h_w2_mask" name="h_w2_mask" long_name="h_w2_mask" unit="1"  grid_ref="half_level_edge_grid"/>
+       <field id="h_w2lbc_mask" name="h_w2lbc_mask" long_name="h_w2lbc_mask" unit="1"  grid_ref="half_level_edge_grid"/>
+       <field id="h_w2boundary_mask" name="h_w2boundary_mask" long_name="h_w2boundary_mask" unit="1"  grid_ref="half_level_edge_grid"/>
+       <field id="h_w2blend_mask" name="h_w2blend_mask" long_name="h_w2blend_mask" unit="1"  grid_ref="half_level_edge_grid"/>
+       <field id="v_w2_mask" name="v_w2_mask" long_name="v_w2_mask" unit="1"  grid_ref="full_level_face_grid"/>
+       <field id="v_w2lbc_mask" name="v_w2lbc_mask" long_name="v_w2lbc_mask" unit="1"  grid_ref="full_level_face_grid"/>
+       <field id="v_w2blend_mask" name="v_w2blend_mask" long_name="v_w2blend_mask" unit="1"  grid_ref="full_level_face_grid"/>
+       <field id="v_w2boundary_mask" name="v_w2boundary_mask" long_name="v_w2boundary_mask" unit="1"  grid_ref="full_level_face_grid"/>
+     </field_group>
+
+   </field_definition>
+
+   <file_definition
+      type="one_file"
+      time_counter="none">
+
+      <!-- Checkpoint groups -->
+
+      <!-- File definition for checkpoint write, populated by model -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="CF" enabled=".FALSE.">
+      </file>
+
+       <!-- file definition for checkpoint read, populated by model -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="CF" enabled=".FALSE.">
+      </file>
+
+      <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="theta"/>
+        <field field_ref="m_v"/>
+        <field field_ref="m_cl"/>
+        <field field_ref="m_r"/>
+        <field field_ref="m_ci"/>
+        <field field_ref="m_s"/>
+        <field field_ref="m_g"/>
+        <field field_ref="rho"/>
+        <field field_ref="xi1"/>
+        <field field_ref="xi2"/>
+        <field field_ref="xi3"/>
+        <field field_ref="u_in_w2h"/>
+        <field field_ref="v_in_w2h"/>
+        <field field_ref="w_in_wth"/>
+        <field field_ref="u_in_w3"/>
+        <field field_ref="v_in_w3"/>
+        <field field_ref="w_in_w3"/>
+        <field field_ref="divergence"/>
+        <field field_ref="potential_vorticity"/>
+        <field field_ref="exner"/>
+        <field field_ref="processed__tot_col_dry_air_mass" />
+        <field field_ref="processed__tot_col_wetplusdry_mass" />
+        <field field_ref="processed__tot_col_int_energy" />
+        <field field_ref="processed__tot_col_pot_energy" />
+        <field field_ref="processed__tot_col_pot_energy_gr" />
+        <field field_ref="processed__tot_col_uv_kinetic_energy" />
+        <field field_ref="processed__tot_col_w_kinetic_energy" />
+        <field field_ref="processed__tot_col_kinetic_energy" />
+        <field field_ref="processed__tot_col_encorr" />
+        <field field_ref="processed__wbig" />
+        <field field_ref="processed__dtheta_slow" />
+        <field field_ref="ageofair"/>
+        <field field_ref="forcing__du_force" />
+        <field field_ref="forcing__dv_force" />
+        <field field_ref="forcing__dw_force" />
+      </file>
+
+      <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="theta" operation="average" />
+        <field field_ref="velocity_w2v" operation="average" />
+        <field field_ref="u_in_w2h" operation="average" />
+        <field field_ref="v_in_w2h" operation="average" />
+        <field field_ref="w_in_wth" operation="average" />
+        <field field_ref="divergence" operation="average" />
+        <field field_ref="exner" operation="average" />
+      </file>
+
+      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="init_theta"/>
+        <field field_ref="init_m_v"/>
+        <field field_ref="init_m_cl"/>
+        <field field_ref="init_m_r"/>
+        <field field_ref="init_m_ci"/>
+        <field field_ref="init_m_s"/>
+        <field field_ref="init_m_g"/>
+        <field field_ref="init_rho"/>
+        <field field_ref="init_xi1"/>
+        <field field_ref="init_xi2"/>
+        <field field_ref="init_xi3"/>
+        <field field_ref="init_u_in_w2h"/>
+        <field field_ref="init_v_in_w2h"/>
+        <field field_ref="init_w_in_wth"/>
+        <field field_ref="init_divergence"/>
+        <field field_ref="init_potential_vorticity"/>
+        <field field_ref="init_exner"/>
+        <field field_ref="init_ageofair"/>
+        <field_group group_ref="masks" />
+      </file>
+
+     <!-- File definition for writing an FD dump -->
+
       <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
+       <field field_ref="ew_wind_in_w3" />
+       <field field_ref="ns_wind_in_w3" />
+       <field field_ref="theta_in_wtheta" />
+       <field field_ref="ozone_in_wtheta" />
+       <field field_ref="upward_wind_in_wtheta" />
+       <field field_ref="dry_rho_in_w3" />
+       <field field_ref="mv_in_wtheta" />
+       <field field_ref="mcl_in_wtheta" />
+       <field field_ref="mcf_in_wtheta" />
+       <field field_ref="tstar"/>
       </file>
 
       <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
-      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
-	<!-- Atmosphere fields -->
-	<field id="read_ew_wind_in_w3" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
-	<field id="read_ns_wind_in_w3" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
-	<field id="read_upward_wind_in_wtheta" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_theta_in_wtheta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_dry_rho_in_w3" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="once" />
-	<field id="read_mv_in_wtheta" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_mcl_in_wtheta" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_mcf_in_wtheta" name="m_cf" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_mr_in_wtheta" name="m_r" long_name="rain_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
-	<field id="read_area_fraction" name="area_fraction" long_name="cloud_area_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_bulk_fraction" name="bulk_fraction" long_name="cloud_bulk_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" operation="once" />
-	<field id="read_dust1_mmr" name="dust1_mmr" long_name="dust_division_1_mass_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
-	<field id="read_dust2_mmr" name="dust2_mmr" long_name="dust_division_2_mass_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
-	<!-- surface fields -->
-	<field id="read_dd_mf_cb" name="dd_mf_cb" long_name="downdraft_massflux_at_cloud_base" unit="Pa s-1" domain_ref="face" operation="once" />
-	<field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" operation="once" />
-	<field id="read_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="once" />
-	<field id="read_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="1" domain_ref="face" operation="once" />
-	<field id="read_soil_temperature" name="soil_temperature" long_name="soil_temperature" unit="K" domain_ref="face" operation="once" axis_ref="soil_levels"/>
-	<field id="read_soil_moisture" name="soil_moisture" long_name="soil_moisture" unit="kg kg-1" domain_ref="face" operation="once" axis_ref="soil_levels"/>
-	<field id="read_surface_conductance" name="surface_conductance" long_name="conductance" unit="m s-1" domain_ref="face" operation="once" />
-	<field id="read_can_water_in" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_land_tile_temp" name="tile_temperature" long_name="land_tile_temperature" unit="K" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_tstar_sea_ice" name="tstar_sea_ice" long_name="sea_ice_surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="once" />
-	<field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" domain_ref="face" operation="once" />
-	<field id="read_tile_snow_mass_in" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_n_snow_layers_in" name="tile_n_snow_layers" long_name="number_of_snow_layers" unit="1" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_snow_depth_in" name="tile_snow_depth" long_name="snow_depth_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_tile_snow_rgrain_in" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_snow_soot" name="snow_soot" long_name="snow_soot_content" unit="kg kg-1" domain_ref="face" operation="once" />
-	<field id="read_snow_under_canopy_in" name="tile_snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_snowpack_density_in" name="tile_snowpack_density" long_name="snowpack_density_on_tiles" unit="kg m-3" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_snow_layer_thickness" name="tile_snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-	<field id="read_snow_layer_ice_mass" name="tile_snow_layer_ice_mass" long_name="snow_layer_ice_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-	<field id="read_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-	<field id="read_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-	<field id="read_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+
+      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group id="read_lfric_fd_dump_field_group" >
+       <field id="read_ew_wind_in_w3" name="ew_wind_in_w3" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
+       <field id="read_ns_wind_in_w3" name="ns_wind_in_w3" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
+       <field id="read_theta_in_wtheta" name="theta_in_wtheta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_ozone_in_wtheta" name="ozone_in_wtheta" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_upward_wind_in_wtheta" name="upward_wind_in_wtheta" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_dry_rho_in_w3" name="dry_rho_in_w3" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="instant" />
+       <field id="read_mv_in_wtheta" name="mv_in_wtheta" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_mcl_in_wtheta" name="mcl_in_wtheta" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_mcf_in_wtheta" name="mcf_in_wtheta" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="instant" />
+       </field_group>
       </file>
+
+        <!-- ANCIL FILES -->
+
+      <file id="orography_mean_ancil" name="orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group id="orography_mean_ancil_field_group" >
+       <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+       </field_group>
+       </file>
 
     </file_definition>
 
