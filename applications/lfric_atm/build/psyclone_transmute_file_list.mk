@@ -17,9 +17,6 @@
 export PSYCLONE_PHYSICS_FILES = \
                                 bl_lsp \
                                 bm_tau_kernel_mod \
-                                bl_exp_kernel_mod \
-                                bl_imp_kernel_mod \
-                                bl_imp2_kernel_mod \
                                 btq_int \
                                 conv_gr_kernel_mod \
                                 ex_flux_tq \
