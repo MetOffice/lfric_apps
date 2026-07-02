@@ -41,7 +41,7 @@ module cma_test_algorithm_mod
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
   use config_mod,                     only : config_type
-  use constants_mod,                  only : i_def, l_def, r_solver
+  use constants_mod,                  only : i_def, r_def, r_solver, l_def
   use columnwise_operator_mod,        only : columnwise_operator_type
   use function_space_mod,             only : function_space_type
   use function_space_collection_mod,  only : function_space_collection
@@ -228,12 +228,11 @@ contains
                       log_level_error )
     end if
 
-    coord_order  = config%finite_element%coord_order()
-    coord_system = config%finite_element%coord_system()
-    order_h      = config%finite_element%element_order_h()
-    order_v      = config%finite_element%element_order_v()
-    rehabilitate = config%finite_element%rehabilitate()
-
+    coord_order   = config%finite_element%coord_order()
+    coord_system  = config%finite_element%coord_system()
+    order_h       = config%finite_element%element_order_h()
+    order_v       = config%finite_element%element_order_v()
+    rehabilitate  = config%finite_element%rehabilitate()
     scaled_radius = config%planet%scaled_radius()
 
     ! Set up coordinate field
@@ -543,7 +542,7 @@ contains
     ! Internal variables
     type(columnwise_operator_type) :: mm_vel_v_inv_grad_v_cma
     type(columnwise_operator_type) :: div_v_mm_vel_v_inv_grad_v_cma
-    logical(kind=l_def) :: test
+    logical(l_def) :: test
 
     ! Construct \f$M_{u,v,inv}D_v^T\f$
     mm_vel_v_inv_grad_v_cma &

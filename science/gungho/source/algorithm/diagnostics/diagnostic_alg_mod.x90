@@ -868,10 +868,9 @@ contains
     implicit none
 
     ! Set up necessary fields
-    type(field_type), intent(in)          :: w_in_wth
-!    type(mesh_type),  intent(in), pointer :: mesh
+    type(field_type), intent(in) :: w_in_wth
 
-    type( field_type ) :: wbig
+    type(field_type) :: wbig
 
     ! Create diagnostic if requested
     if (init_diag(wbig, 'processed__wbig') .and. use_xios_io) then

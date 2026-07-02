@@ -275,7 +275,7 @@ contains
 
       ! Get w_in_wth for WBig calculation
       call derived_fields%get_field('w_in_wth', w_in_wth)
-      call calc_wbig_diagnostic_alg(w_in_wth, mesh)
+      call calc_wbig_diagnostic_alg(w_in_wth)
 
       ! Pressure diagnostics
       call prognostic_fields%get_field('exner', exner)
