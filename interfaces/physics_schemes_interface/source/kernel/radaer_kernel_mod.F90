@@ -371,7 +371,6 @@ subroutine radaer_code( nlayers,                                               &
                                                cp_su,  cp_bc, cp_oc,           &
                                                cp_cl,  cp_du, cp_so,           &
                                                cp_no3, cp_nn, cp_nh4,          &
-                                               i_ukca_bc_tuned,                &
                                                ip_ukca_mode_aitken,            &
                                                ip_ukca_mode_accum,             &
                                                ip_ukca_mode_coarse
@@ -521,8 +520,6 @@ subroutine radaer_code( nlayers,                                               &
   integer(i_um) :: npd_exclude_sw
   logical, parameter       :: l_exclude_sw = .true.
   logical, parameter       :: l_exclude_lw = .true.
-  integer(i_um), parameter :: ip_solar = 1
-  integer(i_um), parameter :: ip_infra_red = 2
 
   integer(i_um) :: npd_profile
 
@@ -604,11 +601,6 @@ subroutine radaer_code( nlayers,                                               &
   ! Variables close to but not exactly 1 or -1 for bounding asymmetry
   real(r_def), parameter :: one_minus_eps = 1.0_r_def - epsilon(1.0_r_def)
   real(r_def), parameter :: minus1_plus_eps = -1.0_r_def + epsilon(1.0_r_def)
-
-  !-----------------------------------------------------------------------
-
-  logical, parameter :: soluble_wanted   = .true.
-  logical, parameter :: soluble_unwanted = .false.
 
   !-----------------------------------------------------------------------
 
@@ -1518,9 +1510,6 @@ subroutine radaer_code( nlayers,                                               &
       npd_exclude_lw,                                                          &
       npd_exclude_sw,                                                          &
       npd_ukca_aod_wavel,                                                      &
-      ! Spectral information (input)
-      ip_infra_red,                                                            &
-      ip_solar,                                                                &
       ! Actual array dimensions (input)
       n_ukca_mode,                                                             &
       n_ukca_cpnt,                                                             &
@@ -1555,11 +1544,6 @@ subroutine radaer_code( nlayers,                                               &
       ukca_modal_nbr_um,                                                       &
       ! Input Pressure and temperature
       p_theta_levels_um, t_theta_levels_um,                                    &
-      ! Maxwell-Garnett mixing approach logical control switches
-      i_ukca_tune_bc, i_glomap_clim_tune_bc,                                   &
-      ! Type selection
-      soluble_wanted,                                                          &
-      soluble_unwanted,                                                        &
       ! Which aerosol optical depth diagnostics to calculate
       l_aod_ukca_ait_sol, l_aaod_ukca_ait_sol,                                 &
       l_aod_ukca_acc_sol, l_aaod_ukca_acc_sol,                                 &
