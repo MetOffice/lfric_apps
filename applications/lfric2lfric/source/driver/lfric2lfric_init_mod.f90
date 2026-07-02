@@ -128,6 +128,9 @@ module lfric2lfric_init_mod
     field_collection => &
                     modeldb%fields%get_field_collection(target_collection_name)
 
+    call modeldb%io_contexts%get_io_context(context_dst, io_context)
+    call io_context%set_current()
+
     if (mode == mode_ics) then
       prefix = 'checkpoint_'
     else if (mode == mode_lbc) then
@@ -168,9 +171,7 @@ module lfric2lfric_init_mod
     call modeldb%io_contexts%get_io_context(context_src, io_context)
     call io_context%set_current()
 
-    call modeldb%io_contexts%get_io_context(context_dst, io_context)
-    call io_context%set_current()
-
+ 
     ! Now finished with config_list, deallocate
     deallocate(config_list)
 

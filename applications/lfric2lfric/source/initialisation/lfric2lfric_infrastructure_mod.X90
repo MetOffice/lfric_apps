@@ -705,7 +705,8 @@ contains
     end if
 
     deallocate(twod_names)
-    deallocate(src_extrusion, dst_extrusion)
+    deallocate(src_extrusion)
+    if (allocated(dst_extrusion)) deallocate(dst_extrusion)
 
   end subroutine initialise_infrastructure
 
