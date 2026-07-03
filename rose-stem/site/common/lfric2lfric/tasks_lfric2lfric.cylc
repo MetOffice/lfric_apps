@@ -109,6 +109,19 @@
         "src_type": "global",
     }) %}
 
+{% elif task_ns.conf_name == "oasis_C12L70_to_C12L38" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["clim_gal9","oasis","src_L70_80km","dst_L38_40km"],
+        "resolution": "C12_C12",
+        "dst_mesh": "C24_C12",
+        "dst_name": "C12",
+        "dst_type": "global",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
+    }) %}
+
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam" %}
 
     {% do task_dict.update({
