@@ -615,37 +615,37 @@ subroutine radaer_code( nlayers,                                               &
   !-----------------------------------------------------------------------
 
   ! Prognostics to be updated in the time step
-  real(r_um), allocatable :: ntp(:,:)    ! NTP fields
+  ! real(r_um), allocatable :: ntp(:,:)    ! NTP fields
 
   !-----------------------------------------------------------------------
 
-  character :: pvol_comp_names(17)
+  character(len=*) :: pvol_comp_names(17)
 
-  character :: comp_names(17)
+  character(len=*) :: comp_names(17)
 
-  character :: mode_names(7)
+  character(len=*) :: mode_names(7)
 
-  character :: rhopar_mode_names(6)
+  character(len=*) :: rhopar_mode_names(6)
 
-  character :: dry_diam_mode_names(6)
+  character(len=*) :: dry_diam_mode_names(6)
 
-  character :: modal_volume_names(6)
+  character(len=*) :: modal_volume_names(6)
 
-  character :: ait_sol_volume_names(4)
+  character(len=*) :: ait_sol_volume_names(4)
 
-  character :: acc_sol_volume_names(5)
+  character(len=*) :: acc_sol_volume_names(5)
 
-  character :: cor_sol_volume_names(5)
+  character(len=*) :: cor_sol_volume_names(5)
 
-  character :: ait_ins_volume_names(2)
+  character(len=*) :: ait_ins_volume_names(2)
 
-  character :: acc_ins_volume_names(1)
+  character(len=*) :: acc_ins_volume_names(1)
 
-  character :: cor_ins_volume_names(1)
+  character(len=*) :: cor_ins_volume_names(1)
 
-  character :: modal_wtv_names(6)
+  character(len=*) :: modal_wtv_names(6)
 
-  character :: wet_diam_mode_names(6)
+  character(len=*) :: wet_diam_mode_names(6)
 
   pvol_comp_names = [ 'fldname_pvol_su_ait_sol' , &
                       'fldname_pvol_bc_ait_sol' , &
@@ -781,7 +781,33 @@ subroutine radaer_code( nlayers,                                               &
   !-----------------------------------------------------------------------
   ! Allocation of arrays
 
-  allocate( trindxrad_um( 1 ) )
+  real(r_um), allocatable :: p_theta_levels_um(:,:)
+  real(r_um), allocatable :: t_theta_levels_um(:,:)
+  real(r_um), allocatable :: d_mass_theta_levels_um(:,:)
+  real(r_um), allocatable :: ukca_comp_vol_um(:,:,:)
+  real(r_um), allocatable :: ukca_mix_ratio_um(:,:,:)
+  real(r_um), allocatable :: ukca_dry_diam_um(:,:,:)
+  real(r_um), allocatable :: ukca_wet_diam_um(:,:,:)
+  real(r_um), allocatable :: ukca_modal_nbr_um(:,:,:)
+  real(r_um), allocatable :: ukca_modal_rho_um(:,:,:)
+  real(r_um), allocatable :: ukca_modal_vol_um(:,:,:)
+  real(r_um), allocatable :: ukca_modal_wtv_um(:,:,:)
+  real(r_um), allocatable :: ukca_mode_mix_ratio_um(:,:,:)
+  real(r_um), allocatable :: aer_lw_absorption_um(:,:,:,:)
+  real(r_um), allocatable :: aer_lw_scattering_um(:,:,:,:)
+  real(r_um), allocatable :: aer_lw_asymmetry_um(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_absorption_um(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_scattering_um(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_asymmetry_um(:,:,:,:)
+  real(r_um), allocatable :: aod_ukca_all_modes_um(:,:,:)
+  real(r_um), allocatable :: sod_ukca_all_modes_um(:,:,:)
+  real(r_um), allocatable :: aaod_ukca_all_modes_um(:,:,:)
+
+  
+  !-----------------------------------------------------------------------
+  ! Allocation of arrays
+
+  !allocate( trindxrad_um( 1 ) )
 
   allocate( p_theta_levels_um( 1, nlayers ) )
   allocate( t_theta_levels_um( 1, nlayers ) )
@@ -1823,7 +1849,7 @@ subroutine radaer_code( nlayers,                                               &
   deallocate( t_theta_levels_um )
   deallocate( p_theta_levels_um )
 
-  deallocate( trindxrad_um )
+  !deallocate( trindxrad_um )
 
 end subroutine radaer_code
 
