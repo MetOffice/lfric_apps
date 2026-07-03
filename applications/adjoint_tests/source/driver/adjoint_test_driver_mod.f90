@@ -56,6 +56,7 @@ contains
     use adjt_subgrid_common_support_mod,            only : adjt_subgrid_quadratic_recon
     use adjt_subgrid_vertical_support_mod,          only : adjt_third_order_vertical_edge
     use atlt_ffsl_flux_z_constant_alg_mod,          only : atlt_ffsl_flux_z_constant_alg
+    use atlt_ffsl_flux_z_nirvana_alg_mod,           only : atlt_ffsl_flux_z_nirvana_alg
 
     ! ./transport/mol
     use atlt_poly_adv_update_alg_mod,               only : atlt_poly_adv_update_alg
@@ -160,6 +161,7 @@ contains
 
     ! ./transport/ffsl
     call atlt_ffsl_flux_z_constant_alg( mesh )
+    call atlt_ffsl_flux_z_nirvana_alg( mesh )
 
     ! ./transport/mol
     call atlt_poly_adv_update_alg( mesh )
