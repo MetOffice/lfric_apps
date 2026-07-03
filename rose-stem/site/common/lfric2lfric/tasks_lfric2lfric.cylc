@@ -154,7 +154,7 @@
 
     {% do task_dict.update({
         "opt_confs": ["clim_gal9","oasis","src_L70_80km","dst_L38_40km"],
-        "resolution": "C12_C12",
+        "resolution": "C12",
         "dst_mesh": "C24_C12",
         "dst_name": "C12",
         "dst_type": "global",
