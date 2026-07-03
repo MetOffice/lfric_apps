@@ -57,11 +57,13 @@ contains
   !> @param[in]     panel_id_inventory    Contains the model's panel ID fields
   !!                                      paired with their mesh.
   !> @param[in]     surf_alt_w3           Surface altitude on the orography mesh
+  !> @param[in]     stretching_height     Vertical stretching height parameter
   subroutine setup_orography_alg( all_mesh_names,                              &
                                   orography_mesh_name,                         &
                                   chi_inventory,                               &
                                   panel_id_inventory,                          &
-                                  surf_alt_w3 )
+                                  surf_alt_w3,                                 &
+                                  stretching_height )
 
     use assign_orography_field_mod, only: assign_orography_field
     use surface_altitude_alg_mod,   only: surface_altitude_alg
@@ -77,6 +79,7 @@ contains
     type(inventory_by_mesh_type), intent(inout) :: chi_inventory
     type(inventory_by_mesh_type), intent(in)    :: panel_id_inventory
     type(field_type),             intent(in)    :: surf_alt_w3
+    real(kind=r_def),             intent(in)    :: stretching_height
 
     ! local variables
     integer(kind=i_def)                   :: i, fs_id
@@ -185,21 +188,24 @@ contains
 
     ! Assignment of orography from surface_altitude on orography mesh
     call assign_orography_field(                                               &
-        chi_inventory, panel_id_inventory, source_mesh, surf_alt_w0            &
+        chi_inventory, panel_id_inventory, source_mesh, surf_alt_w0,           &
+        stretching_height                                                      &
     )
 
     ! Assign for shifted and double level meshes if they exist
     if (mesh_collection%check_for(source_mesh, SHIFTED)) then
       shifted_mesh => mesh_collection%get_mesh(source_mesh, SHIFTED)
       call assign_orography_field(                                             &
-          chi_inventory, panel_id_inventory, shifted_mesh, surf_alt_w0         &
+          chi_inventory, panel_id_inventory, shifted_mesh, surf_alt_w0,        &
+          stretching_height                                                    &
       )
     end if
 
     if (mesh_collection%check_for(source_mesh, DOUBLE_LEVEL)) then
       double_level_mesh => mesh_collection%get_mesh(source_mesh, DOUBLE_LEVEL)
       call assign_orography_field(                                             &
-          chi_inventory, panel_id_inventory, double_level_mesh, surf_alt_w0    &
+          chi_inventory, panel_id_inventory, double_level_mesh, surf_alt_w0,   &
+          stretching_height                                                    &
       )
     end if
 
@@ -301,14 +307,16 @@ contains
       ! Adjust coordinates
       ! ---------------------------------------------------------------------- !
       call assign_orography_field(                                             &
-          chi_inventory, panel_id_inventory, target_mesh, surf_alt_w0_ptr      &
+          chi_inventory, panel_id_inventory, target_mesh, surf_alt_w0_ptr,     &
+          stretching_height                                                    &
       )
 
       ! Assign for shifted and double level meshes if they exist
       if (mesh_collection%check_for(target_mesh, SHIFTED)) then
         shifted_mesh => mesh_collection%get_mesh(target_mesh, SHIFTED)
         call assign_orography_field(                                           &
-            chi_inventory, panel_id_inventory, shifted_mesh, surf_alt_w0_ptr   &
+            chi_inventory, panel_id_inventory, shifted_mesh, surf_alt_w0_ptr,  &
+            stretching_height                                                  &
         )
       end if
 
@@ -316,7 +324,7 @@ contains
         double_level_mesh => mesh_collection%get_mesh(target_mesh, DOUBLE_LEVEL)
         call assign_orography_field(                                           &
             chi_inventory, panel_id_inventory, double_level_mesh,              &
-            surf_alt_w0_ptr                                                    &
+            surf_alt_w0_ptr, stretching_height                                 &
         )
       end if
     end do

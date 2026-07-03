@@ -194,6 +194,8 @@ contains
     integer(kind=i_def)     :: dst_number_of_layers
     real(kind=r_def)        :: src_domain_height
     real(kind=r_def)        :: dst_domain_height
+    real(kind=r_def)        :: src_stretching_height
+    real(kind=r_def)        :: dst_stretching_height
 
     integer(i_def) :: tile_size_x
     integer(i_def) :: tile_size_y
@@ -242,9 +244,11 @@ contains
     src_extrusion_method    = modeldb%config%extrusion%method()
     src_number_of_layers    = modeldb%config%extrusion%number_of_layers()
     src_domain_height       = modeldb%config%extrusion%domain_height()
+    src_stretching_height   = modeldb%config%extrusion%stretching_height()
     dst_extrusion_method    = modeldb%config%extrusion_dst%method()
     dst_number_of_layers    = modeldb%config%extrusion_dst%number_of_layers()
     dst_domain_height       = modeldb%config%extrusion_dst%domain_height()
+    dst_stretching_height   = modeldb%config%extrusion_dst%stretching_height()
 
     mode                = modeldb%config%lfric2lfric%mode()
     regrid_method       = modeldb%config%lfric2lfric%regrid_method()
@@ -728,13 +732,15 @@ contains
                                 orography_mesh_src%get_mesh_name(), &
                                 chi_inventory,                      &
                                 panel_id_inventory,                 &
-                                surface_altitude_src )
+                                surface_altitude_src,               &
+                                src_stretching_height )
 
       call setup_orography_alg( mesh_names_dst_ext(dst:dst),        &
                                 orography_mesh_dst%get_mesh_name(), &
                                 chi_inventory,                      &
                                 panel_id_inventory,                 &
-                                surface_altitude_dst )
+                                surface_altitude_dst,               &
+                                dst_stretching_height )
     end if
 
     deallocate(twod_names)
