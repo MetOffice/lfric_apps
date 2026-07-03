@@ -47,6 +47,7 @@ module um_physics_init_mod
                                         free_atm_mix, free_atm_mix_to_sharp,   &
                                         free_atm_mix_ntml_corrected,           &
                                         free_atm_mix_free_trop_layer,          &
+                                        free_atm_mix_smooth_to_boundaries,     &
                                         interp_local, interp_local_gradients,  &
                                         interp_local_cf_dbdz,                  &
                                         new_kcloudtop, p_unstable,             &
@@ -80,44 +81,53 @@ module um_physics_init_mod
                                 dzrad_disc_opt_in      => dzrad_disc_opt,      &
                                 dzrad_disc_opt_level_ntm1,                     &
                                 dzrad_disc_opt_smooth_1p5,                     &
+                                improved_tke_diag_in   => improved_tke_diag,   &
                                 l_use_sml_dsc_fixes_in => l_use_sml_dsc_fixes, &
                                 l_converge_ga_in       => l_converge_ga,       &
                                 num_sweeps_bflux_in    => num_sweeps_bflux
 
-  use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2,     &
-                                        scheme_bimodal,                       &
-                                        rh_crit, rh_crit_opt,                 &
-                                        rh_crit_opt_namelist, rh_crit_opt_tke,&
-                                        pc2ini, pc2ini_smith,                 &
-                                        pc2ini_bimodal,                       &
-                                        cloud_pc2_tol_in => cloud_pc2_tol,    &
-                                        cloud_pc2_tol_2_in => cloud_pc2_tol_2,&
-                                        cff_spread_rate_in => cff_spread_rate,&
-                                        falliceshear_method_in =>             &
-                                        falliceshear_method,                  &
-                                        falliceshear_method_real,             &
-                                        falliceshear_method_constant,         &
-                                        falliceshear_method_off,              &
-                                        subgrid_qv, ice_width_in => ice_width,&
-                                    i_pc2_erosion_numerics_in                  &
-                                      => i_pc2_erosion_numerics,               &
-                                    dbsdtbs_turb_0_in => dbsdtbs_turb_0,       &
-                                    ent_coef_bm_in => ent_coef_bm,             &
-                                    ez_max,                                    &
-                                    i_bm_ez_opt_in => i_bm_ez_opt,             &
+  use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2,      &
+                                        scheme_bimodal,                        &
+                                        rh_crit, rh_crit_opt,                  &
+                                        rh_crit_opt_namelist, rh_crit_opt_tke, &
+                                        cloud_pc2_tol_in => cloud_pc2_tol,     &
+                                        cloud_pc2_tol_2_in => cloud_pc2_tol_2, &
+                                        cff_spread_rate_in => cff_spread_rate, &
+                                        falliceshear_method_in =>              &
+                                        falliceshear_method,                   &
+                                        falliceshear_method_real,              &
+                                        falliceshear_method_constant,          &
+                                        falliceshear_method_off,               &
+                                        subgrid_qv, ice_width_in => ice_width, &
+                                        cloud_call_b4_conv,                    &
+                                        l_ensure_max_in_cloud_pc2_in           &
+                                          => l_ensure_max_in_cloud_pc2,        &
+                                        ez_max, bm_ez_opt, bm_ez_opt_orig,     &
+                                        bm_ez_opt_subcrit, bm_ez_opt_entpar,   &
+                                        pc2_erosion_numerics,                  &
+                                        pc2_erosion_numerics_explicit,         &
+                                        pc2_erosion_numerics_implicit,         &
+                                        pc2_erosion_numerics_analytic,         &
+                                        pc2_homog_g_method,                    &
+                                        pc2_homog_g_method_cf,                 &
+                                        pc2_homog_g_method_width,              &
+                                        pc2_homog_g_method_rev,                &
+                                        pc2_init_logic,                        &
+                                        pc2_init_logic_original,               &
+                                        pc2_init_logic_smooth,                 &
+                                        pc2_init_method,                       &
+                                        pc2_init_method_smith,                 &
+                                        pc2_init_method_bimodal,               &
+                                        pc2_init_logic_smooth_fix,             &
+                                        dbsdtbs_turb_0_in => dbsdtbs_turb_0,   &
+                                        ent_coef_bm_in => ent_coef_bm,         &
                                     l_bm_sigma_s_grad_in => l_bm_sigma_s_grad, &
-                                    l_bm_tweaks_in => l_bm_tweaks,             &
-                                    max_sigmas_in => max_sigmas,               &
-                                    min_sigx_ft_in => min_sigx_ft,             &
-                                    turb_var_fac_bm_in => turb_var_fac_bm,     &
-                                    two_d_fsd_factor_in => two_d_fsd_factor,   &
-                                    pc2_init_logic, pc2_init_logic_original,   &
-                                    pc2_init_logic_smooth,                     &
-                                    i_pc2_erosion_numerics_explicit,           &
-                                    i_pc2_erosion_numerics_implicit,           &
-                                    i_pc2_erosion_numerics_analytic,           &
-                                    i_bm_ez_opt_orig, i_bm_ez_opt_subcrit,     &
-                                    i_bm_ez_opt_entpar
+                                        l_bm_tweaks_in => l_bm_tweaks,         &
+                                        max_sigmas_in => max_sigmas,           &
+                                        min_sigx_ft_in => min_sigx_ft,         &
+                                        turb_var_fac_bm_in => turb_var_fac_bm, &
+                                        two_d_fsd_factor_in => two_d_fsd_factor
+
 
   use convection_config_mod,     only : cv_scheme,                    &
                                         cv_scheme_gregory_rowntree,   &
@@ -126,15 +136,27 @@ module um_physics_init_mod
                                         number_of_convection_substeps,&
                                         cape_timescale_in => cape_timescale, &
                                         qlmin_in => qlmin,                   &
+                                        mparwtr_in => mparwtr,               &
                                         efrac_in => efrac,                   &
+                                        prog_ent_grad_in => prog_ent_grad,   &
+                                        prog_ent_int_in => prog_ent_int,     &
+                                        prog_ent_max_in => prog_ent_max,     &
                                         prog_ent_min_in => prog_ent_min,     &
                                         orig_mdet_fac_in => orig_mdet_fac,   &
+                                        r_det_in => r_det,                   &
+                                        cca_md_scaling,                      &
+                                        cpress_term_in => cpress_term,       &
+                                        ent_fac_sh_in => ent_fac_sh,         &
+                                        thpixs_mid_in => thpixs_mid,         &
+                                        c_mass_sh_in => c_mass_sh,           &
+                                l_conv_prog_dtheta_in => l_conv_prog_dtheta, &
+                                     l_conv_prog_dq_in => l_conv_prog_dq,    &
                                      par_gen_mass_fac_in => par_gen_mass_fac, &
                                      par_gen_rhpert_in => par_gen_rhpert,     &
                                      par_radius_ppn_max_in => par_radius_ppn_max, &
                                      resdep_precipramp, dx_ref_in => dx_ref,   &
-                                     l_cvdiag_ctop_qmax_in => l_cvdiag_ctop_qmax
-
+                                     l_cvdiag_ctop_qmax_in => l_cvdiag_ctop_qmax, &
+                                     llcs_first_outer
 
   use extrusion_config_mod,      only : domain_height, number_of_layers
 
@@ -160,11 +182,15 @@ module um_physics_init_mod
                                         ci_input_in => ci_input,             &
                                         cic_input_in => cic_input,           &
                                         c_r_correl_in => c_r_correl,         &
+                                        aut_qc_in => aut_qc,                 &
+                                        ai_in => ai,                         &
                                         l_proc_fluxes_in => l_proc_fluxes,   &
+                                        l_improve_precfrac_checks_in         &
+                                          => l_improve_precfrac_checks,      &
                                         l_mcr_precfrac_in => l_mcr_precfrac, &
-                                   i_update_precfrac_in => i_update_precfrac,&
-                                   i_update_precfrac_homog,                  &
-                                   i_update_precfrac_correl,                 &
+                                        update_precfrac_opt,                 &
+                                        update_precfrac_opt_homog,           &
+                                        update_precfrac_opt_correl,          &
                                         heavy_rain_evap_fac_in =>            &
                                                 heavy_rain_evap_fac
 
@@ -254,6 +280,7 @@ module um_physics_init_mod
                                            rp_lsfc_z0v,                        &
                                            rp_mp_ice_fspd,                     &
                                            rp_mp_fxd_cld_num,                  &
+                                           rp_mp_ci,                           &
                                            rp_mp_mp_czero,                     &
                                            rp_mp_mpof,                         &
                                            rp_mp_ndrop_surf,                   &
@@ -336,26 +363,27 @@ contains
          DynDiag_ZL_corrn, blend_allpoints, ng_stress,                     &
          BrownGrant97_limited, BrownGrant97_original, lem_std,             &
          lem_adjust, interactive_fluxes, specified_fluxes_only,            &
-         except_disc_inv, ntml_level_corrn, free_trop_layers, sharpest,    &
-         lem_stability, sg_shear_enh_lambda, l_new_kcloudtop, buoy_integ,  &
-         l_reset_dec_thres, DynDiag_ZL_CuOnly, i_interp_local,             &
-         i_interp_local_gradients, l_noice_in_turb, l_use_var_fixes,       &
+         except_disc_inv, ntml_level_corrn, free_trop_layers,              &
+         smooth_to_bdys, sharpest, lem_stability, sg_shear_enh_lambda,     &
+         l_new_kcloudtop, buoy_integ, l_reset_dec_thres, DynDiag_ZL_CuOnly,&
+         i_interp_local, i_interp_local_gradients,                         &
+         l_noice_in_turb, l_use_var_fixes,                                 &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
-         l_use_sml_dsc_fixes, l_converge_ga
+         l_use_sml_dsc_fixes, l_converge_ga, improved_tke_diag
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
          i_pc2_checks_cld_frac_method, l_ensure_min_in_cloud_qcf,          &
-         i_pc2_init_logic, dbsdtbs_turb_0,                                 &
+         l_ensure_max_in_cloud_pc2, i_pc2_init_logic, dbsdtbs_turb_0,      &
          i_pc2_erosion_method, i_pc2_homog_g_method, i_pc2_init_method,    &
          check_run_cloud, i_pc2_erosion_numerics,                          &
          cloud_pc2_tol, cloud_pc2_tol_2,                                   &
          forced_cu_fac, i_pc2_conv_coupling, allicetdegc, starticetkelvin, &
          ent_coef_bm, ez_max_bm, i_bm_ez_opt, l_bm_sigma_s_grad,           &
          l_bm_tweaks, max_sigmas, min_sigx_ft, turb_var_fac_bm,            &
-         l_pc2_homog_conv_pressure,                                        &
+         l_pc2_homog_conv_pressure, l_cloud_call_b4_conv,                  &
          i_bm_ez_orig, i_bm_ez_subcrit, i_bm_ez_entpar
     use cloud_config_mod, only: cld_fsd_hill
     use comorph_um_namelist_mod, only: ass_min_radius, autoc_opt,            &
@@ -435,7 +463,8 @@ contains
         l_mcr_qgraup, casim_max_sed_length, fixed_number, wvarfac,           &
         l_orograin, l_orogrime, l_orograin_block,                            &
         fcrit, nsigmasf, nscalesf, l_progn_tnuc, mp_czero, mp_tau_lim,       &
-        l_proc_fluxes, l_subgrid_graupel_frac, l_mcr_precfrac,               &
+        l_proc_fluxes, l_improve_precfrac_checks, l_subgrid_graupel_frac,    &
+        l_mcr_precfrac,                                                      &
         i_update_precfrac, i_homog_areas, i_sg_correl, heavy_rain_evap_fac
     use mphys_psd_mod, only: x1g, x2g, x4g, x1gl, x2gl, x4gl
     use mphys_switches, only: set_mphys_switches,            &
@@ -457,14 +486,15 @@ contains
     use casim_parent_mod, only: casim_parent, parent_um
     use initialize, only: mphys_init
     use generic_diagnostic_variables, only: casdiags
-    use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,        &
-         i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,   &
-         pc2eros_exp_rh,pc2eros_hybrid_sidesonly, ignore_shear,            &
-         original_but_wrong, acf_cusack, cbl_and_cu, pc2init_smith,        &
-         pc2init_logic_original, pc2init_bimodal, i_pc2_homog_g_cf,        &
-         forced_cu_cca, i_pc2_homog_g_width, pc2init_logic_smooth,         &
-         i_pc2_erosion_explicit, i_pc2_erosion_implicit,                   &
-         i_pc2_erosion_analytic
+    use pc2_constants_mod, only: i_cld_off, i_cld_smith, i_cld_pc2,            &
+         i_cld_bimodal, rhcpt_off, acf_off, real_shear, rhcpt_tke_based,       &
+         pc2eros_exp_rh,pc2eros_hybrid_sidesonly, ignore_shear,                &
+         original_but_wrong, acf_cusack, cbl_and_cu, forced_cu_cca,            &
+         pc2init_smith, pc2init_bimodal, i_pc2_homog_g_cf,                     &
+         i_pc2_homog_g_width, i_pc2_homog_g_rev,                               &
+         pc2init_logic_original, pc2init_logic_smooth,                         &
+         pc2init_logic_smooth_fix, i_pc2_erosion_explicit,                     &
+         i_pc2_erosion_implicit, i_pc2_erosion_analytic
     use rad_input_mod, only: two_d_fsd_factor
     use science_fixes_mod, only:  i_fix_mphys_drop_settle, second_fix,      &
          l_pc2_homog_turb_q_neg, l_fix_ccb_cct, l_fix_conv_precip_evap,     &
@@ -477,7 +507,7 @@ contains
          a_ent_shr_rp_max, alnir_rp, alpar_rp, cbl_mix_fac_rp, cs_rp,       &
          fxd_cld_num_rp, g0_rp, g1_rp, ice_fspd_rp, i_rp_scheme, l_rp2,     &
          l_rp2_cycle_in, l_rp2_cycle_out, lai_mult_rp, lambda_min_rp,       &
-         mp_czero_rp, mpof_rp, ndrop_surf_rp, omega_rp, omnir_rp,           &
+         m_ci_rp, mp_czero_rp, mpof_rp, ndrop_surf_rp, omega_rp, omnir_rp,  &
          orog_drag_param_rp, par_mezcla_rp, ran_max, ricrit_rp,             &
          rp2_callfreq, rp2_cycle_tm, rp2_decorr_ts, snow_fspd_rp,           &
          z0_soil_rp, z0_urban_mult_rp, z0hm_soil_rp, z0hm_pft_rp, z0v_rp
@@ -731,6 +761,8 @@ contains
           local_fa = ntml_level_corrn
         case(free_atm_mix_free_trop_layer)
           local_fa = free_trop_layers
+        case(free_atm_mix_smooth_to_boundaries)
+          local_fa = smooth_to_bdys
       end select
 
       pstb = 2.0_r_um
@@ -765,9 +797,9 @@ contains
           sg_orog_mixing = sg_shear_enh_lambda
       end select
 
-      ! Switch for corrections to variance diagnostics
-      l_use_var_fixes = .true.
+      ! TKE scaling parameter and switch for fixes to variance diagnostics
       tke_diag_fac  = 1.0_r_bl
+      l_use_var_fixes = .true.
       zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
 
       if (topography == topography_horizon) then
@@ -775,6 +807,7 @@ contains
         l_skyview = .true.
       end if
 
+      improved_tke_diag   = improved_tke_diag_in
       l_use_sml_dsc_fixes = l_use_sml_dsc_fixes_in
       l_converge_ga       = l_converge_ga_in
       num_sweeps_bflux    = num_sweeps_bflux_in
@@ -812,7 +845,7 @@ contains
       ! Options needed by all convection schemes
       l_param_conv = .true.
       fac_qsat     = 0.350_r_um
-      mparwtr      = 1.0000e-3_r_um
+      mparwtr      = mparwtr_in
       qlmin        = qlmin_in
 
       ! Options which are bespoke to the choice of scheme
@@ -837,6 +870,10 @@ contains
         l_mom       = .true.
         l_ccrad     = .true.
         l_3d_cca    = .true.
+        l_conv_prog_dtheta  = l_conv_prog_dtheta_in
+        l_conv_prog_dq      = l_conv_prog_dq_in
+        tau_conv_prog_dtheta = 2700.0_r_um
+        tau_conv_prog_dq    =  2700.0_r_um
 
         ! main Comorph options
         ass_min_radius = 500.0_r_um
@@ -897,7 +934,7 @@ contains
         cca2d_md_opt        = 2
         cca2d_sh_opt        = 2
         cca_dp_knob         = 0.80_r_um
-        cca_md_knob         = 0.80_r_um
+        cca_md_knob         = cca_md_scaling
         cca_sh_knob         = 0.40_r_um
         ccw_dp_knob         = 1.00_r_um
         ccw_for_precip_opt  = 4
@@ -906,7 +943,7 @@ contains
         cldbase_opt_md      = 2
         cnv_cold_pools      = 0
         cnv_wat_load_opt    = 0
-        cpress_term         = 0.3_r_um
+        cpress_term         = cpress_term_in
         dd_opt              = 1
         deep_cmt_opt        = 6
         eff_dcff            = 3.0_r_um
@@ -925,8 +962,8 @@ contains
         l_ccrad             = .true.
         l_cmt_heating       = .true.
         l_conv_prog_precip  = .true.
-        l_conv_prog_dtheta  = .true.
-        l_conv_prog_dq      = .true.
+        l_conv_prog_dtheta  = l_conv_prog_dtheta_in
+        l_conv_prog_dq      = l_conv_prog_dq_in
         l_cv_conserve_check = .true.
         l_fcape             = .true.
         l_mom               = .true.
@@ -941,24 +978,24 @@ contains
         n_conv_calls        = number_of_convection_substeps
         pr_melt_frz_opt     = 2
         qstice              = 3.5000e-3_r_um
-        r_det               = 0.5000_r_um
+        r_det               = r_det_in
         rad_cloud_decay_opt = 0
         sh_pert_opt         = 1
         t_melt_snow         = 276.15_r_um
         termconv            = 2
         tice                = 263.1500_r_um
-        thpixs_mid          = 0.5_r_um
+        thpixs_mid          = thpixs_mid_in
         tower_factor        = 1.0000_r_um
         ud_factor           = 1.0000_r_um
         tau_conv_prog_precip = 10800.0_r_um
         tau_conv_prog_dtheta = 2700.0_r_um
         tau_conv_prog_dq    =  2700.0_r_um
-        prog_ent_grad       = -1.1_r_um
-        prog_ent_int        = -2.9_r_um
+        prog_ent_grad       = prog_ent_grad_in
+        prog_ent_int        = prog_ent_int_in
         prog_ent_min        = prog_ent_min_in
-        prog_ent_max        = 2.5_r_um
-        ent_fac_sh          = 1.0_r_um
-        c_mass_sh           = 0.03_r_um
+        prog_ent_max        = prog_ent_max_in
+        ent_fac_sh          = ent_fac_sh_in
+        c_mass_sh           = c_mass_sh_in
         orig_mdet_fac       = orig_mdet_fac_in
 
       case(cv_scheme_lambert_lewis)
@@ -985,6 +1022,21 @@ contains
     else ! convection /= convection_um
       ! Need to set the version of the convection diagnosis that we want to use
       i_convection_vn = i_convection_vn_6a
+    end if
+
+    ! If using LLCS on the first outer, need to set its options
+    ! N.B. don't edit the BL scheme options if doing this
+    if (llcs_first_outer) then
+      if ( scheme == scheme_pc2 ) then
+        ! If pc2, we detrain some cloud
+        llcs_cloud_precip = llcs_opt_crit_condens
+        llcs_detrain_coef = 0.6_r_um
+      else
+        ! We just rain everything out
+        llcs_cloud_precip = llcs_opt_all_rain
+      end if
+      llcs_rhcrit       = 0.8_r_um
+      llcs_timescale    = 3600.0_r_um
     end if
 
     ! Derived switches and parameters are set here based on the options
@@ -1056,7 +1108,8 @@ contains
 
       ! Bimodal cloud-scheme options
       ! (used if scheme == scheme_bimodal .OR.
-      !          scheme == scheme_pc2 and pc2ini == pc2ini_bimodal).
+      !          scheme == scheme_pc2 and
+      ! pc2_init_method == pc2_init_method_bimodal).
       ! For now just set them regardless as cannot be trigger-ignored.
       ent_coef_bm       = real( ent_coef_bm_in, r_um )
       ez_max_bm         = real( ez_max, r_um )
@@ -1065,14 +1118,16 @@ contains
       turb_var_fac_bm   = real( turb_var_fac_bm_in, r_um )
       l_bm_sigma_s_grad = l_bm_sigma_s_grad_in
       l_bm_tweaks       = l_bm_tweaks_in
-      SELECT CASE ( i_bm_ez_opt_in )
-      CASE ( i_bm_ez_opt_orig )
+      SELECT CASE ( bm_ez_opt )
+      CASE ( bm_ez_opt_orig )
         i_bm_ez_opt = i_bm_ez_orig
-      CASE ( i_bm_ez_opt_subcrit )
+      CASE ( bm_ez_opt_subcrit )
         i_bm_ez_opt = i_bm_ez_subcrit
-      CASE ( i_bm_ez_opt_entpar )
+      CASE ( bm_ez_opt_entpar )
         i_bm_ez_opt = i_bm_ez_entpar
       END SELECT
+
+      l_cloud_call_b4_conv = cloud_call_b4_conv
 
       ! Used by radiation to determine convective cloud, so potentially needed
       ! with any cloud scheme
@@ -1092,11 +1147,9 @@ contains
         dbsdtbs_turb_0               = real( dbsdtbs_turb_0_in, r_um )
         if (cv_scheme == cv_scheme_comorph) then
           forced_cu = forced_cu_cca
-          i_pc2_homog_g_method = i_pc2_homog_g_width
           l_pc2_homog_conv_pressure = .true.
         else
           forced_cu = cbl_and_cu
-          i_pc2_homog_g_method = i_pc2_homog_g_cf
           l_pc2_homog_conv_pressure = .false.
         end if
         forced_cu_fac                = 0.5_r_um
@@ -1105,21 +1158,36 @@ contains
         i_pc2_conv_coupling          = 3
         i_pc2_erosion_method         = pc2eros_hybrid_sidesonly
         l_ensure_min_in_cloud_qcf    = .false.
+        l_ensure_max_in_cloud_pc2    = l_ensure_max_in_cloud_pc2_in
+        select case(pc2_erosion_numerics)
+          case(pc2_erosion_numerics_explicit)
+            i_pc2_erosion_numerics = i_pc2_erosion_explicit
+          case(pc2_erosion_numerics_implicit)
+            i_pc2_erosion_numerics = i_pc2_erosion_implicit
+          case(pc2_erosion_numerics_analytic)
+            i_pc2_erosion_numerics = i_pc2_erosion_analytic
+        end select
+        select case(pc2_homog_g_method)
+          case(pc2_homog_g_method_cf)
+            i_pc2_homog_g_method = i_pc2_homog_g_cf
+          case(pc2_homog_g_method_width)
+            i_pc2_homog_g_method = i_pc2_homog_g_width
+          case(pc2_homog_g_method_rev)
+            i_pc2_homog_g_method = i_pc2_homog_g_rev
+        end select
         select case(pc2_init_logic)
           case(pc2_init_logic_original)
             i_pc2_init_logic = pc2init_logic_original
           case(pc2_init_logic_smooth)
             i_pc2_init_logic = pc2init_logic_smooth
+          case(pc2_init_logic_smooth_fix)
+            i_pc2_init_logic = pc2init_logic_smooth_fix
         end select
-        if (pc2ini == pc2ini_smith)   i_pc2_init_method = pc2init_smith
-        if (pc2ini == pc2ini_bimodal) i_pc2_init_method = pc2init_bimodal
-        select case(i_pc2_erosion_numerics_in)
-          case(i_pc2_erosion_numerics_explicit)
-            i_pc2_erosion_numerics = i_pc2_erosion_explicit
-          case(i_pc2_erosion_numerics_implicit)
-            i_pc2_erosion_numerics = i_pc2_erosion_implicit
-          case(i_pc2_erosion_numerics_analytic)
-            i_pc2_erosion_numerics = i_pc2_erosion_analytic
+        select case(pc2_init_method)
+          case(pc2_init_method_smith)
+            i_pc2_init_method = pc2init_smith
+          case(pc2_init_method_bimodal)
+            i_pc2_init_method = pc2init_bimodal
         end select
 
       case(scheme_bimodal)
@@ -1180,7 +1248,7 @@ contains
 
     ! The following are needed by the bimodal cloud scheme, hence we initialise
     ! them even when microphysics isn't used
-    ai             = 2.5700e-2_r_um
+    ai             = ai_in
     bi             = 2.00_r_um
     cx(84)         = 1.0_r_um
     constp(35)     = 1.0_r_um
@@ -1240,12 +1308,14 @@ contains
         l_mcr_precfrac = l_mcr_precfrac_in
         if ( l_mcr_precfrac ) THEN
           ! Set option for method of updating the precip fraction
-          select case ( i_update_precfrac_in )
-          case ( i_update_precfrac_homog )
+          select case ( update_precfrac_opt )
+          case ( update_precfrac_opt_homog )
             i_update_precfrac = i_homog_areas
-          case ( i_update_precfrac_correl )
+          case ( update_precfrac_opt_correl )
             i_update_precfrac = i_sg_correl
           end select
+          ! Switch for extra checks on precip fraction
+          l_improve_precfrac_checks = l_improve_precfrac_checks_in
         end if
 
         select case (graupel_scheme)
@@ -1278,7 +1348,7 @@ contains
         sediment_loc   = all_sed_start
         timestep_mp_in = 120
         z_surf         = real(z_surf_in, r_um)
-        aut_qc         = 2.47_r_um
+        aut_qc         = aut_qc_in
         !     Needed by the Seeder Feeder scheme
         l_orograin     = orog_rain
         l_orogrime     = orog_rime
@@ -1597,6 +1667,7 @@ contains
         g1_rp = rp_bl_cld_top_diffusion
         ice_fspd_rp = rp_mp_ice_fspd
         lambda_min_rp = rp_bl_min_mix_length
+        m_ci_rp = rp_mp_ci
         mp_czero_rp = rp_mp_mp_czero
         mpof_rp = rp_mp_mpof
         ndrop_surf_rp = rp_mp_ndrop_surf

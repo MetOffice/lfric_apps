@@ -456,7 +456,7 @@ do while ( maxval(nc_check)>0 .and. iter<n_cond_species )
   end do
 
 
-end do  ! while ( maxval(nc_check)>0 .and. iter<n_cond_species )
+end do  ! WHILE ( MAXVAL(nc_check)>0 .AND. iter<n_cond_species )
 
 
 return

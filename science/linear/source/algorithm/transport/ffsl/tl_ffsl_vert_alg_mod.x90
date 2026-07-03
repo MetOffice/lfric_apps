@@ -1,0 +1,388 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module for controlling 1D vertical FFSL steps in the linear model.
+!> @details Solves the 1D transport equation using the flux-form semi-Lagrangian
+!!         (FFSL) transport scheme for vertical transport in the linear model.
+
+module tl_ffsl_vert_alg_mod
+
+  ! Constants and types
+  use config_mod,                         only: config_type
+  use constants_mod,                      only: r_tran, i_def, l_def
+  use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: W2V
+  use function_space_mod,                 only: function_space_type
+  use function_space_collection_mod,      only: function_space_collection
+  use sci_geometric_constants_mod,        only: get_dz_w3
+  use log_mod,                            only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                           only: mesh_type
+  use r_tran_field_mod,                   only: r_tran_field_type
+  use timing_mod,                         only: start_timing, stop_timing,     &
+                                                tik, LPROF
+
+  ! Transport control
+  use transport_constants_mod,            only: get_detj_at_w3_r_tran,         &
+                                                get_third_dla_dz,              &
+                                                get_third_dlb_dz
+  use transport_controller_mod,           only: transport_controller_type
+  use transport_counter_mod,              only: transport_counter_type
+  use transport_metadata_mod,             only: transport_metadata_type
+  use wind_precomputations_alg_mod,       only: wind_precomputations_type
+
+  ! Algorithms
+  use ffsl_advective_updates_alg_mod,     only: ffsl_advective_increment
+  use ffsl_vert_alg_mod,                  only: ffsl_1d_vert_flux_alg
+
+  ! Kernels
+  use fv_divergence_z_kernel_mod,         only: fv_divergence_z_kernel_type
+  use tl_ffsl_flux_z_nirvana_kernel_mod,  only: tl_ffsl_flux_z_nirvana_kernel_type
+  use tl_ffsl_flux_z_constant_kernel_mod, only: tl_ffsl_flux_z_constant_kernel_type
+
+  ! Configuration options
+  use linear_config_mod,                  only: transport_efficiency
+
+  implicit none
+
+  private
+
+  public :: tl_ffsl_vert_transport_alg
+  public :: tl_ffsl_vert_flux_alg
+
+contains
+
+
+  !----------------------------------------------------------------------------
+  !> @brief Algorithm for a 1D vertical FFSL transport step in the linear model.
+  !> @details Solves the 1D vertical transport equation using FFSL for the linear
+  !!          model. Both parts of the mass flux are computed, the ls wind with
+  !!          the perturbation field and the perturbation wind with the ls field.
+  !!          The advective increment for the perturbation field is (optionally)
+  !!          computed.
+  !> @param[in,out] mass_flux_pert     ACTIVE  Mass flux from the pert field / ls wind part
+  !> @param[in,out] mass_flux_ls       ACTIVE  Mass flux from the ls field / pert wind part
+  !> @param[in,out] adv_inc            ACTIVE  The advective increment for the field using
+  !!                                   both parts of the mass flux. Only used when
+  !!                                   specified through the optional logical argument
+  !> @param[in]     field_n            ACTIVE  Pert field at the start of the transport step
+  !> @param[in]     ls_field_n         PASSIVE LS field at the start of the transport step
+  !> @param[in]     step_dt            The time step size for this transport step
+  !> @param[in,out] transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the ls field
+  !!                                   with ls wind
+  !> @param[in,out] ls_transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the field
+  !!                                   with ls wind
+  !> @param[in,out] pert_transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the ls field
+  !!                                   with pert wind
+  !> @param[in]     order              The reconstruction order to pass to
+  !!                                   the underlying vertical flux algorithm
+  !> @param[in]     compute_adv_inc    Optional argument as to whether advected
+  !!                                   field should be computed
+  subroutine tl_ffsl_vert_transport_alg( mass_flux_pert, mass_flux_ls,         &
+                                         adv_inc, field_n, ls_field_n,         &
+                                         step_dt, transport_controller,        &
+                                         ls_transport_controller,              &
+                                         pert_transport_controller,            &
+                                         order, compute_adv_inc )
+
+    implicit none
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: mass_flux_pert
+    type(r_tran_field_type),         intent(inout) :: mass_flux_ls
+    type(r_tran_field_type),         intent(inout) :: adv_inc
+    type(r_tran_field_type),         intent(in)    :: field_n
+    type(r_tran_field_type),         intent(in)    :: ls_field_n
+    real(kind=r_tran),               intent(in)    :: step_dt
+    type(transport_controller_type), intent(inout) :: transport_controller
+    type(transport_controller_type), intent(inout) :: ls_transport_controller
+    type(transport_controller_type), intent(inout) :: pert_transport_controller
+    integer(kind=i_def),             intent(in)    :: order
+    logical(kind=l_def),   optional, intent(in)    :: compute_adv_inc
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(wind_precomputations_type), pointer :: ls_wind_precomputations
+    type(mesh_type),                 pointer :: mesh
+    type(r_tran_field_type),         pointer :: detj_at_w3
+    type(r_tran_field_type),         pointer :: ls_adv_ones
+
+    ! Fields for the advective increment
+    type(r_tran_field_type)                  :: increment
+    type(r_tran_field_type)                  :: unity_increment
+    type(r_tran_field_type)                  :: ls_increment
+    type(r_tran_field_type)                  :: ones
+    type(r_tran_field_type)                  :: adv_unity_term
+    type(r_tran_field_type)                  :: mass_flux_ones
+    type(r_tran_field_type)                  :: mass_flux_for_adv
+    type(r_tran_field_type)                  :: mass_flux_dummy
+    type(r_tran_field_type)                  :: mass_flux_ls_field
+    type(r_tran_field_type)                  :: ls_field_np1
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+    type(function_space_type), pointer :: w2v_fs
+
+    ! Transport options
+    logical(kind=l_def) :: to_compute_adv_inc
+    integer(kind=i_def) :: splitting
+
+    ! Useful constants
+    integer(kind=i_def) :: mesh_id, step
+
+    ! Subroutine name for timer
+    character(*), parameter :: routine_name = 'transport.tl_ffsl_vert_transport_alg'
+    integer(tik)            :: id
+
+    type(config_type), pointer :: config
+
+    if ( LPROF ) call start_timing( id, routine_name )
+
+    config => transport_controller%get_config()
+
+    ! Get information from transport controller
+    transport_counter  => pert_transport_controller%get_transport_counter()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+    splitting = transport_metadata%get_splitting()
+
+    if (present(compute_adv_inc)) then
+      to_compute_adv_inc = compute_adv_inc
+    else
+      to_compute_adv_inc = .true.
+    end if
+
+    ! Mesh and function spaces
+    mesh_id = ls_field_n%get_mesh_id()
+    mesh => ls_field_n%get_mesh()
+    field_fs => ls_field_n%get_function_space()
+    w2v_fs => function_space_collection%get_fs( mesh, 0, 0, W2V )
+
+    ! Vertical TL FFSL fluxes -------------------------------------------------
+    call tl_ffsl_vert_flux_alg( mass_flux_pert, mass_flux_ls, field_n,         &
+                                ls_field_n, step_dt,                           &
+                                ls_transport_controller,                       &
+                                pert_transport_controller, order )
+
+
+    ! Compute advected field, if required --------------------------------------
+    if (to_compute_adv_inc) then
+      ! The advective increment ls_u grad f' + u' grad ls_f can be computed
+      ! from the mass fluxes from
+      ! f'_adv = (f' - dt F_1(f') - dt F_2(ls_u) + dt F_2(s) ls_f_adv )/(s - F(s))
+      ! where F = F_1 + F_2 = div(flux), and s=1
+
+      detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
+      step = transport_counter%get_split_step_of_substep_counter()
+
+      ! Get unity advection with ls wind
+      ls_wind_precomputations => ls_transport_controller%get_wind_precomputations()
+      ls_adv_ones => ls_wind_precomputations%get_adv_unity_z(mesh_id, splitting, step)
+
+      ! Compute unity advection with second flux term
+      call mass_flux_ones%initialise( vector_space = w2v_fs )
+      call mass_flux_for_adv%initialise( vector_space = w2v_fs )
+      call mass_flux_dummy%initialise( vector_space = w2v_fs )
+      call mass_flux_ls_field%initialise( vector_space = w2v_fs )
+      call ones%initialise( vector_space = field_fs )
+      call invoke( setval_c(ones, 1.0_r_tran) )
+      call tl_ffsl_vert_flux_alg( mass_flux_dummy, mass_flux_ones, ones,       &
+                                  ones, step_dt,                               &
+                                  ls_transport_controller,                     &
+                                  pert_transport_controller, 0 )
+
+      if ( .not. transport_efficiency ) then
+        ! Compute ls_field advective step
+        call ls_increment%initialise( vector_space = field_fs )
+        call ls_field_np1%initialise( vector_space = field_fs )
+        call ffsl_1d_vert_flux_alg( mass_flux_ls_field, ls_field_n, step_dt,   &
+                                    transport_controller, order )
+        call invoke( fv_divergence_z_kernel_type( ls_increment,                &
+                                                  mass_flux_ls_field,          &
+                                                  detj_at_w3) )
+        call ffsl_advective_increment(ls_increment, ls_field_n, step_dt, ls_adv_ones)
+        call invoke( X_minus_bY(ls_field_np1, ls_field_n, step_dt, ls_increment) )
+      else
+        ! Approximate advective ls_field with ls_field_n
+        call ls_field_np1%initialise( vector_space = field_fs )
+        call invoke( setval_X(ls_field_np1, ls_field_n) )
+      end if
+
+      ! Combine ls_field advective step with unity term
+      call adv_unity_term%initialise( vector_space = field_fs )
+      call unity_increment%initialise( vector_space = field_fs )
+      call invoke( fv_divergence_z_kernel_type( unity_increment,               &
+                                                mass_flux_ones,                &
+                                                detj_at_w3),                   &
+                   X_times_Y(adv_unity_term, ls_field_np1, unity_increment) )
+
+      ! Collect full mass term and compute increment
+      call increment%initialise( vector_space = field_fs )
+      call adv_inc%initialise( vector_space = field_fs )
+      call invoke( X_plus_Y(mass_flux_for_adv, mass_flux_pert, mass_flux_ls),  &
+                   fv_divergence_z_kernel_type( increment,                     &
+                                                mass_flux_for_adv,             &
+                                                detj_at_w3),                   &
+                   X_minus_Y(adv_inc, increment, adv_unity_term) )
+      call ffsl_advective_increment(adv_inc, field_n, step_dt, ls_adv_ones)
+
+    end if
+
+    if ( LPROF ) call stop_timing( id, routine_name )
+
+  end subroutine tl_ffsl_vert_transport_alg
+
+
+  !----------------------------------------------------------------------------
+  !> @brief   Computes the mass fluxes associated with a vertical FFSL step
+  !!          for the linear model.
+  !> @details Performs a conservative flux calculation using vertical
+  !!          FFSL for the linear model.
+  !> @param[in,out] mass_flux_pert     ACTIVE  Mass flux from the pert field / ls wind part
+  !> @param[in,out] mass_flux_ls       ACTIVE  Mass flux from the ls field / pert wind part
+  !> @param[in]     field_n            ACTIVE  Pert field at the start of the transport step
+  !> @param[in]     ls_field_n         PASSIVE Ls field at the start of the transport step
+  !> @param[in]     step_dt            The time step size for this transport step
+  !> @param[in,out] ls_transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the pert field
+  !!                                   by the ls wind
+  !> @param[in,out] pert_transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the ls field
+  !!                                   by the pert wind
+  !> @param[in]     order              The reconstruction order to use
+  subroutine tl_ffsl_vert_flux_alg( mass_flux_pert, mass_flux_ls, field_n,     &
+                                    ls_field_n, step_dt,                       &
+                                    ls_transport_controller,                   &
+                                    pert_transport_controller, order )
+
+    implicit none
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: mass_flux_pert
+    type(r_tran_field_type),         intent(inout) :: mass_flux_ls
+    type(r_tran_field_type),         intent(in)    :: field_n
+    type(r_tran_field_type),         intent(in)    :: ls_field_n
+    real(kind=r_tran),               intent(in)    :: step_dt
+    type(transport_controller_type), intent(inout) :: ls_transport_controller
+    type(transport_controller_type), intent(inout) :: pert_transport_controller
+    integer(kind=i_def),             intent(in)    :: order
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(wind_precomputations_type), pointer :: ls_wind_precomputations
+    type(wind_precomputations_type), pointer :: pert_wind_precomputations
+    type(mesh_type),                 pointer :: mesh
+    type(r_tran_field_type),         pointer :: dep_pts_z
+    type(r_tran_field_type),         pointer :: frac_ls_wind
+    type(r_tran_field_type),         pointer :: frac_pert_wind
+    type(r_tran_field_type),         pointer :: detj_at_w3
+    type(r_tran_field_type),         pointer :: dla_dz(:)
+    type(r_tran_field_type),         pointer :: dlb_dz(:)
+    type(field_type),                pointer :: dz_w3_rdef
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+    type(function_space_type), pointer :: w2v_fs
+
+    ! Transport options
+    logical(kind=l_def) :: log_space
+    integer(kind=i_def) :: splitting
+
+    ! Internal fields
+    type(r_tran_field_type) :: dz_w3
+
+    ! Useful constants
+    integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: step
+
+    type(config_type), pointer :: config
+
+    ! Get pre-computed objects and set pointers --------------------------------
+    config => ls_transport_controller%get_config()
+    mesh_id = field_n%get_mesh_id()
+    mesh => field_n%get_mesh()
+    transport_counter => pert_transport_controller%get_transport_counter()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+
+    ! Function spaces
+    field_fs => field_n%get_function_space()
+    w2v_fs => function_space_collection%get_fs( mesh, 0, 0, W2V )
+
+    ! Get options
+    log_space = transport_metadata%get_log_space()
+    splitting = transport_metadata%get_splitting()
+
+    call mass_flux_pert%initialise( vector_space = w2v_fs )
+    call mass_flux_ls%initialise( vector_space = w2v_fs )
+    call invoke( setval_c(mass_flux_pert, 0.0_r_tran),                         &
+                 setval_c(mass_flux_ls, 0.0_r_tran) )
+
+    ! Point to appropriate pre-computed fields ---------------------------------
+    ls_wind_precomputations   => ls_transport_controller%get_wind_precomputations()
+    step = transport_counter%get_split_step_of_substep_counter()
+    detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
+    dep_pts_z => ls_wind_precomputations%get_dep_dist_z(                       &
+        mesh_id, splitting, step                                               &
+    )
+    frac_ls_wind => ls_wind_precomputations%get_frac_wind_z(                   &
+        mesh_id, splitting, step                                               &
+    )
+    pert_wind_precomputations => pert_transport_controller%get_wind_precomputations()
+    frac_pert_wind => pert_wind_precomputations%get_frac_wind_z(               &
+        mesh_id, splitting, step                                               &
+    )
+
+    if ( order /= 0 ) then
+      ! Get objects only needed for high order flux
+      dz_w3_rdef => get_dz_w3(config, mesh)
+      call dz_w3%initialise( vector_space = field_fs )
+      call invoke( real_to_real_x(dz_w3, dz_w3_rdef) )
+    end if
+
+    ! Compute fluxes -----------------------------------------------------------
+    select case ( order )
+    case ( 0 )
+      call invoke( tl_ffsl_flux_z_constant_kernel_type(mass_flux_pert,         &
+                                                       mass_flux_ls,           &
+                                                       frac_ls_wind,           &
+                                                       dep_pts_z,              &
+                                                       frac_pert_wind,         &
+                                                       field_n,                &
+                                                       ls_field_n,             &
+                                                       detj_at_w3,             &
+                                                       step_dt) )
+    case ( 1 )
+      dla_dz => get_third_dla_dz(config, mesh)
+      dlb_dz => get_third_dlb_dz(config, mesh)
+      call invoke( tl_ffsl_flux_z_nirvana_kernel_type(mass_flux_pert,          &
+                                                      mass_flux_ls,            &
+                                                      frac_ls_wind,            &
+                                                      dep_pts_z,               &
+                                                      frac_pert_wind,          &
+                                                      field_n,                 &
+                                                      ls_field_n,              &
+                                                      dla_dz,                  &
+                                                      dlb_dz,                  &
+                                                      dz_w3,                   &
+                                                      detj_at_w3,              &
+                                                      step_dt,                 &
+                                                      log_space) )
+    case default
+      call log_event( "tl_ffsl_vert_flux_alg: order not implemented", LOG_LEVEL_ERROR )
+    end select
+
+  end subroutine tl_ffsl_vert_flux_alg
+
+end module tl_ffsl_vert_alg_mod
