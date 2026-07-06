@@ -98,7 +98,7 @@ subroutine atl_physics_alg(modeldb,    &
   call copy_bundle( state, state_star, bundle_size ) ! Only state_star(igh_u) is used
   call set_bundle_scalar( 0.0_r_def, state_star, bundle_size )
 
-  dA => get_da_at_w2(mesh%get_id())
+  dA => get_da_at_w2(mesh)
 
   call invoke( setval_c( u_bl_inc_flux, 0.0_r_def ),   &
                setval_c( u_bl_inc, 0.0_r_def ),        &

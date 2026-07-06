@@ -10,6 +10,7 @@
 
 module process_send_fields_2d_mod
 
+  use config_mod,                     only: config_type
   use field_mod,                      only: field_type
   use field_collection_mod,           only: field_collection_type
   use function_space_mod,             only: function_space_type
@@ -277,11 +278,13 @@ module process_send_fields_2d_mod
   end subroutine save_marine_fractions
 
   !> @brief Calculate the volume of snow on ice tile in region defined by mask
-  !> @param[in] mask_field - the coupling field (contains the region mask)
-  !> @param[in] snow_mass_on_tiles Pointer to the snow mass on tiles field
-  !> @param[in] tile_fraction Pointer to the tile fraction field
-  !> @param[out] imass Total snow mass as scalar
-  subroutine ice_sheet_mass(mask_field,         &
+  !> @param[in]  config        Application namelist configuration object
+  !> @param[in]  mask_field    The coupling field (contains the region mask)
+  !> @param[in]  snow_mass_on_tiles  Pointer to the snow mass on tiles field
+  !> @param[in]  tile_fraction  Pointer to the tile fraction field
+  !> @param[out] imass          Total snow mass as scalar
+  subroutine ice_sheet_mass(config,  &
+                            mask_field, &
                             snow_mass_on_tiles, &
                             tile_fraction,      &
                             imass)
@@ -295,6 +298,7 @@ module process_send_fields_2d_mod
 
     implicit none
 
+    type(config_type),           intent(in) :: config
     type( field_type ),          intent(in) :: mask_field
     type( field_type ), pointer, intent(in) :: snow_mass_on_tiles
     type( field_type ), pointer, intent(in) :: tile_fraction
@@ -320,7 +324,7 @@ module process_send_fields_2d_mod
     call tmp_field3%initialise( vector_space=tmp_fs, name="tmp_field3_W3" )
 
     ! Calculate the grid cell areas (dA)
-    dA => get_dA_msl_proj( mesh%get_id() )
+    dA => get_dA_msl_proj(config, mesh)
 
     call invoke(                                                             &
                 ! Extract snow mass on ice tile into tmp_field1
