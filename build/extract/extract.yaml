@@ -113,6 +113,7 @@ ukca:
     - src/control/core/top_level/ukca_iniasad.F90
     - src/control/core/top_level/ukca_init.F90
     - src/control/core/top_level/ukca_main1-ukca_main1.F90
+    - src/control/core/top_level/ukca_radaer_lfric_api_mod.F90
     - src/control/core/top_level/ukca_setup_mod.F90
     - src/control/core/top_level/ukca_solang.F90
     - src/control/core/top_level/ukca_step_control_mod.F90
