@@ -188,7 +188,6 @@
         "DT": 720,
         "tsteps": 120,
         "mpi_parts": 192,
-        "task_ranks_per_node": 64,
         "threads": 2,
     }) %}
 
@@ -200,7 +199,6 @@
         "DT": 720,
         "tsteps": 120,
         "mpi_parts": 96,
-        "task_ranks_per_node": 32,
         "threads": 4,
     }) %}
 
