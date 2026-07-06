@@ -531,7 +531,7 @@ subroutine radaer_code( nlayers,                                               &
                                                           ukca_radaer_presc_ssa
 
   ! Loop counters
-  integer(i_um) :: k, i, i_band, i_mode, i_rmode
+  integer(i_um) :: mm, m, k, i, i_band, i_mode, i_rmode, n_fields, nn_fields
 
   ! pressure on theta levels
   real(r_um),dimension( row_length, rows, nlayers ) :: p_theta_levels
