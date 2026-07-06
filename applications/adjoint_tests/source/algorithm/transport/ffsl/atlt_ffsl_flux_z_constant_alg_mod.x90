@@ -14,6 +14,7 @@ module atlt_ffsl_flux_z_constant_alg_mod
   use r_tran_field_mod,              only : r_tran_field_type
   use constants_mod,                 only : i_def, r_def, &
                                             r_tran, EPS
+  use transport_constants_mod,       only : get_detj_at_w3_r_tran
   use log_mod,                       only : log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_ERROR,   &
@@ -42,15 +43,15 @@ module atlt_ffsl_flux_z_constant_alg_mod
     type(mesh_type), pointer, intent(in) :: mesh
 
     ! Arguments for tl and adj calls
-    type(r_tran_field_type)    :: flux_pert
-    type(r_tran_field_type)    :: flux_ls
-    type(r_tran_field_type)    :: ls_frac_wind
-    type(r_tran_field_type)    :: dep_dist
-    type(r_tran_field_type)    :: frac_wind
-    type(r_tran_field_type)    :: field
-    type(r_tran_field_type)    :: ls_field
-    type(r_tran_field_type)    :: detj
-    real(kind=r_tran)          :: dt
+    type(r_tran_field_type)          :: flux_pert
+    type(r_tran_field_type)          :: flux_ls
+    type(r_tran_field_type)          :: ls_frac_wind
+    type(r_tran_field_type)          :: dep_dist
+    type(r_tran_field_type)          :: frac_wind
+    type(r_tran_field_type)          :: field
+    type(r_tran_field_type)          :: ls_field
+    type(r_tran_field_type), pointer :: detj
+    real(kind=r_tran)                :: dt
 
     ! Copies of input fields used in inner products
     type(r_tran_field_type) :: flux_pert_input
@@ -99,7 +100,7 @@ module atlt_ffsl_flux_z_constant_alg_mod
     call ls_frac_wind%initialise(vector_space=vector_space_w2v_ptr, name='ls_frac_wind')
     call dep_dist%initialise(vector_space=vector_space_w2v_ptr, name='dep_dist')
     call ls_field%initialise(vector_space=vector_space_w3_ptr, name='ls_field')
-    call detj%initialise(vector_space=vector_space_w3_ptr, name='detj')
+    detj => get_detj_at_w3_r_tran(mesh%get_id())
     dt = 1.0_r_tran
 
     flux_pert_inner_prod = 0.0_r_def

@@ -109,6 +109,11 @@ module atlt_ffsl_flux_z_nirvana_alg_mod
     call ls_frac_wind%initialise(vector_space=vector_space_w2v_ptr, name='ls_frac_wind')
     call dep_dist%initialise(vector_space=vector_space_w2v_ptr, name='dep_dist')
     call ls_field%initialise(vector_space=vector_space_w3_ptr, name='ls_field')
+    dla_dz => get_third_dla_dz(mesh%get_id())
+    dlb_dz => get_third_dlb_dz(mesh%get_id())
+    dz_w3_rdef => get_dz_w3(mesh%get_id())
+    call dz%initialise( vector_space = vector_space_w3_ptr )
+    detj => get_detj_at_w3_r_tran(mesh%get_id())
     dt = 1.0_r_tran
     log_space = .false._l_def
 
@@ -118,18 +123,12 @@ module atlt_ffsl_flux_z_nirvana_alg_mod
     field_inner_prod = 0.0_r_def
 
     ! Initialise arguments and call the tangent-linear kernel.
-    detj => get_detj_at_w3_r_tran(mesh%get_id())
-    dz_w3_rdef => get_dz_w3(mesh%get_id())
-    call dz%initialise( vector_space = vector_space_w3_ptr )
-    call invoke( real_to_real_x(dz, dz_w3_rdef) )
-    dla_dz => get_third_dla_dz(mesh%get_id())
-    dlb_dz => get_third_dlb_dz(mesh%get_id())
     call invoke( setval_random(flux_pert), setval_x(flux_pert_input, flux_pert), &
                  setval_random(flux_ls), setval_x(flux_ls_input, flux_ls),       &
                  setval_random(frac_wind), setval_x(frac_wind_input, frac_wind), &
                  setval_random(field), setval_x(field_input, field),             &
                  setval_random(ls_frac_wind), setval_random(dep_dist),           &
-                 setval_random(ls_field),                                        &
+                 setval_random(ls_field), real_to_real_x(dz, dz_w3_rdef),        &
                  tl_ffsl_flux_z_nirvana_kernel_type(flux_pert,                   &
                                                     flux_ls,                     &
                                                     ls_frac_wind,                &

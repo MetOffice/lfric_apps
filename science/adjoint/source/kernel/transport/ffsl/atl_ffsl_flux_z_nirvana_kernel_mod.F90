@@ -169,7 +169,6 @@ subroutine atl_ffsl_flux_z_nirvana_code( nlayers,         &
   w2v_idx = map_w2v(1)
   inv_dt = 1.0_r_tran / dt
 
-  reconstruction(:) = 0.0_r_tran
   edge_above(:) = 0.0_r_tran
   edge_below(:) = 0.0_r_tran
   edge_left(:) = 0.0_r_tran
@@ -211,8 +210,7 @@ subroutine atl_ffsl_flux_z_nirvana_code( nlayers,         &
   frac_wind(b_idx : t_idx) = frac_wind(b_idx : t_idx) &
                            + inv_dt * ls_reconstruction(:) * flux_ls(b_idx : t_idx)
 
-  reconstruction(:) = reconstruction(:) &
-                    + inv_dt * ls_frac_wind(b_idx : t_idx) * flux_pert(b_idx : t_idx)
+  reconstruction(:) = inv_dt * ls_frac_wind(b_idx : t_idx) * flux_pert(b_idx : t_idx)
   flux_pert(b_idx : t_idx) = flux_pert(b_idx : t_idx) * inv_dt * sign_displacement(:)
 
   ! ========================================================================== !
@@ -229,7 +227,6 @@ subroutine atl_ffsl_flux_z_nirvana_code( nlayers,         &
 
   field(w3_idx : w3_idx+nlayers-1) = field(w3_idx : w3_idx+nlayers-1) &
                                    + mass(:) * detj(w3_idx : w3_idx+nlayers-1)
-  mass(:) = 0.0_r_tran
 
   flux_ls(w2v_idx : w2v_idx + nlayers)   = 0.0_r_tran
   flux_pert(w2v_idx : w2v_idx + nlayers) = 0.0_r_tran
@@ -257,16 +254,11 @@ subroutine atl_ffsl_flux_z_nirvana_code( nlayers,         &
 
     field(w3_idx + dep_cell_idx(k)) = field(w3_idx + dep_cell_idx(k))  &
                                     + field_local(k)
-    edge_left(k) = 0.0_r_tran
-    edge_right(k) = 0.0_r_tran
-    field_local(k) = 0.0_r_tran
   end do
 
   ! ========================================================================== !
   ! EDGE RECONSTRUCTION
   ! ========================================================================== !
-  ! Use Nirvana reconstruction for interpolated edge values, computing
-  ! edge_above and edge_below from the perturbation field
   call adj_third_order_vertical_edge(                                          &
           field(w3_idx : w3_idx+nlayers-1),                                    &
           dla_dz_1(w3_idx : w3_idx+nlayers-1),                                 &
