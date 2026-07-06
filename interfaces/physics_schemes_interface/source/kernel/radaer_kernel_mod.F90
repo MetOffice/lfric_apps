@@ -521,8 +521,6 @@ subroutine radaer_code( nlayers,                                               &
   logical, parameter       :: l_exclude_sw = .true.
   logical, parameter       :: l_exclude_lw = .true.
 
-  integer(i_um) :: npd_profile
-
   ! Prescribed single-scattering albedo dummy variables
   ! Make these namelist options later
   integer, parameter       :: i_ukca_radaer_prescribe_ssa = do_not_prescribe
@@ -639,8 +637,19 @@ subroutine radaer_code( nlayers,                                               &
 
   !-----------------------------------------------------------------------
 
-  ! Prognostics to be updated in the time step
-  ! real(r_um), allocatable :: ntp(:,:)    ! NTP fields
+  logical :: l_aod_ukca_ait_sol
+  logical :: l_aaod_ukca_ait_sol
+  logical :: l_aod_ukca_acc_sol
+  logical :: l_aaod_ukca_acc_sol
+  logical :: l_aod_ukca_cor_sol
+  logical :: l_aaod_ukca_cor_sol
+  logical :: l_aod_ukca_ait_ins
+  logical :: l_aaod_ukca_ait_ins
+  logical :: l_aod_ukca_acc_ins
+  logical :: l_aaod_ukca_acc_ins
+  logical :: l_aod_ukca_cor_ins
+  logical :: l_aaod_ukca_cor_ins
+  logical :: l_any_lit_points_um
 
   !-----------------------------------------------------------------------
 
@@ -777,8 +786,6 @@ subroutine radaer_code( nlayers,                                               &
 
   !-----------------------------------------------------------------------
 
-  npd_profile = row_length * rows
-
   npd_exclude_lw = SIZE( lw_index_exclude, 1 )
   npd_exclude_sw = SIZE( sw_index_exclude, 1 )
 
@@ -803,9 +810,6 @@ subroutine radaer_code( nlayers,                                               &
   l_aod_ukca_cor_ins = ( .not. associated( aod_ukca_cor_ins, empty_real_data ))
   l_aaod_ukca_cor_ins= ( .not. associated(aaod_ukca_cor_ins, empty_real_data ))
 
-
-
-  
   !-----------------------------------------------------------------------
   ! Allocation of arrays
 
@@ -847,34 +851,33 @@ subroutine radaer_code( nlayers,                                               &
   ! Segmentation and openmp would start here
   !-----------------------------------------------------------------------
 
-
-    ! Whether we need to run shortwave band_average because lit or not
-    l_any_lit_points_um = .false.
-    if ( n_radaer_step > 1 ) then
+  ! Whether we need to run shortwave band_average because lit or not
+  l_any_lit_points_um = .false.
+  if ( n_radaer_step > 1 ) then
+    l_any_lit_points_um = .true.
+  else
+    if ( lit_fraction( map_2d(1) ) > 0.0_r_def ) then
       l_any_lit_points_um = .true.
-    else
-        if ( lit_fraction( map_2d(1) ) > 0.0_r_def ) then
-          l_any_lit_points_um = .true.
-        end if   
-    end if
+    end if   
+  end if
 
-    ! Note that this is inverted compared to the UM
-    ! This will be dealt with in ukca_radaer_band_average
-      trindxrad_um(1) = trop_level( map_2d(1) )
+  ! Note that this is inverted compared to the UM
+  ! This will be dealt with in ukca_radaer_band_average
+  trindxrad_um(1) = trop_level( map_2d(1) )
 
-    !-----------------------------------------------------------------------
-    ! Initialisation of prognostic variables and arrays
-    !-----------------------------------------------------------------------
+  !-----------------------------------------------------------------------
+  ! Initialisation of prognostic variables and arrays
+  !-----------------------------------------------------------------------
 
-      do k = 1, nlayers
-        p_theta_levels_um(1,k) = p_zero *                                      &
-                         ( exner_in_wth(map_wth(1) + k) )**(1.0_r_um/kappa)
-      end do
+  do k = 1, nlayers
+    p_theta_levels_um(1,k) = p_zero *                                          &
+                             ( exner_in_wth(map_wth(1) + k) )**(1.0_r_um/kappa)
+  end do
 
-      do k = 1, nlayers
-        t_theta_levels_um(1,k) = exner_in_wth(map_wth(1) + k) *            &
-                                 theta_in_wth(map_wth(1) + k)
-      end do
+  do k = 1, nlayers
+    t_theta_levels_um(1,k) = exner_in_wth(map_wth(1) + k) *                    &
+                             theta_in_wth(map_wth(1) + k)
+  end do
 
   !-----------------------------------------------------------------------
 
