@@ -75,8 +75,9 @@ def trans(psyir):
     # Check if first OpenMP region can be parallelised and
     # apply directives
     try:
-        OMP_PARALLEL_REGION_TRANS.validate(outer_loops[0:2], force_private=private_variable_par_sec)
-        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[0:2], force_private=private_variable_par_sec)
+        OMP_PARALLEL_REGION_TRANS.validate(outer_loops[0:2])
+        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[0])
+        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[1], force_private=private_variable_par_sec)
         OMP_DO_LOOP_TRANS_STATIC.apply(outer_loops[0])
         OMP_DO_LOOP_TRANS_STATIC.apply(outer_loops[1].walk(Loop)[1])
     except (TransformationError, IndexError) as err:
