@@ -613,6 +613,31 @@ subroutine radaer_code( nlayers,                                               &
   real(r_um) :: aaod_ukca_this_mode_um( row_length*rows, npd_ukca_aod_wavel )
 
   !-----------------------------------------------------------------------
+  ! Allocation of arrays
+
+  real(r_um), allocatable :: p_theta_levels_um(:,:)
+  real(r_um), allocatable :: t_theta_levels_um(:,:)
+  real(r_um), allocatable :: d_mass_theta_levels_um(:,:)
+  real(r_um), allocatable :: ukca_comp_vol_um(:,:,:)
+  real(r_um), allocatable :: ukca_mix_ratio_um(:,:,:)
+  real(r_um), allocatable :: ukca_dry_diam_um(:,:,:)
+  real(r_um), allocatable :: ukca_wet_diam_um(:,:,:)
+  real(r_um), allocatable :: ukca_modal_nbr_um(:,:,:)
+  real(r_um), allocatable :: ukca_modal_rho_um(:,:,:)
+  real(r_um), allocatable :: ukca_modal_vol_um(:,:,:)
+  real(r_um), allocatable :: ukca_modal_wtv_um(:,:,:)
+  real(r_um), allocatable :: ukca_mode_mix_ratio_um(:,:,:)
+  real(r_um), allocatable :: aer_lw_absorption_um(:,:,:,:)
+  real(r_um), allocatable :: aer_lw_scattering_um(:,:,:,:)
+  real(r_um), allocatable :: aer_lw_asymmetry_um(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_absorption_um(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_scattering_um(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_asymmetry_um(:,:,:,:)
+  real(r_um), allocatable :: aod_ukca_all_modes_um(:,:,:)
+  real(r_um), allocatable :: sod_ukca_all_modes_um(:,:,:)
+  real(r_um), allocatable :: aaod_ukca_all_modes_um(:,:,:)
+
+  !-----------------------------------------------------------------------
 
   ! Prognostics to be updated in the time step
   ! real(r_um), allocatable :: ntp(:,:)    ! NTP fields
@@ -778,36 +803,11 @@ subroutine radaer_code( nlayers,                                               &
   l_aod_ukca_cor_ins = ( .not. associated( aod_ukca_cor_ins, empty_real_data ))
   l_aaod_ukca_cor_ins= ( .not. associated(aaod_ukca_cor_ins, empty_real_data ))
 
-  !-----------------------------------------------------------------------
-  ! Allocation of arrays
 
-  real(r_um), allocatable :: p_theta_levels_um(:,:)
-  real(r_um), allocatable :: t_theta_levels_um(:,:)
-  real(r_um), allocatable :: d_mass_theta_levels_um(:,:)
-  real(r_um), allocatable :: ukca_comp_vol_um(:,:,:)
-  real(r_um), allocatable :: ukca_mix_ratio_um(:,:,:)
-  real(r_um), allocatable :: ukca_dry_diam_um(:,:,:)
-  real(r_um), allocatable :: ukca_wet_diam_um(:,:,:)
-  real(r_um), allocatable :: ukca_modal_nbr_um(:,:,:)
-  real(r_um), allocatable :: ukca_modal_rho_um(:,:,:)
-  real(r_um), allocatable :: ukca_modal_vol_um(:,:,:)
-  real(r_um), allocatable :: ukca_modal_wtv_um(:,:,:)
-  real(r_um), allocatable :: ukca_mode_mix_ratio_um(:,:,:)
-  real(r_um), allocatable :: aer_lw_absorption_um(:,:,:,:)
-  real(r_um), allocatable :: aer_lw_scattering_um(:,:,:,:)
-  real(r_um), allocatable :: aer_lw_asymmetry_um(:,:,:,:)
-  real(r_um), allocatable :: aer_sw_absorption_um(:,:,:,:)
-  real(r_um), allocatable :: aer_sw_scattering_um(:,:,:,:)
-  real(r_um), allocatable :: aer_sw_asymmetry_um(:,:,:,:)
-  real(r_um), allocatable :: aod_ukca_all_modes_um(:,:,:)
-  real(r_um), allocatable :: sod_ukca_all_modes_um(:,:,:)
-  real(r_um), allocatable :: aaod_ukca_all_modes_um(:,:,:)
 
   
   !-----------------------------------------------------------------------
   ! Allocation of arrays
-
-  !allocate( trindxrad_um( 1 ) )
 
   allocate( p_theta_levels_um( 1, nlayers ) )
   allocate( t_theta_levels_um( 1, nlayers ) )
@@ -1848,8 +1848,6 @@ subroutine radaer_code( nlayers,                                               &
   deallocate( d_mass_theta_levels_um )
   deallocate( t_theta_levels_um )
   deallocate( p_theta_levels_um )
-
-  !deallocate( trindxrad_um )
 
 end subroutine radaer_code
 
