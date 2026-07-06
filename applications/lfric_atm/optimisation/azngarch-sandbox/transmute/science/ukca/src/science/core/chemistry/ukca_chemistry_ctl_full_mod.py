@@ -7,9 +7,6 @@
 # This transformation introduces OpenMP directives around loops inside
 # UKCA full-domain mode.
 
-import logging
-import os
-
 from psyclone.psyir.symbols import (
     ArrayType,
     DataSymbol,
@@ -28,12 +25,14 @@ from psyclone.version import __MAJOR__, __MICRO__, __MINOR__
 # PSyclone version
 psy_version = (__MAJOR__, __MINOR__, __MICRO__)
 
+
 def match_loop(loop: Loop, var_name: str, stop_name: str) -> bool:
     # Return true only if loop's variable is named var_name
     # and loop's stop expression is a reference named stop_name.
     return (loop.variable.name == var_name and
-                isinstance(loop.stop_expr, Reference) and
-                loop.stop_expr.name == stop_name)
+            isinstance(loop.stop_expr, Reference) and
+            loop.stop_expr.name == stop_name)
+
 
 def trans(psyir):
     # All loops are dynamically scheduled
@@ -58,8 +57,8 @@ def trans(psyir):
                         privates = set()
                         for sym in loop.get_all_accessed_symbols():
                             if (sym.name.startswith("chunk_") and
-                                   isinstance(sym, DataSymbol) and
-                                   isinstance(sym.datatype, ArrayType)):
+                                    isinstance(sym, DataSymbol) and
+                                    isinstance(sym.datatype, ArrayType)):
                                 privates.add(sym)
 
                         # Apply the transformation
