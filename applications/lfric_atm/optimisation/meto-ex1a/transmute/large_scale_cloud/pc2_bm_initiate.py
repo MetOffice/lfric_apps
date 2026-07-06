@@ -76,8 +76,7 @@ def trans(psyir):
     # apply directives
     try:
         OMP_PARALLEL_REGION_TRANS.validate(outer_loops[0:2])
-        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[0])
-        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[1], force_private=private_variable_par_sec)
+        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[0:2])
         OMP_DO_LOOP_TRANS_STATIC.apply(outer_loops[0])
         OMP_DO_LOOP_TRANS_STATIC.apply(outer_loops[1].walk(Loop)[1])
     except (TransformationError, IndexError) as err:
@@ -89,7 +88,10 @@ def trans(psyir):
     try:
 
         OMP_PARALLEL_REGION_TRANS.validate(outer_loops[2:3])
-        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[2])
+        larger_par_loop_target = [outer_loops[2]]
+        OMP_PARALLEL_REGION_TRANS.apply(
+            larger_par_loop_target, 
+            force_private=private_variable_par_sec)
 
         # Insert before OpenMP directives to avoid PSyclone errors
         if get_compiler() == "cce":
