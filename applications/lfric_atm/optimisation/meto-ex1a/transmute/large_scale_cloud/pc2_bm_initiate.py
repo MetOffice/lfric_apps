@@ -88,9 +88,8 @@ def trans(psyir):
     try:
 
         OMP_PARALLEL_REGION_TRANS.validate(outer_loops[2:3])
-        larger_par_loop_target = [outer_loops[2]]
         OMP_PARALLEL_REGION_TRANS.apply(
-            larger_par_loop_target, 
+            [outer_loops[2]], 
             force_private=private_variable_par_sec)
 
         # Insert before OpenMP directives to avoid PSyclone errors
@@ -100,7 +99,7 @@ def trans(psyir):
                 insert_at = loop.parent.children.index(loop)
                 loop.parent.children.insert(insert_at, dir)
 
-        for loop in outer_loops[2].walk(Loop)[13:16]:
+        for loop in outer_loops[2].walk(Loop)[13:18]:
             dir = UnknownDirective(" IVDEP", "DIR")
             insert_at = loop.parent.children.index(loop)
             loop.parent.children.insert(insert_at, dir)
