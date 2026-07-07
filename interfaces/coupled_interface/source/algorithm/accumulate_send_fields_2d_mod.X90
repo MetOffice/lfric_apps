@@ -49,7 +49,7 @@ module accumulate_send_fields_2d_mod
   !> @param[in] acc_step The number of accumulation steps
   !> @param[in] clock
   subroutine accumulate_send_fields_2d(fld, depository, acc_step, clock, &
-                                       ldump_prep)
+                                       ldump_prep, checkpoint_written)
 
     implicit none
     type( field_type ), pointer, intent(inout)   :: fld
@@ -57,6 +57,7 @@ module accumulate_send_fields_2d_mod
     real(r_def), pointer,          intent(in)    :: acc_step
     class(clock_type), intent(in)                :: clock
     logical,                     intent(in)      :: ldump_prep
+    logical,                     intent(in)      :: checkpoint_written
     ! Local variables
     type(mesh_type), pointer                     :: mesh
     type(function_space_type), pointer           :: cpl_fs
@@ -108,14 +109,20 @@ module accumulate_send_fields_2d_mod
         ! should be naturally populated from from the dump read process, so
         ! we merely output a message to that effect.
         call log_field_minmax( LOG_LEVEL_DEBUG, &
-                               'process_send_fields_2d: from restart', fld )
+                               'accumulate_send_fields_2d: from restart', fld )
       else
         ! Initialise coupling fields to zero in the absence of an initial dump.
         call cpl_reset_field(fld, depository)
-        write(log_scratch_space, '(2A)' ) "process_send_fields_2d: variable ", &
+        write(log_scratch_space, '(3A)' ) "accumulate_send_fields_2d: variable ", &
                                   trim(fld_name)//": set to 0"
         call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
       endif
+    else if (checkpoint_written) then
+      ! Fields have already been accumulated before writing checkpoint so do nothing here
+        write(log_scratch_space, '(4A)' ) "accumulate_send_fields_2d: variable ", &
+                                  trim(fld_name)//": not modified due to ", &
+                                  "checkpoint at last timestep"
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     else
       ! Accumulate coupling field contributions.
       select case(fld_name)

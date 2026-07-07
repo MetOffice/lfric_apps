@@ -31,6 +31,11 @@ module held_suarez_fv_kernel_mod
                                          held_suarez_equilibrium_theta
   use external_forcing_config_mod, only: hs_random
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -144,7 +149,9 @@ subroutine held_suarez_fv_code(nlayers,                     &
     coords(3) = coords(3) + chi_3( loc )/ndf_chi
   end do
 
-  call chi2llr(coords(1), coords(2), coords(3), ipanel, lon, lat, radius)
+  call chi2llr(coords(1), coords(2), coords(3), ipanel,         &
+               geometry, topology, coord_system, scaled_radius, &
+               lon, lat, radius)
 
   exner0 = exner_in_wth(map_wth(1))
 
