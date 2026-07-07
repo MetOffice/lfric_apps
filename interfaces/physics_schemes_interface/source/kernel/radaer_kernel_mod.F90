@@ -704,7 +704,7 @@ subroutine radaer_code( nlayers,                                               &
                                 'pvol_om_ait_ins' ]
 
   character(len=max_fldname_len), parameter, dimension(1) :: &
-       acc_ins_volume_names(1) = [ 'pvol_du_acc_ins' ]
+       acc_ins_volume_names = [ 'pvol_du_acc_ins' ]
 
   character(len=max_fldname_len), parameter, dimension(1) :: &
        cor_ins_volume_names = [ 'pvol_du_cor_ins' ]
