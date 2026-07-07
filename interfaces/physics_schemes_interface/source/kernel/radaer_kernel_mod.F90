@@ -606,7 +606,10 @@ subroutine radaer_code( nlayers,                                               &
 
   !-----------------------------------------------------------------------
 
-  character, parameter :: pvol_comp_names(17) = [ 'fldname_pvol_su_ait_sol' , &
+  integer, parameter :: max_fldname_len = 40
+
+  character(len=max_fldname_len), parameter, dimension(17) :: &
+       pvol_comp_names = [ 'fldname_pvol_su_ait_sol' , &
                       'fldname_pvol_bc_ait_sol' , &
                       'fldname_pvol_om_ait_sol' , &
                       'fldname_pvol_su_acc_sol' , &
@@ -624,7 +627,8 @@ subroutine radaer_code( nlayers,                                               &
                       'fldname_pvol_du_acc_ins' , &
                       'fldname_pvol_du_cor_ins' ]
 
-  character, parameter :: comp_names(17) = [ 'fldname_ait_sol_su' , &
+  character(len=max_fldname_len), parameter, dimension(17) :: &
+       comp_names = [ 'fldname_ait_sol_su' , &
                  'fldname_ait_sol_bc' , &
                  'fldname_ait_sol_om' , &
                  'fldname_acc_sol_su' , &
@@ -642,7 +646,8 @@ subroutine radaer_code( nlayers,                                               &
                  'fldname_acc_ins_du' , &
                  'fldname_cor_ins_du' ]
 
-  character, parameter :: mode_names(7) = [ 'fldname_n_nuc_sol' , &
+  character(len=max_fldname_len), parameter, dimension(7) :: &
+       mode_names = [ 'fldname_n_nuc_sol' , &
                  'fldname_n_ait_sol' , &
                  'fldname_n_acc_sol' , &
                  'fldname_n_cor_sol' , &
@@ -650,64 +655,75 @@ subroutine radaer_code( nlayers,                                               &
                  'fldname_n_acc_ins' , &
                  'fldname_n_cor_ins' ]
 
-  character, parameter :: rhopar_mode_names(6) = [ 'fldname_rhopar_ait_sol' , &
+  character(len=max_fldname_len), parameter, dimension(6) :: &
+       rhopar_mode_names = [ 'fldname_rhopar_ait_sol' , &
                         'fldname_rhopar_acc_sol' , &
                         'fldname_rhopar_cor_sol' , &
                         'fldname_rhopar_ait_ins' , &
                         'fldname_rhopar_acc_ins' , &
                         'fldname_rhopar_cor_ins' ]
 
-  character, parameter :: dry_diam_mode_names(6) = [ 'fldname_drydp_ait_sol' , &
+  character(len=max_fldname_len), parameter, dimension(6) :: &
+       dry_diam_mode_names = [ 'fldname_drydp_ait_sol' , &
                           'fldname_drydp_acc_sol' , &
                           'fldname_drydp_cor_sol' , &
                           'fldname_drydp_ait_ins' , &
                           'fldname_drydp_acc_ins' , &
                           'fldname_drydp_cor_ins' ]
 
-  character, parameter :: modal_volume_names(6) = [ 'fldname_mod_vol_ait_sol' ,&
+  character(len=max_fldname_len), parameter, dimension(6) :: &
+       modal_volume_names = [ 'fldname_mod_vol_ait_sol' , &
                          'fldname_mod_vol_acc_sol' , &
                          'fldname_mod_vol_cor_sol' , &
                          'fldname_mod_vol_ait_ins' , &
                          'fldname_mod_vol_acc_ins' , &
                          'fldname_mod_vol_cor_ins' ]
 
-  character, parameter :: ait_sol_volume_names(4) = [ 'pvol_wat_ait_sol' , &
+  character(len=max_fldname_len), parameter, dimension(4) :: &
+       ait_sol_volume_names = [ 'pvol_wat_ait_sol' , &
                            'pvol_su_ait_sol' , &
                            'pvol_bc_ait_sol' , &
                            'pvol_om_ait_sol' ]
 
-  character, parameter :: acc_sol_volume_names(5) = [ 'pvol_wat_acc_sol' , &
+  character(len=max_fldname_len), parameter,dimension(5) :: &
+       acc_sol_volume_names = [ 'pvol_wat_acc_sol' , &
                            'pvol_su_acc_sol' , &
                            'pvol_bc_acc_sol' , &
                            'pvol_om_acc_sol' , &
                            'pvol_ss_acc_sol' ]
 
-  character, parameter :: acc_sol_volume_names(5) = [ 'pvol_wat_cor_sol' , &
+  character(len=max_fldname_len), parameter,dimension(5) :: &
+       acc_sol_volume_names = [ 'pvol_wat_cor_sol' , &
                            'pvol_su_cor_sol' , &
                            'pvol_bc_cor_sol' , &
                            'pvol_om_cor_sol' , &
                            'pvol_ss_cor_sol' ]
 
-  character, parameter :: ait_ins_volume_names(2) = [ 'pvol_bc_ait_ins' , &
-                           'pvol_om_ait_ins' ]
+  character(len=max_fldname_len), parameter,dimension(2) :: &
+       ait_ins_volume_names = [ 'pvol_bc_ait_ins' , &
+                                'pvol_om_ait_ins' ]
 
-  character, parameter :: acc_ins_volume_names(1) = [ 'pvol_du_acc_ins' ]
+  character(len=max_fldname_len), parameter, dimension(1) :: &
+       acc_ins_volume_names(1) = [ 'pvol_du_acc_ins' ]
 
-  character, parameter :: cor_ins_volume_names(1) = [ 'pvol_du_cor_ins' ]
+  character(len=max_fldname_len), parameter, dimension(1) :: &
+       cor_ins_volume_names = [ 'pvol_du_cor_ins' ]
 
-  character, parameter :: modal_wtv_names(6) = [ 'fldname_pvol_wat_ait_sol' , &
-                      'fldname_pvol_wat_acc_sol' , &
-                      'fldname_pvol_wat_cor_sol' , &
-                      'fldname_pvol_wat_ait_ins' , &
-                      'fldname_pvol_wat_acc_ins' , &
-                      'fldname_pvol_wat_cor_ins' ]
+  character(len=max_fldname_len), parameter, dimension(6) :: &
+       modal_wtv_names = [ 'fldname_pvol_wat_ait_sol' , &
+                           'fldname_pvol_wat_acc_sol' , &
+                           'fldname_pvol_wat_cor_sol' , &
+                           'fldname_pvol_wat_ait_ins' , &
+                           'fldname_pvol_wat_acc_ins' , &
+                           'fldname_pvol_wat_cor_ins' ]
 
-  character, parameter :: wet_diam_mode_names(6) = [ 'fldname_wetdp_ait_sol' , &
-                          'fldname_wetdp_acc_sol' , &
-                          'fldname_wetdp_cor_sol' , &
-                          'fldname_wetdp_ait_ins' , &
-                          'fldname_wetdp_acc_ins' , &
-                          'fldname_wetdp_cor_ins' ]
+  character(len=max_fldname_len), parameter, dimension(6) :: &
+       wet_diam_mode_names = [ 'fldname_wetdp_ait_sol' , &
+                               'fldname_wetdp_acc_sol' , &
+                               'fldname_wetdp_cor_sol' , &
+                               'fldname_wetdp_ait_ins' , &
+                               'fldname_wetdp_acc_ins' , &
+                               'fldname_wetdp_cor_ins' ]
 
   !-----------------------------------------------------------------------
 
@@ -787,74 +803,74 @@ subroutine radaer_code( nlayers,                                               &
   n_fields = size(pvol_comp_names)
   allocate(ukca_comp_vol_um(1, nlayers, n_fields))
   ukca_comp_vol_um = 0.0_r_um
-  
+
   do m = 1, n_fields
     select case(pvol_comp_names(m))
-    case(fldname_pvol_su_ait_sol)
+    case(trim(fldname_pvol_su_ait_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_su_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_bc_ait_sol)
+    case(trim(fldname_pvol_bc_ait_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_bc_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_om_ait_sol)
+    case(trim(fldname_pvol_om_ait_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_om_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_su_acc_sol)
+    case(trim(fldname_pvol_su_acc_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_su_acc_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_bc_acc_sol)
+    case(trim(fldname_pvol_bc_acc_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_bc_acc_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_om_acc_sol)
+    case(trim(fldname_pvol_om_acc_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_om_acc_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_ss_acc_sol)
+    case(trim(fldname_pvol_ss_acc_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_ss_acc_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_du_acc_sol)
+    case(trim(fldname_pvol_du_acc_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= 0.0_r_um
       end do    
-    case(fldname_pvol_su_cor_sol)
+    case(trim(fldname_pvol_su_cor_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_su_cor_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_bc_cor_sol)
+    case(trim(fldname_pvol_bc_cor_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_bc_cor_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_om_cor_sol)
+    case(trim(fldname_pvol_om_cor_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_om_cor_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_ss_cor_sol)
+    case(trim(fldname_pvol_ss_cor_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_ss_cor_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_du_cor_sol)
+    case(trim(fldname_pvol_du_cor_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= 0.0_r_um
       end do
-    case(fldname_pvol_bc_ait_ins)
+    case(trim(fldname_pvol_bc_ait_ins))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_bc_ait_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_om_ait_ins)
+    case(trim(fldname_pvol_om_ait_ins))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_om_ait_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_du_acc_ins)
+    case(trim(fldname_pvol_du_acc_ins))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_du_acc_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_du_cor_ins)
+    case(trim(fldname_pvol_du_cor_ins))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_du_cor_ins(map_wth(1) + k), r_um )
       end do
@@ -872,71 +888,71 @@ subroutine radaer_code( nlayers,                                               &
   
   do m = 1, n_fields
     select case(comp_names(m))
-    case(fldname_ait_sol_su)
+    case(trim(fldname_ait_sol_su))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( ait_sol_su(map_wth(1) + k), r_um )
       end do
-    case(fldname_ait_sol_bc)
+    case(trim(fldname_ait_sol_bc))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( ait_sol_bc(map_wth(1) + k), r_um )
       end do
-    case(fldname_ait_sol_om)
+    case(trim(fldname_ait_sol_om))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( ait_sol_om(map_wth(1) + k), r_um )
       end do
-    case(fldname_acc_sol_su)
+    case(trim(fldname_acc_sol_su))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( acc_sol_su(map_wth(1) + k), r_um )
       end do
-    case(fldname_acc_sol_bc)
+    case(trim(fldname_acc_sol_bc))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( acc_sol_bc(map_wth(1) + k), r_um )
       end do
-    case(fldname_acc_sol_om)
+    case(trim(fldname_acc_sol_om))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( acc_sol_om(map_wth(1) + k), r_um )
       end do
-    case(fldname_acc_sol_ss)
+    case(trim(fldname_acc_sol_ss))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( acc_sol_ss(map_wth(1) + k), r_um )
       end do
-    case(fldname_acc_sol_du)
+    case(trim(fldname_acc_sol_du))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = 0.0_r_um
       end do
-    case(fldname_cor_sol_su)
+    case(trim(fldname_cor_sol_su))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( cor_sol_su(map_wth(1) + k), r_um )
       end do
-    case(fldname_cor_sol_bc)
+    case(trim(fldname_cor_sol_bc))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( cor_sol_bc(map_wth(1) + k), r_um )
       end do
-    case(fldname_cor_sol_om)
+    case(trim(fldname_cor_sol_om))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( cor_sol_om(map_wth(1) + k), r_um )
       end do
-    case(fldname_cor_sol_ss)
+    case(trim(fldname_cor_sol_ss))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( cor_sol_ss(map_wth(1) + k), r_um )
       end do
-    case(fldname_cor_sol_du)
+    case(trim(fldname_cor_sol_du))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = 0.0_r_um
       end do
-    case(fldname_ait_ins_bc)
+    case(trim(fldname_ait_ins_bc))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( ait_ins_bc(map_wth(1) + k), r_um )
       end do
-    case(fldname_ait_ins_om)
+    case(trim(fldname_ait_ins_om))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( ait_ins_om(map_wth(1) + k), r_um )
       end do
-    case(fldname_acc_ins_du)
+    case(trim(fldname_acc_ins_du))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( acc_ins_du(map_wth(1) + k), r_um )
       end do
-    case(fldname_cor_ins_du)
+    case(trim(fldname_cor_ins_du))
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( cor_ins_du(map_wth(1) + k), r_um )
       end do
@@ -954,31 +970,31 @@ subroutine radaer_code( nlayers,                                               &
 
   do m = 1, n_fields
     select case(mode_names(m))
-    case(fldname_n_nuc_sol)
+    case(trim(fldname_n_nuc_sol))
       write( log_scratch_space, '(A,A)' )                                      &
            'Radaer should not request soluble nucleation mode: ', mode_names(m)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    case(fldname_n_ait_sol)
+    case(trim(fldname_n_ait_sol))
       do k = 1, nlayers
         ukca_modal_nbr_um(1, k, m) = real( n_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_n_acc_sol)
+    case(trim(fldname_n_acc_sol))
       do k = 1, nlayers
         ukca_modal_nbr_um(1, k, m) = real( n_acc_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_n_cor_sol)
+    case(trim(fldname_n_cor_sol))
       do k = 1, nlayers
         ukca_modal_nbr_um(1, k, m) = real( n_cor_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_n_ait_ins)
+    case(trim(fldname_n_ait_ins))
       do k = 1, nlayers
         ukca_modal_nbr_um(1, k, m) = real( n_ait_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_n_acc_ins)
+    case(trim(fldname_n_acc_ins))
       do k = 1, nlayers
         ukca_modal_nbr_um(1, k, m) = real( n_acc_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_n_cor_ins)
+    case(trim(fldname_n_cor_ins))
       do k = 1, nlayers
         ukca_modal_nbr_um(1, k, m) = real( n_cor_ins(map_wth(1) + k), r_um )
       end do
@@ -996,27 +1012,27 @@ subroutine radaer_code( nlayers,                                               &
   
   do m = 1, n_fields
     select case(rhopar_mode_names(m))
-    case(fldname_rhopar_ait_sol)
+    case(trim(fldname_rhopar_ait_sol))
       do k = 1, nlayers
         ukca_modal_rho_um(1, k, m)= real( rhopar_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_rhopar_acc_sol)
+    case(trim(fldname_rhopar_acc_sol))
       do k = 1, nlayers
         ukca_modal_rho_um(1, k, m)= real( rhopar_acc_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_rhopar_cor_sol)
+    case(trim(fldname_rhopar_cor_sol))
       do k = 1, nlayers
         ukca_modal_rho_um(1, k, m)= real( rhopar_cor_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_rhopar_ait_ins)
+    case(trim(fldname_rhopar_ait_ins))
       do k = 1, nlayers
         ukca_modal_rho_um(1, k, m)= real( rhopar_ait_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_rhopar_acc_ins)
+    case(trim(fldname_rhopar_acc_ins))
       do k = 1, nlayers
         ukca_modal_rho_um(1, k, m)= real( rhopar_acc_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_rhopar_cor_ins)
+    case(trim(fldname_rhopar_cor_ins))
       do k = 1, nlayers
         ukca_modal_rho_um(1, k, m)= real( rhopar_cor_ins(map_wth(1) + k), r_um )
       end do
@@ -1034,27 +1050,27 @@ subroutine radaer_code( nlayers,                                               &
   
   do m = 1, n_fields
     select case(dry_diam_mode_names(m))
-    case(fldname_drydp_ait_sol)
+    case(trim(fldname_drydp_ait_sol))
       do k = 1, nlayers
         ukca_dry_diam_um(1, k, m) = real( drydp_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_drydp_acc_sol)
+    case(trim(fldname_drydp_acc_sol))
       do k = 1, nlayers
         ukca_dry_diam_um(1, k, m) = real( drydp_acc_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_drydp_cor_sol)
+    case(trim(fldname_drydp_cor_sol))
       do k = 1, nlayers
         ukca_dry_diam_um(1, k, m) = real( drydp_cor_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_drydp_ait_ins)
+    case(trim(fldname_drydp_ait_ins))
       do k = 1, nlayers
         ukca_dry_diam_um(1, k, m) = real( drydp_ait_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_drydp_acc_ins)
+    case(trim(fldname_drydp_acc_ins))
       do k = 1, nlayers
         ukca_dry_diam_um(1, k, m) = real( drydp_acc_ins(map_wth(1) + k), r_um )
       end do
-    case(fldname_drydp_cor_ins)
+    case(trim(fldname_drydp_cor_ins))
       do k = 1, nlayers
         ukca_dry_diam_um(1, k, m) = real( drydp_cor_ins(map_wth(1) + k), r_um )
       end do
@@ -1069,12 +1085,12 @@ subroutine radaer_code( nlayers,                                               &
   n_fields = size(modal_volume_names)
   allocate(ukca_modal_vol_um(1, nlayers, n_fields))
   ukca_modal_vol_um = 0.0_r_um
-  
+
   do m = 1, n_fields
 
     select case( modal_volume_names(m) )
 
-    case(fldname_mod_vol_ait_sol)
+    case(trim(fldname_mod_vol_ait_sol))
 
       nn_fields = size(ait_sol_volume_names)
 
@@ -1082,25 +1098,25 @@ subroutine radaer_code( nlayers,                                               &
 
         select case( ait_sol_volume_names(mm) )
 
-        case( pvol_wat_ait_sol )
+        case( trim ( pvol_wat_ait_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_wat_ait_sol( map_wth(1) + k )
           end do
 
-        case( pvol_su_ait_sol )
+        case( trim ( pvol_su_ait_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_su_ait_sol( map_wth(1) + k )
           end do
 
-        case( pvol_bc_ait_sol )
+        case( trim ( pvol_bc_ait_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_bc_ait_sol( map_wth(1) + k )
           end do
 
-        case( pvol_om_ait_sol )
+        case( trim ( pvol_om_ait_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_om_ait_sol( map_wth(1) + k )
@@ -1120,37 +1136,37 @@ subroutine radaer_code( nlayers,                                               &
        
       end do
 
-    case(fldname_mod_vol_acc_sol)
+    case(trim(fldname_mod_vol_acc_sol))
 
       nn_fields = size(acc_sol_volume_names)
 
       do mm = 1, nn_fields
         select case( acc_sol_volume_names(mm) )
-        case( pvol_wat_acc_sol )
+        case( trim ( pvol_wat_acc_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_wat_acc_sol( map_wth(1) + k )
           end do
 
-        case( pvol_su_acc_sol )
+        case( trim ( pvol_su_acc_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_su_acc_sol( map_wth(1) + k )
           end do
 
-        case( pvol_bc_acc_sol )
+        case( trim ( pvol_bc_acc_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_bc_acc_sol( map_wth(1) + k )
           end do
 
-        case( pvol_om_acc_sol )
+        case( trim ( pvol_om_acc_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_om_acc_sol( map_wth(1) + k )
           end do
 
-        case( pvol_ss_acc_sol )
+        case( trim ( pvol_ss_acc_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_ss_acc_sol( map_wth(1) + k )
@@ -1170,37 +1186,37 @@ subroutine radaer_code( nlayers,                                               &
 
       end do
 
-    case(fldname_mod_vol_cor_sol)
+    case(trim(fldname_mod_vol_cor_sol))
 
       nn_fields = size(cor_sol_volume_names)
 
       do mm = 1, nn_fields
         select case( cor_sol_volume_names(mm) )
-        case( pvol_wat_cor_sol )
+        case( trim ( pvol_wat_cor_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_wat_cor_sol( map_wth(1) + k )
           end do
 
-        case( pvol_su_cor_sol )
+        case( trim ( pvol_su_cor_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_su_cor_sol( map_wth(1) + k )
           end do
 
-        case( pvol_bc_cor_sol )
+        case( trim ( pvol_bc_cor_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_bc_cor_sol( map_wth(1) + k )
           end do
 
-        case( pvol_om_cor_sol )
+        case( trim ( pvol_om_cor_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_om_cor_sol( map_wth(1) + k )
           end do
 
-        case( pvol_ss_cor_sol )
+        case( trim ( pvol_ss_cor_sol ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_ss_cor_sol( map_wth(1) + k )
@@ -1220,7 +1236,7 @@ subroutine radaer_code( nlayers,                                               &
 
       end do
 
-    case(fldname_mod_vol_ait_ins)
+    case(trim(fldname_mod_vol_ait_ins))
 
       nn_fields = size(ait_ins_volume_names)
 
@@ -1228,13 +1244,13 @@ subroutine radaer_code( nlayers,                                               &
 
         select case( ait_ins_volume_names(mm) )
 
-        case( pvol_bc_ait_ins )
+        case( trim ( pvol_bc_ait_ins ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_bc_ait_ins( map_wth(1) + k )
           end do
 
-        case( pvol_om_ait_ins )
+        case( trim ( pvol_om_ait_ins ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_om_ait_ins( map_wth(1) + k )
@@ -1254,7 +1270,7 @@ subroutine radaer_code( nlayers,                                               &
        
       end do
 
-    case(fldname_mod_vol_acc_ins)
+    case(trim(fldname_mod_vol_acc_ins))
 
       nn_fields = size(acc_ins_volume_names)
 
@@ -1262,7 +1278,7 @@ subroutine radaer_code( nlayers,                                               &
 
         select case( acc_ins_volume_names(mm) )
 
-        case( pvol_du_acc_ins )
+        case( trim ( pvol_du_acc_ins ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_du_acc_ins( map_wth(1) + k )
@@ -1282,7 +1298,7 @@ subroutine radaer_code( nlayers,                                               &
 
       end do
 
-    case(fldname_mod_vol_cor_ins)
+    case(trim(fldname_mod_vol_cor_ins))
 
       nn_fields = size(cor_ins_volume_names)
 
@@ -1290,7 +1306,7 @@ subroutine radaer_code( nlayers,                                               &
 
         select case( cor_ins_volume_names(mm) )
 
-        case( pvol_du_cor_ins )
+        case( trim ( pvol_du_cor_ins ) )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_du_cor_ins( map_wth(1) + k )
@@ -1325,27 +1341,27 @@ subroutine radaer_code( nlayers,                                               &
 
   do m = 1, n_fields
     select case(modal_wtv_names(m))
-    case(fldname_pvol_wat_ait_sol)
+    case(trim(fldname_pvol_wat_ait_sol))
       do k = 1, nlayers
         ukca_modal_wtv_um(1,k,m) =real( pvol_wat_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_wat_acc_sol)
+    case(trim(fldname_pvol_wat_acc_sol))
       do k = 1, nlayers
         ukca_modal_wtv_um(1,k,m) =real( pvol_wat_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_wat_cor_sol)
+    case(trim(fldname_pvol_wat_cor_sol))
       do k = 1, nlayers
         ukca_modal_wtv_um(1,k,m) =real( pvol_wat_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_pvol_wat_ait_ins)
+    case(trim(fldname_pvol_wat_ait_ins))
       do k = 1, nlayers
         ukca_modal_wtv_um(1,k,m) = 0.0_r_um
       end do
-    case(fldname_pvol_wat_acc_ins)
+    case(trim(fldname_pvol_wat_acc_ins))
       do k = 1, nlayers
         ukca_modal_wtv_um(1,k,m) = 0.0_r_um
       end do
-    case(fldname_pvol_wat_cor_ins)
+    case(trim(fldname_pvol_wat_cor_ins))
       do k = 1, nlayers
         ukca_modal_wtv_um(1,k,m) = 0.0_r_um
       end do
@@ -1363,30 +1379,30 @@ subroutine radaer_code( nlayers,                                               &
   
   do m = 1, n_fields
     select case(wet_diam_mode_names(m))
-    case(fldname_wetdp_ait_sol)
+    case(trim(fldname_wetdp_ait_sol))
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( wetdp_ait_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_wetdp_acc_sol)
+    case(trim(fldname_wetdp_acc_sol))
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( wetdp_acc_sol(map_wth(1) + k), r_um )
       end do
-    case(fldname_wetdp_cor_sol)
+    case(trim(fldname_wetdp_cor_sol))
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( wetdp_cor_sol(map_wth(1) + k), r_um )
       end do
     !!!!! Note that wet and dry diameter are the same for insoluble modes
-    case(fldname_wetdp_ait_ins)
+    case(trim(fldname_wetdp_ait_ins))
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( drydp_ait_ins(map_wth(1) + k), r_um )
       end do
     !!!!! Note that wet and dry diameter are the same for insoluble modes
-    case(fldname_wetdp_acc_ins)
+    case(trim(fldname_wetdp_acc_ins))
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( drydp_acc_ins(map_wth(1) + k), r_um )
       end do
     !!!!! Note that wet and dry diameter are the same for insoluble modes 
-    case(fldname_wetdp_cor_ins)
+    case(trim(fldname_wetdp_cor_ins))
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( drydp_cor_ins(map_wth(1) + k), r_um )
       end do
@@ -1396,7 +1412,6 @@ subroutine radaer_code( nlayers,                                               &
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
   end do 
-
 
   !------------------------------------------------
   ! Calculate mass thickness of vertical levels
