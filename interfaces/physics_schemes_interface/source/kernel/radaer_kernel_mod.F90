@@ -695,7 +695,7 @@ subroutine radaer_code( nlayers,                                               &
                            'pvol_ss_acc_sol' ]
 
   character(len=max_fldname_len), parameter,dimension(5) :: &
-       acc_sol_volume_names = [ 'pvol_wat_cor_sol' , &
+       cor_sol_volume_names = [ 'pvol_wat_cor_sol' , &
                            'pvol_su_cor_sol' , &
                            'pvol_bc_cor_sol' , &
                            'pvol_om_cor_sol' , &
