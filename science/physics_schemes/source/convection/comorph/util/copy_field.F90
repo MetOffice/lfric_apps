@@ -45,7 +45,7 @@ real(kind=real_hmprec), intent(in out) :: field_out                            &
 ! Loop counters
 integer :: i, j, k
 
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC) private( i, j, k )            &
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, field_in, field_out )
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
@@ -54,7 +54,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 return
 end subroutine copy_field_3d

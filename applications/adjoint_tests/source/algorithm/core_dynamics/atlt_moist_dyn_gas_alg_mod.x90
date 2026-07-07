@@ -1,0 +1,133 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_moist_dyn_gas_kernel
+module atlt_moist_dyn_gas_alg_mod
+  use field_mod,                     only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod,     only : element_order_h, element_order_v
+  use fs_continuity_mod,             only : Wtheta
+  use constants_mod,                 only : i_def, r_def
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_DEBUG
+
+  implicit none
+
+  public :: atlt_moist_dyn_gas_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for atl_moist_dyn_gas.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in] mesh        Mesh object
+  subroutine atlt_moist_dyn_gas_alg( mesh )
+
+    use tl_moist_dyn_gas_kernel_mod,  only : tl_moist_dyn_gas_kernel_type
+    use atl_moist_dyn_gas_kernel_mod, only : atl_moist_dyn_gas_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type) :: moist_dyn_gas
+    type(field_type) :: mr_v
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: moist_dyn_gas_input
+    type(field_type) :: mr_v_input
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+
+    ! Inner products
+    real(kind=r_def) :: moist_dyn_gas_inner_prod
+    real(kind=r_def) :: mr_v_inner_prod
+    real(kind=r_def) :: moist_dyn_gas_sf
+    real(kind=r_def) :: mr_v_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: moist_dyn_gas_moist_dyn_gas_input_inner_prod
+    real(kind=r_def) :: mr_v_mr_v_input_inner_prod
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta)
+
+    call moist_dyn_gas%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas')
+    call mr_v%initialise(vector_space=vector_space_wtheta_ptr, name='mr_v')
+
+    call moist_dyn_gas%copy_field_properties(moist_dyn_gas_input)
+    call mr_v%copy_field_properties(mr_v_input)
+
+    moist_dyn_gas_inner_prod = 0.0_r_def
+    mr_v_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(moist_dyn_gas), setval_x(moist_dyn_gas_input, moist_dyn_gas), &
+                 setval_random(mr_v), setval_x(mr_v_input, mr_v),                            &
+                 tl_moist_dyn_gas_kernel_type(moist_dyn_gas, mr_v),                          &
+                 x_innerproduct_x(moist_dyn_gas_inner_prod, moist_dyn_gas),                  &
+                 x_innerproduct_x(mr_v_inner_prod, mr_v) )
+
+    ! < Mx, Mx >
+    write( log_scratch_space, * ) "atlt_moist_dyn_gas inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "moist_dyn_gas inner product = ", moist_dyn_gas_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "mr_v inner product = ", mr_v_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    moist_dyn_gas_sf = 1.0_r_def / (moist_dyn_gas_inner_prod + eps)
+    mr_v_sf = 1.0_r_def / (mr_v_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + moist_dyn_gas_inner_prod * moist_dyn_gas_sf
+    inner1 = inner1 + mr_v_inner_prod * mr_v_sf
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( moist_dyn_gas_sf, moist_dyn_gas ), &
+                 inc_a_times_X( mr_v_sf, mr_v ) )
+
+    moist_dyn_gas_moist_dyn_gas_input_inner_prod = 0.0_r_def
+    mr_v_mr_v_input_inner_prod = 0.0_r_def
+
+    ! < AMx, x >
+    call invoke( atl_moist_dyn_gas_kernel_type(moist_dyn_gas, mr_v), &
+                 x_innerproduct_y(moist_dyn_gas_moist_dyn_gas_input_inner_prod, &
+                                  moist_dyn_gas, moist_dyn_gas_input), &
+                 x_innerproduct_y(mr_v_mr_v_input_inner_prod, &
+                                  mr_v, mr_v_input) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + moist_dyn_gas_moist_dyn_gas_input_inner_prod
+    inner2 = inner2 + mr_v_mr_v_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_moist_dyn_gas_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED tl_moist_dyn_gas_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine atlt_moist_dyn_gas_alg
+
+end module atlt_moist_dyn_gas_alg_mod

@@ -157,7 +157,7 @@ contains
     ! Structures holding diagnostic arrays - not used
 
     ! Other modules containing stuff passed to CLD
-    use cloud_config_mod,     only: i_bm_ez_opt, i_bm_ez_opt_entpar
+    use cloud_config_mod,     only: bm_ez_opt, bm_ez_opt_entpar
     use planet_constants_mod, only: p_zero, kappa, cp
     use water_constants_mod,  only: lc
     use bm_ctl_mod,           only: bm_ctl
@@ -255,7 +255,7 @@ contains
         gradrinr_in(i,1,k) = gradrinr(map_wth(1,i) + k)
       end do
     end do
-    if (i_bm_ez_opt == i_bm_ez_opt_entpar) then
+    if (bm_ez_opt == bm_ez_opt_entpar) then
       ! Length-scale used for entraining parcel mode construction method
       do i = 1, seg_len
         do k = 1, nlayers

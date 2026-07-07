@@ -11,7 +11,8 @@ module iau_multifile_io_mod
 
   use base_mesh_config_mod,        only: prime_mesh_name
   use calendar_mod,                only: calendar_type
-  use constants_mod,               only: str_def, str_max_filename, i_def
+  use constants_mod,               only: str_def, str_max_filename, &
+                                         i_def, r_def
   use driver_modeldb_mod,          only: modeldb_type
   use event_mod,                   only: event_action
   use event_actor_mod,             only: event_actor_type
@@ -36,7 +37,6 @@ module iau_multifile_io_mod
 #endif
   use iau_time_control_mod,        only: calc_iau_ts_num
   use inventory_by_mesh_mod,       only: inventory_by_mesh_type
-  use io_context_mod,              only: callback_clock_arg
   use lfric_xios_context_mod,      only: lfric_xios_context_type
   use linked_list_mod,             only: linked_list_type
   use lfric_xios_action_mod,       only: advance_read_only
@@ -265,10 +265,17 @@ contains
     character(str_def) :: time_origin
     character(str_def) :: time_start
 
-    procedure(event_action), pointer       :: context_advance
-    procedure(callback_clock_arg), pointer :: before_close
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
 
-    nullify(before_close)
+    procedure(event_action), pointer       :: context_advance
+
+    geometry      = modeldb%config%base_mesh%geometry()
+    topology      = modeldb%config%base_mesh%topology()
+    coord_system  = modeldb%config%finite_element%coord_system()
+    scaled_radius = modeldb%config%planet%scaled_radius()
 
     chi_inventory      => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
@@ -297,8 +304,10 @@ contains
       call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
                                                chi, panel_id,               &
                                                modeldb%clock, tmp_calendar, &
-                                               before_close,                &
+                                               geometry, topology,          &
+                                               coord_system, scaled_radius, &
                                                start_at_zero=.true. )
+      call io_context%close_context_definition()
 
       ! Attach context advancement to the model's clock
       context_advance => advance_read_only
