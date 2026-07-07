@@ -24,6 +24,8 @@ use fs_continuity_mod, only: WTHETA, W3
 
 use kernel_mod,        only: kernel_type
 
+use log_mod,           only: log_event, log_scratch_space, LOG_LEVEL_ERROR
+
 implicit none
 
 !-------------------------------------------------------------------------------
