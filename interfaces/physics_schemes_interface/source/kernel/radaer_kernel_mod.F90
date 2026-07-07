@@ -537,10 +537,10 @@ subroutine radaer_code( nlayers,                                               &
   integer(i_um) :: mm, m, n_fields, nn_fields
 
   ! pressure on theta levels
-  real(r_um),dimension( row_length, rows, nlayers ) :: p_theta_levels
+  real(r_um),dimension( row_length, rows, nlayers ) :: p_theta_levels_um
 
   ! temperature on theta levels
-  real(r_um),dimension( row_length, rows, nlayers ) :: t_theta_levels
+  real(r_um),dimension( row_length, rows, nlayers ) :: t_theta_levels_um
 
   ! d_mass on theta levels
   real(r_um),dimension( row_length, rows, nlayers ) :: d_mass_theta_levels_um
