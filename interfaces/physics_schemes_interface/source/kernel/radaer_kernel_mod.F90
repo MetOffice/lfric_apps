@@ -604,35 +604,7 @@ subroutine radaer_code( nlayers,                                               &
 
   !-----------------------------------------------------------------------
 
-  character(len=*) :: pvol_comp_names(17)
-
-  character(len=*) :: comp_names(17)
-
-  character(len=*) :: mode_names(7)
-
-  character(len=*) :: rhopar_mode_names(6)
-
-  character(len=*) :: dry_diam_mode_names(6)
-
-  character(len=*) :: modal_volume_names(6)
-
-  character(len=*) :: ait_sol_volume_names(4)
-
-  character(len=*) :: acc_sol_volume_names(5)
-
-  character(len=*) :: cor_sol_volume_names(5)
-
-  character(len=*) :: ait_ins_volume_names(2)
-
-  character(len=*) :: acc_ins_volume_names(1)
-
-  character(len=*) :: cor_ins_volume_names(1)
-
-  character(len=*) :: modal_wtv_names(6)
-
-  character(len=*) :: wet_diam_mode_names(6)
-
-  pvol_comp_names = [ 'fldname_pvol_su_ait_sol' , &
+  character, parameter :: pvol_comp_names(17) = [ 'fldname_pvol_su_ait_sol' , &
                       'fldname_pvol_bc_ait_sol' , &
                       'fldname_pvol_om_ait_sol' , &
                       'fldname_pvol_su_acc_sol' , &
@@ -650,7 +622,7 @@ subroutine radaer_code( nlayers,                                               &
                       'fldname_pvol_du_acc_ins' , &
                       'fldname_pvol_du_cor_ins' ]
 
-  comp_names = [ 'fldname_ait_sol_su' , &
+  character, parameter :: comp_names(17) = [ 'fldname_ait_sol_su' , &
                  'fldname_ait_sol_bc' , &
                  'fldname_ait_sol_om' , &
                  'fldname_acc_sol_su' , &
@@ -668,7 +640,7 @@ subroutine radaer_code( nlayers,                                               &
                  'fldname_acc_ins_du' , &
                  'fldname_cor_ins_du' ]
 
-  mode_names = [ 'fldname_n_nuc_sol' , &
+  character, parameter :: mode_names(7) = [ 'fldname_n_nuc_sol' , &
                  'fldname_n_ait_sol' , &
                  'fldname_n_acc_sol' , &
                  'fldname_n_cor_sol' , &
@@ -676,59 +648,59 @@ subroutine radaer_code( nlayers,                                               &
                  'fldname_n_acc_ins' , &
                  'fldname_n_cor_ins' ]
 
-  rhopar_mode_names = [ 'fldname_rhopar_ait_sol' , &
+  character, parameter :: rhopar_mode_names(6) = [ 'fldname_rhopar_ait_sol' , &
                         'fldname_rhopar_acc_sol' , &
                         'fldname_rhopar_cor_sol' , &
                         'fldname_rhopar_ait_ins' , &
                         'fldname_rhopar_acc_ins' , &
                         'fldname_rhopar_cor_ins' ]
 
-  dry_diam_mode_names = [ 'fldname_drydp_ait_sol' , &
+  character, parameter :: dry_diam_mode_names(6) = [ 'fldname_drydp_ait_sol' , &
                           'fldname_drydp_acc_sol' , &
                           'fldname_drydp_cor_sol' , &
                           'fldname_drydp_ait_ins' , &
                           'fldname_drydp_acc_ins' , &
                           'fldname_drydp_cor_ins' ]
 
-  modal_volume_names = [ 'fldname_mod_vol_ait_sol' , &
+  character, parameter :: modal_volume_names(6) = [ 'fldname_mod_vol_ait_sol' ,&
                          'fldname_mod_vol_acc_sol' , &
                          'fldname_mod_vol_cor_sol' , &
                          'fldname_mod_vol_ait_ins' , &
                          'fldname_mod_vol_acc_ins' , &
                          'fldname_mod_vol_cor_ins' ]
 
-  ait_sol_volume_names = [ 'pvol_wat_ait_sol' , &
+  character, parameter :: ait_sol_volume_names(4) = [ 'pvol_wat_ait_sol' , &
                            'pvol_su_ait_sol' , &
                            'pvol_bc_ait_sol' , &
                            'pvol_om_ait_sol' ]
 
-  acc_sol_volume_names = [ 'pvol_wat_acc_sol' , &
+  character, parameter :: acc_sol_volume_names(5) = [ 'pvol_wat_acc_sol' , &
                            'pvol_su_acc_sol' , &
                            'pvol_bc_acc_sol' , &
                            'pvol_om_acc_sol' , &
                            'pvol_ss_acc_sol' ]
 
-  acc_sol_volume_names = [ 'pvol_wat_cor_sol' , &
+  character, parameter :: acc_sol_volume_names(5) = [ 'pvol_wat_cor_sol' , &
                            'pvol_su_cor_sol' , &
                            'pvol_bc_cor_sol' , &
                            'pvol_om_cor_sol' , &
                            'pvol_ss_cor_sol' ]
 
-  ait_ins_volume_names = [ 'pvol_bc_ait_ins' , &
+  character, parameter :: ait_ins_volume_names(2) = [ 'pvol_bc_ait_ins' , &
                            'pvol_om_ait_ins' ]
 
-  acc_ins_volume_names = [ 'pvol_du_acc_ins' ]
+  character, parameter :: acc_ins_volume_names(1) = [ 'pvol_du_acc_ins' ]
 
-  cor_ins_volume_names = [ 'pvol_du_cor_ins' ]
+  character, parameter :: cor_ins_volume_names(1) = [ 'pvol_du_cor_ins' ]
 
-  modal_wtv_names = [ 'fldname_pvol_wat_ait_sol' , &
+  character, parameter :: modal_wtv_names(6) = [ 'fldname_pvol_wat_ait_sol' , &
                       'fldname_pvol_wat_acc_sol' , &
                       'fldname_pvol_wat_cor_sol' , &
                       'fldname_pvol_wat_ait_ins' , &
                       'fldname_pvol_wat_acc_ins' , &
                       'fldname_pvol_wat_cor_ins' ]
 
-  wet_diam_mode_names = [ 'fldname_wetdp_ait_sol' , &
+  character, parameter :: wet_diam_mode_names(6) = [ 'fldname_wetdp_ait_sol' , &
                           'fldname_wetdp_acc_sol' , &
                           'fldname_wetdp_cor_sol' , &
                           'fldname_wetdp_ait_ins' , &
@@ -1461,7 +1433,7 @@ subroutine radaer_code( nlayers,                                               &
 
     CALL ukca_radaer_lfric_interface(                                          &
       ! Fixed array dimensions (input)
-      seg_size,                                                                &
+      (row_length*rows),                                                       &
       nlayers,                                                                 &
       npd_exclude_lw,                                                          &
       npd_exclude_sw,                                                          &
@@ -1555,7 +1527,6 @@ subroutine radaer_code( nlayers,                                               &
                               max(minus1_plus_eps, min(one_minus_eps,          &
                               aer_lw_asymmetry_um(   1, k, i_mode, i_band ) ) )
 
-          end do ! seg_size
         end do ! n_layers
       end do ! n_radaer_mode
 
