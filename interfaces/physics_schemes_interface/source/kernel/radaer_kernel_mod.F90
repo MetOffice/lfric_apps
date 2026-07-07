@@ -142,7 +142,7 @@ type, public, extends(kernel_type) :: radaer_kernel_type
   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: radaer_code
-end type
+end type radaer_kernel_type
 
 public :: radaer_code
 
@@ -776,7 +776,7 @@ subroutine radaer_code( nlayers,                                               &
   else
     if ( lit_fraction( map_2d(1) ) > 0.0_r_def ) then
       l_any_lit_points_um = .true.
-    end if   
+    end if
   end if
 
   ! Note that this is inverted compared to the UM
@@ -837,7 +837,7 @@ subroutine radaer_code( nlayers,                                               &
     case(trim(fldname_pvol_du_acc_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= 0.0_r_um
-      end do    
+      end do
     case(trim(fldname_pvol_su_cor_sol))
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_su_cor_sol(map_wth(1) + k), r_um )
@@ -885,7 +885,7 @@ subroutine radaer_code( nlayers,                                               &
   n_fields = size(comp_names)
   allocate(ukca_mix_ratio_um(1, nlayers, n_fields))
   ukca_mix_ratio_um = 0.0_r_um
-  
+
   do m = 1, n_fields
     select case(comp_names(m))
     case(trim(fldname_ait_sol_su))
@@ -961,7 +961,7 @@ subroutine radaer_code( nlayers,                                               &
            'Missing required ukca_mix_ratio_um : ', comp_names(m)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
-  end do 
+  end do
 
   ! -- ukca_modal_nbr_um --
   n_fields = size(mode_names)
@@ -1003,13 +1003,13 @@ subroutine radaer_code( nlayers,                                               &
            'Missing required ukca_modal_nbr_um : ', mode_names(m)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
-  end do 
+  end do
 
   ! -- ukca_modal_rho_um --
   n_fields = size(rhopar_mode_names)
   allocate(ukca_modal_rho_um(1, nlayers, n_fields))
   ukca_modal_rho_um = 0.0_r_um
-  
+
   do m = 1, n_fields
     select case(rhopar_mode_names(m))
     case(trim(fldname_rhopar_ait_sol))
@@ -1041,13 +1041,13 @@ subroutine radaer_code( nlayers,                                               &
            'Missing required ukca_modal_nbr_um : ', rhopar_mode_names(m)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
-  end do 
+  end do
 
   ! -- ukca_dry_diam_um --
   n_fields = size(dry_diam_mode_names)
   allocate(ukca_dry_diam_um(1, nlayers, n_fields))
   ukca_dry_diam_um = 0.0_r_um
-  
+
   do m = 1, n_fields
     select case(dry_diam_mode_names(m))
     case(trim(fldname_drydp_ait_sol))
@@ -1079,7 +1079,7 @@ subroutine radaer_code( nlayers,                                               &
            'Missing required ukca_dry_diam_um : ', dry_diam_mode_names(m)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
-  end do 
+  end do
 
   ! -- ukca_modal_vol_um --
   n_fields = size(modal_volume_names)
@@ -1121,19 +1121,19 @@ subroutine radaer_code( nlayers,                                               &
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_om_ait_sol( map_wth(1) + k )
           end do
-         
+
         case( null )
           write( log_scratch_space, '(A,A)' )                                  &
                'This mode should not require a contribution to pvol : ',       &
                modal_volume_names(m)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-          
+
         case default
           write( log_scratch_space, '(A,A)' )                                  &
            'Missing required ukca_modal_vol_um : ', ait_sol_volume_names(mm)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end select
-       
+
       end do
 
     case(trim(fldname_mod_vol_acc_sol))
@@ -1255,19 +1255,19 @@ subroutine radaer_code( nlayers,                                               &
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
                                          pvol_om_ait_ins( map_wth(1) + k )
           end do
-         
+
         case( null )
           write( log_scratch_space, '(A,A)' )                                  &
                'This mode should not require a contribution to pvol : ',       &
                modal_volume_names(m)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-          
+
         case default
           write( log_scratch_space, '(A,A)' )                                  &
            'Missing required ukca_modal_vol_um : ', ait_ins_volume_names(mm)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end select
-       
+
       end do
 
     case(trim(fldname_mod_vol_acc_ins))
@@ -1332,7 +1332,7 @@ subroutine radaer_code( nlayers,                                               &
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
 
-  end do 
+  end do
 
   ! -- ukca_modal_wtv_um --
   n_fields = size(modal_wtv_names)
@@ -1370,13 +1370,13 @@ subroutine radaer_code( nlayers,                                               &
            'Missing required ukca_modal_wtv_um : ', modal_wtv_names(m)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
-  end do 
+  end do
 
   ! -- ukca_wet_diam_um --
   n_fields = size(wet_diam_mode_names)
   allocate(ukca_wet_diam_um(1, nlayers, n_fields))
   ukca_wet_diam_um = 0.0_r_um
-  
+
   do m = 1, n_fields
     select case(wet_diam_mode_names(m))
     case(trim(fldname_wetdp_ait_sol))
@@ -1401,7 +1401,7 @@ subroutine radaer_code( nlayers,                                               &
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( drydp_acc_ins(map_wth(1) + k), r_um )
       end do
-    !!!!! Note that wet and dry diameter are the same for insoluble modes 
+    !!!!! Note that wet and dry diameter are the same for insoluble modes
     case(trim(fldname_wetdp_cor_ins))
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( drydp_cor_ins(map_wth(1) + k), r_um )
@@ -1411,7 +1411,7 @@ subroutine radaer_code( nlayers,                                               &
            'Missing required ukca_wet_diam_um : ', wet_diam_mode_names(m)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
-  end do 
+  end do
 
   !------------------------------------------------
   ! Calculate mass thickness of vertical levels
@@ -1737,7 +1737,7 @@ subroutine radaer_code( nlayers,                                               &
     end if
 
   !------------------------------------------------
-  ! This is where we would close segmentation and openmp  
+  ! This is where we would close segmentation and openmp
   !------------------------------------------------
 
   deallocate( ukca_modal_wtv_um )
@@ -1753,14 +1753,14 @@ subroutine radaer_code( nlayers,                                               &
   deallocate( aaod_ukca_all_modes_um )
   deallocate(  sod_ukca_all_modes_um )
   deallocate(  aod_ukca_all_modes_um )
-  
+
   deallocate( aer_sw_asymmetry_um )
   deallocate( aer_sw_scattering_um )
   deallocate( aer_sw_absorption_um )
   deallocate( aer_lw_asymmetry_um )
   deallocate( aer_lw_scattering_um )
   deallocate( aer_lw_absorption_um )
-  
+
   deallocate( ukca_mode_mix_ratio_um )
 
 end subroutine radaer_code
