@@ -36,6 +36,13 @@ private_variables = [
     "cf_c", "cfl_c", "cff_c"
 ]
 
+private_variable_par_sec = [
+    "qsl", "qsi", "qsl_lay", "qsi_lay", "sigx", "deltacl_c", "idx",
+    "deltacf_c", "cf_c", "cfl_c", "cff_c", "deltaql_c", "qnx_min",
+    "qnx_max", "tl_lay", "ql_lay", "qsl_lay", "qsi_lay", "tdc_lay",
+    "inv_thm_lay", "inv_tmp_lay", "wvar_lay", "dtldz_lay", "dqtdz_lay",
+    "l_set_modes"]
+
 # Subroutines that need to be declared as "pure"
 pure_subroutines = ["qsat", "qsat_mix", "qsat_wat", "qsat_wat_mix"]
 
@@ -79,11 +86,11 @@ def trans(psyir):
     # Add redundant variable initialisation to work around a known
     # PSyclone issue when using CCE
     try:
-        if get_compiler() == 'cce':
-            first_priv_red_init(outer_loops[2], ["i", "j", "k"])
 
         OMP_PARALLEL_REGION_TRANS.validate(outer_loops[2:3])
-        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[2])
+        OMP_PARALLEL_REGION_TRANS.apply(
+            [outer_loops[2]], 
+            force_private=private_variable_par_sec)
 
         # Insert before OpenMP directives to avoid PSyclone errors
         if get_compiler() == "cce":
@@ -92,7 +99,7 @@ def trans(psyir):
                 insert_at = loop.parent.children.index(loop)
                 loop.parent.children.insert(insert_at, dir)
 
-        for loop in outer_loops[2].walk(Loop)[13:16]:
+        for loop in outer_loops[2].walk(Loop)[13:18]:
             dir = UnknownDirective(" IVDEP", "DIR")
             insert_at = loop.parent.children.index(loop)
             loop.parent.children.insert(insert_at, dir)

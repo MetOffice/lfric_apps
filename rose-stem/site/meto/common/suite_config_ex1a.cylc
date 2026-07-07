@@ -8,22 +8,22 @@
 {% if site_vars.ex_trustzone == "collab" %}
 {% set ex1a_base = 'module use /projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
 {% else %}
-{% set ex1a_base = 'module use /common/internal/spack/releases/2025.10.1/ngms' %}
+{% set ex1a_base = 'module use /common/internal/spack/releases/2026.7.1/ngms' %}
 {% endif %}
 
 {% set ex1a_compiler_gnu =  'module switch cpe/22.11 cpe/23.05 ; ' ~
                             'module load PrgEnv-gnu ; '~
                             'module load gcc/12.2.0 ; '~
                             'module load cray-mpich/8.1.27 ; '~
-                            'module load lfric-gnu/12.2.0/3.1 || true' %}
+                            'module load lfric-gnu/12.2.0/3.2 || true' %}
 
 {% set ex1a_compiler_cce =  'module switch PrgEnv-cray PrgEnv-cray/8.4.0 ; ' ~
                             'module load cpe/23.05 ; '~
                             'module switch cce cce/15.0.0 ; '~
                             'module load cray-mpich/8.1.27 ; '~
-                            'module load lfric-cray/15.0.0/3.1 || true ' %}
+                            'module load lfric-cray/15.0.0/3.2 || true' %}
 
-{% set ex1a_coupled_cce = 'module unload xios/2701 || true ; ' ~
+{% set ex1a_coupled_cce = 'module unload xios/2.2701 || true ; ' ~
                           'module load cray-hdf5-parallel ; ' ~
                           'module load cray-netcdf-hdf5parallel ; ' ~
                           'module use /data/users/moci/modules_ngms/modules ; '~
@@ -210,5 +210,17 @@
 
     [[EX1A_HOUSEKEEPING]]
         inherit=EX1A_TECH_BASE
+
+{# For vn3.2 certain EX um2lfric jobs require the vn3.1 software stack #}
+{# See https://github.com/MetOffice/lfric_apps/issues/595 for more details #}
+{% set vn32_prescript = "module use /common/internal/spack/releases/2025.10.1/ngms ; module switch cpe/22.11 cpe/23.05 ; module load PrgEnv-gnu ; module load gcc/12.2.0 ; module load cray-mpich/8.1.27 ; module load lfric-gnu/12.2.0/3.1 || true" %}
+
+    [[EX1A_BUILD_GNU_LFRIC32]]
+        inherit = EX1A_BUILD_GNU
+        pre-script = {{ vn32_prescript }}
+
+    [[EX1A_RUN_GNU_LFRIC32]]
+        inherit = EX1A_RUN_GNU
+        pre-script = {{ vn32_prescript }}
 
 {% do LOG.debug("Finished in sitemeto/common/suite_config_ex1a.cylc") %}
