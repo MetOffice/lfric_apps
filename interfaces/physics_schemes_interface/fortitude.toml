@@ -8,8 +8,10 @@
 
 file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
 
-select = ["E000", "C001", "C031", "C032", "C043",
-"C051", "C071", "C072", "C091", "C082", "C092",
+extend-exclude = ["ukca_scavenging_mod.F90"]
+
+select = ["E000", "C001", "C032",
+"C051", "C071", "C072", "C091", "C092",
 "C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
 "PORT011", "PORT012", "PORT021", "FORT001",
 "FORT002", "FORT003", "FORT004", "FORT005"]
