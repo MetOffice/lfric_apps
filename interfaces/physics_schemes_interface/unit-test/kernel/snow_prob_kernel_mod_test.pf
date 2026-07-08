@@ -1,0 +1,88 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the snow_prob kernel
+!>
+module snow_prob_kernel_mod_test
+
+  use funit
+  use constants_mod, only : r_def, i_def
+
+  implicit none
+
+  private
+  public :: test_snow_prob
+
+  @TestCase
+  type, extends(TestCase), public :: snow_prob_test_type
+    private
+    real(kind=r_def), allocatable :: geopot(:), snow_prob(:)
+    integer(i_def), allocatable :: map_geo(:), map_2d(:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_snow_prob
+  end type snow_prob_test_type
+
+  integer(i_def), parameter :: nlayers  = 1_i_def
+  integer(i_def), parameter :: ndf_geo  = 1_i_def
+  integer(i_def), parameter :: ndf_2d   = 1_i_def
+  integer(i_def), parameter :: undf_geo = 2_i_def
+  integer(i_def), parameter :: undf_2d  = 1_i_def
+
+contains
+
+  subroutine setUp( this )
+    implicit none
+    class(snow_prob_test_type), intent(inout) :: this
+    allocate( this%geopot(undf_geo) )
+    allocate( this%snow_prob(undf_2d) )
+    allocate( this%map_geo(ndf_geo) )
+    allocate( this%map_2d(ndf_2d) )
+    this%map_geo = 1_i_def
+    this%map_2d = 1_i_def
+  end subroutine setUp
+
+  subroutine tearDown( this )
+    implicit none
+    class(snow_prob_test_type), intent(inout) :: this
+    deallocate( this%geopot, this%snow_prob, this%map_geo, this%map_2d )
+  end subroutine tearDown
+
+  @test
+  subroutine test_snow_prob( this )
+
+    use snow_prob_kernel_mod, only : snow_prob_code
+
+    implicit none
+
+    class(snow_prob_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def
+
+    ! Mid-range: 5220 + 3.86666*60 - 4*1350 = 51.9996
+    this%geopot = (/ 60.0_r_def, 1350.0_r_def /)
+    call snow_prob_code( nlayers, this%geopot, this%snow_prob, &
+                         ndf_geo, undf_geo, this%map_geo,      &
+                         ndf_2d, undf_2d, this%map_2d )
+    @assertEqual( 51.9996_r_def, this%snow_prob(1), tol )
+
+    ! Clamp high: raw 5220 + 386.666 - 400 = 5206.666 -> 100
+    this%geopot = (/ 100.0_r_def, 100.0_r_def /)
+    call snow_prob_code( nlayers, this%geopot, this%snow_prob, &
+                         ndf_geo, undf_geo, this%map_geo,      &
+                         ndf_2d, undf_2d, this%map_2d )
+    @assertEqual( 100.0_r_def, this%snow_prob(1), tol )
+
+    ! Clamp low: raw 5220 - 6000 = -780 -> 0
+    this%geopot = (/ 0.0_r_def, 1500.0_r_def /)
+    call snow_prob_code( nlayers, this%geopot, this%snow_prob, &
+                         ndf_geo, undf_geo, this%map_geo,      &
+                         ndf_2d, undf_2d, this%map_2d )
+    @assertEqual( 0.0_r_def, this%snow_prob(1), tol )
+
+  end subroutine test_snow_prob
+
+end module snow_prob_kernel_mod_test

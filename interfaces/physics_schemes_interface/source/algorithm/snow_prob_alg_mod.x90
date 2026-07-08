@@ -1,0 +1,115 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Snow probability (Boyden method). UM lineage: STASH m01s20i028.
+
+module snow_prob_alg_mod
+
+  use config_mod,                    only: config_type
+  use constants_mod,                 only: r_def, i_def
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use fs_continuity_mod,             only: W3, Wtheta
+  use function_space_collection_mod, only: function_space_collection
+  use function_space_mod,            only: function_space_type
+  use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
+  use io_config_mod,                 only: use_xios_io
+  use mesh_mod,                      only: mesh_type
+  use planet_config_mod,             only: p_zero, kappa, gravity, cp
+  use planet_constants_mod,          only: ex_power
+  use sci_geometric_constants_mod,   only: get_height_fv
+  use timing_mod,                    only: start_timing, stop_timing, tik, LPROF
+
+  implicit none
+  private
+  public :: snow_prob_alg
+
+  ! Bespoke pressure levels (Pa) for the Boyden predictor, computed
+  ! internally so this diagnostic has NO dependency on the runtime
+  ! 'pressure_levels' XIOS axis. Deliberate delta from UM STASH m01s20i028,
+  ! which required 1000 & 850 hPa in the user's STASH 16202 level list and
+  ! silently saturated (to 100% or 0% everywhere, depending on which level
+  ! was absent) if either was missing.
+  integer(i_def), parameter :: nplev_snow = 2_i_def
+  real(r_def), parameter :: plevs_snow(nplev_snow) = &
+       (/ 100000.0_r_def, 85000.0_r_def /)  ! slot 1: 1000 hPa, slot 2: 850 hPa
+
+contains
+
+  !> @brief Snow probability (%) by the Boyden method.
+  !> @details Boyden (1964), Met.Mag. 93, 353-365. UM lineage: STASH
+  !!          m01s20i028 (pws_snow_prob_diag.F90). Output clamped to [0,100] %.
+  !!          Z1000/Z850 are computed here via geo_on_pres_kernel_type
+  !!          (LFRic port of UM vert_h_onto_p) on bespoke internal levels.
+  !> @param[in]  config          Application namelist configuration object
+  !> @param[in]  exner_w3        Exner pressure in W3 space
+  !> @param[in]  derived_fields  Group of derived fields
+  !> @param[in]  theta_wth       Potential temperature
+  !> @param[in]  twod_mesh       Current 2d mesh
+  subroutine snow_prob_alg(config, exner_w3, derived_fields, theta_wth, &
+                           twod_mesh)
+
+    use psykal_lite_phys_mod, only: invoke_geo_on_pres_kernel_type
+    use snow_prob_kernel_mod, only: snow_prob_kernel_type
+
+    implicit none
+
+    type(config_type),            intent(in)          :: config
+    type(field_type),             intent(in)          :: exner_w3
+    type(field_collection_type),  intent(in)          :: derived_fields
+    type(field_type),             intent(in)          :: theta_wth
+    type(mesh_type),              intent(in), pointer :: twod_mesh
+
+    type(field_type)                    :: snow_prob
+    type(field_type)                    :: geopot_2lev
+    type(field_type), pointer           :: exner_wth  => null()
+    type(field_type), pointer           :: height_w3  => null()
+    type(field_type), pointer           :: height_wth => null()
+    type(function_space_type), pointer  :: fs_2lev    => null()
+    logical                             :: snow_prob_flag
+    integer(tik)                        :: id
+
+    if ( LPROF ) call start_timing( id, 'diags.snow_prob' )
+
+    snow_prob_flag = init_diag(snow_prob, 'aviation__snow_probability')
+
+    if (snow_prob_flag .and. use_xios_io) then
+
+      call derived_fields%get_field('exner_in_wth', exner_wth)
+      height_w3  => get_height_fv(config, exner_w3%get_mesh(), W3)
+      height_wth => get_height_fv(config, theta_wth%get_mesh(), Wtheta)
+
+      ! Work field: Z1000 in multidata slot 1, Z850 in slot 2. Constructed
+      ! with the same get_fs(2d mesh, 0, 0, W3, ndata) call that
+      ! space_from_metadata_mod uses for plev fields, so it has the layout
+      ! geo_on_pres_code writes: data_out(map_out(1)+kp-1).
+      fs_2lev => function_space_collection%get_fs(twod_mesh, 0, 0, W3, &
+                                                  ndata=nplev_snow)
+      call geopot_2lev%initialise(fs_2lev, name='snow_prob_geopot_2lev')
+
+      ! Geopotential height of the 1000/850 hPa surfaces: exner-linear
+      ! interpolation of model-level height with UM-parity extrapolation
+      ! (LFRic port of UM vert_h_onto_p). Psykal-lite because the plevs
+      ! scalar-array argument is unsupported (PSyclone issue #1312).
+      call invoke_geo_on_pres_kernel_type(height_w3, exner_w3, theta_wth, &
+                                          height_wth, exner_wth,          &
+                                          nplev_snow, plevs_snow,         &
+                                          geopot_2lev,                    &
+                                          p_zero, kappa, cp, gravity,     &
+                                          ex_power)
+
+      ! Boyden combine + clamp (2d-fields-only invoke; do not group with
+      ! kernels operating on 3d fields - PSyclone issue #2636)
+      call invoke( snow_prob_kernel_type(geopot_2lev, snow_prob) )
+
+      call snow_prob%write_field()
+
+    end if
+
+    if ( LPROF ) call stop_timing( id, 'diags.snow_prob' )
+
+  end subroutine snow_prob_alg
+
+end module snow_prob_alg_mod

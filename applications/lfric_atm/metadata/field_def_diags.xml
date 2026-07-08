@@ -1005,6 +1005,8 @@
   <!-- Vertical integrals -->
   <field id="processed__sw_aer_optical_depth_rts" field_ref="radiation__sw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
   <field id="processed__lw_aer_optical_depth_rts" field_ref="radiation__lw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
+  <!-- Aviation diagnostics -->
+  <field id="aviation__snow_probability" name="aviation_snow_probability" long_name="surface_snow_probability" unit="%" domain_ref="face" />
 </field_group>
 
 <!-- Integer diagnostic group -->
