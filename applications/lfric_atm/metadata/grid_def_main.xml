@@ -137,6 +137,12 @@
       <zoom_axis begin="0" n="1"/>
     </axis>
   </grid>
+  <grid id="pressure_levels_700_face_zoom">
+    <domain domain_ref="face"/>
+    <axis axis_ref="pressure_levels" >
+      <zoom_axis begin="5" n="1"/>
+    </axis>
+  </grid>
 
   <!-- Reduce filters -->
   <grid id="face_zmax">

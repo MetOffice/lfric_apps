@@ -944,6 +944,9 @@
   <!-- First line extracts level 0, second line removes vertical coordinate, cannot do as one -->
   <field id="zoomed__pstar" field_ref="processed__pressure_in_wth" grid_ref="full_level_0_face_zoom" />
   <field id="processed__pstar" name="pstar" long_name="surface_air_pressure" standard_name="surface_air_pressure" unit="Pa" domain_ref="face"> zoomed__pstar </field>
+  <!-- Extract the 700 hPa level (index 5 of pressure_levels) from the multi-level plev__geopot, then remove the residual 1-element vertical coordinate -->
+  <field id="zoomed__geopot" field_ref="plev__geopot" grid_ref="pressure_levels_700_face_zoom" />
+  <field id="processed__geopot" name="zg700" long_name="geopotential_height_at_700hpa" standard_name="geopotential_height" unit="m" domain_ref="face"> zoomed__geopot </field>
   <field id="processed__pmsl" name="pmsl" long_name="air_pressure_at_mean_sea_level" standard_name="air_pressure_at_mean_sea_level" unit="Pa" domain_ref="face" />
   <field id="processed__pmsl_unsmooth" name="pmsl_unsmooth" long_name="unsmoothed_air_pressure_at_mean_sea_level" standard_name="air_pressure_at_mean_sea_level" unit="Pa" domain_ref="face" />
   <field id="processed__radius" name="radius" long_name="radius" unit="m" grid_ref="half_level_face_grid" > height_w3 + 6371229.0 </field>
