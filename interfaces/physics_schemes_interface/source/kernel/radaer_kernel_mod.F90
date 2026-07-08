@@ -538,6 +538,9 @@ subroutine radaer_code( nlayers,                                               &
   integer(i_um) :: k, i, i_band, i_mode, i_rmode
   integer(i_um) :: mm, m, n_fields, nn_fields
 
+  ! Need to pass through argument list
+  integer(i_um) :: ncp_max_x_nmodes
+
   ! pressure on theta levels
   real(r_um),dimension( row_length, rows, nlayers ) :: p_theta_levels_um
 
@@ -728,6 +731,8 @@ subroutine radaer_code( nlayers,                                               &
                                'fldname_wetdp_cor_ins' ]
 
   !-----------------------------------------------------------------------
+
+  ncp_max_x_nmodes = ncp_max * nmodes
 
   npd_exclude_lw = SIZE( lw_index_exclude, 1 )
   npd_exclude_sw = SIZE( sw_index_exclude, 1 )
@@ -1457,6 +1462,7 @@ subroutine radaer_code( nlayers,                                               &
       npd_exclude_lw,                                                          &
       npd_exclude_sw,                                                          &
       npd_ukca_aod_wavel,                                                      &
+      ncp_max_x_nmodes,                                                        &
       ! Actual array dimensions (input)
       n_ukca_mode,                                                             &
       n_ukca_cpnt,                                                             &
