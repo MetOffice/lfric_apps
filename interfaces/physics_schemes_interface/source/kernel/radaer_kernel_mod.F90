@@ -651,9 +651,8 @@ subroutine radaer_code( nlayers,                                               &
                       'fldname_acc_ins_du' , &
                       'fldname_cor_ins_du' ]
 
-  character(len=max_fldname_len), parameter, dimension(7) :: &
-       mode_names = [ 'fldname_n_nuc_sol' , &
-                      'fldname_n_ait_sol' , &
+  character(len=max_fldname_len), parameter, dimension(6) :: &
+       mode_names = [ 'fldname_n_ait_sol' , &
                       'fldname_n_acc_sol' , &
                       'fldname_n_cor_sol' , &
                       'fldname_n_ait_ins' , &
