@@ -812,7 +812,7 @@ subroutine radaer_code( nlayers,                                               &
   ukca_comp_vol_um = 0.0_r_um
 
   do m = 1, n_fields
-    select case(pvol_comp_names(m))
+    select case(trim(pvol_comp_names(m)))
     case('fldname_pvol_su_ait_sol')
       do k = 1, nlayers
         ukca_comp_vol_um(1, k, m)= real( pvol_su_ait_sol(map_wth(1) + k), r_um )
@@ -894,7 +894,7 @@ subroutine radaer_code( nlayers,                                               &
   ukca_mix_ratio_um = 0.0_r_um
 
   do m = 1, n_fields
-    select case(comp_names(m))
+    select case(trim(comp_names(m)))
     case('fldname_ait_sol_su')
       do k = 1, nlayers
         ukca_mix_ratio_um(1, k, m) = real( ait_sol_su(map_wth(1) + k), r_um )
@@ -976,7 +976,7 @@ subroutine radaer_code( nlayers,                                               &
   ukca_modal_nbr_um = 0.0_r_um
 
   do m = 1, n_fields
-    select case(mode_names(m))
+    select case(trim(mode_names(m)))
     case('fldname_n_nuc_sol')
       write( log_scratch_space, '(A,A)' )                                      &
            'Radaer should not request soluble nucleation mode: ', mode_names(m)
@@ -1018,7 +1018,7 @@ subroutine radaer_code( nlayers,                                               &
   ukca_modal_rho_um = 0.0_r_um
 
   do m = 1, n_fields
-    select case(rhopar_mode_names(m))
+    select case(trim(rhopar_mode_names(m)))
     case('fldname_rhopar_ait_sol')
       do k = 1, nlayers
         ukca_modal_rho_um(1, k, m)= real( rhopar_ait_sol(map_wth(1) + k), r_um )
@@ -1056,7 +1056,7 @@ subroutine radaer_code( nlayers,                                               &
   ukca_dry_diam_um = 0.0_r_um
 
   do m = 1, n_fields
-    select case(dry_diam_mode_names(m))
+    select case(trim(dry_diam_mode_names(m)))
     case('fldname_drydp_ait_sol')
       do k = 1, nlayers
         ukca_dry_diam_um(1, k, m) = real( drydp_ait_sol(map_wth(1) + k), r_um )
@@ -1095,7 +1095,7 @@ subroutine radaer_code( nlayers,                                               &
 
   do m = 1, n_fields
 
-    select case( modal_volume_names(m) )
+    select case( trim( modal_volume_names(m) ) )
 
     case('fldname_mod_vol_ait_sol')
 
@@ -1103,7 +1103,7 @@ subroutine radaer_code( nlayers,                                               &
 
       do mm = 1, nn_fields
 
-        select case( ait_sol_volume_names(mm) )
+        select case( trim( ait_sol_volume_names(mm) ) )
 
         case( 'pvol_wat_ait_sol' )
           do k = 1, nlayers
@@ -1150,7 +1150,7 @@ subroutine radaer_code( nlayers,                                               &
       nn_fields = size(acc_sol_volume_names)
 
       do mm = 1, nn_fields
-        select case( acc_sol_volume_names(mm) )
+        select case( trim( acc_sol_volume_names(mm) ) )
         case( 'pvol_wat_acc_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
@@ -1202,7 +1202,7 @@ subroutine radaer_code( nlayers,                                               &
       nn_fields = size(cor_sol_volume_names)
 
       do mm = 1, nn_fields
-        select case( cor_sol_volume_names(mm) )
+        select case( trim( cor_sol_volume_names(mm) ) )
         case( 'pvol_wat_cor_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
@@ -1255,7 +1255,7 @@ subroutine radaer_code( nlayers,                                               &
 
       do mm = 1, nn_fields
 
-        select case( ait_ins_volume_names(mm) )
+        select case( trim( ait_ins_volume_names(mm) ) )
 
         case( 'pvol_bc_ait_ins' )
           do k = 1, nlayers
@@ -1291,7 +1291,7 @@ subroutine radaer_code( nlayers,                                               &
 
       do mm = 1, nn_fields
 
-        select case( acc_ins_volume_names(mm) )
+        select case( trim( acc_ins_volume_names(mm) ) )
 
         case( 'pvol_du_acc_ins' )
           do k = 1, nlayers
@@ -1321,7 +1321,7 @@ subroutine radaer_code( nlayers,                                               &
 
       do mm = 1, nn_fields
 
-        select case( cor_ins_volume_names(mm) )
+        select case( trim( cor_ins_volume_names(mm) ) )
 
         case( 'pvol_du_cor_ins' )
           do k = 1, nlayers
@@ -1357,7 +1357,7 @@ subroutine radaer_code( nlayers,                                               &
   ukca_modal_wtv_um = 0.0_r_um
 
   do m = 1, n_fields
-    select case(modal_wtv_names(m))
+    select case(trim(modal_wtv_names(m)))
     case('fldname_pvol_wat_ait_sol')
       do k = 1, nlayers
         ukca_modal_wtv_um(1,k,m) =real( pvol_wat_ait_sol(map_wth(1) + k), r_um )
@@ -1395,7 +1395,7 @@ subroutine radaer_code( nlayers,                                               &
   ukca_wet_diam_um = 0.0_r_um
 
   do m = 1, n_fields
-    select case(wet_diam_mode_names(m))
+    select case(trim(wet_diam_mode_names(m)))
     case('fldname_wetdp_ait_sol')
       do k = 1, nlayers
         ukca_wet_diam_um(1, k, m) = real( wetdp_ait_sol(map_wth(1) + k), r_um )
