@@ -343,7 +343,7 @@ contains
       ! Wet bulb freezing level
       call freeze_lev_alg(theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
-      call write_horizontal_divergence_diagnostic( &
+      call aviation_diags_alg( &
         u, exner, mesh, element_order_h, element_order_v)
 #endif
 
