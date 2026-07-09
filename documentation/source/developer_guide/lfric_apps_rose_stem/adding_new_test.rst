@@ -194,7 +194,7 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
    * - mpi_parts_xios
      - Int
      - 0
-     - If ``use_xios`` is true and both this and ``xios_nodes`` are greater than 0, ``xios_server_mode`` will be true and this will set ``xios_server_ranks``. |br| Otherwise ``xios_server_mode=false`` and ``xios_server_ranks=0``.
+     - If ``use_xios`` is true and both this and ``xios_nodes`` are greater than0, ``xios_server_mode`` will be true and this will set ``xios_server_ranks``. |br| Otherwise ``xios_server_mode=false`` and ``xios_server_ranks=0``.
    * - xios_info_level
      - Int
      - 0
@@ -206,7 +206,7 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
    * - xios_min_buffer_size
      - Int
      - 8192
-     - The buffer size allocated to each XIOS client and server, given in bytes. The value is used to set the ``min_buffer_size`` setting within XML files. The default value within XIOS is 8192 (8Kb).
+     - The minimum buffer size to allocate to each XIOS client and server, given in bytes. The value is used to set the ``min_buffer_size`` setting within XML files, see the `Link XIOS documentation <https://ipsl.pages.in2p3.fr/projets/xios-projects/xios/XIOS_user_guide/#buffer-related-options/>`__ for more information.. The default value within XIOS is 8192 (8Kb).
    * - xios_buffer_size_factor
      - Float
      - 1.0
