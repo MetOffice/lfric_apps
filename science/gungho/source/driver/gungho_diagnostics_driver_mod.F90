@@ -59,7 +59,7 @@ module gungho_diagnostics_driver_mod
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
-  use aviation_diags_alg_mod,    only : write_horizontal_divergence_diagnostic
+  use aviation_diags_alg_mod,    only : aviation_diags_alg
 #endif
 
   implicit none

@@ -9,6 +9,7 @@ module aviation_diags_alg_mod
 
   use constants_mod,              only: r_def, i_def, l_def
   use field_mod,                  only: field_type
+  use mesh_mod,                   only: mesh_type
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
   implicit none
@@ -25,7 +26,7 @@ contains
   !> @param[in]     element_order_h   Element order in the horizontal
   !> @param[in]     element_order_v   Element order in the vertical
   subroutine aviation_diags_alg( &
-          u, exner, mesh, element_order_h, element_order_v)
+          wind, exner_w3, main_mesh, element_order_h, element_order_v)
     implicit none
 
     ! Arguments
@@ -35,7 +36,7 @@ contains
     integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
 
     call write_horizontal_divergence_diagnostic( &
-        u, exner, mesh, element_order_h, element_order_v)
+        wind, exner_w3, main_mesh, element_order_h, element_order_v)
 
   end subroutine aviation_diags_alg
 
@@ -62,7 +63,6 @@ contains
 
     use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
 
-    use mesh_mod,                       only: mesh_type
     use integer_field_mod,              only: integer_field_type
 
     use psykal_lite_phys_mod,           only: invoke_pres_interp_kernel_type
