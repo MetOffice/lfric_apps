@@ -184,7 +184,7 @@ contains
                                 interm_fields, regrid_method)
       end if
       if (vertical_change) then
-        call lfric2lfric_vert(interm_fields, target_fields)
+        call lfric2lfric_vert(modeldb, interm_fields, target_fields)
       end if
       
       ! Write output
@@ -212,7 +212,7 @@ contains
                                   interm_fields, regrid_method)
         end if
         if (vertical_change) then
-          call lfric2lfric_vert(interm_fields, target_fields)
+          call lfric2lfric_vert(modeldb, interm_fields, target_fields)
         end if
 
         is_running = modeldb%clock%tick()
