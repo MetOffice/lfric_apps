@@ -23,6 +23,23 @@ from transmute_psytrans.transmute_functions import (
 # Variables that appear on the left-hand side of assignments
 # for which PSyclone dependency errors can be ignored
 false_dep_vars = [
+    "bcf_incr",
+    "bcf_work",
+    "cff_work",
+    "cfl_forcing",
+    "cfl_incr",
+    "cfl_work",
+    "p_forcing",
+    "p_work",
+    "qcl_incr",
+    "qcl_work",
+    "qv_forcing",
+    "qv_incr",
+    "qv_work",
+    "t_forcing",
+    "t_incr",
+    "t_work",
+    "zeros",
     "dt_conv_wth",
     "dmv_conv_wth",
     "dmcl_conv_wth",
@@ -71,20 +88,28 @@ def trans(psyir):
             # Check if any variables appear on the LHS of assignment
             # expressions that require "privatisation" or lead to false
             # dependency errors in the parallel loop transformation.
-            options = {"privatise_arrays":
-                       len(match_lhs_assignments(loop, private_arrays)) > 0}
             ignore_deps_vars = match_lhs_assignments(loop, false_dep_vars)
-            if len(ignore_deps_vars) > 0:
-                options["ignore_dependencies_for"] = ignore_deps_vars
+            force_privates = match_lhs_assignments(loop, private_arrays)
 
-            # The loop with privatised arrays also needs dynamic schedule
-            if options["privatise_arrays"]:
+            if len(force_privates) > 0:
+                # For some reason, zeros is being incorrectly
+                # not appended to ignore_deps_vars for this loop, 
+                # or the transformation checks are picking up something
+                # incorrectly. Adding it manually here resolves it.
+                ignore_deps_vars.append("zeros")
                 try:
-                    omp_pardo_dyn.apply(loop, options)
+                    omp_pardo_dyn.apply(
+                        loop,
+                        force_private=force_privates,
+                        ignore_dependencies_for=ignore_deps_vars,
+                        node_type_check=False)
                 except (TransformationError, IndexError) as err:
                     logging.warning("OMPLoopTrans failed: %s", err)
             else:
                 try:
-                    OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop, options)
+                    OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
+                        loop, 
+                        ignore_dependencies_for=ignore_deps_vars,
+                        node_type_check=False)
                 except (TransformationError, IndexError) as err:
                     logging.warning("OMPLoopTrans failed: %s", err)

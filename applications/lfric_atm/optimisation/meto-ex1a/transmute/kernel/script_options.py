@@ -153,3 +153,20 @@ SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
             "sfsnow",
     ]
 }
+
+SCRIPT_OPTIONS_DICT["lsp_prognostic_tnuc_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "tnuc",
+
+    ]
+}
+
+SCRIPT_OPTIONS_DICT["mphys_turb_gen_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "dbcf",
+        "dcfl",
+        "dmr_cl",
+        "dmr_v",
+        "dtheta",
+    ]
+}
