@@ -12,14 +12,14 @@ and referenced. This reduces the number of files needed
 
 # Needs to be lifted and likely set by the build system longer term.
 # The filename passed to PSyclone, this is the pre-processed FTN source.
-FILE_EXTEN = ".xu90"
+FILE_EXTEN = ".F90"
 
 # Basic initialisation
 SCRIPT_OPTIONS_DICT = {}
 
 # Kernels
 SCRIPT_OPTIONS_DICT["bl_exp_kernel_mod"+str(FILE_EXTEN)] = {
-    "false_dep_vars": [
+    "ignore_dependencies_for": [
         "tnuc_nlcl",
         "dw_bl",
         "surf_interp",
@@ -77,7 +77,7 @@ SCRIPT_OPTIONS_DICT["bl_exp_kernel_mod"+str(FILE_EXTEN)] = {
 }
 
 SCRIPT_OPTIONS_DICT["bl_imp_kernel_mod"+str(FILE_EXTEN)] = {
-    "false_dep_vars": [
+    "ignore_dependencies_for": [
         "dqw_wth",
         "dtl_wth",
         "dqw_nt_wth",
@@ -92,7 +92,7 @@ SCRIPT_OPTIONS_DICT["bl_imp_kernel_mod"+str(FILE_EXTEN)] = {
 }
 
 SCRIPT_OPTIONS_DICT["bl_imp2_kernel_mod"+str(FILE_EXTEN)] = {
-    "false_dep_vars": [
+    "ignore_dependencies_for": [
         "fric_heating_blyr",
         "fric_heating_incv",
         "nblyr",
@@ -120,39 +120,36 @@ SCRIPT_OPTIONS_DICT["bl_imp2_kernel_mod"+str(FILE_EXTEN)] = {
 }
 
 SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
-
-    "options": {
-        "node-type-check": False,
-        "ignore_dependencies_for": [
-            "dtheta",           # First and Second i, k loop
-            "dmv_wth",          # First and Second i, k loop
-            "dml_wth",          # First and Second i, k loop
-            "dms_wth",          # First and Second i, k loop
-            "dmr_wth",          # Third i, k loop
-            "dmg_wth",          # Forth i, k loop
-            "murk",             # First k, i loop
-            "dbcf_wth",         # Fifth i, k loop
-            "dcfl_wth",         # Fifth i, k loop
-            "dcff_wth",         # Fifth i, k loop
-            "ls_rain_2d",       # Fifth i, k loop
-            "ls_snow_2d",       # Fifth i, k loop
-            "ls_graup_2d",      # Fifth i, k loop
-            "lsca_2d",          # Fifth i, k loop
-            "ls_rain_3d",       # Fifth i, k loop
-            "ls_snow_3d",       # Fifth i, k loop
-            "precfrac",         # Fifth i, k loop
-            "refl_tot",         # Fifth i, k loop
-            "autoconv",         # Fifth i, k loop
-            "accretion",        # Fifth i, k loop
-            "rim_cry",          # Fifth i, k loop
-            "rim_agg",          # Fifth i, k loop
-            "refl_1km",         # Fifth i, k loop
-            "superc_liq_wth",   # Sixth i, k loop
-            "superc_rain_wth",  # Seventh i, k loop
-            "sfwater",          # Eighth i, k loop
-            "sfwater",          # Second k, i loop
-            "sfrain",           # Third k, i loop
-            "sfsnow",           # Fourth k, i loop
-        ]
-    }
+    "node_type_check": False,
+    "ignore_dependencies_for": [
+            "dml_wth",
+            "dmv_wth",
+            "dml_wth",
+            "dtheta",
+            "refl_1km",
+            "dms_wth",
+            "dmr_wth",
+            "dmg_wth",
+            "murk",
+            "dbcf_wth",
+            "dcff_wth",
+            "dcfl_wth",
+            "ls_rain_2d",
+            "ls_snow_2d",
+            "ls_graup_2d",
+            "lsca_2d",
+            "ls_rain_3d",
+            "ls_snow_3d",
+            "precfrac",
+            "autoconv",
+            "accretion",
+            "rim_cry",
+            "rim_agg",
+            "refl_tot",
+            "superc_liq_wth",
+            "superc_rain_wth",
+            "sfwater",
+            "sfrain",
+            "sfsnow",
+    ]
 }

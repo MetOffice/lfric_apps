@@ -31,28 +31,30 @@ def trans(psyir):
 
     fortran_file_name = str(psyir.root.name)
 
-    false_dep_vars = []
+    node_type_check = True
+    ignore_dependencies_for = []
 
     if fortran_file_name in SCRIPT_OPTIONS_DICT:
         file_overrides = SCRIPT_OPTIONS_DICT[fortran_file_name]
-        if "false_dep_vars" in file_overrides.keys():
-            false_dep_vars = file_overrides["false_dep_vars"]
+        if "ignore_dependencies_for" in file_overrides.keys():
+            ignore_dependencies_for = file_overrides[
+                    "ignore_dependencies_for"]
+        if "node_type_check" in file_overrides.keys():
+            node_type_check = file_overrides[
+                    "node_type_check"]
 
     # Work through each loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
         if loop.variable.name in ['i', 'l']:
-            # Check if any eligible variables appear on the LHS of
-            # assignment expressions; these lead to false dependency
-            # errors in the parallel loop transformation that can be
-            # ignored
-            ignore_deps_vars = match_lhs_assignments(loop, false_dep_vars)
-            options = {}
-            if len(ignore_deps_vars) > 0:
-                options["ignore_dependencies_for"] = ignore_deps_vars
 
             try:
-                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop, options)
+                #OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop, options)
+                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
+                    loop, 
+                    ignore_dependencies_for=ignore_dependencies_for,
+                    node_type_check=node_type_check)
 
             except (TransformationError, IndexError) as err:
                 logging.warning(
                     "Could not transform because:\n %s", err)
+                print(f"Could not transform because:\n {err}")
