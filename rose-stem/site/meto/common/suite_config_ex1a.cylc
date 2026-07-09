@@ -74,6 +74,7 @@
 {% else %}
             BIG_DATA_DIR = '/data/users/lfricadmin/data'
 {% endif %}
+            OFFLINE_PARTITION_DIR = '$BIG_DATA_DIR/meshes/partitioned'
             TARGET_PLATFORM = 'meto-ex1a'
             RUN_METHOD = 'mpiexec'
 
