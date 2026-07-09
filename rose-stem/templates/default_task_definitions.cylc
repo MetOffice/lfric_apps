@@ -208,8 +208,8 @@
 
 {# XIOS buffers #}
 {% if "xios_min_buffer_size" not in task_dict %}
-    {# NWP default = 10Mb #}
-    {% do task_dict.update({"xios_min_buffer_size": 10485760}) %}
+    {# XIOS default = 8Kb #}
+    {% do task_dict.update({"xios_min_buffer_size": 8192}) %}
 {% endif %}
 
 {% if "xios_buffer_size_factor" not in task_dict %}
