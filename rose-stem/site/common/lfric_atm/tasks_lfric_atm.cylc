@@ -1245,7 +1245,7 @@
 {% endif %}
 
 {# RAL configuration XIOS buffer defaults #}
-{% elif "ral" in task_ns.conf_name %}
+{% if "ral" in task_ns.conf_name %}
     {# RAL default = 2Mb #}
     {% do task_dict.update({
         "xios_min_buffer_size": 2097152,

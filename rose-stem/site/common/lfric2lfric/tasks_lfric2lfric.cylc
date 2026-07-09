@@ -225,8 +225,6 @@
         "placeholder": true,
     }) %}
 
-{% endif %}
-
 {# RAL configuration XIOS buffer defaults #}
 {% elif "ral" in task_ns.conf_name %}
     {# RAL default = 2Mb #}

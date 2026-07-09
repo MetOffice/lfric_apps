@@ -203,6 +203,14 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
      - Str
      - ".false."
      - Controls whether XIOS creates ``xios_<client/server>_<rank>.out`` and ``xios_<client/server>_<rank>.err`` files. When set to ".false.", logging is directed to stdout and stderr. If ``xios_info_level`` is greater than 1, ``xios_print_file`` will be set to ".true.", overriding any task_dict setting.  This string must be a Fortran logical.
+   * - xios_min_buffer_size
+     - Int
+     - 10485760
+     - The buffer size allocated to each XIOS client and server, given in bytes. The value is used to set the ``min_buffer_size`` setting within XML files. The default value is 10485760 (10Mb).
+   * - xios_buffer_size_factor
+     - Float
+     - 1.0
+     - A multiplier for ``min_buffer_size``. Allows scaling of XIOS buffers without directly changing ``min_buffer_size``. Default value is 1.0.
    * - example_dir
      - Str
      - "example"
