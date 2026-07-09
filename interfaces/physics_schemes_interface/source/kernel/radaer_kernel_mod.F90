@@ -1143,8 +1143,6 @@ subroutine radaer_code( nlayers,                                               &
 
       end do
 
-    end select  
-
     case('fldname_mod_vol_acc_sol')
 
       nn_fields = size(acc_sol_volume_names)
@@ -1194,8 +1192,6 @@ subroutine radaer_code( nlayers,                                               &
         end select
 
       end do
-
-    end select
 
     case('fldname_mod_vol_cor_sol')
 
@@ -1247,8 +1243,6 @@ subroutine radaer_code( nlayers,                                               &
 
       end do
 
-    end select
-
     case('fldname_mod_vol_ait_ins')
 
       nn_fields = size(ait_ins_volume_names)
@@ -1283,8 +1277,6 @@ subroutine radaer_code( nlayers,                                               &
 
       end do
 
-    end select
-
     case('fldname_mod_vol_acc_ins')
 
       nn_fields = size(acc_ins_volume_names)
@@ -1312,8 +1304,6 @@ subroutine radaer_code( nlayers,                                               &
         end select
 
       end do
-
-    end select
 
     case('fldname_mod_vol_cor_ins')
 
