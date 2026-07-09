@@ -210,7 +210,7 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
    * - xios_buffer_size_factor
      - Float
      - 1.0
-     - A multiplier for ``min_buffer_size``. Allows scaling of XIOS buffers without directly changing ``min_buffer_size``. Default value is 1.0.
+     - A multiplier for ``xios_min_buffer_size``. Allows scaling of XIOS buffers without directly changing ``xios_min_buffer_size``. Default value is 1.0.
    * - example_dir
      - Str
      - "example"
