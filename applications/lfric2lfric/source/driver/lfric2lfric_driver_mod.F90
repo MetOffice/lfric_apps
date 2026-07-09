@@ -110,17 +110,25 @@ contains
     integer(kind=i_def)     :: dst_extrusion_method
     integer(kind=i_def)     :: src_number_of_layers
     integer(kind=i_def)     :: dst_number_of_layers
+    integer(kind=i_def)     :: src_stretching_method
+    integer(kind=i_def)     :: dst_stretching_method
     real(kind=r_def)        :: src_domain_height
     real(kind=r_def)        :: dst_domain_height
+    real(kind=r_def)        :: src_stretching_height
+    real(kind=r_def)        :: dst_stretching_height
 
     logical(l_def)          :: horizontal_change, vertical_change
 
     src_extrusion_method    = modeldb%config%extrusion%method()
     src_number_of_layers    = modeldb%config%extrusion%number_of_layers()
     src_domain_height       = modeldb%config%extrusion%domain_height()
+    src_stretching_height   = modeldb%config%extrusion%stretching_height()
+    src_stretching_method   = modeldb%config%extrusion%stretching_method()
     dst_extrusion_method    = modeldb%config%extrusion_dst%method()
     dst_number_of_layers    = modeldb%config%extrusion_dst%number_of_layers()
     dst_domain_height       = modeldb%config%extrusion_dst%domain_height()
+    dst_stretching_height   = modeldb%config%extrusion_dst%stretching_height()
+    dst_stretching_method   = modeldb%config%extrusion_dst%stretching_method()
 
     mesh_names(dst)     = modeldb%config%lfric2lfric%destination_mesh_name()
     mesh_names(src)     = modeldb%config%lfric2lfric%source_mesh_name()
@@ -133,6 +141,12 @@ contains
       vertical_change = .true.
     end if
     if ( src_domain_height /= dst_domain_height ) then
+      vertical_change = .true.
+    end if
+    if ( src_stretching_height /= dst_stretching_height ) then
+      vertical_change = .true.
+    end if
+    if ( src_stretching_method /= dst_stretching_method ) then
       vertical_change = .true.
     end if
     horizontal_change = .false.
