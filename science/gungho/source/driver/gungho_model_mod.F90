@@ -37,7 +37,6 @@ module gungho_model_mod
                                          shifted_extrusion_type,      &
                                          double_level_extrusion_type, &
                                          TWOD, SHIFTED, DOUBLE_LEVEL
-  use extrusion_config_mod,       only : stretching_height
   use multigrid_mod,              only : get_multigrid_tile_size, &
                                          init_multigrid_fs_chain
   use field_array_mod,            only : field_array_type
@@ -1047,8 +1046,7 @@ contains
                               orography_mesh%get_mesh_name(), &
                               chi_inventory,                  &
                               panel_id_inventory,             &
-                              surface_altitude,              &
-                              stretching_height )
+                              surface_altitude )
 
 
     !=======================================================================
