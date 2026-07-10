@@ -143,3 +143,14 @@ SCRIPT_OPTIONS_DICT["pc2_initiation_kernel_mod"+str(FILE_EXTEN)] = {
         "sskew_bm", "svar_bm", "svar_tb",
     ]
 }
+
+SCRIPT_OPTIONS_DICT["sw_rad_tile_kernel_mod"+str(FILE_EXTEN)] = {
+    "node-type-check": False,
+    "ignore_dependencies_for": [
+        "albedo_obs_scaling",
+        "tile_sw_direct_albedo",
+        "tile_sw_diffuse_albedo",
+        "sea_ice_pensolar_frac_direct",
+        "sea_ice_pensolar_frac_diffuse",
+    ]
+}
