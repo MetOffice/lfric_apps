@@ -17,7 +17,11 @@ Overrides currently include:
 import logging
 from psyclone.transformations import (
     TransformationError)
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import (
+    Loop, Call,
+    OMPParallelDoDirective,
+    OMPParallelDirective,
+    OMPDoDirective,)
 from transmute_psytrans.transmute_functions import (
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC
 )
@@ -37,6 +41,7 @@ def trans(psyir):
 
     node_type_check = True
     ignore_dependencies_for = []
+    safe_pure_calls = []
 
     if fortran_file_name in SCRIPT_OPTIONS_DICT:
         file_overrides = SCRIPT_OPTIONS_DICT[fortran_file_name]
@@ -46,9 +51,27 @@ def trans(psyir):
         if "node_type_check" in file_overrides.keys():
             node_type_check = file_overrides[
                     "node_type_check"]
+        if "safe_pure_calls" in file_overrides.keys():
+            safe_pure_calls = file_overrides[
+                    "safe_pure_calls"]
+        
+    # Set the calls to 'pure', given the provided override.
+    # pure allows PSyclone to parallelise over them with OMP.
+    if safe_pure_calls:
+        for call in psyir.walk(Call):
+            if call.routine.symbol.name in safe_pure_calls:
+                call.routine.symbol.is_pure = True
 
     # Work through each loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
+        # If there is an OMP ancestor skip.
+        if (
+            loop.ancestor(OMPParallelDoDirective) is not None
+            or loop.ancestor(OMPDoDirective) is not None
+            or loop.ancestor(OMPParallelDirective) is not None
+        ):
+            continue
+        # Allow loops over 'i' and 'l' indexes to be parallelised.
         if loop.variable.name in ['i', 'l']:
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(

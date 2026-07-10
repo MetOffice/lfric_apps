@@ -98,6 +98,26 @@ SCRIPT_OPTIONS_DICT["bm_tau_kernel_mod"+str(FILE_EXTEN)] = {
         ]
 }
 
+SCRIPT_OPTIONS_DICT["jules_exp_kernel_mod"+str(FILE_EXTEN)] = {
+    "node_type_check": False,
+    "ignore_dependencies_for": [
+        "z0msea_2d", "tstar_land", "sea_ice_pensolar", "rhostar_2d",
+        "recip_l_mo_sea_2d", "t1_sd_2d", "q1_sd_2d", "surf_interp",
+        "rhokm_bl", "rhokh_bl", "moist_flux_bl", "heat_flux_bl",
+        "gradrinr", "alpha1_tile", "fracaero_t_tile", "fracaero_s_tile",
+        "z0h_tile", "z0m_tile", "chr1p5m_tile", "resfs_tile",
+        "gc_tile", "canhc_tile", "ashtf_prime_tile", "dtstar_tile",
+        "rhokh_tile", "blend_height_tq", "z0m_eff", "ustar",
+        "soil_moist_avail", "snow_unload_rate", "tile_temperature",
+        "tile_heat_flux", "tile_moisture_flux", "z0m_2d",
+        "dust_div_flux", "tile_water_extract", "net_prim_prod",
+        "surface_conductance", "thermal_cond_wet_soil", "soil_respiration",
+        "gross_prim_prod", "z0h_eff", "fluxes%tstar_ij", "forcing%pstar_ij",
+        "qs_star",
+        ],
+    "safe_pure_calls": ["qsat_mix"]
+}
+
 SCRIPT_OPTIONS_DICT["jules_extra_kernel_mod"+str(FILE_EXTEN)] = {
     "node_type_check": False,
     "ignore_dependencies_for": [
@@ -147,10 +167,8 @@ SCRIPT_OPTIONS_DICT["pc2_initiation_kernel_mod"+str(FILE_EXTEN)] = {
 SCRIPT_OPTIONS_DICT["sw_rad_tile_kernel_mod"+str(FILE_EXTEN)] = {
     "node-type-check": False,
     "ignore_dependencies_for": [
-        "albedo_obs_scaling",
-        "tile_sw_direct_albedo",
-        "tile_sw_diffuse_albedo",
-        "sea_ice_pensolar_frac_direct",
+        "albedo_obs_scaling", "tile_sw_direct_albedo",
+        "tile_sw_diffuse_albedo", "sea_ice_pensolar_frac_direct",
         "sea_ice_pensolar_frac_diffuse",
     ]
 }
