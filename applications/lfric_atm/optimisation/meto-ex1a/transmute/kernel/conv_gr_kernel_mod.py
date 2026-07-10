@@ -8,7 +8,6 @@ PSyclone script for applying OpenMP transformations specific to the
 Gregory-Rowntree convection kernel.
 """
 import logging
-
 from psyclone.psyir.nodes import (
     Call,
     Loop,
@@ -23,15 +22,14 @@ from psyclone.transformations import (
     OMPParallelLoopTrans,
     TransformationError,
 )
-
 from transmute_psytrans.transmute_functions import (
     match_lhs_assignments,
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC,
     OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC,
 )
 
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 
 false_dep_vars_all = [
         "conv_rain", "conv_snow", "cca_2d", "cape_diluted", "lowest_cca_2d",
@@ -130,13 +128,11 @@ def trans(psyir: Routine):
         for call in numseg_loop.walk(Call):
             if call.routine.symbol.name in ["glue_conv_6a", "log_event"]:
                 call.routine.symbol.is_pure = True
-        options={"node-type-check": False}
-        options["ignore_dependencies_for"] = false_dep_vars_seg
         try:
             OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC.apply(
                 numseg_loop,
-                options,
-            )
+                ignore_dependencies_for=false_dep_vars_seg,
+                node_type_check=False)
         except TransformationError as e:
             logger.warning(e)
             print(f"Trying loop but{e}")
@@ -151,17 +147,11 @@ def trans(psyir: Routine):
         ):
             continue
         if loop.variable.name in ['i']:
-            # Check if any eligible variables appear on the LHS of
-            # assignment expressions; these lead to false dependency
-            # errors in the parallel loop transformation that can be
-            # ignored
-            ignore_deps_vars = match_lhs_assignments(loop, false_dep_vars_all)
-            options = {}
-            if len(ignore_deps_vars) > 0:
-                options["ignore_dependencies_for"] = ignore_deps_vars
-
             try:
-                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop, options)
+                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
+                    loop, 
+                    ignore_dependencies_for=false_dep_vars_all,
+                    node_type_check=False)
 
             except (TransformationError, IndexError) as err:
                 logging.warning(f"Could not transform because:\n {err}")
