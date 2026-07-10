@@ -1353,11 +1353,11 @@ subroutine radaer_code( nlayers,                                               &
       end do
     case('fldname_pvol_wat_acc_sol')
       do k = 1, nlayers
-        ukca_modal_wtv_um(1,k,m) =real( pvol_wat_ait_sol(map_wth(1) + k), r_um )
+        ukca_modal_wtv_um(1,k,m) =real( pvol_wat_acc_sol(map_wth(1) + k), r_um )
       end do
     case('fldname_pvol_wat_cor_sol')
       do k = 1, nlayers
-        ukca_modal_wtv_um(1,k,m) =real( pvol_wat_ait_sol(map_wth(1) + k), r_um )
+        ukca_modal_wtv_um(1,k,m) =real( pvol_wat_cor_sol(map_wth(1) + k), r_um )
       end do
     case('fldname_pvol_wat_ait_ins')
       do k = 1, nlayers
