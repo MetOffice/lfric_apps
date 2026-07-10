@@ -92,6 +92,12 @@ SCRIPT_OPTIONS_DICT["bl_imp2_kernel_mod"+str(FILE_EXTEN)] = {
         ]
 }
 
+SCRIPT_OPTIONS_DICT["bm_tau_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "tau_dec_bm", "tau_hom_bm", "tau_mph_bm"
+        ]
+}
+
 SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
     "node_type_check": False,
     "ignore_dependencies_for": [
