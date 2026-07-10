@@ -18,61 +18,19 @@ from transmute_psytrans.transmute_functions import (
     first_priv_red_init)
 
 
-node_type_check = False
 ignore_dependencies_for = [
-    "aer_mix_ratio",
-    "aer_sw_absorption",
-    "aer_sw_asymmetry",
-    "aer_sw_scattering",
-    "ch4",
-    "cloud_drop_no_conc",
-    "co",
-    "co2",
-    "conv_frozen_fraction",
-    "conv_frozen_mmr",
-    "conv_frozen_number",
-    "conv_liquid_fraction",
-    "conv_liquid_mmr",
-    "cos_zenith_angle_rts",
-    "cs",
-    "d_mass",
-    "frozen_fraction",
-    "h2",
-    "h2o",
-    "hcn",
-    "he",
-    "layer_heat_capacity",
-    "li",
-    "liquid_fraction",
-    "mcf",
-    "mcl",
-    "n2",
-    "n2o",
-    "n_ice",
-    "na",
-    "nh3",
-    "o2",
-    "o3",
-    "orographic_correction_rts",
-    "potassium",
-    "pressure_in_wth",
-    "profile_list",
-    "radiative_cloud_fraction",
-    "radiative_conv_fraction",
-    "rand_seed",
-    "rb",
-    "rho_in_wth",
-    "sigma_mi",
-    "sigma_ml",
-    "so2",
-    "stellar_irradiance_rts",
-    "sulphuric",
-    "temperature_in_wth",
-    "tile_fraction",
-    "tile_sw_diffuse_albedo",
-    "tile_sw_direct_albedo",
-    "tio",
-    "vo",
+    "aer_mix_ratio", "aer_sw_absorption", "aer_sw_asymmetry", "aer_sw_scattering",
+    "ch4", "cloud_drop_no_conc", "co", "co2", "conv_frozen_fraction",
+    "conv_frozen_mmr", "conv_frozen_number", "conv_liquid_fraction",
+    "conv_liquid_mmr", "cos_zenith_angle_rts", "cs", "d_mass", "frozen_fraction",
+    "h2", "h2o", "hcn", "he", "layer_heat_capacity", "li",
+    "liquid_fraction", "mcf", "mcl", "n2", "n2o", "n_ice", "na", "nh3",
+    "o2", "o3", "orographic_correction_rts", "potassium", "pressure_in_wth",
+    "profile_list", "radiative_cloud_fraction", "radiative_conv_fraction",
+    "rand_seed", "rb", "rho_in_wth", "sigma_mi", "sigma_ml", "so2",
+    "stellar_irradiance_rts", "sulphuric", "temperature_in_wth",
+    "tile_fraction", "tile_sw_diffuse_albedo", "tile_sw_direct_albedo",
+    "tio", "vo",
 ]
 
 
@@ -98,7 +56,7 @@ def trans(psyir):
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
                     loop,
                     ignore_dependencies_for=ignore_dependencies_for,
-                    node_type_check=node_type_check)
+                    node_type_check=False)
             except (TransformationError, IndexError) as err:
                 logging.warning(
                     "Could not transform because:\n %s", err)
