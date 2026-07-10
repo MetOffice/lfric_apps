@@ -135,3 +135,11 @@ SCRIPT_OPTIONS_DICT["mphys_turb_gen_kernel_mod"+str(FILE_EXTEN)] = {
         "dbcf", "dcfl", "dmr_cl", "dmr_v", "dtheta",
     ]
 }
+
+SCRIPT_OPTIONS_DICT["pc2_initiation_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "dtheta_inc_wth", "dmv_inc_wth", "dmcl_inc_wth", "dmci_inc_wth",
+        "dms_inc_wth", "dcfl_inc_wth", "dcff_inc_wth", "dbcf_inc_wth",
+        "sskew_bm", "svar_bm", "svar_tb",
+    ]
+}
