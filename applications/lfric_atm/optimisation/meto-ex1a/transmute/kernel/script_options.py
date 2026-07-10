@@ -98,6 +98,26 @@ SCRIPT_OPTIONS_DICT["bm_tau_kernel_mod"+str(FILE_EXTEN)] = {
         ]
 }
 
+SCRIPT_OPTIONS_DICT["jules_extra_kernel_mod"+str(FILE_EXTEN)] = {
+    "node_type_check": False,
+    "ignore_dependencies_for": [
+        "canopy_water", "tile_snow_mass", "n_snow_layers", "snow_depth",
+        "tile_snow_rgrain", "snow_under_canopy", "snowpack_density",
+        "snowice_melt", "soil_sat_frac", "water_table", "wetness_under_soil",
+        "surface_runoff", "sub_surface_runoff", "soil_moisture_content",
+        "grid_snow_mass", "throughfall", "snow_layer_thickness",
+        "snow_layer_ice_mass", "snow_layer_liq_mass", "snow_layer_temp",
+        "snow_layer_rgrain", "soil_temperature", "soil_moisture",
+        "unfrozen_soil_moisture", "frozen_soil_moisture",
+    ]
+}
+
+SCRIPT_OPTIONS_DICT["lsp_prognostic_tnuc_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "tnuc",
+    ]
+}
+
 SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
     "node_type_check": False,
     "ignore_dependencies_for": [
@@ -107,13 +127,6 @@ SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
         "ls_snow_3d", "precfrac", "autoconv", "accretion", "rim_cry",
         "rim_agg", "refl_tot", "superc_liq_wth", "superc_rain_wth",
         "sfwater", "sfrain", "sfsnow",
-    ]
-}
-
-SCRIPT_OPTIONS_DICT["lsp_prognostic_tnuc_kernel_mod"+str(FILE_EXTEN)] = {
-    "ignore_dependencies_for": [
-        "tnuc",
-
     ]
 }
 
