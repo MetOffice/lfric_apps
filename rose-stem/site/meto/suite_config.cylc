@@ -6,10 +6,10 @@
 {% do LOG.debug("Entered site/meto/suite_config.cylc") %}
 
     [[METO_ORIG]]
-{% if site_vars["ex_trustzone"] == "collab" %}
-        inherit = EX1A_SCRIPTS
-{% else %}
         pre-script = "module load scitools"
+{% if site_vars["ex_trustzone"] == "collab" %}
+        inherit = EX1A_REMOTE_INIT
+{% else %}
         platform = {{ROSE_ORIG_HOST}}
 {% endif %}
 
