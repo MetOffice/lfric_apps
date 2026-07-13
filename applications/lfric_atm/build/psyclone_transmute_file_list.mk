@@ -56,6 +56,7 @@ export PSYCLONE_PHYSICS_FILES = \
 
 # Causing build slow downs CCE  conv_comorph_kernel_mod \
                                 aerosol_ukca_kernel_mod \
+# The Psyclone Issue to fix this is #3418
 
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
