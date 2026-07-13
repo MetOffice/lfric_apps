@@ -92,6 +92,13 @@ SCRIPT_OPTIONS_DICT["bl_imp2_kernel_mod"+str(FILE_EXTEN)] = {
         ]
 }
 
+SCRIPT_OPTIONS_DICT["bm_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "theta_inc", "m_v", "m_cl", "cf_bulk", "cf_liq", "cf_ice", "cf_area",
+        "sskew_bm", "svar_bm", "svar_tb",
+        ]
+}
+
 SCRIPT_OPTIONS_DICT["bm_tau_kernel_mod"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "tau_dec_bm", "tau_hom_bm", "tau_mph_bm"
