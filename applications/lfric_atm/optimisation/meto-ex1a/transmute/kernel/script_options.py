@@ -227,6 +227,12 @@ SCRIPT_OPTIONS_DICT["pc2_initiation_kernel_mod"+str(FILE_EXTEN)] = {
     ]
 }
 
+SCRIPT_OPTIONS_DICT["photol_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "photol_rates",
+    ]
+}
+
 SCRIPT_OPTIONS_DICT["sw_rad_tile_kernel_mod"+str(FILE_EXTEN)] = {
     "node-type-check": False,
     "ignore_dependencies_for": [
