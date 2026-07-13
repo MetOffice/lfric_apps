@@ -16,7 +16,7 @@ Each file key in turn contains a dictionary of overrides.
 
 # Needs to be lifted and likely set by the build system longer term.
 # The filename passed to PSyclone, this is the pre-processed FTN source.
-FILE_EXTEN = ".F90"
+FILE_EXTEN = ".xu90"
 
 # Basic initialisation
 SCRIPT_OPTIONS_DICT = {}

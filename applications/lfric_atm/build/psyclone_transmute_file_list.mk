@@ -15,7 +15,6 @@
 # Choose which files to Pre-proccess and PSyclone from physics_schemes / other source (e.g. UKCA)
 
 export PSYCLONE_PHYSICS_FILES = \
-                                aerosol_ukca_kernel_mod \
                                 bl_lsp \
                                 bm_kernel_mod \
                                 bm_tau_kernel_mod \
@@ -23,7 +22,6 @@ export PSYCLONE_PHYSICS_FILES = \
                                 bl_imp_kernel_mod \
                                 bl_imp2_kernel_mod \
                                 btq_int \
-                                conv_comorph_kernel_mod \
                                 conv_gr_kernel_mod \
                                 ex_flux_tq \
                                 ex_flux_uv \
@@ -55,6 +53,10 @@ export PSYCLONE_PHYSICS_FILES = \
                                 ukca_abdulrazzak_ghan \
                                 ukca_chemistry_ctl_full_mod \
                                 ukca_main1-ukca_main1
+
+# Causing build slow downs CCE  conv_comorph_kernel_mod \
+                                aerosol_ukca_kernel_mod \
+
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 
