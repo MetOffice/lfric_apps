@@ -235,3 +235,9 @@ SCRIPT_OPTIONS_DICT["sw_rad_tile_kernel_mod"+str(FILE_EXTEN)] = {
         "sea_ice_pensolar_frac_diffuse",
     ]
 }
+
+SCRIPT_OPTIONS_DICT["smith_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "theta_inc", "m_v", "m_cl", "cf_bulk", "cf_liq", "cf_ice", "cf_area",
+    ]
+}
