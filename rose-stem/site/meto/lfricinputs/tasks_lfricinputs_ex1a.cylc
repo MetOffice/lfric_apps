@@ -38,8 +38,6 @@
             "xios_nodes": 1,
             "mpi_parts_xios": 1,
             "task_ranks_per_node": task_dict["mpi_parts"],
-            "build_families": ["EX1A_BUILD_GNU_LFRIC32"],
-            "run_families": ["EX1A_RUN_GNU_LFRIC32"]
         }) %}
     {% endif %}
 {% endif %}
