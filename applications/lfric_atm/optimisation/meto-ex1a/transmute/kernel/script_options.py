@@ -4,10 +4,14 @@
 # under which the code may be used.
 # -----------------------------------------------------------------------------
 '''
-Lift options list and similar from each individual script up into this file.
-Aim is to allow the creation of a simple global.py which adds OMP over all
-loops. The option which matches the file being worked on can be pulled in
-and referenced. This reduces the number of files needed
+This file lifts optional overrides, where possible, into a localised,
+single location.
+The goal is to allow the creation of a simpler local.py which controls how OMP
+is added around loops.
+SCRIPT_OPTIONS_DICT is pulled into the local.py script, and overrides some
+local functionality.
+Each key represents a different kernel file which uses the local script,
+with the provided overrides.
 '''
 
 # Needs to be lifted and likely set by the build system longer term.
