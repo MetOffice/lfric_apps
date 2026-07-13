@@ -156,6 +156,13 @@ SCRIPT_OPTIONS_DICT["lsp_prognostic_tnuc_kernel_mod"+str(FILE_EXTEN)] = {
     ]
 }
 
+SCRIPT_OPTIONS_DICT["lw_rad_tile_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "tile_lw_grey_albedo", "emis_nvg", "emis_pft",
+    ],
+    "safe_pure_calls": ["emis_nvg", "emis_pft"]
+}
+
 SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
     "node_type_check": False,
     "ignore_dependencies_for": [
