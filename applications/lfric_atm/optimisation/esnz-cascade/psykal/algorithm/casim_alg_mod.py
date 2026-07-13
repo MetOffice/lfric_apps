@@ -13,8 +13,9 @@ the initialisation built-ins generically.
 
 from psyclone_tools import (redundant_computation_setval, colour_loops,
                             view_transformed_schedule)
-from psyclone.transformations import (Dynamo0p3OMPLoopTrans,
-                                      OMPParallelTrans)
+
+from psyclone.psyir.transformations import OMPParallelTrans
+from psyclone.transformations import LFRicOMPLoopTrans
 from psyclone.psyGen import InvokeSchedule
 
 
@@ -40,7 +41,7 @@ def trans(psyir):
     # casim_kernel_type or as psyclone knows is in it's representaion
     # invoke_1_casim_kernel_type
 
-    otrans = Dynamo0p3OMPLoopTrans()
+    otrans = LFRicOMPLoopTrans()
     oregtrans = OMPParallelTrans()
 
     # Loop over all the InvokeSchedule in the PSyIR object
