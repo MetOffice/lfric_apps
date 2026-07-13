@@ -5,8 +5,7 @@
 # -----------------------------------------------------------------------------
 '''
 A local.py script for all kernels, where instead of adding OMP across the
-outermost loop, it is placed around the i loop, over the seg len loop range,
-or across the l loop.
+outermost loop, it is placed around the i loop, or across the l loop.
 This script imports a SCRIPT_OPTIONS_DICT which can be used to override
 small aspects of this script per file it is applied to.
 Overrides currently include:
