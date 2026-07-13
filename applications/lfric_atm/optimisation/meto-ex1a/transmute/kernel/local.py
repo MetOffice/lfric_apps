@@ -12,6 +12,7 @@ small aspects of this script per file it is applied to.
 Overrides currently include:
 * ignore_dependencies_for
 * node_type_check
+* safe_pure_calls
 '''
 
 import logging
