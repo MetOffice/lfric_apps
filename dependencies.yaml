@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-   source: git@github.com:MetOffice/lfric_core.git
-   ref: 99d8d2bf5d923714b30b25858404be5a045fe322
+    source: git@github.com:EdHone/lfric_core.git
+    ref: parallel-time-read
 
 moci:
     source: git@github.com:MetOffice/moci.git
