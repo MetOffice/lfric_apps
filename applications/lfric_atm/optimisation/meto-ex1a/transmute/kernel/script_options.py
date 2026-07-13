@@ -241,3 +241,11 @@ SCRIPT_OPTIONS_DICT["smith_kernel_mod"+str(FILE_EXTEN)] = {
         "theta_inc", "m_v", "m_cl", "cf_bulk", "cf_liq", "cf_ice", "cf_area",
     ]
 }
+
+SCRIPT_OPTIONS_DICT["spectral_gwd_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "du_spectral_gwd", "dv_spectral_gwd", "dtemp_spectral_gwd",
+        "tau_east_spectral_gwd", "tau_south_spectral_gwd",
+        "tau_west_spectral_gwd", "tau_north_spectral_gwd",
+    ]
+}
