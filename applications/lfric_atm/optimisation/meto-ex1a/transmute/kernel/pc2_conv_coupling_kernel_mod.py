@@ -23,49 +23,19 @@ from transmute_psytrans.transmute_functions import (
 # Variables that appear on the left-hand side of assignments
 # for which PSyclone dependency errors can be ignored
 false_dep_vars = [
-    "bcf_incr",
-    "bcf_work",
-    "cff_work",
-    "cfl_forcing",
-    "cfl_incr",
-    "cfl_work",
-    "p_forcing",
-    "p_work",
-    "qcl_incr",
-    "qcl_work",
-    "qv_forcing",
-    "qv_incr",
-    "qv_work",
-    "t_forcing",
-    "t_incr",
-    "t_work",
-    "zeros",
-    "dt_conv_wth",
-    "dmv_conv_wth",
-    "dmcl_conv_wth",
-    "dcfl_conv_wth",
-    "dbcf_conv_wth"
+    "bcf_incr", "bcf_work", "cff_work", "cfl_forcing", "cfl_incr",
+    "cfl_work", "p_forcing", "p_work", "qcl_incr", "qcl_work",
+    "qv_forcing", "qv_incr", "qv_work", "t_forcing", "t_incr",
+    "t_work", "zeros", "dt_conv_wth", "dmv_conv_wth", "dmcl_conv_wth",
+    "dcfl_conv_wth", "dbcf_conv_wth"
 ]
 
 # Arrays that appear on the left-hand side of assignments
 # which trigger automatic array privatisation in PSyclone
 private_arrays = [
-    "p_forcing",
-    "p_work",
-    "t_forcing",
-    "t_work",
-    "qv_forcing",
-    "cfl_forcing",
-    "qv_work",
-    "qcl_work",
-    "cfl_work",
-    "cff_work",
-    "bcf_work",
-    "t_incr",
-    "qv_incr",
-    "qcl_incr",
-    "cfl_incr",
-    "bcf_incr",
+    "p_forcing", "p_work", "t_forcing", "t_work", "qv_forcing",
+    "cfl_forcing", "qv_work", "qcl_work", "cfl_work", "cff_work",
+    "bcf_work", "t_incr", "qv_incr", "qcl_incr", "cfl_incr", "bcf_incr",
 ]
 
 
