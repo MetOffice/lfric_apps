@@ -155,19 +155,19 @@ if [ "${RUN_METHOD}" = "mpiexec" ] ; then
         XIOS_FRACTIONAL_DEPTH="$(( CORES_PER_NODE / XIOS_CORES_PER_NODE ))"
         # Milan = 128, Genoa = 192
         if (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 1 ))" )) ; then
-          XIOS_DEPTH=" --depth '$(( CORES_PER_NODE / 1 ))'"
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 1 ))"
         # Milan = 64, Genoa = 96
         elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 2 ))" )) ; then
-          XIOS_DEPTH=" --depth '$(( CORES_PER_NODE / 2 ))'"
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 2 ))"
         # Milan = 32, Genoa = 48
         elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 4 ))" )) ; then
-          XIOS_DEPTH=" --depth '$(( CORES_PER_NODE / 4 ))'"
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 4 ))"
         # Milan = 16, Genoa = 24
         elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 8 ))" )) ; then
-          XIOS_DEPTH=" --depth '$(( CORES_PER_NODE / 8 ))'"
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 8 ))"
         # Milan = 8, Genoa = 12
         elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 16 ))" )) ; then
-          XIOS_DEPTH=" --depth '$(( CORES_PER_NODE / 16 ))'"
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 16 ))"
         # Milan = 8, Genoa = 8 - To better fit onto Genoa hardware this is needed
         # Duplication here for Milan but no negative effects
         elif (( "${XIOS_FRACTIONAL_DEPTH}" >= 8 )) ; then
