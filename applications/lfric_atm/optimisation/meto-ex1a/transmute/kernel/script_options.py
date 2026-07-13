@@ -10,8 +10,8 @@ The goal is to allow the creation of a simpler local.py which controls how OMP
 is added around loops.
 SCRIPT_OPTIONS_DICT is pulled into the local.py script, and overrides some
 local functionality.
-Each key represents a different kernel file which uses the local script,
-with the provided overrides.
+Each key represents a different kernel file which uses the local script.
+Each file key in turn contains a dictionary of overrides.
 '''
 
 # Needs to be lifted and likely set by the build system longer term.
