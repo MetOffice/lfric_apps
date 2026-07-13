@@ -259,3 +259,9 @@ SCRIPT_OPTIONS_DICT["spectral_gwd_kernel_mod"+str(FILE_EXTEN)] = {
         "tau_west_spectral_gwd", "tau_north_spectral_gwd",
     ]
 }
+
+SCRIPT_OPTIONS_DICT["tracer_mix_kernel_mod"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "tracer",
+    ]
+}
