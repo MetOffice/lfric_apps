@@ -80,10 +80,10 @@ module time_dimensions_mod
     if (file == cmdi) then
       status = .false.
     else if (file(1:1) == '/') then
-      tdim = read_time_dim(trim(file) // '.nc')
+      tdim = read_time_dim(trim(file))
       status = .true.
     else
-      tdim = read_time_dim(trim(dir) // '/' // trim(file) // '.nc')
+      tdim = read_time_dim(trim(dir) // '/' // trim(file))
       status = .true.
     end if
   end function get_ancil_dim
