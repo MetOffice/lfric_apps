@@ -116,10 +116,10 @@ contains
 
     ! Get mesh and operators
     mesh     => rhs%vector(isw_g)%get_mesh()
-    chi      => get_coordinates(mesh%get_id())
+    chi      => get_coordinates(mesh)
     div      => get_div(mesh%get_id())
     coriolis => get_coriolis(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    panel_id => get_panel_id(mesh)
 
     ! Quadrature set up
     reference_element => mesh%get_reference_element()

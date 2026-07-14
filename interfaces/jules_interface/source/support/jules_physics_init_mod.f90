@@ -9,6 +9,7 @@
 module jules_physics_init_mod
 
   ! Other LFRic modules used
+  use config_mod,             only : config_type
   use constants_mod,          only : r_um, i_um, i_def, r_def
   use jules_control_init_mod, only : n_sea_ice_tile, n_land_tile
   use jules_radiation_config_mod, only :                                       &
@@ -99,8 +100,6 @@ contains
   !>         via the LFRic namelists, are also set here for the JULES code.
   !> @param[in] config   The config of the model run
   subroutine jules_physics_init(config)
-
-    use config_mod,     only: config_type
 
     ! JULES modules containing things that need setting
     use ancil_info, only: land_pts, nsurft, nmasst
