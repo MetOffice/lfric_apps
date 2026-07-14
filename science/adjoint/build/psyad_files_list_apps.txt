@@ -1,5 +1,4 @@
 science/linear/source/kernel/transport/mol/tl_poly1d_vert_adv_kernel_mod.F90
-science/linear/source/kernel/transport/common/tl_vorticity_advection_kernel_mod.F90
 science/linear/source/kernel/linear_physics/stabilise_bl_u_kernel_mod.F90
 science/linear/source/kernel/transport/mol/tl_horizontal_mass_flux_kernel_mod.F90
 science/linear/source/kernel/transport/mol/tl_vertical_mass_flux_kernel_mod.F90

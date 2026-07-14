@@ -6,9 +6,6 @@
 # Active variables
 all: export ACTIVE_tl_poly_advective_kernel_mod            := advective dtdx dtdy v u tracer wind
 all: export ACTIVE_tl_poly1d_vert_adv_kernel_mod           := advective wind dpdz tracer
-all: export ACTIVE_tl_vorticity_advection_kernel_mod       := r_u wind vorticity vorticity_at_quad \
-                                                              u_at_quad j_vorticity vorticity_term \
-                                                              res_dot_product cross_product1 cross_product2 mul2
 all: export ACTIVE_stabilise_bl_u_kernel_mod               := u_stabilised u_initial u_final
 all: export ACTIVE_apply_mixed_lu_operator_kernel_mod      := wind theta exner lhs_u lhs_t
 all: export ACTIVE_apply_mixed_operator_kernel_mod         := u_e t_col lhs_p lhs_w lhs_uv exner wind_w wind_uv
