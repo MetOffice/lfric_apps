@@ -105,8 +105,8 @@ module tl_test_project_eos_pressure_mod
     call log_event( "TL Test: " // trim(label), &
                      LOG_LEVEL_INFO )
 
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     qr => get_qr_fe()
     m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
 
