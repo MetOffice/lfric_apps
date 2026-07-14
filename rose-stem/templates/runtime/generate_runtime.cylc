@@ -90,8 +90,8 @@
 
         {% include "templates/runtime/generate_runtime_application.cylc" %}
 
-    {# fcm_make tasks for lfric_coupled are dealt with here #}
-    {% elif task_ns.application == "lfric_coupled" and task.startswith("fcm_make") %}
+    {# fcm_make tasks for coupled runs are dealt with here #}
+    {% elif task_values["coupled"] and task.startswith("fcm_make") %}
 
         {% include "templates/runtime/generate_runtime_lfric_coupled.cylc" %}
 

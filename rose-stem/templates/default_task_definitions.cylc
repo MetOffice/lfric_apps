@@ -206,9 +206,12 @@
     {{ raise('"xios_print_file" must be a Fortran logical (".true." / ".false.") not: "' + error_msg_fragment + '"') }}
 {% endif %}
 
+{% if "coupled" not in task_dict %}
+    {% do task_dict.update({"coupled": false}) %}
+{% endif %}
 
-{# If application is lfric_coupled read in default values specific to coupled runs #}
-{% if task_ns.application == "lfric_coupled" %}
+{# If application is coupled read in default values specific to coupled runs #}
+{% if task_dict["coupled"] %}
     {% include "templates/default_task_definitions_lfric_coupled.cylc" %}
 {% endif %}
 

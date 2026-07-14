@@ -1191,6 +1191,23 @@
         "kgo_checks": ["checksum"],
     }) %}
 
+{% elif task_ns.conf_name == "coupled_nwp-gal9_C48" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nwp_gal9"],
+        "resolution": "C48",
+        "DT": 1800,
+        "tsteps": 24,
+        "mpi_parts": 24,
+        "threads": 1,
+        "kgo_checks": ["checksum"],
+        "xios_nodes": 1,
+        "mpi_parts_xios": 6,
+        "coupled": true,
+        "wallclock": 25,
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name == "canned" %}
 
     {% do task_dict.update({

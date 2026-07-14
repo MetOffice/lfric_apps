@@ -317,7 +317,7 @@
 {% endif %}
 
 {# lfric_coupled graphs require fcm_make tasks before the application run #}
-{% if task_ns.application == "lfric_coupled" %}
+{% if task_values["coupled"] %}
     {% include "templates/graph/populate_graph_lfric_coupled.cylc" %}
 {% endif %}
 
