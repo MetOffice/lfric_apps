@@ -2201,13 +2201,11 @@ if (BL_diag%l_tke) then
   if ( improved_tke_diag ) then
     ! Under improved_tke_diag, apply the limit here, after setting bl_w_var,
     ! so that the length-scale Km/sqrt(w_var) is preserved.
-!$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none) PRIVATE( i, j, k )           &
+!$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none) PRIVATE( i, k )              &
 !$OMP  SHARED( bl_levels, pdims,  BL_diag )
     do k = 2, bl_levels
-      do j = pdims%j_start, pdims%j_end
-        do i = pdims%i_start, pdims%i_end
-          BL_diag%tke(i,j,k) = min( max_tke, BL_diag%tke(i,j,k) )
-        end do
+      do i = pdims%i_start, pdims%i_end
+        BL_diag%tke(i,j,k) = min( max_tke, BL_diag%tke(i,j,k) )
       end do
     end do
 !$OMP end PARALLEL do
