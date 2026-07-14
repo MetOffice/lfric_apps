@@ -24,6 +24,9 @@ module lfric2lfric_driver_mod
   use sci_checksum_alg_mod,     only: checksum_alg
   use xios,                     only: xios_date, xios_get_current_date, &
                                       xios_date_convert_to_string
+  use orography_config_mod,     only: orog_init_option_analytic, &
+                                      orog_init_option_ancil,    &
+                                      orog_init_option_start_dump
 
   !------------------------------------
   ! lfric2lfric modules
@@ -53,15 +56,17 @@ contains
   !!                 and fields.
   !> @param [in,out] modeldb                 The structure holding model state
   !> @param [in,out] oasis_clock             Clock for OASIS exchanges
-  subroutine initialise( modeldb, oasis_clock )
+  subroutine initialise( modeldb, oasis_clock, vertical_change, horizontal_change )
 
     implicit none
 
     type(modeldb_type),     intent(inout) :: modeldb
     type(model_clock_type), allocatable, &
                             intent(inout) :: oasis_clock
+    logical(kind=l_def),    intent(inout) :: vertical_change
+    logical(kind=l_def),    intent(inout) :: horizontal_change
 
-    call initialise_infrastructure( modeldb, oasis_clock )
+    call initialise_infrastructure( modeldb, oasis_clock, vertical_change, horizontal_change )
 
   end subroutine initialise
 
@@ -73,13 +78,15 @@ contains
   !!           XIOS context and writes to an output file.
   !> @param [in,out] modeldb      The structure that holds model state
   !> @param [in,out] oasis_clock  Clock for OASIS exchanges
-  subroutine run( modeldb, oasis_clock )
+  subroutine run( modeldb, oasis_clock, vertical_change, horizontal_change )
 
     implicit none
 
     type(modeldb_type),     intent(inout) :: modeldb
     type(model_clock_type), allocatable, &
                             intent(inout) :: oasis_clock
+    logical(kind=l_def),    intent(in)    :: vertical_change
+    logical(kind=l_def),    intent(in)    :: horizontal_change
 
     ! LFRic-XIOS constants
     integer(kind=i_def), parameter :: start_timestep = 1_i_def
@@ -112,12 +119,11 @@ contains
     integer(kind=i_def)     :: dst_number_of_layers
     integer(kind=i_def)     :: src_stretching_method
     integer(kind=i_def)     :: dst_stretching_method
+    integer(kind=i_def)     :: orog_init_option
     real(kind=r_def)        :: src_domain_height
     real(kind=r_def)        :: dst_domain_height
     real(kind=r_def)        :: src_stretching_height
     real(kind=r_def)        :: dst_stretching_height
-
-    logical(l_def)          :: horizontal_change, vertical_change
 
     src_extrusion_method    = modeldb%config%extrusion%method()
     src_number_of_layers    = modeldb%config%extrusion%number_of_layers()
@@ -129,30 +135,10 @@ contains
     dst_domain_height       = modeldb%config%extrusion_dst%domain_height()
     dst_stretching_height   = modeldb%config%extrusion_dst%stretching_height()
     dst_stretching_method   = modeldb%config%extrusion_dst%stretching_method()
+    orog_init_option        = modeldb%config%orography%orog_init_option()
 
     mesh_names(dst)     = modeldb%config%lfric2lfric%destination_mesh_name()
     mesh_names(src)     = modeldb%config%lfric2lfric%source_mesh_name()
-       
-    vertical_change = .false.
-    if ( src_extrusion_method /= dst_extrusion_method ) then
-      vertical_change = .true.
-    end if
-    if ( src_number_of_layers /= dst_number_of_layers ) then
-      vertical_change = .true.
-    end if
-    if ( src_domain_height /= dst_domain_height ) then
-      vertical_change = .true.
-    end if
-    if ( src_stretching_height /= dst_stretching_height ) then
-      vertical_change = .true.
-    end if
-    if ( src_stretching_method /= dst_stretching_method ) then
-      vertical_change = .true.
-    end if
-    horizontal_change = .false.
-    if ( mesh_names(dst) /= mesh_names(src) ) then
-      horizontal_change = .true.
-    end if
 
     ! Extract configuration variables
     start_dump_filename  = modeldb%config%files%start_dump_filename()

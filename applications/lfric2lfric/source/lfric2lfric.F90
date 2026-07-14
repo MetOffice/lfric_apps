@@ -15,7 +15,7 @@
 program lfric2lfric
 
   use cli_mod,                only: parse_command_line
-  use constants_mod,          only: precision_real
+  use constants_mod,          only: precision_real, l_def
   use driver_collections_mod, only: init_collections, final_collections
   use driver_config_mod,      only: init_config, final_config
   use driver_comm_mod,        only: init_comm, final_comm
@@ -48,6 +48,9 @@ program lfric2lfric
   ! Clock for OASIS exchanges
   type(model_clock_type),    allocatable :: oasis_clock
 
+  logical(kind=l_def)     :: vertical_change
+  logical(kind=l_def)     :: horizontal_change
+  
   call parse_command_line( filename )
 
   call modeldb%config%initialise( program_name )
@@ -86,9 +89,9 @@ program lfric2lfric
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
-  call initialise( modeldb, oasis_clock )
+  call initialise( modeldb, oasis_clock, vertical_change, horizontal_change )
 
-  call run( modeldb, oasis_clock )
+  call run( modeldb, oasis_clock, vertical_change, horizontal_change )
 
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
   call finalise( program_name, modeldb )
