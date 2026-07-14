@@ -9,6 +9,7 @@
 module conv_diag_comp_6a_mod
 
 use um_types, only: r_bl
+use constants_mod, only: r_um
 
 implicit none
 
@@ -26,7 +27,7 @@ subroutine conv_diag_comp_6a(                                                  &
 
 ! in grid information
       , p, P_theta_lev, exner_rho                                              &
-      , rho_only, rho_theta, z_full, z_half, r_theta_levels, r_rho_levels      &
+      , rho_only, rho_theta, z_full, z_half, r_theta_levels                    &
 
 ! in Cloud data :
       , qcf, qcl, cloud_fraction                                               &
@@ -65,7 +66,7 @@ use cv_param_mod, only:                                                        &
 use bl_option_mod, only: bl_res_inv, off, on, zero, one, one_half
 
 use planet_constants_mod, only:                                                &
-    c_virtual => c_virtual_bl, g => g_bl, planet_radius => planet_radius_bl,   &
+    c_virtual => c_virtual_bl, g => g_bl, planet_radius,                       &
     lsrcp => lsrcp_bl, lcrcp => lcrcp_bl, gamma_dry => grcp_bl
 use water_constants_mod, only: tm => tm_bl
 
@@ -155,12 +156,11 @@ real(kind=r_bl), intent(in) ::                                                 &
 real(kind=r_bl), intent(in) ::                                                 &
   rho_only(row_length,rows,model_levels)    & ! density (kg/m3)
  ,rho_theta(row_length,rows,model_levels-1) & ! density th lev (kg/m3)
- , r_theta_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end, &
-                   0:tdims%k_end) & ! dist of theta lev from Earth centre (m)
- , r_rho_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,   &
-                 tdims%k_end)     & ! dist of rho lev from Earth centre (m)
  ,z_full(row_length,rows,model_levels)      & ! height th lev (m)
  ,z_half(row_length,rows,model_levels)        ! height rho lev (m)
+real(kind=r_um), intent(in) ::                                                 &
+    r_theta_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,&
+                   0:tdims%k_end)  ! dist of theta lev from Earth centre (m)
 
 ! (c) Cloud data.
 real(kind=r_bl), intent(in) ::                                                 &
@@ -463,7 +463,7 @@ mbl = bl_levels - 1
 !$OMP PARALLEL DEFAULT(none)                                                   &
 !$OMP SHARED(nunstable,cumulus_c,shallow_c,freeze_lev,ntml_c,                  &
 !$OMP        nlcl_c,nlfc_c,model_levels,index_i,index_j,r_theta_levels,        &
-!$OMP        planet_radius,r_rho_levels,dmass_theta,rho_theta,zh_c,zh,         &
+!$OMP        planet_radius,dmass_theta,rho_theta,zh_c,zh,                      &
 !$OMP        z_lcl_c,z_half,pstar_c,pstar,t,theta,exner_theta_levels,          &
 !$OMP        t_parc,q_c,q,qcl_c,qcl,qcf_c,qcf,z_full_c,z_full,z_half_c,        &
 !$OMP        exner_theta_levels_c,exner_rho_c,exner_rho,p_c,p,                 &
@@ -500,7 +500,7 @@ do k=1, model_levels-1
     j = index_j(ii)
     r_over_a = r_theta_levels(i,j,k)/planet_radius
     dmass_theta(ii,k) = rho_theta(i,j,k)*r_over_a*r_over_a                     &
-                           *(r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k))
+                           *(z_half(i,j,k+1)-z_half(i,j,k))
   end do
 end do
 !$OMP end do NOWAIT
@@ -795,7 +795,7 @@ else if (icvdiag >= 2 .and. icvdiag < 15 ) then
       do ii=1, nunstable
         i = index_i(ii)
         j = index_j(ii)
-        dz = r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)
+        dz = z_half(i,j,k+1)-z_half(i,j,k)
         entrain_fraction(ii,k) = 0.55_r_bl * dz/z_full_c(ii,k)
       end do
     end do
@@ -811,7 +811,7 @@ else if (icvdiag >= 2 .and. icvdiag < 15 ) then
       do ii=1, nunstable
         i = index_i(ii)
         j = index_j(ii)
-        dz = r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)
+        dz = z_half(i,j,k+1)-z_half(i,j,k)
         entrain_fraction(ii,k) = one * dz/z_full_c(ii,k)
       end do
     end do
@@ -887,7 +887,7 @@ else if (icvdiag >= 2 .and. icvdiag < 15 ) then
 
         end if        ! land fraction test
 
-        dz = r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)
+        dz = z_half(i,j,k+1)-z_half(i,j,k)
         entrain_fraction(ii,k) = ent_rate * dz/z_full_c(ii,k)
 
       end do          ! unstable point loop
@@ -965,7 +965,7 @@ else if (icvdiag >= 2 .and. icvdiag < 15 ) then
 
         end if        ! land fraction test
 
-        dz = r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)
+        dz = z_half(i,j,k+1)-z_half(i,j,k)
         entrain_fraction(ii,k) = ent_rate * dz/z_full_c(ii,k)
 
       end do          ! unstable point loop
@@ -996,7 +996,7 @@ else if (icvdiag >= 2 .and. icvdiag < 15 ) then
                    p_theta_lev(i,j,k) / (pstar(i,j)**2)  *                     &
                    rho_theta(i,j,k) * g
 
-        dz = r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)
+        dz = z_half(i,j,k+1)-z_half(i,j,k)
         entrain_fraction(ii,k) = ent_rate * dz
         entrain_coef(i,j) = -99.0_r_bl
       end do          ! unstable point loop
@@ -1027,7 +1027,7 @@ else if (icvdiag >= 2 .and. icvdiag < 15 ) then
                    p_theta_lev(i,j,k) / (pstar(i,j)**2)  *                     &
                    rho_theta(i,j,k) * g
 
-        dz = r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)
+        dz = z_half(i,j,k+1)-z_half(i,j,k)
         entrain_fraction(ii,k) = ent_rate * dz
         entrain_coef(i,j) = -99.0_r_bl
       end do          ! unstable point loop
@@ -1049,7 +1049,7 @@ else if (icvdiag >= 2 .and. icvdiag < 15 ) then
                    p_theta_lev(i,j,k) / (pstar(i,j)**2)  *                     &
                    rho_theta(i,j,k) * g
 
-        dz = r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)
+        dz = z_half(i,j,k+1)-z_half(i,j,k)
         entrain_fraction(ii,k) = ent_rate * dz
         entrain_coef(i,j) = -99.0_r_bl
       end do          ! unstable point loop
@@ -1080,7 +1080,7 @@ else if (icvdiag >= 2 .and. icvdiag < 15 ) then
       end if
 
       do k= 1,model_levels-1
-        dz = r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)
+        dz = z_half(i,j,k+1)-z_half(i,j,k)
         entrain_fraction(ii,k) = ent_rate * dz/z_full_c(ii,k)
       end do
     end do

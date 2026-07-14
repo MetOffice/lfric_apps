@@ -7,6 +7,7 @@
 
 module rad_cloud_alg_mod
 
+use config_mod,                    only: config_type
 use constants_mod,                 only: r_def, i_def, l_def
 use empty_data_mod,                only: empty_real_data, empty_integer_data
 use field_collection_mod,          only: field_collection_type
@@ -39,6 +40,7 @@ public :: rad_cloud_alg
 
 contains
 
+!> @param[in]     config                   Application namelist configuration object
 !> @param[in,out] rand_seed                Random seed field for cloud generator
 !> @param[in,out] n_cloud_layer            Number of cloud layers for Socrates
 !> @param[in,out] radiative_cloud_fraction Large scale cloud fraction
@@ -57,7 +59,7 @@ contains
 !> @param[in]     rad_inc_this_tstep       Flag for radiation increment timestep
 !> @param[in]     cosp_this_tstep          Flag for COSP this timestep
 !> @param[in]     twod_mesh                Current 2d mesh
-subroutine rad_cloud_alg(rand_seed, n_cloud_layer, &
+subroutine rad_cloud_alg(config, rand_seed, n_cloud_layer, &
                          radiative_cloud_fraction, radiative_conv_fraction, &
                          conv_liquid_fraction, conv_frozen_fraction, &
                          conv_liquid_mmr, conv_frozen_mmr, &
@@ -67,6 +69,8 @@ subroutine rad_cloud_alg(rand_seed, n_cloud_layer, &
                          cosp_this_tstep, twod_mesh)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   ! Dummy variables
   type( integer_field_type ), intent(inout) :: rand_seed
@@ -83,6 +87,7 @@ subroutine rad_cloud_alg(rand_seed, n_cloud_layer, &
   type( field_collection_type ), intent(in) :: cloud_fields
   type( field_collection_type ), intent(in) :: convection_fields
   type( field_collection_type ), intent(in) :: derived_fields
+
   type( mesh_type ), pointer, intent(in) :: twod_mesh
 
   logical( kind=l_def ), intent(in) :: rad_this_tstep, rad_inc_this_tstep
@@ -94,6 +99,7 @@ subroutine rad_cloud_alg(rand_seed, n_cloud_layer, &
   type( field_type ), pointer :: ccw => null()
   type( field_type ), pointer :: exner_in_wth
   type( field_type ), pointer :: rho_in_wth
+
   ! Internal subroutine variables
   type( function_space_type ),  pointer :: wtheta_space => null()
   type( function_space_type ),  pointer :: w3_2d_space => null()
@@ -110,9 +116,9 @@ subroutine rad_cloud_alg(rand_seed, n_cloud_layer, &
   ! Minimum cloud fraction
   real(r_def), parameter :: cloud_fraction_min = 0.001_r_def
 
-  mesh => temperature_in_wth%get_mesh()
+  mesh         => temperature_in_wth%get_mesh()
   wtheta_space => function_space_collection%get_fs( mesh, 0, 0, Wtheta )
-  w3_2d_space => function_space_collection%get_fs( twod_mesh, 0, 0, W3 )
+  w3_2d_space  => function_space_collection%get_fs( twod_mesh, 0, 0, W3 )
 
   if (rad_this_tstep .or. rad_inc_this_tstep .or. cosp_this_tstep) then
 
@@ -140,15 +146,16 @@ subroutine rad_cloud_alg(rand_seed, n_cloud_layer, &
     year = int( datetime%year, i_def )
     day_of_year = int( xios_date_get_day_of_year(datetime), i_def )
     second_of_day = int( xios_date_get_second_of_day(datetime), i_def )
-    latitude  => get_latitude_fv(W3, twod_mesh%get_id())
-    longitude => get_longitude_fv(W3, twod_mesh%get_id())
+
+    latitude  => get_latitude_fv(config, twod_mesh, W3)
+    longitude => get_longitude_fv(config, twod_mesh, W3)
 
     ! Generate a unique seed for each gridpoint (actually for each area of the
     ! globe with a size defined by per_deg_lat) at the given time in seconds.
     ! ------------------------------------------------------------------------
     call invoke( rand_seed_kernel_type( &
-                   rand_seed, latitude, longitude, &
-                   year, day_of_year, second_of_day, per_deg_lat ), &
+                 rand_seed, latitude, longitude, &
+                 year, day_of_year, second_of_day, per_deg_lat ), &
                  name="setup_random_seed")
 
     ! Set cloud fields to be used for radiative transfer

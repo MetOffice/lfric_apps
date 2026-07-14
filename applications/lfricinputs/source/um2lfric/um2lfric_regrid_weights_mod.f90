@@ -5,12 +5,12 @@
 ! *****************************COPYRIGHT*******************************
 module um2lfric_regrid_weights_mod
 
-use log_mod, only: log_event, LOG_LEVEL_ERROR, log_scratch_space, &
-                   LOG_LEVEL_INFO
-use lfricinp_um_parameters_mod, only: fnamelen
+use log_mod,                          only: log_event, log_scratch_space, &
+                                            LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+use lfricinp_um_grid_mod,             only: um_grid
+use lfricinp_um_parameters_mod,       only: fnamelen
 use lfricinp_regrid_weights_type_mod, only: lfricinp_regrid_weights_type
-use lfricinp_um_grid_mod, only: um_grid
-use um2lfric_namelist_mod, only: um2lfric_config
+use um2lfric_namelist_mod,            only: um2lfric_config
 
 ! Intrinsic modules
 use, intrinsic :: iso_fortran_env, only : int32, int64, real64

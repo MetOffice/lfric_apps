@@ -119,10 +119,10 @@ contains
 ! the diagnostic on input to CoMorph are self-consistent,
 ! and raises an error if they aren't.
 ! Note: this routine gets called twice for each diagnostic
-!   1st call (l_count_diags = .true.):
+!   1st call (l_count_diags = .TRUE.):
 !     Check whether diag is requested and increment the count
 !     for number of requested diags if it is.
-!   2nd call (l_count_diags = .false.):
+!   2nd call (l_count_diags = .FALSE.):
 !     Set other properties for requested diags, and assign
 !     pointer from active diags list.
 subroutine diag_assign( diag_name, l_count_diags, doms, diag, list,            &
@@ -258,7 +258,7 @@ if ( .not. l_count_diags ) then
 
   end if
 
-end if  ! ( .not. l_count_diags )
+end if  ! ( .NOT. l_count_diags )
 
 
 return

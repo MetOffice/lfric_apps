@@ -45,6 +45,9 @@
   <field id="height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="full_level_face_grid" />
   <field id="height_w2h" name="height_w2h" long_name="height_of_cell_faces_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="half_level_edge_grid" />
   <field id="height_w0" name="height_w0" long_name="height_of_cell_vertices_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="node_grid" />
+  <field id="theta_nudging_ref" name="theta_nudging_ref" long_name="nudging_reference_air_potential_temperature" unit="K" grid_ref="nudging_ref_full_grid" />
+  <field id="u_in_w3_nudging_ref" name="u_in_w3_nudging_ref" long_name="nudging_reference_eastward_wind_at_cell_centres" unit="ms-1" grid_ref="nudging_ref_half_grid" />
+  <field id="v_in_w3_nudging_ref" name="v_in_w3_nudging_ref" long_name="nudging_reference_northward_wind_at_cell_centres" unit="ms-1" grid_ref="nudging_ref_half_grid" />
   <!-- First line extracts level 0, second line removes vertical coordinate, cannot do as one -->
   <field id="zoomed__orography" field_ref="height_wth" grid_ref="full_level_0_face_zoom" />
   <field id="orography" name="orography" long_name="surface_altitude" standard_name="surface_altitude" unit="m" domain_ref="face" > zoomed__orography </field>
@@ -331,6 +334,7 @@
   <field id="cloud__cloud_amount_maxrnd" name="cloud_amount_maxrnd" long_name="combined_cloud_amount_maximum_random_overlap" standard_name="cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__ceilometer_cloud_amount_maxrnd" name="ceilometer_cloud_amount_maxrnd" long_name="ceilometer_filtered_combined_cloud_amount_maximum_random_overlap" standard_name="cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__cloud_base_altitude" name="cloud_base_altitude" long_name="cloud_base_altitude_asl_combined_cloud_amount_greater_than_2p5_okta" standard_name="cloud_base_altitude" unit="kilofeet" domain_ref="face" />
+  <field id="cloud__cloud_top_altitude" name="cloud_top_altitude" long_name="cloud_top_altitude_asl_combined_cloud_amount_greater_than_2p5_okta" standard_name="cloud_top_altitude" unit="kilofeet" domain_ref="face" />
   <field id="cloud__very_low_type_cloud_amount" name="very_low_type_cloud_amount" long_name="maximum_combined_cloud_amount_below_111m_asl" unit="1" domain_ref="face" />
   <field id="cloud__low_type_cloud_amount" name="low_type_cloud_amount" long_name="maximum_combined_cloud_amount_between_111_and_1949m_asl" standard_name="low_type_cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__medium_type_cloud_amount" name="medium_type_cloud_amount" long_name="maximum_combined_cloud_amount_between_1949_and_5574m_asl" standard_name="medium_type_cloud_area_fraction" unit="1" domain_ref="face" />
@@ -418,8 +422,8 @@
   <field id="microphysics__ls_rain" name="ls_rain" long_name="surface_microphysical_rainfall_rate" unit="kg m-2 s-1" domain_ref="face" />
   <field id="microphysics__ls_snow" name="ls_snow" long_name="surface_microphysical_snowfall_rate" unit="kg m-2 s-1" domain_ref="face" />
   <field id="microphysics__ls_graup" name="ls_graup" long_name="surface_microphysical_graupelfall_rate" unit="kg m-2 s-1" domain_ref="face" />
-  <field id="microphysics__total_fpr" name="total_fpr" long_name="surface_microphysical_total_frozen_precipitation_rate" unit="kg m-2 s-2" domain_ref="face"> microphysics__ls_snow + microphysics__ls_graup </field>
-  <field id="microphysics__ls_prec" name="ls_prec" long_name="surface_microphysical_precipitation_rate" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_rain + microphysics__ls_snow + microphysics__ls_graup </field>
+  <field id="microphysics__snow_no_graup" name="snow_no_graup" long_name="surface_microphysical_snowfall_rate_excluding_graupel" unit="kg m-2 s-2" domain_ref="face"> microphysics__ls_snow - microphysics__ls_graup </field>
+  <field id="microphysics__ls_prec" name="ls_prec" long_name="surface_microphysical_precipitation_rate" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_rain + microphysics__ls_snow </field>
   <field id="microphysics__ls_rain_acc" name="ls_rain_acc" long_name="surface_microphysical_rainfall_amount" unit="kg m-2" domain_ref="face"> $DT * microphysics__ls_rain </field>
   <field id="microphysics__ls_snow_acc" name="ls_snow_acc" long_name="surface_microphysical_snowfall_amount" unit="kg m-2" domain_ref="face"> $DT * microphysics__ls_snow </field>
   <field id="microphysics__ls_graup_acc" name="ls_graup_acc" long_name="surface_microphysical_graupelfall_amount" unit="kg m-2" domain_ref="face"> $DT * microphysics__ls_graup </field>
@@ -637,8 +641,9 @@
   <field id="soil__soil_moist_wilt" name="soil_moist_wilt" long_name="soil_moisture_at_wilting_point" unit="m3 m-3" domain_ref="face" />
   <field id="soil__soil_moist_crit" name="soil_moist_crit" long_name="soil_moisture_at_critical_point" unit="m3 m-3" domain_ref="face" /> 
   <field id="soil__soil_moist_sat" name="soil_moist_sat" long_name="soil_moisture_at_saturation" unit="m3 m-3" domain_ref="face" />
+  <field id="soil__inland_basin_flow" name="inland_basin_flow" long_name="Inland basin flow" unit="kg m-2 s-1" domain_ref="face" />
   <!-- Boundary layer turbulence diagnostics -->
-  <field id="turbulence__dtheta_blcnv" name="dtheta_blcnv" long_name="potential_temperature_increment_from_bl_and_convection_schemes" unit="K" grid_ref="full_level_face_grid" />
+  <field id="turbulence__dtheta_bl" name="dtheta_bl" long_name="potential_temperature_increment_from_bl_scheme" unit="K" grid_ref="full_level_face_grid" />
   <field id="turbulence__dt_bl" name="dt_bl" long_name="temperature_increment_from_bl_scheme" unit="K" grid_ref="full_level_face_grid" />
   <field id="turbulence__dmv_bl" name="dmv_bl" long_name="vapour_increment_from_bl_scheme" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="turbulence__dmcl_bl" name="dmcl_bl" long_name="liquid_water_increment_from_bl_scheme" unit="kg kg-1" grid_ref="full_level_face_grid" />
@@ -676,6 +681,15 @@
   <field id="turbulence__ent_t_frac_dsc" name="ent_t_frac_dsc" long_name="fraction_of_time_decoupled_stratocumulus_inversion_is_above_level" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
   <field id="turbulence__ent_zrzi" name="ent_zrzi" long_name="level_height_as_fraction_of_sml_inversion_height_above_mixed_layer_base" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
   <field id="turbulence__ent_zrzi_dsc" name="ent_zrzi_dsc" long_name="level_height_as_fraction_of_dsc_inversion_height_above_mixed_layer_base" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
+  <!-- diffusion diagnostics -->
+  <field id="diffusion__dtheta_smag" name="dtheta_smag" long_name="theta_increment_from_smagorinsky_mixing" unit="K" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmv_smag" name="dmv_smag" long_name="vapour_increment_from_smagorinsky_mixing" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmcl_smag" name="dmcl_smag" long_name="liquid_water_increment_from_smagorinsky_mixing" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dtheta_smag_pc2" name="dtheta_smag_pc2" long_name="theta_increment_from_smagorinsky_mixing_and_pc2_response" unit="K" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmv_smag_pc2" name="dmv_smag_pc2" long_name="vapour_increment_from_smagorinsky_mixing_and_pc2_response" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dmcl_smag_pc2" name="dmcl_smag_pc2" long_name="liquid_water_increment_from_smagorinsky_mixing_and_pc2_response" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dcfl_smag_pc2" name="dcfl_smag_pc2" long_name="liquid_cloud_fraction_increment_from_smagorinsky_mixing_and_pc2_response" unit="1" grid_ref="full_level_face_grid" />
+  <field id="diffusion__dbcf_smag_pc2" name="dbcf_smag_pc2" long_name="bulk_cloud_fraction_increment_from_smagorinsky_mixing_and_pc2_response" unit="1" grid_ref="full_level_face_grid" />
   <!-- radiation diagnostics: model timestep -->
   <field id="radiation__dtheta_rad" name="dtheta_rad" long_name="theta_increment_from_radiation" unit="K" grid_ref="full_level_face_grid" />
   <field id="radiation__sw_temperature_incr" name="sw_temperature_incr" long_name="temperature_increment_from_sw_radiation" unit="K" grid_ref="full_level_face_grid" />

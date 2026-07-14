@@ -58,7 +58,7 @@ contains
     use base_mesh_config_mod,      only : geometry_planar, &
                                           topology_fully_periodic
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_base_mesh_config,           &
                                           feign_initial_temperature_config, &
                                           feign_finite_element_config
@@ -78,6 +78,8 @@ contains
                                  fplane=.false., f_lat_deg=0.0_r_def )
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
+                                      coord_order_nonprime=1_i_def,      &
+                                      coord_space=coord_space_wchi,      &
                                       coord_system=coord_system_xyz,     &
                                       element_order_h=0_i_def,           &
                                       element_order_v=0_i_def,           &
@@ -90,7 +92,10 @@ contains
                                            perturb=perturb_none,                  &
                                            profile_size=profile_size,             &
                                            profile_data=profile_data,             &
-                                           profile_heights=profile_heights )
+                                           profile_heights=profile_heights,       &
+                                           theta_pert_end=7000.0_r_def,           &
+                                           theta_pert_size=0.5_r_def,             &
+                                           theta_pert_start=5000.0_r_def )
 
     call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
@@ -99,8 +104,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 

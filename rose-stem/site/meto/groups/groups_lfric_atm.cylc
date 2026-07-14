@@ -27,6 +27,7 @@
         "lfric_atm_nwp_gal9-pert-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_casim-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_coma9-C12_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_comorph_dev-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal9_mol-C12_azspice_gnu_fast-debug-32bit",
     ],
     "lfric_atm_nwp_azspice": [
@@ -62,9 +63,14 @@
         "lfric_atm_scm_hd209458b-BiP2x2-50000x50000_azspice_gnu_fast-debug-32bit",
         "lfric_atm_canned_azspice_gnu_fast-debug-32bit",
     ],
+    "lfric_atm_azspice_nudging": [
+        "lfric_atm_nwp_gal9_nudging-era-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_nudging-era-coarse-C48_MG_azspice_gnu_fast-debug-32bit",
+    ],
     "lfric_atm_azspice_developer": [
         "lfric_atm_nwp_azspice_developer",
         "lfric_atm_clim_gal9-C12_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_clim_gal9_short-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_ral_azspice_developer",
         "lfric_atm_rce-BiP64x64-1500x1500_MG_azspice_gnu_fast-debug-32bit",
         "lfric_atm_scm_azspice_developer",
@@ -77,6 +83,7 @@
         "lfric_atm_thai_ben1-C48_MG_azspice_gnu_fast-debug-32bit",
         "lfric_atm_hd209458b-C24_azspice_gnu_fast-debug-32bit",
         "lfric_atm_camembert_case3_gj1214b-C12_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_azspice_nudging",
     ],
     "lfric_atm_azspice": [
         "lfric_atm_azspice_developer",
@@ -173,6 +180,7 @@
     "lfric_atm_ex1a_developer": [
         "lfric_atm_nwp_ex1a_developer",
         "lfric_atm_clim_gal9-C12_ex1a_cce_fast-debug-32bit",
+        "lfric_atm_clim_gal9_short-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_ral_ex1a_developer",
         "lfric_atm_rce-BiP64x64-1500x1500_MG_ex1a_cce_fast-debug-32bit",
         "lfric_atm_scm_ex1a_developer",
