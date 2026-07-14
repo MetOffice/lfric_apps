@@ -1340,6 +1340,37 @@ subroutine radaer_code( nlayers,                                               &
 
   end do
 
+  !--------------------------------------------------------------------------
+  ! To determine if 32bit KGO change is from differences in addition order
+
+    ukca_modal_vol_um(1,k,(mode_ait_sol-1)) = pvol_wat_ait_sol(map_wth(1) + k)+&
+                                              pvol_su_ait_sol( map_wth(1) + k)+&
+                                              pvol_bc_ait_sol( map_wth(1) + k)+&
+                                              pvol_om_ait_sol( map_wth(1) + k)
+
+    ukca_modal_vol_um(1,k,(mode_acc_sol-1)) = pvol_wat_acc_sol(map_wth(1) + k)+&
+                                              pvol_su_acc_sol( map_wth(1) + k)+&
+                                              pvol_bc_acc_sol( map_wth(1) + k)+&
+                                              pvol_om_acc_sol( map_wth(1) + k)+&
+                                              pvol_ss_acc_sol( map_wth(1) + k)
+                                              ! add pvol_du_acc_sol if used
+
+    ukca_modal_vol_um(1,k,(mode_cor_sol-1)) = pvol_wat_cor_sol(map_wth(1) + k)+&
+                                              pvol_su_cor_sol( map_wth(1) + k)+&
+                                              pvol_bc_cor_sol( map_wth(1) + k)+&
+                                              pvol_om_cor_sol( map_wth(1) + k)+&
+                                              pvol_ss_cor_sol( map_wth(1) + k)
+                                              ! add pvol_du_cor_sol if used
+
+    ukca_modal_vol_um(1,k,(mode_ait_insol-1))=pvol_bc_ait_ins( map_wth(1) + k)+&
+                                              pvol_om_ait_ins( map_wth(1) + k)
+
+    ukca_modal_vol_um(1,k,(mode_acc_insol-1))=pvol_du_acc_ins( map_wth(1) + k)
+
+    ukca_modal_vol_um(1,k,(mode_cor_insol-1))=pvol_du_cor_ins( map_wth(1) + k)
+
+    !--------------------------------------------------------------------------
+
   ! -- ukca_modal_wtv_um --
   n_fields = size(modal_wtv_names)
   allocate(ukca_modal_wtv_um(1, nlayers, n_fields))
