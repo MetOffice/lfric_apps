@@ -8,7 +8,6 @@ PSyclone script for applying OpenMP transformations specific to the
 Gregory-Rowntree convection kernel.
 """
 import logging
-
 from psyclone.psyir.nodes import (
     Call,
     Loop,
@@ -23,49 +22,48 @@ from psyclone.transformations import (
     OMPParallelLoopTrans,
     TransformationError,
 )
-
 from transmute_psytrans.transmute_functions import (
     match_lhs_assignments,
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC,
     OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC,
 )
 
+
 logger = logging.getLogger(__name__)
 
-
 false_dep_vars_all = [
-        "conv_rain", "conv_snow", "cca_2d", "cape_diluted", "lowest_cca_2d",
-        "deep_in_col", "shallow_in_col", "mid_in_col", "freeze_level",
-        "deep_prec", "shallow_prec", "mid_prec", "deep_term", "cape_timescale",
-        "deep_cfl_limited", "mid_cfl_limited", "deep_tops", "dt_conv",
-        "dmv_conv", "dmcl_conv", "dms_conv", "massflux_up", "massflux_down",
-        "conv_rain_3d", "conv_snow_3d", "entrain_up", "entrain_down",
-        "detrain_up", "detrain_down", "dd_dt", "dd_dq", "deep_massflux",
-        "deep_dt", "deep_dq", "shallow_massflux", "shallow_dt", "shallow_dq",
-        "mid_massflux", "mid_dt", "mid_dq", "cca_unadjusted",
-        "massflux_up_half", "du_conv", "dv_conv", "dmv_conv",
-        "conv_prog_precip", "conv_prog_precip", "dt_conv", "conv_prog_dtheta",
-        "conv_prog_dmv", "dcfl_conv", "dcff_conv", "dbcf_conv", "dd_mf_cb",
-        "cca", "ccw", "cv_top", "cv_base", "lowest_cv_top", "lowest_cv_base",
-        "pres_cv_top", "pres_cv_base", "pres_lowest_cv_top",
-        "pres_lowest_cv_base", "massflux_up_cmpta", "dth_conv_noshal",
-        "dmv_conv_noshal", "tke_bl", "o3p", "o1d", "o3", "nit", "no", "no3",
-        "lumped_n", "n2o5", "ho2no2", "hono2", "h2o2", "ch4", "co", "hcho",
-        "meoo", "meooh", "h", "oh", "ho2", "cl", "cl2o2", "clo", "oclo",
-        "br", "lumped_br", "brcl", "brono2", "n2o", "lumped_cl", "hocl",
-        "hbr", "hobr", "clono2", "cfcl3", "cf2cl2", "mebr", "hono", "c2h6",
-        "etoo", "etooh", "mecho", "meco3", "pan", "c3h8", "n_proo", "i_proo",
-        "n_prooh", "i_prooh", "etcho", "etco3", "me2co", "mecoch2oo",
-        "mecoch2ooh", "ppan", "meono2", "c5h8", "iso2", "isooh", "ison",
-        "macr", "macro2", "macrooh", "mpan", "hacet", "mgly", "nald",
-        "hcooh", "meco3h", "meco2h", "h2", "meoh", "msa", "nh3", "cs2",
-        "csul", "h2s", "so3", "passive_o3", "age_of_air", "dms", "so2",
-        "h2so4", "dmso", "monoterpene", "secondary_organic", "n_nuc_sol",
-        "nuc_sol_su", "nuc_sol_om", "n_ait_sol", "ait_sol_su", "ait_sol_bc",
-        "ait_sol_om", "n_acc_sol", "acc_sol_su", "acc_sol_bc", "acc_sol_om",
-        "acc_sol_ss", "n_cor_sol", "cor_sol_su", "cor_sol_bc", "cor_sol_om",
-        "cor_sol_ss", "n_ait_ins", "ait_ins_bc", "ait_ins_om", "n_acc_ins",
-        "acc_ins_du", "n_cor_ins", "cor_ins_du"]
+    "conv_rain", "conv_snow", "cca_2d", "cape_diluted", "lowest_cca_2d",
+    "deep_in_col", "shallow_in_col", "mid_in_col", "freeze_level",
+    "deep_prec", "shallow_prec", "mid_prec", "deep_term", "cape_timescale",
+    "deep_cfl_limited", "mid_cfl_limited", "deep_tops", "dt_conv",
+    "dmv_conv", "dmcl_conv", "dms_conv", "massflux_up", "massflux_down",
+    "conv_rain_3d", "conv_snow_3d", "entrain_up", "entrain_down",
+    "detrain_up", "detrain_down", "dd_dt", "dd_dq", "deep_massflux",
+    "deep_dt", "deep_dq", "shallow_massflux", "shallow_dt", "shallow_dq",
+    "mid_massflux", "mid_dt", "mid_dq", "cca_unadjusted",
+    "massflux_up_half", "du_conv", "dv_conv", "dmv_conv",
+    "conv_prog_precip", "conv_prog_precip", "dt_conv", "conv_prog_dtheta",
+    "conv_prog_dmv", "dcfl_conv", "dcff_conv", "dbcf_conv", "dd_mf_cb",
+    "cca", "ccw", "cv_top", "cv_base", "lowest_cv_top", "lowest_cv_base",
+    "pres_cv_top", "pres_cv_base", "pres_lowest_cv_top",
+    "pres_lowest_cv_base", "massflux_up_cmpta", "dth_conv_noshal",
+    "dmv_conv_noshal", "tke_bl", "o3p", "o1d", "o3", "nit", "no", "no3",
+    "lumped_n", "n2o5", "ho2no2", "hono2", "h2o2", "ch4", "co", "hcho",
+    "meoo", "meooh", "h", "oh", "ho2", "cl", "cl2o2", "clo", "oclo",
+    "br", "lumped_br", "brcl", "brono2", "n2o", "lumped_cl", "hocl",
+    "hbr", "hobr", "clono2", "cfcl3", "cf2cl2", "mebr", "hono", "c2h6",
+    "etoo", "etooh", "mecho", "meco3", "pan", "c3h8", "n_proo", "i_proo",
+    "n_prooh", "i_prooh", "etcho", "etco3", "me2co", "mecoch2oo",
+    "mecoch2ooh", "ppan", "meono2", "c5h8", "iso2", "isooh", "ison",
+    "macr", "macro2", "macrooh", "mpan", "hacet", "mgly", "nald",
+    "hcooh", "meco3h", "meco2h", "h2", "meoh", "msa", "nh3", "cs2",
+    "csul", "h2s", "so3", "passive_o3", "age_of_air", "dms", "so2",
+    "h2so4", "dmso", "monoterpene", "secondary_organic", "n_nuc_sol",
+    "nuc_sol_su", "nuc_sol_om", "n_ait_sol", "ait_sol_su", "ait_sol_bc",
+    "ait_sol_om", "n_acc_sol", "acc_sol_su", "acc_sol_bc", "acc_sol_om",
+    "acc_sol_ss", "n_cor_sol", "cor_sol_su", "cor_sol_bc", "cor_sol_om",
+    "cor_sol_ss", "n_ait_ins", "ait_ins_bc", "ait_ins_om", "n_acc_ins",
+    "acc_ins_du", "n_cor_ins", "cor_ins_du"]
 
 false_dep_vars_seg = [
     "ncells", "cumulus", "l_shallow", "l_mid", "bulk_cf_conv", "cape_ts_used",
@@ -130,13 +128,11 @@ def trans(psyir: Routine):
         for call in numseg_loop.walk(Call):
             if call.routine.symbol.name in ["glue_conv_6a", "log_event"]:
                 call.routine.symbol.is_pure = True
-        options={"node-type-check": False}
-        options["ignore_dependencies_for"] = false_dep_vars_seg
         try:
             OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC.apply(
                 numseg_loop,
-                options,
-            )
+                ignore_dependencies_for=false_dep_vars_seg,
+                node_type_check=False)
         except TransformationError as e:
             logger.warning(e)
             print(f"Trying loop but{e}")
@@ -151,17 +147,11 @@ def trans(psyir: Routine):
         ):
             continue
         if loop.variable.name in ['i']:
-            # Check if any eligible variables appear on the LHS of
-            # assignment expressions; these lead to false dependency
-            # errors in the parallel loop transformation that can be
-            # ignored
-            ignore_deps_vars = match_lhs_assignments(loop, false_dep_vars_all)
-            options = {}
-            if len(ignore_deps_vars) > 0:
-                options["ignore_dependencies_for"] = ignore_deps_vars
-
             try:
-                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop, options)
+                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
+                    loop, 
+                    ignore_dependencies_for=false_dep_vars_all,
+                    node_type_check=False)
 
             except (TransformationError, IndexError) as err:
                 logging.warning(f"Could not transform because:\n {err}")
