@@ -19,6 +19,7 @@ module end_of_transport_step_alg_mod
                                             check_any_wt_eqn_conservative
   use conservative_neg_fix_kernel_mod, &
                                       only: conservative_neg_fix_kernel_type
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_tran, l_def, r_def
   use sci_enforce_lower_bound_kernel_mod, &
                                       only: enforce_lower_bound_kernel_type
@@ -206,7 +207,7 @@ contains
     type(transport_metadata_type),   intent(in)    :: transport_metadata
 
     ! Internal variables
-    integer(kind=i_def)                   :: mesh_id, step
+    integer(kind=i_def)                   :: step
     integer(kind=i_def)                   :: ref_step
     integer(kind=i_def)                   :: limit_iteration
     integer(kind=i_def)                   :: num_limiting_steps
@@ -230,12 +231,15 @@ contains
     real(kind=r_tran)                     :: field_min, field_max
     integer(tik)                          :: id_iter
 
+    type(config_type), pointer :: config
+
+    config => flux_precomputations%get_config()
+
     ! Extract transport runtime
     mesh => field_np1%get_mesh()
-    mesh_id = mesh%get_id()
     enforce_min_value = transport_metadata%get_enforce_min_value()
     is_dry_field = (trim(transport_metadata%get_name()) == trim(dry_field_name))
-    detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+    detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
 
     ! Determine whether this is the final split step
     step = transport_counter%get_split_step_of_substep_counter()
@@ -271,14 +275,14 @@ contains
 
         if ( LPROF ) call start_timing( id_iter, 'transport.iterative_min_val' )
 
-        div => get_directional_im3_div_r_tran(mesh_id, direction_3d)
+        div => get_directional_im3_div_r_tran(mesh%get_id(), direction_3d)
         ! TODO #3706: the flux limiter should use r_tran precision
         if (k_h == 0 .and. k_v == 0) then
           ! Use the FV divergence operator
-          div_r_def => get_im3_div_fv(mesh_id)
+          div_r_def => get_im3_div_fv(mesh%get_id())
         else
           ! Use the FE divergence operator
-          div_r_def => get_im3_div_fe(mesh_id)
+          div_r_def => get_im3_div_fe(mesh%get_id())
         end if
 
         min_value = transport_metadata%get_min_value()
@@ -312,7 +316,7 @@ contains
 
       else if (operators == operators_fem) then
         ! Finite element transport, so need full divergence operator
-        div => get_directional_im3_div_r_tran(mesh_id, direction_3d)
+        div => get_directional_im3_div_r_tran(mesh%get_id(), direction_3d)
         call invoke( dg_matrix_vector_kernel_type(increment, sum_flux, div), &
                      X_minus_Y(field_np1, field_start, increment) )
 
@@ -485,6 +489,10 @@ contains
     logical(kind=l_def)                   :: to_compute_field_np1
     integer(tik)                          :: id_iter
 
+    type(config_type), pointer :: config
+
+    config => flux_precomputations%get_config()
+
     ! Extract transport runtime
     prime_extrusion_mesh => field_np1%get_mesh()
     prime_extrusion_mesh_id = prime_extrusion_mesh%get_id()
@@ -529,10 +537,10 @@ contains
       rmultiplicity_shifted => get_rmultiplicity_fv(flux_function_space, shifted_mesh%get_id())
       ref_step = transport_counter%get_split_step_of_whole_step_counter()
       dry_flux => flux_precomputations%get_ref_flux(prime_extrusion_mesh_id, ref_step)
-      height_wt => get_height_fv(Wtheta, prime_extrusion_mesh_id)
+      height_wt => get_height_fv(config, prime_extrusion_mesh, Wtheta)
       logspace = transport_metadata%get_log_space()
-      face_selector_ew => get_face_selector_ew(prime_extrusion_mesh_id)
-      face_selector_ns => get_face_selector_ns(prime_extrusion_mesh_id)
+      face_selector_ew => get_face_selector_ew(prime_extrusion_mesh)
+      face_selector_ns => get_face_selector_ns(prime_extrusion_mesh)
 
       call theta_factor_wt%initialise( mr_start%get_function_space() )
       call theta_factor_w2_shifted%initialise( flux%get_function_space() )
@@ -591,7 +599,7 @@ contains
         w2_fs => function_space_collection%get_fs(prime_extrusion_mesh, 0, 0, W2)
         rho_d_start => flux_precomputations%get_ref_field(prime_extrusion_mesh_id, start_index)
         rho_d_np1 => flux_precomputations%get_ref_field(prime_extrusion_mesh_id, np1_index)
-        detj_at_w3 => get_detj_at_w3_r_tran(prime_extrusion_mesh_id)
+        detj_at_w3 => get_detj_at_w3_r_tran(config, prime_extrusion_mesh)
 
         call rho_X_start%initialise( w3_fs )
         call rho_X_np1%initialise( w3_fs )
@@ -606,7 +614,7 @@ contains
         sh_w2_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2)
         rho_d_start => flux_precomputations%get_ref_field(shifted_mesh%get_id(), start_index)
         rho_d_np1 => flux_precomputations%get_ref_field(shifted_mesh%get_id(), np1_index)
-        detj_at_w3 => get_detj_at_w3_r_tran(shifted_mesh%get_id())
+        detj_at_w3 => get_detj_at_w3_r_tran(config, shifted_mesh)
 
         call mr_sh_w3_start%initialise( sh_w3_fs )
         call mr_sh_w3_np1%initialise( sh_w3_fs )
@@ -638,7 +646,7 @@ contains
         select case( mr_function_space )
         case ( W3 )
           ! TODO #3706: the flux limiter should use r_tran precision
-          div_r_def => get_im3_div_fv(prime_extrusion_mesh_id)
+          div_r_def => get_im3_div_fv(prime_extrusion_mesh%get_id())
           div => get_directional_im3_div_r_tran(prime_extrusion_mesh_id, direction_3d)
         case ( Wtheta )
           div_r_def => get_im3_div_fv(shifted_mesh%get_id())
@@ -802,8 +810,8 @@ contains
     w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
     w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
     w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     ! Make specific routine for our most common splitting to slightly optimise
     ! for it

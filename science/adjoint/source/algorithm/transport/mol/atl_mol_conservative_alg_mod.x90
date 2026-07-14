@@ -8,6 +8,7 @@
 module atl_mol_conservative_alg_mod
 
   ! Infrastructure
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, l_def
   use field_mod,                       only: field_type
   use log_mod,                         only: log_event,         &
@@ -120,13 +121,17 @@ module atl_mol_conservative_alg_mod
     type(flux_precomputations_type), pointer :: pert_wind_flux_precomp
     integer(tik)                             :: id
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'atl_transport.mol_conservative' )
 
     ! ------------------------------------------------------------------------ !
     ! Extract transport objects and initialise temporary fields
     ! ------------------------------------------------------------------------ !
-    mesh => field%get_mesh()
-    mesh_id = field%get_mesh_id()
+    mesh_id =  field%get_mesh_id()
+    mesh    => field%get_mesh()
+    config  => tl_transport_controller%get_config()
+
     transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
@@ -268,8 +273,8 @@ module atl_mol_conservative_alg_mod
 
         end if
 
-        call advective_and_flux_alg(flux_step, adv_inc, rhs_field, ls_field_n, &
-                                    ls_advecting_wind, direction,              &
+        call advective_and_flux_alg(config,flux_step, adv_inc, rhs_field,      &
+                                    ls_field_n, ls_advecting_wind, direction,  &
                                     ls_transport_metadata, final_rk_stage,     &
                                     dt_mol_substep, do_flux, do_advective)
 
@@ -427,7 +432,7 @@ module atl_mol_conservative_alg_mod
                        inc_X_plus_Y( field_n, field_np1 ) )
         end if
 
-        call atl_advective_and_flux_alg(                                       &
+        call atl_advective_and_flux_alg(config,                                &
                 flux_step_ls_wind, flux_step_pert_wind, adv_inc,               &
                 rhs_field, advecting_wind,                                     &
                 stored_ls_field(ls_substep,ls_stage), ls_advecting_wind,       &

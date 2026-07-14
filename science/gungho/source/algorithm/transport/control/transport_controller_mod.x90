@@ -14,9 +14,9 @@
 module transport_controller_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def, r_tran, r_def, IMDI, &
                                             str_def
-  use copy_field_alg_mod,             only: copy_field
   use extrusion_mod,                  only: SHIFTED, TWOD
   use field_mod,                      only: field_type
   use sci_field_minmax_alg_mod,       only: get_field_minmax
@@ -73,6 +73,8 @@ module transport_controller_mod
 
     private
 
+    type(config_type), pointer :: config
+
     real(kind=r_tran)   :: dt_substep
     integer(kind=i_def) :: num_substeps = 1
     logical(kind=l_def) :: outer_set = .false.
@@ -102,6 +104,7 @@ module transport_controller_mod
     procedure, public  :: initialise
     procedure, public  :: before_transport_field
     procedure, public  :: after_transport_field
+    procedure, public  :: get_config
     procedure, public  :: get_cheap_update_step
     procedure, public  :: get_num_substeps
     procedure, public  :: get_ref_field
@@ -116,6 +119,7 @@ module transport_controller_mod
     procedure, public  :: get_dep_stencil_extent
     procedure, public  :: get_reference_splitting
     procedure, public  :: initialise_flux_precomputations
+
     procedure, public  :: finalise
     final              :: destroy_transport_controller
 
@@ -134,6 +138,7 @@ contains
   !!          loop) transport of multiple variables, by:
   !!          - determining the necessary number of transport substeps
   !!          - initialising precomputation objects
+  !> @param[in] config             Application namelist configuration object
   !> @param[in] model_clock        Tracks the time within the model
   !> @param[in] ref_field_rdef     The reference density to use for conservative
   !!                               transport of tracers. This argument must be
@@ -152,8 +157,8 @@ contains
   !!                               the transporting wind is the *difference*
   !!                               in wind from the previous step, rather than
   !!                               the full transport wind.
-  subroutine initialise(self, model_clock, ref_field_rdef, wind_n_rdef,        &
-                        wind_np1_rdef, outer, cheap_update_step)
+  subroutine initialise(self, config, model_clock, ref_field_rdef, &
+                        wind_n_rdef, wind_np1_rdef, outer, cheap_update_step)
 
     use split_transport_utils_mod,      only: get_dry_config,                  &
                                               get_splitting_name
@@ -167,6 +172,8 @@ contains
     use transport_enumerated_types_mod, only: splitting_strang_vhv
 
     implicit none
+
+    type(config_type), target, intent(in) :: config
 
     class(transport_controller_type), intent(inout) :: self
     class(model_clock_type),  target, intent(in)    :: model_clock
@@ -211,6 +218,8 @@ contains
 
     if ( LPROF ) call start_timing( id, 'transport.controller_init' )
 
+    self%config => config
+
     ! Set options, to be passed to objects initialised later
     if (present(outer)) then
       self%outer_set = .true.
@@ -241,17 +250,17 @@ contains
     w2_fs => wind_n_rdef%get_function_space()
     call self%transporting_wind%initialise(w2_fs)
     call self%wind_n_rtran%initialise(w2_fs)
-    call copy_field(wind_n_rdef, self%wind_n_rtran)
+    call invoke( real_to_real_x(self%wind_n_rtran, wind_n_rdef) )
 
     if (present(wind_np1_rdef)) then
       allocate(self%wind_np1_rtran)
       call self%wind_np1_rtran%initialise(w2_fs)
-      call copy_field(wind_np1_rdef, self%wind_np1_rtran)
+      call invoke( real_to_real_x(self%wind_np1_rtran, wind_np1_rdef) )
     end if
 
     w3_fs => ref_field_rdef%get_function_space()
     call self%ref_field_rtran%initialise(w3_fs)
-    call copy_field(ref_field_rdef, self%ref_field_rtran)
+    call invoke( real_to_real_x(self%ref_field_rtran, ref_field_rdef) )
 
     ! ------------------------------------------------------------------------ !
     ! Set transporting wind based on optional arguments
@@ -304,7 +313,7 @@ contains
       call lipschitz_3d%initialise(w3_fs)
       mesh => self%transporting_wind%get_mesh()
       mesh_id = mesh%get_id()
-      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_at_w3 => get_detj_at_w3_r_tran(self%config, mesh)
       call invoke( fv_divergence_3d_kernel_type(lipschitz_3d,                  &
                                                 self%transporting_wind,        &
                                                 detj_at_w3),                   &
@@ -322,6 +331,7 @@ contains
       if (log_at_level(LOG_LEVEL_DEBUG).or.                                    &
             (log_at_level(LOG_LEVEL_INFO) .and. max_lipschitz_3d > 0.5_r_tran)) then
         call print_field_stats_alg_rtran(                                      &
+                self%config,                                                   &
                 lipschitz_3d, LOG_LEVEL_INFO, -0.5_r_tran, 0.5_r_tran,         &
                 'lipschitz_3d'                                                 &
         )
@@ -354,9 +364,9 @@ contains
       w3_2d_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3)
 
       mesh_id = mesh%get_id()
-      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
-      face_selector_ew => get_face_selector_ew(mesh_id)
-      face_selector_ns => get_face_selector_ns(mesh_id)
+      detj_at_w3 => get_detj_at_w3_r_tran(self%config, mesh)
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
 
       call wind_flux%initialise(w2_fs)
       call hori_wind_flux%initialise(w2h_fs)
@@ -406,6 +416,7 @@ contains
       ! Watkins algorithm succeeded so set winds to use in each step
       if (watkins_fail < 1) then
         call self%ffsl_precomputations%initialise(                             &
+                self%config,                                                   &
                 mesh, self%reference_splitting, self%num_substeps,             &
                 self%transporting_wind, self%dt_substep                        &
         )
@@ -419,6 +430,7 @@ contains
         if (watkins_fail > 0) then
           ! Watkins algorithm failed, but might another splitting succeed?
           call adaptive_vhv_splitting_alg(                                     &
+                  self%config,                                                 &
                   max_lipschitz_alt, splitting_alt, self%transporting_wind,    &
                   dt_rtran                                                     &
           )
@@ -454,6 +466,7 @@ contains
 
     if (.not. perform_watkins .or. (perform_watkins .and. watkins_fail > 0)) then
       call substep_transport_alg(                                              &
+              self%config,                                                     &
               self%num_substeps, self%transporting_wind, dt_rtran,             &
               max_lipschitz_3d                                                 &
       )
@@ -466,6 +479,7 @@ contains
     ! logging level is appropriate
     if (log_at_level(LOG_LEVEL_DEBUG) .and. .not. logged_lipschitz) then
       call lipschitz_diag_alg(                                                 &
+              self%config,                                                     &
               self%reference_splitting, self%transporting_wind,                &
               dt_rtran, LOG_LEVEL_DEBUG                                        &
       )
@@ -486,6 +500,17 @@ contains
     if ( LPROF ) call stop_timing( id, 'transport.controller_init' )
 
   end subroutine initialise
+
+  function get_config(self) result (config)
+
+    implicit none
+
+    class(transport_controller_type), target, intent(in) :: self
+    type(config_type), pointer :: config
+
+    config => self%config
+
+  end function get_config
 
   !> Public finalise method for the transport controller
   subroutine finalise(self)
@@ -612,8 +637,8 @@ contains
         mesh_id = mesh%get_id()
         ref_mass => flux_precomputations%get_ref_mass(mesh_id, 1)
         total_ref_flux => flux_precomputations%get_total_ref_flux()
-        face_selector_ew => get_face_selector_ew(mesh_id)
-        face_selector_ns => get_face_selector_ns(mesh_id)
+        face_selector_ew => get_face_selector_ew(mesh)
+        face_selector_ns => get_face_selector_ns(mesh)
 
         call hori_flux%initialise(w2h_fs)
         call vert_flux%initialise(w2v_fs)
@@ -666,6 +691,7 @@ contains
         else
           ! We're about to fail... log the Lipschitz numbers
           call lipschitz_diag_alg(                                             &
+                  self%config,                                                 &
                   self%reference_splitting, self%transporting_wind,            &
                   self%dt_substep, LOG_LEVEL_WARNING                           &
           )
@@ -809,11 +835,13 @@ contains
 
       if (allocated(self%wind_np1_rtran)) then
         call self%wind_precomputations%initialise(                             &
+                self%config,                                                   &
                 mesh, self%dt_substep, self%transporting_wind,                 &
                 wind_n=self%wind_n_rtran, wind_np1=self%wind_np1_rtran         &
         )
       else
         call self%wind_precomputations%initialise(                             &
+                self%config,                                                   &
                 mesh, self%dt_substep, self%transporting_wind                  &
         )
       end if
@@ -851,6 +879,7 @@ contains
       ! For this object, all computations are the same across different substeps
       ! so we only do it for the first substep
       call self%ffsl_precomputations%initialise(                               &
+            self%config,                                                       &
             mesh, self%reference_splitting, self%num_substeps,                 &
             self%transporting_wind, self%dt_substep, flux=wind_flux            &
       )
@@ -894,6 +923,7 @@ contains
         )
 
         call self%flux_precomputations%initialise(                             &
+            self%config,                                                       &
                 mesh, self%reference_splitting, self%num_substeps,             &
                 self%transporting_wind, self%dt_substep,                       &
                 ref_field=self%ref_field_rtran,                                &
@@ -903,6 +933,7 @@ contains
         ! Either not sharing stencil extent or don't yet know it, so do not
         ! pass the max_courant_num argument
         call self%flux_precomputations%initialise(                             &
+            self%config,                                                       &
                 mesh, self%reference_splitting, self%num_substeps,             &
                 self%transporting_wind, self%dt_substep,                       &
                 ref_field=self%ref_field_rtran                                 &
@@ -1013,6 +1044,7 @@ contains
     ! of the density are not the same as those that will be used to transport
     ! the tracers. We set the correct flux here.
     call self%flux_precomputations%initialise(                                 &
+            self%config,                                                       &
             mesh, self%reference_splitting, self%num_substeps,                 &
             self%transporting_wind, self%dt_substep,                           &
             flux=ref_flux, ref_field=self%ref_field_rtran                      &

@@ -350,8 +350,8 @@ do i_liq = 1, n_cond_species_liq
                  kt_cond(:,i_cond_graup) )
 
         end if  ! ( nc_col(i_cond_cf) > 0 )
-      end if  ! ( i_liq == i_cond_rain .and. l_cv_cf
-              !                        .and. l_cv_graup )
+      end if  ! ( i_liq == i_cond_rain .AND. l_cv_cf
+              !                        .AND. l_cv_graup )
 
     end if  ! ( l_collect )
 
