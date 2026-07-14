@@ -7,6 +7,7 @@
 module atlt_transport_control_alg_mod
 
   use adj_trans_lookup_cache_mod,          only : adj_trans_lookup_cache_type
+  use config_mod,                          only : config_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
   use constants_mod,                       only : r_def, i_def, l_def
@@ -35,15 +36,18 @@ module atlt_transport_control_alg_mod
 
   !=============================================================================
   !> @brief Adjoint test for atl_transport_control_alg
+  !> @param[in]  config                  Application namelist configuration object
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  model_clock             The model clock
   !> @param[in]  adj_lookup_table_cache  Lookup table cache
   !>
-  subroutine atlt_transport_control_alg( mesh, model_clock, adj_lookup_table_cache )
+  subroutine atlt_transport_control_alg( config,  mesh, model_clock, &
+                                         adj_lookup_table_cache )
 
     implicit none
 
     ! Arguments
+    type(config_type),                 intent(in) :: config
     type(mesh_type),          pointer, intent(in) :: mesh
     type(model_clock_type),            intent(in) :: model_clock
     type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
@@ -97,7 +101,8 @@ module atlt_transport_control_alg_mod
     end do
 
     do outer = 1_i_def, 2_i_def
-      call run_atlt_transport_control_alg( vector_space_wtheta_ptr, &
+      call run_atlt_transport_control_alg( config,                  &
+                                           vector_space_wtheta_ptr, &
                                            vector_space_w2_ptr,     &
                                            vector_space_w3_ptr,     &
                                            ls_advected_fields,      &
@@ -114,6 +119,7 @@ module atlt_transport_control_alg_mod
 
   !=============================================================================
   !> @brief Runs the adjoint test for atl_transport_control_alg for a given set of parameters
+  !> @param[in]  config                   Application namelist configuration object
   !> @param[in]  vector_space_wtheta_ptr  Wtheta function space pointer
   !> @param[in]  vector_space_w2_ptr      W2 function space pointer
   !> @param[in]  vector_space_w3_ptr      W3 function space pointer
@@ -125,7 +131,8 @@ module atlt_transport_control_alg_mod
   !> @param[in]  outer                    The outer iteration variable
   !> @param[in]  adj_lookup_table_cache   Lookup table cache
   !>
-  subroutine run_atlt_transport_control_alg( vector_space_wtheta_ptr, &
+  subroutine run_atlt_transport_control_alg( config,                  &
+                                             vector_space_wtheta_ptr, &
                                              vector_space_w2_ptr,     &
                                              vector_space_w3_ptr,     &
                                              ls_advected_fields,      &
@@ -142,6 +149,8 @@ module atlt_transport_control_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(function_space_type), pointer, intent(in) :: vector_space_wtheta_ptr
     type(function_space_type), pointer, intent(in) :: vector_space_w2_ptr
     type(function_space_type), pointer, intent(in) :: vector_space_w3_ptr
@@ -262,7 +271,8 @@ module atlt_transport_control_alg_mod
     end do
 
     ! Tangent linear
-    call tl_transport_control_alg( advection_inc, advected_fields,   &
+    call tl_transport_control_alg( config,                           &
+                                   advection_inc, advected_fields,   &
                                    wind_np1, wind_n, mr_out, mr_in,  &
                                    ls_advected_fields,               &
                                    ls_wind_np1, ls_wind_n, ls_mr_in, &
@@ -370,7 +380,8 @@ module atlt_transport_control_alg_mod
     end do
 
     ! Adjoint
-    call atl_transport_control_alg( advection_inc, advected_fields,   &
+    call atl_transport_control_alg( config,                           &
+                                    advection_inc, advected_fields,   &
                                     wind_np1, wind_n, mr_out, mr_in,  &
                                     ls_advected_fields,               &
                                     ls_wind_np1, ls_wind_n, ls_mr_in, &

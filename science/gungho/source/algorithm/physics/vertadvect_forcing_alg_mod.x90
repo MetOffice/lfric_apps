@@ -9,6 +9,7 @@
 !>          Cartesian domain.
 module vertadvect_forcing_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def
   use field_mod,                     only: field_type
   use finite_element_config_mod,     only: element_order_h, element_order_v
@@ -36,20 +37,22 @@ contains
 
   !> @brief Calculate advection tendencies arising from a specified vertical
   !>        velocity profile
-  !> @param[in,out] field_increment vertical advection increment to theta
-  !> @param[in,out] field_increment vertical advection increment to vapour
-  !> @param[in,out] field_increment vertical advection increment to liquid
-  !> @param[in,out] vertical advection increment to wind
-  !> @param[in]     theta field to which vertical advection is applied
-  !> @param[in]     vapour field to which vertical advection is applied
-  !> @param[in]     rho Dry air density in same space as field
-  !> @param[in]     height Height of cell interfaces
-  !> @param[in]     twod_mesh Information about the horizontal mesh
-  !> @param[in]     dt timestep
-  !> @param[in]     time_now Current model time in seconds
-  subroutine vertadvect_forcing_alg( dtheta_forcing, dmv_forcing, dmcl_forcing,&
-                                     du_forcing, theta, mr, rho,               &
-                                     derived_fields,                           &
+  !> @param[in]     config           Application namelist configuration object
+  !> @param[in,out] dtheta_forcing   Vertical advection increment to theta
+  !> @param[in,out] dmv_forcing      Vertical advection increment to vapour
+  !> @param[in,out] dmcl_forcing     Vertical advection increment to liquid
+  !> @param[in,out] du_forcing       Vertical advection increment to wind
+  !> @param[in]     theta            Field to which vertical advection is applied
+  !> @param[in]     mr               Field to which vertical advection is applied
+  !> @param[in]     rho              Dry air density in same space as field
+  !> @param[in]     derived_fields
+  !> @param[in]     twod_mesh        Information about the horizontal mesh
+  !> @param[in]     dt               Timestep
+  !> @param[in]     time_now         Current model time in seconds
+  subroutine vertadvect_forcing_alg( config,                                    &
+                                     dtheta_forcing, dmv_forcing, dmcl_forcing, &
+                                     du_forcing, theta, mr, rho,                &
+                                     derived_fields,                            &
                                      twod_mesh, dt, time_now )
 
   use vertadvect_config_mod,   only: number_times, number_heights,             &
@@ -60,6 +63,8 @@ contains
   use mr_indices_mod,          only: nummr, imr_v, imr_cl
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type( field_type ), intent(inout)         :: dtheta_forcing, dmv_forcing,    &
                                                dmcl_forcing, du_forcing
@@ -113,10 +118,10 @@ contains
   ! There's a choice to be made here. Either advect then average, or average
   ! then advect. Choose the latter, replicating what's done in the UM and MONC.
   mesh_id = theta%get_mesh_id()
-  height_wth => get_height_fv( Wtheta, mesh_id )
+  height_wth => get_height_fv(config, mesh, Wtheta)
 
   mesh_id = rho%get_mesh_id()
-  height_w3 => get_height_fv( W3, mesh_id )
+  height_w3 => get_height_fv(config, mesh, W3)
 
   ! Vertical advection of potential temperature
   call horiz_mean_alg( field_mean, nlayers, twod_mesh, theta )
@@ -234,7 +239,7 @@ contains
   end if
 
   call du_vertadv%initialise( vector_space = du_forcing%get_function_space() )
-  call set_wind( du_vertadv, du_in_w3, dv_in_w3, dw_in_wth )
+  call set_wind( config, du_vertadv, du_in_w3, dv_in_w3, dw_in_wth )
   call invoke( inc_X_plus_Y( du_forcing, du_vertadv ) )
 
   end subroutine vertadvect_forcing_alg

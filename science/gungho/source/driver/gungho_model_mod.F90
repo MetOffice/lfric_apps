@@ -10,8 +10,7 @@ module gungho_model_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
   use sci_checksum_alg_mod,       only : checksum_alg
-  use driver_fem_mod,             only : init_fem, final_fem, &
-                                         init_function_space_chains
+  use driver_fem_mod,             only : init_fem, final_fem
   use driver_io_mod,              only : init_io, final_io, &
                                          filelist_populator
   use driver_mesh_mod,            only : init_mesh
@@ -21,14 +20,16 @@ module gungho_model_mod
                                          check_configuration
   use energy_correction_config_mod, only : encorr_usage, encorr_usage_none
   use conservation_algorithm_mod, only : conservation_algorithm
-  use constants_mod,              only : i_def, r_def, l_def, &
+  use constants_mod,              only : i_def, r_def, l_def, imdi, &
                                          PRECISION_REAL, r_second, str_def
   use convert_to_upper_mod,       only : convert_to_upper
   use create_gungho_prognostics_mod, only : process_gungho_prognostics
   use create_lbcs_mod,            only : process_lbc_fields
   use create_mesh_mod,            only : create_mesh
+  use create_nudging_fields_mod,  only : process_nudging_fields
   use create_physics_prognostics_mod, only : &
                                             process_physics_prognostics
+  use config_mod,                 only : config_type
   use derived_config_mod,         only : set_derived_config, l_esm_couple, &
                                          l_couple_sea_ice, l_couple_ocean
   use extrusion_mod,              only : extrusion_type,              &
@@ -36,6 +37,8 @@ module gungho_model_mod
                                          shifted_extrusion_type,      &
                                          double_level_extrusion_type, &
                                          TWOD, SHIFTED, DOUBLE_LEVEL
+  use multigrid_mod,              only : get_multigrid_tile_size, &
+                                         init_multigrid_fs_chain
   use field_array_mod,            only : field_array_type
   use field_mod,                  only : field_type
   use field_spec_mod,             only : field_spec_type, processor_type
@@ -246,12 +249,16 @@ contains
 
   !> @brief Enable active state fields for checkpointing; sync xios axis dimensions;
   !>        set up scaled diagnostics fields
+  !> @param[in] config       Argument providing access to model configuration
   !> @param[in] clock        The clock providing access to time information
-  subroutine before_context_close(clock)
+  subroutine before_context_close(config,clock)
 
     use multidata_field_dimensions_mod, only: sync_multidata_field_dimensions
     use time_dimensions_mod,            only: sync_time_dimensions
     use boundaries_config_mod,          only: limited_area
+    use external_forcing_config_mod,    only: theta_forcing_nudging,           &
+                                              wind_forcing_nudging,            &
+                                              external_forcing_is_loaded
     use formulation_config_mod,         only: use_physics
     use section_choice_config_mod,      only: stochastic_physics, &
                                               stochastic_physics_um
@@ -260,17 +267,29 @@ contains
     use io_config_mod,                  only: checkpoint_read, checkpoint_write
 
     implicit none
-    class(clock_type), intent(in) :: clock
+    type(config_type), intent(in)  :: config
+    class(clock_type), intent(in)  :: clock
 
     type(persistor_type) :: persistor
-
-    real(r_second) :: DT
+    real(r_second)       :: DT
+    integer(i_def)       :: theta_forcing
+    integer(i_def)       :: wind_forcing
+    logical(l_def)       :: to_process_nudging_fields
 #ifdef UM_PHYSICS
     integer(i_def) :: i
 #endif
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
+
+    if ( external_forcing_is_loaded() ) then
+      theta_forcing = config%external_forcing%theta_forcing()
+      wind_forcing = config%external_forcing%wind_forcing()
+      to_process_nudging_fields = ( theta_forcing == theta_forcing_nudging     &
+         .or. wind_forcing == wind_forcing_nudging )
+    else
+      to_process_nudging_fields = .false.
+    end if
 
     call persistor%init(clock)
     call process_gungho_prognostics(persistor)
@@ -299,6 +318,39 @@ contains
                             mode=CHECKPOINTING, operation="once",   &
                             id_as_name=.true.)
           end do
+        end if
+
+        if(l_esm_couple) then
+          call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_w10", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_solar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_heatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_train", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tsnow", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsurf", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsub", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_evap", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_topmelt", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceheatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_sublimation", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceskint", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
         end if
 #endif
       end if
@@ -330,12 +382,46 @@ contains
         end if
 #endif
       end if
+      if(l_esm_couple) then
+        call add_field( persistor%ckp_inp, "lf_taux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tauy", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_w10", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_solar", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_heatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_train", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tsnow", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsurf", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsub", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_evap", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_topmelt", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceheatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_sublimation", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceskint", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_pensolar", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+      end if
     end if
 
 
     if (limited_area) call process_lbc_fields(persistor)
     if (use_physics) then
       call process_physics_prognostics(persistor)
+      if (to_process_nudging_fields)   &
+         call process_nudging_fields(config, persistor)
       call sync_multidata_field_dimensions()
       call sync_time_dimensions()
     end if
@@ -421,8 +507,8 @@ contains
   !>
   subroutine initialise_infrastructure( io_context_name, modeldb )
 
-    use base_mesh_config_mod, only: GEOMETRY_PLANAR, &
-                                    GEOMETRY_SPHERICAL
+    use base_mesh_config_mod, only: geometry_planar, &
+                                    geometry_spherical
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics
@@ -490,20 +576,26 @@ contains
 
     logical(l_def) :: use_multires_coupling
     logical(l_def) :: l_multigrid
+    logical(l_def) :: inner_halo_tiles
     logical(l_def) :: prepartitioned
-    logical(l_def) :: apply_partition_check
+    logical(l_def) :: check_partitions
 
     integer(i_def) :: geometry
+    integer(i_def) :: topology
     integer(i_def) :: extrusion_method
     real(r_def)    :: domain_bottom
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
     integer(i_def) :: number_of_layers
+    integer(i_def) :: tile_size_x
+    integer(i_def) :: tile_size_y
 
 #ifdef UM_PHYSICS
     real(r_def) :: dt
 #endif
 
+    integer(i_def), allocatable :: tile_size(:,:)
+    integer(i_def), allocatable :: multigrid_tile_size(:,:)
 
     integer(i_def), parameter :: one_layer = 1_i_def
 
@@ -530,11 +622,22 @@ contains
 
     prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
     geometry         = modeldb%config%base_mesh%geometry()
+    topology         = modeldb%config%base_mesh%topology()
     prepartitioned   = modeldb%config%base_mesh%prepartitioned()
     domain_height    = modeldb%config%extrusion%domain_height()
     extrusion_method = modeldb%config%extrusion%method()
     number_of_layers = modeldb%config%extrusion%number_of_layers()
     scaled_radius    = modeldb%config%planet%scaled_radius()
+
+    if (prepartitioned) then
+      tile_size_x = 1
+      tile_size_y = 1
+      inner_halo_tiles = .false.
+    else
+      tile_size_x = maxval([1,modeldb%config%partitioning%tile_size_x()])
+      tile_size_y = maxval([1,modeldb%config%partitioning%tile_size_y()])
+      inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
+    end if
 
     !-------------------------------------------------------------------------
     ! Initialise infrastructure
@@ -697,10 +800,10 @@ contains
 
     ! 1.3a Initialise prime/2d meshes
     ! ---------------------------------------------------------
-    apply_partition_check = .false.
+    check_partitions = .false.
     if ( .not. prepartitioned .and. &
          ( l_multigrid .or. use_multires_coupling ) ) then
-      apply_partition_check = .true.
+      check_partitions = .true.
     end if
 
     allocate(stencil_depths(size(base_mesh_names)))
@@ -708,20 +811,41 @@ contains
                                      base_mesh_names, &
                                      modeldb%config )
 
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (l_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
+
     call init_mesh( modeldb%config,               &
                     modeldb%mpi%get_comm_rank(),  &
                     modeldb%mpi%get_comm_size(),  &
-                    base_mesh_names,              &
-                    extrusion,                    &
-                    stencil_depths,               &
-                    apply_partition_check )
-
+                    base_mesh_names, extrusion,   &
+                    inner_halo_tiles, tile_size,  &
+                    stencil_depths, check_partitions )
 
     allocate( twod_names, source=base_mesh_names )
     do i=1, size(twod_names)
       twod_names(i) = trim(twod_names(i))//'_2d'
     end do
+
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (l_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion_2d )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
     call create_mesh( base_mesh_names, extrusion_2d, &
+                      inner_halo_tiles, tile_size,   &
                       alt_name=twod_names )
     call assign_mesh_maps(twod_names)
 
@@ -735,8 +859,22 @@ contains
         do i=1, size(shifted_names)
           shifted_names(i) = trim(shifted_names(i))//'_shifted'
         end do
+
+        if (allocated(tile_size)) deallocate(tile_size)
+        allocate(tile_size(2, size(meshes_to_shift)))
+        tile_size(1,:) = tile_size_x
+        tile_size(2,:) = tile_size_y
+        if (l_multigrid) then
+          multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                         meshes_to_shift, &
+                                                         extrusion_shifted )
+          where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+        end if
+
         call create_mesh( meshes_to_shift,   &
                           extrusion_shifted, &
+                          inner_halo_tiles,  &
+                          tile_size,         &
                           alt_name=shifted_names )
         call assign_mesh_maps(shifted_names)
 
@@ -752,8 +890,22 @@ contains
         do i=1, size(double_names)
           double_names(i) = trim(double_names(i))//'_double'
         end do
+
+        if (allocated(tile_size)) deallocate(tile_size)
+        allocate(tile_size(2, size(meshes_to_shift)))
+        tile_size(1,:) = tile_size_x
+        tile_size(2,:) = tile_size_y
+        if (l_multigrid) then
+          multigrid_tile_size = get_multigrid_tile_size( modeldb%config,   &
+                                                         meshes_to_double, &
+                                                         extrusion_double )
+          where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+        end if
+
         call create_mesh( meshes_to_double, &
                           extrusion_double, &
+                          inner_halo_tiles, &
+                          tile_size,        &
                           alt_name=double_names )
         call assign_mesh_maps(double_names)
 
@@ -767,9 +919,9 @@ contains
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
-    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+    call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
     if ( l_multigrid ) then
-      call init_function_space_chains( mesh_collection, chain_mesh_tags )
+      call init_multigrid_fs_chain(chain_mesh_tags)
     end if
 
 
@@ -794,9 +946,9 @@ contains
 
        ! Set up collections to hold 2d coupling fields
        call modeldb%fields%add_empty_field_collection("cpl_snd_2d" , &
-                                                 table_len = 30)
+                                                 table_len = 1)
        call modeldb%fields%add_empty_field_collection("cpl_rcv_2d" , &
-                                                 table_len = 30)
+                                                 table_len = 1)
 
        cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
        cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
@@ -861,6 +1013,7 @@ contains
 
       call init_io( io_context_name, prime_mesh_name, modeldb, &
                     chi_inventory, panel_id_inventory,         &
+                    geometry, topology,                        &
                     populate_filelist=files_init_ptr,          &
                     alt_mesh_names=extra_io_mesh_names,        &
                     before_close=before_context_close )
@@ -868,6 +1021,7 @@ contains
     else
       call init_io( io_context_name, prime_mesh_name, modeldb, &
                     chi_inventory, panel_id_inventory,         &
+                    geometry, topology,                        &
                     populate_filelist=files_init_ptr,          &
                     before_close=before_context_close )
     end if
@@ -908,7 +1062,7 @@ contains
         ! Initialisation for the Socrates radiation scheme
         radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
         dt = real(modeldb%clock%get_seconds_per_step(), r_def)
-        call illuminate_alg( radiation_fields,                    &
+        call illuminate_alg( modeldb%config, radiation_fields,                    &
                              modeldb%clock%get_step(),            &
                              dt)
       end if
@@ -1029,16 +1183,14 @@ contains
                         timestep_method)
         ! Output initial conditions
         if ( write_conservation_diag ) then
-         call conservation_algorithm( rho,              &
-                                      u,                &
-                                      theta,            &
-                                      mr,               &
-                                      exner )
-         if ( use_moisture ) &
-           call moisture_conservation_alg( rho,              &
-                                           mr,               &
-                                           'Before timestep' )
+          call conservation_algorithm( modeldb%config, rho, u, theta, &
+                                       mr, exner )
+          if ( use_moisture ) then
+            call moisture_conservation_alg( modeldb%config, rho, mr, &
+                                            'Before timestep' )
+          end if
         end if
+
       case( method_rk )             ! RK
         ! Initialise the Runge-Kutta timestep method
         allocate( timestep_method, source=rk_timestep_type(modeldb) )
@@ -1048,16 +1200,14 @@ contains
 
         ! Output initial conditions
         if ( write_conservation_diag ) then
-          call conservation_algorithm( rho,              &
-                                       u,                &
-                                       theta,            &
-                                       mr,               &
-                                       exner )
-         if ( use_moisture ) &
-           call moisture_conservation_alg( rho,              &
-                                           mr,               &
-                                           'Before timestep' )
+          call conservation_algorithm( modeldb%config, rho, u, theta, &
+                                       mr, exner )
+          if ( use_moisture ) then
+            call moisture_conservation_alg( modeldb%config, rho, mr, &
+                                            'Before timestep' )
+          end if
         end if
+
       case( method_no_timestepping )
         ! Initialise a null-timestep method
         allocate( timestep_method, source=no_timestep_type() )
@@ -1068,6 +1218,7 @@ contains
                     '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
                     ' Prognostic fields not evolved'
         call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+
 #ifdef UM_PHYSICS
       case( method_jules )  ! jules
         ! Initialise the jules timestep method
@@ -1076,6 +1227,7 @@ contains
         call modeldb%values%add_key_value('timestep_method', &
                       timestep_method)
 #endif
+
       case default
         call log_event("Gungho: Incorrect time stepping option chosen, "// &
                         "stopping program! ",LOG_LEVEL_ERROR)

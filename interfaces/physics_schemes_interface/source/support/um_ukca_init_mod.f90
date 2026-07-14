@@ -12,7 +12,11 @@ module um_ukca_init_mod
                                        glomap_mode_ukca,                       &
                                        glomap_mode_dust_and_clim,              &
                                        emissions, emissions_GC3, emissions_GC5,&
-                                       easyaerosol_cdnc, ukca_mode_seg_size
+                                       easyaerosol_cdnc, ukca_mode_seg_size,   &
+                                       ukca_scale_marine_pom_ems,              &
+                                       marine_pom_ems_scaling,                 &
+                                       ukca_scale_sea_salt_ems,                &
+                                       sea_salt_ems_scaling
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
                                        chem_scheme_strattrop, chem_scheme_none,&
@@ -1039,6 +1043,10 @@ contains
            l_bcoc_ff=.true.,                                                   &
            l_ukca_scale_biom_aer_ems=.true.,                                   &
            biom_aer_ems_scaling=2.0_r_um,                                      &
+           l_ukca_scale_marine_pom_ems=ukca_scale_marine_pom_ems,              &
+           marine_pom_ems_scaling=marine_pom_ems_scaling,                      &
+           l_ukca_scale_sea_salt_ems=ukca_scale_sea_salt_ems,                  &
+           sea_salt_ems_scaling=sea_salt_ems_scaling,                          &
            ! GLOMAP feedback configuration options
            l_ukca_radaer=.true.,                                               &
            i_ukca_tune_bc=i_ukca_bc_tuned,                                     &
