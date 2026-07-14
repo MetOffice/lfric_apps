@@ -95,6 +95,12 @@
                         "_weightgen_script" %}
 {% endif %}
 
+{# Set up memory profiling flag #}
+{% set memory_profile = false %}
+{% if "memory_plot_ex" in task_values and task_values["memory_plot_ex"] and task_ns.platform == "ex1a" %}
+    {% set memory_profile = true %}
+{% endif %}
+
 {# Set the pre-script command for canned tests #}
 {% set canned_prescript = "cp -r $SOURCE_DIRECTORY/"~task_values["example_dir"]~"/* "~
                           "$CYLC_TASK_WORK_DIR" %}

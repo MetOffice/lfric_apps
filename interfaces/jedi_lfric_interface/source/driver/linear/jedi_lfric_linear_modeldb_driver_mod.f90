@@ -103,7 +103,6 @@ contains
     type( mesh_type ),               pointer :: aerosol_twod_mesh
     type( mesh_type ),               pointer :: nudging_mesh
     type( mesh_type ),               pointer :: nudging_twod_mesh
-    type( lfric_xios_context_type ), pointer :: io_context
     character( len=str_def )                 :: prime_mesh_name
     character( len=str_def )                 :: aerosol_mesh_name
     character( len=str_def )                 :: nudging_mesh_name
