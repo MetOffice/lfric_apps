@@ -750,11 +750,13 @@ contains
 
       ! Copy the destination (possibly blended) orography to the output fields
       ! --------------------------------------------------------
-   
-      target_collection => modeldb%fields%get_field_collection(target_collection_name)
-      call target_collection%get_field("surface_altitude", field)
-      call invoke(setval_X(field,surface_altitude_dst))
-      
+
+      if (mode == mode_ics) then
+        target_collection => modeldb%fields%get_field_collection(target_collection_name)
+        call target_collection%get_field("surface_altitude", field)
+        call invoke(setval_X(field,surface_altitude_dst))
+      end if
+
       ! Adjust the chi fields to account for the orography
       ! --------------------------------------------------------
       ! source mesh, source extrusion, source orography

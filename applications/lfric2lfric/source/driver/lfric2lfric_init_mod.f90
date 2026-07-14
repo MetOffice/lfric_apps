@@ -152,8 +152,12 @@ module lfric2lfric_init_mod
     if ( orog_init_option == orog_init_option_analytic .or. &
          orog_init_option == orog_init_option_ancil .or.    &
          orog_init_option == orog_init_option_start_dump ) then
-      call field_maker(field_collection, trim('surface_altitude'), &
-                       target_mesh, target_twod_mesh, prefix)
+       if ( mode == mode_ics ) then
+          
+        call field_maker(field_collection, trim('surface_altitude'), &
+             target_mesh, target_twod_mesh, prefix)
+
+     end if
     end if
 
     !--------------------------------------------------------------------------

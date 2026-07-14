@@ -106,3 +106,7 @@ coord_space             = 'Wchi',
 &planet
   scaling_factor        = 125.0,
 /
+
+&orography
+  orog_init_option      = 'none'
+/
