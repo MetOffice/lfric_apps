@@ -74,6 +74,8 @@ contains
 !> @param[in] total_ranks        Total number of MPI ranks in this job.
 !> @param[in] mesh_names         Mesh names to load from the mesh input file(s).
 !> @param[in] extrusion          Extrusion object to be applied to meshes.
+!> @param[in] inner_halo_tiles   Flag to apply tiling to inner halos
+!> @param[in] tile_size          Inner halo tile sizes in x/y direction for each mesh.
 !> @param[in] stencil_depths_in  Required stencil depth for the application
 !!                               for each mesh.
 !> @param[in] regrid_method      Apply check for even partitions with the
@@ -85,6 +87,8 @@ subroutine init_mesh( config,                  &
                       local_rank, total_ranks, &
                       mesh_names,              &
                       extrusion,               &
+                      inner_halo_tiles,        &
+                      tile_size,               &
                       stencil_depths_in,       &
                       regrid_method )
 
@@ -100,6 +104,8 @@ subroutine init_mesh( config,                  &
   integer(kind=i_def),   intent(in) :: total_ranks
   character(len=*),      intent(in) :: mesh_names(2)
   class(extrusion_type), intent(in) :: extrusion
+  logical(l_def),        intent(in) :: inner_halo_tiles
+  integer(i_def),        intent(in) :: tile_size(:,:)
   integer(kind=i_def),   intent(in) :: stencil_depths_in(:)
   integer(kind=i_def),   intent(in) :: regrid_method
 
@@ -341,14 +347,16 @@ subroutine init_mesh( config,                  &
                             decomposition_dst,             &
                             stencil_depths,                &
                             generate_inner_halos(dst),     &
-                            partitioner_dst )
+                            partitioner_dst,               &
+                            enforce_constraints = .false. )
 
     call create_local_mesh( mesh_names(src:src),           &
                             local_rank, total_ranks,       &
                             decomposition_src,             &
                             stencil_depths,                &
                             generate_inner_halos(src),     &
-                            partitioner_src )
+                            partitioner_src,               &
+                            enforce_constraints = .false. )
 
     ! Read in the global intergrid mesh mappings,
     ! then create the associated local mesh maps
@@ -365,7 +373,8 @@ subroutine init_mesh( config,                  &
   ! Alternative names are needed in case the source and destination
   ! mesh files use the same mesh name.
   !============================================================================
-  call create_mesh( mesh_names, extrusion )
+  call create_mesh( mesh_names, extrusion, &
+                    inner_halo_tiles, tile_size )
 
   !============================================================================
   ! Generate intergrid LiD-LiD maps and assign them to mesh objects.
