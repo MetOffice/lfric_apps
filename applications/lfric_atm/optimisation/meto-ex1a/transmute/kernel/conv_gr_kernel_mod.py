@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2026 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -112,6 +112,10 @@ def trans(psyir: Routine):
     - Add OMPParallelDoDirective to loops outside the parallel regions with OMPParallelLoopTrans
 
     Special treatment required for the loop containing glue_conv_6a.
+
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    :returns:
     """
 
 

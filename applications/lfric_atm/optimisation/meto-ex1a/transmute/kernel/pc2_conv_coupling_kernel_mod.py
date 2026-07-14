@@ -42,8 +42,9 @@ private_arrays = [
 def trans(psyir):
     """
     Apply OpenMP Directives
-    psyir: psyir object passed from PSyclone
-    Returns: Nothing
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    :returns:
     """
 
     # Declare subroutine "pc2_hom_conv" as pure to enable parallelisation

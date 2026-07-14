@@ -29,8 +29,9 @@ def trans(psyir):
     PSyclone function call, run through psyir object,
     each schedule (or subroutine) and apply paralleldo transformations
     to each loop.
-    psyir: psyir object passed from PSyclone
-    Returns: Nothing
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    :returns:
     '''
 
     fortran_file_name = str(psyir.root.name)

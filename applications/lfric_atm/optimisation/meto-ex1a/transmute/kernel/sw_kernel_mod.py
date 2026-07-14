@@ -37,8 +37,9 @@ ignore_dependencies_for = [
 def trans(psyir):
     """
     Entry point for OpenMP transformations for `sw_kernel_mod.F90`.
-    psyir: psyir object passed from PSyclone
-    Returns: Nothing
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    :returns:
     """
 
     # Replace max_threads = 1
