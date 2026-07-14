@@ -48,6 +48,9 @@
 | theabro             | Nathan Luke Abraham | NCAS & University of Cambridge  | 2026-04-15 |
 | ss421               | Steven Sandbach    | Met Office                       | 2026-04-20 |
 | MichaelWhitall      | Michael Whitall    | Met Office                       | 2026-04-22 |
+| sergisiso           | Sergi Siso         | UKRI-STFC                        | 2026-06-09 |
+| arporter            | Andrew Porter      | UKRI-STFC                        | 2026-06-09 |
+| LonelyCat124        | Aidan Chalk        | UKRI-STFC                        | 2026-06-09 |
 | DanCopsey           | Dan Copsey         | Met Office                       | 2026-05-14 |
 | marcstring          | Marc Stringer      | NCAS, Reading University         | 2026-05-06 |
 | cameronbateman-mo   | Cameron Bateman    | Met Office                       | 2026-05-28 |
