@@ -78,8 +78,7 @@
     'if [ ! -s $ROSE_TASK_LOG_DIR/xios_client_collated.out ]; then rm -f $ROSE_TASK_LOG_DIR/xios_client_collated.out ; fi',
     'find . -name "xios_server_*.out"  -exec cat {} + > $ROSE_TASK_LOG_DIR/xios_server_collated.out ',
     'if [ ! -s $ROSE_TASK_LOG_DIR/xios_server_collated.out ]; then rm -f $ROSE_TASK_LOG_DIR/xios_server_collated.out ; fi',
-    'test -f '~task_ns.application~'-checksums.txt &&
-        cp $CYLC_TASK_WORK_DIR/'~task_ns.application~'-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',
+    'test -f *-checksums.txt && cp *-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',
     'touch $CYLC_TASK_WORK_DIR/tmp.m',
     'mv $CYLC_TASK_WORK_DIR/*.m $TASK_OUTPUT_DIR/results',
     'test -f $CYLC_TASK_WORK_DIR/timer.txt && '~
