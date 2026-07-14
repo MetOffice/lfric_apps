@@ -22,7 +22,7 @@ def trans(psyir):
     Applies PSyclone colouring, OpenMP and redundant computation
     transformations.
 
-    :param psyir: the PSyIR of the PSy-layer.
+    :param psyir: the PSyIR of the PSyIR-layer.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
 
     '''
