@@ -16,7 +16,11 @@
 
 export PSYCLONE_PHYSICS_FILES = \
                                 bl_lsp \
+                                bm_kernel_mod \
                                 bm_tau_kernel_mod \
+                                bl_exp_kernel_mod \
+                                bl_imp_kernel_mod \
+                                bl_imp2_kernel_mod \
                                 btq_int \
                                 conv_gr_kernel_mod \
                                 ex_flux_tq \
@@ -30,21 +34,29 @@ export PSYCLONE_PHYSICS_FILES = \
                                 kmkh \
                                 kmkhz_9c_wtrac \
                                 lw_kernel_mod \
+                                lw_rad_tile_kernel_mod \
+                                lsp_prognostic_tnuc_kernel_mod \
                                 mphys_kernel_mod \
+                                mphys_turb_gen_kernel_mod \
                                 pc2_bl_forced_cu \
                                 pc2_bm_initiate \
                                 pc2_initiation_ctl \
                                 pc2_initiation_kernel_mod \
                                 pc2_conv_coupling_kernel_mod \
+                                photol_kernel_mod \
+                                smith_kernel_mod \
+                                spectral_gwd_kernel_mod \
                                 sw_kernel_mod \
+                                sw_rad_tile_kernel_mod \
+                                tracer_mix_kernel_mod \
                                 ukca_aero_ctl \
                                 ukca_abdulrazzak_ghan \
                                 ukca_chemistry_ctl_full_mod \
-                                ukca_main1-ukca_main1 \
-                                sw_rad_tile_kernel_mod \
-                                jules_imp_kernel_mod \
-                                jules_exp_kernel_mod \
-                                jules_extra_kernel_mod
+                                ukca_main1-ukca_main1
+
+# Causing build slow downs CCE  conv_comorph_kernel_mod \
+                                aerosol_ukca_kernel_mod \
+# The Psyclone Issue to fix this is #3418
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 
