@@ -1,12 +1,12 @@
 ##############################################################################
-# (c) Crown copyright 2017 Met Office. All rights reserved.
+# (c) Crown copyright 2025 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
-# Various things specific to the Intel Fortran compiler.
+# Various things specific to the Intel oneAPI Fortran compiler.
 ##############################################################################
 
-$(info Project specials for Intel compiler)
+$(info Project specials for Intel oneAPI compiler)
 
 export FFLAGS_UM_PHYSICS = -r8
 
@@ -46,20 +46,13 @@ $(info LFRic compile options required for files with OpenMP - see Ticket 1490)
 # psy/%.o psy/%.mod: private FFLAGS_EXTRA = $(FFLAGS_INTEL_FIX_ARG)
 
 
-# -warn noexternals applied to code that imports lfric_mpi_mod to avoid
+# -warn noexternals applied to code that imports mpi_mod to avoid
 # a warning-turned-error about missing interfaces for MPI calls in
 # mpi.mod, such as MPI_Allreduce - switching to mpi_f08.mod resolves
 # this via polymorphic interface declarations. Some SOCRATES functions
 # do not currently declare interfaces either. Flag was introduced in
 # Intel Fortran v19.1.0 according to Intel release notes.
-ifeq ($(shell test "$(IFORT_VERSION)" -ge 0190100; echo $$?), 0)
-  $(info ** Activating externals warning override for selected source files)
-  export FFLAGS_INTEL_EXTERNALS = -warn noexternals
-else
-  export FFLAGS_INTEL_EXTERNALS =
-endif
+export FFLAGS_INTEL_EXTERNALS = -warn noexternals
 
-ifeq ($(shell test "$(IFORT_VERSION)" -ge 0190103; echo $$?), 0)
-  $(info ** Disabling OpenMP due to a compiler bug for intel-compiler newer than 2020.3.304 - see Ticket 3853)
-  %ls_ppnc.o %ls_ppnc.mod: FFLAGS:=${FFLAGS} -qno-openmp
-endif
+$(info ** Disabling OpenMP due to a compiler bug for intel-compiler newer than 2020.3.304 - see Ticket 3853)
+%ls_ppnc.o %ls_ppnc.mod: FFLAGS:=${FFLAGS} -qno-openmp
