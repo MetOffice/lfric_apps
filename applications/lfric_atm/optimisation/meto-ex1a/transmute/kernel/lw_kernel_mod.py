@@ -38,7 +38,6 @@ def trans(psyir):
     Entry point for OpenMP transformations for `lw_kernel_mod.F90`.
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-    :returns:
     """
 
     # Replace max_threads = 1

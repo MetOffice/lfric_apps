@@ -115,7 +115,6 @@ def trans(psyir: Routine):
 
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-    :returns:
     """
 
 

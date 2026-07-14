@@ -31,7 +31,6 @@ def trans(psyir):
     to each loop.
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
-    :returns:
     '''
 
     fortran_file_name = str(psyir.root.name)
