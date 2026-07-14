@@ -1342,7 +1342,7 @@ subroutine radaer_code( nlayers,                                               &
 
   !--------------------------------------------------------------------------
   ! To determine if 32bit KGO change is from differences in addition order
-
+  do k = 1, nlayers
     ukca_modal_vol_um(1,k,(mode_ait_sol-1)) = pvol_wat_ait_sol(map_wth(1) + k)+&
                                               pvol_su_ait_sol( map_wth(1) + k)+&
                                               pvol_bc_ait_sol( map_wth(1) + k)+&
@@ -1368,7 +1368,7 @@ subroutine radaer_code( nlayers,                                               &
     ukca_modal_vol_um(1,k,(mode_acc_insol-1))=pvol_du_acc_ins( map_wth(1) + k)
 
     ukca_modal_vol_um(1,k,(mode_cor_insol-1))=pvol_du_cor_ins( map_wth(1) + k)
-
+  end do
     !--------------------------------------------------------------------------
 
   ! -- ukca_modal_wtv_um --
