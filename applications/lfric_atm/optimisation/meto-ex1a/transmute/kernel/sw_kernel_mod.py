@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2026 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -37,6 +37,8 @@ ignore_dependencies_for = [
 def trans(psyir):
     """
     Entry point for OpenMP transformations for `sw_kernel_mod.F90`.
+    psyir: psyir object passed from PSyclone
+    Returns: Nothing
     """
 
     # Replace max_threads = 1

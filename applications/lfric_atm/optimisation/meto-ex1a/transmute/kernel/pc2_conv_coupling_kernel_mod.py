@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2026 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -42,6 +42,8 @@ private_arrays = [
 def trans(psyir):
     """
     Apply OpenMP Directives
+    psyir: psyir object passed from PSyclone
+    Returns: Nothing
     """
 
     # Declare subroutine "pc2_hom_conv" as pure to enable parallelisation
