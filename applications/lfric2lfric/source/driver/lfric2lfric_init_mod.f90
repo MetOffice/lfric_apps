@@ -19,6 +19,10 @@ module lfric2lfric_init_mod
                                         log_level_info
   use mesh_mod,                   only: mesh_type
   use netcdf,                     only: nf90_max_name
+  use orography_config_mod,       only: orog_init_option,          &
+                                        orog_init_option_analytic, &
+                                        orog_init_option_ancil,    &
+                                        orog_init_option_start_dump
 
   ! lfric2lfric mods
   use lfric2lfric_config_mod,     only: mode_ics, mode_lbc
@@ -144,6 +148,13 @@ module lfric2lfric_init_mod
                         target_twod_mesh, &
                         prefix )
     end do
+
+    if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil .or.    &
+         orog_init_option == orog_init_option_start_dump ) then
+      call field_maker(field_collection, trim('surface_altitude'), &
+                       target_mesh, target_twod_mesh, prefix)
+    end if
 
     !--------------------------------------------------------------------------
     ! Initialise Intermediate Fields

@@ -71,6 +71,8 @@ module lfric2lfric_infrastructure_mod
   use lfric2lfric_init_coupler_mod,only: lfric2lfric_init_coupler_src, &
                                          lfric2lfric_init_coupler_dst, &
                                          lfric2lfric_end_coupler_init
+  use lfric2lfric_field_init_mod,  only: field_maker
+  use netcdf,                      only: nf90_max_name
 #ifdef MCT
   use coupling_mod,                only: coupling_type, &
                                          get_coupling_from_collection
@@ -217,6 +219,9 @@ contains
     type(coupler_exchange_2d_type)       :: coupler_exchange_2d
     integer(kind=i_def)                  :: ierror
     logical(kind=l_def)                  :: is_running
+
+    type(field_collection_type), pointer :: target_collection
+    type(field_type), pointer            :: field
     
     !------------------------
     ! XIOS contexts
@@ -738,6 +743,13 @@ contains
       call blend_orography(surface_altitude_dst, surface_altitude_src_on_dst, &
                            mesh_names(dst))
 
+      ! Copy the destination (possibly blended) orography to the output fields
+      ! --------------------------------------------------------
+   
+      target_collection => modeldb%fields%get_field_collection(target_collection_name)
+      call target_collection%get_field("surface_altitude", field)
+      call invoke(setval_X(field,surface_altitude_dst))
+      
       ! Adjust the chi fields to account for the orography
       ! --------------------------------------------------------
       ! source mesh, source extrusion, source orography
