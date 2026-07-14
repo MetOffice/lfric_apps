@@ -93,7 +93,7 @@
     {# fcm_make tasks for coupled runs are dealt with here #}
     {% elif task_values["coupled"] and task.startswith("fcm_make") %}
 
-        {% include "templates/runtime/generate_runtime_lfric_coupled.cylc" %}
+        {% include "templates/runtime/generate_runtime_coupled.cylc" %}
 
     {# plotting tasks #}
     {% elif task.startswith("plot") or task.startswith("memory_plot") %}

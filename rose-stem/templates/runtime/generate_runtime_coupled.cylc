@@ -5,8 +5,8 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered templates/runtime/generate_runtime_lfricinputs.cyc") %}
 
-{# Runtime sections for lfric_coupled fcm_make tasks. #}
-{# The run, build_ and checksum/plot tasks for lfric_coupled use #}
+{# Runtime sections for coupled fcm_make tasks. #}
+{# The run, build_ and checksum/plot tasks for coupled runs use #}
 {# the standard templating. Only fcm_make tasks are set here #}
 
 {% set task_app = "fcm_make_"~task_ns.conf_name %}

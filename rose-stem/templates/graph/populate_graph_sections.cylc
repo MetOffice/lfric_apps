@@ -316,9 +316,9 @@
     {% endif %}
 {% endif %}
 
-{# lfric_coupled graphs require fcm_make tasks before the application run #}
+{# Coupled runs require fcm_make tasks before the application run #}
 {% if task_values["coupled"] %}
-    {% include "templates/graph/populate_graph_lfric_coupled.cylc" %}
+    {% include "templates/graph/populate_graph_coupled.cylc" %}
 {% endif %}
 
 {# lfric2lfric, lfric2um, and um2lfric graphs require generate_weights tasks before the application run #}

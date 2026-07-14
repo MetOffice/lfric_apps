@@ -1206,6 +1206,7 @@
         "coupled": true,
         "wallclock": 25,
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+        "app_name": "lfric_atm_coupled"
     }) %}
 
 {% elif task_ns.conf_name == "canned" %}
@@ -1233,14 +1234,6 @@
 
 {% endif %}
 
-{# Set default values for lfric_atm tasks #}
-{% if task_dict %}
-    {% do task_dict.update({"application_dir": "lfric_apps/applications/lfric_atm"}) %}
-    {% if "app_name" not in task_dict %}
-        {% do task_dict.update({"app_name": "lfric_atm"}) %}
-    {% endif %}
-{% endif %}
-
 {# Extensions to the Shared Global Configurations - Performance setups#}
 {% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_720t") %}
 
@@ -1259,6 +1252,14 @@
         "opt_confs": ["um_dump","oper_diags_hres"],
     }) %}
 
+{% endif %}
+
+{# Set default values for lfric_atm tasks #}
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/lfric_atm"}) %}
+    {% if "app_name" not in task_dict %}
+        {% do task_dict.update({"app_name": "lfric_atm"}) %}
+    {% endif %}
 {% endif %}
 
 
