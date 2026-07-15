@@ -47,6 +47,7 @@ program lfric2lfric
 #endif
   ! Clock for OASIS exchanges
   type(model_clock_type),    allocatable :: oasis_clock
+
   call parse_command_line( filename )
 
   call modeldb%config%initialise( program_name )

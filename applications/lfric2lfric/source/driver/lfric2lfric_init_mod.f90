@@ -187,7 +187,6 @@ module lfric2lfric_init_mod
     call modeldb%io_contexts%get_io_context(context_src, io_context)
     call io_context%set_current()
 
- 
     ! Now finished with config_list, deallocate
     deallocate(config_list)
 

@@ -160,7 +160,7 @@ contains
     cp_write_behaviour => checkpoint_write_xios
 
     if ( .NOT. field_collection%field_exists(field_name) ) then
-       ! Get function space from metadata
+      ! Get function space from metadata
       vector_space => space_from_metadata(trim(prefix)//trim(field_name), &
                                           mesh_3d=mesh,                   &
                                           mesh_2d=twod_mesh               )
