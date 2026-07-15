@@ -71,7 +71,6 @@ rose-stem/lib/                         @james-bruten-mo                    # @je
 rose-stem/bin/                         @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/common/            @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/macros/            @james-bruten-mo                    # @jennyhickson
-rose-stem/site/common                  @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
 rose-stem/site/azngarch                @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto                    @james-bruten-mo                    # @jennyhickson
 rose-stem/site/esnz                    @tinyendian @JorgeBornemann
@@ -84,6 +83,36 @@ interfaces/build/                      @christophermaynard
 **/*Makefile                           @MatthewHambley @hiker
 **/*.mk                                @MatthewHambley @hiker
 **/optimisation                        @christophermaynard                 # HPC Optimisation Team
+
+# Rose Stem Application Settings
+rose-stem/site/common/adjoint*/            @DrTVockerodtMO @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/gravity_wave/        @thomasmelvin @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/gungho*/             @thomasmelvin @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/jedi*/               @ss421 @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/jules/               @iboutle @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/lfric2lfric/         @mo-lottieturner @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/lfric_atm/           @iboutle @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/lfricinputs/         @mo-lottieturner @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/linear*/             @cjohnson-pi @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/name_transport/      @jameskent-metoffice @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/ngarch/              @christophermaynard @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/shallow_water/       @jameskent-metoffice @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/solver/              @christophermaynard @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/common/transport/           @tommbendall @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
+rose-stem/site/meto/kgos/adjoint*/         @DrTVockerodtMO @james-bruten-mo
+rose-stem/site/meto/kgos/gravity_wave/     @thomasmelvin @james-bruten-mo
+rose-stem/site/meto/kgos/gungho*/          @thomasmelvin @james-bruten-mo
+rose-stem/site/meto/kgos/jedi*/            @ss421 @james-bruten-mo
+rose-stem/site/meto/kgos/jules/            @iboutle @james-bruten-mo
+rose-stem/site/meto/kgos/lfric2lfric/      @mo-lottieturner @james-bruten-mo
+rose-stem/site/meto/kgos/lfric_atm/        @iboutle @james-bruten-mo
+rose-stem/site/meto/kgos/lfricinputs/      @mo-lottieturner @james-bruten-mo
+rose-stem/site/meto/kgos/linear*/          @cjohnson-pi @james-bruten-mo
+rose-stem/site/meto/kgos/name_transport/   @jameskent-metoffice @james-bruten-mo
+rose-stem/site/meto/kgos/ngarch/           @christophermaynard @james-bruten-mo
+rose-stem/site/meto/kgos/shallow_water/    @jameskent-metoffice @james-bruten-mo
+rose-stem/site/meto/kgos/solver/           @christophermaynard @james-bruten-mo
+rose-stem/site/meto/kgos/transport/        @tommbendall @james-bruten-mo
 
 # Other areas
 documentation                           # @MetOffice/ssdteam
