@@ -151,13 +151,13 @@ contains
 
     call modeldb%values%get_value("vertical_change", vertical_change)
     call modeldb%values%get_value("horizontal_change", horizontal_change)
-    
+
     if (horizontal_change .and. vertical_change) then
        interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
-       
+
     else if (horizontal_change .and. .not. vertical_change) then
        interm_fields =>  modeldb%fields%get_field_collection(target_collection_name)
-       
+
     else if (vertical_change .and. .not. horizontal_change) then
        interm_fields =>  modeldb%fields%get_field_collection(source_collection_name)
     end if
@@ -173,7 +173,7 @@ contains
       if (vertical_change) then
         call lfric2lfric_vert(modeldb, interm_fields, target_fields)
       end if
-      
+
       ! Write output
       call modeldb%io_contexts%get_io_context(context_dst, io_context)
       call io_context%set_current()

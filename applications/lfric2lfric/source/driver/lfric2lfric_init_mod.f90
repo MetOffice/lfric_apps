@@ -81,7 +81,7 @@ module lfric2lfric_init_mod
 
     logical(l_def), pointer :: horizontal_change
     logical(l_def), pointer :: vertical_change
-    
+
     ! For field creation and storage
     type(field_collection_type), pointer :: field_collection
 
@@ -100,7 +100,7 @@ module lfric2lfric_init_mod
 
     call modeldb%values%get_value("vertical_change", vertical_change)
     call modeldb%values%get_value("horizontal_change", horizontal_change)
-    
+
     if (mode == mode_ics) then
       prefix = 'restart_'
     else if (mode == mode_lbc) then
@@ -154,7 +154,7 @@ module lfric2lfric_init_mod
          orog_init_option == orog_init_option_ancil .or.    &
          orog_init_option == orog_init_option_start_dump ) then
        if ( mode == mode_ics ) then
-          
+
         call field_maker(field_collection, trim('surface_altitude'), &
              target_mesh, target_twod_mesh, prefix)
 
@@ -183,7 +183,7 @@ module lfric2lfric_init_mod
                           prefix )
       end do
     end if
-      
+
     call modeldb%io_contexts%get_io_context(context_src, io_context)
     call io_context%set_current()
 

@@ -16,8 +16,7 @@ module lfric2lfric_infrastructure_mod
   use blend_orography_alg_mod,     only: blend_orography
   use constants_mod,               only: str_def, str_max_filename, &
                                          r_def, i_def, l_def, r_second
-  use create_mesh_mod,             only: create_extrusion, &
-                                         create_mesh
+  use create_mesh_mod,             only: create_mesh
   use driver_modeldb_mod,          only: modeldb_type
   use driver_fem_mod,              only: init_fem
   use driver_io_mod,               only: init_io, &
@@ -31,13 +30,7 @@ module lfric2lfric_infrastructure_mod
   use fs_continuity_mod,           only: W3
   use function_space_collection_mod,only: function_space_collection
   use function_space_mod,          only: function_space_type
-  use gungho_extrusion_mod,        only: dcmip_extrusion_type,                 &
-                                         um_L38_29t_9s_40km_extrusion_type,    &
-                                         um_L85_50t_35s_85km_extrusion_type,   &
-                                         um_L70_61t_9s_40km_extrusion_type,    &
-                                         um_L120_99t_21s_40km_extrusion_type,  &
-                                         um_L140_122t_18s_40km_extrusion_type, &
-                                         um_L70_50t_20s_80km_extrusion_type
+  use gungho_extrusion_mod,        only: create_extrusion
   use sci_geometric_constants_mod, only: get_chi_inventory,     &
                                          get_panel_id_inventory
   use init_altitude_mod,           only: init_altitude
@@ -356,109 +349,21 @@ contains
                        log_level_error)
     end select
 
-    select case (src_extrusion_method)
-      case (method_uniform, method_quadratic, method_geometric)
-        allocate( src_extrusion, source=create_extrusion(                        &
-                                        src_extrusion_method, src_domain_height, &
-                                        domain_bottom, src_number_of_layers,     &
-                                        prime_extrusion ) )
-
-      case (method_dcmip)
-        allocate( src_extrusion, source=dcmip_extrusion_type(             &
-                                        domain_bottom, src_domain_height, &
-                                        src_number_of_layers, prime_extrusion ) )
-
-      case (method_um_L38_29t_9s_40km)
-        allocate( src_extrusion, source=um_l38_29t_9s_40km_extrusion_type( &
-                                        domain_bottom, src_domain_height,  &
-                                        src_number_of_layers, prime_extrusion ) )
-
-      case (method_um_L85_50t_35s_85km)
-        allocate( src_extrusion, source=um_l85_50t_35s_85km_extrusion_type( &
-                                        domain_bottom, src_domain_height,   &
-                                        src_number_of_layers, prime_extrusion ) )
-
-      case (method_um_L70_50t_20s_80km)
-        allocate( src_extrusion, source=um_l70_50t_20s_80km_extrusion_type( &
-                                        domain_bottom, src_domain_height,   &
-                                        src_number_of_layers, prime_extrusion ) )
-
-      case (method_um_L70_61t_9s_40km)
-        allocate( src_extrusion, source=um_l70_61t_9s_40km_extrusion_type( &
-                                       domain_bottom, src_domain_height,   &
-                                       src_number_of_layers, prime_extrusion ) )
-
-      case (method_um_L120_99t_21s_40km)
-        allocate( src_extrusion, source=um_L120_99t_21s_40km_extrusion_type( &
-                                        domain_bottom, src_domain_height,    &
-                                        src_number_of_layers, prime_extrusion ) )
-
-      case (method_um_L140_122t_18s_40km)
-        allocate( src_extrusion, source=um_L140_122t_18s_40km_extrusion_type( &
-                                        domain_bottom, src_domain_height,     &
-                                        src_number_of_layers, prime_extrusion ) )
-
-      case default
-        write( log_scratch_space, '(A)' )          &
-            "lfric2lfric_infrastructure_mod" //    &
-            ': Unrecognised source extrusion method: ' // &
-            trim(key_from_method( src_extrusion_method ))
-        call log_event( log_scratch_space, log_level_error )
-
-    end select
-
+    allocate( src_extrusion, source = &
+             create_extrusion( src_extrusion_method, &
+                               source_geometry,      &
+                               src_number_of_layers, &
+                               src_domain_height,    &
+                               scaled_radius ))
+    
     if (vertical_change) then
 
-      select case (dst_extrusion_method)
-        case (method_uniform, method_quadratic, method_geometric)
-          allocate( dst_extrusion, source=create_extrusion(                        &
-                                          dst_extrusion_method, dst_domain_height, &
-                                          domain_bottom, dst_number_of_layers,     &
-                                          prime_extrusion ) )
-
-        case (method_dcmip)
-          allocate( dst_extrusion, source=dcmip_extrusion_type(             &
-                                          domain_bottom, dst_domain_height, &
-                                          dst_number_of_layers, prime_extrusion ) )
-
-        case (method_um_L38_29t_9s_40km)
-          allocate( dst_extrusion, source=um_l38_29t_9s_40km_extrusion_type( &
-                                          domain_bottom, dst_domain_height,  &
-                                          dst_number_of_layers, prime_extrusion ) )
-
-        case (method_um_L85_50t_35s_85km)
-          allocate( dst_extrusion, source=um_l85_50t_35s_85km_extrusion_type( &
-                                          domain_bottom, dst_domain_height,   &
-                                          dst_number_of_layers, prime_extrusion ) )
-
-        case (method_um_L70_50t_20s_80km)
-          allocate( dst_extrusion, source=um_l70_50t_20s_80km_extrusion_type( &
-                                          domain_bottom, dst_domain_height,   &
-                                          dst_number_of_layers, prime_extrusion ) )
-
-        case (method_um_L70_61t_9s_40km)
-          allocate( dst_extrusion, source=um_l70_61t_9s_40km_extrusion_type( &
-                                         domain_bottom, dst_domain_height,   &
-                                         dst_number_of_layers, prime_extrusion ) )
-
-        case (method_um_L120_99t_21s_40km)
-          allocate( dst_extrusion, source=um_L120_99t_21s_40km_extrusion_type( &
-                                          domain_bottom, dst_domain_height,    &
-                                          dst_number_of_layers, prime_extrusion ) )
-
-        case (method_um_L140_122t_18s_40km)
-          allocate( dst_extrusion, source=um_L140_122t_18s_40km_extrusion_type( &
-                                          domain_bottom, dst_domain_height,     &
-                                          dst_number_of_layers, prime_extrusion ) )
-
-        case default
-          write( log_scratch_space, '(A)' )          &
-              "lfric2lfric_infrastructure_mod" //    &
-              ': Unrecognised destination extrusion method: ' // &
-              trim(key_from_method( dst_extrusion_method ))
-          call log_event( log_scratch_space, log_level_error )
-
-      end select
+      allocate( dst_extrusion, source = &
+             create_extrusion( dst_extrusion_method, &
+                               source_geometry,      &
+                               dst_number_of_layers, &
+                               dst_domain_height,    &
+                               scaled_radius ))
 
     end if
 

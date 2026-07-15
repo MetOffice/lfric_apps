@@ -23,7 +23,7 @@ module lfric2lfric_vert_mod
                                       log_scratch_space
 
   implicit none
-  
+
   private
   public :: lfric2lfric_vert
 
@@ -53,10 +53,10 @@ contains
     type(field_type),         pointer :: height_dst
     type(mesh_type),          pointer :: mesh_src
     type(mesh_type),          pointer :: mesh_dst
-        
+
     character(len=str_def) :: field_name
     integer(kind=i_def)    :: fs_src, fs_dst
-   
+
     ! Main loop over fields to be processed
     call iter%initialise(source_fields)
     do
@@ -67,7 +67,7 @@ contains
 
       call source_fields%get_field(field_name, field_src)
       call target_fields%get_field(field_name, field_dst)
-      
+
       write(log_scratch_space, '(A,A)') "Processing lfric field ", &
                                         trim(field_name)
       call log_event(log_scratch_space, log_level_info)
@@ -88,7 +88,7 @@ contains
       !              field_dst, field_src, height_dst, height_src))
       call invoke(setval_X(field_dst, height_dst))
    enddo
-    
+
   end subroutine lfric2lfric_vert
 
 end module lfric2lfric_vert_mod
