@@ -37,10 +37,10 @@ Future Work:
 import logging
 from psyclone.psyir.nodes import Routine
 from transmute_psytrans.transmute_functions import (
+    loop_replacement_of,
     add_parallel_do_over_meta_segments,
     parallel_regions_for_clustered_loops,
     omp_do_for_heavy_loops,
-    get_compiler,
 )
 
 # ------------------------------------------------------------------------------
@@ -90,25 +90,17 @@ def trans(psyir):
         "gw_ussp_mod.F90 Psyclone Optimisation for the CPU is running."
     )
 
-    compiler = get_compiler()
+    # Remove any loops relating to specified loop type
+    for node in psyir.walk(Routine):
+        loop_replacement_of(node, "j")
 
-    # GCC currently has issues with firstprivated indexes,
-    # which is soon to be resolved in PSyclone.
-    # However for now we will avoid using OpenMP
-    # around meta_segments with with GCC.
-    if compiler == "gnu":
-        logging.info(
-            "Skipping gw_ussp_mod meta_segment optimisations for GCC."
-            )
-    else:
-        # 1) Force a PARALLEL DO around meta_segments%num_segments (dynamic)
-        for routine in psyir.walk(Routine):
-            add_parallel_do_over_meta_segments(
-              routine,
-              container_name="meta_segments",
-              member_name="num_segments",
-              privates=_META_PRIVATES,
-            )
+    for routine in psyir.walk(Routine):
+        add_parallel_do_over_meta_segments(
+          routine,
+          container_name="meta_segments",
+          member_name="num_segments",
+          privates=_META_PRIVATES,
+        )
 
     # 2) Cluster adjacent outer loops into PARALLEL regions (no schedule here)
     for routine in psyir.walk(Routine):

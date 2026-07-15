@@ -19,7 +19,7 @@ The following files have overrides below:
 * fm_drag
 '''
 
-FILE_EXTEN = ".F90"
+FILE_EXTEN = ".xu90"
 
 # Basic initialisation, will be used by the local script
 SCRIPT_OPTIONS_DICT = {}
