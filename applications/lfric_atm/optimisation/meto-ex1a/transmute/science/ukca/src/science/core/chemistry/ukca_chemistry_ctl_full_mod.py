@@ -181,6 +181,10 @@ def get_bool_env(var_name: str, default: bool = False) -> bool:
 # ==============
 
 def trans(psyir):
+    """
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    """
     desired_chunk_size = os.getenv("UKCA_FULL_CHUNK_SIZE")
     if desired_chunk_size is None:
         return

@@ -67,6 +67,10 @@ match_rhs = "tot_n_pnts"
 
 
 def trans(psyir):
+    """
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    """
     chunk_size = os.getenv("UKCA_FULL_CHUNK_SIZE")
     if chunk_size is None:
         # Do nothing if the chunk size is not set

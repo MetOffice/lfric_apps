@@ -51,6 +51,10 @@ def get_private_symbols_from_name(node, search_str):
     symbol_table.lookup(). This is necessary since PSyclone (as of version 3.1)
     does not make arrays PRIVATE, which is required for parallelising the
     loop over segments in GLOMAP.
+    :param node: a PSyIR node to check the symbol table
+    :type Node: :py:class:`psyclone.psyir.nodes.Node`
+    :param search_str: a string to find in the symbol table
+    :type str:
     """
     symbols_to_add = []
     # Search through the symbol table of the node; if any entries match the
@@ -64,6 +68,8 @@ def get_private_symbols_from_name(node, search_str):
 def trans(psyir):
     """
     Apply the PSyclone transformation. If it fails, raise an error.
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
     opts = {
         # some non-PURE subroutines called within this loop
