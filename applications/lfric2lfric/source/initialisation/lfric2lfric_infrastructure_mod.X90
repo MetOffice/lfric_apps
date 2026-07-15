@@ -137,15 +137,13 @@ contains
   !!                 fields.
   !> @param [in,out] modeldb       The structure holding model state
   !> @param [in,out] oasis_clock   Clock for OASIS exchanges
-  subroutine initialise_infrastructure( modeldb, oasis_clock, vertical_change, horizontal_change  )
+  subroutine initialise_infrastructure( modeldb, oasis_clock )
 
     implicit none
 
     type(modeldb_type),     intent(inout) :: modeldb
     type(model_clock_type), allocatable, &
                             intent(inout) :: oasis_clock
-    logical(kind=l_def),    intent(inout) :: vertical_change
-    logical(kind=l_def),    intent(inout) :: horizontal_change
     
     ! Coordinate field
     type(field_type),             pointer :: chi(:)
@@ -206,6 +204,9 @@ contains
     real(kind=r_def)        :: src_stretching_height
     real(kind=r_def)        :: dst_stretching_height
 
+    logical(kind=l_def)     :: vertical_change
+    logical(kind=l_def)     :: horizontal_change
+    
     integer(i_def) :: tile_size_x
     integer(i_def) :: tile_size_y
     logical(l_def) :: inner_halo_tiles
@@ -303,6 +304,9 @@ contains
       horizontal_change = .true.
     end if
 
+    call modeldb%values%add_key_value('vertical_change', vertical_change)
+    call modeldb%values%add_key_value('horizontal_change', horizontal_change)
+    
     !=======================================================================
     ! Mesh
     !=======================================================================
@@ -645,14 +649,12 @@ contains
     if (mode == mode_ics) then
       call init_lfric2lfric( modeldb, context_src, context_dst,                  &
                              start_dump_filename, mode,                          &
-                             horizontal_change, vertical_change,                 &
                              source_collection_name, mesh_src,    twod_mesh_src, &
                              interm_collection_name, mesh_interm, twod_mesh_dst, &
                              target_collection_name, mesh_dst,    twod_mesh_dst )
     else if (mode == mode_lbc) then
       call init_lfric2lfric( modeldb, context_src, context_dst,                  &
                              source_file_lbc, mode,                              &
-                             horizontal_change, vertical_change,                 &
                              source_collection_name, mesh_src,    twod_mesh_src, &
                              interm_collection_name, mesh_interm, twod_mesh_dst, &
                              target_collection_name, mesh_dst,    twod_mesh_dst )

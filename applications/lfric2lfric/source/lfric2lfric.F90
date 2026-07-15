@@ -47,9 +47,6 @@ program lfric2lfric
 #endif
   ! Clock for OASIS exchanges
   type(model_clock_type),    allocatable :: oasis_clock
-
-  logical(kind=l_def)     :: vertical_change
-  logical(kind=l_def)     :: horizontal_change
   
   call parse_command_line( filename )
 
@@ -89,9 +86,9 @@ program lfric2lfric
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
-  call initialise( modeldb, oasis_clock, vertical_change, horizontal_change )
+  call initialise( modeldb, oasis_clock )
 
-  call run( modeldb, oasis_clock, vertical_change, horizontal_change )
+  call run( modeldb, oasis_clock )
 
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
   call finalise( program_name, modeldb )

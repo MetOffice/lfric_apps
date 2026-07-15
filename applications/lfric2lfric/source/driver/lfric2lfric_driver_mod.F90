@@ -56,17 +56,15 @@ contains
   !!                 and fields.
   !> @param [in,out] modeldb                 The structure holding model state
   !> @param [in,out] oasis_clock             Clock for OASIS exchanges
-  subroutine initialise( modeldb, oasis_clock, vertical_change, horizontal_change )
+  subroutine initialise( modeldb, oasis_clock )
 
     implicit none
 
     type(modeldb_type),     intent(inout) :: modeldb
     type(model_clock_type), allocatable, &
                             intent(inout) :: oasis_clock
-    logical(kind=l_def),    intent(inout) :: vertical_change
-    logical(kind=l_def),    intent(inout) :: horizontal_change
 
-    call initialise_infrastructure( modeldb, oasis_clock, vertical_change, horizontal_change )
+    call initialise_infrastructure( modeldb, oasis_clock )
 
   end subroutine initialise
 
@@ -78,15 +76,13 @@ contains
   !!           XIOS context and writes to an output file.
   !> @param [in,out] modeldb      The structure that holds model state
   !> @param [in,out] oasis_clock  Clock for OASIS exchanges
-  subroutine run( modeldb, oasis_clock, vertical_change, horizontal_change )
+  subroutine run( modeldb, oasis_clock )
 
     implicit none
 
     type(modeldb_type),     intent(inout) :: modeldb
     type(model_clock_type), allocatable, &
                             intent(inout) :: oasis_clock
-    logical(kind=l_def),    intent(in)    :: vertical_change
-    logical(kind=l_def),    intent(in)    :: horizontal_change
 
     ! LFRic-XIOS constants
     integer(kind=i_def), parameter :: start_timestep = 1_i_def
@@ -125,6 +121,10 @@ contains
     real(kind=r_def)        :: src_stretching_height
     real(kind=r_def)        :: dst_stretching_height
 
+    logical(kind=l_def), pointer :: vertical_change
+    logical(kind=l_def), pointer :: horizontal_change
+
+    ! Extract configuration variables
     src_extrusion_method    = modeldb%config%extrusion%method()
     src_number_of_layers    = modeldb%config%extrusion%number_of_layers()
     src_domain_height       = modeldb%config%extrusion%domain_height()
@@ -137,10 +137,8 @@ contains
     dst_stretching_method   = modeldb%config%extrusion_dst%stretching_method()
     orog_init_option        = modeldb%config%orography%orog_init_option()
 
-    mesh_names(dst)     = modeldb%config%lfric2lfric%destination_mesh_name()
-    mesh_names(src)     = modeldb%config%lfric2lfric%source_mesh_name()
-
-    ! Extract configuration variables
+    mesh_names(dst)      = modeldb%config%lfric2lfric%destination_mesh_name()
+    mesh_names(src)      = modeldb%config%lfric2lfric%source_mesh_name()
     start_dump_filename  = modeldb%config%files%start_dump_filename()
     checkpoint_stem_name = modeldb%config%files%checkpoint_stem_name()
 
@@ -151,6 +149,9 @@ contains
     source_fields => modeldb%fields%get_field_collection(source_collection_name)
     target_fields => modeldb%fields%get_field_collection(target_collection_name)
 
+    call modeldb%values%get_value("vertical_change", vertical_change)
+    call modeldb%values%get_value("horizontal_change", horizontal_change)
+    
     if (horizontal_change .and. vertical_change) then
        interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
        

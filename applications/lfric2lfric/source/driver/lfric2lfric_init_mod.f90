@@ -44,8 +44,6 @@ module lfric2lfric_init_mod
   !!                                          will hold the file to be written
   !> @param [in]       start_dump_filename    File to get field names from
   !> @param [in]       mode                   Process ics or lbcs
-  !> @param [in]       horizontal_change      Logical for horizontal regridding
-  !> @param [in]       vertical_change        Logical for vertical regridding
   !> @param [in]       origin_collection_name Holds the origin fields
   !> @param [in]       origin_mesh            Mesh to initialise 3D fields
   !> @param [in]       origin_twod_mesh       Mesh to initialise 2D fields
@@ -57,7 +55,6 @@ module lfric2lfric_init_mod
   !> @param [in]       target_twod_mesh       Mesh for target 2D fields
   subroutine init_lfric2lfric( modeldb, context_src, context_dst,  &
                                start_dump_filename, mode,          &
-                               horizontal_change, vertical_change, &
                                origin_collection_name,             &
                                origin_mesh, origin_twod_mesh,      &
                                interm_collection_name,             &
@@ -72,8 +69,6 @@ module lfric2lfric_init_mod
     character(len=*),   intent(in)          :: context_dst
     character(len=*),   intent(in)          :: start_dump_filename
     integer(i_def),     intent(in)          :: mode
-    logical(l_def),     intent(in)          :: horizontal_change
-    logical(l_def),     intent(in)          :: vertical_change
     character(len=*),   intent(in)          :: origin_collection_name
     type(mesh_type),    intent(in), pointer :: origin_mesh
     type(mesh_type),    intent(in), pointer :: origin_twod_mesh
@@ -84,6 +79,9 @@ module lfric2lfric_init_mod
     type(mesh_type),    intent(in), pointer :: target_mesh
     type(mesh_type),    intent(in), pointer :: target_twod_mesh
 
+    logical(l_def), pointer :: horizontal_change
+    logical(l_def), pointer :: vertical_change
+    
     ! For field creation and storage
     type(field_collection_type), pointer :: field_collection
 
@@ -100,6 +98,9 @@ module lfric2lfric_init_mod
 
     call log_event( 'lfric2lfric: Initialising miniapp ...', log_level_info )
 
+    call modeldb%values%get_value("vertical_change", vertical_change)
+    call modeldb%values%get_value("horizontal_change", horizontal_change)
+    
     if (mode == mode_ics) then
       prefix = 'restart_'
     else if (mode == mode_lbc) then
