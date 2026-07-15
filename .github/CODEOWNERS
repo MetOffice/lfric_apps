@@ -99,20 +99,20 @@ rose-stem/site/common/ngarch/              @christophermaynard @james-bruten-mo 
 rose-stem/site/common/shallow_water/       @jameskent-metoffice @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
 rose-stem/site/common/solver/              @christophermaynard @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
 rose-stem/site/common/transport/           @tommbendall @james-bruten-mo @tinyendian @JorgeBornemann @SimonWNCAS @davelee2804  # @jennyhickson
-rose-stem/site/meto/kgos/adjoint*/         @DrTVockerodtMO @james-bruten-mo
-rose-stem/site/meto/kgos/gravity_wave/     @thomasmelvin @james-bruten-mo
-rose-stem/site/meto/kgos/gungho*/          @thomasmelvin @james-bruten-mo
-rose-stem/site/meto/kgos/jedi*/            @ss421 @james-bruten-mo
-rose-stem/site/meto/kgos/jules/            @iboutle @james-bruten-mo
-rose-stem/site/meto/kgos/lfric2lfric/      @mo-lottieturner @james-bruten-mo
-rose-stem/site/meto/kgos/lfric_atm/        @iboutle @james-bruten-mo
-rose-stem/site/meto/kgos/lfricinputs/      @mo-lottieturner @james-bruten-mo
-rose-stem/site/meto/kgos/linear*/          @cjohnson-pi @james-bruten-mo
-rose-stem/site/meto/kgos/name_transport/   @jameskent-metoffice @james-bruten-mo
-rose-stem/site/meto/kgos/ngarch/           @christophermaynard @james-bruten-mo
-rose-stem/site/meto/kgos/shallow_water/    @jameskent-metoffice @james-bruten-mo
-rose-stem/site/meto/kgos/solver/           @christophermaynard @james-bruten-mo
-rose-stem/site/meto/kgos/transport/        @tommbendall @james-bruten-mo
+rose-stem/site/meto/kgos/adjoint*/         @DrTVockerodtMO
+rose-stem/site/meto/kgos/gravity_wave/     @thomasmelvin
+rose-stem/site/meto/kgos/gungho*/          @thomasmelvin
+rose-stem/site/meto/kgos/jedi*/            @ss421
+rose-stem/site/meto/kgos/jules/            @iboutle
+rose-stem/site/meto/kgos/lfric2lfric/      @mo-lottieturner
+rose-stem/site/meto/kgos/lfric_atm/        @iboutle
+rose-stem/site/meto/kgos/lfricinputs/      @mo-lottieturner
+rose-stem/site/meto/kgos/linear*/          @cjohnson-pi
+rose-stem/site/meto/kgos/name_transport/   @jameskent-metoffice
+rose-stem/site/meto/kgos/ngarch/           @christophermaynard
+rose-stem/site/meto/kgos/shallow_water/    @jameskent-metoffice
+rose-stem/site/meto/kgos/solver/           @christophermaynard
+rose-stem/site/meto/kgos/transport/        @tommbendall
 
 # Other areas
 documentation                           # @MetOffice/ssdteam
