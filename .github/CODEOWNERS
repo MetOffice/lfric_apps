@@ -70,9 +70,11 @@ rose-stem/templates/                   @james-bruten-mo                    # @je
 rose-stem/lib/                         @james-bruten-mo                    # @jennyhickson
 rose-stem/bin/                         @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/common/            @james-bruten-mo                    # @jennyhickson
+rose-stem/site/meto/groups.cylc        @james-bruten-mo                    # @jennyhickson
 rose-stem/site/meto/macros/            @james-bruten-mo                    # @jennyhickson
+rose-stem/site/meto/suite_config.cylc  @james-bruten-mo                    # @jennyhickson
+rose-stem/site/meto/variables.cylc     @james-bruten-mo                    # @jennyhickson
 rose-stem/site/azngarch                @james-bruten-mo                    # @jennyhickson
-rose-stem/site/meto                    @james-bruten-mo                    # @jennyhickson
 rose-stem/site/esnz                    @tinyendian @JorgeBornemann
 rose-stem/site/ncas                    @SimonWNCAS
 rose-stem/site/nci                     @davelee2804
