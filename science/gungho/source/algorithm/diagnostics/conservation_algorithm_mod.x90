@@ -112,7 +112,7 @@ contains
     w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
                                                element_order_v, W3 )
 
-    geopotential => get_geopotential(mesh%get_id())
+    geopotential => get_geopotential(config, mesh)
     chi          => get_coordinates(mesh)
     panel_id     => get_panel_id(mesh)
 

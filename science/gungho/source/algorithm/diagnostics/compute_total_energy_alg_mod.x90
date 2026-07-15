@@ -131,7 +131,7 @@ contains
 
     if ( LPROF ) call start_timing( id, 'diags.total_energy' )
 
-    geopotential => get_geopotential( mesh%get_id() )
+    geopotential => get_geopotential(config, mesh)
 
     element_order_h = u%get_element_order_h()
     element_order_v = u%get_element_order_v()

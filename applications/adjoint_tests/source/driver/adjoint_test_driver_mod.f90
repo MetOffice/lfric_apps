@@ -228,7 +228,7 @@ contains
     call atlt_transport_control_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
 
     ! ./core_dynamics
-    call atlt_rhs_alg( mesh, modeldb%clock )
+    call atlt_rhs_alg( modeldb%config, mesh, modeldb%clock )
     call adjt_compute_vorticity_alg( mesh )
     call atlt_derive_exner_from_eos_alg( mesh )
     call atlt_moist_dyn_factors_alg( mesh )

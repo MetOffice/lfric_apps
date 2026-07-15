@@ -496,7 +496,8 @@ contains
 
     if ( .not. fixed_ls ) then
 
-    call rhs_alg( ls_rhs_n, varbeta*cast_dt, ls_state_after_slow, &
+    call rhs_alg( modeldb%config,                                 &
+                  ls_rhs_n, varbeta*cast_dt, ls_state_after_slow, &
                   ls_state_n, ls_moist_dyn_itns(:,1,1),           &
                   compute_eos=.false., compute_rhs_t_d=.true.,    &
                   dlayer_rhs=.false., model_clock=modeldb%clock )
@@ -573,7 +574,8 @@ contains
             !--------------------------------------------------------------------
             ! Compute the time-level n+1 dynamics terms
             !--------------------------------------------------------------------
-            call rhs_alg( ls_rhs_np1(:, outer, inner),        &
+            call rhs_alg( modeldb%config,                     &
+                          ls_rhs_np1(:, outer, inner),        &
                           -varalpha*cast_dt,                  &
                           ls_state_itns(:, outer, inner),     &
                           ls_state_itns(:, outer, inner),     &
