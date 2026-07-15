@@ -7,6 +7,8 @@
 !> @brief Set up fields for cloud diagnostics
 
 module cld_diags_mod
+
+  use config_mod,              only: config_type
   use clock_mod,               only: clock_type
   use constants_mod,           only: l_def, i_def, r_def, str_def
   use mr_indices_mod,          only: nummr, imr_cl, imr_ci, imr_r, imr_s
@@ -39,6 +41,7 @@ module cld_diags_mod
                       cld_amount_maxrnd_flag,                                  &
                       ceil_cld_amount_maxrnd_flag,                             &
                       cld_base_altitude_flag,                                  &
+                      cld_top_altitude_flag,                                   &
                       low_cld_base_altitude_flag,                              &
                       very_low_cld_amount_flag,                                &
                       low_cld_amount_flag,                                     &
@@ -84,7 +87,8 @@ contains
   end subroutine initialise_diags_for_cld
 
   !> @brief Output diagnostics from cld_alg
-  subroutine output_diags_for_cld( sskew_bm, svar_bm, svar_tb, &
+  subroutine output_diags_for_cld( config,                     &
+                                   sskew_bm, svar_bm, svar_tb, &
                                    cloud_fields,               &
                                    convection_fields,          &
                                    derived_fields,             &
@@ -94,6 +98,8 @@ contains
                                    exner_wth )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Diagnostics computed within the kernels
     type( field_type ),            intent(in) :: sskew_bm, svar_bm, svar_tb
@@ -124,6 +130,7 @@ contains
     type( field_type ) :: cld_amount_maxrnd
     type( field_type ) :: ceil_cld_amount_maxrnd
     type( field_type ) :: cld_base_altitude
+    type( field_type ) :: cld_top_altitude
     type( field_type ) :: low_cld_base_altitude
     type( field_type ) :: very_low_cld_amount
     type( field_type ) :: low_cld_amount
@@ -156,6 +163,7 @@ contains
     cld_amount_maxrnd_flag = init_diag(cld_amount_maxrnd, 'cloud__cloud_amount_maxrnd')
     ceil_cld_amount_maxrnd_flag = init_diag(ceil_cld_amount_maxrnd, 'cloud__ceilometer_cloud_amount_maxrnd')
     cld_base_altitude_flag = init_diag(cld_base_altitude, 'cloud__cloud_base_altitude')
+    cld_top_altitude_flag  = init_diag(cld_top_altitude,  'cloud__cloud_top_altitude')
     low_cld_base_altitude_flag = init_diag(low_cld_base_altitude, 'cloud__low_cloud_base_altitude')
     very_low_cld_amount_flag = init_diag(very_low_cld_amount, 'cloud__very_low_type_cloud_amount')
     low_cld_amount_flag = init_diag(low_cld_amount, 'cloud__low_type_cloud_amount')
@@ -176,6 +184,7 @@ contains
         cld_amount_maxrnd_flag      .or. &
         ceil_cld_amount_maxrnd_flag .or. &
         cld_base_altitude_flag      .or. &
+        cld_top_altitude_flag       .or. &
         low_cld_base_altitude_flag  .or. &
         very_low_cld_amount_flag    .or. &
         low_cld_amount_flag         .or. &
@@ -196,6 +205,7 @@ contains
         cld_amount_maxrnd_flag      .or. &
         ceil_cld_amount_maxrnd_flag .or. &
         cld_base_altitude_flag      .or. &
+        cld_top_altitude_flag       .or. &
         low_cld_base_altitude_flag  .or. &
         very_low_cld_amount_flag    .or. &
         low_cld_amount_flag         .or. &
@@ -235,6 +245,7 @@ contains
           cld_amount_maxrnd_flag      .or. &
           ceil_cld_amount_maxrnd_flag .or. &
           cld_base_altitude_flag      .or. &
+          cld_top_altitude_flag       .or. &
           low_cld_base_altitude_flag  .or. &
           very_low_cld_amount_flag    .or. &
           low_cld_amount_flag         .or. &
@@ -244,8 +255,9 @@ contains
           cloud_fraction_below_1000feet_asl_flag ) then
 
         mesh       => combined_cld_amount%get_mesh()
-        height_w3  => get_height_fv(W3, mesh%get_id())
-        height_wth => get_height_fv(Wtheta, mesh%get_id())
+        height_w3  => get_height_fv(config, mesh, W3)
+        height_wth => get_height_fv(config, mesh, Wtheta)
+
         call derived_fields%get_field('rho_in_wth', rho_in_wth)
         call cloud_fields%get_field('frozen_fraction', cf_frozen)
 
@@ -256,6 +268,7 @@ contains
                                             cld_amount_maxrnd,                 &
                                             ceil_cld_amount_maxrnd,            &
                                             cld_base_altitude,                 &
+                                            cld_top_altitude,                  &
                                             low_cld_base_altitude,             &
                                             very_low_cld_amount,               &
                                             low_cld_amount,                    &
@@ -288,7 +301,7 @@ contains
 
       ! Need to know height to remove any spurious icing index in stratosphere
       mesh => theta%get_mesh()
-      height_wth => get_height_fv( Wtheta, mesh%get_id() )
+      height_wth => get_height_fv(config, mesh, Wtheta)
 
     end if
 
@@ -355,6 +368,7 @@ contains
     if (cld_amount_maxrnd_flag) call cld_amount_maxrnd%write_field()
     if (ceil_cld_amount_maxrnd_flag) call ceil_cld_amount_maxrnd%write_field()
     if (cld_base_altitude_flag) call cld_base_altitude%write_field()
+    if (cld_top_altitude_flag)  call cld_top_altitude%write_field()
     if (low_cld_base_altitude_flag) call low_cld_base_altitude%write_field()
     if (very_low_cld_amount_flag) call very_low_cld_amount%write_field()
     if (low_cld_amount_flag) call low_cld_amount%write_field()

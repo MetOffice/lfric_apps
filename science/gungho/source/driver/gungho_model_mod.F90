@@ -10,8 +10,7 @@ module gungho_model_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
   use sci_checksum_alg_mod,       only : checksum_alg
-  use driver_fem_mod,             only : init_fem, final_fem, &
-                                         init_function_space_chains
+  use driver_fem_mod,             only : init_fem, final_fem
   use driver_io_mod,              only : init_io, final_io, &
                                          filelist_populator
   use driver_mesh_mod,            only : init_mesh
@@ -21,14 +20,16 @@ module gungho_model_mod
                                          check_configuration
   use energy_correction_config_mod, only : encorr_usage, encorr_usage_none
   use conservation_algorithm_mod, only : conservation_algorithm
-  use constants_mod,              only : i_def, r_def, l_def, &
+  use constants_mod,              only : i_def, r_def, l_def, imdi, &
                                          PRECISION_REAL, r_second, str_def
   use convert_to_upper_mod,       only : convert_to_upper
   use create_gungho_prognostics_mod, only : process_gungho_prognostics
   use create_lbcs_mod,            only : process_lbc_fields
   use create_mesh_mod,            only : create_mesh
+  use create_nudging_fields_mod,  only : process_nudging_fields
   use create_physics_prognostics_mod, only : &
                                             process_physics_prognostics
+  use config_mod,                 only : config_type
   use derived_config_mod,         only : set_derived_config, l_esm_couple, &
                                          l_couple_sea_ice, l_couple_ocean
   use extrusion_mod,              only : extrusion_type,              &
@@ -36,6 +37,8 @@ module gungho_model_mod
                                          shifted_extrusion_type,      &
                                          double_level_extrusion_type, &
                                          TWOD, SHIFTED, DOUBLE_LEVEL
+  use multigrid_mod,              only : get_multigrid_tile_size, &
+                                         init_multigrid_fs_chain
   use field_array_mod,            only : field_array_type
   use field_mod,                  only : field_type
   use field_spec_mod,             only : field_spec_type, processor_type
@@ -73,8 +76,6 @@ module gungho_model_mod
   use model_clock_mod,            only : model_clock_type
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
-  use namelist_collection_mod,    only : namelist_collection_type
-  use namelist_mod,               only : namelist_type
   use mr_indices_mod,             only : nummr
   use no_timestep_alg_mod,        only : no_timestep_type
   use remove_duplicates_mod,      only : remove_duplicates
@@ -111,6 +112,13 @@ module gungho_model_mod
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
   use jules_timestep_alg_mod,      only : jules_timestep_type
+  use stochastic_physics_config_mod, only : use_spt, &
+                                            use_skeb
+  use stph_main_alg_mod,             only : spt_array_names,  &
+                                            spt_array_count,  &
+                                            skeb_array_names, &
+                                            skeb_array_count
+
 #endif
 
   implicit none
@@ -137,7 +145,8 @@ module gungho_model_mod
   public initialise_infrastructure, &
          initialise_model,          &
          finalise_infrastructure,   &
-         finalise_model
+         finalise_model,            &
+         checksum_model
 contains
 
   !> @brief  Initialise processor object for persisting LFRic fields
@@ -240,12 +249,16 @@ contains
 
   !> @brief Enable active state fields for checkpointing; sync xios axis dimensions;
   !>        set up scaled diagnostics fields
+  !> @param[in] config       Argument providing access to model configuration
   !> @param[in] clock        The clock providing access to time information
-  subroutine before_context_close(clock)
+  subroutine before_context_close(config,clock)
 
     use multidata_field_dimensions_mod, only: sync_multidata_field_dimensions
     use time_dimensions_mod,            only: sync_time_dimensions
     use boundaries_config_mod,          only: limited_area
+    use external_forcing_config_mod,    only: theta_forcing_nudging,           &
+                                              wind_forcing_nudging,            &
+                                              external_forcing_is_loaded
     use formulation_config_mod,         only: use_physics
     use section_choice_config_mod,      only: stochastic_physics, &
                                               stochastic_physics_um
@@ -254,35 +267,151 @@ contains
     use io_config_mod,                  only: checkpoint_read, checkpoint_write
 
     implicit none
-    class(clock_type), intent(in) :: clock
+    type(config_type), intent(in)  :: config
+    class(clock_type), intent(in)  :: clock
 
     type(persistor_type) :: persistor
-
-    real(r_second) :: DT
+    real(r_second)       :: DT
+    integer(i_def)       :: theta_forcing
+    integer(i_def)       :: wind_forcing
+    logical(l_def)       :: to_process_nudging_fields
+#ifdef UM_PHYSICS
+    integer(i_def) :: i
+#endif
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
+
+    if ( external_forcing_is_loaded() ) then
+      theta_forcing = config%external_forcing%theta_forcing()
+      wind_forcing = config%external_forcing%wind_forcing()
+      to_process_nudging_fields = ( theta_forcing == theta_forcing_nudging     &
+         .or. wind_forcing == wind_forcing_nudging )
+    else
+      to_process_nudging_fields = .false.
+    end if
 
     call persistor%init(clock)
     call process_gungho_prognostics(persistor)
     ! Add the temperature_correction_rate to the appropriate files
     if(checkpoint_write) then
-        if ( encorr_usage /= encorr_usage_none ) then
-          call add_field( persistor%ckp_out, "temperature_correction_rate", mode=CHECKPOINTING, operation="once", &
-                          id_as_name=.true.)
-        end if
-        if (stochastic_physics == stochastic_physics_um) then
-          call add_field( persistor%ckp_out, "random_seed", mode=CHECKPOINTING, operation="once", &
-                          id_as_name=.true.)
-        end if
-    end if
-    if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
       if ( encorr_usage /= encorr_usage_none ) then
-        call add_field( persistor%ckp_inp, "temperature_correction_rate", mode=RESTARTING, operation="once", &
+        call add_field( persistor%ckp_out, "temperature_correction_rate", &
+                        mode=CHECKPOINTING, operation="once",             &
                         id_as_name=.true.)
       end if
       if (stochastic_physics == stochastic_physics_um) then
-        call add_field( persistor%ckp_inp, "random_seed", mode=RESTARTING, operation="once", &
+        call add_field( persistor%ckp_out, "random_seed",     &
+                        mode=CHECKPOINTING, operation="once", &
+                        id_as_name=.true.)
+#ifdef UM_PHYSICS
+        if (use_spt) then
+          do i = 1, spt_array_count
+            call add_field( persistor%ckp_out, spt_array_names(i),  &
+                            mode=CHECKPOINTING, operation="once",   &
+                            id_as_name=.true.)
+          end do
+        end if
+        if (use_skeb) then
+          do i = 1, skeb_array_count
+            call add_field( persistor%ckp_out, skeb_array_names(i), &
+                            mode=CHECKPOINTING, operation="once",   &
+                            id_as_name=.true.)
+          end do
+        end if
+
+        if(l_esm_couple) then
+          call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_w10", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_solar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_heatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_train", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_tsnow", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsurf", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_rsub", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_evap", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_topmelt", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceheatflux", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_sublimation", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_iceskint", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+          call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+        end if
+#endif
+      end if
+    end if
+    if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
+      if ( encorr_usage /= encorr_usage_none ) then
+        call add_field( persistor%ckp_inp, "temperature_correction_rate", &
+                        mode=RESTARTING, operation="once",                &
+                        id_as_name=.true.)
+      end if
+      if (stochastic_physics == stochastic_physics_um) then
+        call add_field( persistor%ckp_inp, "random_seed",  &
+                        mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+#ifdef UM_PHYSICS
+        if (use_spt) then
+          do i = 1, spt_array_count
+            call add_field( persistor%ckp_inp, spt_array_names(i),  &
+                            mode=RESTARTING, operation="once",      &
+                            id_as_name=.true.)
+          end do
+        end if
+        if (use_skeb) then
+          do i = 1, skeb_array_count
+            call add_field( persistor%ckp_inp, skeb_array_names(i), &
+                            mode=RESTARTING, operation="once",      &
+                            id_as_name=.true.)
+          end do
+        end if
+#endif
+      end if
+      if(l_esm_couple) then
+        call add_field( persistor%ckp_inp, "lf_taux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tauy", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_w10", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_solar", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_heatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_train", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_tsnow", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsurf", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_rsub", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_evap", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_topmelt", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceheatflux", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_sublimation", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_iceskint", mode=RESTARTING, operation="once", &
+                        id_as_name=.true.)
+        call add_field( persistor%ckp_inp, "lf_pensolar", mode=RESTARTING, operation="once", &
                         id_as_name=.true.)
       end if
     end if
@@ -291,6 +420,8 @@ contains
     if (limited_area) call process_lbc_fields(persistor)
     if (use_physics) then
       call process_physics_prognostics(persistor)
+      if (to_process_nudging_fields)   &
+         call process_nudging_fields(config, persistor)
       call sync_multidata_field_dimensions()
       call sync_time_dimensions()
     end if
@@ -301,7 +432,9 @@ contains
   !> multidata dimensions are completely defined when the XIOS
   !> axis dimensions are being synched.
   !> @param[in] model_clock     The clock providing access to time information
-  subroutine basic_initialisations(mesh,model_clock)
+  !> @param[in] modeldb   The full model database for the model run
+  subroutine basic_initialisations(mesh,model_clock,config)
+
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,     only: use_physics
@@ -310,11 +443,13 @@ contains
                                           surface,            &
                                           surface_jules
 #endif
+    use config_mod,                 only: config_type
 
     implicit none
 
     type( mesh_type ), intent(in), pointer :: mesh
     class(model_clock_type), intent(inout) :: model_clock
+    type(config_type), intent(in) :: config
 
 #ifdef UM_PHYSICS
     integer(i_def) :: ncells
@@ -355,7 +490,7 @@ contains
 
       if (surface == surface_jules) then
         ! Initialisation of Jules physics variables
-        call jules_physics_init()
+        call jules_physics_init(config)
       end if
 
       ! Initialisation of UKCA physics variables
@@ -372,8 +507,8 @@ contains
   !>
   subroutine initialise_infrastructure( io_context_name, modeldb )
 
-    use base_mesh_config_mod, only: GEOMETRY_PLANAR, &
-                                    GEOMETRY_SPHERICAL
+    use base_mesh_config_mod, only: geometry_planar, &
+                                    geometry_spherical
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics
@@ -441,26 +576,26 @@ contains
 
     logical(l_def) :: use_multires_coupling
     logical(l_def) :: l_multigrid
+    logical(l_def) :: inner_halo_tiles
     logical(l_def) :: prepartitioned
-    logical(l_def) :: apply_partition_check
+    logical(l_def) :: check_partitions
 
     integer(i_def) :: geometry
+    integer(i_def) :: topology
     integer(i_def) :: extrusion_method
     real(r_def)    :: domain_bottom
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
     integer(i_def) :: number_of_layers
+    integer(i_def) :: tile_size_x
+    integer(i_def) :: tile_size_y
 
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: formulation_nml
-    type(namelist_type), pointer :: extrusion_nml
-    type(namelist_type), pointer :: planet_nml
-    type(namelist_type), pointer :: multigrid_nml
-    type(namelist_type), pointer :: multires_coupling_nml
 #ifdef UM_PHYSICS
     real(r_def) :: dt
 #endif
 
+    integer(i_def), allocatable :: tile_size(:,:)
+    integer(i_def), allocatable :: multigrid_tile_size(:,:)
 
     integer(i_def), parameter :: one_layer = 1_i_def
 
@@ -473,37 +608,36 @@ contains
 
     call check_configuration(modeldb)
 
-    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
-    formulation_nml => modeldb%configuration%get_namelist('formulation')
-    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
-    planet_nml      => modeldb%configuration%get_namelist('planet')
-    multires_coupling_nml => null()
-    multigrid_nml         => null()
-
-    call formulation_nml%get_value( 'l_multigrid', l_multigrid )
-    call formulation_nml%get_value( 'use_multires_coupling', &
-                                    use_multires_coupling )
+    l_multigrid           = modeldb%config%formulation%l_multigrid()
+    use_multires_coupling = modeldb%config%formulation%use_multires_coupling()
 
     if ( use_multires_coupling ) then
-      multires_coupling_nml => modeldb%configuration%get_namelist('multires_coupling')
-      call multires_coupling_nml%get_value( 'multires_coupling_mesh_tags', &
-                                            multires_coupling_mesh_tags )
-      call multires_coupling_nml%get_value( 'orography_mesh_name', &
-                                            orography_mesh_name )
+      multires_coupling_mesh_tags = modeldb%config%multires_coupling%multires_coupling_mesh_tags()
+      orography_mesh_name         = modeldb%config%multires_coupling%orography_mesh_name()
     end if
 
     if ( l_multigrid ) then
-      multigrid_nml => modeldb%configuration%get_namelist('multigrid')
-      call multigrid_nml%get_value( 'chain_mesh_tags', chain_mesh_tags )
+      chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
     end if
 
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'method', extrusion_method )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
+    prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
+    geometry         = modeldb%config%base_mesh%geometry()
+    topology         = modeldb%config%base_mesh%topology()
+    prepartitioned   = modeldb%config%base_mesh%prepartitioned()
+    domain_height    = modeldb%config%extrusion%domain_height()
+    extrusion_method = modeldb%config%extrusion%method()
+    number_of_layers = modeldb%config%extrusion%number_of_layers()
+    scaled_radius    = modeldb%config%planet%scaled_radius()
+
+    if (prepartitioned) then
+      tile_size_x = 1
+      tile_size_y = 1
+      inner_halo_tiles = .false.
+    else
+      tile_size_x = maxval([1,modeldb%config%partitioning%tile_size_x()])
+      tile_size_y = maxval([1,modeldb%config%partitioning%tile_size_y()])
+      inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
+    end if
 
     !-------------------------------------------------------------------------
     ! Initialise infrastructure
@@ -666,31 +800,52 @@ contains
 
     ! 1.3a Initialise prime/2d meshes
     ! ---------------------------------------------------------
-    apply_partition_check = .false.
+    check_partitions = .false.
     if ( .not. prepartitioned .and. &
          ( l_multigrid .or. use_multires_coupling ) ) then
-      apply_partition_check = .true.
+      check_partitions = .true.
     end if
 
     allocate(stencil_depths(size(base_mesh_names)))
-    call get_required_stencil_depth(                                           &
-        stencil_depths, base_mesh_names, modeldb%configuration                 &
-    )
+    call get_required_stencil_depth( stencil_depths,  &
+                                     base_mesh_names, &
+                                     modeldb%config )
 
-    call init_mesh( modeldb%configuration,        &
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (l_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
+
+    call init_mesh( modeldb%config,               &
                     modeldb%mpi%get_comm_rank(),  &
                     modeldb%mpi%get_comm_size(),  &
-                    base_mesh_names,              &
-                    extrusion,                    &
-                    stencil_depths,               &
-                    apply_partition_check )
-
+                    base_mesh_names, extrusion,   &
+                    inner_halo_tiles, tile_size,  &
+                    stencil_depths, check_partitions )
 
     allocate( twod_names, source=base_mesh_names )
     do i=1, size(twod_names)
       twod_names(i) = trim(twod_names(i))//'_2d'
     end do
+
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (l_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion_2d )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
     call create_mesh( base_mesh_names, extrusion_2d, &
+                      inner_halo_tiles, tile_size,   &
                       alt_name=twod_names )
     call assign_mesh_maps(twod_names)
 
@@ -704,8 +859,22 @@ contains
         do i=1, size(shifted_names)
           shifted_names(i) = trim(shifted_names(i))//'_shifted'
         end do
+
+        if (allocated(tile_size)) deallocate(tile_size)
+        allocate(tile_size(2, size(meshes_to_shift)))
+        tile_size(1,:) = tile_size_x
+        tile_size(2,:) = tile_size_y
+        if (l_multigrid) then
+          multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                         meshes_to_shift, &
+                                                         extrusion_shifted )
+          where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+        end if
+
         call create_mesh( meshes_to_shift,   &
                           extrusion_shifted, &
+                          inner_halo_tiles,  &
+                          tile_size,         &
                           alt_name=shifted_names )
         call assign_mesh_maps(shifted_names)
 
@@ -721,8 +890,22 @@ contains
         do i=1, size(double_names)
           double_names(i) = trim(double_names(i))//'_double'
         end do
+
+        if (allocated(tile_size)) deallocate(tile_size)
+        allocate(tile_size(2, size(meshes_to_shift)))
+        tile_size(1,:) = tile_size_x
+        tile_size(2,:) = tile_size_y
+        if (l_multigrid) then
+          multigrid_tile_size = get_multigrid_tile_size( modeldb%config,   &
+                                                         meshes_to_double, &
+                                                         extrusion_double )
+          where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+        end if
+
         call create_mesh( meshes_to_double, &
                           extrusion_double, &
+                          inner_halo_tiles, &
+                          tile_size,        &
                           alt_name=double_names )
         call assign_mesh_maps(double_names)
 
@@ -736,9 +919,9 @@ contains
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
-    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+    call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
     if ( l_multigrid ) then
-      call init_function_space_chains( mesh_collection, chain_mesh_tags )
+      call init_multigrid_fs_chain(chain_mesh_tags)
     end if
 
 
@@ -763,9 +946,9 @@ contains
 
        ! Set up collections to hold 2d coupling fields
        call modeldb%fields%add_empty_field_collection("cpl_snd_2d" , &
-                                                 table_len = 30)
+                                                 table_len = 1)
        call modeldb%fields%add_empty_field_collection("cpl_rcv_2d" , &
-                                                 table_len = 30)
+                                                 table_len = 1)
 
        cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
        cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
@@ -810,7 +993,7 @@ contains
     !=======================================================================
     ! 4.0 Initialise output
     !=======================================================================
-    call basic_initialisations( mesh, modeldb%clock )
+    call basic_initialisations( mesh, modeldb%clock, modeldb%config )
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
@@ -830,6 +1013,7 @@ contains
 
       call init_io( io_context_name, prime_mesh_name, modeldb, &
                     chi_inventory, panel_id_inventory,         &
+                    geometry, topology,                        &
                     populate_filelist=files_init_ptr,          &
                     alt_mesh_names=extra_io_mesh_names,        &
                     before_close=before_context_close )
@@ -837,6 +1021,7 @@ contains
     else
       call init_io( io_context_name, prime_mesh_name, modeldb, &
                     chi_inventory, panel_id_inventory,         &
+                    geometry, topology,                        &
                     populate_filelist=files_init_ptr,          &
                     before_close=before_context_close )
     end if
@@ -877,7 +1062,7 @@ contains
         ! Initialisation for the Socrates radiation scheme
         radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
         dt = real(modeldb%clock%get_seconds_per_step(), r_def)
-        call illuminate_alg( radiation_fields,                    &
+        call illuminate_alg( modeldb%config, radiation_fields,                    &
                              modeldb%clock%get_step(),            &
                              dt)
       end if
@@ -998,16 +1183,14 @@ contains
                         timestep_method)
         ! Output initial conditions
         if ( write_conservation_diag ) then
-         call conservation_algorithm( rho,              &
-                                      u,                &
-                                      theta,            &
-                                      mr,               &
-                                      exner )
-         if ( use_moisture ) &
-           call moisture_conservation_alg( rho,              &
-                                           mr,               &
-                                           'Before timestep' )
+          call conservation_algorithm( modeldb%config, rho, u, theta, &
+                                       mr, exner )
+          if ( use_moisture ) then
+            call moisture_conservation_alg( modeldb%config, rho, mr, &
+                                            'Before timestep' )
+          end if
         end if
+
       case( method_rk )             ! RK
         ! Initialise the Runge-Kutta timestep method
         allocate( timestep_method, source=rk_timestep_type(modeldb) )
@@ -1017,16 +1200,14 @@ contains
 
         ! Output initial conditions
         if ( write_conservation_diag ) then
-          call conservation_algorithm( rho,              &
-                                       u,                &
-                                       theta,            &
-                                       mr,               &
-                                       exner )
-         if ( use_moisture ) &
-           call moisture_conservation_alg( rho,              &
-                                           mr,               &
-                                           'Before timestep' )
+          call conservation_algorithm( modeldb%config, rho, u, theta, &
+                                       mr, exner )
+          if ( use_moisture ) then
+            call moisture_conservation_alg( modeldb%config, rho, mr, &
+                                            'Before timestep' )
+          end if
         end if
+
       case( method_no_timestepping )
         ! Initialise a null-timestep method
         allocate( timestep_method, source=no_timestep_type() )
@@ -1037,6 +1218,7 @@ contains
                     '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
                     ' Prognostic fields not evolved'
         call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+
 #ifdef UM_PHYSICS
       case( method_jules )  ! jules
         ! Initialise the jules timestep method
@@ -1045,6 +1227,7 @@ contains
         call modeldb%values%add_key_value('timestep_method', &
                       timestep_method)
 #endif
+
       case default
         call log_event("Gungho: Incorrect time stepping option chosen, "// &
                         "stopping program! ",LOG_LEVEL_ERROR)
@@ -1081,64 +1264,19 @@ contains
   !---------------------------------------------------------------------------
   !> @brief Finalise the gungho application
   !>
-  !> @param[in,out] modeldb       The working data set for the model run
-  !> @param[in]     program_name  An identifier given to the model run
+  !> @param[in,out] modeldb  The working data set for the model run
   !>
-  subroutine finalise_model( modeldb,       &
-                             program_name )
+  subroutine finalise_model( modeldb )
 
     use io_config_mod, only: write_minmax_tseries
 
     implicit none
 
-    type( modeldb_type ), target,     intent(inout) :: modeldb
-    character(*),         optional,   intent(in)    :: program_name
-
-    type( field_collection_type ), pointer :: diagnostic_fields => null()
-    type( field_collection_type ), pointer :: moisture_fields => null()
-    type( field_array_type ),      pointer :: mr_array
-    type( field_type ),            pointer :: mr(:) => null()
-    type( field_collection_type ), pointer :: fd_fields
-    type( field_collection_type ), pointer :: prognostic_fields => null()
-
-    type( field_type), pointer :: theta => null()
-    type( field_type), pointer :: u => null()
-    type( field_type), pointer :: rho => null()
-    type( field_type), pointer :: exner => null()
+    type( modeldb_type ), intent(inout) :: modeldb
 
     class(timestep_method_type), pointer :: timestep_method
 
-    ! Pointer for setting I/O handlers on fields
-    procedure(write_interface), pointer :: tmp_write_ptr => null()
-
-    if ( present(program_name) ) then
-      ! Get pointers to field collections for use downstream
-      prognostic_fields => modeldb%fields%get_field_collection( &
-                                                           "prognostic_fields")
-      diagnostic_fields => modeldb%fields%get_field_collection( &
-                                                           "diagnostic_fields")
-      moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
-      call moisture_fields%get_field("mr", mr_array)
-      mr => mr_array%bundle
-      fd_fields => modeldb%fields%get_field_collection("fd_fields")
-
-      ! Get pointers to fields in the prognostic/diagnostic field collections
-      ! for use downstream
-      call prognostic_fields%get_field('theta', theta)
-      call prognostic_fields%get_field('u', u)
-      call prognostic_fields%get_field('rho', rho)
-      call prognostic_fields%get_field('exner', exner)
-
-      ! Write checksums to file
-      if (use_moisture) then
-        call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u', &
-                        field_bundle=mr, bundle_name='mr')
-      else
-        call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u')
-      end if
-
-      if (write_minmax_tseries) call minmax_tseries_final()
-    end if
+    if (write_minmax_tseries) call minmax_tseries_final()
 
     ! Finalise the timestep method
     if ( modeldb%values%key_value_exists('timestep_method') ) then
@@ -1149,5 +1287,57 @@ contains
     end if
 
   end subroutine finalise_model
+
+  !---------------------------------------------------------------------------
+  !> @brief Write checksum from modeldb
+  !>
+  !> @param[in,out] modeldb       The working data set for the model run
+  !> @param[in]     program_name  An identifier given to the model run
+  !>
+  subroutine checksum_model( modeldb, &
+                             program_name )
+
+    implicit none
+
+    type( modeldb_type ), target, intent(inout) :: modeldb
+    character(*),                 intent(in)    :: program_name
+
+    type( field_collection_type ), pointer :: moisture_fields
+    type( field_array_type ),      pointer :: mr_array
+    type( field_type ),            pointer :: mr(:)
+    type( field_collection_type ), pointer :: prognostic_fields
+
+    type( field_type), pointer :: theta
+    type( field_type), pointer :: u
+    type( field_type), pointer :: rho
+    type( field_type), pointer :: exner
+
+    nullify(moisture_fields, mr_array, mr, prognostic_fields, &
+            theta, u, rho, exner)
+
+    ! Get pointers to field collections for use downstream
+    prognostic_fields => modeldb%fields%get_field_collection( &
+                                                         "prognostic_fields")
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    mr => mr_array%bundle
+
+    ! Get pointers to fields in the prognostic/diagnostic field collections
+    ! for use downstream
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    ! The exner field is not passed to the checksum and it should be.
+    call prognostic_fields%get_field('exner', exner)
+
+    ! Write checksums to file
+    if (use_moisture) then
+      call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u', &
+                      field_bundle=mr, bundle_name='mr')
+    else
+      call checksum_alg(program_name, rho, 'rho', theta, 'theta', u, 'u')
+    end if
+
+  end subroutine checksum_model
 
 end module gungho_model_mod

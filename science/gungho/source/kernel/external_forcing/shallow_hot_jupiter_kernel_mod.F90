@@ -21,14 +21,20 @@ module shallow_hot_jupiter_kernel_mod
                                               GH_READ, GH_READWRITE,     &
                                               GH_SCALAR,                 &
                                               ANY_DISCONTINUOUS_SPACE_3, &
+                                              ANY_SPACE_9,               &
                                               GH_READ, CELL_COLUMN
   use constants_mod,                    only: r_def, i_def
   use sci_chi_transform_mod,            only: chi2llr
   use calc_exner_pointwise_mod,         only: calc_exner_pointwise
-  use fs_continuity_mod,                only: Wtheta, Wchi
+  use fs_continuity_mod,                only: Wtheta
   use shallow_hot_jupiter_forcings_mod, only: shallow_hot_jupiter_newton_frequency, &
                                               shallow_hot_jupiter_equilibrium_theta
   use kernel_mod,                       only: kernel_type
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -47,7 +53,7 @@ module shallow_hot_jupiter_kernel_mod
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      Wchi),                      &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ),                                 &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ)                                  &
@@ -155,7 +161,9 @@ subroutine shallow_hot_jupiter_code(nlayers,                    &
     coords(3) = coords(3) + chi_3( location )/ndf_chi
   end do
 
-  call chi2llr(coords(1), coords(2), coords(3), ipanel, lon, lat, radius)
+  call chi2llr(coords(1), coords(2), coords(3), ipanel,         &
+               geometry, topology, coord_system, scaled_radius, &
+               lon, lat, radius)
 
   exner0 = exner_in_wth(map_wth(1))
 

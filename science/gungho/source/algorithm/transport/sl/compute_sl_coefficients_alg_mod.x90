@@ -11,9 +11,9 @@
 module compute_sl_coefficients_alg_mod
 
   ! Constants and types
+  use config_mod,                               only: config_type
   use constants_mod,                            only: i_def, l_def
   use r_tran_field_mod,                         only: r_tran_field_type
-  use copy_field_alg_mod,                       only: copy_field
   use field_mod,                                only: field_type
   use integer_field_mod,                        only: integer_field_type
   use function_space_mod,                       only: function_space_type
@@ -40,11 +40,12 @@ contains
   !!          point indices of the interpolation points for vertical semi-
   !!          Lagrangian advective transport. The coefficients are stored as
   !!          W3/Wtheta fields.
+  !> @param[in]     config      Application namelist configuration object
   !> @param[in,out] coeffs      The interpolation coefficients
   !> @param[in,out] sl_indices  The indices of cells to use in interpolation
   !> @param[in]     dep_dist    The vertical departure distances
   !> @param[in]     order       The order of the interpolation
-  subroutine compute_sl_coefficients_alg( coeffs, sl_indices, dep_dist, order )
+  subroutine compute_sl_coefficients_alg( config, coeffs, sl_indices, dep_dist, order )
 
     use transport_config_mod, only: vertical_sl_order_cubic,                   &
                                     vertical_sl_order_quintic,                 &
@@ -52,6 +53,8 @@ contains
                                     vertical_sl_order_linear
 
     implicit none
+
+    type(config_type),  intent(in) :: config
 
     ! Arguments
     type(r_tran_field_type),  intent(inout) :: coeffs(:)
@@ -69,14 +72,13 @@ contains
 
     ! Get height at r_tran precision
     mesh => coeffs(1)%get_mesh()
-    height_rdef => get_height_fv( Wtheta, mesh%get_id() )
+    height_rdef => get_height_fv(config, mesh, Wtheta)
     call height%initialise( vector_space = height_rdef%get_function_space() )
-    call copy_field( height_rdef, height )
+    call invoke( real_to_real_x(height, height_rdef) )
 
     select case (order)
     case (vertical_sl_order_cubic)
       hermite = .false.
-      hermite = .true.
       call invoke ( name='sl_cubic_coeff',                                     &
                     compute_vertical_cubic_coef_kernel_type(                   &
                         dep_dist, height,                                      &
