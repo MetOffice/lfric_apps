@@ -308,14 +308,14 @@ contains
     call modeldb%values%add_key_value('vertical_change', vertical_change)
     call modeldb%values%add_key_value('horizontal_change', horizontal_change)
 
-    if ( horizontal_change == .true. ) then
+    if ( horizontal_change ) then
       call log_event("Horizontal interpolation logical set to TRUE", &
            log_level_info)
     else
       call log_event("Horizontal interpolation logical set to FALSE", &
                       log_level_info)
     end if
-    if ( vertical_change == .true. ) then
+    if ( vertical_change ) then
       call log_event("Vertical interpolation logical set to TRUE", &
            log_level_info)
     else

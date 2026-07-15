@@ -1,3 +1,11 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Apply vertical regridding using the vertical regridding kernels
+!!        and height values for the source and target vertically extruded
+!!        meshes.
 module lfric2lfric_vert_mod
 
   use constants_mod,            only: str_def, i_def
@@ -23,7 +31,7 @@ contains
 
   !> @brief Apply vertical regridding
   !> @details Loop over the fields in the source_fields collection,
-  !!        and apply the vertical regridding to obtain the regridded
+  !!        and apply the vertical regridding kernels to obtain the regridded
   !!        field in the target_fields collection.
   !> @param modeldb        Model state object
   !> @param source_fields  The collection of fields to be regridded
@@ -73,11 +81,11 @@ contains
       height_src => get_height_fv(modeldb%config, mesh_src, fs_src)
       height_dst => get_height_fv(modeldb%config, mesh_dst, fs_dst)
 
-      ! Dummy initialisation. This will be replaced with actual
-      ! vertical regridding from #253.
+      ! Dummy initialisation - just writing out the heights
+      ! TODO Replaced the dummy initialisation with actual
+      ! vertical regridding from #253. i.e.
       ! call invoke( lfric2lfric_vert_lin_interp_lin_extrap_code_r_single( &
       !              field_dst, field_src, height_dst, height_src))
-      ! At the moment just writing out the heights.
       call invoke(setval_X(field_dst, height_dst))
    enddo
     
