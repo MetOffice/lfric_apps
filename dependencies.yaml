@@ -38,8 +38,8 @@ moci:
     ref: 2026.07.1
 
 SimSys_Scripts:
-    source: git@github.com:james-bruten-mo/SimSys_Scripts.git
-    ref: coupled_meta
+    source: git@github.com:MetOffice/SimSys_Scripts.git
+    ref: 77a5166b7fc656a3411aacd1fca8db76c2382863
 
 socrates:
     source: git@github.com:MetOffice/socrates.git
