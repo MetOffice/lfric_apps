@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2025 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -85,6 +85,8 @@ def trans(psyir):
       1) Force PARALLEL DO (dynamic) for meta-segmentation loop.
       2) Cluster adjacent top-level loops into PARALLEL regions.
       3) Apply OMP DO / PARALLEL DO (static) to heavy k-loops.
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
     logging.info(
         "gw_ussp_mod.F90 Psyclone Optimisation for the CPU is running."

@@ -1,8 +1,8 @@
-##############################################################################
-# (c) Crown copyright Met Office. All rights reserved.
+# -----------------------------------------------------------------------------
+# (C) 2025 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-##############################################################################
+# -----------------------------------------------------------------------------
 """
 Optimisation script that replaces existing OpenMP parallelisation with
 PSyclone-generated directives to parallelise additional loops.
@@ -20,6 +20,8 @@ from transmute_psytrans.transmute_functions import (
 def trans(psyir):
     """
     Apply OpenMP Directives
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
 
     # Identify outer loops in the subroutine
