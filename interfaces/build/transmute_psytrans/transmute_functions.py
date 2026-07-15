@@ -595,7 +595,7 @@ def loop_replacement_of(routine_itr,
     # Get the loops from the provided routine and walk
     for loop in routine_itr.walk(Loop):
         # if the loop is of the target type
-        if str(loop.loop_type) == target_name:
+        if str(loop.variable.name) == target_name:
 
             # Only init once in the routine at the start
             if not do_once and init_at_start:
