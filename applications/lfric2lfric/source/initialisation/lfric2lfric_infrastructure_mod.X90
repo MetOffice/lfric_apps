@@ -47,6 +47,7 @@ module lfric2lfric_infrastructure_mod
   use lfric_xios_action_mod,       only: advance
   use log_mod,                     only: log_event,         &
                                          log_scratch_space, &
+                                         log_level_info,    &
                                          log_level_error,   &
                                          log_level_debug
   use mesh_mod,                    only: mesh_type
@@ -306,7 +307,21 @@ contains
 
     call modeldb%values%add_key_value('vertical_change', vertical_change)
     call modeldb%values%add_key_value('horizontal_change', horizontal_change)
-    
+
+    if ( horizontal_change == .true. ) then
+      call log_event("Horizontal interpolation logical set to TRUE", &
+           log_level_info)
+    else
+      call log_event("Horizontal interpolation logical set to FALSE", &
+                      log_level_info)
+    end if
+    if ( vertical_change == .true. ) then
+      call log_event("Vertical interpolation logical set to TRUE", &
+           log_level_info)
+    else
+      call log_event("Vertical interpolation logical set to FALSE", &
+           log_level_info)
+    end if
     !=======================================================================
     ! Mesh
     !=======================================================================

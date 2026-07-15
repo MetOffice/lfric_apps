@@ -161,13 +161,9 @@ contains
 
     if ( .NOT. field_collection%field_exists(field_name) ) then
        ! Get function space from metadata
-      call log_event("Before", &
-                    LOG_LEVEL_INFO)
       vector_space => space_from_metadata(trim(prefix)//trim(field_name), &
                                           mesh_3d=mesh,                   &
                                           mesh_2d=twod_mesh               )
-      call log_event("After", &
-                    LOG_LEVEL_INFO)
 
       ! Initialise the field
       call field%initialise(vector_space=vector_space, &
