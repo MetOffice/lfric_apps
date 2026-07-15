@@ -138,7 +138,7 @@ contains
     type(modeldb_type),     intent(inout) :: modeldb
     type(model_clock_type), allocatable, &
                             intent(inout) :: oasis_clock
-    
+
     ! Coordinate field
     type(field_type),             pointer :: chi(:)
     type(field_type),             pointer :: panel_id
@@ -200,7 +200,7 @@ contains
 
     logical(kind=l_def)     :: vertical_change
     logical(kind=l_def)     :: horizontal_change
-    
+
     integer(i_def) :: tile_size_x
     integer(i_def) :: tile_size_y
     logical(l_def) :: inner_halo_tiles
@@ -219,7 +219,7 @@ contains
 
     type(field_collection_type), pointer :: target_collection
     type(field_type), pointer            :: field
-    
+
     !------------------------
     ! XIOS contexts
     !------------------------
@@ -240,7 +240,7 @@ contains
     ! -------------------------------
     ! Extract namelist variables
     ! -------------------------------
-     
+
     ! Check lfric2lfric configuration settings are allowed
     call lfric2lfric_check_configuration( modeldb%config )
 
@@ -278,7 +278,7 @@ contains
     ! Vertical interpolation is required if there is a change in the vertical
     ! extrusion, or a change in the orography
     vertical_change = .false.
-    if ( src_extrusion_method /= dst_extrusion_method   .or. & 
+    if ( src_extrusion_method /= dst_extrusion_method   .or. &
          src_number_of_layers /= dst_number_of_layers   .or. &
          src_domain_height /= dst_domain_height         .or. &
          src_stretching_height /= dst_stretching_height .or. &
@@ -290,7 +290,7 @@ contains
          orog_init_option == orog_init_option_start_dump ) then
       vertical_change = .true.
     end if
-    
+
     ! Horizontal interpolation is required if there is a change
     ! in the mesh (horizontal grid)
     horizontal_change = .false.
@@ -351,16 +351,16 @@ contains
 
     allocate( src_extrusion, source = &
              create_extrusion( src_extrusion_method, &
-                               source_geometry,      &
+                               geometry,             &
                                src_number_of_layers, &
                                src_domain_height,    &
                                scaled_radius ))
-    
+
     if (vertical_change) then
 
       allocate( dst_extrusion, source = &
              create_extrusion( dst_extrusion_method, &
-                               source_geometry,      &
+                               geometry,             &
                                dst_number_of_layers, &
                                dst_domain_height,    &
                                scaled_radius ))
@@ -385,7 +385,7 @@ contains
                     mesh_names, src_extrusion,   &
                     inner_halo_tiles, tile_size, &
                     stencil_depth, regrid_method )
-    
+
 
     allocate( mesh_names_dst_ext, source=mesh_names )
 
@@ -400,9 +400,9 @@ contains
     else
       do i=1, size(mesh_names)
         mesh_names_dst_ext(i) = trim(mesh_names(i))
-      end do  
+      end do
     end if
-      
+
     allocate( twod_names, source=mesh_names )
     do i=1, size(twod_names)
       twod_names(i) = trim(twod_names(i))//'_2d'
@@ -443,7 +443,7 @@ contains
     ! mesh_names_dst_ext(dst)
     mesh_dst      => mesh_collection%get_mesh(trim(mesh_names_dst_ext(dst)))
     twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
- 
+
     ! Log this change
     call log_event('Source mesh set to: ' // mesh_names(src),         &
                    log_level_debug)
@@ -474,7 +474,7 @@ contains
                   panel_id_inventory,      &
                   geometry, topology,      &
                   populate_filelist=files_init_ptr  )
-   
+
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context_dst)
 
@@ -612,7 +612,7 @@ contains
         call log_event( log_scratch_space, log_level_error )
 #endif
     end select
-    
+
     !=======================================================================
     ! The lateral boundary conditions of limited-area models (LAMs) are
     ! implemented by updating the data values at the boundaries with values

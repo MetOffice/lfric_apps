@@ -19,7 +19,7 @@ module blend_orography_alg_mod
                                             LOG_LEVEL_INFO,  &
                                             LOG_LEVEL_DEBUG, &
                                             LOG_LEVEL_ERROR
-    
+
   implicit none
 
   public :: blend_orography
@@ -50,7 +50,7 @@ contains
 
     call log_event( "Creating the blended orography (for LAMs)", &
          LOG_LEVEL_DEBUG )
-    
+
     ! Define the function space required for masks.
     fs_enum = lam_orog%which_function_space()
     mesh    => lam_orog%get_mesh()
