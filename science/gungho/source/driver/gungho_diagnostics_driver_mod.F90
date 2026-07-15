@@ -350,7 +350,7 @@ contains
       ! Other derived diagnostics with special pre-processing
       ! Don't output for the tangent linear model
       call write_divergence_diagnostic( u, modeldb%clock, mesh )
-      call write_hydbal_diagnostic( theta, moist_dyn, exner, mesh )
+      call write_hydbal_diagnostic( modeldb%config, theta, moist_dyn, exner, mesh )
     end if
     if ( LPROF ) call stop_timing( id, 'gungho_diagnostics_driver' )
   end subroutine gungho_diagnostics_driver

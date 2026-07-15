@@ -8,6 +8,7 @@ module atlt_rhs_alg_mod
 
   use sci_assign_field_random_range_alg_mod, &
                                            only : assign_field_random_range
+  use config_mod,                          only : config_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
   use constants_mod,                       only : r_def, i_def, l_def
@@ -41,9 +42,10 @@ module atlt_rhs_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       The configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine atlt_rhs_alg( mesh, model_clock )
+  subroutine atlt_rhs_alg( config, mesh, model_clock )
 
     use tl_rhs_alg_mod,                      only : tl_rhs_alg
     use atl_rhs_alg_mod,                     only : atl_rhs_alg
@@ -51,6 +53,7 @@ module atlt_rhs_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
 
@@ -206,8 +209,8 @@ module atlt_rhs_alg_mod
 
 
     ! Tangent linear
-    call tl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
-                     ls_state, ls_moist_dyn, compute_eos,                &
+    call tl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn, &
+                     ls_state, ls_moist_dyn, compute_eos,         &
                      dlayer_rhs, model_clock )
 
     ! < Mx, Mx >
@@ -310,8 +313,8 @@ module atlt_rhs_alg_mod
     rhs_rhs_input_inner_prod(:) = 0.0_r_def
 
     ! Adjoint
-    call atl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
-                      ls_state, ls_moist_dyn, compute_eos,                &
+    call atl_rhs_alg( config, rhs, alpha_dt, base_state, state, moist_dyn, &
+                      ls_state, ls_moist_dyn, compute_eos,                 &
                       dlayer_rhs, model_clock )
 
     ! < AMx, x >

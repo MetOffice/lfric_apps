@@ -397,7 +397,7 @@ contains
     mesh => exner%get_mesh()
     height_w3  => get_height_fv(config, mesh, W3)
     height_wth => get_height_fv(config, mesh, Wtheta)
-    geopotential => get_geopotential( mesh%get_id() )
+    geopotential => get_geopotential(config, mesh)
 
     ! If lbc_mask wasn't supplied, create a dummy mask
     if (present(lbc_mask)) then

@@ -7,6 +7,7 @@
 !>        equations
 module atl_rhs_alg_mod
 
+  use config_mod,                          only: config_type
   use constants_mod,                       only: r_def, i_def, l_def
   use log_mod,                             only: log_event, &
                                                  LOG_LEVEL_ERROR
@@ -66,6 +67,7 @@ contains
 
   !> @brief A wrapper algorithm for computing the adjoint rhs of the prognostic
   !>        equations. Handwritten adjoint of tl_rhs_alg of tl_rhs_alg_mod.
+  !> @param[in]     config The configuration object
   !> @param[in,out] rhs The state vector to compute
   !> @param[in]     alpha_dt The offcentering parameter times the timestep
   !> @param[in]     base_state The model prognostic state to which increments are added
@@ -75,8 +77,8 @@ contains
   !!                state
   !> @param[in]     dlayer_rhs Use damping layer in rhs yes/no
   !> @param[in]     model_clock Time in the model
-subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
-                       ls_state, ls_moist_dyn, compute_eos,                &
+subroutine atl_rhs_alg(config, rhs, alpha_dt, base_state, state, moist_dyn,    &
+                       ls_state, ls_moist_dyn, compute_eos,                    &
                        dlayer_rhs, model_clock)
 
     implicit none
@@ -93,6 +95,7 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     type(field_type),             intent(inout) :: rhs(bundle_size)
     logical(kind=l_def),          intent(in)    :: compute_eos
     class(model_clock_type),      intent(in)    :: model_clock
+    type(config_type),            intent(in)    :: config
 
     type(operator_type), pointer :: mm_vel,    &
                                     mm_wtheta, &
@@ -134,7 +137,7 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
 
     mesh => base_state(igh_u)%get_mesh()
 
-    geopotential => get_geopotential(mesh%get_id())
+    geopotential => get_geopotential(config, mesh)
     mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh%get_id())
     chi          => get_coordinates(mesh)
     panel_id     => get_panel_id(mesh)

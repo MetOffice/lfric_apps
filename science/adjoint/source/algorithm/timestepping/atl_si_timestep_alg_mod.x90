@@ -412,7 +412,7 @@ contains
     call copy_bundle( self%ls_state_after_slow, self%ls_advected_state, bundle_size )
 
     if ( .not. fixed_ls ) then
-    call rhs_alg( self%ls_rhs_n, varbeta*cast_dt, &
+    call rhs_alg( modeldb%config, self%ls_rhs_n, varbeta*cast_dt, &
                   self%ls_state_after_slow, self%ls_state_n, &
                   self%ls_moist_dyn_itns(:,1,1), &
                   compute_eos=.false., compute_rhs_t_d=.true., &
@@ -474,7 +474,8 @@ contains
           if (next_outer <= outer_iterations .and. next_inner <= inner_iterations) then
 
             ! Compute the time-level n + 1 dynamics terms
-            call rhs_alg( self%ls_rhs_np1(:,outer,inner),        &
+            call rhs_alg( modeldb%config,                        &
+                          self%ls_rhs_np1(:,outer,inner),        &
                           -varalpha*cast_dt,                     &
                           self%ls_state_itns(:,outer,inner),     &
                           self%ls_state_itns(:,outer,inner),     &
@@ -684,7 +685,8 @@ contains
             call set_bundle_scalar( 0.0_r_def, self%state1, bundle_size )
             call set_bundle_scalar( 0.0_r_def, self%state2, bundle_size )
 
-            call atl_rhs_alg( self%rhs_np1,                                &
+            call atl_rhs_alg( modeldb%config,                              &
+                              self%rhs_np1,                                &
                               -varalpha*cast_dt,                           &
                               self%state1,                                 &
                               self%state2,                                 &
@@ -725,7 +727,8 @@ contains
       call set_bundle_scalar( 0.0_r_def, self%state1, bundle_size )
       call set_bundle_scalar( 0.0_r_def, self%state2, bundle_size )
 
-      call atl_rhs_alg( self%rhs_np1,                                &
+      call atl_rhs_alg( modeldb%config,                              &
+                        self%rhs_np1,                                &
                         -varalpha*cast_dt,                           &
                         self%state1,                                 &
                         self%state2,                                 &
@@ -778,7 +781,7 @@ contains
     call add_bundle( self%state_after_slow, self%advected_state, self%state_after_slow, bundle_size )
     call set_bundle_scalar( 0.0_r_def, self%advected_state, bundle_size )
 
-    call atl_rhs_alg( self%rhs_n, varbeta * cast_dt, self%state_after_slow, &
+    call atl_rhs_alg( modeldb%config, self%rhs_n, varbeta * cast_dt, self%state_after_slow, &
                       self%state_n, moist_dyn, self%ls_state_n,             &
                       self%ls_moist_dyn_itns(:, 1,1), .false., .false., modeldb%clock )
 
