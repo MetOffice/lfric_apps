@@ -31,8 +31,8 @@
     "lfricinputs_um2lfric-aquaplanet_lam_azspice_gnu_fast-debug-64bit":                 BASE,
     "lfricinputs_um2lfric-aquaplanet_lam_azspice_gnu_full-debug-64bit":                 BASE,
 
-    "lfricinputs_um2lfric-aquaplanet_lbc_azspice_gnu_fast-debug-64bit": BASE~"_t510",
-    "lfricinputs_um2lfric-aquaplanet_lbc_azspice_gnu_full-debug-64bit": BASE~"_t510",
+    "lfricinputs_um2lfric-aquaplanet_lbc_azspice_gnu_fast-debug-64bit": BASE,
+    "lfricinputs_um2lfric-aquaplanet_lbc_azspice_gnu_full-debug-64bit": BASE,
 
     "lfricinputs_um2lfric-falklands_lam_azspice_gnu_fast-debug-64bit":                  BASE,
     "lfricinputs_um2lfric-falklands_lam_azspice_gnu_full-debug-64bit":                  BASE,
