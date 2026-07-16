@@ -2,7 +2,7 @@
 name = "lfric-apps-documentation"
 version = "2026.7.1"
 description = "LFRic Applications Documentation"
-license = {file = 'LICENCE'}
+readme = "README.md"
 requires-python = ">=3.12"
 
 dependencies = [
@@ -16,7 +16,7 @@ dependencies = [
 [project.urls]
 repository = "https://github.com/MetOffice/lfric_apps"
 documentation = "https://metoffice.github.io/lfric_apps/"
-discussion = "https://github.com/MetOffice/simulation-systems/discussions"
+discussion = "https://github.com/MetOffice/simulation-systems/discussions/categories/lfric"
 
 [tool.setuptools]
 packages = []
