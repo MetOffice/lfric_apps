@@ -158,7 +158,6 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
                                                         nm1, iw3, iwt, &
                                                         iw2, iw2h,     &
                                                         iw2v,k, kk, kend
-  ! real(kind=r_solver), dimension(0:nlayers-1,ndf_w2) :: u_e
   real(kind=r_solver), dimension(0:nlayers)          :: t_col
 
   ! Set up some useful shorthands for indices
@@ -166,13 +165,17 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
   nm1 = nlayers-1
   iw3 = map_w3(1)
   iwt = map_wt(1)
+
   iw2v = map_w2v(1)
+  do k = 0, nlayers
+    lhs_w(iw2v+k) = 0.0_r_solver
+  end do
 
   do kk = 0, nlayers-1, BLOCK_SIZE
     kend = min(kk+BLOCK_SIZE-1, nlayers-1)
 
+    iw2v = map_w2v(1)
     do k = kk, kend+1
-      lhs_w(iw2v+k) = 0.0_r_solver
       t_col(k) = 0.0_r_solver
     end do
 
@@ -199,6 +202,7 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
         end do
       end if
     end do
+
     do k = kk, kend+1
       t_col(k) = t_col(k) * mt_lumped_inv(iwt+k)
     end do
@@ -227,7 +231,7 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
         do k = kk, kend
           lhs_w(iw2v+k) = lhs_w(iw2v+k) &
                                + norm_u(iw2+k)* &
-                                mu_cd(ij+k, ndf_w2h+df, df2)* &
+                                mu_cd(ij+k, ndf_w2h+df, ndf_w2h+df2)* &
                                 wind_w(map_w2v(df2)+k)
 
         end do
@@ -260,68 +264,6 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
       end if
     end do
   end do
-
-
-
-  ! ! Set up some useful shorthands for indices
-  ! ij = (cell-1)*nlayers + 1
-  ! nm1 = nlayers-1
-  ! iw3 = map_w3(1)
-  ! iwt = map_wt(1)
-  !
-  ! ! Create the element velocity field
-  ! do df = 1, ndf_w2h
-  !   iw2h = map_w2h(df)
-  !   u_e(:,df) = wind_uv(iw2h:iw2h+nm1)
-  ! end do
-  ! do df = 1, ndf_w2v
-  !   iw2v = map_w2v(df)
-  !   u_e(:,ndf_w2h+df) = wind_w(iw2v:iw2v+nm1)
-  ! end do
-  !
-  ! ! Compute t for the column
-  ! t_col(:) = 0.0_r_solver
-  ! do df = 1, ndf_w2
-  !   t_col(0:nm1)   = t_col(0:nm1)   - pt2(ij:ij+nm1, 1, df)*u_e(:,df)
-  !   t_col(1:nm1+1) = t_col(1:nm1+1) - pt2(ij:ij+nm1, 2, df)*u_e(:,df)
-  ! end do
-  ! t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1)
-  !
-  ! ! LHS W
-  ! iw2v = map_w2v(1)
-  ! lhs_w(iw2v:iw2v+nlayers) = 0.0_r_solver
-  !
-  ! do df = 1, ndf_w2v
-  !   iw2v = map_w2v(df)
-  !   iw2  = map_w2(ndf_w2h+df)
-  !   lhs_w(iw2v:iw2v+nm1) = lhs_w(iw2v:iw2v+nm1) &
-  !                        + norm_u(iw2:iw2+nm1)*( &
-  !                        - p2t(ij:ij+nm1, ndf_w2h+df, 1)*t_col(0:nm1)   &
-  !                        - p2t(ij:ij+nm1, ndf_w2h+df, 2)*t_col(1:nm1+1) &
-  !                        - grad(ij:ij+nm1, ndf_w2h+df, 1)*exner(iw3:iw3+nm1))
-  !
-  ! end do
-  ! do df2 = 1, ndf_w2
-  !   do df = 1, ndf_w2v
-  !     iw2v = map_w2v(df)
-  !     iw2  = map_w2(ndf_w2h+df)
-  !     lhs_w(iw2v:iw2v+nm1) = lhs_w(iw2v:iw2v+nm1) &
-  !                          + norm_u(iw2:iw2+nm1)* &
-  !                            mu_cd(ij:ij+nm1, ndf_w2h+df, df2)*u_e(:,df2)
-  !
-  !   end do
-  ! end do
-  ! ! Set BC for lhs_w
-  ! lhs_w(map_w2v(1)) = 0.0_r_solver
-  ! lhs_w(map_w2v(2)+nlayers-1) = 0.0_r_solver
-  !
-  ! ! LHS P
-  ! lhs_p(iw3:iw3+nm1) = m3p(ij:ij+nm1, 1, 1)*exner(iw3:iw3+nm1) &
-  !                    - p3t(ij:ij+nm1, 1, 1)*t_col(0:nm1)       &
-  !                    - p3t(ij:ij+nm1, 1, 2)*t_col(1:nm1+1)
-  ! do df = 1, ndf_w2
-  !   lhs_p(iw3:iw3+nm1) = lhs_p(iw3:iw3+nm1) + q32(ij:ij+nm1, 1, df)*u_e(:,df)
-  ! end do
 
 end subroutine apply_mixed_wp_operator_code
 
