@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2025 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -37,10 +37,10 @@ Future Work:
 import logging
 from psyclone.psyir.nodes import Routine
 from transmute_psytrans.transmute_functions import (
+    loop_replacement_of,
     add_parallel_do_over_meta_segments,
     parallel_regions_for_clustered_loops,
     omp_do_for_heavy_loops,
-    get_compiler,
 )
 
 # ------------------------------------------------------------------------------
@@ -85,30 +85,27 @@ def trans(psyir):
       1) Force PARALLEL DO (dynamic) for meta-segmentation loop.
       2) Cluster adjacent top-level loops into PARALLEL regions.
       3) Apply OMP DO / PARALLEL DO (static) to heavy k-loops.
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
+
+    fortran_file_name = str(psyir.root.name)
     logging.info(
-        "gw_ussp_mod.F90 Psyclone Optimisation for the CPU is running."
+        f"{fortran_file_name} Psyclone Optimisation for the CPU is running."
     )
 
-    compiler = get_compiler()
+    # Remove any loops relating to specified loop type
+    for node in psyir.walk(Routine):
+        loop_replacement_of(node, "j")
 
-    # GCC currently has issues with firstprivated indexes,
-    # which is soon to be resolved in PSyclone.
-    # However for now we will avoid using OpenMP
-    # around meta_segments with with GCC.
-    if compiler == "gnu":
-        logging.info(
-            "Skipping gw_ussp_mod meta_segment optimisations for GCC."
-            )
-    else:
-        # 1) Force a PARALLEL DO around meta_segments%num_segments (dynamic)
-        for routine in psyir.walk(Routine):
-            add_parallel_do_over_meta_segments(
-              routine,
-              container_name="meta_segments",
-              member_name="num_segments",
-              privates=_META_PRIVATES,
-            )
+    for routine in psyir.walk(Routine):
+        add_parallel_do_over_meta_segments(
+          routine,
+          container_name="meta_segments",
+          member_name="num_segments",
+          privates=_META_PRIVATES,
+          fortran_file_name,
+        )
 
     # 2) Cluster adjacent outer loops into PARALLEL regions (no schedule here)
     for routine in psyir.walk(Routine):
@@ -120,5 +117,6 @@ def trans(psyir):
         omp_do_for_heavy_loops(routine, "k", HEAVY_VARS_K)
         omp_do_for_heavy_loops(
           routine, "i", HEAVY_VARS_I,
-          skip_member_count=("i", "meta_segments", "num_segments")
+          skip_member_count=("i", "meta_segments", "num_segments"),
+          fortran_file_name,
         )

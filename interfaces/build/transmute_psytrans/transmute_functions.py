@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2025 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -103,7 +103,10 @@ def get_outer_loops(node):
     return outer_loops
 
 
-def parallel_regions_for_clustered_loops(routine):
+def parallel_regions_for_clustered_loops(
+    routine, 
+    fortran_file_name,
+):
     """
     Enclose clusters of adjacent top-level loops in a single PARALLEL region.
 
@@ -112,11 +115,11 @@ def parallel_regions_for_clustered_loops(routine):
     - No schedule is specified at region level
       (loop-level directives handle it).
     """
-    logging.info("Processing Routine for regions: '%s'", routine.name)
+    logging.info(f"{fortran_file_name}: Processing Routine for regions: '{routine.name}'", )
 
     outer_loops = get_outer_loops(routine)
     if not outer_loops:
-        logging.info("No loops to regionize.")
+        logging.info(f"{fortran_file_name}: No loops to regionize.")
         return
 
     # Build sortable (parent, child-index, loop) tuples and sort once.
@@ -137,13 +140,14 @@ def parallel_regions_for_clustered_loops(routine):
             ):
                 positions = f"{cluster[0].position}-{cluster[-1].position}"
                 logging.info(
-                    "Inserting region over loops at positions %s", positions
+                    f"{fortran_file_name}: Inserting region over loops at \
+                    positions {positions}", 
                 )
                 try:
                     OMP_PARALLEL_REGION_TRANS.apply(cluster)
-                    logging.info("Region inserted.")
+                    logging.info(f"{fortran_file_name}: Region inserted.")
                 except TransformationError as err:
-                    logging.info("Region failed: %s", err)
+                    logging.info(f"{fortran_file_name}: Region failed: {err}")
             current_parent = parent
             cluster = [loop]
             prev_idx = idx
@@ -160,13 +164,14 @@ def parallel_regions_for_clustered_loops(routine):
         ):
             positions = f"{cluster[0].position}-{cluster[-1].position}"
             logging.info(
-                "Inserting region over loops at positions %s", positions
+                f"{fortran_file_name}: Inserting region over loops at \
+                positions {positions}", 
             )
             try:
                 OMP_PARALLEL_REGION_TRANS.apply(cluster)
-                logging.info("Region inserted.")
+                logging.info(f"{fortran_file_name}: Region inserted.")
             except TransformationError as err:
-                logging.info("Region failed: %s", err)
+                logging.info(f"{fortran_file_name}: Region failed: {err}")
 
         cluster = [loop]
         prev_idx = idx
@@ -176,12 +181,14 @@ def parallel_regions_for_clustered_loops(routine):
         lp.ancestor(OMPParallelDirective) for lp in cluster
     ):
         positions = f"{cluster[0].position}-{cluster[-1].position}"
-        logging.info("Inserting region over loops at positions %s", positions)
+        logging.info(
+            f"{fortran_file_name}: Inserting region over loops at \
+            positions {positions}")
         try:
             OMP_PARALLEL_REGION_TRANS.apply(cluster)
-            logging.info("Region inserted.")
+            logging.info(f"{fortran_file_name}: Region inserted.")
         except TransformationError as err:
-            logging.info("Region failed: %s", err)
+            logging.info(f"{fortran_file_name}: Region failed: {err}")
 
 
 def expr_contains_member(expr, container_name: str, member_name: str) -> bool:
@@ -215,6 +222,7 @@ def omp_do_for_heavy_loops(
     loop_var: str,
     heavy_vars: Set[str],
     skip_member_count: Optional[Tuple[str, str, str]] = None,
+    fortran_file_name: str, 
 ):
     """
     Insert OMP DO / PARALLEL DO (STATIC) for heavy loops over `loop_var`.
@@ -233,11 +241,9 @@ def omp_do_for_heavy_loops(
       add_parallel_do_over_meta_segments() with a DYNAMIC schedule.
     """
     logging.info(
-        "Processing Routine for heavy '%s'-loops: '%s'",
-        loop_var,
-        routine.name,
+        f"{fortran_file_name}: Processing Routine for heavy \
+        '{loop_var}'-loops: '{routine.name}'"
     )
-
     for loop in routine.walk(Loop):
         if not (loop.variable and loop.variable.name == loop_var):
             continue
@@ -260,27 +266,25 @@ def omp_do_for_heavy_loops(
         )
         if already_omp_do:
             logging.info(
-                "%s-loop at %s already inside OMP DO; skipping.",
-                loop_var,
-                loop.position,
+                f"{fortran_file_name}: {loop_var}-loop at {loop.position}  \
+                already inside OMP DO; skipping."
             )
             continue
 
         in_parallel_region = bool(loop.ancestor(OMPParallelDirective))
         logging.info(
-            "  %s-loop at %s: schedule=static (%s)",
-            loop_var,
-            loop.position,
-            "in-region" if in_parallel_region else "standalone",
+            f"{fortran_file_name}: {loop_var}-loop at {loop.position}: schedule=static"
         )
         try:
             if in_parallel_region:
                 OMP_DO_LOOP_TRANS_STATIC.apply(loop)
             else:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop)
-            logging.warning("OMP applied to %s-loop (static).", loop_var)
+            logging.warning(
+                f"{fortran_file_name}:OMP applied to {loop_var}-loop (static).")
         except TransformationError as err:
-            logging.warning("Failed OMP on %s-loop: %s", loop_var, err)
+            logging.warning(
+                f"{fortran_file_name}:Failed OMP on {loop_var}-loop: {err}")
 
 
 def get_compiler():
@@ -332,6 +336,7 @@ def add_parallel_do_over_meta_segments(
     member_name: str,
     privates: Sequence[str],
     init_scalars: Sequence[str] = ("jdir", "k"),
+    fortran_file_name: str,
 ):
     """
     Force an OMP PARALLEL DO with **dynamic** schedule over meta-segments.
@@ -353,9 +358,8 @@ def add_parallel_do_over_meta_segments(
       scheduling is **dynamic** regardless of the default static policy.
     """
     logging.info(
-        "Processing Routine for meta_segments loop: '%s'",
-        routine.name,
-    )
+        f"Processing Routine for meta_segments loop: '{routine.name}'"
+        )
 
     # Locate the target loop: do i = 1, <container_name>%<member_name>
     target = None
@@ -370,7 +374,9 @@ def add_parallel_do_over_meta_segments(
             break
 
     if not target:
-        logging.info("  meta-segments style member-count loop not found.")
+        logging.info(
+            f"{fortran_file_name}: meta-segments style member-count \
+            loop not found.")
         return
 
     # Determine OpenMP context precisely:
@@ -384,7 +390,8 @@ def add_parallel_do_over_meta_segments(
     )
     if already_omp_do:
         logging.info(
-            "Target loop already has an OMP DO/Parallel DO ancestor; skipping."
+            f"{fortran_file_name}: Target loop already has an OMP DO/Parallel \
+            DO ancestor; skipping."
         )
         return
     in_parallel_region = bool(target.ancestor(OMPParallelDirective))
@@ -396,25 +403,27 @@ def add_parallel_do_over_meta_segments(
     try:
         if in_parallel_region:
             logging.info(
-                "Found target loop at %s inside OMP parallel region: "
-                "applying OMP DO (forced, dynamic).",
-                target.position,
+                f"{fortran_file_name}: Found target loop at {target.position} \
+                inside OMP parallel region: applying OMP DO (forced, dynamic)."
             )
             OMP_DO_LOOP_TRANS_DYNAMIC.apply(
                 target, force=True, force_private=privates)
         else:
             logging.info(
-                "Found target loop at %s:"
-                " applying OMP PARALLEL DO (forced, dynamic).",
-                target.position,
+                f"{fortran_file_name}: Found target loop at {target.position} \
+                : applying OMP PARALLEL DO (forced, dynamic)."
             )
             OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC.apply(
                 target, force_private=privates, force=True
             )
 
-        logging.info("Member-count PARALLEL DO inserted (dynamic).")
-    except TransformationError:
-        logging.warning("Failed to insert dynamic PARALLEL DO", exc_info=True)
+        logging.info(
+            f"{fortran_file_name}: Member-count PARALLEL DO inserted \
+            (dynamic).")
+    except TransformationError as err:
+        logging.warning(
+            f"{fortran_file_name}: Failed to insert dynamic PARALLEL DO \
+            as {err}")
 
 
 def first_priv_red_init(node_target, init_scalars, insert_at_start=False):
@@ -595,7 +604,7 @@ def loop_replacement_of(routine_itr,
     # Get the loops from the provided routine and walk
     for loop in routine_itr.walk(Loop):
         # if the loop is of the target type
-        if str(loop.loop_type) == target_name:
+        if str(loop.variable.name) == target_name:
 
             # Only init once in the routine at the start
             if not do_once and init_at_start:
@@ -628,6 +637,7 @@ def add_omp_parallel_region( #pylint: disable=R0913
     end_node,
     *,
     end_offset=0,
+    fortran_file_name,
     include_end=False,
     ignore_loops=None,
     loop_trans_options=None,
@@ -690,8 +700,8 @@ def add_omp_parallel_region( #pylint: disable=R0913
                 loop,
                 options=loop_trans_options,
             )
-        except TransformationError as e:
-            logging.warning(e)
+        except TransformationError as err:
+            logging.warning(f"{fortran_file_name}: {err}")
 
 
 def get_ancestors(

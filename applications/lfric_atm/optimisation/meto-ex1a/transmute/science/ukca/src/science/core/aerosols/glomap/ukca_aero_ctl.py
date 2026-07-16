@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2025 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -39,9 +39,6 @@ Future work:
 from psyclone.psyir.nodes import Loop
 from psyclone.transformations import OMPParallelLoopTrans, TransformationError
 from psyclone.psyir.symbols import DataSymbol
-from transmute_psytrans.transmute_functions import (
-    first_priv_red_init,
-)
 
 OMP_TRANS = OMPParallelLoopTrans()
 RESOLVE_IMPORTS = True
@@ -54,6 +51,10 @@ def get_private_symbols_from_name(node, search_str):
     symbol_table.lookup(). This is necessary since PSyclone (as of version 3.1)
     does not make arrays PRIVATE, which is required for parallelising the
     loop over segments in GLOMAP.
+    :param node: a PSyIR node to check the symbol table
+    :type Node: :py:class:`psyclone.psyir.nodes.Node`
+    :param search_str: a string to find in the symbol table
+    :type str:
     """
     symbols_to_add = []
     # Search through the symbol table of the node; if any entries match the
@@ -67,6 +68,8 @@ def get_private_symbols_from_name(node, search_str):
 def trans(psyir):
     """
     Apply the PSyclone transformation. If it fails, raise an error.
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
     opts = {
         # some non-PURE subroutines called within this loop
@@ -87,34 +90,6 @@ def trans(psyir):
                 # add a few more symbols that don't fit this syntax
                 symbols_to_add.extend(
                     ["i_end", "i_end_cp", "j", "nbs_index", "y"]
-                )
-                # CCE compiler fix - initialise some FIRSTPRIVATE variables
-                first_priv_red_init(
-                    loop,
-                    ["cmessage", "errcode", "i_end", "i_end_cp",
-                     "i_start_cp", "iaer", "k", "nbs_index", "seg_aird",
-                     "seg_airdm3", "seg_autoconv1d", "seg_bud_aer_mas",
-                     "seg_ccn_1", "seg_ccn_2", "seg_ccn_3", "seg_ccn_4",
-                     "seg_ccn_5", "seg_cdn", "seg_clf", "seg_clwc",
-                     "seg_cn_3nm", "seg_craing", "seg_craing_up",
-                     "seg_csnowg", "seg_delso2", "seg_delso2_2",
-                     "seg_draing", "seg_drydp", "seg_dsnowg", "seg_dvisc",
-                     "seg_dvol", "seg_erf_arg", "seg_erfterm", "seg_fac",
-                     "seg_fconv_conv", "seg_height", "seg_het_rates",
-                     "seg_htpblg", "seg_iarr", "seg_ilscat", "seg_jlabove",
-                     "seg_karr", "seg_land_frac", "seg_larr", "seg_lday",
-                     "seg_lowcloud", "seg_lwc", "seg_md", "seg_mdt",
-                     "seg_mdtfixflag", "seg_mdtfixsink", "seg_mdwat",
-                     "seg_mfpa", "seg_n_merge_1d", "seg_nbadmdt", "seg_nd",
-                     "seg_plower", "seg_pmid", "seg_pupper", "seg_pvol",
-                     "seg_pvol_wat", "seg_rh", "seg_rh_clr", "seg_rhoa",
-                     "seg_rhopar", "seg_s", "seg_s0", "seg_s0_dot_condensable",
-                     "seg_sarea", "seg_seaice", "seg_sm", "seg_surtp",
-                     "seg_t", "seg_tr_rs", "seg_tsqrt", "seg_ustr",
-                     "seg_v1d_tmp", "seg_vba", "seg_vconc", "seg_vfac",
-                     "seg_wetdp", "seg_wvol", "seg_zh2o2", "seg_zho2",
-                     "seg_znotg", "seg_zo3", "y"],
-                    insert_at_start=True,
                 )
                 OMPParallelLoopTrans(omp_schedule="dynamic").apply(
                     loop, force_private=symbols_to_add, **opts

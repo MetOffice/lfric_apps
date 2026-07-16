@@ -1,8 +1,8 @@
-##############################################################################
-# (c) Crown copyright Met Office. All rights reserved.
+# -----------------------------------------------------------------------------
+# (C) 2025 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-##############################################################################
+# -----------------------------------------------------------------------------
 """
 Optimisation script that replaces existing OpenMP parallelisation with
 PSyclone-generated directives to target loops over index i instead of
@@ -16,7 +16,11 @@ the original code are re-inserted for performance and consistency of output.
 
 import logging
 from psyclone.transformations import TransformationError
-from psyclone.psyir.nodes import (Loop, UnknownDirective)
+from psyclone.psyir.nodes import (
+    Loop,
+    UnknownDirective,
+    OMPParallelDirective
+)
 from transmute_psytrans.transmute_functions import (
     set_pure_subroutines,
     get_outer_loops,
@@ -49,7 +53,7 @@ pure_subroutines = ["qsat", "qsat_mix", "qsat_wat", "qsat_wat_mix"]
 # Variables that appear on the left-hand side of assignments
 # or as call arguments for which PSyclone dependency errors
 # can be ignored
-false_dep_vars = [
+ignore_dependencies_for = [
     "qc_points",
     "idx",
     "tl_in",
@@ -62,6 +66,8 @@ false_dep_vars = [
 def trans(psyir):
     """
     Apply OpenMP and Compiler Directives
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
 
     # Declare subroutines as pure to enable parallelisation
@@ -86,46 +92,41 @@ def trans(psyir):
     # Add redundant variable initialisation to work around a known
     # PSyclone issue when using CCE
     try:
-
         OMP_PARALLEL_REGION_TRANS.validate(outer_loops[2:3])
         OMP_PARALLEL_REGION_TRANS.apply(
             [outer_loops[2]], 
             force_private=private_variable_par_sec)
+    except (TransformationError, IndexError) as err:
+                logging.warning("Transformation failed as:", err)
 
-        # Insert before OpenMP directives to avoid PSyclone errors
-        if get_compiler() == "cce":
-            for loop in outer_loops[2].walk(Loop)[3:5]:
-                dir = UnknownDirective(" NOFISSION", "DIR")
-                insert_at = loop.parent.children.index(loop)
-                loop.parent.children.insert(insert_at, dir)
-
-        for loop in outer_loops[2].walk(Loop)[13:18]:
-            dir = UnknownDirective(" IVDEP", "DIR")
+    # Insert before OpenMP directives to avoid PSyclone errors
+    if get_compiler() == "cce":
+        for loop in outer_loops[2].walk(Loop)[3:5]:
+            dir = UnknownDirective(" NOFISSION", "DIR")
             insert_at = loop.parent.children.index(loop)
             loop.parent.children.insert(insert_at, dir)
 
-        for loop in outer_loops[2].walk(Loop)[2:7]:
-            # Check if any eligible variables appear in subroutine
-            # call arguments; these lead to false dependency errors
-            # in the parallel loop transformation that can be
-            # ignored
-            ignore_deps_vars = match_call_args(loop, false_dep_vars)
-            options = {}
-            if len(ignore_deps_vars) > 0:
-                options["ignore_dependencies_for"] = ignore_deps_vars
-            OMP_DO_LOOP_TRANS_STATIC.apply(loop, options=options,
-                                           force_private=private_variables)
+    for loop in outer_loops[2].walk(Loop)[13:18]:
+        dir = UnknownDirective(" IVDEP", "DIR")
+        insert_at = loop.parent.children.index(loop)
+        loop.parent.children.insert(insert_at, dir)
 
-        for loop in outer_loops[2].walk(Loop)[8:13:2]:
-            # Check if any eligible variables appear on the LHS of
-            # assignment expressions to ignore false dependency errors
-            ignore_deps_vars = match_lhs_assignments(loop, false_dep_vars)
-            options = {}
-            if len(ignore_deps_vars) > 0:
-                options["ignore_dependencies_for"] = ignore_deps_vars
+    for loop in outer_loops[2].walk(Loop)[2:7]:
+        if loop.ancestor(OMPParallelDirective):
+            try:
+                OMP_DO_LOOP_TRANS_STATIC.apply(
+                    loop,
+                    ignore_dependencies_for=ignore_dependencies_for,
+                    force_private=private_variables)
+            except (TransformationError, IndexError) as err:
+                logging.warning("Transformation failed as:", err)
 
-            OMP_DO_LOOP_TRANS_STATIC.apply(loop, options=options,
-                                           force_private=private_variables)
-
-    except (TransformationError, IndexError) as err:
-        logging.warning("Parallelisation of the 2nd region failed: %s", err)
+    for loop in outer_loops[2].walk(Loop)[8:13:2]:
+        if loop.ancestor(OMPParallelDirective):
+            try:
+                OMP_DO_LOOP_TRANS_STATIC.apply(
+                    loop, 
+                    ignore_dependencies_for=ignore_dependencies_for,
+                    force_private=private_variables)
+            except (TransformationError, IndexError) as err:
+                logging.warning("Transformation failed as:", err)
