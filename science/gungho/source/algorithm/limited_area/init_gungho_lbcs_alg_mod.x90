@@ -484,7 +484,7 @@ module init_gungho_lbcs_alg_mod
     end select
 
     ! Initialize hydrostatically balanced exner field.
-    call hydrostatic_balance( lbc_exner, lbc_rho, lbc_theta, &
+    call hydrostatic_balance( config, lbc_exner, lbc_rho, lbc_theta, &
                               lbc_u, lbc_moist_dyn,          &
                               lbc_eos_height, recompute_rho, &
                               exner_from_rho, w3_lbc_mask )
