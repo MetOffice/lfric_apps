@@ -27,6 +27,7 @@ module compute_dl_matrix_kernel_mod
   use kernel_mod,                only: kernel_type
   use sci_coordinate_jacobian_mod, only: coordinate_jacobian
 
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology, &
                                        geometry_spherical
   use damping_layer_config_mod,  only: dl_type, dl_type_latitude
@@ -238,7 +239,9 @@ contains
           if (geometry == geometry_spherical) then
 
             call chi2llr(chi1_at_quad, chi2_at_quad, chi3_at_quad, &
-                         ipanel, long_at_quad, lat_at_quad, r_at_quad)
+                         ipanel, geometry, topology,               &
+                         coord_system, scaled_radius,              &
+                         long_at_quad, lat_at_quad, r_at_quad)
             z = r_at_quad - radius
 
             if (dl_type == dl_type_latitude) then

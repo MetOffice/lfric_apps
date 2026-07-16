@@ -9,6 +9,7 @@
 module ffsl_hori_alg_mod
 
   ! Constants and types
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use fs_continuity_mod,                only: W2H, W2Hbroken
@@ -94,7 +95,7 @@ module ffsl_hori_alg_mod
   public  :: ffsl_hori_cosmic_inner_alg
   public  :: ffsl_hori_outer_alg
   public  :: ffsl_hori_swift_inner_alg
-  private :: ffsl_extra_points
+  public  :: ffsl_extra_points
   private :: monotone_option_special_edges
 
 contains
@@ -337,6 +338,10 @@ contains
     real(kind=r_tran)   :: min_val
     logical(kind=l_def) :: is_cubed_sphere
 
+    type(config_type), pointer :: config
+
+    config => transport_controller%get_config()
+
     ! Get pre-computed objects and set pointers --------------------------------
     mesh_id = field_n%get_mesh_id()
     mesh => field_n%get_mesh()
@@ -364,13 +369,13 @@ contains
     )
 
     if (is_cubed_sphere) then
-      panel_id => get_panel_id(mesh_id)
+      panel_id => get_panel_id(mesh)
       panel_edge_dist => get_panel_edge_dist(mesh_id)
     end if
 
     ! Get pre-computed fields
-    detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
-    detj_at_w3_copy => get_detj_at_w3_r_tran(mesh_id)
+    detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
+    detj_at_w3_copy => get_detj_at_w3_r_tran(config, mesh)
     adv_one_x => wind_precomputations%get_adv_unity_x(mesh_id, splitting, step)
     adv_one_y => wind_precomputations%get_adv_unity_y(mesh_id, splitting, step)
     dep_dist => wind_precomputations%get_dep_dist_xy(                          &
@@ -388,11 +393,11 @@ contains
     dep_highest_k => wind_precomputations%get_dep_highest_k(                   &
         mesh_id, splitting, step, outer_step=.false.                           &
     )
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     if (is_cubed_sphere) then
-      panel_id => get_panel_id(mesh_id)
+      panel_id => get_panel_id(mesh)
       panel_edge_dist => get_panel_edge_dist(mesh_id)
     end if
 
@@ -425,7 +430,8 @@ contains
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       monotone_remap = ( monotone /= monotone_none )
       remap_depth = stencil_extent
-      call remap_on_extended_mesh(field_big_halo, field_n, monotone_remap,     &
+      call remap_on_extended_mesh(config,                                      &
+                                  field_big_halo, field_n, monotone_remap,     &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)
@@ -589,9 +595,13 @@ contains
     logical(kind=l_def) :: enforce_minvalue
     logical(kind=l_def) :: is_cubed_sphere
 
+    type(config_type), pointer :: config
+
     ! Get pre-computed objects and set pointers --------------------------------
-    mesh_id = field_x%get_mesh_id()
+    config => transport_controller%get_config()
     mesh => field_x%get_mesh()
+    mesh_id = field_x%get_mesh_id()
+
     transport_counter => transport_controller%get_transport_counter()
     transport_metadata => transport_controller%get_transport_metadata()
 
@@ -613,12 +623,12 @@ contains
     )
 
     if (is_cubed_sphere) then
-      panel_id => get_panel_id(mesh_id)
+      panel_id => get_panel_id(mesh)
       panel_edge_dist => get_panel_edge_dist(mesh_id)
     end if
 
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     if (equation_form == equation_form_consistent) then
       ffsl_precomputations => transport_controller%get_flux_precomputations()
@@ -657,8 +667,8 @@ contains
       )
     else
       ! Reset unity for advective/conservative forms
-      dry_mass_n => get_detj_at_w3_r_tran(mesh_id)
-      dry_mass_n_copy => get_detj_at_w3_r_tran(mesh_id)
+      dry_mass_n => get_detj_at_w3_r_tran(config, mesh)
+      dry_mass_n_copy => get_detj_at_w3_r_tran(config, mesh)
       dry_mass_x => wind_precomputations%get_adv_detj_x(                       &
           mesh_id, splitting, step                                             &
       )
@@ -710,7 +720,8 @@ contains
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       monotone_remap = ( monotone /= monotone_none )
       remap_depth = stencil_extent
-      call remap_on_extended_mesh(field_big_halo, field_n, monotone_remap,     &
+      call remap_on_extended_mesh(config,                                      &
+                                  field_big_halo, field_n, monotone_remap,     &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)
@@ -931,6 +942,10 @@ contains
     logical(kind=l_def) :: outer
     logical(kind=l_def) :: is_cubed_sphere
 
+    type(config_type), pointer :: config
+
+    config => transport_controller%get_config()
+
     ! Get pre-computed objects and set pointers --------------------------------
     mesh_id = field_x%get_mesh_id()
     mesh => field_x%get_mesh()
@@ -953,8 +968,8 @@ contains
     end if
 
     ! Get pre-computed fields
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     ! Whether computation is on the cubed sphere
     is_cubed_sphere = (                                                        &
@@ -963,7 +978,7 @@ contains
     )
 
     if (is_cubed_sphere) then
-      panel_id => get_panel_id(mesh_id)
+      panel_id => get_panel_id(mesh)
       panel_edge_dist => get_panel_edge_dist(mesh_id)
     end if
 
@@ -1009,10 +1024,10 @@ contains
             mesh_id, splitting, step                                           &
         )
       else
-        dry_mass_x => get_detj_at_w3_r_tran(mesh_id)
-        dry_mass_y => get_detj_at_w3_r_tran(mesh_id)
+        dry_mass_x => get_detj_at_w3_r_tran(config, mesh)
+        dry_mass_y => get_detj_at_w3_r_tran(config, mesh)
       end if
-      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
       dep_dist => wind_precomputations%get_dep_dist_xy(                        &
           mesh_id, splitting, step, outer                                      &
       )
@@ -1066,11 +1081,13 @@ contains
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       monotone_remap = ( monotone /= monotone_none )
       remap_depth = stencil_extent
-      call remap_on_extended_mesh(field_x_big_halo, field_x, monotone_remap,   &
+      call remap_on_extended_mesh(config,                                      &
+                                  field_x_big_halo, field_x, monotone_remap,   &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)
-      call remap_on_extended_mesh(field_y_big_halo, field_y, monotone_remap,   &
+      call remap_on_extended_mesh(config,                                      &
+                                  field_y_big_halo, field_y, monotone_remap,   &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)

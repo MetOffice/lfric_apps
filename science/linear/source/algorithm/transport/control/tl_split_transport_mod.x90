@@ -130,11 +130,11 @@ contains
        do split_step_count = 1, num_split_steps + 1
         call invoke( setval_X(ls_field_np1(split_step_count), ls_field_n) )
       end do
-   end if
+    end if
 
-   dt_substep = ls_transport_counter%get_dt_substep()
-   num_substeps = ls_transport_counter%get_num_substeps()
-   call ls_transport_counter%initialise(transport_metadata, dt_substep, num_substeps )
+    dt_substep = ls_transport_counter%get_dt_substep()
+    num_substeps = ls_transport_counter%get_num_substeps()
+    call ls_transport_counter%initialise(transport_metadata, dt_substep, num_substeps )
 
     ! ------------------------------------------------------------------------ !
     ! LINEAR
@@ -193,6 +193,7 @@ contains
 
     use tl_mol_conservative_alg_mod,      only: tl_mol_conservative_alg
     use tl_mol_advective_alg_mod,         only: tl_mol_advective_alg
+    use tl_ffsl_control_alg_mod,          only: tl_ffsl_control_alg
 
     implicit none
 
@@ -275,9 +276,8 @@ contains
     ! -------------------------------------------------------------------------!
     case ( split_method_ffsl )
       ! All equation forms have the same control method
-        call log_event(                                                        &
-                'TL: FFSL not coded yet',                                      &
-                LOG_LEVEL_ERROR                                                &
+        call tl_ffsl_control_alg(                                              &
+                field_np1, field_n, ls_field_n, tl_transport_controller        &
         )
     ! -------------------------------------------------------------------------!
     ! Semi-Lagrangian step
