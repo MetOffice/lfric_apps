@@ -185,6 +185,7 @@ def trans(psyir):
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
+    fortran_file_name = str(psyir.root.name)
     desired_chunk_size = os.getenv("UKCA_FULL_CHUNK_SIZE")
     if desired_chunk_size is None:
         return
@@ -202,7 +203,8 @@ def trans(psyir):
     use_omp = get_bool_env("UKCA_FULL_CHUNK_OMP", True)
     if desired_chunk_size is None and use_omp:
         logging.WARNING(
-            "Turning off omp as chunk size is set to full domain size")
+            f"{fortran_file_name}: Turning off omp as chunk size is set to \
+            full domain size")
         use_omp = False
 
     # Locate correct routine within which to apply the transformation

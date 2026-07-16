@@ -71,6 +71,9 @@ def trans(psyir):
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
+
+    fortran_file_name = str(psyir.root.name)
+
     opts = {
         # some non-PURE subroutines called within this loop
         "force": True,
@@ -97,7 +100,7 @@ def trans(psyir):
 
             except TransformationError as err:
                 raise TransformationError(
-                    f"ukca_aero_ctl.py: Error: "
+                    f"{fortran_file_name}: Error: "
                     f"could not apply OMP transformation "
                     f"to loop: {str(err)}"
                 ) from err

@@ -30,6 +30,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
 
+    fortran_file_name = str(psyir.root.name)
+
     # Remove any loops relating to specified loop type
     for node in psyir.walk(Routine):
         loop_replacement_of(node, "j")
@@ -47,7 +49,8 @@ def trans(psyir):
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC.apply(loop.walk(Loop)[0])
             except (TransformationError, IndexError) as err:
-                logging.warning("OMPParallelLoopTrans failed: %s", err)
+                logging.warning(
+                    f"{fortran_file_name}: OMPParallelLoopTrans failed: {err}")
         else:
             try:
                 if get_compiler() == 'cce':
@@ -55,4 +58,6 @@ def trans(psyir):
                                     "dqcl", "qcl_forced", "qcl_tol"])
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop.walk(Loop)[0])
             except (TransformationError, IndexError) as err:
-                logging.warning("OMPParallelLoopTrans failed: %s", err)
+                logging.warning(
+                    f"{fortran_file_name}: OMPParallelLoopTrans \
+                    failed: {err}")

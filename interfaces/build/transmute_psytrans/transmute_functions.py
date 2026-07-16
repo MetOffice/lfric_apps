@@ -638,7 +638,6 @@ def add_omp_parallel_region( #pylint: disable=R0913
     end_node,
     *,
     end_offset=0,
-    fortran_file_name,
     include_end=False,
     ignore_loops=None,
     loop_trans_options=None,
@@ -702,7 +701,7 @@ def add_omp_parallel_region( #pylint: disable=R0913
                 options=loop_trans_options,
             )
         except TransformationError as err:
-            logging.warning(f"{fortran_file_name}: {err}")
+            logging.warning(f"{err}")
 
 
 def get_ancestors(

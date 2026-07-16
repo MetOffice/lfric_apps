@@ -46,6 +46,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
 
+    fortran_file_name = str(psyir.root.name)
+
     # Declare subroutine "pc2_hom_conv" as pure to enable parallelisation
     # of the encompassing loop
     set_pure_subroutines(psyir, "pc2_hom_conv")
@@ -76,7 +78,9 @@ def trans(psyir):
                         ignore_dependencies_for=ignore_deps_vars,
                         node_type_check=False)
                 except (TransformationError, IndexError) as err:
-                    logging.warning("OMPLoopTrans failed: %s", err)
+                    logging.warning(
+                        f"{fortran_file_name}: OMPLoopTrans \
+                        failed: {err}")
             else:
                 try:
                     OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
@@ -84,4 +88,6 @@ def trans(psyir):
                         ignore_dependencies_for=ignore_deps_vars,
                         node_type_check=False)
                 except (TransformationError, IndexError) as err:
-                    logging.warning("OMPLoopTrans failed: %s", err)
+                    logging.warning(
+                        f"{fortran_file_name}: OMPLoopTrans \
+                        failed: {err}")

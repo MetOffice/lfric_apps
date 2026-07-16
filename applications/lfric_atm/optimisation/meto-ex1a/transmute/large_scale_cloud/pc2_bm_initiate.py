@@ -70,6 +70,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
 
+    fortran_file_name = str(psyir.root.name)
+
     # Declare subroutines as pure to enable parallelisation
     # of the encompassing loops
     set_pure_subroutines(psyir, pure_subroutines)
@@ -86,7 +88,9 @@ def trans(psyir):
         OMP_DO_LOOP_TRANS_STATIC.apply(outer_loops[0])
         OMP_DO_LOOP_TRANS_STATIC.apply(outer_loops[1].walk(Loop)[1])
     except (TransformationError, IndexError) as err:
-        logging.warning("Parallelisation of the 1st region failed: %s", err)
+        logging.warning(
+            f"{fortran_file_name}: Parallelisation of the 1st region \
+            failed: {err}")
 
     # Parallelise the second region and insert compiler directives
     # Add redundant variable initialisation to work around a known
@@ -97,7 +101,8 @@ def trans(psyir):
             [outer_loops[2]], 
             force_private=private_variable_par_sec)
     except (TransformationError, IndexError) as err:
-                logging.warning("Transformation failed as:", err)
+                logging.warning(
+                    f"{fortran_file_name}: Transformation failed as: {err}")
 
     # Insert before OpenMP directives to avoid PSyclone errors
     if get_compiler() == "cce":
@@ -119,7 +124,8 @@ def trans(psyir):
                     ignore_dependencies_for=ignore_dependencies_for,
                     force_private=private_variables)
             except (TransformationError, IndexError) as err:
-                logging.warning("Transformation failed as:", err)
+                logging.warning(
+                    f"{fortran_file_name}: Transformation failed as: {err}")
 
     for loop in outer_loops[2].walk(Loop)[8:13:2]:
         if loop.ancestor(OMPParallelDirective):
@@ -129,4 +135,5 @@ def trans(psyir):
                     ignore_dependencies_for=ignore_dependencies_for,
                     force_private=private_variables)
             except (TransformationError, IndexError) as err:
-                logging.warning("Transformation failed as:", err)
+                logging.warning(
+                    f"{fortran_file_name}: Transformation failed as: {err}")

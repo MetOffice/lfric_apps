@@ -41,6 +41,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
 
+    fortran_file_name = str(psyir.root.name)
+
     # Replace max_threads = 1
     replace_n_threads(psyir, "max_threads")
 
@@ -61,4 +63,5 @@ def trans(psyir):
                     node_type_check=False)
             except (TransformationError, IndexError) as err:
                 logging.warning(
-                    "Could not transform because:\n %s", err)
+                    f"{fortran_file_name}: Could not transform because: \
+                    \n {err}")

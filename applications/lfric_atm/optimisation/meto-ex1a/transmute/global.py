@@ -62,4 +62,4 @@ def trans(psyir):
 
             except (TransformationError, IndexError) as err:
                 logging.warning(
-                    "Could not transform because:\n %s", err)
+                    f"{fortran_file_name}: Could not transform because:\n {err}")

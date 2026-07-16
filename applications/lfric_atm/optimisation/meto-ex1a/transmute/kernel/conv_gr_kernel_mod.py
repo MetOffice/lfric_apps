@@ -117,13 +117,16 @@ def trans(psyir: Routine):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
 
+    fortran_file_name = str(psyir.root.name)
 
     # Identify extra parallel regions (loops inside callnumber loop, up to numseg)
     numseg_loop = None
     try:
         numseg_loop = next(filter(is_numseg_loop, psyir.walk(Loop)))
     except StopIteration:
-        logger.error("Numseg loop not found in call-number loop.")
+        logger.error(
+            f"{fortran_file_name}: Numseg loop not found in \
+            call-number loop.")
 
     # Special treatment of numseg loop for parallel do
     if numseg_loop:
@@ -136,9 +139,8 @@ def trans(psyir: Routine):
                 numseg_loop,
                 ignore_dependencies_for=false_dep_vars_seg,
                 node_type_check=False)
-        except TransformationError as e:
-            logger.warning(e)
-            print(f"Trying loop but{e}")
+        except TransformationError as err:
+            logger.warning(f"{fortran_file_name}: Trying loop but{err}")
 
     # Work through each other loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
@@ -157,7 +159,9 @@ def trans(psyir: Routine):
                     node_type_check=False)
 
             except (TransformationError, IndexError) as err:
-                logging.warning(f"Could not transform because:\n {err}")
+                logging.warning(
+                    f"{fortran_file_name}: Could not transform \
+                    because:\n {err}")
 
 
 def is_numseg_loop(node: Node):

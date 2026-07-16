@@ -25,6 +25,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
 
+    fortran_file_name = str(psyir.root.name)
+
     # Remove any loops relating to specified loop type
     for node in psyir.walk(Routine):
         loop_replacement_of(node, "j")
@@ -41,4 +43,5 @@ def trans(psyir):
             elif loop.variable.name == 'i':
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop)
     except (TransformationError, IndexError) as err:
-        logging.warning("OMPParallelLoopTrans failed: %s", err)
+        logging.warning(
+            f"{fortran_file_name}: OMPParallelLoopTrans failed: {err}")
