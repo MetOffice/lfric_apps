@@ -51,4 +51,4 @@ socrates-spectral:
 
 ukca:
     source: git@github.com:alanjhewitt/ukca.git
-    ref: radaer_api_ukca_side_2
+    ref: radaer_api_ukca_side_3
