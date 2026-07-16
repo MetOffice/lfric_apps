@@ -196,6 +196,7 @@ contains
                                     this%mask_w3_data,                   &
                                     p_zero, kappa, rd, cp,               &
                                     eos_level,                           &
+				    .true.,                              &
                                     this%ndf_w3, this%undf_w3,           &
                                     this%map_w3(:,cell), this%basis_w3,  &
                                     this%ndf_wt, this%undf_wt,           &
