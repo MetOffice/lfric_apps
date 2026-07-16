@@ -1,3 +1,9 @@
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
+
 name: Check CR approved
 
 on:
@@ -10,4 +16,4 @@ jobs:
     permissions:
       contents: read  # Required to evaluate the event trigger metadata safely
     if: ${{ github.event.pull_request.number }}
-    uses: MetOffice/growss/.github/workflows/check-cr-approved.yaml@develop  # zizmor: ignore[unpinned-uses]
+    uses: MetOffice/growss/.github/workflows/check-cr-approved.yaml@develop
