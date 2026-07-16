@@ -16,6 +16,8 @@ from psyclone.psyir.nodes import Loop, Routine
 from transmute_psytrans.transmute_functions import (
     loop_replacement_of,
     get_outer_loops,
+    get_compiler,
+    first_priv_red_init,
     OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC,
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC
 )
@@ -37,9 +39,9 @@ def trans(psyir):
                    if not loop.ancestor(Loop)]
 
     # Apply OpenMP parallel do directives and use workaround for
-    # firstprivate variable issue; replicate dynamic and static
+    # firstprivate variable issue for cce; replicate dynamic and static
     # schedules of the original implementation
-    
+    #
     for idx, loop in enumerate(outer_loops):
         if idx == 0:
             try:
@@ -48,6 +50,9 @@ def trans(psyir):
                 logging.warning("OMPParallelLoopTrans failed: %s", err)
         else:
             try:
+                if get_compiler() == 'cce':
+                    first_priv_red_init(loop, ["cf_base", "cf_forced", "dcfl",
+                                    "dqcl", "qcl_forced", "qcl_tol"])
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop.walk(Loop)[0])
             except (TransformationError, IndexError) as err:
                 logging.warning("OMPParallelLoopTrans failed: %s", err)
