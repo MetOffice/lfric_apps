@@ -3,7 +3,7 @@
 {# The file LICENCE, distributed with this code, contains details of the terms #}
 {# under which the code may be used. #}
 {# ########################################################################### #}
-{% do LOG.debug("Entered templates/default_task_definitions_lfric_coupled.cylc") %}
+{% do LOG.debug("Entered templates/default_task_definitions_coupled.cylc") %}
 
 {% if "calendar" not in task_dict %}
     {% do task_dict.update({"calendar": "360day"}) %}
@@ -94,7 +94,7 @@
 
 {% if "ocean_make_dir" not in task_dict %}
     {% do task_dict.update({"ocean_make_dir": "$CYLC_WORKFLOW_SHARE_DIR/"~
-                                              "fcm_make_lfric_coupled_ocean_"~
+                                              "fcm_make_lfric_atm_ocean_"~
                                               task_ns.platform~"_"~
                                               task_dict["build_conf"]}) %}
 {% endif %}
@@ -129,7 +129,7 @@
 
 {% if "river_make_dir" not in task_dict %}
     {% do task_dict.update({"river_make_dir": "$CYLC_WORKFLOW_SHARE_DIR/"~
-                                              "fcm_make_lfric_coupled_river_"~
+                                              "fcm_make_lfric_atm_river_"~
                                               task_ns.platform~"_"~
                                               task_dict["build_conf"]}) %}
 {% endif %}
@@ -159,4 +159,4 @@
     {% do task_dict.update({"um_ancil_trip_number": "river_number_um"}) %}
 {% endif %}
 
-{% do LOG.debug("Finished in templates/default_task_definitions_lfric_coupled.cylc") %}
+{% do LOG.debug("Finished in templates/default_task_definitions_coupled.cylc") %}

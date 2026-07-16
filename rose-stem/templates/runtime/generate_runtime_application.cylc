@@ -40,7 +40,7 @@
     {% set script_str.name = script_str.name~" --opt-conf-key=suite_controlled" %}
 {% endif %}
 
-{% if task_ns.application == "lfric_coupled" %}
+{% if task_values["coupled"] %}
     {% set script_str.name = script_str.name~" --path=$CYLC_WORKFLOW_SHARE_DIR/fcm_make_drivers/extract/drivers/Coupled_Drivers" %}
 {% endif %}
 
@@ -78,9 +78,7 @@
     'if [ ! -s $ROSE_TASK_LOG_DIR/xios_client_collated.out ]; then rm -f $ROSE_TASK_LOG_DIR/xios_client_collated.out ; fi',
     'find . -name "xios_server_*.out"  -exec cat {} + > $ROSE_TASK_LOG_DIR/xios_server_collated.out ',
     'if [ ! -s $ROSE_TASK_LOG_DIR/xios_server_collated.out ]; then rm -f $ROSE_TASK_LOG_DIR/xios_server_collated.out ; fi',
-    'test -f '~task_values["app_name"]~
-        '-checksums.txt && cp $CYLC_TASK_WORK_DIR/'~
-        task_values["app_name"]~'-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',
+    'test -f *-checksums.txt && cp *-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',
     'touch $CYLC_TASK_WORK_DIR/tmp.m',
     'mv $CYLC_TASK_WORK_DIR/*.m $TASK_OUTPUT_DIR/results',
     'test -f $CYLC_TASK_WORK_DIR/timer.txt && '~
@@ -162,14 +160,14 @@
     {% include "templates/runtime/lfricinputs_task_environment.cylc" %}
 {% endif %}
 
-{% if task_ns.application == "lfric_coupled" %}
+{% if task_values["coupled"] %}
     {% include "templates/runtime/coupled_task_environment.cylc" %}
 {% endif %}
 
 {# Set any directives using macros imported in generate_runtime for this platform #}
         [[[directives]]]
 
-{% if task_ns.application == "lfric_coupled" %}
+{% if task_values["coupled"] %}
     {{ set_task_resources(task_values["mpi_parts"],
                           task_values["memory"],
                           threads=task_values["threads"],
