@@ -1107,25 +1107,25 @@ subroutine radaer_code( nlayers,                                               &
         case( 'pvol_wat_ait_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_wat_ait_sol( map_wth(1) + k )
+                                 real( pvol_wat_ait_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_su_ait_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_su_ait_sol( map_wth(1) + k )
+                                 real( pvol_su_ait_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_bc_ait_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_bc_ait_sol( map_wth(1) + k )
+                                 real( pvol_bc_ait_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_om_ait_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_om_ait_sol( map_wth(1) + k )
+                                 real( pvol_om_ait_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'null' )
@@ -1151,31 +1151,31 @@ subroutine radaer_code( nlayers,                                               &
         case( 'pvol_wat_acc_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_wat_acc_sol( map_wth(1) + k )
+                                 real( pvol_wat_acc_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_su_acc_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_su_acc_sol( map_wth(1) + k )
+                                 real( pvol_su_acc_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_bc_acc_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_bc_acc_sol( map_wth(1) + k )
+                                 real( pvol_bc_acc_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_om_acc_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_om_acc_sol( map_wth(1) + k )
+                                 real( pvol_om_acc_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_ss_acc_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_ss_acc_sol( map_wth(1) + k )
+                                 real( pvol_ss_acc_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'null' )
@@ -1201,31 +1201,31 @@ subroutine radaer_code( nlayers,                                               &
         case( 'pvol_wat_cor_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_wat_cor_sol( map_wth(1) + k )
+                                 real( pvol_wat_cor_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_su_cor_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_su_cor_sol( map_wth(1) + k )
+                                 real( pvol_su_cor_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_bc_cor_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_bc_cor_sol( map_wth(1) + k )
+                                 real( pvol_bc_cor_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_om_cor_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_om_cor_sol( map_wth(1) + k )
+                                 real( pvol_om_cor_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_ss_cor_sol' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_ss_cor_sol( map_wth(1) + k )
+                                 real( pvol_ss_cor_sol( map_wth(1) + k ), r_um)
           end do
 
         case( 'null' )
@@ -1253,13 +1253,13 @@ subroutine radaer_code( nlayers,                                               &
         case( 'pvol_bc_ait_ins' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_bc_ait_ins( map_wth(1) + k )
+                                 real( pvol_bc_ait_ins( map_wth(1) + k ), r_um)
           end do
 
         case( 'pvol_om_ait_ins' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_om_ait_ins( map_wth(1) + k )
+                                 real( pvol_om_ait_ins( map_wth(1) + k ), r_um)
           end do
 
         case( 'null' )
@@ -1287,7 +1287,7 @@ subroutine radaer_code( nlayers,                                               &
         case( 'pvol_du_acc_ins' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_du_acc_ins( map_wth(1) + k )
+                                 real( pvol_du_acc_ins( map_wth(1) + k ), r_um)
           end do
 
         case( 'null' )
@@ -1315,7 +1315,7 @@ subroutine radaer_code( nlayers,                                               &
         case( 'pvol_du_cor_ins' )
           do k = 1, nlayers
             ukca_modal_vol_um(1, k, m) = ukca_modal_vol_um(1, k, m) +          &
-                                         pvol_du_cor_ins( map_wth(1) + k )
+                                 real( pvol_du_cor_ins( map_wth(1) + k ), r_um)
           end do
 
         case( 'null' )
@@ -1365,9 +1365,6 @@ subroutine radaer_code( nlayers,                                               &
     ukca_modal_vol_um(1,k,(mode_ait_insol-1))=pvol_bc_ait_ins( map_wth(1) + k)+&
                                               pvol_om_ait_ins( map_wth(1) + k)
 
-    ukca_modal_vol_um(1,k,(mode_acc_insol-1))=pvol_du_acc_ins( map_wth(1) + k)
-
-    ukca_modal_vol_um(1,k,(mode_cor_insol-1))=pvol_du_cor_ins( map_wth(1) + k)
   end do
     !--------------------------------------------------------------------------
 
