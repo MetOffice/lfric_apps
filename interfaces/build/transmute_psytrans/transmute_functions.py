@@ -221,8 +221,8 @@ def omp_do_for_heavy_loops(
     routine,
     loop_var: str,
     heavy_vars: Set[str],
-    skip_member_count: Optional[Tuple[str, str, str]] = None,
     fortran_file_name: str, 
+    skip_member_count: Optional[Tuple[str, str, str]] = None,
 ):
     """
     Insert OMP DO / PARALLEL DO (STATIC) for heavy loops over `loop_var`.
@@ -281,10 +281,11 @@ def omp_do_for_heavy_loops(
             else:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop)
             logging.warning(
-                f"{fortran_file_name}:OMP applied to {loop_var}-loop (static).")
+                f"{fortran_file_name}: OMP applied to \
+                {loop_var}-loop (static).")
         except TransformationError as err:
             logging.warning(
-                f"{fortran_file_name}:Failed OMP on {loop_var}-loop: {err}")
+                f"{fortran_file_name}: Failed OMP on {loop_var}-loop: {err}")
 
 
 def get_compiler():
@@ -335,8 +336,8 @@ def add_parallel_do_over_meta_segments(
     container_name: str,
     member_name: str,
     privates: Sequence[str],
-    init_scalars: Sequence[str] = ("jdir", "k"),
     fortran_file_name: str,
+    init_scalars: Sequence[str] = ("jdir", "k"),
 ):
     """
     Force an OMP PARALLEL DO with **dynamic** schedule over meta-segments.
