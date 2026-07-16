@@ -7,6 +7,7 @@
 
 module murk_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: r_def, i_def
   use integer_field_mod,             only: integer_field_type
   use field_mod,                     only: field_type
@@ -28,14 +29,17 @@ contains
 
   !>@details Add emissions source to murk tracer, then mix using
   !>         UM routine tr_mix
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in]     aerosol_fields    Contains murk
   !>@param[in]     derived_fields    Contains dry density
   !>@param[in]     turbulence_fields Contains things needed for mixing
-  subroutine murk_alg(aerosol_fields, derived_fields, turbulence_fields)
+  subroutine murk_alg(config, aerosol_fields, derived_fields, turbulence_fields)
 
     use tracer_mix_kernel_mod, only: tracer_mix_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: aerosol_fields
     type( field_collection_type ), intent(in) :: derived_fields
@@ -82,13 +86,14 @@ contains
     call turbulence_fields%get_field('ent_t_frac_dsc', ent_t_frac_dsc)
     call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
 
-    mesh       => murk%get_mesh()
-    height_wth => get_height_fv( Wtheta, mesh%get_id() )
-    height_w3  => get_height_fv( W3, mesh%get_id() )
-    rdz_w3     => get_rdz_w3( mesh%get_id() )
+    mesh => murk%get_mesh()
+
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w3  => get_height_fv(config, mesh, W3)
+    rdz_w3     => get_rdz_w3(config, mesh%get_id())
 
     ! Call emission routine to add source to murk field
-    call tracer_emission_alg(murk, murk_source, derived_fields, &
+    call tracer_emission_alg(config, murk, murk_source, derived_fields, &
                              amplitude, murk_source_scaling)
 
     ! Switch UM to running i-first on whole domain

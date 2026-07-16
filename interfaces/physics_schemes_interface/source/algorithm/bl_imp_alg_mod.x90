@@ -7,13 +7,16 @@
 
 module bl_imp_alg_mod
 
-  use constants_mod,                 only: i_def, l_def
+  use config_mod,                    only: config_type
+  use constants_mod,                 only: i_def, l_def, r_def
   use model_clock_mod,               only: model_clock_type
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
   use field_collection_mod,          only: field_collection_type
   use fs_continuity_mod,             only: W1, W2, W3, Wtheta
-  use sci_geometric_constants_mod,   only: get_height_fv, get_da_at_w2
+  use sci_geometric_constants_mod,   only: get_height_fv, get_da_at_w2, &
+                                           get_face_selector_ew,        &
+                                           get_face_selector_ns
   use physics_constants_mod,         only: get_rdz_fd1, get_dtrdz_fd2, &
                                            get_rdz_w3
   use mr_indices_mod,                only: nummr, imr_v, imr_cl, imr_ci, &
@@ -51,6 +54,7 @@ contains
   !>@details The UM Boundary Layer scheme does:
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] dtheta_bl         Theta increment
   !>@param[in,out] du_bl             3D wind increment
   !>@param[in,out] theta_latest      Current estimate of theta
@@ -76,7 +80,7 @@ contains
   !>@param[in]     exner             Exner Pressure in the w3 space
   !>@param[in]     mr_n              Mixing ratios at time level n
   !>@param[in]     derived_fields    Group of derived fields
-  !>@param[in]     radition_fields   Fields for radiation scheme
+  !>@param[in]     radiation_fields  Fields for radiation scheme
   !>@param[in]     orography_fields  Fields for orog drag scheme
   !>@param[in,out] turbulence_fields Fields for turbulence scheme
   !>@param[in]     convection_fields Fields for convection scheme
@@ -87,7 +91,8 @@ contains
   !>@param[in]     microphysics_fields Fields for microphysics scheme
   !>@param[in]     outer             Outer loop counter
   !>@param[in]     clock             The clock object
-  subroutine bl_imp_alg(dtheta_bl, du_bl, theta_latest, u_latest, mr,    &
+  subroutine bl_imp_alg(config,                                          &
+                        dtheta_bl, du_bl, theta_latest, u_latest, mr,    &
                         surf_heat_flux, canopy_evap, water_extraction,   &
                         lake_evap, theta_star_surf, qv_star_surf,        &
                         ustar_implicit, t1p5m, q1p5m, qcl1p5m,           &
@@ -107,6 +112,8 @@ contains
     use bl_imp_du_kernel_mod, only: bl_imp_du_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent( inout )     :: dtheta_bl, du_bl, mr(nummr)
     type( field_type ), intent( out )       :: surf_heat_flux, canopy_evap,   &
@@ -196,6 +203,9 @@ contains
     type( field_type ), pointer :: dtrdz      => null()
     type( field_type ), pointer :: rdz_w3     => null()
 
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+
     ! Local variables
     type( field_type ) :: u_physics_star
     type( field_type ) :: dissip, diss_u, diss_v, diss_w
@@ -277,17 +287,22 @@ contains
     call surface_fields%get_field('taux_ssi', taux_ssi)
     call surface_fields%get_field('tauy_ssi', tauy_ssi)
 
-    mesh       => theta%get_mesh()
-    height_wth => get_height_fv(Wtheta, mesh%get_id())
-    height_w1  => get_height_fv(W1, mesh%get_id())
-    height_w2  => get_height_fv(W2, mesh%get_id())
-    height_w3  => get_height_fv(W3, mesh%get_id())
-    dA         => get_da_at_w2(mesh%get_id())
-    rdz        => get_rdz_fd1(mesh%get_id())
-    dtrdz      => get_dtrdz_fd2(mesh%get_id(), model_clock)
-    rdz_w3     => get_rdz_w3( mesh%get_id() )
+    mesh => theta%get_mesh()
+
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w1  => get_height_fv(config, mesh, W1)
+    height_w2  => get_height_fv(config, mesh, W2)
+    height_w3  => get_height_fv(config, mesh, W3)
+
+    dA         => get_da_at_w2(mesh)
+    rdz        => get_rdz_fd1(config, mesh%get_id())
+    dtrdz      => get_dtrdz_fd2(config, mesh%get_id(), model_clock)
+    rdz_w3     => get_rdz_w3(config, mesh%get_id())
 
     mesh       => zh%get_mesh()
+
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     ! Initialise the BL diagnostics
     call initialise_diags_for_bl_imp(mr(imr_v), mr(imr_cl), mr(imr_s),         &
@@ -324,7 +339,8 @@ contains
                                       rhokm_w2, rdz, dtrdz, wetrho_in_w2,      &
                                       u_physics, u_physics_star,               &
                                       surf_interp_w2, dw_bl, dA,               &
-                                      height_w1, height_w2),                   &
+                                      height_w1, height_w2,                    &
+                                      face_selector_ew, face_selector_ns),     &
                 ! Map the wind back into dynamics quantities
                 inc_X_times_Y(du_bl, dA),                                      &
                 inc_X_times_Y(dissip, dA) )
@@ -381,7 +397,8 @@ contains
                                       bl_type_ind, rhokh, fqw, ftl, dqw, dtl,  &
                                       dqw_nt, dtl_nt, qw, tl, ct_ctq,          &
                                       dqw1, dtl1, ct_ctq1 ) )
-      call jules_imp_alg( mr, surf_heat_flux, canopy_evap, water_extraction,   &
+      call jules_imp_alg( config,                                              &
+                          mr, surf_heat_flux, canopy_evap, water_extraction,   &
                           lake_evap, derived_fields, radiation_fields,         &
                           turbulence_fields, cloud_fields, surface_fields,     &
                           soil_fields, snow_fields, outer, model_clock, loop,  &

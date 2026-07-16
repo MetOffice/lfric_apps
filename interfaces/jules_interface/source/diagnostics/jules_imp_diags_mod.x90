@@ -7,7 +7,7 @@
 
 module jules_imp_diags_mod
 
-  use constants_mod,               only: l_def
+  use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
   use jules_control_init_mod,      only: n_surf_tile, n_land_tile
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type

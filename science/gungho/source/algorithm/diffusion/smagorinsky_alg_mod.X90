@@ -8,6 +8,7 @@
 module smagorinsky_alg_mod
 
   ! Infrastructure
+  use config_mod,                only: config_type
   use constants_mod,             only: i_def, r_def, l_def
   use extrusion_mod,             only: SHIFTED
   use field_mod,                 only: field_type
@@ -16,6 +17,7 @@ module smagorinsky_alg_mod
   use function_space_mod,        only: function_space_type
   use function_space_collection_mod,                                           &
                                  only: function_space_collection
+  use integer_field_mod,         only: integer_field_type
   use log_mod,                   only: log_event, LOG_LEVEL_DEBUG
   use mesh_mod,                  only: mesh_type
   use mesh_collection_mod,       only: mesh_collection
@@ -29,7 +31,9 @@ module smagorinsky_alg_mod
                                  only: get_height_fv, get_panel_id,            &
                                        get_delta_at_wtheta, get_dx_at_w2,      &
                                        get_dA_at_w2, get_detj_at_w3_fv,        &
-                                       get_dz_at_wtheta
+                                       get_dz_at_wtheta,                       &
+                                       get_face_selector_ew,                   &
+                                       get_face_selector_ns
   use physics_constants_mod,     only: get_max_diff
 
   ! Algorithms
@@ -82,21 +86,25 @@ contains
   !> @details Either uses Smagorinsky diffusion coefficients calculated
   !>          in the UM boundary-layer scheme or those calculate locally
   !>          to diffuse quantities in the horizontal
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] dtheta_io      Potential temperature increment to update
   !> @param[in,out] du_io          3D wind increment to update
   !> @param[in,out] mr             mixing ratios
   !> @param[in]     theta          Potential temperature
   !> @param[in]     u              3D wind field
   !> @param[in]     derived_fields Group of derived fields
+  !> @param[in]     cloud_fields   Group of cloud fields
   !> @param[in]     rho            Density
   !> @param[in]     exner          Exner pressure
   !> @param[in]     dt             The model timestep length
-subroutine smagorinsky_alg(                                                    &
-    dtheta_io, du_io, mr, theta, u,                                            &
-    derived_fields, cloud_fields, rho, exner, dt, model_clock                  &
-)
+  !> @param[in]     model_clock    Model clock object
+subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
+                            derived_fields, cloud_fields, rho, exner, &
+                            dt, model_clock )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type(field_type),            intent(inout) :: du_io, dtheta_io
@@ -142,7 +150,7 @@ subroutine smagorinsky_alg(                                                    &
 
 
     type(function_space_type), pointer :: w2h_sh_fs
-
+    type(integer_field_type),  pointer :: face_selector_ew, face_selector_ns
     type(field_type), target :: rho_one
 
     ! Stencil depth for the Smagorinsky diffusion kernel
@@ -165,11 +173,14 @@ subroutine smagorinsky_alg(                                                    &
     call derived_fields%get_field('visc_h', visc_h)
     call derived_fields%get_field('visc_m', visc_m)
 
-    height_w1 => get_height_fv(W1, mesh%get_id())
-    height_w2 => get_height_fv(W2, mesh%get_id())
+    height_w1 => get_height_fv(config, mesh, W1)
+    height_w2 => get_height_fv(config, mesh, W2)
+    dx_at_w2  => get_dx_at_w2(mesh)
+    panel_id  => get_panel_id(mesh)
 
-    dx_at_w2 => get_dx_at_w2(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
+
 
     call invoke( setval_c(du, 0.0_r_def) )
 
@@ -195,12 +206,11 @@ subroutine smagorinsky_alg(                                                    &
 
       ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
       ! in lfric core as the mininum of the cell horizontal edge lengths
-      delta => get_delta_at_wtheta(mesh%get_id())
+      delta => get_delta_at_wtheta(mesh)
 
       if (smag_l_calc == smag_l_calc_use_geo) then
         ! Use geometric mean mixing length
-        dz_wth => get_dz_at_wtheta(mesh%get_id())
-        call delta_geo%initialise(delta%get_function_space())
+        dz_wth => get_dz_at_wtheta(config, mesh)
 
         call invoke(                                                           &
             setval_X(delta_geo, delta),                                        &
@@ -223,7 +233,7 @@ subroutine smagorinsky_alg(                                                    &
     end if ! With or without BL scheme
 
     ! Cap viscosities to avoid instabilities
-    max_diff => get_max_diff(mesh%get_id(), model_clock)
+    max_diff => get_max_diff(config, mesh%get_id(), model_clock)
     call invoke(                                                               &
         cap_diffusion_coeff_kernel_type(visc_h, max_diff),                     &
         cap_diffusion_coeff_kernel_type(visc_m, max_diff)                      &
@@ -293,7 +303,7 @@ subroutine smagorinsky_alg(                                                    &
         momentum_smagorinsky_kernel_type(                                      &
             du, u, smag_stencil_depth, dx_at_w2, smag_stencil_depth,           &
             height_w2, height_w1, visc_m, smag_stencil_depth,                  &
-            panel_id, smag_stencil_depth                                       &
+            panel_id, smag_stencil_depth, face_selector_ew, face_selector_ns   &
         ),                                                                     &
         inc_a_times_X(dt, du)                                                  &
     )
@@ -339,7 +349,7 @@ subroutine smagorinsky_alg(                                                    &
       ! If we're at the end of timestep, we need to update exner_wth
       if (smagorinsky_placement == smagorinsky_placement_end) then
         call derived_fields%get_field('exner_in_wth', exner_wth)
-        call map_physics_scalars(exner_wth, exner)
+        call map_physics_scalars(config, exner_wth, exner)
       end if
 
       ! dtheta and dmr will be updated with the pc2 response in the alg
@@ -385,7 +395,7 @@ subroutine smagorinsky_alg(                                                    &
     )
 
     if (write_conservation_diag .and. use_moisture) then
-      call moisture_conservation_alg(rho, mr, 'After mixing')
+      call moisture_conservation_alg(config, rho, mr, 'After mixing')
     end if
 
     if ( LPROF ) call stop_timing( id, 'smagorinsky' )
@@ -440,10 +450,10 @@ subroutine smagorinsky_alg(                                                    &
       shifted_mesh_id = shifted_mesh%get_id()
       w3_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W3)
       w2h_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2H)
-      dA => get_dA_at_w2(shifted_mesh_id)
-      volume => get_detj_at_w3_fv(shifted_mesh_id)
+      dA => get_dA_at_w2(shifted_mesh)
+      volume => get_detj_at_w3_fv(shifted_mesh)
       rmult => get_rmultiplicity_fv(W2H, shifted_mesh_id)
-      dx_at_w2 => get_dx_at_w2(shifted_mesh_id)
+      dx_at_w2 => get_dx_at_w2(shifted_mesh)
 
       call tracer_shifted%initialise(w3_sh_fs)
       call increment_shifted%initialise(w3_sh_fs)
@@ -464,7 +474,7 @@ subroutine smagorinsky_alg(                                                    &
       )
 
     else
-      dx_at_w2 => get_dx_at_w2(mesh%get_id())
+      dx_at_w2 => get_dx_at_w2(mesh)
 
       ! Non-conservative Smagorinsky diffusion, using Laplacian directly
       call invoke(                                                             &

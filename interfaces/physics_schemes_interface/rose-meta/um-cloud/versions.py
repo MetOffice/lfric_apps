@@ -1,9 +1,8 @@
-import re
 import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version30_31 import *
+from .version31_32 import *
 
 
 class UpgradeError(Exception):
@@ -21,54 +20,14 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
+
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
+
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
+
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
-
-
-class vn31_t464(MacroUpgrade):
-    """Upgrade macro for ticket #464 by Ian Boutle."""
-
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t464"
-
-    def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/um-cloud
-        self.add_setting(
-            config, ["namelist:cloud", "pc2_turb_horiz"], ".false."
-        )
-        return config, self.reports
-
-
-class vn31_t243(MacroUpgrade):
-    """Upgrade macro for ticket #243 by Mike Whitall."""
-
-    BEFORE_TAG = "vn3.1_t464"
-    AFTER_TAG = "vn3.1_t243"
-
-    def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/um-cloud
-        nml = "namelist:cloud"
-        self.add_setting(config, [nml, "l_ensure_max_in_cloud_pc2"], ".false.")
-        return config, self.reports
-
-
-class vn31_t249(MacroUpgrade):
-    """Upgrade macro for ticket #249 by Mike Whitall."""
-
-    BEFORE_TAG = "vn3.1_t243"
-    AFTER_TAG = "vn3.1_t249"
-
-    def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/um-cloud
-        # Blank macro needed just to update meta-data version
-        # (apps using the new option 'smooth_fix' under the existing
-        #  multi-option switch 'pc2_init_logic' fail checks against
-        #  the existing meta-data).
-
-        return config, self.reports
