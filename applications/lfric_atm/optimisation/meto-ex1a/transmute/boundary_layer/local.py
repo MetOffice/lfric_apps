@@ -51,6 +51,7 @@ def trans(psyir):
     and then adds OMP to either to top loop of a nest, or k
 
     This is currently used by the following files:
+    * bdy_impl4
     * bl_lsp
     * btq_int
     * ex_flux_tq
@@ -112,8 +113,8 @@ def trans(psyir):
                     nowait=True)
             except (TransformationError, IndexError) as err:
                 logging.warning(
-                    "Could not transform because:\n %s", err)
-                print(f"Could not transform because:\n {err}")
+                    f"{fortran_file_name} Could not transform \
+                    because:\n {err}")
 
     # Apply the largest possible parallel regions and remove any barriers that
     # can be removed.

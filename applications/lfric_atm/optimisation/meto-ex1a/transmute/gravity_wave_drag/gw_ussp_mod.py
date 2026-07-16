@@ -88,8 +88,10 @@ def trans(psyir):
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     """
+
+    fortran_file_name = str(psyir.root.name)
     logging.info(
-        "gw_ussp_mod.F90 Psyclone Optimisation for the CPU is running."
+        f"{fortran_file_name} Psyclone Optimisation for the CPU is running."
     )
 
     # Remove any loops relating to specified loop type
@@ -102,6 +104,7 @@ def trans(psyir):
           container_name="meta_segments",
           member_name="num_segments",
           privates=_META_PRIVATES,
+          fortran_file_name,
         )
 
     # 2) Cluster adjacent outer loops into PARALLEL regions (no schedule here)
@@ -114,5 +117,6 @@ def trans(psyir):
         omp_do_for_heavy_loops(routine, "k", HEAVY_VARS_K)
         omp_do_for_heavy_loops(
           routine, "i", HEAVY_VARS_I,
-          skip_member_count=("i", "meta_segments", "num_segments")
+          skip_member_count=("i", "meta_segments", "num_segments"),
+          fortran_file_name,
         )
