@@ -7,6 +7,6 @@ on:
 
 jobs:
   validate_symlinks:
-    uses: MetOffice/growss/.github/workflows/validate_symlinks.yaml@develop  # zizmor: ignore[unpinned-uses]
     permissions:
       contents: read  # Required to evaluate the event trigger metadata safely
+    uses: MetOffice/growss/.github/workflows/validate_symlinks.yaml@develop  # zizmor: ignore[unpinned-uses]
