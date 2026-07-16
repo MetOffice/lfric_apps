@@ -30,6 +30,8 @@ module create_fd_prognostics_mod
                                              read_w2h_wind,               &
                                              sst_source,                  &
                                              sst_source_start_dump,       &
+                                             sea_ice_source,              &
+                                             sea_ice_source_start_dump,   &
                                              init_exner_method,           &
                                              init_exner_method_dump
   use nlsizes_namelist_mod,           only : sm_levels
@@ -275,7 +277,7 @@ contains
 
       ! For coupled models get the sea ice fraction and thickness from the
       ! dump
-      if (l_couple_sea_ice) then
+      if (l_couple_sea_ice .and. (sea_ice_source == sea_ice_source_start_dump)) then
          call setup_ancil_field("sea_ice_fraction", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_sea_ice_tile)

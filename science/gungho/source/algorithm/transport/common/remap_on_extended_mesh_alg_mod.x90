@@ -8,6 +8,7 @@
 !!        where the panels have been extended
 module remap_on_extended_mesh_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, l_def, r_tran
   use r_tran_field_mod,              only: r_tran_field_type
   use field_mod,                     only: field_type
@@ -30,6 +31,7 @@ module remap_on_extended_mesh_alg_mod
 contains
 
   !> @brief Remap a field to remap_field on an extended cubed sphere mesh
+  !> @param[in]     config           Application namelist configuration object
   !> @param[in,out] remap_field      Field on extended cubed sphere mesh
   !> @param[in]     field            Field on standard cubed sphere mesh
   !> @param[in]     remap_weights    Interpolation weights for remapping
@@ -38,13 +40,16 @@ contains
   !> @param[in]     enforce_minvalue Enforce a minimum value of the extended field
   !> @param[in]     minvalue         Minimum value to set the field to
   !> @param[in]     depth_in         Halo depth to remap field to
-  subroutine remap_on_extended_mesh(remap_field, field, &
+  subroutine remap_on_extended_mesh(config,             &
+                                    remap_field, field, &
                                     monotone,           &
                                     enforce_minvalue,   &
                                     minvalue,           &
                                     depth_in)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type),  intent(inout) :: remap_field
     type(r_tran_field_type),  intent(in)    :: field
@@ -68,9 +73,9 @@ contains
     if ( LPROF ) call start_timing( id, 'transport.remap_extended_mesh' )
 
     mesh => field%get_mesh()
-    panel_id => get_panel_id(mesh%get_id())
-    remap_weights => get_extended_mesh_weights(mesh%get_id())
-    remap_indices => get_extended_mesh_indices(mesh%get_id())
+    panel_id => get_panel_id(mesh)
+    remap_weights => get_extended_mesh_weights(config, mesh)
+    remap_indices => get_extended_mesh_indices(config, mesh)
     fs => remap_weights%get_function_space()
     ndata = fs%get_ndata()
 

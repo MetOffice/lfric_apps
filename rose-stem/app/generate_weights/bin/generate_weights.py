@@ -134,7 +134,7 @@ def run_exe(arg, outfile, style):
         if retcode != 0:
             print("Execution terminated by the signal", retcode)
             sys.exit(1)
-        cmd = 'ncap2 -h -s "remap_matrix[num_links,num_wgts]=S" ' + outfile
+        cmd = 'ncap2 -A -h -s "remap_matrix[num_links,num_wgts]=S" ' + outfile
         print(cmd)
         retcode = subprocess.call(cmd, shell=True)
         if retcode != 0:

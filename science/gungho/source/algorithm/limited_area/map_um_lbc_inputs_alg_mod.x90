@@ -11,13 +11,14 @@
 !>          mixing ratios and dry density.
 module map_um_lbc_inputs_alg_mod
 
+  use config_mod,                     only: config_type
   use extrusion_config_mod,           only: planet_radius
   use field_mod,                      only: field_type
   use fs_continuity_mod,              only: W3
   use constants_mod,                  only: i_def, r_def
   use sci_sample_wtheta_to_w3_kernel_mod, only: sample_wtheta_to_w3_kernel_type
   use sci_geometric_constants_mod,    only: get_height_fv
-  use boundaries_config_mod,         only: lbc_bal_meth_keep_rho
+  use boundaries_config_mod,          only: lbc_bal_meth_keep_rho
 
   implicit none
 
@@ -30,22 +31,25 @@ contains
   !> @details The LBC inputs are currently provided as specific humidities and
   !>          a total density.  This routine converts them to the equivalent
   !>          mixing ratios and dry density.
-  !> @param[in]     q      vapour specific humidity
-  !> @param[in]     qcl    liquid specific humidity
-  !> @param[in]     qcf    frozen specific humidity
-  !> @param[in]     qrain  rain specific humidity
-  !> @param[in]     rho_r2 wet density multiplied by radius squared
-  !> @param[in,out] m_v    vapour mixing ratio
-  !> @param[in,out] m_cl   liquid mixing ratio
-  !> @param[in,out] m_s    frozen mixing ratio
-  !> @param[in,out] m_r    rain mixing ratio
-  !> @param[in,out] rho    dry density
+  !> @param[in]     config  Application namelist configuration object
+  !> @param[in]     q       vapour specific humidity
+  !> @param[in]     qcl     liquid specific humidity
+  !> @param[in]     qcf     frozen specific humidity
+  !> @param[in]     qrain   rain specific humidity
+  !> @param[in]     rho_r2  wet density multiplied by radius squared
+  !> @param[in,out] m_v     vapour mixing ratio
+  !> @param[in,out] m_cl    liquid mixing ratio
+  !> @param[in,out] m_s     frozen mixing ratio
+  !> @param[in,out] m_r     rain mixing ratio
+  !> @param[in,out] rho     dry density
   !> @param[in]     lbc_bal_meth Do we want rho from the LBCs
-  subroutine map_um_lbc_inputs( q, qcl, qcf, qrain, rho_r2, &
-                                m_v, m_cl, m_s, m_r, rho,   &
+  subroutine map_um_lbc_inputs( config, q, qcl, qcf, qrain, rho_r2, &
+                                m_v, m_cl, m_s, m_r, rho,           &
                                 lbc_bal_meth)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(in)    :: q, qcl, qcf, qrain, rho_r2
     type(field_type), intent(inout) :: m_v, m_cl, m_s, m_r, rho
@@ -54,12 +58,10 @@ contains
     type(field_type)                :: radius_w3
     type(field_type)                :: qsum
     type(field_type)                :: qsum_w3
-    integer(i_def)                  :: mesh_id
 
     if (lbc_bal_meth == lbc_bal_meth_keep_rho) then
 
-      mesh_id     =  rho%get_mesh_id()
-      height_w3   => get_height_fv( W3, mesh_id )
+      height_w3   => get_height_fv( config, rho%get_mesh(), W3 )
 
       ! Convert to a total air density
       ! rho = rho/r/r

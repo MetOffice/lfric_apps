@@ -20,8 +20,8 @@
 
     "lfricinputs_um2lfric-aquaplanet_lam_ex1a_gnu_full-debug-64bit":                    BASE,
     "lfricinputs_um2lfric-aquaplanet_lam_ex1a_gnu_fast-debug-64bit":                    BASE,
-    "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_full-debug-64bit":                    BASE,
-    "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_fast-debug-64bit":                    BASE,
+    "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_full-debug-64bit": BASE,
+    "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_fast-debug-64bit": BASE,
     "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_ex1a_gnu_full-debug-64bit":          BASE,
     "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_ex1a_gnu_fast-debug-64bit":          BASE,
     "lfricinputs_um2lfric-basicgal-N96L70_C12L70_ex1a_gnu_full-debug-64bit":            BASE,
