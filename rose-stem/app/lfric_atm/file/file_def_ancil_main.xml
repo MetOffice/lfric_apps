@@ -343,23 +343,6 @@
    </field_group>
   </file>
 
-  <file id="snow_analysis_ancil" name="snow_analysis_ancil" mode="read" output_freq="1mo"  convention="UGRID" cyclic="true" enabled=".FALSE.">
-   <field_group id="snow_analysis_ancil_field_group" >
-    <field id="snow_time" name="time" unit="hours" operation="once" axis_ref="one_time_axis"/>
-    <field id="tile_snow_rgrain_in_data" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" operation="instant" grid_ref="one_time_tile_grid"/>
-    <field id="tile_snow_mass_in_data" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2"  operation="instant" grid_ref="one_time_tile_grid"/>
-    <field id="snow_under_canopy_in_data" name="snow_under_canopy" long_name="snow_under_canopy" unit="kg m-2" operation="instant" grid_ref="one_time_tile_grid"/>
-    <field id="snow_depth_in_data" name="snow_depth" long_name="snow_depth" unit="m" operation="instant" grid_ref="one_time_tile_grid"/>
-    <field id="snowpack_density_in_data" name="snowpack_density" long_name="snowpack_density" unit="kg m-3" operation="instant" grid_ref="one_time_tile_grid"/>
-    <field id="n_snow_layers_in_data" name="n_snow_layers_real" long_name="number_of_snow_layers" unit="1" operation="instant"  grid_ref="one_time_tile_grid"/>
-    <field id="snow_layer_thickness_data" name="tile_snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
-    <field id="snow_layer_temp_data" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
-    <field id="snow_layer_ice_mass_data" name="snow_layer_ice_mass" long_name="snow_layer_ice_mass" unit="kg m-2" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
-    <field id="snow_layer_liq_mass_data" name="snow_layer_liq_mass" long_name="snow_layer_liquid_mass" unit="kg m-2" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
-    <field id="snow_layer_rgrain_data" name="snow_layer_rgrain" long_name="snow_layer_grain_size" unit="microns" operation="instant" grid_ref="one_time_snow_layer_tile_grid"/>
-   </field_group>
-  </file>
-
   <!--- Easy Aerosol ancils -->
   <file id="cloud_drop_no_conc_ancil" name="cloud_drop_no_conc_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
    <field_group id="cloud_drop_no_conc_ancil_field_group" >

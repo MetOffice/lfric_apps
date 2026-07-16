@@ -66,7 +66,9 @@ module gungho_init_fields_mod
                                                  sst_source,                  &
                                                  sst_source_start_dump,       &
                                                  snow_source,                 &
-                                                 snow_source_surf
+                                                 snow_source_surf,            &
+                                                 surf_snow_input_mode,        &
+                                                 surf_snow_input_mode_full
   use io_config_mod,                      only : checkpoint_read,  &
                                                  checkpoint_write, &
                                                  checkpoint_times, &
@@ -1050,18 +1052,20 @@ subroutine create_model_data( modeldb,           &
             call model_axes%ancil_times_list%clear()
           end if
           if ( snow_source == snow_source_surf ) then
-            call ancil_fields%remove_field("tile_snow_rgrain_in")
-            call depository%remove_field("tile_snow_rgrain_in")
             call ancil_fields%remove_field("tile_snow_mass_in")
             call depository%remove_field("tile_snow_mass_in")
-            call ancil_fields%remove_field("snow_under_canopy_in")
-            call depository%remove_field("snow_under_canopy_in")
-            call ancil_fields%remove_field("snow_depth_in")
-            call depository%remove_field("snow_depth_in")
-            call ancil_fields%remove_field("snowpack_density_in")
-            call depository%remove_field("snowpack_density_in")
-            call ancil_fields%remove_field("n_snow_layers_in")
-            call depository%remove_field("n_snow_layers_in")
+            if (surf_snow_input_mode == surf_snow_input_mode_full) then
+              call ancil_fields%remove_field("snow_depth_in")
+              call depository%remove_field("snow_depth_in")
+              call ancil_fields%remove_field("tile_snow_rgrain_in")
+              call depository%remove_field("tile_snow_rgrain_in")
+              call ancil_fields%remove_field("snow_under_canopy_in")
+              call depository%remove_field("snow_under_canopy_in")
+              call ancil_fields%remove_field("snowpack_density_in")
+              call depository%remove_field("snowpack_density_in")
+              call ancil_fields%remove_field("n_snow_layers_in")
+              call depository%remove_field("n_snow_layers_in")
+            end if
           end if
 
         case ( ancil_option_idealised )

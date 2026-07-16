@@ -18,6 +18,8 @@ module process_inputs_alg_mod
   use initialization_config_mod,  only: sst_source, sst_source_start_dump, &
                                         init_option, init_option_fd_start_dump, &
                                         snow_source, snow_source_surf, &
+                                        surf_snow_input_mode, &
+                                        surf_snow_input_mode_full, &
                                         sea_ice_source, &
                                         sea_ice_source_start_dump, &
                                         sea_ice_source_surf
@@ -139,6 +141,7 @@ contains
     type( field_type ), pointer :: latitude
 
     integer( i_def ) :: n_horizon_angle, n_horizon_layer
+    logical :: use_full_surf_snow_inputs
 
     if (checkpoint_read) then
       ! This algorithm should only be called on a new run
@@ -148,6 +151,8 @@ contains
          'process_input_args: should not be called if checkpoint_read==.true.'
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
+
+    use_full_surf_snow_inputs = (surf_snow_input_mode == surf_snow_input_mode_full)
 
     if (surface == surface_jules) then
 
@@ -215,12 +220,14 @@ contains
         call soil_fields%get_field('soil_temperature', soil_temperature)
 
         if (snow_source == snow_source_surf) then
-          call ancil_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
           call ancil_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
-          call ancil_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
-          call ancil_fields%get_field('snow_depth_in', snow_depth_in)
-          call ancil_fields%get_field('snowpack_density_in', snowpack_density_in)
-          call ancil_fields%get_field('n_snow_layers_in', n_snow_layers_in)
+          if (use_full_surf_snow_inputs) then
+            call ancil_fields%get_field('snow_depth_in', snow_depth_in)
+            call ancil_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
+            call ancil_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
+            call ancil_fields%get_field('snowpack_density_in', snowpack_density_in)
+            call ancil_fields%get_field('n_snow_layers_in', n_snow_layers_in)
+          end if
         else
           call fd_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
           call fd_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
@@ -294,8 +301,19 @@ contains
       if ((init_option == init_option_fd_start_dump) .or. &
             (snow_source == snow_source_surf)) then
         ! These only need processing when cold-starting from the UM
-        call invoke(multi_insert_kernel_type(tile_snow_mass, tile_snow_mass_in,&
-                                              1, n_land_tile),                   &
+        if ((snow_source == snow_source_surf) .and. (.not. use_full_surf_snow_inputs)) then
+          call invoke(multi_insert_kernel_type(tile_snow_mass, tile_snow_mass_in,&
+                                                1, n_land_tile),                   &
+                      process_snow_kernel_type(tile_snow_mass, n_snow_layers,      &
+                                               snow_under_canopy, snowpack_density,&
+                                               snow_depth, snow_layer_thickness,   &
+                                               snow_layer_ice_mass,                &
+                                               snow_layer_liq_mass,                &
+                                               snow_layer_temp, snow_layer_rgrain, &
+                                               soil_temperature) )
+        else
+          call invoke(multi_insert_kernel_type(tile_snow_mass, tile_snow_mass_in,&
+                                                1, n_land_tile),                   &
                       int_multi_insert_kernel_type(n_snow_layers,n_snow_layers_in,&
                                                    1, n_land_tile),               &
                       multi_insert_kernel_type(snow_depth, snow_depth_in,         &
@@ -313,6 +331,7 @@ contains
                                                snow_layer_liq_mass,                &
                                                snow_layer_temp, snow_layer_rgrain, &
                                                soil_temperature) )
+        end if
       end if
 
     end if
