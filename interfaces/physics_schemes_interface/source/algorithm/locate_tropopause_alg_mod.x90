@@ -7,7 +7,8 @@
 
 module locate_tropopause_alg_mod
 
-use constants_mod,                 only: i_def
+use config_mod,                    only: config_type
+use constants_mod,                 only: i_def, l_def
 use field_mod,                     only: field_type
 use integer_field_mod,             only: integer_field_type
 use fs_continuity_mod,             only: W3, Wtheta
@@ -22,23 +23,30 @@ use locate_tropopause_kernel_mod,  only: locate_tropopause_kernel_type
 use timing_mod,                    only: start_timing, stop_timing, tik, LPROF
 
 implicit none
+
 private
 public :: locate_tropopause_alg
 
 contains
 
-! @param[in,out] trop_level             Level of tropopause
-! @param[in]     theta                  Potential temperature
-! @param[in]     exner_in_wth           Exner pressure on wth space
-! @param[in]     twod_mesh              Current 2d mesh
+! @param[in]     config        Application namelist configuration object
+! @param[in,out] trop_level    Level of tropopause
+! @param[in]     theta         Potential temperature
+! @param[in]     exner_in_wth  Exner pressure on wth space
+! @param[in]     twod_mesh     Current 2d mesh
+! @param[in]     trop_diag     Flag for writing tropopause diagnostics
 
-subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
+subroutine locate_tropopause_alg(config, trop_level, theta, exner_in_wth, &
+                                 twod_mesh, trop_diag)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type( integer_field_type ), intent(inout) :: trop_level
   type( field_type ), intent(in)    :: theta, exner_in_wth
   type( mesh_type ),  intent(in), pointer :: twod_mesh
+  logical( l_def ),   intent(in)    :: trop_diag
 
   ! Local fields
   type( field_type ),         pointer :: height_wth => null()
@@ -48,8 +56,7 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
 
   if ( LPROF ) call start_timing( id_alg, 'locate_tropopause' )
 
-  height_wth => get_height_fv(Wtheta, theta%get_mesh_id())
-
+  height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
   vector_space=>function_space_collection%get_fs(twod_mesh, 0, 0, W3)
   call trop_level%initialise(vector_space)
 
@@ -57,7 +64,7 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
                                               height_wth, trop_level ) )
   if ( LPROF ) call stop_timing( id_alg, 'locate_tropopause' )
 
-  if (write_diag .and. use_xios_io) then
+  if (write_diag .and. trop_diag .and. use_xios_io) then
     if ( LPROF ) call start_timing( id_diags, 'diags.locate_tropopause' )
     write_diag_behaviour => write_field_generic
     call trop_level%set_write_behaviour(write_diag_behaviour)

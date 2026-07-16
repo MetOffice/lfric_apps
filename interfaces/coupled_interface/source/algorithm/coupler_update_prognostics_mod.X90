@@ -8,6 +8,8 @@
 !> @brief from the coupler
 
 module coupler_update_prognostics_mod
+
+  use config_mod,                    only: config_type
   use field_mod,                     only: field_type, field_proxy_type
   use fs_continuity_mod,             only: W3
   use function_space_mod,            only: function_space_type
@@ -56,11 +58,13 @@ module coupler_update_prognostics_mod
   !> @brief Copies data from the coupler to Lfric prognostics
   !> @param[in] fld coupling field
   !> @param[in] depository field collection - all fields
-  subroutine coupler_update_prognostics(fld, depository)
+  subroutine coupler_update_prognostics(config, fld, depository)
 
     implicit none
-    type( field_type ), intent(in)               :: fld
-    type( field_collection_type ), intent(in)    :: depository
+
+    type( config_type ),           intent(in) :: config
+    type( field_type ),            intent(in) :: fld
+    type( field_collection_type ), intent(in) :: depository
 
     !local variables
     type(function_space_type), pointer :: sice_space
@@ -89,7 +93,8 @@ module coupler_update_prognostics_mod
         call depository%get_field('tile_fraction', fld_ptr1)
         call depository%get_field('sea_ice_thickness', fld_ptr2)
         twod_mesh => fld_ptr2%get_mesh()
-        lat => get_latitude_fv( W3, twod_mesh%get_id() )
+
+        lat => get_latitude_fv(config, twod_mesh, W3)
 #if defined(UM_PHYSICS)
         ! Update tile_fractions with new sea ice fractions
         call invoke( masked_process_ssi_kernel_type(fld,fld_ptr2,fld_ptr1,lat, &
@@ -159,6 +164,13 @@ module coupler_update_prognostics_mod
                                'Ocean surface v from coupler', fld )
         call depository%get_field('sea_v_current', fld_ptr1)
         call invoke(setval_x(fld_ptr1, fld))
+      case ("lf_inland_flow")
+         call log_field_minmax( LOG_LEVEL_DEBUG, &
+                                'Inland basin flow from coupler', fld)
+         call depository%get_field('inland_basin_flow', fld_ptr1)
+         call invoke(setval_X( fld_ptr1, fld ))
+         fld_ptr1 => null()
+
       case default
         write(log_scratch_space, '(3A)' )                                     &
                               "PROBLEM coupler_update_prognostics variable ", &

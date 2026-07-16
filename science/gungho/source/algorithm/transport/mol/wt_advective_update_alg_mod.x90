@@ -18,6 +18,7 @@
 !!                      size as an integer argument.
 module wt_advective_update_alg_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: r_def, i_def, l_def, str_def,  &
                                                 r_tran
   use sci_geometric_constants_mod,        only: get_coordinates,               &
@@ -65,7 +66,6 @@ module wt_advective_update_alg_mod
   use transport_metadata_mod,             only: transport_metadata_type
   use polyh_wtheta_koren_kernel_mod,      only: polyh_wtheta_koren_kernel_type
   use polyv_wtheta_koren_kernel_mod,      only: polyv_wtheta_koren_kernel_type
-  use copy_field_alg_mod,                 only: copy_field
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
 
@@ -81,6 +81,7 @@ contains
 
   !=============================================================================
   !> @brief Compute the horizontal advective update of a Wtheta field.
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Horizontal part of u.grad(f)
   !> @param[in]     wind                Advecting wind field
   !> @param[in]     wind_dir            Wind field to determine direction in kernel,
@@ -88,11 +89,14 @@ contains
   !>                                    but ls_wind when used in the linear model
   !> @param[in]     field               Wtheta field to advect
   !> @param[in]     transport_metadata  Contains transport configuration options
-  subroutine hori_wt_update_alg(u_grad_f, wind, wind_dir, field, transport_metadata)
+  subroutine hori_wt_update_alg(config, u_grad_f, wind, wind_dir, &
+                                field, transport_metadata)
 
     use transport_constants_mod, only: get_hori_wt_mol_coeffs
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type),       intent(in)    :: wind
     type(r_tran_field_type),       intent(in)    :: wind_dir
@@ -128,7 +132,7 @@ contains
     end if
 
     stencil_extent = fv_horizontal_order/2_i_def
-    adv_coeffs => get_hori_wt_mol_coeffs(mesh_id)
+    adv_coeffs => get_hori_wt_mol_coeffs(config, mesh)
 
     ! Copy field to a large halo version
     call field_big_halo%initialise( field%get_function_space(), &
@@ -148,7 +152,7 @@ contains
     if ( panel_edge_treatment /= panel_edge_treatment_none                     &
          .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
-      call remap_on_extended_mesh(remap_field, field_big_halo,                 &
+      call remap_on_extended_mesh(config, remap_field, field_big_halo,         &
                                   monotone,                                    &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
@@ -202,19 +206,22 @@ contains
 
   !=============================================================================
   !> @brief Compute the vertical advective update of a Wtheta field.
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Vertical part of u.grad(f)
   !> @param[in]     wind                Advecting wind field
   !> @param[in]     field               Wtheta field to advect
   !> @param[in]     transport_metadata  Contains transport configuration options
   !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine vert_wt_update_alg(u_grad_f, wind, field, transport_metadata, &
-                                final_rk_stage)
+  subroutine vert_wt_update_alg(config,u_grad_f, wind, field, &
+                                transport_metadata, final_rk_stage)
 
     use poly1d_vert_adv_kernel_mod,     only: poly1d_vert_adv_kernel_type
     use transport_constants_mod,        only: get_vert_wt_mol_coeffs,          &
                                               get_reversible_vert_wt_mol_coeffs
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type),       intent(in)    :: field, wind
     type(r_tran_field_type),       intent(inout) :: u_grad_f
@@ -242,17 +249,17 @@ contains
     mesh_id = mesh%get_id()
 
     if ( reversible ) then
-      vert_adv_coeffs => get_reversible_vert_wt_mol_coeffs(mesh_id)
+      vert_adv_coeffs => get_reversible_vert_wt_mol_coeffs(config, mesh)
       vertical_order = fv_vertical_order
     else
-      vert_adv_coeffs => get_vert_wt_mol_coeffs(mesh_id)
+      vert_adv_coeffs => get_vert_wt_mol_coeffs(config, mesh)
       vertical_order = fv_vertical_order + 1_i_def
     end if
 
     ndata_v = 2_i_def*(vertical_order + 1_i_def)
 
     if ( monotonicity == monotone_koren ) then
-      height_tr => get_height_fv( Wtheta, mesh%get_id() )
+      height_tr => get_height_fv(config, mesh, Wtheta)
       call invoke( polyv_wtheta_koren_kernel_type(u_grad_f,      &
                                                   wind,          &
                                                   field,         &
@@ -277,13 +284,14 @@ contains
   !> @brief Compute advective update of a Wtheta field.
   !> @details Compute advective update wind.grad(adv_field) using desired spatial
   !!          reconstruction. Options for this are either FE or FV reconstructions.
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] rhs                 Advective increment
   !> @param[in]     adv_field           Field to advect
   !> @param[in]     wind                Advecting wind field
   !> @param[in]     reversible          Use the reversible reconstruction
   !> @param[in]     transport_metadata  Contains transport configuration options
   !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine wt_advective_update_alg(rhs, adv_field, wind, direction, &
+  subroutine wt_advective_update_alg(config, rhs, adv_field, wind, direction, &
                                      transport_metadata, final_rk_stage)
 
     use consistent_wind_kernel_mod,     only: consistent_wind_kernel_type
@@ -298,6 +306,8 @@ contains
                                               get_face_selector_ns
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type),       intent(in)    :: adv_field, wind
     type(r_tran_field_type),       intent(inout) :: rhs
@@ -370,44 +380,44 @@ contains
         w2v_fs => function_space_collection%get_fs(                            &
             mesh, 0, 0, W2V                                                    &
         )
-        face_selector_ew => get_face_selector_ew(mesh%get_id())
-        face_selector_ns => get_face_selector_ns(mesh%get_id())
+        face_selector_ew => get_face_selector_ew(mesh)
+        face_selector_ns => get_face_selector_ns(mesh)
         call wind_h%initialise(w2h_fs)
         call wind_v%initialise(w2v_fs)
         call invoke( split_w2_field_kernel_type(wind_h, wind_v, wind,          &
                                                 face_selector_ew,              &
                                                 face_selector_ns) )
         ! Horizontal update
-        call hori_wt_update_alg(u_grad_f, wind_h, wind_h, adv_field, transport_metadata)
+        call hori_wt_update_alg(config, u_grad_f, wind_h, wind_h, adv_field, transport_metadata)
 
         ! TODO #3325: Make consistent wind be pre-computed
         if ( consistent_metric ) then
           ! Consistent wind will be vertical only -- initialise as wind_v
-          height_rdef => get_height_fv(Wtheta, mesh%get_id())
+          height_rdef => get_height_fv(config, mesh, Wtheta)
           call height%initialise( vector_space = height_rdef%get_function_space() )
-          call copy_field( height_rdef, height )
-          chi => get_coordinates(mesh%get_id())
+          call invoke( real_to_real_x(height, height_rdef) )
+          chi => get_coordinates(mesh)
           call u_grad_z%initialise( u_grad_f%get_function_space() )
           call consistent_wind%initialise( wind_v%get_function_space() )
           call invoke( setval_c(u_grad_z, 0.0_r_def), &
                        setval_X(consistent_wind, wind_v) )
-          call hori_wt_update_alg(u_grad_z, wind_h, wind_h, height, transport_metadata)
+          call hori_wt_update_alg(config, u_grad_z, wind_h, wind_h, height, transport_metadata)
           call invoke( consistent_wind_kernel_type(consistent_wind, wind, &
                                                    u_grad_z, chi(3)) )
           ! Then vertical update uses consistent wind
-          call vert_wt_update_alg(u_grad_f, consistent_wind, adv_field, &
+          call vert_wt_update_alg(config, u_grad_f, consistent_wind, adv_field, &
                                   transport_metadata, final_rk_stage)
         else
           ! Not using consistent wind, so just do normal vertical update
-          call vert_wt_update_alg(u_grad_f, wind_v, adv_field, &
+          call vert_wt_update_alg(config, u_grad_f, wind_v, adv_field, &
                                   transport_metadata, final_rk_stage)
         end if
 
       case ( direction_h )
-        call hori_wt_update_alg(u_grad_f, wind, wind, adv_field, transport_metadata)
+        call hori_wt_update_alg(config, u_grad_f, wind, wind, adv_field, transport_metadata)
 
       case ( direction_v )
-        call vert_wt_update_alg(u_grad_f, wind, adv_field, &
+        call vert_wt_update_alg(config, u_grad_f, wind, adv_field, &
                                 transport_metadata, final_rk_stage)
       case default
         call log_event('Wtheta advective update: direction not recognised', LOG_LEVEL_ERROR)
@@ -451,8 +461,8 @@ contains
     end if
 
     call mt_lumped_inv_r_tran%initialise(mt_lumped_inv_r_def%get_function_space())
-    call copy_field(mt_lumped_inv_r_def, mt_lumped_inv_r_tran)
-    call invoke( X_times_Y(rhs, u_grad_f, mt_lumped_inv_r_tran) )
+    call invoke( real_to_real_x(mt_lumped_inv_r_tran, mt_lumped_inv_r_def), &
+                 X_times_Y(rhs, u_grad_f, mt_lumped_inv_r_tran) )
 
   end subroutine wt_advective_update_alg
 

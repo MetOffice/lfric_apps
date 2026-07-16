@@ -104,7 +104,7 @@ contains
     ! Structures holding diagnostic arrays - not used
 
     ! Other modules containing stuff passed to CLD
-    use cloud_config_mod,     only: i_bm_ez_opt, i_bm_ez_opt_entpar
+    use cloud_config_mod,     only: bm_ez_opt, bm_ez_opt_entpar
     use nlsizes_namelist_mod, only: bl_levels
     use planet_constants_mod, only: p_zero, kappa
     use microphysics_config_mod, only: microphysics_casim
@@ -183,7 +183,7 @@ contains
         wvar_in(i,1,k)     = wvar(map_wth(1,i) + k)
       end do
     end do
-    if (i_bm_ez_opt == i_bm_ez_opt_entpar) then
+    if (bm_ez_opt == bm_ez_opt_entpar) then
       ! Length-scale used for entraining parcel mode construction method
       do i = 1, seg_len
         do k = 1, nlayers
