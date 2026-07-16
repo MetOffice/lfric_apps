@@ -197,7 +197,7 @@ contains
       call invoke(setval_X(exner, exner_in_w3))
     case(init_exner_method_hydrostatic)
       ! Initialize hydrostatically balanced exner field
-      call hydrostatic_balance( exner, rho, theta, u, moist_dyn, &
+      call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
                                 init_eos_height, recompute_rho=.false., &
                                 exner_from_rho=.true. )
     end select
