@@ -51,7 +51,7 @@
       <field_group id="um2lfric_fields" freq_op="1ts" operation="once" enabled=".TRUE." >
 	<!-- Fields for Aquaplanet -->
         <field id="h_wind" name="h_wind" long_name="horizontal_wind" standard_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
-	<field id="upward_wind" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+        <field id="w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
 	<field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
 	<field id="rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" />
 	<field id="m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
@@ -110,7 +110,7 @@
       <!-- File definition for checkpoint write -->
       <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
         <field field_ref="h_wind"/>
-	<field field_ref="upward_wind"/>
+	<field field_ref="w_in_wth"/>
 	<field field_ref="theta"/>
 	<field field_ref="rho" />
 	<field field_ref="m_v" />

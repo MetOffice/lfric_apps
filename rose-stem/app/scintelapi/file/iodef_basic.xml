@@ -42,11 +42,11 @@
 
       <!-- File definition for lfric checkpoint write  -->
       <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
-       <field id="write_ew_wind_in_w3" name="ew_wind_in_w3" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" prec="8" />
-       <field id="write_ns_wind_in_w3" name="ns_wind_in_w3" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" prec="8" />
+       <field id="write_u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" prec="8" />
+       <field id="write_v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" prec="8" />
        <field id="write_theta_in_wtheta" name="theta_in_wtheta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once" prec="8" />
        <field id="write_ozone_in_wtheta" name="ozone_in_wtheta" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="once" prec="8" />
-       <field id="write_upward_wind_in_wtheta" name="upward_wind_in_wtheta" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" prec="8" />
+       <field id="write_w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" prec="8" />
        <field id="write_dry_rho_in_w3" name="dry_rho_in_w3" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="once" prec="8" />
        <field id="write_mv_in_wtheta" name="mv_in_wtheta" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" prec="8" />
        <field id="write_mcl_in_wtheta" name="mcl_in_wtheta" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" prec="8" />
