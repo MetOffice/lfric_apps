@@ -1,0 +1,65 @@
+[project]
+name = "lfric_apps"
+version = "2026.3.1"
+description = "LFRic-based science applications and libraries"
+license = {file = 'LICENCE'}
+requires-python = ">=3.12"
+
+[project.urls]
+repository = "https://github.com/MetOffice/lfric_apps"
+documentation = "https://metoffice.github.io/lfric_apps/"
+discussion = "https://github.com/MetOffice/simulation-systems/discussions"
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.0.2",
+    "ruff==0.15.4",
+    "ty==0.0.20",
+    "fortitude-lint==0.8.0",
+]
+docs = [
+    "sphinx==8.1.0",
+    "pydata-sphinx-theme==0.16.1",
+    "sphinx-sitemap==2.6.0",
+    "sphinx_design==0.6.1",
+    "sphinx-lint==1.0.2",
+]
+
+[tool.setuptools]
+packages = []
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "B",  # flake8-bugbear: Code quality issues
+    "CPY", # flake8-copyright: Copyright notice issues
+    "E",  # pycodestyle errors: Basic PEP 8 violations
+    "F",  # pyflakes errors: Logical errors in code
+    "I",  # isort errors: Import sorting issues
+    "N", # pep8-naming: Naming convention issues
+    "NPY", # flake8-numpy: NumPy-specific rules
+    "UP", # pyupgrade: Modernisation rules, enforce f-strings for formatting
+    "W",  # pycodestyle warnings: PEP 8 warnings
+    # "PL", # pylint rules: Various code quality and style issues
+]
+ignore = [
+    "E501",  # line-too-long
+    "I001",  # unsorted-imports
+    "UP030", # format-literals
+    "F401",  # unused-import
+    "F403",  # undefined-local-with-import-star
+    "B905",  # zip-without-explicit-strict
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+# preview = true
+
+# [tool.ty.environment]
+# root = [
+#     ".",
+# ]
