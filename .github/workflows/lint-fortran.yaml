@@ -5,6 +5,9 @@ on:
 
 jobs:
   fortitude-lint:
-    uses: MetOffice/growss/.github/workflows/fortran-lint.yaml@main
+    name: Fortran lint
+    permissions:
+      contents: read  # Required to evaluate the event trigger metadata safely
+    uses: MetOffice/growss/.github/workflows/fortran-lint.yaml@develop  # zizmor: ignore[unpinned-uses]
     with:
       runner: 'ubuntu-24.04'

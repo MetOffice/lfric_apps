@@ -3,8 +3,19 @@ name: Legal
 on:
   pull_request_target:
 
+concurrency:
+  # Automatically cancels the workflow run instantly before the
+  # engine can parse empty jobs and generate notification emails
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event.pull_request.head.repo.full_name != 'MetOffice/lfric_apps' }}
+
+permissions: {}
+
 jobs:
   cla:
-    uses: MetOffice/growss/.github/workflows/cla-check.yaml@main
+    permissions:
+      contents: read  # Required to evaluate the event trigger metadata safely
+      pull-requests: write  # Required for the downstream engine to post status comments on the PR
+    uses: MetOffice/growss/.github/workflows/cla-check.yaml@develop  # zizmor: ignore[unpinned-uses]
     with:
       runner: 'ubuntu-24.04'

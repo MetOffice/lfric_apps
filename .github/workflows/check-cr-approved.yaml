@@ -1,11 +1,14 @@
 name: Check CR approved
 
 on:
-    pull_request_review:
-        types: [submitted, edited, dismissed]
-    workflow_dispatch:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  workflow_dispatch:
 
 jobs:
-    check_cr_approved:
-        if: ${{ github.event.pull_request.number }}
-        uses: MetOffice/growss/.github/workflows/check-cr-approved.yaml@main
+  check_cr_approved:
+    permissions:
+      contents: read  # Required to evaluate the event trigger metadata safely
+    name: CR approval
+    if: ${{ github.event.pull_request.number }}
+    uses: MetOffice/growss/.github/workflows/check-cr-approved.yaml@develop  # zizmor: ignore[unpinned-uses]
