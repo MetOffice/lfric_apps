@@ -65,15 +65,21 @@ program algorithm_test
 
   character(str_def) ::  prime_mesh_name
 
-  logical(l_def) :: apply_partition_check
+  logical(l_def) :: check_partitions
+  logical(l_def) :: inner_halo_tiles
 
   integer(i_def) :: geometry
   integer(i_def) :: stencil_depth(1)
   integer(i_def) :: method
   integer(i_def) :: number_of_layers
+  integer(i_def) :: tile_size_x
+  integer(i_def) :: tile_size_y
+
   real(r_def)    :: domain_bottom
   real(r_def)    :: domain_height
   real(r_def)    :: scaled_radius
+
+  integer(i_def), allocatable :: tile_size(:,:)
 
   integer(i_def) :: i
   integer(i_def), parameter :: one_layer = 1_i_def
@@ -153,6 +159,10 @@ program algorithm_test
   number_of_layers = config%extrusion%number_of_layers()
   scaled_radius    = config%planet%scaled_radius()
 
+  tile_size_x = 1
+  tile_size_y = 1
+  inner_halo_tiles = .false.
+
   !--------------------------------------
   ! 1.0 Create the meshes
   !--------------------------------------
@@ -183,16 +193,22 @@ program algorithm_test
   !-------------------------------------------------------------------------
   ! 1.2 Create the required meshes
   !-------------------------------------------------------------------------
+  if (allocated(tile_size)) deallocate(tile_size)
+  allocate(tile_size(2, size(base_mesh_names)))
+  tile_size(1,:) = tile_size_x
+  tile_size(2,:) = tile_size_y
   stencil_depth = 1
-  apply_partition_check = .false.
-  call init_mesh( config, local_rank, total_ranks,           &
-                  base_mesh_names, extrusion, stencil_depth, &
-                  apply_partition_check )
+  check_partitions = .false.
+  call init_mesh( config, local_rank, total_ranks, &
+                  base_mesh_names, extrusion,      &
+                  inner_halo_tiles, tile_size,     &
+                  stencil_depth, check_partitions )
 
   do i=1, size(twod_names)
     twod_names(i) = trim(twod_names(i))//'_2d'
   end do
   call create_mesh( base_mesh_names, extrusion_2d, &
+                    inner_halo_tiles, tile_size,   &
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
@@ -200,7 +216,7 @@ program algorithm_test
   !-------------------------------------------------------------------------
   ! Tests
   !-------------------------------------------------------------------------
-  call test_algorithm_initialise(prime_mesh_name) ! fem
+  call test_algorithm_initialise(config, prime_mesh_name) ! fem
 
   if ( do_test_jedi_lfric_increment_alg_mod ) then
     call test_jedi_lfric_increment_alg(tolerance)

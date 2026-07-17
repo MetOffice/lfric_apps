@@ -13,55 +13,61 @@
 
 module initial_mr_kernel_mod
 
-    use argument_mod,                  only: arg_type, func_type,       &
-                                             GH_FIELD, GH_REAL,         &
-                                             GH_SCALAR, GH_BASIS,       &
-                                             GH_WRITE, GH_READ,         &
-                                             ANY_SPACE_9,               &
-                                             ANY_DISCONTINUOUS_SPACE_3, &
-                                             GH_EVALUATOR, CELL_COLUMN
-    use fs_continuity_mod,             only: W3, Wtheta
-    use constants_mod,                 only: r_def, i_def
-    use kernel_mod,                    only: kernel_type
-    use section_choice_config_mod,     only: cloud, cloud_um
-    use idealised_config_mod,          only: test, test_bryan_fritsch, &
-                                             test_grabowski_clark, &
-                                             test_isot_dry_atm
-    use initial_pressure_config_mod,   only: method, method_balanced
+  use argument_mod,                  only: arg_type, func_type,       &
+                                           GH_FIELD, GH_REAL,         &
+                                           GH_SCALAR, GH_BASIS,       &
+                                           GH_WRITE, GH_READ,         &
+                                           ANY_SPACE_9,               &
+                                           ANY_DISCONTINUOUS_SPACE_3, &
+                                           GH_EVALUATOR, CELL_COLUMN
+  use fs_continuity_mod,             only: W3, Wtheta
+  use constants_mod,                 only: r_def, i_def
+  use kernel_mod,                    only: kernel_type
+  use section_choice_config_mod,     only: cloud, cloud_um
+  use idealised_config_mod,          only: test, test_bryan_fritsch, &
+                                           test_grabowski_clark, &
+                                           test_isot_dry_atm
+  use initial_pressure_config_mod,   only: method, method_balanced
 
-    implicit none
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
+  implicit none
+  private
+
+  !-------------------------------------------------------------------------------
+  ! Public types
+  !-------------------------------------------------------------------------------
+  !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
+  type, public, extends(kernel_type) :: initial_mr_kernel_type
     private
+    type(arg_type) :: meta_args(9) = (/                                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
+         arg_type(GH_FIELD*6, GH_REAL, GH_WRITE, Wtheta),                    &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
+         arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
+         /)
+    type(func_type) :: meta_funcs(1) = (/                                    &
+         func_type(ANY_SPACE_9, GH_BASIS)                                    &
+         /)
+    integer :: operates_on = CELL_COLUMN
+    integer :: gh_shape = GH_EVALUATOR
+  contains
+    procedure, nopass :: initial_mr_code
+  end type
 
-    !-------------------------------------------------------------------------------
-    ! Public types
-    !-------------------------------------------------------------------------------
-    !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
-    type, public, extends(kernel_type) :: initial_mr_kernel_type
-        private
-        type(arg_type) :: meta_args(9) = (/                                      &
-             arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
-             arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
-             arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
-             arg_type(GH_FIELD*6, GH_REAL, GH_WRITE, Wtheta),                    &
-             arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
-             arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
-             arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
-             arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
-             arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
-             /)
-        type(func_type) :: meta_funcs(1) = (/                                    &
-             func_type(ANY_SPACE_9, GH_BASIS)                                    &
-             /)
-        integer :: operates_on = CELL_COLUMN
-        integer :: gh_shape = GH_EVALUATOR
-    contains
-        procedure, nopass :: initial_mr_code
-    end type
+!-------------------------------------------------------------------------------
+! Contained functions/subroutines
+!-------------------------------------------------------------------------------
+  public :: initial_mr_code
 
-    !-------------------------------------------------------------------------------
-    ! Contained functions/subroutines
-    !-------------------------------------------------------------------------------
-    public :: initial_mr_code
 contains
 
   !> @brief The subroutine which is called directly by the Psy layer
@@ -169,8 +175,10 @@ contains
           coords(3) = coords(3) + chi_3_e(dfc)*chi_basis(1,dfc,df)
         end do
 
-        call chi2xyz(coords(1), coords(2), coords(3), &
-                     ipanel, xyz(1), xyz(2), xyz(3))
+        call chi2xyz( coords(1), coords(2), coords(3), &
+                      ipanel, geometry, topology,      &
+                      coord_system, scaled_radius,     &
+                      xyz(1), xyz(2), xyz(3) )
 
         !----------------------------------------------------------------------!
         ! Get thermodynamic variables at DoF
@@ -234,8 +242,10 @@ contains
           coords(3) = coords(3) + chi_3_e(dfc)*chi_basis(1,dfc,df)
         end do
 
-        call chi2xyz(coords(1), coords(2), coords(3), &
-                     ipanel, xyz(1), xyz(2), xyz(3))
+        call chi2xyz( coords(1), coords(2), coords(3), &
+                      ipanel, geometry, topology,      &
+                      coord_system, scaled_radius,     &
+                      xyz(1), xyz(2), xyz(3) )
 
         !----------------------------------------------------------------------!
         ! Get thermodynamic variables at DoF

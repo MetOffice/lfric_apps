@@ -296,7 +296,7 @@ if ( maxval(nc) > 0 ) then
                       moist_proc_diags, n_points_diag, n_diags, diags_super )
 
 
-end if  ! ( maxval(nc) > 0 )
+end if  ! ( MAXVAL(nc) > 0 )
 
 
 return

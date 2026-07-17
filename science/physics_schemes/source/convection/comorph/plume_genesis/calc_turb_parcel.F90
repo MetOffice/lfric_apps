@@ -15,19 +15,16 @@ contains
 
 ! Subroutine to calculate parcel initial perturbations to winds and
 ! scalars, on full-levels (involves some fiddly interpolation from
-! the fluxes defined on half-levels), and set the parcel initial radius.
+! the fluxes defined on half-levels).
 subroutine calc_turb_parcel( n_points, n_points_super, cmpr_init, k,           &
                              grid_km1, grid_kmh, grid_k,                       &
                              grid_kph, grid_kp1,                               &
                              fields_km1, fields_k, fields_kp1,                 &
-                             turb_len_k, par_radius_amp, turb_kmh, turb_kph,   &
-                             turb_pert_k, par_radius )
+                             turb_kmh, turb_kph, turb_pert_k )
 
 use comorph_constants_mod, only: real_cvprec, zero, one, min_float,            &
                                  k_bot_conv, k_top_conv,                       &
                                  l_turb_par_gen, par_gen_qpert,                &
-                                 par_gen_radius, par_gen_radius_fac,           &
-                                 ass_min_radius, min_radius_fac,               &
                                  name_length,                                  &
                                  i_check_bad_values_cmpr, i_check_bad_none
 use cmpr_type_mod, only: cmpr_type
@@ -79,12 +76,6 @@ real(kind=real_cvprec), intent(in) :: fields_k                                 &
 real(kind=real_cvprec), intent(in) :: fields_kp1                               &
                                 ( n_points_super, i_wind_u:i_qc_last )
 
-! Turbulence length-scale at current full level
-real(kind=real_cvprec), intent(in) :: turb_len_k(n_points)
-
-! Parcel radius amplification factor
-real(kind=real_cvprec), intent(in) :: par_radius_amp(n_points)
-
 ! Super-arrays containing turbulence fields at the
 ! model-level interfaces
 real(kind=real_cvprec), intent(in) :: turb_kmh                                 &
@@ -95,10 +86,6 @@ real(kind=real_cvprec), intent(in) :: turb_kph                                 &
 ! Turbulence-based perturbations to u,v,w,Tl,qt, at level k
 real(kind=real_cvprec), intent(out) :: turb_pert_k                             &
                                        ( n_points, i_wind_u:i_q_vap )
-
-! Parcel initial radius
-real(kind=real_cvprec), intent(out) :: par_radius(n_points)
-
 
 ! Toal heat capacity at k
 real(kind=real_cvprec) :: cp_tot(n_points)
@@ -220,7 +207,7 @@ if ( l_turb_par_gen ) then
         +      interp  * turb_pert_kph(ic,i_wind_w)
     end do
 
-  else  ! ( k > k_bot_conv .and. k < k_top_conv )
+  else  ! ( k > k_bot_conv .AND. k < k_top_conv )
     ! Special case of the top and bottom model-levels, where
     ! we don't have the fields at the levels above and below to
     ! use in the interpolation.
@@ -236,44 +223,11 @@ if ( l_turb_par_gen ) then
       end do
     end do
 
-  end if  ! ( k > k_bot_conv .and. k < k_top_conv )
-
-  ! Set the initial parcel radius...
-
-  ! Ideally we would just use the turbulence-based radius here;
-  ! however, the BL scheme often predicts entirely non-turbulent
-  ! conditions (and hence zero length-scale) even when there
-  ! is liquid cloud present in a moist unstable environment.
-  ! I think this is because it calculates a grid-mean Nsq
-  ! (weighting dry and moist values by cloud-fraction), and then
-  ! uses that to calculate a single Ri and stability function for
-  ! the whole grid-box.  This usually comes out stable unless
-  ! either the cloud fraction is near 1 or the profile is near
-  ! dry-statically unstable.  The correct way would be to
-  ! calculate separate Ri and stability function values in the
-  ! cloudy and non-cloudy regions, and only do the grid-box
-  ! averaging after calculating the stability functions.
-  ! Anyhow, for now we need to make up some minimum
-  ! length-scale to be applied wherever the atmosphere is
-  ! moist unstable (and hence triggers convection), but the
-  ! BL scheme hasn't given us any turbulence to trigger from.
-
-  ! Use max of turbulence-based radius and an arbitrary linear
-  ! ramp from the surface
-  do ic = 1, n_points
-    par_radius(ic) = max( par_gen_radius_fac * turb_len_k(ic),                 &
-                          min( min_radius_fac * grid_k(ic,i_height),           &
-                               ass_min_radius ) )
-  end do
-
-  ! Amplify the parcel radius using input variable scaling factor...
-  do ic = 1, n_points
-    par_radius(ic) = par_radius(ic) * par_radius_amp(ic)
-  end do
+  end if  ! ( k > k_bot_conv .AND. k < k_top_conv )
 
 
 else  ! ( l_turb_par_gen )
-  ! If not using turbulence-based parcel perturbations...
+  ! If NOT using turbulence-based parcel perturbations...
 
 
   ! Set u,v,w,T perturbations to zero
@@ -286,11 +240,6 @@ else  ! ( l_turb_par_gen )
   ! Set fixed fractional q perturbation
   do ic = 1, n_points
     turb_pert_k(ic,i_q_vap) = par_gen_qpert * fields_k(ic,i_q_vap)
-  end do
-
-  ! Set arbitrary fixed parcel radius
-  do ic = 1, n_points
-    par_radius(ic) = par_gen_radius
   end do
 
 
@@ -314,12 +263,6 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
     call check_bad_values_cmpr( cmpr_init, k, turb_pert_k(:,i_field),          &
                                 call_string, field_name, l_positive )
   end do
-
-  ! Parcel radius
-  field_name = "par_radius"
-  l_positive = .true.
-  call check_bad_values_cmpr( cmpr_init, k, par_radius,                        &
-                              call_string, field_name, l_positive )
 
 end if  ! ( i_check_bad_values_cmpr > i_check_bad_none )
 
