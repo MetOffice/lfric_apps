@@ -10,6 +10,7 @@
 !>          equations using a multistage explicit Runge-Kutta algorithm.
 module rk_alg_timestep_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def, l_def
   use fs_continuity_mod,                  only: W1, W2, W3
   use log_mod,                            only: log_event,         &
@@ -29,9 +30,11 @@ module rk_alg_timestep_mod
   use derived_config_mod,                 only: bundle_size
   use sci_fem_constants_mod,              only: get_qr_fe, &
                                                 get_inverse_mass_matrix_fe
-  use sci_geometric_constants_mod,        only: get_coordinates, &
-                                                get_panel_id,    &
-                                                get_dx_at_w2
+  use sci_geometric_constants_mod,        only: get_coordinates,      &
+                                                get_panel_id,         &
+                                                get_dx_at_w2,         &
+                                                get_face_selector_ew, &
+                                                get_face_selector_ns
   use transport_config_mod,               only: operators, &
                                                 operators_fv
   use mixing_config_mod,                  only: viscosity, viscosity_mu
@@ -62,6 +65,7 @@ module rk_alg_timestep_mod
   use field_array_mod,                    only: field_array_type
   use field_mod,                          only: field_type
   use field_collection_mod,               only: field_collection_type
+  use integer_field_mod,                  only: integer_field_type
   use function_space_collection_mod,      only: function_space_collection
   use driver_modeldb_mod,                 only: modeldb_type
   use model_clock_mod,                    only: model_clock_type
@@ -71,6 +75,7 @@ module rk_alg_timestep_mod
   use operator_mod,                       only: operator_type
   use reference_element_mod,              only: reference_element_type
   use mesh_mod,                           only: mesh_type
+
   ! Algorithm
   use sci_mass_matrix_solver_alg_mod,     only: mass_matrix_solver_alg
   use gungho_transport_control_alg_mod,   only: gungho_transport_control_alg_init, &
@@ -104,6 +109,9 @@ module rk_alg_timestep_mod
     type(field_type)              :: vorticity
     integer(kind=i_def)           :: num_rk_stage
     real(kind=r_def), allocatable :: ak(:,:)
+
+    type(config_type), pointer :: config
+
   contains
     private
 
@@ -148,7 +156,7 @@ contains
     call prognostic_fields%get_field('exner', exner)
 
     ! Run the initialisation process
-    call run_init(self, u, rho, theta, exner)
+    call run_init(self, modeldb%config, u, rho, theta, exner)
 
     nullify ( prognostic_fields, u, rho, theta, exner )
 
@@ -205,15 +213,18 @@ contains
   end subroutine rk_alg_step
 
   !> @details Initialises various internal fields for the Runge-Kutta method
-  !> @param[in]    u 3D  wind field
-  !> @param[in]    rho   Density
-  !> @param[in]    theta Potential temperature
-  !> @param[in]    exner Exner pressure
-  subroutine run_init(self, u, rho, theta, exner)
+  !> @param[in]    config  Application namelist configuration object
+  !> @param[in]    u 3D    wind field
+  !> @param[in]    rho     Density
+  !> @param[in]    theta   Potential temperature
+  !> @param[in]    exner   Exner pressure
+  subroutine run_init(self, config, u, rho, theta, exner)
 
     implicit none
 
     type(rk_timestep_type), intent(inout) :: self
+
+    type(config_type), intent(in), target :: config
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: u, rho, theta, exner
@@ -230,6 +241,8 @@ contains
     ! Element orders to initialise function spaces with
     integer(i_def) :: element_order_h
     integer(i_def) :: element_order_v
+
+    self%config => config
 
     ! Get the mesh from one of the fields
     mesh => theta%get_mesh()
@@ -322,6 +335,8 @@ contains
     type(field_type),    pointer :: dx_at_w2
     type(operator_type), pointer :: m3_inv
     type(operator_type), pointer :: coriolis
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
 
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
 
@@ -353,8 +368,8 @@ contains
     geopotential => get_geopotential(mesh_id)
 
     ! Get coordinates
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi      => get_coordinates(u%get_mesh())
+    panel_id => get_panel_id(u%get_mesh())
 
     !=== Copy prognostic field data to state arrays ===========================!
     call invoke( name = "copy_fields_to_state",      &
@@ -371,7 +386,8 @@ contains
       write( log_scratch_space, '(A,I0)' ) '  Start of stage ', stage
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
       ! Compute advection terms
-      call gungho_transport_control_alg( self%rhs_prediction(:,stage), self%state, &
+      call gungho_transport_control_alg( self%config,                              &
+                                         self%rhs_prediction(:,stage), self%state, &
                                          self%state(igh_u), self%state(igh_u),     &
                                          mr, mr, model_clock, outer, cheap_update )
       ! Compute new rhs
@@ -444,12 +460,16 @@ contains
     ! Apply viscosity
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
-      dx_at_w2 => get_dx_at_w2(mesh_id)
+      dx_at_w2 => get_dx_at_w2(u%get_mesh())
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
+
       call invoke(setval_c(self%inc(igh_u), 0.0_r_def),                                  &
                   tracer_viscosity_kernel_type(   self%inc(igh_t), self%state(igh_t), 1, &
                                                   dx_at_w2, viscosity_mu ),              &
                   momentum_viscosity_kernel_type( self%inc(igh_u), self%state(igh_u), 1, &
-                                                  dx_at_w2, 1, viscosity_mu ),           &
+                                                  dx_at_w2, 1, face_selector_ew,         &
+                                                  face_selector_ns, viscosity_mu ),      &
                   setval_c(self%inc(igh_d), 0.0_r_def) )
       call bundle_axpy( real(model_clock%get_seconds_per_step(), r_def), &
                         self%inc, self%state, self%state, bundle_size )

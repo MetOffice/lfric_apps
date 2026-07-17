@@ -16,8 +16,10 @@
 
 export PSYCLONE_PHYSICS_FILES = \
                                 bl_lsp \
-                                bl_diags_mod \
                                 bm_tau_kernel_mod \
+                                bl_exp_kernel_mod \
+                                bl_imp_kernel_mod \
+                                bl_imp2_kernel_mod \
                                 btq_int \
                                 conv_gr_kernel_mod \
                                 ex_flux_tq \
@@ -26,7 +28,7 @@ export PSYCLONE_PHYSICS_FILES = \
                                 gw_ussp_mod \
                                 imp_mix \
                                 jules_exp_kernel_mod \
-				                jules_extra_kernel_mod \
+                                jules_extra_kernel_mod \
                                 jules_imp_kernel_mod \
                                 kmkh \
                                 kmkhz_9c_wtrac \
@@ -38,12 +40,14 @@ export PSYCLONE_PHYSICS_FILES = \
                                 pc2_initiation_kernel_mod \
                                 pc2_conv_coupling_kernel_mod \
                                 sw_kernel_mod \
-                                sw_rad_tile_kernel_mod \
-                                tr_mix \
-	                            ukca_aero_ctl \
+                                ukca_aero_ctl \
+                                ukca_abdulrazzak_ghan \
                                 ukca_chemistry_ctl_full_mod \
-                                ukca_main1-ukca_main1
-
+                                ukca_main1-ukca_main1 \
+                                sw_rad_tile_kernel_mod \
+                                jules_imp_kernel_mod \
+                                jules_exp_kernel_mod \
+                                jules_extra_kernel_mod
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 
@@ -61,7 +65,7 @@ export PSYCLONE_PASS_NO_SCRIPT = ukca_abdulrazzak_ghan
 # These files will be filtered, and will NOT be run through PSyclone.
 
 # Directories to psyclone
-export PSYCLONE_DIRECTORIES = science/ukca
+export PSYCLONE_DIRECTORIES =
 
 # A general file exception list
 export PSYCLONE_PHYSICS_EXCEPTION =

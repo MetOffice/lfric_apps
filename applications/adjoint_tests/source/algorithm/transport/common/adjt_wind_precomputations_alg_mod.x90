@@ -7,6 +7,7 @@
 !> @brief Module containing adjoint tests for the adj_wind_precomputations routines
 module adjt_wind_precomputations_alg_mod
 
+  use config_mod,                          only : config_type
   use constants_mod,                       only : i_def, r_def, r_tran
   use field_mod,                           only : field_type
   use r_tran_field_mod,                    only : r_tran_field_type
@@ -47,14 +48,17 @@ module adjt_wind_precomputations_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine adjt_wind_precomputations_initialiser_alg( mesh, model_clock )
+  subroutine adjt_wind_precomputations_initialiser_alg( config, mesh, model_clock )
 
     use wind_precomputations_alg_mod,     only : wind_precomputations_type
     use adj_wind_precomputations_alg_mod, only : adj_wind_precomputations_initialiser
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(mesh_type), pointer, intent(in) :: mesh
@@ -137,7 +141,10 @@ module adjt_wind_precomputations_alg_mod
 
     ! To avoid complexity everywhere else with the inner products, we need the wind precomputations
     ! object to be associated with a transport controller...
-    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs, 'wind' )
+    call setup_test_tl_transport_controller( config, mesh, model_clock, &
+                                             tl_transport_controller,   &
+                                             dummy, dummy_vs, 'wind' )
+
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
 
     ! But this getter actually initialises the wind precomputations using the fields in the test setup function...
@@ -147,7 +154,8 @@ module adjt_wind_precomputations_alg_mod
     call wind_pc%finalise()
 
     ! And use the variables in this scope!
-    call wind_pc%initialise( mesh,              &
+    call wind_pc%initialise( config,            &
+                             mesh,              &
                              dt_substep,        &
                              transporting_wind, &
                              wind_n,            &
