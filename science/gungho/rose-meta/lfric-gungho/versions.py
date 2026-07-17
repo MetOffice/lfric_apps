@@ -47,11 +47,6 @@ class vn32_t551(MacroUpgrade):
             config, ["namelist:multigrid", "multigrid_chain_nitems"]
         )
         if partitioner == "'planar'":
-            self.change_setting_value(
-                config,
-                ["namelist:base_mesh", "prime_mesh_name"],
-                "'l0_planar'",
-            )
             if multigrid_chain_nitems == "4":
                 self.add_setting(
                     config,
@@ -74,11 +69,6 @@ class vn32_t551(MacroUpgrade):
                     forced=True,
                 )
         else:
-            self.change_setting_value(
-                config,
-                ["namelist:base_mesh", "prime_mesh_name"],
-                "'l0_cubedsphere'",
-            )
             if multigrid_chain_nitems == "4":
                 self.add_setting(
                     config,
