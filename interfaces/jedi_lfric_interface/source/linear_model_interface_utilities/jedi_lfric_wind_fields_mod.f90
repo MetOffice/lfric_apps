@@ -12,6 +12,7 @@
 !>
 module jedi_lfric_wind_fields_mod
 
+  use base_mesh_config_mod,          only : geometry, topology
   use constants_mod,                 only : str_def, i_def
   use field_collection_mod,          only : field_collection_type
   use field_mod,                     only : field_type
@@ -165,7 +166,8 @@ contains
       call vector_wind%initialise(fs, "u")
 
       ! Interpolate cell-centre to edge
-      call interp_w3wth_to_w2_alg(vector_wind, u_in_w3, v_in_w3, w_in_wth)
+      call interp_w3wth_to_w2_alg(vector_wind, u_in_w3, v_in_w3, w_in_wth, &
+                                  geometry, topology)
 
       ! Remove the scalar winds
       call linear_state%remove_field("u_in_w3")

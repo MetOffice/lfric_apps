@@ -113,8 +113,8 @@ contains
     call prognostics%get_field("tracer_step", tracer_step)
 
     ! Get coordinates and set up quadrature
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     qr  = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
                                element_order_v+3, quadrature_rule)
     w1_fs => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W1)
@@ -207,21 +207,19 @@ contains
     type(function_space_type), pointer :: q_fs  => null()
 
     ! Coordinate fields and quadrature
-    type( field_type ), pointer           :: chi(:) => null()
+    type( field_type ), pointer           :: chi(:)
     type( quadrature_xyoz_type )          :: qr
     type( quadrature_rule_gaussian_type ) :: quadrature_rule
-    type( field_type ), pointer           :: panel_id => null()
+    type( field_type ), pointer           :: panel_id
 
-    ! Mesh ID
-    integer(i_def) :: mesh_id
+    type( mesh_type ), pointer :: mesh
 
-    mesh_id = geopot%get_mesh_id()
-
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    mesh     => geopot%get_mesh()
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     qr  = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
                                element_order_v+3, quadrature_rule)
-    w1_fs => function_space_collection%get_fs(geopot%get_mesh(), element_order_h, &
+    w1_fs => function_space_collection%get_fs(mesh, element_order_h, &
                                               element_order_v, W1)
 
     ! Initialise vorticity using velocity and geopotential
@@ -267,8 +265,8 @@ contains
     type( field_type ), pointer :: panel_id => null()
 
     ! Get coordinates
-    chi => get_coordinates(s_geopot%get_mesh_id())
-    panel_id => get_panel_id(s_geopot%get_mesh_id())
+    chi      => get_coordinates(s_geopot%get_mesh())
+    panel_id => get_panel_id(s_geopot%get_mesh())
 
     ! Set surface geopotential
     call invoke( initial_surface_geopot_kernel_type(s_geopot, chi, panel_id) )
