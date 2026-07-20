@@ -506,7 +506,7 @@ contains
                     .or. horizontal_method(i) /= split_method_ffsl ) then
             call log_event(                                                    &
               '3D unity transport can only be used when all variables '        &
-              // 'are using FFSL for vertical and horizontal transport', LOG_LEVEL_ERROR)
+              // 'are using FFSL for vertical and horizontal transport', LOG_LEVEL_WARNING)
           end if
         end if
 

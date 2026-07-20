@@ -69,6 +69,7 @@ contains
     ! Internal variables
     type(r_tran_field_type) :: height
     logical(kind=l_def)     :: hermite
+    integer(kind=i_def), parameter :: dep_depth = 1_i_def
 
     ! Get height at r_tran precision
     mesh => coeffs(1)%get_mesh()
@@ -77,11 +78,15 @@ contains
     call invoke( real_to_real_x(height, height_rdef) )
 
     select case (order)
-    case (vertical_sl_order_cubic)
-      hermite = .false.
+    case (vertical_sl_order_cubic, vertical_sl_order_cubic_hermite)
+      if ( order == vertical_sl_order_cubic_hermite ) then
+        hermite = .true.
+      else
+        hermite = .false.
+      end if
       call invoke ( name='sl_cubic_coeff',                                     &
                     compute_vertical_cubic_coef_kernel_type(                   &
-                        dep_dist, height,                                      &
+                        dep_dist, dep_depth, height, dep_depth,                &
                         coeffs(1), coeffs(2),                                  &
                         coeffs(3), coeffs(4),                                  &
                         sl_indices(1), sl_indices(2),                          &
@@ -91,27 +96,17 @@ contains
     case (vertical_sl_order_quintic)
       call invoke ( name='sl_quintic_coeff',                                   &
                     compute_vertical_quintic_coef_kernel_type(                 &
-                        dep_dist, height,                                      &
+                        dep_dist, dep_depth, height, dep_depth,                &
                         coeffs(1), coeffs(2), coeffs(3),                       &
                         coeffs(4), coeffs(5), coeffs(6),                       &
                         sl_indices(1), sl_indices(2), sl_indices(3),           &
                         sl_indices(4), sl_indices(5), sl_indices(6) )          &
       )
-    case (vertical_sl_order_cubic_hermite)
-      hermite = .true.
-      call invoke ( name='sl_cubic_herm_coeff',                                &
-                    compute_vertical_cubic_coef_kernel_type(                   &
-                        dep_dist, height,                                      &
-                        coeffs(1), coeffs(2),                                  &
-                        coeffs(3), coeffs(4),                                  &
-                        sl_indices(1), sl_indices(2),                          &
-                        sl_indices(3), sl_indices(4),                          &
-                        hermite )                                              &
-      )
     case (vertical_sl_order_linear)
       call invoke ( name='sl_linear_coeff',                                    &
                     compute_vertical_linear_coef_kernel_type(                  &
-                        dep_dist, height, coeffs(1), coeffs(2) )               &
+                        dep_dist, dep_depth, height, dep_depth,                &
+                        coeffs(1), coeffs(2) )    &
       )
     end select
 

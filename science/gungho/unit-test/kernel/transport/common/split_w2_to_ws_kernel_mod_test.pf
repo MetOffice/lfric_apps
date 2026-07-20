@@ -1,0 +1,135 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the kernel that splits W2 winds into W2h and Wtheta components.
+
+module split_w2_to_ws_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+contains
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine split_w2_to_ws_kernel_test()
+    use split_w2_to_ws_kernel_mod, only: split_w2_to_ws_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-14_r_def
+
+    ! Dimensions
+    integer(kind=i_def), parameter :: nlayers   = 2
+    integer(kind=i_def), parameter :: ndf_w2h   = 4
+    integer(kind=i_def), parameter :: ndf_wt    = 2
+    integer(kind=i_def), parameter :: ndf_w2    = 6
+    integer(kind=i_def), parameter :: ndf_wx    = 1   ! single chi dof for Wchi
+    integer(kind=i_def), parameter :: ndf_w3_2d = 1
+
+    ! undf values
+    integer(kind=i_def), parameter :: undf_w2h   = ndf_w2h * nlayers
+    integer(kind=i_def), parameter :: undf_wt    = nlayers + 1
+    integer(kind=i_def), parameter :: undf_w2    = undf_w2h + undf_wt
+    integer(kind=i_def), parameter :: undf_wx    = nlayers
+    integer(kind=i_def), parameter :: undf_w3_2d = 1
+
+    ! Maps: non-overlapping strides of nlayers=2
+    integer(kind=i_def), dimension(ndf_w2h)   :: map_w2h
+    integer(kind=i_def), dimension(ndf_wt)    :: map_wt
+    integer(kind=i_def), dimension(ndf_w2)    :: map_w2
+    integer(kind=i_def), dimension(ndf_wx)    :: map_wx
+    integer(kind=i_def), dimension(ndf_w3_2d) :: map_w3_2d
+
+    ! Fields
+    real(kind=r_def), dimension(undf_w2h)   :: uv_w2h
+    real(kind=r_def), dimension(undf_wt)    :: w_wt
+    real(kind=r_def), dimension(undf_w2)    :: uvw
+    real(kind=r_def), dimension(undf_wx)    :: chi3
+    real(kind=r_def), dimension(undf_w2)    :: da
+
+    ! Differential basis (3 components, ndf_wx nodes, ndf_wt nodes)
+    real(kind=r_def), dimension(3, ndf_wx, ndf_wt) :: diff_basis_wx_on_wt
+
+    ! Face selectors
+    integer(kind=i_def), dimension(undf_w3_2d) :: face_selector_ew
+    integer(kind=i_def), dimension(undf_w3_2d) :: face_selector_ns
+
+    ! Set maps
+    map_w2h(1) = 1   ! W face
+    map_w2h(2) = 3   ! S face
+    map_w2h(3) = 5   ! E face
+    map_w2h(4) = 7   ! N face
+
+    map_wt(1) = 1
+    map_wt(2) = 2
+
+    map_w2(1) = 1    ! W face
+    map_w2(2) = 3    ! S face
+    map_w2(3) = 5    ! E face
+    map_w2(4) = 7    ! N face
+    map_w2(5) = 9    ! lower vertical face
+    map_w2(6) = 10   ! upper vertical face
+
+    map_wx(1)    = 1
+    map_w3_2d(1) = 1
+
+    ! Face selectors: 2 active faces each direction
+    face_selector_ew(1) = 2
+    face_selector_ns(1) = 2
+
+    ! Area element da = 2.0 everywhere (so result is uvw/2)
+    da(:) = 2.0_r_def
+
+    ! chi3 = 1.0 to keep dz_z nonzero in slope-correction denominator
+    chi3(:) = 1.0_r_def
+
+    ! Disable slope correction: set x and y basis components to zero,
+    ! z component to 1.0 to avoid 0/0 in dz_z
+    diff_basis_wx_on_wt(1,:,:) = 0.0_r_def
+    diff_basis_wx_on_wt(2,:,:) = 0.0_r_def
+    diff_basis_wx_on_wt(3,:,:) = 1.0_r_def
+
+    ! W2 wind field: distinct values per face per layer
+    uvw(1)  = 2.0_r_def   ! W face, layer 0
+    uvw(2)  = 4.0_r_def   ! W face, layer 1
+    uvw(3)  = 6.0_r_def   ! S face, layer 0
+    uvw(4)  = 8.0_r_def   ! S face, layer 1
+    uvw(5)  = 10.0_r_def  ! E face, layer 0
+    uvw(6)  = 12.0_r_def  ! E face, layer 1
+    uvw(7)  = 14.0_r_def  ! N face, layer 0
+    uvw(8)  = 16.0_r_def  ! N face, layer 1
+    uvw(9)  = 0.0_r_def   ! lower vertical face boundary (not split)
+    uvw(10) = 20.0_r_def  ! lower vertical face interior (split to w_wt)
+    uvw(11) = 0.0_r_def
+
+    ! Initialise outputs
+    uv_w2h(:) = 0.0_r_def
+    w_wt(:)   = 0.0_r_def
+
+    call split_w2_to_ws_code( nlayers,                            &
+                              uv_w2h, w_wt, uvw,                  &
+                              chi3, da,                           &
+                              face_selector_ew,                   &
+                              face_selector_ns,                   &
+                              ndf_w2h,   undf_w2h,   map_w2h,     &
+                              ndf_wt,    undf_wt,    map_wt,      &
+                              ndf_w2,    undf_w2,    map_w2,      &
+                              ndf_wx,    undf_wx,    map_wx,      &
+                              diff_basis_wx_on_wt,                &
+                              ndf_w3_2d, undf_w3_2d, map_w3_2d )
+
+    ! Horizontal wind: uv_w2h = uvw / da = uvw / 2
+    @assertEqual(uvw(1:undf_w2h)/2.0_r_def, uv_w2h, tol)
+
+    ! Vertical wind: boundaries zero; interior = uvw(10)/da(10) = 10.0
+    @assertEqual(uvw(undf_w2h+1:undf_w2)/2.0_r_def, w_wt, tol)
+
+  end subroutine split_w2_to_ws_kernel_test
+
+end module split_w2_to_ws_kernel_mod_test

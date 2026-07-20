@@ -22,12 +22,17 @@ module wind_transport_alg_mod
   use field_mod,                      only: field_type
   use finite_element_config_mod,      only: coord_system, coord_system_native
   use formulation_config_mod,         only: si_momentum_equation
-  use fs_continuity_mod,              only: W2, W3, W2broken
+  use fs_continuity_mod,              only: W2, W3, W2broken, Wtheta, W2h
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
-  use sci_geometric_constants_mod,    only: get_coordinates, get_panel_id
+  use sci_geometric_constants_mod,    only: get_coordinates,      &
+                                            get_panel_id,         &
+                                            get_da_at_w2,         &
+                                            get_face_selector_ew, &
+                                            get_face_selector_ns
   use log_mod,                        only: log_event,       &
                                             LOG_LEVEL_ERROR, &
+                                            LOG_LEVEL_INFO,  &
                                             LOG_LEVEL_TRACE
   use sci_mapping_constants_mod,      only: get_project_xdot_to_w2,  &
                                             get_project_ydot_to_w2,  &
@@ -36,13 +41,20 @@ module wind_transport_alg_mod
   use operator_mod,                   only: operator_type
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
-  use transport_config_mod,           only: broken_w2_projection
+  use transport_config_mod,           only: broken_w2_projection, &
+                                            native_w2_wind_transport
   use transport_constants_mod,        only: get_element_order_h_transport, &
                                             get_element_order_v_transport
   use transport_controller_mod,       only: transport_controller_type
   use transport_enumerated_types_mod, only: equation_form_advective
   use transport_field_mod,            only: transport_field
   use transport_metadata_mod,         only: transport_metadata_type
+  use split_w2_to_ws_kernel_mod,      only: split_w2_to_ws_kernel_type
+  use combine_ws_to_w2_kernel_mod,    only: combine_ws_to_w2_kernel_type
+  use apply_wind_metrics_kernel_mod,  only: apply_wind_metrics_kernel_type
+  use base_mesh_config_mod,           only: geometry,           &
+                                            geometry_spherical
+  use integer_field_mod,              only: integer_field_type
 
   implicit none
 
@@ -75,6 +87,7 @@ contains
     use matrix_vector_kernel_mod,         only: matrix_vector_kernel_type
     use sci_average_w2b_to_w2_kernel_mod, only: average_w2b_to_w2_kernel_type
     use sci_field_minmax_alg_mod,         only: log_field_minmax
+    use sample_field_kernel_mod,          only: sample_field_kernel_type
 
     implicit none
 
@@ -99,10 +112,22 @@ contains
     type(operator_type),        pointer :: project_ydot_to_w2
     type(operator_type),        pointer :: project_zdot_to_w2
     type(function_space_type),  pointer :: w3_fs
+    type(function_space_type),  pointer :: wt_fs
+    type(function_space_type),  pointer :: w2h_fs
     type(function_space_type),  pointer :: w2_fs
     type(function_space_type),  pointer :: w2b_fs
     logical(kind=l_def)                 :: optimised_conversion
     integer(tik)                        :: id_to, id_from
+    type(field_type)                    :: ones
+    type(field_type),           pointer :: da
+    type(field_type)                    :: chi1_n, chi1_d, chi2_n, chi2_d, chi1_d_w2, chi2_d_w2
+    integer(kind=i_def), parameter      :: stencil_depth = 1_i_def
+    type(field_type)                    :: u_w2_inc_with_metrics
+    type(integer_field_type), pointer   :: face_selector_ew
+    type(integer_field_type), pointer   :: face_selector_ns
+
+
+    if ( LPROF ) call start_timing( id_to, 'transport.wind' )
 
     k_h = get_element_order_h_transport()
     k_v = get_element_order_v_transport()
@@ -116,6 +141,11 @@ contains
       call invoke( setval_c(rhs_u, 0.0_r_def) )
 
     else
+
+      mesh => wind_n%get_mesh()
+      chi => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
+
       ! Transport the wind. First choose form of transport equation
       select case ( transport_metadata%get_equation_form() )
 
@@ -124,128 +154,212 @@ contains
       ! ---------------------------------------------------------------------- !
       case ( equation_form_advective )
 
-        ! Compute u in physical space and advect components in geocentric
-        ! Cartesian coordinates and then map back to computational form
+        if ( native_w2_wind_transport ) then
 
-        mesh => wind_n%get_mesh()
-        w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
-        chi => get_coordinates(mesh)
-        panel_id => get_panel_id(mesh)
+          ! Transport the winds on their native W2 points
+          wt_fs => function_space_collection%get_fs( mesh, k_h, k_v, Wtheta )
+          w2h_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2h )
+          call u_w3_n(1)%initialise( w2h_fs )
+          call u_w3_inc(1)%initialise( w2h_fs )
+          call u_w3_np1(1)%initialise( w2h_fs )
+          call u_w3_n(2)%initialise( wt_fs )
+          call u_w3_inc(2)%initialise( wt_fs )
+          call u_w3_np1(2)%initialise( wt_fs )
 
-        ! -------------------------------------------------------------------- !
-        ! Split wind into components in W3
-        ! -------------------------------------------------------------------- !
+          face_selector_ew => get_face_selector_ew(mesh)
+          face_selector_ns => get_face_selector_ns(mesh)
 
-        if ( LPROF ) call start_timing( id_to, 'transport.wind_to_comps' )
+          dA => get_da_at_w2( mesh )
+          call invoke(split_w2_to_ws_kernel_type( u_w3_n(1), u_w3_n(2), &
+                                                  wind_n, chi(3), dA,   &
+                                                  face_selector_ew,     &
+                                                  face_selector_ns ) )
 
-        do dir = 1,3
-          call u_w3_n(dir)%initialise( w3_fs )
-          call u_w3_inc(dir)%initialise( w3_fs )
-          call u_w3_np1(dir)%initialise( w3_fs )
-        end do
-        call log_field_minmax( LOG_LEVEL_TRACE, 'advected u', wind_n )
+          do dir = 1,2
+            call log_field_minmax( LOG_LEVEL_INFO, 'wind_n', u_w3_n(dir) )
+            call transport_field(                                                &
+                    u_w3_np1(dir), u_w3_n(dir), transport_controller,            &
+                    transport_metadata                                           &
+            )
+            call log_field_minmax( LOG_LEVEL_INFO, 'wind_np1', u_w3_np1(dir) )
+          end do
 
-        optimised_conversion = (                                               &
-          coord_system == coord_system_native                                  &
-          .and. w3_fs%get_element_order_h() == 0                               &
-          .and. w3_fs%get_element_order_v() == 0                               &
-        )
-        if (optimised_conversion) then
-          call invoke( dg_convert_hdiv_native_kernel_type(                     &
-                  u_w3_n, wind_n, chi, panel_id                                &
-          ) )
-        else
-          call invoke( dg_convert_hdiv_field_kernel_type(                      &
-                  u_w3_n, wind_n, chi, panel_id                                &
-          ) )
-        end if
-
-        call log_field_minmax( LOG_LEVEL_TRACE, 'xdot', u_w3_n(1) )
-        call log_field_minmax( LOG_LEVEL_TRACE, 'ydot', u_w3_n(2) )
-        call log_field_minmax( LOG_LEVEL_TRACE, 'zdot', u_w3_n(3) )
-
-        if ( LPROF ) call stop_timing( id_to, 'transport.wind_to_comps' )
-
-        ! -------------------------------------------------------------------- !
-        ! Transport wind components in W3
-        ! -------------------------------------------------------------------- !
-
-        do dir = 1,3
-          call transport_field(                                                &
-                  u_w3_np1(dir), u_w3_n(dir), transport_controller,            &
-                  transport_metadata                                           &
-          )
-        end do
-
-        ! -------------------------------------------------------------------- !
-        ! Return from components to full wind field in W2
-        ! -------------------------------------------------------------------- !
-
-        if ( LPROF ) call start_timing( id_from, 'transport.wind_from_comps' )
-
-        project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
-        project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
-        project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
-
-        ! Either Galerkin project in W2broken
-        if (broken_w2_projection) then
-          ! Galerkin projection into W2broken, then restore continuity
           w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
-          w2b_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2broken )
-          if (k_h == 0 .and. k_v == 0) then
-            mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
-            mm_w2b_inv => get_inverse_mass_matrix_fv(W2broken, mesh%get_id())
+
+          ! These are passed into a kernel even in non-spherical geometry
+          ! so are initialised here to avoid problems
+          call chi1_d_w2%initialise( w2_fs )
+          call chi2_d_w2%initialise( w2_fs )
+
+          if ( geometry == geometry_spherical ) then
+          ! For the metric terms we need to transport the (horizontal)
+            ! spherical coordinate field to get the values at the departure points
+            ! Transport lambda & phi for lat-lon and alpha & beta for cubed sphere
+            w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
+            call chi1_n%initialise( w3_fs )
+            call chi2_n%initialise( w3_fs )
+            call chi1_d%initialise( w3_fs )
+            call chi2_d%initialise( w3_fs )
+            call ones%initialise( w3_fs )
+            call invoke( setval_c( ones, 1.0_r_def ),                      &
+                         setval_c( chi1_n, 0.0_r_def ) ,                   &
+                         setval_c( chi2_n, 0.0_r_def ),                    &
+                         sample_field_kernel_type( chi1_n, ones, chi(1) ), &
+                         sample_field_kernel_type( chi2_n, ones, chi(2) ) )
+            call transport_field( chi1_d, chi1_n, transport_controller,    &
+                                  transport_metadata )
+            call transport_field( chi2_d, chi2_n, transport_controller,    &
+                                  transport_metadata )
+            call log_field_minmax( LOG_LEVEL_INFO, 'chi1_d', chi1_d )
+            call log_field_minmax( LOG_LEVEL_INFO, 'chi2_d', chi2_d )
+            ! Now compute chi1_d & chi2_d on W2 points for using later
             rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
-          else
-            mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
-            mm_w2b_inv => get_inverse_mass_matrix_fe(W2broken, mesh%get_id())
-            rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
+            call invoke( setval_c( chi1_d_w2, 0.0_r_def ) ,                   &
+                         setval_c( chi2_d_w2, 0.0_r_def ),                    &
+                         sample_field_kernel_type( chi1_d_w2, rmultiplicity_w2, chi1_d), &
+                         sample_field_kernel_type( chi2_d_w2, rmultiplicity_w2, chi2_d) )
+
           end if
 
-          call rhs_u_broken%initialise( w2b_fs )
-          call u_w2b_inc%initialise( w2b_fs )
-          call u_w2_inc%initialise( w2_fs )
-
-          call invoke( name="perform_broken_projection_for_wind_inc",          &
-                       X_minus_Y( u_w3_inc(1), u_w3_np1(1), u_w3_n(1) ),       &
-                       X_minus_Y( u_w3_inc(2), u_w3_np1(2), u_w3_n(2) ),       &
-                       X_minus_Y( u_w3_inc(3), u_w3_np1(3), u_w3_n(3) ),       &
-                       setval_c(rhs_u_broken, 0.0_r_def),                      &
-                       setval_c(rhs_u, 0.0_r_def),                             &
-                       setval_c(u_w2_inc, 0.0_r_def),                          &
-                       dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
-                                                        u_w3_inc(1),           &
-                                                        project_xdot_to_w2),   &
-                       dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
-                                                        u_w3_inc(2),           &
-                                                        project_ydot_to_w2),   &
-                       dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
-                                                        u_w3_inc(3),           &
-                                                        project_zdot_to_w2),   &
-                       dg_matrix_vector_kernel_type(u_w2b_inc, rhs_u_broken,   &
-                                                    mm_w2b_inv),               &
-                       average_w2b_to_w2_kernel_type(u_w2_inc, u_w2b_inc,      &
-                                                     rmultiplicity_w2),        &
-                       matrix_vector_kernel_type(rhs_u, u_w2_inc, mm_w2),      &
+          call u_w2_inc%initialise( w2_fs, halo_depth=2 )
+          call u_w2_inc_with_metrics%initialise( w2_fs )
+          mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
+          call invoke( name="combine_ws_to_w2_winds",                           &
+                       X_minus_Y( u_w3_inc(1), u_w3_np1(1), u_w3_n(1) ),        &
+                       X_minus_Y( u_w3_inc(2), u_w3_np1(2), u_w3_n(2) ),        &
+                       setval_c(u_w2_inc, 0.0_r_def),                           &
+                       combine_ws_to_w2_kernel_type(u_w2_inc, u_w3_inc(1),      &
+                                                    u_w3_inc(2),                &
+                                                    face_selector_ew,           &
+                                                    face_selector_ns),          &
+                       apply_wind_metrics_kernel_type(u_w2_inc_with_metrics,    &
+                                                      u_w2_inc, stencil_depth,  &
+                                                      da, chi,                  &
+                                                      chi1_d_w2, chi2_d_w2 ),   &
+                       setval_c(rhs_u, 0.0_r_def),                              &
+                       matrix_vector_kernel_type(rhs_u, u_w2_inc_with_metrics,  &
+                       mm_w2),                                                  &
                        enforce_bc_kernel_type(rhs_u) )
 
         else
-          ! Assemble right-hand side for Galerkin projection into W2
-          call invoke( name="perform_galerkin_projection_for_wind_inc",        &
-                       X_minus_Y( u_w3_inc(1), u_w3_np1(1), u_w3_n(1) ),       &
-                       X_minus_Y( u_w3_inc(2), u_w3_np1(2), u_w3_n(2) ),       &
-                       X_minus_Y( u_w3_inc(3), u_w3_np1(3), u_w3_n(3) ),       &
-                       setval_c(rhs_u, 0.0_r_def),                             &
-                       matrix_vector_kernel_type(rhs_u, u_w3_inc(1),           &
-                                                 project_xdot_to_w2),          &
-                       matrix_vector_kernel_type(rhs_u, u_w3_inc(2),           &
-                                                 project_ydot_to_w2),          &
-                       matrix_vector_kernel_type(rhs_u, u_w3_inc(3),           &
-                                                 project_zdot_to_w2),          &
-                       enforce_bc_kernel_type(rhs_u) )
-        end if
 
-        if ( LPROF ) call stop_timing( id_from, 'transport.wind_from_comps' )
+          ! Compute u in physical space and advect components in geocentric
+          ! Cartesian coordinates and then map back to computational form
+
+          mesh => wind_n%get_mesh()
+          w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
+
+          ! -------------------------------------------------------------------- !
+          ! Split wind into components in W3
+          ! -------------------------------------------------------------------- !
+
+
+          do dir = 1,3
+            call u_w3_n(dir)%initialise( w3_fs )
+            call u_w3_inc(dir)%initialise( w3_fs )
+            call u_w3_np1(dir)%initialise( w3_fs )
+          end do
+          call log_field_minmax( LOG_LEVEL_TRACE, 'advected u', wind_n )
+
+          optimised_conversion = (                                               &
+            coord_system == coord_system_native                                  &
+            .and. w3_fs%get_element_order_h() == 0                               &
+            .and. w3_fs%get_element_order_v() == 0                               &
+          )
+          if (optimised_conversion) then
+            call invoke( dg_convert_hdiv_native_kernel_type(                     &
+                    u_w3_n, wind_n, chi, panel_id                                &
+            ) )
+          else
+            call invoke( dg_convert_hdiv_field_kernel_type(                      &
+                    u_w3_n, wind_n, chi, panel_id                                &
+            ) )
+          end if
+
+          call log_field_minmax( LOG_LEVEL_TRACE, 'xdot', u_w3_n(1) )
+          call log_field_minmax( LOG_LEVEL_TRACE, 'ydot', u_w3_n(2) )
+          call log_field_minmax( LOG_LEVEL_TRACE, 'zdot', u_w3_n(3) )
+
+
+          ! -------------------------------------------------------------------- !
+          ! Transport wind components in W3
+          ! -------------------------------------------------------------------- !
+
+          do dir = 1,3
+            call transport_field(                                                &
+                    u_w3_np1(dir), u_w3_n(dir), transport_controller,            &
+                    transport_metadata                                           &
+            )
+          end do
+
+          ! -------------------------------------------------------------------- !
+          ! Return from components to full wind field in W2
+          ! -------------------------------------------------------------------- !
+
+          project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
+          project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
+          project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
+
+          ! Either Galerkin project in W2broken
+          if (broken_w2_projection) then
+            ! Galerkin projection into W2broken, then restore continuity
+            w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
+            w2b_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2broken )
+            if (k_h == 0 .and. k_v == 0) then
+              mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
+              mm_w2b_inv => get_inverse_mass_matrix_fv(W2broken, mesh%get_id())
+              rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
+            else
+              mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
+              mm_w2b_inv => get_inverse_mass_matrix_fe(W2broken, mesh%get_id())
+              rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
+            end if
+
+            call rhs_u_broken%initialise( w2b_fs )
+            call u_w2b_inc%initialise( w2b_fs )
+            call u_w2_inc%initialise( w2_fs )
+
+            call invoke( name="perform_broken_projection_for_wind_inc",          &
+                         X_minus_Y( u_w3_inc(1), u_w3_np1(1), u_w3_n(1) ),       &
+                         X_minus_Y( u_w3_inc(2), u_w3_np1(2), u_w3_n(2) ),       &
+                         X_minus_Y( u_w3_inc(3), u_w3_np1(3), u_w3_n(3) ),       &
+                         setval_c(rhs_u_broken, 0.0_r_def),                      &
+                         setval_c(rhs_u, 0.0_r_def),                             &
+                         setval_c(u_w2_inc, 0.0_r_def),                          &
+                         dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
+                                                          u_w3_inc(1),           &
+                                                          project_xdot_to_w2),   &
+                         dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
+                                                          u_w3_inc(2),           &
+                                                          project_ydot_to_w2),   &
+                         dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
+                                                          u_w3_inc(3),           &
+                                                          project_zdot_to_w2),   &
+                         dg_matrix_vector_kernel_type(u_w2b_inc, rhs_u_broken,   &
+                                                      mm_w2b_inv),               &
+                         average_w2b_to_w2_kernel_type(u_w2_inc, u_w2b_inc,      &
+                                                       rmultiplicity_w2),        &
+                         matrix_vector_kernel_type(rhs_u, u_w2_inc, mm_w2),      &
+                         enforce_bc_kernel_type(rhs_u) )
+
+          else
+            ! Assemble right-hand side for Galerkin projection into W2
+            call invoke( name="perform_galerkin_projection_for_wind_inc",        &
+                         X_minus_Y( u_w3_inc(1), u_w3_np1(1), u_w3_n(1) ),       &
+                         X_minus_Y( u_w3_inc(2), u_w3_np1(2), u_w3_n(2) ),       &
+                         X_minus_Y( u_w3_inc(3), u_w3_np1(3), u_w3_n(3) ),       &
+                         setval_c(rhs_u, 0.0_r_def),                             &
+                         matrix_vector_kernel_type(rhs_u, u_w3_inc(1),           &
+                                                   project_xdot_to_w2),          &
+                         matrix_vector_kernel_type(rhs_u, u_w3_inc(2),           &
+                                                   project_ydot_to_w2),          &
+                         matrix_vector_kernel_type(rhs_u, u_w3_inc(3),           &
+                                                   project_zdot_to_w2),          &
+                         enforce_bc_kernel_type(rhs_u) )
+          end if
+
+        end if ! native wind transport
+        call log_field_minmax( LOG_LEVEL_INFO, 'advection increment', rhs_u )
 
       ! ---------------------------------------------------------------------- !
       ! Default form of transport equation
@@ -260,6 +374,8 @@ contains
       end select
 
     end if ! si_momentum_equation
+
+    if ( LPROF ) call stop_timing( id_from, 'transport.wind' )
 
   end subroutine wind_transport_alg
 

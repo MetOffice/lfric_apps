@@ -1,0 +1,119 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the kernel that combines W2h and W2v winds into a W2 field.
+
+module combine_ws_to_w2_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: combine_ws_to_w2_kernel_test
+
+contains
+
+  !------------------------------------------------------------------
+
+  @Test
+  subroutine combine_ws_to_w2_kernel_test()
+    use combine_ws_to_w2_kernel_mod, only: combine_ws_to_w2_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-14_r_def
+
+    ! Dimensions
+    integer(kind=i_def), parameter :: nlayers   = 2
+    integer(kind=i_def), parameter :: ndf_w2    = 6
+    integer(kind=i_def), parameter :: ndf_w2h   = 4
+    integer(kind=i_def), parameter :: ndf_w2v   = 2
+    integer(kind=i_def), parameter :: ndf_w3_2d = 1
+
+    ! undf: each face has nlayers dofs; no sharing in this single-cell test
+    integer(kind=i_def), parameter :: undf_w2h   = ndf_w2h * nlayers
+    ! W2v has nlayers+1 vertical face values in a column
+    integer(kind=i_def), parameter :: undf_w2v   = nlayers + 1
+    integer(kind=i_def), parameter :: undf_w3_2d = 1
+    ! W2 = W2h + W2v
+    integer(kind=i_def), parameter :: undf_w2    = undf_w2h + undf_w2v
+
+    ! Maps: each horizontal face starts at a non-overlapping offset
+    integer(kind=i_def), dimension(ndf_w2)    :: map_w2
+    integer(kind=i_def), dimension(ndf_w2h)   :: map_w2h
+    integer(kind=i_def), dimension(ndf_w2v)   :: map_w2v
+    integer(kind=i_def), dimension(ndf_w3_2d) :: map_w3_2d
+
+    ! Fields
+    real(kind=r_def), dimension(undf_w2)    :: uvw
+    real(kind=r_def), dimension(undf_w2h)   :: uv_w2h
+    real(kind=r_def), dimension(undf_w2v)   :: w_w2v
+
+    ! Face selectors: use both EW and NS faces
+    integer(kind=i_def), dimension(undf_w3_2d) :: face_selector_ew
+    integer(kind=i_def), dimension(undf_w3_2d) :: face_selector_ns
+
+    ! Set maps: faces W(1),S(2),E(3),N(4) then two vertical faces 5,6
+    ! Strides of nlayers=2 to avoid overlap
+    map_w2(1) = 1   ! W face base index
+    map_w2(2) = 3   ! S face base index
+    map_w2(3) = 5   ! E face base index
+    map_w2(4) = 7   ! N face base index
+    map_w2(5) = 9   ! lower vertical face base index
+    map_w2(6) = 10  ! upper vertical face base index
+
+    map_w2h(1) = 1  ! W face
+    map_w2h(2) = 3  ! S face
+    map_w2h(3) = 5  ! E face
+    map_w2h(4) = 7  ! N face
+
+    ! W2v: base at 1, top at 2; interior at map_w2v(1)+1..nlayers-1 = index 2
+    map_w2v(1) = 1
+    map_w2v(2) = 2
+
+    map_w3_2d(1) = 1
+
+    ! Face selectors: 2 active faces each direction
+    face_selector_ew(1) = 2
+    face_selector_ns(1) = 2
+
+    ! Horizontal wind on W2h: distinct values per layer per face
+    uv_w2h(1) = 1.0_r_def  ! W face, layer 0
+    uv_w2h(2) = 2.0_r_def  ! W face, layer 1
+    uv_w2h(3) = 3.0_r_def  ! S face, layer 0
+    uv_w2h(4) = 4.0_r_def  ! S face, layer 1
+    uv_w2h(5) = 5.0_r_def  ! E face, layer 0
+    uv_w2h(6) = 6.0_r_def  ! E face, layer 1
+    uv_w2h(7) = 7.0_r_def  ! N face, layer 0
+    uv_w2h(8) = 8.0_r_def  ! N face, layer 1
+
+    ! Vertical wind on W2v: boundary=0, interior=10.0
+    w_w2v(1) = 0.0_r_def   ! bottom boundary (not written to uvw)
+    w_w2v(2) = 10.0_r_def  ! interior (written to uvw(10))
+    w_w2v(3) = 0.0_r_def   ! top boundary (not written to uvw)
+
+    ! Initialise output
+    uvw(:) = 0.0_r_def
+
+    call combine_ws_to_w2_code( nlayers,                         &
+                                uvw, uv_w2h, w_w2v,              &
+                                face_selector_ew,                &
+                                face_selector_ns,                &
+                                ndf_w2,   undf_w2,   map_w2,     &
+                                ndf_w2h,  undf_w2h,  map_w2h,    &
+                                ndf_w2v,  undf_w2v,  map_w2v,    &
+                                ndf_w3_2d, undf_w3_2d, map_w3_2d )
+
+    ! Horizontal faces (W, E from EW loop; S, N from NS loop)
+    @assertEqual(uv_w2h, uvw(1:undf_w2h), tol)
+
+    ! Vertical faces
+    @assertEqual(w_w2v, uvw(undf_w2h+1:undf_w2), tol)
+
+  end subroutine combine_ws_to_w2_kernel_test
+
+end module combine_ws_to_w2_kernel_mod_test

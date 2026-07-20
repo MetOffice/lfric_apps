@@ -1,0 +1,161 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the horizontal linear semi-Lagrangian kernel for W2H fields.
+
+module horizontal_linear_sl_w2h_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+  use, intrinsic :: iso_fortran_env,  only: real64
+  use funit
+
+  implicit none
+
+  private
+  public :: horizontal_linear_sl_w2h_kernel_test
+
+contains
+
+  !------------------------------------------------------------------
+
+  @Test
+  subroutine horizontal_linear_sl_w2h_kernel_test( )
+
+    use horizontal_linear_sl_w2h_kernel_mod, only: horizontal_linear_sl_w2h_code
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran
+    real(kind=r_tran)            :: answer(4), use_tol
+
+    integer(kind=i_def), parameter :: nlayers      = 1
+    integer(kind=i_def), parameter :: ndf_w2h      = 4
+    integer(kind=i_def), parameter :: stencil_max  = 3
+    integer(kind=i_def), parameter :: d_stencil_max = 1
+    ! 4 dofs × 9 stencil positions each; max field index = 36
+    integer(kind=i_def), parameter :: undf_w2h     = ndf_w2h * 9
+
+    integer(kind=i_def), dimension(ndf_w2h)                    :: map_w2h
+    integer(kind=i_def), dimension(4)                          :: stencil_sizes
+    integer(kind=i_def), dimension(ndf_w2h, stencil_max, 4)   :: stencil_map
+    integer(kind=i_def), dimension(4)                          :: d_stencil_sizes
+    integer(kind=i_def), dimension(ndf_w2h, d_stencil_max, 4) :: d_stencil_map
+
+    real(kind=r_tran), dimension(undf_w2h) :: field_x
+    real(kind=r_tran), dimension(undf_w2h) :: field_y
+    real(kind=r_tran), dimension(undf_w2h) :: field
+    real(kind=r_tran), dimension(undf_w2h) :: dep_pts
+
+    integer(kind=i_def) :: i
+    integer(kind=i_def) :: dofs2check(4)
+
+    ! Get correct tolerance
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 1.0e-6_r_tran
+    end if
+
+    ! -------------------------------------------------------------------------
+    ! Set up maps
+    ! -------------------------------------------------------------------------
+    ! map_w2h: base index of each W2H dof in the centre cell
+    ! W=1 at index 1, S=2 at index 10, E=3 at index 19, N=4 at index 28
+    map_w2h = (/ 1, 10, 19, 28 /)
+
+    ! Full cross stencil: 3 cells in each direction
+    stencil_sizes(:) = stencil_max   ! (3,3,3,3)
+
+    ! stencil_map(df, k, dir):
+    !   dir=1(west)  k=1 centre, k=2 west-1, k=3 west-2
+    !   dir=2(south) k=1 centre, k=2 south-1, k=3 south-2
+    !   dir=3(east)  k=1 centre, k=2 east-1, k=3 east-2
+    !   dir=4(north) k=1 centre, k=2 north-1, k=3 north-2
+    ! Each dof (df) has its own block of 9 unique indices:
+    !   base_df = (df-1)*9 + 1  =>  1, 10, 19, 28
+
+    ! Initialise to centre values (safe for any clamped index accesses)
+    stencil_map(1,:,:) = 1   ; stencil_map(2,:,:) = 10
+    stencil_map(3,:,:) = 19  ; stencil_map(4,:,:) = 28
+
+    ! W dof (df=1): centre=1, x-west1=2, x-west2=3, y-south1=4, y-south2=5,
+    !                         x-east1=6, x-east2=7, y-north1=8, y-north2=9
+    stencil_map(1, 2, 1) = 2  ; stencil_map(1, 3, 1) = 3  ! x west
+    stencil_map(1, 2, 2) = 4  ; stencil_map(1, 3, 2) = 5  ! y south
+    stencil_map(1, 2, 3) = 6  ; stencil_map(1, 3, 3) = 7  ! x east
+    stencil_map(1, 2, 4) = 8  ; stencil_map(1, 3, 4) = 9  ! y north
+
+    ! S dof (df=2): base 10
+    stencil_map(2, 2, 1) = 11 ; stencil_map(2, 3, 1) = 12
+    stencil_map(2, 2, 2) = 13 ; stencil_map(2, 3, 2) = 14
+    stencil_map(2, 2, 3) = 15 ; stencil_map(2, 3, 3) = 16
+    stencil_map(2, 2, 4) = 17 ; stencil_map(2, 3, 4) = 18
+
+    ! E dof (df=3): base 19
+    stencil_map(3, 2, 1) = 20 ; stencil_map(3, 3, 1) = 21
+    stencil_map(3, 2, 2) = 22 ; stencil_map(3, 3, 2) = 23
+    stencil_map(3, 2, 3) = 24 ; stencil_map(3, 3, 3) = 25
+    stencil_map(3, 2, 4) = 26 ; stencil_map(3, 3, 4) = 27
+
+    ! N dof (df=4): base 28
+    stencil_map(4, 2, 1) = 29 ; stencil_map(4, 3, 1) = 30
+    stencil_map(4, 2, 2) = 31 ; stencil_map(4, 3, 2) = 32
+    stencil_map(4, 2, 3) = 33 ; stencil_map(4, 3, 3) = 34
+    stencil_map(4, 2, 4) = 35 ; stencil_map(4, 3, 4) = 36
+
+    ! Departure-point stencil (size 1, centre only)
+    d_stencil_sizes(:) = 1
+    d_stencil_map(1, 1, :) = 1   ! dep_pts for W dof at index 1
+    d_stencil_map(2, 1, :) = 10  ! dep_pts for S dof at index 10
+    d_stencil_map(3, 1, :) = 19  ! dep_pts for E dof at index 19
+    d_stencil_map(4, 1, :) = 28  ! dep_pts for N dof at index 28
+
+    ! Field: field(i) = i (linear, each stencil cell has a unique value)
+    do i = 1, undf_w2h
+      field(i) = real(i, r_tran)
+    end do
+
+    field_x(:) = 0.0_r_tran
+    field_y(:) = 0.0_r_tran
+
+    ! -------------------------------------------------------------------------
+    ! Test 1: integer departure distance of +1 in both directions.
+    !   x-direction: displacement +1 -> field from one cell to the WEST
+    !   y-direction: displacement -1 (direction=-1) -> field from one cell to the NORTH
+    ! -------------------------------------------------------------------------
+    dep_pts(:) = 1.0_r_tran
+
+    call horizontal_linear_sl_w2h_code( nlayers,          &
+                                        field_x,          &
+                                        field_y,          &
+                                        field,            &
+                                        stencil_sizes,    &
+                                        stencil_max,      &
+                                        stencil_map,      &
+                                        dep_pts,          &
+                                        d_stencil_sizes,  &
+                                        d_stencil_max,    &
+                                        d_stencil_map,    &
+                                        ndf_w2h,          &
+                                        undf_w2h,         &
+                                        map_w2h )
+
+    ! x-direction: one cell to the west -> stencil_map(df, 2, 1)
+    dofs2check = (/ 1, 10, 19, 28 /)
+    answer = (/ 2.0_r_tran, 11.0_r_tran, 20.0_r_tran, 29.0_r_tran /)
+    do i = 1,4
+      @assertEqual(answer(i), field_x(dofs2check(i)), use_tol)
+    end do
+
+    ! y-direction: dep_pts=+1 with direction=-1 -> displacement=-1 -> one cell to the north
+    !              -> stencil_map(df, 2, 4)
+    answer = (/ 8.0_r_tran, 17.0_r_tran, 26.0_r_tran, 35.0_r_tran /)
+    do i = 1,4
+      @assertEqual(answer(i), field_y(dofs2check(i)), use_tol)
+    end do
+
+  end subroutine horizontal_linear_sl_w2h_kernel_test
+
+end module horizontal_linear_sl_w2h_kernel_mod_test
