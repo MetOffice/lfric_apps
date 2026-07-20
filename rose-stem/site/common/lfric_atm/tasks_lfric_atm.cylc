@@ -215,6 +215,8 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "info",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
         "memory_plot_ex": true,
     }) %}
@@ -230,6 +232,8 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "info",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
         "memory_plot_ex": true,
     }) %}
 
@@ -258,6 +262,8 @@
         "wallclock": 10,
         "xios_nodes": 4,
         "mpi_parts_xios" : 16,
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
@@ -268,6 +274,32 @@
         "DT": 1800,
         "tsteps": 36,
         "mpi_parts": 24,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_nudging-era-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nudging-era","um_dump"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 24,
+        "log_level": "info",
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_nudging-era-coarse-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nudging-era-coarse","um_dump"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 24,
+        "log_level": "info",
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
@@ -465,11 +497,14 @@
         "tsteps": 120,
         "wallclock": 15,
         "mpi_parts": 4704,
-        "xios_nodes": 4,
-        "mpi_parts_xios" : 128,
+        "xios_nodes": 5,
+        "mpi_parts_xios" : 147,
         "log_level": "info",
         "log_to_rank_zero_only": ".true.",
         "memory_plot_ex": true,
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
+        "xios_min_buffer_size": 10485760,
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
@@ -662,6 +697,7 @@
         "crun": 1,
         "crun_compare": false,
         "mpi_parts": 16,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "ral3-uk_MG" %}
@@ -675,7 +711,8 @@
         "crun_compare": false,
         "mpi_parts": 729,
         "xios_nodes": 3,
-        "mpi_parts_xios" : 96,
+        "mpi_parts_xios" : 81,
+        "xios_min_buffer_size": 2097152,
         "log_level": "info",
         "wallclock": 30,
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
@@ -693,6 +730,7 @@
         "mpi_parts": 784,
         "xios_nodes": 2,
         "mpi_parts_xios" : 64,
+        "xios_min_buffer_size": 2097152,
         "log_level": "info",
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
@@ -706,7 +744,8 @@
         "tsteps": 360,
         "mpi_parts": 2560,
         "xios_nodes": 4,
-        "mpi_parts_xios" : 128,
+        "mpi_parts_xios" : 64,
+        "xios_min_buffer_size": 2097152,
         "log_level": "info",
         "wallclock": 60,
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
@@ -724,6 +763,7 @@
         "mpi_parts": 256,
         "xios_nodes": 1,
         "mpi_parts_xios" : 32,
+        "xios_min_buffer_size": 2097152,
         "log_level": "info",
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
@@ -740,6 +780,7 @@
         "mpi_parts": 16,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "ral3_mixmol-seuk_MG" %}
@@ -754,6 +795,7 @@
         "mpi_parts": 16,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "ral3_mixmol-uk_MG" %}
@@ -767,8 +809,9 @@
         "crun_compare": false,
         "mpi_parts": 729,
         "xios_nodes": 2,
-        "mpi_parts_xios" : 64,
+        "mpi_parts_xios" : 81,
         "log_level": "info",
+        "xios_min_buffer_size": 2097152,
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
@@ -787,6 +830,7 @@
         "memory": [8, "GB"],
         "kgo_checks": ["checksum"],
         "plot_str": "plot_rce.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "comp_tran_ref_3d_l120-BiP64x64-1500x1500_MG" %}
@@ -799,6 +843,7 @@
         "mpi_parts": 64,
         "kgo_checks": ["checksum"],
         "log_level": "info",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "aquaplanet-C12" %}
@@ -1029,7 +1074,7 @@
 {% elif task_ns.conf_name == "scm_comorph_dev_toga-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l85_85km","comorph_dev","no_aerosol","toga"],
+        "opt_confs": ["l85_85km","comorph_dev","no_aerosol","toga", "coord_order_1"],
         "resolution": "BiP2x2-50000x50000",
         "DT": 1200,
         "tsteps": 1368,
@@ -1071,6 +1116,7 @@
         "tsteps": 216,
         "wallclock": 5,
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "scm_ral3_constrain-BiP2x2-50000x50000" %}
@@ -1083,6 +1129,7 @@
         "wallclock": 5,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "scm_ral3_dice2-BiP2x2-50000x50000" %}
@@ -1094,6 +1141,7 @@
         "tsteps": 432,
         "wallclock": 5,
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "scm_ral3_moruses-BiP2x2-50000x50000" %}
@@ -1106,6 +1154,7 @@
         "wallclock": 5,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "scm_ral3_urban2t-BiP2x2-50000x50000" %}
@@ -1118,6 +1167,7 @@
         "wallclock": 5,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "scm_ukca_land-BiP2x2-50000x50000" %}
@@ -1209,6 +1259,5 @@
     }) %}
 
 {% endif %}
-
 
 {% do LOG.debug("Finished in site/common/lfric_atm/tasks_lfric_atm.cylc") %}

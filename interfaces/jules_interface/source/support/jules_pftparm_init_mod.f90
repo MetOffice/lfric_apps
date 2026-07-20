@@ -18,6 +18,7 @@ contains
   !>@details Pass JULES pftparm variables from model config to pftparm_mod
   !> @param[in] config   The config of the model run
   subroutine jules_pftparm_init(config)
+
     use c_z0h_z0m,                only: z0h_z0m
     use config_mod,               only: config_type
     use constants_mod,            only: r_um, i_def

@@ -9,35 +9,6 @@ all: export ACTIVE_tl_poly1d_vert_adv_kernel_mod           := advective wind dpd
 all: export ACTIVE_tl_vorticity_advection_kernel_mod       := r_u wind vorticity vorticity_at_quad \
                                                               u_at_quad j_vorticity vorticity_term \
                                                               res_dot_product cross_product1 cross_product2 mul2
-all: export ACTIVE_tl_sample_eos_pressure_kernel_mod       := exner tmp_exner \
-                                                              theta_vd_cell theta_vd_e theta \
-                                                              moist_dyn_gas rho_cell rho_e rho
-all: export ACTIVE_tl_moist_dyn_gas_kernel_mod             := moist_dyn_gas mr_v mr_v_at_dof
-all: export ACTIVE_tl_hydrostatic_kernel_mod               := r_u exner theta \
-                                                              moist_dyn_gas moist_dyn_tot \
-                                                              exner_e theta_v_e grad_theta_v_at_quad \
-                                                              exner_at_quad theta_v_at_quad \
-                                                              grad_term res_dot_product
-all: export ACTIVE_tl_moist_dyn_mass_kernel_mod            := moist_dyn_tot mr_v mr_cl mr_r \
-                                                              mr_s mr_g mr_ci \
-                                                              mr_v_at_dof mr_cl_at_dof \
-                                                              mr_r_at_dof mr_s_at_dof \
-                                                              mr_g_at_dof mr_ci_at_dof
-all: export ACTIVE_tl_kinetic_energy_gradient_kernel_mod   := r_u u ru_e u_e \
-                                                              u_at_quad ke_at_quad \
-                                                              res_dot_product mul2
-all: export ACTIVE_tl_project_eos_pressure_kernel_mod      := exner exner_e exner_at_quad \
-                                                              tmp_exner r_exner \
-                                                              rho rho_e rho_at_quad theta \
-                                                              theta_vd_e theta_vd_at_quad \
-                                                              moist_dyn_gas
-all: export ACTIVE_tl_rhs_project_eos_kernel_mod           := rhs_eos exner exner_e exner_quad \
-                                                              rho rho_e rho_quad \
-                                                              theta theta_vd_e theta_vd_quad \
-                                                              moist_dyn_gas eos
-all: export ACTIVE_tl_rhs_sample_eos_kernel_mod            := exner exner_e exner_cell \
-                                                              rhs_eos rho rho_e rho_cell \
-                                                              theta theta_vd_e theta_vd_cell moist_dyn_gas
 all: export ACTIVE_stabilise_bl_u_kernel_mod               := u_stabilised u_initial u_final
 all: export ACTIVE_apply_mixed_lu_operator_kernel_mod      := wind theta exner lhs_u lhs_t
 all: export ACTIVE_apply_mixed_operator_kernel_mod         := u_e t_col lhs_p lhs_w lhs_uv exner wind_w wind_uv
