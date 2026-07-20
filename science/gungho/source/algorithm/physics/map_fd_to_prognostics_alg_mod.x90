@@ -413,7 +413,8 @@ contains
     type(mesh_type),       pointer :: mesh
     type(field_type),      pointer :: mask
     type(field_type),      target  :: dummy_mask
-    integer(i_def)                 :: eos_level
+    integer(i_def)                 :: eos_level, eos_lev_m1, eos_lev_m1_copy, &
+                                      nlayersm1
 
     nullify(geopotential, chi, panel_id, height_w3, &
             height_wth, vert_coriolis, mesh, mask )
@@ -463,14 +464,20 @@ contains
       ! Initialize the vertical profile by starting with the equation of state at
       ! eos_level, and then integrating from this level to the top and the bottom
       ! using hydrostatic balance with Coriolis terms.
-      call invoke( hydrostatic_coriolis_kernel_type( exner, rho, theta,       &
+      if (exner_from_rho) then
+        eos_lev_m1 = eos_level-1
+        eos_lev_m1_copy = eos_lev_m1
+        call invoke(sample_eos_pressure_kernel_type(exner, rho, theta, &
+                                                    moist_dyn(gas_law),&
+                                                    eos_lev_m1,        &
+                                                    eos_lev_m1_copy))
+      end if
+      call invoke( hydrostatic_coriolis_kernel_type( exner, theta,            &
                                                      c_vert_term,             &
                                                      moist_dyn, geopotential, &
                                                      height_w3, mask,         &
-                                                     p_zero, kappa,           &
-                                                     rd, cp,                  &
-                                                     eos_level,               &
-                                                     exner_from_rho ) )
+                                                     cp,                      &
+                                                     eos_level ) )
 
       if ( recompute_rho ) then
         ! Recompute density using the equation of state
@@ -489,10 +496,12 @@ contains
       ! by rederiving potential temperature (theta) and density (rho).
       call theta%copy_field_properties(exner_in_wth)
       call theta%copy_field_properties(temperature)
+      nlayersm1 = mesh%get_nlayers()-1
       call invoke( &
              ! Compute exner from EoS
              sample_eos_pressure_kernel_type( exner, rho,                    &
-                                              theta, moist_dyn(gas_law) ),   &
+                                              theta, moist_dyn(gas_law),     &
+                                              0, nlayersm1),                 &
 
              ! Compute exner in Wtheta (required to calculate T)
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,           &
