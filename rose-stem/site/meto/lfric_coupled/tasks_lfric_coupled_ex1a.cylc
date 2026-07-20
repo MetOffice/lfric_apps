@@ -8,7 +8,7 @@
 {% if task_ns.conf_name == "nwp_gal9-C48" %}
 
     {% do task_dict.update({
-        "wallclock": 25,
+        "wallclock": 10,
     }) %}
 
 {% endif %}
