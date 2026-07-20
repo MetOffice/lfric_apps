@@ -16,7 +16,6 @@ module limited_area_constants_mod
   ! Infrastructure
   use constants_mod,                     only: i_def, r_def, l_def, &
                                                str_def, str_short
-  use copy_field_alg_mod,                only: copy_field
   use extrusion_mod,                     only: TWOD, PRIME_EXTRUSION
   use field_mod,                         only: field_type
   use r_solver_field_mod,                only: r_solver_field_type
@@ -202,7 +201,7 @@ contains
     end if
 
     mesh_id = mesh%get_id()
-    chi => get_coordinates(mesh_id)
+    chi => get_coordinates(mesh)
     w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
     w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
     wtheta_fs => function_space_collection%get_fs( mesh, k_h, k_v, Wtheta )
@@ -270,7 +269,7 @@ contains
   !> @param[in] use_fe        Whether to use finite element or finite volume
   subroutine create_multigrid_masks(finest_mesh, use_fe)
 
-    use function_space_chain_mod, only: multigrid_function_space_chain
+    use multigrid_mod,            only: multigrid_function_space_chain
     use multigrid_config_mod,     only: multigrid_chain_nitems
     use sci_restrict_masked_w2_kernel_mod, &
                                   only: restrict_masked_w2_kernel_type
@@ -698,7 +697,7 @@ contains
       fs => function_space_collection%get_fs(mesh, element_order_h, &
                                              element_order_v, space)
       call inventory%add_field(mask_r_solver, fs, mesh)
-      call copy_field(mask_r_def, mask_r_solver)
+      call invoke( real_to_real_x(mask_r_solver, mask_r_def) )
 
       if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if
@@ -906,7 +905,7 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
-      chi => get_coordinates(mesh_id)
+      chi => get_coordinates(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
@@ -986,7 +985,7 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
-      chi => get_coordinates(mesh_id)
+      chi => get_coordinates(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
@@ -1134,7 +1133,7 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
-      chi => get_coordinates(mesh_id)
+      chi => get_coordinates(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 

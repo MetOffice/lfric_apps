@@ -7,24 +7,25 @@
 
 module adjt_poly2d_recon_lookup_alg_mod
 
-    use adj_trans_lookup_cache_mod,           only : adj_trans_lookup_cache_type
-    use integer_field_mod,                    only : integer_field_type
-    use r_tran_field_mod,                     only : r_tran_field_type
-    use function_space_mod,                   only : function_space_type
-    use mesh_mod,                             only : mesh_type
-    use function_space_collection_mod,        only : function_space_collection
-    use fs_continuity_mod,                    only : name_from_functionspace
-    use finite_element_config_mod,            only : element_order_h, &
-                                                     element_order_v
-    use constants_mod,                        only : i_def, r_def, r_tran, EPS
-    use log_mod,                              only : log_event,       &
-                                                     LOG_LEVEL_ERROR, &
-                                                     LOG_LEVEL_INFO,  &
-                                                     LOG_LEVEL_DEBUG, &
-                                                     log_scratch_space
-    use transport_config_mod,                 only : fv_horizontal_order
-    use transport_constants_mod,              only : get_hori_wt_mol_coeffs
-    use adj_lookup_table_mod,                 only : adj_lookup_table_type
+  use adj_trans_lookup_cache_mod,           only : adj_trans_lookup_cache_type
+  use config_mod,                           only : config_type
+  use integer_field_mod,                    only : integer_field_type
+  use r_tran_field_mod,                     only : r_tran_field_type
+  use function_space_mod,                   only : function_space_type
+  use mesh_mod,                             only : mesh_type
+  use function_space_collection_mod,        only : function_space_collection
+  use fs_continuity_mod,                    only : name_from_functionspace
+  use finite_element_config_mod,            only : element_order_h, &
+                                                   element_order_v
+  use constants_mod,                        only : i_def, r_def, r_tran, EPS
+  use log_mod,                              only : log_event,       &
+                                                   LOG_LEVEL_ERROR, &
+                                                   LOG_LEVEL_INFO,  &
+                                                   LOG_LEVEL_DEBUG, &
+                                                   log_scratch_space
+  use transport_config_mod,                 only : fv_horizontal_order
+  use transport_constants_mod,              only : get_hori_wt_mol_coeffs
+  use adj_lookup_table_mod,                 only : adj_lookup_table_type
 
   implicit none
 
@@ -37,14 +38,19 @@ module adjt_poly2d_recon_lookup_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config                  Application namelist configuration object
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  fspace_enum             The function space to test
   !> @param[in]  adj_lookup_table_cache  The lookup table cache
-  subroutine adjt_poly2d_recon_lookup_alg( mesh, fspace_enum, adj_lookup_table_cache )
+  subroutine adjt_poly2d_recon_lookup_alg( config, mesh, fspace_enum, &
+                                           adj_lookup_table_cache )
+
     use poly2d_reconstruction_kernel_mod,     only : poly2d_reconstruction_kernel_type
     use invoke_adj_poly2d_recon_lookup_mod,   only : invoke_adj_poly2d_recon_lookup
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(mesh_type),          pointer, intent(in) :: mesh
@@ -62,7 +68,6 @@ module adjt_poly2d_recon_lookup_alg_mod
     integer(kind=i_def)                 :: stencil_size
 
     ! Internal variables for initialising and saving input fields
-    integer(kind=i_def)                 :: mesh_id
     type(function_space_type),  pointer :: vector_space_wt_md_ptr
     type(function_space_type),  pointer :: vector_space_wtheta_ptr
     type(r_tran_field_type)             :: reconstruction_input
@@ -93,7 +98,6 @@ module adjt_poly2d_recon_lookup_alg_mod
     nullify(coeff, vector_space_wt_md_ptr, vector_space_wtheta_ptr, &
             lookup, lookup_field, num_sets_field)
 
-    mesh_id = mesh%get_id()
     if (mod(fv_horizontal_order, 2) == 0) then
       stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
     else
@@ -101,7 +105,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     end if
 
     ndata = 4
-    coeff => get_hori_wt_mol_coeffs(mesh_id)
+    coeff => get_hori_wt_mol_coeffs(config, mesh)
     stencil_extent = fv_horizontal_order/2_i_def
     vector_space_wt_md_ptr => function_space_collection%get_fs( &
       mesh, element_order_h, element_order_v, fspace_enum, ndata=ndata, ndata_first=.false. &
