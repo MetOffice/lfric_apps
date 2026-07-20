@@ -67,6 +67,8 @@ module map_fd_to_prognostics_alg_mod
                                        sample_physics_winds_correction
   use planet_config_mod,         only: scaled_radius, gravity, p_zero, &
                                        kappa, rd, cp
+  use initialization_config_mod, only: init_exner_method_dump,                 &
+                                       init_exner_method_hydrostatic
 
   implicit none
 
@@ -104,6 +106,7 @@ contains
     type( field_type ), pointer :: ew_wind_in_w3
     type( field_type ), pointer :: ns_wind_in_w3
     type( field_type ), pointer :: dry_rho_in_w3
+    type( field_type ), pointer :: exner_in_w3
     type( field_type ), pointer :: upward_wind_in_wtheta
     type( field_type ), pointer :: theta_in_wtheta
     type( field_type ), pointer :: mv_in_wtheta
@@ -117,10 +120,14 @@ contains
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
-    integer(i_def) :: model_eos_height
+    integer(i_def) :: init_eos_height
+    logical(l_def) :: init_sort_theta
+    integer(i_def) :: init_exner_method
     logical(l_def) :: read_w2h_wind
 
-    model_eos_height = config%initialization%model_eos_height()
+    init_eos_height = config%initialization%init_eos_height()
+    init_sort_theta = config%initialization%init_sort_theta()
+    init_exner_method = config%initialization%init_exner_method()
     read_w2h_wind    = config%initialization%read_w2h_wind()
 
     ! FD (source) fields
@@ -145,10 +152,8 @@ contains
     call prognostic_fields%get_field('exner', exner)
     call prognostic_fields%get_field('rho', rho)
 
-    ! Some variables should coming in from the restart file, but currently
-    ! they are not output by UM2LFRIC and are set to zero or a default value
-    ! This will need to be reviewed if this becomes a checkpoint-restart
-    ! routine and/or um2lfric is updated for GAL physics
+    ! Simple variables taken directly from um2lfric file or
+    ! initialised to zero
     call invoke( setval_x(theta, theta_in_wtheta),    &
                  setval_x(rho, dry_rho_in_w3),        &
                  setval_x(mr(imr_v), mv_in_wtheta),   &
@@ -157,9 +162,9 @@ contains
                  setval_x(mr(imr_r), mr_in_wtheta),   &
                  setval_c(mr(imr_ci), 0.0_r_def),     &
                  setval_c(mr(imr_g), 0.0_r_def),      &
-                 setval_c(exner, 0.0_r_def),          &
                  setval_c(upward_wind_in_wtheta, 0.0_r_def))
 
+    ! Processing of wind into w2
     if ( read_w2h_wind )then
       ! We read in the horizontal (normal to face) winds on the w2h points
       mesh => u%get_mesh()
@@ -180,10 +185,22 @@ contains
     ! Update factors for moist dynamics
     call moist_dyn_factors_alg( moist_dyn, mr )
     ! Remove any static instability
-    call invoke( sort_ref_kernel_type(theta) )
-    ! Initialize hydrostatically balanced exner field
-    call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
-                              model_eos_height )
+    if (init_sort_theta) then
+      call invoke( sort_ref_kernel_type(theta) )
+    end if
+
+    ! Initialisation of exner
+    select case(init_exner_method)
+    case(init_exner_method_dump)
+      ! Read in Exner from start dump and do not recompute
+      call fd_fields%get_field('exner_in_w3', exner_in_w3)
+      call invoke(setval_X(exner, exner_in_w3))
+    case(init_exner_method_hydrostatic)
+      ! Initialize hydrostatically balanced exner field
+      call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
+                                init_eos_height, recompute_rho=.false., &
+                                exner_from_rho=.true. )
+    end select
 
     if ( perturb_init ) then
       call log_event( "Gungho: Applying initial perturbation to theta",         &
@@ -345,9 +362,14 @@ contains
   !> @param[in]     theta     Theta
   !> @param[in]     u         Wind
   !> @param[in]     moist_dyn Moisture arrays for dynamics
+  !> @param[in]     eos_height Height at which to calc exner from eq of state
+  !> @param[in]     recompute_rho Whether to recalculate rho from eq of state
+  !> @param[in]     exner_from_rho Calculate initial exner from rho using EoS
   !> @param[in]     lbc_mask  Optional LBC mask
   subroutine hydrostatic_balance(config, exner, rho, theta, u, moist_dyn, &
-                                 eos_height, lbc_mask)
+                                 eos_height, recompute_rho, exner_from_rho, &
+                                 lbc_mask)
+
     use dg_inc_matrix_vector_kernel_mod, &
                                        only : dg_inc_matrix_vector_kernel_type
     use sci_enforce_bc_kernel_mod,     only : enforce_bc_kernel_type
@@ -375,6 +397,8 @@ contains
     type( field_type ), intent( inout ) :: theta, rho, u
     type( field_type ), intent( in )    :: moist_dyn(num_moist_factors)
     integer(i_def),     intent( in )    :: eos_height
+    logical(l_def),     intent( in )    :: recompute_rho
+    logical(l_def),     intent( in )    :: exner_from_rho
     type( field_type ), intent( in ), optional, target :: lbc_mask
 
     type(field_type )              :: c_vert_term, r_c
@@ -389,7 +413,8 @@ contains
     type(mesh_type),       pointer :: mesh
     type(field_type),      pointer :: mask
     type(field_type),      target  :: dummy_mask
-    integer(i_def)                 :: eos_level
+    integer(i_def)                 :: eos_level, eos_lev_m1, eos_lev_m1_copy, &
+                                      nlayersm1
 
     nullify(geopotential, chi, panel_id, height_w3, &
             height_wth, vert_coriolis, mesh, mask )
@@ -439,13 +464,29 @@ contains
       ! Initialize the vertical profile by starting with the equation of state at
       ! eos_level, and then integrating from this level to the top and the bottom
       ! using hydrostatic balance with Coriolis terms.
-      call invoke( hydrostatic_coriolis_kernel_type( exner, rho, theta,       &
+      if (exner_from_rho) then
+        eos_lev_m1 = eos_level-1
+        eos_lev_m1_copy = eos_lev_m1
+        call invoke(sample_eos_pressure_kernel_type(exner, rho, theta, &
+                                                    moist_dyn(gas_law),&
+                                                    eos_lev_m1,        &
+                                                    eos_lev_m1_copy))
+      end if
+      call invoke( hydrostatic_coriolis_kernel_type( exner, theta,            &
                                                      c_vert_term,             &
                                                      moist_dyn, geopotential, &
                                                      height_w3, mask,         &
-                                                     p_zero, kappa,           &
-                                                     rd, cp,                  &
+                                                     cp,                      &
                                                      eos_level ) )
+
+      if ( recompute_rho ) then
+        ! Recompute density using the equation of state
+        call invoke(                                                           &
+          sample_eos_rho_kernel_type(                                          &
+              rho, exner, theta, moist_dyn(gas_law), kappa, rd, p_zero)        &
+              )
+      end if
+
    else
       ! Initialize the vertical profile of exner pressure by initializing
       ! with the equation of state, and then integrating from eos_level to
@@ -455,10 +496,12 @@ contains
       ! by rederiving potential temperature (theta) and density (rho).
       call theta%copy_field_properties(exner_in_wth)
       call theta%copy_field_properties(temperature)
+      nlayersm1 = mesh%get_nlayers()-1
       call invoke( &
              ! Compute exner from EoS
              sample_eos_pressure_kernel_type( exner, rho,                    &
-                                              theta, moist_dyn(gas_law) ),   &
+                                              theta, moist_dyn(gas_law),     &
+                                              0, nlayersm1),                 &
 
              ! Compute exner in Wtheta (required to calculate T)
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,           &
