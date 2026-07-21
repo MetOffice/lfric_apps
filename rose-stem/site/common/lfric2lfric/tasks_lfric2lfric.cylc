@@ -65,10 +65,10 @@
         "opt_confs": ["oasis","C24_C12"],
         "resolution": "C24_C12",
         "dst_mesh": "C24_C12",
-        "dst_name": "l0_planar",
+        "dst_name": "l0_cubedsphere",
         "dst_type": "global",
         "src_mesh": "C24_C12",
-        "src_name": "l1_planar",
+        "src_name": "l1_cubedsphere",
         "src_type": "global",
         "mpi_parts": 6,
     }) %}
