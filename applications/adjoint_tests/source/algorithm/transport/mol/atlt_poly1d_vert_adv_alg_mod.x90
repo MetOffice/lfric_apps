@@ -88,10 +88,6 @@ module atlt_poly1d_vert_adv_alg_mod
                                       global_order,            &
                                       logspace)
 
-
-
-
-
   end subroutine atlt_poly1d_vert_adv_alg
 
   !=============================================================================
