@@ -45,6 +45,9 @@
   <field id="height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="full_level_face_grid" />
   <field id="height_w2h" name="height_w2h" long_name="height_of_cell_faces_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="half_level_edge_grid" />
   <field id="height_w0" name="height_w0" long_name="height_of_cell_vertices_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="node_grid" />
+  <field id="theta_nudging_ref" name="theta_nudging_ref" long_name="nudging_reference_air_potential_temperature" unit="K" grid_ref="nudging_ref_full_grid" />
+  <field id="u_in_w3_nudging_ref" name="u_in_w3_nudging_ref" long_name="nudging_reference_eastward_wind_at_cell_centres" unit="ms-1" grid_ref="nudging_ref_half_grid" />
+  <field id="v_in_w3_nudging_ref" name="v_in_w3_nudging_ref" long_name="nudging_reference_northward_wind_at_cell_centres" unit="ms-1" grid_ref="nudging_ref_half_grid" />
   <!-- First line extracts level 0, second line removes vertical coordinate, cannot do as one -->
   <field id="zoomed__orography" field_ref="height_wth" grid_ref="full_level_0_face_zoom" />
   <field id="orography" name="orography" long_name="surface_altitude" standard_name="surface_altitude" unit="m" domain_ref="face" > zoomed__orography </field>
@@ -638,6 +641,7 @@
   <field id="soil__soil_moist_wilt" name="soil_moist_wilt" long_name="soil_moisture_at_wilting_point" unit="m3 m-3" domain_ref="face" />
   <field id="soil__soil_moist_crit" name="soil_moist_crit" long_name="soil_moisture_at_critical_point" unit="m3 m-3" domain_ref="face" /> 
   <field id="soil__soil_moist_sat" name="soil_moist_sat" long_name="soil_moisture_at_saturation" unit="m3 m-3" domain_ref="face" />
+  <field id="soil__inland_basin_flow" name="inland_basin_flow" long_name="Inland basin flow" unit="kg m-2 s-1" domain_ref="face" />
   <!-- Boundary layer turbulence diagnostics -->
   <field id="turbulence__dtheta_bl" name="dtheta_bl" long_name="potential_temperature_increment_from_bl_scheme" unit="K" grid_ref="full_level_face_grid" />
   <field id="turbulence__dt_bl" name="dt_bl" long_name="temperature_increment_from_bl_scheme" unit="K" grid_ref="full_level_face_grid" />

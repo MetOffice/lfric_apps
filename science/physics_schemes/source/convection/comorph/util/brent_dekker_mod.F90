@@ -56,8 +56,8 @@ abstract interface
   integer, intent(in) :: n_points
 
   ! Number of each sort of argument
-  integer, intent(in) :: n_real_sca   ! in real scalar arguments
-  integer, intent(in) :: n_real_arr   ! in real array arguments
+  integer, intent(in) :: n_real_sca   ! IN real scalar arguments
+  integer, intent(in) :: n_real_arr   ! IN real array arguments
 
   ! List of scalar inputs (constants)
   real(kind=real_cvprec), intent(in) :: args_real_sca                          &
@@ -102,8 +102,8 @@ integer, intent(in) :: n_points
 ! Arguments to pass through to the input subroutine f_of_x:
 
 ! Number of each sort of argument
-integer, intent(in) :: n_real_sca   ! in real scalar arguments
-integer, intent(in) :: n_real_arr   ! in real array arguments
+integer, intent(in) :: n_real_sca   ! IN real scalar arguments
+integer, intent(in) :: n_real_arr   ! IN real array arguments
 
 ! List of scalar inputs (constants)
 real(kind=real_cvprec), intent(in) ::    args_real_sca                         &
@@ -232,7 +232,7 @@ do ic = 1, nc
     if ( n_real_arr > 0 ) then
       write(write_fmt,"(A3,I3,A7)") "(A,", n_real_arr, "ES14.6)"
       write(args_real_arr_string,write_fmt) "args_real_arr:",                  &
-           (args_real_arr(1,i_field), i_field=1,n_real_arr)
+           (args_real_arr(ic,i_field), i_field=1,n_real_arr)
     else
       write(args_real_arr_string,"(A)") "args_real_arr: (none)"
     end if
@@ -366,7 +366,7 @@ do while ( nc > 0 .and. iter < n_iter )
           ! iterations required, provided that f(x) is reasonably
           ! well-behaved.
         end if
-      else  ! ( .not. l_bisected_last_step(ic) )
+      else  ! ( .NOT. l_bisected_last_step(ic) )
         ! or we didn't do bisection last step, and...
         if (     abs( x_n(ic) - x_b(ic) )                                      &
               >= abs( x_c(ic) - x_d(ic) )*half                                 &
@@ -375,7 +375,7 @@ do while ( nc > 0 .and. iter < n_iter )
            ) then
           l_bisect = .true.
         end if
-      end if  ! ( .not. l_bisected_last_step(ic) )
+      end if  ! ( .NOT. l_bisected_last_step(ic) )
     end if  ! New x between x_b and limit
     ! If bisection criteria are satisfied, overwrite x_n
     ! with bisection value and set flag
@@ -433,7 +433,7 @@ do while ( nc > 0 .and. iter < n_iter )
                          args_real_arr, x_out )
 
 
-end do  ! while ( nc > 0 .and. iter < n_iter )
+end do  ! WHILE ( nc > 0 .AND. iter < n_iter )
 
 
 ! If any points haven't converged, scatter final values back

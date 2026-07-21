@@ -34,6 +34,12 @@ module gungho_time_axes_mod
     !> Pointer to the LBC time axis object
     type(time_axis_type), pointer, public :: lbc_time_axis
 
+    !> Time varying nudging time axis.
+    type(linked_list_type), public :: nudging_times_list
+
+    !> Pointer to the nudging time axis object
+    type(time_axis_type), pointer, public :: nudging_time_axis
+
     !> Time varying linearisation state time axis.
     !>
     !> @todo Is this part of the linear model?
@@ -49,6 +55,8 @@ module gungho_time_axes_mod
     procedure, public :: initialise
     procedure, public :: make_lbc_time_axis
     procedure, public :: save_lbc_time_axis
+    procedure, public :: make_nudging_time_axis
+    procedure, public :: save_nudging_time_axis
 
   end type gungho_time_axes_type
 
@@ -66,6 +74,8 @@ contains
 
     self%lbc_time_axis => null()
     self%ls_time_axis => null()
+    self%nudging_time_axis => null()
+
   end subroutine initialise
 
   !> @brief Create an lbc time axis
@@ -85,6 +95,29 @@ contains
             interp_flag = interp_flag )
   end subroutine make_lbc_time_axis
 
+  !> @brief Create the nudging time axis
+  !> @param[in] self      Time axes object
+  subroutine make_nudging_time_axis(self)
+
+    implicit none
+
+    class(gungho_time_axes_type), intent(inout) :: self
+
+    logical(l_def), parameter :: cyclic=.false.
+    logical(l_def), parameter :: interp_flag=.true.
+
+    if (associated(self%nudging_time_axis)) then
+      call log_event('failed to recreate nudging time axis', LOG_LEVEL_ERROR)
+    end if
+
+    allocate(self%nudging_time_axis)
+    call self%nudging_time_axis%initialise(                                    &
+            "nudging_time", file_id="nudging",                                 &
+            yearly=cyclic, interp_flag=interp_flag                             &
+    )
+
+  end subroutine make_nudging_time_axis
+
   !> @brief Add the lbc time axis if any to the lbc times list
   !> @param[in,out] self      Time axes object
   subroutine save_lbc_time_axis(self)
@@ -94,6 +127,20 @@ contains
     if (associated(self%lbc_time_axis)) &
       call self%lbc_times_list%insert_item(self%lbc_time_axis)
   end subroutine save_lbc_time_axis
+
+  !> @brief Add the nudging time axis if any to the nudging times list
+  !> @param[in,out] self      Time axes object
+  subroutine save_nudging_time_axis(self)
+
+    implicit none
+
+    class(gungho_time_axes_type), intent(inout) :: self
+
+    if (associated(self%nudging_time_axis)) then
+      call self%nudging_times_list%insert_item(self%nudging_time_axis)
+    end if
+
+  end subroutine save_nudging_time_axis
 
   !-----------------------------------------------------------------------------
   ! Non-type-bound helper function

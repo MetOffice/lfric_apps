@@ -206,7 +206,7 @@ module tl_test_rhs_alg_mod
 
       call tl_rhs_alg(p_rhs, dt, p_state, p_state, p_moist_dyn, &
                       ls_state, ls_moist_dyn,                   &
-                      compute_eos=.true., dlayer_rhs=.true.,   &
+                      compute_eos=.true., dlayer_rhs=.true.,    &
                       model_clock=modeldb%clock)
 
       ! diff = n2_rhs - n1_rhs

@@ -272,7 +272,7 @@ module init_gungho_lbcs_alg_mod
     type(integer_field_type), pointer            :: face_selector_ns
 
     type( field_type ), pointer :: dA
-    integer(i_def)              :: mesh_id
+    type(mesh_type),    pointer :: mesh
 
     write(log_scratch_space,'(A)') "Combining winds "
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
@@ -281,17 +281,17 @@ module init_gungho_lbcs_alg_mod
     call fields%get_field("lbc_v_u", v_wind)
     call fields%get_field("lbc_u", wind)
 
-    mesh_id = wind%get_mesh_id()
+    mesh => wind%get_mesh()
 
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     if (extensive)then
       call invoke( combine_w2_field_kernel_type(wind, h_wind, v_wind,          &
                                                 face_selector_ew,              &
                                                 face_selector_ns) )
     else
-      dA => get_da_at_w2(mesh_id)
+      dA => get_da_at_w2(mesh)
       call invoke( combine_w2_field_kernel_type(wind, h_wind, v_wind,          &
                                                 face_selector_ew,              &
                                                 face_selector_ns),             &
@@ -442,9 +442,9 @@ module init_gungho_lbcs_alg_mod
     call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_q',     &
                                   lbc_q, wtheta_lbc_mask )
 
-    call map_um_lbc_inputs(lbc_q, lbc_qcl, lbc_qcf, lbc_qrain, lbc_rho_r2, &
-                           lbc_m_v, lbc_m_cl, lbc_m_s, lbc_m_r, lbc_rho    &
-                           )
+    call map_um_lbc_inputs( config,                                         &
+                            lbc_q, lbc_qcl, lbc_qcf, lbc_qrain, lbc_rho_r2, &
+                            lbc_m_v, lbc_m_cl, lbc_m_s, lbc_m_r, lbc_rho )
 
     ! Update factors for moist dynamics.
     ! The implementation here is comparable with moisture_formulation_traditional
@@ -465,8 +465,8 @@ module init_gungho_lbcs_alg_mod
     ! Initialize hydrostatically balanced exner field.
                  setval_c(lbc_exner, EXNER_RHO_FILL_VALUE) )
 
-    call hydrostatic_balance( lbc_exner, lbc_rho, lbc_theta, &
-                              lbc_u, lbc_moist_dyn,          &
+    call hydrostatic_balance( config, lbc_exner, lbc_rho,      &
+                              lbc_theta, lbc_u, lbc_moist_dyn, &
                               lbc_eos_height, w3_lbc_mask )
 
     call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_rho',   &

@@ -8,11 +8,13 @@
 !!        3D equations.
 module semi_implicit_timestep_alg_mod
 
-  use constants_mod,             only: i_def, r_def, l_def, str_def
+  use config_mod,                only: config_type
+  use constants_mod,             only: i_def, r_def, l_def, str_def, r_tran
   use fs_continuity_mod,         only: Wtheta, W2
   use log_mod,                   only: log_event,         &
                                        log_scratch_space, &
-                                       LOG_LEVEL_INFO
+                                       log_level_info, &
+                                       log_level_error
   use extrusion_mod,             only: TWOD
   use sci_fem_constants_mod,     only: get_mass_matrix_fe, &
                                        get_mass_matrix_fv
@@ -46,7 +48,8 @@ module semi_implicit_timestep_alg_mod
                                         use_wavedynamics,         &
                                         moisture_formulation,     &
                                         moisture_formulation_dry, &
-                                        exner_from_eos
+                                        exner_from_eos,           &
+                                        solver_moisture_conservation
   use io_config_mod,              only: write_conservation_diag, write_diag,  &
                                         use_xios_io, diagnostic_frequency,    &
                                         checkpoint_read
@@ -117,6 +120,8 @@ module semi_implicit_timestep_alg_mod
   use mixing_alg_mod,             only: mixing_alg
   use si_diagnostics_mod,         only: output_diags_for_si
   use predictors_alg_mod,         only: predictors_alg
+  use solver_moist_correction_alg_mod,                                         &
+                                  only: solver_moist_correction_alg
 
   ! LAM
   use limited_area_lbc_alg_mod,   only: lam_solver_lbc, &
@@ -183,6 +188,8 @@ module semi_implicit_timestep_alg_mod
     type( field_type ) :: wind_prev  ! u from previous iteration used for cheap transport update
     type( r_tran_field_type ) :: total_dry_flux
 
+    type(config_type), pointer:: config
+
   contains
     private
 
@@ -239,7 +246,8 @@ contains
     mr => mr_array%bundle
 
     ! Run the initialisation process
-    call run_init(self, u, rho, theta, exner, mr, prognostic_fields, moisture_fields, model_clock )
+    call run_init(self, modeldb%config, u, rho, theta, exner, mr, &
+                  prognostic_fields, moisture_fields, model_clock )
 
     nullify ( prognostic_fields, moisture_fields, mr_array, model_clock, &
               u, rho, theta, exner, mr )
@@ -417,6 +425,7 @@ contains
 
   !> @details Initialisation procedure for the timestepping algorithm
   !>          Initialises various internal fields
+  !> @param[in]     config            Application namelist configuration object
   !> @param[in,out] u                 3D wind field
   !> @param[in,out] rho               Density
   !> @param[in,out] theta             Potential temperature
@@ -425,11 +434,14 @@ contains
   !> @param[in,out] prognostic_fields Prognostic field collection
   !> @param[in,out] moisture_fields   Moisture field collection
   !> @param[in]     model_clock       Time in the model.
-  subroutine run_init( self, u, rho, theta, exner, mr, prognostic_fields, moisture_fields, model_clock)
+  subroutine run_init( self, config, u, rho, theta, exner, mr, &
+                       prognostic_fields, moisture_fields, model_clock )
 
     implicit none
 
     type(semi_implicit_timestep_type), intent(inout) :: self
+
+    type(config_type), intent(in), target :: config
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: u, rho, theta, exner
@@ -458,6 +470,8 @@ contains
 
     ! Reset frequency of semi-implicit operators
     integer(kind=i_def) :: reference_reset_freq
+
+    self%config => config
 
     ! Get the mesh from one of the fields
     mesh => theta%get_mesh()
@@ -539,7 +553,8 @@ contains
       call prognostic_fields%get_field('theta_ref', theta_ref)
       call prognostic_fields%get_field('rho_ref', rho_ref)
       call prognostic_fields%get_field('exner_ref', exner_ref)
-      call compute_si_operators(theta_ref, rho_ref, exner_ref, model_clock, moist_dyn_ref)
+      call compute_si_operators(self%config, theta_ref, rho_ref, exner_ref, &
+                                model_clock, moist_dyn_ref)
       nullify(theta_ref, rho_ref, exner_ref, moist_dyn_ref, moist_dyn_ref_array)
     end if
 
@@ -681,7 +696,8 @@ contains
 
     ! Moisture field to transport
     type( field_type ),       pointer :: mr_to_adv(:)
-    type( field_type ) :: rho_after_transport
+    type( field_type )                :: dry_flux_solver
+    type( field_type )                :: rho_star
 
     type( field_type ) :: dcfl_tot, dcff_tot, dbcf_tot, &
                           dcfl_adv, dcff_adv, dbcf_adv
@@ -707,7 +723,7 @@ contains
                                              ! during the spinup period
 
     ! Density field used for moisture conservation diagnostics and predictor
-    logical(kind=l_def) :: write_moisture_diag
+    logical(kind=l_def) :: write_moisture_diag, do_moist_correction
 
     ! Fields after slow physics to be advected (i.e. field_n + slow phys inc)
     type( field_collection_type ) :: adv_tracer_all_outer_after_slow
@@ -730,22 +746,23 @@ contains
 
     if ( LPROF ) call start_timing( id, 'semi_implicit_timestep' )
 
+    lbc_option = 0
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
     if (limited_area .and. use_wavedynamics) then
 
-      prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
-      lbc_option      = modeldb%config%initialization%lbc_option()
-      tau_r           = modeldb%config%timestepping%tau_r()
+      prime_mesh_name = self%config%base_mesh%prime_mesh_name()
+      lbc_option      = self%config%initialization%lbc_option()
+      tau_r           = self%config%timestepping%tau_r()
 
       if (lbc_option == lbc_option_um2lfric_file) then
-        murk_lbc =  modeldb%config%aerosol%murk_lbc()
+        murk_lbc =  self%config%aerosol%murk_lbc()
       end if
     end if
     if (lbc_option == lbc_option_um2lfric_file .or. &
         (use_physics .and. cloud == cloud_um)) then
-      microphysics_casim = modeldb%config%microphysics%microphysics_casim()
-      l_mcr_precfrac = modeldb%config%microphysics%l_mcr_precfrac()
+      microphysics_casim = self%config%microphysics%microphysics_casim()
+      l_mcr_precfrac     = self%config%microphysics%l_mcr_precfrac()
     end if
 
     if (element_order_h == 0 .and. element_order_v == 0) then
@@ -756,6 +773,9 @@ contains
       mm_wt  => get_mass_matrix_fe(Wtheta, mesh%get_id())
       mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
     end if
+
+    call rho_star%initialise(rho%get_function_space())
+    call dry_flux_solver%initialise(u%get_function_space())
 
     !--------------------------------------------------------------------
     ! Copy prognostic field data to state arrays
@@ -778,7 +798,9 @@ contains
 
     if ( mod(model_clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) then
       ! Compute semi-implicit operators with current model state
-      call compute_si_operators(self%state(igh_t), self%state(igh_d), self%state(igh_p), model_clock, moist_dyn)
+      call compute_si_operators( self%config, self%state(igh_t),       &
+                                 self%state(igh_d), self%state(igh_p), &
+                                 model_clock, moist_dyn )
 
       checkpoint_reference_fields = &
            mod(model_clock%get_first_step()-1, reference_reset_freq) /= 0 .or. &
@@ -819,7 +841,7 @@ contains
     varbeta = 1.0_r_def - varalpha
 
     ! Perform some checking on the fields.
-    call check_fields(self%state, cast_dt)
+    call check_fields(self%config, self%state, cast_dt)
 
     !--------------------------------------------------------------------
     ! Update state_n and mr_n with start of timestep values
@@ -897,7 +919,9 @@ contains
     outer_dynamics_loop: do outer = 1,outer_iterations
 
       if (use_wavedynamics) then
-        call gungho_transport_control_alg(                                     &
+        call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
+
+        call gungho_transport_control_alg( self%config,                        &
                 self%rhs_adv, self%advected_state, self%state(igh_u),          &
                 self%state_n(igh_u), mr, mr_to_adv, model_clock,               &
                 outer, cheap_update, self%adv_inc_prev, self%wind_prev,        &
@@ -943,9 +967,9 @@ contains
                                                       self%dtheta, mm_wt) )
 
         ! Compute the time-level n+1 dynamics terms
-        call rhs_alg( self%rhs_np1, -varalpha*cast_dt,            &
-                      self%state, self%state, moist_dyn,          &
-                      compute_eos=.true., compute_rhs_t_d=.true., &
+        call rhs_alg( self%rhs_np1, -varalpha*cast_dt,              &
+                      self%state, self%state, moist_dyn,            &
+                      compute_eos=.true., compute_rhs_t_d=.true.,   &
                       dlayer_rhs=dlayer_on, model_clock=model_clock )
       else
         if (self%use_moisture) call copy_bundle(self%mr_after_slow, mr, nummr)
@@ -969,7 +993,8 @@ contains
         !--------------------------------------------------------------------
         ! Call the fast physics terms
         !--------------------------------------------------------------------
-        call fast_physics(self%du, self%dtheta, mr,                            &
+        call fast_physics(self%config,                                         &
+                          self%du, self%dtheta, mr,                            &
                           self%state_n(igh_t), self%state_n(igh_d),            &
                           self%state_n(igh_u), self%state_n(igh_p),            &
                           self%mr_n, derived_fields,                           &
@@ -985,8 +1010,9 @@ contains
                           outer, model_clock, cast_dt)
 
         if (smagorinsky .and. smagorinsky_placement == smagorinsky_placement_outer) then
-          call smagorinsky_alg(self%dtheta, self%du, mr, self%state(igh_t),    &
-                               self%state(igh_u),                              &
+          call smagorinsky_alg(self%config,                                    &
+                               self%dtheta, self%du, mr,                       &
+                               self%state(igh_t), self%state(igh_u),           &
                                derived_fields, cloud_fields, self%state(igh_d),&
                                self%state(igh_p), cast_dt, model_clock)
         end if
@@ -1028,11 +1054,12 @@ contains
           !--------------------------------------------------------------------
           ! Compute the time-level n+1 dynamics terms
           !--------------------------------------------------------------------
-          if (inner > 1) call rhs_alg( self%rhs_np1, -varalpha*cast_dt,             &
-                                       self%state, self%state, moist_dyn,           &
-                                       compute_eos=.true., compute_rhs_t_d=.false., &
-                                       dlayer_rhs=dlayer_on, model_clock=model_clock )
-
+          if (inner > 1) then
+            call rhs_alg( self%rhs_np1, -varalpha*cast_dt,              &
+                          self%state, self%state, moist_dyn,            &
+                          compute_eos=.true., compute_rhs_t_d=.false.,  &
+                          dlayer_rhs=dlayer_on, model_clock=model_clock )
+          end if
           !--------------------------------------------------------------------
           ! Compute the LAM LBCs and RHS
           !--------------------------------------------------------------------
@@ -1074,23 +1101,23 @@ contains
                                 self%use_moisture
           if (write_moisture_diag) then
             ! Calculate transported density
-            call self%state(igh_d)%copy_field_properties(rho_after_transport)
-            call invoke(X_plus_Y(rho_after_transport, &
-                                 self%state_after_slow(igh_d), &
+            call self%state(igh_d)%copy_field_properties(rho_star)
+            call invoke(X_plus_Y(rho_star, self%state_after_slow(igh_d), &
                                  self%rhs_adv(igh_d)))
-            call moisture_conservation_alg(rho_after_transport, mr, &
+            call moisture_conservation_alg(self%config, rho_star, mr, &
                                            'Before solve')
           end if
           !--------------------------------------------------------------------
           ! Solve semi-implicit system: A*inc = rhs, and incement state by inc
           !--------------------------------------------------------------------
           call semi_implicit_solver_alg_step( self%state, self%rhs_np1, &
+                                              dry_flux_solver,          &
                                               moist_dyn(gas_law),       &
                                               mr,                       &
                                               first_iteration=(inner==1) )
 
           if (write_moisture_diag) then
-            call moisture_conservation_alg(self%state(igh_d), mr, &
+            call moisture_conservation_alg(self%config, self%state(igh_d), mr, &
                                            'After solve')
           end if
 
@@ -1124,12 +1151,24 @@ contains
                                  moisture_formulation, prime_mesh_name)
 
             end if
-          endif
-
+          end if
         end do inner_dynamics_loop
         !--------------------------------------------------------------------
         ! End of Inner (nonlinear, coriolis) loop
         !--------------------------------------------------------------------
+
+        do_moist_correction = (                                                &
+          self%use_moisture .and. solver_moisture_conservation                 &
+          .and. outer == outer_iterations                                      &
+          )
+        if (do_moist_correction) then
+          call invoke(                                                         &
+              X_plus_Y(rho_star, self%rhs_adv(igh_d), self%state_n(igh_d))     &
+              )
+          call solver_moist_correction_alg(self%config,                        &
+              mr, self%state(igh_d), rho_star, dry_flux_solver                 &
+              )
+        end if
 
       else ! when use_wavedynamics=false, just add physics increments here
 
@@ -1155,9 +1194,10 @@ contains
     !--------------------------------------------------------------------
     ! Apply mixing
     !--------------------------------------------------------------------
-    call mixing_alg(mr, self%state(igh_t),                                     &
-                    self%state(igh_u), derived_fields, cloud_fields,           &
-                    self%state(igh_d), self%state(igh_p), cast_dt, model_clock)
+    call mixing_alg(self%config, mr, self%state(igh_t),              &
+                    self%state(igh_u), derived_fields, cloud_fields, &
+                    self%state(igh_d), self%state(igh_p), cast_dt,   &
+                    model_clock)
 
     ! ----------------------------------------------------------------------
     ! Call cloud scheme to generate cloud and latent heating after pressure
@@ -1166,7 +1206,7 @@ contains
 #ifdef UM_PHYSICS
     if (use_physics .and. cloud == cloud_um  ) then
 
-      call cld_alg( self%dtheta_cld, mr,                                     &
+      call cld_alg( self%config, self%dtheta_cld, mr,                        &
                     self%state(igh_t), self%state(igh_p), self%state(igh_d), &
                     derived_fields, turbulence_fields,                       &
                     cloud_fields, convection_fields,                         &
@@ -1187,9 +1227,11 @@ contains
       end if
 
       if (microphysics_casim) then
-        call casim_activate_alg( self%state(igh_t), mr, derived_fields,      &
-                                 cloud_fields, microphysics_fields,          &
-                                 convection_fields, initialise=.false. )
+        call casim_activate_alg( self%config,                            &
+                                 self%state(igh_t), mr,                  &
+                                 derived_fields, cloud_fields,           &
+                                 microphysics_fields, convection_fields, &
+                                 initialise=.false. )
       end if ! microphysics_casim
 
     end if
@@ -1200,9 +1242,11 @@ contains
       call moist_dyn_factors_alg(moist_dyn, mr)
     end if
     if (use_physics) then
-      call map_physics_fields_alg(self%state(igh_u), self%state(igh_p), &
-                                  self%state(igh_d), self%state(igh_t), &
-                                  moist_dyn, derived_fields)
+      call map_physics_fields_alg( self%config,                          &
+                                   self%state(igh_u),                    &
+                                   self%state(igh_p), self%state(igh_d), &
+                                   self%state(igh_t), moist_dyn,         &
+                                   derived_fields )
     end if
 
     !--------------------------------------------------------------------
@@ -1212,7 +1256,8 @@ contains
     if ( aerosol == aerosol_um .and.            &
          ( glomap_mode == glomap_mode_ukca .or. &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
-      call aerosol_ukca_alg ( chemistry_fields, aerosol_fields,          &
+      call aerosol_ukca_alg ( self%config,                               &
+                              chemistry_fields, aerosol_fields,          &
                               radiation_fields, derived_fields,          &
                               microphysics_fields, turbulence_fields,    &
                               convection_fields, cloud_fields,           &

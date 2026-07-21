@@ -18,10 +18,16 @@
         "lfric_atm": {
             "build_wallclock": 45,
         },
+        "linear_model": {
+            "build_wallclock": 45,
+        },
         "jules": {
             "build_wallclock": 35,
         },
         "ngarch": {
+            "build_wallclock": 45,
+        },
+        "jedi_lfric_tests": {
             "build_wallclock": 45,
         },
         "mesh": {
@@ -45,10 +51,16 @@
         "lfric_atm": {
             "build_wallclock": 60,
         },
+        "linear_model": {
+            "build_wallclock": 60,
+        },
         "lfric_coupled": {
             "build_wallclock": 60,
         },
         "ngarch": {
+            "build_wallclock": 45,
+        },
+        "jedi_lfric_tests": {
             "build_wallclock": 45,
         },
         "mesh": {

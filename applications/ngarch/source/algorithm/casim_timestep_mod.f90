@@ -85,7 +85,8 @@ contains
 
     ! Call the algorithm
     call log_event( "Running CASIM", LOG_LEVEL_INFO )
-    call casim_alg( mr%bundle, theta, rho,                  &
+    call casim_alg( modeldb%config,                         &
+                    mr%bundle, theta, rho,                  &
                     derived_fields,                         &
                     microphysics_fields,                    &
                     cloud_fields,                           &

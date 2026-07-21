@@ -1,0 +1,163 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Remap the inputs from an LBC file to the appropriate prognostic
+!>          variables for GungHo
+!> @details This is only to facilitate scintelapi. The core components are
+!>          switching away from using module scope. The scintelapi is
+!>          not written in a way that allows ease of change. These
+!>          routines are in order to stop scintelapi breaking.
+!>
+!>          The LBC inputs are currently provided as specific humidities and
+!>          a total density.  This routine converts them to the equivalent
+!>          mixing ratios and dry density.
+module scintel_map_um_lbc_inputs_alg_mod
+
+  use sci_geometric_constants_mod,         only: get_coordinates
+  use sci_height_continuous_kernel_mod,    only: height_continuous_kernel_type
+  use sci_height_discontinuous_kernel_mod, only: height_discontinuous_kernel_type
+
+  use fs_continuity_mod, only: W3
+  use constants_mod,     only: i_def, r_def, l_def, str_def
+
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use sci_sample_wtheta_to_w3_kernel_mod, only: sample_wtheta_to_w3_kernel_type
+
+  use field_mod,          only: field_type
+  use function_space_mod, only: function_space_type
+  use mesh_mod,           only: mesh_type
+
+  use function_space_collection_mod, only: function_space_collection
+
+  use base_mesh_config_mod,      only: geometry_spherical, geometry_planar
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+  use extrusion_config_mod,      only: planet_radius
+
+  implicit none
+
+  public  :: scintel_map_um_lbc_inputs
+  private :: scintel_get_height_w3_fv
+
+  type(inventory_by_mesh_type), target :: height_w3_inventory_fv
+
+contains
+
+subroutine scintel_map_um_lbc_inputs( q, qcl, qcf, qrain, rho_r2, &
+                                      m_v, m_cl, m_s, m_r, rho )
+
+  implicit none
+
+  type(field_type), intent(in)    :: q, qcl, qcf, qrain, rho_r2
+  type(field_type), intent(inout) :: m_v, m_cl, m_s, m_r, rho
+
+  type(field_type), pointer :: height_w3
+  type(mesh_type),  pointer :: mesh
+
+  type(field_type) :: radius_w3
+  type(field_type) :: qsum
+  type(field_type) :: qsum_w3
+
+  integer(i_def) :: mesh_id
+
+  mesh      => rho%get_mesh()
+  mesh_id   =  mesh%get_id()
+
+  height_w3 => scintel_get_height_w3_fv(mesh)
+
+  ! Convert to a total air density
+  ! rho = rho/r/r
+  ! at this stage rho is not yet dry
+  call height_w3%copy_field_properties( radius_w3 )
+
+  call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ), &
+               X_divideby_Y( rho, rho_r2, radius_w3 ),          &
+               inc_X_divideby_Y( rho, radius_w3 ) )
+
+  ! Next we need the specific humidity variables
+  ! Can get rho_d = rho_T(1 - S)
+  ! Where S = sum of q's
+  ! Then m_i = qi/(1-S)
+  ! Note below the field qsum = (1 - S).
+  ! We also average qsum to the rho location for the recovery
+  ! of the dry density.
+  call q%copy_field_properties( qsum )
+  call rho%copy_field_properties( qsum_w3 )
+
+  call invoke( setval_c( qsum, 1.0_r_def ),      &
+               inc_X_minus_Y( qsum, q ),         &
+               inc_X_minus_Y( qsum, qcl ),       &
+               inc_X_minus_Y( qsum, qcf ),       &
+               inc_X_minus_Y( qsum, qrain ),     &
+               X_divideby_Y( m_v, q, qsum ),     &
+               X_divideby_Y( m_cl, qcl, qsum ),  &
+               X_divideby_Y( m_s, qcf, qsum ),   &
+               X_divideby_Y( m_r, qrain, qsum ), &
+               sample_wtheta_to_w3_kernel_type( qsum_w3, qsum ), &
+               inc_X_times_Y( rho, qsum_w3 ) )
+
+end subroutine scintel_map_um_lbc_inputs
+
+
+
+!> @brief Returns a pointer to a finite volume height field for W3
+!>        function space only.
+!> @desciption Version for scintelapi only as the generators are
+!>             easily amenable.
+!> @param[in] mesh
+!> @return A height field
+function scintel_get_height_w3_fv(mesh) result(height)
+
+  implicit none
+
+  type(mesh_type), intent(in), pointer :: mesh
+
+  type(inventory_by_mesh_type), pointer :: inventory
+  type(function_space_type),    pointer :: space
+  type(field_type),             pointer :: chi(:)
+  type(field_type),             pointer :: height
+
+  logical(l_def)     :: constant_exists
+  character(str_def) :: inventory_name
+  integer(i_def)     :: depth
+
+  integer(i_def) :: geometry
+
+  if (mesh%is_geometry_spherical()) then
+    geometry = geometry_spherical
+  else
+    geometry = geometry_planar
+  end if
+
+  ! Determine inventory based on W3 space
+  inventory => height_w3_inventory_fv
+  inventory_name = "height_w3_fv"
+
+  ! Initialise inventory if this is the first time getting this constant
+  if (.not. inventory%is_initialised()) then
+    call inventory%initialise(name=inventory_name)
+  end if
+
+  constant_exists = inventory%paired_object_exists(mesh%get_id())
+
+  if (.not. constant_exists) then
+    ! If this constant doesn't exist, create it
+    chi   => get_coordinates(mesh)
+    space => function_space_collection%get_fs(mesh, 0, 0, W3)
+    depth =  mesh%get_halo_depth()
+
+    call inventory%add_field(height, space, mesh, halo_depth=depth)
+
+    call invoke( height_discontinuous_kernel_type( height, chi, geometry, &
+                                                   coord_system,          &
+                                                   scaled_radius ) )
+  else
+    call inventory%get_field(mesh, height)
+  end if
+
+end function scintel_get_height_w3_fv
+
+end module scintel_map_um_lbc_inputs_alg_mod

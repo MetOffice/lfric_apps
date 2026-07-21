@@ -1721,7 +1721,7 @@ contains
 
     do n = 1, n_land_tile
       do m = 1, sm_levels
-        i_tile=sm_levels*(n-1)+ m - 1 
+        i_tile=sm_levels*(n-1)+ m - 1
         do k = 1, ainfo%surft_pts(n)
           l = ainfo%surft_index(k,n)
           tile_water_extract(map_smtile(1,ainfo%land_index(l))+i_tile) = wt_ext_surft(l,m,n)

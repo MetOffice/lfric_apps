@@ -7,6 +7,7 @@
 module atlt_wind_transport_alg_mod
 
   use adj_trans_lookup_cache_mod,          only : adj_trans_lookup_cache_type
+  use config_mod,                          only : config_type
   use r_tran_field_mod,                    only : r_tran_field_type
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
@@ -49,10 +50,12 @@ module atlt_wind_transport_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config                  Application namelist configuration object
   !> @param[in]  mesh                    The model mesh
   !> @param[in]  model_clock             The model clock
   !> @param[in]  adj_lookup_table_cache  Lookup table cache
-  subroutine atlt_wind_transport_alg( mesh, model_clock, adj_lookup_table_cache )
+  subroutine atlt_wind_transport_alg( config, mesh, model_clock, &
+                                      adj_lookup_table_cache )
 
     use tl_wind_transport_alg_mod,          only : tl_wind_transport_alg
     use atl_wind_transport_alg_mod,         only : atl_wind_transport_alg
@@ -60,6 +63,7 @@ module atlt_wind_transport_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),                 intent(in) :: config
     type(mesh_type),          pointer, intent(in) :: mesh
     type(model_clock_type),            intent(in) :: model_clock
     type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
@@ -111,7 +115,10 @@ module atlt_wind_transport_alg_mod
     real(kind=r_def) :: relative_diff
 
     mesh_id = mesh%get_id()
-    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs, 'wind' )
+    call setup_test_tl_transport_controller( config, mesh, model_clock, &
+                                             tl_transport_controller,   &
+                                             dummy, dummy_vs, 'wind' )
+
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
     transport_metadata => pert_transport_controller%get_transport_metadata()

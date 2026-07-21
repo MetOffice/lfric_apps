@@ -41,12 +41,10 @@ type :: grid_type
 
   ! Pressure on the same levels as thermodynamic fields
   ! (and height_full)
-  real(kind=real_hmprec), pointer :: pressure_full(:,:,:)                      &
-                                                       => null()
+  real(kind=real_hmprec), pointer :: pressure_full(:,:,:) => null()
 
   ! Pressure at half-levels (same heights as height_half)
-  real(kind=real_hmprec), pointer :: pressure_half(:,:,:)                      &
-                                                       => null()
+  real(kind=real_hmprec), pointer :: pressure_half(:,:,:) => null()
 
   ! Dry-density on the same levels as thermodynamic fields
   ! (and height_full)

@@ -404,7 +404,8 @@ subroutine setup_io(self, config)
 
   ! Setup XIOS with the files defined by file_meta_data
   context_name = "jedi_context"
-  call initialise_io( context_name,         &
+  call initialise_io( config,               &
+                      context_name,         &
                       self%get_mpi_comm(),  &
                       file_meta_data,       &
                       self%get_mesh_name(), &

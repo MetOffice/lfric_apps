@@ -296,6 +296,10 @@ module coupler_mod
     call add_cpl_field(depository, prognostic_fields, &
          'lf_svnocean', vector_space, checkpoint_restart_flag)
 
+   ! From TRIP river model
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_inland_flow', vector_space, checkpoint_restart_flag)
+
   end subroutine create_coupling_fields
 
 
@@ -595,7 +599,7 @@ module coupler_mod
 
     call iter%initialise(cpl_rcv_2d)
     do
-      if (.not.iter%has_next())exit
+      if (.not.iter%has_next()) exit
       field => iter%next()
       select type(field)
       type is (field_type)
@@ -621,23 +625,23 @@ module coupler_mod
       ierror = 1
     end if
 
-    if(ierror == 0) then
+    if (ierror == 0) then
 
       ! If exchange is successful then process the data that has
       ! come through the coupler
-      call process_recv_fields_2d(cpl_rcv_2d, depository, &
+      call process_recv_fields_2d(modeldb%config, cpl_rcv_2d, depository, &
                                   n_sea_ice_tile, T_freeze_h2o_sea,  &
                                   therm_cond_sice, therm_cond_sice_snow )
 
       ! Update the prognostics
       call iter%initialise(cpl_rcv_2d)
       do
-        if(.not.iter%has_next())exit
+        if (.not.iter%has_next()) exit
         field => iter%next()
         call cpl_rcv_2d%get_field( &
                                trim(field%get_name()), field_ptr)
         call field_ptr%write_field(trim(field%get_name()))
-        call coupler_update_prognostics(field_ptr, depository)
+        call coupler_update_prognostics(modeldb%config, field_ptr, depository)
       end do
 
     end if
@@ -781,7 +785,7 @@ module coupler_mod
         ! Multiple category entry (so will need a multidata lfric field)
         if (index_cat > 0) then
           ! Check if name ends in cpl_cat substring followed by 2 characters
-          if (len(trim(name)) - index_cat+1 - len(cpl_cat) .ne. 2 ) then
+          if (len(trim(name)) - index_cat+1 - len(cpl_cat) /= 2 ) then
             write(log_scratch_space,'(3A)')             &
                "generate_coupling_field_collections : ", &
                "incorrect send variable name in coupling config: ", name
@@ -836,7 +840,7 @@ module coupler_mod
         index_cat = index(name, cpl_cat)
         ! if name ends in cpl_cat substring, check it is the correct length
         if (index_cat > 0 .and. &
-           (index_cat - 1 + len(cpl_cat) + len(cpl_fixed_catno) .ne. &
+           (index_cat - 1 + len(cpl_cat) + len(cpl_fixed_catno) /= &
                                                    len(trim(name)))) then
           write(log_scratch_space,'(3A)')             &
                "generate_coupling_field_collections : ", &

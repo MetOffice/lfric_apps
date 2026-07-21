@@ -46,7 +46,9 @@ program transport
   call init_config( filename, transport_required_namelists, &
                     config=modeldb%config )
 
-  call init_logger( modeldb%mpi%get_comm(), program_name )
+  call init_logger( modeldb%config,         &
+                    modeldb%mpi%get_comm(), &
+                    program_name )
 
   call log_event( 'Miniapp will run with default precision set as:', &
     log_level_trace )
@@ -70,7 +72,7 @@ program transport
 
   call log_event( 'Running ' // program_name // ' ...', log_level_trace )
   do while (modeldb%clock%tick())
-    call step_transport( modeldb%clock )
+    call step_transport( modeldb%config, modeldb%clock )
   end do
 
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )

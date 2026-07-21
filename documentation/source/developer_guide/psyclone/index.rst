@@ -17,6 +17,7 @@ structure of the directories that hold the trasnformation scripts.
 
    psyclone_scripts
    psyclone_makefiles
+   psyclone_functions
 
 
 Optimisation directory structure

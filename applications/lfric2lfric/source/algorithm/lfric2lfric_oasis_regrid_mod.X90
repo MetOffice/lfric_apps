@@ -71,10 +71,10 @@ contains
 
     implicit none
 
-    type(modeldb_type),         intent(inout) :: modeldb
-    type(model_clock_type),     intent(inout) :: clock
-    type(field_type), pointer,  intent(inout) :: field_dst
-    type(field_type), pointer,  intent(in)    :: field_src
+    type(modeldb_type),     intent(inout) :: modeldb
+    type(model_clock_type), intent(inout) :: clock
+    type(field_type),       intent(inout) :: field_dst
+    type(field_type),       intent(in)    :: field_src
 
 #ifdef MCT
     ! Local variables
