@@ -39,19 +39,19 @@ type, public, extends(kernel_type) :: photol_kernel_type
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_hour
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_minute
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_second
-       arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_daynum       
+       arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_daynum
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_hour
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_minute
-       arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_second       
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! o3     
+       arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! previous_time_second
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! o3
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! theta_wth
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! exner_in_wth
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! height_in_wth
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! m_cl_n
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! m_cf_n
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! rel_humid_frac       
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! rel_humid_frac
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! conv_cloud_amount
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! area_cloud_frac       
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! area_cloud_frac
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! sulp_accum
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! sulp_aitken
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! aod_sulp_accum
@@ -62,9 +62,9 @@ type, public, extends(kernel_type) :: photol_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READ, W3 ),          & ! exner_in_w3
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3 ), & ! tile_fraction
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! latitude
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! longitude       
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! longitude
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! sin_stellar_declination_rts
-       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! stellar_eqn_of_time_rts       
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! stellar_eqn_of_time_rts
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! conv_cloud_lwp
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! surf_albedo
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! conv_cloud_base
@@ -81,7 +81,7 @@ public photol_code
 contains
 
 !> @brief UKCA Photolysis scheme time step.
-!> @details Copy or create the environmental driver fields required for the 
+!> @details Copy or create the environmental driver fields required for the
 !>          current Photolysis configuration, perform a photolysis timestep
 !>          and finally copy the rates array back as a LFRic field.
 
@@ -197,7 +197,7 @@ subroutine photol_code( nlayers,                                               &
                               photol_fldnames_fullht_real,                     &
                               photol_fldnames_fullht0_real,                    &
                               photol_fldnames_fullhtphot_real
-  
+
   use chemistry_config_mod, only: chem_scheme, chem_scheme_strattrop,          &
                               photol_scheme, photol_scheme_fastjx
 
@@ -232,7 +232,7 @@ subroutine photol_code( nlayers,                                               &
                               photol_fldname_tan_latitude,                     &
                               photol_fldname_z_top_of_model,                   &
                               photol_step_control
-  ! UM modules  
+  ! UM modules
   use planet_constants_mod, only: p_zero, kappa, planet_radius
 
   ! UKCA API module
@@ -256,10 +256,10 @@ subroutine photol_code( nlayers,                                               &
   integer(kind=i_def), dimension(ndf_w3, seg_len), intent(in) :: map_w3
   integer(kind=i_def), intent(in) :: ndf_tile
   integer(kind=i_def), intent(in) :: undf_tile
-  integer(kind=i_def), dimension(ndf_tile, seg_len), intent(in) :: map_tile  
+  integer(kind=i_def), dimension(ndf_tile, seg_len), intent(in) :: map_tile
   integer(kind=i_def), intent(in) :: ndf_2d
   integer(kind=i_def), intent(in) :: undf_2d
-  integer(kind=i_def), dimension(ndf_2d, seg_len), intent(in) :: map_2d  
+  integer(kind=i_def), dimension(ndf_2d, seg_len), intent(in) :: map_2d
 
   real(kind=r_def), intent(in out), dimension(undf_nphot) :: photol_rates
 
@@ -292,17 +292,17 @@ subroutine photol_code( nlayers,                                               &
   real(kind=r_def), intent(in), dimension(undf_w3) :: height_w3
   real(kind=r_def), intent(in), dimension(undf_w3) :: exner_in_w3
 
-  real(kind=r_def), intent(in), dimension(undf_tile) :: tile_fraction  
+  real(kind=r_def), intent(in), dimension(undf_tile) :: tile_fraction
   real(kind=r_def), intent(in), dimension(undf_2d) :: latitude
-  real(kind=r_def), intent(in), dimension(undf_2d) :: longitude  
+  real(kind=r_def), intent(in), dimension(undf_2d) :: longitude
   real(kind=r_def), intent(in), dimension(undf_2d) ::                          &
     sin_stellar_declination_rts
-  real(kind=r_def), intent(in), dimension(undf_2d) :: stellar_eqn_of_time_rts  
+  real(kind=r_def), intent(in), dimension(undf_2d) :: stellar_eqn_of_time_rts
   real(kind=r_def), intent(in), dimension(undf_2d) :: conv_cloud_lwp
   real(kind=r_def), intent(in), dimension(undf_2d) :: surf_albedo
   real(kind=r_def), intent(in), dimension(undf_2d) :: conv_cloud_base
   real(kind=r_def), intent(in), dimension(undf_2d) :: conv_cloud_top
-  
+
   ! Local variables for the kernel
 
   ! Current model time (year, month, day, hour, minute, second, day number)
@@ -310,7 +310,7 @@ subroutine photol_code( nlayers,                                               &
   ! Seconds since midnight
   real(r_um) :: sec_since_midnight
 
-  ! Groups of environment driving fields 
+  ! Groups of environment driving fields
   ! Scalars, dimension (m_fields)
   real(r_um), allocatable :: fldgroup_scalar_real(:)
 
@@ -323,7 +323,7 @@ subroutine photol_code( nlayers,                                               &
   ! Dimensions: (seg_len, 1, 0:nlayers, m_fields)
   real(r_um), allocatable :: fldgroup_fullht0_real(:,:,:,:)
   ! Dimensions: (seg_len, 1, nlayers, n_phot, M=1)
-  real(r_um), allocatable :: fldgroup_fullhtphot_real(:,:,:,:,:)  
+  real(r_um), allocatable :: fldgroup_fullhtphot_real(:,:,:,:,:)
 
   ! Environmental driver fields to be calculated
   real(r_um) :: r_theta_levels(seg_len,1,0:nlayers)
@@ -333,7 +333,7 @@ subroutine photol_code( nlayers,                                               &
   real(r_um) :: p_layer_boundaries(seg_len,1,0:nlayers)
 
   real(r_um) :: frac_land(seg_len,1)   ! Land fraction in cell
-  
+
   ! Photolysis rates in UM type, to be passed to control routine
   real(r_um), allocatable :: photol_rates_loc(:,:,:,:)
 
@@ -342,7 +342,7 @@ subroutine photol_code( nlayers,                                               &
   ! Working variables
   integer(i_um) :: m_fields   ! Number of fields in a group
   integer(i_um) :: n_land_pts ! Number of land points
-  integer(i_um) :: i          ! Model horizontal loop counter  
+  integer(i_um) :: i          ! Model horizontal loop counter
   integer(i_um) :: k          ! Model level loop counter
   integer(i_um) :: m          ! Fields Loop counter
   integer(i_um) :: n          ! Fields counter
@@ -374,7 +374,7 @@ subroutine photol_code( nlayers,                                               &
   current_time(5) = int( current_time_minute, i_um )
   current_time(6) = int( current_time_second, i_um )
   current_time(7) = int( current_time_daynum, i_um )
-  
+
   sec_since_midnight = real( (previous_time_hour * 3600_i_def +                &
                               previous_time_minute * 60_i_def +                &
                               previous_time_second), r_um)
@@ -420,7 +420,7 @@ subroutine photol_code( nlayers,                                               &
         r_theta_levels( i, 1, k ) =                                            &
            real( height_wth( map_wth(1,i) + k ), r_um ) + planet_radius
       end do
-    end do    
+    end do
 
     ! height of rho levels from centre of planet
     do i = 1, seg_len
@@ -444,7 +444,7 @@ subroutine photol_code( nlayers,                                               &
     r_rho_levels(:,:,:) = 0.0_r_um
     frac_land(:,:) = 0.0_r_um
   end if  ! if fast-jx scheme
- 
+
   ! Add the driving fields into field groups, based on list of names received
   ! via the photolysis api (in um_ukca_init). Also, append the name of the
   ! added field to list of env_fieldnames passed separately.
@@ -458,11 +458,11 @@ subroutine photol_code( nlayers,                                               &
   if (m_fields > 0 ) then
     allocate(fldgroup_scalar_real(m_fields))
     fldgroup_scalar_real(:) = 0.0_r_um
-    do m = 1, m_fields      
+    do m = 1, m_fields
       select case(photol_fldnames_scalar_real(m))
       case(photol_fldname_equation_of_time)
         ! Eqn of time
-        fldgroup_scalar_real(m) = real(stellar_eqn_of_time_rts(map_2d(1,1)), r_um)        
+        fldgroup_scalar_real(m) = real(stellar_eqn_of_time_rts(map_2d(1,1)), r_um)
         call append_fieldname(n, photol_fldname_equation_of_time,              &
                               env_fldnames_avail)
       case(photol_fldname_sec_since_midnight)
@@ -473,12 +473,12 @@ subroutine photol_code( nlayers,                                               &
       case(photol_fldname_sin_declination)
         ! Sin declination angle
         fldgroup_scalar_real(m) =                                              &
-            real( sin_stellar_declination_rts( map_2d(1,1) ), r_um )        
+            real( sin_stellar_declination_rts( map_2d(1,1) ), r_um )
         call append_fieldname(n,photol_fldname_sin_declination,                &
                               env_fldnames_avail)
       case(photol_fldname_z_top_of_model)
         ! Top of model (height from surface)
-        fldgroup_scalar_real(m) = z_top_of_model        
+        fldgroup_scalar_real(m) = z_top_of_model
         call append_fieldname(n,photol_fldname_z_top_of_model,                 &
                               env_fldnames_avail)
       case default
@@ -499,7 +499,7 @@ subroutine photol_code( nlayers,                                               &
   if (m_fields > 0 ) then
     allocate(fldgroup_flat_integer(seg_len,1,m_fields))
     fldgroup_flat_integer(:,:,:) = 0_i_um
-    do m = 1, m_fields      
+    do m = 1, m_fields
       select case(photol_fldnames_flat_integer(m))
       case(photol_fldname_conv_cloud_base)
         ! Base (model level) for convective cloud
@@ -507,7 +507,7 @@ subroutine photol_code( nlayers,                                               &
           fldgroup_flat_integer(i,1,m) = int(conv_cloud_base(map_2d(1,i)), i_um)
         end do
         call append_fieldname(n,photol_fldname_conv_cloud_base,              &
-                              env_fldnames_avail)        
+                              env_fldnames_avail)
       case(photol_fldname_conv_cloud_top)
         ! Top (model level) for convective cloud
         do i = 1, seg_len
@@ -524,7 +524,7 @@ subroutine photol_code( nlayers,                                               &
 
     end do ! m_fields
   else
-    allocate(fldgroup_flat_integer(1,1,0))  
+    allocate(fldgroup_flat_integer(1,1,0))
   end if
 
   ! Populate FLDGROUP_FLAT_REAL
@@ -532,7 +532,7 @@ subroutine photol_code( nlayers,                                               &
   if (m_fields > 0 ) then
     allocate(fldgroup_flat_real(seg_len,1,m_fields))
     fldgroup_flat_real(:,:,:) = 0.0_r_um
-    do m = 1, m_fields      
+    do m = 1, m_fields
       select case(photol_fldnames_flat_real(m))
       case(photol_fldname_conv_cloud_lwp)
         ! Convective cloud liquid water path
@@ -551,7 +551,7 @@ subroutine photol_code( nlayers,                                               &
       case(photol_fldname_land_fraction)
         ! Fraction of land in grid box
         do i = 1, seg_len
-          fldgroup_flat_real(i,1,m) = frac_land(i, 1)          
+          fldgroup_flat_real(i,1,m) = frac_land(i, 1)
         end do
         call append_fieldname(n,photol_fldname_land_fraction,              &
                               env_fldnames_avail)
@@ -596,7 +596,7 @@ subroutine photol_code( nlayers,                                               &
 
     end do ! m_fields
   else
-    allocate(fldgroup_flat_real(1,1,0))  
+    allocate(fldgroup_flat_real(1,1,0))
   end if
 
   ! Populate FLDGROUP_FULLHT_REAL
@@ -604,7 +604,7 @@ subroutine photol_code( nlayers,                                               &
   if (m_fields > 0 ) then
     allocate(fldgroup_fullht_real(seg_len,1,nlayers,m_fields))
     fldgroup_fullht_real(:,:,:,:) = 0.0_r_um
-    do m = 1, m_fields      
+    do m = 1, m_fields
       select case(photol_fldnames_fullht_real(m))
       case(photol_fldname_aod_sulph_aitk)
         ! Optical depth from Sulphate in aitken mode
@@ -631,7 +631,7 @@ subroutine photol_code( nlayers,                                               &
         do i = 1, seg_len
           do k = 1, nlayers
             fldgroup_fullht_real(i,1,k,m) =                                   &
-                              real(area_cloud_frac( map_wth(1,i) + k ), r_um)          
+                              real(area_cloud_frac( map_wth(1,i) + k ), r_um)
           end do
         end do
         call append_fieldname(n,photol_fldname_area_cloud_fraction,            &
@@ -650,7 +650,7 @@ subroutine photol_code( nlayers,                                               &
         ! Ozone mass mixing ratio
         do i = 1, seg_len
           do k = 1, nlayers
-            fldgroup_fullht_real(i,1,k,m) = real(o3( map_wth(1,i) + k ), r_um)            
+            fldgroup_fullht_real(i,1,k,m) = real(o3( map_wth(1,i) + k ), r_um)
           end do
         end do
         call append_fieldname(n,photol_fldname_ozone_mmr,              &
@@ -659,7 +659,7 @@ subroutine photol_code( nlayers,                                               &
         ! Pressure on theta levels
         do i = 1, seg_len
           do k = 1, nlayers
-            fldgroup_fullht_real(i,1,k,m) = p_theta_levels(i, 1, k )            
+            fldgroup_fullht_real(i,1,k,m) = p_theta_levels(i, 1, k )
           end do
         end do
         call append_fieldname(n,photol_fldname_p_theta_levels,              &
@@ -709,7 +709,7 @@ subroutine photol_code( nlayers,                                               &
           end do
         end do
         call append_fieldname(n,photol_fldname_r_rho_levels,              &
-                              env_fldnames_avail)      
+                              env_fldnames_avail)
       case(photol_fldname_so4_accum)
         ! Mass mix ratio of sulphate aeroosol in accumulation mode
         do i = 1, seg_len
@@ -734,7 +734,7 @@ subroutine photol_code( nlayers,                                               &
         ! Temperature on theta levels
         do i = 1, seg_len
           do k = 1, nlayers
-            fldgroup_fullht_real(i,1,k,m) = t_theta_levels( i, 1, k )           
+            fldgroup_fullht_real(i,1,k,m) = t_theta_levels( i, 1, k )
           end do
         end do
         call append_fieldname(n,photol_fldname_t_theta_levels,              &
@@ -748,7 +748,7 @@ subroutine photol_code( nlayers,                                               &
 
     end do ! m_fields
   else
-    allocate(fldgroup_fullht_real(1,1,1,0))  
+    allocate(fldgroup_fullht_real(1,1,1,0))
   end if
 
   ! Populate FLDGROUP_FULLHT0_REAL
@@ -756,13 +756,13 @@ subroutine photol_code( nlayers,                                               &
   if (m_fields > 0 ) then
     allocate(fldgroup_fullht0_real(seg_len,1,0:nlayers,m_fields))
     fldgroup_fullht0_real(:,:,:,:) = 0.0_r_um
-    do m = 1, m_fields      
+    do m = 1, m_fields
       select case(photol_fldnames_fullht0_real(m))
       case(photol_fldname_p_layer_boundaries)
         ! Pressure on level boundaries
         do i = 1, seg_len
           do k = 0, nlayers
-            fldgroup_fullht0_real(i,1,k,m) = p_layer_boundaries( i, 1, k )            
+            fldgroup_fullht0_real(i,1,k,m) = p_layer_boundaries( i, 1, k )
           end do
         end do
         call append_fieldname(n,photol_fldname_p_layer_boundaries,              &
@@ -771,7 +771,7 @@ subroutine photol_code( nlayers,                                               &
         ! Distance of level from planet centre
         do i = 1, seg_len
           do k = 0, nlayers
-            fldgroup_fullht0_real(i,1,k,m) = r_theta_levels( i, 1, k )          
+            fldgroup_fullht0_real(i,1,k,m) = r_theta_levels( i, 1, k )
           end do
         end do
         call append_fieldname(n,photol_fldname_r_theta_levels,              &
@@ -794,7 +794,7 @@ subroutine photol_code( nlayers,                                               &
     allocate(photol_rates_loc(seg_len,1,nlayers,n_phot_spc))
   end if
   photol_rates_loc(:,:,:,:) = 0.0_r_um
- 
+
   call photol_step_control(current_time, seg_len, 1, nlayers, n_phot_spc,      &
                          ratj_data, ratj_varnames, error_code, photol_rates_loc,&
                          ! names of environment fields provided
@@ -822,7 +822,7 @@ subroutine photol_code( nlayers,                                               &
             photol_rates_loc(i, 1, k, jp1)
       end do
     end do
-  end do        
+  end do
   ! deallocate field groups and local arrays
   if (allocated(photol_rates_loc)) deallocate(photol_rates_loc)
   if (allocated(fldgroup_fullht0_real)) deallocate(fldgroup_fullht0_real)
@@ -854,7 +854,7 @@ if ( x > size(fldnames_avail) ) then
     'ERROR from photol_kernel_mod: append_filename: ',                         &
     ' Index exceeds env_fldnames_avail arraysize '
   call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-ELSE  
+ELSE
   ! Append to list of fieldnames being provided.
   fldnames_avail(x) = fldname_in
 END IF

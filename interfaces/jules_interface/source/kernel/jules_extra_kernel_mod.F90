@@ -1019,7 +1019,7 @@ contains
     do n = 1, nsurft
       do j = 1, nsmax
         do l = 1, land_pts
-          i_snow = nsmax*(n-1) + j - 1 
+          i_snow = nsmax*(n-1) + j - 1
           ! Thickness of snow layers
           snow_layer_thickness(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%ds_surft(l,n,j), r_def)
           ! Mass of ice in snow layers
