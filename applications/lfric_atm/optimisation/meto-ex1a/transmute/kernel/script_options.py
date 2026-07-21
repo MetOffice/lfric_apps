@@ -140,6 +140,7 @@ SCRIPT_OPTIONS_DICT["conv_comorph_kernel_mod"+str(FILE_EXTEN)] = {
         ]
 }
 
+# Not currently perfomant for nwp_gal9 at 2,4,8 threads, disabled
 SCRIPT_OPTIONS_DICT["jules_exp_kernel_mod"+str(FILE_EXTEN)] = {
     "node_type_check": False,
     "ignore_dependencies_for": [
@@ -174,6 +175,7 @@ SCRIPT_OPTIONS_DICT["jules_extra_kernel_mod"+str(FILE_EXTEN)] = {
     ]
 }
 
+# Not currently perfomant for nwp_gal9 at 2,4,8 threads, disabled
 SCRIPT_OPTIONS_DICT["jules_imp_kernel_mod"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "tstar_land", "sea_ice_pensolar", "ashtf_prime_sea", "dtstar_sea",
@@ -198,6 +200,7 @@ SCRIPT_OPTIONS_DICT["lsp_prognostic_tnuc_kernel_mod"+str(FILE_EXTEN)] = {
     ]
 }
 
+# Not currently perfomant for nwp_gal9 at 2,4,8 threads, disabled
 SCRIPT_OPTIONS_DICT["lw_rad_tile_kernel_mod"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "tile_lw_grey_albedo", "emis_nvg", "emis_pft",
@@ -237,6 +240,7 @@ SCRIPT_OPTIONS_DICT["photol_kernel_mod"+str(FILE_EXTEN)] = {
     ]
 }
 
+# Not currently perfomant for nwp_gal9 at 2,4,8 threads, disabled
 SCRIPT_OPTIONS_DICT["sw_rad_tile_kernel_mod"+str(FILE_EXTEN)] = {
     "node-type-check": False,
     "ignore_dependencies_for": [
@@ -252,6 +256,7 @@ SCRIPT_OPTIONS_DICT["smith_kernel_mod"+str(FILE_EXTEN)] = {
     ]
 }
 
+# Not currently perfomant for nwp_gal9 at 2,4,8 threads, disabled
 SCRIPT_OPTIONS_DICT["spectral_gwd_kernel_mod"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "du_spectral_gwd", "dv_spectral_gwd", "dtemp_spectral_gwd",

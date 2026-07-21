@@ -28,13 +28,10 @@ export PSYCLONE_PHYSICS_FILES = \
                                 fm_drag \
                                 gw_ussp_mod \
                                 imp_mix \
-                                jules_exp_kernel_mod \
                                 jules_extra_kernel_mod \
-                                jules_imp_kernel_mod \
                                 kmkh \
                                 kmkhz_9c_wtrac \
                                 lw_kernel_mod \
-                                lw_rad_tile_kernel_mod \
                                 lsp_prognostic_tnuc_kernel_mod \
                                 mphys_kernel_mod \
                                 mphys_turb_gen_kernel_mod \
@@ -45,9 +42,7 @@ export PSYCLONE_PHYSICS_FILES = \
                                 pc2_conv_coupling_kernel_mod \
                                 photol_kernel_mod \
                                 smith_kernel_mod \
-                                spectral_gwd_kernel_mod \
                                 sw_kernel_mod \
-                                sw_rad_tile_kernel_mod \
                                 tracer_mix_kernel_mod \
                                 ukca_aero_ctl \
                                 ukca_abdulrazzak_ghan \
