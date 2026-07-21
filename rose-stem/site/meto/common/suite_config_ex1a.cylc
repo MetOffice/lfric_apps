@@ -211,16 +211,4 @@
     [[EX1A_HOUSEKEEPING]]
         inherit=EX1A_TECH_BASE
 
-{# For vn3.2 certain EX um2lfric jobs require the vn3.1 software stack #}
-{# See https://github.com/MetOffice/lfric_apps/issues/595 for more details #}
-{% set vn32_prescript = "module use /common/internal/spack/releases/2025.10.1/ngms ; module switch cpe/22.11 cpe/23.05 ; module load PrgEnv-gnu ; module load gcc/12.2.0 ; module load cray-mpich/8.1.27 ; module load lfric-gnu/12.2.0/3.1 || true" %}
-
-    [[EX1A_BUILD_GNU_LFRIC32]]
-        inherit = EX1A_BUILD_GNU
-        pre-script = {{ vn32_prescript }}
-
-    [[EX1A_RUN_GNU_LFRIC32]]
-        inherit = EX1A_RUN_GNU
-        pre-script = {{ vn32_prescript }}
-
 {% do LOG.debug("Finished in sitemeto/common/suite_config_ex1a.cylc") %}
