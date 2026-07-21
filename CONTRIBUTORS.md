@@ -40,7 +40,7 @@
 | DanStoneMO          | Daniel Stone        | Met Office                       | 2026-02-26   |
 | hsrumbold           | Heather Rumbold     | Met Office                       | 2026-05-06   |
 | pdearnshaw          | Paul Earnshaw       | Met Office                       | 2026-05-07   |
-| SamanthaPullen      | Samantha Pullen     | Met Office                       | 2026-04-20 ! |
+| SamanthaPullen      | Samantha Pullen     | Met Office                       | 2026-04-20   |
 | mo-lottieturner     | Lottie Turner       | Met Office                       | 2026-01-27   |
 | DrTVockerodtMO      | Terence Vockerodt   | Met Office                       | 2026-01-08   |
 | mattatmet           | Matthew Walker      | Met Office                       | 2026-04-21   |
