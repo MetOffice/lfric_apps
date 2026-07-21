@@ -61,5 +61,4 @@ def trans(psyir):
                     node_type_check=node_type_check)
 
             except (TransformationError, IndexError) as err:
-                logging.warning(
-                    "Could not transform because:\n %s", err)
+                logging.warning(f"Could not transform because:{err}")
