@@ -8,7 +8,7 @@
 module lfric2lfric_driver_mod
 
   use constants_mod,            only: str_def, str_max_filename, &
-                                      i_def, l_def, r_second
+                                      i_def, r_def, l_def, r_second
   use driver_fem_mod,           only: final_fem
   use driver_io_mod,            only: final_io
   use driver_modeldb_mod,       only: modeldb_type
@@ -24,6 +24,9 @@ module lfric2lfric_driver_mod
   use sci_checksum_alg_mod,     only: checksum_alg
   use xios,                     only: xios_date, xios_get_current_date, &
                                       xios_date_convert_to_string
+  use orography_config_mod,     only: orog_init_option_analytic, &
+                                      orog_init_option_ancil,    &
+                                      orog_init_option_start_dump
 
   !------------------------------------
   ! lfric2lfric modules
@@ -32,8 +35,11 @@ module lfric2lfric_driver_mod
   use lfric2lfric_infrastructure_mod, only: initialise_infrastructure, &
                                             context_dst, context_src,  &
                                             source_collection_name,    &
-                                            target_collection_name
+                                            target_collection_name,    &
+                                            interm_collection_name,    &
+                                            src, dst
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
+  use lfric2lfric_vert_mod,           only: lfric2lfric_vert
 
   implicit none
 
@@ -98,10 +104,41 @@ contains
 
     type(field_collection_type),   pointer :: source_fields
     type(field_collection_type),   pointer :: target_fields
+    type(field_collection_type),   pointer :: interm_fields
 
     type(lfric_xios_context_type), pointer :: io_context
 
+    character(len=str_def)  :: mesh_names(2)
+    integer(kind=i_def)     :: src_extrusion_method
+    integer(kind=i_def)     :: dst_extrusion_method
+    integer(kind=i_def)     :: src_number_of_layers
+    integer(kind=i_def)     :: dst_number_of_layers
+    integer(kind=i_def)     :: src_stretching_method
+    integer(kind=i_def)     :: dst_stretching_method
+    integer(kind=i_def)     :: orog_init_option
+    real(kind=r_def)        :: src_domain_height
+    real(kind=r_def)        :: dst_domain_height
+    real(kind=r_def)        :: src_stretching_height
+    real(kind=r_def)        :: dst_stretching_height
+
+    logical(kind=l_def), pointer :: vertical_change
+    logical(kind=l_def), pointer :: horizontal_change
+
     ! Extract configuration variables
+    src_extrusion_method    = modeldb%config%extrusion%method()
+    src_number_of_layers    = modeldb%config%extrusion%number_of_layers()
+    src_domain_height       = modeldb%config%extrusion%domain_height()
+    src_stretching_height   = modeldb%config%extrusion%stretching_height()
+    src_stretching_method   = modeldb%config%extrusion%stretching_method()
+    dst_extrusion_method    = modeldb%config%extrusion_dst%method()
+    dst_number_of_layers    = modeldb%config%extrusion_dst%number_of_layers()
+    dst_domain_height       = modeldb%config%extrusion_dst%domain_height()
+    dst_stretching_height   = modeldb%config%extrusion_dst%stretching_height()
+    dst_stretching_method   = modeldb%config%extrusion_dst%stretching_method()
+    orog_init_option        = modeldb%config%orography%orog_init_option()
+
+    mesh_names(dst)      = modeldb%config%lfric2lfric%destination_mesh_name()
+    mesh_names(src)      = modeldb%config%lfric2lfric%source_mesh_name()
     start_dump_filename  = modeldb%config%files%start_dump_filename()
     checkpoint_stem_name = modeldb%config%files%checkpoint_stem_name()
 
@@ -112,12 +149,30 @@ contains
     source_fields => modeldb%fields%get_field_collection(source_collection_name)
     target_fields => modeldb%fields%get_field_collection(target_collection_name)
 
+    call modeldb%values%get_value("vertical_change", vertical_change)
+    call modeldb%values%get_value("horizontal_change", horizontal_change)
+
+    if (horizontal_change .and. vertical_change) then
+       interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
+
+    else if (horizontal_change .and. .not. vertical_change) then
+       interm_fields =>  modeldb%fields%get_field_collection(target_collection_name)
+
+    else if (vertical_change .and. .not. horizontal_change) then
+       interm_fields =>  modeldb%fields%get_field_collection(source_collection_name)
+    end if
+
     ! Read fields and perform the regridding
     if (mode == mode_ics) then
       call read_state(source_fields, prefix='restart_')
 
-      call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
-                              target_fields, regrid_method)
+      if (horizontal_change) then
+        call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
+                                interm_fields, regrid_method)
+      end if
+      if (vertical_change) then
+        call lfric2lfric_vert(modeldb, interm_fields, target_fields)
+      end if
 
       ! Write output
       call modeldb%io_contexts%get_io_context(context_dst, io_context)
@@ -139,8 +194,13 @@ contains
 
         call read_state(source_fields)
 
-        call lfric2lfric_regrid(modeldb, oasis_clock, source_fields, &
-                                target_fields, regrid_method)
+        if (horizontal_change) then
+          call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
+                                  interm_fields, regrid_method)
+        end if
+        if (vertical_change) then
+          call lfric2lfric_vert(modeldb, interm_fields, target_fields)
+        end if
 
         is_running = modeldb%clock%tick()
 

@@ -12,6 +12,7 @@ module analytic_orography_field_cartesian_mod_test
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+  use extrusion_config_mod,       only : method_uniform, stretching_method_linear
 
   use funit
 
@@ -40,6 +41,7 @@ module analytic_orography_field_cartesian_mod_test
 
   real(r_def), parameter :: domain_bottom    = 0.0_r_def
   real(r_def), parameter :: domain_height    = 10000.0_r_def
+  real(r_def), parameter :: stretching_height = 1.0_r_def
   real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
 
   integer(i_def), parameter :: nlayers         = 10_i_def
@@ -71,7 +73,6 @@ contains
                                               feign_orography_schar_cartesian_config
     use orography_schar_cartesian_config_mod, &
                                        only : direction_x
-    use extrusion_config_mod,          only : method_uniform, stretching_method_linear
 
     use initial_pressure_config_mod,   only : method_balanced
 
@@ -93,7 +94,7 @@ contains
                                  planet_radius=6000.0_r_def,  &
                                  domain_height=domain_height, &
                                  number_of_layers=nlayers,    &
-                                 stretching_height=1.0_r_def, &
+                                 stretching_height=stretching_height, &
                                  stretching_method=stretching_method_linear, &
                                  eta_values=(/0.5_r_def/) )
 
@@ -253,6 +254,8 @@ contains
                                        ndf, undf, map,               &
                                        height_flat_surface,          &
                                        height_domain_top,            &
+                                       stretching_height,            &
+                                       stretching_method_linear,     &
                                        chi_1_in, chi_2_in, chi_3_in, &
                                        chi_1, chi_2, chi_3,          &
                                        panel_id )

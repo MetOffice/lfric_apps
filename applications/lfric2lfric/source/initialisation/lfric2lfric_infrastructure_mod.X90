@@ -16,8 +16,7 @@ module lfric2lfric_infrastructure_mod
   use blend_orography_alg_mod,     only: blend_orography
   use constants_mod,               only: str_def, str_max_filename, &
                                          r_def, i_def, l_def, r_second
-  use create_mesh_mod,             only: create_extrusion, &
-                                         create_mesh
+  use create_mesh_mod,             only: create_mesh
   use driver_modeldb_mod,          only: modeldb_type
   use driver_fem_mod,              only: init_fem
   use driver_io_mod,               only: init_io, &
@@ -31,13 +30,7 @@ module lfric2lfric_infrastructure_mod
   use fs_continuity_mod,           only: W3
   use function_space_collection_mod,only: function_space_collection
   use function_space_mod,          only: function_space_type
-  use gungho_extrusion_mod,        only: dcmip_extrusion_type,                 &
-                                         um_L38_29t_9s_40km_extrusion_type,    &
-                                         um_L85_50t_35s_85km_extrusion_type,   &
-                                         um_L70_61t_9s_40km_extrusion_type,    &
-                                         um_L120_99t_21s_40km_extrusion_type,  &
-                                         um_L140_122t_18s_40km_extrusion_type, &
-                                         um_L70_50t_20s_80km_extrusion_type
+  use gungho_extrusion_mod,        only: create_extrusion
   use sci_geometric_constants_mod, only: get_chi_inventory,     &
                                          get_panel_id_inventory
   use init_altitude_mod,           only: init_altitude
@@ -47,6 +40,7 @@ module lfric2lfric_infrastructure_mod
   use lfric_xios_action_mod,       only: advance
   use log_mod,                     only: log_event,         &
                                          log_scratch_space, &
+                                         log_level_info,    &
                                          log_level_error,   &
                                          log_level_debug
   use mesh_mod,                    only: mesh_type
@@ -71,6 +65,8 @@ module lfric2lfric_infrastructure_mod
   use lfric2lfric_init_coupler_mod,only: lfric2lfric_init_coupler_src, &
                                          lfric2lfric_init_coupler_dst, &
                                          lfric2lfric_end_coupler_init
+  use lfric2lfric_field_init_mod,  only: field_maker
+  use netcdf,                      only: nf90_max_name
 #ifdef MCT
   use coupling_mod,                only: coupling_type, &
                                          get_coupling_from_collection
@@ -103,6 +99,9 @@ module lfric2lfric_infrastructure_mod
                                         source_topology_non_periodic,   &
                                         source_geometry_planar,    &
                                         source_geometry_spherical
+  use orography_config_mod,       only: orog_init_option_analytic, &
+                                        orog_init_option_ancil,    &
+                                        orog_init_option_start_dump
 
 
   implicit none
@@ -117,6 +116,10 @@ module lfric2lfric_infrastructure_mod
   ! Source and destination field collection names
   character(len=*), public, parameter  :: source_collection_name = "source_fields"
   character(len=*), public, parameter  :: target_collection_name = "target_fields"
+  character(len=*), public, parameter  :: interm_collection_name = "intermediate_fields"
+
+  integer(kind=i_def), public, parameter :: dst = 1     ! destination mesh, destination extrusion
+  integer(kind=i_def), public, parameter :: src = 2     ! source mesh,      source extrusion
 
 contains
 
@@ -156,16 +159,20 @@ contains
     type(mesh_type),     pointer :: twod_mesh_src
     type(mesh_type),     pointer :: mesh_dst
     type(mesh_type),     pointer :: twod_mesh_dst
-    type(mesh_type),     pointer :: orography_twod_mesh
-    type(mesh_type),     pointer :: orography_mesh
+    type(mesh_type),     pointer :: mesh_interm
+    type(mesh_type),     pointer :: orography_twod_mesh_src
+    type(mesh_type),     pointer :: orography_mesh_src
+    type(mesh_type),     pointer :: orography_twod_mesh_dst
+    type(mesh_type),     pointer :: orography_mesh_dst
 
-    class(extrusion_type),        allocatable :: extrusion
+    class(extrusion_type),        allocatable :: src_extrusion
+    class(extrusion_type),        allocatable :: dst_extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
     ! Namelist parameters
-    character(len=str_def)              :: mesh_names(2)
-    character(len=str_def), allocatable :: twod_names(:)
-
+    character(len=str_def)                 :: mesh_names(2)
+    character(len=str_def),    allocatable :: mesh_names_dst_ext(:)
+    character(len=str_def),    allocatable :: twod_names(:)
     character(len=str_max_filename) :: start_dump_filename
     character(len=str_max_filename) :: source_file_lbc
 
@@ -179,9 +186,20 @@ contains
     integer(kind=i_def)     :: element_order_h
     integer(kind=i_def)     :: element_order_v
 
-    integer(kind=i_def)     :: extrusion_method
-    integer(kind=i_def)     :: number_of_layers
-    real(kind=r_def)        :: domain_height
+    integer(kind=i_def)     :: src_extrusion_method
+    integer(kind=i_def)     :: dst_extrusion_method
+    integer(kind=i_def)     :: src_number_of_layers
+    integer(kind=i_def)     :: dst_number_of_layers
+    integer(kind=i_def)     :: src_stretching_method
+    integer(kind=i_def)     :: dst_stretching_method
+    integer(kind=i_def)     :: orog_init_option
+    real(kind=r_def)        :: src_domain_height
+    real(kind=r_def)        :: dst_domain_height
+    real(kind=r_def)        :: src_stretching_height
+    real(kind=r_def)        :: dst_stretching_height
+
+    logical(kind=l_def)     :: vertical_change
+    logical(kind=l_def)     :: horizontal_change
 
     integer(i_def) :: tile_size_x
     integer(i_def) :: tile_size_y
@@ -191,9 +209,6 @@ contains
     integer(kind=i_def)            :: i
     integer(kind=i_def), parameter :: one_layer = 1_i_def
 
-    integer(kind=i_def), parameter :: dst = 1
-    integer(kind=i_def), parameter :: src = 2
-
     type(coupling_type),         pointer :: coupling_ptr
     type(field_collection_type), pointer :: cpl_snd_2d
     type(field_collection_type), pointer :: cpl_rcv_2d
@@ -201,6 +216,9 @@ contains
     type(coupler_exchange_2d_type)       :: coupler_exchange_2d
     integer(kind=i_def)                  :: ierror
     logical(kind=l_def)                  :: is_running
+
+    type(field_collection_type), pointer :: target_collection
+    type(field_type), pointer            :: field
 
     !------------------------
     ! XIOS contexts
@@ -228,9 +246,17 @@ contains
 
     scaled_radius       = modeldb%config%planet%scaled_radius()
 
-    extrusion_method    = modeldb%config%extrusion%method()
-    number_of_layers    = modeldb%config%extrusion%number_of_layers()
-    domain_height       = modeldb%config%extrusion%domain_height()
+    src_extrusion_method    = modeldb%config%extrusion%method()
+    src_number_of_layers    = modeldb%config%extrusion%number_of_layers()
+    src_domain_height       = modeldb%config%extrusion%domain_height()
+    src_stretching_height   = modeldb%config%extrusion%stretching_height()
+    src_stretching_method   = modeldb%config%extrusion%stretching_method()
+    dst_extrusion_method    = modeldb%config%extrusion_dst%method()
+    dst_number_of_layers    = modeldb%config%extrusion_dst%number_of_layers()
+    dst_domain_height       = modeldb%config%extrusion_dst%domain_height()
+    dst_stretching_height   = modeldb%config%extrusion_dst%stretching_height()
+    dst_stretching_method   = modeldb%config%extrusion_dst%stretching_method()
+    orog_init_option        = modeldb%config%orography%orog_init_option()
 
     mode                = modeldb%config%lfric2lfric%mode()
     regrid_method       = modeldb%config%lfric2lfric%regrid_method()
@@ -249,6 +275,46 @@ contains
     tile_size_y = 1
     inner_halo_tiles = .false.
 
+    ! Vertical interpolation is required if there is a change in the vertical
+    ! extrusion, or a change in the orography
+    vertical_change = .false.
+    if ( src_extrusion_method /= dst_extrusion_method   .or. &
+         src_number_of_layers /= dst_number_of_layers   .or. &
+         src_domain_height /= dst_domain_height         .or. &
+         src_stretching_height /= dst_stretching_height .or. &
+         src_stretching_method /= dst_stretching_method ) then
+      vertical_change = .true.
+    end if
+    if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil    .or. &
+         orog_init_option == orog_init_option_start_dump ) then
+      vertical_change = .true.
+    end if
+
+    ! Horizontal interpolation is required if there is a change
+    ! in the mesh (horizontal grid)
+    horizontal_change = .false.
+    if ( mesh_names(dst) /= mesh_names(src) ) then
+      horizontal_change = .true.
+    end if
+
+    call modeldb%values%add_key_value('vertical_change', vertical_change)
+    call modeldb%values%add_key_value('horizontal_change', horizontal_change)
+
+    if ( horizontal_change ) then
+      call log_event("Horizontal interpolation logical set to TRUE", &
+           log_level_info)
+    else
+      call log_event("Horizontal interpolation logical set to FALSE", &
+                      log_level_info)
+    end if
+    if ( vertical_change ) then
+      call log_event("Vertical interpolation logical set to TRUE", &
+           log_level_info)
+    else
+      call log_event("Vertical interpolation logical set to FALSE", &
+           log_level_info)
+    end if
     !=======================================================================
     ! Mesh
     !=======================================================================
@@ -283,56 +349,23 @@ contains
                        log_level_error)
     end select
 
-    select case (extrusion_method)
-      case (method_uniform, method_quadratic, method_geometric)
-        allocate( extrusion, source=create_extrusion(                    &
-                                       extrusion_method, domain_height,  &
-                                       domain_bottom, number_of_layers,  &
-                                       prime_extrusion ) )
+    allocate( src_extrusion, source = &
+             create_extrusion( src_extrusion_method, &
+                               geometry,             &
+                               src_number_of_layers, &
+                               src_domain_height,    &
+                               scaled_radius ))
 
-      case (method_dcmip)
-        allocate( extrusion, source=dcmip_extrusion_type(                &
-                                       domain_bottom, domain_height,     &
-                                       number_of_layers, prime_extrusion ) )
+    if (vertical_change) then
 
-      case (method_um_L38_29t_9s_40km)
-        allocate( extrusion, source=um_l38_29t_9s_40km_extrusion_type(   &
-                                       domain_bottom, domain_height,     &
-                                       number_of_layers, prime_extrusion ) )
+      allocate( dst_extrusion, source = &
+             create_extrusion( dst_extrusion_method, &
+                               geometry,             &
+                               dst_number_of_layers, &
+                               dst_domain_height,    &
+                               scaled_radius ))
 
-      case (method_um_L85_50t_35s_85km)
-        allocate( extrusion, source=um_l85_50t_35s_85km_extrusion_type(  &
-                                       domain_bottom, domain_height,     &
-                                       number_of_layers, prime_extrusion ) )
-
-      case (method_um_L70_50t_20s_80km)
-        allocate( extrusion, source=um_l70_50t_20s_80km_extrusion_type(  &
-                                       domain_bottom, domain_height,     &
-                                       number_of_layers, prime_extrusion ) )
-
-      case (method_um_L70_61t_9s_40km)
-        allocate( extrusion, source=um_l70_61t_9s_40km_extrusion_type(   &
-                                       domain_bottom, domain_height,     &
-                                       number_of_layers, prime_extrusion ) )
-
-      case (method_um_L120_99t_21s_40km)
-        allocate( extrusion, source=um_L120_99t_21s_40km_extrusion_type( &
-                                       domain_bottom, domain_height,     &
-                                       number_of_layers, prime_extrusion ) )
-
-      case (method_um_L140_122t_18s_40km)
-        allocate( extrusion, source=um_L140_122t_18s_40km_extrusion_type(&
-                                       domain_bottom, domain_height,     &
-                                       number_of_layers, prime_extrusion ) )
-
-      case default
-        write( log_scratch_space, '(A)' )          &
-            "lfric2lfric_infrastructure_mod" //    &
-            ': Unrecognised extrusion method: ' // &
-            trim(key_from_method( extrusion_method ))
-        call log_event( log_scratch_space, log_level_error )
-
-    end select
+    end if
 
     extrusion_2d = uniform_extrusion_type( domain_bottom, &
                                            domain_bottom, &
@@ -349,9 +382,26 @@ contains
     call init_mesh( modeldb%config,              &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
-                    mesh_names, extrusion,       &
+                    mesh_names, src_extrusion,   &
                     inner_halo_tiles, tile_size, &
                     stencil_depth, regrid_method )
+
+
+    allocate( mesh_names_dst_ext, source=mesh_names )
+
+    if (vertical_change) then
+      do i=1, size(mesh_names)
+        mesh_names_dst_ext(i) = trim(mesh_names(i))//'_dst_ext'
+      end do
+      call create_mesh( mesh_names, &
+                        dst_extrusion, &
+                        inner_halo_tiles, tile_size, &
+                        alt_name=mesh_names_dst_ext )
+    else
+      do i=1, size(mesh_names)
+        mesh_names_dst_ext(i) = trim(mesh_names(i))
+      end do
+    end if
 
     allocate( twod_names, source=mesh_names )
     do i=1, size(twod_names)
@@ -375,9 +425,23 @@ contains
     !-----------------------------------------------------------------------
     ! Assign pointers to the correct meshes
     !-----------------------------------------------------------------------
+    ! If the source extrusion is the same as the destination extrusion,
+    ! mesh_dst = mesh_interm and only horizontal interpolation is applied.
+    !
+    ! If the source mesh is the same as the destination mesh,
+    ! mesh_src = mesh_interm and only vertical interpolation is applied.
+    !
+    ! The source meshes
     mesh_src      => mesh_collection%get_mesh(trim(mesh_names(src)))
     twod_mesh_src => mesh_collection%get_mesh(trim(twod_names(src)))
-    mesh_dst      => mesh_collection%get_mesh(trim(mesh_names(dst)))
+
+    ! The interim mesh (horizontal interpolation of mesh_names(src)
+    ! to mesh_names(dst))
+    mesh_interm => mesh_collection%get_mesh(trim(mesh_names(dst)))
+
+    ! The destination mesh (vertical interpolation of mesh_names(dst) to
+    ! mesh_names_dst_ext(dst)
+    mesh_dst      => mesh_collection%get_mesh(trim(mesh_names_dst_ext(dst)))
     twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
 
     ! Log this change
@@ -385,10 +449,12 @@ contains
                    log_level_debug)
     call log_event('Source 2D mesh set to: ' // twod_names(src),      &
                    log_level_debug)
-    call log_event('Destination mesh set to: ' // mesh_names(dst),    &
+    call log_event('Destination mesh set to: ' // mesh_names_dst_ext(dst),    &
                    log_level_debug)
     call log_event('Destination 2D mesh set to: ' // twod_names(dst), &
                    log_level_debug)
+    call log_event('Intermediate mesh set to: ' // mesh_names(dst),    &
+                    log_level_debug)
 
     !=======================================================================
     ! Setup I/O system
@@ -401,13 +467,14 @@ contains
     files_init_ptr => init_lfric2lfric_dst_files
 
     ! Initialise the IO context with all the required info
-    call init_io( context_dst,        &
-                  mesh_names(dst),    &
-                  modeldb,            &
-                  chi_inventory,      &
-                  panel_id_inventory, &
-                  geometry, topology, &
+    call init_io( context_dst,             &
+                  mesh_names_dst_ext(dst), &
+                  modeldb,                 &
+                  chi_inventory,           &
+                  panel_id_inventory,      &
+                  geometry, topology,      &
                   populate_filelist=files_init_ptr  )
+
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context_dst)
 
@@ -441,11 +508,11 @@ contains
                                     halo_depth = twod_mesh_dst%get_halo_depth())
 
       ! Get pointers to the destination mesh:
-      orography_mesh => mesh_collection%get_mesh(mesh_names(dst))
-      orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
+      orography_mesh_dst => mesh_collection%get_mesh(mesh_names(dst))
+      orography_twod_mesh_dst => mesh_collection%get_mesh(orography_mesh_dst, TWOD)
 
       ! Set up surface altitude field - this will be used to generate orography
-      call init_altitude( orography_twod_mesh, surface_altitude_dst )
+      call init_altitude( orography_twod_mesh_dst, surface_altitude_dst )
     end if
 
     !-----------------------------------------------------------------------
@@ -485,34 +552,36 @@ contains
          orog_init_option == orog_init_option_start_dump ) then
 
       ! Get pointers to the source mesh:
-      orography_mesh => mesh_collection%get_mesh(mesh_names(src))
-      orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
+      orography_mesh_src => mesh_collection%get_mesh(mesh_names(src))
+      orography_twod_mesh_src => mesh_collection%get_mesh(orography_mesh_src, TWOD)
 
       call surface_altitude_src%initialise(vector_space,         &
                                     name='surface_altitude_src', &
                                     halo_depth = twod_mesh_src%get_halo_depth())
 
       ! Set up surface altitude field - this will be used to generate orography
-      call init_altitude( orography_twod_mesh, surface_altitude_src )
+      call init_altitude( orography_twod_mesh_src, surface_altitude_src )
     end if
 
     !=======================================================================
     ! Create and initialise prognostic fields
     !=======================================================================
     if (mode == mode_ics) then
-      call init_lfric2lfric( modeldb, context_src, context_dst,               &
-                             start_dump_filename, mode,                       &
-                             source_collection_name, mesh_src, twod_mesh_src, &
-                             target_collection_name, mesh_dst, twod_mesh_dst )
+      call init_lfric2lfric( modeldb, context_src, context_dst,                  &
+                             start_dump_filename, mode,                          &
+                             source_collection_name, mesh_src,    twod_mesh_src, &
+                             interm_collection_name, mesh_interm, twod_mesh_dst, &
+                             target_collection_name, mesh_dst,    twod_mesh_dst )
     else if (mode == mode_lbc) then
-      call init_lfric2lfric( modeldb, context_src, context_dst,               &
-                             source_file_lbc, mode,                           &
-                             source_collection_name, mesh_src, twod_mesh_src, &
-                             target_collection_name, mesh_dst, twod_mesh_dst )
+      call init_lfric2lfric( modeldb, context_src, context_dst,                  &
+                             source_file_lbc, mode,                              &
+                             source_collection_name, mesh_src,    twod_mesh_src, &
+                             interm_collection_name, mesh_interm, twod_mesh_dst, &
+                             target_collection_name, mesh_dst,    twod_mesh_dst )
     end if
 
     !=======================================================================
-    ! Initialize variables for each regrid method
+    ! Initialize variables for each horizontal regrid method
     !=======================================================================
     select case (regrid_method)
       case (regrid_method_map)
@@ -601,15 +670,48 @@ contains
       call blend_orography(surface_altitude_dst, surface_altitude_src_on_dst, &
                            mesh_names(dst))
 
-      call setup_orography_alg( mesh_names(dst:dst),            &
-                                orography_mesh%get_mesh_name(), &
-                                chi_inventory,                  &
-                                panel_id_inventory,             &
+      ! Copy the destination (possibly blended) orography to the output fields
+      ! --------------------------------------------------------
+
+      if (mode == mode_ics) then
+        target_collection => modeldb%fields%get_field_collection(target_collection_name)
+        call target_collection%get_field("surface_altitude", field)
+        call invoke(setval_X(field,surface_altitude_dst))
+      end if
+
+      ! Adjust the chi fields to account for the orography
+      ! --------------------------------------------------------
+      ! source mesh, source extrusion, source orography
+      call setup_orography_alg( mesh_names(src:src),                &
+                                orography_mesh_src%get_mesh_name(), &
+                                chi_inventory,                      &
+                                panel_id_inventory,                 &
+                                src_stretching_height,              &
+                                src_stretching_method,              &
+                                surface_altitude_src )
+
+      ! destination mesh, source extrusion, source orog on destination mesh
+      call setup_orography_alg( mesh_names(dst:dst),                &
+                                orography_mesh_dst%get_mesh_name(), &
+                                chi_inventory,                      &
+                                panel_id_inventory,                 &
+                                src_stretching_height,              &
+                                src_stretching_method,              &
+                                surface_altitude_src_on_dst )
+
+      ! destination mesh, destination extrusion, destination orog
+      call setup_orography_alg( mesh_names_dst_ext(dst:dst),        &
+                                orography_mesh_dst%get_mesh_name(), &
+                                chi_inventory,                      &
+                                panel_id_inventory,                 &
+                                dst_stretching_height,              &
+                                dst_stretching_method,              &
                                 surface_altitude_dst )
     end if
 
     deallocate(twod_names)
-    deallocate(extrusion)
+    deallocate(src_extrusion)
+    if (allocated(dst_extrusion)) deallocate(dst_extrusion)
 
   end subroutine initialise_infrastructure
 

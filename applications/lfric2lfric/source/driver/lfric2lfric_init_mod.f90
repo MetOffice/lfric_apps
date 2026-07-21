@@ -11,7 +11,7 @@
 
 module lfric2lfric_init_mod
 
-  use constants_mod,              only: i_def, r_def, str_def
+  use constants_mod,              only: i_def, r_def, str_def, l_def
   use driver_modeldb_mod,         only: modeldb_type
   use field_collection_mod,       only: field_collection_type
   use lfric_xios_context_mod,     only: lfric_xios_context_type
@@ -19,6 +19,10 @@ module lfric2lfric_init_mod
                                         log_level_info
   use mesh_mod,                   only: mesh_type
   use netcdf,                     only: nf90_max_name
+  use orography_config_mod,       only: orog_init_option,          &
+                                        orog_init_option_analytic, &
+                                        orog_init_option_ancil,    &
+                                        orog_init_option_start_dump
 
   ! lfric2lfric mods
   use lfric2lfric_config_mod,     only: mode_ics, mode_lbc
@@ -43,14 +47,19 @@ module lfric2lfric_init_mod
   !> @param [in]       origin_collection_name Holds the origin fields
   !> @param [in]       origin_mesh            Mesh to initialise 3D fields
   !> @param [in]       origin_twod_mesh       Mesh to initialise 2D fields
+  !> @param [in]       interm_collection_name Holds the intermediate fields
+  !> @param [in]       interm_mesh            Mesh for intermediate 3D fields
+  !> @param [in]       interm_twod_mesh       Mesh for intermediate 2D fields
   !> @param [in]       target_collection_name Holds target fields
   !> @param [in]       target_mesh            Mesh for target 3D fields
   !> @param [in]       target_twod_mesh       Mesh for target 2D fields
-  subroutine init_lfric2lfric( modeldb, context_src, context_dst, &
-                               start_dump_filename, mode,         &
-                               origin_collection_name,            &
-                               origin_mesh, origin_twod_mesh,     &
-                               target_collection_name,            &
+  subroutine init_lfric2lfric( modeldb, context_src, context_dst,  &
+                               start_dump_filename, mode,          &
+                               origin_collection_name,             &
+                               origin_mesh, origin_twod_mesh,      &
+                               interm_collection_name,             &
+                               interm_mesh, interm_twod_mesh,      &
+                               target_collection_name,             &
                                target_mesh, target_twod_mesh  )
 
     implicit none
@@ -63,10 +72,15 @@ module lfric2lfric_init_mod
     character(len=*),   intent(in)          :: origin_collection_name
     type(mesh_type),    intent(in), pointer :: origin_mesh
     type(mesh_type),    intent(in), pointer :: origin_twod_mesh
-    ! Optionals
+    character(len=*),   intent(in)          :: interm_collection_name
+    type(mesh_type),    intent(in), pointer :: interm_mesh
+    type(mesh_type),    intent(in), pointer :: interm_twod_mesh
     character(len=*),   intent(in)          :: target_collection_name
     type(mesh_type),    intent(in), pointer :: target_mesh
     type(mesh_type),    intent(in), pointer :: target_twod_mesh
+
+    logical(l_def), pointer :: horizontal_change
+    logical(l_def), pointer :: vertical_change
 
     ! For field creation and storage
     type(field_collection_type), pointer :: field_collection
@@ -83,6 +97,9 @@ module lfric2lfric_init_mod
     integer(kind=i_def) :: i
 
     call log_event( 'lfric2lfric: Initialising miniapp ...', log_level_info )
+
+    call modeldb%values%get_value("vertical_change", vertical_change)
+    call modeldb%values%get_value("horizontal_change", horizontal_change)
 
     if (mode == mode_ics) then
       prefix = 'restart_'
@@ -132,6 +149,40 @@ module lfric2lfric_init_mod
                         target_twod_mesh, &
                         prefix )
     end do
+
+    if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil .or.    &
+         orog_init_option == orog_init_option_start_dump ) then
+       if ( mode == mode_ics ) then
+
+        call field_maker(field_collection, trim('surface_altitude'), &
+             target_mesh, target_twod_mesh, prefix)
+
+     end if
+    end if
+
+    !--------------------------------------------------------------------------
+    ! Initialise Intermediate Fields
+    !--------------------------------------------------------------------------
+    if (horizontal_change .and. vertical_change) then
+      call modeldb%fields%add_empty_field_collection(interm_collection_name)
+      field_collection => &
+                      modeldb%fields%get_field_collection(interm_collection_name)
+
+      if (mode == mode_ics) then
+        prefix = 'checkpoint_'
+      else if (mode == mode_lbc) then
+        prefix = 'lbc_'
+      end if
+
+      do i = 1, num_fields
+        call field_maker( field_collection, &
+                          config_list(i),   &
+                          interm_mesh,      &
+                          interm_twod_mesh, &
+                          prefix )
+      end do
+    end if
 
     call modeldb%io_contexts%get_io_context(context_src, io_context)
     call io_context%set_current()
