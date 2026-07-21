@@ -527,6 +527,10 @@
   <field id="surface__pseudotaux" name="pseudotaux" long_name="surface_eastward_wind_pseudo_stress" unit="N m-2" domain_ref="face" />
   <field id="surface__pseudotauy" name="pseudotauy" long_name="surface_northward_wind_pseudo_stress" unit="N m-2" domain_ref="face" />
   <field id="surface__tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="zoomed__sea_ice_temperature" field_ref="surface__tile_temperature" domain_ref="face" axis_ref="surface_tiles_sea_ice_zoom" />
+  <field id="zoomed__sea_temperature" field_ref="surface__tile_temperature" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
+  <field id="surface__sea_ice_temperature" domain_ref="face"> zoomed__sea_ice_temperature </field>
+  <field id="surface__sea_temperature" domain_ref="face"> zoomed__sea_temperature </field>
   <field id="surface__grid_surface_temperature" name="grid_surface_temperature" long_name="grid_surface_temperature" unit="K" domain_ref="face" />
   <field id="surface__land_surface_temperature" name="land_surface_temperature" long_name="land_surface_temperature" unit="K" domain_ref="face" />
   <field id="surface__t1p5m_surft" name="t1p5m_surft" long_name="land_tile_screen_level_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
