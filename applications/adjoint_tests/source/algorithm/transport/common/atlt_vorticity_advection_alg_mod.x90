@@ -21,7 +21,6 @@ module atlt_vorticity_advection_alg_mod
                                             LOG_LEVEL_INFO,    &
                                             LOG_LEVEL_DEBUG
 
-
   implicit none
 
   public :: atlt_vorticity_advection_alg
