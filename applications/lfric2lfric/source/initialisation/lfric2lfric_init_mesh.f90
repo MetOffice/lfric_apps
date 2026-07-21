@@ -352,15 +352,15 @@ subroutine init_mesh( config,                  &
                               generate_inner_halos(src),     &
                               partitioner_src,               &
                               enforce_constraints = .false. )
-      
+
     else
-       
+
       !! SOURCE
       call load_global_mesh( mesh_file(src), mesh_names(src) )
       write( log_scratch_space, '(A)' )                                     &
          'Loaded src'
       call log_event(log_scratch_space, log_level_debug)
-       
+
       call create_local_mesh( mesh_names(src:src),           &
                               local_rank, total_ranks,       &
                               decomposition_src,             &
@@ -386,7 +386,7 @@ subroutine init_mesh( config,                  &
                               enforce_constraints = .false. )
 
       call global_mesh_collection%clear()
-      
+
 
     endif
 
