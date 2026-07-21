@@ -4,12 +4,9 @@
 # under which the code may be used.
 # -----------------------------------------------------------------------------
 '''
-A global script to add OpenMP to loops present in the file provided.
-This script imports a SCRIPT_OPTIONS_DICT which can be used to override
-small aspects of this script per file it is applied to.
-Overrides currently include:
-* ignore_dependencies_for
-* node_type_check
+Bespoke PSyclone transformation script for jules_imp_kernel_mod.
+OMP is added around the outer most loop, generally, but accepts
+loops over 'n' where this is otherwise available.
 '''
 
 import logging
