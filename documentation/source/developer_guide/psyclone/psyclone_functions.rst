@@ -35,7 +35,7 @@ included in either the ``global.py`` or a specific algorithm file is below.
 .. code-block:: python
 
    from psyclone_tools import profile_loops
-   
+
    def trans(psyir):
        profile_loops(psyir,colours_only=False)
 
