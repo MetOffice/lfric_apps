@@ -83,4 +83,3 @@ def trans(psyir):
             except (TransformationError, IndexError) as err:
                 logging.warning(
                     "Could not transform because:\n %s", err)
-                print(f"Could not transform because:\n {err}")
