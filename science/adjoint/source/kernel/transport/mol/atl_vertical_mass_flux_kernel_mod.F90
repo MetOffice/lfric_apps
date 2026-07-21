@@ -112,9 +112,9 @@ module atl_vertical_mass_flux_kernel_mod
       ijp1 = map_md(1) + offset + k
 
       wgt = (0.5_r_def - sign(0.5_r_def, ls_wind(map_w2(df)+k)))
-      wind(k + map_w2(df)) = wind(k + map_w2(df)) &
+      wind(k + map_w2(df)) = wind(k + map_w2(df))        &
                            + mass_flux(map_w2(df) + k)*( &
-                             wgt*reconstruction(ijp1) &
+                             wgt*reconstruction(ijp1)    &
                              + (1.0_r_def-wgt)*reconstruction(ijp2))
     end do
     mass_flux( map_w2(df) ) = 0.0_r_def
