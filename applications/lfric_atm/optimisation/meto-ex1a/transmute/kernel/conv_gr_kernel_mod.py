@@ -136,9 +136,9 @@ def trans(psyir: Routine):
                 numseg_loop,
                 ignore_dependencies_for=false_dep_vars_seg,
                 node_type_check=False)
-        except TransformationError as e:
+        except TransformationError as err:
             logger.warning(e)
-            print(f"Trying loop but{e}")
+            print(f"Trying loop but {err}")
 
     # Work through each other loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):

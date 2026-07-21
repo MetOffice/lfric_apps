@@ -76,7 +76,7 @@ def trans(psyir):
                         ignore_dependencies_for=ignore_deps_vars,
                         node_type_check=False)
                 except (TransformationError, IndexError) as err:
-                    logging.warning("OMPLoopTrans failed: %s", err)
+                    logging.warning(f"Could not transform because:{err}")
             else:
                 try:
                     OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
@@ -84,4 +84,4 @@ def trans(psyir):
                         ignore_dependencies_for=ignore_deps_vars,
                         node_type_check=False)
                 except (TransformationError, IndexError) as err:
-                    logging.warning("OMPLoopTrans failed: %s", err)
+                    logging.warning(f"Could not transform because:{err}")

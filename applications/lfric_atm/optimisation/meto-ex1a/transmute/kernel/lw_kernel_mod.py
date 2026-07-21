@@ -58,5 +58,4 @@ def trans(psyir):
                     ignore_dependencies_for=ignore_dependencies_for,
                     node_type_check=False)
             except (TransformationError, IndexError) as err:
-                logging.warning(
-                    "Could not transform because:\n %s", err)
+                logging.warning(f"Could not transform because:{err}")
