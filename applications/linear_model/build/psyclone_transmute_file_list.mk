@@ -34,7 +34,6 @@ export PSYCLONE_PHYSICS_FILES = \
                                 kmkh \
                                 kmkhz_9c_wtrac \
                                 lw_kernel_mod \
-                                lw_rad_tile_kernel_mod \
                                 lsp_prognostic_tnuc_kernel_mod \
                                 mphys_kernel_mod \
                                 mphys_turb_gen_kernel_mod \
@@ -43,9 +42,7 @@ export PSYCLONE_PHYSICS_FILES = \
                                 pc2_initiation_ctl \
                                 pc2_initiation_kernel_mod \
                                 pc2_conv_coupling_kernel_mod \
-                                photol_kernel_mod \
                                 smith_kernel_mod \
-                                spectral_gwd_kernel_mod \
                                 sw_kernel_mod \
                                 sw_rad_tile_kernel_mod \
                                 tracer_mix_kernel_mod \
@@ -57,6 +54,7 @@ export PSYCLONE_PHYSICS_FILES = \
 # Causing build slow downs CCE  conv_comorph_kernel_mod \
                                 aerosol_ukca_kernel_mod \
 # The Psyclone Issue to fix this is #3418
+
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 
