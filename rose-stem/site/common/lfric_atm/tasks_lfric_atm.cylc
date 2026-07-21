@@ -510,7 +510,7 @@
         "resolution": "C896_MG",
         "DT": 240,
         "tsteps": 120,
-        "wallclock": 15,
+        "wallclock": 20,
         "mpi_parts": 4704,
         "xios_nodes": 5,
         "mpi_parts_xios" : 147,
