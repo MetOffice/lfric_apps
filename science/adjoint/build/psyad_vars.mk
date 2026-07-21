@@ -22,5 +22,3 @@ all: export ACTIVE_strong_curl_kernel_mod              := xi res_dot_product cur
 all: export ACTIVE_sci_average_w2b_to_w2_kernel_mod    := field_w2 field_w2_broken
 all: export ACTIVE_sci_extract_w_kernel_mod             := velocity_w2v u_physics
 all: export ACTIVE_sci_combine_multidata_field_kernel_mod := field1_in field2_in field_out
-all: export ACTIVE_w3v_advective_update_kernel_mod        := advective_increment tracer dtdz t_U t_D
-all: export ACTIVE_tl_w3v_advective_update_kernel_mod     := advective_increment wind w

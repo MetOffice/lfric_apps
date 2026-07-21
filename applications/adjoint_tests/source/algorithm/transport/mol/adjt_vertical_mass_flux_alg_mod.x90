@@ -12,7 +12,8 @@ module adjt_vertical_mass_flux_alg_mod
   use mesh_mod,                      only : mesh_type
   use function_space_collection_mod, only : function_space_collection
   use fs_continuity_mod,             only : W2, W3
-  use constants_mod,                 only : i_def, r_def, r_tran, EPS
+  use constants_mod,                 only : i_def, r_def, &
+                                            r_tran, EPS_R_TRAN
   use log_mod,                       only : log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_ERROR,   &
@@ -103,8 +104,8 @@ module adjt_vertical_mass_flux_alg_mod
     write( log_scratch_space, * ) "reconstruction inner product = ", reconstruction_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-    mass_flux_sf = 1.0_r_tran / ( real(mass_flux_inner_prod, kind=r_tran) + EPS )
-    reconstruction_sf = 1.0_r_tran / ( real(reconstruction_inner_prod, kind=r_tran) + EPS )
+    mass_flux_sf = 1.0_r_tran / ( real(mass_flux_inner_prod, kind=r_tran) + EPS_R_TRAN )
+    reconstruction_sf = 1.0_r_tran / ( real(reconstruction_inner_prod, kind=r_tran) + EPS_R_TRAN )
 
     inner1 = 0.0_r_tran
     inner1 = inner1 + real(mass_flux_inner_prod, kind=r_tran) * mass_flux_sf

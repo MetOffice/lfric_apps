@@ -91,10 +91,12 @@ contains
     use atlt_mol_conservative_alg_mod,              only : atlt_mol_conservative_alg
     use atlt_mol_advective_alg_mod,                 only : atlt_mol_advective_alg
     use atlt_poly1d_vert_adv_alg_mod,               only : atlt_poly1d_vert_adv_alg
-    use atlt_horizontal_mass_flux_alg_mod,          only : atlt_horizontal_mass_flux_alg
-    use atlt_vertical_mass_flux_alg_mod,            only : atlt_vertical_mass_flux_alg
     use adjt_horizontal_mass_flux_alg_mod,          only : adjt_horizontal_mass_flux_alg
     use adjt_vertical_mass_flux_alg_mod,            only : adjt_vertical_mass_flux_alg
+    use atlt_horizontal_mass_flux_alg_mod,          only : atlt_horizontal_mass_flux_alg
+    use atlt_vertical_mass_flux_alg_mod,            only : atlt_vertical_mass_flux_alg
+    use adjt_w3v_advective_update_alg_mod,          only : adjt_w3v_advective_update_alg
+    use atlt_w3v_advective_update_alg_mod,          only : atlt_w3v_advective_update_alg
 
     ! ./transport/control
     use atlt_transport_field_alg_mod,               only : atlt_transport_field_alg
@@ -168,10 +170,12 @@ contains
     call atlt_poly1d_vert_w3_recon_alg( modeldb%config, mesh )
     call atlt_w3h_advective_update_alg( mesh )
     call atlt_poly1d_vert_adv_alg( modeldb%config, mesh )
-    call atlt_horizontal_mass_flux_alg( modeldb%config, mesh )
-    call atlt_vertical_mass_flux_alg( modeldb%config, mesh )
     call adjt_horizontal_mass_flux_alg( modeldb%config, mesh )
     call adjt_vertical_mass_flux_alg( modeldb%config, mesh )
+    call atlt_horizontal_mass_flux_alg( modeldb%config, mesh )
+    call atlt_vertical_mass_flux_alg( modeldb%config, mesh )
+    call adjt_w3v_advective_update_alg( modeldb%config, mesh )
+    call atlt_w3v_advective_update_alg( modeldb%config, mesh )
     ! -- Lookup table solutions.
     call adjt_poly1d_recon_lookup_alg( modeldb%config, mesh, adj_trans_lookup_cache )
     call adjt_poly2d_recon_lookup_alg( modeldb%config, mesh, Wtheta, adj_trans_lookup_cache )
