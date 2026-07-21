@@ -22,6 +22,7 @@ FILE_EXTEN = ".xu90"
 SCRIPT_OPTIONS_DICT = {}
 
 # File keys
+# Disabled due build slow downs CCE, psyclone Issue to fix this is #3418
 SCRIPT_OPTIONS_DICT["aerosol_ukca_kernel_mod"+str(FILE_EXTEN)] = {
         "ignore_dependencies_for": [
             "surf_wetness", "l_tile_active", "o3p", "o3",
@@ -109,6 +110,7 @@ SCRIPT_OPTIONS_DICT["bm_tau_kernel_mod"+str(FILE_EXTEN)] = {
         ]
 }
 
+# Disabled due build slow downs CCE, psyclone Issue to fix this is #3418
 SCRIPT_OPTIONS_DICT["conv_comorph_kernel_mod"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "precfrac", "cca_2d", "cape_diluted", "lowest_cca_2d",
@@ -234,6 +236,7 @@ SCRIPT_OPTIONS_DICT["pc2_initiation_kernel_mod"+str(FILE_EXTEN)] = {
     ]
 }
 
+# Not currently perfomant for nwp_gal9 at 2,4,8 threads, disabled
 SCRIPT_OPTIONS_DICT["photol_kernel_mod"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "photol_rates",

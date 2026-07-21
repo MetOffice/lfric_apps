@@ -40,7 +40,6 @@ export PSYCLONE_PHYSICS_FILES = \
                                 pc2_initiation_ctl \
                                 pc2_initiation_kernel_mod \
                                 pc2_conv_coupling_kernel_mod \
-                                photol_kernel_mod \
                                 smith_kernel_mod \
                                 sw_kernel_mod \
                                 tracer_mix_kernel_mod \
