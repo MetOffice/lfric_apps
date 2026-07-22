@@ -154,8 +154,8 @@ if [ "${RUN_METHOD}" = "mpiexec" ] ; then
 
         XIOS_FRACTIONAL_DEPTH="$(( CORES_PER_NODE / XIOS_CORES_PER_NODE ))"
         # Milan = 128, Genoa = 192
-        if (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 1 ))" )) ; then
-          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 1 ))"
+        if (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE ))" )) ; then
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE ))"
         # Milan = 64, Genoa = 96
         elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 2 ))" )) ; then
           XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 2 ))"
