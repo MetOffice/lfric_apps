@@ -20,9 +20,8 @@ contains
 ! wrapper around the routine calc_turb_parcel
 subroutine calc_turb_diags( turb, comorph_diags )
 
-use comorph_constants_mod, only: real_cvprec, real_hmprec,                     &
-                                 nx_full, ny_full, k_bot_conv, k_top_init,     &
-                                 par_gen_radius_fac
+use comorph_constants_mod, only: real_cvprec,                                  &
+                                 nx_full, ny_full, k_bot_conv, k_top_init
 use turb_type_mod, only: turb_type, n_turb
 use fields_type_mod, only: i_wind_u, i_q_vap
 use cmpr_type_mod, only: cmpr_type, cmpr_alloc, cmpr_dealloc
@@ -72,10 +71,10 @@ end do
 ! (turbulence fields are not nessecarily available above level
 !  k_top_init+1, so only loop up to there).
 !
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC)                               &
 !$OMP SHARED(  k_bot_conv, k_top_init, cmpr, turb, comorph_diags,              &
 !$OMP          i_wind_u, i_q_vap )                                             &
-!$OMP private( k, lb, ub, i_turb, i_field, ic, i_diag, turb_cmpr, pert_cmpr )
+!$OMP PRIVATE( k, lb, ub, i_turb, i_field, ic, i_diag, turb_cmpr, pert_cmpr )
 do k = k_bot_conv, k_top_init+1
 
   ! Compress turbulence fields into super-array
@@ -120,7 +119,7 @@ do k = k_bot_conv, k_top_init+1
   end if
 
 end do  ! k = k_bot_conv, k_top_init+1
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 
 ! Deallocate compression indices
@@ -133,19 +132,18 @@ call cmpr_dealloc( cmpr )
 ! So no need to do any compression / decompression.
 
 if ( comorph_diags % turb_radius % flag ) then
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
-!$OMP SHARED(  turb, comorph_diags, nx_full, ny_full, k_bot_conv, k_top_init,  &
-!$OMP          par_gen_radius_fac )                                            &
-!$OMP private( i, j, k )
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC)                               &
+!$OMP SHARED(  turb, comorph_diags, nx_full, ny_full, k_bot_conv, k_top_init ) &
+!$OMP PRIVATE( i, j, k )
   do k = k_bot_conv, k_top_init
     do j = 1, ny_full
       do i = 1, nx_full
         comorph_diags % turb_radius % field_3d(i,j,k)                          &
-          = turb % lengthscale(i,j,k) * real( par_gen_radius_fac, real_hmprec )
+          = turb % lengthscale(i,j,k)
       end do
     end do
   end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 end if
 
 

@@ -12,6 +12,7 @@
 
 module transport_init_fields_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: r_def, i_def, radians_to_degrees
   use domain_mod,                        only: domain_type
   use divergence_alg_mod,                only: divergence_alg
@@ -25,7 +26,7 @@ module transport_init_fields_alg_mod
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
   use fs_continuity_mod,                 only: W2, W3, Wtheta
-  use sci_geometric_constants_mod,       only: get_coordinates,     &
+  use sci_geometric_constants_mod,       only: get_coordinates, &
                                                get_panel_id
   use init_gungho_prognostics_alg_mod,   only: init_u_field
   use initial_tracer_field_sample_kernel_mod, &
@@ -53,6 +54,7 @@ module transport_init_fields_alg_mod
 contains
 !-----------------------------------------------------------------------------
 !> @brief Initialisation of prognostic fields for the transport miniapp.
+!> @param[in]     config            Application namelist configuration object
 !> @param[in]     mesh              Mesh to initialise variables on
 !> @param[in,out] wind              Transporting wind field
 !> @param[in,out] density           Density field (in W3)
@@ -68,7 +70,8 @@ contains
 !> @param[in,out] wt_aerosol        Tracer in Wtheta on coarse mesh to transport advectively
 !> @param[in,out] divergence        Divergence field
 !-----------------------------------------------------------------------------
-subroutine transport_init_fields_alg( mesh,         &
+subroutine transport_init_fields_alg( config,       &
+                                      mesh,         &
                                       wind,         &
                                       density,      &
                                       theta,        &
@@ -86,6 +89,7 @@ subroutine transport_init_fields_alg( mesh,         &
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(mesh_type), pointer, intent(in) :: aerosol_mesh
 
@@ -130,8 +134,8 @@ subroutine transport_init_fields_alg( mesh,         &
                                                element_order_v, W3 )
     wt_fs => function_space_collection%get_fs( mesh, element_order_h, &
                                                element_order_v, Wtheta )
-    chi  => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     qr => get_qr_fe()
     w2_aerosol_fs => function_space_collection%get_fs( aerosol_mesh, element_order_h, &
                                                        element_order_v, W2 )
@@ -139,8 +143,8 @@ subroutine transport_init_fields_alg( mesh,         &
                                                        element_order_v, W3 )
     wt_aerosol_fs => function_space_collection%get_fs( aerosol_mesh, element_order_h, &
                                                        element_order_v, Wtheta )
-    aerosol_chi  => get_coordinates(aerosol_mesh%get_id())
-    aerosol_panel_id => get_panel_id(aerosol_mesh%get_id())
+    aerosol_chi      => get_coordinates(aerosol_mesh)
+    aerosol_panel_id => get_panel_id(aerosol_mesh)
 
     domain = mesh%get_domain()
     if ( domain%is_lonlat() ) then
@@ -218,14 +222,14 @@ subroutine transport_init_fields_alg( mesh,         &
       call zeros_w3%initialise( vector_space=w3_fs )
       call invoke( setval_c(zeros_w3, 0.0_r_def), &
                    setval_c(vert_w2, 0.0_r_def) )
-      call set_wind( w2_vector, zeros_w3, tracer_adv, vert_w2 )
+      call set_wind( config, w2_vector, zeros_w3, tracer_adv, vert_w2 )
     else
       call invoke( X_minus_a(vert_w2, theta, field_background))
-      call set_wind( w2_vector, tracer_adv, tracer_adv, vert_w2 )
+      call set_wind( config, w2_vector, tracer_adv, tracer_adv, vert_w2 )
     end if
 
     ! Set winds and divergence
-    call init_u_field( wind, initial_time )
+    call init_u_field( config, wind, initial_time )
     call divergence_alg( divergence, wind )
     call map_w2_intermesh( aerosol_wind, wind )
 

@@ -18,7 +18,7 @@ module bl_imp2_kernel_mod
   use blayer_config_mod,         only : fric_heating
   use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2, &
                                         scheme_bimodal,                   &
-                                        i_bm_ez_opt, i_bm_ez_opt_entpar
+                                        bm_ez_opt, bm_ez_opt_entpar
   use constants_mod,             only : i_def, i_um, r_def, r_um, r_bl
   use fs_continuity_mod,         only : W3, Wtheta
   use kernel_mod,                only : kernel_type
@@ -802,7 +802,7 @@ contains
             end do
           end if
 
-          if ( i_pc2_init_logic/=pc2init_logic_smooth ) then
+          if ( i_pc2_init_logic < pc2init_logic_smooth ) then
             ! Only do this removal of cloud at and below ntml if NOT using
             ! "smooth" PC2 initiation logic.  With "smooth" logic, we allow
             ! cloud to initiate below ntml, so also need to allow homogenous
@@ -826,7 +826,7 @@ contains
                 end if
               end do
             end do  ! k
-          end if  ! ( i_pc2_init_logic/=pc2init_logic_smooth )
+          end if  ! ( i_pc2_init_logic < pc2init_logic_smooth )
 
           ! To be consistent with the code above, set zlcl_mixed to
           ! prevent PC2 initiating cloud below this level
@@ -977,7 +977,7 @@ contains
               wvar_in(i,1,k)     = wvar(map_wth(1,i) + k )
             end do
           end do
-          if (i_bm_ez_opt == i_bm_ez_opt_entpar) then
+          if (bm_ez_opt == bm_ez_opt_entpar) then
             ! Length-scale used for entraining parcel mode construction method
             do i = 1, seg_len
               do k = 1, nlayers

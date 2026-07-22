@@ -12,6 +12,7 @@ module scintelapi_interface_mod
 use log_mod,                   only: log_event, log_scratch_space,             &
                                      LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 use scintelapi_namelist_mod,   only: scintelapi_nl, required_lfric_namelists
+use config_mod,                only: config_type
 use constants_def_mod,         only: field_kind_name_len, field_name_len,      &
                                      gen_id_len, genpar_len,                   &
                                      field_id_list_max_size, empty_string, rmdi
@@ -23,7 +24,7 @@ implicit none
 contains
 
 
-subroutine scintelapi_initialise()
+subroutine scintelapi_initialise(lfric_config)
 !
 ! This routine initialises all the necessary LFRic, XIOS, YAXT and API
 ! infrastructure.
@@ -39,7 +40,9 @@ use lfricinp_read_command_line_args_mod, only: lfricinp_read_command_line_args
 
 implicit none
 
-logical                             :: l_advance
+logical :: l_advance
+
+type(config_type), intent(out) :: lfric_config
 
 ! Read namelist file names from command line
 call lfricinp_read_command_line_args(scintelapi_nl, lfric_nl_fname, io_fname)
@@ -51,7 +54,8 @@ call io_config%load_namelist()
 call datetime % initialise()
 
 ! Initialise LFRic infrastructure
-call lfricinp_initialise_lfric(program_name_arg="scintelapi",                  &
+lfric_config = lfricinp_initialise_lfric(                                      &
+     program_name_arg="scintelapi",                                            &
      required_lfric_namelists = required_lfric_namelists,                      &
      start_date = datetime % first_validity_time,                              &
      time_origin = datetime % first_validity_time,                             &

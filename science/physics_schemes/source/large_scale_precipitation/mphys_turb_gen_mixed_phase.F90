@@ -37,7 +37,8 @@ use lsp_dif_mod,           only: air_conductivity0, air_diffusivity0, tcor1,   &
                                  tcor2, cpwr
 
 ! Stochastic physics
-use stochastic_physics_run_mod, only:  l_rp2, rp_idx, mp_czero_rp
+use stochastic_physics_run_mod, only: l_rp2, i_rp_scheme, i_rp2b,              &
+                                      rp_idx, mp_czero_rp
 
 ! General and constants modules
 use gen_phys_inputs_mod,   only: l_mr_physics
@@ -355,8 +356,8 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! START OF PHYSICS
 !=============================================================================
 
-! If RP scheme is in use, set parameters to their perturbed values
-if ( l_rp2 ) then
+! If RP2B scheme is in use, set parameters to their perturbed values
+if (l_rp2 .and. i_rp_scheme == i_rp2b) then
   mp_czero = mp_czero_rp(rp_idx)
 end if
 

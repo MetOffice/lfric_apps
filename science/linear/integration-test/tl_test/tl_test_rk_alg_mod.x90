@@ -255,9 +255,9 @@ module tl_test_rk_alg_mod
       call tl_rk_alg_init(mesh, p_u, p_rho, p_theta, p_exner, &
                           ls_u, ls_rho, ls_theta, ls_exner)
 
-      call tl_rk_alg_step( p_u, p_rho, p_theta, p_moist_dyn, p_exner, &
-                           p_mr, ls_u, ls_rho,                        &
-                           ls_theta, ls_moist_dyn, ls_exner, ls_mr,   &
+      call tl_rk_alg_step( modeldb%config, p_u, p_rho, p_theta,      &
+                           p_moist_dyn, p_exner, p_mr, ls_u, ls_rho, &
+                           ls_theta, ls_moist_dyn, ls_exner, ls_mr,  &
                            modeldb%clock )
 
       call tl_rk_alg_final()

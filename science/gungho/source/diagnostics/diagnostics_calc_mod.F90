@@ -194,8 +194,8 @@ subroutine write_vorticity_diagnostic(u_field, exner, clock)
       output_dim = 3_i_def
 
       mesh     => vorticity%get_mesh()
-      chi      => get_coordinates( mesh%get_id() )
-      panel_id => get_panel_id( mesh%get_id() )
+      chi      => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
 
       ! Project the field to the output field
       call project_output( vorticity, projected_field, chi, panel_id, W3 )

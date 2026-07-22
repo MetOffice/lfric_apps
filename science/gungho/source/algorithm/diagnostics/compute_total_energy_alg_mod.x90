@@ -10,6 +10,7 @@ module compute_total_energy_alg_mod
                                      only: compute_column_integral_kernel_type
   use compute_energetics_kernel_mod, &
                                      only: compute_energetics_kernel_type
+  use config_mod,                    only: config_type
   use constants_mod,                 only: r_def, i_def, pi
   use driver_water_constants_mod,    only: Lc => latent_heat_h2o_condensation, &
                                            Lf => latent_heat_h2o_fusion
@@ -34,10 +35,12 @@ module compute_total_energy_alg_mod
   use dycore_constants_mod,          only: get_geopotential
   use mesh_mod,                      only: mesh_type
   use mr_indices_mod,                only: nummr, imr_cl, imr_ci, imr_r, imr_s
-  use planet_config_mod,             only: cv, gravity
   use quadrature_xyoz_mod,           only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
   use timing_mod,                    only: start_timing, stop_timing, tik, LPROF
+
+  ! Configuration modules
+  use planet_config_mod, only: cv, gravity
 
   implicit none
 
@@ -66,6 +69,7 @@ contains
   !!        which is the true volume element if the integration method is finite
   !!        element. For finite difference integration the assumed mesh is that
   !!        for a spherical planet.
+  !> @param[in]  config         Application namelist configuration object
   !> @param[out] total_energy   Total energy of the atmosphere
   !> @param[in]  derived_fields Contains u and theta fields mapped to W3 space
   !> @param[in]  u              Wind fields
@@ -75,11 +79,14 @@ contains
   !> @param[in]  mr             Water mixing ratio fields
   !> @param[in]  mesh           Mesh information
   !> @param[in]  twod_mesh      Horizontal mesh information
-  subroutine compute_total_energy_alg( total_energy, derived_fields, &
+  subroutine compute_total_energy_alg( config,                       &
+                                       total_energy, derived_fields, &
                                        u, theta, exner, rho, mr,     &
                                        mesh, twod_mesh )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_type ), intent(in)            :: u
@@ -139,8 +146,8 @@ contains
                                  quadrature_rule )
       w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
                                                  element_order_v, W3 )
-      chi => get_coordinates( mesh%get_id() )
-      panel_id => get_panel_id( mesh%get_id() )
+      chi      => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
 
       call energy%initialise( vector_space = w3_fs )
       call kinetic_uv%initialise( vector_space = w3_fs )
@@ -176,9 +183,10 @@ contains
       call derived_fields%get_field( 'u_in_w3', u_in_w3 )
       call derived_fields%get_field( 'v_in_w3', v_in_w3 )
       call derived_fields%get_field( 'w_in_w3', w_in_w3 )
-      dA => get_da_msl_proj( twod_mesh%get_id() )
-      height_w3 => get_height_fv( W3, mesh%get_id() )
-      height_wth => get_height_fv( Wtheta, mesh%get_id() )
+      dA => get_da_msl_proj(config, twod_mesh)
+
+      height_w3  => get_height_fv(config, mesh, W3)
+      height_wth => get_height_fv(config, mesh, Wtheta)
 
       call energy_field%initialise( vector_space = &
                                     function_space_collection%get_fs(mesh, 0, 0, W3) )
@@ -212,13 +220,13 @@ contains
                    setval_X(mr_sum, mr(imr_cl)),                        &
                    inc_X_plus_Y(mr_sum, mr(imr_r)) )                      ! liquid m.r.
 
-      call map_physics_scalars(mr_w3, mr_sum)
+      call map_physics_scalars(config, mr_w3, mr_sum)
 
       call invoke( inc_X_minus_bY( energy_field, Lc, mr_w3 ), & ! liquid water energy
                    setval_X( mr_sum, mr(imr_ci) ),            &
                    inc_X_plus_Y( mr_sum, mr(imr_s) ) )          ! ice mixing ratio
 
-      call map_physics_scalars( mr_w3, mr_sum )
+      call map_physics_scalars(config, mr_w3, mr_sum )
 
       total_energy = 0.0_r_def
 

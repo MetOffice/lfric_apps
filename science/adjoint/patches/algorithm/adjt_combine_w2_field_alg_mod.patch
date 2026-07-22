@@ -69,8 +69,8 @@
 -    face_selector_ew_inner_prod = 0.0_r_def
 -    face_selector_ns_inner_prod = 0.0_r_def
 -
-+    face_selector_ew => get_face_selector_ew(mesh%get_id())
-+    face_selector_ns => get_face_selector_ns(mesh%get_id())
++    face_selector_ew => get_face_selector_ew(mesh)
++    face_selector_ns => get_face_selector_ns(mesh)
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(uvw), setval_x(uvw_input, uvw), setval_random(uv), setval_x(uv_input, uv), setval_random(w), &
 -&setval_x(w_input, w), setval_random(face_selector_ew), setval_x(face_selector_ew_input, face_selector_ew), &

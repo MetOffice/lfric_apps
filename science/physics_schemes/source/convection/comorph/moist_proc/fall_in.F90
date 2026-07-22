@@ -179,7 +179,7 @@ if ( real(nc,real_cvprec) > indi_thresh * real(n_points,real_cvprec) ) then
 
   ! If non-zero fall-in flux at minority of points, use the
   ! stored indices to do calculations at only those points
-else !( real(nc,real_cvprec) > indi_thresh * real(n_points,real_cvprec) )
+else !( REAL(nc,real_cvprec) > indi_thresh * REAL(n_points,real_cvprec) )
 
   ! Loop over only points with nonzero fall-in flux
   do ic2 = 1, nc
@@ -218,7 +218,7 @@ else !( real(nc,real_cvprec) > indi_thresh * real(n_points,real_cvprec) )
     end if
   end if
 
-end if !( real(nc,real_cvprec) > indi_thresh * real(n_points,real_cvprec) )
+end if !( REAL(nc,real_cvprec) > indi_thresh * REAL(n_points,real_cvprec) )
 
 
 return

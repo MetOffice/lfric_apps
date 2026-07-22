@@ -34,6 +34,7 @@ counter_output_suffix='counter.txt',
 timer_output_path='timer.txt',
 write_conservation_diag=.false.,
 write_fluxes=.false.,
+write_initial=.true.,
 write_minmax_tseries=.false.,
 /
 

@@ -18,8 +18,8 @@ contains
 subroutine calc_init_par_fields( n_points, nc2, index_ic2, l_down, i_region,   &
                                  pressure_k, cf_liq,                           &
                                  turb_tl, turb_qt,                             &
-                                 delta_temp_neut,delta_qvap_neut,              &
-                                 fields_par, pert_tl, pert_qt )
+                                 delta_temp_neut, delta_qvap_neut,             &
+                                 rhpert_t, fields_par, pert_tl, pert_qt )
 
 use comorph_constants_mod, only: real_cvprec, zero, one, sqrt_min_delta,       &
                                  l_turb_par_gen, par_gen_core_fac,             &
@@ -61,22 +61,26 @@ real(kind=real_cvprec), intent(in) :: turb_qt(n_points)
 real(kind=real_cvprec), intent(in) :: delta_temp_neut(n_points)
 real(kind=real_cvprec), intent(in) :: delta_qvap_neut(n_points)
 
-! in: Properties of the current env region at level k
-! out: Unperturbed initiating parcel properties
-real(kind=real_cvprec), intent(in out) :: fields_par                           &
+! RH perturbation for current convection type
+real(kind=real_cvprec), intent(in) :: rhpert_t(n_points)
+
+! Unperturbed initiating parcel properties
+real(kind=real_cvprec), intent(in) :: fields_par                               &
                             ( n_points, i_temperature:n_fields )
 ! Perturbations applied to initiating parcel Tl and qt
 real(kind=real_cvprec), intent(out) :: pert_tl(nc2)
 real(kind=real_cvprec), intent(out) :: pert_qt(nc2)
-
 
 ! Relative Humidity of the parcel
 real(kind=real_cvprec) :: rh_par(nc2)
 ! Relative Humidity and temperature of the neutrally-buoyant perturbed parcel
 real(kind=real_cvprec) :: rh_par_pert(nc2)
 real(kind=real_cvprec) :: temperature(nc2)
+real(kind=real_cvprec) :: q_vap(nc2)
 ! Factor for scaling the neutrally-buoyant moisture perturbations
-real(kind=real_cvprec) :: factor
+real(kind=real_cvprec) :: factor(nc2)
+! Factor for the neutrally buoyant core moisture perturbations
+real(kind=real_cvprec) :: fac_core
 
 ! Loop counters
 integer :: ic, ic2
@@ -137,11 +141,17 @@ end if  ! ( l_turb_par_gen )
 
 
 if ( par_gen_rhpert > zero ) then
-  ! Add on a neutrally-buoyant T,q perturbations consistent
+  ! Add on neutrally-buoyant T,q perturbations consistent
   ! with a specified Relative Humidity perturbation.
   ! T,q perturbations which increase RH by a fixed amount whilst
-  ! preserving Tv were calculated in calc_env_partitions
+  ! preserving Tv were calculated in calc_env_regions
   ! and passed in here as delta_temp_neut, delta_qvap_neut...
+
+  ! Set factor to scale them by to get the input variable RH perturbation
+  do ic2 = 1, nc2
+    ic = index_ic2(ic2)
+    factor(ic2) = rhpert_t(ic) / par_gen_rhpert
+  end do
 
   ! Calculate relative humidity of the parcel
   call set_qsat_liq( nc2, fields_par(:,i_temperature), pressure_k, rh_par )
@@ -149,47 +159,51 @@ if ( par_gen_rhpert > zero ) then
     rh_par(ic2) = fields_par(ic2,i_q_vap) / rh_par(ic2)
   end do
 
-  ! Calculate relative humidity of the parcel with the T,q perturbations added
+  ! Calculate relative humidity of the parcel with the T,q perturbations
+  ! that will be applied to the parcel core (scaled up by core_fac)
   do ic2 = 1, nc2
     ic = index_ic2(ic2)
-    temperature(ic2) = fields_par(ic2,i_temperature) + delta_temp_neut(ic)
+    fac_core = factor(ic2) * par_gen_core_fac
+    ! TEMPORARY CODE TO FORCE BIT-REPRODUCIBILITY WITH PREVIOUS VERSION
+    if ( abs(fac_core-one) < sqrt_min_delta )  fac_core = one
+    temperature(ic2) = fields_par(ic2,i_temperature) + delta_temp_neut(ic)     &
+                                                       * fac_core
+    q_vap(ic2)       = fields_par(ic2,i_q_vap)       + delta_qvap_neut(ic)     &
+                                                       * fac_core
   end do
   call set_qsat_liq( nc2, temperature, pressure_k, rh_par_pert )
   do ic2 = 1, nc2
-    ic = index_ic2(ic2)
-    rh_par_pert(ic2) = ( fields_par(ic2,i_q_vap) + delta_qvap_neut(ic) )       &
-                     / rh_par_pert(ic2)
+    rh_par_pert(ic2) = q_vap(ic2) / rh_par_pert(ic2)
   end do
 
   do ic2 = 1, nc2
-    ic = index_ic2(ic2)
-
+    ! TEMPORARY CODE TO FORCE BIT-REPRODUCIBILITY WITH PREVIOUS VERSION
+    factor(ic2) = factor(ic2) * par_gen_core_fac
+    if ( abs(factor(ic2)-one) < sqrt_min_delta )  factor(ic2) = one
     ! Apply only a fraction of the neutrally-buoyant relative humidity
-    ! perturbation if it would make the parcel supersaturated
+    ! perturbation if it would make the parcel core supersaturated
     if ( rh_par(ic2) >= one ) then
       ! If parcel is already saturated, set RH perturbation to zero
-      factor = zero
+      factor(ic2) = zero
     else if ( rh_par_pert(ic2) > one ) then
       ! If parcel was subsaturated, but perturbation makes it supersaturated
       ! calculate fraction of perturbation needed to reach saturation
-      factor = ( one - rh_par(ic2) ) / ( rh_par_pert(ic2) - rh_par(ic2) )
+      factor(ic2) = factor(ic2) * ( one - rh_par(ic2) )                        &
+                                / ( rh_par_pert(ic2) - rh_par(ic2) )
       ! Note: due to loss of precision, it is possible to end up with
       ! rh_par_pert == rh_par.
       ! The above logic ensures we cannot enter this branch and get a
       ! div-by-zero when this happens.
-    else
-      ! If perturbed parcel still subsaturated, use full RH perturbation
-      factor = one
     end if
-    ! Also scaling the perturbation down such that the
-    ! parcel core perturbation just hits RHpert (or saturation),
-    ! not the parcel mean
-    factor = factor / par_gen_core_fac
+    ! TEMPORARY CODE TO FORCE BIT-REPRODUCIBILITY WITH PREVIOUS VERSION
+    factor(ic2) = factor(ic2) / par_gen_core_fac
+  end do
 
-    ! Add on the scaled neutrally-buoyant perturbations
-    pert_tl(ic2) = pert_tl(ic2) + factor * delta_temp_neut(ic)
-    pert_qt(ic2) = pert_qt(ic2) + factor * delta_qvap_neut(ic)
-
+  ! Add on the scaled neutrally-buoyant RH perturbations
+  do ic2 = 1, nc2
+    ic = index_ic2(ic2)
+    pert_tl(ic2) = pert_tl(ic2) + delta_temp_neut(ic) * factor(ic2)
+    pert_qt(ic2) = pert_qt(ic2) + delta_qvap_neut(ic) * factor(ic2)
   end do
 
 end if  ! ( par_gen_rhpert > zero )
@@ -197,12 +211,15 @@ end if  ! ( par_gen_rhpert > zero )
 ! Limit the q perturbation to avoid creating negative or
 ! excessively large moisture contents.
 ! We want:
-! par_gen_core_fac abs(pert_qt) <= par_q (1 - sqrt(epsilon))
+! par_gen_core_fac ABS(pert_qt) <= par_q (1 - sqrt(epsilon))
 do ic2 = 1, nc2
-  factor = fields_par(ic2,i_q_vap) * (one-sqrt_min_delta) / par_gen_core_fac
-  if ( abs(pert_qt(ic2)) > factor ) then
-    ! Fortran sign intrinsic returns factor but with same sign as pert_qt.
-    pert_qt(ic2) = sign( factor, pert_qt(ic2) )
+  factor(ic2) = fields_par(ic2,i_q_vap) * (one-sqrt_min_delta)                 &
+                                        / par_gen_core_fac
+end do
+do ic2 = 1, nc2
+  if ( abs(pert_qt(ic2)) > factor(ic2) ) then
+    ! Fortran SIGN intrinsic returns factor but with same sign as pert_qt.
+    pert_qt(ic2) = sign( factor(ic2), pert_qt(ic2) )
   end if
 end do
 

@@ -9,13 +9,13 @@
 module iau_firstfile_io_mod
 
   use calendar_mod,              only: calendar_type
-  use constants_mod,             only: str_def, l_def
+  use constants_mod,             only: str_def, l_def, i_def, r_def
   use driver_modeldb_mod,        only: modeldb_type
   use field_collection_mod,      only: field_collection_type
   use field_mod,                 only: field_type
   use file_mod,                  only: FILE_MODE_READ
   use inventory_by_mesh_mod,     only: inventory_by_mesh_type
-  use io_context_mod,            only: callback_clock_arg
+  use lfric_string_mod,          only: split_string
   use lfric_xios_context_mod,    only: lfric_xios_context_type
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
                                        OPERATION_ONCE
@@ -64,12 +64,15 @@ contains
     character(str_def) :: time_start
     character(str_def) :: prime_mesh_name
     character(str_def) :: context_name
+    character(:), allocatable :: split_filename(:)
+    character(str_def)        :: short_filename
+
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
 
     logical(l_def) :: use_xios_io
-
-    procedure(callback_clock_arg), pointer :: before_close
-
-    nullify(before_close)
 
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
@@ -79,8 +82,16 @@ contains
     prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     use_xios_io     = modeldb%config%io%use_xios_io()
 
+    geometry      = modeldb%config%base_mesh%geometry()
+    topology      = modeldb%config%base_mesh%topology()
+    coord_system  = modeldb%config%finite_element%coord_system()
+    scaled_radius = modeldb%config%planet%scaled_radius()
+
+    split_filename = split_string( trim(iau_incs_path), '/' )
+    short_filename = trim(split_filename(size(split_filename)))
+
     ! get filename and set up context name for this file
-    context_name = "multifile_context_" // trim(iau_incs_path)
+    context_name = "multifile_context_" // trim(short_filename)
     call tmp_io_context%initialise( context_name )
 
     !add context to modeldb
@@ -112,11 +123,16 @@ contains
 
     allocate(tmp_calendar, source=step_calendar_type(time_origin, time_start))
 
-    call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
-                                             chi, panel_id,               &
-                                             modeldb%clock, tmp_calendar, &
-                                             before_close,                &
+    call io_context%initialise_xios_context( modeldb%mpi%get_comm(), &
+                                             chi, panel_id,          &
+                                             modeldb%clock,          &
+                                             tmp_calendar,           &
+                                             geometry, topology,     &
+                                             coord_system,           &
+                                             scaled_radius,          &
                                              start_at_zero=.true. )
+    call io_context%close_context_definition()
+
     ! Finalise XIOS context
     call io_context%finalise_xios_context()
 

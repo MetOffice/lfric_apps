@@ -1,0 +1,62 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+module cap_diffusion_coeff_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: cap_diffusion_coeff_test_type
+    private
+  contains
+    procedure test_all
+  end type cap_diffusion_coeff_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use cap_diffusion_coeff_kernel_mod, only : cap_diffusion_coeff_code
+
+    implicit none
+
+    class(cap_diffusion_coeff_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlayers = 3
+    integer(kind=i_def), parameter :: ndf_wt  = 2
+    integer(kind=i_def), parameter :: undf_wt = nlayers+1
+    real(kind=r_def),    parameter :: tol = 1.0e-6_r_def
+
+    integer(kind=i_def) :: map_wt(ndf_wt)
+    real(kind=r_def)    :: visc(undf_wt)
+    real(kind=r_def)    :: cap(undf_wt)
+    real(kind=r_def)    :: answer(undf_wt)
+
+    map_wt = (/ 1, 2 /)
+    ! Choose a mix of numbers for visc above and below the cap values
+    visc = (/ 0.1_r_def, 0.5_r_def, 1.0_r_def, 0.7_r_def /)
+    cap = (/ 0.2_r_def, 0.4_r_def, 0.6_r_def, 0.8_r_def /)
+    answer = (/ 0.1_r_def, 0.4_r_def, 0.6_r_def, 0.7_r_def /)
+
+    call cap_diffusion_coeff_code(                                             &
+        nlayers,                                                               &
+        visc, cap,                                                             &
+        ndf_wt, undf_wt, map_wt                                                &
+    )
+
+    @assertEqual(answer, visc, tol)
+
+  end subroutine test_all
+
+end module cap_diffusion_coeff_kernel_mod_test

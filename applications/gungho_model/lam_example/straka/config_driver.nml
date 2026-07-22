@@ -132,6 +132,7 @@ write_conservation_diag=.false.,
 write_diag=.true.,
 write_dump=.false.,
 write_fluxes=.true.,
+write_initial=.true.
 write_minmax_tseries=.false.,
 /
 &logging

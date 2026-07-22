@@ -17,7 +17,7 @@ contains
 ! fields array to be consistent with the liquid and ice
 ! cloud-fractions.  We must have:
 !
-! max(cf_liq,cf_ice) <= cf_bulk <= cf_liq+cf_ice
+! MAX(cf_liq,cf_ice) <= cf_bulk <= cf_liq+cf_ice
 !
 ! If this law is broken, then attempts to calculate the
 ! mixed-phase and liquid-only cloud-fractions can yield

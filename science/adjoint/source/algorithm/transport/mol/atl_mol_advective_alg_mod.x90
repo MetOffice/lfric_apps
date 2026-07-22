@@ -8,6 +8,7 @@
 module atl_mol_advective_alg_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def
   use field_mod,                      only: field_type
   use mesh_mod,                       only: mesh_type
@@ -84,6 +85,10 @@ contains
     type(transport_controller_type), pointer :: pert_transport_controller
     type(wind_precomputations_type), pointer :: ls_wind_precomputations
     type(wind_precomputations_type), pointer :: pert_wind_precomputations
+
+    type(config_type), pointer :: config
+
+    config => tl_transport_controller%get_config()
 
     ! ------------------------------------------------------------------------ !
     ! Extract transport objects and initialise temporary fields
@@ -187,8 +192,8 @@ contains
         end do
 
         ! Compute update: rhs = u.grad(rhs_field)
-        call advective_and_flux_alg(dummy, rhs, rhs_field, ls_field_n,     &
-                                    ls_advecting_wind, direction,          &
+        call advective_and_flux_alg(config, dummy, rhs, rhs_field, &
+                                    ls_field_n, ls_advecting_wind, direction, &
                                     ls_transport_metadata, final_rk_stage, &
                                     dt_mol_substep, .false., .true. )
 
@@ -251,7 +256,7 @@ contains
                      inc_X_plus_Y( field_n, field_np1 ) )
 
         ! Compute update: rhs = u.grad(rhs_field)
-        call atl_advective_and_flux_alg(                                       &
+        call atl_advective_and_flux_alg(config,                                &
                 dummy, dummy, rhs, rhs_field, advecting_wind,                  &
                 stored_ls_field(ls_substep, ls_stage), ls_advecting_wind,      &
                 direction, transport_metadata, final_rk_stage, dt_mol_substep, &

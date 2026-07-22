@@ -32,13 +32,12 @@ from psyclone.psyir.symbols import (
     RoutineSymbol,
     ImportInterface,
     UnsupportedFortranType,
-    INTEGER_TYPE,
-    CHARACTER_TYPE,
+    ScalarType
 )
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import (
     OMPLoopTrans,
     TransformationError,
-    OMPParallelTrans,
     OMPParallelLoopTrans,
 )
 
@@ -284,50 +283,6 @@ def omp_do_for_heavy_loops(
             logging.warning("Failed OMP on %s-loop: %s", loop_var, err)
 
 
-def mark_explicit_privates(node, names):
-    """
-    Add symbols named in `names` to `node.explicitly_private_symbols`.
-
-    Generic version of the original helper. Works with any PSyIR node that:
-      - has a `scope.symbol_table`, and
-      - provides an `explicitly_private_symbols` set-like attribute.
-
-    Warns if a requested symbol cannot be found or is not a DataSymbol.
-    """
-    # Be forgiving so this helper can be used beyond Loop nodes
-    scope = getattr(node, "scope", None)
-    symtab = getattr(scope, "symbol_table", None)
-    if symtab is None:
-        logging.warning(
-            "[warn] cannot set explicit privates:"
-            "node has no scope.symbol_table."
-        )
-        return
-
-    if not hasattr(node, "explicitly_private_symbols"):
-        logging.warning(
-            "[warn] cannot set explicit privates:"
-            " node has no 'explicitly_private_symbols'."
-        )
-        return
-
-    for name in names:
-        try:
-            sym = symtab.lookup(name)
-            if isinstance(sym, DataSymbol):
-                node.explicitly_private_symbols.add(sym)
-            else:
-                logging.warning(
-                    " [warn] private symbol '%s' is not a DataSymbol.",
-                    name,
-                )
-        except KeyError:
-            logging.warning(
-                "[warn] private symbol '%s' not found in symbol table.",
-                name,
-            )
-
-
 def get_compiler():
     """
     Best-effort compiler family from env.
@@ -437,9 +392,6 @@ def add_parallel_do_over_meta_segments(
     # Ensure scalars that may be emitted as FIRSTPRIVATE have a value
     first_priv_red_init(target, init_scalars)
 
-    # Explicit privates per policy
-    mark_explicit_privates(target, privates)
-
     # Apply the dynamic-scheduled directive (forced)
     try:
         if in_parallel_region:
@@ -448,7 +400,8 @@ def add_parallel_do_over_meta_segments(
                 "applying OMP DO (forced, dynamic).",
                 target.position,
             )
-            OMP_DO_LOOP_TRANS_DYNAMIC.apply(target, options={"force": True})
+            OMP_DO_LOOP_TRANS_DYNAMIC.apply(
+                target, force=True, force_private=privates)
         else:
             logging.info(
                 "Found target loop at %s:"
@@ -456,7 +409,7 @@ def add_parallel_do_over_meta_segments(
                 target.position,
             )
             OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC.apply(
-                target, options={"force": True}
+                target, force_private=privates, force=True
             )
 
         logging.info("Member-count PARALLEL DO inserted (dynamic).")
@@ -515,7 +468,7 @@ def first_priv_red_init(node_target, init_scalars, insert_at_start=False):
             # rather than UnsupportedFortranType
             if isinstance(sym.datatype, UnsupportedFortranType):
                 init = Assignment.create(
-                    Reference(sym), Literal("", CHARACTER_TYPE)
+                    Reference(sym), Literal("", ScalarType.character_type())
                 )
             else:
                 init = Assignment.create(
@@ -649,7 +602,7 @@ def loop_replacement_of(routine_itr,
                 parent = routine_itr
                 assign = Assignment.create(
                     Reference(loop.variable),
-                    Literal("1", INTEGER_TYPE))
+                    Literal("1", ScalarType.integer_type()))
                 parent.children.insert(0, assign)
                 do_once = True
 

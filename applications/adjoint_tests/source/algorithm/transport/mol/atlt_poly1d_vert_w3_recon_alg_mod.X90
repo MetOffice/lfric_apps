@@ -6,6 +6,7 @@
 !> @brief Module containing adjoint test for atl_poly1d_vert_w3_reconstruction_kernel
 module atlt_poly1d_vert_w3_recon_alg_mod
 
+  use config_mod,                        only : config_type
   use field_mod,                         only : field_type
   use function_space_mod,                only : function_space_type
   use mesh_mod,                          only : mesh_type
@@ -36,19 +37,21 @@ module atlt_poly1d_vert_w3_recon_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  mesh         The model mesh
-  subroutine atlt_poly1d_vert_w3_recon_alg( mesh )
+  !> @param[in]  config  Application namelist configuration object
+  !> @param[in]  mesh    The model mesh
+  subroutine atlt_poly1d_vert_w3_recon_alg( config, mesh )
 
     use tl_poly1d_vert_w3_reconstruction_kernel_mod,  only : tl_poly1d_vert_w3_reconstruction_kernel_type, &
                                                              tl_poly1d_vert_w3_reconstruction_init,        &
                                                              tl_poly1d_vert_w3_reconstruction_final
-    use atl_poly1d_vert_w3_reconstruction_kernel_mod, only : atl_poly1d_vert_w3_reconstruction_init,        &
+    use atl_poly1d_vert_w3_reconstruction_kernel_mod, only : atl_poly1d_vert_w3_reconstruction_init,       &
                                                              atl_poly1d_vert_w3_reconstruction_final
     use invoke_atl_poly1d_vert_w3_recon_mod,          only : invoke_atl_poly1d_vert_w3_recon_kernel_type
 
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
 
     ! Arguments for tl and adj calls
@@ -99,11 +102,11 @@ module atlt_poly1d_vert_w3_recon_alg_mod
     ! Compute vertical components of mass flux
     if ( reversible ) then
       ndata = fv_vertical_order
-      coeff => get_reversible_vert_w3_mol_coeffs(mesh_id)
+      coeff => get_reversible_vert_w3_mol_coeffs(config, mesh)
       global_order = fv_vertical_order - 1_i_def
     else
       ndata = 2*(fv_vertical_order + 1)
-      coeff => get_vert_w3_mol_coeffs(mesh_id)
+      coeff => get_vert_w3_mol_coeffs(config, mesh)
       global_order = fv_vertical_order
     end if
 

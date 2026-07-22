@@ -8,6 +8,7 @@
 module mol_conservative_alg_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, str_def, r_tran
   use log_mod,                        only: log_scratch_space, log_event, &
                                             LOG_LEVEL_INFO
@@ -37,13 +38,13 @@ module mol_conservative_alg_mod
   ! Kernels
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
 
-  ! Configuration
-  use base_mesh_config_mod,           only: topology, topology_non_periodic
-  use boundaries_config_mod,          only: limited_area, transport_boundary_depth
-  use transport_config_mod,           only: runge_kutta_method, &
-                                            dry_field_name,     &
-                                            operators,          &
-                                            operators_fem
+  ! Configuration modules
+  use base_mesh_config_mod,  only: topology, topology_non_periodic
+  use boundaries_config_mod, only: limited_area, transport_boundary_depth
+  use transport_config_mod,  only: runge_kutta_method, &
+                                   dry_field_name,     &
+                                   operators,          &
+                                   operators_fem
 
   implicit none
 
@@ -98,14 +99,17 @@ module mol_conservative_alg_mod
     type(flux_precomputations_type), pointer :: flux_precomputations
     integer(tik)                             :: id
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'transport.mol_conservective' )
 
     ! ------------------------------------------------------------------------ !
     ! Extract pre-existing objects and initialise temporary fields
     ! ------------------------------------------------------------------------ !
 
-    mesh => field%get_mesh()
-    mesh_id = field%get_mesh_id()
+    config  => transport_controller%get_config()
+    mesh    => field%get_mesh()
+    mesh_id =  field%get_mesh_id()
 
     wind_precomputations => transport_controller%get_wind_precomputations()
     flux_precomputations => transport_controller%get_flux_precomputations()
@@ -195,9 +199,9 @@ module mol_conservative_alg_mod
 
         end if
 
-        call advective_and_flux_alg(flux_step, adv_inc, rhs_field, field_n, &
-                                    advecting_wind, direction,              &
-                                    transport_metadata, final_rk_stage,     &
+        call advective_and_flux_alg(config, flux_step, adv_inc, rhs_field, &
+                                    field_n, advecting_wind, direction,    &
+                                    transport_metadata, final_rk_stage,    &
                                     dt_mol_substep, do_flux, do_advective)
         if ( do_flux ) then
           ! Compute flux increment

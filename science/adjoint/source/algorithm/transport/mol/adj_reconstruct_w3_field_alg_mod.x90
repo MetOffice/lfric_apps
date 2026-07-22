@@ -7,6 +7,7 @@
 !> @brief Adjoint reconstruction of a W3 field at W2 points for use in the transport scheme.
 module adj_reconstruct_w3_field_alg_mod
 
+  use config_mod,                           only: config_type
   use constants_mod,                        only: r_tran, i_def, l_def
   use r_tran_field_mod,                     only: r_tran_field_type
 
@@ -38,14 +39,17 @@ contains
 
   !=============================================================================
   !> @brief Adjoint of reconstruction of a W3 field in the horizontal component of W2
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] field_new               The resulting horizontal W2 field
   !> @param[in,out] field_old               The input W3 field
   !> @param[in]     transport_metadata      Contains transport configuration options
   !> @param[in]     adj_lookup_table_cache  Lookup table cache
-  subroutine adj_hori_w3_reconstruct_alg( field_new, field_old, &
+  subroutine adj_hori_w3_reconstruct_alg( config, field_new, field_old, &
                                           transport_metadata, adj_lookup_table_cache )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type),           intent(inout) :: field_new
     type(r_tran_field_type),           intent(inout) :: field_old
@@ -86,7 +90,7 @@ contains
       stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
     end if
 
-    flux_coeffs => get_hori_w3_mol_coeffs(mesh_id)
+    flux_coeffs => get_hori_w3_mol_coeffs(config, mesh)
 
     ! Copy field to a large halo version
     call field_old_big_halo%initialise( field_old%get_function_space(), &
@@ -97,8 +101,8 @@ contains
     if ( panel_edge_treatment /= panel_edge_treatment_none                     &
          .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
-      call remap_on_extended_mesh(remap_field, field_old_big_halo,             &
-                                  monotone,                                    &
+      call remap_on_extended_mesh(config,                                      &
+                                  remap_field, field_old_big_halo, monotone,   &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)

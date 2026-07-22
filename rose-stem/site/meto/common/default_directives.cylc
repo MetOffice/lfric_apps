@@ -18,6 +18,9 @@
         "lfric_atm": {
             "build_wallclock": 45,
         },
+        "linear_model": {
+            "build_wallclock": 45,
+        },
         "jules": {
             "build_wallclock": 35,
         },
@@ -43,6 +46,9 @@
         "build_cpus": 24,
 
         "lfric_atm": {
+            "build_wallclock": 60,
+        },
+        "linear_model": {
             "build_wallclock": 60,
         },
         "lfric_coupled": {

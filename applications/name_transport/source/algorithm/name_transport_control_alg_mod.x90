@@ -7,6 +7,7 @@
 
 module name_transport_control_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, r_def, l_def, str_def
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
@@ -89,7 +90,7 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in) :: number_of_meshes
-    integer(kind=i_def)             :: config
+    integer(kind=i_def)             :: i
     type(transport_metadata_type)   :: transport_metadata
 
     ! ------------------------------------------------------------------------ !
@@ -120,27 +121,27 @@ contains
     transport_metadata_collection = transport_metadata_collection_type()
 
     ! Set up configs using namelist entries
-    do config = 1, profile_size
+    do i = 1, profile_size
 
-      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(config)),' transport metadata'
+      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(i)),' transport metadata'
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-      transport_metadata = transport_metadata_type( field_names(config),             &
-                                                    equation_form(config),           &
-                                                    splitting(config),               &
-                                                    scheme(config),                  &
-                                                    horizontal_method(config),       &
-                                                    vertical_method(config),         &
-                                                    horizontal_monotone(config),     &
-                                                    vertical_monotone(config),       &
-                                                    vertical_monotone_order(config), &
-                                                    special_edges_monotone(config),  &
-                                                    enforce_min_value(config),       &
-                                                    min_value(config),               &
-                                                    log_space(config),               &
-                                                    reversible(config),              &
-                                                    ffsl_splitting(config),          &
-                                                    ffsl_vertical_order(config) )
+      transport_metadata = transport_metadata_type( field_names(i),             &
+                                                    equation_form(i),           &
+                                                    splitting(i),               &
+                                                    scheme(i),                  &
+                                                    horizontal_method(i),       &
+                                                    vertical_method(i),         &
+                                                    horizontal_monotone(i),     &
+                                                    vertical_monotone(i),       &
+                                                    vertical_monotone_order(i), &
+                                                    special_edges_monotone(i),  &
+                                                    enforce_min_value(i),       &
+                                                    min_value(i),               &
+                                                    log_space(i),               &
+                                                    reversible(i),              &
+                                                    ffsl_splitting(i),          &
+                                                    ffsl_vertical_order(i) )
 
       call transport_metadata_collection%set_transport_metadata(transport_metadata)
 
@@ -182,12 +183,13 @@ contains
   !!          by transporting rho (if required), and tracer_con. The
   !!          transporting wind field is prescribed, but may be updated if a
   !!          time-varying profile has been specified.
+  !> @param[in]     config             Application namelist configuration object
   !> @param[in]     model_clock        Time within the model
   !> @param[in,out] wind               The transporting wind field
   !> @param[in,out] tracer_con         Tracer field to transport conservatively
   !> @param[in,out] rho                Dry density field to transport
   !> @param[in]     transport_density  Whether to transport the density field
-  subroutine name_transport_step( model_clock, wind, tracer_con, &
+  subroutine name_transport_step( config, model_clock, wind, tracer_con, &
                                   rho, transport_density )
 
     use init_gungho_prognostics_alg_mod,  only: init_u_field
@@ -199,6 +201,7 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type),       intent(in)    :: config
     class(model_clock_type), intent(in)    :: model_clock
     type(field_type),        intent(inout) :: wind, rho, tracer_con
     logical(kind=l_def),     intent(in)    :: transport_density
@@ -216,14 +219,14 @@ contains
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
     if ( time_varying_wind ) then
       current_time = model_clock%get_step() * cast_dt
-      call init_u_field(wind, current_time)
+      call init_u_field(config, wind, current_time)
     end if
 
     ! Get mesh from wind
     primary_mesh => wind%get_mesh()
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise( model_clock, rho, wind )
+    call transport_controller%initialise( config, model_clock, rho, wind )
 
     ! Transport dry density
     if (transport_density) then

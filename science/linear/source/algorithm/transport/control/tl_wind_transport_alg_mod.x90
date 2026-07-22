@@ -127,14 +127,14 @@ contains
                                                    element_order_v, W2 )
         w2b_fs => function_space_collection%get_fs( mesh, element_order_h,     &
                                                    element_order_v, W2broken )
-        chi => get_coordinates(mesh%get_id())
-        panel_id => get_panel_id(mesh%get_id())
+        chi      => get_coordinates(mesh)
+        panel_id => get_panel_id(mesh)
         mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
         mm_w2b_inv => get_inverse_mass_matrix_fe(W2broken, mesh%get_id())
         rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
-        project_xdot_to_w2 => get_project_xdot_to_w2(mesh%get_id())
-        project_ydot_to_w2 => get_project_ydot_to_w2(mesh%get_id())
-        project_zdot_to_w2 => get_project_zdot_to_w2(mesh%get_id())
+        project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
+        project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
+        project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
 
         ! -------------------------------------------------------------------- !
         ! Split wind into components in W3

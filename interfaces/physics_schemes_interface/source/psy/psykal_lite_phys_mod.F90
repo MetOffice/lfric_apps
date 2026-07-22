@@ -14,7 +14,7 @@ module psykal_lite_phys_mod
   use field_mod,             only : field_type, field_proxy_type
   use integer_field_mod,     only : integer_field_type, integer_field_proxy_type
   use mesh_mod,              only : mesh_type
-  
+
   implicit none
   public
 
@@ -72,13 +72,13 @@ contains
     ! Integers for segmentation
     integer :: applicable_points, nlayers, loop_upper_bound, segment, seg_len, &
                l_bound, u_bound, n_segments , seg_target
-    
+
     ! These are in ANY_DISCONTINUOUS_SPACE_1
     integer :: ndf_adspc1_sd_orog, undf_adspc1_sd_orog
 
     integer, allocatable ::    cell_index(:) !dhc record the points with orography
 
-    
+
     type(field_proxy_type) :: du_blk_proxy, dv_blk_proxy,             &
                               du_orog_gwd_proxy, dv_orog_gwd_proxy,   &
                               dtemp_blk_proxy, dtemp_orog_gwd_proxy,  &
@@ -149,9 +149,9 @@ contains
     undf_adspc1_sd_orog = sd_orog_proxy%vspace%get_undf()
 
     ! Temporary variable for loop bound helps OpenMP
-    loop_upper_bound = mesh%get_last_edge_cell()    
-  
-    applicable_points = 0   
+    loop_upper_bound = mesh%get_last_edge_cell()
+
+    applicable_points = 0
     !cell index padded with 0s beyond applicable_points
     allocate(cell_index(loop_upper_bound))
     cell_index = 0
@@ -169,7 +169,7 @@ contains
     end do
 
     ! Check that the value of gw_segment is acceptable as a target length, otherwise use 1 for safety
-    if (gw_segment .le. 0 .or. gw_segment .gt. applicable_points) then
+    if (gw_segment <= 0 .or. gw_segment > applicable_points) then
       seg_target = 1
     else
       seg_target = gw_segment
@@ -179,7 +179,7 @@ contains
 
     ! Call orographic_drag_kernel_code if you have applicable points
     ! seg_len will be seg_target unless you have too few points at the end - l and u bound are of the segment iterated over
-    if (applicable_points .gt. 0) then
+    if (applicable_points > 0) then
       !$omp parallel do default(shared), private(segment, seg_len, l_bound, u_bound), schedule(dynamic)
       do segment=1, n_segments
         seg_len = min(seg_target, applicable_points - (segment - 1) * seg_target)
@@ -242,12 +242,12 @@ contains
 
   integer(KIND=i_def), intent(in) :: stph_level_bottom, stph_level_top,stph_n_min, stph_n_max
   type(field_type), intent(in) :: fp, longitude, pnm_star
-  integer(KIND=i_def) cell
-  integer(KIND=i_def) nlayers
-  type(field_proxy_type) fp_proxy, longitude_proxy, pnm_star_proxy
+  integer(KIND=i_def) :: cell
+  integer(KIND=i_def) :: nlayers
+  type(field_proxy_type) :: fp_proxy, longitude_proxy, pnm_star_proxy
   integer(KIND=i_def), pointer :: map_adspc1_longitude(:,:) => null(), map_adspc2_pnm_star(:,:) => null(), &
   &map_wspace(:,:) => null()
-  integer(KIND=i_def) ndf_wspace, undf_wspace, ndf_adspc1_longitude, undf_adspc1_longitude, ndf_adspc2_pnm_star, &
+  integer(KIND=i_def) :: ndf_wspace, undf_wspace, ndf_adspc1_longitude, undf_adspc1_longitude, ndf_adspc2_pnm_star, &
   &undf_adspc2_pnm_star
   type(mesh_type), pointer :: mesh => null()
 
@@ -363,9 +363,9 @@ rhostar, recip_l_mo_sea, t1_sd_2d, q1_sd_2d, &
       TYPE(integer_field_type), intent(in) :: n_snow_layers, blend_height_tq, ocn_cpl_point
       INTEGER(KIND=i_def), intent(in) :: stencil_depth, ncells, ncells_halo, day_of_year, second_of_day
       REAL(KIND=r_def), intent(in) :: flux_e, flux_h
-      INTEGER(KIND=i_def) nlayers
-      TYPE(integer_field_proxy_type) n_snow_layers_proxy, blend_height_tq_proxy, ocn_cpl_point_proxy
-      TYPE(field_proxy_type) theta_proxy, exner_in_wth_proxy, u_in_w3_proxy, v_in_w3_proxy, mr_n_proxy, mr_n_1_proxy, &
+      INTEGER(KIND=i_def) :: nlayers
+      TYPE(integer_field_proxy_type) :: n_snow_layers_proxy, blend_height_tq_proxy, ocn_cpl_point_proxy
+      TYPE(field_proxy_type) :: theta_proxy, exner_in_wth_proxy, u_in_w3_proxy, v_in_w3_proxy, mr_n_proxy, mr_n_1_proxy, &
 &mr_n_2_proxy, height_w3_proxy, height_wth_proxy, zh_proxy, z0msea_proxy, z0m_proxy, tile_fraction_proxy, leaf_area_index_proxy, &
 &canopy_height_proxy, peak_to_trough_orog_proxy, silhouette_area_orog_proxy, soil_albedo_proxy, soil_roughness_proxy, &
 &soil_moist_wilt_proxy, soil_moist_crit_proxy, soil_moist_sat_proxy, soil_thermal_cond_proxy, soil_suction_sat_proxy, &
@@ -392,13 +392,13 @@ rhostar_proxy, recip_l_mo_sea_proxy, &
 &map_adspc4_sea_ice_temperature(:,:) => null(), map_adspc5_snow_layer_thickness(:,:) => null(), &
 &map_adspc6_soil_temperature(:,:) => null(), map_adspc7_surf_interp(:,:) => null(), map_adspc8_tile_water_extract(:,:) => null(), &
 &map_adspc9_albedo_obs_scaling(:,:) => null(), map_w3(:,:) => null(), map_wtheta(:,:) => null()
-      INTEGER(KIND=i_def) ndf_wtheta, undf_wtheta, ndf_w3, undf_w3, ndf_adspc1_zh, undf_adspc1_zh, ndf_adspc2_tile_fraction, &
+      INTEGER(KIND=i_def) :: ndf_wtheta, undf_wtheta, ndf_w3, undf_w3, ndf_adspc1_zh, undf_adspc1_zh, ndf_adspc2_tile_fraction, &
 &undf_adspc2_tile_fraction, ndf_adspc3_leaf_area_index, undf_adspc3_leaf_area_index, ndf_adspc4_sea_ice_temperature, &
 &undf_adspc4_sea_ice_temperature, ndf_adspc5_snow_layer_thickness, undf_adspc5_snow_layer_thickness, ndf_adspc6_soil_temperature, &
 &undf_adspc6_soil_temperature, ndf_adspc7_surf_interp, undf_adspc7_surf_interp, ndf_adspc8_tile_water_extract, &
 &undf_adspc8_tile_water_extract, ndf_adspc9_albedo_obs_scaling, undf_adspc9_albedo_obs_scaling, ndf_adspc10_dust_mrel, &
 &undf_adspc10_dust_mrel
-      INTEGER(KIND=i_def) max_halo_depth_mesh
+      INTEGER(KIND=i_def) :: max_halo_depth_mesh
       TYPE(mesh_type), pointer :: mesh => null()
       INTEGER(KIND=i_def), pointer :: tile_fraction_stencil_size(:) => null()
       INTEGER(KIND=i_def), pointer :: tile_fraction_stencil_dofmap(:,:,:) => null()
@@ -744,15 +744,15 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       INTEGER(KIND=i_def), intent(in) :: nplev
       REAL(KIND=r_def), intent(in) :: plevs(nplev)
       TYPE(field_type), intent(in) :: exner_wth, plev_heaviside
-      INTEGER(KIND=i_def) cell
-      INTEGER(KIND=i_def) loop0_start, loop0_stop
-      INTEGER(KIND=i_def) nlayers
+      INTEGER(KIND=i_def) :: cell
+      INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+      INTEGER(KIND=i_def) :: nlayers
       REAL(KIND=r_def), pointer, dimension(:) :: plev_heaviside_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: exner_wth_data => null()
-      TYPE(field_proxy_type) exner_wth_proxy, plev_heaviside_proxy
+      TYPE(field_proxy_type) :: exner_wth_proxy, plev_heaviside_proxy
       INTEGER(KIND=i_def), pointer :: map_adspc1_exner_wth(:,:) => null(), map_adspc2_plev_heaviside(:,:) => null()
-      INTEGER(KIND=i_def) ndf_adspc1_exner_wth, undf_adspc1_exner_wth, ndf_adspc2_plev_heaviside, undf_adspc2_plev_heaviside
-      INTEGER(KIND=i_def) max_halo_depth_mesh
+      INTEGER(KIND=i_def) :: ndf_adspc1_exner_wth, undf_adspc1_exner_wth, ndf_adspc2_plev_heaviside, undf_adspc2_plev_heaviside
+      INTEGER(KIND=i_def) :: max_halo_depth_mesh
       TYPE(mesh_type), pointer :: mesh => null()
       !
       ! Initialise field and/or operator proxies
@@ -822,20 +822,20 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       INTEGER(KIND=i_def), intent(in) :: nplev
       REAL(KIND=r_def), intent(in) :: plevs(nplev)
       TYPE(field_type), intent(in) :: temp, exner_wth, height_wth, plev_temp
-      INTEGER(KIND=i_def) cell
-      INTEGER df
-      INTEGER(KIND=i_def) loop1_start, loop1_stop
-      INTEGER(KIND=i_def) loop0_start, loop0_stop
-      INTEGER(KIND=i_def) nlayers
+      INTEGER(KIND=i_def) :: cell
+      INTEGER :: df
+      INTEGER(KIND=i_def) :: loop1_start, loop1_stop
+      INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+      INTEGER(KIND=i_def) :: nlayers
       REAL(KIND=r_def), pointer, dimension(:) :: plev_temp_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: height_wth_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: exner_wth_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: temp_data => null()
-      TYPE(field_proxy_type) temp_proxy, exner_wth_proxy, height_wth_proxy, plev_temp_proxy
+      TYPE(field_proxy_type) :: temp_proxy, exner_wth_proxy, height_wth_proxy, plev_temp_proxy
       INTEGER(KIND=i_def), pointer :: map_adspc1_temp(:,:) => null(), map_adspc2_plev_temp(:,:) => null(), map_wtheta(:,:) => null()
-      INTEGER(KIND=i_def) ndf_aspc1_temp, undf_aspc1_temp, ndf_adspc1_temp, undf_adspc1_temp, ndf_wtheta, undf_wtheta, &
+      INTEGER(KIND=i_def) :: ndf_aspc1_temp, undf_aspc1_temp, ndf_adspc1_temp, undf_adspc1_temp, ndf_wtheta, undf_wtheta, &
 &ndf_adspc2_plev_temp, undf_adspc2_plev_temp
-      INTEGER(KIND=i_def) max_halo_depth_mesh
+      INTEGER(KIND=i_def) :: max_halo_depth_mesh
       TYPE(mesh_type), pointer :: mesh => null()
       !
       ! Initialise field and/or operator proxies
@@ -919,16 +919,16 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       INTEGER(KIND=i_def), intent(in) :: nplev
       REAL(KIND=r_def), intent(in) :: plevs(nplev)
       TYPE(field_type), intent(in) :: u_in_w3, exner_w3, plev_u
-      INTEGER(KIND=i_def) cell
-      INTEGER(KIND=i_def) loop0_start, loop0_stop
-      INTEGER(KIND=i_def) nlayers
+      INTEGER(KIND=i_def) :: cell
+      INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+      INTEGER(KIND=i_def) :: nlayers
       REAL(KIND=r_def), pointer, dimension(:) :: plev_u_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: exner_w3_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: u_in_w3_data => null()
-      TYPE(field_proxy_type) u_in_w3_proxy, exner_w3_proxy, plev_u_proxy
+      TYPE(field_proxy_type) :: u_in_w3_proxy, exner_w3_proxy, plev_u_proxy
       INTEGER(KIND=i_def), pointer :: map_adspc1_u_in_w3(:,:) => null(), map_adspc2_plev_u(:,:) => null()
-      INTEGER(KIND=i_def) ndf_adspc1_u_in_w3, undf_adspc1_u_in_w3, ndf_adspc2_plev_u, undf_adspc2_plev_u
-      INTEGER(KIND=i_def) max_halo_depth_mesh
+      INTEGER(KIND=i_def) :: ndf_adspc1_u_in_w3, undf_adspc1_u_in_w3, ndf_adspc2_plev_u, undf_adspc2_plev_u
+      INTEGER(KIND=i_def) :: max_halo_depth_mesh
       TYPE(mesh_type), pointer :: mesh => null()
       !
       ! Initialise field and/or operator proxies
@@ -999,21 +999,21 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       INTEGER(KIND=i_def), intent(in) :: nplev
       REAL(KIND=r_def), intent(in) :: plevs(nplev)
       TYPE(field_type), intent(in) :: height_w3, exner_w3, theta_wth, height_wth, exner_wth, plev_geopot
-      INTEGER(KIND=i_def) cell
-      INTEGER(KIND=i_def) loop0_start, loop0_stop
-      INTEGER(KIND=i_def) nlayers
+      INTEGER(KIND=i_def) :: cell
+      INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+      INTEGER(KIND=i_def) :: nlayers
       REAL(KIND=r_def), pointer, dimension(:) :: plev_geopot_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: exner_wth_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: height_wth_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: theta_wth_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: exner_w3_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: height_w3_data => null()
-      TYPE(field_proxy_type) height_w3_proxy, exner_w3_proxy, theta_wth_proxy, height_wth_proxy, exner_wth_proxy, plev_geopot_proxy
+      TYPE(field_proxy_type) :: height_w3_proxy, exner_w3_proxy, theta_wth_proxy, height_wth_proxy, exner_wth_proxy, plev_geopot_proxy
       INTEGER(KIND=i_def), pointer :: map_adspc1_height_w3(:,:) => null(), map_adspc2_plev_geopot(:,:) => null(), &
 &map_wtheta(:,:) => null()
-      INTEGER(KIND=i_def) ndf_adspc1_height_w3, undf_adspc1_height_w3, ndf_wtheta, undf_wtheta, ndf_adspc2_plev_geopot, &
+      INTEGER(KIND=i_def) :: ndf_adspc1_height_w3, undf_adspc1_height_w3, ndf_wtheta, undf_wtheta, ndf_adspc2_plev_geopot, &
 &undf_adspc2_plev_geopot
-      INTEGER(KIND=i_def) max_halo_depth_mesh
+      INTEGER(KIND=i_def) :: max_halo_depth_mesh
       TYPE(mesh_type), pointer :: mesh => null()
       !
       ! Initialise field and/or operator proxies
@@ -1095,16 +1095,16 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       INTEGER(KIND=i_def), intent(in) :: nplev
       TYPE(field_type), intent(in) :: plev_temp, plev_qv, plev_thetaw
       REAL(KIND=r_def), intent(in) :: plevs(nplev)
-      INTEGER(KIND=i_def) cell
-      INTEGER(KIND=i_def) loop0_start, loop0_stop
-      INTEGER(KIND=i_def) nlayers_plev_thetaw
+      INTEGER(KIND=i_def) :: cell
+      INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+      INTEGER(KIND=i_def) :: nlayers_plev_thetaw
       REAL(KIND=r_def), pointer, dimension(:) :: plev_thetaw_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: plev_qv_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: plev_temp_data => null()
-      TYPE(field_proxy_type) plev_qv_proxy, plev_thetaw_proxy, plev_temp_proxy
+      TYPE(field_proxy_type) :: plev_qv_proxy, plev_thetaw_proxy, plev_temp_proxy
       INTEGER(KIND=i_def), pointer :: map_adspc1_plev_thetaw(:,:) => null()
-      INTEGER(KIND=i_def) ndf_adspc1_plev_thetaw, undf_adspc1_plev_thetaw
-      INTEGER(KIND=i_def) max_halo_depth_mesh
+      INTEGER(KIND=i_def) :: ndf_adspc1_plev_thetaw, undf_adspc1_plev_thetaw
+      INTEGER(KIND=i_def) :: max_halo_depth_mesh
       TYPE(mesh_type), pointer :: mesh => null()
       !
       ! Initialise field and/or operator proxies
