@@ -2,6 +2,7 @@
 
 | GitHub user         | Real Name           | Affiliation                      | Date         |
 | ------------------- | ------------------- | -------------------------------- | ------------ |
+| ickc                | Kolen Cheung        | University of Exeter             | 2026-07-22   |
 | jedbakerMO          | Jed Baker           | Met Office                       | 2025-12-29   |
 | tommbendall         | Thomas Bendall      | Met Office                       | 2026-01-13   |
 | iboutle             | Ian Boutle          | Met Office                       | 2026-03-06   |
