@@ -136,7 +136,7 @@ contains
     integer(kind=i_def),    allocatable :: fs_ids(:)
     character(len=str_def), allocatable :: fs_names(:)
 
-    integer :: element_order_h, element_order_v
+    integer(i_def) :: element_order_h, element_order_v
 
 
     if ( LPROF ) call start_timing( id, 'gungho_diagnostics_driver' )

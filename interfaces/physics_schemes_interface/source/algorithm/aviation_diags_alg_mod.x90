@@ -122,9 +122,9 @@ contains
 
 
     ! Convert from model levels to pressure levels.
-    nplev = get_axis_dimension('pressure_levels')
+    nplev = get_axis_dimension('pressure_levels_xi3')
     allocate(plevs(nplev))
-    plevs = get_axis_values('pressure_levels', nplev)
+    plevs = get_axis_values('pressure_levels_xi3', nplev)
     call invoke_pres_interp_kernel_type(div_ml, exner_w3, nplev, plevs, &
                                         div_pl, p_zero, kappa)
 
