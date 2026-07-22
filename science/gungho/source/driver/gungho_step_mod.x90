@@ -241,7 +241,6 @@ module gungho_step_mod
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-    if ( LPROF ) call stop_timing( id, 'gungho_timestep' )
 
     ! Time per timestep
     call system_clock(end)
@@ -254,6 +253,8 @@ module gungho_step_mod
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    if ( LPROF ) call stop_timing( id, 'gungho_timestep' )
 
   end subroutine gungho_step
 
