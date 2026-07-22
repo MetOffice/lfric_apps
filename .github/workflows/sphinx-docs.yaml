@@ -30,7 +30,7 @@ jobs:
       timeout-minutes: 5
       docs-dir: documentation
       source-dir: documentation/source
-      use-pyproject: true
+      use-pyproject: false
 
     permissions:
       contents: read
