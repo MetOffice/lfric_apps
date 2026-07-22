@@ -179,7 +179,7 @@ contains
     call atlt_rhs_sample_eos_alg( mesh )
     call atlt_sample_eos_pressure_alg( mesh )
     call atlt_pressure_gradient_bd_alg( mesh )
-    call adjt_assemble_w2h_from_w2hb_alg( mesh )
+    call adjt_assemble_w2h_from_w2hb_alg( modeldb%config, mesh )
 
     ! ./linear_physics
     call atlt_bl_inc_alg( mesh )
@@ -194,9 +194,9 @@ contains
     call adjt_transpose_matrix_vector_alg( mesh )
 
     ! ./solver
-    call adjt_apply_mixed_u_operator_alg( mesh )
-    call adjt_apply_mixed_wp_operator_alg( mesh )
-    call adjt_schur_backsub_alg( mesh )
+    call adjt_apply_mixed_u_operator_alg( modeldb%config, mesh )
+    call adjt_apply_mixed_wp_operator_alg( modeldb%config, mesh )
+    call adjt_schur_backsub_alg( modeldb%config, mesh )
 
     call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
     ! ./

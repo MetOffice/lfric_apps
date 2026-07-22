@@ -6,10 +6,10 @@
 !> @brief Module containing adjoint test for adj_apply_mixed_wp_operator_kernel
 module adjt_apply_mixed_wp_operator_alg_mod
 
+  use config_mod,                    only : config_type
   use function_space_mod,            only : function_space_type
   use mesh_mod,                      only : mesh_type
   use function_space_collection_mod, only : function_space_collection
-  use finite_element_config_mod,     only : element_order_h, element_order_v
   use fs_continuity_mod,             only : W2, W2h, W2v, W3, Wtheta
   use operator_mod,                  only : r_solver_operator_type
   use r_solver_field_mod,            only : r_solver_field_type
@@ -32,8 +32,9 @@ module adjt_apply_mixed_wp_operator_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in] mesh        Mesh object
-  subroutine adjt_apply_mixed_wp_operator_alg(mesh)
+  !> @param[in]  config       Application namelist configuration object
+  !> @param[in]  mesh         Mesh object
+  subroutine adjt_apply_mixed_wp_operator_alg(config, mesh)
 
     use apply_mixed_wp_operator_kernel_mod,     only : apply_mixed_wp_operator_kernel_type
     use adj_apply_mixed_wp_operator_kernel_mod, only : adj_apply_mixed_wp_operator_kernel_type
@@ -41,6 +42,7 @@ module adjt_apply_mixed_wp_operator_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
 
     ! Arguments for tl and adj calls
@@ -66,12 +68,14 @@ module adjt_apply_mixed_wp_operator_alg_mod
     type(r_solver_field_type) :: wind_w_input
     type(r_solver_field_type) :: exner_input
 
-    ! Pointers for initialising fields
+    ! Variables for initialising fields
     type(function_space_type), pointer :: vector_space_w2_ptr
     type(function_space_type), pointer :: vector_space_w2h_ptr
     type(function_space_type), pointer :: vector_space_w2v_ptr
     type(function_space_type), pointer :: vector_space_w3_ptr
     type(function_space_type), pointer :: vector_space_wtheta_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
 
     ! Inner products
     real(kind=r_def)    :: lhs_w_inner_prod
@@ -97,6 +101,8 @@ module adjt_apply_mixed_wp_operator_alg_mod
     real(kind=r_solver)            :: machine_tol
     real(kind=r_solver)            :: relative_diff
 
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
     vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
     vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2h)
     vector_space_w2v_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2v)

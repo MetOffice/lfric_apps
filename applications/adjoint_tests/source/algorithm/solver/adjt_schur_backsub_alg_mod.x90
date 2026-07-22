@@ -7,10 +7,10 @@
 module adjt_schur_backsub_alg_mod
 
   use base_mesh_config_mod,          only : prime_mesh_name
+  use config_mod,                    only : config_type
   use function_space_mod,            only : function_space_type
   use mesh_mod,                      only : mesh_type
   use function_space_collection_mod, only : function_space_collection
-  use finite_element_config_mod,     only : element_order_h, element_order_v
   use fs_continuity_mod,             only : W2, W2h, W2v, W3
   use operator_mod,                  only : r_solver_operator_type
   use r_solver_field_mod,            only : r_solver_field_type
@@ -34,12 +34,14 @@ module adjt_schur_backsub_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in] mesh        Mesh object
-  subroutine adjt_schur_backsub_alg(mesh)
+  !> @param[in]  config       Application namelist configuration object
+  !> @param[in]  mesh         Mesh object
+  subroutine adjt_schur_backsub_alg(config, mesh)
 
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
 
     ! Passive arguments for tl and adj calls
@@ -48,12 +50,16 @@ module adjt_schur_backsub_alg_mod
     logical(kind=l_def)                :: lam
     type(r_solver_field_type), pointer :: mask
 
-    ! Pointers for initialising fields
+    ! Variables for initialising fields
     type(function_space_type), pointer :: vector_space_w2_ptr
     type(function_space_type), pointer :: vector_space_w2h_ptr
     type(function_space_type), pointer :: vector_space_w2v_ptr
     type(function_space_type), pointer :: vector_space_w3_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
 
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
     vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
     vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2h)
     vector_space_w2v_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2v)
@@ -67,6 +73,8 @@ module adjt_schur_backsub_alg_mod
     ! Curiously, this does not work with setval_random mask and lam = .true._l_def...
     ! But we will not use it with a randomised mask so this is okay.
     mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
+    ! Mask needs halo exchange here and not in subroutine where it is read-only...
+    call invoke( inc_a_times_X(1.0_r_solver, mask) )
     call setop_random_rsol_alg(div)
 
     lam = .false._l_def
@@ -103,6 +111,7 @@ module adjt_schur_backsub_alg_mod
   !> @param[in]  norm                     Normalisation field to scale output by
   !> @param[in]  lam                      Flag to apply lateral boundary conditions
   !> @param[in]  mask                     Boundary condition mask for lam domains
+
   subroutine run_adjt_schur_backsub_alg(vector_space_w2h_ptr, &
                                         vector_space_w2v_ptr, &
                                         vector_space_w2_ptr,  &

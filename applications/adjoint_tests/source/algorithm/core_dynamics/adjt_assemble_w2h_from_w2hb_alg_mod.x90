@@ -6,11 +6,11 @@
 !> @brief Module containing adjoint test for adj_assemble_w2h_from_w2hb_kernel
 module adjt_assemble_w2h_from_w2hb_alg_mod
 
+  use config_mod,                    only : config_type
   use field_mod,                     only : field_type
   use function_space_mod,            only : function_space_type
   use mesh_mod,                      only : mesh_type
   use function_space_collection_mod, only : function_space_collection
-  use finite_element_config_mod,     only : element_order_h, element_order_v
   use fs_continuity_mod,             only : W2broken, W2h
   use constants_mod,                 only : i_def, r_def, EPS
   use log_mod,                       only : log_event,         &
@@ -29,8 +29,9 @@ module adjt_assemble_w2h_from_w2hb_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in] mesh        Mesh object
-  subroutine adjt_assemble_w2h_from_w2hb_alg(mesh)
+  !> @param[in]  config       Application namelist configuration object
+  !> @param[in]  mesh         Mesh object
+  subroutine adjt_assemble_w2h_from_w2hb_alg(config, mesh)
 
     use assemble_w2h_from_w2hb_kernel_mod,     only : assemble_w2h_from_w2hb_kernel_type
     use adj_assemble_w2h_from_w2hb_kernel_mod, only : adj_assemble_w2h_from_w2hb_kernel_type
@@ -38,6 +39,7 @@ module adjt_assemble_w2h_from_w2hb_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
 
     ! Arguments for tl and adj calls
@@ -48,9 +50,11 @@ module adjt_assemble_w2h_from_w2hb_alg_mod
     type(field_type)    :: field_w2h_inp
     type(field_type)    :: field_w2h_broken_inp
 
-    ! Pointers for initialising fields
+    ! Variables for initialising fields
     type(function_space_type), pointer :: vector_space_w2b_ptr
     type(function_space_type), pointer :: vector_space_w2h_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
 
     ! Inner products
     real(kind=r_def) :: field_w2h_inner_prod
@@ -67,6 +71,8 @@ module adjt_assemble_w2h_from_w2hb_alg_mod
     real(kind=r_def)            :: machine_tol
     real(kind=r_def)            :: relative_diff
 
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
     vector_space_w2b_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2broken)
     vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2h)
 
