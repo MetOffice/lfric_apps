@@ -46,6 +46,10 @@ output-format = "grouped"                #group results by file
 "adj_sci_psykal_builtin_light_mod.f90" = ["C082"]
 "invoke_adj_sci_convert_hdiv_field_kernel_mod.F90" = ["C082"]
 "invoke_adj_apply_helmholtz_op_lookup_mod.f90" = ["C031"]
+"adj_subgrid_common_support_mod.F90" = ["C031"]
+"adj_subgrid_vertical_support_mod.F90" = ["C031"]
+"atl_ffsl_flux_z_constant_kernel_mod.F90" = ["C031"]
+"atl_ffsl_flux_z_nirvana_kernel_mod.F90" = ["C031"]
 
 
 
