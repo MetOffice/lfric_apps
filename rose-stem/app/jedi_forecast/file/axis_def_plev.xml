@@ -1,0 +1,14 @@
+<!-- Pressure level axes definitions for diagnostic regridding -->
+<axis_definition>
+  <axis id="pressure_levels" name="pressure_levels" n_glo="29" value="(0,28)[100000 95000 92500 90000 85000 70000 60000 50000 40000 30000 25000 20000 15000 10000 7000 5000 3000 2000 1000 700 500 300 200 100 70 50 30 20 10]"/>
+  <axis id="pressure_levels_xi3" name="pressure_levels_xi3" n_glo="1" value="(0,0)[85000]"/>
+  <axis id="pressure_levels_clim" name="pressure_levels_clim" standard_name="air_pressure" unit="Pa" positive="down" n_glo="17" value="(0,16)[100000 92500 85000 70000 60000 50000 40000 30000 25000 20000 15000 10000 7000 5000 3000 2000 1000]">
+    <interpolate_axis id="interpolator" order="1"/>
+  </axis>
+  <axis id="pressure_levels_c" name="pressure_levels_c" standard_name="air_pressure" unit="Pa" positive="down" n_glo="3" value="(0,2)[85000 50000 25000]">
+    <interpolate_axis id="interpolator" order="1"/>
+  </axis>
+  <axis id="pressure_levels_h" name="pressure_levels_h" standard_name="air_pressure" unit="Pa" positive="down" n_glo="6" value="(0,5)[85000 50000 25000 20000 5000 1000]">
+    <interpolate_axis id="interpolator" order="1"/>
+  </axis>
+</axis_definition>
