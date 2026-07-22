@@ -77,6 +77,7 @@ contains
     use adjt_end_transport_step_alg_mod,            only : adjt_build_up_flux_alg
     use atlt_end_transport_step_alg_mod,            only : atlt_end_adv_step_alg, &
                                                            atlt_end_con_step_alg
+    use atlt_vorticity_advection_alg_mod,           only : atlt_vorticity_advection_alg
 
     ! ./transport/mol
     use atlt_reconstruct_w3_field_alg_mod,          only : atlt_vert_w3_reconstruct_alg, &
@@ -89,6 +90,13 @@ contains
     use atlt_advective_and_flux_alg_mod,            only : atlt_advective_and_flux_alg
     use atlt_mol_conservative_alg_mod,              only : atlt_mol_conservative_alg
     use atlt_mol_advective_alg_mod,                 only : atlt_mol_advective_alg
+    use atlt_poly1d_vert_adv_alg_mod,               only : atlt_poly1d_vert_adv_alg
+    use adjt_horizontal_mass_flux_alg_mod,          only : adjt_horizontal_mass_flux_alg
+    use adjt_vertical_mass_flux_alg_mod,            only : adjt_vertical_mass_flux_alg
+    use atlt_horizontal_mass_flux_alg_mod,          only : atlt_horizontal_mass_flux_alg
+    use atlt_vertical_mass_flux_alg_mod,            only : atlt_vertical_mass_flux_alg
+    use adjt_w3v_advective_update_alg_mod,          only : adjt_w3v_advective_update_alg
+    use atlt_w3v_advective_update_alg_mod,          only : atlt_w3v_advective_update_alg
 
     ! ./transport/control
     use atlt_transport_field_alg_mod,               only : atlt_transport_field_alg
@@ -154,10 +162,20 @@ contains
 
     call log_event( "TESTING adjoint kernels", LOG_LEVEL_INFO )
 
+    !./transport/common
+    call atlt_vorticity_advection_alg( modeldb%config, mesh, chi, panel_id )
+
     ! ./transport/mol
     call atlt_poly_adv_update_alg( mesh )
     call atlt_poly1d_vert_w3_recon_alg( modeldb%config, mesh )
     call atlt_w3h_advective_update_alg( mesh )
+    call atlt_poly1d_vert_adv_alg( modeldb%config, mesh )
+    call adjt_horizontal_mass_flux_alg( modeldb%config, mesh )
+    call adjt_vertical_mass_flux_alg( modeldb%config, mesh )
+    call atlt_horizontal_mass_flux_alg( modeldb%config, mesh )
+    call atlt_vertical_mass_flux_alg( modeldb%config, mesh )
+    call adjt_w3v_advective_update_alg( modeldb%config, mesh )
+    call atlt_w3v_advective_update_alg( modeldb%config, mesh )
     ! -- Lookup table solutions.
     call adjt_poly1d_recon_lookup_alg( modeldb%config, mesh, adj_trans_lookup_cache )
     call adjt_poly2d_recon_lookup_alg( modeldb%config, mesh, Wtheta, adj_trans_lookup_cache )
