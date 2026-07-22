@@ -1005,6 +1005,8 @@
   <!-- Vertical integrals -->
   <field id="processed__sw_aer_optical_depth_rts" field_ref="radiation__sw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
   <field id="processed__lw_aer_optical_depth_rts" field_ref="radiation__lw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
+  <!-- Aviation diagnostics -->
+  <field id="aviation__uv_wind_divergence" name="aviation_uv_wind_divergence" standard_name="divergence_of_wind" unit="1e6 s-1" domain_ref="face" axis_ref="pressure_levels_xi3"/>
 </field_group>
 
 <!-- Integer diagnostic group -->

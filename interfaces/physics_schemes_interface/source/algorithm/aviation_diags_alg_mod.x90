@@ -1,0 +1,138 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Calculate aviation diagnostics.
+!>
+module aviation_diags_alg_mod
+
+  use constants_mod,              only: r_def, i_def, l_def
+  use field_mod,                  only: field_type
+  use mesh_mod,                   only: mesh_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  implicit none
+
+private
+public :: aviation_diags_alg
+
+contains
+
+  !> @brief Calculate aviation diagnostics.
+  !> @param[in]     wind              3D wind field on W2
+  !> @param[in]     exner_w3          Exner pressure on W3
+  !> @param[in]     main_mesh         Primary mesh pointer
+  !> @param[in]     element_order_h   Element order in the horizontal
+  !> @param[in]     element_order_v   Element order in the vertical
+  subroutine aviation_diags_alg( &
+          wind, exner_w3, main_mesh, element_order_h, element_order_v)
+    implicit none
+
+    ! Arguments
+    type(field_type),    intent(in)          :: wind
+    type(field_type),    intent(in)          :: exner_w3
+    type(mesh_type),     intent(in), pointer :: main_mesh
+    integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
+
+    call write_horizontal_divergence_diagnostic( &
+        wind, exner_w3, main_mesh, element_order_h, element_order_v)
+
+  end subroutine aviation_diags_alg
+
+
+  !> @brief Calculate and write horizontal divergence on pressure levels.
+  !> @param[in]     wind              3D wind field on W2
+  !> @param[in]     exner_w3          Exner pressure on W3
+  !> @param[in]     main_mesh         Primary mesh pointer
+  !> @param[in]     element_order_h   Element order in the horizontal
+  !> @param[in]     element_order_v   Element order in the vertical
+  subroutine write_horizontal_divergence_diagnostic( &
+          wind, exner_w3, main_mesh, element_order_h, element_order_v)
+
+    use fs_continuity_mod,              only: W2h, W2v, W3
+    use function_space_collection_mod,  only: function_space_collection
+
+    use sci_geometric_constants_mod,    only:           &
+            get_face_selector_ew, get_face_selector_ns
+
+    use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
+    use transport_constants_mod,        only: get_directional_im3_div_r_tran
+    use transport_enumerated_types_mod, only: direction_h
+    use r_tran_operator_mod,            only: r_tran_operator_type
+
+    use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+
+    use integer_field_mod,              only: integer_field_type
+
+    use psykal_lite_phys_mod,           only: invoke_pres_interp_kernel_type
+    use planet_config_mod,              only: p_zero, kappa
+
+    use lfric_xios_diag_mod,            only: get_axis_dimension, &
+                                              get_axis_values
+
+    implicit none
+
+    ! Arguments
+    type(field_type),    intent(in)          :: wind
+    type(field_type),    intent(in)          :: exner_w3
+    type(mesh_type),     intent(in), pointer :: main_mesh
+    integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
+
+    ! Locals
+    type(field_type)                         :: wind_h, wind_v
+    type(field_type)                         :: div_ml, div_pl
+    type(r_tran_operator_type), pointer      :: div_op
+
+    type(integer_field_type), pointer        :: face_selector_ew => null()
+    type(integer_field_type), pointer        :: face_selector_ns => null()
+
+    integer(i_def)                           :: nplev
+    real(r_def), allocatable                 :: plevs(:)
+    logical(l_def)                           :: div_flag
+
+
+    ! requested this time step?
+    div_flag = init_diag(div_pl, 'aviation__uv_wind_divergence')
+    if (.not. div_flag) return
+
+    ! Get the horizontal div operator matrix for this mesh.
+    div_op => get_directional_im3_div_r_tran(wind%get_mesh_id(), direction_h)
+
+    ! Split the 3d wind into horizontal and vertical components.
+    face_selector_ew => get_face_selector_ew(wind%get_mesh())
+    face_selector_ns => get_face_selector_ns(wind%get_mesh())
+
+    call wind_h%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W2h ))
+    call wind_v%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W2v ))
+
+    call invoke( split_w2_field_kernel_type( &
+        wind_h, wind_v, wind, face_selector_ew, face_selector_ns ))
+
+
+    ! Multiply the wind by the div operator matrix to get the div.
+    call div_ml%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W3 ))
+    call invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
+
+    ! Multiply by 1.0e6.
+    call invoke(inc_a_times_X(1.0e6_r_def, div_ml))
+
+
+    ! Convert from model levels to pressure levels.
+    nplev = get_axis_dimension('pressure_levels_xi3')
+    allocate(plevs(nplev))
+    plevs = get_axis_values('pressure_levels_xi3', nplev)
+    call invoke_pres_interp_kernel_type(div_ml, exner_w3, nplev, plevs, &
+                                        div_pl, p_zero, kappa)
+
+    ! Write and clean up.
+    call div_pl%write_field()
+    deallocate(plevs)
+
+
+  end subroutine write_horizontal_divergence_diagnostic
+
+end module aviation_diags_alg_mod
