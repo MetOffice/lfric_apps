@@ -24,6 +24,6 @@ jobs:
     permissions:
       contents: read  # Required to evaluate the event trigger metadata safely
       pull-requests: write  # Required for the downstream engine to post status comments on the PR
-    uses: MetOffice/growss/.github/workflows/cla-check.yaml@develop
+    uses: MetOffice/growss/.github/workflows/cla-check.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
     with:
       runner: 'ubuntu-24.04'

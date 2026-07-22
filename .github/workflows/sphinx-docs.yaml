@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   docs:
-    uses: MetOffice/growss/.github/workflows/sphinx-docs.yaml@develop
+    uses: MetOffice/growss/.github/workflows/sphinx-docs.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
     with:
       python-version: "3.12.12"
       timeout-minutes: 5

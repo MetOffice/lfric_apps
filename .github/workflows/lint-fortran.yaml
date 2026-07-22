@@ -13,6 +13,6 @@ jobs:
   fortitude-lint:
     permissions:
       contents: read  # Required to evaluate the event trigger metadata safely
-    uses: MetOffice/growss/.github/workflows/fortran-lint.yaml@develop
+    uses: MetOffice/growss/.github/workflows/fortran-lint.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
     with:
       runner: 'ubuntu-24.04'
