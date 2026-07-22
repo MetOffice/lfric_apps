@@ -142,7 +142,7 @@ subroutine adj_schur_backsub_code(cell,              &
     do df2 = ndf2, 1, -1
       i2 = map2(df2)
       exner_inc(i2:i2+nl) = exner_inc(i2:i2+nl) &
-                          + div(ij:ij+nl, ndfh + df, df2)*lhs_v(iv:iv+nl)*norm(i1:i1+nl)               
+                          + div(ij:ij+nl, ndfh + df, df2)*lhs_v(iv:iv+nl)*norm(i1:i1+nl)
     end do
   end do
 
