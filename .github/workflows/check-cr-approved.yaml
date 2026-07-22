@@ -15,5 +15,6 @@ jobs:
   check_cr_approved:
     permissions:
       contents: read  # Required to evaluate the event trigger metadata safely
+      pull-requests: read
     if: ${{ github.event.pull_request.number }}
     uses: MetOffice/growss/.github/workflows/check-cr-approved.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
