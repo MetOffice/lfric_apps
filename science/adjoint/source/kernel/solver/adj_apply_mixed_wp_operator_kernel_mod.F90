@@ -171,9 +171,6 @@ subroutine adj_apply_mixed_wp_operator_code(cell,                       &
     u_e(:,df) = q32(ij:ij+nm1, 1, df)*lhs_p(iw3:iw3+nm1)
   end do
 
-!  t_col(:) = 0.0_r_solver
-!  t_col(1:nm1+1) = t_col(1:nm1+1) - p3t(ij:ij+nm1, 1, 2)*lhs_p(iw3:iw3+nm1)
-!  t_col(0:nm1) = t_col(0:nm1) - p3t(ij:ij+nm1, 1, 1)*lhs_p(iw3:iw3+nm1)
   t_col(0) = - p3t(ij, 1, 1)*lhs_p(iw3)
   t_col(1:nm1) = - p3t(ij+1:ij+nm1, 1, 1)*lhs_p(iw3+1:iw3+nm1) &
                  - p3t(ij:ij+nm1-1, 1, 2)*lhs_p(iw3:iw3+nm1-1)
@@ -217,8 +214,6 @@ subroutine adj_apply_mixed_wp_operator_code(cell,                       &
   ! Compute t for the column
   t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1)
   do df = ndf_w2, 1, -1
-!    t_col(0:nm1)   = t_col(0:nm1)   - pt2(ij:ij+nm1, 1, df)*u_e(:,df)
-!    t_col(1:nm1+1) = t_col(1:nm1+1) - pt2(ij:ij+nm1, 2, df)*u_e(:,df)
     u_e(:,df) = u_e(:,df)                             &
               - (pt2(ij:ij+nm1, 1, df)*t_col(0:nm1) + &
                  pt2(ij:ij+nm1, 2, df)*t_col(1:nm1+1))
