@@ -19,6 +19,10 @@ module transport_constants_mod
                                                 r_tran, radians_to_degrees
   use domain_mod,                         only: domain_type
   use extrusion_mod,                      only: TWOD
+  use sci_mesh_enums_mod,                 only: get_mesh_enums,     &
+                                                geometry_spherical, &
+                                                geometry_planar,    &
+                                                topology_fully_periodic
   use sci_geometric_constants_mod,        only: get_coordinates,               &
                                                 get_panel_id,                  &
                                                 get_extended_coordinates,      &
@@ -56,12 +60,6 @@ module transport_constants_mod
   use panel_edge_support_mod,             only: FAR_AWAY
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry,                &
-                                       geometry_spherical,      &
-                                       geometry_planar,         &
-                                       topology,                &
-                                       topology_fully_periodic, &
-                                       topology_non_periodic
   use finite_element_config_mod, only: coord_system,           &
                                        coord_system_xyz
 
@@ -182,8 +180,8 @@ contains
 
     implicit none
 
-    type(config_type),        intent(in) :: config
-    type(mesh_type), pointer, intent(in) :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(mesh_type),           pointer :: twod_mesh
     type(local_mesh_type),     pointer :: local_mesh
@@ -255,7 +253,7 @@ contains
 
     implicit none
 
-    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), intent(in) :: mesh
 
     integer(kind=i_def)                   :: stencil_extent
     integer(kind=i_def)                   :: depth
@@ -269,7 +267,12 @@ contains
     integer(kind=i_def),        parameter :: MINUS_FAR_AWAY = -FAR_AWAY
     integer(tik)                          :: id
 
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+
     if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
+
+    call get_mesh_enums(mesh, geometry, topology)
 
     ! Initialise inventories if they haven't already been
     if (.not. panel_edge_dist_inventory%is_initialised()) then
@@ -288,7 +291,9 @@ contains
         panel_edge_dist, fs, 4, local_mesh, halo_depth=field_depth             &
     )
 
-    if (geometry == geometry_spherical .and. topology == topology_fully_periodic) then
+    if (geometry == geometry_spherical .and. &
+        topology == topology_fully_periodic) then
+
       ! Check if the mesh is too coarse for this stencil
       ! If the stencil is too long for the mesh, it could overlap with
       ! two panel edges, and will not give a sensible answer
@@ -330,7 +335,7 @@ contains
 
     implicit none
 
-    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), intent(in) :: mesh
 
     integer(kind=i_def)                   :: depth
     integer(kind=i_def)                   :: field_depth
@@ -566,8 +571,8 @@ contains
 
     implicit none
 
-    type(config_type),        intent(in) :: config
-    type(mesh_type), pointer, intent(in) :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(r_tran_field_type),      pointer :: dla_dz(:)
     type(r_tran_field_type),      pointer :: dlb_dz(:)
@@ -623,8 +628,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     logical(kind=l_def)                   :: constant_exists
     integer(kind=i_def)                   :: halo_depth
@@ -772,8 +777,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     logical(kind=l_def)                   :: constant_exists
     type(field_type),             pointer :: detj_below
@@ -841,8 +846,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     logical(kind=l_def)                   :: constant_exists
     type(r_tran_field_type),      pointer :: dla_dz(:)
@@ -872,8 +877,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     logical(kind=l_def)                   :: constant_exists
     type(r_tran_field_type),      pointer :: dlb_dz(:)
@@ -905,8 +910,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     logical(kind=l_def)                   :: constant_exists
     type(r_tran_field_type),      pointer :: dl_dz(:)
@@ -962,9 +967,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: space
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
 
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
@@ -1036,9 +1041,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: space
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
 
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
@@ -1114,9 +1119,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: direction
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: direction
 
     integer(kind=i_def)          :: element_order_h, element_order_v
     type(operator_type), pointer :: div_op
@@ -1155,12 +1160,10 @@ contains
                                               direction_3d
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: direction
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: direction
 
-
-!  integer(kind=i_def),       intent(in) :: mesh_id
     type(inventory_by_mesh_type), pointer :: inventory
     character(len=str_def)                :: inventory_name
     logical(kind=l_def)                   :: constant_exists
@@ -1177,6 +1180,18 @@ contains
     integer(kind=i_def)                   :: element_order_h, &
                                              element_order_v
     integer(tik)                          :: id
+
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+    logical(l_def) :: rehabilitate
+
+    call get_mesh_enums(mesh, geometry, topology)
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+    rehabilitate  = config%finite_element%rehabilitate()
 
     ! Point to appropriate inventory for this space
     select case (direction)
@@ -1200,7 +1215,6 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-!    mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     ! Create constant if it doesn't already exist
@@ -1237,7 +1251,11 @@ contains
         call div%initialise( w3_fs, w2_fs )
         call im3_div%initialise( w3_fs, w2_fs )
         call inventory%add_operator(im3_div_r_tran, w3_fs, w2_fs, mesh)
-        call invoke( compute_div_operator_kernel_type(div, chi, panel_id, qr), &
+        call invoke( compute_div_operator_kernel_type(div, chi, panel_id, &
+                                                      geometry, topology, &
+                                                      coord_system,       &
+                                                      scaled_radius,      &
+                                                      rehabilitate, qr),  &
                      operator_x_times_y_kernel_type(im3_div, mm_w3_inv, div),  &
                      operator_setval_x_kernel_type(im3_div_r_tran, im3_div) )
       if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
@@ -1260,8 +1278,8 @@ contains
     implicit none
 
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(local_mesh_type),              pointer :: local_mesh
     type(inventory_by_local_mesh_type), pointer :: inventory_local
@@ -1296,8 +1314,8 @@ contains
     implicit none
 
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(local_mesh_type),              pointer :: local_mesh
     type(inventory_by_local_mesh_type), pointer :: inventory_local
@@ -1649,8 +1667,8 @@ contains
     implicit none
 
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(mesh_type),            pointer :: twod_mesh
     type(r_tran_field_type),    pointer :: mol_coeffs
@@ -1685,23 +1703,7 @@ contains
     integer(i_def) :: geometry, topology, coord_system
     real(r_def)    :: scaled_radius
 
-    if (mesh%is_geometry_spherical()) then
-      geometry= geometry_spherical
-    else if (mesh%is_geometry_planar()) then
-      geometry= geometry_planar
-    else
-      call log_event( 'Unsupported geometry selection', &
-                      log_level_error )
-    end if
-
-    if (mesh%is_topology_periodic()) then
-      topology = topology_fully_periodic
-    else if (mesh%is_topology_non_periodic()) then
-      topology = topology_non_periodic
-    else
-      call log_event( 'Unsupported topology selection', &
-                      log_level_error )
-    end if
+    call get_mesh_enums(mesh, geometry, topology)
 
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
@@ -1885,8 +1887,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(r_tran_field_type),    pointer :: mol_coeffs
     type(field_type),           pointer :: height
@@ -1948,8 +1950,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(r_tran_field_type),    pointer :: mol_coeffs
     type(field_type),           pointer :: height
@@ -2025,8 +2027,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(mesh_type),            pointer :: twod_mesh
     type(r_tran_field_type),    pointer :: mol_coeffs
@@ -2062,20 +2064,7 @@ contains
     integer(i_def) :: geometry, topology, coord_system
     real(r_def)    :: scaled_radius
 
-    if (mesh%is_geometry_spherical()) then
-      geometry= geometry_spherical
-    else
-      geometry= geometry_planar
-    end if
-
-    if (mesh%is_topology_periodic()) then
-      topology = topology_fully_periodic
-    else if (mesh%is_topology_non_periodic()) then
-      topology = topology_non_periodic
-    else
-      call log_event('get_curl_fe: Unsupported topology selection',&
-                      log_level_error)
-    end if
+    call get_mesh_enums(mesh, geometry, topology)
 
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
@@ -2261,8 +2250,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(r_tran_field_type),   pointer :: mol_coeffs
     type(field_type),          pointer :: height
@@ -2319,8 +2308,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(r_tran_field_type),   pointer :: mol_coeffs
     type(field_type),          pointer :: height

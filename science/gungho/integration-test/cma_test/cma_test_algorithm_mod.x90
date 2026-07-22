@@ -87,11 +87,7 @@ module cma_test_algorithm_mod
   use sci_columnwise_op_asm_m2v_lumped_inv_krnl_mod, &
                               only : columnwise_op_asm_m2v_lumped_inv_krnl_type
 
-  ! Configuration modules
-  use base_mesh_config_mod, only: geometry_planar,       &
-                                  geometry_spherical,    &
-                                  topology_non_periodic, &
-                                  topology_fully_periodic
+  use sci_mesh_enums_mod, only: get_mesh_enums
 
   implicit none
 
@@ -210,23 +206,7 @@ contains
 
     mesh => mesh_in
 
-    if (mesh%is_geometry_spherical()) then
-      geometry = geometry_spherical
-    else if (mesh%is_geometry_planar()) then
-      geometry = geometry_planar
-    else
-      call log_event( 'Unsupported geometry option', &
-                      log_level_error )
-    end if
-
-    if (mesh%is_topology_periodic()) then
-      topology = topology_fully_periodic
-    else if (mesh%is_topology_non_periodic()) then
-      topology = topology_non_periodic
-    else
-      call log_event( 'Unsupported topology option', &
-                      log_level_error )
-    end if
+    call get_mesh_enums(mesh, geometry, topology)
 
     coord_order   = config%finite_element%coord_order()
     coord_system  = config%finite_element%coord_system()
@@ -299,7 +279,9 @@ contains
         compute_mass_matrix_kernel_w3_type( mm_pressure_r_def, chi, panel_id, &
                                             geometry, topology, coord_system, &
                                             scaled_radius, rehabilitate, qr ),&
-        compute_div_operator_kernel_type( div_v_r_def, chi, panel_id, qr ),   &
+        compute_div_operator_kernel_type( div_v_r_def, chi, panel_id,         &
+                                          geometry, topology, coord_system,   &
+                                          scaled_radius, rehabilitate, qr ),  &
         transpose_matrix_kernel_type( div_v_r_def, grad_v_r_def ) )
 
     ! These invokes are split to avoid issues with passing two different W2
@@ -309,7 +291,9 @@ contains
         compute_mass_matrix_kernel_w2_type( mm_vel_h_r_def, chi, panel_id,    &
                                             geometry, topology, coord_system, &
                                             scaled_radius, qr ),              &
-        compute_div_operator_kernel_type( div_h_r_def, chi, panel_id, qr ) )
+        compute_div_operator_kernel_type( div_h_r_def, chi, panel_id,         &
+                                          geometry, topology, coord_system,   &
+                                          scaled_radius, rehabilitate, qr ) )
 
 
     ! Create r_solver versions and copy over

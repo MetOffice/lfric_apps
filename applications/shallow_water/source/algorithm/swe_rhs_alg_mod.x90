@@ -61,6 +61,7 @@ contains
   !!       shallow water equations.
   !>@details An algorithm to compute the rhs of the wind, geopotential, and
   !!         (if required) buoyancy equations for the shallow water miniapp.
+  !> @param[in]     config   Appliaction cofiguration object
   !> @param[in,out] rhs      The state vector to compute
   !> @param[in]     alpha_dt The offcentering parameter multiplied by the time step
   !> @param[in]     state    The current model prognostic state
@@ -85,7 +86,7 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)    :: config
+    type(config_type), intent(in) :: config
 
     ! Form of state and rhs is [u, geopot, buoyancy]
     type(field_vector_type), intent(inout) :: rhs
@@ -100,15 +101,15 @@ contains
     class(reference_element_type), pointer :: reference_element => null()
 
     ! Mesh
-    type(mesh_type),  pointer :: mesh => null()
-    type(field_type), pointer :: chi(:) => null()
-    type(field_type), pointer :: panel_id => null()
+    type(mesh_type),  pointer :: mesh
+    type(field_type), pointer :: chi(:)
+    type(field_type), pointer :: panel_id
 
     ! Operators and mass matrices
-    type(operator_type), pointer :: coriolis => null()
-    type(operator_type), pointer :: div      => null()
-    type(operator_type), pointer :: mm_vel   => null()
-    type(operator_type), pointer :: mm_wb    => null()
+    type(operator_type), pointer :: coriolis
+    type(operator_type), pointer :: div
+    type(operator_type), pointer :: mm_vel
+    type(operator_type), pointer :: mm_wb
 
     ! Useful fields and constants
     type(field_type)    :: rhs_u
@@ -120,7 +121,7 @@ contains
     ! Get mesh and operators
     mesh     => rhs%vector(isw_g)%get_mesh()
     chi      => get_coordinates(mesh)
-    div      => get_div(mesh%get_id())
+    div      => get_div(config, mesh)
     coriolis => get_coriolis(mesh%get_id())
     panel_id => get_panel_id(mesh)
 

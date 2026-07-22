@@ -215,7 +215,7 @@ contains
 
     ! Extract divergence operator
     im3_div   => get_im3_div_r_solver(config, mesh)
-    div_r_def => get_div(mesh_id)
+    div_r_def => get_div(config, mesh)
     call div%initialise( div_r_def%get_fs_to(), div_r_def%get_fs_from() )
 
     if (limited_area) then

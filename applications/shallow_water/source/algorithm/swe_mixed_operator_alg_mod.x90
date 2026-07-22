@@ -195,7 +195,7 @@ contains
     ! Extract velocity mass matrix
     mm_w2 => get_mass_matrix_fe(config, mesh, W2)
     ! Extract divergence operator
-    div   => get_div(mesh%get_id())
+    div   => get_div(config, mesh)
     ! Extract inverse geopotential mass matrix
     m3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
 

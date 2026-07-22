@@ -86,7 +86,8 @@ module skeb_ndisp_alg_mod
 
   implicit none
 
-type(config_type), intent(in) :: config
+  type(config_type), intent(in) :: config
+
   !!!! Arguments
   ! Fields
   type( field_type ), intent(in)    :: u
@@ -167,7 +168,7 @@ type(config_type), intent(in) :: config
   end do
 
   ! Initialise Operators
-  div_h            => get_div_h(mesh%get_id())
+  div_h            => get_div_h(config, mesh)
   m3_inv           => get_inverse_mass_matrix_fv(config, mesh, W3)
   curl             => get_curl_fv(config, mesh)
   face_selector_ew => get_face_selector_ew(mesh)

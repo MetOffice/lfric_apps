@@ -169,6 +169,7 @@ contains
   !!          since this matrix is already required for and constructed in the
   !!          geopotential operator.
   !>
+  !> @param[in] config        Application configuration object
   !> @param[in] state         Current state (passed as a field-vector)
   !> @param[in] Hb_lumped_inv Lumped inverse \f$\tilde{H}_b^{-1}\f$
   !> @param[in] geopot_solver Solver object for Helmholtz system
@@ -196,14 +197,13 @@ contains
                                                   wb => null()
     type(field_type)                           :: ones, M_lumped
     type(operator_type), pointer               :: Mb => null()
-    integer(kind=i_def)                        :: mesh_id
+
     type(mesh_type), pointer :: mesh
 
     call log_event( 'Constructing shallow water mixed preconditioner...', &
                     LOG_LEVEL_INFO )
 
-    mesh_id =  state%vector(isw_u)%get_mesh_id()
-    mesh    => state%vector(isw_u)%get_mesh()
+    mesh => state%vector(isw_u)%get_mesh()
 
     self%alpha = 0.5_r_def
 
@@ -311,7 +311,7 @@ contains
         call self%geopot_x%export_field(self%p_inc,1)
 
         ! STEP 3: Back substitute to obtain other fields
-        call self%back_substitute(y, x)
+        call self%back_substitute(config, y, x)
       class default
         write(log_scratch_space, '(A)') &
               "swe_mixed_schur_preconditioner_mod: incorrect vector_type argument y"
@@ -357,8 +357,6 @@ contains
     type(operator_type), pointer :: div => null(), M3_inv => null()
     real(kind=r_def) :: const1, const2
 
-    ! Mesh ID
-    integer(kind=i_def) :: mesh_id
     type(mesh_type), pointer :: mesh
 
     ! Thermal shallow water case
@@ -367,11 +365,9 @@ contains
     ! Non-thermal shallow water case
     ! rhs_u = R_u
     ! rhs_p = R_p - alpha * dt * ref_gp * M3^-1 * D * HB^-1 * rhs_u
+    mesh => rhs0%vector(isw_u)%get_mesh()
 
-    mesh_id =  rhs0%vector(isw_u)%get_mesh_id()
-    mesh    => rhs0%vector(isw_u)%get_mesh()
-
-    div => get_div(mesh_id)
+    div => get_div(config, mesh)
 
     ! Compute rhs_u and enforce boundary conditions
     if ( thermal_swe ) then
@@ -405,16 +401,18 @@ contains
   !!          Helmholtz equation, reconstruct the velocity \f$\textbf{U}\f$
   !!          and buoyancy \f$B\f$.
   !>
-  !> @param[in,out] self  instance of type swe_mixed_schur_preconditioner_type
-  !> @param[in,out] state Solution \f$(\textbf{U},P,B)\f$ of the mixed system
-  !> @param[in]     rhs   Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
-  subroutine back_substitute(self, state, rhs)
+  !> @param[in]     config Application configuration object
+  !> @param[in,out] state  Solution \f$(\textbf{U},P,B)\f$ of the mixed system
+  !> @param[in]     rhs    Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
+  subroutine back_substitute(self, config, state, rhs)
 
     use transpose_matrix_vector_kernel_mod, &
                                    only: transpose_matrix_vector_kernel_type
     use sci_enforce_bc_kernel_mod, only: enforce_bc_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     class(swe_mixed_schur_preconditioner_type), intent(inout) :: self
     type(field_vector_type),                    intent(inout) :: state
@@ -423,12 +421,11 @@ contains
     type(operator_type), pointer :: div => null()
     real(kind=r_def) :: const1
 
-    ! Mesh ID
-    integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh
 
     ! U increment
-    mesh_id = rhs%vector(isw_u)%get_mesh_id()
-    div => get_div(mesh_id)
+    mesh => rhs%vector(isw_u)%get_mesh()
+    div => get_div(config, mesh)
     const1 = self%alpha*dt
     call invoke( setval_c(self%u_inc, 0.0_r_def),                &
                  transpose_matrix_vector_kernel_type(self%u_inc, &

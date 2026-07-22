@@ -156,10 +156,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: space
-
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
 
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
@@ -188,7 +187,6 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-!    mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
@@ -221,9 +219,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: space
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
 
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
@@ -249,7 +247,6 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-!    mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
@@ -279,20 +276,17 @@ contains
   !> @brief Returns a pointer to a generalised W2 mass matrix operator
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The semi-implicit W2 mass matrix operator
-  function get_w2_mass_matrix_r_solver(config, mesh, w2_op_name) result(mm_r_solver)
+  function get_w2_mass_matrix_r_solver(config, mesh, w2_op_name) &
+                                result(mm_r_solver)
 
     use dycore_constants_mod, only: get_w2_mass_matrix, w2_si_matrix
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: w2_op_name
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: w2_op_name
 
-
-!!$    integer(kind=i_def),       intent(in) :: w2_op_name
-!!$    integer(kind=i_def),       intent(in) :: mesh_id
-!!$    type(mesh_type),              pointer :: mesh
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
     type(operator_type),          pointer :: mm_r_def
@@ -315,7 +309,6 @@ contains
       call mm_w2_si_r_solver_inventory%initialise(name='mm_w2_si_r_solver')
     end if
 
-!   mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
@@ -347,10 +340,8 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-
-!    integer(kind=i_def),       intent(in) :: mesh_id
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(r_solver_operator_type), pointer :: im3_div_r_solver
     type(r_solver_operator_type), pointer :: mm_w3_inv_r_solver
@@ -369,7 +360,6 @@ contains
       call im3_div_r_solver_inventory%initialise(name="im3_div_r_solver")
     end if
 
-!    mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = im3_div_r_solver_inventory%paired_object_exists(mesh%get_id())
 
     ! Create constant if it doesn't already exist
@@ -377,7 +367,7 @@ contains
       chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
       qr => get_qr_fe()
-      div => get_div(mesh%get_id())
+      div => get_div(config, mesh)
       mm_w3_inv_r_solver => get_inverse_mass_matrix_r_solver(config, mesh, W3)
 
       w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
@@ -417,13 +407,10 @@ contains
 
     implicit none
 
-    type(config_type),  intent(in)          :: config
-    type(mesh_type),  intent(in), pointer :: mesh
-    integer(i_def),   intent(in)          :: space
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
 
-!!$    integer(kind=i_def),       intent(in) :: space
-!!$    integer(kind=i_def),       intent(in) :: mesh_id
-!!$    type(mesh_type),              pointer :: mesh
     logical(kind=l_def)                   :: constant_exists
     type(field_type),             pointer :: normalisation
     type(field_type)                      :: nodal_multiplicity
@@ -444,7 +431,6 @@ contains
           call w2_normalisation_inventory%initialise(name='w2_normalisation')
         end if
 
-!        mesh => mesh_collection%get_mesh(mesh_id)
         constant_exists = w2_normalisation_inventory%paired_object_exists(mesh%get_id())
 
         ! Create constant if it doesn't already exist
@@ -488,9 +474,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: space
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
 
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
@@ -519,7 +505,6 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-!    mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then

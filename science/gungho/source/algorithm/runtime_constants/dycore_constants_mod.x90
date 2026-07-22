@@ -279,17 +279,12 @@ contains
 
     implicit none
 
-    type(config_type), intent(in)          :: config
-    type(mesh_type),   intent(in), pointer :: mesh
-    integer(i_def),    intent(in)          :: w2_op_name
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: w2_op_name
 
     class(model_clock_type), optional, intent(in) :: model_clock
 
-
-!!$    integer(kind=i_def),               intent(in) :: w2_op_name
-!!$    integer(kind=i_def),               intent(in) :: mesh_id
-!!$    class(model_clock_type), optional, intent(in) :: model_clock
-!!$    type(mesh_type),                      pointer :: mesh
     logical(kind=l_def)                           :: constant_exists
     type(function_space_type),            pointer :: fs
     type(inventory_by_mesh_type),         pointer :: inventory
@@ -348,7 +343,6 @@ contains
         stop
     end select
 
-!    mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then

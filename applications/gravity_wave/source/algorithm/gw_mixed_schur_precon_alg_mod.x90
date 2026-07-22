@@ -68,6 +68,7 @@
 module gw_mixed_schur_precon_alg_mod
 
   use base_mesh_config_mod,              only: prime_mesh_name
+  use config_mod,                        only: config_type
   use vector_mod,                        only: abstract_vector_type
   use r_solver_field_mod,                only: r_solver_field_type
   use constants_mod,                     only: i_def, r_solver
@@ -100,7 +101,7 @@ module gw_mixed_schur_precon_alg_mod
   use fs_continuity_mod,                 only: W0, W2, W3, Wtheta
   use boundaries_config_mod,             only: limited_area
   use sci_field_minmax_alg_mod,          only: log_field_minmax
-use config_mod, only: config_type
+
   implicit none
 
   private
@@ -389,7 +390,7 @@ contains
         call self%pressure_x%export_field(self%p_inc,1)
 
         ! STEP 3: Back substitute to obtain other fields
-        call self%back_substitute(y, x)
+        call self%back_substitute(config, y, x)
       class default
         write(log_scratch_space, '(A)') &
              "gw_mixed_schur_preconditioner_mod: incorrect vector_type argument y"
@@ -481,10 +482,10 @@ type(config_type), intent(in) :: config
   !!          equation, reconstruct the velocity \f$\textbf{U}\f$ and
   !!          buoyancy \f$B\f$.
   !>
-  !> @param[in,out] self  Instance of type gw_mixed_schur_preconditioner_type
-  !> @param[in,out] state Solution \f$(\textbf{U},P,B)\f$ of the mixed system
-  !> @param[in]     rhs   Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
-  subroutine back_substitute(self, state, rhs)
+  !> @param[in]     config Application configuration object
+  !> @param[in,out] state  Solution \f$(\textbf{U},P,B)\f$ of the mixed system
+  !> @param[in]     rhs    Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
+  subroutine back_substitute(self, config, state, rhs)
 
     use transpose_matrix_vector_kernel_mod, &
                                       only: transpose_matrix_vector_kernel_type
@@ -493,8 +494,10 @@ type(config_type), intent(in) :: config
     implicit none
 
     class(gw_mixed_schur_preconditioner_type), intent(inout) :: self
-    type(r_solver_field_vector_type),          intent(inout) :: state
-    type(r_solver_field_vector_type),          intent(in)    :: rhs
+
+    type(config_type),                intent(in)    :: config
+    type(r_solver_field_vector_type), intent(inout) :: state
+    type(r_solver_field_vector_type), intent(in)    :: rhs
 
     type(r_solver_field_type),    pointer :: w3_mask => null()
     type(r_solver_field_type),    pointer :: w2_mask => null()
@@ -504,7 +507,7 @@ type(config_type), intent(in) :: config
     real(kind=r_solver)                   :: const1, const2
     integer(kind=i_def)                   :: buoyancy_space
 
-    type(mesh_type),     pointer :: mesh => null()
+    type(mesh_type), pointer :: mesh
 
     mesh => self%u_inc%get_mesh()
 
@@ -533,7 +536,7 @@ type(config_type), intent(in) :: config
     call invoke( setval_c(self%u_inc, 0.0_r_solver), &
                  setval_c(self%b_inc, 0.0_r_solver) )
     ! U increment
-    div_r_def => get_div(mesh%get_id())
+    div_r_def => get_div(config, mesh)
     call div%initialise( div_r_def%get_fs_to(), div_r_def%get_fs_from() )
     const1 = self%alpha*real(dt, r_solver)
     call invoke( operator_setval_x_kernel_type( div, div_r_def ),      &

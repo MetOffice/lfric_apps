@@ -19,6 +19,7 @@ module scintel_map_um_lbc_inputs_alg_mod
   use sci_geometric_constants_mod,         only: get_coordinates
   use sci_height_continuous_kernel_mod,    only: height_continuous_kernel_type
   use sci_height_discontinuous_kernel_mod, only: height_discontinuous_kernel_type
+  use sci_mesh_enums_mod,                  only: get_mesh_enums
 
   use fs_continuity_mod, only: W3
   use constants_mod,     only: i_def, r_def, l_def, str_def
@@ -32,7 +33,8 @@ module scintel_map_um_lbc_inputs_alg_mod
 
   use function_space_collection_mod, only: function_space_collection
 
-  use base_mesh_config_mod,      only: geometry_spherical, geometry_planar
+!  use base_mesh_config_mod,      only: geometry_spherical, geometry_planar
+
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
   use extrusion_config_mod,      only: planet_radius
@@ -113,7 +115,7 @@ function scintel_get_height_w3_fv(mesh) result(height)
 
   implicit none
 
-  type(mesh_type), intent(in), pointer :: mesh
+  type(mesh_type), intent(in) :: mesh
 
   type(inventory_by_mesh_type), pointer :: inventory
   type(function_space_type),    pointer :: space
@@ -126,11 +128,12 @@ function scintel_get_height_w3_fv(mesh) result(height)
 
   integer(i_def) :: geometry
 
-  if (mesh%is_geometry_spherical()) then
-    geometry = geometry_spherical
-  else
-    geometry = geometry_planar
-  end if
+  call get_mesh_enums(mesh, geometry)
+!!$  if (mesh%is_geometry_spherical()) then
+!!$    geometry = geometry_spherical
+!!$  else
+!!$    geometry = geometry_planar
+!!$  end if
 
   ! Determine inventory based on W3 space
   inventory => height_w3_inventory_fv

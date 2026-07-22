@@ -31,15 +31,13 @@ module gw_pressure_precon_alg_mod
   use constants_mod,           only : i_def, r_def, r_solver, l_def
   use operator_mod,            only : operator_type
   use operator_mod,            only : r_solver_operator_type
+  use sci_mesh_enums_mod,      only : get_mesh_enums
   use sci_hierarchical_preconditioner_mod, &
                                only : abstract_hierarchical_preconditioner_type
   use sci_r_solver_field_vector_mod, &
                                only : r_solver_field_vector_type
 
   use config_mod, only: config_type
-
-use base_mesh_config_mod, only: topology_fully_periodic, topology_non_periodic, &
-geometry_spherical, geometry_planar
 
   ! Columnwise operator kernels
   use sci_columnwise_op_app_kernel_mod, &
@@ -201,26 +199,16 @@ contains
     integer(i_def) :: order_h, order_v
     integer(i_def) :: geometry, topology, coord_system
     real(r_def)    :: scaled_radius
+    logical(l_def) :: rehabilitate
 
     mesh_id = self%mesh_id
 
     ! Set pointers to vertical operators
     mesh => mesh_collection%get_mesh(mesh_id)
 
-    if (mesh%is_geometry_spherical()) then
-      geometry = geometry_spherical
-    else
-      geometry = geometry_planar
-    end if
+    call get_mesh_enums(mesh, geometry, topology)
 
-    if (mesh%is_topology_periodic()) then
-      topology = topology_fully_periodic
-    else if (mesh%is_topology_non_periodic()) then
-      topology = topology_non_periodic
-    else
-      call log_event('Unsupported topology selection',log_level_error)
-    end if
-
+    rehabilitate  = config%finite_element%rehabilitate()
     order_h       = config%finite_element%element_order_h()
     order_v       = config%finite_element%element_order_v()
     coord_system  = config%finite_element%coord_system()
@@ -235,14 +223,22 @@ contains
     panel_id => get_panel_id(mesh)
 
     call div_v_r_def%initialise( w3_fs, w2v_fs )
-    call invoke( compute_div_operator_kernel_type( div_v_r_def, chi,    &
-                                                   panel_id, qr ) )
+    call invoke( compute_div_operator_kernel_type( div_v_r_def, chi,   &
+                                                   panel_id,           &
+                                                   geometry, topology, &
+                                                   coord_system,       &
+                                                   scaled_radius,      &
+                                                   rehabilitate, qr ) )
     call div_v%initialise( div_v_r_def%get_fs_to(), div_v_r_def%get_fs_from() )
     call invoke( operator_setval_x_kernel_type( div_v, div_v_r_def ) )
     call grad_v%initialise( div_v%get_fs_from(), div_v%get_fs_to() )
     call div_h_r_def%initialise( w3_fs, w2h_fs )
-    call invoke( compute_div_operator_kernel_type( div_h_r_def, chi,    &
-                                                   panel_id, qr ) )
+    call invoke( compute_div_operator_kernel_type( div_h_r_def, chi,   &
+                                                   panel_id,           &
+                                                   geometry, topology, &
+                                                   coord_system,       &
+                                                   scaled_radius,      &
+                                                   rehabilitate, qr ) )
     call div_h%initialise( div_h_r_def%get_fs_to(), div_h_r_def%get_fs_from() )
     call invoke( operator_setval_x_kernel_type( div_h, div_h_r_def ) )
 

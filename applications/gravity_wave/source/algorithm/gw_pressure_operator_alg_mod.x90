@@ -45,11 +45,9 @@ module gw_pressure_operator_alg_mod
                                                 b_space_w3, &
                                                 b_space_wtheta
   use multigrid_mod,                      only: multigrid_function_space_chain
-
+  use sci_mesh_enums_mod,                 only: get_mesh_enums
   use config_mod, only: config_type
 
-  use base_mesh_config_mod, only: geometry_planar,geometry_spherical,&
-                                  topology_fully_periodic, topology_non_periodic
   implicit none
 
   type, public, extends(abstract_hierarchical_linear_operator_type) :: &
@@ -156,6 +154,7 @@ contains
     integer(i_def) :: order_h, order_v
     integer(i_def) :: geometry, topology, coord_system
     real(r_def)    :: scaled_radius
+    logical(l_def) :: rehabilitate
 
     call log_event( 'Constructing pressure operator...', LOG_LEVEL_INFO )
 
@@ -171,20 +170,9 @@ contains
       mesh => mesh_collection%get_mesh( chain_mesh_tags(level) )
     end if
 
-    if (mesh%is_geometry_spherical()) then
-      geometry= geometry_spherical
-    else
-      geometry= geometry_planar
-    end if
+    call get_mesh_enums(mesh, geometry, topology)
 
-    if (mesh%is_topology_periodic()) then
-      topology = topology_fully_periodic
-    else if (mesh%is_topology_non_periodic()) then
-      topology = topology_non_periodic
-    else
-      call log_event('get_detj_at_w3_fe: Unsupported topology selection',log_level_error)
-    end if
-
+    rehabilitate  = config%finite_element%rehabilitate()
     order_h       = config%finite_element%element_order_h()
     order_v       = config%finite_element%element_order_v()
     coord_system  = config%finite_element%coord_system()
@@ -258,8 +246,12 @@ geometry, topology, coord_system, scaled_radius, &
     ! Compute div
     call self%div%initialise( wp, wu )
     call div_r_def%initialise( wp, wu )
-    call invoke( compute_div_operator_kernel_type( div_r_def, chi,   &
-                                                   panel_id, qr ),   &
+    call invoke( compute_div_operator_kernel_type( div_r_def, chi,     &
+                                                   panel_id,           &
+                                                   geometry, topology, &
+                                                   coord_system,       &
+                                                   scaled_radius,      &
+                                                   rehabilitate, qr ), &
                  operator_setval_x_kernel_type( self%div, div_r_def ) )
 
     call log_event( 'done', LOG_LEVEL_INFO )

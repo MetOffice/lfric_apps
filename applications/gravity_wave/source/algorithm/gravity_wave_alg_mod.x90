@@ -532,7 +532,7 @@ contains
 
     !=== Do a single timestep ==============================================!
     mesh => wind%get_mesh()
-    div => get_div(mesh%get_id())
+    div => get_div(modeldb%config, mesh)
     m3_inv => get_inverse_mass_matrix_fe(modeldb%config, mesh, W3)
 
     if ( limited_area ) then

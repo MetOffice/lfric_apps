@@ -7,6 +7,7 @@
 !> @brief Computes the divergence of a W2 field
 module divergence_alg_mod
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def
   use dg_matrix_vector_kernel_mod,     only: dg_matrix_vector_kernel_type
   use sci_fem_constants_mod,           only: get_div, &
@@ -17,7 +18,7 @@ module divergence_alg_mod
   use operator_mod,                    only: operator_type
 
   ! Object types
-  use config_mod, only: config_type
+
 
   implicit none
 
@@ -27,6 +28,7 @@ module divergence_alg_mod
 contains
 
   !> @brief Subroutine to compute divergence of a W2 field
+  !> @param[in]     config       Application configuration object
   !> @param[in,out] divergence   W3 divergence field to be computed
   !> @param[in]     wind         W2 field field
   subroutine divergence_alg( config, divergence, wind )
@@ -46,7 +48,7 @@ contains
 
     mesh      => wind%get_mesh()
     mm_w3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
-    div       => get_div(mesh%get_id())
+    div       => get_div(config, mesh)
 
     call div_u%initialise( vector_space=divergence%get_function_space() )
 

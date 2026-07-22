@@ -106,17 +106,13 @@ contains
     type(field_type)                    :: ones_u, M_lumped_u
     type(operator_type), pointer        :: Mu => null()
 
-    ! Mesh ID
- !   integer(kind=i_def) :: mesh_id
     type(mesh_type), pointer :: mesh
 
     call log_event( 'Constructing geopotential operator...', LOG_LEVEL_INFO )
 
     self%alpha = 0.5_r_def
 
-    ! Get Mesh ID
-!    mesh_id = state%vector(isw_u)%get_mesh_id()
-    mesh    => state%vector(isw_u)%get_mesh()
+    mesh => state%vector(isw_u)%get_mesh()
 
     ! Get needed function spaces
     wu => state%vector(isw_u)%get_function_space()
@@ -198,8 +194,6 @@ contains
     class(abstract_vector_type), intent(inout)     :: y
     real(kind=r_def) :: const
 
-    ! Mesh ID
-    integer(kind=i_def) :: mesh_id
     type(mesh_type), pointer :: mesh
 
     type(operator_type), pointer :: div => null(), M3_inv => null()
@@ -217,10 +211,9 @@ contains
         x_vec_u => x%get_field_from_position(isw_u)
         y_vec_u => y%get_field_from_position(isw_u)
 
-        mesh_id = y%vector(isw_u)%get_mesh_id()
         mesh   => y%vector(isw_u)%get_mesh()
 
-        div    => get_div(mesh_id)
+        div    => get_div(config, mesh)
         M3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
         const = self%alpha**2*dt**2*ref_gp
         call invoke( setval_c( self%grad_p, 0.0_r_def ),               &

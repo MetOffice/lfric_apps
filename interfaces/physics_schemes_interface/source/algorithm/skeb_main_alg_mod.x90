@@ -547,7 +547,7 @@ contains
 
   if (skeb_div_du == skeb_div_du_fe) then
 
-    div => get_div(mesh%get_id())
+    div => get_div(config, mesh)
     call r_du_div_w2%initialise( vector_space = w2_fs  )
 
   ! Take weak grad of W3 field in W2H
