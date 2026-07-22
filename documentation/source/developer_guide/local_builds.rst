@@ -7,7 +7,7 @@
 LFRic Apps Command Line Builds
 ==============================
 
-The LFRic makefile build system is reliant on having code from both lfric_core
+CHANGE The LFRic makefile build system is reliant on having code from both lfric_core
 and lfric_apps available when launching, preventing the makefile from exporting
 lfric_core as part of the build process. This introduces a circular dependency
 in the makefile build system, not present when everything was on a single repo.
