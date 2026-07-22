@@ -12,7 +12,8 @@
 module gungho_step_mod
 
   use conservation_algorithm_mod,     only : conservation_algorithm
-  use constants_mod,                  only : i_def, r_def, l_def
+  use constants_mod,                  only : i_def, r_def, l_def, i_long, &
+                                             r_double
   use energy_correction_config_mod,   only : encorr_usage,      &
                                              encorr_usage_none, &
                                              reset_hours
@@ -112,15 +113,28 @@ module gungho_step_mod
 
     real( r_def )    :: dt
     logical( l_def ) :: use_moisture
-    integer( tik )   :: id
 
+    ! Timing variables
+    !! timing_mod
+    integer( tik )   :: id
+    !! System clock (time-per-timestep)
+    integer(i_long)  :: start, end, crate
+    real(r_double)   :: tstep_time_real, clock_rate
+
+    ! timing_mod
     if ( LPROF ) call start_timing( id, 'gungho_timestep' )
+    ! Time per timestep
+    call system_clock(count_rate=crate)
+    clock_rate = real(crate, r_double)
 
     write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     write( log_scratch_space, &
            '(A,I0)' ) 'Start of timestep ', model_clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    ! Time per timestep
+    call system_clock(start)
 
     if ( encorr_usage /= encorr_usage_none .or. write_conservation_diag ) then
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
@@ -227,6 +241,19 @@ module gungho_step_mod
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    ! Time per timestep
+    call system_clock(end)
+    tstep_time_real = real((end - start)/clock_rate, r_double)
+
+    write( log_scratch_space, &
+           '(A,I0,A,f21.4,A)' ) &
+           'Time taken for timestep ', model_clock%get_step(),  ' : ', &
+           tstep_time_real, '(s)'
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
     if ( LPROF ) call stop_timing( id, 'gungho_timestep' )
 
   end subroutine gungho_step
