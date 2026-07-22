@@ -119,7 +119,8 @@ contains
                                          water_table,                          &
                                          soil_moist_wilt,                      &
                                          soil_moist_crit,                      &
-                                         soil_moist_sat
+                                         soil_moist_sat,                       &
+                                         soil_sat_frac, wetness_under_soil
 
     ! Diagnostics computed within the kernel
     type( field_type ), intent(in)    :: throughfall
