@@ -207,7 +207,7 @@
 {% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","june_case"],
+        "opt_confs": ["um_dump","june_case","C224_MG_offlineP"],
         "resolution": "C224_MG",
         "DT": 720,
         "tsteps": 120,
@@ -240,14 +240,14 @@
 {% elif task_ns.conf_name == "nwp_gal9_debug-C224_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","june_case","no_diags"],
+        "opt_confs": ["um_dump","june_case","no_diags","C224_MG_offlineP"],
         "resolution": "C224_MG",
         "DT": 720,
         "tsteps": 6,
         "mpi_parts": 588,
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
-        "log_level": "error",
+        "log_level": "debug",
         "xios_info_level": 50,
     }) %}
 
@@ -491,7 +491,7 @@
 
     {% do task_dict.update({
         "CXI_MATCH_hybrid": true,
-        "opt_confs": ["um_dump"],
+        "opt_confs": ["um_dump","C896_MG_offlineP"],
         "resolution": "C896_MG",
         "DT": 240,
         "tsteps": 120,

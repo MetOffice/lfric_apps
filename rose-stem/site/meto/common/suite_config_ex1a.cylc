@@ -59,7 +59,8 @@
         [[[environment]]]
             TRANSMUTE_INCLUDE_METHOD = specify_include
         [[[environment]]]
-            USE_LEGACY_TIMER=true
+            # USE_LEGACY_TIMER=true
+            USE_VERNIER=true
             USE_TIMING_WRAPPER=true
         [[[directives]]]
             -l tmpsize=12GB
@@ -74,7 +75,7 @@
 {% else %}
             BIG_DATA_DIR = '/data/users/lfricadmin/data'
 {% endif %}
-            OFFLINE_PARTITION_DIR = '$BIG_DATA_DIR/meshes/partitioned'
+            OFFLINE_PARTITION_DIR = '/data/users/matthew.walker/offline_partitioning/meshes/partitioned'
             TARGET_PLATFORM = 'meto-ex1a'
             RUN_METHOD = 'mpiexec'
 
