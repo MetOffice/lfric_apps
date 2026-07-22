@@ -71,10 +71,8 @@ module adjt_schur_backsub_alg_mod
     ! Initialise arguments and call the tangent-linear kernel.
     call invoke(setval_random(norm))
     ! Curiously, this does not work with setval_random mask and lam = .true._l_def...
-    ! But we will not use it with a randomised mask so this is okay.
+    ! But we will not use it with a randomised mask in the alg layer so this is okay.
     mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
-    ! Mask needs halo exchange here and not in subroutine where it is read-only...
-    call invoke( inc_a_times_X(1.0_r_solver, mask) )
     call setop_random_rsol_alg(div)
 
     lam = .false._l_def
@@ -102,15 +100,17 @@ module adjt_schur_backsub_alg_mod
   !=============================================================================
   !> @brief Runs the adjoint test for adj_schur_backsub_kernel
   !!        for a given set of parameters
-  !> @param[in]  vector_space_w2h_ptr     W2h function space pointer
-  !> @param[in]  vector_space_w2v_ptr     W2v function space pointer
-  !> @param[in]  vector_space_w2_ptr      W2 function space pointer
-  !> @param[in]  vector_space_w3_ptr      W3 function space pointer
-  !> @param[in]  div                      Local matrix assembly form
-  !!                                      of the weighted diverence operator
-  !> @param[in]  norm                     Normalisation field to scale output by
-  !> @param[in]  lam                      Flag to apply lateral boundary conditions
-  !> @param[in]  mask                     Boundary condition mask for lam domains
+  !> @param[in]     v ector_space_w2h_ptr     W2h function space pointer
+  !> @param[in]      vector_space_w2v_ptr     W2v function space pointer
+  !> @param[in]      vector_space_w2_ptr      W2 function space pointer
+  !> @param[in]      vector_space_w3_ptr      W3 function space pointer
+  !> @param[in]      div                      Local matrix assembly form
+  !!                                          of the weighted diverence operator
+  !> @param[in]      norm                     Normalisation field to scale output by
+  !> @param[in]      lam                      Flag to apply lateral boundary conditions
+  !> @param[in,out]  mask                     Boundary condition mask for lam domains.
+  !!                                          Should be read-only but the routines below
+  !!                                          need to perform halo exchanges on it.
 
   subroutine run_adjt_schur_backsub_alg(vector_space_w2h_ptr, &
                                         vector_space_w2v_ptr, &
@@ -127,14 +127,14 @@ module adjt_schur_backsub_alg_mod
     implicit none
 
     ! Arguments
-    type(function_space_type), pointer, intent(in) :: vector_space_w2h_ptr
-    type(function_space_type), pointer, intent(in) :: vector_space_w2v_ptr
-    type(function_space_type), pointer, intent(in) :: vector_space_w2_ptr
-    type(function_space_type), pointer, intent(in) :: vector_space_w3_ptr
-    type(r_solver_operator_type),       intent(in) :: div
-    type(r_solver_field_type),          intent(in) :: norm
-    logical(kind=l_def),                intent(in) :: lam
-    type(r_solver_field_type),          intent(in) :: mask
+    type(function_space_type), pointer, intent(in)    :: vector_space_w2h_ptr
+    type(function_space_type), pointer, intent(in)    :: vector_space_w2v_ptr
+    type(function_space_type), pointer, intent(in)    :: vector_space_w2_ptr
+    type(function_space_type), pointer, intent(in)    :: vector_space_w3_ptr
+    type(r_solver_operator_type),       intent(in)    :: div
+    type(r_solver_field_type),          intent(in)    :: norm
+    logical(kind=l_def),                intent(in)    :: lam
+    type(r_solver_field_type),          intent(inout) :: mask
 
     ! Active arguments for tl and adj calls
     type(r_solver_field_type) :: lhs_h
