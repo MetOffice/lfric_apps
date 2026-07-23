@@ -2,6 +2,9 @@
 ! (C) Crown copyright 2018 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> @brief Semi-Implicit solver for the gungho dynamical core.
@@ -508,7 +511,9 @@ contains
                                              get_p3theta,           &
                                              get_ptheta2,           &
                                              get_eliminated_q2t,    &
-                                             get_eliminated_q3t
+                                             get_eliminated_q3t,    &
+                                             get_tau_u_dt_cp,       &
+                                             get_tau_t_dt
     use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
     use dg_inc_matrix_vector_kernel_mod, &
@@ -571,6 +576,7 @@ contains
                           inc_theta_rdef, &
                           inc_rho_rdef
     real( kind=r_solver ) :: tau_r_dt
+    real( kind=r_solver ) :: const_u, const_t
     integer( kind=i_def ) :: mesh_id
 
     type(mesh_type), pointer :: mesh
@@ -584,6 +590,13 @@ contains
     ! Input fields are r_def fields so preliminary work uses field_types
     mesh_id =  state(igh_p)%get_mesh_id()
     mesh    => state(igh_p)%get_mesh()
+
+    ! The SI operators are assembled unscaled; the tau*dt scalings are applied
+    ! at the point of use. The momentum-row projection operators (p2theta, q2t)
+    ! carry tau_u*dt*cp and the potential-temperature projection (ptheta2)
+    ! carries tau_t*dt.
+    const_u = get_tau_u_dt_cp()
+    const_t = get_tau_t_dt()
 
     ! Normalise theta & u residual
     ! @TODO #416: can these be at r_solver precision?
@@ -646,8 +659,15 @@ contains
       if ( eliminate_variables == eliminate_variables_analytic ) then
         q2t_op => get_eliminated_q2t()
         q3t_op => get_eliminated_q3t()
+        ! q2t is assembled unscaled, so re-apply the scaling tau_u*dt*cp
+        ! to its contribution to rhs_u. (q3t is the EOS operator p3theta
+        ! and is applied unscaled.)
+        call rhs_tmp%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
         call invoke( dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), q3t_op ), &
-                     matrix_vector_kernel_type( rhs_rsol(igh_u), rhs_rsol(igh_t), q2t_op ), &
+                     setval_c(rhs_tmp, 0.0_r_solver),                                    &
+                     matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), q2t_op ),      &
+                     inc_a_times_X( const_u, rhs_tmp ),                                  &
+                     inc_X_plus_Y( rhs_rsol(igh_u), rhs_tmp ),                           &
                      enforce_bc_kernel_type( rhs_rsol(igh_u) ) )
       else
         p3theta   => get_p3theta()
@@ -657,9 +677,11 @@ contains
         ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
         call rhs_tmp%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
         p2theta => get_p2theta()
+        ! p2theta is assembled unscaled, so apply the scaling tau_u*dt*cp
         call invoke( setval_c(rhs_tmp, 0.0_r_solver),                                &
                      matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
                      inc_X_times_Y(rhs_tmp, m2_diag),                                &
+                     inc_a_times_X(const_u, rhs_tmp),                                &
                      inc_X_plus_Y(rhs_rsol(igh_u), rhs_tmp),                         &
                      enforce_bc_kernel_type( rhs_rsol(igh_u) ) )
       end if
@@ -724,8 +746,10 @@ contains
     ptheta2 => get_ptheta2()
     mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh_id)
     call rhs_tmp%initialise( vector_space = rhs_rsol(igh_t)%get_function_space() )
+    ! ptheta2 is assembled unscaled, so apply the scaling tau_t*dt
     call invoke( setval_c(rhs_tmp, 0.0_r_solver), &
-                 dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2))
+                 dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2), &
+                 inc_a_times_X(const_t, rhs_tmp))
 
     if (  eliminate_variables == eliminate_variables_analytic ) then
       call invoke( real_to_real_x(rhs_rdef, rhs_tmp) )

@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> @brief Compute the locally assembled SI operators.
@@ -65,7 +67,8 @@ module si_operators_alg_mod
   type(r_solver_operator_type), allocatable, dimension(:), target :: p3theta
   type(r_solver_operator_type), allocatable, dimension(:), target :: compound_div
   type(r_solver_operator_type), allocatable, dimension(:), target :: eliminated_q22
-  type(r_solver_operator_type), allocatable, dimension(:), target :: eliminated_q32
+  type(r_solver_operator_type), allocatable, dimension(:), target :: eliminated_q32_rho
+  type(r_solver_operator_type), allocatable, dimension(:), target :: eliminated_q32_theta
   type(r_solver_operator_type),                            target :: eliminated_q2t
 
   type(r_solver_field_type), allocatable, dimension(:),   target :: rho_at_u
@@ -74,6 +77,16 @@ module si_operators_alg_mod
   type(r_solver_field_type), allocatable, dimension(:),   target :: Helm_diag
   type(r_solver_field_type), allocatable, dimension(:),   target :: Hb_lumped_inv
   integer(kind=i_def) :: multigrid_levels
+
+  ! Scaling constants (tau*dt factors) that are applied at the point of use of
+  ! the SI operators. The operators themselves are assembled unscaled, so any
+  ! algorithm that applies them must multiply in the appropriate constant. These
+  ! are stored here (set in compute_si_operators) and exposed through the
+  ! get_tau_* accessors so that all consumers use identical values.
+  real(kind=r_solver) :: tau_u_dt_cp   = 0.0_r_solver
+  real(kind=r_solver) :: tau_t_dt      = 0.0_r_solver
+  real(kind=r_solver) :: tau_r_dt      = 0.0_r_solver
+  real(kind=r_solver) :: tau_tu_dt2_cp = 0.0_r_solver
 
   ! Size of the Helmholtz stencil: 1 Central cell, 4 horizontal neighbours, 2
   ! cells above (k+1,k+2) and 2 cells below (k-1,k-2)
@@ -110,9 +123,14 @@ module si_operators_alg_mod
   public :: get_Hb_lumped_inv
   public :: get_Helmholtz_operator
   public :: get_eliminated_q22
-  public :: get_eliminated_q32
+  public :: get_eliminated_q32_rho
+  public :: get_eliminated_q32_theta
   public :: get_eliminated_q2t
   public :: get_eliminated_q3t
+  public :: get_tau_u_dt_cp
+  public :: get_tau_t_dt
+  public :: get_tau_r_dt
+  public :: get_tau_tu_dt2_cp
 
   !F90 function overloading
   interface get_m3_rho_star
@@ -171,9 +189,13 @@ module si_operators_alg_mod
      module procedure get_eliminated_q22_fine, get_eliminated_q22_mg
   end interface get_eliminated_q22
 
-  interface get_eliminated_q32
-     module procedure get_eliminated_q32_fine, get_eliminated_q32_mg
-  end interface get_eliminated_q32
+  interface get_eliminated_q32_rho
+     module procedure get_eliminated_q32_rho_fine, get_eliminated_q32_rho_mg
+  end interface get_eliminated_q32_rho
+
+  interface get_eliminated_q32_theta
+     module procedure get_eliminated_q32_theta_fine, get_eliminated_q32_theta_mg
+  end interface get_eliminated_q32_theta
 
 contains
 
@@ -216,7 +238,8 @@ contains
     allocate(p3theta(multigrid_levels))
     allocate(compound_div(multigrid_levels))
     allocate(eliminated_q22(multigrid_levels))
-    allocate(eliminated_q32(multigrid_levels))
+    allocate(eliminated_q32_rho(multigrid_levels))
+    allocate(eliminated_q32_theta(multigrid_levels))
 
     !fields
     allocate(rho_at_u(multigrid_levels))
@@ -256,7 +279,8 @@ contains
        call p3theta(i)%initialise( w3_fs, wt_fs )
        call compound_div(i)%initialise( w3_fs, w2_fs )
        call eliminated_q22(i)%initialise( w2_fs, w2_fs )
-       call eliminated_q32(i)%initialise( w3_fs, w2_fs )
+       call eliminated_q32_rho(i)%initialise( w3_fs, w2_fs )
+       call eliminated_q32_theta(i)%initialise( w3_fs, w2_fs )
 
        call rho_at_u(i)%initialise(vector_space = w2_fs)
        if ( preconditioner == preconditioner_tridiagonal .or. &
@@ -344,8 +368,12 @@ contains
       deallocate(eliminated_q22)
     end if
 
-    if(allocated(eliminated_q32)) then
-      deallocate(eliminated_q32)
+    if(allocated(eliminated_q32_rho)) then
+      deallocate(eliminated_q32_rho)
+    end if
+
+    if(allocated(eliminated_q32_theta)) then
+      deallocate(eliminated_q32_theta)
     end if
 
   end subroutine final_si_operators
@@ -440,7 +468,6 @@ contains
     type(function_space_type),     pointer :: w3_fs => null()
     type(function_space_type),     pointer :: w2_fs => null()
     type(function_space_type),     pointer :: wt_fs => null()
-    real(kind=r_solver)                    :: const1, const2, const3
     integer(kind=i_def), parameter         :: imone = -1_i_def
     class(reference_element_type), pointer :: reference_element =>null()
     type(mesh_type),               pointer :: mesh => null()
@@ -448,6 +475,7 @@ contains
     type(r_solver_field_type),     pointer :: u_normalisation => null(), &
                                               t_normalisation => null()
     type(r_solver_field_type)              :: m2_u, theta_adv_term
+    type(r_solver_field_type)              :: scaled_ones
     integer(kind=i_def)                    :: level, i
     type(r_solver_field_type)              :: rsol_w2_mask
     type(field_type),              pointer :: w2_mask => null()
@@ -477,6 +505,11 @@ contains
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_DEBUG )
 
     dt = real(model_clock%get_seconds_per_step(), r_def)
+
+    tau_u_dt_cp = real(tau_u*dt*cp, r_solver)
+    tau_t_dt = real(tau_t*dt, r_solver)
+    tau_r_dt = real(tau_r*dt, r_solver)
+    tau_tu_dt2_cp = real(tau_t*tau_u*dt**2*cp, r_solver)
 
     mesh  => exner_ref%get_mesh()
 
@@ -555,7 +588,6 @@ contains
        end if
 
        m3_inv => get_inverse_mass_matrix_r_solver( W3, mesh%get_id() )
-       const1 = real(tau_t*tau_u*dt**2*cp, r_solver)
        select case(eos_method)
        case(eos_method_sampled)
          call invoke( sample_eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level), &
@@ -571,7 +603,7 @@ contains
        if ( eliminate_variables == eliminate_variables_analytic ) then
          call invoke( eliminated_theta_q22_kernel_type(eliminated_q22(level), theta,       &
                                                        exner_in_wth, u_normalisation,      &
-                                                       chi, panel_id, const1, qr) )
+                                                       chi, panel_id, qr) )
        end if
 
        ! Compute rho^ref at u nodal points
@@ -599,61 +631,55 @@ contains
                                  element_order_v+2, quadrature_rule)
 
        ! Cell kernels
-       const1 = real(tau_u*dt*cp, r_solver)
-       const2 = real(tau_t*dt, r_solver)
-       const3 = real(tau_r*dt, r_solver)
        div => get_im3_div_r_solver(mesh%get_id())
 
        if ( p2theta_vert ) then
          ! The projection operators are restricted to use the vertical only
          call invoke( weighted_proj_2thetav_kernel_type(p2theta(level), exner, &
                                                         moist_dyn_factor,      &
-                                                        const1,                &
                                                         element_order_h,       &
                                                         element_order_v, qr),  &
                       weighted_proj_theta2v_kernel_type(ptheta2(level), theta, &
-                                                        const2,                &
                                                         element_order_h,       &
                                                         element_order_v, qr) )
        else
          ! The projection operators use horizonal and vertical
          call invoke( weighted_proj_2theta_kernel_type(p2theta(level), exner,  &
-                                                       moist_dyn_factor, const1, qr), &
-                      weighted_proj_theta2_kernel_type(ptheta2(level), theta, const2, qr), &
+                                                       moist_dyn_factor, qr),  &
+                      weighted_proj_theta2_kernel_type(ptheta2(level), theta, qr), &
                       weighted_proj_theta2_bd_kernel_type(ptheta2(level), theta,           &
-                                                          req_stencil_depth, const2, qrf), &
+                                                          req_stencil_depth, qrf), &
                       weighted_proj_2theta_bd_kernel_type(p2theta(level), exner,           &
                                                           req_stencil_depth,               &
-                                                          moist_dyn_factor, const1, qrf) )
+                                                          moist_dyn_factor, qrf) )
        end if
        call invoke( name = "cell_and_boundary_kernels_vert",              &
-          weighted_div_kernel_type(div_star(level), theta_v, const1, qr), &
+          weighted_div_kernel_type(div_star(level), theta_v, qr), &
           weighted_proj_theta2_vert_kernel_type(ptheta2v(level), theta,   &
-                                                const2, element_order_h,  &
+                                                element_order_h,  &
                                                 element_order_v, qr),     &
           ! Boundary kernels
           weighted_div_bd_kernel_type(div_star(level), theta_v, req_stencil_depth,    &
-                                      const1, qrf),                                   &
+                                      qrf),                                           &
           ! Compound operators
           compound_operator_kernel_type( compound_div(level), m3_rho_star(level),     &
-                                         div, rho_at_u(level), const3),               &
-          operator_setval_x_kernel_type( eliminated_q32(level), compound_div(level) ) )
+                                         div, rho_at_u(level), 1.0_r_solver),         &
+          operator_setval_x_kernel_type( eliminated_q32_rho(level), compound_div(level) ) )
 
        if ( level == 1 .and. eliminate_variables == eliminate_variables_analytic ) then
          call invoke( eliminated_theta_q2t_kernel_type(eliminated_q2t, u_normalisation, &
-                                                       exner_in_wth, const1, qr) )
+                                                       exner_in_wth, qr) )
        end if
 
        if ( eliminate_variables == eliminate_variables_analytic ) then
-         ! Add on contribution to q32 from eliminating theta
+         ! Add the contribution to q32 from eliminating theta into seperate operator
          select case(eos_method)
          case(eos_method_sampled)
            detj_at_w3 => get_detj_at_w3_r_solver( mesh%get_id() )
-           call invoke( sample_eliminated_theta_q32_kernel_type(eliminated_q32(level), theta, detj_at_w3 , &
-                                                                const2) )
+           call invoke( sample_eliminated_theta_q32_kernel_type(eliminated_q32_theta(level), theta, detj_at_w3 ) )
          case(eos_method_projected)
-           call invoke( project_eliminated_theta_q32_kernel_type(eliminated_q32(level), theta,    &
-                                                                 m3_inv, const2, qr ) )
+           call invoke( project_eliminated_theta_q32_kernel_type(eliminated_q32_theta(level), theta,    &
+                                                                 m3_inv, qr ) )
          case default
            call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
          end select
@@ -673,28 +699,32 @@ contains
 
        call m2_u%initialise( vector_space = w2_fs )
        call ones%initialise( vector_space = w2_fs )
+       call scaled_ones%initialise( vector_space = w2_fs )
        if ( eliminate_variables == eliminate_variables_analytic ) then
-         ! H_B = (Nu * Mu - Q22) * ones
+         ! H_B = (Nu * Mu - tau_tu_dt2_cp * Q22) * ones
          call invoke( name = "compute_analytic_lumped_inverse_h_b_operator",              &
                       setval_c(ones, 1.0_r_solver),                                       &
+                      setval_c(scaled_ones, tau_tu_dt2_cp),                               &
                       setval_c(Hb_lumped_inv(level), 0.0_r_solver),                       &
                       setval_c(m2_u, 0.0_r_solver),                                       &
                       matrix_vector_kernel_type(Hb_lumped_inv(level), ones, m2_r_solver), &
                       inc_X_times_Y(Hb_lumped_inv(level), u_normalisation),               &
-                      matrix_vector_kernel_type(m2_u, ones, eliminated_q22(level)),       &
+                      matrix_vector_kernel_type(m2_u, scaled_ones, eliminated_q22(level)), &
                       inc_X_minus_Y(Hb_lumped_inv(level), m2_u),                          &
                       inc_X_powint_n(Hb_lumped_inv(level), imone) )
 
        else
-         ! H_B = Nu * ( Mu + P2t * Mt^-1 * Pt2v ) * ones
+         ! H_B = Nu * ( Mu + tau_u_dt_cp * P2t * Mt^-1 * (tau_t_dt * Pt2v) ) * ones
          call theta_adv_term%initialise( vector_space = wt_fs )
          call invoke( name = "compute_lumped_inverse_h_b_operator",         &
                       setval_c(ones, 1.0_r_solver),                         &
+                      setval_c(scaled_ones, tau_t_dt),                      &
                       setval_c(Hb_lumped_inv(level), 0.0_r_solver),         &
                       setval_c(theta_adv_term, 0.0_r_solver),               &
                       dg_inc_matrix_vector_kernel_type(                     &
-                                theta_adv_term, ones, ptheta2v(level)),     &
+                                theta_adv_term, scaled_ones, ptheta2v(level)), &
                       inc_X_times_Y(theta_adv_term, t_normalisation),       &
+                      inc_a_times_X(tau_u_dt_cp, theta_adv_term),           &
                       matrix_vector_kernel_type(                            &
                                 Hb_lumped_inv(level), theta_adv_term,       &
                                 p2theta(level) ),                           &
@@ -722,8 +752,10 @@ contains
                                                        u_normalisation,             &
                                                        div_star(level),             &
                                                        m3_exner_star(level),        &
-                                                       eliminated_q32(level),       &
-                                                       rsol_w2_mask)
+                                                       eliminated_q32_rho(level),   &
+                                                       eliminated_q32_theta(level), &
+                                                       rsol_w2_mask,                &
+                                                       tau_u_dt_cp, tau_r_dt, tau_t_dt)
 
          else
            call invoke_helmholtz_operator_kernel_type( Helmholtz_operator(:,level), &
@@ -736,7 +768,8 @@ contains
                                                        compound_div(level),         &
                                                        m3_exner_star(level),        &
                                                        p3theta(level),              &
-                                                       rsol_w2_mask)
+                                                       rsol_w2_mask,                &
+                                                       tau_u_dt_cp, tau_t_dt, tau_r_dt)
          end if
        end if
 
@@ -1108,25 +1141,45 @@ contains
     op => eliminated_q22(level)
   end function get_eliminated_q22_mg
 
-  !> @brief Function to return a pointer to the q32 operator
+  !> @brief Function to return a pointer to the q32 (density part) operator
   !!        on the finest multigrid level.
   !> @return The operator
-  function get_eliminated_q32_fine() result(op)
+  function get_eliminated_q32_rho_fine() result(op)
     implicit none
     type(r_solver_operator_type), pointer :: op
-    op => eliminated_q32(1)
-  end function get_eliminated_q32_fine
+    op => eliminated_q32_rho(1)
+  end function get_eliminated_q32_rho_fine
 
-  !> @brief Function to return a pointer to the q32 operator
+  !> @brief Function to return a pointer to the q32 (density part) operator
   !!        on the specified multigrid level.
   !> @param[in] level The multigrid level
   !> @return The operator
-  function get_eliminated_q32_mg(level) result(op)
+  function get_eliminated_q32_rho_mg(level) result(op)
     implicit none
     integer(kind=i_def), intent(in) :: level
     type(r_solver_operator_type), pointer :: op
-    op => eliminated_q32(level)
-  end function get_eliminated_q32_mg
+    op => eliminated_q32_rho(level)
+  end function get_eliminated_q32_rho_mg
+
+  !> @brief Function to return a pointer to the theta-elimination
+  !!        contribution to q32 on the finest multigrid level.
+  !> @return The operator
+  function get_eliminated_q32_theta_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer :: op
+    op => eliminated_q32_theta(1)
+  end function get_eliminated_q32_theta_fine
+
+  !> @brief Function to return a pointer to the theta-elimination
+  !!        contribution to q32 on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_eliminated_q32_theta_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer :: op
+    op => eliminated_q32_theta(level)
+  end function get_eliminated_q32_theta_mg
 
   !> @brief Function to return a pointer to the q2t operator.
   !> @return The operator
@@ -1143,5 +1196,41 @@ contains
     type(r_solver_operator_type), pointer :: op
     op => p3theta(1)
   end function get_eliminated_q3t
+
+  !> @brief Return the tau_u*dt*cp scaling constant applied to the div_star,
+  !!        p2theta and q2t operators at their point of use.
+  !> @return The scaling constant
+  function get_tau_u_dt_cp() result(val)
+    implicit none
+    real(kind=r_solver) :: val
+    val = tau_u_dt_cp
+  end function get_tau_u_dt_cp
+
+  !> @brief Return the tau_t*dt scaling constant applied to the ptheta2,
+  !!        ptheta2v and q32_theta operators at their point of use.
+  !> @return The scaling constant
+  function get_tau_t_dt() result(val)
+    implicit none
+    real(kind=r_solver) :: val
+    val = tau_t_dt
+  end function get_tau_t_dt
+
+  !> @brief Return the tau_r*dt scaling constant applied to the compound_div
+  !!        and q32 operators at their point of use.
+  !> @return The scaling constant
+  function get_tau_r_dt() result(val)
+    implicit none
+    real(kind=r_solver) :: val
+    val = tau_r_dt
+  end function get_tau_r_dt
+
+  !> @brief Return the tau_t*tau_u*dt**2*cp scaling constant applied to the
+  !!        analytic q22 operator at its point of use.
+  !> @return The scaling constant
+  function get_tau_tu_dt2_cp() result(val)
+    implicit none
+    real(kind=r_solver) :: val
+    val = tau_tu_dt2_cp
+  end function get_tau_tu_dt2_cp
 
 end module si_operators_alg_mod

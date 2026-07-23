@@ -2,6 +2,9 @@
 ! (C) Crown copyright 2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 ! @todo Causes failure of later test (mixed_schur_preconditioner); not calling until resolved (#616).
@@ -23,7 +26,8 @@ module adjt_scaled_matrix_vector_alg_mod
   use operator_mod,                  only: r_solver_operator_type
   use r_solver_field_mod,            only: r_solver_field_type
   use sci_r_solver_field_vector_mod, only: r_solver_field_vector_type
-  use si_operators_alg_mod,          only: compute_si_operators, get_div_star, get_Hb_lumped_inv
+  use si_operators_alg_mod,          only: compute_si_operators, get_div_star, get_Hb_lumped_inv, &
+                                           get_tau_u_dt_cp
   use solver_constants_mod,          only: get_normalisation_r_solver
 
   ! Object types
@@ -83,6 +87,7 @@ module adjt_scaled_matrix_vector_alg_mod
     real(kind=r_def)            :: machine_tolerance
     real(kind=r_def)            :: relative_diff
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_solver)         :: const_u
 
     ! Setup
 
@@ -117,6 +122,8 @@ module adjt_scaled_matrix_vector_alg_mod
     div_star        => get_div_star()
     Hb_lumped_inv   => get_Hb_lumped_inv()
 
+    const_u = get_tau_u_dt_cp()
+
     call invoke( setval_random(vector_x),                                                                           &
                  setval_c( vector_mx, 0.0_r_solver ),                                                               &
                  setval_c( vector_amx, 0.0_r_solver ),                                                              &
@@ -124,6 +131,7 @@ module adjt_scaled_matrix_vector_alg_mod
     ! Tangent linear (Mx)
 
                  scaled_matrix_vector_kernel_type( vector_mx, vector_x, div_star, u_normalisation, Hb_lumped_inv ), &
+                 inc_a_times_X( const_u, vector_mx ),                                                               &
 
     ! <Mx,Mx>
 
@@ -144,6 +152,7 @@ module adjt_scaled_matrix_vector_alg_mod
     ! Adjoint (AMx)
 
                  adj_scaled_matrix_vector_kernel_type( vector_mx, vector_amx, div_star, u_normalisation, Hb_lumped_inv ), &
+                 inc_a_times_X( const_u, vector_amx ),                                                              &
 
     ! <AMx,x>
 

@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> @brief Compute the coefficients of the Helmholtz operator for lowest-order
@@ -20,6 +22,7 @@ module helmholtz_operator_kernel_mod
 
   use argument_mod,      only : arg_type,                   &
                                 GH_FIELD, GH_OPERATOR,      &
+                                GH_SCALAR,                  &
                                 GH_REAL, GH_READ, GH_WRITE, &
                                 STENCIL, CROSS2D, CELL_COLUMN
   use constants_mod,     only : i_def, r_solver
@@ -36,7 +39,7 @@ module helmholtz_operator_kernel_mod
 
   type, public, extends(kernel_type) :: helmholtz_operator_kernel_type
     private
-    type(arg_type) :: meta_args(10) = (/                                 &
+    type(arg_type) :: meta_args(13) = (/                                 &
          arg_type(GH_FIELD*9,  GH_REAL, GH_WRITE, W3),                   & ! Helmholtz operator
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2, STENCIL(CROSS2D)), & ! hb_lumped_inv
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                   & ! u_normalisation
@@ -46,7 +49,10 @@ module helmholtz_operator_kernel_mod
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W2),           & ! compound_div
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W3),           & ! M3_exner
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     Wtheta),       & ! p3theta
-         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2)                    & ! W2 mask
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                   & ! W2 mask
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                        & ! tau_u*dt*cp
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                        & ! tau_t*dt
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                         & ! tau_r*dt
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -96,6 +102,12 @@ contains
 !> @param[in]     ncell_3d_5      Total number of cells for p3theta matrix
 !> @param[in]     p3theta         Weighted projection operator from Wtheta to W3
 !> @param[in]     w2_mask         LAM mask for W2 space
+!> @param[in]     tau_u_dt_cp     Off-centring weight tau_u multiplied by the
+!!                                timestep and cp, applied to div_star
+!> @param[in]     tau_t_dt        Off-centring weight tau_t multiplied by the
+!!                                timestep, applied to ptheta2v
+!> @param[in]     tau_r_dt        Off-centring weight tau_r multiplied by the
+!!                                timestep, applied to compound_div
 !> @param[in]     ndf_w3          Number of degrees of freedom per cell for the pressure space
 !> @param[in]     undf_w3         Unique number of degrees of freedom  for the pressure space
 !> @param[in]     map_w3          Dofmap for the cell at the base of the column for the pressure space
@@ -126,6 +138,7 @@ subroutine helmholtz_operator_code(stencil_size,                       &
                                    ncell_3d_5,                         &
                                    p3theta,                            &
                                    w2_mask,                            &
+                                   tau_u_dt_cp, tau_t_dt, tau_r_dt,    &
                                    ndf_w3, undf_w3, map_w3,            &
                                    ndf_w2, undf_w2, map_w2,            &
                                    ndf_wt, undf_wt, map_wt)
@@ -157,6 +170,9 @@ subroutine helmholtz_operator_code(stencil_size,                       &
                                                             u_normalisation, &
                                                             w2_mask
   real(kind=r_solver), dimension(undf_wt), intent(in)    :: mt_lumped_inv
+
+  ! Scalars
+  real(kind=r_solver), intent(in) :: tau_u_dt_cp, tau_t_dt, tau_r_dt
 
   ! Operators
   real(kind=r_solver), dimension(ncell_3d_1, ndf_w2, ndf_w3), intent(in) :: div_star
@@ -446,6 +462,9 @@ subroutine helmholtz_operator_code(stencil_size,                       &
     if ( k == nlayers - 2 ) a_op(up,:,up)             = 0.0_r_solver
     if ( k == nlayers - 1 ) a_op(up,:,centre:north)   = 0.0_r_solver
 
+    ! Apply the tau_u*dt*cp weighting associated with div_star
+    a_op(:,:,:) = tau_u_dt_cp*a_op(:,:,:)
+
     ! Compute B for all cells in the stencil
     ! B maps from W2v -> Wtheta points
     ! and we need it for the k-1,k,k+1 cells
@@ -478,10 +497,12 @@ subroutine helmholtz_operator_code(stencil_size,                       &
         b_op(df,:, 1) = 0.0_r_solver
       end if
     end do
+    ! Apply the tau_t*dt weighting associated with ptheta2v
+    b_op(:,:,:) = tau_t_dt*b_op(:,:,:)
     ! Compute E*C for all cells in the stencil,
     ! EC maps from W2 points to W3 points and we only need it for the central
     ! cell.
-    ec_op = - compound_div(ik,:,:)
+    ec_op = - tau_r_dt*compound_div(ik,:,:)
 
     ! Compute D for all cells in the stencil,
     ! D maps from Wtheta points to W3 points and we only need it for the

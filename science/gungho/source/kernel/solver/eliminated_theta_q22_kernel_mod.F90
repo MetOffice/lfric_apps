@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> @brief Compute the q22 matrix for analytic elimination of theta. The family
@@ -18,7 +20,7 @@ module eliminated_theta_q22_kernel_mod
 
   use argument_mod,            only: arg_type, func_type,       &
                                      GH_OPERATOR, GH_FIELD,     &
-                                     GH_REAL, GH_SCALAR,        &
+                                     GH_REAL,                   &
                                      GH_READ, GH_WRITE,         &
                                      GH_BASIS, GH_DIFF_BASIS,   &
                                      CELL_COLUMN,               &
@@ -45,14 +47,13 @@ module eliminated_theta_q22_kernel_mod
 
   type, public, extends(kernel_type) :: eliminated_theta_q22_kernel_type
     private
-    type(arg_type) :: meta_args(7) = (/                                      &
+    type(arg_type) :: meta_args(6) = (/                                      &
         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, W2),                    &
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                        &
         arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_9),               &
-        arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
-        arg_type(GH_SCALAR,   GH_REAL, GH_READ)                              &
+        arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3)  &
         /)
     type(func_type) :: meta_funcs(3) = (/                                    &
         func_type(W2,          GH_BASIS),                                    &
@@ -86,7 +87,6 @@ contains
 !> @param[in]     chi2           Second component of the coordinate array
 !> @param[in]     chi3           Third component of the coordinate array
 !> @param[in]     panel_id       Field containing the panel ID indicator
-!> @param[in]     const          Scalar constant to multiply operator by
 !> @param[in]     ndf_w2         Number of degrees of freedom per cell for the velocity space
 !> @param[in]     undf_w2        Total number of degrees of freedom for the velocity space
 !> @param[in]     map_w2         Dofmap for the bottom layer in the velocity space
@@ -112,7 +112,6 @@ subroutine eliminated_theta_q22_code(cell, nlayers, ncell_3d,    &
                                      theta, exner, norm_u,       &
                                      chi1, chi2, chi3,           &
                                      panel_id,                   &
-                                     const,                      &
                                      ndf_w2, undf_w2, map_w2,    &
                                      basis_w2,                   &
                                      ndf_wt, undf_wt, map_wt,    &
@@ -148,7 +147,6 @@ subroutine eliminated_theta_q22_code(cell, nlayers, ncell_3d,    &
   real(kind=r_solver), dimension(undf_wt), intent(in) :: theta, exner
   real(kind=r_solver), dimension(undf_w2), intent(in) :: norm_u
   real(kind=r_def), dimension(undf_pid),   intent(in) :: panel_id
-  real(kind=r_solver),                     intent(in) :: const
   real(kind=r_def), dimension(nqp_h),      intent(in) :: wqp_h
   real(kind=r_def), dimension(nqp_v),      intent(in) :: wqp_v
 
@@ -201,7 +199,7 @@ subroutine eliminated_theta_q22_code(cell, nlayers, ncell_3d,    &
 
         wt_dj = real(wqp_h(qp1)*wqp_v(qp2)/dj(qp1,qp2), r_solver)
         do df2 = 1, ndf_w2
-          grad_term = wt_dj * const                                            &
+          grad_term = wt_dj                                                    &
                      *dot_product(grad_theta(:), rsol_basis_w2(:,df2,qp1,qp2)) &
                      *grad_exner
           do df = 1, ndf_w2

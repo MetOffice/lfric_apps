@@ -2,6 +2,8 @@
 ! (C) Crown copyright 2021 Met Office. All rights reserved.
 ! For further details please refer to the file COPYRIGHT.txt
 ! which you should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> Test the mixed operator to the momentum equation
@@ -89,6 +91,10 @@ contains
     integer(i_def) :: df
     real(r_solver)    :: answer
 
+    ! Scaling constant applied to the pressure gradient and potential
+    ! temperature projection contributions
+    real(r_solver), parameter :: const_u = 3.0_r_solver
+
     map_w2 = (/ 1_i_def, 2_i_def, 3_i_def, 4_i_def /)
     map_wt = (/ 1_i_def, 2_i_def /)
     map_w3 = (/ 1_i_def /)
@@ -108,7 +114,7 @@ contains
     Nu = 2.0_r_solver
     Lu = 0.0_r_solver
 
-    ! Compute Nu*(Mu*u - Proj*t - Grad*p)
+    ! Compute Nu*(Mu*u - const_u*Proj*t - const_u*Grad*p)
     call apply_mixed_lu_operator_code(cell,                    &
                                       nlayers,                 &
                                       Lu,                      &
@@ -117,12 +123,13 @@ contains
                                       ncell, Proj,             &
                                       ncell, Grad,             &
                                       Nu,                      &
+                                      const_u,                 &
                                       ndf_w2, undf_w2, map_w2, &
                                       ndf_wt, undf_wt, map_wt, &
                                       ndf_w3, undf_w3, map_w3)
 
     do df = 1,ndf_w2
-      answer = Nu(df)*(Mu(1,df,df)*u(df) - sum(Proj(1,df,:)*t(:)) - Grad(1,df,1)*p(1))
+      answer = Nu(df)*(Mu(1,df,df)*u(df) - const_u*sum(Proj(1,df,:)*t(:)) - const_u*Grad(1,df,1)*p(1))
       @assertEqual(answer, Lu(df), tol)
     end do
 

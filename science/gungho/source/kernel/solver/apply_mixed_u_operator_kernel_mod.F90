@@ -2,6 +2,8 @@
 ! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> @brief Compute the LHS of the semi-implicit system for the horizontal velocity:
@@ -13,6 +15,7 @@ use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ,               &
                               GH_WRITE,              &
+                              GH_SCALAR,             &
                               GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_solver, i_def
 use kernel_mod,        only : kernel_type
@@ -27,14 +30,15 @@ private
 
 type, public, extends(kernel_type) :: apply_mixed_u_operator_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                       &
+  type(arg_type) :: meta_args(8) = (/                       &
        arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W2broken),  & ! lhs_uv
        arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2h),       & ! uv'
        arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2v),       & ! w'
        arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),        & ! exner'
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W2),    & ! Mu^{c,d}
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W3),    & ! grad
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2)         & ! norm_u
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),        & ! norm_u
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ)              & ! const_u
        /)
   integer :: operates_on = CELL_COLUMN
   contains
@@ -60,6 +64,8 @@ contains
 !> @param[in]     ncell2        Total number of cells for the grad operator
 !> @param[in]     grad          Generalised gradient operator for the momentum equation
 !> @param[in]     norm_u        Normalisation field for the momentum equation
+!> @param[in]     const_u       tau_u*dt*cp scaling constant applied to the pressure
+!!                              gradient (grad) contribution to the momentum equation
 !> @param[in]     ndf_w2hb      number of degrees of freedom per cell for the broken horizontal wind space
 !> @param[in]     undf_w2hb     unique number of degrees of freedom for the broken horizontal wind space
 !> @param[in]     map_w2hb      dofmap for the cell at the base of the column for the broken horizontal wind space
@@ -83,6 +89,7 @@ subroutine apply_mixed_u_operator_code(cell,                          &
                                        ncell1, mu_cd,                 &
                                        ncell2, grad,                  &
                                        norm_u,                        &
+                                       const_u,                       &
                                        ndf_w2hb, undf_w2hb, map_w2hb, &
                                        ndf_w2h, undf_w2h, map_w2h,    &
                                        ndf_w2v, undf_w2v, map_w2v,    &
@@ -111,6 +118,7 @@ subroutine apply_mixed_u_operator_code(cell,                          &
   real(kind=r_solver), dimension(undf_w2v),  intent(in)    :: wind_w
   real(kind=r_solver), dimension(undf_w2),   intent(in)    :: norm_u
   real(kind=r_solver), dimension(undf_w3),   intent(in)    :: exner
+  real(kind=r_solver),                       intent(in)    :: const_u
 
   ! Operators
   real(kind=r_solver), dimension(ncell1, ndf_w2, ndf_w2), intent(in) :: mu_cd
@@ -130,7 +138,7 @@ subroutine apply_mixed_u_operator_code(cell,                          &
   do df = 1, ndf_w2h
     iw2h = map_w2hb(df)
     iw2  = map_w2(df)
-    lhs_uv(iw2h:iw2h+nm1) = - norm_u(iw2:iw2+nm1)   &
+    lhs_uv(iw2h:iw2h+nm1) = - const_u*norm_u(iw2:iw2+nm1)   &
                            *grad(ij:ij+nm1, df, 1)*exner(iw3:iw3+nm1)
   end do
   do df2 = 1, ndf_w2h

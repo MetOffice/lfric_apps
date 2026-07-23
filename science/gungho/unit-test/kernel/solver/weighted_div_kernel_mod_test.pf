@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> Test the theta weighted divergence operator computation
@@ -139,7 +141,6 @@ contains
                             ncell_3d,                          &
                             local_stencil,                     &
                             theta_p_data,                      &
-                            1.0_r_solver,                         &
                             ndf_w2,                            &
                             basis_w2,                          &
                             diff_basis_w2,                     &

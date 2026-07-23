@@ -2,6 +2,8 @@
 ! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> @brief Compute the LHS of the semi-implicit system for the
@@ -15,6 +17,7 @@ use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ,               &
                               GH_WRITE,              &
+                              GH_SCALAR,             &
                               GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_solver, i_def
 use kernel_mod,        only : kernel_type
@@ -28,7 +31,7 @@ private
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: apply_mixed_wp_operator_kernel_type
   private
-  type(arg_type) :: meta_args(14) = (/                       &
+  type(arg_type) :: meta_args(17) = (/                       &
        arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W2v),        & ! lhs_w
        arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),         & ! lhs_p
        arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2h),        & ! uv'
@@ -41,8 +44,11 @@ type, public, extends(kernel_type) :: apply_mixed_wp_operator_kernel_type
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W3),     & ! grad
        arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),         & ! norm_u
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),     & ! m3p
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),     & ! q32
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, Wtheta)  & ! p3t
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),     & ! q32_rho
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, Wtheta), & ! p3t
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),              & ! const_u
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),              & ! const_t
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ)               & ! const_r
        /)
   integer :: operates_on = CELL_COLUMN
   contains
@@ -76,10 +82,20 @@ contains
 !> @param[in]     norm_u        Normalisation field for the momentum equation
 !> @param[in]     ncell4        Total number of cells for the m3p operator
 !> @param[in]     m3p           Weighted mass matrix for the W3 space
-!> @param[in]     ncell5        Total number of cells for the q32 operator
-!> @param[in]     q32           Projection operator from W2 to W3
+!> @param[in]     ncell5        Total number of cells for the q32_rho operator
+!> @param[in]     q32_rho       Projection operator from W2 to W3 (density
+!!                              contribution to Q32; the theta contribution
+!!                              arrives via p3t*t_col, since t_col already
+!!                              carries the tau_t*dt scaling)
 !> @param[in]     ncell6        Total number of cells for the p3t operator
 !> @param[in]     p3t           Projection operator from W2 to Wtheta
+!> @param[in]     const_u       tau_u*dt*cp scaling constant applied to the pressure
+!!                              gradient (grad) and potential temperature projection
+!!                              (P2theta) contributions to the vertical momentum equation
+!> @param[in]     const_t       tau_t*dt scaling constant applied to the eliminated
+!!                              potential temperature increment t = -Mt^-1*Pt2*u
+!> @param[in]     const_r       tau_r*dt scaling constant applied to the Q32
+!!                              (density) contribution to the equation of state
 !> @param[in]     ndf_w2v       Number of degrees of freedom per cell for the vertical wind space
 !> @param[in]     undf_w2v      Unique number of degrees of freedom for the vertical wind space
 !> @param[in]     map_w2v       Dofmap for the cell at the base of the column for the vertical wind space
@@ -110,8 +126,9 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
                                         ncell3, grad,               &
                                         norm_u,                     &
                                         ncell4, m3p,                &
-                                        ncell5, q32,                &
+                                        ncell5, q32_rho,            &
                                         ncell6, p3t,                &
+                                        const_u, const_t, const_r,  &
                                         ndf_w2v, undf_w2v, map_w2v, &
                                         ndf_w3, undf_w3, map_w3,    &
                                         ndf_w2h, undf_w2h, map_w2h, &
@@ -143,6 +160,7 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
   real(kind=r_solver), dimension(undf_w2),  intent(in)    :: norm_u
   real(kind=r_solver), dimension(undf_wt),  intent(in)    :: mt_lumped_inv
   real(kind=r_solver), dimension(undf_w3),  intent(in)    :: exner
+  real(kind=r_solver),                      intent(in)    :: const_u, const_t, const_r
 
   ! Operators
   real(kind=r_solver), dimension(ncell0, ndf_wt, ndf_w2), intent(in) :: pt2
@@ -150,7 +168,7 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
   real(kind=r_solver), dimension(ncell2, ndf_w2, ndf_wt), intent(in) :: p2t
   real(kind=r_solver), dimension(ncell3, ndf_w2, ndf_w3), intent(in) :: grad
   real(kind=r_solver), dimension(ncell4, ndf_w3, ndf_w3), intent(in) :: m3p
-  real(kind=r_solver), dimension(ncell5, ndf_w3, ndf_w2), intent(in) :: q32
+  real(kind=r_solver), dimension(ncell5, ndf_w3, ndf_w2), intent(in) :: q32_rho
   real(kind=r_solver), dimension(ncell6, ndf_w3, ndf_wt), intent(in) :: p3t
 
   ! Internal variables
@@ -182,7 +200,7 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
     t_col(0:nm1)   = t_col(0:nm1)   - pt2(ij:ij+nm1, 1, df)*u_e(:,df)
     t_col(1:nm1+1) = t_col(1:nm1+1) - pt2(ij:ij+nm1, 2, df)*u_e(:,df)
   end do
-  t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1)
+  t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1) * const_t
 
   ! LHS W
   iw2v = map_w2v(1)
@@ -192,7 +210,7 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
     iw2v = map_w2v(df)
     iw2  = map_w2(ndf_w2h+df)
     lhs_w(iw2v:iw2v+nm1) = lhs_w(iw2v:iw2v+nm1) &
-                         + norm_u(iw2:iw2+nm1)*( &
+                         + const_u*norm_u(iw2:iw2+nm1)*( &
                          - p2t(ij:ij+nm1, ndf_w2h+df, 1)*t_col(0:nm1)   &
                          - p2t(ij:ij+nm1, ndf_w2h+df, 2)*t_col(1:nm1+1) &
                          - grad(ij:ij+nm1, ndf_w2h+df, 1)*exner(iw3:iw3+nm1))
@@ -217,7 +235,7 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
                      - p3t(ij:ij+nm1, 1, 1)*t_col(0:nm1)       &
                      - p3t(ij:ij+nm1, 1, 2)*t_col(1:nm1+1)
   do df = 1, ndf_w2
-    lhs_p(iw3:iw3+nm1) = lhs_p(iw3:iw3+nm1) + q32(ij:ij+nm1, 1, df)*u_e(:,df)
+    lhs_p(iw3:iw3+nm1) = lhs_p(iw3:iw3+nm1) + const_r*q32_rho(ij:ij+nm1, 1, df)*u_e(:,df)
   end do
 
 end subroutine apply_mixed_wp_operator_code

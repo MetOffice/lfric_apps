@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 !> @brief Compute the divergence operatore weigthed by the potential
 !>        temperature.
@@ -15,7 +17,7 @@ module weighted_div_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,     &
                                GH_OPERATOR, GH_FIELD,   &
-                               GH_SCALAR, GH_REAL,      &
+                               GH_REAL,                 &
                                GH_READ, GH_WRITE,       &
                                GH_BASIS, GH_DIFF_BASIS, &
                                CELL_COLUMN, GH_QUADRATURE_XYoZ
@@ -33,10 +35,9 @@ module weighted_div_kernel_mod
 
   type, public, extends(kernel_type) :: weighted_div_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                    &
+    type(arg_type) :: meta_args(2) = (/                    &
          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, W3), &
-         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta), &
-         arg_type(GH_SCALAR,   GH_REAL, GH_READ)           &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta)  &
          /)
     type(func_type) :: meta_funcs(3) = (/                  &
          func_type(W2,     GH_BASIS, GH_DIFF_BASIS),       &
@@ -62,7 +63,6 @@ contains
 !! @param[in] ncell_3d ncell*ndf
 !! @param[in,out] div Local stencil of the div operator
 !! @param[in] theta Potential temperature
-!! @param[in] scalar Real to scale operator by
 !! @param[in] ndf_w2 Number of degrees of freedom per cell
 !! @param[in] basis_w2 Scalar basis functions evaluated at quadrature points
 !! @param[in] diff_basis_w2 Differential vector basis functions evaluated
@@ -82,7 +82,6 @@ contains
 subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
                              div,                                 &
                              theta,                               &
-                             scalar,                              &
                              ndf_w2, basis_w2, diff_basis_w2,     &
                              ndf_w3, basis_w3,                    &
                              ndf_wtheta, undf_wtheta, map_wtheta, &
@@ -107,7 +106,6 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
 
   real(kind=r_solver), dimension(ncell_3d,ndf_w2,ndf_w3), intent(inout) :: div
   real(kind=r_solver), dimension(undf_wtheta),            intent(in)    :: theta
-  real(kind=r_solver),                                    intent(in)    :: scalar
   real(kind=r_def), dimension(nqp_h),                     intent(in)    :: wqp_h
   real(kind=r_def), dimension(nqp_v),                     intent(in)    :: wqp_v
 
@@ -150,7 +148,7 @@ subroutine weighted_div_code(cell, nlayers, ncell_3d,             &
         end do
         wt = real(wqp_h(qp1)*wqp_v(qp2), r_solver)
         do df3 = 1, ndf_w3
-          integrand = scalar*wt*rsol_basis_w3(1,df3,qp1,qp2)
+          integrand = wt*rsol_basis_w3(1,df3,qp1,qp2)
           do df2 = 1, ndf_w2
             div_theta_v = rsol_diff_basis_w2(1,df2,qp1,qp2)*theta_quad &
                         + dot_product(rsol_basis_w2(:,df2,qp1,qp2),grad_theta_quad)

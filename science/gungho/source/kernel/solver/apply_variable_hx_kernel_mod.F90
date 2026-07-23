@@ -2,6 +2,8 @@
 ! (C) Crown copyright 2017 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> @todO Create unit test for this kernel, see #2935
@@ -26,7 +28,7 @@ module apply_variable_hx_kernel_mod
 
   type, public, extends(kernel_type) :: apply_variable_hx_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                            &
+    type(arg_type) :: meta_args(10) = (/                           &
          arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),             &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),             &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),         &
@@ -35,6 +37,7 @@ module apply_variable_hx_kernel_mod
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     Wtheta), &
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  Wtheta, W2),     &
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3,     W3),     &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                  &
          arg_type(GH_SCALAR,   GH_REAL, GH_READ)                   &
          /)
     integer :: operates_on = CELL_COLUMN
@@ -76,7 +79,9 @@ contains
 !> @param[in] pt2 Mapping from velocity space to temperature space
 !> @param[in] ncell_3d_4 Total number of cells for m3 matrix
 !> @param[in] m3 Mass matrix for the pressure space
-!> @param[in] sgn +/- 1 Weight
+!> @param[in] const_div Scaling constant (tau_r*dt) applied to the divergence term
+!> @param[in] const_theta Scaling constant (tau_t*dt) applied to the potential
+!!            temperature term
 !> @param[in] ndf_w3 Number of degrees of freedom per cell for the pressure space
 !> @param[in] undf_w3 Unique number of degrees of freedom  for the pressure space
 !> @param[in] map_w3 Dofmap for the cell at the base of the column for the pressure space
@@ -102,7 +107,8 @@ subroutine apply_variable_hx_code_r_double(cell,                    &
                                            pt2,                     &
                                            ncell_3d_4,              &
                                            m3,                      &
-                                           sgn,                     &
+                                           const_div,               &
+                                           const_theta,             &
                                            ndf_w3, undf_w3, map_w3, &
                                            ndf_w2, undf_w2, map_w2, &
                                            ndf_wt, undf_wt, map_wt)
@@ -124,7 +130,8 @@ subroutine apply_variable_hx_code_r_double(cell,                    &
   real(kind=r_double), dimension(undf_wt), intent(in)    :: mt_inv
   real(kind=r_double), dimension(undf_w3), intent(inout) :: lhs
   real(kind=r_double), dimension(undf_w3), intent(in)    :: pressure
-  real(kind=r_double),                     intent(in)    :: sgn
+  real(kind=r_double),                     intent(in)    :: const_div
+  real(kind=r_double),                     intent(in)    :: const_theta
 
   real(kind=r_double), dimension(ncell_3d_1,ndf_w3,ndf_w2), intent(in) :: div
   real(kind=r_double), dimension(ncell_3d_2,ndf_wt,ndf_w2), intent(in) :: pt2
@@ -173,7 +180,8 @@ subroutine apply_variable_hx_code_r_double(cell,                    &
 
     ik = (cell-1)*nlayers + k + 1
 
-    lhs_e = matmul(m3(ik,:,:),p_e) + sgn*(matmul(div(ik,:,:),x_e) + matmul(p3t(ik,:,:),t_e))
+    lhs_e = matmul(m3(ik,:,:),p_e) + const_div*matmul(div(ik,:,:),x_e) &
+                                   + const_theta*matmul(p3t(ik,:,:),t_e)
     do df = 1,ndf_w3
        lhs(map_w3(df)+k) = lhs_e(df)
     end do
@@ -197,7 +205,8 @@ subroutine apply_variable_hx_code_r_single(cell,                    &
                                            pt2,                     &
                                            ncell_3d_4,              &
                                            m3,                      &
-                                           sgn,                     &
+                                           const_div,               &
+                                           const_theta,             &
                                            ndf_w3, undf_w3, map_w3, &
                                            ndf_w2, undf_w2, map_w2, &
                                            ndf_wt, undf_wt, map_wt)
@@ -219,7 +228,8 @@ subroutine apply_variable_hx_code_r_single(cell,                    &
   real(kind=r_single), dimension(undf_wt), intent(in)    :: mt_inv
   real(kind=r_single), dimension(undf_w3), intent(inout) :: lhs
   real(kind=r_single), dimension(undf_w3), intent(in)    :: pressure
-  real(kind=r_single),                     intent(in)    :: sgn
+  real(kind=r_single),                     intent(in)    :: const_div
+  real(kind=r_single),                     intent(in)    :: const_theta
 
   real(kind=r_single), dimension(ncell_3d_1,ndf_w3,ndf_w2), intent(in) :: div
   real(kind=r_single), dimension(ncell_3d_2,ndf_wt,ndf_w2), intent(in) :: pt2
@@ -268,7 +278,8 @@ subroutine apply_variable_hx_code_r_single(cell,                    &
 
     ik = (cell-1)*nlayers + k + 1
 
-    lhs_e = matmul(m3(ik,:,:),p_e) + sgn*(matmul(div(ik,:,:),x_e) + matmul(p3t(ik,:,:),t_e))
+    lhs_e = matmul(m3(ik,:,:),p_e) + const_div*matmul(div(ik,:,:),x_e) &
+                                   + const_theta*matmul(p3t(ik,:,:),t_e)
     do df = 1,ndf_w3
        lhs(map_w3(df)+k) = lhs_e(df)
     end do

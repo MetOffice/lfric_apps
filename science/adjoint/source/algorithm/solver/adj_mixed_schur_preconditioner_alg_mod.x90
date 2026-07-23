@@ -2,6 +2,9 @@
 ! (C) Crown copyright 2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 !> @brief Adjoint of mixed_schur_preconditioner_alg_mod
 
@@ -33,7 +36,10 @@ module adj_mixed_schur_preconditioner_alg_mod
                                                   get_ptheta2v,     &
                                                   get_p3theta,      &
                                                   get_helm_diag,    &
-                                                  get_Hb_lumped_inv
+                                                  get_Hb_lumped_inv, &
+                                                  get_tau_u_dt_cp,  &
+                                                  get_tau_t_dt,     &
+                                                  get_tau_r_dt
   use solver_constants_mod,                 only: get_normalisation_r_solver
   use fs_continuity_mod,                    only: W2, W3, Wtheta
   use boundaries_config_mod,                only: limited_area
@@ -212,7 +218,8 @@ contains
     type(r_solver_operator_type), pointer :: m3_rho_star, ptheta2, p3theta, compound_div
     type(r_solver_field_type),    pointer :: mt_lumped_inv, h_diag, Hb_lumped_inv
     type(r_solver_field_type)             :: rhs_d
-    real(kind=r_solver),        parameter :: minus_one = -1.0_r_solver
+    real(kind=r_solver)                   :: const_r, const_t
+    real(kind=r_solver)                   :: minus_const_r, minus_const_t
     type(r_solver_field_type)             :: rhs_uvw
     integer(kind=i_def)                   :: mesh_id
     type(r_solver_field_type),  pointer   :: rhs_uv, rhs_p, rhs_w, rhs
@@ -251,6 +258,11 @@ contains
     compound_div  => get_compound_div()
     Hb_lumped_inv => get_Hb_lumped_inv()
 
+    const_r = get_tau_r_dt()
+    const_t = get_tau_t_dt()
+    minus_const_r = -const_r
+    minus_const_t = -const_t
+
     if (normalise) then
       h_diag => get_helm_diag()
       call invoke( name="adj_msp1", &
@@ -274,7 +286,8 @@ contains
                                                             mt_lumped_inv, rhs_d,  &
                                                             compound_div, p3theta, &
                                                             ptheta2, m3_rho_star,  &
-                                                            minus_one, rhs_p ) )
+                                                            minus_const_r,         &
+                                                            minus_const_t, rhs_p ) )
       else
         call log_event( "adj_build_pressure_rhs: element_orders /= 0 not coded", LOG_LEVEL_ERROR )
       end if
@@ -321,6 +334,7 @@ contains
     type(r_solver_operator_type), pointer :: div_star
     type(r_solver_field_type)             :: u_inc
     integer(kind=i_def)                   :: mesh_id
+    real(kind=r_solver)                   :: const_u
 
     type(r_solver_field_type), pointer :: state_uv, state_p, state_w, exner_inc
 
@@ -341,6 +355,9 @@ contains
     u_normalisation => get_normalisation_r_solver( W2, mesh_id )
     div_star        => get_div_star()
     Hb_lumped_inv   => get_Hb_lumped_inv()
+    ! div_star is assembled unscaled; the D*p' reconstruction carries tau_u*dt*cp
+    ! in the forward model, so its adjoint carries the same constant.
+    const_u = get_tau_u_dt_cp()
     ! u' = ru + BC[HB * unorm * D * p']
 
     if (split_w) then
@@ -370,6 +387,7 @@ contains
     call invoke( name = "compute_increments",                                     &
                  enforce_bc_kernel_type(u_inc),                                   &
                  inc_X_plus_Y( self%rhs_u, u_inc ),                               &
+                 inc_a_times_X( const_u, u_inc ),                                 &
                  adj_scaled_matrix_vector_kernel_type( u_inc, exner_inc,          &
                                                        div_star, u_normalisation, &
                                                        Hb_lumped_inv ),           &

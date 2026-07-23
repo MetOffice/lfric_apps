@@ -2,6 +2,8 @@
 ! (C) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> @brief Apply the semi-implicit mixed operator to the momentum equation.
@@ -10,6 +12,7 @@ module apply_mixed_lu_operator_kernel_mod
 use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ, GH_INC,       &
+                              GH_SCALAR,             &
                               GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_solver, i_def
 use kernel_mod,        only : kernel_type
@@ -24,7 +27,7 @@ private
 
 type, public, extends(kernel_type) :: apply_mixed_lu_operator_kernel_type
   private
-  type(arg_type) :: meta_args(8) = (/                       &
+  type(arg_type) :: meta_args(9) = (/                       &
        arg_type(GH_FIELD,    GH_REAL, GH_INC,  W2),         & ! lhs_u
        arg_type(GH_FIELD,    GH_REAL, GH_READ, W2),         & ! u'
        arg_type(GH_FIELD,    GH_REAL, GH_READ, Wtheta),     & ! theta'
@@ -32,7 +35,8 @@ type, public, extends(kernel_type) :: apply_mixed_lu_operator_kernel_type
        arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W2),     & ! Mu^{c,d}
        arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, Wtheta), & ! P2theta
        arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W3),     & ! grad
-       arg_type(GH_FIELD,    GH_REAL, GH_READ, W2)          & ! norm_u
+       arg_type(GH_FIELD,    GH_REAL, GH_READ, W2),         & ! norm_u
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ)              & ! const_u
        /)
   integer :: operates_on = CELL_COLUMN
   contains
@@ -60,6 +64,9 @@ contains
 !! @param[in] ncell3 Total number of cells for the grad operator
 !! @param[in] grad Generalised gradient operator for the momentum equation
 !! @param[in] norm_u Normalisation field for the momentum equation
+!! @param[in] const_u tau_u*dt*cp scaling constant applied to the pressure
+!!                    gradient (grad) and potential temperature projection
+!!                    (P2theta) contributions to the momentum equation
 !! @param[in] ndf_w2 number of degrees of freedom per cell for the wind space
 !! @param[in] undf_w2 Unique number of degrees of freedom for the wind space
 !! @param[in] map_w2 Dofmap for the cell at the base of the column for the wind space
@@ -81,6 +88,7 @@ subroutine apply_mixed_lu_operator_code(cell,                    &
                                         ncell2, P2theta,         &
                                         ncell3, grad,            &
                                         norm_u,                  &
+                                        const_u,                 &
                                         ndf_w2, undf_w2, map_w2, &
                                         ndf_wt, undf_wt, map_wt, &
                                         ndf_w3, undf_w3, map_w3)
@@ -102,6 +110,7 @@ subroutine apply_mixed_lu_operator_code(cell,                    &
   real(kind=r_solver), dimension(undf_w2), intent(in)    :: wind, norm_u
   real(kind=r_solver), dimension(undf_wt), intent(in)    :: theta
   real(kind=r_solver), dimension(undf_w3), intent(in)    :: exner
+  real(kind=r_solver),                     intent(in)    :: const_u
 
   ! Operators
   real(kind=r_solver), dimension(ncell1, ndf_w2, ndf_w2), intent(in) :: mu_cd
@@ -125,14 +134,14 @@ subroutine apply_mixed_lu_operator_code(cell,                    &
       do df2 = 1, ndf_wt
         do k = 0, nlayers-1
           ik = (cell-1)*nlayers + k + 1
-          lhs_t(k) = lhs_t(k) - p2theta(ik,df1,df2) * theta(map_wt(df2)+k)
+          lhs_t(k) = lhs_t(k) - const_u * p2theta(ik,df1,df2) * theta(map_wt(df2)+k)
         end do
       end do
 
       do df2 = 1, ndf_w3
         do k = 0, nlayers-1
           ik = (cell-1)*nlayers + k + 1
-          lhs_t(k) = lhs_t(k) - grad(ik,df1,df2) * exner(map_w3(df2)+k)
+          lhs_t(k) = lhs_t(k) - const_u * grad(ik,df1,df2) * exner(map_w3(df2)+k)
         end do
       end do
 

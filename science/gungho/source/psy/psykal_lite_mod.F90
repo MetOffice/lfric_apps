@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
@@ -77,7 +79,8 @@ contains
   ! see PSyclone #1103: https://github.com/stfc/PSyclone/issues/1103
   ! The LFRic infrastructure for this will be introduced in #2532
   subroutine invoke_helmholtz_operator_kernel_type(helmholtz_operator, hb_lumped_inv, stencil_depth, u_normalisation, div_star, &
-                                                   t_normalisation, ptheta2v, compound_div, m3_exner_star, p3theta, w2_mask)
+                                                   t_normalisation, ptheta2v, compound_div, m3_exner_star, p3theta, w2_mask, &
+                                                   tau_u_dt_cp, tau_t_dt, tau_r_dt)
     use helmholtz_operator_kernel_mod, only: helmholtz_operator_code
     use mesh_mod, only: mesh_type
     use stencil_2d_dofmap_mod, only: stencil_2d_cross
@@ -88,6 +91,7 @@ contains
     type(r_solver_field_type), intent(in) :: helmholtz_operator(9)
     type(r_solver_field_type), intent(in) ::  hb_lumped_inv, u_normalisation, t_normalisation, w2_mask
     type(r_solver_operator_type), intent(in) :: div_star, ptheta2v, compound_div, m3_exner_star, p3theta
+    real(kind=r_solver), intent(in) :: tau_u_dt_cp, tau_t_dt, tau_r_dt
     integer(kind=i_def), intent(in) :: stencil_depth
     integer(kind=i_def) :: stencil_size
     integer(kind=i_def) cell
@@ -232,6 +236,7 @@ contains
                                    p3theta_proxy%ncell_3d, &
                                    p3theta_proxy%local_stencil, &
                                    w2_mask_proxy%data, &
+                                   tau_u_dt_cp, tau_t_dt, tau_r_dt, &
                                    ndf_w3, undf_w3, map_w3(:,cell), &
                                    ndf_w2, undf_w2, map_w2(:,cell), &
                                    ndf_wtheta, undf_wtheta, map_wtheta(:,cell))
@@ -262,8 +267,9 @@ contains
   ! The LFRic infrastructure for this will be introduced in #2532
   subroutine invoke_elim_helmholtz_operator_kernel_type(helmholtz_operator, hb_lumped_inv, stencil_depth, &
                                                    u_normalisation, div_star, &
-                                                   m3_exner_star, Q32, &
-                                                   w2_mask)
+                                                   m3_exner_star, Q32_rho, Q32_theta, &
+                                                   w2_mask, &
+                                                   tau_u_dt_cp, tau_r_dt, tau_t_dt)
     use elim_helmholtz_operator_kernel_mod, only: elim_helmholtz_operator_code
     use mesh_mod, only: mesh_type
     use stencil_dofmap_mod, only: stencil_cross
@@ -274,12 +280,13 @@ contains
 
     type(r_solver_field_type), intent(in) :: helmholtz_operator(9)
     type(r_solver_field_type), intent(in) :: hb_lumped_inv, u_normalisation, w2_mask
-    type(r_solver_operator_type), intent(in) :: div_star, m3_exner_star, Q32
+    type(r_solver_operator_type), intent(in) :: div_star, m3_exner_star, Q32_rho, Q32_theta
+    real(kind=r_solver), intent(in) :: tau_u_dt_cp, tau_r_dt, tau_t_dt
     integer(kind=i_def), intent(in) :: stencil_depth
     integer(kind=i_def) :: stencil_size
     integer(kind=i_def) cell
     integer(kind=i_def) nlayers
-    type(r_solver_operator_proxy_type) div_star_proxy, m3_exner_star_proxy, Q32_proxy
+    type(r_solver_operator_proxy_type) div_star_proxy, m3_exner_star_proxy, Q32_rho_proxy, Q32_theta_proxy
     type(r_solver_field_proxy_type) helmholtz_operator_proxy(9)
     type(r_solver_field_proxy_type) hb_lumped_inv_proxy, u_normalisation_proxy, &
                            w2_mask_proxy
@@ -309,7 +316,8 @@ contains
     u_normalisation_proxy = u_normalisation%get_proxy()
     div_star_proxy = div_star%get_proxy()
     m3_exner_star_proxy = m3_exner_star%get_proxy()
-    Q32_proxy = Q32%get_proxy()
+    Q32_rho_proxy = Q32_rho%get_proxy()
+    Q32_theta_proxy = Q32_theta%get_proxy()
     w2_mask_proxy = w2_mask%get_proxy()
     !
     ! Initialise number of layers
@@ -391,9 +399,12 @@ contains
                                    div_star_proxy%local_stencil, &
                                    m3_exner_star_proxy%ncell_3d, &
                                    m3_exner_star_proxy%local_stencil, &
-                                   Q32_proxy%ncell_3d, &
-                                   Q32_proxy%local_stencil, &
+                                   Q32_rho_proxy%ncell_3d, &
+                                   Q32_rho_proxy%local_stencil, &
+                                   Q32_theta_proxy%ncell_3d, &
+                                   Q32_theta_proxy%local_stencil, &
                                    w2_mask_proxy%data, &
+                                   tau_u_dt_cp, tau_r_dt, tau_t_dt, &
                                    ndf_w3, undf_w3, map_w3(:,cell), &
                                    ndf_w2, undf_w2, map_w2(:,cell))
     end do

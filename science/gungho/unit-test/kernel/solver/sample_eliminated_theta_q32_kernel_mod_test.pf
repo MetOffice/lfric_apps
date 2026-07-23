@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> Test the weighted q32 matrix
@@ -87,8 +89,6 @@ contains
     ! Fields
     real(kind=r_solver), dimension(undf_wt) :: theta
     real(kind=r_solver), dimension(ndf_w3,ndf_w3)  :: detj_w3
-    ! Scalars
-    real(kind=r_solver) :: const
 
     integer(kind=i_def) :: i, df1, df2
     real(kind=r_solver), dimension(ndf_w3, ndf_w2) :: answer
@@ -119,7 +119,6 @@ contains
     ! Fields
     detj_w3  = real(dx*dy*dz, r_solver)
     theta = (/ 310.0_r_solver, 322.95_r_solver /)
-    const = 17.0_r_solver
     ! Operator
     q32 = 0.0_r_solver
     call sample_eliminated_theta_q32_code(cell,                      &
@@ -128,19 +127,18 @@ contains
                                           q32,                       &
                                           theta,                     &
                                           detj_w3,                   &
-                                          const,                     &
                                           ndf_w3, undf_w3,           &
                                           map_w3, basis_w3,          &
                                           ndf_w2, basis_w2,          &
                                           ndf_wt, undf_wt, map_wt,   &
                                           basis_wt, diff_basis_wt)
 
-    ! q32 = const * < basis_w3, (k*dtheta/dz).basis_w2 >
+    ! q32 = < basis_w3, (k*dtheta/dz).basis_w2 >
     ! Only the vertical components of W2 are nonzero (df2 = 3,4)
     answer = 0.0_r_solver
     do df2 = 3,ndf_w2
       do df1 = 1,ndf_w3
-        answer(df1,df2) = (const/(dx*dy*dz))*(theta(2)-theta(1))/(theta(2)+theta(1))
+        answer(df1,df2) = (1.0_r_solver/(dx*dy*dz))*(theta(2)-theta(1))/(theta(2)+theta(1))
       end do
     end do
     @assertEqual(answer, q32(1,:,:), tol)

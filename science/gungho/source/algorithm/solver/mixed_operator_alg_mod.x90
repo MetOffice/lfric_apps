@@ -109,7 +109,12 @@ contains
                                                   get_m3_exner_star,  &
                                                   get_p3theta,        &
                                                   get_eliminated_q22, &
-                                                  get_eliminated_q32
+                                                  get_eliminated_q32_rho, &
+                                                  get_eliminated_q32_theta, &
+                                                  get_tau_u_dt_cp,    &
+                                                  get_tau_t_dt,       &
+                                                  get_tau_r_dt,       &
+                                                  get_tau_tu_dt2_cp
     use dycore_constants_mod,               only: w2_si_matrix
     use solver_constants_mod,               only: get_w2_mass_matrix_r_solver, &
                                                   get_normalisation_r_solver
@@ -151,9 +156,13 @@ contains
                                              w3_mask
     type(r_solver_field_type)             :: x_t
     real(kind=r_solver), parameter        :: minus_one = -1.0_r_solver
+    real(kind=r_solver)                   :: const_u, const_t, const_r, const_tu
+    real(kind=r_solver)                   :: minus_const_t
     type(r_solver_field_type)             :: q22u
+    type(r_solver_field_type)             :: q32t_p
     type(r_solver_operator_type), pointer :: q22_op, &
-                                             q32_op
+                                             q32_rho_op, &
+                                             q32_theta_op
     type(r_solver_field_type), pointer    :: xvec_uv, &
                                              xvec_p,  &
                                              xvec_w
@@ -209,6 +218,13 @@ contains
     m3_exner_star => get_m3_exner_star()
     p3theta       => get_p3theta()
 
+    ! Obtain the tau*dt scaling constants used to assemble the SI operators.
+    const_u       = get_tau_u_dt_cp()   ! tau_u*dt*cp
+    const_t       = get_tau_t_dt()      ! tau_t*dt
+    const_r       = get_tau_r_dt()      ! tau_r*dt
+    const_tu      = get_tau_tu_dt2_cp() ! tau_t*tau_u*dt^2*cp
+    minus_const_t = -const_t
+
     select type (x)
     type is (r_solver_field_vector_type)
        select type (y)
@@ -254,7 +270,7 @@ contains
          select case ( eliminate_variables )
 
          case ( eliminate_variables_discrete )
-           q32_op => get_eliminated_q32()
+           q32_rho_op => get_eliminated_q32_rho()
            if ( optimised_operator ) then
              ! Compute the lhs of mixed operator in two steps:
              ! 1) Compute the horizontal wind lhs (yvec_uv), this is done in the broken W2
@@ -270,14 +286,16 @@ contains
              call invoke( name="apply_split_mixed_operator",                                        &
                           apply_mixed_u_operator_kernel_type( y_uv_broken,                          &
                                                               xvec_uv, xvec_w, xvec_p,              &
-                                                              mm_vel, div_star, m2_diag ),          &
+                                                              mm_vel, div_star, m2_diag,            &
+                                                              const_u ),                            &
                           setval_c( yvec_uv, 0.0_r_solver ),                                        &
                           assemble_w2h_from_w2hb_kernel_type(yvec_uv, y_uv_broken),                 &
                           apply_mixed_wp_operator_kernel_type( yvec_w, yvec_p,                      &
                                                                xvec_uv, xvec_w, xvec_p,             &
                                                                ptheta2, mt_lumped_inv,              &
                                                                mm_vel, p2theta, div_star, m2_diag,  &
-                                                               m3_exner_star, q32_op, p3theta ) )
+                                                               m3_exner_star, q32_rho_op, p3theta,  &
+                                                               const_u, const_t, const_r ) )
            else
            ! Create theta' field
            t_fs => function_space_collection%get_fs( mesh, p_h, p_v, Wtheta )
@@ -288,19 +306,22 @@ contains
            ! but we do not assemble the full Q22 & Q32 matrices as these can
            ! not be represented by local matrix operators
            ! Q32 = tau*dt*M3^rho * D * rho^ref
-           ! and x_t = -mt_lumped_inv*Ptheta2*u', so P3theta*x_t gives the
-           ! contribution to the equation of state from eliminating the
-           ! potential temperature
+           ! and x_t = -tau_t*dt*mt_lumped_inv*Ptheta2*u', so P3theta*x_t gives
+           ! the (already tau_t*dt scaled) contribution to the equation of state
+           ! from eliminating the potential temperature. Baking tau_t*dt into
+           ! x_t also means that the momentum-row P2theta*x_t term, once scaled
+           ! by const_u below, correctly carries tau_u*tau_t*dt^2*cp (i.e. Q22).
            call invoke( name="apply_discretely_eliminated_mixed_lhs",                              &
                         setval_c( x_t, 0.0_r_solver ),                                             &
                         dg_inc_matrix_vector_kernel_type( x_t, x_uvw, Ptheta2 ),                   &
-                        inc_aX_times_Y( minus_one, x_t, mt_lumped_inv ),                           &
+                        inc_aX_times_Y( minus_const_t, x_t, mt_lumped_inv ),                       &
                         setval_c( y_uvw, 0.0_r_solver ),                                           &
                         apply_mixed_lu_operator_kernel_type( y_uvw, x_uvw, x_t, xvec_p,            &
-                                                             mm_vel, p2theta, div_star, m2_diag ), &
+                                                             mm_vel, p2theta, div_star, m2_diag,   &
+                                                             const_u ),                            &
                         apply_elim_mixed_lp_operator_kernel_type( yvec_p, x_t, x_uvw,              &
                                                                   xvec_p, m3_exner_star,           &
-                                                                  q32_op, p3theta),                &
+                                                                  q32_rho_op, p3theta, const_r ),  &
                         enforce_bc_kernel_type( y_uvw ) )
            end if
 
@@ -311,19 +332,27 @@ contains
            ! For analytic elimination:
            ! Q32 = tau*dt*M3^rho * D * rho^ref + <v,k * dpi/dz * dtheta/dz * k.v>
            ! and x_t = 0
-           q32_op => get_eliminated_q32()
+           q32_rho_op => get_eliminated_q32_rho()
            q22_op => get_eliminated_q22()
+           q32_theta_op => get_eliminated_q32_theta()
            call q22u%initialise( vector_space = u_fs )
+           call q32t_p%initialise( yvec_p%get_function_space() )
            call invoke( name="analytic_elim_mixed_lhs",                                            &
                         setval_c( x_t, 0.0_r_solver ),                                             &
                         setval_c( y_uvw, 0.0_r_solver ),                                           &
                         apply_mixed_lu_operator_kernel_type( y_uvw, x_uvw, x_t, xvec_p,            &
-                                                             mm_vel, p2theta, div_star, m2_diag ), &
+                                                             mm_vel, p2theta, div_star, m2_diag,   &
+                                                             const_u ),                            &
                         apply_elim_mixed_lp_operator_kernel_type( yvec_p, x_t, x_uvw,              &
                                                                   xvec_p, m3_exner_star,           &
-                                                                  q32_op, p3theta),                &
+                                                                  q32_rho_op, p3theta, const_r ),  &
+                        setval_c( q32t_p, 0.0_r_solver ),                                          &
+                        matrix_vector_kernel_type( q32t_p, x_uvw, q32_theta_op ),                  &
+                        inc_a_times_X( const_t, q32t_p ),                                          &
+                        inc_X_plus_Y( yvec_p, q32t_p ),                                            &
                         setval_c( q22u, 0.0_r_solver ),                                            &
                         matrix_vector_kernel_type( q22u, x_uvw, q22_op ),                          &
+                        inc_a_times_X( const_tu, q22u ),                                           &
                         inc_X_minus_Y( y_uvw, q22u ),                                              &
                         enforce_bc_kernel_type( y_uvw ) )
 

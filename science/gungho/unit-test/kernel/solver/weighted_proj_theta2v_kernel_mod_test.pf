@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2023 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> Test the projection operator from the velocity space to
@@ -145,7 +147,6 @@ contains
                                      ncells_3d,       &
                                      local_stencil,   &
                                      theta_data,      &
-                                     1.0_r_solver,    &
                                      0,               &
                                      0,               &
                                      ndf_wt,          &

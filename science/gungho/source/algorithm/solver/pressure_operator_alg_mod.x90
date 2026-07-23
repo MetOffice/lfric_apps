@@ -43,7 +43,10 @@ module pressure_operator_alg_mod
                                                 get_ptheta2v, &
                                                 get_p3theta, &
                                                 get_helm_diag, &
-                                                get_hb_lumped_inv
+                                                get_hb_lumped_inv, &
+                                                get_tau_u_dt_cp, &
+                                                get_tau_t_dt, &
+                                                get_tau_r_dt
   use boundaries_config_mod,              only: limited_area
   use base_mesh_config_mod,               only: topology, topology_non_periodic
   use function_space_mod,                 only: function_space_type
@@ -161,7 +164,7 @@ contains
     type(r_solver_field_type),      pointer :: x_vec => null(), &
                                                y_vec => null()
 
-    real(kind=r_solver), parameter     :: one = 1.0_r_solver
+    real(kind=r_solver)                :: const_u, const_t, const_r
     integer(kind=i_def), parameter     :: one_int = 1_i_def
     integer(kind=i_def)                :: mesh_id
     logical(kind=l_def)                :: lam_mesh
@@ -201,6 +204,9 @@ contains
           p3theta         => get_p3theta(self%level)
           u_normalisation => get_normalisation_r_solver(W2, mesh_id)
           hb_lumped_inv   => get_hb_lumped_inv(self%level)
+          const_u = get_tau_u_dt_cp() ! tau_u*dt*cp: scales grad_p (from div_star)
+          const_t = get_tau_t_dt()    ! tau_t*dt: scales the potential temp term
+          const_r = get_tau_r_dt()    ! tau_r*dt: scales the divergence term
           call grad_p%initialise( hb_lumped_inv%get_function_space() )
           if ( limited_area ) then
             w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
@@ -209,23 +215,25 @@ contains
                          scaled_matrix_vector_kernel_type(grad_p, x_vec,               &
                                                           div_star, hb_lumped_inv,     &
                                                           u_normalisation),            &
+                         inc_a_times_X( const_u, grad_p ),                             &
                          enforce_bc_kernel_type( grad_p ),                             &
                          inc_X_times_Y( grad_p, w2_mask ),                             &
                          apply_variable_hx_kernel_type(y_vec, grad_p,                  &
                                                        mt_lumped_inv, x_vec,           &
                                                        compound_div, p3theta, ptheta2, &
-                                                       m3_exner_star, one) )
+                                                       m3_exner_star, const_r, const_t) )
           else
             call invoke( setval_c( grad_p, 0.0_r_solver ),                             &
                          setval_c( y_vec, 0.0_r_solver ),                              &
                          scaled_matrix_vector_kernel_type(grad_p, x_vec,               &
                                                           div_star, hb_lumped_inv,     &
                                                           u_normalisation),            &
+                         inc_a_times_X( const_u, grad_p ),                             &
                          enforce_bc_kernel_type( grad_p ),                             &
                          apply_variable_hx_kernel_type(y_vec, grad_p,                  &
                                                        mt_lumped_inv, x_vec,           &
                                                        compound_div, p3theta, ptheta2, &
-                                                       m3_exner_star, one) )
+                                                       m3_exner_star, const_r, const_t) )
           end if
           if ( normalise ) then
             h_diag => get_helm_diag(self%level)

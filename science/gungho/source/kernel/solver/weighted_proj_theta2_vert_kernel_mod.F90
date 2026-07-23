@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 !> @brief Compute the projection operator from the vertical part of the
 !>        velocity space to the potential temperature space weighted by the
@@ -14,8 +16,8 @@ module weighted_proj_theta2_vert_kernel_mod
 
   use argument_mod,      only : arg_type, func_type,     &
                                 GH_OPERATOR, GH_FIELD,   &
-                                GH_SCALAR, GH_REAL,      &
                                 GH_INTEGER,              &
+                                GH_SCALAR, GH_REAL,      &
                                 GH_READ, GH_WRITE,       &
                                 GH_BASIS, GH_DIFF_BASIS, &
                                 CELL_COLUMN, GH_QUADRATURE_XYoZ
@@ -35,10 +37,9 @@ module weighted_proj_theta2_vert_kernel_mod
   !>
   type, public, extends(kernel_type) :: weighted_proj_theta2_vert_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                        &
+    type(arg_type) :: meta_args(4) = (/                        &
          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, Wtheta, W2), &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),     &
-         arg_type(GH_SCALAR,   GH_REAL, GH_READ),              &
          arg_type(GH_SCALAR,   GH_INTEGER, GH_READ),           &
          arg_type(GH_SCALAR,   GH_INTEGER, GH_READ)            &
          /)
@@ -65,7 +66,6 @@ contains
 !! @param[in] ncell_3d Total number of cells in the 3d mesh
 !! @param[in,out] projection Locally assembled projection operator
 !! @param[in] theta Potential temperature array
-!! @param[in] scalar Real to scale matrix by
 !! @param[in] element_order_h Horizontal element order of the function space
 !! @param[in] element_order_v Vertical element order of the function space
 !! @param[in] ndf_wtheta Number of degrees of freedom per cell for Wtheta
@@ -83,7 +83,6 @@ contains
 subroutine weighted_proj_theta2_vert_code(cell, nlayers, ncell_3d,              &
                                           projection,                           &
                                           theta,                                &
-                                          scalar,                               &
                                           element_order_h,                      &
                                           element_order_v,                      &
                                           ndf_wtheta, undf_wtheta, map_wtheta,  &
@@ -106,7 +105,6 @@ subroutine weighted_proj_theta2_vert_code(cell, nlayers, ncell_3d,              
 
   real(kind=r_solver), dimension(ncell_3d,ndf_wtheta,ndf_w2), intent(inout) :: projection
   real(kind=r_solver), dimension(undf_wtheta),                intent(in)    :: theta
-  real(kind=r_solver),                                        intent(in)    :: scalar
 
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
@@ -159,7 +157,7 @@ subroutine weighted_proj_theta2_vert_code(cell, nlayers, ncell_3d,              
         ! so the pragmatic solution is to enfoce dtheta/dz > 0 here
         grad_theta_at_quad(3) = max(1.0_r_solver, grad_theta_at_quad(3))
         wt = real(wqp_h(qp1)*wqp_v(qp2), r_solver)
-        i1 = scalar*grad_theta_at_quad*wt
+        i1 = grad_theta_at_quad*wt
         do df2 = ndf_w2h_vol+1,ndf_w2
           ! W2 dofs are ordered:
           !   a) Horizontal volume dofs

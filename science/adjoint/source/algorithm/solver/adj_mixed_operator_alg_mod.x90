@@ -50,7 +50,7 @@ module adj_mixed_operator_alg_mod
                                                          get_ptheta2,       &
                                                          get_m3_exner_star, &
                                                          get_p3theta,       &
-                                                         get_eliminated_q32
+                                                         get_eliminated_q32_rho
   use solver_constants_mod,                        only: get_w2_mass_matrix_r_solver, &
                                                          get_normalisation_r_solver
   use timing_mod,                                  only: start_timing, &
@@ -91,7 +91,7 @@ contains
     type(r_solver_field_type), pointer    :: w2_mask, w3_mask
     type(r_solver_field_type)             :: x_t
     real(kind=r_solver), parameter        :: minus_one = -1.0_r_solver
-    type(r_solver_operator_type), pointer :: q32_op
+    type(r_solver_operator_type), pointer :: q32_rho_op
     type(r_solver_field_type), pointer    :: xvec_uv, xvec_p, xvec_w
     type(r_solver_field_type), pointer    :: yvec_uv, yvec_p, yvec_w
 
@@ -202,13 +202,14 @@ contains
 
         select case (eliminate_variables)
         case (eliminate_variables_discrete)
-          q32_op => get_eliminated_q32()
+          q32_rho_op => get_eliminated_q32_rho()
           if (optimised_operator) then
             call invoke( adj_apply_mixed_operator_kernel_type( yvec_uv, yvec_w, yvec_p,            &
                                                                xvec_uv, xvec_w, xvec_p,            &
                                                                ptheta2, mt_lumped_inv,             &
                                                                mm_vel, p2theta, div_star, m2_diag, &
-                                                               m3_exner_star, q32_op, p3theta ),   &
+                                                               m3_exner_star, q32_rho_op,          &
+                                                               p3theta ),                          &
                          setval_c( yvec_uv, 0.0_r_solver ) )
           else
             t_fs => function_space_collection%get_fs( mesh, p_h, p_v, Wtheta )
@@ -217,7 +218,7 @@ contains
                          enforce_bc_kernel_type(y_uvw),                                                 &
                          adj_apply_elim_mixed_lp_operator_kernel_type( yvec_p, x_t, x_uvw,              &
                                                                        xvec_p, m3_exner_star,           &
-                                                                       q32_op, p3theta ),               &
+                                                                       q32_rho_op, p3theta ),           &
                          adj_apply_mixed_lu_operator_kernel_type( y_uvw, x_uvw, x_t, xvec_p,            &
                                                                   mm_vel, p2theta, div_star, m2_diag ), &
                          setval_c( y_uvw, 0.0_r_solver ),                                               &

@@ -2,6 +2,9 @@
 ! (C) Crown copyright 2018 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> @brief Preconditioner for the Euler equations system.
@@ -115,7 +118,11 @@ module mixed_schur_preconditioner_alg_mod
                                              get_p3theta, &
                                              get_helm_diag, &
                                              get_Hb_lumped_inv, &
-                                             get_eliminated_q32
+                                             get_eliminated_q32_rho, &
+                                             get_eliminated_q32_theta, &
+                                             get_tau_u_dt_cp, &
+                                             get_tau_t_dt, &
+                                             get_tau_r_dt
   use solver_constants_mod,            only: get_normalisation_r_solver
   use limited_area_constants_mod,      only: get_mask_r_solver
   use fs_continuity_mod,               only: W2, W3, Wtheta
@@ -319,12 +326,14 @@ contains
                                                ptheta2,        &
                                                p3theta,        &
                                                compound_div,   &
-                                               q32_op
+                                               q32_rho_op,     &
+                                               q32_theta_op
     type( r_solver_field_type ),    pointer :: mt_lumped_inv,  &
                                                h_diag,         &
                                                Hb_lumped_inv
-    type( r_solver_field_type )             :: r_p, rhs_d
-    real( kind=r_solver ),        parameter :: minus_one = -1.0_r_solver
+    type( r_solver_field_type )             :: r_p, rhs_d, r_p_theta
+    real( kind=r_solver )                   :: const_r, const_t
+    real( kind=r_solver )                   :: minus_const_r, minus_const_t
     type( r_solver_field_type )             :: rhs_uvw
     type( r_solver_field_type ),  pointer   :: w2_mask, &
                                                w3_mask
@@ -371,6 +380,14 @@ contains
     compound_div  => get_compound_div()
     Hb_lumped_inv => get_Hb_lumped_inv()
 
+    ! The SI operators are now assembled unscaled; re-apply the tau*dt scalings
+    ! here. The divergence term uses tau_r*dt and the potential temperature term
+    ! uses tau_t*dt.
+    const_r = get_tau_r_dt()
+    const_t = get_tau_t_dt()
+    minus_const_r = -const_r
+    minus_const_t = -const_t
+
     ! Compute rhs_u terms
     call invoke( name = "compute_elim_helmholtz_ru",           &
                  X_times_Y( self%rhs_u, rhs_uvw, Hb_lumped_inv ) )
@@ -382,9 +399,17 @@ contains
     ! Compute H(rhs_u)
     if ( eliminate_variables == eliminate_variables_analytic ) then
       ! r_pi = rhs_pi - Q32*rhs_u
-      q32_op => get_eliminated_q32()
+      ! with the analytic Q32 = tau_r*dt*eliminated_q32_rho
+      !                       + tau_t*dt*eliminated_q32_theta
+      q32_rho_op   => get_eliminated_q32_rho()
+      q32_theta_op => get_eliminated_q32_theta()
       call r_p%initialise( rhs%get_function_space() )
-      call invoke( dg_matrix_vector_kernel_type(r_p, self%rhs_u, q32_op), &
+      call r_p_theta%initialise( rhs%get_function_space() )
+      call invoke( dg_matrix_vector_kernel_type(r_p, self%rhs_u, q32_rho_op),         &
+                   inc_a_times_X(const_r, r_p),                                       &
+                   dg_matrix_vector_kernel_type(r_p_theta, self%rhs_u, q32_theta_op), &
+                   inc_a_times_X(const_t, r_p_theta),                                 &
+                   inc_X_plus_Y(r_p, r_p_theta),                                      &
                    X_minus_Y(rhs, rhs_p, r_p ) )
     else
       ! r_pi = rhs_pi + P03*M0^-1*rhs_t + M3rho*M3^-1*rhs_r
@@ -397,12 +422,12 @@ contains
                      opt_apply_variable_hx_kernel_type(                 &
                            rhs, self%rhs_u, mt_lumped_inv, rhs_d,       &
                            compound_div, p3theta, ptheta2, m3_rho_star, &
-                           minus_one, rhs_p) )
+                           minus_const_r, minus_const_t, rhs_p) )
       else
         call invoke( apply_variable_hx_kernel_type(                     &
                            rhs, self%rhs_u, mt_lumped_inv, rhs_d,       &
                            compound_div, p3theta, ptheta2, m3_rho_star, &
-                           minus_one),                                  &
+                           minus_const_r, minus_const_t),               &
                      inc_X_plus_Y(rhs, rhs_p) )
       end if
     end if
@@ -448,6 +473,7 @@ contains
     type( r_solver_field_type )             :: u_inc
     type(r_solver_field_type),      pointer :: w2_mask
     integer( kind=i_def )                   :: mesh_id
+    real( kind=r_solver )                   :: const_u
 
     type(r_solver_field_type), pointer :: state_uv, &
                                           state_p,  &
@@ -470,6 +496,8 @@ contains
     u_normalisation => get_normalisation_r_solver(W2, mesh_id)
     div_star        => get_div_star()
     Hb_lumped_inv   => get_Hb_lumped_inv()
+
+    const_u = get_tau_u_dt_cp()
     ! u' = ru + BC[HB * unorm * D * p']
     if ( split_w ) then
       state_uv => state%get_field_from_position( isol_uv )
@@ -483,6 +511,7 @@ contains
       call uvw_norm%initialise( vector_space = self%rhs_u%get_function_space() )
       call invoke( name = "compute_split_increments",                         &
                    X_times_Y(uvw_norm, u_normalisation, Hb_lumped_inv),       &
+                   inc_a_times_X(const_u, uvw_norm),                          &
                    setval_c(state_uv, 0.0_r_solver),                          &
                    schur_backsub_kernel_type( state_uv, state_w, self%rhs_u,  &
                                               exner_inc, div_star,            &
@@ -492,10 +521,11 @@ contains
       call u_inc%initialise( vector_space = self%rhs_u%get_function_space() )
       call invoke( name = "compute_increments",                                &
                    setval_c(u_inc, 0.0_r_solver),                              &
-                   setval_X(u_inc, self%rhs_u),                                &
                    scaled_matrix_vector_kernel_type(u_inc, exner_inc,          &
                                                     div_star, u_normalisation, &
                                                     Hb_lumped_inv),            &
+                   inc_a_times_X(const_u, u_inc),                              &
+                   inc_X_plus_Y(u_inc, self%rhs_u),                            &
                    enforce_bc_kernel_type(u_inc) )
       if ( limited_area ) then
         w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)

@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
@@ -13,7 +15,7 @@ module weighted_proj_theta2_kernel_mod
 
 use argument_mod,            only : arg_type, func_type,     &
                                     GH_OPERATOR, GH_FIELD,   &
-                                    GH_SCALAR, GH_REAL,      &
+                                    GH_REAL,                 &
                                     GH_READ, GH_WRITE,       &
                                     GH_BASIS, GH_DIFF_BASIS, &
                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
@@ -31,10 +33,9 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: weighted_proj_theta2_kernel_type
   private
-  type(arg_type) :: meta_args(3) = (/                        &
+  type(arg_type) :: meta_args(2) = (/                        &
        arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, Wtheta, W2), &
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),     &
-       arg_type(GH_SCALAR,   GH_REAL, GH_READ)               &
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta)      &
        /)
   type(func_type) :: meta_funcs(2) = (/                      &
        func_type(Wtheta, GH_BASIS, GH_DIFF_BASIS),           &
@@ -59,7 +60,6 @@ contains
 !! @param[in] ncell_3d Total number of cells in the 3d mesh
 !! @param[in,out] projection Locally assembled projection operator
 !! @param[in] theta Potential temperature array
-!! @param[in] scalar Real to scale matrix by
 !! @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
 !! @param[in] undf_wt Number of unique degrees of freedom for Wtheta
 !! @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
@@ -77,7 +77,6 @@ contains
 subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,         &
                                      projection,                      &
                                      theta,                           &
-                                     scalar,                          &
                                      ndf_wt, undf_wt, map_wt,         &
                                      wt_basis, wt_diff_basis,         &
                                      ndf_w2, w2_basis, w2_diff_basis, &
@@ -98,7 +97,6 @@ subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,         &
 
   real(kind=r_solver), dimension(ncell_3d,ndf_wt,ndf_w2), intent(inout) :: projection
   real(kind=r_solver), dimension(undf_wt),                intent(in)    :: theta
-  real(kind=r_solver),                                    intent(in)    :: scalar
 
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
@@ -134,7 +132,7 @@ subroutine weighted_proj_theta2_code(cell, nlayers, ncell_3d,         &
           theta_at_quad = theta_at_quad + theta_e(df)*rsol_wt_basis(1,df,qp1,qp2)
         end do
         wgt = real(wqp_h(qp1)*wqp_v(qp2), r_solver)
-        i1 = scalar*theta_at_quad*wgt
+        i1 = theta_at_quad*wgt
         do df2 = 1,ndf_w2
           do dft = 1,ndf_wt
             div_gamma_v = rsol_wt_basis(1,dft,qp1,qp2)*rsol_w2_diff_basis(1,df2,qp1,qp2) &

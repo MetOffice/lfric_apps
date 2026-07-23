@@ -2,6 +2,9 @@
 ! (C) Crown copyright 2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 !> @brief Adjoint of semi_implicit_solver_alg_mod
 
@@ -312,7 +315,8 @@ contains
     use solver_constants_mod,                only: get_normalisation_r_solver, get_im3_div_r_solver, get_normalisation
     use mr_indices_mod,                      only: nummr
     use si_operators_alg_mod,                only: get_m3_rho_star, get_rho_at_u, &
-                                                   get_p2theta, get_p3theta, get_ptheta2
+                                                   get_p2theta, get_p3theta, get_ptheta2, &
+                                                   get_tau_u_dt_cp, get_tau_t_dt
     use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
     use adj_matrix_vector_kernel_mod,        only: adj_matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod,         only: dg_matrix_vector_kernel_type
@@ -347,6 +351,7 @@ contains
                                                          p3theta, p2theta, ptheta2
     type(field_type)                                  :: f_star_rdef
     real(kind=r_solver)                               :: tau_r_dt
+    real(kind=r_solver)                               :: const_u, const_t
     real(kind=r_def)                                  :: tau_r_dt_rdef
     integer(kind=i_def)                               :: mesh_id
     type(integer_field_type), pointer                 :: face_selector_ew, face_selector_ns
@@ -359,6 +364,9 @@ contains
     ! Input fields are r_def fields so preliminary work uses field_types
 
     mesh_id = state(igh_p)%get_mesh_id()
+
+    const_u = get_tau_u_dt_cp()
+    const_t = get_tau_t_dt()
 
     ! Normalise theta & u residual
     t_normalisation => get_normalisation( Wtheta, mesh_id )
@@ -405,7 +413,8 @@ contains
     if (eliminate_variables == eliminate_variables_analytic) then
       call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
     else
-      call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv) )
+      call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv), &
+                   inc_a_times_X(const_t, rhs_tmp) )
     end if
 
     ! Compute theta increment since solver does not provide one
@@ -495,6 +504,7 @@ contains
                      setval_c( rhs_tmp, 0.0_r_solver ),                                  &
                      enforce_bc_kernel_type(rhs_rsol(igh_u)),                            &
                      inc_X_plus_Y( rhs_tmp, rhs_rsol(igh_u) ),                           &
+                     inc_a_times_X( const_u, rhs_tmp ),                                  &
                      inc_X_times_Y( rhs_tmp, m2_diag ),                                  &
                      adj_matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
                      setval_c( rhs_tmp, 0.0_r_solver ),                                  &

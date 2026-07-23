@@ -2,6 +2,8 @@
 ! (C) Crown copyright Met Office. All rights reserved.
 ! For further details please refer to the file COPYRIGHT.txt
 ! which you should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> Test the mixed operator of the semi-implicit lhs
@@ -60,6 +62,9 @@ contains
     integer(i_def) :: df
     real(r_solver) :: answer
 
+    ! Scaling constant applied to the pressure gradient contribution
+    real(r_solver), parameter :: const_u = 3.0_r_solver
+
     map_w2h = (/ 1_i_def, 1_i_def + nlayers /)
     map_w2v = (/ 1_i_def, 2_i_def /)
     map_w2 = (/ 1_i_def, 1_i_def + nlayers, 1_i_def + 2*nlayers, 2_i_def + 2*nlayers /)
@@ -79,7 +84,7 @@ contains
     Nu = 2.0_r_solver
     Luv = 0.0_r_solver
 
-    ! Compute: (L_uv) =  Nu*(Mu*u - Grad*p)
+    ! Compute: (L_uv) =  Nu*(Mu*u - const_u*Grad*p)
     call apply_mixed_u_operator_code(cell,                       &
                                      nlayers,                    &
                                      Luv,                        &
@@ -87,14 +92,17 @@ contains
                                      ncell, Mu,                  &
                                      ncell, Grad,                &
                                      Nu,                         &
+                                     const_u,                    &
                                      ndf_w2h, undf_w2h, map_w2h, &
                                      ndf_w2h, undf_w2h, map_w2h, &
                                      ndf_w2v, undf_w2v, map_w2v, &
                                      ndf_w3, undf_w3, map_w3,    &
                                      ndf_w2, undf_w2, map_w2)
 
-    @assertEqual(2.4_r_solver, Luv(1), tol)
-    @assertEqual(1.6_r_solver, Luv(2), tol)
+    ! df=1: const_u*Nu*(-Grad*p) = 3*2*(-(-1)*1.2) = 7.2
+    ! df=2: const_u*Nu*(-Grad*p) + Nu*Mu*uv = 3*2*(-1*1.2) + 2*2*1 = -7.2 + 4.0
+    @assertEqual(7.2_r_solver, Luv(1), tol)
+    @assertEqual(-3.2_r_solver, Luv(2), tol)
 
   end subroutine test_all
 

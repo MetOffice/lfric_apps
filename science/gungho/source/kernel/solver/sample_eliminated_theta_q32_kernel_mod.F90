@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> @brief Compute the q32 matrix for analytic elimination of theta. The family
@@ -17,7 +19,7 @@ module sample_eliminated_theta_q32_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,       &
                                GH_OPERATOR, GH_FIELD,     &
-                               GH_REAL, GH_SCALAR,        &
+                               GH_REAL,                   &
                                GH_READ, GH_WRITE,         &
                                GH_BASIS, GH_DIFF_BASIS,   &
                                CELL_COLUMN, GH_EVALUATOR
@@ -34,11 +36,10 @@ module sample_eliminated_theta_q32_kernel_mod
   !---------------------------------------------------------------------------
   type, public, extends(kernel_type) :: sample_eliminated_theta_q32_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                      &
+    type(arg_type) :: meta_args(3) = (/                                      &
         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W3, W2),                    &
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
-        arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                            &
-        arg_type(GH_SCALAR,   GH_REAL, GH_READ)                              &
+        arg_type(GH_FIELD, GH_REAL, GH_READ, W3)                             &
         /)
     type(func_type) :: meta_funcs(3) = (/                 &
         func_type(W3,     GH_BASIS),                      &
@@ -64,10 +65,9 @@ contains
 !> @param[in]     cell           Horizontal cell index.
 !> @param[in]     nlayers        Number of layers
 !> @param[in]     ncell_3d       Number of cells in the 3D mesh
-!> @param[in,out] q32_op         sampection matrix
+!> @param[in,out] q32_theta_op   Contribution to q32 from eliminating theta
 !> @param[in]     theta          Potential temperature field
 !> @param[in]     detj_at_w3     Det J evaluated at W3 DoFs
-!> @param[in]     const          Constant scalar to multiply operator by
 !> @param[in]     ndf_w3         Degrees of freedom per cell for the pressure space
 !> @param[in]     undf_w3        Total degrees of freedom for the pressure space
 !> @param[in]     map_w3         Cell dofmap for the pressure space
@@ -84,10 +84,9 @@ contains
 !> @param[in]     diff_basis_wt  Differential basis function for the theta space
 !!                               evaluated at W3 DoFs
 subroutine sample_eliminated_theta_q32_code(cell, nlayers, ncell_3d,   &
-                                            q32_op,                    &
+                                            q32_theta_op,              &
                                             theta,                     &
                                             detj_at_w3,                &
-                                            const,                     &
                                             ndf_w3, undf_w3,           &
                                             map_w3, basis_w3,          &
                                             ndf_w2, basis_w2,          &
@@ -109,10 +108,9 @@ subroutine sample_eliminated_theta_q32_code(cell, nlayers, ncell_3d,   &
   real(kind=r_def), dimension(1, ndf_wt, ndf_w3), intent(in) :: basis_wt
   real(kind=r_def), dimension(3, ndf_wt, ndf_w3), intent(in) :: diff_basis_wt
 
-  real(kind=r_solver), dimension(ncell_3d, ndf_w3, ndf_w2),  intent(inout) :: q32_op
+  real(kind=r_solver), dimension(ncell_3d, ndf_w3, ndf_w2),  intent(inout) :: q32_theta_op
   real(kind=r_solver), dimension(undf_wt), intent(in)                      :: theta
   real(kind=r_solver), dimension(undf_w3), intent(in)                      :: detj_at_w3
-  real(kind=r_solver),                     intent(in)                      :: const
 
   ! Internal variables
   integer(kind=i_def) :: df, df3, df2, dft, k, ik
@@ -151,14 +149,14 @@ subroutine sample_eliminated_theta_q32_code(cell, nlayers, ncell_3d,   &
       ! g/theta*dtheta/dz) is positive
       dthetadz_q = max(1.0_r_solver, dthetadz_q)
       do df2 = 1, ndf_w2
-        prod = const* dthetadz_q/theta_q * rsol_basis_w2(3,df2,df)
+        prod = dthetadz_q/theta_q * rsol_basis_w2(3,df2,df)
         do df3 = 1, ndf_w3
           samp(df3,df2) = samp(df3,df2) + rsol_basis_w3(1,df3,df)* prod/detj_e
         end do
       end do
     end do
     ! Incrementally add sampled operator
-    q32_op(ik,:,:) = q32_op(ik,:,:) + samp(:,:)
+    q32_theta_op(ik,:,:) = q32_theta_op(ik,:,:) + samp(:,:)
   end do
 
 end subroutine sample_eliminated_theta_q32_code

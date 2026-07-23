@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2023 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
@@ -14,8 +16,8 @@ module weighted_proj_theta2v_kernel_mod
 
 use argument_mod,            only : arg_type, func_type,     &
                                     GH_OPERATOR, GH_FIELD,   &
-                                    GH_SCALAR, GH_REAL,      &
-                                    GH_INTEGER,              &
+                                    GH_INTEGER, GH_SCALAR,   &
+                                    GH_REAL,                 &
                                     GH_READ, GH_WRITE,       &
                                     GH_BASIS, GH_DIFF_BASIS, &
                                     CELL_COLUMN, GH_QUADRATURE_XYoZ
@@ -33,10 +35,9 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: weighted_proj_theta2v_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                        &
+  type(arg_type) :: meta_args(4) = (/                        &
        arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, Wtheta, W2), &
        arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),     &
-       arg_type(GH_SCALAR,   GH_REAL, GH_READ),              &
        arg_type(GH_SCALAR,   GH_INTEGER, GH_READ),           &
        arg_type(GH_SCALAR,   GH_INTEGER, GH_READ)            &
        /)
@@ -63,7 +64,6 @@ contains
 !! @param[in] ncell_3d Total number of cells in the 3d mesh
 !! @param[in,out] projection Locally assembled projection operator
 !! @param[in] theta Potential temperature array
-!! @param[in] scalar Real to scale matrix by
 !! @param[in] element_order_h Horizontal element order of the function space
 !! @param[in] element_order_v Vertical element order of the function space
 !! @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
@@ -83,7 +83,6 @@ contains
 subroutine weighted_proj_theta2v_code(cell, nlayers, ncell_3d,         &
                                      projection,                      &
                                      theta,                           &
-                                     scalar,                          &
                                      element_order_h,                 &
                                      element_order_v,                 &
                                      ndf_wt, undf_wt, map_wt,         &
@@ -107,7 +106,6 @@ subroutine weighted_proj_theta2v_code(cell, nlayers, ncell_3d,         &
 
   real(kind=r_solver), dimension(ncell_3d,ndf_wt,ndf_w2), intent(inout) :: projection
   real(kind=r_solver), dimension(undf_wt),                intent(in)    :: theta
-  real(kind=r_solver),                                    intent(in)    :: scalar
 
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
@@ -155,7 +153,7 @@ subroutine weighted_proj_theta2v_code(cell, nlayers, ncell_3d,         &
           theta_at_quad = theta_at_quad + theta_e(df)*rsol_wt_basis(1,df,qp1,qp2)
         end do
         wgt = real(wqp_h(qp1)*wqp_v(qp2), r_solver)
-        i1 = scalar*theta_at_quad*wgt
+        i1 = theta_at_quad*wgt
         do df2 = ndf_w2h_vol+1, ndf_w2
           ! W2 dofs are ordered:
           !   a) Horizontal volume dofs

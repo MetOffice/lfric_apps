@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> @brief Compute the q2t matrix for analytic elimination of theta by Galerkin Projection.
@@ -17,7 +19,7 @@ module eliminated_theta_q2t_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,     &
                                GH_OPERATOR, GH_FIELD,   &
-                               GH_REAL, GH_SCALAR,      &
+                               GH_REAL,                 &
                                GH_READ, GH_WRITE,       &
                                GH_BASIS, GH_DIFF_BASIS, &
                                CELL_COLUMN, GH_QUADRATURE_XYoZ
@@ -35,11 +37,10 @@ module eliminated_theta_q2t_kernel_mod
 
   type, public, extends(kernel_type) :: eliminated_theta_q2t_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                       &
+    type(arg_type) :: meta_args(3) = (/                       &
         arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, Wtheta), &
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),         &
-        arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),     &
-        arg_type(GH_SCALAR,   GH_REAL, GH_READ)               &
+        arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta)      &
         /)
     type(func_type) :: meta_funcs(2) = (/                     &
         func_type(W2,     GH_BASIS),                          &
@@ -66,7 +67,6 @@ contains
 !> @param[in,out] q2t_op        Projection matrix
 !> @param[in]     norm_u        Normalisation for the momentum equation
 !> @param[in]     exner         Exner pressure in Wtheta space
-!> @param[in]     const         Constant scalar to multiply operator by
 !> @param[in]     ndf_w2        Degrees of freedom per cell for the velocity space
 !> @param[in]     undf_w2       Total degrees of freedom for the velocity space
 !> @param[in]     map_w2        Cell dofmap for the velocity space
@@ -86,7 +86,6 @@ contains
 subroutine eliminated_theta_q2t_code(cell, nlayers, ncell_3d, &
                                      q2t_op,                  &
                                      norm_u, exner,           &
-                                     const,                   &
                                      ndf_w2, undf_w2, map_w2, &
                                      basis_w2,                &
                                      ndf_wt, undf_wt, map_wt, &
@@ -112,7 +111,6 @@ subroutine eliminated_theta_q2t_code(cell, nlayers, ncell_3d, &
 
   real(kind=r_solver), dimension(undf_wt), intent(in) :: exner
   real(kind=r_solver), dimension(undf_w2), intent(in) :: norm_u
-  real(kind=r_solver),                     intent(in) :: const
 
   real(kind=r_def), dimension(nqp_h),   intent(in) :: wqp_h
   real(kind=r_def), dimension(nqp_v),   intent(in) :: wqp_v
@@ -145,7 +143,7 @@ subroutine eliminated_theta_q2t_code(cell, nlayers, ncell_3d, &
 
         wt = real(wqp_h(qp1) * wqp_v(qp2), r_solver)
         do dft = 1, ndf_wt
-          integrand = wt * const  &
+          integrand = wt  &
                     * dexnerdz_q * rsol_basis_wt(1,dft,qp1,qp2)
           do df2 = 1, ndf_w2
             q2t_op(ik,df2,dft) = q2t_op(ik,df2,dft)    &

@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 !> @brief Computes the boundary part of the projection operator from the
 !>        potential temperature space to the velocity space weighted by the
@@ -19,7 +21,7 @@ module weighted_proj_2theta_bd_kernel_mod
                                mesh_data_type,              &
                                reference_element_data_type, &
                                GH_OPERATOR, GH_FIELD,       &
-                               GH_SCALAR, GH_REAL,          &
+                               GH_REAL,                     &
                                GH_READ, GH_READWRITE,       &
                                STENCIL, CROSS, GH_BASIS,    &
                                GH_QUADRATURE_face,          &
@@ -40,11 +42,10 @@ module weighted_proj_2theta_bd_kernel_mod
   !> PSy layer.
   type, public, extends(kernel_type) :: weighted_proj_2theta_bd_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                     &
+    type(arg_type) :: meta_args(3) = (/                                     &
          arg_type(GH_OPERATOR, GH_REAL, GH_READWRITE, W2, Wtheta),          &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,      W3, STENCIL(CROSS)),  &
-         arg_type(GH_FIELD,    GH_REAL, GH_READ,      Wtheta),              &
-         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                            &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,      Wtheta)               &
          /)
     type(func_type) :: meta_funcs(3) = (/                                   &
          func_type(W2,     GH_BASIS),                                       &
@@ -81,7 +82,6 @@ contains
   !> @param[in] stencil_w3_size Size of the W3 stencil (number of cells)
   !> @param[in] stencil_w3_map W3 dofmaps for the stencil
   !> @param[in] moist_dyn_factor The moist dynamics factor for theta
-  !> @param[in] scalar Real to scale matrix by
   !> @param[in] ndf_w2 Number of degrees of freedom per cell for W2
   !> @param[in] w2_basis_face W2 basis functions evaluated at Gaussian
   !!                          quadrature points on horizontal faces
@@ -110,7 +110,6 @@ contains
                                            projection, exner,               &
                                            stencil_w3_size, stencil_w3_map, &
                                            moist_dyn_factor,                &
-                                           scalar,                          &
                                            ndf_w2, w2_basis_face,           &
                                            ndf_wtheta, undf_wtheta,         &
                                            map_wtheta, wtheta_basis_face,   &
@@ -148,7 +147,6 @@ contains
     real(kind=r_solver), dimension(ncell_3d,ndf_w2,ndf_wtheta), intent(inout) :: projection
     real(kind=r_solver), dimension(undf_w3),                    intent(in)    :: exner
     real(kind=r_solver), dimension(undf_wtheta),                intent(in)    :: moist_dyn_factor
-    real(kind=r_solver),                                        intent(in)    :: scalar
 
     integer(kind=i_def), intent(in) :: adjacent_face(:)
 
@@ -209,7 +207,7 @@ contains
               v  = rsol_w2_basis_face(:,df2,qp,face)
 
               integrand = rsol_wqp_f(qp,face)*exner_av*dot_product(v, normal)
-              projection(ik,df2,df0) = projection(ik,df2,df0) - scalar*integrand
+              projection(ik,df2,df0) = projection(ik,df2,df0) - integrand
             end do ! df2
           end do ! df0
 

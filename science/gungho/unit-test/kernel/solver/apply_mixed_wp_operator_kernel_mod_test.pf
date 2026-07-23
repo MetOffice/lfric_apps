@@ -2,6 +2,8 @@
 ! (C) Crown copyright Met Office. All rights reserved.
 ! For further details please refer to the file COPYRIGHT.txt
 ! which you should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> Test the mixed operator of the semi-implicit lhs
@@ -70,6 +72,14 @@ contains
     real(r_solver), dimension(undf_w2v) :: answer
     real(r_solver)                      :: answer_p
 
+    ! Scaling constants applied at the point of use of the SI operators
+    real(r_solver), parameter :: const_u = 2.0_r_solver
+    real(r_solver), parameter :: const_t = 0.5_r_solver
+    real(r_solver), parameter :: const_r = 3.0_r_solver
+    integer(i_def)                      :: dfv
+    real(r_solver), dimension(undf_wt)  :: t
+    real(r_solver), dimension(ndf_w2)   :: u
+
     map_w2h = (/ 1_i_def, 1_i_def + nlayers /)
     map_w2v = (/ 1_i_def, 2_i_def /)
     map_w2 = (/ 1_i_def, 1_i_def + nlayers, 1_i_def + 2*nlayers, 2_i_def + 2*nlayers /)
@@ -103,9 +113,9 @@ contains
     Nu(:) = 2.0_r_solver
     invMt(:) = 0.25_r_solver
 
-    ! Compute: (L_uv, L_w) =  Nu*(Mu*u - Proj*t - Grad*p)
-    !          L_p   = M3p*p - P3t*t + Q32*u
-    ! with t = -Mt^-1 * Pt2*u
+    ! Compute: (L_uv, L_w) =  Nu*(Mu*u - const_u*Proj*t - const_u*Grad*p)
+    !          L_p   = M3p*p - P3t*t + const_r*Q32*u
+    ! with t = -const_t * Mt^-1 * Pt2*u
     call apply_mixed_wp_operator_code(cell,                       &
                                       nlayers,                    &
                                       Lw, Lp,                     &
@@ -119,40 +129,40 @@ contains
                                       ncell, M3p,                 &
                                       ncell, Q32,                 &
                                       ncell, P3t,                 &
+                                      const_u, const_t, const_r,  &
                                       ndf_w2v, undf_w2v, map_w2v, &
                                       ndf_w3, undf_w3, map_w3,    &
                                       ndf_w2h, undf_w2h, map_w2h, &
                                       ndf_wt, undf_wt, map_wt,    &
                                       ndf_w2, undf_w2, map_w2)
 
-    ! The code below can be used to generate the answers required and
-    ! is kept to here to make altering the unit test following changes in the
-    ! kernel easier
-    !t(:) = 0.0_r_solver
-    !do k = 1, nlayers
-    !  t(k)   = t(k)   - Pt2(k,1,3)*w(k) - Pt2(k,1,4)*w(k+1)
-    !  t(k+1) = t(k+1) - Pt2(k,2,3)*w(k) - Pt2(k,2,4)*w(k+1)
-    !end do
-    !t(:) = invMt(:)*t(:)
+    ! Independent reference computation of the expected answer, including the
+    ! tau*dt scaling constants applied at the point of use.
+    t(:) = 0.0_r_solver
+    do k = 1, nlayers
+      t(k)   = t(k)   - Pt2(k,1,3)*w(k) - Pt2(k,1,4)*w(k+1)
+      t(k+1) = t(k+1) - Pt2(k,2,3)*w(k) - Pt2(k,2,4)*w(k+1)
+    end do
+    t(:) = const_t*invMt(:)*t(:)
 
-    !answer(:) = 0.0_r_solver
-    !do k = 0, nlayers - 1
-    !  do dfv = 1,ndf_w2v
-    !    u = (/ uv(1+k), uv(4+k), w(1+k), w(2+k) /)
-    !    df = ndf_w2h+dfv
-    !    answer(map_w2v(dfv)+k) = answer(map_w2v(dfv)+k) &
-    !                           + Nu(map_w2(df)+k)*(sum(Mu(k+1,df,:)*u)           &
-    !                                             - sum(P2t(k+1,df,:)*t(k+1:k+2)) &
-    !                                             - Grad(k+1,df,1)*p(1+k))
-    !  end do
-    !end do
-    !u = (/ uv(1), uv(4), w(1), w(2) /)
-    !answer_p = M3p(1,1,1)*p(1) - sum(P3t(1,1,:)*t(1:2)) + sum(Q32(1,1,:)*u(1:4))
-
-    answer = (/ 0.0_r_solver, 58.0_r_solver, -32.0_r_solver, 0.0_r_solver /)
+    answer(:) = 0.0_r_solver
+    do k = 0, nlayers - 1
+      do dfv = 1,ndf_w2v
+        u = (/ uv(1+k), uv(4+k), w(1+k), w(2+k) /)
+        df = ndf_w2h+dfv
+        answer(map_w2v(dfv)+k) = answer(map_w2v(dfv)+k)                        &
+                               + Nu(map_w2(df)+k)*( sum(Mu(k+1,df,:)*u)        &
+                               + const_u*( - sum(P2t(k+1,df,:)*t(k+1:k+2))     &
+                                           - Grad(k+1,df,1)*p(1+k) ) )
+      end do
+    end do
+    ! Boundary conditions on lhs_w
+    answer(map_w2v(1)) = 0.0_r_solver
+    answer(map_w2v(2)+nlayers-1) = 0.0_r_solver
     @assertEqual(answer, Lw, tol)
 
-    answer_p = 72.6_r_solver
+    u = (/ uv(1), uv(4), w(1), w(2) /)
+    answer_p = M3p(1,1,1)*p(1) - sum(P3t(1,1,:)*t(1:2)) + const_r*sum(Q32(1,1,:)*u(1:4))
     @assertEqual(answer_p, Lp(1), tol)
 
   end subroutine test_all

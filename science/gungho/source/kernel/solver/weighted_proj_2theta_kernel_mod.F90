@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 !> @brief Compute the projection operator from the potential temperature space
 !!        to the velocity space weighted by the pressure gradient.
@@ -18,7 +20,7 @@ module weighted_proj_2theta_kernel_mod
 
   use argument_mod,      only: arg_type, func_type,     &
                                GH_OPERATOR, GH_FIELD,   &
-                               GH_SCALAR, GH_REAL,      &
+                               GH_REAL,                 &
                                GH_READ, GH_WRITE,       &
                                ANY_SPACE_9,             &
                                GH_BASIS, GH_DIFF_BASIS, &
@@ -37,11 +39,10 @@ module weighted_proj_2theta_kernel_mod
 
   type, public, extends(kernel_type) :: weighted_proj_2theta_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                             &
+    type(arg_type) :: meta_args(3) = (/                             &
          arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, W2, ANY_SPACE_9), &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),              &
-         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_SPACE_9),     &
-         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                    &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_SPACE_9)      &
          /)
     type(func_type) :: meta_funcs(3) = (/                           &
          func_type(W2,          GH_BASIS, GH_DIFF_BASIS),           &
@@ -68,7 +69,6 @@ contains
 !! @param[in,out] projection Projection operator to compute
 !! @param[in] exner Exner pressure
 !! @param[in] moist_dyn_factor The moist dynamics factor for theta
-!! @param[in] scalar Real to scale matrix by
 !! @param[in] ndf_w2 Number of degrees of freedom per cell
 !! @param[in] basis_w2 Basis functions evaluated at quadrature points
 !! @param[in] diff_basis_w2 Differential vector basis functions evaluated
@@ -91,7 +91,6 @@ subroutine weighted_proj_2theta_code(cell, nlayers, ncell_3d,             &
                                      projection,                          &
                                      exner,                               &
                                      moist_dyn_factor,                    &
-                                     scalar,                              &
                                      ndf_w2, basis_w2, diff_basis_w2,     &
                                      ndf_wtheta, undf_wtheta, map_wtheta, &
                                      basis_wtheta, diff_basis_wtheta,     &
@@ -118,7 +117,6 @@ subroutine weighted_proj_2theta_code(cell, nlayers, ncell_3d,             &
   real(kind=r_solver), dimension(ncell_3d,ndf_w2,ndf_wtheta), intent(inout) :: projection
   real(kind=r_solver), dimension(undf_w3),                    intent(in)    :: exner
   real(kind=r_solver), dimension(undf_wtheta),                intent(in)    :: moist_dyn_factor
-  real(kind=r_solver),                                        intent(in)    :: scalar
 
   real(kind=r_def), dimension(nqp_h), intent(in) :: wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) :: wqp_v
@@ -158,7 +156,7 @@ subroutine weighted_proj_2theta_code(cell, nlayers, ncell_3d,             &
                      + exner_e(df)*rsol_basis_w3(1,df,qp1,qp2)
         end do
         wt = real(wqp_h(qp1)*wqp_v(qp2), r_solver)
-        integrand = scalar*exner_quad*wt
+        integrand = exner_quad*wt
         do df0 = 1, ndf_wtheta
           do df2 = 1, ndf_w2
             div_gamma_v = rsol_diff_basis_w2(1,df2,qp1,qp2)*rsol_basis_wtheta(1,df0,qp1,qp2) &

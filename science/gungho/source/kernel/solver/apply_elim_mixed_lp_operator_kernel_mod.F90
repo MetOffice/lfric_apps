@@ -2,6 +2,8 @@
 ! (C) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Opus 4.8).
 !-----------------------------------------------------------------------------
 
 !> @brief Apply the semi-implicit mixed operator to the equation of state.
@@ -19,6 +21,7 @@ module apply_elim_mixed_lp_operator_kernel_mod
   use argument_mod,      only : arg_type,              &
                                 GH_FIELD, GH_OPERATOR, &
                                 GH_READ, GH_WRITE,     &
+                                GH_SCALAR,             &
                                 GH_REAL, CELL_COLUMN
   use constants_mod,     only : r_solver, i_def
   use kernel_mod,        only : kernel_type
@@ -34,14 +37,15 @@ module apply_elim_mixed_lp_operator_kernel_mod
 
   type, public, extends(kernel_type) :: apply_elim_mixed_lp_operator_kernel_type
     private
-    type(arg_type) :: meta_args(7) = (/                       &
+    type(arg_type) :: meta_args(8) = (/                       &
          arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),        & ! lhs_exner
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),    & ! theta'
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),        & ! u'
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),        & ! exner'
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),    & ! M3^exner
-         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),    & ! Q32
-         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, Wtheta) & ! P3theta
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),    & ! Q32_rho
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, Wtheta),& ! P3theta
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)              & ! const_r
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -66,10 +70,16 @@ contains
 !> @param[in]     ncell1    Total number of cells for the m3exner operator
 !> @param[in]     m3exner   W3 mass matrix weighted by the reference Exner pressure
 !> @param[in]     ncell2    Total number of cells for the m3rho operator
-!> @param[in]     q32       Projection matrix from W2 to W3
+!> @param[in]     q32_rho   Projection matrix from W2 to W3 (density
+!!                          contribution to Q32; the theta contribution is
+!!                          carried instead through the p3theta*theta' term,
+!!                          since theta' already carries the tau_t*dt scaling
+!!                          when discretely eliminated -- see call sites)
 !> @param[in]     ncell3    Total number of cells for the p3theta operator
 !> @param[in]     p3theta   Projection from Wtheta to W3 weighted by the reference
 !!                          potential temperature
+!> @param[in]     const_r   tau_r*dt scaling constant applied to the Q32
+!!                          (density) contribution to the equation of state
 !> @param[in]     ndf_w3    Number of degrees of freedom per cell for the density space
 !> @param[in]     undf_w3   Unique number of degrees of freedom for the density space
 !> @param[in]     map_w3    Dofmap for the cell at the base of the column for the
@@ -86,8 +96,9 @@ subroutine apply_elim_mixed_lp_operator_code(cell,                    &
                                              lhs_exner,               &
                                              theta, u, exner,         &
                                              ncell1, m3exner,         &
-                                             ncell2, q32,             &
+                                             ncell2, q32_rho,         &
                                              ncell3, p3theta,         &
+                                             const_r,                 &
                                              ndf_w3, undf_w3, map_w3, &
                                              ndf_wt, undf_wt, map_wt, &
                                              ndf_w2, undf_w2, map_w2)
@@ -109,10 +120,11 @@ subroutine apply_elim_mixed_lp_operator_code(cell,                    &
   real(kind=r_solver), dimension(undf_wt), intent(in)    :: theta
   real(kind=r_solver), dimension(undf_w3), intent(in)    :: exner
   real(kind=r_solver), dimension(undf_w2), intent(in)    :: u
+  real(kind=r_solver),                     intent(in)    :: const_r
 
   ! Operators
   real(kind=r_solver), dimension(ncell1, ndf_w3, ndf_w3), intent(in) :: m3exner
-  real(kind=r_solver), dimension(ncell2, ndf_w3, ndf_w2), intent(in) :: q32
+  real(kind=r_solver), dimension(ncell2, ndf_w3, ndf_w2), intent(in) :: q32_rho
   real(kind=r_solver), dimension(ncell3, ndf_w3, ndf_wt), intent(in) :: p3theta
 
   ! Internal variables
@@ -137,7 +149,7 @@ subroutine apply_elim_mixed_lp_operator_code(cell,                    &
     ! LHS for this element
     lhs_e = matmul(m3exner(ik,:,:), p_e) &
           - matmul(p3theta(ik,:,:), t_e) &
-          + matmul(q32(ik,:,:),     u_e)
+          + const_r*matmul(q32_rho(ik,:,:), u_e)
     do df = 1, ndf_w3
       lhs_exner(map_w3(df)+k) = lhs_e(df)
     end do

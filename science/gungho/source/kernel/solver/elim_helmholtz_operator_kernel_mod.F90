@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> @brief Compute the coefficients of the Helmholz operator for lowest-order
@@ -22,6 +24,7 @@ module elim_helmholtz_operator_kernel_mod
 
   use argument_mod,      only : arg_type,                   &
                                 GH_FIELD, GH_OPERATOR,      &
+                                GH_SCALAR,                  &
                                 GH_REAL, GH_READ, GH_WRITE, &
                                 STENCIL, CROSS, CELL_COLUMN
   use constants_mod,     only : i_def, r_solver
@@ -38,15 +41,18 @@ module elim_helmholtz_operator_kernel_mod
 
   type, public, extends(kernel_type) :: elim_helmholtz_operator_kernel_type
     private
-    type(arg_type) :: meta_args(8) = (/                                &
+    type(arg_type) :: meta_args(11) = (/                               &
          arg_type(GH_FIELD*9,  GH_REAL, GH_WRITE, W3),                 & ! Helmholtz operator
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2, STENCIL(CROSS)), & ! hb_lumped_inv
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                 & ! u_normalisation
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W3),             & ! div_star
          arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),             & ! M3_exner
-         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),             & ! Q32
-         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),             & ! M3^-1
-         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2)                  & ! W2 mask
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),             & ! Q32_rho
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),             & ! Q32_theta
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                 & ! W2 mask
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                      & ! tau_u*dt*cp
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ),                      & ! tau_r*dt
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                       & ! tau_t*dt
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -84,9 +90,19 @@ contains
 !> @param[in]     div_star        Weighted transpose of the divergence operator
 !> @param[in]     ncell_3d_2      Total number of cells for m3_exner_star matrix
 !> @param[in]     m3_exner_star   Weighted W3 mass matrix
-!> @param[in]     ncell_3d_3      Total number of cells for q32 matrix
-!> @param[in]     q32             Weighted projection operator from W2 to W3
+!> @param[in]     ncell_3d_3      Total number of cells for q32_rho matrix
+!> @param[in]     q32_rho         Weighted projection operator from W2 to W3
+!!                                (compound_div contribution)
+!> @param[in]     ncell_3d_4      Total number of cells for q32_theta matrix
+!> @param[in]     q32_theta       Projection operator from W2 to W3 from
+!!                                eliminating theta
 !> @param[in]     w2_mask         LAM mask for W2 space
+!> @param[in]     tau_u_dt_cp     Off-centring weight tau_u multiplied by the
+!!                                timestep and cp, applied to div_star
+!> @param[in]     tau_r_dt        Off-centring weight tau_r multiplied by the
+!!                                timestep, applied to q32_rho
+!> @param[in]     tau_t_dt        Off-centring weight tau_t multiplied by the
+!!                                timestep, applied to q32_theta
 !> @param[in]     ndf_w3          Number of degrees of freedom per cell for the pressure space
 !> @param[in]     undf_w3         Unique number of degrees of freedom  for the pressure space
 !> @param[in]     map_w3          Dofmap for the cell at the base of the column for the pressure space
@@ -107,8 +123,11 @@ subroutine elim_helmholtz_operator_code(stencil_size,                     &
                                         ncell_3d_2,                       &
                                         m3_exner_star,                    &
                                         ncell_3d_3,                       &
-                                        q32,                              &
+                                        q32_rho,                          &
+                                        ncell_3d_4,                       &
+                                        q32_theta,                        &
                                         w2_mask,                          &
+                                        tau_u_dt_cp, tau_r_dt, tau_t_dt,  &
                                         ndf_w3, undf_w3, map_w3,          &
                                         ndf_w2, undf_w2, map_w2)
 
@@ -119,7 +138,7 @@ subroutine elim_helmholtz_operator_code(stencil_size,                     &
   integer(kind=i_def),                                  intent(in) :: stencil_size
   integer(kind=i_def), dimension(stencil_size),         intent(in) :: cell_stencil
   integer(kind=i_def),                                  intent(in) :: ncell_3d_1, ncell_3d_2, &
-                                                                      ncell_3d_3
+                                                                      ncell_3d_3, ncell_3d_4
   integer(kind=i_def),                                  intent(in) :: undf_w2, ndf_w2
   integer(kind=i_def),                                  intent(in) :: undf_w3, ndf_w3
   integer(kind=i_def),                                  intent(in) :: smap_size_w2
@@ -138,7 +157,11 @@ subroutine elim_helmholtz_operator_code(stencil_size,                     &
   ! Operators
   real(kind=r_solver), dimension(ncell_3d_1, ndf_w2, ndf_w3), intent(in) :: div_star
   real(kind=r_solver), dimension(ncell_3d_2, ndf_w3, ndf_w3), intent(in) :: m3_exner_star
-  real(kind=r_solver), dimension(ncell_3d_3, ndf_w3, ndf_w2), intent(in) :: q32
+  real(kind=r_solver), dimension(ncell_3d_3, ndf_w3, ndf_w2), intent(in) :: q32_rho
+  real(kind=r_solver), dimension(ncell_3d_4, ndf_w3, ndf_w2), intent(in) :: q32_theta
+
+  ! Scalars
+  real(kind=r_solver), intent(in) :: tau_u_dt_cp, tau_r_dt, tau_t_dt
 
   ! Internal variables
   integer(kind=i_def) :: k, ik, kk, df, e, stencil_ik
@@ -282,7 +305,8 @@ subroutine elim_helmholtz_operator_code(stencil_size,                     &
         a_op(df,:,e-1) = -u_normalisation(smap_w2(df,e)+k) &
                          *w2_mask(smap_w2(df,e)+k)         &
                          *hb_lumped_inv(smap_w2(df,e)+k)   &
-                         *div_star(stencil_ik,df,:)
+                         *div_star(stencil_ik,df,:)        &
+                         *tau_u_dt_cp
       end do
 
       ! Vertical stencil:
@@ -303,14 +327,16 @@ subroutine elim_helmholtz_operator_code(stencil_size,                     &
       kk = -1
       if ( k > 0 ) then
         a_op(df,:,down) = -u_normalisation(map_w2(df)+k+kk)*w2_mask(map_w2(df)+k+kk) &
-                          *hb_lumped_inv(map_w2(df)+k+kk)*div_star(ik+kk,df,:)
+                          *hb_lumped_inv(map_w2(df)+k+kk)*div_star(ik+kk,df,:) &
+                          *tau_u_dt_cp
       else
         a_op(df,:,down) = 0.0_r_solver
       end if
       kk = 1
       if ( k < nlayers-1 ) then
         a_op(df,:,up) = -u_normalisation(map_w2(df)+k+kk)*w2_mask(map_w2(df)+k+kk) &
-                        *hb_lumped_inv(map_w2(df)+k+kk)*div_star(ik+kk,df,:)
+                        *hb_lumped_inv(map_w2(df)+k+kk)*div_star(ik+kk,df,:) &
+                        *tau_u_dt_cp
       else
         a_op(df,:,up) = 0.0_r_solver
       end if
@@ -324,8 +350,9 @@ subroutine elim_helmholtz_operator_code(stencil_size,                     &
 
     ! Compute B for all cells in the stencil,
     ! B maps from W2 points to W3 points and we only need it for the central
-    ! cell.
-    b_op = q32(ik,:,:)
+    ! cell. Q32 comprises a compound_div contribution (weighted by tau_r*dt)
+    ! and a theta-elimination contribution (weighted by tau_t*dt).
+    b_op = tau_r_dt*q32_rho(ik,:,:) + tau_t_dt*q32_theta(ik,:,:)
 
     ! Compute C for all cells in the stencil,
     ! C maps from W3 points to W3 points and we only need it for the central

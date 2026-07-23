@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
 !-----------------------------------------------------------------------------
 
 !> Test the weighted W2 mass matrix obtained by eliminating theta
@@ -119,8 +121,6 @@ contains
     ! Coordinate fields
     real(kind=r_def), dimension(ndf_wx) :: x, y, z
     real(kind=r_def)                    :: dx, dy, dz, zero, detj
-    ! Scalars
-    real(kind=r_solver)                    :: const
 
     integer(kind=i_def) :: i, df1, df2
 
@@ -177,7 +177,6 @@ contains
     theta = (/ 300.0_r_solver, 310.0_r_solver /)
     exner = (/ 1.0_r_solver, 0.95_r_solver /)
     norm_u = (/ 2.0_r_solver, 0.5_r_solver, 3.0_r_solver, 6.3_r_solver /)
-    const = 17.0_r_solver
 
     call eliminated_theta_q22_code(cell,                    &
                                    nlayers,                 &
@@ -188,7 +187,6 @@ contains
                                    norm_u,                  &
                                    x, y, z,                 &
                                    panel_id,                &
-                                   const,                   &
                                    ndf_w2, undf_w2, map_w2, &
                                    basis_w2,                &
                                    ndf_wt, undf_wt, map_wt, &
@@ -198,14 +196,14 @@ contains
                                    ndf_p, undf_p, map_p,    &
                                    nqp, nqp, wgt, wgt)
 
-    ! Q22 = norm_u * const * < basis_w2, (dtheta/dz * k.basis_w2)*(k*dexner/dz)/detJ >
+    ! Q22 = norm_u * < basis_w2, (dtheta/dz * k.basis_w2)*(k*dexner/dz)/detJ >
     ! Q22 is only non-zero for vertical dofs (=3,4) so we only need to compute
     ! the answer for these
     detj = dx*dy*dz
     answer = 0.0_r_solver
     do df2 = 3,4
       do df1 = 3,4
-        answer(df1,df2) = 0.25_r_solver * const * norm_u(df1) * &
+        answer(df1,df2) = 0.25_r_solver * norm_u(df1) * &
                           (exner(2)-exner(1))*(theta(2)-theta(1))/real(detj, r_solver)
       end do
     end do
