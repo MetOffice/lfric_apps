@@ -747,10 +747,12 @@ def get_children(node, node_type=Node, exclude=()):
     :returns: list of children according to specifications.
     :rtype: :py:class:`list`
     """
+    # safety checks
     assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
     if not isinstance(node_type, tuple):
         issubclass(node_type, Node)
         node_type = (node_type,)
+    # create the child list
     children = [
         grandchild
         for child in node.children
@@ -759,3 +761,66 @@ def get_children(node, node_type=Node, exclude=()):
         and not isinstance(grandchild, exclude)
     ]
     return children
+
+
+def get_all_children(node, node_type=Node, exclude=()):
+    """
+    A version of get_children, which instead recurses all the way down.
+    Get all immediate descendents of a Node with a given type, i.e., those at
+    the next depth level.
+
+    :arg node: the Node to search for descendents of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+
+    :returns: list of children according to specifications.
+    :rtype: :py:class:`list`
+    """
+    # safety checks
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    if not isinstance(node_type, tuple):
+        issubclass(node_type, Node)
+        node_type = (node_type,)
+
+    # create the local children list to be passed back up the stack
+    local_children = []
+    for child in node.children:
+        # work through the current children, do they match the node_type?
+        if isinstance(child, node_type):
+            local_children.append(child)
+        # if the child has grandchildren, recurse
+        if child.children:
+            returned_children = get_all_children(child, node_type=node_type)
+            for child in returned_children:
+                local_children.append(child)
+    return local_children
+
+
+def are_variables_present(node, check_list=[]):
+    """
+    Call get_all_children with an Assignment, and work through them,
+    checking whether the lhs of the returned list in present in our
+    check list. If it is, return true.
+    :arg node: the node to search for descendants of.
+    :type node: :py:class:`Node`
+    :arg check_list: list of items to check against the descendants
+    :type list: :py:class:`list`
+
+    :returns: skip_over bool
+    :rtype: :py:class:`list`
+    """
+    skip_over = False
+    all_children = get_all_children(node, node_type=Assignment)
+    skip_over = False
+    for child in all_children:
+        child_lhs_str = str(child.lhs).split("\n")
+        for item in check_list:
+            if str(item) in child_lhs_str[0]:
+                skip_over = True
+                break
+        if skip_over:
+            break
+    return skip_over

@@ -5,8 +5,6 @@
 # -----------------------------------------------------------------------------
 '''
 Bespoke PSyclone transformation script for jules_imp_kernel_mod.
-OMP is added around the outer most loop, generally, but accepts
-loops over 'n' where this is otherwise available.
 '''
 
 import logging
@@ -19,6 +17,7 @@ from psyclone.psyir.nodes import (
     OMPDoDirective,)
 from transmute_psytrans.transmute_functions import (
     get_children,
+    are_variables_present,
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC,
 )
 
@@ -38,6 +37,8 @@ ignore_dependencies_for = [
         "surf_lw_up", "surf_lw_down", "sea_ice_temperature", "latent_heat",
         "flandg",
     ]
+
+do_not_omp_over = ["ainfo"]
 
 
 def trans(psyir):
@@ -69,8 +70,13 @@ def trans(psyir):
 
         # If there is not an ancestor node which is a loop
         # Most ideal loops in this file are top loops
-        # Otherwise nested loops over l, n or i are acceptable.
-        if not loop.ancestor(Loop) or loop.variable.name in ['l', 'i']:
+        # However, loops over i, l and n are okay, where the attempt
+        # to paralellise the outer loop has failed or was skipped.
+        if not loop.ancestor(Loop) or loop.variable.name in ['i', 'l', 'n']:
+            # A loop over ainfo%sice_pts_ncat should not be parallised
+            if loop.variable.name == 'n':
+                if are_variables_present(loop, do_not_omp_over):
+                    continue
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
                     loop,

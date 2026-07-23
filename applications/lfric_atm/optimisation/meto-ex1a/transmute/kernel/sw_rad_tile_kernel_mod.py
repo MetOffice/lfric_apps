@@ -5,8 +5,6 @@
 # -----------------------------------------------------------------------------
 '''
 Bespoke PSyclone transformation script for sw_rad_tile_kernel_mod.
-OMP is added around the outer most loop, generally, but accepts
-loops over 'n' where this is otherwise available.
 '''
 
 import logging
@@ -19,6 +17,7 @@ from psyclone.psyir.nodes import (
     OMPDoDirective,)
 from transmute_psytrans.transmute_functions import (
     get_children,
+    are_variables_present,
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC,
 )
 
@@ -26,8 +25,10 @@ from transmute_psytrans.transmute_functions import (
 ignore_dependencies_for = [
     "albedo_obs_scaling", "tile_sw_direct_albedo",
     "tile_sw_diffuse_albedo", "sea_ice_pensolar_frac_direct",
-    "sea_ice_pensolar_frac_diffuse", "flandg",
+    "sea_ice_pensolar_frac_diffuse", "flandg", "weight_blue"
     ]
+
+do_not_omp_over = ["ainfo"]
 
 
 def trans(psyir):
@@ -58,8 +59,15 @@ def trans(psyir):
 
         # If there is not an ancestor node which is a loop
         # Most ideal loops in this file are top loops
+        # However, loops over i, l and n are okay, where the attempt
+        # to paralellise the outer loop has failed or was skipped.
+        # Loops over the i_band are skipped due to low iterations
         if ((not loop.ancestor(Loop) or loop.variable.name in ['i', 'l', 'n'])
                 and loop.variable.name not in ['i_band']):
+            # A loop over ainfo%sice_pts_ncat should not be parallised
+            if loop.variable.name == 'n':
+                if are_variables_present(loop, do_not_omp_over):
+                    continue
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
                     loop,
