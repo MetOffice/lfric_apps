@@ -559,11 +559,14 @@ contains
     !--------------------------------------------------------------------
     ! UM microphysics scheme
     !--------------------------------------------------------------------
-    call microphysics_fields%get_field('dtheta_mphys', dtheta_mphys)
     call clone_bundle(mr_n, dmr_mphys, nummr)
     call set_bundle_scalar(0.0_r_def, dmr_mphys, nummr)
     if ( microphysics == microphysics_um .and. &
          microphysics_placement == microphysics_placement_slow) then
+      ! The UM physics fields are only created when at least one of the
+      ! sections in the create_physics_prognostics guard is active, so this
+      ! field can only be fetched where it is used.
+      call microphysics_fields%get_field('dtheta_mphys', dtheta_mphys)
       if ( microphysics_casim ) then
         call casim_alg( modeldb%config, mr_n, theta, rho,                &
                         derived_fields, microphysics_fields,             &
