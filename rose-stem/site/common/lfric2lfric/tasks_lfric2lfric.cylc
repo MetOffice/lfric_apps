@@ -205,6 +205,49 @@
         "mpi_parts": 4,
     }) %}
 
+{% elif task_ns.conf_name == "oasis_C224_to_Melbourne" %}
+        "opt_confs": ["oasis","source-C224","destination-melbourne"],
+        "resolution": ["melbourne","C224_MG"],
+        "dst_mesh": "melbourne",
+        "dst_name": "melbourne",
+	"dst_type": "regional",
+        "src_mesh": "C224_MG",
+        "src_name": "dynamics",
+	"src_type": "global",
+	"mpi_parts": 216,
+	"kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_C896_to_Melbourne" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["oasis","source-C896","destination-melbourne"],
+        "resolution": ["melbourne","C896_MG"],
+        "dst_mesh": "melbourne",
+        "dst_name": "melbourne",
+        "dst_type": "regional",
+	"src_mesh": "C896_MG",
+        "src_name": "dynamics",
+        "src_type": "global",
+	"mpi_parts": 768,
+	"memory": [250, "GB"],
+	"kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_C896_to_ukv" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["oasis","source-C896","destination-ukv"],
+        "resolution": ["ukv","C896_MG"],
+        "dst_mesh": "ukv",
+        "dst_name": "ukv",
+        "dst_type": "regional",
+	"src_mesh": "C896_MG",
+        "src_name": "dynamics",
+        "src_type": "global",
+	"mpi_parts": 768,
+	"kgo_checks": [],
+    }) %}
 {% elif task_ns.conf_name == "canned" %}
 
     {% do task_dict.update({

@@ -334,29 +334,61 @@ subroutine init_mesh( config,                  &
     ! Read in all global meshes from input file
     !===========================================================
     if (mesh_file(dst) == mesh_file(src)) then
-      call load_global_mesh( mesh_file(dst), mesh_names )
+       call load_global_mesh( mesh_file(dst), mesh_names )
+
+      ! Partition the global meshes
+      !===========================================================
+      call create_local_mesh( mesh_names(dst:dst),           &
+                              local_rank, total_ranks,       &
+                              decomposition_dst,             &
+                              stencil_depths,                &
+                              generate_inner_halos(dst),     &
+                              partitioner_dst,               &
+                              enforce_constraints = .false. )
+      call create_local_mesh( mesh_names(src:src),           &
+                              local_rank, total_ranks,       &
+                              decomposition_src,             &
+                              stencil_depths,                &
+                              generate_inner_halos(src),     &
+                              partitioner_src,               &
+                              enforce_constraints = .false. )
+
     else
-      call load_global_mesh( mesh_file(dst), mesh_names(dst) )
+
+      !! SOURCE
       call load_global_mesh( mesh_file(src), mesh_names(src) )
+      write( log_scratch_space, '(A)' )                                     &
+         'Loaded src'
+      call log_event(log_scratch_space, log_level_debug)
+
+      call create_local_mesh( mesh_names(src:src),           &
+                              local_rank, total_ranks,       &
+                              decomposition_src,             &
+                              stencil_depths,                &
+                              generate_inner_halos(src),     &
+                              partitioner_src,               &
+                              enforce_constraints = .false. )
+
+      call global_mesh_collection%clear()
+
+     !! DESTINATION
+      call load_global_mesh( mesh_file(dst), mesh_names(dst) )
+      write( log_scratch_space, '(A)' )                                     &
+         'Loaded dest'
+      call log_event(log_scratch_space, log_level_debug)
+
+      call create_local_mesh( mesh_names(dst:dst),           &
+                              local_rank, total_ranks,       &
+                              decomposition_dst,             &
+                              stencil_depths,                &
+                              generate_inner_halos(dst),     &
+                              partitioner_dst,               &
+                              enforce_constraints = .false. )
+
+      call global_mesh_collection%clear()
+
+
     endif
-
-    ! Partition the global meshes
-    !===========================================================
-    call create_local_mesh( mesh_names(dst:dst),           &
-                            local_rank, total_ranks,       &
-                            decomposition_dst,             &
-                            stencil_depths,                &
-                            generate_inner_halos(dst),     &
-                            partitioner_dst,               &
-                            enforce_constraints = .false. )
-
-    call create_local_mesh( mesh_names(src:src),           &
-                            local_rank, total_ranks,       &
-                            decomposition_src,             &
-                            stencil_depths,                &
-                            generate_inner_halos(src),     &
-                            partitioner_src,               &
-                            enforce_constraints = .false. )
 
     ! Read in the global intergrid mesh mappings,
     ! then create the associated local mesh maps
@@ -385,4 +417,4 @@ subroutine init_mesh( config,                  &
 
 end subroutine init_mesh
 
-end module lfric2lfric_init_mesh_mod
+end module lfric2lfric_init_mesh
