@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2026 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -9,40 +9,47 @@ Bespoke PSyclone transformation script for sw_rad_tile_kernel_mod.
 
 import logging
 from psyclone.transformations import (
-    OMPLoopTrans,
     TransformationError)
-from psyclone.psyir.nodes import Loop
+from psyclone.psyir.nodes import (
+    Loop,
+    OMPParallelDoDirective,
+    OMPParallelDirective,
+    OMPDoDirective,)
+from transmute_psytrans.transmute_functions import (
+    get_children,
+    are_variables_present,
+    OMP_PARALLEL_LOOP_DO_TRANS_STATIC,
+)
 
 
-omp_transform_par_do = OMPLoopTrans(
-    omp_schedule="static",
-    omp_directive="paralleldo")
-
-options = {"ignore_dependencies_for": [
-    "albedo_obs_scaling",
-    "tile_sw_direct_albedo",
-    "tile_sw_diffuse_albedo",
-    "sea_ice_pensolar_frac_direct",
-    "sea_ice_pensolar_frac_diffuse",
-    ],
-    "node-type-check": False}
+ignore_dependencies_for = [
+    "albedo_obs_scaling", "tile_sw_direct_albedo",
+    "tile_sw_diffuse_albedo", "sea_ice_pensolar_frac_direct",
+    "sea_ice_pensolar_frac_diffuse", "flandg", "weight_blue"
+    ]
 
 
 def trans(psyir):
     '''
     PSyclone function call, run through psyir object,
-    each schedule (or subroutine) and apply OMP paralleldo transformations
-    to each loop in sw_rad_tile_kernel_mod.
+    each schedule (or subroutine) and apply paralleldo transformations
+    to each loop.
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
+    # Work through each loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
+
+        # If there is not an ancestor node which is a loop
         if not loop.ancestor(Loop):
             try:
-                omp_transform_par_do.apply(loop, options)
+                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
+                    loop,
+                    ignore_dependencies_for=ignore_dependencies_for)
 
             except (TransformationError, IndexError) as err:
-                logging.warning(
-                    "Could not transform because:\n %s", err)
+                logging.warning(f"Could not transform because:{err}")
 
 # Ignore loops setting these as order dependent:
 #     land_field l ainfo%land_index sea_pts

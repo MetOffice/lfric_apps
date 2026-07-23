@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+# (C) 2026 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
@@ -29,6 +29,8 @@ def trans(psyir):
     PSyclone function call, run through psyir object,
     each schedule (or subroutine) and apply paralleldo transformations
     to each loop.
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
     fortran_file_name = str(psyir.root.name)
@@ -59,5 +61,4 @@ def trans(psyir):
                     node_type_check=node_type_check)
 
             except (TransformationError, IndexError) as err:
-                logging.warning(
-                    "Could not transform because:\n %s", err)
+                logging.warning(f"Could not transform because:{err}")
