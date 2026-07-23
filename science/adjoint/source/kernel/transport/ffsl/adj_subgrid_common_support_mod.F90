@@ -48,9 +48,11 @@ contains
     real(kind=r_tran),   intent(inout) :: edge_right(nlayers)
     integer(kind=i_def), intent(in)    :: monotone
 
-    real(kind=r_tran) :: cm(nlayers), cc(nlayers), cp(nlayers)
+    real(kind=r_tran), dimension(:), allocatable :: cm, cc, cp
 
     integer(kind=i_def) :: i
+
+    allocate(cm(1:nlayers), cc(1:nlayers), cp(1:nlayers))
 
     i = order + 1
 
@@ -71,6 +73,8 @@ contains
     field(:,i) = field(:,i) + cc(:)*reconstruction(:)
     edge_right(:) = edge_right(:) + cp(:)*reconstruction(:)
     reconstruction(:) = 0.0_r_tran
+
+    deallocate(cm, cc, cp)
 
   end subroutine adj_subgrid_quadratic_recon
 

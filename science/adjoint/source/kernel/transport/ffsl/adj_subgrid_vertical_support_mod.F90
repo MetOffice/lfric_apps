@@ -68,8 +68,8 @@ contains
     real(kind=r_tran),         intent(inout) :: edge_below(nlayers)
     logical(kind=l_def),       intent(in)    :: log_space
 
-    real(kind=r_tran)          :: mass(nlayers)
-    real(kind=r_tran)          :: cmass(nlayers, 3)
+    real(kind=r_tran), dimension(:),   allocatable :: mass
+    real(kind=r_tran), dimension(:,:), allocatable :: cmass
 
     integer(kind=i_def) :: j, k, b_idx, t_idx
 
@@ -77,6 +77,8 @@ contains
       write(log_scratch_space, *) "log_space = T option not supported: result is not linear!"
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
+
+    allocate(mass(1:nlayers), cmass(1:nlayers, 1:3))
 
     mass = 0.0_r_tran
 
@@ -114,6 +116,8 @@ contains
 
     ! Compute an effective mass, which is field scaled by layer depth
     field(:) = field(:) + mass(:) * dz(:)
+
+    deallocate(mass, cmass)
 
   end subroutine adj_third_order_vertical_edge
 

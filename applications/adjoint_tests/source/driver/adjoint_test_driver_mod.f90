@@ -12,6 +12,7 @@ module adjoint_test_driver_mod
   use adj_solver_lookup_cache_mod, only : adj_solver_lookup_cache_type
   use adj_trans_lookup_cache_mod,  only : adj_trans_lookup_cache_type
   use base_mesh_config_mod,        only : prime_mesh_name
+  use constants_mod,               only : i_def
   use extrusion_mod,               only : TWOD
   use fs_continuity_mod,           only : Wtheta, W3
   use field_mod,                   only : field_type
@@ -146,6 +147,7 @@ contains
     type(mesh_type),                   pointer :: twod_mesh
     type(adj_solver_lookup_cache_type)         :: adj_solver_lookup_cache
     type(adj_trans_lookup_cache_type)          :: adj_trans_lookup_cache
+    integer(kind=i_def),             parameter :: nlayers_lite = 2_i_def
 
     mesh => mesh_collection%get_mesh( prime_mesh_name )
     chi      => get_coordinates(mesh)
@@ -160,8 +162,8 @@ contains
     call adjt_convert_cart2sphere_vector_alg( mesh )
 
     ! ./transport/ffsl
-    call adjt_subgrid_quadratic_recon( mesh%get_nlayers() )
-    call adjt_third_order_vertical_edge( mesh%get_nlayers() )
+    call adjt_subgrid_quadratic_recon( nlayers_lite )
+    call adjt_third_order_vertical_edge( nlayers_lite )
 
     call log_event( "TESTING generated adjoint kernels", LOG_LEVEL_INFO )
     call run_gen_adj_kernel_tests( mesh, chi, panel_id )
