@@ -95,7 +95,7 @@ subroutine sync_multidata_field_dimensions()
       call set_zoom_axis_attr(                                                &
             'surface_tiles_sea_ice_zoom_axis',                                &
             get_multidata_field_dimension('land_tiles')+1,                    &
-            1,                                                                &
+            get_multidata_field_dimension('sea_ice_categories'),              &
             tolerate_missing_axes)
       ! Settings for some land tile zoom axes
       call set_zoom_axis_attr(                                                &
