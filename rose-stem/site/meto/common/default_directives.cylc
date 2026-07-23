@@ -51,9 +51,6 @@
         "linear_model": {
             "build_wallclock": 60,
         },
-        "lfric_coupled": {
-            "build_wallclock": 60,
-        },
         "ngarch": {
             "build_wallclock": 45,
         },

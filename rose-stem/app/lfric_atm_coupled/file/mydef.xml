@@ -181,7 +181,7 @@
 	<field field_ref="aerosol__cloud_drop_no_conc" />
       </file>
 
-      <file id="lfric_coupled" name="lfric_coupled" output_freq="1h" convention="UGRID" enabled=".TRUE.">
+      <file id="lfric_atm_coupled" name="lfric_atm_coupled" output_freq="1h" convention="UGRID" enabled=".TRUE.">
 
         <!-- All the raw data coming through the coupler is already in a field_group so we just use that -->
         <field_group group_ref="coupled_fields" />

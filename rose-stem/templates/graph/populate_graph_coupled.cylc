@@ -3,10 +3,10 @@
 {# The file LICENCE, distributed with this code, contains details of the terms #}
 {# under which the code may be used. #}
 {# ########################################################################### #}
-{% do LOG.debug("Entered templates/graph/populate_graph_lfric_coupled.cylc") %}
+{% do LOG.debug("Entered templates/graph/populate_graph_coupled.cylc") %}
 {% do LOG.debug("Task: "~task) %}
 
-{# Define the graph points specific to lfric_coupled builds #}
+{# Define the graph points specific to coupled builds #}
 
 {# ######################### #}
 {# Define the names of tasks #}
@@ -91,4 +91,4 @@
 {% endif %}
 
 
-{% do LOG.debug("Finished in templates/graph/populate_graph_lfric_coupled.cylc") %}
+{% do LOG.debug("Finished in templates/graph/populate_graph_coupled.cylc") %}

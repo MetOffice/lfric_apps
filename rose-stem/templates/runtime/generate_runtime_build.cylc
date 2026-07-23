@@ -73,5 +73,8 @@
 {% if task_ns.application == "lfricinputs" %}
             PROGRAMS                = {{task_values["app_name"]}}
 {% endif %}
+{% if task_values["coupled"] %}
+            COUPLED                 = "True"
+{% endif %}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_build.cylc") %}

@@ -64,9 +64,6 @@ output-format = "grouped"                #group results by file
 "ngarch_mod.f90" = ["C031"]
 "override_timestep_mod.f90" = ["C082"]
 
-# lfric_coupled files:
-"lfric_coupled_test.pf" = ["E001", "C121"]
-
 # lfric2lfric files:
 "lfric2lfric_mod.f90" = ["C031"]
 "lfric2lfric_init_coupler_mod.F90" = ["C082"]
