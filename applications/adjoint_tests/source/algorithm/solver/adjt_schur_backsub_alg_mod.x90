@@ -1,0 +1,264 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for adj_schur_backsub_kernel
+module adjt_schur_backsub_alg_mod
+
+  use base_mesh_config_mod,          only : prime_mesh_name
+  use config_mod,                    only : config_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use fs_continuity_mod,             only : W2, W2h, W2v, W3
+  use operator_mod,                  only : r_solver_operator_type
+  use r_solver_field_mod,            only : r_solver_field_type
+  use constants_mod,                 only : i_def, r_def, &
+                                            r_solver, l_def, EPS
+  use setop_random_alg_mod,          only : setop_random_rsol_alg
+  use limited_area_constants_mod,    only : get_mask_r_solver
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_DEBUG
+
+  implicit none
+  private :: run_adjt_schur_backsub_alg
+  public  :: adjt_schur_backsub_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for adj_schur_backsub.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
+  !> @param[in]  mesh         Mesh object
+  subroutine adjt_schur_backsub_alg(config, mesh)
+
+    implicit none
+
+    ! Arguments
+    type(config_type),        intent(in) :: config
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Passive arguments for tl and adj calls
+    type(r_solver_operator_type)       :: div
+    type(r_solver_field_type)          :: norm
+    logical(kind=l_def)                :: lam
+    type(r_solver_field_type), pointer :: mask
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w2h_ptr
+    type(function_space_type), pointer :: vector_space_w2v_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+    type(r_solver_field_type), target  :: dummy_w2
+
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
+    vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2h)
+    vector_space_w2v_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2v)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3)
+
+    call div%initialise(vector_space_w2_ptr, vector_space_w3_ptr)
+    call norm%initialise(vector_space=vector_space_w2_ptr, name='norm')
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke(setval_random(norm))
+    ! Curiously, this does not work with setval_random mask and lam = .true._l_def...
+    ! But we will not use it with a randomised mask in the alg layer so this is okay.
+    call dummy_w2%initialise(vector_space_w2_ptr)
+    mask => dummy_w2
+    call setop_random_rsol_alg(div)
+
+    lam = .false._l_def
+    call run_adjt_schur_backsub_alg(vector_space_w2h_ptr, &
+                                    vector_space_w2v_ptr, &
+                                    vector_space_w2_ptr,  &
+                                    vector_space_w3_ptr,  &
+                                    div,                  &
+                                    norm,                 &
+                                    lam,                  &
+                                    mask)
+
+    ! We would like to test with lam = .true._l_def but there are some problems
+    ! getting the mask with get_mask_r_solver with the adjoint_tests psyclone.cfg...
+    ! mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
+
+  end subroutine adjt_schur_backsub_alg
+
+  !=============================================================================
+  !> @brief Runs the adjoint test for adj_schur_backsub_kernel
+  !!        for a given set of parameters
+  !> @param[in]     v ector_space_w2h_ptr     W2h function space pointer
+  !> @param[in]      vector_space_w2v_ptr     W2v function space pointer
+  !> @param[in]      vector_space_w2_ptr      W2 function space pointer
+  !> @param[in]      vector_space_w3_ptr      W3 function space pointer
+  !> @param[in]      div                      Local matrix assembly form
+  !!                                          of the weighted diverence operator
+  !> @param[in]      norm                     Normalisation field to scale output by
+  !> @param[in]      lam                      Flag to apply lateral boundary conditions
+  !> @param[in,out]  mask                     Boundary condition mask for lam domains.
+  !!                                          Should be read-only but the routines below
+  !!                                          need to perform halo exchanges on it.
+
+  subroutine run_adjt_schur_backsub_alg(vector_space_w2h_ptr, &
+                                        vector_space_w2v_ptr, &
+                                        vector_space_w2_ptr,  &
+                                        vector_space_w3_ptr,  &
+                                        div,                  &
+                                        norm,                 &
+                                        lam,                  &
+                                        mask)
+
+    use schur_backsub_kernel_mod,     only : schur_backsub_kernel_type
+    use adj_schur_backsub_kernel_mod, only : adj_schur_backsub_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(function_space_type), pointer, intent(in)    :: vector_space_w2h_ptr
+    type(function_space_type), pointer, intent(in)    :: vector_space_w2v_ptr
+    type(function_space_type), pointer, intent(in)    :: vector_space_w2_ptr
+    type(function_space_type), pointer, intent(in)    :: vector_space_w3_ptr
+    type(r_solver_operator_type),       intent(in)    :: div
+    type(r_solver_field_type),          intent(in)    :: norm
+    logical(kind=l_def),                intent(in)    :: lam
+    type(r_solver_field_type),          intent(inout) :: mask
+
+    ! Active arguments for tl and adj calls
+    type(r_solver_field_type) :: lhs_h
+    type(r_solver_field_type) :: lhs_v
+    type(r_solver_field_type) :: rhs
+    type(r_solver_field_type) :: exner_inc
+
+    ! Copies of input fields used in inner products
+    type(r_solver_field_type) :: lhs_h_input
+    type(r_solver_field_type) :: lhs_v_input
+    type(r_solver_field_type) :: rhs_input
+    type(r_solver_field_type) :: exner_inc_input
+
+    ! Inner products
+    real(kind=r_def)    :: lhs_h_inner_prod
+    real(kind=r_def)    :: lhs_v_inner_prod
+    real(kind=r_def)    :: rhs_inner_prod
+    real(kind=r_def)    :: exner_inc_inner_prod
+    real(kind=r_solver) :: lhs_h_sf
+    real(kind=r_solver) :: lhs_v_sf
+    real(kind=r_solver) :: rhs_sf
+    real(kind=r_solver) :: exner_inc_sf
+    real(kind=r_solver) :: inner1
+    real(kind=r_def)    :: lhs_h_lhs_h_input_inner_prod
+    real(kind=r_def)    :: lhs_v_lhs_v_input_inner_prod
+    real(kind=r_def)    :: rhs_rhs_input_inner_prod
+    real(kind=r_def)    :: exner_inc_exner_inc_input_inner_prod
+    real(kind=r_solver) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
+    real(kind=r_solver)            :: machine_tol
+    real(kind=r_solver)            :: relative_diff
+
+    call lhs_h%initialise(vector_space=vector_space_w2h_ptr, name='lhs_h')
+    call lhs_v%initialise(vector_space=vector_space_w2v_ptr, name='lhs_v')
+    call rhs%initialise(vector_space=vector_space_w2_ptr, name='rhs')
+    call exner_inc%initialise(vector_space=vector_space_w3_ptr, name='exner_inc')
+
+    call lhs_h%copy_field_properties(lhs_h_input)
+    call lhs_v%copy_field_properties(lhs_v_input)
+    call rhs%copy_field_properties(rhs_input)
+    call exner_inc%copy_field_properties(exner_inc_input)
+
+    lhs_h_inner_prod = 0.0_r_def
+    lhs_v_inner_prod = 0.0_r_def
+    rhs_inner_prod = 0.0_r_def
+    exner_inc_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(lhs_h), setval_x(lhs_h_input, lhs_h),             &
+                 setval_random(lhs_v), setval_x(lhs_v_input, lhs_v),             &
+                 setval_random(rhs), setval_x(rhs_input, rhs),                   &
+                 setval_random(exner_inc), setval_x(exner_inc_input, exner_inc), &
+                 schur_backsub_kernel_type(lhs_h, lhs_v, rhs, exner_inc,         &
+                                           div, norm, lam, mask),                &
+                 x_innerproduct_x(lhs_h_inner_prod, lhs_h),                      &
+                 x_innerproduct_x(lhs_v_inner_prod, lhs_v),                      &
+                 x_innerproduct_x(rhs_inner_prod, rhs),                          &
+                 x_innerproduct_x(exner_inc_inner_prod, exner_inc) )
+
+    write( log_scratch_space, * ) "adjt_schur_backsub inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "lhs_h inner product = ", lhs_h_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "lhs_v inner product = ", lhs_v_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "rhs inner product = ", rhs_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "exner_inc inner product = ", exner_inc_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+
+    lhs_h_sf = 1.0_r_solver / real(lhs_h_inner_prod + EPS, kind = r_solver)
+    lhs_v_sf = 1.0_r_solver / real(lhs_v_inner_prod + EPS, kind = r_solver)
+    rhs_sf = 1.0_r_solver / real(rhs_inner_prod + EPS, kind = r_solver)
+    exner_inc_sf = 1.0_r_solver / real(exner_inc_inner_prod + EPS, kind = r_solver)
+
+    inner1 = 0.0_r_solver
+    inner1 = inner1 + real(lhs_h_inner_prod, kind = r_solver) * lhs_h_sf
+    inner1 = inner1 + real(lhs_v_inner_prod, kind = r_solver) * lhs_v_sf
+    inner1 = inner1 + real(rhs_inner_prod, kind = r_solver) * rhs_sf
+    inner1 = inner1 + real(exner_inc_inner_prod, kind = r_solver) * exner_inc_sf
+
+    call invoke( inc_a_times_X( lhs_h_sf, lhs_h ), &
+                 inc_a_times_X( lhs_v_sf, lhs_v ), &
+                 inc_a_times_X( rhs_sf, rhs ),     &
+                 inc_a_times_X( exner_inc_sf, exner_inc )  )
+
+    lhs_h_lhs_h_input_inner_prod = 0.0_r_def
+    lhs_v_lhs_v_input_inner_prod = 0.0_r_def
+    rhs_rhs_input_inner_prod = 0.0_r_def
+    exner_inc_exner_inc_input_inner_prod = 0.0_r_def
+
+    call invoke( adj_schur_backsub_kernel_type(lhs_h, lhs_v, rhs, exner_inc,         &
+                                               div, norm, lam, mask),                &
+                 x_innerproduct_y(lhs_h_lhs_h_input_inner_prod, lhs_h, lhs_h_input), &
+                 x_innerproduct_y(lhs_v_lhs_v_input_inner_prod, lhs_v, lhs_v_input), &
+                 x_innerproduct_y(rhs_rhs_input_inner_prod, rhs, rhs_input),         &
+                 x_innerproduct_y(exner_inc_exner_inc_input_inner_prod, exner_inc, exner_inc_input) )
+
+    write( log_scratch_space, * ) "adjt_schur_backsub inner products, post adjoint:"
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "lhs_h inner product = ", lhs_h_lhs_h_input_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "lhs_v inner product = ", lhs_v_lhs_v_input_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "rhs inner product = ", rhs_rhs_input_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "exner_inc inner product = ", exner_inc_exner_inc_input_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+
+    inner2 = 0.0_r_solver
+    inner2 = inner2 + real(lhs_h_lhs_h_input_inner_prod, kind = r_solver)
+    inner2 = inner2 + real(lhs_v_lhs_v_input_inner_prod, kind = r_solver)
+    inner2 = inner2 + real(rhs_rhs_input_inner_prod, kind = r_solver)
+    inner2 = inner2 + real(exner_inc_exner_inc_input_inner_prod, kind = r_solver)
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED schur_backsub_kernel_type (lam = ", lam, "):", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED schur_backsub_kernel_type: (lam = ", lam, "):", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine run_adjt_schur_backsub_alg
+
+end module adjt_schur_backsub_alg_mod

@@ -10,7 +10,9 @@ module adj_mixed_operator_alg_mod
   use base_mesh_config_mod,                        only: prime_mesh_name
   use adj_apply_elim_mixed_lp_operator_kernel_mod, only: adj_apply_elim_mixed_lp_operator_kernel_type
   use adj_apply_mixed_lu_operator_kernel_mod,      only: adj_apply_mixed_lu_operator_kernel_type
-  use adj_apply_mixed_operator_kernel_mod,         only: adj_apply_mixed_operator_kernel_type
+  use adj_assemble_w2h_from_w2hb_kernel_mod,       only: adj_assemble_w2h_from_w2hb_kernel_type
+  use adj_apply_mixed_u_operator_kernel_mod,       only: adj_apply_mixed_u_operator_kernel_type
+  use adj_apply_mixed_wp_operator_kernel_mod,      only: adj_apply_mixed_wp_operator_kernel_type
   use adj_combine_w2_field_kernel_mod,             only: adj_combine_w2_field_kernel_type
   use adj_dg_inc_matrix_vector_kernel_mod,         only: adj_dg_inc_matrix_vector_kernel_type
   use adj_split_w2_field_kernel_mod,               only: adj_split_w2_field_kernel_type
@@ -24,8 +26,9 @@ module adj_mixed_operator_alg_mod
                                                          isol_w, &
                                                          isol_uv
   use formulation_config_mod,                      only: p2theta_vert
-  use fs_continuity_mod,                           only: W2, &
-                                                         W3, &
+  use fs_continuity_mod,                           only: W2,        &
+                                                         W2Hbroken, &
+                                                         W3,        &
                                                          Wtheta
   use function_space_collection_mod,               only: function_space_collection
   use function_space_mod,                          only: function_space_type
@@ -73,8 +76,8 @@ module adj_mixed_operator_alg_mod
 contains
 
   !> @brief Applies the adjoint mixed operator to the vector.
-  !> @param[in]     x Field vector to be read
-  !> @param[in,out] y Field vector to be written
+  !> @param[in,out] x Field vector that is read in the forward
+  !> @param[in,out] y Field vector that is written in the forward
   subroutine apply_adj_mixed_operator(self, x, y)
 
     implicit none
@@ -86,7 +89,7 @@ contains
     type(r_solver_operator_type), pointer :: mm_vel, p2theta, div_star, ptheta2, m3_exner_star, p3theta
     type(r_solver_field_type), pointer    :: mt_lumped_inv, m2_diag
     type(r_solver_field_type)             :: x_uvw, y_uvw
-    type(function_space_type), pointer    :: u_fs, t_fs
+    type(function_space_type), pointer    :: u_fs, t_fs, w2hb_fs
     integer(i_def)                        :: p_h, p_v
     type(r_solver_field_type), pointer    :: w2_mask, w3_mask
     type(r_solver_field_type)             :: x_t
@@ -103,6 +106,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ns
 
     type(r_solver_field_vector_type)    :: x_in
+    type(r_solver_field_type) :: y_uv_broken
     integer(kind=i_def) ::  state_size
     integer(tik)        :: id
 
@@ -166,6 +170,9 @@ contains
         call x_in%import_field( yvec_p, isol_p )
         if (split_w) call x_in%import_field( yvec_w, isol_w )
 
+        p_h = x%vector(isol_u)%get_element_order_h()
+        p_v = x%vector(isol_u)%get_element_order_v()
+
         ! Check if we can use the optimised operator setup
         optimised_operator = (p2theta_vert .and. split_w .and. &
                               eliminate_variables == eliminate_variables_discrete .and. &
@@ -174,9 +181,7 @@ contains
 
         if (.not. optimised_operator) then
           ! Create fields in 3D W2 space
-          p_h = x%vector(isol_u)%get_element_order_h()
-          p_v = x%vector(isol_u)%get_element_order_v()
-           u_fs => function_space_collection%get_fs( mesh, p_h, p_v, W2 )
+          u_fs => function_space_collection%get_fs( mesh, p_h, p_v, W2 )
           call x_uvw%initialise(vector_space=u_fs)
           call y_uvw%initialise(vector_space=u_fs)
           call invoke( setval_c( y_uvw , 0.0_r_solver ), &
@@ -204,12 +209,19 @@ contains
         case (eliminate_variables_discrete)
           q32_op => get_eliminated_q32()
           if (optimised_operator) then
-            call invoke( adj_apply_mixed_operator_kernel_type( yvec_uv, yvec_w, yvec_p,            &
-                                                               xvec_uv, xvec_w, xvec_p,            &
-                                                               ptheta2, mt_lumped_inv,             &
-                                                               mm_vel, p2theta, div_star, m2_diag, &
-                                                               m3_exner_star, q32_op, p3theta ),   &
-                         setval_c( yvec_uv, 0.0_r_solver ) )
+            w2hb_fs => function_space_collection%get_fs(mesh, p_h, p_v, W2Hbroken)
+            call y_uv_broken%initialise( w2hb_fs )
+            call invoke( setval_c( y_uv_broken, 0.0_r_solver ),                                        &
+                         adj_apply_mixed_wp_operator_kernel_type( yvec_w, yvec_p,                      &
+                                                                  xvec_uv, xvec_w, xvec_p,             &
+                                                                  ptheta2, mt_lumped_inv,              &
+                                                                  mm_vel, p2theta, div_star, m2_diag,  &
+                                                                  m3_exner_star, q32_op, p3theta ),    &
+                         adj_assemble_w2h_from_w2hb_kernel_type(yvec_uv, y_uv_broken),                 &
+                         setval_c( yvec_uv, 0.0_r_solver ),                                            &
+                         adj_apply_mixed_u_operator_kernel_type( y_uv_broken,                          &
+                                                                 xvec_uv, xvec_w, xvec_p,              &
+                                                                 mm_vel, div_star, m2_diag ) )
           else
             t_fs => function_space_collection%get_fs( mesh, p_h, p_v, Wtheta )
             call x_t%initialise(vector_space=t_fs)
