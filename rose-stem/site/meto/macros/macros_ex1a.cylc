@@ -5,8 +5,13 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/macros/macros_ex1a.cylc") %}
 
-{% set ex1a_cores_per_node = site_vars.node_cores %}
+{% set ex1a_cores_per_node = 192 %}
 {% set ex1a_socket_per_node = 2 %}
+{# Use these thresholds of ntasks and memory to determine queue #}
+{# If greater than these, then run on normal queue on genoa, otherwise shared queue on milan #}
+{# These thresholds are somewhat arbitrary, chosen so as to not use entire shared nodes #}
+{% set use_normal_task_threshold = 96 %}
+{% set use_normal_mem_threshold = 128 %}
 
 {% macro normal_queue(mpi_ranks,
                         threads,
@@ -70,6 +75,13 @@
         {% set lfric_nodes = possible_nodes %}
 
     {% endif %}
+
+        [[[environment]]]
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 192
+            NUMA_REGIONS_PER_NODE = 2
+
+        [[[directives]]]
     {% if site_vars["ex_trustzone"] == "collab" %}
             -q=collab
     {% else %}
@@ -78,41 +90,24 @@
             -l select={{ lfric_nodes +
                          ocean_nodes|int +
                          river_nodes|int +
-                         xios_nodes|int }}:coretype={{site_vars.node_type}}:mem={{site_vars.node_mem}}GB
+                         xios_nodes|int }}:coretype=genoa:mem=720GB
 {% endmacro %}
 
 
-{% macro shared_queue(cores) %}
+{% macro shared_queue(cores, memory) %}
+        [[[environment]]]
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 128
+            NUMA_REGIONS_PER_NODE = 2
+
+        [[[directives]]]
     {% if site_vars["ex_trustzone"] == "collab" %}
             -q=collabshared
     {% else %}
             -q=shared
     {% endif %}
             -l ncpus={{ cores }}
-
-{% endmacro %}
-
-
-{% macro set_task_resources(mpi_ranks,
-                        memory,
-                        threads=1,
-                        xios_nodes=0,
-                        ocean_nodes=0,
-                        river_nodes=0,
-                        ranks_per_node=0,
-                        ranks_depth_pad=1) %}
-
-    {% set total_other_ranks = xios_nodes + ocean_nodes + river_nodes %}
-    {% set lfric_cores = mpi_ranks * threads %}
-    {# Jobs are always routed to the shared queue on Milan, so use Milan threshold #}
-    {% if lfric_cores >= 128 or total_other_ranks > 0 %}
-        {# This needs to be run on the normal queue #}
-        {{ normal_queue(mpi_ranks, threads, xios_nodes, ocean_nodes, river_nodes, ranks_per_node, ranks_depth_pad) }}
-    {% else %}
-        {# This is small enough to run on the shared queue #}
-        {{ shared_queue(mpi_ranks * threads) }}
-        {{ set_memory(memory) }}
-    {% endif %}
+    {{ set_memory(memory) }}
 
 {% endmacro %}
 
@@ -121,6 +116,41 @@
     {% set value = mem[0]|int %}
     {% set unit = mem[1] %}
             -l mem={{value}}{{unit}}
+{% endmacro %}
+
+
+{% macro set_task_resources(family_name,
+                            family_inherits,
+                            wallclock,
+                            mpi_ranks,
+                            memory,
+                            threads=1,
+                            xios_nodes=0,
+                            ocean_nodes=0,
+                            river_nodes=0,
+                            ranks_per_node=0,
+                            ranks_depth_pad=1) %}
+
+    [[{{family_name|upper}}]]
+        inherit = {{family_inherits|upper}}
+        execution time limit = PT{{wallclock}}M
+
+    {% set total_other_ranks = xios_nodes + ocean_nodes + river_nodes %}
+    {% set lfric_cores = mpi_ranks * threads %}
+
+    {# Are we launching this on the normal or shared queue? #}
+    {% if memory[0] >= use_normal_mem_threshold or lfric_cores >= use_normal_task_threshold or total_other_ranks > 0 %}
+        {% set use_normal = true %}
+    {% else %}
+        {% set use_normal = false %}
+    {% endif %}
+
+    {% if use_normal %}
+        {{ normal_queue(mpi_ranks, threads, xios_nodes, ocean_nodes, river_nodes, ranks_per_node, ranks_depth_pad) }}
+    {% else %}
+        {{ shared_queue(mpi_ranks * threads, memory) }}
+    {% endif %}
+
 {% endmacro %}
 
 {% do LOG.debug("Finished in site/meto/macros/macros_ex1a.cylc") %}

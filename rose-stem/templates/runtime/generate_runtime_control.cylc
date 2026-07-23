@@ -89,12 +89,13 @@
         set_task_resources,
         with context %}
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(resource_family, "", 5, 1, [1, "GB"]) }}
+
     [[{{task}}]]
-        inherit = HOUSEKEEPING, {{platform|upper}}_HOUSEKEEPING
-        execution time limit = PT5M
+        inherit = HOUSEKEEPING, {{platform|upper}}_HOUSEKEEPING, {{resource_family|upper}}
         script = rose task-run --app-key=housekeeping
-        [[[directives]]]
-            {{ set_task_resources(1, [1, "GB"]) }}
 
 {% elif task.startswith("remote-init") %}
 

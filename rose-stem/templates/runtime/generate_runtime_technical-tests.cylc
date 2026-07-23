@@ -28,11 +28,19 @@
     {% set build_script_str = "rm -rf $WORKING_DIR ; "~
                               "make -C $SOURCE_DIRECTORY -j 6 "~mode~"/build" %}
 
-    [[{{task}}]]
-        inherit={{inherit.str|upper}}
-        script={{build_script_str}}
-        execution time limit = PT{{task_values["build_wallclock"]}}M
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        inherit.str,
+        task_values["build_wallclock"],
+        task_values["build_cpus"],
+        task_values["build_memory"]
+        ) }}
 
+    [[{{task}}]]
+        inherit={{resource_family|upper}}
+        script={{build_script_str}}
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}
             APPS_ROOT_DIR = $SOURCE_ROOT/lfric_apps
@@ -41,9 +49,6 @@
             WORKING_DIR = {{working_dir}}/{{mode}}
             RDEF_PRECISION = {{task_values["precision"]["rdef"]}}
             BIN_DIR = {{bin_dir}}
-
-        [[[directives]]]
-    {{ set_task_resources(task_values["build_cpus"], task_values["build_memory"]) }}
 
 
 {% else %}
@@ -63,20 +68,25 @@
     {# Run script #}
     {% set run_script_str = "make -C $SOURCE_DIRECTORY -j 6 "~mode~"/rerun" %}
 
-    [[{{task}}]]
-        inherit={{inherit.str|upper}}
-        script={{run_script_str}}
-        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        inherit.str,
+        task_values["tech-tests_wallclock"],
+        task_values["tech-tests_cpus"],
+        task_values["tech-tests_memory"]
+        ) }}
 
+    [[{{task}}]]
+        inherit={{resource_family|upper}}
+        script={{run_script_str}}
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}
             APPS_ROOT_DIR = $SOURCE_ROOT/lfric_apps
             CORE_ROOT_DIR = $SOURCE_ROOT/lfric_core
             WORKING_DIR = {{working_dir}}/{{mode}}
             BIN_DIR = {{bin_dir}}
-
-        [[[directives]]]
-    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
 
 {% endif %}
 

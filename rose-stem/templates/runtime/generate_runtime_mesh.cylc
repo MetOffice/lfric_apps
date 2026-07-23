@@ -16,10 +16,19 @@
 
 {% set script_str = "rose task-run --app-key=mesh --opt-conf-key="~task_ns.conf_name %}
 
+{# Generate a resource family for the task #}
+{% set resource_family = task~"_resources" %}
+{{ set_task_resources(
+    resource_family,
+    inherit.str,
+    task_values["mesh_wallclock"],
+    task_values["mesh_cpus"],
+    task_values["mesh_memory"]
+    ) }}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit = {{resource_family|upper}}
         script = {{script_str}}
-        execution time limit = PT{{task_values["mesh_wallclock"]}}M
         [[[environment]]]
             DESTINATION_DIRECTORY = {{destination_dir}}
             BIN_DIR               = {{bin_dir}}
@@ -28,8 +37,5 @@
             OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{task_ns.conf_name}}
             TOTAL_RANKS           = {{ task_values["mesh_cpus"]|default("1",true) }}
             FINAL_RANK            = $((TOTAL_RANKS-1))
-
-        [[[directives]]]
-{{ set_task_resources(task_values["mesh_cpus"], task_values["mesh_memory"]) }}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_mesh.cylc") %}

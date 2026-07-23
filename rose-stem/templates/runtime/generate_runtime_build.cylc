@@ -33,10 +33,19 @@
     {%- endif %}
 {%- endif %}
 
+{# Generate a resource family for the task #}
+{% set resource_family = task~"_resources" %}
+{{ set_task_resources(
+    resource_family,
+    inherit.str,
+    task_values["build_wallclock"],
+    task_values["build_cpus"],
+    task_values["build_memory"]
+    ) }}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit={{resource_family|upper}}
         script = 'if command -v module > /dev/null 2>&1; then module list; fi; rose task-run --app-key=compile'
-        execution time limit = PT{{task_values["build_wallclock"]}}M
         [[[environment]]]
             SOURCE_DIRECTORY        = $SOURCE_ROOT/{{src_path}}
             APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps
@@ -64,8 +73,5 @@
 {% if task_ns.application == "lfricinputs" %}
             PROGRAMS                = {{task_values["app_name"]}}
 {% endif %}
-
-        [[[directives]]]
-{{ set_task_resources(task_values["build_cpus"], task_values["build_memory"]) }}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_build.cylc") %}

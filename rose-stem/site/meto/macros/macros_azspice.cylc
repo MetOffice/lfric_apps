@@ -7,14 +7,23 @@
 
 {# Macros here have largely been copied from the UM for now #}
 
-{% macro set_task_resources(mpi_ranks,
-                        memory,
-                        threads=1,
-                        xios_nodes=0,
-                        ocean_nodes=0,
-                        river_nodes=0,
-                        ranks_per_node=0,
-                        ranks_depth_pad=1) %}
+{% macro set_task_resources(family_name,
+                            family_inherits,
+                            wallclock,
+                            mpi_ranks,
+                            memory,
+                            threads=1,
+                            xios_nodes=0,
+                            ocean_nodes=0,
+                            river_nodes=0,
+                            ranks_per_node=0,
+                            ranks_depth_pad=1) %}
+
+    [[{{family_name|upper}}]]
+        inherit = {{family_inherits|upper}}
+        execution time limit = PT{{wallclock}}M
+
+        [[[directives]]]
 
     {{ set_memory(memory) }}
             --ntasks={{mpi_ranks|int + xios_nodes|int}}

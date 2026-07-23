@@ -45,15 +45,22 @@
         {% set inherit.str = inherit.str~",KGO_CHECKS" %}
     {% endif %}
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        inherit.str,
+        task_values["tech-tests_wallclock"],
+        task_values["tech-tests_cpus"],
+        task_values["tech-tests_memory"]
+        ) }}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit={{resource_family|upper}}
         script = 'rose task-run --app-key=check_kgo'
-        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
         [[[environment]]]
             CURRENT_KGO = {{current_kgo}}
             NEW_KGO = {{new_kgo}}
-        [[[directives]]]
-    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
 
 {% elif task.startswith("rose_ana") %}
 
@@ -64,14 +71,22 @@
     {% set rose_ana_run_task = "run"~task.replace("rose_ana", "") %}
     {% set rose_ana_app = "rose_ana_"~task_values["app_name"] %}
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        inherit.str,
+        task_values["tech-tests_wallclock"],
+        task_values["tech-tests_cpus"],
+        task_values["tech-tests_memory"]
+        ) }}
+
     [[{{task}}]]
-        inherit = {{inherit.str|upper}}
+        inherit = {{resource_family|upper}}
         [[[environment]]]
             SUITE_DIR     = ../{{rose_ana_run_task}}
             KGO_DIR       = {{site_vars["lfricinputs_kgo_base"]}}/{{task_values["task_family"]}}/{{kgo_vars[task_values["task_family"]]|default("vn2.1")}}
             ROSE_TASK_APP = {{rose_ana_app}}
-        [[[directives]]]
-    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
 
 {% elif task.startswith("phystest") %}
 {# Phystest Tasks #}
@@ -80,15 +95,22 @@
         {% set inherit.str = inherit.str~","~family|upper %}
     {% endfor %}
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        inherit.str,
+        task_values["tech-tests_wallclock"],
+        task_values["tech-tests_cpus"],
+        task_values["tech-tests_memory"]
+        ) }}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit={{resource_family|upper}}
         script = rose task-run --app-key=phystest
-        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
         [[[environment]]]
             PHYSTEST_DIR = {{task_output_dir}}
             PHYSTEST_SCRIPT = {{task_values["phystest_str"]}}
-        [[[directives]]]
-    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
 
 {% elif task.startswith("pert_compare") %}
 {# Perturbation Comparison Tests #}
@@ -100,30 +122,45 @@
     {% set perturb_output = task_output_dir %}
     {% set perturb_off_output = perturb_output~"_pert_off" %}
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        inherit.str,
+        task_values["tech-tests_wallclock"],
+        task_values["tech-tests_cpus"],
+        task_values["tech-tests_memory"]
+        ) }}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit={{resource_family|upper}}
         script = 'rose task-run --app-key=perturbation_compare'
-        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
         [[[environment]]]
             PERT_ON_TASK  = {{perturb_output}}
             PERT_OFF_TASK = {{perturb_off_output}}
             PLOT_DIR      = {{task_output_dir}}/plots
             PERT_CONFIG   = {{task_values["pert_plot_str"]}}
-        [[[directives]]]
-    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
 
 {% elif task.startswith("metadata_test") %}
     {% for family in task_values["plot_families"] %}
         {% set inherit.str = inherit.str~","~family|upper %}
     {% endfor %}
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        inherit.str,
+        task_values["tech-tests_wallclock"],
+        task_values["tech-tests_cpus"],
+        task_values["tech-tests_memory"]
+        ) }}
+
     [[{{task}}]]
-        inherit = {{inherit.str|upper}}
+        inherit = {{resource_family|upper}}
         script = rose task-run --app-key=validate_output_file_metadata
         [[[environment]]]
             INPUT_RESULTS_DIR = {{task_output_dir}}/results
-        [[[directives]]]
-    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
 
 {% endif %}
 

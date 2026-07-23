@@ -26,65 +26,71 @@
 {# Remove leading commas #}
 {% set inherit.str = inherit.str|trim(",") %}
 
+{# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+{% if "local_build_test" in task %}
+    {{ set_task_resources(resource_family, "", 15, 6, [1, "GB"]) }}
+{% else %}
+    {{ set_task_resources(resource_family, "", 15, 1, [1, "GB"]) }}
+{% endif %}
+
 {# ######################## #}
 {# Scripts Runtime Sections #}
 {# ######################## #}
 
     [[{{task}}]]
-        execution time limit = PT15M
-
 {% if "config_dump_checker" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=check_config_dump"
 
 {% elif "style_checker" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=check_style"
 
 {% elif "fortitude_linter" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=check_fortitude_linter"
 
 {% elif "extract_checker" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=extract_list_checker"
 
 {% elif "site_validator" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=site_validator"
 
 {% elif "rose-stem_lint_checker" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=rose-stem_lint_check"
 
 {% elif "test_launch-exe" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=test_launch-exe"
         [[[environment]]]
             launch_exe_meto_path = $CYLC_WORKFLOW_RUN_DIR/site/meto/common/bin/launch-exe
 
 {% elif "macro_chains_checker" in task %}
 
-        inherit=SCRIPTS,{{site_vars["scripts_platform"]|upper}}_PLOT
+        inherit=SCRIPTS,{{site_vars["scripts_platform"]|upper}}_PLOT, {{resource_family|upper}}
         script="rose task-run --app-key=check_macro_chains"
 
 {% elif "validate_rose_meta" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=validate_rose_meta"
         [[[environment]]]
             ROSE_PYTHONPATH = $PYTHONPATH
 
 {% elif "kgo_groups_checker" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=check_kgo_groups"
         {% set group_str = RUN_NAMES|join(",") %}
         [[[environment]]]
@@ -93,12 +99,12 @@
 
 {% elif "global_variables_checker" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=check_global_variables"
 
 {% elif "python_unit_tests" in task %}
 
-        inherit={{inherit.str|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script="rose task-run --app-key=python_unit_tests"
 
 {% elif "local_build_test" in task %}
@@ -110,7 +116,7 @@
         {% set local_build_inherit = "SCRIPTS,"~site_vars["scripts_platform"]|upper~"_BUILD_INTEL" %}
     {% endif %}
 
-        inherit={{local_build_inherit|upper}}
+        inherit={{local_build_inherit|upper}}, {{resource_family|upper}}
         execution time limit = PT25M
         script = """
                  cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_apps $CYLC_TASK_WORK_DIR/apps_local_build_source
@@ -122,16 +128,6 @@
                  rm -rf $CYLC_TASK_WORK_DIR/core_local_build_source
                  """
 
-{% endif %}
-
-
-{# Directives Macros #}
-{# If this script task has any directives specified at this site, update those #}
-        [[[directives]]]
-{% if "local_build_test" in task %}
-    {{ set_task_resources(6, [1, "GB"]) }}
-{% else %}
-    {{ set_task_resources(1, [1, "GB"]) }}
 {% endif %}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_scripts.cylc") %}

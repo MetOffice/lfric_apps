@@ -27,16 +27,23 @@
         {% set inherit.str = inherit.str~","~family|upper %}
     {% endfor %}
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        inherit.str,
+        task_values["tech-tests_wallclock"],
+        task_values["tech-tests_cpus"],
+        task_values["tech-tests_memory"]
+        ) }}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit={{resource_family|upper}}
         script = rose task-run --app-key=perftools_export
-        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
         [[[environment]]]
             PREVIOUS_JOB={{previous_job}}
             THE_APP_NAME={{task_ns.application}}
             APP_CONFIGURATION_OUTPUT={{task_ns.application}}_{{task_ns.conf_name}}
-        [[[directives]]]
-    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
 
 {% endif %}
 

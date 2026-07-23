@@ -95,12 +95,37 @@
     {% endif %}
 {% endif %}
 
+{# Generate a resource family for the task #}
+{% set resource_family = task~"_resources" %}
+{% if task_ns.application == "lfric_coupled" %}
+    {{ set_task_resources(resource_family,
+                          inherit.str,
+                          task_values["wallclock"],
+                          task_values["mpi_parts"],
+                          task_values["memory"],
+                          threads=task_values["threads"],
+                          xios_nodes=task_values["xios_nodes"],
+                          ocean_nodes=task_values["ocean_nodes"],
+                          river_nodes=task_values["river_nodes"],
+                          ranks_per_node=task_values["task_ranks_per_node"],
+                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
+{% else %}
+    {{ set_task_resources(resource_family,
+                          inherit.str,
+                          task_values["wallclock"],
+                          task_values["mpi_parts"],
+                          task_values["memory"],
+                          threads=task_values["threads"],
+                          xios_nodes=task_values["xios_nodes"],
+                          ranks_per_node=task_values["task_ranks_per_node"],
+                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
+{% endif %}
+
 {# Define the task runtime section #}
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit = {{resource_family|upper}}
         script = {{script_str.name}}
         {{ generate_script("post-script", post_script_commands) }}
-        execution time limit = PT{{task_values["wallclock"]}}M
         [[[environment]]]
             DESTINATION_DIRECTORY   = {{destination_dir}}
             APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps
@@ -164,27 +189,6 @@
 
 {% if task_ns.application == "lfric_coupled" %}
     {% include "templates/runtime/coupled_task_environment.cylc" %}
-{% endif %}
-
-{# Set any directives using macros imported in generate_runtime for this platform #}
-        [[[directives]]]
-
-{% if task_ns.application == "lfric_coupled" %}
-    {{ set_task_resources(task_values["mpi_parts"],
-                          task_values["memory"],
-                          threads=task_values["threads"],
-                          xios_nodes=task_values["xios_nodes"],
-                          ocean_nodes=task_values["ocean_nodes"],
-                          river_nodes=task_values["river_nodes"],
-                          ranks_per_node=task_values["task_ranks_per_node"],
-                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
-{% else %}
-    {{ set_task_resources(task_values["mpi_parts"],
-                          task_values["memory"],
-                          threads=task_values["threads"],
-                          xios_nodes=task_values["xios_nodes"],
-                          ranks_per_node=task_values["task_ranks_per_node"],
-                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
 {% endif %}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_application.cylc") %}
