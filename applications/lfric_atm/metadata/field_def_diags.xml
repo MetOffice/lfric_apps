@@ -496,9 +496,11 @@
   <!-- Jules surface exchange diagnostics -->
   <field id="surface__tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
   <!-- Extracts tile types for sea and sea-ice, removes pseudo-level coordinate, then calculate sea-ice fraction -->
-  <field id="zoomed__sea_ice_tile" field_ref="surface__tile_fraction" domain_ref="face" axis_ref="surface_tiles_sea_ice_zoom" />
+  <!-- sea-ice requires 3-step process to sum over the sea-ice categories -->
+  <field id="temporary__tile_fraction" grid_ref="surface_tile_grid">surface__tile_fraction</field>
+  <field id="zoomed__sea_ice_tile" field_ref="temporary__tile_fraction" grid_ref="sea_ice_tile_grid" />
+  <field id="surface__sea_ice_tile" field_ref="zoomed__sea_ice_tile" grid_ref="vert_sum_face_grid"/>
   <field id="zoomed__sea_tile" field_ref="surface__tile_fraction" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
-  <field id="surface__sea_ice_tile" domain_ref="face"> zoomed__sea_ice_tile </field>
   <field id="surface__sea_tile" domain_ref="face"> zoomed__sea_tile </field>
   <field id="surface__sea_ice_fraction" name="sea_ice_fraction" long_name="sea_ice_area_fraction" standard_name="sea_ice_area_fraction" unit="1" domain_ref="face"> surface__sea_ice_tile / (surface__sea_ice_tile + surface__sea_tile + 1.0e-16) </field>
   <field id="zoomed__urban_tile" field_ref="surface__tile_fraction" domain_ref="face" axis_ref="surface_tiles_urban_zoom"/>
@@ -527,9 +529,7 @@
   <field id="surface__pseudotaux" name="pseudotaux" long_name="surface_eastward_wind_pseudo_stress" unit="N m-2" domain_ref="face" />
   <field id="surface__pseudotauy" name="pseudotauy" long_name="surface_northward_wind_pseudo_stress" unit="N m-2" domain_ref="face" />
   <field id="surface__tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
-  <field id="zoomed__sea_ice_temperature" field_ref="surface__tile_temperature" domain_ref="face" axis_ref="surface_tiles_sea_ice_zoom" />
   <field id="zoomed__sea_temperature" field_ref="surface__tile_temperature" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
-  <field id="surface__sea_ice_temperature" domain_ref="face"> zoomed__sea_ice_temperature </field>
   <field id="surface__sea_temperature" domain_ref="face"> zoomed__sea_temperature </field>
   <field id="surface__grid_surface_temperature" name="grid_surface_temperature" long_name="grid_surface_temperature" unit="K" domain_ref="face" />
   <field id="surface__land_surface_temperature" name="land_surface_temperature" long_name="land_surface_temperature" unit="K" domain_ref="face" />
