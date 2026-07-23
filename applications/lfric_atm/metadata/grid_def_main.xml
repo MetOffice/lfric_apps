@@ -40,7 +40,7 @@
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="photol_species"/>
-  </grid>  
+  </grid>
   <grid id="3D_monthly_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
@@ -101,6 +101,11 @@
     <axis axis_ref="snow_layers_and_tiles"/>
     <axis axis_ref="one_time_axis"/>
   </grid>
+  <grid id="one_time_seaice_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="one_time_axis"/>
+    <axis axis_ref="sea_ice_categories"/>
+  </grid>
   <grid id="one_time_tile_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="land_tiles"/>
@@ -112,6 +117,9 @@
   </grid>
   <grid id="random_seed_grid">
     <axis axis_ref="random_seed_size"/>
+  </grid>
+  <grid id="stochastic_physics_grid">
+    <axis axis_ref="stph_spectral_dimensions"/>
   </grid>
   <!-- Zoom filters -->
   <grid id="full_level_0_face_zoom">

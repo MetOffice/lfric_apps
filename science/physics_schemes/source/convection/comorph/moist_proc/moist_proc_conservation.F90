@@ -234,7 +234,7 @@ if ( .not. allocated(cons_vars) ) then
   end do
 
   ! If this is the 2nd call, at the end of moist_proc
-else  ! ( allocated(cons_vars) )
+else  ! ( ALLOCATED(cons_vars) )
 
   ! Compare new values of conserved variables with the old ones,
   ! and raise an error if they differ by more than the tolerance
@@ -249,7 +249,7 @@ else  ! ( allocated(cons_vars) )
 
     ! Estimate max expected error just from rounding etc;
     ! this should scale with the magnitude of the conserved variable
-    ! times epsilon, times a tolerance factor to account for the fact
+    ! times EPSILON, times a tolerance factor to account for the fact
     ! that moist_proc will have sequentially added multiple different
     ! increments, over-which rounding errors may have accumulated.
     do ic = 1, cmpr%n_points
@@ -259,7 +259,7 @@ else  ! ( allocated(cons_vars) )
       ! If the cons_vars get VERY small, max_error can go to zero
       ! due to floating-point underflow, resulting in wrongly
       ! diagnosing non-conservation.  Prevent this by not
-      ! letting max_error fall below tolerance * tiny
+      ! letting max_error fall below tolerance * TINY
       max_error(ic) = max( max_error(ic), tolerance * min_float )
     end do
 
@@ -282,7 +282,7 @@ else  ! ( allocated(cons_vars) )
   ! Deallocate work array
   deallocate( cons_vars )
 
-end if  ! ( allocated(cons_vars) )
+end if  ! ( ALLOCATED(cons_vars) )
 
 
 return
