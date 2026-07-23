@@ -417,4 +417,4 @@ subroutine init_mesh( config,                  &
 
 end subroutine init_mesh
 
-end module lfric2lfric_init_mesh
+end module lfric2lfric_init_mesh_mod
