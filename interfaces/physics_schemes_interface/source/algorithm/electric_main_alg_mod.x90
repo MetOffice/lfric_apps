@@ -7,6 +7,7 @@
 
 module electric_main_alg_mod
 
+  use config_mod,           only: config_type
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use mesh_mod,             only: mesh_type
@@ -30,8 +31,8 @@ contains
   !>
   !>@param[in]
   !>@param[in,out]
-  subroutine electric_main_alg( mr_n, theta, derived_fields, electric_fields,  &
-                                dt )
+  subroutine electric_main_alg( config, mr_n, theta, derived_fields, &
+                                electric_fields, dt )
 
     use electric_main_kernel_mod,  only: electric_main_kernel_type
     use mr_indices_mod,            only: imr_ci, imr_s, imr_g, nummr
@@ -40,7 +41,9 @@ contains
 
     implicit none
 
-    type( field_type ), intent( in ) :: mr_n ( nummr ), theta
+    type( config_type ), intent( in ) :: config
+
+    type( field_type ),            intent(in) :: mr_n ( nummr ), theta
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: electric_fields
     real( kind=r_def ),            intent(in) :: dt
@@ -89,7 +92,7 @@ contains
     call invoke( setval_c(rhodz_dry, 0.0_r_def), &
                  setval_c(t_local,   0.0_r_def))
 
-    dz_in_wth => get_dz_at_wtheta( mesh%get_id() )
+    dz_in_wth => get_dz_at_wtheta(config, mesh)
 
     call electric_fields%get_field('flash_potential', flash_potential)
     call flash_potential%copy_field_properties(num_flashes_2d)

@@ -162,14 +162,10 @@ contains
   !> @brief Create empty fields to be used as prognostics by the gungho model
   !> @param[in]    mesh       The current 3d mesh
   !> @param[in]    twod_mesh  The current 2d mesh
-  !> @param[in]    coarse_mesh          The coarse 3d mesh
-  !> @param[in]    coarse_twod_mesh     The coarse 2d mesh
   !> @param[in]    mapper     Provides access to the field collections
   !> @param[in]    clock      The model clock
   subroutine create_gungho_prognostics(mesh,                                  &
                                        twod_mesh,                             &
-                                       coarse_mesh,                           &
-                                       coarse_twod_mesh,                      &
                                        mapper,                                &
                                        clock)
 
@@ -177,8 +173,6 @@ contains
 
     type(mesh_type), intent(in), pointer      :: mesh
     type(mesh_type), intent(in), pointer      :: twod_mesh
-    type(mesh_type), intent(in), pointer      :: coarse_mesh
-    type(mesh_type), intent(in), pointer      :: coarse_twod_mesh
     type( field_mapper_type ), intent(in)     :: mapper
     class( clock_type ), intent(in)           :: clock
 
@@ -186,7 +180,7 @@ contains
 
     call log_event( 'GungHo: Creating prognostics...', LOG_LEVEL_INFO )
 
-    call creator%init(mesh, twod_mesh, coarse_mesh, coarse_twod_mesh, mapper, clock)
+    call creator%init(mesh, twod_mesh, mapper, clock)
 
     call process_gungho_prognostics(creator)
 

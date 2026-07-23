@@ -19,12 +19,12 @@ use argument_mod,      only: arg_type, func_type,       &
                              GH_READ, GH_WRITE,         &
                              ANY_DISCONTINUOUS_SPACE_1, &
                              ANY_DISCONTINUOUS_SPACE_3, &
+                             ANY_SPACE_9,               &
                              GH_BASIS,                  &
                              HALO_CELL_COLUMN,          &
                              STENCIL, CROSS2D,          &
                              GH_EVALUATOR
 use constants_mod,     only: r_tran, r_def, i_def, l_def, LARGE_REAL_POSITIVE
-use fs_continuity_mod, only: Wchi
 
 implicit none
 
@@ -39,14 +39,14 @@ type, public, extends(kernel_type) :: init_remap_on_extended_mesh_kernel_type
   type(arg_type) :: meta_args(7) = (/                                                           &
        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),                   &
        arg_type(GH_FIELD,   GH_INTEGER, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),                   &
-       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  Wchi),                                        &
-       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  Wchi, STENCIL(CROSS2D)),                      &
+       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_9),                                 &
+       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_9, STENCIL(CROSS2D)),               &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3, STENCIL(CROSS2D)), &
        arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ),                                               &
        arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)                                                &
        /)
   type(func_type) :: meta_funcs(1) = (/ &
-       func_type(Wchi, GH_BASIS)        &
+       func_type(ANY_SPACE_9, GH_BASIS)        &
        /)
   integer :: operates_on = HALO_CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR

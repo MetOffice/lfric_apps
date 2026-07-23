@@ -7,6 +7,7 @@
 
 module cosp_alg_mod
 
+use config_mod,              only: config_type
 use constants_mod,           only: r_def
 use field_collection_mod,    only: field_collection_type
 use field_mod,               only: field_type
@@ -20,7 +21,6 @@ use mphys_inputs_mod,        only: x1r, x2r
 use mphys_psd_mod,           only: x1g, x2g, x4g
 use microphysics_config_mod, only: microphysics_casim
 use mr_indices_mod,          only: nummr, imr_v, imr_cl, imr_s, imr_ci
-use planet_config_mod,       only: p_zero, kappa
 use timing_mod,              only: start_timing, stop_timing, tik, LPROF
 use log_mod,                 only: log_event, LOG_LEVEL_DEBUG
 
@@ -28,12 +28,17 @@ use cosp_config_mod, only: n_subcol_gen
 use cosp_diags_mod,  only: initialise_diags_for_cosp, output_diags_for_cosp
 use cosp_kernel_mod, only: cosp_kernel_type
 
+! Configuration modules
+use planet_config_mod, only: p_zero, kappa
+
 implicit none
+
 private
 public :: cosp_alg
 
 contains
 
+!> @param[in]     config                   Application namelist configuration object
 !> @param[in]     pressure_in_wth          Pressure field in wth space
 !> @param[in]     temperature_in_wth       Temperature field in wth space
 !> @param[in]     exner                    Exner pressure in w3 space
@@ -53,7 +58,7 @@ contains
 !> @param[in]     conv_liquid_mmr          Convective liquid gridbox MMR
 !> @param[in]     conv_frozen_mmr          Convective frozen gridbox MMR
 !> @param[in]     conv_frozen_number       Convective frozen number conc
-subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
+subroutine cosp_alg(config, pressure_in_wth, temperature_in_wth, exner, mr, &
                     derived_fields, radiation_fields, cloud_fields, &
                     aerosol_fields, convection_fields, microphysics_fields, &
                     rand_seed, n_cloud_layer, &
@@ -62,6 +67,8 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
                     conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   ! Dummy variables
   type( field_type ), intent(in) :: pressure_in_wth
@@ -147,9 +154,9 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
   call convection_fields%get_field('conv_snow_3d', conv_snow_3d)
 
   ! Set height on W3 and Wtheta levels
-  mesh => exner%get_mesh()
-  height_wth => get_height_fv( Wtheta, mesh%get_id() )
-  height_w3  => get_height_fv( W3, mesh%get_id() )
+  mesh       => exner%get_mesh()
+  height_wth => get_height_fv(config, mesh, Wtheta)
+  height_w3  => get_height_fv(config, mesh, W3)
 
   ! Set pressure on W3 levels
   call exner%copy_field_properties(pressure_in_w3)

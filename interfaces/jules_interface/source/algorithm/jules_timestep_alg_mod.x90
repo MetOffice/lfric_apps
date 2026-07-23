@@ -275,7 +275,8 @@ contains
     ! Call jules science algorithms
     call um_sizes_init(ncells)
 
-    call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+    call rad_tile_alg(modeldb%config,                                      &
+                      tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
                       tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
                       tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
                       radiation_fields, orography_fields,                  &
@@ -307,7 +308,8 @@ contains
       call invoke(setval_c(dqw1, 0.0_r_def) )
       call invoke(setval_c(dtl1, 0.0_r_def) )
 
-      call jules_imp_alg(mr, surf_heat_flux, canopy_evap, water_extraction,   &
+      call jules_imp_alg(modeldb%config,                                      &
+                         mr, surf_heat_flux, canopy_evap, water_extraction,   &
                          lake_evap, derived_fields, radiation_fields,         &
                          turbulence_fields, cloud_fields, surface_fields,     &
                          soil_fields, snow_fields, outer, model_clock, loop,  &
@@ -318,7 +320,8 @@ contains
 
     end do !loop
 
-    call jules_extra_alg(microphysics_fields, convection_fields,        &
+    call jules_extra_alg(modeldb%config,                                &
+                         microphysics_fields, convection_fields,        &
                          surface_fields, soil_fields, snow_fields,      &
                          surf_heat_flux, canopy_evap,                   &
                          water_extraction, lake_evap, dt)

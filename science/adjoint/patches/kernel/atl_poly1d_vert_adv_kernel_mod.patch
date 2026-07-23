@@ -79,12 +79,12 @@
 +    ! Compute dtracer/dz using precomputed weights
      do k = nlayers - 1, 1, -1
 -      do p = 0, vertical_order, 1
--        tmp1 = REAL(vertical_order, r_def)
+-        tmp1 = REAL(vertical_order, kind=r_def)
 -        tmp2 = 0.5 * tmp1
 -        itmp3 = FLOOR(tmp2)
 -        stencil(p + 1) = -itmp3 + k + p
 -      enddo
--      upwind = INT(0.5 * SIGN(1.0, ls_wind(k + map_w2v(1))) + 0.5, i_def)
+-      upwind = INT(0.5 * SIGN(1.0, ls_wind(k + map_w2v(1))) + 0.5, kind=i_def)
 -      upwind_offset = upwind * use_upwind
 -      stencil(:) = -upwind_offset + stencil(:)
 -      kmin = stencil(1)
@@ -116,7 +116,7 @@
 +      ! reconstructions only.
 +      ! if wind > 0 -> upwind_offset = 1
 +      ! if wind < 0 -> upwind_offset = 0
-+      upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,ls_wind(map_w2v(1)+k))),i_def)
++      upwind = int(0.5_r_def*(1.0_r_def + sign(1.0_r_def,ls_wind(map_w2v(1)+k))),kind=i_def)
 +      upwind_offset = use_upwind*upwind
 +      stencil = stencil - upwind_offset
 +

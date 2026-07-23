@@ -12,6 +12,7 @@
 !>
 module jedi_lfric_wind_fields_mod
 
+  use base_mesh_config_mod,          only : geometry, topology
   use constants_mod,                 only : str_def, i_def
   use field_collection_mod,          only : field_collection_type
   use field_mod,                     only : field_type
@@ -25,7 +26,6 @@ module jedi_lfric_wind_fields_mod
                                             LOG_LEVEL_DEBUG
   use mesh_collection_mod,           only : mesh_collection
   use mesh_mod,                      only : mesh_type
-  use namelist_mod,                  only : namelist_type
   use pure_abstract_field_mod,       only : pure_abstract_field_type
 
   implicit none
@@ -62,10 +62,11 @@ contains
     type( field_collection_type ),     pointer :: prognostic_fields
     type( function_space_type ),       pointer :: w3_fs
     type( function_space_type ),       pointer :: wtheta_fs
-    type( namelist_type ),             pointer :: base_mesh_nml
-    character( len=str_def )                   :: prime_mesh_name
-    integer( kind=i_def ),           parameter :: element_order_h = 0_i_def
-    integer( kind=i_def ),           parameter :: element_order_v = 0_i_def
+
+    character(str_def) :: prime_mesh_name
+
+    integer(i_def), parameter :: element_order_h = 0_i_def
+    integer(i_def), parameter :: element_order_v = 0_i_def
 
     ! Temporary fields to create prognostics
     type( field_type ) :: u_in_w3
@@ -76,14 +77,13 @@ contains
                     LOG_LEVEL_DEBUG )
 
     nullify( mesh, field_ptr, tmp_ptr, depository, prognostic_fields )
-    nullify( wtheta_fs, w3_fs, base_mesh_nml )
+    nullify( wtheta_fs, w3_fs )
 
     depository => modeldb%fields%get_field_collection("depository")
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
 
     ! Get the mesh
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     mesh => mesh_collection%get_mesh(prime_mesh_name)
 
     ! Create prognostic fields
@@ -166,7 +166,8 @@ contains
       call vector_wind%initialise(fs, "u")
 
       ! Interpolate cell-centre to edge
-      call interp_w3wth_to_w2_alg(vector_wind, u_in_w3, v_in_w3, w_in_wth)
+      call interp_w3wth_to_w2_alg(vector_wind, u_in_w3, v_in_w3, w_in_wth, &
+                                  geometry, topology)
 
       ! Remove the scalar winds
       call linear_state%remove_field("u_in_w3")

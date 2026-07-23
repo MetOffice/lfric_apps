@@ -8,11 +8,12 @@
 
 module blpert_main_alg_mod
 
+  use clock_mod,            only: clock_type
+  use config_mod,           only: config_type
   use constants_mod,        only: i_def, r_def, l_def
   use field_collection_mod, only: field_collection_type
   use field_mod,            only: field_type, field_proxy_type
   use integer_field_mod,    only: integer_field_type
-  use clock_mod,            only: clock_type
   use timing_mod,           only: start_timing, stop_timing, tik, LPROF
 
   implicit none
@@ -25,7 +26,7 @@ contains
   !>@brief Runs the boundary layer stochastic perturbation scheme (BLPERT)
   !>@details
   !>             as documented in UMDP81
-
+  !>@param[in]         config            Application namelist configuration object
   !>@param[in,out]     dtheta_blpert     Increments for theta
   !>@param[in,out]     dmv_blpert        Increments for mv
   !>@param[in]         mv                moisture field
@@ -35,7 +36,7 @@ contains
   !>@param[in]         stph_fields       Fields from stochastic physics scheme
   !>@param[in]         outer             Outer loop counter
   !>@param[in]         clock             Model time information
-  subroutine blpert_main_alg(dtheta_blpert, dmv_blpert, mv, &
+  subroutine blpert_main_alg(config, dtheta_blpert, dmv_blpert, mv, &
                              theta_star_surf, qv_star_surf, &
                              turbulence_fields, stph_fields, outer, clock)
 
@@ -68,6 +69,9 @@ contains
                                              LOG_LEVEL_ERROR
 
     implicit none
+
+    type(config_type), intent(in) :: config
+
     type( field_type ), intent(inout) :: dtheta_blpert
     type( field_type ), intent(inout) :: dmv_blpert
     type( field_type ), intent(in) :: mv
@@ -135,7 +139,7 @@ contains
     mesh => dtheta_blpert % get_mesh()
     twod_mesh => mesh_collection % get_mesh(mesh, TWOD)
     vector_space => function_space_collection % get_fs(twod_mesh, 0, 0, W3)
-    height_wth => get_height_fv(Wtheta, mesh % get_id())
+    height_wth => get_height_fv(config, mesh, Wtheta)
 
     coarse_mesh => mesh_collection % get_mesh(blpert_mesh_name)
     coarse_twod_mesh => mesh_collection % get_mesh(coarse_mesh, TWOD)

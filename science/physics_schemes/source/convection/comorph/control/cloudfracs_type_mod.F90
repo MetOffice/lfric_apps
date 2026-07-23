@@ -10,6 +10,7 @@
 module cloudfracs_type_mod
 
 use comorph_constants_mod, only: real_hmprec, name_length
+use fields_type_mod, only: fields_list_type
 
 implicit none
 
@@ -51,9 +52,14 @@ type :: cloudfracs_type
   real(kind=real_hmprec), pointer :: frac_ice_conv(:,:,:) => null()
   real(kind=real_hmprec), pointer :: frac_bulk_conv(:,:,:) => null()
 
-  ! Convective cloud grid-mean liquid and ice mixing-ratios
+  ! Convective cloud grid-mean liquid, ice, and liquid+ice mixing-ratios
   real(kind=real_hmprec), pointer :: q_cl_conv(:,:,:) => null()
   real(kind=real_hmprec), pointer :: q_cf_conv(:,:,:) => null()
+  real(kind=real_hmprec), pointer :: q_c_conv(:,:,:) => null()
+
+  ! List of pointers to the convective cloud fields that are in use, for the
+  ! purposes of looping over them to do the same thing to all the fields
+  type(fields_list_type), allocatable :: convcloud_list(:)
 
 end type cloudfracs_type
 
@@ -74,6 +80,7 @@ integer :: i_frac_ice_conv = 0
 integer :: i_frac_bulk_conv = 0
 integer :: i_q_cl_conv = 0
 integer :: i_q_cf_conv = 0
+integer :: i_q_c_conv = 0
 
 ! List of the names of each field, stored as character strings
 ! (used for labelling diagnostics and error print-outs)
@@ -87,8 +94,8 @@ contains
 ! depending on switches
 subroutine cloudfracs_set_addresses()
 
-use comorph_constants_mod, only: i_convcloud, i_convcloud_liqonly,             &
-                                 i_convcloud_mph
+use comorph_constants_mod, only: i_convcloud, i_convcloud_bulkonly,            &
+                                 i_convcloud_liqonly, i_convcloud_mph
 
 implicit none
 
@@ -99,6 +106,14 @@ l_init_cloudfracs_type_mod = .true.
 ! Set addresses for fields in the convective cloud super-array,
 ! and set strings containing the name of each field in the list
 select case( i_convcloud )
+case ( i_convcloud_bulkonly )
+  ! Only using bulk convective cloud, and total convective cloud-water
+  n_convcloud = 2
+  i_frac_bulk_conv = 1
+  i_q_c_conv = 2
+  allocate( convcloud_names(n_convcloud) )
+  convcloud_names(i_frac_bulk_conv) = "frac_bulk_conv"
+  convcloud_names(i_q_c_conv)       = "q_c_conv"
 case ( i_convcloud_liqonly )
   ! Only using liquid convective cloud
   ! (but we also still output the bulk convective cloud fraction,
@@ -146,18 +161,128 @@ cloudfracs % frac_ice_conv  => null()
 cloudfracs % frac_bulk_conv => null()
 cloudfracs % q_cl_conv => null()
 cloudfracs % q_cf_conv => null()
+cloudfracs % q_c_conv => null()
 
 return
 end subroutine cloudfracs_nullify
+
+
+! Subroutine to assign a list of pointers to the fields that are in-use
+! This is used to allow a super do-loop to be applied when
+! we want to do exactly the same thing to all the fields.
+! This routine also checks that all the required fields exist
+! and have the right size and shape.
+subroutine cloudfracs_list_make( cloudfracs )
+
+use comorph_constants_mod, only: nx_full, ny_full, k_bot_conv, k_top_conv,     &
+                                 newline
+use raise_error_mod, only: raise_fatal
+
+implicit none
+
+! cloudfracs structure containing pointers to the relevant fields
+type(cloudfracs_type), intent(in out) :: cloudfracs
+
+! Bounds of the input array pointers
+integer :: lb(3), ub(3)
+
+! Loop counter
+integer :: i_field
+
+character(len=*), parameter :: routinename = "CLOUDFRACS_LIST_MAKE"
+
+
+if ( n_convcloud > 0 ) then
+  ! If any convective cloud fields in use...
+
+  ! Allocate list of pointers
+  allocate( cloudfracs % convcloud_list(n_convcloud) )
+
+  ! Assign pointers to fields...
+
+  if ( i_frac_liq_conv > 0 ) then
+    cloudfracs % convcloud_list(i_frac_liq_conv)%pt                            &
+                                                => cloudfracs % frac_liq_conv
+  end if
+  if ( i_frac_ice_conv > 0 ) then
+    cloudfracs % convcloud_list(i_frac_ice_conv)%pt                            &
+                                                => cloudfracs % frac_ice_conv
+  end if
+  if ( i_frac_bulk_conv > 0 ) then
+    cloudfracs % convcloud_list(i_frac_bulk_conv)%pt                           &
+                                                => cloudfracs % frac_bulk_conv
+  end if
+  if ( i_q_cl_conv > 0 ) then
+    cloudfracs % convcloud_list(i_q_cl_conv)%pt => cloudfracs % q_cl_conv
+  end if
+  if ( i_q_cf_conv > 0 ) then
+    cloudfracs % convcloud_list(i_q_cf_conv)%pt => cloudfracs % q_cf_conv
+  end if
+  if ( i_q_c_conv > 0 ) then
+    cloudfracs % convcloud_list(i_q_c_conv)%pt  => cloudfracs % q_c_conv
+  end if
+
+  ! Now loop over all the fields and check that the contained
+  ! pointers all actually point at arrays with the required extent
+  do i_field = 1, n_convcloud
+    if ( .not. associated( cloudfracs % convcloud_list(i_field)%pt ) ) then
+      call raise_fatal( routinename,                                           &
+             "A required convective cloud field has not been "               //&
+             "assigned to any memory.  You must point:"             //newline//&
+             "cloudfracs % " //                                                &
+             trim(adjustl(convcloud_names(i_field)))                //newline//&
+             "at a target array before the call to comorph_ctl." )
+    else
+      lb = lbound( cloudfracs % convcloud_list(i_field)%pt )
+      ub = ubound( cloudfracs % convcloud_list(i_field)%pt )
+      if ( .not. ( lb(1) <= 1 .and. ub(1) >= nx_full                           &
+             .and. lb(2) <= 1 .and. ub(2) >= ny_full                           &
+             .and. lb(3) <= k_bot_conv .and. ub(3) >= k_top_conv ) ) then
+        call raise_fatal( routinename,                                         &
+               "A required convective cloud field has "                      //&
+               "insufficient extent / the wrong shape."             //newline//&
+               "Field: convcloud % " //                                        &
+               trim(adjustl(convcloud_names(i_field))) )
+      end if
+    end if
+  end do
+
+end if  ! ( n_convcloud > 0 )
+
+return
+end subroutine cloudfracs_list_make
+
+
+! Subroutine to clear the above list of pointers
+subroutine cloudfracs_list_clear( cloudfracs )
+
+implicit none
+
+type(cloudfracs_type), intent(in out) :: cloudfracs
+
+integer :: i_field
+
+if ( n_convcloud > 0 ) then
+
+  ! Nullify the pointers
+  do i_field = 1, n_convcloud
+    cloudfracs % convcloud_list(i_field)%pt => null()
+  end do
+
+  ! Deallocate the list
+  deallocate( cloudfracs % convcloud_list )
+
+end if
+
+return
+end subroutine cloudfracs_list_clear
 
 
 ! Subroutine to check the above fields for bad values
 subroutine cloudfracs_check_bad_values( cloudfracs,                            &
                                         where_string )
 
-use comorph_constants_mod, only: name_length, l_cv_cloudfrac,                  &
-                     i_convcloud, i_convcloud_none,                            &
-                     i_convcloud_mph
+use comorph_constants_mod, only: name_length, l_cv_cloudfrac
 use check_bad_values_mod, only: check_bad_values_3d
 
 implicit none
@@ -169,7 +294,7 @@ type(cloudfracs_type), intent(in) :: cloudfracs
 ! we are, for constructing error message if bad value found.
 character(len=name_length), intent(in) :: where_string
 
-! Character strong to store field names
+! Character string to store field names
 character(len=name_length) :: field_name
 
 ! Lower and upper bounds of array
@@ -179,9 +304,12 @@ integer :: lb(3), ub(3)
 ! all fields checked are positive-only so hardwire to true
 logical, parameter :: l_positive = .true.
 
+! Loop counter
+integer :: i_field
+
 
 if ( .not. l_cv_cloudfrac ) then
-  ! If CoMorph not treating the cloud fractions as prognostics,
+  ! If CoMorph NOT treating the cloud fractions as prognostics,
   ! then diagnostic cloud fractions are included in here...
 
   field_name = "frac_liq"
@@ -215,52 +343,16 @@ call check_bad_values_3d( lb, ub, cloudfracs % frac_precip,                    &
                           where_string, field_name,                            &
                           l_positive )
 
-if ( i_convcloud > i_convcloud_none ) then
+if ( n_convcloud > 0 ) then
   ! Check convective cloud fields if they are used
-
-  ! Liquid convective cloud in use...
-
-  field_name = "frac_liq_conv"
-  lb = lbound( cloudfracs % frac_liq_conv )
-  ub = ubound( cloudfracs % frac_liq_conv )
-  call check_bad_values_3d( lb, ub, cloudfracs % frac_liq_conv,                &
-                            where_string, field_name,                          &
-                            l_positive )
-
-  field_name = "frac_bulk_conv"
-  lb = lbound( cloudfracs % frac_bulk_conv )
-  ub = ubound( cloudfracs % frac_bulk_conv )
-  call check_bad_values_3d( lb, ub, cloudfracs % frac_bulk_conv,               &
-                            where_string, field_name,                          &
-                            l_positive )
-
-  field_name = "q_cl_conv"
-  lb = lbound( cloudfracs % q_cl_conv )
-  ub = ubound( cloudfracs % q_cl_conv )
-  call check_bad_values_3d( lb, ub, cloudfracs % q_cl_conv,                    &
-                            where_string, field_name,                          &
-                            l_positive )
-
-  if ( i_convcloud == i_convcloud_mph ) then
-    ! Ice and mixed-phase convective cloud in use as well...
-
-    field_name = "frac_ice_conv"
-    lb = lbound( cloudfracs % frac_ice_conv )
-    ub = ubound( cloudfracs % frac_ice_conv )
-    call check_bad_values_3d( lb, ub, cloudfracs % frac_ice_conv,              &
-                              where_string, field_name,                        &
+  do i_field = 1, n_convcloud
+    lb = lbound( cloudfracs % convcloud_list(i_field)%pt )
+    ub = ubound( cloudfracs % convcloud_list(i_field)%pt )
+    call check_bad_values_3d( lb, ub, cloudfracs % convcloud_list(i_field)%pt, &
+                              where_string, convcloud_names(i_field),          &
                               l_positive )
-
-    field_name = "q_cf_conv"
-    lb = lbound( cloudfracs % q_cf_conv )
-    ub = ubound( cloudfracs % q_cf_conv )
-    call check_bad_values_3d( lb, ub, cloudfracs % q_cf_conv,                  &
-                              where_string, field_name,                        &
-                              l_positive )
-
-  end if
-
-end if  ! ( i_convcloud > i_convcloud_none )
+  end do
+end if
 
 
 return

@@ -47,6 +47,8 @@ start_dump_filename='',
 &finite_element
 cellshape='quadrilateral',
 coord_order=1,
+coord_order_nonprime=1,
+coord_space='Wchi',
 coord_system='xyz',
 element_order_h=0,
 element_order_v=0,
@@ -134,6 +136,7 @@ write_conservation_diag=.false.,
 write_diag=.false.,
 write_dump=.false.,
 write_fluxes=.false.,
+write_initial=.true.,
 write_minmax_tseries=.false.,
 /
 &linear
@@ -172,13 +175,20 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='none',
+orography_order=1,
+n_orog_smooth=0,
+w0_multigrid_mapping=.false.
 /
 &partitioning
 partitioner='cubedsphere',
 panel_decomposition='auto',
 panel_xproc=1,
 panel_yproc=1,
+tile_size_x = 1
+tile_size_y = 1
+inner_halo_tiles = .false.
 /
+
 &planet
 cp=1005.0,
 gravity=9.80665,

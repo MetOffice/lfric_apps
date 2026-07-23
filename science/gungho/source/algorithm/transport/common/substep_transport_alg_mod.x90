@@ -10,6 +10,7 @@ module substep_transport_alg_mod
   ! Constants and types
   use check_configuration_mod,           only: check_any_splitting_hvh, &
                                                check_any_splitting_vhv
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, l_def, r_def, r_tran
   use field_mod,                         only: field_type
   use fs_continuity_mod,                 only: W2H, W2V, W3
@@ -31,7 +32,7 @@ module substep_transport_alg_mod
   use lipschitz_diag_alg_mod,            only: lipschitz_computation_alg
   use sci_field_minmax_alg_mod,          only: get_field_minmax
 
-  ! Configs
+  ! Configuration modules
   use departure_points_config_mod,       only: horizontal_limit, &
                                                horizontal_limit_cap
   use transport_config_mod,              only: dep_pt_stencil_extent,  &
@@ -54,18 +55,22 @@ contains
   !> @details This routine determines the number of substeps required
   !!          (based on estimated horizontal Courant or Lipschitz numbers)
   !!          when substepping the transport
+  !> @param[in]     config     Application namelist configuration object
   !> @param[in,out] substeps   Number of substeps
   !> @param[in]     wind       The advecting wind
   !> @param[in]     dt         Transport time step
   !> @param[in]     lip3_max   Maximum Lipschitz number in 3D
-  subroutine substep_transport_alg(substeps, &
-                                   wind,     &
-                                   dt,       &
-                                   lip3_max )
+  subroutine substep_transport_alg( config,   &
+                                    substeps, &
+                                    wind,     &
+                                    dt,       &
+                                    lip3_max )
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     integer(kind=i_def),     intent(inout) :: substeps
     type(r_tran_field_type), intent(in)    :: wind
     real(kind=r_tran),       intent(in)    :: dt
@@ -123,7 +128,7 @@ contains
       w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
 
       ! Initialise fields
-      detj_at_w3 => get_detj_at_w3_r_tran(mesh%get_id())
+      detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
       call dep_distance%initialise( w2h_fs )
       call dep_wind%initialise( vector_space = w2h_fs )
       call lipschitz_x%initialise( w3_fs )
@@ -170,9 +175,8 @@ contains
       steps_courant = ceiling(extent_ratio, i_def)
 
       ! Compute substepping based on the maximum Lipschitz number
-      call lipschitz_computation_alg(                                          &
-              lipschitz_x, lipschitz_y, lipschitz_z, wind, dt                  &
-      )
+      call lipschitz_computation_alg(config, lipschitz_x, lipschitz_y, &
+                                     lipschitz_z, wind, dt)
 
       if (check_any_splitting_vhv()) then
         ! Calculate VHV Lipschitz numbers
@@ -243,11 +247,13 @@ contains
   !> @brief Computes the Lipschitz numbers for various directional splittings
   !!        that could be used in the transport scheme in the case that the
   !!        V-H-V splitting has Lipschitz numbers that exceed 1.
+  !> @param[in]  config          Application namelist configuration object
   !> @param[out] max_lipschitz   Maximum Lipschitz number of best splitting
   !> @param[out] splitting       Enumerator for best splitting to use
   !> @param[in]  wind            Transporting Wind field
   !> @param[in]  dt              Transport time step
-  subroutine adaptive_vhv_splitting_alg(max_lipschitz, splitting, wind, dt)
+  subroutine adaptive_vhv_splitting_alg( config, max_lipschitz, splitting, &
+                                         wind, dt )
 
     use lipschitz_diag_alg_mod,         only: lipschitz_computation_alg,       &
                                               lipschitz_splitting_alg
@@ -258,6 +264,8 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     real(kind=r_tran),       intent(out) :: max_lipschitz
     integer(kind=i_def),     intent(out) :: splitting
     type(r_tran_field_type), intent(in)  :: wind
@@ -280,9 +288,8 @@ contains
     ! Calculate 1D Lipschitz numbers
     ! ------------------------------------------------------------------------ !
 
-    call lipschitz_computation_alg(                                            &
-            lipschitz_x, lipschitz_y, lipschitz_z, wind, dt                    &
-    )
+    call lipschitz_computation_alg( config, lipschitz_x, lipschitz_y, &
+                                    lipschitz_z, wind, dt )
 
     ! ------------------------------------------------------------------------ !
     ! Calculate Lipschitz numbers for different splittings
@@ -290,7 +297,7 @@ contains
 
     splitting = splitting_strang_hvh
     call lipschitz_splitting_alg(                                              &
-            max_lipschitz, splitting_strang_hvh, LOG_LEVEL_DEBUG,              &
+            config, max_lipschitz, splitting_strang_hvh, LOG_LEVEL_DEBUG,      &
             lipschitz_x, lipschitz_y, lipschitz_z                              &
     )
 
@@ -301,17 +308,20 @@ contains
     else
       ! Try VHVHV splittings
       call lipschitz_splitting_alg(                                            &
-              max_lipschitz_tmp, splitting_vhvhv_third, LOG_LEVEL_DEBUG,       &
-              lipschitz_x, lipschitz_y, lipschitz_z                            &
+              config, max_lipschitz_tmp, splitting_vhvhv_third,                &
+              LOG_LEVEL_DEBUG, lipschitz_x, lipschitz_y, lipschitz_z           &
       )
       if (max_lipschitz_tmp < max_lipschitz) then
         splitting = splitting_vhvhv_third
         max_lipschitz = max_lipschitz_tmp
       end if
 
+      call lipschitz_splitting_alg( config, max_lipschitz_tmp,                &
+                                    splitting_vhvhv_quarter, LOG_LEVEL_DEBUG, &
+                                    lipschitz_x, lipschitz_y, lipschitz_z )
       call lipschitz_splitting_alg(                                            &
-              max_lipschitz_tmp, splitting_vhvhv_quarter, LOG_LEVEL_DEBUG,     &
-              lipschitz_x, lipschitz_y, lipschitz_z                            &
+              config, max_lipschitz_tmp, splitting_vhvhv_quarter,              &
+              LOG_LEVEL_DEBUG, lipschitz_x, lipschitz_y, lipschitz_z           &
       )
       if (max_lipschitz_tmp < max_lipschitz) then
         splitting = splitting_vhvhv_quarter

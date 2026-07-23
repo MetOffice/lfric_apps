@@ -150,7 +150,7 @@ contains
     call field_n%copy_field_properties(field_tmp)
 
     ! Set fields to zero
-    call invoke( setval_C(field_tmp, 0.0_r_def ) )
+    call invoke( setval_C(field_tmp, 0.0_r_tran ) )
 
     ! Loop backwards
     do split_step_count = num_split_steps, 1, -1
@@ -162,7 +162,7 @@ contains
         call ls_transport_counter%dec_split_step_counter()
 
         call invoke( inc_X_plus_Y(field_np1, field_tmp ), &
-                     setval_C(field_tmp, 0.0_r_def ) )
+                     setval_C(field_tmp, 0.0_r_tran ) )
 
       end if
 
@@ -170,11 +170,11 @@ contains
            field_np1, field_tmp, ls_field_np1(split_step_count), &
            tl_transport_controller, adj_lookup_table_cache       &
            )
-      call invoke( setval_C(field_np1, 0.0_r_def ) )
+      call invoke( setval_C(field_np1, 0.0_r_tran ) )
 
     end do
     if (num_split_steps <= 1) then
-      call invoke( setval_C(field_np1, 0.0_r_def ) )
+      call invoke( setval_C(field_np1, 0.0_r_tran ) )
     end if
     call invoke( inc_X_plus_Y(field_n, field_tmp) )
 

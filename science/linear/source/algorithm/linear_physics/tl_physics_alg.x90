@@ -108,7 +108,7 @@ subroutine tl_physics_alg(modeldb,    &
 
   ! u_star_physical = u_star / dA
   ! i.e., divide u_star from boundary layer by dA to transform from flux to velocity
-  dA => get_da_at_w2(mesh%get_id())
+  dA => get_da_at_w2(mesh)
   call invoke( x_divideby_y ( u_star_physical, u_star, dA ) )
 
   ! For convenience place u_star_physical as igh_u component of state_star

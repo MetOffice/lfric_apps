@@ -108,8 +108,8 @@ module atlt_bl_inc_alg_mod
     call u_inc % initialise( vector_space = vector_space_w2_ptr, name = 'u_inc' )
     call u  % initialise( vector_space = vector_space_w2_ptr, name = 'u' )
 
-    face_selector_ew => get_face_selector_ew(mesh%get_id())
-    face_selector_ns => get_face_selector_ns(mesh%get_id())
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     call u_inc % copy_field_properties( u_inc_input )
     call u % copy_field_properties( u_input )

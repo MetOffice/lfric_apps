@@ -95,7 +95,7 @@ real(kind=real_cvprec), intent(in) :: vert_len(n_points)
 ! parcel relative to the environment, such that
 ! wind_w_excess = delta_z/delta_t
 real(kind=real_cvprec), intent(in) :: wind_w_excess(n_points)
-! Note that wind_w_excess does not modify the fall velocities
+! Note that wind_w_excess does NOT modify the fall velocities
 ! used in sedimentation.
 ! For Lagrangian ascents, the frame of reference moves with
 ! the vertical wind, and sedimentation is relative to the
@@ -138,9 +138,9 @@ real(kind=real_cvprec), intent(in) :: fallin_wind_w(n_points)
 real(kind=real_cvprec), intent(in) :: fallin_temp(n_points)
 
 ! Properties of the current air:
-! in:  -updated by advection and mixing, but not yet any phase
+! IN:  -updated by advection and mixing, but not yet any phase
 !       changes or microphysical processes.
-! out: -fully updated by phase changes and microphysical
+! OUT: -fully updated by phase changes and microphysical
 !       processes
 real(kind=real_cvprec), intent(in out) :: wind_u(n_points)
 real(kind=real_cvprec), intent(in out) :: wind_v(n_points)
@@ -153,8 +153,8 @@ real(kind=real_cvprec), intent(in out) :: q_cond                               &
 
 ! Super-array containing fall-fluxes of all condened
 ! water species / kg m-2 s-1
-! in:  - fluxes falling into the current air
-! out: - fluxes falling out of the current air
+! IN:  - fluxes falling into the current air
+! OUT: - fluxes falling out of the current air
 real(kind=real_cvprec), intent(in out) :: flux_cond                            &
                                    ( n_points, n_cond_species )
 
@@ -382,7 +382,7 @@ if ( maxval(nc) > 0 ) then
              l_diags, moist_proc_diags, n_points_diag, n_diags, diags_super )
 
 
-  ! do not add any more processes that alter T or q after this
+  ! DO NOT add any more processes that alter T or q after this
   ! point; it will ruin the implicit solve!
 
   ! Now you maybe wondering, what happened to stage number 5)
@@ -423,12 +423,12 @@ if ( maxval(nc) > 0 ) then
       ! left-over.
       do ic2 = 1, nc(i_cond)
         ic = index_ic(ic2,i_cond)
-        ! Some compilers allow values less than tiny to exist with
+        ! Some compilers allow values less than TINY to exist with
         ! reduced precision; the reduced precision can make some
         ! calculations unsafe, so reset to zero when this happens.
         ! Note: just removing water here, but shouldn't matter for
         ! conservation because the amounts removed will be less than
-        ! epsilon * q_tot and therefore not representable increments.
+        ! EPSILON * q_tot and therefore not representable increments.
         if ( q_cond(ic,i_cond) < min_float ) then
           q_cond(ic,i_cond) = zero
         end if
@@ -464,7 +464,7 @@ if ( maxval(nc) > 0 ) then
   end if
 
 
-end if  ! ( maxval(nc) > 0 )
+end if  ! ( MAXVAL(nc) > 0 )
 
 
 if ( i_check_conservation > i_check_bad_none ) then

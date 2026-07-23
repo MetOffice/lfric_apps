@@ -24,9 +24,10 @@ use um2lfric_namelist_mod,              only: um2lfric_config
 use um2lfric_read_um_file_mod,          only: um2lfric_read_um_file, um_input_file
 
 ! lfricinputs modules
-use lfricinp_stashmaster_mod,           only: lfricinp_read_stashmaster
 use lfricinp_read_um_time_data_mod,     only: lfricinp_read_um_time_data
+use lfricinp_stashmaster_mod,           only: lfricinp_read_stashmaster
 use lfricinp_um_grid_mod,               only: lfricinp_set_grid_from_file
+
 implicit none
 
 ! Read um2lfric configuration namelist

@@ -189,7 +189,8 @@ module tl_test_transport_control_mod
     call set_bundle_scalar( 0.0_r_def, n1_rhs, bundle_size )
 
     outer = 1
-    call gungho_transport_control_alg(n1_rhs,                  &
+    call gungho_transport_control_alg(modeldb%config,          &
+                                      n1_rhs,                  &
                                       ls_state,                &
                                       ls_state(igh_u),         &
                                       ls_state(igh_u),         &
@@ -225,13 +226,14 @@ module tl_test_transport_control_mod
                    inc_X_plus_Y(n_advected_u, p_advected_u ) )
 
       do i = 1, nummr
-        call invoke( &
+        call invoke(                                  &
           a_times_X( p_mr_in(i), gamma_mr, r_mr(i) ), &
-          setval_X( n_mr_in(i), ls_mr(i) ),                       &
+          setval_X( n_mr_in(i), ls_mr(i) ),           &
           inc_X_plus_Y( n_mr_in(i), p_mr_in(i) ) )
       end do
 
-      call gungho_transport_control_alg(n2_rhs,                  &
+      call gungho_transport_control_alg(modeldb%config,          &
+                                        n2_rhs,                  &
                                         state,                   &
                                         state(igh_u),            &
                                         state(igh_u),            &
@@ -241,7 +243,8 @@ module tl_test_transport_control_mod
                                         outer,                   &
                                         cheap_update = .false. )
 
-      call tl_transport_control_alg(p_rhs,            &
+      call tl_transport_control_alg(modeldb%config,   &
+                                    p_rhs,            &
                                     p_state,          &
                                     p_state(igh_u),   &
                                     p_state(igh_u),   &

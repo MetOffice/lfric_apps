@@ -13,14 +13,13 @@
 module jedi_pseudo_model_mod
 
   use constants_mod,                 only : i_def, str_def
+  use config_mod,                    only : config_type
   use jedi_lfric_datetime_mod,       only : jedi_datetime_type
   use jedi_lfric_duration_mod,       only : jedi_duration_type
   use jedi_state_mod,                only : jedi_state_type
   use log_mod,                       only : log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_ERROR
-  use namelist_collection_mod,       only : namelist_collection_type
-  use namelist_mod,                  only : namelist_type
 
   implicit none
 
@@ -62,15 +61,14 @@ contains
 !> @brief    Initialiser for jedi_pseudo_model_type
 !>
 !> @param [in] config Configuration used to setup the model class
-subroutine initialise( self, configuration )
+subroutine initialise( self, config )
 
   implicit none
 
   class( jedi_pseudo_model_type ),  intent(inout) :: self
-  type( namelist_collection_type ), intent(in)    :: configuration
+  type( config_type ),              intent(in)    :: config
 
   ! Local
-  type( namelist_type ), pointer :: jedi_model_config
   character( str_def )           :: initial_time
   character( str_def )           :: time_step_str
   integer( i_def )               :: number_of_steps
@@ -82,16 +80,15 @@ subroutine initialise( self, configuration )
   self%current_state = 1_i_def
 
   ! Get config info and setup
-  jedi_model_config => configuration%get_namelist('jedi_pseudo_model')
+  time_step_str   = config%jedi_pseudo_model%time_step()
+  number_of_steps = config%jedi_pseudo_model%number_of_steps()
+  initial_time    = config%jedi_pseudo_model%initial_time()
 
-  call jedi_model_config%get_value( 'number_of_steps', number_of_steps )
   self%n_states = number_of_steps
   allocate( self%state_times(self%n_states) )
 
-  call jedi_model_config%get_value( 'time_step', time_step_str )
   call time_step%init( time_step_str )
 
-  call jedi_model_config%get_value( 'initial_time', initial_time )
   ! Initialise datetime states 1 - number_of_steps time steps after
   ! lfric calendar_start namelist variable time
   call next_datetime%init( initial_time )

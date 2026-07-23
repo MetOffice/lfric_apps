@@ -73,9 +73,9 @@ contains
 ! parcel structure and store a list of pointers to them
 !----------------------------------------------------------------
 ! Note: this routine gets called twice
-!   1st call (l_count_diags = .true.):
+!   1st call (l_count_diags = .TRUE.):
 !     Check whether each diag is requested and count how many
-!   2nd call (l_count_diags = .false.):
+!   2nd call (l_count_diags = .FALSE.):
 !     Set other properties for requested diags, and assign
 !     pointers from active diags list.
 subroutine parcel_diags_assign( parent_name, l_count_diags, doms,              &
@@ -230,7 +230,7 @@ if ( l_count_diags ) then
     parcel_diags % massflux_d % flag = .true.
   end if
 
-  ! Note: the 2nd sweep with l_count_diags=.false. will now
+  ! Note: the 2nd sweep with l_count_diags=.FALSE. will now
   ! account for flag when setting super-array addresses
   ! in diag_assign.
 

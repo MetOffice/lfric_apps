@@ -33,6 +33,10 @@ use constants_mod,     only : r_def, i_def, l_def, r_tran
 use fs_continuity_mod, only : W3
 use kernel_mod,        only : kernel_type
 
+! Configuration modules
+use base_mesh_config_mod,      only: geometry, topology
+use finite_element_config_mod, only: coord_system
+
 implicit none
 
 private
@@ -42,7 +46,7 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: poly2d_flux_coeffs_kernel_type
   private
-  type(arg_type) :: meta_args(11) = (/                                                          &
+  type(arg_type) :: meta_args(11) = (/                                                         &
        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),                  &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3,                        STENCIL(REGION)), &
        arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_1,               STENCIL(REGION)), &
@@ -266,12 +270,14 @@ subroutine poly2d_flux_coeffs_code(one_layer,                  &
   ! Convert x0 & x1 to XYZ coordinate system
   ipanel = int(panel_id(smap_pid(1,1)), i_def)
   chi = x0 + r0
-  call chir2xyz(chi(1), chi(2), chi(3), &
-                ipanel, x0(1), x0(2), x0(3))
+  call chir2xyz( chi(1), chi(2), chi(3), ipanel,   &
+                 geometry, topology, coord_system, &
+                 x0(1), x0(2), x0(3) )
   ipanel = int(panel_id(smap_pid(1,2)), i_def)
   chi = x1 + r0
-  call chir2xyz(chi(1), chi(2), chi(3), &
-                ipanel, x1(1), x1(2), x1(3))
+  call chir2xyz( chi(1), chi(2), chi(3), ipanel,   &
+                 geometry, topology, coord_system, &
+                 x1(1), x1(2), x1(3) )
 
   x1(3) = ispherical*x1(3) + (1_i_def - ispherical)*x0(3)
   ! Unit normal to plane containing points 0 and 1
@@ -299,8 +305,9 @@ subroutine poly2d_flux_coeffs_code(one_layer,                  &
       ! Convert xq to XYZ coordinate system
       ipanel = int(panel_id(smap_pid(1,stencil)), i_def)
       chi = xq + r0
-      call chir2xyz(chi(1), chi(2), chi(3), &
-                    ipanel, xq(1), xq(2), xq(3))
+      call chir2xyz( chi(1), chi(2), chi(3), ipanel,   &
+                     geometry, topology, coord_system, &
+                     xq(1), xq(2), xq(3) )
 
       ! Second: Compute the local coordinate of each quadrature point from the
       !         physical coordinate
@@ -351,8 +358,9 @@ subroutine poly2d_flux_coeffs_code(one_layer,                  &
       ! Convert xq to XYZ coordinate system
       ipanel = int(panel_id(smap_pid(1,1)), i_def)
       chi = xq + r0
-      call chir2xyz(chi(1), chi(2), chi(3), &
-                    ipanel, xq(1), xq(2), xq(3))
+      call chir2xyz( chi(1), chi(2), chi(3), ipanel,   &
+                     geometry, topology, coord_system, &
+                     xq(1), xq(2), xq(3) )
 
       xx = local_distance_2d(x0, xq, xn1, domain_x, domain_y, spherical)
 

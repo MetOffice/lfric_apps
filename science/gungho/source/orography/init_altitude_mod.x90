@@ -15,12 +15,12 @@ module init_altitude_mod
   use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W3
   use function_space_mod,             only : function_space_type
-  use initialization_config_mod,      only : n_orog_smooth
   use mesh_mod,                       only : mesh_type
   use orography_config_mod,           only : orog_init_option,  &
                                              orog_init_option_analytic, &
                                              orog_init_option_ancil, &
-                                             orog_init_option_start_dump
+                                             orog_init_option_start_dump, &
+                                             n_orog_smooth
   use orography_control_mod,          only : set_orography_option
   use sci_smooth_orog_kernel_mod,     only : smooth_orog_kernel_type
   use io_config_mod,                  only : use_xios_io

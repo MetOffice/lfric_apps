@@ -1,0 +1,207 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes extra BL diagnostics
+
+module bl_extra_diags_mod
+
+  use constants_mod,             only: l_def
+  use field_mod,                 only: field_type
+  use field_collection_mod,      only: field_collection_type
+  use bl_extra_diags_kernel_mod, only: bl_extra_diags_kernel_type
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
+
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
+                                         samp_diag => diagnostic_to_be_sampled
+
+  implicit none
+
+  private
+
+  public :: output_diags_for_bl_extra
+
+contains
+
+  !> @brief Output extra BL diagnostics
+  !> @param[in]     derived_fields           Collection of derived fields
+  !> @param[in]     turbulence_fields        Collection of turbulence fields
+  !> @param[in]     surface_fields           Collection of surface fields
+  !> @param[in]     microphysics_fields      Collection of microphysics fields
+  !> @param[in]     convection_fields        Collection of convection fields
+  !> @param[in]     aerosol_fields           Collection of aerosol fields
+  !> @param[in]     ustar_implicit           Implicit surface friction velocity
+  !> @param[in]     rho_in_w3                Density field in density space
+  !> @param[in]     ms                       Cloud snow mixing ratio
+  !> @param[in]     mr                       Rain mixing ratio
+  !> @param[in]     t1p5m                    1.5m temperature
+  !> @param[in]     q1p5m                    1.5m specific humidity
+  !> @param[in]     qcl1p5m                  1.5m specific cloud water
+  !> @param[in]     t1p5m_ssi                1.5m temperature over sea and sea-ice
+  !> @param[in]     q1p5m_ssi                1.5m specific humidity over sea and sea-ice
+  !> @param[in]     qcl1p5m_ssi              1.5m specific cloud water over sea and sea-ice
+  !> @param[in]     t1p5m_land               1.5m temperature over land
+  !> @param[in]     q1p5m_land               1.5m specific humidity over land
+  !> @param[in]     qcl1p5m_land             1.5m specific cloud water over land
+  subroutine output_diags_for_bl_extra(derived_fields, turbulence_fields,      &
+                                       surface_fields, microphysics_fields,    &
+                                       convection_fields, aerosol_fields,      &
+                                       ustar_implicit, rho_in_w3, ms, mr,      &
+                                       t1p5m, q1p5m, qcl1p5m,                  &
+                                       t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,      &
+                                       t1p5m_land, q1p5m_land, qcl1p5m_land)
+
+    implicit none
+
+    ! Collections passed in
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(in) :: surface_fields
+    type( field_collection_type ), intent(in) :: microphysics_fields
+    type( field_collection_type ), intent(in) :: convection_fields
+    type( field_collection_type ), intent(in) :: aerosol_fields
+
+    ! Prognostic fields input, used in calculations
+    type( field_type ), intent(in)    :: rho_in_w3, ustar_implicit, ms, mr
+
+    ! Diagnostics computed within the kernels
+    type( field_type ), intent(in)    :: t1p5m, q1p5m, qcl1p5m
+    type( field_type ), intent(in)    :: t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi
+    type( field_type ), intent(in)    :: t1p5m_land, q1p5m_land, qcl1p5m_land
+
+    ! Pointers
+    type( field_type ), pointer :: wetrho_in_w3
+    type( field_type ), pointer :: exner_in_wth
+    type( field_type ), pointer :: zh
+    type( field_type ), pointer :: heat_flux_bl
+    type( field_type ), pointer :: moist_flux_bl
+    type( field_type ), pointer :: bl_weight_1dbl
+    type( field_type ), pointer :: wspd10m
+    type( field_type ), pointer :: z0m_eff
+    type( field_type ), pointer :: nr_mphys
+    type( field_type ), pointer :: ns_mphys
+    type( field_type ), pointer :: ls_rain
+    type( field_type ), pointer :: ls_snow
+    type( field_type ), pointer :: lsca_2d
+    type( field_type ), pointer :: conv_rain
+    type( field_type ), pointer :: conv_snow
+    type( field_type ), pointer :: cca_2d
+    type( field_type ), pointer :: murk
+
+    ! Local variables
+    type( field_type ) :: wind_gust
+    type( field_type ) :: scale_dep_wind_gust
+    type( field_type ) :: visibility_with_precip
+    type( field_type ) :: visibility_no_precip
+    type( field_type ) :: fog_fraction
+    type( field_type ) :: fog_fraction_ssi
+    type( field_type ) :: fog_fraction_land
+    type( field_type ) :: vis_prob_5km
+    type( field_type ) :: dew_point
+    type( field_type ) :: dew_point_ssi
+    type( field_type ) :: dew_point_land
+
+    ! Logical indicating whether diagnostics are requested
+    logical( l_def ) :: wind_gust_flag
+    logical( l_def ) :: scale_dep_wind_gust_flag
+    logical( l_def ) :: vis_no_precip_flag
+    logical( l_def ) :: vis_with_precip_flag
+    logical( l_def ) :: fog_fraction_flag
+    logical( l_def ) :: fog_fraction_ssi_flag
+    logical( l_def ) :: fog_fraction_land_flag
+    logical( l_def ) :: vis_prob_5km_flag
+    logical( l_def ) :: dew_point_flag
+    logical( l_def ) :: dew_point_ssi_flag
+    logical( l_def ) :: dew_point_land_flag
+    logical( l_def ) :: ignore
+
+    if ( subroutine_timers ) call timer("bl_extra_diags")
+
+    ! Unpack field from collections
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call turbulence_fields%get_field('zh', zh)
+    call turbulence_fields%get_field('heat_flux_bl', heat_flux_bl)
+    call turbulence_fields%get_field('moist_flux_bl', moist_flux_bl)
+    call turbulence_fields%get_field('bl_weight_1dbl', bl_weight_1dbl)
+    call surface_fields%get_field('wspd10m', wspd10m)
+    call surface_fields%get_field('z0m_eff', z0m_eff)
+    call microphysics_fields%get_field('nr_mphys', nr_mphys)
+    call microphysics_fields%get_field('ns_mphys', ns_mphys)
+    call microphysics_fields%get_field('ls_rain', ls_rain)
+    call microphysics_fields%get_field('ls_snow', ls_snow)
+    call microphysics_fields%get_field('lsca_2d', lsca_2d)
+    call convection_fields%get_field('conv_rain', conv_rain)
+    call convection_fields%get_field('conv_snow', conv_snow)
+    call convection_fields%get_field('cca_2d', cca_2d)
+    call aerosol_fields%get_field('murk', murk)
+
+    ! Output prognostic fields
+    if (samp_diag('aerosol__murk')) call murk%write_field('aerosol__murk')
+
+    ! Local diagnostic calculated here
+    wind_gust_flag = init_diag(wind_gust, 'surface__wind_gust')
+    scale_dep_wind_gust_flag = init_diag(scale_dep_wind_gust, 'surface__scale_dep_wind_gust')
+    vis_no_precip_flag = init_diag(visibility_no_precip, 'surface__visibility_no_precip')
+    vis_with_precip_flag = init_diag(visibility_with_precip, 'surface__visibility_with_precip')
+    fog_fraction_flag = init_diag(fog_fraction, 'surface__fog_fraction')
+    fog_fraction_ssi_flag = init_diag(fog_fraction_ssi, 'surface__fog_fraction_ssi')
+    fog_fraction_land_flag = init_diag(fog_fraction_land, 'surface__fog_fraction_land')
+    vis_prob_5km_flag = init_diag(vis_prob_5km, 'surface__vis_prob_5km')
+    dew_point_flag = init_diag(dew_point, 'surface__dew_point')
+    dew_point_ssi_flag = init_diag(dew_point_ssi, 'surface__dew_point_ssi')
+    dew_point_land_flag = init_diag(dew_point_land, 'surface__dew_point_land')
+
+    ! visibility_with_precip requires visibility_no_precip
+    if (vis_with_precip_flag .and. .not. vis_no_precip_flag) then
+      ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
+    end if
+
+    if ( wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
+         vis_no_precip_flag .or. vis_with_precip_flag .or.                     &
+         fog_fraction_flag .or. fog_fraction_ssi_flag .or.                     &
+         fog_fraction_land_flag .or. vis_prob_5km_flag .or. dew_point_flag     &
+         .or. dew_point_ssi_flag .or. dew_point_land_flag ) then
+
+      ! Calculate various extra diagnostics
+      call invoke( bl_extra_diags_kernel_type( rho_in_w3, wetrho_in_w3,        &
+                                               heat_flux_bl, moist_flux_bl,    &
+                                               exner_in_wth, ms, mr,           &
+                                               nr_mphys, ns_mphys, murk,       &
+                                               zh, t1p5m, q1p5m, qcl1p5m,      &
+                                               t1p5m_ssi, q1p5m_ssi,           &
+                                               qcl1p5m_ssi,                    &
+                                               t1p5m_land, q1p5m_land,         &
+                                               qcl1p5m_land,                   &
+                                               wspd10m, z0m_eff,               &
+                                               bl_weight_1dbl,                 &
+                                               ls_rain, ls_snow, lsca_2d,      &
+                                               conv_rain, conv_snow, cca_2d,   &
+                                               ustar_implicit,                 &
+                                               wind_gust, scale_dep_wind_gust, &
+                                               fog_fraction, fog_fraction_ssi, &
+                                               fog_fraction_land, vis_prob_5km,&
+                                               dew_point, dew_point_ssi,       &
+                                               dew_point_land,                 &
+                                               visibility_with_precip,         &
+                                               visibility_no_precip ) )
+
+      if (wind_gust_flag) call wind_gust%write_field()
+      if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
+      if (vis_no_precip_flag) call visibility_no_precip%write_field()
+      if (vis_with_precip_flag) call visibility_with_precip%write_field()
+      if (fog_fraction_flag) call fog_fraction%write_field()
+      if (fog_fraction_ssi_flag) call fog_fraction_ssi%write_field()
+      if (fog_fraction_land_flag) call fog_fraction_land%write_field()
+      if (vis_prob_5km_flag) call vis_prob_5km%write_field()
+      if (dew_point_flag) call dew_point%write_field()
+      if (dew_point_ssi_flag) call dew_point_ssi%write_field()
+      if (dew_point_land_flag) call dew_point_land%write_field()
+    end if
+
+    if ( subroutine_timers ) call timer("bl_extra_diags")
+
+  end subroutine output_diags_for_bl_extra
+end module bl_extra_diags_mod

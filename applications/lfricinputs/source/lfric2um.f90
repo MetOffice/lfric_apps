@@ -5,6 +5,8 @@
 ! *****************************COPYRIGHT*******************************
 program lfric2um
 
+use config_mod, only: config_type
+
 ! lfricinputs modules
 use lfricinp_create_lfric_fields_mod,     only: lfricinp_create_lfric_fields
 use lfricinp_um_grid_mod,                 only: um_grid
@@ -24,13 +26,13 @@ use lfric2um_initialise_um_mod,           only: lfric2um_initialise_um,        &
 use lfric2um_initialise_lfric2um_mod,     only: lfric2um_initialise_lfric2um
 use lfric2um_main_loop_mod,               only: lfric2um_main_loop
 
-
 implicit none
+
+type(config_type), save :: lfric_config
 
 !==========================================================================
 ! Read inputs and initialise setup
 !==========================================================================
-
 ! Read command line arguments and return details of filenames.
 ! Initialise common infrastructure
 call lfricinp_initialise(lfric2um_nl_fname)
@@ -39,14 +41,15 @@ call lfricinp_initialise(lfric2um_nl_fname)
 call lfric2um_initialise_lfric2um()
 
 ! Initialise LFRic Infrastructure
-call lfricinp_initialise_lfric(program_name_arg="lfric2um",                    &
+lfric_config = lfricinp_initialise_lfric(                                      &
+     program_name_arg="lfric2um",                                              &
      required_lfric_namelists = required_lfric_namelists,                      &
      start_date = datetime % first_validity_time,                              &
      time_origin = datetime % first_validity_time,                             &
      first_step = datetime % first_step,                                       &
      last_step = datetime % last_step,                                         &
      spinup_period = datetime % spinup_period,                                 &
-     seconds_per_step = datetime % seconds_per_step)
+     seconds_per_step = datetime % seconds_per_step )
 
 !==========================================================================
 ! Further input and output file setup

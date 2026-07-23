@@ -8,7 +8,8 @@
 module initial_output_mod
 
   use constants_mod,              only : i_def, l_def
-  use io_config_mod,              only : write_diag, use_xios_io
+  use io_config_mod,              only : write_diag, use_xios_io, &
+                                         write_initial
   use io_context_mod,             only : io_context_type
   use gungho_diagnostics_driver_mod, &
                                   only : gungho_diagnostics_driver
@@ -60,15 +61,17 @@ contains
     end if
 #endif
 
-    if (modeldb%clock%is_initialisation() .and. write_diag) then
-      ! Calculation and output of initial conditions
-      call gungho_diagnostics_driver( modeldb,   &
-                                      mesh,      &
-                                      twod_mesh, &
-                                      nodal_output_on_w3 )
+    if (write_initial) then
+      if (modeldb%clock%is_initialisation() .and. write_diag) then
+        ! Calculation and output of initial conditions
+        call gungho_diagnostics_driver( modeldb,   &
+                                        mesh,      &
+                                        twod_mesh, &
+                                        nodal_output_on_w3 )
 
-      if ( limited_area )then
-        if ( lbc_method == lbc_method_onion_layer ) call write_masks()
+        if ( limited_area )then
+          if ( lbc_method == lbc_method_onion_layer ) call write_masks()
+        end if
       end if
     end if
 

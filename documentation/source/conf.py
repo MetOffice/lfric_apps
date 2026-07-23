@@ -20,8 +20,12 @@ release = '0.1.0'
 extensions = [
     'sphinx_sitemap',
     'sphinx_design',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
 ]
+
+# Enable equation referencing and cross-referencing
+mathjax3_config = { "tex": { "tags": "ams", "packages": {"[+]": ["ams"]}, } }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

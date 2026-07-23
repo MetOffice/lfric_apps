@@ -32,6 +32,8 @@ element_order_h=0,
 element_order_v=0,
 rehabilitate=.true.,
 coord_order=1,
+coord_order_nonprime=1,
+coord_space='Wchi',
 coord_system='native'
 vorticity_in_w1=.true.,
 /
@@ -75,6 +77,7 @@ diag_always_on_sampling = .false.
 write_diag              = .true.
 write_dump              = .true.
 write_fluxes            = .false.
+write_initial           = .true.
 diagnostic_frequency    = 32
 nodal_output_on_w3      = .false.
 subroutine_timers       = .true.
@@ -92,6 +95,9 @@ transport_density=.true.
 &partitioning
 partitioner='cubedsphere',
 panel_decomposition='auto',
+tile_size_x = 1
+tile_size_y = 1
+inner_halo_tiles = .false.
 /
 &planet
 cp=1005.0

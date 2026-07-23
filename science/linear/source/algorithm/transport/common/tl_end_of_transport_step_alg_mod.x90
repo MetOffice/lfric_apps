@@ -17,13 +17,15 @@ module tl_end_of_transport_step_alg_mod
   use fs_continuity_mod,              only: W2, W2H, W2V
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
-  use log_mod,                        only: log_event, LOG_LEVEL_ERROR
+  use log_mod,                        only: log_event, LOG_LEVEL_ERROR, &
+                                            LOG_LEVEL_DEBUG
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
   use operator_mod,                   only: operator_type
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
   use r_tran_field_mod,               only: r_tran_field_type
   use r_tran_operator_mod,            only: r_tran_operator_type
+  use sci_field_minmax_alg_mod,       only: log_field_minmax
   use split_transport_utils_mod,      only: get_num_split_steps
   use transport_config_mod,           only: dry_field_name
   use transport_constants_mod,        only: get_directional_im3_div_r_tran
@@ -79,6 +81,8 @@ contains
     if ( limited_area .and. topology == topology_non_periodic ) then
       call log_event('T.L.: LAM overwrite not yet implemented', LOG_LEVEL_ERROR)
     end if
+
+    call log_field_minmax( LOG_LEVEL_DEBUG, 'tl field_np1: end_of_advective_step', field_np1)
 
   end subroutine tl_end_of_advective_step_alg
 
@@ -221,6 +225,8 @@ contains
         call log_event('Cheap update not implement for T.L. model', LOG_LEVEL_ERROR)
       end if
     end if
+
+    call log_field_minmax( LOG_LEVEL_DEBUG, 'tl field_np1: end_of_conservative_step', field_np1)
 
   end subroutine tl_end_of_conservative_step_alg
 

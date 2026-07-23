@@ -7,22 +7,20 @@
 !>
 module lfric2lfric_driver_mod
 
-  use constants_mod,            only: str_def, i_def, l_def, r_second
+  use constants_mod,            only: str_def, str_max_filename, &
+                                      i_def, l_def, r_second
   use driver_fem_mod,           only: final_fem
   use driver_io_mod,            only: final_io
   use driver_modeldb_mod,       only: modeldb_type
   use field_collection_mod,     only: field_collection_type
   use lfric_xios_action_mod,    only: advance
   use lfric_xios_context_mod,   only: lfric_xios_context_type
-  use lfric_xios_read_mod,      only: read_checkpoint, &
-                                      read_state
-  use lfric_xios_write_mod,     only: write_checkpoint, &
-                                      write_state
+  use lfric_xios_read_mod,      only: read_state
+  use lfric_xios_write_mod,     only: write_state
   use log_mod,                  only: log_scratch_space, &
                                       log_event,         &
                                       log_level_info
   use model_clock_mod,          only: model_clock_type
-  use namelist_mod,             only: namelist_type
   use sci_checksum_alg_mod,     only: checksum_alg
   use xios,                     only: xios_date, xios_get_current_date, &
                                       xios_date_convert_to_string
@@ -84,14 +82,13 @@ contains
     integer(kind=i_def), parameter :: start_timestep = 1_i_def
 
     ! Namelist variables
-    character(len=str_def) :: start_dump_filename
-    character(len=str_def) :: checkpoint_stem_name
-    integer(kind=i_def)    :: mode
-    integer(kind=i_def)    :: regrid_method
+    character(len=str_max_filename) :: start_dump_filename
+    character(len=str_max_filename) :: checkpoint_stem_name
+
+    integer(kind=i_def) :: mode
+    integer(kind=i_def) :: regrid_method
 
     ! Local parameters
-    type(namelist_type), pointer :: files_nml
-    type(namelist_type), pointer :: lfric2lfric_nml
 
     integer(kind=i_def)          :: step, time_steps
     logical(kind=l_def)          :: is_running
@@ -104,15 +101,12 @@ contains
 
     type(lfric_xios_context_type), pointer :: io_context
 
-    ! Namelist pointers
-    files_nml       => modeldb%configuration%get_namelist('files')
-    lfric2lfric_nml => modeldb%configuration%get_namelist('lfric2lfric')
-
     ! Extract configuration variables
-    call files_nml%get_value( 'start_dump_filename', start_dump_filename )
-    call files_nml%get_value( 'checkpoint_stem_name', checkpoint_stem_name )
-    call lfric2lfric_nml%get_value( 'mode', mode )
-    call lfric2lfric_nml%get_value( 'regrid_method', regrid_method )
+    start_dump_filename  = modeldb%config%files%start_dump_filename()
+    checkpoint_stem_name = modeldb%config%files%checkpoint_stem_name()
+
+    mode          = modeldb%config%lfric2lfric%mode()
+    regrid_method = modeldb%config%lfric2lfric%regrid_method()
 
     ! Point to source and target field collections
     source_fields => modeldb%fields%get_field_collection(source_collection_name)
@@ -120,9 +114,7 @@ contains
 
     ! Read fields and perform the regridding
     if (mode == mode_ics) then
-      call read_checkpoint(source_fields,      &
-                           start_timestep,     &
-                           start_dump_filename )
+      call read_state(source_fields, prefix='restart_')
 
       call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
                               target_fields, regrid_method)
@@ -132,8 +124,7 @@ contains
       call io_context%set_current()
 
       checkpoint_times(1) = modeldb%clock%seconds_from_steps(modeldb%clock%get_step())
-      call write_checkpoint(target_fields, modeldb%values, modeldb%clock, &
-                            checkpoint_stem_name, checkpoint_times)
+      call write_state(target_fields, prefix='checkpoint_')
 
     else if (mode == mode_lbc) then
       time_steps = modeldb%clock%get_last_step() - &

@@ -12,7 +12,6 @@ module transport_field_mod
   use constants_mod,                    only: r_def, r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use r_tran_field_mod,                 only: r_tran_field_type
-  use copy_field_alg_mod,               only: copy_field
   use log_mod,                          only: log_event,                       &
                                               LOG_LEVEL_ERROR,                 &
                                               LOG_LEVEL_INFO
@@ -70,14 +69,14 @@ contains
     ! transfer r_def input to r_tran fields
     call field_np1%initialise( field_np1_rdef%get_function_space() )
     call field_n%initialise( field_n_rdef%get_function_space() )
-    call copy_field( field_n_rdef, field_n )
+    call invoke( real_to_real_x(field_n, field_n_rdef) )
 
     call transport_field_r_tran(                                               &
             field_np1, field_n, transport_controller, transport_metadata       &
     )
 
     ! Transfer back to r_def output
-    call copy_field( field_np1, field_np1_rdef )
+    call invoke( real_to_real_x(field_np1_rdef, field_np1) )
 
   end subroutine transport_field
 

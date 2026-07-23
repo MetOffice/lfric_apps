@@ -60,8 +60,8 @@ subroutine set_rho_alg( rho, timestep, dt )
 
     qr = quadrature_xyoz_type(element_order_h + 3, element_order_h + 3, &
                               element_order_v + 3, quadrature_rule)
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     ! Set rho according to formulation
     time = real(timestep,r_def)*dt
     call invoke( set_rho_kernel_type ( rho, chi, panel_id, time, qr ) )

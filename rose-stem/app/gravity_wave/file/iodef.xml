@@ -74,9 +74,11 @@
 
        <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+       <field_group id="lfric_checkpoint_read_field_group" >
        <field id="restart_pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="Pa" operation="instant" domain_ref="checkpoint_W3" />
        <field id="restart_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" operation="instant" domain_ref="checkpoint_Wtheta" />
        <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+       </field_group>
       </file>
 
       <file id="lfric_diag" name="lfric_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
@@ -108,8 +110,8 @@
 
       <variable_group id = "parameters" >
         <variable id = "using_server" type = "bool" >true</variable>
-        <variable id = "info_level" type = "int" >50</variable>
-        <variable id = "print_file" type="bool">true</variable>
+        <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
+        <variable id = "print_file" type="bool">$XIOS_PRINT_FILE</variable>
       </variable_group>
     </variable_definition>
   </context>

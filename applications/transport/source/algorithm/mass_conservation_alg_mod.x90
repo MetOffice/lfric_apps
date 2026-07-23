@@ -10,6 +10,7 @@
 module mass_conservation_alg_mod
 
   use compute_total_mass_alg_mod,      only: compute_total_mass_alg
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, l_def
   use energy_correction_config_mod,    only: integral_method_fe
   use extrusion_mod,                   only: SHIFTED
@@ -37,16 +38,18 @@ module mass_conservation_alg_mod
 contains
 
   !> @brief Subroutine to compute the total mass
+  !> @param[in] config      Application namelist configuration object
   !> @param[in] tstep       Current timestep
   !> @param[in] rho_d       Density field
   !> @param[in] mr          Bundle of mixing ratio fields
   !> @param[in] w3_aerosol  W3 aerosol field (on coarse mesh)
   !> @param[in] wt_aerosol  Wtheta aerosol field (on coarse mesh)
-  subroutine mass_conservation( tstep, rho_d, mr, &
+  subroutine mass_conservation( config, tstep, rho_d, mr, &
                                 w3_aerosol, wt_aerosol, use_aerosols )
 
     implicit none
 
+    type(config_type),       intent(in) :: config
     integer(kind=i_def),     intent(in) :: tstep
     type(field_type),        intent(in) :: rho_d
     type(field_type),        intent(in) :: mr(nummr)
@@ -70,7 +73,7 @@ contains
     mesh => rho_d%get_mesh()
 
     ! Compute dry mass
-    call compute_total_mass_alg( total_dry_mass, rho_d, &
+    call compute_total_mass_alg( config, total_dry_mass, rho_d, &
                                  mesh, method=integral_method_fe )
 
     ! Compute moist mass by converting into moisture density on shifted mesh
@@ -78,9 +81,9 @@ contains
     w3_sh_fs => function_space_collection%get_fs( shifted_mesh, 0, 0, W3 )
     call rho_X_shifted%initialise( vector_space = w3_sh_fs )
 
-    call obtain_shifted_rho(rho_d_shifted, rho_d)
+    call obtain_shifted_rho(config, rho_d_shifted, rho_d)
     call invoke( X_times_Y(rho_X_shifted, mr(1), rho_d_shifted) )
-    call compute_total_mass_alg( total_water_mass, rho_X_shifted, &
+    call compute_total_mass_alg( config, total_water_mass, rho_X_shifted, &
                                  shifted_mesh, method=integral_method_fe )
 
     ! Write out masses
@@ -103,17 +106,17 @@ contains
       call rho_X%initialise( w3_aerosol%get_function_space() )
       call map_rho_intermesh(coarse_rho_d, rho_d)
       call invoke( X_times_Y(rho_X, coarse_rho_d, w3_aerosol) )
-      call compute_total_mass_alg( total_w3_aerosol_mass, rho_X, &
+      call compute_total_mass_alg( config, total_w3_aerosol_mass, rho_X, &
                                    coarse_mesh, method=integral_method_fe )
 
       ! Compute Wtheta aerosol mass by converting into density on shifted mesh
       call aerosol_shifted%initialise( vector_space = w3_sh_fs )
       call rho_X_shifted%initialise( vector_space = w3_sh_fs )
 
-      call obtain_shifted_rho(rho_d_shifted, coarse_rho_d)
+      call obtain_shifted_rho(config, rho_d_shifted, coarse_rho_d)
       call invoke( inject_wt_to_sh_w3_kernel_type( aerosol_shifted, wt_aerosol ), &
                    X_times_Y( rho_X_shifted, aerosol_shifted, rho_d_shifted ) )
-      call compute_total_mass_alg( total_wt_aerosol_mass, rho_X_shifted, &
+      call compute_total_mass_alg( config, total_wt_aerosol_mass, rho_X_shifted, &
                                    shifted_mesh, method=integral_method_fe )
 
       ! Write out masses

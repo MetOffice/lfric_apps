@@ -15,15 +15,14 @@
 !>          model forecast method to propagate the state.
 module jedi_model_mod
 
-  use constants_mod,                 only : str_def
-  use jedi_lfric_datetime_mod,       only : jedi_datetime_type
-  use jedi_lfric_duration_mod,       only : jedi_duration_type
-  use jedi_state_mod,                only : jedi_state_type
-  use log_mod,                       only : log_event,          &
-                                            log_scratch_space,  &
-                                            LOG_LEVEL_ERROR
-  use namelist_collection_mod,       only : namelist_collection_type
-  use namelist_mod,                  only : namelist_type
+  use config_mod,              only: config_type
+  use constants_mod,           only: str_def
+  use jedi_lfric_datetime_mod, only: jedi_datetime_type
+  use jedi_lfric_duration_mod, only: jedi_duration_type
+  use jedi_state_mod,          only: jedi_state_type
+  use log_mod,                 only: log_event,         &
+                                     log_scratch_space, &
+                                     LOG_LEVEL_ERROR
 
   implicit none
 
@@ -60,21 +59,20 @@ contains
 
 !> @brief    Initialiser for jedi_model_type
 !>
-!> @param [in] configuration Configuration used to setup the model class
-subroutine initialise( self, configuration )
+!> @param [in] config Configuration used to setup the model class
+subroutine initialise( self, config )
 
   implicit none
 
-  class( jedi_model_type ),      intent(inout) :: self
-  type( namelist_collection_type ), intent(in) :: configuration
+  class( jedi_model_type ), intent(inout) :: self
+  type( config_type ),      intent(in)    :: config
 
   ! Local
-  type( namelist_type ), pointer :: jedi_model_config
-  character( str_def )           :: time_step_str
+  character(str_def) :: time_step_str
 
   ! Get config info and setup
-  jedi_model_config => configuration%get_namelist('jedi_model')
-  call jedi_model_config%get_value( 'time_step', time_step_str )
+  time_step_str = config%jedi_model%time_step()
+
   call self%time_step%init(time_step_str)
 
 end subroutine initialise

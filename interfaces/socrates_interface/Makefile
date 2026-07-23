@@ -36,6 +36,8 @@ export EXTERNAL_DYNAMIC_LIBRARIES = yaxt yaxt_c netcdff netcdf hdf5
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta
+
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)-radiation/$(META_VN)
 

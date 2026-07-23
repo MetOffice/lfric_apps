@@ -28,20 +28,22 @@ contains
   !> @details The Lambert-Lewis convection scheme is a simple
   !>           convection parametrization that mixes theta and moisture
   !>           as documented in UMDP41
+  !> @param[in,out] du_conv_w2     Wind increment to pass out
+  !> @param[in,out] theta_latest   Current estimate of theta
   !> @param[in,out] mr             Mixing ratios
   !> @param[in]     exner          Exner pressure field in density (w3) space
   !> @param[in]     derived_fields Group of derived fields
   !> @param[in,out] convection_fields Fields for convection scheme
   !> @param[in]     outer          Outer loop counter
-  subroutine conv_ll_alg(mr, exner, derived_fields, convection_fields,    &
-                         outer)
+  subroutine conv_ll_alg(du_conv_w2, theta_latest, mr, exner, derived_fields, &
+                         convection_fields, outer)
 
     use conv_ll_kernel_mod, only: conv_ll_kernel_type
 
     implicit none
 
-    type( field_type ), intent( inout )          :: mr(nummr)
-    type( field_type ), intent( in )             :: exner
+    type( field_type ), intent( inout )          :: mr(nummr), du_conv_w2
+    type( field_type ), intent( in )             :: exner, theta_latest
 
     type( field_collection_type ), intent(in)    :: derived_fields
     type( field_collection_type ), intent(inout) :: convection_fields
@@ -50,7 +52,6 @@ contains
 
     ! Temporary fields unpacked from collections
     type( field_type ), pointer :: exner_in_wth  => null()
-    type( field_type ), pointer :: theta_star => null()
     type( field_type ), pointer :: dt_conv => null()
     type( field_type ), pointer :: dmv_conv => null()
     type( field_type ), pointer :: dmcl_conv => null()
@@ -66,7 +67,6 @@ contains
 
     ! Unpack fields
     call derived_fields%get_field('exner_in_wth', exner_in_wth)
-    call derived_fields%get_field('theta_star', theta_star)
 
     call convection_fields%get_field('dt_conv', dt_conv)
     call convection_fields%get_field('dmv_conv', dmv_conv)
@@ -77,11 +77,13 @@ contains
     call convection_fields%get_field('conv_snow', conv_snow)
 
     call invoke(conv_ll_kernel_type(dt_conv, dmv_conv, dmcl_conv, dcfl_conv,  &
-                                    theta_star, mr(imr_v), mr(imr_cl),        &
+                                    theta_latest, mr(imr_v), mr(imr_cl),      &
                                     exner_in_wth, exner, conv_rain),          &
 
                 ! bulk fraction change is just the liquid change
-                setval_X(dbcf_conv,dcfl_conv) )
+                setval_X(dbcf_conv,dcfl_conv), &
+                ! No wind increment from LLCS
+                setval_c(du_conv_w2, 0.0_r_def) )
 
     if ( LPROF ) call stop_timing( id_alg, 'convection.alg' )
 

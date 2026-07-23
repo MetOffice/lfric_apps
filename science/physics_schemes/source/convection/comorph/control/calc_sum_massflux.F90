@@ -17,11 +17,10 @@ contains
 ! Subroutine to sum the mass-fluxes and initiating masses
 ! over all convection types and layers on the current level.
 ! The summed mass-fluxes are needed for numerical safety
-! checks within conv_level-step (e.g. to avoid the ensemble
+! checks within conv_level_step (e.g. to avoid the ensemble
 ! of updrafts entraining more mass than exists on a level).
 
-subroutine calc_sum_massflux( n_conv_types, n_conv_layers,                     &
-                              ij_first, ij_last,                               &
+subroutine calc_sum_massflux( n_conv_types, n_conv_layers, ij_first, ij_last,  &
                               par_conv, sum_massflux )
 
 use comorph_constants_mod, only: real_cvprec, zero, nx_full
@@ -38,26 +37,21 @@ integer, intent(in) :: n_conv_layers
 integer, intent(in) :: ij_first
 integer, intent(in) :: ij_last
 
-! Array of pointers to structures containing compression lists
-! of parcel properties
+! Structures containing compression lists of parcel properties
 ! at points where convection is active at the current level
-type(parcel_type), intent(in) :: par_conv                                      &
-                   ( n_conv_types, n_conv_layers )
+type(parcel_type), intent(in) :: par_conv ( n_conv_types, n_conv_layers )
 
-! Sum of parcel mass-fluxes over types / layers
-! at previous model-level interface
-real(kind=real_cvprec), intent(out) :: sum_massflux                            &
-                                       ( ij_first:ij_last )
+! Sum of parcel mass-fluxes over types/layers at previous model-level interface
+real(kind=real_cvprec), intent(out) :: sum_massflux ( ij_first:ij_last )
 
 ! Loop counters
 integer :: i, j, ij, ic, i_type, i_layr
 
 
-! Initialise sums to zero
+! Initialise sum to zero
 do ij = ij_first, ij_last
   sum_massflux(ij) = zero
 end do
-
 
 ! Loop over layers and types
 do i_layr = 1, n_conv_layers
@@ -71,8 +65,7 @@ do i_layr = 1, n_conv_layers
         j = par_conv(i_type,i_layr) % cmpr % index_j(ic)
         ij = nx_full*(j-1)+i
         sum_massflux(ij) = sum_massflux(ij)                                    &
-                         + par_conv(i_type,i_layr)                             &
-                           % par_super(ic,i_massflux_d)
+                         + par_conv(i_type,i_layr) % par_super(ic,i_massflux_d)
       end do
     end if
 

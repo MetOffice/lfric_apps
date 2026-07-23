@@ -8,6 +8,7 @@
 
 module init_saturated_profile_alg_mod
 
+use config_mod,                      only: config_type
 use constants_mod,                   only: r_def, i_def
 use driver_water_constants_mod,      only: heat_capacity_h2o_vapour, &
                                            heat_capacity_h2o
@@ -62,16 +63,19 @@ contains
 !>          Picard iteration to convergence to the solution. The Exner and rho
 !>          fields are computed by taking hydrostatic balance.
 !>
+!> @param[in]     config      Application namelist configuration object
 !> @param[in,out] theta       potential temperature field
 !> @param[in,out] mr          array of moisture mixing ratio fields
 !> @param[in,out] exner       Exner pressure field
 !> @param[in,out] rho         dry density field
 !> @param[in,out] moist_dyn   array of fields with moist dynamics factors
-subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
+subroutine init_saturated_profile_alg( config, theta, mr, exner, rho, moist_dyn )
 
   implicit none
 
   ! Arguments
+  type(config_type), intent(in) :: config
+
   type(field_type), intent(inout) :: theta
   type(field_type), intent(inout) :: mr(nummr)
   type(field_type), intent(inout) :: exner
@@ -120,8 +124,8 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   one_minus_delta = 1.0_r_def - delta
 
   mesh     => theta%get_mesh()
-  chi      => get_coordinates( mesh%get_id() )
-  panel_id => get_panel_id( mesh%get_id() )
+  chi      => get_coordinates(mesh)
+  panel_id => get_panel_id(mesh)
   wt_fs    => theta%get_function_space()
 
   call specified_theta_e%initialise( vector_space = wt_fs )
@@ -182,18 +186,18 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
     call clone_bundle( mr, latest_mr, nummr )
 
     ! Give first guess for Exner
-    call init_exner_field( exner, theta, moist_dyn, initial_time )
+    call init_exner_field( config, exner, theta, moist_dyn, initial_time )
 
     ! Outer loop -- compute exner from hydrostatic balance
     do outer_count = 1, max_outer_iterations
       ! Find exner and update best guess
       call moist_dyn_factors_alg( moist_dyn, mr )
-      call init_exner_field( latest_exner, theta, moist_dyn, initial_time )
+      call init_exner_field( config, latest_exner, theta, moist_dyn, initial_time )
       call invoke( inc_aX_plus_bY( one_minus_delta, exner, &
                                    delta, latest_exner ) )
 
       ! Convert exner to Wtheta
-      call map_physics_scalars( exner_at_wt, exner )
+      call map_physics_scalars( config, exner_at_wt, exner )
 
       ! Compute best guess of theta_e
       call invoke( theta_e_kernel_type( latest_theta_e, theta,                 &
@@ -236,7 +240,7 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
         ! Inner loop -- iterate to get water vapour saturation
         do inner_count = 1, max_inner_iterations
           ! Find moisture mixing ratios and update best guess
-          call init_mr_fields( latest_mr, theta, exner, rho, moist_dyn )
+          call init_mr_fields( config, latest_mr, theta, exner, rho, moist_dyn )
           call invoke( inc_aX_plus_bY( one_minus_delta, mr(imr_v),             &
                                        delta, latest_mr(imr_v) ),              &
                        X_minus_Y( mr(imr_cl), mr_t, mr(imr_v) ),               &
@@ -268,7 +272,7 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   end if ! moist formulation
 
   ! Update moist dynamics factors and readjust to get hydrostatic balance again
-  call init_exner_field( exner, theta, moist_dyn, initial_time )
+  call init_exner_field( config, exner, theta, moist_dyn, initial_time )
 
   !----------------------------------------------------------------------------!
   ! Apply perturbation to theta_e
@@ -279,7 +283,7 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
 
   ! Return to saturation
   if ( moisture_formulation /= moisture_formulation_dry ) then
-    call init_mr_fields( mr, theta, exner, rho, moist_dyn )
+    call init_mr_fields( config, mr, theta, exner, rho, moist_dyn )
     call invoke( X_minus_Y( mr(imr_cl), mr_t, mr(imr_v) ) )
     call moist_dyn_factors_alg( moist_dyn, mr )
   end if

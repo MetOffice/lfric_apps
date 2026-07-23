@@ -12,13 +12,16 @@ program scintelapi
 use scintelapi_interface_mod, only: scintelapi_add_dependency_graphs_from_nl,  &
                                     scintelapi_add_fields_from_nl,             &
                                     scintelapi_initialise, scintelapi_finalise
+use config_mod,               only: config_type
 use dependency_analyser_mod,  only: dependency_analyser
 use dump_generator_mod,       only: dump_generator
 
 implicit none
 
+type(config_type), save :: lfric_config
+
 ! Initialise the LFRic, XIOS, API, etc. infrastructure
-call scintelapi_initialise()
+call scintelapi_initialise(lfric_config)
 
 ! Read namelist file for field definitions, and add said fields to internal
 ! field list

@@ -37,7 +37,7 @@ contains
     use feign_config_mod,           only : feign_finite_element_config,   &
                                            feign_mixing_config
     use finite_element_config_mod,  only : cellshape_quadrilateral,       &
-                                           coord_system_xyz
+                                           coord_system_xyz, coord_space_wchi
     use mixing_config_mod,          only : method_3d_smag,                &
                                            smag_l_calc, smag_l_calc_UseDx
 
@@ -52,13 +52,18 @@ contains
                               method        = method_3d_smag,    &
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
-                              leonard_kl    = 4.0_r_def )
+                              leonard_kl    = 4.0_r_def,         &
+                              conservative_diffusion = .false.,  &
+                              density_weighted = .false.,        &
+                              max_diff_factor = 1.0_r_def )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &
         element_order_h=0_i_def,           &
         element_order_v=0_i_def,           &
         coord_order=0_i_def,               &
+        coord_order_nonprime=1_i_def,      &
+        coord_space=coord_space_wchi,      &
         coord_system=coord_system_xyz,     &
         rehabilitate=.true.,               &
         vorticity_in_w1=.false. )
@@ -68,7 +73,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod, only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 

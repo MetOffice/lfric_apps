@@ -7,6 +7,7 @@
 
 module mphys_alg_mod
 
+  use config_mod,           only: config_type
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use mesh_mod,             only: mesh_type
@@ -35,6 +36,7 @@ contains
   !>                due to cloud microphysical processes
   !>                (e.g. latent heating and cooling).
   !>         See UMDP26 for full scheme details
+  !>@param[in]     config         Application namelist configuration object
   !>@param[in]     mr_n           Start of timestep mixing ratios
   !>@param[in]     theta          Potential temperature (theta) in wth space
   !>@param[in]     dry_rho_in_w3  Dry density in the w3 space
@@ -51,7 +53,8 @@ contains
   !>@param[in,out] dcff_mphys     Increment to frozen cloud fraction
   !>@param[in,out] dbcf_mphys     Increment to bulk cloud fraction
   !>@param[in]     dt             The model timestep length
-  subroutine mphys_alg( mr_n, theta, dry_rho_in_w3, derived_fields,            &
+  subroutine mphys_alg( config,                                                &
+                        mr_n, theta, dry_rho_in_w3, derived_fields,            &
                         microphysics_fields, cloud_fields, aerosol_fields,     &
                         turbulence_fields, orography_fields, f_arr,            &
                         dmr_mphys, dtheta_mphys,                               &
@@ -70,7 +73,8 @@ contains
 
     implicit none
 
-    type( field_type ), intent( in )    :: mr_n ( nummr ), theta, dry_rho_in_w3
+    type(config_type), intent(in) :: config
+    type(field_type),  intent(in) :: mr_n ( nummr ), theta, dry_rho_in_w3
 
     type( field_collection_type ), intent(in)    :: derived_fields
     type( field_collection_type ), intent(in)    :: microphysics_fields
@@ -137,7 +141,7 @@ contains
 
     type( field_type ) :: pressure_inc
 
-    type(mesh_type), pointer :: mesh => null()
+    type(mesh_type), pointer :: mesh
     integer(tik)             :: id
 
     if ( LPROF ) call start_timing( id, 'microphysics.wb' )
@@ -146,8 +150,8 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth => get_height_fv( Wtheta, mesh%get_id() )
-    height_w3  => get_height_fv( W3, mesh%get_id() )
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w3  => get_height_fv(config, mesh, W3)
 
     call theta%copy_field_properties(dcfl_mphys)
     call theta%copy_field_properties(dcff_mphys)
@@ -241,7 +245,7 @@ contains
                                      refl_tot, refl_1km ) )
 
     if (turb_gen_mixph) then
-      dz_in_wth => get_dz_at_wtheta( mesh%get_id() )
+      dz_in_wth => get_dz_at_wtheta(config, mesh)
       call invoke( mphys_turb_gen_kernel_type(theta, mr_n(imr_v), mr_n(imr_cl),&
                                               mr_n(imr_ci), mr_n(imr_s),       &
                                               ns_mphys, ni_mphys,              &

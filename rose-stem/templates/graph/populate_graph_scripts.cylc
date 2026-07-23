@@ -51,6 +51,7 @@
     {# All other scripts have the same simple graph. These are: #}
     {# * config_dump_checker #}
     {# * style_checker #}
+    {# * fortitude_linter #}
     {# * site_validator #}
     {# * rose-stem_lint_checker #}
     {# * validate_rose_meta #}

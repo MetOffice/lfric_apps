@@ -43,6 +43,11 @@
         inherit={{inherit.str|upper}}
         script="rose task-run --app-key=check_style"
 
+{% elif "fortitude_linter" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=check_fortitude_linter"
+
 {% elif "extract_checker" in task %}
 
         inherit={{inherit.str|upper}}
@@ -97,7 +102,7 @@
         script="rose task-run --app-key=python_unit_tests"
 
 {% elif "local_build_test" in task %}
-    {# Test the local_build script by building gungho_model #}
+    {# Test the local_build script by building solver #}
 
     {% if "launch_platform" in site_vars and site_vars.launch_platform == "azspice" %}
         {% set local_build_inherit = "SCRIPTS,"~site_vars["scripts_platform"]|upper~"_BUILD_GNU" %}
@@ -111,7 +116,7 @@
                  cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_apps $CYLC_TASK_WORK_DIR/apps_local_build_source
                  cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_core $CYLC_TASK_WORK_DIR/core_local_build_source
                  cd $CYLC_TASK_WORK_DIR/apps_local_build_source
-                 python3 build/local_build.py gungho_model -c $CYLC_TASK_WORK_DIR/core_local_build_source
+                 python3 build/local_build.py solver -c $CYLC_TASK_WORK_DIR/core_local_build_source
                  cd $CYLC_TASK_WORK_DIR
                  rm -rf $CYLC_TASK_WORK_DIR/apps_local_build_source
                  rm -rf $CYLC_TASK_WORK_DIR/core_local_build_source

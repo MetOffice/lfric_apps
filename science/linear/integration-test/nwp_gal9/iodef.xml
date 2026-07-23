@@ -10,7 +10,7 @@
      <domain id="edge" type="unstructured" comment="for dofs over edges of plane mesh"/>
      <domain id="node" type="unstructured" comment="for dofs over vertices of plane mesh"/>
    </domain_definition>
-    
+
    <axis_definition>
     <axis id="vert_axis_half_levels" name="half_levels"/>
     <axis id="vert_axis_full_levels" name="full_levels"/>
@@ -68,6 +68,7 @@
       <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
 
       <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group id="read_lfric_fd_dump_field_group">
         <field id="read_h_u" name="h_u" long_name="horizontal_wind" standard_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_grid" operation="instant" />
         <field id="read_v_u" name="v_u" long_name="vertical_wind" standard_name="vertical_wind" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
         <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="instant" />
@@ -77,16 +78,20 @@
         <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
         <field id="read_m_s" name="m_s" long_name="cloud_ice_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
         <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+       </field_group>
       </file>
 
         <!-- ANCIL FILES -->
 
       <file id="orography_mean_ancil" name="orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+       <field_group id="orography_mean_ancil_field_group">
         <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+       </field_group>
       </file>
 
        <!-- LS files -->
       <file id="ls" name="ls" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group id="ls_field_group">
         <field id="ls_time" name="time" unit="seconds" operation="once" axis_ref="ls_axis" />
         <field id="ls_theta_data" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_time_grid" operation="once" />
         <field id="ls_m_v_data" name="m_v" long_name="m_v" standard_name="m_v" unit="kg/kg" grid_ref="full_level_face_time_grid" operation="once" />
@@ -100,6 +105,7 @@
         <field id="ls_u_in_w3_data" name="u_in_w3" long_name="NS wind" unit="m s-1" grid_ref="half_level_face_time_grid" operation="once"/>
         <field id="ls_v_in_w3_data" name="v_in_w3" long_name="EW wind" unit="m s-1" grid_ref="half_level_face_time_grid" operation="once"/>
         <field id="ls_w_in_wth_data" name="w_in_wth" long_name="Upward wind" unit="m s-1" grid_ref="full_level_face_time_grid" operation="once"/>
+       </field_group>
       </file>
 
     </file_definition>

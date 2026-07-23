@@ -158,7 +158,7 @@ do i_cond = 1, n_cond_species
       end do
 
       ! Work out maximum expected error; loss of precision should scale
-      ! with epsilon times the size of the largest of the terms that
+      ! with EPSILON times the size of the largest of the terms that
       ! have been added or subtracted to calculate dq_error above:
       do ic = 1, cmpr%n_points
         ! Terms in the above formula
@@ -172,10 +172,10 @@ do i_cond = 1, n_cond_species
         terms(6) = coefs_cond(ic,i_t,i_cond) * imp_temp(ic)
         terms(7) = coefs_cond(ic,i_0,i_cond)
         max_error(ic) = maxval(abs(terms)) * tolerance * min_delta
-        ! Some compilers allow numbers less than tiny to be stored
+        ! Some compilers allow numbers less than TINY to be stored
         ! with reduced precision, which means the above threshold based
-        ! on epsilon goes wrong.  Avoid this problem by not letting
-        ! max_error fall below tolerance * tiny
+        ! on EPSILON goes wrong.  Avoid this problem by not letting
+        ! max_error fall below tolerance * TINY
         max_error(ic) = max( max_error(ic), tolerance * min_float )
       end do
 

@@ -42,7 +42,14 @@ module time_dimensions_mod
                                        emiss_so2_high_ancil_path
 #endif
   use files_config_mod,          only: lbc_dir => lbc_directory,              &
-                                       lbc_filename
+                                       lbc_filename,                          &
+                                       nudging_filename,                      &
+                                       nudging_directory
+  use external_forcing_config_mod,  only : theta_forcing,                     &
+                                           theta_forcing_nudging,             &
+                                           wind_forcing,                      &
+                                           wind_forcing_nudging
+
 #ifdef UM_PHYSICS
   use aerosol_config_mod,        only: glomap_mode,                           &
                                        glomap_mode_ukca
@@ -157,6 +164,9 @@ module time_dimensions_mod
     tdim = get_emiss_dim()
     if (tdim /= 0) &
       call set_axis_dimension('emiss_axis', tdim, tolerate_missing_axes)
+    tdim = get_nudging_dim()
+    if (tdim /= 0) &
+      call set_axis_dimension('nudging_time_axis', tdim, tolerate_missing_axes)
   end subroutine sync_time_dimensions
 
   !> @brief Source the dimension of the lbc_axis from the lbc file.
@@ -229,4 +239,23 @@ module time_dimensions_mod
 #endif
   end function get_emiss_dim
 
+  !> @brief Source the dimension of the nudging_time_axis from the
+  !> ancil file being read.
+  !>
+  !> @result The dimension of the nudging_time_axis
+  !>         or zero if there is no enabled nudging file.
+  !>
+  function get_nudging_dim() result(tdim)
+    implicit none
+    integer(i_def) :: tdim
+    tdim = 0
+
+    if (theta_forcing == theta_forcing_nudging .or.                   &
+        wind_forcing == wind_forcing_nudging) then
+
+      if (.not. get_ancil_dim(nudging_directory, nudging_filename, tdim)) return
+
+    end if
+
+  end function get_nudging_dim
 end module time_dimensions_mod

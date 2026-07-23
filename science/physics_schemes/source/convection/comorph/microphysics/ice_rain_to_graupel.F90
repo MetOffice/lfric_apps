@@ -102,7 +102,7 @@ integer :: ic, ic2
 l_added_where_none = .false.
 over_nc_col_cf: do ic2 = 1, nc_col_cf
   ic = index_ic_col_cf(ic2)
-  if ( q_graup(ic) == zero ) then
+  if ( .not. q_graup(ic) > zero ) then
     l_added_where_none = .true.
     exit over_nc_col_cf
   end if

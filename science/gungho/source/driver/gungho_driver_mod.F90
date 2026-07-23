@@ -18,15 +18,20 @@ module gungho_driver_mod
   use gungho_diagnostics_driver_mod, &
                                    only : gungho_diagnostics_driver
   use iau_time_control_mod,        only : calc_iau_ts_end
-  use gungho_init_fields_mod,      only : create_model_data, &
-                                          initialise_model_data, &
-                                          output_model_data, &
+  use gungho_init_fields_mod,      only : create_model_data,         &
+                                          create_physics_model_data, &
+                                          initialise_model_data,     &
+                                          output_model_data,         &
                                           finalise_model_data
   use driver_modeldb_mod,          only : modeldb_type
+  use external_forcing_config_mod, only : theta_forcing_nudging,               &
+                                          wind_forcing_nudging,                &
+                                          external_forcing_is_loaded
   use gungho_model_mod,            only : initialise_infrastructure, &
                                           initialise_model, &
                                           finalise_infrastructure, &
-                                          finalise_model
+                                          finalise_model, &
+                                          checksum_model
   use gungho_step_mod,             only : gungho_step
   use gungho_time_axes_mod,        only : gungho_time_axes_type, &
                                           get_time_axes_from_collection
@@ -54,8 +59,6 @@ module gungho_driver_mod
                                           log_scratch_space
   use mesh_mod,                    only : mesh_type
   use mesh_collection_mod,         only : mesh_collection
-  use multires_coupling_config_mod, &
-                                   only : aerosol_mesh_name
   use remove_field_collection_mod, only : remove_field_collection
   use section_choice_config_mod,   only : iau,                   &
                                           iau_sst,               &
@@ -63,12 +66,13 @@ module gungho_driver_mod
                                           stochastic_physics,    &
                                           stochastic_physics_um
   use io_value_mod,                only : io_value_type
+  use integer_io_value_mod,        only : integer_io_value_type
   use time_config_mod,             only : timestep_start
   use timing_mod,                  only : start_timing, stop_timing, &
                                           tik, LPROF
+  use variable_fields_mod,         only : update_variable_fields
 
 #ifdef UM_PHYSICS
-  use variable_fields_mod,         only : update_variable_fields
   use lfric_xios_time_axis_mod,    only : regridder
   use intermesh_mappings_alg_mod,  only : map_scalar_intermesh
   use update_ancils_alg_mod,       only : update_ancils_alg
@@ -81,9 +85,18 @@ module gungho_driver_mod
   use iau_main_alg_mod,            only : iau_main_alg
   use iau_config_mod,              only : iau_mode,               &
                                           iau_mode_instantaneous, &
-                                          iau_mode_time_mixed
+                                          iau_mode_time_mixed,    &
+                                          iau_outerloop
   use stochastic_physics_config_mod, &
-                                   only : use_random_parameters
+                                   only : use_random_parameters, &
+                                          use_skeb,              &
+                                          use_spt,               &
+                                          stph_spectral_dim
+  use stph_main_alg_mod,           only : spt_array_names,  &
+                                          spt_array_count,  &
+                                          skeb_array_names, &
+                                          skeb_array_count
+
   use stph_rp_main_alg_mod,        only : stph_rp_main_alg
   use flux_calc_all_mod,           only : flux_calc_init, &
                                           flux_calc_step
@@ -126,16 +139,28 @@ contains
     type(mesh_type),        pointer :: twod_mesh         => null()
     type(mesh_type),        pointer :: aerosol_mesh      => null()
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
+    type(mesh_type),        pointer :: nudging_mesh      => null()
+    type(mesh_type),        pointer :: nudging_twod_mesh => null()
 
     type(io_value_type) :: temp_corr_io_value
-    type(io_value_type) :: random_seed_io_value
+    type(integer_io_value_type) :: random_seed_io_value
 
     character(len=*), parameter :: io_context_name = "gungho_atm"
     integer(i_def) :: random_seed_size
-    real(r_def), allocatable :: real_array(:)
+    integer(i_def), allocatable :: integer_array(:)
     integer(tik)   :: id
 
+    logical(l_def) :: use_multires_coupling
+    logical(l_def) :: coarse_nudging
+    character(str_def) :: aerosol_mesh_name
+    character(str_def) :: nudging_mesh_name
+
 #ifdef UM_PHYSICS
+    integer(i_def) :: i
+    real(r_def),    allocatable :: real_array(:)
+    type(io_value_type) :: spt_arrays(spt_array_count)
+    type(io_value_type) :: skeb_arrays(skeb_array_count)
+
     type( field_collection_type ), pointer :: field_collection_ptr
     type( field_collection_type ), pointer :: soil_fields
     type( field_collection_type ), pointer :: snow_fields
@@ -157,13 +182,30 @@ contains
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     ! If aerosol data is on a different mesh, get this
-    if (coarse_aerosol_ancil .or. coarse_ozone_ancil) then
+    use_multires_coupling = modeldb%config%formulation%use_multires_coupling()
+    if ( use_multires_coupling .and. &
+         (coarse_aerosol_ancil .or. coarse_ozone_ancil) ) then
       ! For now use the coarsest mesh
-      aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
+      aerosol_mesh_name = modeldb%config%multires_coupling%aerosol_mesh_name()
+      aerosol_mesh => mesh_collection%get_mesh(trim(adjustl(aerosol_mesh_name)))
       aerosol_twod_mesh => mesh_collection%get_mesh(aerosol_mesh, TWOD)
     else
       aerosol_mesh => mesh
       aerosol_twod_mesh => twod_mesh
+    end if
+
+    ! If nudging is on a different mesh, get this
+    coarse_nudging = .false.
+    if ( use_multires_coupling )   &
+      coarse_nudging = modeldb%config%multires_coupling%coarse_nudging()
+
+    if (coarse_nudging) then
+      nudging_mesh_name = modeldb%config%multires_coupling%nudging_mesh_name()
+      nudging_mesh => mesh_collection%get_mesh(trim(adjustl(nudging_mesh_name)))
+      nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
+    else
+      nudging_mesh => mesh
+      nudging_twod_mesh => twod_mesh
     end if
 
     ! Rate of temperature adjustment for energy correction
@@ -179,16 +221,42 @@ contains
     if ( stochastic_physics == stochastic_physics_um ) then
       ! Random seed for stochastic physics
       call random_seed(size = random_seed_size)
-      allocate(real_array(random_seed_size))
-      real_array(1:random_seed_size) = 0.0_r_def
-      call random_seed_io_value%init("random_seed", real_array)
+      allocate(integer_array(random_seed_size))
+      integer_array = 0
+      call random_seed_io_value%init("random_seed", integer_array)
       call modeldb%values%add_key_value( 'random_seed_io_value', &
                                          random_seed_io_value )
-      deallocate(real_array)
+      deallocate(integer_array)
+#ifdef UM_PHYSICS
+      if (use_spt) then
+        allocate(real_array(stph_spectral_dim))
+        real_array = 0.0_r_def
+        do i = 1, spt_array_count
+          call spt_arrays(i)%init(trim(spt_array_names(i)),real_array)
+          call modeldb%values%add_key_value(trim(spt_array_names(i)), &
+                                            spt_arrays(i))
+        end do
+        deallocate(real_array)
+      end if
+      if (use_skeb) then
+        allocate(real_array(stph_spectral_dim))
+        real_array = 0.0_r_def
+        do i = 1, skeb_array_count
+          call skeb_arrays(i)%init(trim(skeb_array_names(i)),real_array)
+          call modeldb%values%add_key_value(trim(skeb_array_names(i)), &
+                                            skeb_arrays(i))
+        end do
+        deallocate(real_array)
+      end if
+#endif
     end if
 
     ! Instantiate the fields stored in model_data
-    call create_model_data( modeldb,         &
+    call create_model_data( modeldb,                         &
+                            mesh, twod_mesh, &
+                            aerosol_mesh, aerosol_twod_mesh, &
+                            nudging_mesh, nudging_twod_mesh )
+    call create_physics_model_data( modeldb, &
                             mesh, twod_mesh, &
                             aerosol_mesh, aerosol_twod_mesh )
 
@@ -218,11 +286,11 @@ contains
 #ifdef UM_PHYSICS
     ! If IAU is active and increments need to be added instantaneously, to the initial
     ! state, then do this now. The IAU should not be activated at this stage in
-    ! the case of a checkpoint-restart.
+    ! the case of a checkpoint-restart or as part of a DA outer loop.
     if ( ( iau ) .and.                               &
        ( ( iau_mode == iau_mode_instantaneous ) .OR. &
          ( iau_mode == iau_mode_time_mixed ) ) ) then
-      if ( .not. checkpoint_read ) then
+      if ( .not. ( checkpoint_read .or. iau_outerloop )) then
         call update_iau_alg( modeldb,                     &
                              twod_mesh,                   &
                              iau_ainc_active = .true.,    &
@@ -231,8 +299,11 @@ contains
                              iau_pertinc_active = .false. )
       end if
 
-      ! IAU increment fields can now be cleared from the depository
-      call remove_field_collection( modeldb, "iau_fields" )
+      ! IAU increment fields can now be cleared from the depository unless this
+      ! is a DA outer loop application
+      if ( .not. iau_outerloop ) then
+        call remove_field_collection( modeldb, "iau_fields" )
+      end if
 
     end if
 
@@ -305,6 +376,8 @@ contains
     type(gungho_time_axes_type), pointer :: model_axes
     character(len=*), parameter :: io_context_name = "gungho_atm"
 
+    type( field_collection_type ), pointer :: derived_fields
+
 #ifdef UM_PHYSICS
     procedure(regridder), pointer :: regrid_operation => null()
     logical(l_def)                :: regrid_lowest_order
@@ -312,6 +385,9 @@ contains
     type( field_collection_type ), pointer :: surface_fields
     type( field_collection_type ), pointer :: ancil_fields
 #endif
+
+    integer(i_def) :: theta_forcing
+    integer(i_def) :: wind_forcing
 
     read(timestep_start,*,iostat=rc)  ts_start
     if ( LPROF ) then
@@ -384,10 +460,24 @@ contains
     if ( lbc_option == lbc_option_gungho_file .or. &
          lbc_option == lbc_option_um2lfric_file) then
 
-      call update_lbcs_file_alg( modeldb%configuration,     &
+      call update_lbcs_file_alg( modeldb%config,            &
                                  model_axes%lbc_times_list, &
                                  modeldb%clock, lbc_fields )
     endif
+
+    ! Nudging update. Check that external_forcing namelist is active
+    if ( external_forcing_is_loaded() ) then
+      theta_forcing = modeldb%config%external_forcing%theta_forcing()
+      wind_forcing = modeldb%config%external_forcing%wind_forcing()
+
+      if ( theta_forcing == theta_forcing_nudging                              &
+          .or. wind_forcing == wind_forcing_nudging) then
+        derived_fields => modeldb%fields%get_field_collection("derived_fields")
+        call update_variable_fields(                                           &
+            model_axes%nudging_times_list, modeldb%clock, derived_fields       &
+        )
+      end if
+    end if
 
 #ifdef UM_PHYSICS
     ! If IAU is active and increments need to be added over a time window, then do this
@@ -431,9 +521,10 @@ contains
                                    ancil_fields,                        &
                                    regrid_operation,                    &
                                    regrid_lowest_order )
-      call update_ancils_alg( model_axes%ancil_times_list, &
-                              modeldb%clock,                       &
-                              ancil_fields,                        &
+      call update_ancils_alg( modeldb%config,              &
+                              model_axes%ancil_times_list, &
+                              modeldb%clock,               &
+                              ancil_fields,                &
                               surface_fields)
     end if
 
@@ -469,30 +560,18 @@ contains
     type(modeldb_type), intent(inout) :: modeldb
     integer(tik)                      :: id
 
-#ifdef COUPLED
-    type( field_collection_type ), pointer :: depository => null()
-#endif
-
     if ( LPROF ) call start_timing(id, 'gungho_driver.finalise')
-
-#ifdef COUPLED
-    if (l_esm_couple) then
-       depository => modeldb%fields%get_field_collection("depository")
-       ! Ensure coupling fields are updated at the end of a cycle to ensure the values
-       ! stored in and recovered from checkpoint dumps are correct and reproducible
-       ! when (re)starting subsequent runs!
-       call cpl_fld_update(modeldb)
-    endif
-#endif
 
     ! Multifile io finalisation
     if( multifile_io ) then
       call finalise_multifile_io( modeldb)
     end if
 
+    ! Output model checksum
+    call checksum_model( modeldb, program_name )
+
     ! Model configuration finalisation
-    call finalise_model( modeldb,               &
-                         program_name )
+    call finalise_model( modeldb )
 
     ! Destroy the fields stored in model_data
     call finalise_model_data( modeldb )

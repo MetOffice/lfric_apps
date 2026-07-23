@@ -10,7 +10,7 @@
         "memory": [60, "GB"],
         "wallclock": 90,
         "build_memory": [6, "GB"],
-        "build_wallclock": 90,
+        "build_wallclock": 240,
         "build_cpus": 6,
 
         "mesh": {

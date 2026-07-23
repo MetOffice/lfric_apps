@@ -103,8 +103,8 @@ module adj_wind_precomputations_alg_mod
     do i = num_meshes, 1, -1
       mesh_id = wind_pc%get_mesh_id_from_idx(i)
       mesh => mesh_collection%get_mesh(mesh_id)
-      face_selector_ew => get_face_selector_ew(mesh_id)
-      face_selector_ns => get_face_selector_ns(mesh_id)
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
 
       wind_pc_h => wind_pc%get_wind( mesh_id, direction_h )
       wind_pc_v => wind_pc%get_wind( mesh_id, direction_v )

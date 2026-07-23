@@ -154,6 +154,7 @@
         "plot",
         "memory_plot_ex",
         "check",
+        "metadata_test",
         "publish",
         "phystest",
         "fcm_make",

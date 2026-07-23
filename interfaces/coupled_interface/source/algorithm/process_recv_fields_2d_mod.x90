@@ -7,6 +7,8 @@
 !> @brief Process ocean and sea ice data coming through the coupler
 
 module process_recv_fields_2d_mod
+
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def
   use process_send_fields_2d_mod,    only: save_marine_fractions
   use field_mod,                     only: field_type
@@ -18,7 +20,7 @@ module process_recv_fields_2d_mod
   use log_mod,                       only: log_event, LOG_LEVEL_INFO
   use mesh_mod,                      only: mesh_type
   use sci_multi_insert_kernel_mod,   only: multi_insert_kernel_type
-  use derived_config_mod,         only: l_couple_ocean, l_couple_sea_ice
+  use derived_config_mod,            only: l_couple_ocean, l_couple_sea_ice
 
   implicit none
 
@@ -27,17 +29,22 @@ module process_recv_fields_2d_mod
   contains
 
   !> @brief Process ocean and sea ice data coming through the coupler
-  !> @param[in] dcpl_rcv field collection of all fields recieved through the coupler
-  !> @param[in] depository field collection of all other relevant fields
-  !> @param[in] n_sea_ice_tile Number of sea ice tiles
-  !> @param[in] T_freeze_h2o_sea Temperature at which sea water freezes (K)
-  !> @param[in] therm_cond_sice Thermal conductivity of sea-ice (W/m/K)
+  !> @param[in] config            Application namelist configuration object
+  !> @param[in] dcpl_rcv          Field collection of all fields recieved
+  !>                              through the coupler
+  !> @param[in] depository        Field collection of all other relevant fields
+  !> @param[in] n_sea_ice_tile    Number of sea ice tiles
+  !> @param[in] T_freeze_h2o_sea  Temperature at which sea water freezes (K)
+  !> @param[in] therm_cond_sice   Thermal conductivity of sea-ice (W/m/K)
   !> @param[in] therm_cond_sice_snow Thermal conductivity of snow
   !>                                 on zero layer sea-ice (W/m/K)
-  subroutine process_recv_fields_2d(dcpl_rcv,depository,              &
+  subroutine process_recv_fields_2d(config, dcpl_rcv,depository,      &
                                     n_sea_ice_tile, T_freeze_h2o_sea, &
                                     therm_cond_sice, therm_cond_sice_snow)
    implicit none
+
+   type(config_type), intent(in) :: config
+
    type( field_collection_type ), intent(in)    :: dcpl_rcv
    type( field_collection_type ), intent(in)    :: depository
    integer(kind=i_def),           intent(in)    :: n_sea_ice_tile
@@ -85,7 +92,7 @@ module process_recv_fields_2d_mod
    call depository%get_field("ocn_cpl_point",ocn_cpl_point_ptr)
 
    mesh => theta_ptr%get_mesh()
-   dA => get_da_at_w2( mesh%get_id() )
+   dA => get_da_at_w2(mesh)
    call u_w3_ptr%copy_field_properties(sea_u_w3)
    call u_w3_ptr%copy_field_properties(sea_v_w3)
    call theta_ptr%copy_field_properties(sea_w_wth)
@@ -106,7 +113,7 @@ module process_recv_fields_2d_mod
                 )
 
      ! Convert U/V (and W) from W3 to W2
-     call set_wind( sea_current_w2_ptr, sea_u_w3, sea_v_w3, sea_w_wth )
+     call set_wind( config, sea_current_w2_ptr, sea_u_w3, sea_v_w3, sea_w_wth )
      call sea_u_w3%field_final()
      call sea_v_w3%field_final()
      call sea_w_wth%field_final()

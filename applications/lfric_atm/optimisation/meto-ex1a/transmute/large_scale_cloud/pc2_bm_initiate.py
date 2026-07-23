@@ -16,11 +16,10 @@ the original code are re-inserted for performance and consistency of output.
 
 import logging
 from psyclone.transformations import TransformationError
-from psyclone.psyir.nodes import (Loop, CodeBlock)
+from psyclone.psyir.nodes import (Loop, UnknownDirective)
 from transmute_psytrans.transmute_functions import (
     set_pure_subroutines,
     get_outer_loops,
-    mark_explicit_privates,
     get_compiler,
     first_priv_red_init,
     match_lhs_assignments,
@@ -37,6 +36,13 @@ private_variables = [
     "cf_c", "cfl_c", "cff_c"
 ]
 
+private_variable_par_sec = [
+    "qsl", "qsi", "qsl_lay", "qsi_lay", "sigx", "deltacl_c", "idx",
+    "deltacf_c", "cf_c", "cfl_c", "cff_c", "deltaql_c", "qnx_min",
+    "qnx_max", "tl_lay", "ql_lay", "qsl_lay", "qsi_lay", "tdc_lay",
+    "inv_thm_lay", "inv_tmp_lay", "wvar_lay", "dtldz_lay", "dqtdz_lay",
+    "l_set_modes"]
+
 # Subroutines that need to be declared as "pure"
 pure_subroutines = ["qsat", "qsat_mix", "qsat_wat", "qsat_wat_mix"]
 
@@ -51,22 +57,6 @@ false_dep_vars = [
     "qsi_lay",
     "qsl_lay",
 ]
-
-
-class CompilerDirective():
-    """
-    Custom compiler directive class to avoid an issue
-    with fparser.two.Fortran2003.Directive that will
-    be resolved in an upcoming fparser release.
-    """
-    def __init__(self, directive):
-        self.directive = directive
-
-    def tofortran(self):
-        """
-        Return directive with prefix
-        """
-        return "!DIR$ " + self.directive
 
 
 def trans(psyir):
@@ -92,33 +82,27 @@ def trans(psyir):
     except (TransformationError, IndexError) as err:
         logging.warning("Parallelisation of the 1st region failed: %s", err)
 
-    # Declare private symbols for the last loop nest explicitly,
-    # PSyclone misses one
-    mark_explicit_privates(outer_loops[2], private_variables)
-
     # Parallelise the second region and insert compiler directives
     # Add redundant variable initialisation to work around a known
     # PSyclone issue when using CCE
     try:
-        if get_compiler() == 'cce':
-            first_priv_red_init(outer_loops[2], ["i", "j", "k"])
 
         OMP_PARALLEL_REGION_TRANS.validate(outer_loops[2:3])
-        OMP_PARALLEL_REGION_TRANS.apply(outer_loops[2])
+        OMP_PARALLEL_REGION_TRANS.apply(
+            [outer_loops[2]], 
+            force_private=private_variable_par_sec)
 
         # Insert before OpenMP directives to avoid PSyclone errors
         if get_compiler() == "cce":
             for loop in outer_loops[2].walk(Loop)[3:5]:
-                cblock = CodeBlock([CompilerDirective("NOFISSION")],
-                                   CodeBlock.Structure.STATEMENT)
+                dir = UnknownDirective(" NOFISSION", "DIR")
                 insert_at = loop.parent.children.index(loop)
-                loop.parent.children.insert(insert_at, cblock)
+                loop.parent.children.insert(insert_at, dir)
 
-        for loop in outer_loops[2].walk(Loop)[13:16]:
-            cblock = CodeBlock([CompilerDirective("IVDEP")],
-                               CodeBlock.Structure.STATEMENT)
+        for loop in outer_loops[2].walk(Loop)[13:18]:
+            dir = UnknownDirective(" IVDEP", "DIR")
             insert_at = loop.parent.children.index(loop)
-            loop.parent.children.insert(insert_at, cblock)
+            loop.parent.children.insert(insert_at, dir)
 
         for loop in outer_loops[2].walk(Loop)[2:7]:
             # Check if any eligible variables appear in subroutine
@@ -129,7 +113,8 @@ def trans(psyir):
             options = {}
             if len(ignore_deps_vars) > 0:
                 options["ignore_dependencies_for"] = ignore_deps_vars
-            OMP_DO_LOOP_TRANS_STATIC.apply(loop, options)
+            OMP_DO_LOOP_TRANS_STATIC.apply(loop, options=options,
+                                           force_private=private_variables)
 
         for loop in outer_loops[2].walk(Loop)[8:13:2]:
             # Check if any eligible variables appear on the LHS of
@@ -139,7 +124,8 @@ def trans(psyir):
             if len(ignore_deps_vars) > 0:
                 options["ignore_dependencies_for"] = ignore_deps_vars
 
-            OMP_DO_LOOP_TRANS_STATIC.apply(loop, options)
+            OMP_DO_LOOP_TRANS_STATIC.apply(loop, options=options,
+                                           force_private=private_variables)
 
     except (TransformationError, IndexError) as err:
         logging.warning("Parallelisation of the 2nd region failed: %s", err)

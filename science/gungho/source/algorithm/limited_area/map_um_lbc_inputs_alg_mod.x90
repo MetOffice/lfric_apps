@@ -11,6 +11,7 @@
 !>          mixing ratios and dry density.
 module map_um_lbc_inputs_alg_mod
 
+  use config_mod,                     only: config_type
   use extrusion_config_mod,           only: planet_radius
   use field_mod,                      only: field_type
   use fs_continuity_mod,              only: W3
@@ -29,21 +30,23 @@ contains
   !> @details The LBC inputs are currently provided as specific humidities and
   !>          a total density.  This routine converts them to the equivalent
   !>          mixing ratios and dry density.
-  !> @param[in]     q      vapour specific humidity
-  !> @param[in]     qcl    liquid specific humidity
-  !> @param[in]     qcf    frozen specific humidity
-  !> @param[in]     qrain  rain specific humidity
-  !> @param[in]     rho_r2 wet density multiplied by radius squared
-  !> @param[in,out] m_v    vapour mixing ratio
-  !> @param[in,out] m_cl   liquid mixing ratio
-  !> @param[in,out] m_s    frozen mixing ratio
-  !> @param[in,out] m_r    rain mixing ratio
-  !> @param[in,out] rho    dry density
-  subroutine map_um_lbc_inputs( q, qcl, qcf, qrain, rho_r2, &
-                                m_v, m_cl, m_s, m_r, rho    &
-                                )
+  !> @param[in]     config  Application namelist configuration object
+  !> @param[in]     q       vapour specific humidity
+  !> @param[in]     qcl     liquid specific humidity
+  !> @param[in]     qcf     frozen specific humidity
+  !> @param[in]     qrain   rain specific humidity
+  !> @param[in]     rho_r2  wet density multiplied by radius squared
+  !> @param[in,out] m_v     vapour mixing ratio
+  !> @param[in,out] m_cl    liquid mixing ratio
+  !> @param[in,out] m_s     frozen mixing ratio
+  !> @param[in,out] m_r     rain mixing ratio
+  !> @param[in,out] rho     dry density
+  subroutine map_um_lbc_inputs( config, q, qcl, qcf, qrain, rho_r2, &
+                                m_v, m_cl, m_s, m_r, rho )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(in)    :: q, qcl, qcf, qrain, rho_r2
     type(field_type), intent(inout) :: m_v, m_cl, m_s, m_r, rho
@@ -53,8 +56,8 @@ contains
     type(field_type)                :: qsum_w3
     integer(i_def)                  :: mesh_id
 
-    mesh_id     =  rho%get_mesh_id()
-    height_w3   => get_height_fv( W3, mesh_id )
+    mesh_id   =  rho%get_mesh_id()
+    height_w3 => get_height_fv(config, rho%get_mesh(), W3)
 
     ! Convert to a total air density
     ! rho = rho/r/r

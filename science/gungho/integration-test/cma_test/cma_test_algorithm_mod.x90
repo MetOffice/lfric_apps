@@ -40,6 +40,7 @@ module cma_test_algorithm_mod
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, l_def, r_solver
   use columnwise_operator_mod,        only : columnwise_operator_type
   use function_space_mod,             only : function_space_type
@@ -53,19 +54,19 @@ module cma_test_algorithm_mod
                                              r_solver_operator_type
   use fs_continuity_mod,              only : W0, W1, W2, W2V, W2H, W3, Wchi
   use driver_coordinates_mod,         only : assign_coordinate_field
-  use finite_element_config_mod,      only : element_order_h, &
-                                             element_order_v, &
-                                             coord_order
   use extrusion_mod,                  only: TWOD
   use mesh_collection_mod,            only: mesh_collection
+
   ! Kernels for field assignment and manipulation
   use sci_enforce_bc_kernel_mod,      only : enforce_bc_kernel_type
   use sci_assign_field_random_kernel_mod, only : assign_field_random_kernel_type
   use sci_assign_field_single_column_kernel_mod, only : assign_field_single_column_kernel_type
+
   ! Kernels for local operator assembly
   use sci_compute_mass_matrix_kernel_w2_mod, only : compute_mass_matrix_kernel_w2_type
   use sci_compute_mass_matrix_kernel_w3_mod, only : compute_mass_matrix_kernel_w3_type
   use sci_compute_div_operator_kernel_mod, only : compute_div_operator_kernel_type
+
   ! Kernels for local operator application and manipulation
   use matrix_vector_kernel_mod,         only : matrix_vector_kernel_type
   use dg_inc_matrix_vector_kernel_mod,  only : dg_inc_matrix_vector_kernel_type
@@ -76,6 +77,7 @@ module cma_test_algorithm_mod
   use sci_mm_diagonal_assembled_kernel_mod, only : mm_diagonal_assembled_kernel_type
   use sci_enforce_operator_bc_kernel_mod, only : enforce_operator_bc_kernel_type
   use sci_operator_algebra_kernel_mod,    only : operator_setval_x_kernel_type
+
   ! Columnwise operator kernels
   use sci_columnwise_op_asm_kernel_mod,       only : columnwise_op_asm_kernel_type
   use sci_columnwise_op_asm_diag_hmht_kernel_mod, only : columnwise_op_asm_diag_hmht_kernel_type
@@ -85,6 +87,11 @@ module cma_test_algorithm_mod
   use sci_columnwise_op_scaledadd_kernel_mod, only : columnwise_op_scaledadd_kernel_type
   use sci_columnwise_op_asm_m2v_lumped_inv_krnl_mod, &
                               only : columnwise_op_asm_m2v_lumped_inv_krnl_type
+
+  ! Configuration modules
+  use finite_element_config_mod, only : element_order_h, &
+                                        element_order_v, &
+                                        coord_order
 
   implicit none
 
@@ -176,12 +183,14 @@ contains
   !!          large, the two terms in the Helmholtz operator might have
   !!          very different magnitude, distorting the test results).
   !>
-  !> @param[in] mesh Mesh to be used
-  subroutine cma_test_init(mesh_in)
+  !> @param[in] config   Application namelist configuration object
+  !> @param[in] mesh_in  Mesh to be used
+  subroutine cma_test_init(config, mesh_in)
 
     implicit none
 
-    type(mesh_type), intent(in), pointer :: mesh_in
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh_in
 
     ! Local variables
     type( mesh_type ),  pointer :: twod_mesh
@@ -221,7 +230,7 @@ contains
                              halo_depth = mesh%get_halo_depth() )
     end do
 
-    call assign_coordinate_field( chi, panel_id, mesh )
+    call assign_coordinate_field(config, mesh, chi, panel_id)
 
     ! Construct quadrature rule
     qr = quadrature_xyoz_type(3, quadrature_rule)

@@ -29,6 +29,7 @@ contains
   !>         See UMDP30 for full scheme details.
   !>@param[in]     mr               Start of timestep mixing ratios
   !>@param[in]     theta            Potential temperature (theta) in wth space
+  !>@param[in]     exner            Exner pressure on w3 space
   !>@param[in]     derived_fields   Group of derived fields
   !>@param[in]     cloud_fields     Group of cloud fields
   !>@param[out]    dtheta_pc2_inc   Potential temperature response in wth space
@@ -41,6 +42,7 @@ contains
 
   subroutine pc2_checks_alg( mr,             &
                              theta,          &
+                             exner,          &
                              derived_fields, &
                              cloud_fields,   &
                              dtheta_pc2_inc, &
@@ -59,8 +61,7 @@ contains
     implicit none
 
     type( field_type ), intent( in ) :: mr ( nummr )
-    type( field_type ), intent( in ) :: theta
-
+    type( field_type ), intent( in ) :: theta, exner
     type( field_collection_type ), intent(in) :: derived_fields, cloud_fields
 
     type( field_type ), intent(out) :: dtheta_pc2_inc
@@ -108,6 +109,7 @@ contains
                                            bulk_fraction,       &
                                            theta,               &
                                            exner_in_wth,        &
+                                           exner,               &
                                                       ! Responses
                                            dtheta_pc2_inc,      &
                                            dmv_pc2_inc,         &

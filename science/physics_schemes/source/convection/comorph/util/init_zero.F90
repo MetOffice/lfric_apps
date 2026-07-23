@@ -50,7 +50,7 @@ end subroutine init_zero_2d
 subroutine init_zero_3d( lb, ub, field )
 
 use comorph_constants_mod, only: real_hmprec,                                  &
-                     nx_full, ny_full, k_bot_conv, k_top_conv
+                                 nx_full, ny_full, k_bot_conv, k_top_conv
 
 implicit none
 
@@ -65,7 +65,7 @@ real(kind=real_hmprec), parameter :: zero = 0.0_real_hmprec
 ! Loop counters
 integer :: i, j, k
 
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC) private( i, j, k )            &
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, field )
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
@@ -74,7 +74,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 return
 end subroutine init_zero_3d

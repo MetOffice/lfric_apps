@@ -7,6 +7,7 @@
 !> @brief Module containing adjoint tests for the atl_transport_controller routines
 module atlt_transport_controller_alg_mod
 
+  use config_mod,                         only : config_type
   use constants_mod,                      only : i_def, r_def, l_def
   use field_mod,                          only : field_type
   use r_tran_field_mod,                   only : r_tran_field_type
@@ -43,13 +44,15 @@ module atlt_transport_controller_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine atlt_transport_controller_initialiser_alg( mesh, model_clock )
+  subroutine atlt_transport_controller_initialiser_alg( config, mesh, model_clock )
 
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
 
@@ -84,7 +87,8 @@ module atlt_transport_controller_alg_mod
     cheap_update_step = .false._l_def
 
     do outer = 1_i_def, 2_i_def
-      call run_atlt_transport_ctrl_init_alg( vector_space_w2_ptr, &
+      call run_atlt_transport_ctrl_init_alg( config,              &
+                                             vector_space_w2_ptr, &
                                              vector_space_w3_ptr, &
                                              ls_ref_field_rdef,   &
                                              ls_wind_n_rdef,      &
@@ -98,6 +102,7 @@ module atlt_transport_controller_alg_mod
 
   !=============================================================================
   !> @brief Runs the adjoint test for atl_transport_controller_initialiser for a given set of parameters
+  !> @param[in]  config               Application namelist configuration object
   !> @param[in]  vector_space_w2_ptr  W2 function space pointer
   !> @param[in]  vector_space_w3_ptr  W3 function space pointer
   !> @param[in]  ls_ref_field_rdef    The LS reference field at rdef precision
@@ -107,7 +112,8 @@ module atlt_transport_controller_alg_mod
   !> @param[in]  outer                The outer iteration variable
   !> @param[in]  cheap_update_step    Boolean to determine whether or not to do cheap update
   !>
-  subroutine run_atlt_transport_ctrl_init_alg( vector_space_w2_ptr, &
+  subroutine run_atlt_transport_ctrl_init_alg( config,              &
+                                               vector_space_w2_ptr, &
                                                vector_space_w3_ptr, &
                                                ls_ref_field_rdef,   &
                                                ls_wind_n_rdef,      &
@@ -122,6 +128,8 @@ module atlt_transport_controller_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(function_space_type), pointer, intent(in) :: vector_space_w2_ptr
     type(function_space_type), pointer, intent(in) :: vector_space_w3_ptr
     type(field_type),                   intent(in) :: ls_ref_field_rdef
@@ -189,9 +197,10 @@ module atlt_transport_controller_alg_mod
                  setval_X( wind_np1_rdef_inp, wind_np1_rdef ) )
 
     ! Initialise tl_transport_controller object
-    call tl_transport_controller%initialise( model_clock, ref_field_rdef, ls_ref_field_rdef, &
-                                             wind_n_rdef, wind_np1_rdef,                     &
-                                             ls_wind_n_rdef, ls_wind_np1_rdef,               &
+    call tl_transport_controller%initialise( config, model_clock,               &
+                                             ref_field_rdef, ls_ref_field_rdef, &
+                                             wind_n_rdef, wind_np1_rdef,        &
+                                             ls_wind_n_rdef, ls_wind_np1_rdef,  &
                                              outer, cheap_update_step=cheap_update_step )
 
     ls_wind_pert_rho_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()

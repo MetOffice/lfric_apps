@@ -34,7 +34,7 @@ subroutine ex_flux_tq (                                                        &
   )
 
 use atm_fields_bounds_mod, only: pdims, tdims, scmrowlen, scmrow
-use bl_option_mod, only: flux_grad, LockWhelan2006, zero
+use bl_option_mod, only: flux_grad, LockWhelan2006, l_converge_ga, zero
 use planet_constants_mod, only: cp => cp_bl, grcp => grcp_bl
 use bl_diags_mod, only: strnewbldiag
 use s_scmop_mod,   only: default_streams,                                      &
@@ -152,7 +152,7 @@ type(bl_wtrac_type), intent(in out) :: wtrac_bl(n_wtrac)
 character(len=*), parameter ::  RoutineName = 'EX_FLUX_TQ'
 
 integer ::                                                                     &
-  i, j, k, i_wt
+  i, j, k, i_wt, p1
 
 real(kind=r_bl) :: grad_ftl
 real(kind=r_bl) :: grad_fqw
@@ -221,6 +221,22 @@ real(kind=jprb)               :: zhook_handle
 !-----------------------------------------------------------------------
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+IF ( l_converge_ga ) THEN
+  ! This option aims to improve the accuracy of SML-top height found using
+  ! buoyancy flux integration by converging the gradient adjustment
+  ! consistent with the latest zh...
+  ! Here we ensure the gradient adjustment is applied on all model-levels
+  ! where the khsurf profile is active; existing code assumes this is only
+  ! up to rho-level ntml (with an explicit entrainment flux applied at ntml+1),
+  ! but when buoyancy flux integration is used the khsurf profile extends
+  ! up to ntml+1 (with no explicit entrainment flux).
+  ! Integer "p1" is added onto ntml in the IF test, so that we go up to
+  ! ntml + 1 if l_converge_ga is on, but just ntml if not.
+  p1 = 1
+ELSE
+  p1 = 0
+END IF
 
 ! Are the SCM Boundary Layer diagnostics required?
 scm_bl_diags = l_scmdiags(scmdiag_bl) .and. model_type == mt_single_column
@@ -312,7 +328,7 @@ do k = 2, bl_levels
         !  Add surface-drive gradient adjustment terms to fluxes
         !  within the surface-based mixed layer.
         !-------------------------------------------------------------
-      if (k  <=  ntml(i,j) ) then
+      if (k  <=  ntml(i,j) + p1 ) then
         non_grad_ftl = weight_1dbl(i,j,k) *                                    &
                                    rhokhz(i,j,k) * grad_t_adj(i,j)
         non_grad_fqw = weight_1dbl(i,j,k) *                                    &
@@ -361,7 +377,7 @@ if (l_wtrac) then
           !  Add surface-drive gradient adjustment terms to fluxes
           !  within the surface-based mixed layer.
           !-------------------------------------------------------------
-          if (k  <=  ntml(i,j) ) then
+          if (k  <=  ntml(i,j) + p1 ) then
             non_grad_fqw = weight_1dbl(i,j,k) *                                &
                           rhokhz(i,j,k) * wtrac_bl(i_wt)%grad_q_adj(i,j)
             wtrac_bl(i_wt)%fqw(i,j,k) = wtrac_bl(i_wt)%fqw(i,j,k)              &
@@ -383,7 +399,7 @@ if (flux_grad  ==  LockWhelan2006) then
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
 
-        if ( k  <=  ntml(i,j) ) then
+        if ( k  <=  ntml(i,j) + p1) then
           f2_ftl  = rhof2(i,j,k)  * tothf_zh(i,j)
           fsc_ftl = rhofsc(i,j,k) * tothf_zh(i,j)
           ftl(i,j,k)   = ftl(i,j,k) + weight_1dbl(i,j,k) *                     &

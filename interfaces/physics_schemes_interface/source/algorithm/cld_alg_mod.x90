@@ -7,6 +7,7 @@
 
 module cld_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def, str_def
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
@@ -49,6 +50,7 @@ contains
   !>         and adjust vapour and temperature, as described in UMDP29
   !>         (for liquid only for now).
   !>         Parts of PC2 scheme are also done here.
+  !>@param[in]     config                     Application namelist configuration object
   !>@param[in,out] theta_inc         (in,out) Potential temperature increment
   !>@param[in,out] mr                (in,out) Mixing ratios, in theta space
   !>@param[in]     theta             (in)     theta in its native space
@@ -62,7 +64,8 @@ contains
   !>@param[in]     mr_n              (in)     mixing ratios at start of timestep
   !>@param[in]     dt                (in)     Timestep length
   !>@param[in]     step              (in)     Timestep
-  subroutine cld_alg(theta_inc, mr, theta, exner, rho,         &
+  subroutine cld_alg(config,                                   &
+                     theta_inc, mr, theta, exner, rho,         &
                      derived_fields, turbulence_fields,        &
                      cloud_fields, convection_fields,          &
                      theta_n, mr_n, step, dt, call_b4_conv)
@@ -71,6 +74,8 @@ contains
     use bm_kernel_mod,    only: bm_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: turbulence_fields
@@ -134,12 +139,11 @@ contains
     call log_event( 'End-of-timestep cloud update', LOG_LEVEL_DEBUG )
 
     mesh => theta%get_mesh()
-    height_wth => get_height_fv(Wtheta, mesh%get_id())
+    height_wth => get_height_fv(config, mesh, wtheta)
 
     ! Map updated pressure into wtheta space
     call derived_fields%get_field('exner_in_wth', exner_wth)
-    if (.not. call_b4_conv) &
-         call map_physics_scalars(exner_wth, exner)
+    if (.not. call_b4_conv) call map_physics_scalars(config, exner_wth, exner)
 
     call cloud_fields%get_field('bulk_fraction', cf_bulk)
     call cloud_fields%get_field('area_fraction', cf_area)
@@ -236,7 +240,8 @@ contains
                    inc_X_plus_Y(theta_updated, dtheta_pc2_inc_pres) )
 
       ! Now do PC2 initiation (and checks)
-      call pc2_initiation_alg( mr,                  & ! INOUT Current
+      call pc2_initiation_alg( config,              &
+                               mr,                  & ! INOUT Current
                                theta_updated,       & ! IN    Updated
                                exner,               & ! IN    Current exner w3
                                exner_wth,           & ! IN    Current exner wth
@@ -258,9 +263,9 @@ contains
     end do
     if (write_conservation_diag) then
       if (call_b4_conv) then
-        call moisture_conservation_alg( rho, mr, 'Before conv' )
+        call moisture_conservation_alg( config, rho, mr, 'Before conv' )
       else
-        call moisture_conservation_alg( rho, mr, 'After cloud' )
+        call moisture_conservation_alg( config, rho, mr, 'After cloud' )
       end if
     end if
 
@@ -271,7 +276,8 @@ contains
          .not. call_b4_conv ) then
 
       ! Cloud Diagnostics
-      call output_diags_for_cld( sskew_bm, svar_bm, svar_tb, &
+      call output_diags_for_cld( config,                     &
+                                 sskew_bm, svar_bm, svar_tb, &
                                  cloud_fields,               &
                                  convection_fields,          &
                                  derived_fields,             &

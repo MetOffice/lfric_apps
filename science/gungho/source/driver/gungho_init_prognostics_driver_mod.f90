@@ -10,6 +10,7 @@ module gungho_init_prognostics_driver_mod
   use log_mod,                          only: log_event,         &
                                               LOG_LEVEL_ERROR,   &
                                               LOG_LEVEL_INFO
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_def, i_def
   use init_gungho_prognostics_alg_mod,  only: init_u_field,      &
                                               init_theta_field,  &
@@ -41,12 +42,15 @@ module gungho_init_prognostics_driver_mod
 contains
 
   !> @details A subroutine for initialising prognostic fields for gungho
-  !> @param[in,out] prognostic_fields the collection of prognostics
-  !> @param[in,out] mr Field bundle containing the moisture mixing ratios
-  !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
-  subroutine init_gungho_prognostics(prognostic_fields, mr, moist_dyn)
+  !> @param[in]     config             Application namelist configuration object
+  !> @param[in,out] prognostic_fields  Collection of prognostics
+  !> @param[in,out] mr                 Field bundle containing the moisture mixing ratios
+  !> @param[in,out] moist_dyn          Auxilliary fields for moist dynamics
+  subroutine init_gungho_prognostics(config, prognostic_fields, mr, moist_dyn)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type( field_collection_type ), intent(inout) :: prognostic_fields
@@ -72,14 +76,14 @@ contains
 
     initial_time = 0.0_r_def
 
-    call init_u_field( u , initial_time )
+    call init_u_field(config, u , initial_time )
 
     ! Initialise potential temperature and water vapour
     call set_bundle_scalar(0.0_r_def, mr, nummr)
     if ( test == test_specified_profiles ) then
-      call init_thermo_profile_alg( theta, mr(imr_v) )
+      call init_thermo_profile_alg( config, theta, mr(imr_v) )
     else if ( test == test_bryan_fritsch ) then
-      call init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
+      call init_saturated_profile_alg( config, theta, mr, exner, rho, moist_dyn )
     else
       call init_theta_field( theta )
     end if
@@ -87,14 +91,14 @@ contains
 
     ! Call subroutine to set up Exner and rho
     if ( test /= test_bryan_fritsch ) then
-      call init_exner_field( exner, theta, moist_dyn, initial_time )
+      call init_exner_field( config, exner, theta, moist_dyn, initial_time )
       call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
     end if
 
     if ( test == test_grabowski_clark ) then
-      call init_unsaturated_profile_alg( theta, mr, exner, rho, moist_dyn )
+      call init_unsaturated_profile_alg( config, theta, mr, exner, rho, moist_dyn )
     else if (test /= test_bryan_fritsch .and. test /= test_specified_profiles) then
-      call init_mr_fields( mr, theta, exner, rho, moist_dyn )
+      call init_mr_fields( config, mr, theta, exner, rho, moist_dyn )
     end if
 
     if ( perturb_init ) then

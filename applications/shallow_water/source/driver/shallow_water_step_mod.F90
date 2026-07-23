@@ -78,18 +78,21 @@ module shallow_water_step_mod
     select case( time_scheme )
 
     case( time_scheme_semi_implicit )
-      call swe_timestep_alg_si( modeldb%clock,           &
+      call swe_timestep_alg_si( modeldb%config,          &
+                                modeldb%clock,           &
                                 wind,                    &
                                 geopot, buoyancy, q,     &
                                 tracer_const, tracer_pv, &
                                 tracer_step, s_geopot )
     case ( time_scheme_ssprk3 )
-      call swe_timestep_alg_ssprk3( modeldb%clock,       &
+      call swe_timestep_alg_ssprk3( modeldb%config,      &
+                                    modeldb%clock,       &
                                     wind,                &
                                     geopot, buoyancy, q, &
                                     s_geopot )
     case ( time_scheme_rk4 )
-      call swe_timestep_alg_rk4( modeldb%clock,       &
+      call swe_timestep_alg_rk4( modeldb%config,      &
+                                 modeldb%clock,       &
                                  wind,                &
                                  geopot, buoyancy, q, &
                                  s_geopot )

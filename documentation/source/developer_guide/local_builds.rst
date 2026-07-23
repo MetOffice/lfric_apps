@@ -57,6 +57,10 @@ This table lists the command line arguments available:
 | ``-o --optlevel``    | None, Uses the default set  | The optimisation level      |
 |                      | in the makefile, usually    | of the build process.       |
 |                      | ``fast-debug``.             |                             |
++----------------------+-----------------------------------------------------------+
+| ``--precision``      | 64, the makefile default.   | The real-number precision   |
+|                      |                             | that the model is built     |
+|                      |                             | with.                       |
 +----------------------+-----------------------------+-----------------------------+
 | ``-p --psyclone``    | None, Uses the default set  | Value passed to the         |
 |                      | in the makefile.            | ``PSYCLONE_TRANSFORMATION`` |

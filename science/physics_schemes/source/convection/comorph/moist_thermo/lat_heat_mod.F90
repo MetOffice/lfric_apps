@@ -150,7 +150,7 @@ integer, intent(in) :: nc
 ! Indicator specifying which type of phase-change to do
 integer, intent(in) :: i_phase_change
 
-! Properties of the parcel in before and out after the phase-change:
+! Properties of the parcel IN before and OUT after the phase-change:
 !   Total heat capacity per unit dry-mass
 real(kind=real_cvprec), intent(in out) :: cp_tot(n_points)
 !   Air temperature

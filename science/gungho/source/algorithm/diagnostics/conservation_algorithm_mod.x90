@@ -14,6 +14,7 @@ module conservation_algorithm_mod
   use compute_energetics_kernel_mod,   only: compute_energetics_kernel_type
   use compute_entropy_kernel_mod,      only: compute_entropy_kernel_type
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, i_timestep
   use energy_correction_config_mod,    only: integral_method_fe
   use function_space_collection_mod,   only: function_space_collection
@@ -49,18 +50,22 @@ contains
   !>@brief Algorithm to compute various conserved quantities
   !>@details Computes various conserved quantities and checks how
   !> accurately they have been conserved
-  !> @param[in] rho Density field
-  !> @param[in] u Velocity field
-  !> @param[in] theta Potential temperature field
-  !> @param[in] mr Water mixing ratio fields
-  !> @param[in] exner Exner pressure field
-  subroutine conservation_algorithm( rho,          &
-                                     u,            &
-                                     theta,        &
-                                     mr,           &
+  !> @param[in] config  Application namelist configuration object
+  !> @param[in] rho     Density field
+  !> @param[in] u       Velocity field
+  !> @param[in] theta   Potential temperature field
+  !> @param[in] mr      Water mixing ratio fields
+  !> @param[in] exner   Exner pressure field
+  subroutine conservation_algorithm( config, &
+                                     rho,    &
+                                     u,      &
+                                     theta,  &
+                                     mr,     &
                                      exner)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: u, rho, theta, exner
@@ -109,8 +114,8 @@ contains
                                                element_order_v, W3 )
 
     geopotential => get_geopotential(mesh%get_id())
-    chi          => get_coordinates(mesh%get_id())
-    panel_id     => get_panel_id(mesh%get_id())
+    chi          => get_coordinates(mesh)
+    panel_id     => get_panel_id(mesh)
 
     surface_geopotential = planet_radius*gravity
 
@@ -126,7 +131,9 @@ contains
     call entropy_dyn_dry%initialise( vector_space = w3_fs )
 
     ! Compute conserved quantities
-    call compute_total_mass_alg(total_mass, rho, mesh, method=integral_method_fe)
+    call compute_total_mass_alg(config, total_mass, rho, mesh, &
+                                method=integral_method_fe)
+
     call invoke( name = "compute_conserved_quantities",                   &
     ! Compute Energy components
                  compute_energetics_kernel_type(kinetic_uv, kinetic_w,    &

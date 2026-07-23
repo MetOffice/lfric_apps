@@ -61,8 +61,8 @@ contains
 
     implicit none
 
-    type(field_type), pointer,      intent(out) :: field_dst
-    type(field_type), pointer,      intent(in)  :: field_src
+    type(field_type), intent(inout) :: field_dst
+    type(field_type), intent(in)    :: field_src
 
     type(function_space_type),  pointer :: vector_space
     type(field_type),           pointer :: weights

@@ -53,7 +53,7 @@ contains
   !>@param[in]     theta             Theta in its native (wth) space
   !>@param[in]     mr_n              Mixing ratios at time level n
   !>@param[in]     derived_fields    Group of derived fields
-  !>@param[in]     radition_fields     Fields for radiation scheme
+  !>@param[in]     radiation_fields    Fields for radiation scheme
   !>@param[in]     orography_fields    Fields for orog drag scheme
   !>@param[in,out] turbulence_fields   Fields for turbulence scheme
   !>@param[in,out] convection_fields   Fields for convection scheme
@@ -229,7 +229,7 @@ contains
     integer(tik)         :: id
 
     if ( LPROF ) call start_timing( id, 'jules.explicit' )
- 
+
     call log_event( 'slow_physics: Running explicit JULES layer', LOG_LEVEL_DEBUG )
 
     ! Cannot pass null pointers to invoke calls. Therefore non-pointer variables
@@ -367,8 +367,8 @@ contains
 
     mesh => theta%get_mesh()
 
-    height_wth       => get_height_fv( Wtheta, mesh%get_id() )
-    height_w3        => get_height_fv( W3, mesh%get_id() )
+    height_wth => get_height_fv(modeldb%config, mesh, Wtheta)
+    height_w3  => get_height_fv(modeldb%config, mesh, W3)
 
     call initialise_diags_for_jules_exp(z0h_eff, gross_prim_prod, &
                                         soil_respiration)

@@ -7,8 +7,8 @@
 
 module theta_transport_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def, l_def
-  use copy_field_alg_mod,             only: copy_field
   use dg_inc_matrix_vector_kernel_mod, &
                                       only: dg_inc_matrix_vector_kernel_type
   use dry_to_moist_theta_kernel_mod,  only: dry_to_moist_theta_kernel_type
@@ -16,7 +16,6 @@ module theta_transport_alg_mod
                                       only: enforce_lower_bound_kernel_type
   use extrusion_mod,                  only: SHIFTED
   use field_mod,                      only: field_type
-  use finite_element_config_mod,      only: element_order_h, element_order_v
   use flux_precomputations_alg_mod,   only: flux_precomputations_type
   use formulation_config_mod,         only: theta_moist_source
   use fs_continuity_mod,              only: Wtheta, W2
@@ -25,7 +24,7 @@ module theta_transport_alg_mod
   use fv_divergence_3d_kernel_mod,    only: fv_divergence_3d_kernel_type
   use sci_geometric_constants_mod,    only: get_height_fv, get_height_fe
   use log_mod,                        only: log_event, LOG_LEVEL_ERROR
-  use map_w2_to_sh_w2_alg_mod,        only: map_w2_to_sh_w2_alg
+  use map_w2_to_sh_w2_alg_mod,        only: map_w2_to_sh_w2_alg_rtran
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
   use moist_to_dry_theta_kernel_mod,  only: moist_to_dry_theta_kernel_type
@@ -33,7 +32,6 @@ module theta_transport_alg_mod
                                             imr_ci, imr_s, imr_g
   use operator_mod,                   only: operator_type
   use physics_mappings_alg_mod,       only: map_physics_scalars
-  use planet_config_mod,              only: recip_epsilon, cp, Rd, p_zero
   use r_tran_field_mod,               only: r_tran_field_type
   use sci_sort_column_above_kernel_mod, &
                                       only: sort_column_above_kernel_type
@@ -61,6 +59,10 @@ module theta_transport_alg_mod
   use transport_rho_times_field_alg_mod,                                       &
                                       only: transport_rho_times_field_alg
   use transport_enumerated_types_mod, only: direction_3d
+
+  ! Configuration modules
+  use finite_element_config_mod, only: element_order_h, element_order_v
+  use planet_config_mod,         only: recip_epsilon, cp, Rd, p_zero
 
   implicit none
 
@@ -128,6 +130,10 @@ contains
     type(r_tran_field_type)                  :: div_u_rtran
     type(field_type)                         :: div_u
 
+    type(config_type), pointer :: config
+
+    config => transport_controller%get_config()
+
     ! ------------------------------------------------------------------------ !
     ! Convert to the particular potential temperature to be transported
     ! ------------------------------------------------------------------------ !
@@ -186,10 +192,10 @@ contains
         call rho_out_w3%initialise( w3_fs )
         call rho_in_wt%initialise( wt_fs )
         call rho_out_wt%initialise( wt_fs )
-        call copy_field(rho_in_rtran, rho_in_w3)
-        call copy_field(rho_out_rtran, rho_out_w3)
-        call map_physics_scalars(rho_in_wt, rho_in_w3)
-        call map_physics_scalars(rho_out_wt, rho_out_w3)
+        call invoke( real_to_real_x(rho_in_w3, rho_in_rtran), &
+                     real_to_real_x(rho_out_w3, rho_out_rtran) )
+        call map_physics_scalars(config, rho_in_wt, rho_in_w3)
+        call map_physics_scalars(config, rho_out_wt, rho_out_w3)
 
         call theta_m_in%initialise( wt_fs )
         call theta_m_out%initialise( wt_fs )
@@ -320,17 +326,17 @@ contains
       w2_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2)
       wind => transport_controller%get_transporting_wind()
       call wind_shifted%initialise( w2_sh_fs )
-      call map_w2_to_sh_w2_alg(wind_shifted, wind)
+      call map_w2_to_sh_w2_alg_rtran(wind_shifted, wind)
 
       ! Get divergence on shifted mesh
-      detj_at_w3 => get_detj_at_w3_r_tran(shifted_mesh%get_id())
+      detj_at_w3 => get_detj_at_w3_r_tran(config, shifted_mesh)
       call div_u_rtran%initialise( detj_at_w3%get_function_space() )
       call invoke( fv_divergence_3d_kernel_type(div_u_rtran,                   &
                                                 wind_shifted, detj_at_w3) )
 
       ! Convert divergence to rdef precision
       call div_u%initialise( detj_at_w3%get_function_space() )
-      call copy_field(div_u_rtran, div_u)
+      call invoke( real_to_real_x(div_u, div_u_rtran) )
 
       counter => transport_controller%get_transport_counter()
       dt = real(counter%get_dt_substep() * counter%get_num_substeps(), r_def)
@@ -353,10 +359,10 @@ contains
       if (theta_in_rdef%get_element_order_h() == 0 .and. &
           theta_in_rdef%get_element_order_v() == 0) then
         ! Use the finite volume height function
-        height_wt => get_height_fv(Wtheta, theta_in_rdef%get_mesh_id())
+        height_wt => get_height_fv(config, theta_in_rdef%get_mesh(), Wtheta)
       else
         ! Use the finite element height function
-        height_wt => get_height_fe(Wtheta, theta_in_rdef%get_mesh_id())
+        height_wt => get_height_fe(config, theta_in_rdef%get_mesh(), Wtheta)
       end if
       call invoke( sort_column_above_kernel_type(theta_out_rdef, height_wt,    &
                                                  adjust_theta_above) )

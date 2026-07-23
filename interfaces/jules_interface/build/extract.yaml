@@ -67,6 +67,7 @@ jules:
     - src/control/shared/wtrac_extra_mod.F90
     - src/initialisation/shared/calc_urban_aero_fields_mod.F90
     - src/initialisation/shared/check_compatible_options_mod.F90
+    - src/initialisation/shared/check_compatible_options_rivers_mod.F90
     - src/initialisation/shared/freeze_soil.F90
     - src/initialisation/shared/wtrac_check_options_mod.F90
     - src/science/deposition/deposition_check_species_mod.F90
@@ -85,6 +86,7 @@ jules:
     - src/science/deposition/deposition_ukca_var_mod.F90
     - src/science/params/blend_h_mod.F90
     - src/science/params/c_bvoc_mod.F90
+    - src/science/params/c_irrigation_mod.F90
     - src/science/params/c_kappai_mod.F90
     - src/science/params/c_rmol_mod.F90
     - src/science/params/c_sicehc_mod.F90
@@ -98,6 +100,7 @@ jules:
     - src/science/params/dust_param_mod.F90
     - src/science/params/nvegparm_mod.F90
     - src/science/params/pftparm_mod.F90
+    - src/science/params/check_jules_nml_values_mod.F90
     - src/science/params/red_io_mod.F90
     - src/science/params/theta_field_sizes_mod.F90
     - src/science/params/trif_mod.F90

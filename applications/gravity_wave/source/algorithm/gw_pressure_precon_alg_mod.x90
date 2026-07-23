@@ -201,8 +201,8 @@ contains
                                                 element_order_v, W2V )
     w2h_fs => function_space_collection%get_fs( mesh, element_order_h, &
                                                 element_order_v, W2H )
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     call div_v_r_def%initialise( w3_fs, w2v_fs )
     call invoke( compute_div_operator_kernel_type( div_v_r_def, chi,    &
                                                    panel_id, qr ) )

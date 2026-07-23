@@ -8,6 +8,7 @@
 module radaer_alg_mod
 
   ! Derived Types
+  use config_mod,          only: config_type
   use field_mod,           only: field_type
   use integer_field_mod,   only: integer_field_type
   use field_collection_mod, &
@@ -50,6 +51,7 @@ contains
 
   !>@brief         Run the UM RADAER scheme
   !>@details       The UM RADAER scheme calculates required fields for socrates.
+  !>@param[in]     config                Application namelist configuration object
   !>@param[in]     rho_in_wth            Rho in theta space
   !>@param[in]     radiation_fields      RADAER radiation related fields
   !>@param[in]     theta_in_wth          Potential temperature (theta) wth space
@@ -61,7 +63,8 @@ contains
   !>@param[in]     aerosol_mesh          Mesh for aerosol fields
   !>@param[in]     aerosol_twod_mesh     Mesh for 2D aerosol fields
   !>@param[in]     timestep              Current timestep number
-  subroutine radaer_alg( aerosol_fields,                                       &
+  subroutine radaer_alg( config,                                               &
+                         aerosol_fields,                                       &
                          radiation_fields,                                     &
                          rho_in_wth,                                           &
                          theta_in_wth,                                         &
@@ -77,6 +80,8 @@ contains
     use radaer_kernel_mod, only: radaer_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type( field_collection_type ), intent( in )    :: aerosol_fields
@@ -212,7 +217,7 @@ contains
       if ( LPROF ) call start_timing( id_aero, 'aerosol.radaer' )
 
       mesh      => theta_in_wth%get_mesh()
-      dz_in_wth => get_dz_at_wtheta(mesh%get_id())
+      dz_in_wth => get_dz_at_wtheta(config, mesh)
 
       ! Unpack fields from aerosol_fields
       call aerosol_fields%get_field('n_ait_sol', n_ait_sol)
@@ -321,10 +326,10 @@ contains
                     setval_c( aer_lw_asymmetry_coarse, 0.0_r_def)   )
 
         call map_scalar_intermesh(lit_fraction_rts_coarse, lit_fraction_rts)
-        call map_mr_intermesh(n_acc_ins_coarse, n_acc_ins, rho_aero, rho)
-        call map_mr_intermesh(acc_ins_du_coarse, acc_ins_du, rho_aero, rho)
-        call map_mr_intermesh(n_cor_ins_coarse, n_cor_ins, rho_aero, rho)
-        call map_mr_intermesh(cor_ins_du_coarse, cor_ins_du, rho_aero, rho)
+        call map_mr_intermesh(config, n_acc_ins_coarse, n_acc_ins, rho_aero, rho)
+        call map_mr_intermesh(config, acc_ins_du_coarse, acc_ins_du, rho_aero, rho)
+        call map_mr_intermesh(config, n_cor_ins_coarse, n_cor_ins, rho_aero, rho)
+        call map_mr_intermesh(config, cor_ins_du_coarse, cor_ins_du, rho_aero, rho)
 
         ! Point to fields
         aer_mix_ratio_aero =>  aer_mix_ratio_coarse

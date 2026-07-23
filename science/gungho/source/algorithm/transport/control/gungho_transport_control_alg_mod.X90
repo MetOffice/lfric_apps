@@ -7,6 +7,7 @@
 
 module gungho_transport_control_alg_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, r_def, l_def, r_tran, &
                                                PRECISION_R_TRAN
   use extrusion_mod,                     only: SHIFTED
@@ -36,7 +37,6 @@ module gungho_transport_control_alg_mod
                                                check_any_eqn_consistent
   use timing_mod,                        only: start_timing, stop_timing, &
                                                tik, LPROF
-
   implicit none
 
   private
@@ -76,7 +76,7 @@ contains
 
     type(mesh_type), pointer, intent(in) :: mesh
 
-    integer(kind=i_def)           :: config
+    integer(kind=i_def)           :: i
     type(transport_metadata_type) :: transport_metadata
 
     integer(kind=i_def), allocatable :: local_mesh_ids(:)
@@ -91,30 +91,30 @@ contains
     ! Set up linked list of metadatas
     transport_metadata_collection = transport_metadata_collection_type()
 
-    ! Set up configs using namelist entries
-    do config = 1, profile_size
+    ! Set up profiles using namelist entries
+    do i=1, profile_size
 
-      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(config)),' transport metadata'
+      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(i)),' transport metadata'
       call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
       ! Set hardwired defaults based upon which field is being advected
 
-      transport_metadata = transport_metadata_type( field_names(config),             &
-                                                    equation_form(config),           &
-                                                    splitting(config),               &
-                                                    scheme(config),                  &
-                                                    horizontal_method(config),       &
-                                                    vertical_method(config),         &
-                                                    horizontal_monotone(config),     &
-                                                    vertical_monotone(config),       &
-                                                    vertical_monotone_order(config), &
-                                                    special_edges_monotone(config),  &
-                                                    enforce_min_value(config),       &
-                                                    real(min_value(config), r_tran), &
-                                                    log_space(config),               &
-                                                    reversible(config),              &
-                                                    ffsl_splitting(config),          &
-                                                    ffsl_vertical_order(config) )
+      transport_metadata = transport_metadata_type( field_names(i),             &
+                                                    equation_form(i),           &
+                                                    splitting(i),               &
+                                                    scheme(i),                  &
+                                                    horizontal_method(i),       &
+                                                    vertical_method(i),         &
+                                                    horizontal_monotone(i),     &
+                                                    vertical_monotone(i),       &
+                                                    vertical_monotone_order(i), &
+                                                    special_edges_monotone(i),  &
+                                                    enforce_min_value(i),       &
+                                                    real(min_value(i), r_tran), &
+                                                    log_space(i),               &
+                                                    reversible(i),              &
+                                                    ffsl_splitting(i),          &
+                                                    ffsl_vertical_order(i) )
 
       call transport_metadata_collection%set_transport_metadata(transport_metadata)
 
@@ -140,6 +140,7 @@ contains
   !> @brief Advection of prognostic variables for the dynamical core.
   !> @param[in,out] advection_inc   Advection increment of the dynamics
   !!                                prognostics [u, rho, theta, exner]
+  !> @param[in]     config          Application namelist configuration object
   !> @param[in]     advected_fields Fields to advect: [u, rho, theta, exner]
   !> @param[in]     wind_np1        End of timestep wind field
   !> @param[in]     wind_n          Start of timestep wind field
@@ -173,7 +174,8 @@ contains
   !> @param[in]     con_tracer_last_outer_after_slow
   !!                                (Optional) Second group of tracers to transport on final iteration only
 
-  subroutine gungho_transport_control_alg(advection_inc, advected_fields,      &
+  subroutine gungho_transport_control_alg(config,                              &
+                                          advection_inc, advected_fields,      &
                                           wind_np1, wind_n, mr_out, mr_in,     &
                                           model_clock, outer,                  &
                                           cheap_update, prev_inc, wind_prev,   &
@@ -215,6 +217,8 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(field_type),            intent(inout) :: advection_inc(bundle_size)
     type(field_type),            intent(in)    :: advected_fields(bundle_size)
     type(field_type),            intent(in)    :: wind_np1
@@ -310,7 +314,7 @@ contains
     end if
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise(                                      &
+    call transport_controller%initialise(config,                               &
             model_clock, rho_d_latest_ptr, wind_for_adv, wind_np1, outer,      &
             cheap_update_step                                                  &
     )
@@ -367,7 +371,8 @@ contains
     if ( moisture_formulation /= moisture_formulation_dry ) then
       ! Write out moisture diagnostics
       if ( do_moisture_diagnostics ) then
-        call moisture_conservation_alg( rho_d_n, mr_in, 'Before transport' )
+        call moisture_conservation_alg( config, rho_d_n, mr_in, &
+                                        'Before transport' )
       end if
 
       call log_event(                                                          &
@@ -441,6 +446,7 @@ contains
         ! the difference in winds from the cheap update
         call transport_controller%finalise()
         call transport_controller%initialise(                                  &
+                config,                                                        &
                 model_clock, rho_d_n_ptr, wind_n, wind_np1,                    &
                 outer=outer, cheap_update_step=.false.                         &
         )
@@ -464,6 +470,7 @@ contains
 
         ! Set up new transport controller for coarser mesh
         call aerosol_transport_controller%initialise(                          &
+                config,                                                        &
                 model_clock, aerosol_reference_rho, aerosol_wind_n,            &
                 aerosol_wind_np1, outer, cheap_update_step=.false.             &
         )
@@ -521,7 +528,8 @@ contains
     if (do_moisture_diagnostics) then
       call rho_d_n%copy_field_properties(rho_d_np1)
       call invoke( X_plus_Y(rho_d_np1, rho_d_n, advection_inc(igh_d)) )
-      call moisture_conservation_alg( rho_d_np1, mr_out, 'After transport' )
+      call moisture_conservation_alg( config, rho_d_np1, mr_out, &
+                                      'After transport' )
     end if
 
     ! ---------------------------------------------------------------------- !

@@ -2,6 +2,10 @@
 @import url("styles/theme.css");
 @import url("basic.css");
 
+.small-code {
+    font-size: 8pt;
+}
+
 /* Office Science Colours */
 html[data-theme="light"] {
     --pst-color-primary: #0f79be;

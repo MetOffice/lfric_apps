@@ -34,8 +34,6 @@ module swe_mixed_operator_alg_mod
   use field_mod,                         only: field_type
   use field_indices_mod,                 only: isw_u, isw_g, isw_b
   use fs_continuity_mod,                 only: W1, W2, W3
-  use sci_geometric_constants_mod,       only: get_coordinates, &
-                                               get_panel_id
   use log_mod,                           only: log_event,       &
                                                LOG_LEVEL_ERROR, &
                                                log_scratch_space
