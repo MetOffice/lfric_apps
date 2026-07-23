@@ -140,6 +140,16 @@
       <zoom_axis begin="0" n="1"/>
     </axis>
   </grid>
+  <grid id="surface_tile_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="surface_tiles"/>
+  </grid>
+  <grid id="sea_ice_tile_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="surface_tiles_sea_ice_zoom">
+    </axis>
+  </grid>
+
 
   <!-- Reduce filters -->
   <grid id="face_zmax">

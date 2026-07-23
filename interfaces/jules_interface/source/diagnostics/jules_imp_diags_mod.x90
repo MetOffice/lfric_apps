@@ -9,7 +9,8 @@ module jules_imp_diags_mod
 
   use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
-  use jules_control_init_mod,      only: n_surf_tile, n_land_tile
+  use jules_control_init_mod,      only: n_surf_tile, n_land_tile, &
+                                         n_sea_ice_tile, first_sea_ice_tile
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
   use timing_mod,                  only: start_timing, stop_timing, &
                                          tik, LPROF
@@ -259,7 +260,8 @@ contains
 
   ! Local variables
   type( field_type ) :: land_surface_temperature, grid_canopy_evap, &
-       grid_surface_temperature, grid_latent_heat, grid_sublimation
+       grid_surface_temperature, grid_latent_heat, grid_sublimation, &
+       sea_ice_surface_temperature
   integer( tik )     :: id
 
   if ( LPROF ) call start_timing( id, 'diags.jules_imp' )
@@ -287,6 +289,13 @@ contains
                                        tile_temperature, tile_fraction,    &
                                        1, n_land_tile))
       call land_surface_temperature%write_field()
+    end if
+
+    if(init_diag(sea_ice_surface_temperature, 'surface__sea_ice_surface_temperature')) then
+      call invoke(weighted_ave_kernel_type(sea_ice_surface_temperature,       &
+                                       tile_temperature, tile_fraction,    &
+                                       first_sea_ice_tile, n_sea_ice_tile))
+      call sea_ice_surface_temperature%write_field()
     end if
 
     if (init_diag(grid_canopy_evap, 'surface__grid_canopy_evap')) then

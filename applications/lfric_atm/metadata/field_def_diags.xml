@@ -500,15 +500,17 @@
   <!-- Jules surface exchange diagnostics -->
   <field id="surface__tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
   <!-- Extracts tile types for sea and sea-ice, removes pseudo-level coordinate, then calculate sea-ice fraction -->
-  <field id="zoomed__sea_ice_tile" field_ref="surface__tile_fraction" domain_ref="face" axis_ref="surface_tiles_sea_ice_zoom" />
+  <!-- sea-ice requires 3-step process to sum over the sea-ice categories -->
+  <field id="temporary__tile_fraction" grid_ref="surface_tile_grid">surface__tile_fraction</field>
+  <field id="zoomed__sea_ice_tile" field_ref="temporary__tile_fraction" grid_ref="sea_ice_tile_grid" />
+  <field id="surface__sea_ice_tile" name="sea_ice_total_fraction" long_name="sea_ice_total_fraction_of_grid_box" unit="1" field_ref="zoomed__sea_ice_tile" grid_ref="vert_sum_face_grid"/>
   <field id="zoomed__sea_tile" field_ref="surface__tile_fraction" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
-  <field id="surface__sea_ice_tile" domain_ref="face"> zoomed__sea_ice_tile </field>
-  <field id="surface__sea_tile" domain_ref="face"> zoomed__sea_tile </field>
+  <field id="surface__sea_tile" name="sea_tile_fraction" long_name="sea_tile_fraction_of_grid_box" unit="1" domain_ref="face"> zoomed__sea_tile </field>
   <field id="surface__sea_ice_fraction" name="sea_ice_fraction" long_name="sea_ice_area_fraction" standard_name="sea_ice_area_fraction" unit="1" domain_ref="face"> surface__sea_ice_tile / (surface__sea_ice_tile + surface__sea_tile + 1.0e-16) </field>
   <field id="zoomed__urban_tile" field_ref="surface__tile_fraction" domain_ref="face" axis_ref="surface_tiles_urban_zoom"/>
-  <field id="surface__urban_tile" name="urban_tile_fraction" long_name="urban_tile_fraction" domain_ref="face"> zoomed__urban_tile </field>
+  <field id="surface__urban_tile" name="urban_tile_fraction" long_name="urban_tile_fraction" unit="1" domain_ref="face"> zoomed__urban_tile </field>
   <field id="zoomed__land_ice_tile" field_ref="surface__tile_fraction" domain_ref="face" axis_ref="surface_tiles_land_ice_zoom"/>
-  <field id="surface__land_ice_tile" name="land_ice_tile_fraction" long_name="land_ice_tile_fraction" domain_ref="face"> zoomed__land_ice_tile </field>
+  <field id="surface__land_ice_tile" name="land_ice_tile_fraction" long_name="land_ice_tile_fraction" unit="1" domain_ref="face"> zoomed__land_ice_tile </field>
   <field id="surface__land_fraction" name="land_fraction" long_name="land_area_fraction" standard_name="land_area_fraction" unit="1" domain_ref="face"> 1.0 - (surface__sea_ice_tile + surface__sea_tile) </field>
   <field id="surface__z0m" name="z0m" long_name="surface_roughness_length" unit="m" domain_ref="face" />
   <field id="surface__z0m_tile" name="z0m_tile" long_name="surface_roughness_length_on_tiles" unit="m" domain_ref="face" axis_ref="surface_tiles" />
@@ -531,8 +533,11 @@
   <field id="surface__pseudotaux" name="pseudotaux" long_name="surface_eastward_wind_pseudo_stress" unit="N m-2" domain_ref="face" />
   <field id="surface__pseudotauy" name="pseudotauy" long_name="surface_northward_wind_pseudo_stress" unit="N m-2" domain_ref="face" />
   <field id="surface__tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="zoomed__sea_temperature" field_ref="surface__tile_temperature" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
+  <field id="surface__sea_temperature" name="sea_surface_temperature" long_name="sea_surface_temperature" unit="K" domain_ref="face"> zoomed__sea_temperature </field>
   <field id="surface__grid_surface_temperature" name="grid_surface_temperature" long_name="grid_surface_temperature" unit="K" domain_ref="face" />
   <field id="surface__land_surface_temperature" name="land_surface_temperature" long_name="land_surface_temperature" unit="K" domain_ref="face" />
+  <field id="surface__sea_ice_surface_temperature" name="sea_ice_surface_temperature" long_name="sea_ice_surface_temperature" unit="K" domain_ref="face" />
   <field id="surface__t1p5m_surft" name="t1p5m_surft" long_name="land_tile_screen_level_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__t1p5m" name="t1p5m" long_name="temperature_at_screen_level" unit="K" domain_ref="face" />
   <field id="surface__t1p5m_ssi" name="t1p5m_ssi" long_name="temperature_at_screen_level_over_sea_and_sea_ice" unit="K" domain_ref="face" />
@@ -610,6 +615,7 @@
   <field id="snow__snow_depth" name="snow_depth" long_name="snow_depth" unit="m" domain_ref="face" axis_ref="surface_tiles" />
   <field id="snow__tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="surface_tiles" />
   <field id="snow__snowpack_density" name="snowpack_density" long_name="snowpack_density" unit="kg m-3" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="snow__snow_under_canopy" name="snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" domain_ref="face" axis_ref="surface_tiles" />
   <field id="snow__snow_layer_temp" name="snow_layer_temp" long_name="snow_layer_temperature" unit="K" domain_ref="face" axis_ref="snow_layers_and_tiles" />
   <field id="snow__snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness" unit="m" domain_ref="face" axis_ref="snow_layers_and_tiles" />
   <field id="snow__snow_layer_ice_mass" name="snow_layer_ice_mass" long_name="snow_layer_ice_mass" unit="kg m-2" domain_ref="face" axis_ref="snow_layers_and_tiles" />
@@ -641,6 +647,8 @@
   <field id="soil__soil_moist_wilt" name="soil_moist_wilt" long_name="soil_moisture_at_wilting_point" unit="m3 m-3" domain_ref="face" />
   <field id="soil__soil_moist_crit" name="soil_moist_crit" long_name="soil_moisture_at_critical_point" unit="m3 m-3" domain_ref="face" /> 
   <field id="soil__soil_moist_sat" name="soil_moist_sat" long_name="soil_moisture_at_saturation" unit="m3 m-3" domain_ref="face" />
+  <field id="soil__soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" />
+  <field id="soil__wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="1" domain_ref="face" />
   <field id="soil__inland_basin_flow" name="inland_basin_flow" long_name="Inland basin flow" unit="kg m-2 s-1" domain_ref="face" />
   <!-- Boundary layer turbulence diagnostics -->
   <field id="turbulence__dtheta_bl" name="dtheta_bl" long_name="potential_temperature_increment_from_bl_scheme" unit="K" grid_ref="full_level_face_grid" />
@@ -1023,6 +1031,7 @@
   <field id="convection__lowest_cv_top" name="lowest_cv_top" long_name="model_level_number_at_lowest_conv_cloud_top" unit="1" domain_ref="face" />
   <field id="convection__cv_base" name="cv_base" long_name="model_level_number_at_conv_cloud_base" unit="1" domain_ref="face" />
   <field id="convection__cv_top" name="cv_top" long_name="model_level_number_at_conv_cloud_top" unit="1" domain_ref="face" />
+  <field id="snow__n_snow_layers" name="n_snow_layers" long_name="number_of_snow_layers" unit="1" domain_ref="face" axis_ref="surface_tiles" />
   <field id="processed__trop_level" name="trop_level" long_name="tropopause_level" unit="1" grid_ref="var_face" />
 </field_group>
 </field_definition>
