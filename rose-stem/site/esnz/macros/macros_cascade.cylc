@@ -6,14 +6,22 @@
 {% endmacro %}
 
 
-{% macro set_task_resources(mpi_ranks,
-                        memory,
-                        threads=1,
-                        xios_nodes=0,
-                        ocean_nodes=0,
-                        river_nodes=0,
-                        ranks_per_node=0,
-                        ranks_depth_pad=1) %}
+{% macro set_task_resources(family_name,
+                            wallclock,
+                            mpi_ranks,
+                            memory,
+                            threads=1,
+                            xios_nodes=0,
+                            ocean_nodes=0,
+                            river_nodes=0,
+                            ranks_per_node=0,
+                            ranks_depth_pad=1) %}
+
+    [[{{family_name|upper}}]]
+        execution time limit = PT{{wallclock}}M
+
+        [[[directives]]]
+
 {% set cores = mpi_ranks|int*threads|int %}
 {% set full_nodes = (cores/192) | round(0, 'floor') | int %}
 {% if full_nodes == 0 %}

@@ -91,7 +91,7 @@
 
     {# Generate a resource family for the task #}
     {% set resource_family = task~"_resources" %}
-    {{ set_task_resources(resource_family, "", 5, 1, [1, "GB"]) }}
+    {{ set_task_resources(resource_family, 5, 1, [1, "GB"]) }}
 
     [[{{task}}]]
         inherit = HOUSEKEEPING, {{platform|upper}}_HOUSEKEEPING, {{resource_family|upper}}

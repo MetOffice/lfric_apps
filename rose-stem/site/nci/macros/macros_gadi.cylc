@@ -2,7 +2,9 @@
 
 {# Macros here have largely been copied from the UM for now #}
 
-{% macro set_task_resources(mpi_ranks,
+{% macro set_task_resources(family_name,
+                            wallclock,
+                            mpi_ranks,
                             memory,
                             threads=1,
                             xios_nodes=0,
@@ -10,6 +12,11 @@
                             river_nodes=0,
                             ranks_per_node=0,
                             ranks_depth_pad=1) %}
+
+    [[{{family_name|upper}}]]
+        execution time limit = PT{{wallclock}}M
+
+        [[[directives]]]
 
     {% set cpus_per_node = 48 %}
     {% if threads > 1 %}

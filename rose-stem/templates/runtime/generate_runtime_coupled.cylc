@@ -15,17 +15,24 @@
 {# The final build step - either the fcm_make2 task or fcm_make_rivers #}
 {# which only uses a single step build #}
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        task_values["build_wallclock"],
+        task_values["build_cpus"],
+        task_values["build_memory"]
+        ) }}
+
     {% if "drivers" in task %}
     [[fcm_make2_drivers]]
     {% else %}
     [[{{task}}]]
     {% endif %}
-        inherit=BUILD_{{task_ns.application|upper}}_{{task_ns.platform|upper}},{{task_ns.platform|upper}}_BUILD_COUPLED_CCE
+        inherit=BUILD_{{task_ns.application|upper}}_{{task_ns.platform|upper}},{{task_ns.platform|upper}}_BUILD_COUPLED_CCE,{{resource_family|upper}}
         script = rose task-run
         [[[environment]]]
             ROSE_TASK_APP = {{task_app}}
-        [[[directives]]]
-    {{ set_task_resources(task_values["build_cpus"], task_values["build_memory"]) }}
 
 {% else %}
 {# The first build stage for 2-step builds #}

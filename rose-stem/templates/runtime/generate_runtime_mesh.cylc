@@ -20,14 +20,13 @@
 {% set resource_family = task~"_resources" %}
 {{ set_task_resources(
     resource_family,
-    inherit.str,
     task_values["mesh_wallclock"],
     task_values["mesh_cpus"],
     task_values["mesh_memory"]
     ) }}
 
     [[{{task}}]]
-        inherit = {{resource_family|upper}}
+        inherit = {{inherit.str|upper}}, {{resource_family|upper}}
         script = {{script_str}}
         [[[environment]]]
             DESTINATION_DIRECTORY = {{destination_dir}}

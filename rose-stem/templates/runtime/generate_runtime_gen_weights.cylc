@@ -14,7 +14,6 @@
     {% set resource_family = task~"_resources" %}
     {{ set_task_resources(
         resource_family,
-        "",
         task_values["gen_weights_wallclock"],
         task_values["gen_weights_tasks"],
         task_values["gen_weights_memory"]

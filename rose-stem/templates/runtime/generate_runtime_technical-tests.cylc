@@ -32,14 +32,13 @@
     {% set resource_family = task~"_resources" %}
     {{ set_task_resources(
         resource_family,
-        inherit.str,
         task_values["build_wallclock"],
         task_values["build_cpus"],
         task_values["build_memory"]
         ) }}
 
     [[{{task}}]]
-        inherit={{resource_family|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script={{build_script_str}}
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}
@@ -72,14 +71,13 @@
     {% set resource_family = task~"_resources" %}
     {{ set_task_resources(
         resource_family,
-        inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
         task_values["tech-tests_memory"]
         ) }}
 
     [[{{task}}]]
-        inherit={{resource_family|upper}}
+        inherit={{inherit.str|upper}}, {{resource_family|upper}}
         script={{run_script_str}}
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}

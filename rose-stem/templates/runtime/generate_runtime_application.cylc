@@ -97,7 +97,6 @@
 {% set resource_family = task~"_resources" %}
 {% if task_values["coupled"] %}
     {{ set_task_resources(resource_family,
-                          inherit.str,
                           task_values["wallclock"],
                           task_values["mpi_parts"],
                           task_values["memory"],
@@ -109,7 +108,6 @@
                           ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
 {% else %}
     {{ set_task_resources(resource_family,
-                          inherit.str,
                           task_values["wallclock"],
                           task_values["mpi_parts"],
                           task_values["memory"],
@@ -121,7 +119,7 @@
 
 {# Define the task runtime section #}
     [[{{task}}]]
-        inherit = {{resource_family|upper}}
+        inherit = {{inherit.str|upper}}, {{resource_family|upper}}
         script = {{script_str.name}}
         {{ generate_script("post-script", post_script_commands) }}
         [[[environment]]]
