@@ -1,0 +1,206 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_ffsl_flux_z_constant_kernel
+module atlt_ffsl_flux_z_constant_alg_mod
+
+  use config_mod,                    only : config_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use fs_continuity_mod,             only : W2v, W3
+  use r_tran_field_mod,              only : r_tran_field_type
+  use constants_mod,                 only : i_def, r_def, &
+                                            r_tran, EPS
+  use transport_constants_mod,       only : get_detj_at_w3_r_tran
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_DEBUG
+
+  implicit none
+
+  public :: atlt_ffsl_flux_z_constant_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for atl_ffsl_flux_z_constant.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config  Application namelist configuration object
+  !> @param[in]  mesh    Mesh object
+  subroutine atlt_ffsl_flux_z_constant_alg(config, mesh)
+
+    use tl_ffsl_flux_z_constant_kernel_mod,  only : tl_ffsl_flux_z_constant_kernel_type
+    use atl_ffsl_flux_z_constant_kernel_mod, only : atl_ffsl_flux_z_constant_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(config_type),        intent(in) :: config
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(r_tran_field_type)          :: flux_pert
+    type(r_tran_field_type)          :: flux_ls
+    type(r_tran_field_type)          :: ls_frac_wind
+    type(r_tran_field_type)          :: dep_dist
+    type(r_tran_field_type)          :: frac_wind
+    type(r_tran_field_type)          :: field
+    type(r_tran_field_type)          :: ls_field
+    type(r_tran_field_type), pointer :: detj
+    real(kind=r_tran)                :: dt
+
+    ! Copies of input fields used in inner products
+    type(r_tran_field_type) :: flux_pert_input
+    type(r_tran_field_type) :: flux_ls_input
+    type(r_tran_field_type) :: frac_wind_input
+    type(r_tran_field_type) :: field_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2v_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+
+    ! Inner products
+    real(kind=r_def)  :: flux_pert_inner_prod
+    real(kind=r_def)  :: flux_ls_inner_prod
+    real(kind=r_def)  :: frac_wind_inner_prod
+    real(kind=r_def)  :: field_inner_prod
+    real(kind=r_tran) :: flux_pert_sf
+    real(kind=r_tran) :: flux_ls_sf
+    real(kind=r_tran) :: frac_wind_sf
+    real(kind=r_tran) :: field_sf
+    real(kind=r_tran) :: inner1
+    real(kind=r_def)  :: flux_pert_flux_pert_input_inner_prod
+    real(kind=r_def)  :: flux_ls_flux_ls_input_inner_prod
+    real(kind=r_def)  :: frac_wind_frac_wind_input_inner_prod
+    real(kind=r_def)  :: field_field_input_inner_prod
+    real(kind=r_tran) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran)            :: machine_tol
+    real(kind=r_tran)            :: relative_diff
+
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
+    vector_space_w2v_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2v)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3)
+
+    call flux_pert%initialise(vector_space=vector_space_w2v_ptr, name='flux_pert')
+    call flux_ls%initialise(vector_space=vector_space_w2v_ptr, name='flux_ls')
+    call frac_wind%initialise(vector_space=vector_space_w2v_ptr, name='frac_wind')
+    call field%initialise(vector_space=vector_space_w3_ptr, name='field')
+
+    call flux_pert%copy_field_properties(flux_pert_input)
+    call flux_ls%copy_field_properties(flux_ls_input)
+    call frac_wind%copy_field_properties(frac_wind_input)
+    call field%copy_field_properties(field_input)
+
+    call ls_frac_wind%initialise(vector_space=vector_space_w2v_ptr, name='ls_frac_wind')
+    call dep_dist%initialise(vector_space=vector_space_w2v_ptr, name='dep_dist')
+    call ls_field%initialise(vector_space=vector_space_w3_ptr, name='ls_field')
+    detj => get_detj_at_w3_r_tran(config, mesh)
+    dt = 1.0_r_tran
+
+    flux_pert_inner_prod = 0.0_r_def
+    flux_ls_inner_prod = 0.0_r_def
+    frac_wind_inner_prod = 0.0_r_def
+    field_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(flux_pert), setval_x(flux_pert_input, flux_pert), &
+                 setval_random(flux_ls), setval_x(flux_ls_input, flux_ls),       &
+                 setval_random(frac_wind), setval_x(frac_wind_input, frac_wind), &
+                 setval_random(field), setval_x(field_input, field),             &
+                 setval_random(ls_frac_wind), setval_random(dep_dist),           &
+                 setval_random(ls_field), setval_random(detj),                   &
+                 tl_ffsl_flux_z_constant_kernel_type(flux_pert,                  &
+                                                     flux_ls,                    &
+                                                     ls_frac_wind,               &
+                                                     dep_dist,                   &
+                                                     frac_wind,                  &
+                                                     field,                      &
+                                                     ls_field,                   &
+                                                     detj,                       &
+                                                     dt),                        &
+                 x_innerproduct_x(flux_pert_inner_prod, flux_pert),              &
+                 x_innerproduct_x(flux_ls_inner_prod, flux_ls),                  &
+                 x_innerproduct_x(frac_wind_inner_prod, frac_wind),              &
+                 x_innerproduct_x(field_inner_prod, field) )
+
+    write( log_scratch_space, * ) "atlt_ffsl_flux_z_constant inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "flux_pert inner product = ", flux_pert_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "flux_ls inner product = ", flux_ls_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "frac_wind inner product = ", frac_wind_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "field inner product = ", field_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+
+    flux_pert_sf = 1.0_r_tran / real(flux_pert_inner_prod + EPS, kind = r_tran)
+    flux_ls_sf = 1.0_r_tran / real(flux_ls_inner_prod + EPS, kind = r_tran)
+    frac_wind_sf = 1.0_r_tran / real(frac_wind_inner_prod + EPS, kind = r_tran)
+    field_sf = 1.0_r_tran / real(field_inner_prod + EPS, kind = r_tran)
+
+    inner1 = 0.0_r_tran
+    inner1 = inner1 + real(flux_pert_inner_prod, kind = r_tran) * flux_pert_sf
+    inner1 = inner1 + real(flux_ls_inner_prod, kind = r_tran) * flux_ls_sf
+    inner1 = inner1 + real(frac_wind_inner_prod, kind = r_tran) * frac_wind_sf
+    inner1 = inner1 + real(field_inner_prod, kind = r_tran) * field_sf
+
+    flux_pert_flux_pert_input_inner_prod = 0.0_r_def
+    flux_ls_flux_ls_input_inner_prod = 0.0_r_def
+    frac_wind_frac_wind_input_inner_prod = 0.0_r_def
+    field_field_input_inner_prod = 0.0_r_def
+
+    call invoke( inc_a_times_X(flux_pert_sf, flux_pert),                      &
+                 inc_a_times_X(flux_ls_sf, flux_ls),                          &
+                 inc_a_times_X(frac_wind_sf, frac_wind),                      &
+                 inc_a_times_X(field_sf, field),                              &
+                 atl_ffsl_flux_z_constant_kernel_type(flux_pert,              &
+                                                      flux_ls,                &
+                                                      ls_frac_wind,           &
+                                                      dep_dist,               &
+                                                      frac_wind,              &
+                                                      field,                  &
+                                                      ls_field,               &
+                                                      detj,                   &
+                                                      dt),                    &
+                 x_innerproduct_y(flux_pert_flux_pert_input_inner_prod,       &
+                                  flux_pert, flux_pert_input),                &
+                 x_innerproduct_y(flux_ls_flux_ls_input_inner_prod,           &
+                                  flux_ls, flux_ls_input),                    &
+                 x_innerproduct_y(frac_wind_frac_wind_input_inner_prod,       &
+                                  frac_wind, frac_wind_input),                &
+                 x_innerproduct_y(field_field_input_inner_prod,               &
+                                  field, field_input) )
+
+    inner2 = 0.0_r_tran
+    inner2 = inner2 + real(flux_pert_flux_pert_input_inner_prod, kind = r_tran)
+    inner2 = inner2 + real(flux_ls_flux_ls_input_inner_prod, kind = r_tran)
+    inner2 = inner2 + real(frac_wind_frac_wind_input_inner_prod, kind = r_tran)
+    inner2 = inner2 + real(field_field_input_inner_prod, kind = r_tran)
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_ffsl_flux_z_constant_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED tl_ffsl_flux_z_constant_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine atlt_ffsl_flux_z_constant_alg
+
+end module atlt_ffsl_flux_z_constant_alg_mod
