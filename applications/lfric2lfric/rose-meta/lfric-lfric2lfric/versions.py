@@ -31,3 +31,13 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn32_t655(MacroUpgrade):
+    # Upgrade macro for #655 by Christine Johnson
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t655"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        return config, self.reports
