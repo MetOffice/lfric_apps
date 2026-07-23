@@ -26,12 +26,10 @@ contains
 ! used in the implicit solve, for either updrafts
 ! or downdrafts (it must be called twice to sum the
 ! contributions from updrafts and downdrafts)
-subroutine calc_qss_forcing_init( n_points, n_points_super,                    &
-                                  nc, index_ic,                                &
-                                  init_mass, fields_par,                       &
+subroutine calc_qss_forcing_init( n_points, n_points_super, nc, index_ic,      &
+                                  dqsatdt, init_mass, fields_par,              &
                                   pert_tl, pert_qt,                            &
-                                  grid_k, grid_kpdk,                           &
-                                  fields_k, fields_kpdk,                       &
+                                  grid_k, grid_kpdk, fields_kpdk,              &
                                   qss_forc )
 
 use comorph_constants_mod, only: real_cvprec
@@ -42,8 +40,6 @@ use grid_type_mod, only: n_grid, i_pressure
 use dry_adiabat_mod, only: dry_adiabat
 use set_cp_tot_mod, only: set_cp_tot
 use lat_heat_mod, only: lat_heat_incr, i_phase_change_evp
-use set_qsat_mod, only: set_qsat_liq
-use set_dqsatdt_mod, only:  set_dqsatdt_liq
 
 implicit none
 
@@ -58,6 +54,9 @@ integer, intent(in) :: n_points_super
 ! Points where initiation mass-sources occur
 integer, intent(in) :: nc
 integer, intent(in) :: index_ic(nc)
+
+! dqsat/dT w.r.t. liquid water at level k
+real(kind=real_cvprec), intent(in) :: dqsatdt(n_points)
 
 ! Initiation mass-sources from current region
 real(kind=real_cvprec), intent(in) :: init_mass(nc)
@@ -76,15 +75,12 @@ real(kind=real_cvprec), intent(in) :: grid_k                                   &
 real(kind=real_cvprec), intent(in) :: grid_kpdk                                &
                                       ( n_points_super, n_grid )
 
-! Grid-mean fields from level k and the next full level
-real(kind=real_cvprec), intent(in) :: fields_k                                 &
-                                    ( n_points_super, n_fields )
+! Grid-mean fields from the next full level
 real(kind=real_cvprec), intent(in) :: fields_kpdk                              &
                                     ( n_points_super, n_fields )
 
 ! Forcing of supersaturation qss = q_vap - q_sat by initiation
 real(kind=real_cvprec), intent(in out) :: qss_forc(n_points)
-
 
 ! Compressed pressure
 real(kind=real_cvprec) :: pressure_k(nc)
@@ -98,16 +94,6 @@ real(kind=real_cvprec) :: fields_kpdk_cmpr                                     &
 real(kind=real_cvprec) :: fields_init                                          &
                           ( nc, i_temperature:i_q_vap )
 
-! Saturation water-vapour mixing-ratio w.r.t. liquid at the
-! grid-mean temperature, and its gradient with temperature
-real(kind=real_cvprec) :: qsat_liq(nc)
-real(kind=real_cvprec) :: dqsatdT_liq(nc)
-
-! Compressed grid-mean temperature, for qsat call
-real(kind=real_cvprec) :: temperature_k(nc)
-
-! Exner ratio for pressure change
-real(kind=real_cvprec) :: exner_ratio(nc)
 ! Total heat capacity for phase-change
 real(kind=real_cvprec) :: cp_tot(nc)
 
@@ -138,11 +124,7 @@ call dry_adiabat( nc, nc,                                                      &
                   pressure_kpdk, pressure_k,                                   &
                   fields_kpdk_cmpr(:,i_q_vap),                                 &
                   fields_kpdk_cmpr(:,i_qc_first:i_qc_last),                    &
-                  exner_ratio )
-do ic2 = 1, nc
-  fields_kpdk_cmpr(ic2,i_temperature)                                          &
-    = fields_kpdk_cmpr(ic2,i_temperature) * exner_ratio(ic2)
-end do
+                  fields_kpdk_cmpr(:,i_temperature) )
 
 ! Convert T,q to Tl,qw (i.e. evaporate the liquid cloud)
 call set_cp_tot( nc, nc, fields_kpdk_cmpr(:,i_q_vap),                          &
@@ -178,15 +160,6 @@ do ic2 = 1, nc
 end do
 ! fields_init now stores parcel qw and Tl
 
-
-! Calculate qsat_liq and dqsat/dT for grid-mean fields at k
-do ic2 = 1, nc
-  ic = index_ic(ic2)
-  temperature_k(ic2) = fields_k(ic,i_temperature)
-end do
-call set_qsat_liq( nc, temperature_k, pressure_k, qsat_liq )
-call set_dqsatdt_liq( nc, temperature_k, qsat_liq, dqsatdT_liq )
-
 do ic2 = 1, nc
   ic = index_ic(ic2)
 
@@ -204,7 +177,7 @@ do ic2 = 1, nc
 
   ! Estimate contribution to forcing of supersaturation qss
   qss_forc(ic) = qss_forc(ic) + init_mass(ic2)                                 &
-                     * ( qw_forc - dqsatdT_liq(ic2) * tl_forc )
+                                * ( qw_forc - dqsatdt(ic) * tl_forc )
 
 end do
 

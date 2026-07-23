@@ -278,7 +278,7 @@ contains
     type(quadrature_face_type)             :: qrf
     type(quadrature_rule_gaussian_type)    :: gaussian_quadrature
     class(reference_element_type), pointer :: reference_element => null()
-    type (mesh_type),              pointer :: mesh => null()
+    type (mesh_type),              pointer :: mesh
     integer(kind=i_def)                    :: mesh_id
     integer(kind=i_def)                    :: vorticity_fs
     integer(kind=i_def)                    :: element_order_h
@@ -296,18 +296,19 @@ contains
     if ( LPROF ) call start_timing( id, 'dynamics.rhs_alg' )
 
     mesh_id = base_state(igh_u)%get_mesh_id()
+    mesh => base_state(igh_u)%get_mesh()
 
-    geopotential => get_geopotential(mesh_id)
-    mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh_id)
-    chi          => get_coordinates(mesh_id)
-    panel_id     => get_panel_id(mesh_id)
-    mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh_id)
+    geopotential => get_geopotential(mesh%get_id())
+    mm_wtheta    => get_mass_matrix_fe( Wtheta, mesh%get_id())
+    chi          => get_coordinates(mesh)
+    panel_id     => get_panel_id(mesh)
+    mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh%get_id())
 
     ! Using modified velocity mass matrix if needing damping layer
     if (dlayer_rhs) then
       mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
     else
-      mm_vel => get_mass_matrix_fe(W2, mesh_id)
+      mm_vel => get_mass_matrix_fe(w2, mesh%get_id())
     end if
 
     u     => state(igh_u)

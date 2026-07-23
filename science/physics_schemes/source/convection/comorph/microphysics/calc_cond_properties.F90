@@ -278,7 +278,7 @@ if ( real(nc,real_cvprec) > cmpr_thresh * real(n_points,real_cvprec) ) then
   end if
 
 
-else  ! ( real(nc,real_cvprec) <= cmpr_thresh * real(n_points,real_cvprec) )
+else  ! ( REAL(nc,real_cvprec) <= cmpr_thresh * REAL(n_points,real_cvprec) )
   ! If only a minority of points have non-zero mixing ratio...
 
   ! Do a compressed call...
@@ -320,7 +320,7 @@ else  ! ( real(nc,real_cvprec) <= cmpr_thresh * real(n_points,real_cvprec) )
   ! Deallocate
   deallocate( args_cmpr )
 
-end if  ! ( real(nc,real_cvprec) <= cmpr_thresh * real(n_points,real_cvprec) )
+end if  ! ( REAL(nc,real_cvprec) <= cmpr_thresh * REAL(n_points,real_cvprec) )
 
 
 return
