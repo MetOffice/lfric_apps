@@ -35,10 +35,7 @@ ignore_dependencies_for = [
         "q1p5m_land", "qcl1p5m_land", "rh1p5m_land", "t1p5m_surft",
         "q1p5m_surft", "latent_heat", "surf_sw_net", "surf_radnet",
         "surf_lw_up", "surf_lw_down", "sea_ice_temperature", "latent_heat",
-        "flandg",
     ]
-
-do_not_omp_over = ["ainfo"]
 
 
 def trans(psyir):
@@ -71,11 +68,7 @@ def trans(psyir):
         # Most ideal loops in this file are top loops
         # However, loops over i, l and n are okay, where the attempt
         # to paralellise the outer loop has failed or was skipped.
-        if not loop.ancestor(Loop) or loop.variable.name in ['i', 'l', 'n']:
-            # A loop over ainfo%sice_pts_ncat should not be parallised
-            if loop.variable.name == 'n':
-                if are_variables_present(loop, do_not_omp_over):
-                    continue
+        if not loop.ancestor(Loop) or loop.variable.name in ['i', 'l']:
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
                     loop,
@@ -83,3 +76,7 @@ def trans(psyir):
 
             except (TransformationError, IndexError) as err:
                 logging.warning(f"Could not transform because:{err}")
+
+# Ignore loops setting these as order dependent:
+#   land_field l ainfo%land_index sice_pts ainfo%sice_index
+#   sea_pts ainfo%sea_inde ainfo%sice_pts_ncat

@@ -28,8 +28,6 @@ ignore_dependencies_for = [
     "sea_ice_pensolar_frac_diffuse", "flandg", "weight_blue"
     ]
 
-do_not_omp_over = ["ainfo"]
-
 
 def trans(psyir):
     '''
@@ -42,32 +40,9 @@ def trans(psyir):
 
     # Work through each loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
-        # If there is an OMP ancestor skip.
-        if (
-            loop.ancestor(OMPParallelDoDirective) is not None
-            or loop.ancestor(OMPDoDirective) is not None
-            or loop.ancestor(OMPParallelDirective) is not None
-        ):
-            continue
-
-        # If there is an loop over n, which has a child loop of i or l, skip
-        if loop.variable.name == 'n':
-            children = get_children(loop, node_type=Loop)
-            if children:
-                if children[0].variable.name in ['i', 'l']:
-                    continue
 
         # If there is not an ancestor node which is a loop
-        # Most ideal loops in this file are top loops
-        # However, loops over i, l and n are okay, where the attempt
-        # to paralellise the outer loop has failed or was skipped.
-        # Loops over the i_band are skipped due to low iterations
-        if ((not loop.ancestor(Loop) or loop.variable.name in ['i', 'l', 'n'])
-                and loop.variable.name not in ['i_band']):
-            # A loop over ainfo%sice_pts_ncat should not be parallised
-            if loop.variable.name == 'n':
-                if are_variables_present(loop, do_not_omp_over):
-                    continue
+        if not loop.ancestor(Loop):
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
                     loop,
@@ -75,3 +50,7 @@ def trans(psyir):
 
             except (TransformationError, IndexError) as err:
                 logging.warning(f"Could not transform because:{err}")
+
+# Ignore loops setting these as order dependent:
+#     land_field l ainfo%land_index sea_pts
+#     ainfo%sea_index ainfo%sice_pts_ncat ainfo%sice_index_ncat
