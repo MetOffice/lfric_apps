@@ -206,6 +206,8 @@
     }) %}
 
 {% elif task_ns.conf_name == "oasis_C224_to_Melbourne" %}
+
+    {% do task_dict.update({
         "opt_confs": ["oasis","source-C224","destination-melbourne"],
         "resolution": ["melbourne","C224_MG"],
         "dst_mesh": "melbourne",
