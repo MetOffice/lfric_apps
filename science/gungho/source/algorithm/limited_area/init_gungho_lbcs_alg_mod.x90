@@ -479,6 +479,7 @@ module init_gungho_lbcs_alg_mod
       recompute_rho = .false.  ! Don't recompute rho in hydrostatic_balance
       exner_from_rho = .true.  ! Use rho to get exner at eos level
     case(lbc_bal_meth_keep_exner_eos_lev)
+      call invoke(setval_c(lbc_rho, EXNER_RHO_FILL_VALUE) )
       recompute_rho = .true.   ! Recompute rho in hydrostatic_balance
       exner_from_rho = .false. ! Use input exner at eos level
     end select

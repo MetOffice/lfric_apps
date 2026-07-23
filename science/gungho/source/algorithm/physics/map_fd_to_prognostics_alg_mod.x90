@@ -483,7 +483,7 @@ contains
         ! Recompute density using the equation of state
         call invoke(                                                           &
           sample_eos_rho_kernel_type(                                          &
-              rho, exner, theta, moist_dyn(gas_law), kappa, rd, p_zero)        &
+              rho, exner, theta, moist_dyn(gas_law), mask, kappa, rd, p_zero)  &
               )
       end if
 
@@ -530,7 +530,7 @@ contains
              ! Recompute density using the equation of state
              sample_eos_rho_kernel_type(rho, exner, theta,                   &
                                         moist_dyn(gas_law),                  &
-                                        kappa, rd, p_zero)                   &
+                                        mask, kappa, rd, p_zero)             &
              )
 
     end if
