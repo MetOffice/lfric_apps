@@ -64,7 +64,6 @@ def trans(psyir):
         if loop.variable.name == 'n':
             children = get_children(loop, node_type=Loop)
             if children:
-                print(children[0].variable.name)
                 if children[0].variable.name in ['l', 'i']:
                     continue
 

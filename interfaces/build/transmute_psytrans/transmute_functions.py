@@ -804,6 +804,7 @@ def are_variables_present(node, check_list=[]):
     Call get_all_children with an Assignment, and work through them,
     checking whether the lhs of the returned list in present in our
     check list. If it is, return true.
+
     :arg node: the node to search for descendants of.
     :type node: :py:class:`Node`
     :arg check_list: list of items to check against the descendants

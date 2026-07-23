@@ -50,11 +50,11 @@ def trans(psyir):
         ):
             continue
 
-        # If there is an loop over n, which has a child loop of i, skip
+        # If there is an loop over n, which has a child loop of i or l, skip
         if loop.variable.name == 'n':
             children = get_children(loop, node_type=Loop)
             if children:
-                if children[0].variable.name == 'i':
+                if children[0].variable.name in ['i', 'l']:
                     continue
 
         # If there is not an ancestor node which is a loop
