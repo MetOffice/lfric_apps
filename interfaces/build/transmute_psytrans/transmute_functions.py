@@ -27,7 +27,6 @@ from psyclone.psyir.nodes import (
     Schedule,
 )
 from psyclone.psyir.symbols import (
-    DataSymbol,
     ContainerSymbol,
     RoutineSymbol,
     ImportInterface,
@@ -623,7 +622,7 @@ def loop_replacement_of(routine_itr,
                 tmp = loop.detach()  # noqa: F841 #pylint: disable=W0612
 
 
-def add_omp_parallel_region( #pylint: disable=R0913
+def add_omp_parallel_region(  # pylint: disable=R0913
     start_node,
     end_node,
     *,
@@ -730,3 +729,33 @@ def get_ancestors(
     if depth is not None:
         ancestors = [a for a in ancestors if a.depth == depth]
     return ancestors
+
+
+def get_children(node, node_type=Node, exclude=()):
+    """
+    Lifted from PSyTran.
+    Get all immediate descendents of a Node with a given type, i.e., those at
+    the next depth level.
+
+    :arg node: the Node to search for descendents of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+
+    :returns: list of children according to specifications.
+    :rtype: :py:class:`list`
+    """
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    if not isinstance(node_type, tuple):
+        issubclass(node_type, Node)
+        node_type = (node_type,)
+    children = [
+        grandchild
+        for child in node.children
+        for grandchild in child.children
+        if isinstance(grandchild, node_type)
+        and not isinstance(grandchild, exclude)
+    ]
+    return children

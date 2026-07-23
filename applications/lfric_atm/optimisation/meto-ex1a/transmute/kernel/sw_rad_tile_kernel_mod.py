@@ -18,10 +18,8 @@ from psyclone.psyir.nodes import (
     OMPParallelDirective,
     OMPDoDirective,)
 from transmute_psytrans.transmute_functions import (
-    OMP_PARALLEL_LOOP_DO_TRANS_STATIC
-)
-from script_options import (
-    SCRIPT_OPTIONS_DICT
+    get_children,
+    OMP_PARALLEL_LOOP_DO_TRANS_STATIC,
 )
 
 
@@ -50,12 +48,21 @@ def trans(psyir):
             or loop.ancestor(OMPParallelDirective) is not None
         ):
             continue
+
+        # If there is an loop over n, which has a child loop of i, skip
+        if loop.variable.name == 'n':
+            children = get_children(loop, node_type=Loop)
+            if children:
+                if children[0].variable.name == 'i':
+                    continue
+
         # If there is not an ancestor node which is a loop
         # Most ideal loops in this file are top loops
-        if not loop.ancestor(Loop) or loop.variable.name == 'n':
+        if ((not loop.ancestor(Loop) or loop.variable.name in ['i', 'l', 'n'])
+                and loop.variable.name not in ['i_band']):
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
-                    loop, 
+                    loop,
                     ignore_dependencies_for=ignore_dependencies_for)
 
             except (TransformationError, IndexError) as err:

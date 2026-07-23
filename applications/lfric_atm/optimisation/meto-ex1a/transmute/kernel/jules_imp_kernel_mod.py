@@ -18,10 +18,8 @@ from psyclone.psyir.nodes import (
     OMPParallelDirective,
     OMPDoDirective,)
 from transmute_psytrans.transmute_functions import (
-    OMP_PARALLEL_LOOP_DO_TRANS_STATIC
-)
-from script_options import (
-    SCRIPT_OPTIONS_DICT
+    get_children,
+    OMP_PARALLEL_LOOP_DO_TRANS_STATIC,
 )
 
 ignore_dependencies_for = [
@@ -38,8 +36,9 @@ ignore_dependencies_for = [
         "q1p5m_land", "qcl1p5m_land", "rh1p5m_land", "t1p5m_surft",
         "q1p5m_surft", "latent_heat", "surf_sw_net", "surf_radnet",
         "surf_lw_up", "surf_lw_down", "sea_ice_temperature", "latent_heat",
-        "ainfo%sice_pts_ncat", "ainfo%sice_index_ncat", "flandg",
+        "flandg",
     ]
+
 
 def trans(psyir):
     '''
@@ -59,12 +58,22 @@ def trans(psyir):
             or loop.ancestor(OMPParallelDirective) is not None
         ):
             continue
+
+        # If there is an loop over n, which has a child loop of l or i, skip
+        if loop.variable.name == 'n':
+            children = get_children(loop, node_type=Loop)
+            if children:
+                print(children[0].variable.name)
+                if children[0].variable.name in ['l', 'i']:
+                    continue
+
         # If there is not an ancestor node which is a loop
         # Most ideal loops in this file are top loops
-        if not loop.ancestor(Loop) or loop.variable.name == 'n':
+        # Otherwise nested loops over l, n or i are acceptable.
+        if not loop.ancestor(Loop) or loop.variable.name in ['l', 'i']:
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
-                    loop, 
+                    loop,
                     ignore_dependencies_for=ignore_dependencies_for)
 
             except (TransformationError, IndexError) as err:
