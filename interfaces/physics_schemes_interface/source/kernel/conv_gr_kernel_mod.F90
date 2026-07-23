@@ -1300,7 +1300,7 @@ contains
     do i = 1, ncells
       cumulus(i,1) = (cumulus_2d(map_2d(1,i)) == 1_i_def)
       ntml(i,1) = ntml_2d(map_2d(1,i))
-  
+
       zh(i,1) = zh_2d(map_2d(1,i))
       l_shallow(i,1) = (shallow_flag(map_2d(1,i)) == 1_i_def)
       uw0(i,1) = uw0_flux(map_2d(1,i))
@@ -1349,7 +1349,7 @@ contains
         q_conv(i,1,k)   = m_v(map_wth(1,i) + k)
         qcl_conv(i,1,k) = m_cl(map_wth(1,i) + k)
         qcf_conv(i,1,k) = m_cf(map_wth(1,i) + k)
-  
+
         cf_liquid_conv(i,1,k) = cf_liq(map_wth(1,i) + k)
         cf_frozen_conv(i,1,k) = cf_ice(map_wth(1,i) + k)
         bulk_cf_conv(i,1,k)   = cf_bulk(map_wth(1,i) + k)
