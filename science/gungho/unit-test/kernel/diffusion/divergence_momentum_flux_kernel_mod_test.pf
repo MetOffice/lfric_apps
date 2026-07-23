@@ -1,0 +1,239 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel for calculation of momentum flux divergence.
+!>
+module divergence_momentum_flux_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size,  &
+                                                  get_w3_m3x3_q3x3x3_size,  &
+                                                  get_w1_m3x3_q3x3x3_size,  &
+                                                  get_w2h_m3x3_q3x3x3_size, &
+                                                  get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap,       &
+                                                  get_w3_m3x3_dofmap,       &
+                                                  get_w1_m3x3_dofmap,       &
+                                                  get_w2h_m3x3_dofmap,      &
+                                                  get_wtheta_m3x3_dofmap,   &
+                                                  get_m3x3_stencil_dofmap_cross
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: divergence_momentum_flux_kernel_test_type
+    private
+
+  contains
+    procedure test_all
+  end type divergence_momentum_flux_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use feign_config_mod,                   only : feign_mixing_config
+    use mixing_config_mod,                  only : method_3d_smag, &
+                                                   smag_l_calc_UseDx
+    use divergence_momentum_flux_kernel_mod, only: divergence_momentum_flux_code
+
+    implicit none
+
+    class(divergence_momentum_flux_kernel_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlayers = 3
+    integer(kind=i_def), parameter :: stemcil_map_size = 5
+    integer(kind=i_def) :: ncells
+    integer(kind=i_def) :: ndf_w2
+    integer(kind=i_def) :: ndf_w3
+    integer(kind=i_def) :: ndf_w1
+    integer(kind=i_def) :: ndf_sh_w2h
+    integer(kind=i_def) :: ndf_wt
+    integer(kind=i_def) :: ndf_w2h
+    integer(kind=i_def) :: ndf_pid
+    integer(kind=i_def) :: ndf_w3_2d
+    integer(kind=i_def) :: undf_w2
+    integer(kind=i_def) :: undf_w3
+    integer(kind=i_def) :: undf_w1
+    integer(kind=i_def) :: undf_sh_w2h
+    integer(kind=i_def) :: undf_wt
+    integer(kind=i_def) :: undf_w2h
+    integer(kind=i_def) :: undf_pid
+    integer(kind=i_def) :: undf_w3_2d
+    integer(kind=i_def) :: dim_space, dim_space_diff
+    integer(kind=i_def) :: nqp_h, nqp_v
+    integer(kind=i_def), allocatable :: map_w2(:,:)
+    integer(kind=i_def), allocatable :: map_w3(:,:)
+    integer(kind=i_def), allocatable :: map_w1(:,:)
+    integer(kind=i_def), allocatable :: map_sh_w2h(:,:)
+    integer(kind=i_def), allocatable :: map_wt(:,:)
+    integer(kind=i_def), allocatable :: map_w2h(:,:)
+    integer(kind=i_def), allocatable :: map_pid(:,:)
+    integer(kind=i_def), allocatable :: map_w3_2d(:,:)
+    integer(kind=i_def), allocatable :: smap_w3(:,:,:)
+    integer(kind=i_def), allocatable :: smap_pid(:,:,:)
+    real(kind=r_def), allocatable :: u_inc(:)
+    real(kind=r_def), allocatable :: uflux_w3(:)
+    real(kind=r_def), allocatable :: vflux_w3(:)
+    real(kind=r_def), allocatable :: uflux_w1(:)
+    real(kind=r_def), allocatable :: vflux_w1(:)
+    real(kind=r_def), allocatable :: wflux_sh_w2h(:)
+    real(kind=r_def), allocatable :: detj_at_w2(:)
+    real(kind=r_def), allocatable :: rho_in_wth(:)
+    real(kind=r_def), allocatable :: rho_in_w2h(:)
+    real(kind=r_def), allocatable :: panel_id(:)
+    integer(i_def), allocatable :: face_selector_ew(:)
+    integer(i_def), allocatable :: face_selector_ns(:)
+    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+    real(kind=r_def), parameter :: volume = 2.0_r_def, &
+                                   rho = 1.0_r_def
+    real(r_def) :: answer
+
+    integer(kind=i_def) :: cell
+
+    cell = 5
+
+    call feign_mixing_config( viscosity     = .false.,           &
+                              viscosity_mu  = 0.0_r_def,         &
+                              smagorinsky   = .true.,            &
+                              fullstress    = .true.,            &
+                              mix_factor    = 0.2_r_def,         &
+                              method        = method_3d_smag,    &
+                              smag_l_calc   = smag_l_calc_UseDx, &
+                              leonard_term  = .false.,           &
+                              leonard_kl    = 4.0_r_def,         &
+                              conservative_diffusion = .true.,   &
+                              density_weighted = .true.,         &
+                              max_diff_factor=1.0_r_def )
+
+    ! Variables for testing momentum_smagorinsky
+    ! Get sizes of everything
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,          &
+                                  dim_space, dim_space_diff,        &
+                                  nqp_h, nqp_v,                     &
+                                  nlayers )
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells,          &
+                                  dim_space, dim_space_diff,        &
+                                  nqp_h, nqp_v,                     &
+                                  nlayers )
+
+    call get_w1_m3x3_q3x3x3_size( ndf_w1, undf_w1, ncells,          &
+                                  dim_space, dim_space_diff,        &
+                                  nqp_h, nqp_v,                     &
+                                  nlayers )
+
+    call get_w2h_m3x3_q3x3x3_size( ndf_sh_w2h, undf_sh_w2h, ncells, &
+                                  dim_space, dim_space_diff,        &
+                                  nqp_h, nqp_v,                     &
+                                  nlayers+1 )
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells,      &
+                                  dim_space, dim_space_diff,        &
+                                  nqp_h, nqp_v,                     &
+                                  nlayers )
+
+    call get_w2h_m3x3_q3x3x3_size( ndf_w2h, undf_w2h, ncells,       &
+                                  dim_space, dim_space_diff,        &
+                                  nqp_h, nqp_v,                     &
+                                  nlayers )
+
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells,        &
+                                  dim_space, dim_space_diff,        &
+                                  nqp_h, nqp_v,                     &
+                                  1 )
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3_2d, undf_w3_2d, ncells, &
+                                  dim_space, dim_space_diff,     &
+                                  nqp_h, nqp_v,                  &
+                                  1 )
+
+    ! Setup maps
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+    call get_w3_m3x3_dofmap(map_w3, nlayers)
+    call get_w1_m3x3_dofmap(map_w1, nlayers)
+    call get_w2h_m3x3_dofmap(map_sh_w2h, nlayers+1)
+    call get_wtheta_m3x3_dofmap(map_wt, nlayers)
+    call get_w2h_m3x3_dofmap(map_w2h, nlayers)
+    call get_w3_m3x3_dofmap(map_pid, 1)
+    call get_w3_m3x3_dofmap(map_w3_2d, 1)
+
+    call get_m3x3_stencil_dofmap_cross(smap_w3, map_w3)
+    call get_m3x3_stencil_dofmap_cross(smap_pid, map_pid)
+
+    ! Create the data
+    allocate(u_inc(undf_w2))
+    allocate(uflux_w3(undf_w3))
+    allocate(vflux_w3(undf_w3))
+    allocate(uflux_w1(undf_w1))
+    allocate(vflux_w1(undf_w1))
+    allocate(wflux_sh_w2h(undf_sh_w2h))
+    allocate(detj_at_w2(undf_w2))
+    allocate(rho_in_wth(undf_wt))
+    allocate(rho_in_w2h(undf_w2h))
+    allocate(panel_id(undf_pid))
+    allocate(face_selector_ew(undf_w3_2d))
+    allocate(face_selector_ns(undf_w3_2d))
+
+    detj_at_w2(:) = volume
+    rho_in_wth(:) = rho
+    rho_in_w2h(:) = rho
+    panel_id(:) = 1.0_r_def
+    face_selector_ew(:) = 2
+    face_selector_ns(:) = 2
+
+    ! The fluxes have the following horizontal setup:
+    !     ------ 2.0        y
+    !   |         |         ^
+    !   |   0.5   u  1.0    |__> x
+    !   |         |
+    !     ------ 4.0
+    ! Helce the increment of u will be -((1.0-0.5) + (2.0-4.5)) / volume = 0.75
+
+    uflux_w3(:) = 0.0_r_def
+    uflux_w3(map_w3(1,cell)) = 0.5_r_def
+    uflux_w3(smap_w3(1,4,cell)) = 1.0_r_def
+    uflux_w1(:) = 0.0_r_def
+    uflux_w1(map_w1(6,cell)) = 4.0_r_def
+    uflux_w1(map_w1(7,cell)) = 2.0_r_def
+    vflux_w3(:) = 0.0_r_def
+    vflux_w1(:) = 0.0_r_def
+    wflux_sh_w2h(:) = 0.0_r_def
+
+    ! Increment needs to be zeroed out before the kernel is called.
+    u_inc(:) = 0.0_r_def
+
+    call divergence_momentum_flux_code(                                        &
+           nlayers,                                                            &
+           u_inc,                                                              &
+           uflux_w3, stemcil_map_size, smap_w3(:,:,cell),                      &
+           vflux_w3, stemcil_map_size, smap_w3(:,:,cell),                      &
+           uflux_w1, vflux_w1, wflux_sh_w2h,                                   &
+           detj_at_w2, rho_in_wth, rho_in_w2h,                                 &
+           panel_id, stemcil_map_size, smap_pid(:,:,cell),                     &
+           face_selector_ew, face_selector_ns,                                 &
+           ndf_w2, undf_w2, map_w2(:,cell),                                    &
+           ndf_w3, undf_w3, map_w3(:,cell),                                    &
+           ndf_w1, undf_w1, map_w1(:,cell),                                    &
+           ndf_sh_w2h, undf_sh_w2h, map_sh_w2h(:,cell),                        &
+           ndf_wt, undf_wt, map_wt(:,cell),                                    &
+           ndf_w2h, undf_w2h, map_w2h(:,cell),                                 &
+           ndf_pid, undf_pid, map_pid(:,cell),                                 &
+           ndf_w3_2d, undf_w3_2d, map_w3_2d(:,cell)                            &
+         )
+
+    answer = 0.75_r_def
+    @assertEqual(answer, u_inc(map_w2(3,cell)), tol)
+
+  end subroutine test_all
+
+end module divergence_momentum_flux_kernel_mod_test

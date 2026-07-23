@@ -1,0 +1,70 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel for interpolation from W3 to Wtheta point.
+!>
+module interp_wtheta_to_w3_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: interp_wtheta_to_w3_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type interp_wtheta_to_w3_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use interp_wtheta_to_w3_kernel_mod, only : interp_wtheta_to_w3_code
+
+    implicit none
+
+    class(interp_wtheta_to_w3_kernel_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlayers = 3
+    integer(kind=i_def), parameter :: ndf_w3  = 1
+    integer(kind=i_def), parameter :: ndf_wt  = 2
+    integer(kind=i_def), parameter :: undf_w3 = nlayers
+    integer(kind=i_def), parameter :: undf_wt = nlayers+1
+    real(kind=r_def),    parameter :: tol = 1.0e-6_r_def
+
+    integer(kind=i_def) :: map_w3(ndf_w3)
+    integer(kind=i_def) :: map_wt(ndf_wt)
+    real(kind=r_def)    :: field_w3(undf_w3)
+    real(kind=r_def)    :: field_wt(undf_wt)
+    real(kind=r_def)    :: height_w3(undf_w3)
+    real(kind=r_def)    :: height_wt(undf_wt)
+    real(kind=r_def)    :: answer(undf_w3)
+
+    map_w3 = (/ 1 /)
+    map_wt = (/ 1, 2 /)
+    field_wt = (/ 0.0_r_def, 1.0_r_def, 3.0_r_def, 6.0_r_def /)
+    height_w3 = (/ 5.0_r_def, 15.0_r_def, 25.0_r_def /)
+    height_wt = (/ 0.0_r_def, 10.0_r_def, 20.0_r_def, 30.0_r_def /)
+    answer = (/ 0.5_r_def, 2.0_r_def, 4.5_r_def /)
+
+    call interp_wtheta_to_w3_code(                                             &
+        nlayers,                                                               &
+        field_w3, field_wt, height_w3, height_wt,                              &
+        ndf_w3, undf_w3, map_w3, ndf_wt, undf_wt, map_wt                       &
+    )
+
+    @assertEqual(answer, field_w3, tol)
+
+  end subroutine test_all
+
+end module interp_wtheta_to_w3_kernel_mod_test

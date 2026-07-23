@@ -31,3 +31,16 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn32_t479(MacroUpgrade):
+    """Upgrade macro for ticket #479 by Shusuke Nishimoto."""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t479"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "fullstress"], ".false."
+        )
+        return config, self.reports
