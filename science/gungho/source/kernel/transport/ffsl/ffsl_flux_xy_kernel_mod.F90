@@ -359,6 +359,7 @@ contains
     use subgrid_common_support_mod,     only: monotonic_edge,                  &
                                               subgrid_quadratic_recon
 
+    !$omp declare target
     implicit none
 
     ! Arguments: Function space metadata
