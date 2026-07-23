@@ -161,7 +161,7 @@
         {% set resolutions = [task_values["resolution"]] %}
     {% endif %}
     {% for res in resolutions %}
-    
+
         {% set mesh_run_task = "run_mesh_"~
                                res~"_"~
                                task_ns.platform~"_"~
@@ -179,7 +179,7 @@
                 {% do tasks_to_run.update({mesh_run_task: mesh_dict}) %}
             {% endif %}
 {# Add the mesh (for resolution res) to the graph, so all meshes are triggered by build #}
-	        {% if mesh_run_task %}
+            {% if mesh_run_task %}
                 {% do graph_sections.append([
                     mesh_build_task,
                     mesh_run_task]) %}

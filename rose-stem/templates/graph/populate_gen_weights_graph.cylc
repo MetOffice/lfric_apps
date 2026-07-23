@@ -63,9 +63,9 @@
 {# Set mesh generate task for weights platform #}
     {% set mesh_run_weights_platform = "run_mesh_"~
                                         res~"_"~
-				                        site_vars["scripts_platform"]~"_"~
+                                        site_vars["scripts_platform"]~"_"~
                                         site_vars["mesh_build"][site_vars["scripts_platform"]] %}
-				     
+
     {% if mesh_run_weights_platform not in tasks_to_run %}
         {% do tasks_to_run.update({mesh_run_weights_platform: {} }) %}
     {% endif %}
@@ -73,9 +73,9 @@
 {# Define the previous task (i.e. the resolution in the list before) #}
     {% if not loop.first %}
         {% set prev_res = resolutions[loop.index0 -1] %}
-	    {% set previous_graph_task = "run_mesh_"~
+        {% set previous_graph_task = "run_mesh_"~
                                       prev_res~"_"~
-		  	                          site_vars["scripts_platform"]~"_"~
+                                      site_vars["scripts_platform"]~"_"~
                                       site_vars["mesh_build"][site_vars["scripts_platform"]] %}
     {% endif %}
 
