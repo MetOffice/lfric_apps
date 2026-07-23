@@ -270,6 +270,7 @@ contains
     type( field_type ) :: mid_dt, mid_dq, mid_massflux
     type( field_type ) :: pres_cv_base, pres_cv_top
     type( field_type ) :: pres_lowest_cv_base, pres_lowest_cv_top, lowest_cca_2d
+    type( field_type ) :: cloud_base_icao_height, cloud_top_icao_height
     type( field_type ) :: deep_cfl_limited, mid_cfl_limited
     type( field_type ) :: massflux_up_half, massflux_up_cmpta
     type( field_type ) :: dth_conv_noshal, dmv_conv_noshal
@@ -465,49 +466,51 @@ contains
     delta      => get_delta_at_wtheta(mesh)
 
     ! Initialise the convection diagnostics
-    call initialise_diags_for_conv(rho,                  &
-                                   zh,                   &
-                                   deep_in_col,          & ! 2-D local variables
-                                   shallow_in_col,       &
-                                   mid_in_col,           &
-                                   freeze_level,         &
-                                   deep_prec,            &
-                                   shallow_prec,         &
-                                   mid_prec,             &
-                                   deep_term,            &
-                                   cape_timescale,       &
-                                   lowest_cv_base,       &
-                                   lowest_cv_top,        &
-                                   cv_base,              &
-                                   cv_top,               &
-                                   pres_cv_base,         &
-                                   pres_cv_top,          &
-                                   pres_lowest_cv_base,  &
-                                   pres_lowest_cv_top,   &
-                                   lowest_cca_2d,        &
-                                   deep_cfl_limited,     &
-                                   mid_cfl_limited,      &
-                                   entrain_up,           & ! 3-D local variables
-                                   entrain_down,         &
-                                   detrain_up,           &
-                                   detrain_down,         &
-                                   dd_dt,                &
-                                   dd_dq,                &
-                                   deep_dt,              &
-                                   deep_dq,              &
-                                   deep_massflux,        &
-                                   shallow_dt,           &
-                                   shallow_dq,           &
-                                   shallow_massflux,     &
-                                   mid_dt,               &
-                                   mid_dq,               &
-                                   mid_massflux,         &
-                                   deep_tops,            &
-                                   massflux_up_half,     &
-                                   massflux_up_cmpta,    &
-                                   cca_unadjusted,       &
-                                   dth_conv_noshal,      &
-                                   dmv_conv_noshal)
+    call initialise_diags_for_conv(rho,                    &
+                                   zh,                     &
+                                   deep_in_col,            & ! 2-D local variables
+                                   shallow_in_col,         &
+                                   mid_in_col,             &
+                                   freeze_level,           &
+                                   deep_prec,              &
+                                   shallow_prec,           &
+                                   mid_prec,               &
+                                   deep_term,              &
+                                   cape_timescale,         &
+                                   lowest_cv_base,         &
+                                   lowest_cv_top,          &
+                                   cv_base,                &
+                                   cv_top,                 &
+                                   pres_cv_base,           &
+                                   pres_cv_top,            &
+                                   pres_lowest_cv_base,    &
+                                   pres_lowest_cv_top,     &
+                                   lowest_cca_2d,          &
+                                   deep_cfl_limited,       &
+                                   mid_cfl_limited,        &
+                                   entrain_up,             & ! 3-D local variables
+                                   entrain_down,           &
+                                   detrain_up,             &
+                                   detrain_down,           &
+                                   dd_dt,                  &
+                                   dd_dq,                  &
+                                   deep_dt,                &
+                                   deep_dq,                &
+                                   deep_massflux,          &
+                                   shallow_dt,             &
+                                   shallow_dq,             &
+                                   shallow_massflux,       &
+                                   mid_dt,                 &
+                                   mid_dq,                 &
+                                   mid_massflux,           &
+                                   deep_tops,              &
+                                   massflux_up_half,       &
+                                   massflux_up_cmpta,      &
+                                   cca_unadjusted,         &
+                                   dth_conv_noshal,        &
+                                   dmv_conv_noshal,        &
+                                   cloud_base_icao_height, &
+                                   cloud_top_icao_height)
 
     ! Calculate total ice field
     call mr(imr_s)%copy_field_properties(mr_ice)
@@ -793,7 +796,9 @@ contains
                                   massflux_up_cmpta,     &
                                   cca_unadjusted,        &
                                   dth_conv_noshal,       &
-                                  dmv_conv_noshal)
+                                  dmv_conv_noshal,       &
+                                  cloud_base_icao_height,&
+                                  cloud_top_icao_height)
 
     end if
 
