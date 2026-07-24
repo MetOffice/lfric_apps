@@ -3,7 +3,7 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 ! Some of the content of this file has been produced with the assistance of
-! GitHub Copilot (Claude Sonnet 5).
+! Met Office GitHub Copilot Enterprise.
 !-----------------------------------------------------------------------------
 !> @brief Compute the projection operator from the vertical part of the
 !>        velocity space to the potential temperature space weighted by the

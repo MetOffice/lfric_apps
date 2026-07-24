@@ -3,7 +3,7 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 ! Some of the content of this file has been produced with the assistance of
-! GitHub Copilot (Claude Opus 4.8).
+! Met Office GitHub Copilot Enterprise.
 !-----------------------------------------------------------------------------
 
 !> @brief Apply the semi-implicit mixed operator to the equation of state.
