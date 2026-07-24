@@ -334,7 +334,7 @@ subroutine init_mesh( config,                  &
     ! Read in all global meshes from input file
     !===========================================================
     if (mesh_file(dst) == mesh_file(src)) then
-       call load_global_mesh( mesh_file(dst), mesh_names )
+      call load_global_mesh( mesh_file(dst), mesh_names )
 
       ! Partition the global meshes
       !===========================================================
@@ -355,10 +355,10 @@ subroutine init_mesh( config,                  &
 
     else
 
-      !! SOURCE
+      ! SOURCE
       call load_global_mesh( mesh_file(src), mesh_names(src) )
-      write( log_scratch_space, '(A)' )                                     &
-         'Loaded src'
+      write( log_scratch_space, '(A)' )                      &
+         'Loaded source mesh'
       call log_event(log_scratch_space, log_level_debug)
 
       call create_local_mesh( mesh_names(src:src),           &
@@ -371,10 +371,10 @@ subroutine init_mesh( config,                  &
 
       call global_mesh_collection%clear()
 
-     !! DESTINATION
+      ! DESTINATION
       call load_global_mesh( mesh_file(dst), mesh_names(dst) )
-      write( log_scratch_space, '(A)' )                                     &
-         'Loaded dest'
+      write( log_scratch_space, '(A)' )                      &
+         'Loaded destination mesh'
       call log_event(log_scratch_space, log_level_debug)
 
       call create_local_mesh( mesh_names(dst:dst),           &
@@ -386,7 +386,6 @@ subroutine init_mesh( config,                  &
                               enforce_constraints = .false. )
 
       call global_mesh_collection%clear()
-
 
     endif
 
