@@ -1,0 +1,203 @@
+! -----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! -----------------------------------------------------------------------------
+!> @brief Test icao_heights_kernel
+!>
+
+module icao_heights_kernel_mod_test
+
+  use funit
+  use constants_mod,                    only: i_def, r_def, rmdi
+  use icao_heights_kernel_mod, only: icao_heights_kernel_code
+  use science_aviation_constants_mod,   only: isa_press_bot, isa_press_mid, isa_press_top
+
+  implicit none
+
+  private
+  public :: test_rmdi, &
+            test_low_low, test_low_high, &
+            test_mid_low, test_mid_high, &
+            test_high_low, test_high_limit
+
+  @TestCase
+  type, extends(TestCase), public  :: icao_heights_test_type
+    private
+      real(kind=r_def), allocatable :: pressure(:)
+      real(kind=r_def), allocatable :: icao_heights(:)
+      real(kind=r_def), allocatable :: expect(:)
+
+    contains
+      procedure setUp
+      procedure tearDown
+      procedure test_rmdi
+      procedure test_low_low, test_low_high
+      procedure test_mid_low, test_mid_high
+      procedure test_high_low, test_high_limit
+
+  end type icao_heights_test_type
+
+  ! g / dry air gas constant. Can't seem to import from planet_constants.
+  real(kind=r_def) :: g_over_r = 0.034163195_r_def
+  real(kind=r_def) :: tolerance  = 1.0e-3_r_def
+
+  integer(kind=i_def), parameter :: nlayers       = -999_i_def
+  integer(kind=i_def), parameter :: ndf           = 1_i_def
+  integer(kind=i_def), parameter :: undf          = 2_i_def
+  integer(kind=i_def), parameter :: map(2)        = (/1_i_def, -999_i_def /)
+
+  integer(kind=i_def), parameter :: arr_len       = undf
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine setUp( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    allocate(this%icao_heights(arr_len), &
+             this%pressure(arr_len),    &
+             this%expect(arr_len) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tearDown( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    deallocate(this%icao_heights, this%pressure, this%expect)
+
+  end subroutine tearDown
+
+  ! mdi handling
+  @test
+  subroutine test_rmdi ( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    this%pressure = (/ rmdi, -999.0_r_def /)
+    this%expect = (/   rmdi, -999.0_r_def /)
+
+    this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
+    call icao_heights_kernel_code( nlayers,                 &
+               this%icao_heights, this%pressure, g_over_r,  &
+               ndf, undf, map )
+
+    @assertEqual( this%expect, this%icao_heights )
+
+  end subroutine test_rmdi
+
+  ! pressure in the lower section - near surface
+  @test
+  subroutine test_low_low ( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    this%pressure = (/ isa_press_bot - 1.0_r_def,  -999.0_r_def /)
+    this%expect = (/   0.0_r_def,   -999.0_r_def /)
+
+    this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
+    call icao_heights_kernel_code( nlayers,                 &
+               this%icao_heights, this%pressure, g_over_r,  &
+               ndf, undf, map )
+
+    @assertEqual( this%expect, this%icao_heights, tolerance )
+
+  end subroutine test_low_low
+
+  ! pressure in the lower section - near isa_press_mid
+  @test
+  subroutine test_low_high ( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    this%pressure = (/ isa_press_mid + 1.0_r_def,  -999.0_r_def /)
+    this%expect = (/   36.088_r_def,   -999.0_r_def /)
+
+    this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
+    call icao_heights_kernel_code( nlayers,                 &
+               this%icao_heights, this%pressure, g_over_r,  &
+               ndf, undf, map )
+
+    @assertEqual( this%expect, this%icao_heights, tolerance )
+
+  end subroutine test_low_high
+
+  ! pressure in the mid section - near isa_press_mid
+  @test
+  subroutine test_mid_low ( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    this%pressure = (/ isa_press_mid - 1.0_r_def,  -999.0_r_def /)
+    this%expect = (/   36.090_r_def,   -999.0_r_def /)
+
+    this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
+    call icao_heights_kernel_code( nlayers,                 &
+               this%icao_heights, this%pressure, g_over_r,  &
+               ndf, undf, map )
+
+    @assertEqual( this%expect, this%icao_heights, tolerance )
+
+  end subroutine test_mid_low
+
+  ! pressure in the mid section - near isa_press_top
+  @test
+  subroutine test_mid_high ( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    this%pressure = (/ isa_press_top + 1.0_r_def,  -999.0_r_def /)
+    this%expect = (/   65.613_r_def,   -999.0_r_def /)
+
+    this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
+    call icao_heights_kernel_code( nlayers,                 &
+               this%icao_heights, this%pressure, g_over_r,  &
+               ndf, undf, map )
+
+    @assertEqual( this%expect, this%icao_heights, tolerance )
+
+  end subroutine test_mid_high
+
+  ! pressure in the top section - near isa_press_top
+  @test
+  subroutine test_high_low ( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    this%pressure = (/ isa_press_top - 1.0_r_def,  -999.0_r_def /)
+    this%expect = (/   65.620_r_def,   -999.0_r_def /)
+
+    this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
+    call icao_heights_kernel_code( nlayers,                 &
+               this%icao_heights, this%pressure, g_over_r,  &
+               ndf, undf, map )
+
+    @assertEqual( this%expect, this%icao_heights, tolerance )
+
+  end subroutine test_high_low
+
+  ! very low pressure changed to 1000
+  @test
+  subroutine test_high_limit ( this )
+    implicit none
+    class(icao_heights_test_type), intent(inout) :: this
+
+    this%pressure = (/ 500.0_r_def,   -999.0_r_def /)
+    this%expect = (/   101.886_r_def, -999.0_r_def /)
+
+    this%icao_heights = (/ -999.0_r_def, -999.0_r_def /)
+    call icao_heights_kernel_code( nlayers,                 &
+               this%icao_heights, this%pressure, g_over_r,  &
+               ndf, undf, map )
+
+    @assertEqual( this%expect, this%icao_heights, tolerance )
+
+  end subroutine test_high_limit
+
+end module icao_heights_kernel_mod_test

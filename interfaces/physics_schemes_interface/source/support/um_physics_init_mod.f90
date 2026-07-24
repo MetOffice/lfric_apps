@@ -1430,7 +1430,7 @@ contains
 
         ! Set up stochastic physics options
         l_rp2_casim = l_rp2
-        
+
         ! Set up options for CASIM cloud fraction scheme
         l_cfrac_casim_diag_scheme = .false.
 
