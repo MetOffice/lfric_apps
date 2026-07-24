@@ -196,7 +196,7 @@ end function has_xios_io
     end if
 
     ! Check whether checkpoint fields have been added to the XIOS context.
-    if (use_xios_io .and. spec%ckp .and. space_has_xios_io(spec%space)) then
+    if (use_xios_io .and. spec%ckp_write .and. space_has_xios_io(spec%space)) then
       if (checkpoint_write) then
         split_stem_name = split_string( &
           trim(checkpoint_stem_name), '/' )
@@ -219,6 +219,8 @@ end function has_xios_io
             log_level_error)
         end select
       end if
+    end if
+    if (use_xios_io .and. spec%ckp_read .and. space_has_xios_io(spec%space)) then
       if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
           if (.not. field_is_valid('restart_' // trim(spec%name))) then
             call log_event('restart field not enabled for ' &
@@ -252,8 +254,11 @@ end function has_xios_io
         spec%empty, &
         external_int_field, &
         time_axis, &
-        spec%legacy, &
-        spec%ckp, &
+        spec%prognostic, &
+        spec%legacy_read, &
+        spec%legacy_write, &
+        spec%ckp_read, &
+        spec%ckp_write, &
         advected)
     else
       if (spec%moist_arr /= moist_arr_dict%none .and. spec%moist_idx == 0) then
@@ -277,8 +282,11 @@ end function has_xios_io
         spec%empty, &
         external_real_field, &
         time_axis, &
-        spec%legacy, &
-        spec%ckp, &
+        spec%prognostic, &
+        spec%legacy_read, &
+        spec%legacy_write, &
+        spec%ckp_read, &
+        spec%ckp_write, &
         advected)
     end if
     nullify(main_coll, adv_coll, depository, prognostic_fields, &
@@ -298,14 +306,21 @@ end function has_xios_io
   !> @param[in]     empty             Flag whether this field is empty
   !> @param[in]     external_field    Pointer to external field or null
   !> @param[in]     time_axis         Pointer to time axis or null
-  !> @param[in]     legacy            Flag whether this field uses legacy IO
-  !> @param[in]     checkpoint_flag   Optional flag to allow checkpoint-
-  !>                                   restart behaviour of field to be set
+  !> @param[in]     prognostic        Flag whether this field is a prognostic
+  !> @param[in]     legacy_read       Flag whether this field is read using legacy IO
+  !> @param[in]     legacy_write      Flag whether this field is written using legacy IO
+  !> @param[in]     checkpoint_read_flag  Optional flag to allow restart read
+  !>                                      behaviour of field to be set
+  !> @param[in]     checkpoint_write flag Optional flag to allow checkpoint
+  !>                                      write behaviour of field to be set
+
   !> @param[in]     advection_flag    Optional flag whether this field is to be advected
    subroutine add_real_field(field_collection, &
                               depository, prognostic_fields, advected_fields, &
                               name, vector_space, order_h, order_v, empty, external_field, &
-                              time_axis, legacy, checkpoint_flag, advection_flag)
+                              time_axis, prognostic, legacy_read, legacy_write, &
+                              checkpoint_read_flag, checkpoint_write_flag, &
+                              advection_flag)
 
     use io_config_mod,           only : use_xios_io, &
                                         write_diag, checkpoint_write, &
@@ -331,8 +346,11 @@ end function has_xios_io
     logical(l_def), intent(in)                     :: empty
     type(field_type), pointer, intent(in)          :: external_field
     type(time_axis_type), pointer, intent(in)      :: time_axis
-    logical(l_def), intent(in)                     :: legacy
-    logical(l_def), optional, intent(in)           :: checkpoint_flag
+    logical(l_def), intent(in)                     :: prognostic
+    logical(l_def), intent(in)                     :: legacy_read
+    logical(l_def), intent(in)                     :: legacy_write
+    logical(l_def), optional, intent(in)           :: checkpoint_read_flag
+    logical(l_def), optional, intent(in)           :: checkpoint_write_flag
     logical(l_def), optional, intent(in)           :: advection_flag
     !Local variables
     type(field_type), target                       :: new_field
@@ -340,7 +358,8 @@ end function has_xios_io
     type(field_type), pointer                      :: field_ptr => null()
     class(pure_abstract_field_type), pointer       :: tmp_ptr => null()
     type(function_space_type), pointer             :: window_size_space
-    logical(l_def)                                 :: checkpointed
+    logical(l_def)                                 :: checkpointed_read
+    logical(l_def)                                 :: checkpointed_write
     logical(l_def)                                 :: advected
 
     ! pointers for xios write interface
@@ -406,24 +425,31 @@ end function has_xios_io
       advected = .false.
     end if
 
-    ! Set checkpoint flag
-    if (present(checkpoint_flag)) then
-      checkpointed = checkpoint_flag
+    ! Set checkpoint flags
+    if (present(checkpoint_read_flag)) then
+      checkpointed_read = checkpoint_read_flag
     else
-      checkpointed = .false.
+      checkpointed_read = .false.
+    end if
+    if (present(checkpoint_write_flag)) then
+      checkpointed_write = checkpoint_write_flag
+    else
+      checkpointed_write = .false.
     end if
 
     ! Set read and write behaviour
     if (use_xios_io) then
         write_behaviour => write_field_generic
         read_behaviour  => read_field_generic
-        if (has_xios_io(vector_space, legacy) &
-            .and. (write_diag .or. (checkpoint_write .and. checkpointed))) &
+        if (has_xios_io(vector_space, legacy_write) &
+            .and. (write_diag .or. (checkpoint_write .and. checkpointed_write))) then
           call new_field_ptr%set_write_behaviour(write_behaviour)
-        if (has_xios_io(vector_space, legacy) &
+        end if
+        if (has_xios_io(vector_space, legacy_read) &
             .and. (checkpoint_read .or. init_option == init_option_checkpoint_dump) &
-            .and. checkpointed) &
+            .and. checkpointed_read) then
           call new_field_ptr%set_read_behaviour(read_behaviour)
+        end if
     else
         checkpoint_write_behaviour => checkpoint_write_netcdf
         checkpoint_read_behaviour  => checkpoint_read_netcdf
@@ -443,7 +469,7 @@ end function has_xios_io
     if (associated(field_collection)) &
       call field_collection%add_reference_to_field( tmp_ptr )
     ! If checkpointing the field, put a pointer to it in the prognostics collection
-    if ( checkpointed ) then
+    if ( prognostic ) then
       call prognostic_fields%add_reference_to_field( tmp_ptr )
     endif
     ! If advecting the field, put a pointer to it in the advected collection
@@ -466,15 +492,21 @@ end function has_xios_io
   !> @param[in]     empty             Flag whether this field is empty
   !> @param[in]     external_field    Pointer to external field or null
   !> @param[in]     time_axis         Pointer to time axis or null
-  !> @param[in]     legacy            Flag whether this field uses legacy checkpointing
-  !> @param[in]     checkpoint_flag   Optional flag to allow checkpoint-
-  !>                                   restart behaviour of field to be set
+  !> @param[in]     prognostic        Flag whether this field is a prognostic
+  !> @param[in]     legacy_read       Flag whether this field is read using legacy IO
+  !> @param[in]     legacy_write      Flag whether this field is written using legacy IO
+  !> @param[in]     checkpoint_read_flag  Optional flag to allow restart read
+  !>                                      behaviour of field to be set
+  !> @param[in]     checkpoint_write flag Optional flag to allow checkpoint
+  !>                                      write behaviour of field to be set
   !> @param[in]     advection_flag    Optional flag whether this field is to be advected
   subroutine add_integer_field(field_collection, &
                               depository, prognostic_fields, advected_fields, &
                               name, vector_space, order_h, order_v, empty, &
-                              external_field, time_axis, legacy, &
-                              checkpoint_flag, advection_flag)
+                              external_field, time_axis, &
+                              prognostic, legacy_read, legacy_write, &
+                              checkpoint_read_flag, checkpoint_write_flag, &
+                              advection_flag)
 
     use io_config_mod,           only : use_xios_io, &
                                         write_diag, checkpoint_write, &
@@ -500,15 +532,19 @@ end function has_xios_io
     logical(l_def), intent(in)                     :: empty
     type(integer_field_type), pointer, intent(in)  :: external_field
     type(time_axis_type), pointer, intent(in)      :: time_axis
-    logical(l_def), intent(in)                     :: legacy
-    logical(l_def), optional, intent(in)           :: checkpoint_flag
+    logical(l_def), intent(in)                     :: prognostic
+    logical(l_def), intent(in)                     :: legacy_read
+    logical(l_def), intent(in)                     :: legacy_write
+    logical(l_def), optional, intent(in)           :: checkpoint_read_flag
+    logical(l_def), optional, intent(in)           :: checkpoint_write_flag
     logical(l_def), optional, intent(in)           :: advection_flag
     !Local variables
     type(integer_field_type), target               :: new_field
     type(integer_field_type), pointer              :: new_field_ptr => null()
     type(integer_field_type), pointer              :: field_ptr => null()
     class(pure_abstract_field_type), pointer       :: tmp_ptr => null()
-    logical(l_def)                                 :: checkpointed
+    logical(l_def)                                 :: checkpointed_read
+    logical(l_def)                                 :: checkpointed_write
     logical(l_def)                                 :: advected
 
     ! pointers for xios write interface
@@ -548,23 +584,28 @@ end function has_xios_io
       advected = .false.
     end if
 
-    ! Set checkpoint flag
-    if (present(checkpoint_flag)) then
-      checkpointed = checkpoint_flag
+    ! Set checkpoint flags
+    if (present(checkpoint_read_flag)) then
+      checkpointed_read = checkpoint_read_flag
     else
-      checkpointed = .false.
+      checkpointed_read = .false.
+    end if
+    if (present(checkpoint_write_flag)) then
+      checkpointed_write = checkpoint_write_flag
+    else
+      checkpointed_write = .false.
     end if
 
     ! Set read and write behaviour
     if (use_xios_io) then
       write_behaviour => write_field_generic
       read_behaviour  => read_field_generic
-      if (has_xios_io(vector_space, legacy) &
-          .and. (write_diag .or. (checkpoint_write .and. checkpointed))) &
+      if (has_xios_io(vector_space, legacy_write) &
+          .and. (write_diag .or. (checkpoint_write .and. checkpointed_write))) &
         call new_field_ptr%set_write_behaviour(write_behaviour)
-      if (has_xios_io(vector_space, legacy) &
+      if (has_xios_io(vector_space, legacy_read) &
            .and. (checkpoint_read .or. init_option == init_option_checkpoint_dump) &
-           .and. checkpointed) &
+           .and. checkpointed_read) &
         call new_field_ptr%set_read_behaviour(read_behaviour)
     else
       checkpoint_write_behaviour => checkpoint_write_netcdf
@@ -585,8 +626,8 @@ end function has_xios_io
     ! Put a pointer to the field in the required collection
     if (associated(field_collection)) &
       call field_collection%add_reference_to_field( tmp_ptr )
-    ! If checkpointing the field, put a pointer to it in the prognostics collection
-    if ( checkpointed ) then
+    ! If the field is a prognostic, put a pointer to it in the prognostics collection
+    if ( prognostic ) then
       call prognostic_fields%add_reference_to_field( tmp_ptr )
     endif
     ! If advecting the field, put a pointer to it in the advected collection

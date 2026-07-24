@@ -58,15 +58,24 @@ contains
   !> at different times. The enabling of checkpoint fields has to happen
   !> before the io context closes, and this is too early for field creation.
   !> @param  proc Processor to be applied to selected field specifiers
-  subroutine process_gungho_prognostics(proc)
+  !> @param[in] legacy_read_intent The intention to read a legacy chkpnt
+  !>                               (may be overridden for some fields)
+  !> @param[in] legacy_read_intent The intention to write a legacy chkpnt
+  !>                               (may be overridden for some fields)
+
+  subroutine process_gungho_prognostics(proc,               &
+                                        legacy_read_intent, &
+                                        legacy_write_intent)
+
     use field_spec_mod,            only : main => main_coll_dict, &
                                           adv => adv_coll_dict
     implicit none
 
     class(processor_type) :: proc
+    logical(l_def), intent(in)  :: legacy_read_intent
+    logical(l_def), intent(in)  :: legacy_write_intent
     class(clock_type), pointer :: clock
     integer(i_def) :: imr, reference_reset_freq, ord_h, ord_v
-    logical(l_def) :: legacy
     logical(l_def) :: checkpoint_flag
     logical(l_def) :: is_empty
     real(r_def)    :: dt
@@ -77,23 +86,42 @@ contains
     ord_h = element_order_h
     ord_v = element_order_v
 
-    ! enable/disable legacy checkpointing
-    legacy = .true.
-
     call proc%apply(make_spec('theta', main%none, Wtheta, order_h=ord_h, &
-                              order_v=ord_v, ckp=.true., legacy=legacy))
+                              order_v=ord_v, prognostic=.true., &
+                              legacy_read=legacy_read_intent, &
+                              legacy_write=legacy_write_intent, &
+                              ckp_read=checkpoint_read, &
+                              ckp_write=checkpoint_write))
+
     call proc%apply(make_spec('u', main%none, W2, order_h=ord_h, order_v=ord_v,&
-                              ckp=.true., legacy=legacy))
-    if (.not. legacy) then
-      call proc%apply(make_spec('h_u', main%none, W2H, order_h=ord_h, &
-                                order_v=ord_v, ckp=.true.))
-      call proc%apply(make_spec('v_u', main%none, W2V, order_h=ord_h, &
-                                order_v=ord_v, ckp=.true.))
-    end if
+                              prognostic=.true., &
+                              legacy_read=.true., legacy_write=.true., &
+                              ckp_read=legacy_read_intent.and.checkpoint_read, &
+                              ckp_write=legacy_write_intent.and.checkpoint_write))
+
+    call proc%apply(make_spec('h_u', main%none, W2H, order_h=ord_h, &
+                              order_v=ord_v, prognostic=.false., &
+                              legacy_read=.false., legacy_write=.false., &
+                              ckp_read=.not.legacy_read_intent.and.checkpoint_read, &
+                              ckp_write=.not.legacy_write_intent.and.checkpoint_write))
+    call proc%apply(make_spec('v_u', main%none, W2V, order_h=ord_h, &
+                              order_v=ord_v, prognostic=.false., &
+                              legacy_read=.false., legacy_write=.false., &
+                              ckp_read=.not.legacy_read_intent.and.checkpoint_read, &
+                              ckp_write=.not.legacy_write_intent.and.checkpoint_write))
+
     call proc%apply(make_spec('rho', main%none, W3, order_h=ord_h, &
-                              order_v=ord_v, ckp=.true., legacy=legacy))
+                              order_v=ord_v, prognostic=.true., &
+                              legacy_read=legacy_read_intent, &
+                              legacy_write=legacy_write_intent, &
+                              ckp_read=checkpoint_read, &
+                              ckp_write=checkpoint_write))
     call proc%apply(make_spec('exner', main%none, W3, order_h=ord_h, &
-                              order_v=ord_v, ckp=.true., legacy=legacy))
+                              order_v=ord_v, prognostic=.true., &
+                              legacy_read=legacy_read_intent, &
+                              legacy_write=legacy_write_intent, &
+                              ckp_read=checkpoint_read, &
+                              ckp_write=checkpoint_write))
 
     ! Create reference fields for solver. They are only created and checkpointed if either the first or
     ! final steps are not semi-implicit operator recalculation timesteps
@@ -125,11 +153,14 @@ contains
     end if
     is_empty = .not. checkpoint_flag
     call proc%apply(make_spec('theta_ref', main%none, Wtheta, empty=is_empty, &
-                    order_h=ord_h, order_v=ord_v, ckp=checkpoint_flag))
+                    order_h=ord_h, order_v=ord_v, &
+                    prognostic=checkpoint_flag, ckp=checkpoint_flag))
     call proc%apply(make_spec('rho_ref', main%none, W3, empty=is_empty, &
-                    order_h=ord_h, order_v=ord_v, ckp=checkpoint_flag))
+                    order_h=ord_h, order_v=ord_v, &
+                    prognostic=checkpoint_flag, ckp=checkpoint_flag))
     call proc%apply(make_spec('exner_ref', main%none, W3,  empty=is_empty, &
-                    order_h=ord_h, order_v=ord_v, ckp=checkpoint_flag))
+                    order_h=ord_h, order_v=ord_v, &
+                    prognostic=checkpoint_flag, ckp=checkpoint_flag))
 
     ! The moisture mixing ratio fields (mr) and moist dynamics fields
     ! (moist_dyn) are always passed into the timestep algorithm, so are
@@ -137,7 +168,9 @@ contains
     do imr = 1,nummr
       call proc%apply(make_spec(trim(mr_names(imr)), main%none, &
         Wtheta, moist_arr=moist_arr_dict%mr, moist_idx=imr, order_h=ord_h,     &
-        order_v=ord_v, ckp=.true., legacy=legacy))
+        order_v=ord_v, prognostic=.true., ckp=.true., &
+        legacy_read=legacy_read_intent, &
+        legacy_write=legacy_write_intent))
     end do
 
     ! Auxiliary fields holding moisture-dependent factors for dynamics, including checkpointed versions for
@@ -148,13 +181,16 @@ contains
         order_h=ord_h, order_v=ord_v))
       call proc%apply(make_spec(trim('moist_dyn_'//trim(moist_dyn_names(imr))//'_ref'), &
         main%none, Wtheta,  empty=is_empty, moist_arr=moist_arr_dict%moist_dyn_ref, &
-        moist_idx=imr, order_h=ord_h, order_v=ord_v, ckp=checkpoint_flag))
+        moist_idx=imr, order_h=ord_h, order_v=ord_v, &
+        prognostic=checkpoint_flag, ckp=checkpoint_flag))
     end do
 
     if (transport_ageofair) then
       call proc%apply(make_spec('ageofair', main%none, &
-        W3, adv_coll=adv%last_con, order_h=ord_h, order_v=ord_v, ckp=.true., &
-        legacy=legacy))
+        W3, adv_coll=adv%last_con, order_h=ord_h, order_v=ord_v, &
+        prognostic=.true., ckp=.true., &
+        legacy_read=legacy_read_intent, &
+        legacy_write=legacy_write_intent))
     end if
   end subroutine process_gungho_prognostics
 
@@ -164,10 +200,16 @@ contains
   !> @param[in]    twod_mesh  The current 2d mesh
   !> @param[in]    mapper     Provides access to the field collections
   !> @param[in]    clock      The model clock
-  subroutine create_gungho_prognostics(mesh,                                  &
-                                       twod_mesh,                             &
-                                       mapper,                                &
-                                       clock)
+  !> @param[in]    legacy_read_intent The intention to read a legacy chkpnt
+  !>                                  (may be overridden for some fields)
+  !> @param[in]    legacy_read_intent The intention to write a legacy chkpnt
+  !>                                  (may be overridden for some fields)
+  subroutine create_gungho_prognostics(mesh,               &
+                                       twod_mesh,          &
+                                       mapper,             &
+                                       clock,              &
+                                       legacy_read_intent, &
+                                       legacy_write_intent)
 
     implicit none
 
@@ -175,6 +217,8 @@ contains
     type(mesh_type), intent(in), pointer      :: twod_mesh
     type( field_mapper_type ), intent(in)     :: mapper
     class( clock_type ), intent(in)           :: clock
+    logical(l_def), intent(in)                :: legacy_read_intent
+    logical(l_def), intent(in)                :: legacy_write_intent
 
     type( field_maker_type ) :: creator
 
@@ -182,7 +226,9 @@ contains
 
     call creator%init(mesh, twod_mesh, mapper, clock)
 
-    call process_gungho_prognostics(creator)
+    call process_gungho_prognostics(creator,            &
+                                    legacy_read_intent, &
+                                    legacy_write_intent)
 
   end subroutine create_gungho_prognostics
 

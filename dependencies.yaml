@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-   source: git@github.com:MetOffice/lfric_core.git
-   ref: 99d8d2bf5d923714b30b25858404be5a045fe322
+    source: cazld00001C:/var/tmp/persistent/mike.hobson/w/layers/lfric_core
+    ref: core_chkpnt_layers
 
 moci:
     source: git@github.com:MetOffice/moci.git

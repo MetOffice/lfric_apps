@@ -140,13 +140,16 @@ module field_spec_mod
     integer(i_def)     :: moist_idx = 0                   ! Index into moisture array
     integer(i_def)     :: time_axis = time_axis_dict%none ! Enumerator of time axis
     character(str_def) :: mult      = ''                  ! Name of multidata item, or blank string
-    logical(l_def)     :: ckp       = .false.             ! Is it a checkpoint (prognostic) field?
+    logical(l_def)     :: prognostic= .false.             ! Is is a prognostic field
+    logical(l_def)     :: ckp_read  = .false.             ! Is it read from a checkpoint?
+    logical(l_def)     :: ckp_write = .false.             ! Is is written to a checkpoint?
     logical(l_def)     :: twod      = .false.             ! Is it two-dimensional?
     logical(l_def)     :: empty     = .false.             ! Is it empty (with an empty data array)?
     logical(l_def)     :: coarse    = .false.             ! Is it coarse?
     character(str_def) :: coarse_mesh_name = ''           ! Name of the coarse mesh, or blank string
     logical(l_def)     :: is_int    = .false.             ! Is it an integer field?
-    logical(l_def)     :: legacy    = .false.             ! Is it a field with legacy checkpointing?
+    logical(l_def)     :: legacy_read  = .false.          ! Is it a field read with legacy checkpointing?
+    logical(l_def)     :: legacy_write = .false.          ! Is it a field written with legacy checkpointing?
   end type field_spec_type
 
   private
@@ -242,17 +245,24 @@ contains
   !> @param[in, optional] moist_idx  Index into moisture array
   !> @param[in, optional] time_axis  Time axis enumerator
   !> @param[in, optional] mult     Name of multidata item, or blank string
-  !> @param[in, optional] ckp      Is it a checkpoint (prognostic) field?
+  !> @param[in, optional] prognostic Is it a prognostic field
+  !> @param[in, optional] ckp        Is it a checkpoint?
+  !> @param[in, optional] ckp_read   Is it read from a checkpoint
+  !> @param[in, optional] ckp_write  Is it written to a checkpoint
   !> @param[in, optional] twod     Is it two-dimensional?
   !> @param[in, optional] empty    Is it empty (with empty data array)?
   !> @param[in, optional] coarse   Is it on a coarse mesh?
   !> @param[in, optional] coarse_mesh_name Name of mesh, if coarse
   !> @param[in, optional] is_int   Is it an integer field?
   !> @param[in, optional] legacy   Is it a field with legacy checkpointing?
+  !> @param[in, optional] legacy_read  Is it read with legacy checkpointing?
+  !> @param[in, optional] legacy_write Is it written with legacy checkpointing?
   !> @return                       Specifier returned
   function make_spec(name, main_coll, space, order_h, order_v, adv_coll, &
-    moist_arr, moist_idx, time_axis, &
-    mult, ckp, twod, empty, coarse, coarse_mesh_name, is_int, legacy) result(field_spec)
+      moist_arr, moist_idx, time_axis, mult, prognostic, &
+      ckp, ckp_read, ckp_write,   &
+      twod, empty, coarse, coarse_mesh_name, is_int, &
+      legacy, legacy_read, legacy_write) result(field_spec)
     implicit none
     character(*), intent(in) :: name
     integer(i_def), intent(in) :: main_coll
@@ -264,13 +274,18 @@ contains
     integer(i_def), optional, intent(in) :: moist_idx
     integer(i_def), optional, intent(in) :: time_axis
     character(*), optional, intent(in) :: mult
+    logical(l_def), optional, intent(in) :: prognostic
     logical(l_def), optional, intent(in) :: ckp
+    logical(l_def), optional, intent(in) :: ckp_read
+    logical(l_def), optional, intent(in) :: ckp_write
     logical(l_def), optional, intent(in) :: twod
     logical(l_def), optional, intent(in) :: empty
     logical(l_def), optional, intent(in) :: coarse
     character(*),   optional, intent(in) :: coarse_mesh_name
     logical(l_def), optional, intent(in) :: is_int
     logical(l_def), optional, intent(in) :: legacy
+    logical(l_def), optional, intent(in) :: legacy_read
+    logical(l_def), optional, intent(in) :: legacy_write
     type(field_spec_type) :: field_spec
 
     field_spec%name = name
@@ -283,13 +298,32 @@ contains
     if (present(moist_idx)) field_spec%moist_idx = moist_idx
     if (present(time_axis)) field_spec%time_axis = time_axis
     if (present(mult)) field_spec%mult=mult
-    if (present(ckp)) field_spec%ckp=ckp
+    ! If only "ckp" is spcified then set both read and write ckp 
+    ! and the prognostic flag to that value
+    if (present(ckp)) then
+      field_spec%ckp_read=ckp
+      field_spec%ckp_write=ckp
+      field_spec%prognostic=ckp
+    end if
+    ! If the setting for the specific read/write ckp/prognostic is present,
+    ! then overwrite the generic ckp and prognostic setting
+    if (present(ckp_read)) field_spec%ckp_read=ckp_read
+    if (present(ckp_write)) field_spec%ckp_write=ckp_write
+    if (present(prognostic)) field_spec%prognostic=prognostic
     if (present(twod)) field_spec%twod=twod
     if (present(empty)) field_spec%empty=empty
     if (present(coarse)) field_spec%coarse=coarse
     if (present(coarse_mesh_name)) field_spec%coarse_mesh_name=coarse_mesh_name
     if (present(is_int)) field_spec%is_int=is_int
-    if (present(legacy)) field_spec%legacy=legacy
+    ! If only "legacy" is spcified then set both read and write legacy to that value
+    if (present(legacy)) then
+      field_spec%legacy_read=legacy
+      field_spec%legacy_write=legacy
+    end if
+    ! If the setting for the specific read/write legacy is present, then
+    ! overwrite the generic legacy setting
+    if (present(legacy_read)) field_spec%legacy_read=legacy_read
+    if (present(legacy_write)) field_spec%legacy_write=legacy_write
 
     if (.not. main_coll_dict%check(main_coll)) &
       call enum_error('main_coll', field_spec%main_coll)

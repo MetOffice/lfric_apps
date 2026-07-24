@@ -386,6 +386,9 @@ subroutine create_model_data( modeldb,           &
 
     integer(i_def) :: theta_forcing
     integer(i_def) :: wind_forcing
+
+    logical(l_def), pointer :: legacy_read_intent
+    logical(l_def), pointer :: legacy_write_intent
     !-------------------------------------------------------------------------
     ! Select how to initialize model prognostic fields
     !-------------------------------------------------------------------------
@@ -510,11 +513,18 @@ subroutine create_model_data( modeldb,           &
                             lbc_fields,                               &
                             model_axes )
 
+    call modeldb%values%get_value( 'legacy_read_chkpnt_intent', &
+                                   legacy_read_intent )
+    call modeldb%values%get_value( 'legacy_write_chkpnt_intent', &
+                                   legacy_write_intent )
+
     ! Create gungho prognostics and auxiliary (diagnostic) fields
     call create_gungho_prognostics( mesh,                             &
                                     twod_mesh,                        &
                                     field_mapper,                     &
-                                    modeldb%clock )
+                                    modeldb%clock,                    &
+                                    legacy_read_intent,               &
+                                    legacy_write_intent )
 
     if (limited_area) then
       call create_lbc_fields( mesh, twod_mesh, field_mapper, modeldb%clock )
@@ -687,6 +697,7 @@ subroutine create_model_data( modeldb,           &
     integer(i_def) :: wind_forcing
 
     integer(i_def) :: i
+    logical(l_def), pointer :: legacy_read_intent
 #ifdef UM_PHYSICS
     integer(i_def) :: ensemble_number
     real(r_def), allocatable :: power_law(:)
@@ -812,7 +823,11 @@ subroutine create_model_data( modeldb,           &
         call read_checkpoint( prognostic_fields,                    &
                               modeldb%clock%get_first_step() - 1,   &
                               checkpoint_stem_name )
-        call combine_complex_prognostics( prognostic_fields )
+
+        call modeldb%values%get_value( 'legacy_read_chkpnt_intent', &
+                                       legacy_read_intent )
+        if(.not.legacy_read_intent) &
+          call combine_complex_prognostics( prognostic_fields )
 
         ! Update factors for moist dynamics
         call moist_dyn_factors_alg( moist_dyn_array%bundle, &

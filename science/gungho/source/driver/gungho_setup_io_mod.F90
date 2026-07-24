@@ -10,14 +10,15 @@
 !>
 module gungho_setup_io_mod
 
-  use constants_mod,             only: r_def, i_def, str_def, &
+  use constants_mod,             only: r_def, i_def, l_def, str_def, &
                                        str_max_filename, r_second
   use driver_modeldb_mod,        only: modeldb_type
   use file_mod,                  only: FILE_MODE_READ, &
                                        FILE_MODE_WRITE
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
                                        OPERATION_TIMESERIES, &
-                                       CONVENTION_CF
+                                       CONVENTION_CF, &
+                                       CONVENTION_UGRID
   use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
   use log_mod,                   only: log_event, log_level_error, &
@@ -131,6 +132,7 @@ module gungho_setup_io_mod
                                        checkpoint_read,           &
                                        checkpoint_times,          &
                                        end_of_run_checkpoint,     &
+                                       write_checkpoint_in_legacy_format, &
                                        write_dump, write_diag,    &
                                        diag_active_files,         &
                                        diag_always_on_sampling
@@ -175,7 +177,7 @@ module gungho_setup_io_mod
   implicit none
 
   private
-  public :: init_gungho_files
+  public :: init_gungho_files, is_legacy
 
   contains
 
@@ -216,6 +218,23 @@ module gungho_setup_io_mod
 
     integer(i_def)                  :: theta_forcing
     integer(i_def)                  :: wind_forcing
+
+!   These variables hold whether we intend to read/write in legacy format
+!   The format for each individual field is calculated from this and other logic
+    logical(l_def)                  :: legacy_read_intent
+    logical(l_def)                  :: legacy_write_intent
+
+    integer(i_def)                  :: convention
+
+    ! This subroutine has to match the interface defined in filelist_populator,
+    ! The filelist_populator interface is also used for apps that don't have a
+    ! modeldb, so it has to be marked as optional. However this procedure won't
+    ! work if modeldb is not passed in - so force an error if it is missing.
+    if (.not.present(modeldb))then
+      call log_event( "Error: init_gungho_files called without modeldb", &
+                      log_level_error )
+    end if
+
     ! Only proceed if XIOS is being used for I/O
     if (.not. use_xios_io) return
 
@@ -844,7 +863,14 @@ module gungho_setup_io_mod
     endif
 
     ! Setup checkpoint writing context information
+    legacy_write_intent = write_checkpoint_in_legacy_format
+
     if (checkpoint_write) then
+      if(legacy_write_intent)then
+        convention=CONVENTION_CF
+      else
+        convention=CONVENTION_UGRID
+      end if
       call create_checkpoint_list( modeldb%clock, checkpoint_times, &
                                    end_of_run_checkpoint, all_checkpoint_times)
       if ( size(all_checkpoint_times) > 0 ) then
@@ -888,7 +914,7 @@ module gungho_setup_io_mod
                                                              io_mode=FILE_MODE_WRITE,               &
                                                              freq=time_point,                       &
                                                              field_group_id="checkpoint_fields",    &
-                                                             file_convention=CONVENTION_CF) )
+                                                             file_convention=convention) )
 
         end do
       else
@@ -897,27 +923,47 @@ module gungho_setup_io_mod
       end if
     end if
 
-    ! Setup checkpoint reading context information
     if ( checkpoint_read ) then
+      write(checkpoint_read_fname,'(A,A,I10.10)') &
+                     trim(checkpoint_stem_name),"_", (ts_start - 1)
+      legacy_read_intent = &
+                          is_legacy(trim(checkpoint_read_fname)//".nc", modeldb)
+
+    ! Setup checkpoint reading context information
+      if(legacy_read_intent)then
+        convention=CONVENTION_CF
+      else
+        convention=CONVENTION_UGRID
+      end if
       ! Create checkpoint filename from stem and (start - 1) timestep
       if( log10(real(ts_start)) >= 10.0_r_def )then
         call log_event( &
           "Number of timesteps too big to fit in checkpoint filename", &
           log_level_error )
       end if
-      write(checkpoint_read_fname,'(A,A,I10.10)') &
-                   trim(checkpoint_stem_name),"_", (ts_start - 1)
       call files_list%insert_item( lfric_xios_file_type( checkpoint_read_fname,           &
                                                          xios_id="lfric_checkpoint_read", &
                                                          io_mode=FILE_MODE_READ,          &
                                                          freq=ts_start - 1,               &
                                                          field_group_id="checkpoint_fields",    &
-                                                         file_convention=CONVENTION_CF ) )
+                                                         file_convention=convention ) )
+    else
+      legacy_read_intent = .false.
     end if
+
+    call modeldb%values%add_key_value('legacy_read_chkpnt_intent', &
+                                      legacy_read_intent)
+    call modeldb%values%add_key_value('legacy_write_chkpnt_intent', &
+                                      legacy_write_intent)
 
     ! Read checkpoint file as though it were start dump
     if ( init_option == init_option_checkpoint_dump .and. &
          .not. checkpoint_read ) then
+      if(legacy_read_intent)then
+        convention=CONVENTION_CF
+      else
+        convention=CONVENTION_UGRID
+      end if
       ! Create dump filename from stem
       write(dump_fname,'(A)') trim(start_dump_directory)//'/'// &
                               trim(start_dump_filename)
@@ -925,9 +971,70 @@ module gungho_setup_io_mod
                                                          xios_id="lfric_checkpoint_read", &
                                                          io_mode=FILE_MODE_READ,          &
                                                          field_group_id="checkpoint_fields",    &
-                                                         file_convention=CONVENTION_CF ) )
+                                                         file_convention=convention ) )
     end if
 
   end subroutine init_gungho_files
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Returns whether the given file is a legacy checkpoint file
+  !>
+  !> @param[in] file_name Name of the file to be tested
+  !> @param[in] modeldb   The modeldb holding the model state
+  !> @return If the given file is a legacy checkpoint file, true is returned. for any
+  !>         other file, false is returned
+  function is_legacy(file_name, modeldb) result(legacy)
+    use netcdf, only: nf90_open, nf90_close, nf90_strerror, nf90_inquire,      &
+                      nf90_inquire_variable, nf90_max_var_dims, nf90_max_name, &
+                      nf90_nowrite, nf90_noerr
+    implicit none
+
+    character(*),       intent(in) :: file_name
+    type(modeldb_type), intent(in) :: modeldb
+
+    integer :: ncid, retval
+    integer :: ndims, nvars, ngatts, unlimdimid
+    integer :: dimid, varid, dimlen, xtype, natts
+    integer :: dimids(nf90_max_var_dims)
+    character(nf90_max_name) :: name
+    logical :: legacy
+
+    if (modeldb%mpi%get_comm_rank() == 0) then
+      ! Open netcdf file (read-only)
+      retval = nf90_open(trim(file_name), nf90_nowrite, ncid)
+      if (retval /= nf90_noerr) call log_event( &
+        "Error: File "//trim(name)//": "//nf90_strerror(retval), &
+        log_level_error )
+
+      ! Get details of file contents (what we need is the number of vars)
+      retval = nf90_inquire(ncid, ndims, nvars, ngatts, unlimdimid)
+      if (retval /= nf90_noerr) call log_event( &
+        "Error: File "//trim(name)//": "//nf90_strerror(retval), &
+        log_level_error )
+
+      ! Loop over all vars looking for a var called "u" that is 1d
+      legacy=.false.
+      do varid = 1, nvars
+        retval = nf90_inquire_variable(ncid, varid, name, xtype, &
+                                       ndims, dimids, natts)
+        if (retval /= nf90_noerr) call log_event( &
+          "Error: File "//trim(name)//": "//nf90_strerror(retval), &
+          log_level_error )
+        ! If there's a 1d array called "u" this must be a legacy checkpoint file
+        if (trim(name) == "u" .and. ndims == 1)then
+          legacy=.true.
+          exit
+        end if
+      end do
+
+      ! close file
+      retval = nf90_close(ncid)
+      if (retval /= nf90_noerr) call log_event( &
+        "Error: File "//trim(name)//": "//nf90_strerror(retval), &
+        log_level_error )
+    end if
+
+    call modeldb%mpi%broadcast( legacy, 0 )
+
+  end function is_legacy
 end module gungho_setup_io_mod

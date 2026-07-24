@@ -228,14 +228,16 @@ contains
 
     character(20), parameter :: operation = 'once'
 
-    if (spec%ckp .and. space_has_xios_io(spec%space, spec%legacy)) then
+    if (spec%ckp_write .and. space_has_xios_io(spec%space, spec%legacy_write)) then
       if (checkpoint_write) then
         call add_field(self%ckp_out, spec%name, mode=CHECKPOINTING, &
-          operation=operation, id_as_name=.true., legacy=spec%legacy)
+          operation=operation, id_as_name=.true., legacy=spec%legacy_write)
       end if
+    end if
+    if (spec%ckp_read .and. space_has_xios_io(spec%space, spec%legacy_read)) then
       if (checkpoint_read .or. init_option == init_option_checkpoint_dump) &
         call add_field(self%ckp_inp, spec%name, mode=RESTARTING, &
-          operation=operation, id_as_name=.true., legacy=spec%legacy)
+          operation=operation, id_as_name=.true., legacy=spec%legacy_read)
     end if
 
   end subroutine persistor_apply
@@ -251,7 +253,14 @@ contains
   !>        set up scaled diagnostics fields
   !> @param[in] config       Argument providing access to model configuration
   !> @param[in] clock        The clock providing access to time information
-  subroutine before_context_close(config,clock)
+  !> @param[in] legacy_read_intent The intention to read a legacy chkpnt
+  !>                               (may be overridden for some fields)
+  !> @param[in] legacy_read_intent The intention to write a legacy chkpnt
+  !>                               (may be overridden for some fields)
+  subroutine before_context_close(config,             &
+                                  clock,              &
+                                  legacy_read_intent, &
+                                  legacy_write_intent)
 
     use multidata_field_dimensions_mod, only: sync_multidata_field_dimensions
     use time_dimensions_mod,            only: sync_time_dimensions
@@ -269,6 +278,8 @@ contains
     implicit none
     type(config_type), intent(in)  :: config
     class(clock_type), intent(in)  :: clock
+    logical(l_def),    intent(in)  :: legacy_read_intent
+    logical(l_def),    intent(in)  :: legacy_write_intent
 
     type(persistor_type) :: persistor
     real(r_second)       :: DT
@@ -292,7 +303,9 @@ contains
     end if
 
     call persistor%init(clock)
-    call process_gungho_prognostics(persistor)
+    call process_gungho_prognostics(persistor,          &
+                                    legacy_read_intent, &
+                                    legacy_write_intent)
     ! Add the temperature_correction_rate to the appropriate files
     if(checkpoint_write) then
       if ( encorr_usage /= encorr_usage_none ) then
