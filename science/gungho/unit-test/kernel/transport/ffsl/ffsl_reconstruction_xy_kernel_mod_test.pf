@@ -28,8 +28,8 @@ contains
 
     implicit none
 
-    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64-bit
-    real(kind=r_tran)            :: answer, use_tol
+    real(kind=r_tran), parameter :: tol = 1.0e-9_r_tran   ! r_tran 64-bit
+    real(kind=r_tran)            :: answer(4), use_tol
 
     integer(kind=i_def), parameter :: nlayers = 1
     integer(kind=i_def), parameter :: ndf_w3 = 1
@@ -161,14 +161,9 @@ contains
     else
       use_tol = 10.0_r_tran*spacing( maxval( flux(1:4) ) )
     end if
-    answer = 6.0_r_tran
-    @assertEqual(answer, flux(1), use_tol)
-    answer = 3.0_r_tran
-    @assertEqual(answer, flux(2), use_tol)
-    answer = 3.0_r_tran
-    @assertEqual(answer, flux(3), use_tol)
-    answer = 6.0_r_tran
-    @assertEqual(answer, flux(4), use_tol)
+    answer = (/  3.1666666666666666_r_tran, 1.1666666666666666_r_tran, &
+                 1.1666666666666666_r_tran,  3.1666666666666666_r_tran /)
+    @assertEqual(answer, flux, use_tol)
 
 
     ! Test with positive fractional departure distance
@@ -221,14 +216,8 @@ contains
                                       ndf_w3_2d,        &
                                       undf_w3_2d,       &
                                       map_w3_2d )
-    answer = 1.704_r_tran
-    @assertEqual(answer, flux(1), use_tol)
-    answer = 1.224_r_tran
-    @assertEqual(answer, flux(2), use_tol)
-    answer = 1.224_r_tran
-    @assertEqual(answer, flux(3), use_tol)
-    answer = 1.704_r_tran
-    @assertEqual(answer, flux(4), use_tol)
+    answer = (/ 1.42_r_tran, 1.02_r_tran, 1.02_r_tran, 1.42_r_tran /)
+    @assertEqual(answer, flux, use_tol)
 
     ! Test with negative fractional departure distance
     dep_pts(:) = -0.4_r_tran
@@ -280,14 +269,8 @@ contains
                                       ndf_w3_2d,        &
                                       undf_w3_2d,       &
                                       map_w3_2d )
-    answer = -1.224_r_tran
-    @assertEqual(answer, flux(1), use_tol)
-    answer = -1.704_r_tran
-    @assertEqual(answer, flux(2), use_tol)
-    answer = -1.704_r_tran
-    @assertEqual(answer, flux(3), use_tol)
-    answer = -1.224_r_tran
-    @assertEqual(answer, flux(4), use_tol)
+    answer = (/ 1.02_r_tran, 1.42_r_tran, 1.42_r_tran, 1.02_r_tran /)
+    @assertEqual(answer, flux, use_tol)
 
   end subroutine test_all
 

@@ -198,20 +198,20 @@ contains
 
   !> @brief General 1D calculation of cubic Semi-Lagrangian advective increment
   subroutine horizontal_cubic_sl_w2h_1d( nlayers,          &
-                                     x_direction,      &
-                                     increment,        &
-                                     field,            &
-                                     stencil_extent_l, &
-                                     stencil_extent_r, &
-                                     stencil_max,      &
-                                     stencil_map,      &
-                                     dep_pts,          &
-                                     monotone,         &
-                                     ndf_w2h,          &
-                                     undf_w2h,         &
-                                     w2h_sizes,        &
-                                     map_w2h,          &
-                                     w2h_max )
+                                         x_direction,      &
+                                         increment,        &
+                                         field,            &
+                                         stencil_extent_l, &
+                                         stencil_extent_r, &
+                                         stencil_max,      &
+                                         stencil_map,      &
+                                         dep_pts,          &
+                                         monotone,         &
+                                         ndf_w2h,          &
+                                         undf_w2h,         &
+                                         w2h_sizes,        &
+                                         map_w2h,          &
+                                         w2h_max )
 
     use transport_enumerated_types_mod, only: monotone_strict,  &
                                               monotone_relaxed, &
