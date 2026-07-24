@@ -5,7 +5,7 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/common/lfric2lfric/tasks_solver.cylc") %}
 
-{% elif task_ns.conf_name == "ral_seuk-C32_lam_MG_4cpu" %}
+{% if task_ns.conf_name == "ral_seuk-C32_lam_MG_4cpu" %}
 
     {% do task_dict.update({
         "opt_confs": ["ral_seuk"],
