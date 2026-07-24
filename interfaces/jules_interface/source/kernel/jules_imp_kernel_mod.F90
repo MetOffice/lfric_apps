@@ -38,7 +38,7 @@ module jules_imp_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_imp_kernel_type
     private
-    type(arg_type) :: meta_args(85) = (/                                          &
+    type(arg_type) :: meta_args(88) = (/                                          &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! loop
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! wetrho_in_w3
@@ -111,6 +111,9 @@ module jules_imp_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! q1p5m_ssi
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! qcl1p5m_ssi
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! rh1p5m_ssi
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! chr10m
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! t10m_ssi
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! q10m_ssi
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! t1p5m_land
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! q1p5m_land
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! qcl1p5m_land
@@ -209,6 +212,9 @@ contains
   !> @param[in,out] q1p5m_ssi            Diagnostic: 1.5m specific humidity over sea and sea-ice
   !> @param[in,out] qcl1p5m_ssi          Diagnostic: 1.5m specific cloud water over sea and sea-ice
   !> @param[in,out] rh1p5m_ssi           Diagnostic: 1.5m relative humidity over sea and sea-ice
+  !> @param[in]     chr10m               10m transfer coefficient
+  !> @param[in,out] t10m_ssi             Diagnostic: 10m temperature over sea and sea-ice
+  !> @param[in,out] q10m_ssi             Diagnostic: 10m specific humidity over sea and sea-ice
   !> @param[in,out] t1p5m_land           Diagnostic: 1.5m temperature over land
   !> @param[in,out] q1p5m_land           Diagnostic: 1.5m specific humidity over land
   !> @param[in,out] qcl1p5m_land         Diagnostic: 1.5m specific cloud water over land
@@ -310,6 +316,7 @@ contains
                             t1p5m, q1p5m, qcl1p5m, rh1p5m,      &
                             t1p5m_ssi, q1p5m_ssi,               &
                             qcl1p5m_ssi, rh1p5m_ssi,            &
+                            chr10m, t10m_ssi, q10m_ssi,         &
                             t1p5m_land, q1p5m_land,             &
                             qcl1p5m_land, rh1p5m_land,          &
                             latent_heat, snomlt_surf_htf,       &
@@ -494,6 +501,7 @@ contains
     real(kind=r_def), intent(in) :: dqw1_2d(undf_2d)
     real(kind=r_def), intent(in) :: dtl1_2d(undf_2d)
     real(kind=r_def), intent(in) :: ct_ctq1_2d(undf_2d)
+    real(kind=r_def), intent(in) :: chr10m(undf_2d)
     real(kind=r_def), intent(inout) :: surf_ht_flux(undf_tile)
     real(kind=r_def), pointer, intent(inout) :: t1p5m_surft(:)
     real(kind=r_def), pointer, intent(inout) :: q1p5m_surft(:)
@@ -501,6 +509,7 @@ contains
     real(kind=r_def), pointer, intent(inout) :: qcl1p5m(:), rh1p5m(:)
     real(kind=r_def), pointer, intent(inout) :: t1p5m_ssi(:), q1p5m_ssi(:)
     real(kind=r_def), pointer, intent(inout) :: qcl1p5m_ssi(:), rh1p5m_ssi(:)
+    real(kind=r_def), pointer, intent(inout) :: t10m_ssi(:), q10m_ssi(:)
     real(kind=r_def), pointer, intent(inout) :: t1p5m_land(:), q1p5m_land(:)
     real(kind=r_def), pointer, intent(inout) :: qcl1p5m_land(:), rh1p5m_land(:)
     real(kind=r_def), pointer, intent(inout) :: latent_heat(:)
@@ -714,12 +723,20 @@ contains
                     .or. .not. associated(surf_lw_down, empty_real_data)
     sf_diag%l_lw_up_sice_weighted_cat = .not. associated(surf_lw_up, empty_real_data)
     sf_diag%sq1p5 = .true.
+    sf_diag%l_t10m = .not. associated(t10m_ssi, empty_real_data)
+    sf_diag%l_q10m = .not. associated(q10m_ssi, empty_real_data)
     call alloc_sf_imp(sf_diag, outer == outer_iterations, land_field)
     if (sf_diag%simlt) then
       do n = 1, nice
         do i = 1, seg_len
           sf_diag%sice_mlt_htf(i,1,n) = 0.0_r_um
         end do
+      end do
+    end if
+    if (sf_diag%l_t10m .or. sf_diag%l_q10m) then
+      allocate(sf_diag%chr10m(seg_len,1))
+      do i = 1, seg_len
+        sf_diag%chr10m(i,1) = chr10m(map_2d(1,i))
       end do
     end if
 
@@ -1408,6 +1425,13 @@ contains
             end do
           end do
         end if
+        if (sf_diag%l_t10m .or. sf_diag%l_q10m) then
+          ! Convert to mixing ratios
+          do i = 1, seg_len
+            sf_diag%q10m(i,1) = sf_diag%q10m(i,1) / &
+                                (1.0_r_um+sf_diag%q10m(i,1)+qcf_latest(i,1))
+          end do
+        end if
 
         do i = 1, seg_len
           ! Dummy values as unused in ls_cld for lowest level
@@ -1486,6 +1510,27 @@ contains
           call qsat(work_2d_1,sf_diag%t1p5m_ssi,forcing%pstar_ij,pdims%i_end,pdims%j_end)
           do i = 1, seg_len
             rh1p5m_ssi(map_2d(1,i)) = max(0.0_r_def, sf_diag%q1p5m_ssi(i,1)) * 100.0_r_def / work_2d_1(i,1)
+          end do
+        end if
+
+        ! Sea and sea-ice 10m diagnostics
+        if (.not. associated(t10m_ssi, empty_real_data) .or.                  &
+             .not. associated(q10m_ssi, empty_real_data) ) then
+
+          call ls_cld(                                                         &
+               forcing%pstar_ij, rhcpt, 1, 1, seg_len, 1, ntml, cumulus,       &
+               .false., sf_diag%t10m, work_2d_1, sf_diag%q10m,                 &
+               qcf_latest, qcl1p5m_loc, work_2d_2, work_2d_3, error_code )
+        end if
+
+        if (.not. associated(t10m_ssi, empty_real_data) ) then
+          do i = 1, seg_len
+            t10m_ssi(map_2d(1,i)) = sf_diag%t10m(i,1)
+          end do
+        end if
+        if (.not. associated(q10m_ssi, empty_real_data) ) then
+          do i = 1, seg_len
+            q10m_ssi(map_2d(1,i)) = sf_diag%q10m(i,1)
           end do
         end if
 

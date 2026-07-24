@@ -32,6 +32,8 @@ module jules_imp_diags_mod
   logical( l_def ) :: q1p5m_ssi_flag
   logical( l_def ) :: qcl1p5m_ssi_flag
   logical( l_def ) :: rh1p5m_ssi_flag
+  logical( l_def ) :: t10m_ssi_flag
+  logical( l_def ) :: q10m_ssi_flag
   logical( l_def ) :: t1p5m_land_flag
   logical( l_def ) :: q1p5m_land_flag
   logical( l_def ) :: qcl1p5m_land_flag
@@ -62,6 +64,8 @@ contains
   !> @param[in,out] q1p5m_ssi          1.5m specific humidity over sea and sea-ice
   !> @param[in,out] qcl1p5m_ssi        1.5m specific cloud water over sea and sea-ice
   !> @param[in,out] rh1p5m_ssi         1.5m relative humidity over sea and sea-ice
+  !> @param[in,out] t10m_ssi           10m temperature over sea and sea-ice
+  !> @param[in,out] q10m_ssi           10m specific humidity over sea and sea-ice
   !> @param[in,out] t1p5m_land         1.5m temperature over land
   !> @param[in,out] q1p5m_land         1.5m specific humidity over land
   !> @param[in,out] qcl1p5m_land       1.5m specific cloud water over land
@@ -78,6 +82,7 @@ contains
                                             t1p5m, q1p5m, qcl1p5m, rh1p5m,  &
                                             t1p5m_ssi, q1p5m_ssi,           &
                                             qcl1p5m_ssi, rh1p5m_ssi,        &
+                                            t10m_ssi, q10m_ssi,             &
                                             t1p5m_land, q1p5m_land,         &
                                             qcl1p5m_land, rh1p5m_land,      &
                                             latent_heat,                    &
@@ -92,6 +97,7 @@ contains
     type( field_type ), intent(inout) :: t1p5m_surft, q1p5m_surft
     type( field_type ), intent(inout) :: t1p5m, q1p5m, qcl1p5m, rh1p5m
     type( field_type ), intent(inout) :: t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi
+    type( field_type ), intent(inout) :: t10m_ssi, q10m_ssi
     type( field_type ), intent(inout) :: t1p5m_land, q1p5m_land, qcl1p5m_land, rh1p5m_land
     type( field_type ), intent(inout) :: latent_heat
     type( field_type ), intent(inout) :: snomlt_surf_htf
@@ -109,6 +115,13 @@ contains
     ! 2D fields
     rh1p5m_flag = init_diag(rh1p5m, 'surface__rh1p5m')
     rh1p5m_ssi_flag = init_diag(rh1p5m_ssi, 'surface__rh1p5m_ssi')
+    t10m_ssi_flag = init_diag(t10m_ssi, 'surface__t10m_ssi')
+    q10m_ssi_flag = init_diag(q10m_ssi, 'surface__q10m_ssi', activate=t10m_ssi_flag)
+    ! both diagnostics are required even if not output.
+    ! If q has been requested and t has not, ensure t is allocated
+    if (q10m_ssi_flag .and. .not. t10m_ssi_flag) then
+      t10m_ssi_flag = init_diag(t10m_ssi, 'surface__t10m_ssi', activate=q10m_ssi_flag)
+    end if
     rh1p5m_land_flag = init_diag(rh1p5m_land, 'surface__rh1p5m_land')
     snomlt_surf_htf_flag = init_diag(snomlt_surf_htf, 'surface__snomlt_surf_htf')
     soil_evap_flag = init_diag(soil_evap, 'surface__soil_evap')
@@ -205,6 +218,8 @@ contains
   !> @param[in]     q1p5m_ssi                1.5m specific humidity over sea and sea-ice
   !> @param[in]     qcl1p5m_ssi              1.5m specific cloud water over sea and sea-ice
   !> @param[in]     rh1p5m_ssi               1.5m relative humidity over sea and sea-ice
+  !> @param[in]     t10m_ssi                 10m temperature over sea and sea-ice
+  !> @param[in]     q10m_ssi                 10m specific humidity over sea and sea-ice
   !> @param[in]     t1p5m_land               1.5m temperature over land
   !> @param[in]     q1p5m_land               1.5m specific humidity over land
   !> @param[in]     qcl1p5m_land             1.5m specific cloud water over land
@@ -225,7 +240,7 @@ contains
                                      t1p5m_surft, q1p5m_surft,                 &
                                      t1p5m, q1p5m, qcl1p5m, rh1p5m,            &
                                      t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,        &
-                                     rh1p5m_ssi,                               &
+                                     rh1p5m_ssi, t10m_ssi, q10m_ssi,           &
                                      t1p5m_land, q1p5m_land, qcl1p5m_land,     &
                                      rh1p5m_land,                              &
                                      latent_heat,                              &
@@ -248,6 +263,7 @@ contains
   type( field_type ), intent(in)    :: t1p5m_surft, q1p5m_surft
   type( field_type ), intent(in)    :: t1p5m, q1p5m, qcl1p5m, rh1p5m
   type( field_type ), intent(in)    :: t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi
+  type( field_type ), intent(in)    :: t10m_ssi, q10m_ssi
   type( field_type ), intent(in)    :: t1p5m_land, q1p5m_land, qcl1p5m_land, rh1p5m_land
   type( field_type ), intent(in)    :: latent_heat, snomlt_surf_htf
   type( field_type ), intent(in)    :: soil_evap
@@ -328,6 +344,8 @@ contains
     if (q1p5m_ssi_flag) call q1p5m_ssi%write_field()
     if (qcl1p5m_ssi_flag) call qcl1p5m_ssi%write_field()
     if (rh1p5m_ssi_flag) call rh1p5m_ssi%write_field()
+    if (t10m_ssi_flag) call t10m_ssi%write_field()
+    if (q10m_ssi_flag) call q10m_ssi%write_field()
     if (t1p5m_land_flag) call t1p5m_land%write_field()
     if (q1p5m_land_flag) call q1p5m_land%write_field()
     if (qcl1p5m_land_flag) call qcl1p5m_land%write_field()
