@@ -500,10 +500,7 @@
   <!-- Jules surface exchange diagnostics -->
   <field id="surface__tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
   <!-- Extracts tile types for sea and sea-ice, removes pseudo-level coordinate, then calculate sea-ice fraction -->
-  <!-- sea-ice requires 3-step process to sum over the sea-ice categories -->
-  <field id="temporary__tile_fraction" grid_ref="surface_tile_grid">surface__tile_fraction</field>
-  <field id="zoomed__sea_ice_tile" field_ref="temporary__tile_fraction" grid_ref="sea_ice_tile_grid" />
-  <field id="surface__sea_ice_tile" name="sea_ice_total_fraction" long_name="sea_ice_total_fraction_of_grid_box" unit="1" field_ref="zoomed__sea_ice_tile" grid_ref="vert_sum_face_grid"/>
+  <field id="surface__sea_ice_tile" name="sea_ice_total_fraction" long_name="sea_ice_total_fraction_of_grid_box" unit="1" domain_ref="face"/>
   <field id="zoomed__sea_tile" field_ref="surface__tile_fraction" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
   <field id="surface__sea_tile" name="sea_tile_fraction" long_name="sea_tile_fraction_of_grid_box" unit="1" domain_ref="face"> zoomed__sea_tile </field>
   <field id="surface__sea_ice_fraction" name="sea_ice_fraction" long_name="sea_ice_area_fraction" standard_name="sea_ice_area_fraction" unit="1" domain_ref="face"> surface__sea_ice_tile / (surface__sea_ice_tile + surface__sea_tile + 1.0e-16) </field>
