@@ -7,11 +7,13 @@
 
 module jules_seaice_diags_mod
 
+  use constants_mod,             only: r_def
   use field_mod,                 only: field_type
   use timing_mod,                only: start_timing, stop_timing, tik, LPROF
-
-  use jules_control_init_mod, only: first_sea_ice_tile,            &
-                                    n_sea_ice_tile
+  use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
+  use jules_control_init_mod,      only: first_sea_ice_tile,            &
+                                         n_sea_ice_tile
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
 
   implicit none
 
@@ -46,7 +48,9 @@ contains
                                       melt_pond_depth
 
     ! Diagnostics locally computed here from other fields
-    type( field_type )             :: sea_ice_fraction
+    type( field_type )             :: sea_ice_fraction, weights_one, &
+                                      sea_ice_tile
+    real(r_def)                    :: num_sice_tiles
     integer( tik )                 :: id
 
     if ( LPROF ) call start_timing( id, 'diags.jules_seaice' )
@@ -64,6 +68,20 @@ contains
     call invoke(multi_extract_kernel_type(sea_ice_fraction, tile_fraction,     &
                                             first_sea_ice_tile, n_sea_ice_tile))
     call sea_ice_fraction%write_field('seaice__sea_ice_fraction')
+
+    ! Output sea-ice as a fraction of total grid-box
+    ! kernel calculates the avearge, so multiply after by number of tiles
+    ! to get the sum
+    if(init_diag(sea_ice_tile, 'surface__sea_ice_tile')) then
+      call tile_fraction%copy_field_properties(weights_one)
+      num_sice_tiles = real(n_sea_ice_tile, r_def)
+      call invoke(setval_c(weights_one, 1.0_r_def),                           &
+                  weighted_ave_kernel_type(sea_ice_tile,                      &
+                                       tile_fraction, weights_one,            &
+                                       first_sea_ice_tile, n_sea_ice_tile),   &
+                  inc_a_times_X(num_sice_tiles, sea_ice_tile))
+      call sea_ice_tile%write_field()
+    end if
 
     if ( LPROF ) call stop_timing( id, 'diags.jules_seaice' )
 
