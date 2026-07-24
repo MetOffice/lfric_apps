@@ -155,8 +155,8 @@ subroutine sample_eliminated_theta_q32_code(cell, nlayers, ncell_3d,   &
         end do
       end do
     end do
-    ! Incrementally add sampled operator
-    q32_theta_op(ik,:,:) = q32_theta_op(ik,:,:) + samp(:,:)
+    ! Set the sampled operator
+    q32_theta_op(ik,:,:) = samp(:,:)
   end do
 
 end subroutine sample_eliminated_theta_q32_code

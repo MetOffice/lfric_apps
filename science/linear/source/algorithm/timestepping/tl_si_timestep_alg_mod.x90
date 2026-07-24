@@ -80,6 +80,7 @@ module tl_si_timestep_alg_mod
   use si_operators_alg_mod,        only: create_si_operators,  &
                                          compute_si_operators, &
                                          final_si_operators
+  use dycore_constants_mod,        only: stepper_siqn
   use checks_and_balances_alg_mod, only: check_fields
 
   use semi_implicit_solver_alg_mod,only: semi_implicit_solver_alg_init,       &
@@ -172,9 +173,11 @@ contains
   !> @param[in]     ls_exner  Lin. state for Exner pressure
   !> @param[in]     ls_mr     Lin. state for Mixing ratios
   !> @param[in]     ls_moist_dyn Lin. state for moist dynamical factors
+  !> @param[in]     modeldb   Structure containing the model state, used to
+  !!                          obtain the namelist configuration and clock
   subroutine tl_semi_implicit_alg_init( mesh, u, rho, theta, exner, mr,   &
                                         ls_u, ls_rho, ls_theta, ls_exner, &
-                                        ls_mr, ls_moist_dyn, partial_init )
+                                        ls_mr, ls_moist_dyn, modeldb, partial_init )
 
     implicit none
 
@@ -187,6 +190,10 @@ contains
     type( field_type ), intent( inout ) :: ls_u, ls_rho, ls_theta, ls_exner
     type( field_type ), intent( inout ) :: ls_mr(nummr)
     type( field_type ), intent( inout ) :: ls_moist_dyn(num_moist_factors)
+
+    ! Model database, providing the namelist configuration and clock needed to
+    ! create the semi-implicit operators
+    type(modeldb_type), intent( in ) :: modeldb
 
     ! When atlt_si_timestep_alg_mod in adjoint_tests is run, this routine is called
     ! but it has been already. Hence we have a switch to turn off aspects of the
@@ -332,9 +339,10 @@ contains
     ! Operators for si solves
     !--------------------------------------------------------------------
     if (full_init) then
-      call create_si_operators( mesh )
+      call create_si_operators( mesh, stepper_siqn, modeldb%config, &
+                                modeldb%clock )
       call gungho_transport_control_alg_init( mesh )
-      call semi_implicit_solver_alg_init( state )
+      call semi_implicit_solver_alg_init( state, stepper_siqn )
     end if
 
     call log_event( "semi_implicit_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO )
@@ -486,7 +494,8 @@ contains
                                 ls_state(igh_d), &
                                 ls_state(igh_p), &
                                 modeldb%clock,   &
-                                ls_moist_dyn_itns(:,1,1))
+                                ls_moist_dyn_itns(:,1,1), &
+                                stepper_siqn)
 
 
     !--------------------------------------------------------------------
@@ -650,7 +659,7 @@ contains
                            dry_flux_solver,                                    &
                            ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                            ls_mr_itns(:, next_outer, next_inner),              &
-                           first_iteration=(inner==1) )
+                           first_iteration=(inner==1), stepper=stepper_siqn )
             ! If not already done update factors for moist dynamics
             if ( .not. guess_np1 .and. use_moisture) then
               call moist_dyn_factors_alg(                        &
@@ -878,7 +887,8 @@ contains
                                                 dry_flux_solver,     &
                                                 moist_dyn(gas_law),  &
                                                 mr,                  &
-                                                first_iteration=(inner==1) )
+                                                first_iteration=(inner==1), &
+                                                stepper=stepper_siqn )
           end if
 
           ! Update factors for moist dynamics

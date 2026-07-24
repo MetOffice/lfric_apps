@@ -33,6 +33,7 @@ module adjt_mixed_operator_alg_mod
   use moist_dyn_mod,                    only: num_moist_factors
   use fs_continuity_mod,                only: W2, W3, Wtheta
   use si_operators_alg_mod,             only: compute_si_operators
+  use dycore_constants_mod,             only: stepper_siqn
   use sci_enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
   use model_clock_mod,                  only: model_clock_type
   use function_space_mod,               only: function_space_type
@@ -116,7 +117,7 @@ contains
     end do
 
     call compute_si_operators( config, rhs(igh_t), rhs(igh_d), rhs(igh_p), &
-                               model_clock, moist_dyn )
+                               model_clock, moist_dyn, stepper_siqn )
 
     ! Input fields are r_def fields so preliminary work uses field_types
 
@@ -144,7 +145,7 @@ contains
     call construct_solver_state( vector_mx, rhs_rsol, import_fields=.false. )
     call construct_solver_state( vector_amx, rhs_rsol, import_fields=.false. )
 
-    mixed_op = mixed_operator_type()
+    mixed_op = mixed_operator_type(stepper_siqn)
 
     call vector_mx%set_scalar(0.0_r_def)
     call vector_amx%set_scalar(0.0_r_def)
@@ -184,7 +185,7 @@ contains
     ! Adjoint code
     ! --------------------------------------------------------------------------
 
-    adj_mixed_op = adj_mixed_operator_type()
+    adj_mixed_op = adj_mixed_operator_type(stepper_siqn)
 
     call adj_mixed_op%apply( vector_mx, vector_amx )
 

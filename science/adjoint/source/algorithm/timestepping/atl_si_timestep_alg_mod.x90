@@ -49,6 +49,7 @@ module atl_si_timestep_alg_mod
   use adj_trans_lookup_cache_mod,          only: adj_trans_lookup_cache_type
   use atl_transport_control_alg_mod,       only: atl_transport_control_alg
   use si_operators_alg_mod,                only: compute_si_operators
+  use dycore_constants_mod,                only: stepper_siqn
   use semi_implicit_solver_alg_mod,        only: semi_implicit_solver_alg_step
   use adj_semi_implicit_solver_alg_mod,    only: adj_semi_implicit_solver_type
   use derive_exner_from_eos_alg_mod,       only: derive_exner_from_eos
@@ -289,7 +290,7 @@ contains
     call self%adj_solver_lookup_cache%initialise(u%get_mesh())
     call self%adj_trans_lookup_cache%initialise(config, u%get_mesh())
 
-    call self%adj_semi_implicit_solver%initialise(self%state, self%adj_solver_lookup_cache)
+    call self%adj_semi_implicit_solver%initialise(self%state, self%adj_solver_lookup_cache, stepper_siqn)
 
     call log_event( "atl_si_timestep_type%init: initialised timestepping algorithm", LOG_LEVEL_INFO )
 
@@ -404,7 +405,8 @@ contains
     if (mod( modeldb%clock%get_step() - 1_i_def, reference_reset_freq ) == 0_i_def) then
       call compute_si_operators( modeldb%config, self%ls_state(igh_t),       &
                                  self%ls_state(igh_d), self%ls_state(igh_p), &
-                                 modeldb%clock, self%ls_moist_dyn_itns(:,1,1) )
+                                 modeldb%clock, self%ls_moist_dyn_itns(:,1,1), &
+                                 stepper_siqn )
     end if
 
     ! Compute the time-level n dynamics terms
@@ -540,7 +542,7 @@ contains
                                                 dry_flux_solver,                                         &
                                                 self%ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                                                 self%ls_mr_itns(:,next_outer,next_inner),                &
-                                                first_iteration=(inner==1) )
+                                                first_iteration=(inner==1), stepper=stepper_siqn )
             ! If not already done, update factors for moist dynamics
             if (.not. guess_np1 .and. self%use_moisture) then
               call moist_dyn_factors_alg( self%ls_moist_dyn_itns(:,next_outer,next_inner), &

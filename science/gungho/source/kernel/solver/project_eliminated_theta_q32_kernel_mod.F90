@@ -160,7 +160,7 @@ subroutine project_eliminated_theta_q32_code(cell, nlayers, ncell_3d, &
         end do
        end do
     end do
-    q32_theta_op(ik,:,:) = q32_theta_op(ik,:,:) + matmul(inv_m3(ik,:,:), proj(:,:))
+    q32_theta_op(ik,:,:) = matmul(inv_m3(ik,:,:), proj(:,:))
   end do
 
 end subroutine project_eliminated_theta_q32_code

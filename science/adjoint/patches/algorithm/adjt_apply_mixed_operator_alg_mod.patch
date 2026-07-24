@@ -9,7 +9,16 @@
      real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
      type(mesh_type), pointer, intent(in) :: mesh
      type(field_type), dimension(3), intent(in), optional :: chi
-@@ -46,16 +46,18 @@
+@@ -43,25 +43,24 @@
+     real(kind=r_def) :: const_u
+     real(kind=r_def) :: const_t
+     real(kind=r_def) :: const_r
+-    real(kind=r_def) :: const_u_input
+-    real(kind=r_def) :: const_t_input
+-    real(kind=r_def) :: const_r_input
+     type(field_type) :: lhs_uv_input
+     type(field_type) :: lhs_w_input
+     type(field_type) :: lhs_p_input
      type(field_type) :: wind_uv_input
      type(field_type) :: wind_w_input
      type(field_type) :: exner_input
@@ -32,7 +41,7 @@
      real(kind=r_def) :: inner1
      real(kind=r_def) :: lhs_uv_lhs_uv_input_inner_prod
      real(kind=r_def) :: lhs_w_lhs_w_input_inner_prod
-@@ -63,11 +65,10 @@
+@@ -69,11 +68,10 @@
      real(kind=r_def) :: wind_uv_wind_uv_input_inner_prod
      real(kind=r_def) :: wind_w_wind_w_input_inner_prod
      real(kind=r_def) :: exner_exner_input_inner_prod
@@ -45,12 +54,23 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_w2h_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2h)
-@@ -95,53 +96,73 @@
+@@ -101,75 +99,86 @@
      call wind_uv_input%initialise(vector_space=vector_space_w2h_ptr, name='wind_uv_input')
      call wind_w_input%initialise(vector_space=vector_space_w2v_ptr, name='wind_w_input')
      call exner_input%initialise(vector_space=vector_space_w3_ptr, name='exner_input')
 -    call mt_lumped_inv_input%initialise(vector_space=vector_space_wtheta_ptr, name='mt_lumped_inv_input')
 -    call norm_u_input%initialise(vector_space=vector_space_w2_ptr, name='norm_u_input')
+-    call RANDOM_NUMBER(const_u)
+-    const_u_input = const_u
+-    call RANDOM_NUMBER(const_t)
+-    const_t_input = const_t
+-    call RANDOM_NUMBER(const_r)
+-    const_r_input = const_r
++    ! NOTE(JC): Known issue with scalar randomisation with MPI. Each process
++    !           generates a different number. See LFRic-apps ticket #765.
++    const_u = 1.0_r_def
++    const_t = 1.0_r_def
++    const_r = 1.0_r_def
      lhs_uv_inner_prod = 0.0_r_def
      lhs_w_inner_prod = 0.0_r_def
      lhs_p_inner_prod = 0.0_r_def
@@ -68,7 +88,7 @@
 -&norm_u), setop_random_kernel_type(pt2), setop_random_kernel_type(mu_cd), setop_random_kernel_type(p2t), &
 -&setop_random_kernel_type(grad), setop_random_kernel_type(m3p), setop_random_kernel_type(q32), setop_random_kernel_type(p3t), &
 -&apply_mixed_operator_kernel_type(lhs_uv, lhs_w, lhs_p, wind_uv, wind_w, exner, pt2, mt_lumped_inv, mu_cd, p2t, grad, norm_u, m3p, &
--&q32, p3t), x_innerproduct_x(lhs_uv_inner_prod, lhs_uv), x_innerproduct_x(lhs_w_inner_prod, lhs_w), &
+-&q32, p3t, const_u, const_t, const_r), x_innerproduct_x(lhs_uv_inner_prod, lhs_uv), x_innerproduct_x(lhs_w_inner_prod, lhs_w), &
 +&setval_random(mt_lumped_inv), setval_random(norm_u))
 +    call setop_random_alg(pt2)
 +    call setop_random_alg(mu_cd)
@@ -78,7 +98,8 @@
 +    call setop_random_alg(q32)
 +    call setop_random_alg(p3t)
 +    call invoke(apply_mixed_operator_kernel_type(lhs_uv, lhs_w, lhs_p, wind_uv, wind_w, exner, pt2, mt_lumped_inv, mu_cd, p2t, &
-+&grad, norm_u, m3p, q32, p3t), x_innerproduct_x(lhs_uv_inner_prod, lhs_uv), x_innerproduct_x(lhs_w_inner_prod, lhs_w), &
++&grad, norm_u, m3p, q32, p3t, const_u, const_t, const_r), &
++&x_innerproduct_x(lhs_uv_inner_prod, lhs_uv), x_innerproduct_x(lhs_w_inner_prod, lhs_w), &
  &x_innerproduct_x(lhs_p_inner_prod, lhs_p), x_innerproduct_x(wind_uv_inner_prod, wind_uv), x_innerproduct_x(wind_w_inner_prod, &
 -&wind_w), x_innerproduct_x(exner_inner_prod, exner), x_innerproduct_x(mt_lumped_inv_inner_prod, mt_lumped_inv), &
 -&x_innerproduct_x(norm_u_inner_prod, norm_u))
@@ -104,6 +125,9 @@
 +    wind_w_sf = 1.0_r_def / (wind_w_inner_prod + eps)
 +    exner_sf = 1.0_r_def / (exner_inner_prod + eps)
      inner1 = 0.0_r_def
+-    inner1 = inner1 + const_u * const_u
+-    inner1 = inner1 + const_t * const_t
+-    inner1 = inner1 + const_r * const_r
 -    inner1 = inner1 + lhs_uv_inner_prod
 -    inner1 = inner1 + lhs_w_inner_prod
 -    inner1 = inner1 + lhs_p_inner_prod
@@ -133,7 +157,7 @@
 -    mt_lumped_inv_mt_lumped_inv_input_inner_prod = 0.0_r_def
 -    norm_u_norm_u_input_inner_prod = 0.0_r_def
      call invoke(adj_apply_mixed_operator_kernel_type(lhs_uv, lhs_w, lhs_p, wind_uv, wind_w, exner, pt2, mt_lumped_inv, mu_cd, p2t, &
- &grad, norm_u, m3p, q32, p3t), x_innerproduct_y(lhs_uv_lhs_uv_input_inner_prod, lhs_uv, lhs_uv_input), &
+ &grad, norm_u, m3p, q32, p3t, const_u, const_t, const_r), x_innerproduct_y(lhs_uv_lhs_uv_input_inner_prod, lhs_uv, lhs_uv_input), &
  &x_innerproduct_y(lhs_w_lhs_w_input_inner_prod, lhs_w, lhs_w_input), x_innerproduct_y(lhs_p_lhs_p_input_inner_prod, lhs_p, &
  &lhs_p_input), x_innerproduct_y(wind_uv_wind_uv_input_inner_prod, wind_uv, wind_uv_input), &
  &x_innerproduct_y(wind_w_wind_w_input_inner_prod, wind_w, wind_w_input), x_innerproduct_y(exner_exner_input_inner_prod, exner, &
@@ -141,9 +165,12 @@
 -&x_innerproduct_y(norm_u_norm_u_input_inner_prod, norm_u, norm_u_input))
 +&exner_input))
      inner2 = 0.0_r_def
+-    inner2 = inner2 + const_u * const_u_input
+-    inner2 = inner2 + const_t * const_t_input
+-    inner2 = inner2 + const_r * const_r_input
      inner2 = inner2 + lhs_uv_lhs_uv_input_inner_prod
      inner2 = inner2 + lhs_w_lhs_w_input_inner_prod
-@@ -149,9 +170,6 @@
+     inner2 = inner2 + lhs_p_lhs_p_input_inner_prod
      inner2 = inner2 + wind_uv_wind_uv_input_inner_prod
      inner2 = inner2 + wind_w_wind_w_input_inner_prod
      inner2 = inner2 + exner_exner_input_inner_prod

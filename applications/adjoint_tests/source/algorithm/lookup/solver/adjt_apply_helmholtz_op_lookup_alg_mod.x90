@@ -27,6 +27,7 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
   use adj_lookup_table_mod,          only: adj_lookup_table_type
   use sci_r_solver_field_vector_mod, only: r_solver_field_vector_type
   use si_operators_alg_mod,          only: compute_si_operators, get_helmholtz_operator
+  use dycore_constants_mod,          only: stepper_siqn
 
   implicit none
 
@@ -120,9 +121,9 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
     end do
 
     call compute_si_operators( config, init_op_t, init_op_d, init_op_p, &
-                               model_clock, init_op_moist_dyn )
+                               model_clock, init_op_moist_dyn, stepper_siqn )
 
-    Helmholtz_operator => get_helmholtz_operator(level)
+    Helmholtz_operator => get_helmholtz_operator(stepper_siqn, level)
     lam_mesh = .false.
 
     call vector_x%initialise(vector_space_w3_ptr)

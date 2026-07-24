@@ -100,6 +100,7 @@ module semi_implicit_timestep_alg_mod
   use si_operators_alg_mod,       only: create_si_operators,  &
                                         compute_si_operators, &
                                         final_si_operators
+  use dycore_constants_mod,       only: stepper_siqn
   use fast_physics_alg_mod,       only: fast_physics
   use slow_physics_alg_mod,       only: slow_physics
   use checks_and_balances_alg_mod,   &
@@ -541,7 +542,7 @@ contains
     !--------------------------------------------------------------------
     ! Operators for si solves
     !--------------------------------------------------------------------
-    call create_si_operators( mesh )
+    call create_si_operators( mesh, stepper_siqn, self%config, model_clock )
 
     ! If using checkpointed reference state, then calculate semi-implicit
     ! operators using the checkpointed reference state
@@ -554,7 +555,7 @@ contains
       call prognostic_fields%get_field('rho_ref', rho_ref)
       call prognostic_fields%get_field('exner_ref', exner_ref)
       call compute_si_operators(self%config, theta_ref, rho_ref, exner_ref, &
-                                model_clock, moist_dyn_ref)
+                                model_clock, moist_dyn_ref, stepper_siqn)
       nullify(theta_ref, rho_ref, exner_ref, moist_dyn_ref, moist_dyn_ref_array)
     end if
 
@@ -562,7 +563,7 @@ contains
       call gungho_transport_control_alg_init( mesh )
 
       ! Construct semi-implicit solver
-      call semi_implicit_solver_alg_init( self%state )
+      call semi_implicit_solver_alg_init( self%state, stepper_siqn )
     end if
 
     nullify(mesh)
@@ -800,7 +801,7 @@ contains
       ! Compute semi-implicit operators with current model state
       call compute_si_operators( self%config, self%state(igh_t),       &
                                  self%state(igh_d), self%state(igh_p), &
-                                 model_clock, moist_dyn )
+                                 model_clock, moist_dyn, stepper_siqn )
 
       checkpoint_reference_fields = &
            mod(model_clock%get_first_step()-1, reference_reset_freq) /= 0 .or. &
@@ -1114,7 +1115,8 @@ contains
                                               dry_flux_solver,          &
                                               moist_dyn(gas_law),       &
                                               mr,                       &
-                                              first_iteration=(inner==1) )
+                                              first_iteration=(inner==1), &
+                                              stepper=stepper_siqn )
 
           if (write_moisture_diag) then
             call moisture_conservation_alg(self%config, self%state(igh_d), mr, &

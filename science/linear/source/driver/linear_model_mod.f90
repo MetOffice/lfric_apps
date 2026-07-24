@@ -97,7 +97,7 @@ contains
         call final_si_operators()
         call tl_semi_implicit_alg_init(mesh, u, rho, theta, exner, &
                                        mr, ls_u, ls_rho, ls_theta, ls_exner, &
-                                       ls_mr, ls_moist_dyn)
+                                       ls_mr, ls_moist_dyn, modeldb)
 
       case( method_rk )             ! RK
         ! Initialise and output initial conditions for first timestep

@@ -28,6 +28,7 @@ module adjt_scaled_matrix_vector_alg_mod
   use sci_r_solver_field_vector_mod, only: r_solver_field_vector_type
   use si_operators_alg_mod,          only: compute_si_operators, get_div_star, get_Hb_lumped_inv, &
                                            get_tau_u_dt_cp
+  use dycore_constants_mod,          only: stepper_siqn
   use solver_constants_mod,          only: get_normalisation_r_solver
 
   ! Object types
@@ -112,7 +113,7 @@ module adjt_scaled_matrix_vector_alg_mod
     end do
 
     call compute_si_operators( config, init_op_t, init_op_d, init_op_p, &
-                               model_clock, init_op_moist_dyn )
+                               model_clock, init_op_moist_dyn, stepper_siqn )
 
     call vector_x%initialise(vector_space_w3_ptr)
     call vector_mx%initialise(vector_space_w2_ptr)
@@ -120,9 +121,9 @@ module adjt_scaled_matrix_vector_alg_mod
 
     u_normalisation => get_normalisation_r_solver( W2, vector_mx%get_mesh_id() )
     div_star        => get_div_star()
-    Hb_lumped_inv   => get_Hb_lumped_inv()
+    Hb_lumped_inv   => get_Hb_lumped_inv(stepper_siqn)
 
-    const_u = get_tau_u_dt_cp()
+    const_u = get_tau_u_dt_cp(stepper_siqn)
 
     call invoke( setval_random(vector_x),                                                                           &
                  setval_c( vector_mx, 0.0_r_solver ),                                                               &

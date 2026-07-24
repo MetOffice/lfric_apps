@@ -151,6 +151,7 @@ module mixed_schur_preconditioner_alg_mod
      !> Pressure (Helmholtz) solver object
      class(abstract_iterative_solver_type), pointer :: &
         pressure_solver
+     integer(kind=i_def) :: stepper
 
      contains
      ! Override the (abstract interface) for application of
@@ -190,10 +191,12 @@ contains
   !> @param [in] element_order_h Horizontal element order for function spaces
   !> @param [in] element_order_v Vertical element order for function spaces
   !> @param [in] pressure_solver Solver object for Helmholtz system
+  !> @param [in] stepper         Timestepper enumerator used to select operators
   !> @return self the constructed preconditioner object
   function mixed_schur_preconditioner_constructor(mesh, element_order_h, &
                                                   element_order_v,       &
-                                                  pressure_solver)       &
+                                                  pressure_solver,       &
+                                                  stepper)               &
                                                   result(self)
 
     use function_space_mod,            only: function_space_type
@@ -206,6 +209,7 @@ contains
     integer(i_def),                                intent(in) :: element_order_v
     type(mesh_type),                       target, intent(in) :: mesh
     class(abstract_iterative_solver_type), target, intent(in) :: pressure_solver
+    integer(i_def),                                intent(in) :: stepper
 
     type(mixed_schur_preconditioner_type)  :: self
 
@@ -232,6 +236,7 @@ contains
 
     ! Set pressure solver
     self%pressure_solver => pressure_solver
+    self%stepper = stepper
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
 
@@ -378,13 +383,13 @@ contains
     p3theta       => get_p3theta()
     m3_rho_star   => get_m3_rho_star()
     compound_div  => get_compound_div()
-    Hb_lumped_inv => get_Hb_lumped_inv()
+    Hb_lumped_inv => get_Hb_lumped_inv(self%stepper)
 
     ! The SI operators are now assembled unscaled; re-apply the tau*dt scalings
     ! here. The divergence term uses tau_r*dt and the potential temperature term
     ! uses tau_t*dt.
-    const_r = get_tau_r_dt()
-    const_t = get_tau_t_dt()
+    const_r = get_tau_r_dt(self%stepper)
+    const_t = get_tau_t_dt(self%stepper)
     minus_const_r = -const_r
     minus_const_t = -const_t
 
@@ -438,7 +443,7 @@ contains
     end if
 
     if ( normalise ) then
-       h_diag => get_helm_diag()
+       h_diag => get_helm_diag(self%stepper)
        call invoke( inc_X_times_Y(rhs, h_diag) )
     end if
 
@@ -495,9 +500,9 @@ contains
     ! u increment
     u_normalisation => get_normalisation_r_solver(W2, mesh_id)
     div_star        => get_div_star()
-    Hb_lumped_inv   => get_Hb_lumped_inv()
+    Hb_lumped_inv   => get_Hb_lumped_inv(self%stepper)
 
-    const_u = get_tau_u_dt_cp()
+    const_u = get_tau_u_dt_cp(self%stepper)
     ! u' = ru + BC[HB * unorm * D * p']
     if ( split_w ) then
       state_uv => state%get_field_from_position( isol_uv )

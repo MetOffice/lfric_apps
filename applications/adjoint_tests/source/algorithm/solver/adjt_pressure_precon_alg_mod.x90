@@ -28,6 +28,7 @@ module adjt_pressure_precon_alg_mod
   use driver_modeldb_mod,               only: modeldb_type
   use fs_continuity_mod,                only: W2, W3, Wtheta
   use si_operators_alg_mod,             only: compute_si_operators
+  use dycore_constants_mod,             only: stepper_siqn
   use sci_enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
   use model_clock_mod,                  only: model_clock_type
   use function_space_mod,               only: function_space_type
@@ -150,14 +151,15 @@ contains
     ls_moist_dyn => ls_moist_dyn_array%bundle
 
     call compute_si_operators( modeldb%config, ls_theta, ls_rho, ls_exner, &
-                               model_clock, ls_moist_dyn )
+                               model_clock, ls_moist_dyn, stepper_siqn )
 
-    call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner )
+    call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner, stepper_siqn )
 
-    call create_adj_pressure_preconditioner( rhs,                    &
-                                             adj_lookup_table_cache, &
-                                             adj_pressure_operator,  &
-                                             adj_pressure_preconditioner )
+    call create_adj_pressure_preconditioner( rhs,                         &
+                                             adj_lookup_table_cache,      &
+                                             adj_pressure_operator,       &
+                                             adj_pressure_preconditioner, &
+                                             stepper_siqn )
 
     ! Size = 1 as only P field needed
     vector_x = r_solver_field_vector_type(1_i_def)

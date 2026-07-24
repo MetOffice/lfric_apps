@@ -73,6 +73,8 @@ module mixed_operator_alg_mod
                         mixed_operator_type
 
     private
+      !> Time stepper enumerator (used to select the SI operators)
+      integer(kind=i_def) :: stepper
 
    contains
     !> Over-ride the abstract interface
@@ -86,7 +88,25 @@ module mixed_operator_alg_mod
     final              :: destroy_mixed_operator
   end type mixed_operator_type
 
+  interface mixed_operator_type
+    module procedure mixed_operator_constructor
+  end interface
+
 contains
+
+  !> @brief Constructor for the mixed operator
+  !> @param[in] stepper The time stepper enumerator used to select the operators
+  !> @return Instance of the mixed operator
+  function mixed_operator_constructor(stepper) result(self)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: stepper
+    type(mixed_operator_type)       :: self
+
+    self%stepper = stepper
+
+  end function mixed_operator_constructor
 
   !> @brief Applies the mixed operator to the vector, \f$ y = M x \f$.
   !>
@@ -219,10 +239,10 @@ contains
     p3theta       => get_p3theta()
 
     ! Obtain the tau*dt scaling constants used to assemble the SI operators.
-    const_u       = get_tau_u_dt_cp()   ! tau_u*dt*cp
-    const_t       = get_tau_t_dt()      ! tau_t*dt
-    const_r       = get_tau_r_dt()      ! tau_r*dt
-    const_tu      = get_tau_tu_dt2_cp() ! tau_t*tau_u*dt^2*cp
+    const_u       = get_tau_u_dt_cp(self%stepper)   ! tau_u*dt*cp
+    const_t       = get_tau_t_dt(self%stepper)      ! tau_t*dt
+    const_r       = get_tau_r_dt(self%stepper)      ! tau_r*dt
+    const_tu      = get_tau_tu_dt2_cp(self%stepper) ! tau_t*tau_u*dt^2*cp
     minus_const_t = -const_t
 
     select type (x)

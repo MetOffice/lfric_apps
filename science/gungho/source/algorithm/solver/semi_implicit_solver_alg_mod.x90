@@ -106,7 +106,8 @@ contains
   !> @param[in]  state                       Prognostic state for the solver
   !> @param[out] pressure_operator_out       Output (Helmholtz) pressure operator
   !> @param[out] pressure_preconditioner_out Output (Helmholtz) pressure preconditioner
-  subroutine create_pressure_preconditioner( state, pressure_operator_out, pressure_preconditioner_out )
+  !> @param[in]  stepper                     Timestepper enumerator used to select operators
+  subroutine create_pressure_preconditioner( state, pressure_operator_out, pressure_preconditioner_out, stepper )
 
     use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
                                              preconditioner_none,                        &
@@ -123,10 +124,12 @@ contains
     type(pressure_operator_type),                     intent(out) :: pressure_operator_out
     class(abstract_preconditioner_type), allocatable, intent(out) :: pressure_preconditioner_out
 
+    integer(i_def), intent(in) :: stepper
+
     ! Vertical pressure preconditioner
     type(pressure_preconditioner_type) :: Hz_preconditioner
 
-    pressure_operator_out = pressure_operator_type(level=1_i_def)
+    pressure_operator_out = pressure_operator_type(level=1_i_def, stepper=stepper)
 
     call log_event( "create_pressure_preconditioner: starting", LOG_LEVEL_INFO )
 
@@ -140,9 +143,9 @@ contains
                 source = pressure_diag_preconditioner_type() )
     case(PRECONDITIONER_TRIDIAGONAL)
       allocate( pressure_preconditioner_out, &
-                source = pressure_preconditioner_type(level=1_i_def) )
+                source = pressure_preconditioner_type(level=1_i_def, stepper=stepper) )
     case(PRECONDITIONER_MULTIGRID)
-      Hz_preconditioner = pressure_preconditioner_type(level=1_i_def)
+      Hz_preconditioner = pressure_preconditioner_type(level=1_i_def, stepper=stepper)
       allocate( pressure_preconditioner_out, &
                 source = multigrid_preconditioner_type( state(igh_p)%get_function_space(), &
                                                         pressure_operator_out,             &
@@ -274,7 +277,8 @@ contains
   !> @param[in]  state                    Prognostic state for the solver
   !> @param[in]  pressure_solver_in       Input (Helmholtz) pressure solver
   !> @param[out] mixed_preconditioner_out Output mixed preconditioner
-  subroutine create_mixed_preconditioner( state, pressure_solver_in, mixed_preconditioner_out )
+  !> @param[in]  stepper                  Timestepper enumerator used to select operators
+  subroutine create_mixed_preconditioner( state, pressure_solver_in, mixed_preconditioner_out, stepper )
 
     use mixed_solver_config_mod,       only: si_preconditioner,          &
                                              si_preconditioner_pressure, &
@@ -291,6 +295,8 @@ contains
     ! Output preconditioner for mixed problem
     class(abstract_preconditioner_type), allocatable, intent(out) :: mixed_preconditioner_out
 
+    integer(i_def), intent(in) :: stepper
+
     call log_event( "create_mixed_preconditioner: starting", LOG_LEVEL_INFO )
 
     ! Allocate mixed preconditioner of correct type
@@ -301,7 +307,8 @@ contains
                   state(igh_u)%get_mesh(),                &
                   state(igh_u)%get_element_order_h(),     &
                   state(igh_u)%get_element_order_v(),     &
-                  pressure_solver_in ) )
+                  pressure_solver_in,                     &
+                  stepper ) )
 
     case(SI_PRECONDITIONER_NONE)
       allocate( mixed_preconditioner_out, &
@@ -320,7 +327,8 @@ contains
   !> @param[in]     mixed_preconditioner_in Input mixed preconditioner
   !> @param[in,out] mixed_operator_out      Output mixed operator (not explicitly set, so must be inout)
   !> @param[out]    mixed_solver_out        Output mixed solver
-  subroutine create_mixed_solver( mixed_preconditioner_in, mixed_operator_out, mixed_solver_out )
+  !> @param[in]     stepper                 Timestepper enumerator used to select operators
+  subroutine create_mixed_solver( mixed_preconditioner_in, mixed_operator_out, mixed_solver_out, stepper )
 
     use mixed_solver_config_mod,       only: si_maximum_iterations,                 &
                                              si_tolerance,                          &
@@ -350,7 +358,12 @@ contains
     type(mixed_operator_type),                          intent(inout) :: mixed_operator_out
     class(abstract_iterative_solver_type), allocatable, intent(out)   :: mixed_solver_out
 
+    integer(i_def), intent(in) :: stepper
+
     call log_event( "create_mixed_solver: starting", LOG_LEVEL_INFO )
+
+    ! Build the mixed operator for the requested timestepper
+    mixed_operator_out = mixed_operator_type(stepper)
 
     ! Allocate mixed solver of correct type
     select case(si_method)
@@ -437,23 +450,26 @@ contains
 
 !=============================================================================!
   !> @brief Initialisation procedure for the semi-implicit solver
-  !> @param[in] state Prognostic state for the solver
-  subroutine semi_implicit_solver_alg_init(state)
+  !> @param[in] state   Prognostic state for the solver
+  !> @param[in] stepper Timestepper enumerator used to select operators
+  subroutine semi_implicit_solver_alg_init(state, stepper)
 
     implicit none
 
     ! Prognostic fields
     type( field_type ), dimension(bundle_size), intent( in ) :: state
 
+    integer(i_def), intent(in) :: stepper
+
     write(log_scratch_space,'(A)')                          &
         'SI solver built with '//trim(PRECISION_R_SOLVER)// &
         '-bit real numbers'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
-    call create_pressure_preconditioner( state, pressure_operator, pressure_preconditioner )
+    call create_pressure_preconditioner( state, pressure_operator, pressure_preconditioner, stepper )
     call create_pressure_solver( pressure_operator, pressure_preconditioner, pressure_solver )
-    call create_mixed_preconditioner( state, pressure_solver, mixed_preconditioner )
-    call create_mixed_solver( mixed_preconditioner, mixed_operator, mixed_solver )
+    call create_mixed_preconditioner( state, pressure_solver, mixed_preconditioner, stepper )
+    call create_mixed_solver( mixed_preconditioner, mixed_operator, mixed_solver, stepper )
 
     call log_event( "semi_implicit_solver_alg_init: Initialised semi-implicit solver", LOG_LEVEL_INFO )
 
@@ -495,10 +511,11 @@ contains
   !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics factors
   !> @param[in]     mr                  Mixing ratio array
   !> @param[in]     first_iteration     Flag for first inner iteration
+  !> @param[in]     stepper             Timestepper enumerator
   subroutine semi_implicit_solver_alg_step(state, rhs,              &
                                            dry_flux_solver,         &
                                            moist_dyn_gas_law, mr,   &
-                                           first_iteration)
+                                           first_iteration, stepper)
 
     use solver_constants_mod,          only: get_normalisation_r_solver, &
                                              get_im3_div_r_solver,       &
@@ -536,7 +553,9 @@ contains
     type( field_type ),                         intent( inout ) :: dry_flux_solver
     type( field_type ),                         intent( in )    :: moist_dyn_gas_law
     type( field_type ), dimension(nummr),       intent( in )    :: mr
-    logical( kind=l_def),                       intent( in )    :: first_iteration
+    logical( kind=l_def ),                      intent( in )    :: first_iteration
+
+    integer( kind=i_def ),                      intent( in )    :: stepper
 
     real( kind=r_def )                    :: si_err(bundle_size)
     type( field_type ),           pointer :: t_normalisation, &
@@ -595,8 +614,8 @@ contains
     ! at the point of use. The momentum-row projection operators (p2theta, q2t)
     ! carry tau_u*dt*cp and the potential-temperature projection (ptheta2)
     ! carries tau_t*dt.
-    const_u = get_tau_u_dt_cp()
-    const_t = get_tau_t_dt()
+    const_u = get_tau_u_dt_cp(stepper)
+    const_t = get_tau_t_dt(stepper)
 
     ! Normalise theta & u residual
     ! @TODO #416: can these be at r_solver precision?

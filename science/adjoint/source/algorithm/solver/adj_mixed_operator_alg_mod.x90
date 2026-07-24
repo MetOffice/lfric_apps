@@ -45,12 +45,15 @@ module adj_mixed_operator_alg_mod
                                                          get_face_selector_ns
   use sci_linear_operator_mod,                     only: abstract_linear_operator_type
   use sci_r_solver_field_vector_mod,               only: r_solver_field_vector_type
-  use si_operators_alg_mod,                        only: get_p2theta,       &
-                                                         get_div_star,      &
-                                                         get_ptheta2,       &
-                                                         get_m3_exner_star, &
-                                                         get_p3theta,       &
-                                                         get_eliminated_q32_rho
+  use si_operators_alg_mod,                        only: get_p2theta,        &
+                                                         get_div_star,       &
+                                                         get_ptheta2,        &
+                                                         get_m3_exner_star,  &
+                                                         get_p3theta,        &
+                                                         get_eliminated_q32_rho, &
+                                                         get_tau_u_dt_cp,    &
+                                                         get_tau_t_dt,       &
+                                                         get_tau_r_dt
   use solver_constants_mod,                        only: get_w2_mass_matrix_r_solver, &
                                                          get_normalisation_r_solver
   use timing_mod,                                  only: start_timing, &
@@ -64,13 +67,33 @@ module adj_mixed_operator_alg_mod
 
   type, public, extends(abstract_linear_operator_type) :: adj_mixed_operator_type
   private
+    integer(kind=i_def) :: stepper
   contains
     procedure, public  :: apply => apply_adj_mixed_operator
     procedure, private :: apply_adj_mixed_operator
     final              :: destroy_adj_mixed_operator
   end type adj_mixed_operator_type
 
+  interface adj_mixed_operator_type
+    module procedure adj_mixed_operator_constructor
+  end interface
+
 contains
+
+  !> @brief Constructor for the adjoint mixed operator
+  !> @param[in] stepper The time stepper enumerator used to select the operators
+  !> @return Instance of the adjoint mixed operator
+  function adj_mixed_operator_constructor(stepper) result(self)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: stepper
+    type(adj_mixed_operator_type)   :: self
+
+    self%stepper = stepper
+
+  end function adj_mixed_operator_constructor
+
 
   !> @brief Applies the adjoint mixed operator to the vector.
   !> @param[in]     x Field vector to be read
@@ -90,7 +113,7 @@ contains
     integer(i_def)                        :: p_h, p_v
     type(r_solver_field_type), pointer    :: w2_mask, w3_mask
     type(r_solver_field_type)             :: x_t
-    real(kind=r_solver), parameter        :: minus_one = -1.0_r_solver
+    real(kind=r_solver)                   :: const_u, const_t, const_r, minus_const_t
     type(r_solver_operator_type), pointer :: q32_rho_op
     type(r_solver_field_type), pointer    :: xvec_uv, xvec_p, xvec_w
     type(r_solver_field_type), pointer    :: yvec_uv, yvec_p, yvec_w
@@ -138,6 +161,12 @@ contains
     ptheta2       => get_ptheta2()
     m3_exner_star => get_m3_exner_star()
     p3theta       => get_p3theta()
+
+    ! Scaling constants (previously baked into the operators, now applied here)
+    const_u = get_tau_u_dt_cp(self%stepper)
+    const_t = get_tau_t_dt(self%stepper)
+    const_r = get_tau_r_dt(self%stepper)
+    minus_const_t = -const_t
 
     select type (x)
     type is (r_solver_field_vector_type)
@@ -209,7 +238,8 @@ contains
                                                                ptheta2, mt_lumped_inv,             &
                                                                mm_vel, p2theta, div_star, m2_diag, &
                                                                m3_exner_star, q32_rho_op,          &
-                                                               p3theta ),                          &
+                                                               p3theta,                            &
+                                                               const_u, const_t, const_r ),        &
                          setval_c( yvec_uv, 0.0_r_solver ) )
           else
             t_fs => function_space_collection%get_fs( mesh, p_h, p_v, Wtheta )
@@ -218,11 +248,12 @@ contains
                          enforce_bc_kernel_type(y_uvw),                                                 &
                          adj_apply_elim_mixed_lp_operator_kernel_type( yvec_p, x_t, x_uvw,              &
                                                                        xvec_p, m3_exner_star,           &
-                                                                       q32_rho_op, p3theta ),           &
+                                                                       q32_rho_op, p3theta, const_r ),  &
                          adj_apply_mixed_lu_operator_kernel_type( y_uvw, x_uvw, x_t, xvec_p,            &
-                                                                  mm_vel, p2theta, div_star, m2_diag ), &
+                                                                  mm_vel, p2theta, div_star, m2_diag,   &
+                                                                  const_u ),                            &
                          setval_c( y_uvw, 0.0_r_solver ),                                               &
-                         inc_aX_times_Y( minus_one, x_t, mt_lumped_inv ),                               &
+                         inc_aX_times_Y( minus_const_t, x_t, mt_lumped_inv ),                           &
                          adj_dg_inc_matrix_vector_kernel_type( x_t, x_uvw, Ptheta2 ),                   &
                          setval_c( x_t, 0.0_r_solver ) )
           end if

@@ -15,6 +15,7 @@ module si_operators_alg_mod
 
   use config_mod,                only: config_type
   use constants_mod,             only: i_def, r_def, r_solver
+  use inventory_by_integer_mod,  only: inventory_by_integer_type
   use model_clock_mod,           only: model_clock_type
   use operator_mod,              only: operator_type, r_solver_operator_type
   use field_mod,                 only: field_type
@@ -47,6 +48,7 @@ module si_operators_alg_mod
   use mixed_solver_config_mod,   only: eliminate_variables, &
                                        eliminate_variables_analytic
   use moist_dyn_mod,             only: num_moist_factors, gas_law, total_mass
+  use dycore_constants_mod,      only: stepper_siqn
 
   ! Configuration modules
   use base_mesh_config_mod,      only: prime_mesh_name
@@ -72,21 +74,26 @@ module si_operators_alg_mod
   type(r_solver_operator_type),                            target :: eliminated_q2t
 
   type(r_solver_field_type), allocatable, dimension(:),   target :: rho_at_u
-  type(r_solver_field_type), allocatable, dimension(:,:), target :: tri_precon
-  type(r_solver_field_type), allocatable, dimension(:,:), target :: Helmholtz_operator
-  type(r_solver_field_type), allocatable, dimension(:),   target :: Helm_diag
-  type(r_solver_field_type), allocatable, dimension(:),   target :: Hb_lumped_inv
   integer(kind=i_def) :: multigrid_levels
 
-  ! Scaling constants (tau*dt factors) that are applied at the point of use of
+  ! The tri_precon, Helmholtz_operator, Helm_diag and Hb_lumped_inv working
+  ! fields, together with the tau*dt scaling constants, are stored in
+  ! inventories keyed by the time stepper enumerator.
+  !
+  ! The scaling constants (tau*dt factors) are applied at the point of use of
   ! the SI operators. The operators themselves are assembled unscaled, so any
-  ! algorithm that applies them must multiply in the appropriate constant. These
-  ! are stored here (set in compute_si_operators) and exposed through the
-  ! get_tau_* accessors so that all consumers use identical values.
-  real(kind=r_solver) :: tau_u_dt_cp   = 0.0_r_solver
-  real(kind=r_solver) :: tau_t_dt      = 0.0_r_solver
-  real(kind=r_solver) :: tau_r_dt      = 0.0_r_solver
-  real(kind=r_solver) :: tau_tu_dt2_cp = 0.0_r_solver
+  ! algorithm that applies them must multiply in the appropriate constant.
+  !
+  ! The stepper enumerator is passed as an argument to the getters (and to
+  ! compute_si_operators) so that the appropriate operator can be picked up.
+  type(inventory_by_integer_type) :: tri_precon_inventory
+  type(inventory_by_integer_type) :: helmholtz_operator_inventory
+  type(inventory_by_integer_type) :: helm_diag_inventory
+  type(inventory_by_integer_type) :: hb_lumped_inv_inventory
+  type(inventory_by_integer_type) :: tau_u_dt_cp_inventory
+  type(inventory_by_integer_type) :: tau_t_dt_inventory
+  type(inventory_by_integer_type) :: tau_r_dt_inventory
+  type(inventory_by_integer_type) :: tau_tu_dt2_cp_inventory
 
   ! Size of the Helmholtz stencil: 1 Central cell, 4 horizontal neighbours, 2
   ! cells above (k+1,k+2) and 2 cells below (k-1,k-2)
@@ -199,27 +206,45 @@ module si_operators_alg_mod
 
 contains
 
-  !>@brief Subroutine to create the si operators
-  !>@param[in] mesh The mesh
-  subroutine create_si_operators( mesh )
+  !> @brief Subroutine to create the si operators
+  !> @param[in] mesh    The mesh
+  !> @param[in] stepper The time stepper enumerator used to key the inventories
+  !> @param[in] config  Application namelist configuration object
+  !> @param[in] clock   Model clock, used to obtain the timestep length
+  subroutine create_si_operators( mesh, stepper, config, clock )
 
     use fs_continuity_mod,         only: W0, Wtheta
 
     implicit none
 
     type(mesh_type), pointer, intent(in) :: mesh
+    integer(kind=i_def),      intent(in) :: stepper
+    type(config_type),        intent(in) :: config
+    class(model_clock_type),  intent(in) :: clock
 
     integer(kind=i_def) :: i, j
     type(function_space_type), pointer     :: w2_fs => null()
     type(function_space_type), pointer     :: w3_fs => null()
     type(function_space_type), pointer     :: wt_fs => null()
 
+    real(kind=r_def)    :: dt, tau_u, tau_r, tau_t, cp
+    real(kind=r_solver) :: tau_u_dt_cp, tau_t_dt, tau_r_dt, tau_tu_dt2_cp
+
+    ! Local working fields, built level-by-level (each level on its own mesh /
+    ! function space) and then copied into the inventories (keyed by stepper)
+    ! via copy_field_array below. tri_precon and Helmholtz_operator are only
+    ! built for certain configurations, so are left unallocated otherwise.
+    type(r_solver_field_type), allocatable :: tri_precon(:,:)
+    type(r_solver_field_type), allocatable :: Helmholtz_operator(:,:)
+    type(r_solver_field_type), allocatable :: Helm_diag(:)
+    type(r_solver_field_type), allocatable :: Hb_lumped_inv(:)
+
     call log_event( "Gungho: creating si_operators", LOG_LEVEL_DEBUG )
 
-    if(l_multigrid) then
-       multigrid_levels=multigrid_chain_nitems
+    if (l_multigrid) then
+      multigrid_levels = multigrid_chain_nitems
     else
-       multigrid_levels=1
+      multigrid_levels = 1
     end if
 
     w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
@@ -229,80 +254,177 @@ contains
     wt_fs => function_space_collection%get_fs( mesh, element_order_h, &
                                                element_order_v, Wtheta )
 
-    allocate(m3_rho_star(multigrid_levels))
-    allocate(m3_exner_star(multigrid_levels))
-    allocate(div_star(multigrid_levels))
-    allocate(p2theta(multigrid_levels))
-    allocate(ptheta2(multigrid_levels))
-    allocate(ptheta2v(multigrid_levels))
-    allocate(p3theta(multigrid_levels))
-    allocate(compound_div(multigrid_levels))
-    allocate(eliminated_q22(multigrid_levels))
-    allocate(eliminated_q32_rho(multigrid_levels))
-    allocate(eliminated_q32_theta(multigrid_levels))
+    ! ======================================================================== !
+    ! Initialise inventories
+    ! ======================================================================== !
 
-    !fields
-    allocate(rho_at_u(multigrid_levels))
+    if (.not. tri_precon_inventory%is_initialised()) &
+      call tri_precon_inventory%initialise(name="si_tri_precon")
+    if (.not. helmholtz_operator_inventory%is_initialised()) &
+      call helmholtz_operator_inventory%initialise(name="si_helmholtz_operator")
+    if (.not. helm_diag_inventory%is_initialised()) &
+      call helm_diag_inventory%initialise(name="si_helm_diag")
+    if (.not. hb_lumped_inv_inventory%is_initialised()) &
+      call hb_lumped_inv_inventory%initialise(name="si_hb_lumped_inv")
+    if (.not. tau_u_dt_cp_inventory%is_initialised()) &
+      call tau_u_dt_cp_inventory%initialise(name="si_tau_u_dt_cp")
+    if (.not. tau_t_dt_inventory%is_initialised()) &
+      call tau_t_dt_inventory%initialise(name="si_tau_t_dt")
+    if (.not. tau_r_dt_inventory%is_initialised()) &
+      call tau_r_dt_inventory%initialise(name="si_tau_r_dt")
+    if (.not. tau_tu_dt2_cp_inventory%is_initialised()) &
+      call tau_tu_dt2_cp_inventory%initialise(name="si_tau_tu_dt2_cp")
+
+    ! ======================================================================== !
+    ! Create operators that are only needed once
+    ! ======================================================================== !
+
+    ! Use allocation of m3_rho_star to indicate whether any SI operators
+    ! have been created yet
+    if (.not. allocated(m3_rho_star)) then
+      allocate(m3_rho_star(multigrid_levels))
+      allocate(m3_exner_star(multigrid_levels))
+      allocate(div_star(multigrid_levels))
+      allocate(p2theta(multigrid_levels))
+      allocate(ptheta2(multigrid_levels))
+      allocate(ptheta2v(multigrid_levels))
+      allocate(p3theta(multigrid_levels))
+      allocate(compound_div(multigrid_levels))
+      allocate(eliminated_q22(multigrid_levels))
+      allocate(eliminated_q32_rho(multigrid_levels))
+      allocate(eliminated_q32_theta(multigrid_levels))
+      allocate(rho_at_u(multigrid_levels))
+
+      call eliminated_q2t%initialise( w2_fs, wt_fs )
+
+      if (l_multigrid) then
+        call multigrid_function_space_chain%set_current(w3_fs%get_id())
+        call w2_multigrid_function_space_chain%set_current(w2_fs%get_id())
+        call wtheta_multigrid_function_space_chain%set_current(wt_fs%get_id())
+      end if
+
+      ! Loop through multigrid levels, initialising operators for each level
+      do i = 1, multigrid_levels
+
+        write(log_scratch_space,'(A,I0,A)') "si_ops[",i,"]:creating ops"
+        call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
+
+        call m3_rho_star(i)%initialise( w3_fs, w3_fs )
+        call m3_exner_star(i)%initialise( w3_fs, w3_fs )
+        call div_star(i)%initialise( w2_fs, w3_fs )
+        call p2theta(i)%initialise( w2_fs, wt_fs )
+        call ptheta2(i)%initialise( wt_fs, w2_fs )
+        call ptheta2v(i)%initialise( wt_fs, w2_fs )
+        call p3theta(i)%initialise( w3_fs, wt_fs )
+        call compound_div(i)%initialise( w3_fs, w2_fs )
+        call eliminated_q22(i)%initialise( w2_fs, w2_fs )
+        call eliminated_q32_rho(i)%initialise( w3_fs, w2_fs )
+        call eliminated_q32_theta(i)%initialise( w3_fs, w2_fs )
+
+        call rho_at_u(i)%initialise(vector_space = w2_fs)
+        if (l_multigrid) then
+            w3_fs => multigrid_function_space_chain%get_next()
+            w2_fs => w2_multigrid_function_space_chain%get_next()
+            wt_fs => wtheta_multigrid_function_space_chain%get_next()
+        end if
+      end do
+    end if
+
+    ! ======================================================================== !
+    ! Fields, possibly needed multiple times
+    ! ======================================================================== !
+
+    w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W2 )
+    w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W3 )
+    wt_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, Wtheta )
+
     if ( preconditioner == preconditioner_tridiagonal .or. &
-                  preconditioner == preconditioner_multigrid) then
+                  preconditioner == preconditioner_multigrid ) then
       if ( element_order_h /= 0 .or. element_order_v /= 0 ) then
-         call log_event( "tridiagonal precon only valid for order 0", &
+        call log_event( "tridiagonal precon only valid for order 0", &
               LOG_LEVEL_ERROR )
       end if
-      allocate(tri_precon(3, multigrid_levels))
-   end if
-   if ( element_order_h == 0 .and. element_order_v == 0 ) then
-     allocate( Helmholtz_operator(helmholtz_stencil_size, multigrid_levels) )
-   end if
-   allocate(helm_diag(multigrid_levels))
-   allocate(Hb_lumped_inv(multigrid_levels))
+      allocate( tri_precon(3, multigrid_levels) )
+    end if
+    if ( element_order_h == 0 .and. element_order_v == 0 ) then
+      allocate( Helmholtz_operator(helmholtz_stencil_size, multigrid_levels) )
+    end if
+    allocate( Helm_diag(multigrid_levels) )
+    allocate( Hb_lumped_inv(multigrid_levels) )
 
-   if (l_multigrid) then
+    if (l_multigrid) then
       call multigrid_function_space_chain%set_current(w3_fs%get_id())
       call w2_multigrid_function_space_chain%set_current(w2_fs%get_id())
       call wtheta_multigrid_function_space_chain%set_current(wt_fs%get_id())
-   end if
+    end if
 
-   call eliminated_q2t%initialise( w2_fs, wt_fs )
+    ! Loop through multigrid levels, initialising the working fields on each
+    ! level's function spaces
+    do i = 1, multigrid_levels
 
-   do i = 1, multigrid_levels
-
-       write(log_scratch_space,'(A,I0,A)') "si_ops[",i,"]:creating ops"
-       call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
-
-       call m3_rho_star(i)%initialise( w3_fs, w3_fs )
-       call m3_exner_star(i)%initialise( w3_fs, w3_fs )
-       call div_star(i)%initialise( w2_fs, w3_fs )
-       call p2theta(i)%initialise( w2_fs, wt_fs )
-       call ptheta2(i)%initialise( wt_fs, w2_fs )
-       call ptheta2v(i)%initialise( wt_fs, w2_fs )
-       call p3theta(i)%initialise( w3_fs, wt_fs )
-       call compound_div(i)%initialise( w3_fs, w2_fs )
-       call eliminated_q22(i)%initialise( w2_fs, w2_fs )
-       call eliminated_q32_rho(i)%initialise( w3_fs, w2_fs )
-       call eliminated_q32_theta(i)%initialise( w3_fs, w2_fs )
-
-       call rho_at_u(i)%initialise(vector_space = w2_fs)
-       if ( preconditioner == preconditioner_tridiagonal .or. &
+      if ( preconditioner == preconditioner_tridiagonal .or. &
             preconditioner == preconditioner_multigrid ) then
           call tri_precon(1,i)%initialise(vector_space = w3_fs)
           call tri_precon(2,i)%initialise(vector_space = w3_fs)
           call tri_precon(3,i)%initialise(vector_space = w3_fs)
-       end if
-       if ( element_order_h == 0 .and. element_order_v == 0 ) then
-         do j = 1,helmholtz_stencil_size
-           call Helmholtz_operator(j,i)%initialise(vector_space = w3_fs)
-         end do
-       end if
-       call helm_diag(i)%initialise(vector_space = w3_fs)
-       call Hb_lumped_inv(i)%initialise(vector_space = w2_fs)
-       if(l_multigrid) then
-          w3_fs=>multigrid_function_space_chain%get_next()
-          w2_fs=>w2_multigrid_function_space_chain%get_next()
-          wt_fs=>wtheta_multigrid_function_space_chain%get_next()
-       end if
+      end if
+      if ( element_order_h == 0 .and. element_order_v == 0 ) then
+        do j = 1,helmholtz_stencil_size
+          call Helmholtz_operator(j,i)%initialise(vector_space = w3_fs)
+        end do
+      end if
+      call helm_diag(i)%initialise(vector_space = w3_fs)
+      call Hb_lumped_inv(i)%initialise(vector_space = w2_fs)
+      if (l_multigrid) then
+          w3_fs => multigrid_function_space_chain%get_next()
+          w2_fs => w2_multigrid_function_space_chain%get_next()
+          wt_fs => wtheta_multigrid_function_space_chain%get_next()
+      end if
     end do
-   nullify( w2_fs, w3_fs, wt_fs )
+
+    ! Copy the working fields into their inventories, keyed by stepper. Using
+    ! copy_field_array (rather than add_field_array) preserves the distinct
+    ! per-level function spaces set up in the loop above.
+    if ( preconditioner == preconditioner_tridiagonal .or. &
+                  preconditioner == preconditioner_multigrid ) then
+      call tri_precon_inventory%copy_field_array( tri_precon, stepper )
+    end if
+    if ( element_order_h == 0 .and. element_order_v == 0 ) then
+      call helmholtz_operator_inventory%copy_field_array( Helmholtz_operator, &
+                                                          stepper )
+    end if
+    call helm_diag_inventory%copy_field_array( helm_diag, stepper )
+    call hb_lumped_inv_inventory%copy_field_array( Hb_lumped_inv, stepper )
+
+    ! Deallocate the local working arrays now that they have been copied in
+    if (allocated(tri_precon))         deallocate(tri_precon)
+    if (allocated(Helmholtz_operator)) deallocate(Helmholtz_operator)
+    if (allocated(Helm_diag))          deallocate(Helm_diag)
+    if (allocated(Hb_lumped_inv))      deallocate(Hb_lumped_inv)
+
+    ! ======================================================================== !
+    ! Store scaling constants for this stepper
+    ! ======================================================================== !
+
+    ! Compute the tau*dt scaling constants from the namelist configuration and
+    ! the timestep length obtained from the clock
+    dt = real(clock%get_seconds_per_step(), r_def)
+    cp = config%planet%cp()
+    tau_u = config%timestepping%tau_u()
+    tau_r = config%timestepping%tau_r()
+    tau_t = config%timestepping%tau_t()
+    tau_u_dt_cp   = real(tau_u*dt*cp, r_solver)
+    tau_t_dt      = real(tau_t*dt, r_solver)
+    tau_r_dt      = real(tau_r*dt, r_solver)
+    tau_tu_dt2_cp = real(tau_t*tau_u*dt**2*cp, r_solver)
+
+    call tau_u_dt_cp_inventory%add_real(tau_u_dt_cp, stepper)
+    call tau_t_dt_inventory%add_real(tau_t_dt, stepper)
+    call tau_r_dt_inventory%add_real(tau_r_dt, stepper)
+    call tau_tu_dt2_cp_inventory%add_real(tau_tu_dt2_cp, stepper)
 
   end subroutine create_si_operators
 
@@ -348,21 +470,15 @@ contains
        deallocate(rho_at_u)
     end if
 
-    if(allocated(Helm_diag)) then
-       deallocate(Helm_diag)
-    end if
-
-    if(allocated(tri_precon)) then
-       deallocate(tri_precon)
-    end if
-
-    if(allocated(hb_lumped_inv)) then
-       deallocate(hb_lumped_inv)
-    end if
-
-    if(allocated(Helmholtz_operator)) then
-      deallocate(Helmholtz_operator)
-    end if
+    ! Clear the inventories holding the working fields and scaling constants
+    call tri_precon_inventory%clear()
+    call helmholtz_operator_inventory%clear()
+    call helm_diag_inventory%clear()
+    call hb_lumped_inv_inventory%clear()
+    call tau_u_dt_cp_inventory%clear()
+    call tau_t_dt_inventory%clear()
+    call tau_r_dt_inventory%clear()
+    call tau_tu_dt2_cp_inventory%clear()
 
     if(allocated(eliminated_q22)) then
       deallocate(eliminated_q22)
@@ -385,8 +501,9 @@ contains
   !> @param[in] exner_ref     Reference Exner pressure
   !> @param[in] model_clock   Time in the model
   !> @param[in] moist_dyn_ref Bundle of reference moist dynamics factors
+  !> @param[in] stepper       Timestepper enumerator used to key the inventories
   subroutine compute_si_operators(config, theta_ref, rho_ref, exner_ref, &
-                                  model_clock, moist_dyn_ref)
+                                  model_clock, moist_dyn_ref, stepper)
 
     use quadrature_xyoz_mod,                  only: quadrature_xyoz_type
     use quadrature_face_mod,                  only: quadrature_face_type
@@ -419,8 +536,7 @@ contains
     use limited_area_constants_mod,           only: get_mask_fv
     use sci_invert_local_operator_kernel_mod, only: invert_local_operator_kernel_type
     use field_indices_mod,                    only: igh_u, igh_t, igh_d, igh_p
-    use planet_config_mod,                    only: kappa, cp, rd, p_zero
-    use timestepping_config_mod,              only: tau_r, tau_t, tau_u
+    use planet_config_mod,                    only: kappa, rd, p_zero
     use reference_element_mod,                only: reference_element_type
     use mesh_mod,                             only: mesh_type
     use matrix_vector_kernel_mod,             only: matrix_vector_kernel_type
@@ -456,7 +572,16 @@ contains
     type(field_type), intent(in)           :: theta_ref, rho_ref, exner_ref
     type(field_type), intent(in)           :: moist_dyn_ref(num_moist_factors)
     class(model_clock_type), intent(in)    :: model_clock
-    real(kind=r_def)                       :: dt
+    integer(kind=i_def), intent(in)        :: stepper
+
+    real(kind=r_solver),           pointer :: tau_u_dt_cp
+    real(kind=r_solver),           pointer :: tau_t_dt
+    real(kind=r_solver),           pointer :: tau_r_dt
+    real(kind=r_solver),           pointer :: tau_tu_dt2_cp
+    type(r_solver_field_type),     pointer :: tri_precon(:,:)
+    type(r_solver_field_type),     pointer :: Helmholtz_operator(:,:)
+    type(r_solver_field_type),     pointer :: Helm_diag(:)
+    type(r_solver_field_type),     pointer :: Hb_lumped_inv(:)
     type(quadrature_xyoz_type)             :: qr
     type(quadrature_face_type)             :: qrf
     type(quadrature_rule_gaussian_type)    :: quadrature_rule
@@ -504,12 +629,23 @@ contains
     if ( LPROF ) call start_timing( id, 'dynamics.compute_si_operators' )
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_DEBUG )
 
-    dt = real(model_clock%get_seconds_per_step(), r_def)
+    ! Retrieve the tau*dt scaling constants (computed in create_si_operators)
+    ! and pointers to the working fields, all keyed by the active stepper
+    call tau_u_dt_cp_inventory%get_real(stepper, tau_u_dt_cp)
+    call tau_t_dt_inventory%get_real(stepper, tau_t_dt)
+    call tau_r_dt_inventory%get_real(stepper, tau_r_dt)
+    call tau_tu_dt2_cp_inventory%get_real(stepper, tau_tu_dt2_cp)
 
-    tau_u_dt_cp = real(tau_u*dt*cp, r_solver)
-    tau_t_dt = real(tau_t*dt, r_solver)
-    tau_r_dt = real(tau_r*dt, r_solver)
-    tau_tu_dt2_cp = real(tau_t*tau_u*dt**2*cp, r_solver)
+    call helm_diag_inventory%get_field_array(stepper, Helm_diag)
+    call hb_lumped_inv_inventory%get_field_array(stepper, Hb_lumped_inv)
+    if ( preconditioner == preconditioner_tridiagonal .or. &
+         preconditioner == preconditioner_multigrid ) then
+      call tri_precon_inventory%get_field_array(stepper, tri_precon)
+    end if
+    if ( element_order_h == 0 .and. element_order_v == 0 ) then
+      call helmholtz_operator_inventory%get_field_array(stepper, &
+                                                        Helmholtz_operator)
+    end if
 
     mesh  => exner_ref%get_mesh()
 
@@ -1043,82 +1179,114 @@ contains
 
   !> @brief Function to return a pointer to the tri_precon
   !!        on the finest multigrid level.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @return The field
-  function get_tri_precon_fine() result(sol_field)
+  function get_tri_precon_fine(stepper) result(sol_field)
     implicit none
+    integer(kind=i_def),    intent(in) :: stepper
     type(r_solver_field_type), pointer :: sol_field(:)
-    sol_field => tri_precon(:,1)
+    type(r_solver_field_type), pointer :: array(:,:)
+    call tri_precon_inventory%get_field_array(stepper, array)
+    sol_field => array(:,1)
   end function get_tri_precon_fine
 
   !> @brief Function to return a pointer to the tri_precon
   !!        on the specified multigrid level.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @param[in] level The multigrid level
   !> @return The field
-  function get_tri_precon_mg(level) result(sol_field)
+  function get_tri_precon_mg(stepper, level) result(sol_field)
     implicit none
-    integer(kind=i_def), intent(in) :: level
+    integer(kind=i_def),    intent(in) :: stepper
+    integer(kind=i_def),    intent(in) :: level
     type(r_solver_field_type), pointer :: sol_field(:)
-    sol_field => tri_precon(:,level)
+    type(r_solver_field_type), pointer :: array(:,:)
+    call tri_precon_inventory%get_field_array(stepper, array)
+    sol_field => array(:,level)
   end function get_tri_precon_mg
 
   !> @brief Function to return a pointer to the helmholtz_operator
   !!        on the finest multigrid level.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @return The field
-  function get_helmholtz_operator_fine() result(sol_field)
+  function get_helmholtz_operator_fine(stepper) result(sol_field)
     implicit none
+    integer(kind=i_def),    intent(in) :: stepper
     type(r_solver_field_type), pointer :: sol_field(:)
-    sol_field => helmholtz_operator(:,1)
+    type(r_solver_field_type), pointer :: array(:,:)
+    call helmholtz_operator_inventory%get_field_array(stepper, array)
+    sol_field => array(:,1)
   end function get_helmholtz_operator_fine
 
   !> @brief Function to return a pointer to the helmholtz_operator
   !!        on the specified multigrid level.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @param[in] level The multigrid level
   !> @return The field
-  function get_helmholtz_operator_mg(level) result(sol_field)
+  function get_helmholtz_operator_mg(stepper, level) result(sol_field)
     implicit none
-    integer(kind=i_def), intent(in) :: level
+    integer(kind=i_def),    intent(in) :: stepper
+    integer(kind=i_def),    intent(in) :: level
     type(r_solver_field_type), pointer :: sol_field(:)
-    sol_field => helmholtz_operator(:,level)
+    type(r_solver_field_type), pointer :: array(:,:)
+    call helmholtz_operator_inventory%get_field_array(stepper, array)
+    sol_field => array(:,level)
   end function get_helmholtz_operator_mg
 
   !> @brief Function to return a pointer to the Helm diagonal
   !!        on the finest multigrid level.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @return The field
-  function get_helm_diag_fine() result(sol_field)
+  function get_helm_diag_fine(stepper) result(sol_field)
     implicit none
+    integer(kind=i_def),    intent(in) :: stepper
     type(r_solver_field_type), pointer :: sol_field
-    sol_field => helm_diag(1)
+    type(r_solver_field_type), pointer :: array(:)
+    call helm_diag_inventory%get_field_array(stepper, array)
+    sol_field => array(1)
   end function get_helm_diag_fine
 
   !> @brief Function to return a pointer to the Helm diagonal
   !!        on the specified multigrid level,
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @param[in] level The multigrid level
   !> @return The field
-  function get_helm_diag_mg(level) result(sol_field)
+  function get_helm_diag_mg(stepper, level) result(sol_field)
     implicit none
-    integer(kind=i_def), intent(in) :: level
+    integer(kind=i_def),    intent(in) :: stepper
+    integer(kind=i_def),    intent(in) :: level
     type(r_solver_field_type), pointer :: sol_field
-    sol_field => helm_diag(level)
+    type(r_solver_field_type), pointer :: array(:)
+    call helm_diag_inventory%get_field_array(stepper, array)
+    sol_field => array(level)
   end function get_helm_diag_mg
 
   !> @brief Function to return a pointer to the lumped inverse Hb operator
   !!        on the finest multigrid level,
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @return The field
-  function get_hb_lumped_inv_fine() result(field)
+  function get_hb_lumped_inv_fine(stepper) result(field)
     implicit none
+    integer(kind=i_def),    intent(in) :: stepper
     type(r_solver_field_type), pointer :: field
-    field => hb_lumped_inv(1)
+    type(r_solver_field_type), pointer :: array(:)
+    call hb_lumped_inv_inventory%get_field_array(stepper, array)
+    field => array(1)
   end function get_hb_lumped_inv_fine
 
   !> @brief Function to return a pointer to the lumped inverse Hb operator
   !!        on the specified multigrid level,
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @param[in] level The multigrid level
   !> @return The field
-  function get_hb_lumped_inv_mg(level) result(field)
+  function get_hb_lumped_inv_mg(stepper, level) result(field)
     implicit none
-    integer(kind=i_def), intent(in) :: level
+    integer(kind=i_def),    intent(in) :: stepper
+    integer(kind=i_def),    intent(in) :: level
     type(r_solver_field_type), pointer :: field
-    field => hb_lumped_inv(level)
+    type(r_solver_field_type), pointer :: array(:)
+    call hb_lumped_inv_inventory%get_field_array(stepper, array)
+    field => array(level)
   end function get_hb_lumped_inv_mg
 
   !> @brief Function to return a pointer to the q22 operator
@@ -1199,38 +1367,54 @@ contains
 
   !> @brief Return the tau_u*dt*cp scaling constant applied to the div_star,
   !!        p2theta and q2t operators at their point of use.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @return The scaling constant
-  function get_tau_u_dt_cp() result(val)
+  function get_tau_u_dt_cp(stepper) result(val)
     implicit none
-    real(kind=r_solver) :: val
-    val = tau_u_dt_cp
+    integer(kind=i_def), intent(in) :: stepper
+    real(kind=r_solver)             :: val
+    real(kind=r_solver), pointer    :: val_ptr
+    call tau_u_dt_cp_inventory%get_real(stepper, val_ptr)
+    val = val_ptr
   end function get_tau_u_dt_cp
 
   !> @brief Return the tau_t*dt scaling constant applied to the ptheta2,
   !!        ptheta2v and q32_theta operators at their point of use.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @return The scaling constant
-  function get_tau_t_dt() result(val)
+  function get_tau_t_dt(stepper) result(val)
     implicit none
-    real(kind=r_solver) :: val
-    val = tau_t_dt
+    integer(kind=i_def), intent(in) :: stepper
+    real(kind=r_solver)             :: val
+    real(kind=r_solver), pointer    :: val_ptr
+    call tau_t_dt_inventory%get_real(stepper, val_ptr)
+    val = val_ptr
   end function get_tau_t_dt
 
   !> @brief Return the tau_r*dt scaling constant applied to the compound_div
   !!        and q32 operators at their point of use.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @return The scaling constant
-  function get_tau_r_dt() result(val)
+  function get_tau_r_dt(stepper) result(val)
     implicit none
-    real(kind=r_solver) :: val
-    val = tau_r_dt
+    integer(kind=i_def), intent(in) :: stepper
+    real(kind=r_solver)             :: val
+    real(kind=r_solver), pointer    :: val_ptr
+    call tau_r_dt_inventory%get_real(stepper, val_ptr)
+    val = val_ptr
   end function get_tau_r_dt
 
   !> @brief Return the tau_t*tau_u*dt**2*cp scaling constant applied to the
   !!        analytic q22 operator at its point of use.
+  !> @param[in] stepper The timestepper enumerator used to key the inventory
   !> @return The scaling constant
-  function get_tau_tu_dt2_cp() result(val)
+  function get_tau_tu_dt2_cp(stepper) result(val)
     implicit none
-    real(kind=r_solver) :: val
-    val = tau_tu_dt2_cp
+    integer(kind=i_def), intent(in) :: stepper
+    real(kind=r_solver)             :: val
+    real(kind=r_solver), pointer    :: val_ptr
+    call tau_tu_dt2_cp_inventory%get_real(stepper, val_ptr)
+    val = val_ptr
   end function get_tau_tu_dt2_cp
 
 end module si_operators_alg_mod

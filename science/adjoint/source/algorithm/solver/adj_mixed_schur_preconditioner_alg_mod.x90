@@ -65,6 +65,7 @@ module adj_mixed_schur_preconditioner_alg_mod
     type(r_solver_field_vector_type)               :: pressure_b
     type(r_solver_field_vector_type)               :: pressure_x
     class(abstract_iterative_solver_type), pointer :: adj_pressure_solver
+    integer(kind=i_def)                            :: stepper
   contains
     procedure, public  :: apply => apply_adj_mixed_schur_preconditioner
     procedure, private :: apply_adj_mixed_schur_preconditioner
@@ -84,7 +85,8 @@ contains
   !> @param [in] p_h                 Horizontal element order for function spaces
   !> @param [in] p_v                 Vertical element order for function spaces
   !> @param [in] adj_pressure_solver Solver object for Helmholtz system
-  function adj_mixed_schur_preconditioner_ctor( mesh, p_h, p_v, adj_pressure_solver ) &
+  !> @param [in] stepper             Timestepper enumerator used to select operators
+  function adj_mixed_schur_preconditioner_ctor( mesh, p_h, p_v, adj_pressure_solver, stepper ) &
     result(self)
   ! Note: name shortened from adj_mixed_schur_preconditioner_constructor as this
   ! causes "error #5462: Global name too long"
@@ -94,6 +96,7 @@ contains
     integer(i_def),                                intent(in) :: p_h, p_v
     type(mesh_type),                       target, intent(in) :: mesh
     class(abstract_iterative_solver_type), target, intent(in) :: adj_pressure_solver
+    integer(i_def),                                intent(in) :: stepper
 
     type(adj_mixed_schur_preconditioner_type) :: self
 
@@ -116,6 +119,7 @@ contains
 
     ! Set pressure solver
     self%adj_pressure_solver => adj_pressure_solver
+    self%stepper = stepper
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
 
@@ -256,15 +260,15 @@ contains
     p3theta       => get_p3theta()
     m3_rho_star   => get_m3_rho_star()
     compound_div  => get_compound_div()
-    Hb_lumped_inv => get_Hb_lumped_inv()
+    Hb_lumped_inv => get_Hb_lumped_inv(self%stepper)
 
-    const_r = get_tau_r_dt()
-    const_t = get_tau_t_dt()
+    const_r = get_tau_r_dt(self%stepper)
+    const_t = get_tau_t_dt(self%stepper)
     minus_const_r = -const_r
     minus_const_t = -const_t
 
     if (normalise) then
-      h_diag => get_helm_diag()
+      h_diag => get_helm_diag(self%stepper)
       call invoke( name="adj_msp1", &
                    inc_X_times_Y( rhs, h_diag ) )
     end if
@@ -354,10 +358,10 @@ contains
     call u_inc%initialise(vector_space=self%rhs_u%get_function_space())
     u_normalisation => get_normalisation_r_solver( W2, mesh_id )
     div_star        => get_div_star()
-    Hb_lumped_inv   => get_Hb_lumped_inv()
+    Hb_lumped_inv   => get_Hb_lumped_inv(self%stepper)
     ! div_star is assembled unscaled; the D*p' reconstruction carries tau_u*dt*cp
     ! in the forward model, so its adjoint carries the same constant.
-    const_u = get_tau_u_dt_cp()
+    const_u = get_tau_u_dt_cp(self%stepper)
     ! u' = ru + BC[HB * unorm * D * p']
 
     if (split_w) then

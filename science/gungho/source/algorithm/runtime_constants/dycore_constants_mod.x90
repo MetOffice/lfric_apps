@@ -67,6 +67,9 @@ module dycore_constants_mod
   integer(kind=i_def), parameter, public :: w2_lagged_damping_layer_matrix = 4374
   integer(kind=i_def), parameter, public :: w2_si_matrix = 891
 
+  ! Timestepping enumerators
+  integer(kind=i_def), parameter, public :: stepper_siqn = 222
+
   ! ========================================================================== !
   ! Public functions for accessing the module contents
   ! ========================================================================== !

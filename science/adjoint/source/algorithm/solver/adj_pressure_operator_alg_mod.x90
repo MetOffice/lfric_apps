@@ -36,6 +36,7 @@ module adj_pressure_operator_alg_mod
   type, public, extends(abstract_hierarchical_linear_operator_type) :: adj_pressure_operator_type
   private
      integer(kind=i_def)                         :: level
+     integer(kind=i_def)                         :: stepper
      type(adj_solver_lookup_cache_type), pointer :: adj_lookup_table_cache_ptr
      contains
      procedure, public  :: apply => apply_adj_pressure_operator
@@ -55,12 +56,14 @@ contains
 
   !> @brief Construct new instance of type.
   !> @param[in] level                   The mesh level the space is on
+  !> @param[in] stepper                 Timestepper enumerator used to select operators
   !> @param[in] adj_lookup_table_cache  The lookup table cache
-  function adj_pressure_operator_constructor(level, adj_lookup_table_cache) result(self)
+  function adj_pressure_operator_constructor(level, stepper, adj_lookup_table_cache) result(self)
 
     implicit none
 
     integer(kind=i_def),                        intent(in) :: level
+    integer(kind=i_def),                        intent(in) :: stepper
     type(adj_solver_lookup_cache_type), target, intent(in) :: adj_lookup_table_cache
     type(adj_pressure_operator_type)                       :: self
 
@@ -68,6 +71,7 @@ contains
 
     ! Temporaries required in operator application
     self%level = level
+    self%stepper = stepper
     self%adj_lookup_table_cache_ptr => adj_lookup_table_cache
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
@@ -86,6 +90,7 @@ contains
 
     ! Deep copy of the contents of the adj_pressure_operator_type
     dest%level = source%level
+    dest%stepper = source%stepper
     dest%adj_lookup_table_cache_ptr => source%adj_lookup_table_cache_ptr
 
   end subroutine adj_pressure_operator_assign
@@ -137,7 +142,7 @@ contains
         end if
 
         if (element_order_h == 0 .and. element_order_v == 0) then
-          Helmholtz_operator => get_helmholtz_operator(self%level)
+          Helmholtz_operator => get_helmholtz_operator(self%stepper, self%level)
           lam_mesh = .false.
           if (limited_area .and. topology==topology_non_periodic) lam_mesh=.true.
 
@@ -186,7 +191,7 @@ contains
     class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
 
     allocate( coarse_operator, &
-              source = adj_pressure_operator_type(self%level + 1, self%adj_lookup_table_cache_ptr) )
+              source = adj_pressure_operator_type(self%level + 1, self%stepper, self%adj_lookup_table_cache_ptr) )
 
   end subroutine coarsen_adj_pressure_operator
 
