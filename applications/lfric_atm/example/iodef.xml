@@ -125,6 +125,13 @@
       <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
       </file>
 
+	<file id="lfric_aviation" name="lfric_aviation" output_freq="6h" convention="UGRID" enabled=".TRUE.">
+		<field field_ref="aviation__trop_pressure"/>
+		<field field_ref="aviation__trop_temperature"/>
+		<field field_ref="aviation__trop_height"/>
+		<field field_ref="aviation__trop_icao_height"/>
+	</file>
+
     </file_definition>
 
   </context>
