@@ -5,7 +5,7 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/common/lfric2lfric/tasks_solver.cylc") %}
 
-{% if task_ns.conf_name == "ral_seuk-C32_lam_MG_4cpu" %}
+{% if task_ns.conf_name == "map_seuk_fine_to_coarse_ral" %}
 
     {% do task_dict.update({
         "opt_confs": ["ral_seuk"],
@@ -19,7 +19,7 @@
         "mpi_parts": 4,
     }) %}
 
-{% elif task_ns.conf_name == "oasis_ral_seuk-C32_lam_MG_4cpu" %}
+{% elif task_ns.conf_name == "oasis_seuk_fine_to_coarse_ral" %}
 
     {% do task_dict.update({
         "opt_confs": ["ral_seuk","oasis"],
@@ -33,7 +33,7 @@
         "mpi_parts": 4,
     }) %}
 
-{% elif task_ns.conf_name == "ral3-seuk" %}
+{% elif task_ns.conf_name == "map_seuk_coarse_to_fine_ral3" %}
 
     {% do task_dict.update({
         "opt_confs": ["ral3"],
@@ -46,7 +46,7 @@
         "src_type": "",
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9-C24_C12_6cpu" %}
+{% elif task_ns.conf_name == "map_C24_to_C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["clim_gal9"],
@@ -59,7 +59,7 @@
         "src_type": "",
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9-C24_C12_6cpu" %}
+{% elif task_ns.conf_name == "oasis_C24_to_C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["clim_gal9","oasis"],
@@ -73,7 +73,7 @@
         "mpi_parts": 6,
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_1cpu" %}
+{% elif task_ns.conf_name == "oasis_C12_to_seuk_1cpu" %}
 
     {% do task_dict.update({
         "opt_confs": ["clim_gal9_ral_seuk","oasis"],
@@ -86,7 +86,7 @@
         "src_type": "global",
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_4cpu" %}
+{% elif task_ns.conf_name == "oasis_C12_to_seuk" %}
 
     {% do task_dict.update({
         "opt_confs": ["clim_gal9_ral_seuk","oasis", "multi-cpu"],
@@ -100,7 +100,7 @@
         "mpi_parts": 4,
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_4cpu" %}
+{% elif task_ns.conf_name == "oasis_C12_to_seuk-lbc" %}
 
     {% do task_dict.update({
         "opt_confs": ["clim_gal9_ral_seuk","oasis","lbc", "multi-cpu"],
