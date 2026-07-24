@@ -533,9 +533,11 @@
   <field id="surface__t1p5m" name="t1p5m" long_name="temperature_at_screen_level" unit="K" domain_ref="face" />
   <field id="surface__t1p5m_ssi" name="t1p5m_ssi" long_name="temperature_at_screen_level_over_sea_and_sea_ice" unit="K" domain_ref="face" />
   <field id="surface__t1p5m_land" name="t1p5m_land" long_name="temperature_at_screen_level_over_land" unit="K" domain_ref="face" />
+  <field id="surface__t10m_ssi" name="t10m_ssi" long_name="temperature_at_10m_over_sea_and_sea_ice" unit="K" domain_ref="face" />
   <field id="surface__q1p5m_surft" name="q1p5m_surft" long_name="land_tile_screen_level_specific_humidity" unit="kg/kg" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__q1p5m" name="q1p5m" long_name="specific_humidity_at_screen_level" unit="kg kg-1" domain_ref="face" />
   <field id="surface__q1p5m_ssi" name="q1p5m_ssi" long_name="specific_humidity_at_screen_level_over_sea_and_sea_ice" unit="kg kg-1" domain_ref="face" />
+  <field id="surface__q10m_ssi" name="q10m_ssi" long_name="specific_humidity_at_10m_over_sea_and_sea_ice" unit="kg kg-1" domain_ref="face" />
   <field id="surface__q1p5m_land" name="q1p5m_land" long_name="specific_humidity_at_screen_level_over_land" unit="kg kg-1" domain_ref="face" />
   <field id="surface__qcl1p5m" name="qcl1p5m" long_name="specific_cloud_water_at_screen_level" unit="kg kg-1" domain_ref="face" />
   <field id="surface__qcl1p5m_ssi" name="qcl1p5m_ssi" long_name="specific_cloud_water_at_screen_level_over_sea_and_sea_ice" unit="kg kg-1" domain_ref="face" />

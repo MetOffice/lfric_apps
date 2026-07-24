@@ -143,6 +143,7 @@ contains
     type( field_type ), pointer :: canhc_tile          => null()
     type( field_type ), pointer :: ustar               => null()
     type( field_type ), pointer :: tile_water_extract  => null()
+    type( field_type ), pointer :: chr10m
     type( integer_field_type ), pointer :: ocn_cpl_point => null()
 
     type( field_type ), pointer :: soil_temperature   => null()
@@ -157,6 +158,7 @@ contains
 
     type( field_type ) :: rh1p5m, rh1p5m_ssi, rh1p5m_land
     type( field_type ) :: t1p5m_surft, q1p5m_surft
+    type( field_type ) :: t10m_ssi, q10m_ssi
     type( field_type ) :: snomlt_surf_htf
     type( field_type ) :: soil_evap
     type( field_type ) :: soil_surf_ht_flux
@@ -221,6 +223,7 @@ contains
     call surface_fields%get_field('canhc_tile', canhc_tile)
     call surface_fields%get_field('ustar', ustar)
     call surface_fields%get_field('tile_water_extract', tile_water_extract)
+    call surface_fields%get_field('chr10m', chr10m)
     call surface_fields%get_field('ocn_cpl_point', ocn_cpl_point)
 
     ! Soil fields
@@ -255,6 +258,7 @@ contains
                                         t1p5m, q1p5m, qcl1p5m, rh1p5m,  &
                                         t1p5m_ssi, q1p5m_ssi,           &
                                         qcl1p5m_ssi, rh1p5m_ssi,        &
+                                        t10m_ssi, q10m_ssi,             &
                                         t1p5m_land, q1p5m_land,         &
                                         qcl1p5m_land, rh1p5m_land,      &
                                         latent_heat,                    &
@@ -298,12 +302,18 @@ contains
                                        t1p5m_surft, q1p5m_surft, t1p5m,      &
                                        q1p5m, qcl1p5m, rh1p5m, t1p5m_ssi,    &
                                        q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi,   &
+                                       chr10m, t10m_ssi, q10m_ssi,           &
                                        t1p5m_land, q1p5m_land, qcl1p5m_land, &
                                        rh1p5m_land, latent_heat,             &
                                        snomlt_surf_htf, soil_evap,           &
                                        soil_surf_ht_flux, surf_sw_net,       &
                                        surf_radnet, surf_lw_up, surf_lw_down,&
                                        ocn_cpl_point) )
+
+    ! Remove from field collection as we're done for this timestep
+    if (loop == 2 .and. outer == outer_iterations) then
+      call surface_fields%remove_field('chr10m')
+    end if
 
     if ( LPROF ) call stop_timing( id, 'jules.implicit' )
 
@@ -317,7 +327,8 @@ contains
                                  t1p5m_surft, q1p5m_surft,                   &
                                  t1p5m, q1p5m, qcl1p5m, rh1p5m,              &
                                  t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,          &
-                                 rh1p5m_ssi, t1p5m_land, q1p5m_land,         &
+                                 rh1p5m_ssi, t10m_ssi, q10m_ssi,             &
+                                 t1p5m_land, q1p5m_land,                     &
                                  qcl1p5m_land, rh1p5m_land, latent_heat,     &
                                  snomlt_surf_htf,                            &
                                  soil_evap,                                  &

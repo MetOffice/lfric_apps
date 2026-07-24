@@ -338,7 +338,7 @@ sw_down_surf, lw_down_surf, sw_down_blue_surf, sw_direct_blue_surf, dd_mf_cb, oz
 &soil_moist_avail, snow_unload_rate, albedo_obs_scaling, soil_clay, soil_sand, dust_mrel, dust_flux, day_of_year, second_of_day, &
 flux_e, flux_h, urbwrr, urbhwr, urbhgt, urbztm, urbdisp, &
 &rhostar, recip_l_mo_sea, &
-&t1_sd_2d, q1_sd_2d, gross_prim_prod, z0h_eff, ocn_cpl_point, stencil_depth)
+&t1_sd_2d, q1_sd_2d, gross_prim_prod, z0h_eff, chr10m, ocn_cpl_point, stencil_depth)
       USE jules_exp_kernel_mod, ONLY: jules_exp_code
       USE mesh_mod, ONLY: mesh_type
       USE stencil_dofmap_mod, ONLY: STENCIL_REGION
@@ -359,7 +359,7 @@ skyview, sw_up_tile, tile_lw_grey_albedo,&
 &albedo_obs_scaling, soil_clay, soil_sand, dust_mrel, dust_flux, &
 urbwrr, urbhwr, urbhgt, urbztm, urbdisp, &
 rhostar, recip_l_mo_sea, t1_sd_2d, q1_sd_2d, &
-&gross_prim_prod, z0h_eff
+&gross_prim_prod, z0h_eff, chr10m
       TYPE(integer_field_type), intent(in) :: n_snow_layers, blend_height_tq, ocn_cpl_point
       INTEGER(KIND=i_def), intent(in) :: stencil_depth, ncells, ncells_halo, day_of_year, second_of_day
       REAL(KIND=r_def), intent(in) :: flux_e, flux_h
@@ -386,7 +386,7 @@ sw_down_surf_proxy, lw_down_surf_proxy, sw_down_blue_surf_proxy, sw_direct_blue_
 &soil_clay_proxy, soil_sand_proxy, dust_mrel_proxy, dust_flux_proxy, &
 urbwrr_proxy, urbhwr_proxy, urbhgt_proxy, urbztm_proxy, urbdisp_proxy, &
 rhostar_proxy, recip_l_mo_sea_proxy, &
-&t1_sd_2d_proxy, q1_sd_2d_proxy, gross_prim_prod_proxy, z0h_eff_proxy
+&t1_sd_2d_proxy, q1_sd_2d_proxy, gross_prim_prod_proxy, z0h_eff_proxy, chr10m_proxy
       INTEGER(KIND=i_def), pointer :: map_adspc10_dust_mrel(:,:) => null(), map_adspc1_zh(:,:) => null(), &
 &map_adspc2_tile_fraction(:,:) => null(), map_adspc3_leaf_area_index(:,:) => null(), &
 &map_adspc4_sea_ice_temperature(:,:) => null(), map_adspc5_snow_layer_thickness(:,:) => null(), &
@@ -519,6 +519,7 @@ rhostar_proxy, recip_l_mo_sea_proxy, &
       q1_sd_2d_proxy = q1_sd_2d%get_proxy()
       gross_prim_prod_proxy = gross_prim_prod%get_proxy()
       z0h_eff_proxy = z0h_eff%get_proxy()
+      chr10m_proxy = chr10m%get_proxy()
       ocn_cpl_point_proxy = ocn_cpl_point%get_proxy()
       !
       ! Initialise number of layers
@@ -673,7 +674,7 @@ urbwrr_proxy%data, urbhwr_proxy%data, urbhgt_proxy%data, urbztm_proxy%data, &
 urbdisp_proxy%data, &
 rhostar_proxy%data, recip_l_mo_sea_proxy%data, &
 &t1_sd_2d_proxy%data, q1_sd_2d_proxy%data, gross_prim_prod_proxy%data, &
-z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
+z0h_eff_proxy%data, chr10m_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
 &undf_wtheta, map_wtheta, ndf_w3, undf_w3, map_w3, ndf_adspc1_zh, undf_adspc1_zh, map_adspc1_zh, &
 &ndf_adspc2_tile_fraction, undf_adspc2_tile_fraction, map_adspc2_tile_fraction, ndf_adspc3_leaf_area_index, &
 &undf_adspc3_leaf_area_index, map_adspc3_leaf_area_index, ndf_adspc4_sea_ice_temperature, undf_adspc4_sea_ice_temperature, &
@@ -726,6 +727,7 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       CALL q1_sd_2d_proxy%set_dirty()
       CALL gross_prim_prod_proxy%set_dirty()
       CALL z0h_eff_proxy%set_dirty()
+      CALL chr10m_proxy%set_dirty()
       !
       !
     END SUBROUTINE invoke_jules_exp_kernel_type
