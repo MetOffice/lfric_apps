@@ -8,7 +8,7 @@
 module bl_imp_alg_mod
 
   use config_mod,                    only: config_type
-  use constants_mod,                 only: i_def, l_def
+  use constants_mod,                 only: i_def, l_def, r_def
   use model_clock_mod,               only: model_clock_type
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
@@ -432,7 +432,7 @@ contains
     flag_blpert = (blpert_type == blpert_type_theta_star .or. &
                    blpert_type == blpert_type_theta_and_moist)
 
-    if ((use_xios_io .and. write_diag .and. diag_step .and. & 
+    if ((use_xios_io .and. write_diag .and. diag_step .and. &
          outer == outer_iterations) .or. flag_blpert) then
       call taux%copy_field_properties(tauz)
       call ustar_implicit%copy_field_properties(theta_star_surf)

@@ -9,7 +9,7 @@
 module semi_implicit_timestep_alg_mod
 
   use config_mod,                only: config_type
-  use constants_mod,             only: i_def, r_def, l_def, str_def
+  use constants_mod,             only: i_def, r_def, l_def, str_def, r_tran
   use fs_continuity_mod,         only: Wtheta, W2
   use log_mod,                   only: log_event,         &
                                        log_scratch_space, &
@@ -746,6 +746,7 @@ contains
 
     if ( LPROF ) call start_timing( id, 'semi_implicit_timestep' )
 
+    lbc_option = 0
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
     if (limited_area .and. use_wavedynamics) then
