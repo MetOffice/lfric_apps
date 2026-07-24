@@ -86,11 +86,11 @@
         "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_cascade_ifx_fast-debug-64bit",
     ],
     "lfric2lfric": [
-        "lfric2lfric_ral_seuk-C32_lam_MG_4cpu_cascade_ifx_fast-debug-64bit",
-        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_4cpu_cascade_ifx_fast-debug-64bit",
-        "lfric2lfric_clim_gal9-C24_C12_6cpu_cascade_ifx_fast-debug-64bit",
-        "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_1cpu_cascade_ifx_fast-debug-64bit",
-        "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_4cpu_cascade_ifx_fast-debug-64bit",
+        "lfric2lfric_map_seuk_fine_to_coarse_ral_cascade_ifx_fast-debug-64bit",
+        "lfric2lfric_oasis_seuk_fine_to_coarse_ral_cascade_ifx_fast-debug-64bit",
+        "lfric2lfric_map_C24_to_C12_cascade_ifx_fast-debug-64bit",
+        "lfric2lfric_oasis_C12_to_seuk_1cpu_cascade_ifx_fast-debug-64bit",
+        "lfric2lfric_oasis_C12_to_seuk-lbc_cascade_ifx_fast-debug-64bit",
     ],
     "ngarch": [
         "ngarch_default-C24_cascade_ifx_fast-debug-64bit",
