@@ -12,7 +12,7 @@ module bl_extra_diags_kernel_mod
                                  GH_READ, GH_WRITE,                        &
                                  CELL_COLUMN,                              &
                                  ANY_DISCONTINUOUS_SPACE_1
-  use constants_mod,      only : r_def, i_def, i_um, r_um, l_def
+  use constants_mod,      only : r_def, i_def, i_um, r_um, l_def, rmdi
   use empty_data_mod,     only : empty_real_data
   use fs_continuity_mod,  only : Wtheta, W3
   use kernel_mod,         only : kernel_type
@@ -26,7 +26,7 @@ module bl_extra_diags_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_extra_diags_kernel_type
     private
-    type(arg_type) :: meta_args(42) = (/                                  &
+    type(arg_type) :: meta_args(44) = (/                                  &
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! rho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! wetrho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! heat_flux_bl
@@ -68,7 +68,9 @@ module bl_extra_diags_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! dew_point_ssi
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! dew_point_land
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! visibility_with_precip
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! visibility_no_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! visibility_no_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! vis_with_precip_land
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! vis_with_precip_ssi
                                       /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -124,6 +126,8 @@ contains
   !> @param[in,out] dew_point_land         Dew point temperature over land
   !> @param[in,out] visibility_with_precip Visibility with precip included
   !> @param[in,out] visibility_no_precip   Visibility without including precip
+  !> @param[in,out] vis_with_precip_land   Visibility with precip included over land
+  !> @param[in,out] vis_with_precip_ssi    Visibility with precip included over sea/sea-ice
   !> @param[in]     ndf_w3                 Number of degrees of freedom per cell for density space
   !> @param[in]     undf_w3                Number unique of degrees of freedom  for density space
   !> @param[in]     map_w3                 Dofmap for the cell at the base of the column for density space
@@ -165,6 +169,8 @@ contains
                                   dew_point_land,           &
                                   visibility_with_precip,   &
                                   visibility_no_precip,     &
+                                  vis_with_precip_land,     &
+                                  vis_with_precip_ssi,      &
                                   ndf_w3,                   &
                                   undf_w3,                  &
                                   map_w3,                   &
@@ -234,6 +240,8 @@ contains
     real(kind=r_def), intent(inout), pointer :: dew_point_ssi(:), dew_point_land(:)
     real(kind=r_def), intent(inout), pointer :: visibility_with_precip(:)
     real(kind=r_def), intent(inout), pointer :: visibility_no_precip(:)
+    real(kind=r_def), intent(inout), pointer :: vis_with_precip_land(:)
+    real(kind=r_def), intent(inout), pointer :: vis_with_precip_ssi(:)
 
     real(kind=r_def), parameter :: one_third   = 1.0_r_def/3.0_r_def
 
@@ -327,6 +335,8 @@ contains
     ! map main input fields
     if (.not. associated(visibility_no_precip, empty_real_data)   .or.       &
         .not. associated(visibility_with_precip, empty_real_data) .or.       &
+        .not. associated(vis_with_precip_land, empty_real_data)   .or.       &
+        .not. associated(vis_with_precip_ssi, empty_real_data)    .or.       &
         .not. associated(fog_fraction, empty_real_data)           .or.       &
         .not. associated(fog_fraction_ssi, empty_real_data)       .or.       &
         .not. associated(fog_fraction_land, empty_real_data)      .or.       &
@@ -344,6 +354,38 @@ contains
       qcl1p5m_loc(1,1) = qcl1p5m(map_2d(1))
     end if
 
+    if (.not. associated(visibility_with_precip, empty_real_data) .or.       &
+        .not. associated(vis_with_precip_land, empty_real_data)   .or.       &
+        .not. associated(vis_with_precip_ssi, empty_real_data)) then
+      
+      ! map additional input fields required for visibility with precipitation
+      ! level 1 rho
+      rho1(1,1)      = wetrho_in_w3(map_w3(1))
+      ! level 1 cloud ice mixing ratio
+      qcf1(1,1)      = mci(map_wth(1) + 1)
+      ! level 1 rain mixing ratio
+      qrain1(1,1)    = mr(map_wth(1) + 1)
+      ! surface rain and snow rates from large-scale microphysics
+      ls_rain(1,1)   = ls_rain_2d(map_2d(1))
+      ls_snow(1,1)   = ls_snow_2d(map_2d(1))
+      ! surface rain and snow rates from convection
+      conv_rain(1,1) = conv_rain_2d(map_2d(1))
+      conv_snow(1,1) = conv_snow_2d(map_2d(1))
+      ! cca_2d
+      cca_2d(1,1)    = cca_2d_in(map_2d(1))
+      ! prob of ls precip - just use existing rain area fraction
+      plsp(1,1)      = lsca_2d(map_2d(1))
+
+      ! number prognostics used in the visibility calculation
+      ! We only copy these if casim is enabled. Otherwise they will
+      ! not be used.
+      if (microphysics_casim) then
+         rainnumber(1,1,1) = nr_mphys(map_wth(1) + 1)
+         snownumber(1,1,1) = ns_mphys(map_wth(1) + 1)
+      end if
+
+    end if
+
     ! Visibility
     if ( .not. associated(visibility_no_precip, empty_real_data) .or.        &
          .not. associated(visibility_with_precip, empty_real_data) ) then
@@ -357,31 +399,6 @@ contains
 
       ! Visibility at 1.5 m including precipitation
       if ( .not. associated(visibility_with_precip, empty_real_data) ) then
-        ! map additional input fields
-        ! level 1 rho
-        rho1(1,1)      = wetrho_in_w3(map_w3(1))
-        ! level 1 cloud ice mixing ratio
-        qcf1(1,1)      = mci(map_wth(1) + 1)
-        ! level 1 rain mixing ratio
-        qrain1(1,1)    = mr(map_wth(1) + 1)
-        ! surface rain and snow rates from large-scale microphysics
-        ls_rain(1,1)   = ls_rain_2d(map_2d(1))
-        ls_snow(1,1)   = ls_snow_2d(map_2d(1))
-        ! surface rain and snow rates from convection
-        conv_rain(1,1) = conv_rain_2d(map_2d(1))
-        conv_snow(1,1) = conv_snow_2d(map_2d(1))
-        ! cca_2d
-        cca_2d(1,1)    = cca_2d_in(map_2d(1))
-        ! prob of ls precip - just use existing rain area fraction
-        plsp(1,1)      = lsca_2d(map_2d(1))
-
-        ! number prognostics used in the visibility calculation
-        ! We only copy these if casim is enabled. Otherwise they will
-        ! not be used.
-        if (microphysics_casim) then
-           rainnumber(1,1,1) = nr_mphys(map_wth(1) + 1)
-           snownumber(1,1,1) = ns_mphys(map_wth(1) + 1)
-        end if
 
         call beta_precip( ls_rain, ls_snow,                                    &
                           conv_rain, conv_snow, qcf1, qrain1,                  &
@@ -429,13 +446,47 @@ contains
     end if
 
     ! sea and sea-ice diagnostics
-    if (.not. associated(fog_fraction_ssi, empty_real_data)           .or.       &
+    if (.not. associated(vis_with_precip_ssi)               .or.               &
+        .not. associated(fog_fraction_ssi, empty_real_data) .or.               &
         .not. associated(dew_point_ssi, empty_real_data) ) then
       ! copy of screen variables
       t1p5m_loc(1,1)   = t1p5m_ssi(map_2d(1))
       q1p5m_loc(1,1)   = q1p5m_ssi(map_2d(1))
       qcl1p5m_loc(1,1) = qcl1p5m_ssi(map_2d(1))
     end if
+
+    ! Visibility
+    if ( .not. associated(vis_with_precip_ssi, empty_real_data) ) then
+      if (t1p5m_loc(1,1) == 0.0_r_def) then
+        ! If the sea/sea-ice temperature is zero, then we are not on sea/sea-ice, so set
+        ! the visibility to rmdi.
+        vis_with_precip_ssi(map_2d(1)) = rmdi
+      else
+        call visbty(                                                           &
+                    ! inputs
+                    p_star, t1p5m_loc, q1p5m_loc, qcl1p5m_loc, aerosol1,       &
+                    calc_prob_of_vis, rhcrit(1), murk_visibility, 1,           &
+                    ! output
+                    vis_no_precip )
+
+        call beta_precip( ls_rain, ls_snow,                                    &
+                          conv_rain, conv_snow, qcf1, qrain1,                  &
+                          rho1, t1p5m_loc, p_star, snownumber, rainnumber,     &
+                          plsp,cca_2d,pct,avg,                                 &
+                          1, 1, 1,                                             &
+                          beta_ls_rain, beta_ls_snow,                          &
+                          beta_c_rain, beta_c_snow )
+       call vis_precip( vis_no_precip,                                        &
+                         plsp,cca_2d,pct,                                      &
+                         beta_ls_rain, beta_ls_snow,                           &
+                         beta_c_rain, beta_c_snow,                             &
+                         1, 1, 1,                                              &
+                         vis,vis_ls_precip,vis_c_precip,                       &
+                         icode )
+        vis_with_precip_ssi(map_2d(1)) = vis(1,1)
+      end if
+
+    end if ! any vis
 
     if ( .not. associated(fog_fraction_ssi, empty_real_data) ) then
       do k = 1, 1
@@ -458,13 +509,47 @@ contains
     end if
 
     ! land diagnostics
-    if (.not. associated(fog_fraction_land, empty_real_data)           .or.    &
+    if (.not. associated(vis_with_precip_land, empty_real_data) .or.           &
+        .not. associated(fog_fraction_land, empty_real_data)   .or.            &
         .not. associated(dew_point_land, empty_real_data) ) then
       ! copy of screen variables
       t1p5m_loc(1,1)   = t1p5m_land(map_2d(1))
       q1p5m_loc(1,1)   = q1p5m_land(map_2d(1))
       qcl1p5m_loc(1,1) = qcl1p5m_land(map_2d(1))
     end if
+
+    ! Visibility
+    if ( .not. associated(vis_with_precip_land, empty_real_data) ) then
+      if (t1p5m_loc(1,1) == 0.0_r_def) then
+        ! If the land temperature is zero, then we are not on land, so set
+        ! the visibility to rmdi.
+        vis_with_precip_land(map_2d(1)) = rmdi
+      else
+        call visbty(                                                           &
+                    ! inputs
+                    p_star, t1p5m_loc, q1p5m_loc, qcl1p5m_loc, aerosol1,       &
+                    calc_prob_of_vis, rhcrit(1), murk_visibility, 1,           &
+                    ! output
+                    vis_no_precip )
+
+        call beta_precip( ls_rain, ls_snow,                                    &
+                          conv_rain, conv_snow, qcf1, qrain1,                  &
+                          rho1, t1p5m_loc, p_star, snownumber, rainnumber,     &
+                          plsp,cca_2d,pct,avg,                                 &
+                          1, 1, 1,                                             &
+                          beta_ls_rain, beta_ls_snow,                          &
+                          beta_c_rain, beta_c_snow )
+        call vis_precip( vis_no_precip,                                        &
+                         plsp,cca_2d,pct,                                      &
+                         beta_ls_rain, beta_ls_snow,                           &
+                         beta_c_rain, beta_c_snow,                             &
+                         1, 1, 1,                                              &
+                         vis,vis_ls_precip,vis_c_precip,                       &
+                         icode )
+        vis_with_precip_land(map_2d(1)) = vis(1,1)
+      end if
+
+    end if ! any vis
 
     if ( .not. associated(fog_fraction_land, empty_real_data) ) then
       do k = 1, 1

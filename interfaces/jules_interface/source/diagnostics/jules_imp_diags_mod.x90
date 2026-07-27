@@ -184,14 +184,16 @@ contains
         if (.not. qcl1p5m_flag) ignore = init_diag(qcl1p5m, 'surface__qcl1p5m', activate=.true.)
       end if
       ! sea and sea-ice derived diags
-      if (samp_diag('surface__fog_fraction_ssi') .or. &
+      if (samp_diag('surface__visibility_with_precip_ssi') .or. &
+          samp_diag('surface__fog_fraction_ssi') .or. &
           samp_diag('surface__dew_point_ssi')) then
         if (.not. t1p5m_ssi_flag) ignore = init_diag(t1p5m_ssi, 'surface__t1p5m_ssi', activate=.true.)
         if (.not. q1p5m_ssi_flag) ignore = init_diag(q1p5m_ssi, 'surface__q1p5m_ssi', activate=.true.)
         if (.not. qcl1p5m_ssi_flag) ignore = init_diag(qcl1p5m_ssi, 'surface__qcl1p5m_ssi', activate=.true.)
       end if
       ! land derived diags
-      if (samp_diag('surface__fog_fraction_land') .or. &
+      if (samp_diag('surface__visibility_with_precip_land') .or. &
+          samp_diag('surface__fog_fraction_land') .or. &
           samp_diag('surface__dew_point_land')) then
         if (.not. t1p5m_land_flag) ignore = init_diag(t1p5m_land, 'surface__t1p5m_land', activate=.true.)
         if (.not. q1p5m_land_flag) ignore = init_diag(q1p5m_land, 'surface__q1p5m_land', activate=.true.)
