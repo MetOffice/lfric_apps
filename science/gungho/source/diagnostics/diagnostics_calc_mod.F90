@@ -4,6 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
 !>  @brief Module for computing and outputting derived diagnostics
 !!
 !!  @details Computes various derived diagnostics that are written out
@@ -29,6 +31,7 @@ module diagnostics_calc_mod
   use initialise_diagnostics_mod,    only: diagnostic_to_be_sampled, &
                                            init_diag => init_diagnostic_field
   use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
   use field_parent_mod,              only: write_interface
   use fs_continuity_mod,             only: W3
   use model_clock_mod,               only: model_clock_type
@@ -244,17 +247,20 @@ end subroutine write_vorticity_diagnostic
 #ifdef UM_PHYSICS
 !-------------------------------------------------------------------------------
 !> @brief     Potential vorticity diagnostic processing and output.
-!> @details   Optionally calculate and output both model level and pressure
-!>            level diagnostics.
-!> @param[in] u_field   The wind field
-!> @param[in] theta     The potential temperature field (K)
-!> @param[in] rho       The density field (kg/m3)
-!> @param[in] exner     The exner pressure (Pa)
-!> @param[in] clock     The model clock object
+!> @details   Optionally calculate and output model level, pressure level,
+!>            theta level and PV surface diagnostics.
+!> @param[in] u_field        The wind field
+!> @param[in] theta          The potential temperature field (K)
+!> @param[in] rho            The density field (kg/m3)
+!> @param[in] exner          The exner pressure (Pa)
+!> @param[in] derived_fields Group of derived fields
+!> @param[in] clock          The model clock object
 !-------------------------------------------------------------------------------
-subroutine write_pv_diagnostic(u_field, theta, rho, exner, clock)
+subroutine write_pv_diagnostic(u_field, theta, rho, exner, &
+                               derived_fields, clock)
 
-  use pres_lev_diags_alg_mod, only: pres_lev_field_alg
+  use pres_lev_diags_alg_mod,  only: pres_lev_field_alg
+  use pv_surface_diags_alg_mod, only: pv_surface_diags_alg
 
   implicit none
 
@@ -262,11 +268,13 @@ subroutine write_pv_diagnostic(u_field, theta, rho, exner, clock)
   type(field_type),        intent(in) :: theta
   type(field_type),        intent(in) :: rho
   type(field_type),        intent(in) :: exner
+  type(field_collection_type), intent(in) :: derived_fields
   class(model_clock_type), intent(in) :: clock
 
   type(field_type) :: pv
   type(field_type) :: plev_pv
-  logical(l_def) :: pv_modlev_flag, plev_pv_flag
+  type(field_type), pointer :: theta_in_w3 => null()
+  logical(l_def) :: pv_modlev_flag, plev_pv_flag, pv_surface_flag
   logical(l_def), parameter :: xi3_axis = .false.
   logical(l_def), parameter :: add_W3_version = .false.
 
@@ -275,11 +283,22 @@ subroutine write_pv_diagnostic(u_field, theta, rho, exner, clock)
 
   plev_pv_flag = init_diag(plev_pv, 'plev__pv')
 
-  if (pv_modlev_flag .or. plev_pv_flag) then
+  ! Theta surface and PV surface diagnostics, both of which need PV on
+  ! model levels
+  pv_surface_flag = diagnostic_to_be_sampled('thlev__pv') .or. &
+                    diagnostic_to_be_sampled('dyn_trop__theta')
+
+  if (pv_modlev_flag .or. plev_pv_flag .or. pv_surface_flag) then
 
     call potential_vorticity_diagnostic_alg(pv, u_field, theta, rho)
 
     if (plev_pv_flag) call pres_lev_field_alg(pv, exner, plev_pv, xi3_axis)
+
+    if (pv_surface_flag) then
+      call derived_fields%get_field('theta_in_w3', theta_in_w3)
+      call pv_surface_diags_alg(pv, theta_in_w3)
+      nullify(theta_in_w3)
+    end if
 
     if (pv_modlev_flag) then
       call write_scalar_diagnostic('potential_vorticity', pv, clock, &

@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
 !> @brief Provides an implementation of the Psy layer for physics
 
 !> @details Contains hand-rolled versions of the Psy layer that can be used for
@@ -983,6 +985,83 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       !
       !
     END SUBROUTINE invoke_pres_interp_kernel_type
+
+  !---------------------------------------------------------------------
+  !> Contains the PSy-layer to interpolate onto surfaces of constant value
+  !> of a second field. As above this requires passing an array
+  !> "target_levs" into the kernel which is currently unsupported by
+  !> PSyclone, see https://github.com/stfc/PSyclone/issues/1312
+    SUBROUTINE invoke_level_interp_mdi_kernel_type(data_in, coord_in, nlev_out, target_levs, data_out, interp_order)
+      USE level_interp_mdi_kernel_mod, ONLY: level_interp_mdi_code
+      USE mesh_mod, ONLY: mesh_type
+      INTEGER(KIND=i_def), intent(in) :: nlev_out, interp_order
+      REAL(KIND=r_def), intent(in) :: target_levs(nlev_out)
+      TYPE(field_type), intent(in) :: data_in, coord_in, data_out
+      INTEGER(KIND=i_def) :: cell
+      INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+      INTEGER(KIND=i_def) :: nlayers
+      REAL(KIND=r_def), pointer, dimension(:) :: data_out_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: coord_in_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: data_in_data => null()
+      TYPE(field_proxy_type) :: data_in_proxy, coord_in_proxy, data_out_proxy
+      INTEGER(KIND=i_def), pointer :: map_adspc1_data_in(:,:) => null(), map_adspc2_data_out(:,:) => null()
+      INTEGER(KIND=i_def) :: ndf_adspc1_data_in, undf_adspc1_data_in, ndf_adspc2_data_out, undf_adspc2_data_out
+      INTEGER(KIND=i_def) :: max_halo_depth_mesh
+      TYPE(mesh_type), pointer :: mesh => null()
+      !
+      ! Initialise field and/or operator proxies
+      !
+      data_in_proxy = data_in%get_proxy()
+      data_in_data => data_in_proxy%data
+      coord_in_proxy = coord_in%get_proxy()
+      coord_in_data => coord_in_proxy%data
+      data_out_proxy = data_out%get_proxy()
+      data_out_data => data_out_proxy%data
+      !
+      ! Initialise number of layers
+      !
+      nlayers = data_in_proxy%vspace%get_nlayers()
+      !
+      ! Create a mesh object
+      !
+      mesh => data_in_proxy%vspace%get_mesh()
+      max_halo_depth_mesh = mesh%get_halo_depth()
+      !
+      ! Look-up dofmaps for each function space
+      !
+      map_adspc1_data_in => data_in_proxy%vspace%get_whole_dofmap()
+      map_adspc2_data_out => data_out_proxy%vspace%get_whole_dofmap()
+      !
+      ! Initialise number of DoFs for adspc1_data_in
+      !
+      ndf_adspc1_data_in = data_in_proxy%vspace%get_ndf()
+      undf_adspc1_data_in = data_in_proxy%vspace%get_undf()
+      !
+      ! Initialise number of DoFs for adspc2_data_out
+      !
+      ndf_adspc2_data_out = data_out_proxy%vspace%get_ndf()
+      undf_adspc2_data_out = data_out_proxy%vspace%get_undf()
+      !
+      ! Set-up all of the loop bounds
+      !
+      loop0_start = 1
+      loop0_stop = mesh%get_last_edge_cell()
+      !
+      ! Call kernels and communication routines
+      !
+      DO cell=loop0_start,loop0_stop
+        !
+        CALL level_interp_mdi_code(nlayers, data_in_data, coord_in_data, nlev_out, target_levs, data_out_data, interp_order, &
+&ndf_adspc1_data_in, undf_adspc1_data_in, map_adspc1_data_in(:,cell), ndf_adspc2_data_out, undf_adspc2_data_out, &
+&map_adspc2_data_out(:,cell))
+      END DO
+      !
+      ! Set halos dirty/clean for fields modified in the above loop
+      !
+      CALL data_out_proxy%set_dirty()
+      !
+      !
+    END SUBROUTINE invoke_level_interp_mdi_kernel_type
 
   !---------------------------------------------------------------------
   !> Contains the PSy-layer to build the pressure level diagnostics

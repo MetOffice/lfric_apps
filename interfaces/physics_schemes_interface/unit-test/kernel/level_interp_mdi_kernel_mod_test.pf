@@ -1,0 +1,299 @@
+! -----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! -----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!> @brief Test level_interp_mdi_kernel
+!>
+!> The kernel is a port of the UM's vert_interp_mdi2, so these tests pin down
+!> the three behaviours that differ from pres_interp_kernel_mod: missing data
+!> for columns which do not span the target surface, selection of the
+!> uppermost crossing where the coordinate is not monotonic, and degradation
+!> of cubic interpolation to linear at the ends of the column.
+
+module level_interp_mdi_kernel_mod_test
+
+  use funit
+  use constants_mod,               only: i_def, r_def, rmdi
+  use level_interp_mdi_kernel_mod, only: level_interp_mdi_code,  &
+                                         interp_order_linear,    &
+                                         interp_order_cubic
+
+  implicit none
+
+  private
+  public :: test_linear, test_cubic, test_missing_data, &
+            test_uppermost_crossing, test_cubic_edge_fallback
+
+  @TestCase
+  type, extends(TestCase), public :: level_interp_mdi_test_type
+    private
+      real(kind=r_def), allocatable :: coord_in(:)
+      real(kind=r_def), allocatable :: data_in(:)
+
+    contains
+      procedure setUp
+      procedure tearDown
+      procedure test_linear
+      procedure test_cubic
+      procedure test_missing_data
+      procedure test_uppermost_crossing
+      procedure test_cubic_edge_fallback
+
+  end type level_interp_mdi_test_type
+
+  ! A six level W3-like column. With ndf = 1 the kernel addresses levels
+  ! 0 to nlayers-1, so top_df = 5.
+  integer(kind=i_def), parameter :: nlayers = 6_i_def
+  integer(kind=i_def), parameter :: ndf_in  = 1_i_def
+  integer(kind=i_def), parameter :: ndf_out = 1_i_def
+  integer(kind=i_def), parameter :: undf_in = nlayers
+
+  integer(kind=i_def), parameter :: map_in(1)  = (/ 1_i_def /)
+  integer(kind=i_def), parameter :: map_out(1) = (/ 1_i_def /)
+
+  real(kind=r_def), parameter :: tolerance = 1.0e-12_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine setUp( this )
+    implicit none
+    class(level_interp_mdi_test_type), intent(inout) :: this
+
+    allocate( this%coord_in(undf_in) )
+    allocate( this%data_in(undf_in) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tearDown( this )
+    implicit none
+    class(level_interp_mdi_test_type), intent(inout) :: this
+
+    deallocate( this%coord_in, this%data_in )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Linear interpolation of a linear field is exact.
+  @test
+  subroutine test_linear( this )
+
+    implicit none
+
+    class(level_interp_mdi_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlev_out = 2_i_def
+
+    real(kind=r_def) :: data_out(nlev_out)
+    real(kind=r_def) :: expect(nlev_out)
+    real(kind=r_def) :: target_levs(nlev_out)
+
+    ! Monotonically increasing coordinate, as theta is through most of the
+    ! atmosphere
+    this%coord_in = (/ 280.0_r_def, 290.0_r_def, 300.0_r_def, &
+                       310.0_r_def, 320.0_r_def, 330.0_r_def /)
+    this%data_in  = 2.0_r_def*this%coord_in
+
+    target_levs = (/ 295.0_r_def, 325.0_r_def /)
+    expect      = 2.0_r_def*target_levs
+
+    call level_interp_mdi_code( nlayers,               &
+                                this%data_in,          &
+                                this%coord_in,         &
+                                nlev_out,              &
+                                target_levs,           &
+                                data_out,              &
+                                interp_order_linear,   &
+                                ndf_in, undf_in, map_in,   &
+                                ndf_out, nlev_out, map_out )
+
+    @assertEqual(expect(:), data_out(:), tolerance)
+
+  end subroutine test_linear
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Cubic interpolation of a cubic field is exact where the four point
+  !> stencil fits inside the column. The target of 3.5 gives level_below = 2,
+  !> so the stencil spans levels 1 to 4 and the cubic branch is taken.
+  @test
+  subroutine test_cubic( this )
+
+    implicit none
+
+    class(level_interp_mdi_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlev_out = 1_i_def
+
+    real(kind=r_def) :: data_out(nlev_out)
+    real(kind=r_def) :: target_levs(nlev_out)
+    real(kind=r_def) :: expect
+    integer(kind=i_def) :: k
+
+    ! Unevenly spaced, so the test cannot be passed by a linear scheme
+    this%coord_in = (/ 0.0_r_def, 1.0_r_def, 3.0_r_def, &
+                       4.0_r_def, 7.0_r_def, 9.0_r_def /)
+
+    do k = 1, nlayers
+      this%data_in(k) = cubic_fn( this%coord_in(k) )
+    end do
+
+    target_levs(1) = 3.5_r_def
+    expect = cubic_fn( target_levs(1) )
+
+    call level_interp_mdi_code( nlayers,               &
+                                this%data_in,          &
+                                this%coord_in,         &
+                                nlev_out,              &
+                                target_levs,           &
+                                data_out,              &
+                                interp_order_cubic,    &
+                                ndf_in, undf_in, map_in,   &
+                                ndf_out, nlev_out, map_out )
+
+    @assertEqual(expect, data_out(1), tolerance)
+
+  end subroutine test_cubic
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Columns which do not span the target surface are set to missing data
+  !> rather than extrapolated, which is the key difference from
+  !> pres_interp_kernel_mod.
+  @test
+  subroutine test_missing_data( this )
+
+    implicit none
+
+    class(level_interp_mdi_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlev_out = 3_i_def
+
+    real(kind=r_def) :: data_out(nlev_out)
+    real(kind=r_def) :: target_levs(nlev_out)
+
+    this%coord_in = (/ 280.0_r_def, 290.0_r_def, 300.0_r_def, &
+                       310.0_r_def, 320.0_r_def, 330.0_r_def /)
+    this%data_in  = 2.0_r_def*this%coord_in
+
+    ! Below the bottom of the column, above the top of the column, and inside
+    target_levs = (/ 270.0_r_def, 340.0_r_def, 305.0_r_def /)
+
+    call level_interp_mdi_code( nlayers,               &
+                                this%data_in,          &
+                                this%coord_in,         &
+                                nlev_out,              &
+                                target_levs,           &
+                                data_out,              &
+                                interp_order_linear,   &
+                                ndf_in, undf_in, map_in,   &
+                                ndf_out, nlev_out, map_out )
+
+    @assertEqual(rmdi,        data_out(1), tolerance)
+    @assertEqual(rmdi,        data_out(2), tolerance)
+    @assertEqual(610.0_r_def, data_out(3), tolerance)
+
+  end subroutine test_missing_data
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Where the coordinate is not monotonic, as for |PV|, the uppermost
+  !> crossing is selected. This is what makes theta on the PV = +/-2 surface
+  !> a dynamical tropopause rather than a boundary layer artefact.
+  @test
+  subroutine test_uppermost_crossing( this )
+
+    implicit none
+
+    class(level_interp_mdi_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlev_out = 1_i_def
+
+    real(kind=r_def) :: data_out(nlev_out)
+    real(kind=r_def) :: target_levs(nlev_out)
+
+    ! |PV| in PV units, crossing 2.0 three times: up through the boundary
+    ! layer, back down, then up again at the tropopause
+    this%coord_in = (/ 1.0_r_def, 3.0_r_def, 1.0_r_def, &
+                       1.5_r_def, 2.5_r_def, 6.0_r_def /)
+    ! theta, increasing with height
+    this%data_in  = (/ 280.0_r_def, 290.0_r_def, 300.0_r_def, &
+                       310.0_r_def, 320.0_r_def, 330.0_r_def /)
+
+    target_levs(1) = 2.0_r_def
+
+    call level_interp_mdi_code( nlayers,               &
+                                this%data_in,          &
+                                this%coord_in,         &
+                                nlev_out,              &
+                                target_levs,           &
+                                data_out,              &
+                                interp_order_linear,   &
+                                ndf_in, undf_in, map_in,   &
+                                ndf_out, nlev_out, map_out )
+
+    ! The uppermost crossing lies between levels 3 and 4, where the
+    ! coordinate runs 1.5 to 2.5 and theta runs 310 to 320. Taking the lowest
+    ! crossing instead would give 285.0
+    @assertEqual(315.0_r_def, data_out(1), tolerance)
+
+  end subroutine test_uppermost_crossing
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Cubic interpolation degrades to linear in the bottom and top intervals,
+  !> where the four point stencil would run off the end of the column.
+  @test
+  subroutine test_cubic_edge_fallback( this )
+
+    implicit none
+
+    class(level_interp_mdi_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlev_out = 2_i_def
+
+    real(kind=r_def) :: data_out(nlev_out)
+    real(kind=r_def) :: target_levs(nlev_out)
+
+    this%coord_in = (/ 0.0_r_def, 1.0_r_def, 2.0_r_def, &
+                       3.0_r_def, 4.0_r_def, 5.0_r_def /)
+    ! Strongly curved, so a cubic fit would differ markedly from a linear one
+    this%data_in  = (/ 0.0_r_def, 1.0_r_def, 8.0_r_def, &
+                       27.0_r_def, 64.0_r_def, 125.0_r_def /)
+
+    ! Bottom interval (level_below = 0) and top interval (level_below = 4)
+    target_levs = (/ 0.5_r_def, 4.5_r_def /)
+
+    call level_interp_mdi_code( nlayers,               &
+                                this%data_in,          &
+                                this%coord_in,         &
+                                nlev_out,              &
+                                target_levs,           &
+                                data_out,              &
+                                interp_order_cubic,    &
+                                ndf_in, undf_in, map_in,   &
+                                ndf_out, nlev_out, map_out )
+
+    ! Linear midpoints, not the cubic values
+    @assertEqual(0.5_r_def,  data_out(1), tolerance)
+    @assertEqual(94.5_r_def, data_out(2), tolerance)
+
+  end subroutine test_cubic_edge_fallback
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> A cubic in the coordinate, used to check that cubic interpolation is
+  !> exact rather than merely close.
+  function cubic_fn( c ) result( f )
+
+    implicit none
+
+    real(kind=r_def), intent(in) :: c
+    real(kind=r_def) :: f
+
+    f = c*c*c - 2.0_r_def*c*c + 3.0_r_def*c - 5.0_r_def
+
+  end function cubic_fn
+
+end module level_interp_mdi_kernel_mod_test
