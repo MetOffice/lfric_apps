@@ -53,18 +53,18 @@ contains
 
     ! Which diagnostics are requested for this timestep?
     trop_icao_height_flag =                                           &
-      init_diag(trop_icao_height, 'aviation__tropopause_icao_height')
+      init_diag(trop_icao_height, 'aviation__trop_icao_height')
 
     trop_press_flag =                                                 &
-      init_diag(trop_press, 'aviation__tropopause_pressure',          &
+      init_diag(trop_press, 'aviation__trop_pressure',          &
         activate=trop_icao_height_flag)
 
     trop_temp_flag =                                                  &
-      init_diag(trop_temp, 'aviation__tropopause_temperature',        &
+      init_diag(trop_temp, 'aviation__trop_temperature',        &
         activate=trop_press_flag .or. trop_icao_height_flag)
 
     trop_height_flag =                                                &
-      init_diag(trop_height, 'aviation__tropopause_height',           &
+      init_diag(trop_height, 'aviation__trop_height',           &
         activate=trop_temp_flag .or. trop_press_flag .or. trop_icao_height_flag)
 
 

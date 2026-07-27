@@ -7,10 +7,9 @@
 
 module trop_diags_kernel_mod
 
-use argument_mod,      only : arg_type,          &
-                              GH_FIELD, GH_REAL, &
-                              GH_READ, GH_WRITE, &
-                              CELL_COLUMN,       &
+use argument_mod,      only : arg_type,                       &
+                              GH_FIELD, GH_REAL, GH_SCALAR,   &
+                              GH_READ, GH_WRITE, CELL_COLUMN, &
                               ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod, only : Wtheta
 use constants_mod,     only : r_def, i_def
