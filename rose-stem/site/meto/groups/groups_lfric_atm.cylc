@@ -64,8 +64,10 @@
         "lfric_atm_canned_azspice_gnu_fast-debug-32bit",
     ],
     "lfric_atm_azspice_nudging": [
-        "lfric_atm_nwp_gal9_nudging-era-C48_MG_azspice_gnu_fast-debug-32bit",
-        "lfric_atm_nwp_gal9_nudging-era-coarse-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_nudging-spectral-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_nudging-spectral-coarse-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_nudging-newtonian-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_nudging-newtonian-coarse-C48_MG_azspice_gnu_fast-debug-32bit",
     ],
     "lfric_atm_azspice_developer": [
         "lfric_atm_nwp_azspice_developer",
@@ -177,6 +179,12 @@
         "lfric_atm_scm_hd209458b-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",
         "lfric_atm_canned_ex1a_cce_fast-debug-32bit",
     ],
+    "lfric_atm_ex1a_nudging": [
+        "lfric_atm_nwp_gal9_nudging-spectral-C48_MG_ex1a_cce_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_nudging-spectral-coarse-C48_MG_ex1a_cce_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_nudging-newtonian-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_nudging-newtonian-coarse-C48_MG_ex1a_cce_fast-debug-32bit",
+    ],
     "lfric_atm_ex1a_developer": [
         "lfric_atm_nwp_ex1a_developer",
         "lfric_atm_clim_gal9-C12_ex1a_cce_fast-debug-32bit",
@@ -196,6 +204,7 @@
         "lfric_atm_hd209458b-C24_ex1a_cce_fast-debug-32bit",
         "lfric_atm_camembert_case3_gj1214b-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_ex1a_threaded",
+        "lfric_atm_ex1a_nudging",
     ],
     "lfric_atm_ex1a_weekly": [
         "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_production-32bit",

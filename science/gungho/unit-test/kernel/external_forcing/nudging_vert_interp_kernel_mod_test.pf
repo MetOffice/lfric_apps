@@ -1,0 +1,146 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
+!-------------------------------------------------------------------------------
+module nudging_vert_interp_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use nudging_vert_interp_kernel_mod, only: nudging_vert_interp_code
+    use ecmwf_level_support_mod,        only: ak_ec_137, bk_ec_137
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 5
+    integer(kind=i_def), parameter :: nudge_levels = 137
+
+    integer(kind=i_def), parameter :: ndf_wth = 1
+    integer(kind=i_def), parameter :: undf_wth = nlayers + 1
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: undf_w3 = nlayers
+    integer(kind=i_def), parameter :: ndf_ec = 1
+    integer(kind=i_def), parameter :: undf_ec = nudge_levels
+    integer(kind=i_def), parameter :: ndf_ec2d = 1
+    integer(kind=i_def), parameter :: undf_ec2d = 1
+
+    real(kind=r_def), parameter :: p_zero = 100000.0_r_def
+    real(kind=r_def), parameter :: kappa = 2.0_r_def/7.0_r_def
+    real(kind=r_def), parameter :: surfp_nudge = 101325.0_r_def
+    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+
+    integer(kind=i_def) :: map_wth(ndf_wth), map_w3(ndf_w3)
+    integer(kind=i_def) :: map_ec(ndf_ec), map_ec2d(ndf_ec2d)
+
+    real(kind=r_def) :: theta_mod_levs(undf_wth)
+    real(kind=r_def) :: u_mod_levs(undf_w3)
+    real(kind=r_def) :: v_mod_levs(undf_w3)
+    real(kind=r_def) :: T_nudge_levs(undf_ec)
+    real(kind=r_def) :: u_nudge_levs(undf_ec)
+    real(kind=r_def) :: v_nudge_levs(undf_ec)
+    real(kind=r_def) :: exner_in_wth(undf_wth)
+    real(kind=r_def) :: exner_in_w3(undf_w3)
+    real(kind=r_def) :: ln_surfp_nudge(undf_ec2d)
+
+    real(kind=r_def) :: ak_int, bk_int, p_nudge, theta_target
+    real(kind=r_def) :: press_in_w3(0:nlayers-1)
+    real(kind=r_def) :: press_in_wth(nlayers)
+
+    real(kind=r_def) :: theta_answer(undf_wth)
+    real(kind=r_def) :: u_answer(undf_w3)
+    real(kind=r_def) :: v_answer(undf_w3)
+
+    integer(kind=i_def) :: k, j
+
+    map_wth(1)  = 1
+    map_w3(1)   = 1
+    map_ec(1)   = 1
+    map_ec2d(1) = 1
+
+    ln_surfp_nudge(1) = log(surfp_nudge)
+
+    ! Build synthetic nudging profiles for u, v and theta that vary linearly
+    ! with log(pressure), so that the kernel's log-pressure interpolation
+    ! reproduces them exactly (away from the top/bottom of the profile)
+    do k = 1, nudge_levels
+      j = nudge_levels + 1 - k
+      ak_int = 0.5_r_def*(ak_ec_137(j-1) + ak_ec_137(j))
+      bk_int = 0.5_r_def*(bk_ec_137(j-1) + bk_ec_137(j))
+      p_nudge = ak_int + bk_int*surfp_nudge
+
+      u_nudge_levs(k) = 5.0_r_def*log(p_nudge) - 20.0_r_def
+      v_nudge_levs(k) = -2.0_r_def*log(p_nudge) + 15.0_r_def
+      theta_target = 500.0_r_def - 15.0_r_def*log(p_nudge)
+      T_nudge_levs(k) = theta_target * (p_nudge/p_zero)**kappa
+    end do
+
+    ! Model level pressures
+    press_in_w3 = (/ 90000.0_r_def, 75000.0_r_def, 60000.0_r_def,              &
+                     45000.0_r_def, 30000.0_r_def /)
+    press_in_wth = (/ 85000.0_r_def, 70000.0_r_def, 55000.0_r_def,             &
+                      40000.0_r_def, 25000.0_r_def /)
+
+    do k = 0, nlayers - 1
+      exner_in_w3(map_w3(1)+k) = (press_in_w3(k)/p_zero)**kappa
+    end do
+
+    do k = 1, nlayers
+      exner_in_wth(map_wth(1)+k) = (press_in_wth(k)/p_zero)**kappa
+    end do
+    ! Bottom Wtheta value is not used by the kernel, other than being
+    ! overwritten with the value of the level above at the end
+    exner_in_wth(map_wth(1)) = exner_in_wth(map_wth(1)+1)
+
+    theta_mod_levs(:) = 0.0_r_def
+    u_mod_levs(:) = 0.0_r_def
+    v_mod_levs(:) = 0.0_r_def
+
+    ! Expected answers, obtained from an independent reference implementation
+    ! of the interpolation algorithm using the same input data. Note that the
+    ! bottom u/v level does not reproduce the analytic profile exactly, since
+    ! the kernel's search for the bracketing nudging levels at the bottom
+    ! model level is based on the pressure of the level above
+    u_answer = (/ 36.261930665360950_r_def, 36.126216962592230_r_def,          &
+                  35.010499206021194_r_def, 33.572088843762280_r_def,          &
+                  31.544763303221465_r_def /)
+    v_answer = (/ -7.504772266144382_r_def, -7.450486785036894_r_def,          &
+                  -7.004199682408476_r_def, -6.428835537504913_r_def,          &
+                  -5.617905321288585_r_def /)
+    theta_answer = (/ 329.7439019679132_r_def, 329.7439019679132_r_def,        &
+                       332.65624218452757_r_def, 336.2736730367809_r_def,      &
+                       341.0504790035589_r_def, 348.100533442245_r_def /)
+
+    call nudging_vert_interp_code(                                             &
+        nlayers,                                                               &
+        theta_mod_levs, u_mod_levs, v_mod_levs,                                &
+        T_nudge_levs, u_nudge_levs, v_nudge_levs,                              &
+        exner_in_wth, exner_in_w3, ln_surfp_nudge,                             &
+        p_zero, kappa, nudge_levels,                                           &
+        ndf_wth, undf_wth, map_wth,                                            &
+        ndf_w3, undf_w3, map_w3,                                               &
+        ndf_ec, undf_ec, map_ec,                                               &
+        ndf_ec2d, undf_ec2d, map_ec2d                                          &
+    )
+
+    @assertEqual(u_answer, u_mod_levs, tol)
+    @assertEqual(v_answer, v_mod_levs, tol)
+    @assertEqual(theta_answer, theta_mod_levs, tol)
+
+  end subroutine test_all
+
+end module nudging_vert_interp_kernel_mod_test

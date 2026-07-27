@@ -1,0 +1,158 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+module convolution_2d_weights_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, PI
+  use funit
+
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: convolution_2d_weights_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type convolution_2d_weights_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp(this)
+
+    implicit none
+
+    class(convolution_2d_weights_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown(this)
+
+    implicit none
+
+    class(convolution_2d_weights_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all(this)
+
+    use convolution_2d_weights_kernel_mod, only: convolution_2d_weights_code
+    use coord_transform_mod,               only: central_angle
+    use base_mesh_config_mod,              only: geometry_spherical,           &
+                                                 topology_non_periodic
+    use finite_element_config_mod,         only: coord_system_native
+
+    implicit none
+
+    class(convolution_2d_weights_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: stencil_size = 25
+    integer(kind=i_def), parameter :: ndf_2d = 1
+    integer(kind=i_def), parameter :: undf_2d = stencil_size
+    integer(kind=i_def), parameter :: ndf_chi = 1   ! This simplifies the test!
+    integer(kind=i_def), parameter :: undf_chi = stencil_size
+    integer(kind=i_def), parameter :: ndf_pid = 1
+    integer(kind=i_def), parameter :: undf_pid = stencil_size
+    integer(kind=i_def), parameter :: kmax = 4
+    integer(kind=i_def), parameter :: kmin = 2
+    real(kind=r_def),    parameter :: lon_c = PI/6.0_r_def
+    real(kind=r_def),    parameter :: lat_c = PI/12.0_r_def
+    real(kind=r_def),    parameter :: dlon = PI/48.0_r_def
+    real(kind=r_def),    parameter :: dlat = PI/96.0_r_def
+
+    real(kind=r_def),    parameter :: tol = 10.0_r_def*epsilon(1.0_r_def)
+
+    integer(kind=i_def) :: map_chi(ndf_chi)
+    integer(kind=i_def) :: map_pid(ndf_pid)
+    integer(kind=i_def) :: map_2d(ndf_2d)
+    integer(kind=i_def) :: stencil_map_chi(ndf_chi, stencil_size)
+    integer(kind=i_def) :: stencil_map_pid(ndf_pid, stencil_size)
+    real(kind=r_def)    :: answer(undf_2d)
+    real(kind=r_def)    :: chi1(undf_chi), chi2(undf_chi), chi3(undf_chi)
+    real(kind=r_def)    :: basis_chi(1, ndf_chi, ndf_2d)
+    real(kind=r_def)    :: panel_id(undf_pid)
+    real(kind=r_def)    :: weights(undf_2d)
+
+    integer(kind=i_def) :: geometry, topology, coord_system
+    real(kind=r_def)    :: scaled_radius
+    integer(kind=i_def) :: i, j, ij
+    real(kind=r_def)    :: dist
+
+    ! Map is just for central column
+    map_chi(1) = 13
+    map_pid(1) = 13
+    map_2d(1)  = 1
+
+    panel_id(:) = 1.0_r_def
+    chi3(:) = 0.0_r_def
+    basis_chi(:,:,:) = 1.0_r_def  ! Chi is at cell centres
+
+    geometry = geometry_spherical
+    topology = topology_non_periodic
+    coord_system = coord_system_native
+    scaled_radius = 1.0_r_def
+
+    ! Populate maps / coordinates / weights
+    ! Set up regular grid of coordinates
+    do i = 1, 5
+      do j = 1, 5
+        ij = (i-1)*5 + j
+        stencil_map_chi(1, ij) = ij
+        stencil_map_pid(1, ij) = ij
+        ! Coordinates ----------------------------------------------------------
+        chi1(ij) = lon_c + dlon*REAL(i-3, r_def)
+        chi2(ij) = lat_c + dlat*REAL(j-3, r_def)
+        ! Known answer ---------------------------------------------------------
+        call central_angle(lon_c, lat_c, chi1(ij), chi2(ij), dist)
+        dist = COS(dist)
+
+        ! The Legendre polynomials for degrees 2 to 4 are:
+        ! P_2(x) = 0.5*(3*x^2 - 1)
+        ! P_3(x) = 0.5*(5*x^3 - 3*x)
+        ! P_4(x) = (1/8)*(35*x^4 - 30*x^2 + 3)
+        ! For the convolution filter, each function is weighted by (2*l+1)
+        answer(ij) = (                                                         &
+            5.0_r_def*0.5_r_def*(3.0_r_def*dist**2 - 1.0_r_def)                &
+            + 7.0_r_def*0.5_r_def*(5.0_r_def*dist**3 - 3.0_r_def*dist)         &
+            + 9.0_r_def*(1.0_r_def/8.0_r_def)*(                                &
+                35.0_r_def*dist**4 - 30.0_r_def*dist**2 + 3.0_r_def            &
+            )                                                                  &
+        ) / (4.0_r_def*PI) * EXP(                                              &
+          -0.5_r_def * (dist / (                                               &
+            2.0_r_def*PI/(1.0_r_def + REAL(kmax, r_def)/3.0_r_def)             &
+          ))**2                                                                &
+        )
+      end do
+    end do
+
+    ! Normalise answer, since stencil is restricted in space
+    answer(:) = answer(:) / SUM(answer(:))
+
+    ! Initialise weights to zero
+    weights(:) = 0.0_r_def
+
+    call convolution_2d_weights_code(                                          &
+            nlayers, weights, chi1, chi2, chi3, stencil_size, stencil_map_chi, &
+            panel_id, stencil_size, stencil_map_pid, kmax, kmin,               &
+            geometry, topology, coord_system, scaled_radius,                   &
+            ndf_2d, undf_2d, map_2d, ndf_chi, undf_chi, map_chi, basis_chi,    &
+            ndf_pid, undf_pid, map_pid                                         &
+    )
+
+    @assertEqual(answer, weights, tol)
+
+  end subroutine test_all
+
+end module convolution_2d_weights_kernel_mod_test

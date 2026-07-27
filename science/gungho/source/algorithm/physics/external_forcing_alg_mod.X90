@@ -6,8 +6,7 @@
 !> @brief Interface to external forcing code.
 module external_forcing_alg_mod
 
-  use external_forcing_config_mod,     only: theta_forcing,                      &
-                                             theta_forcing_none,                 &
+  use external_forcing_config_mod,     only: theta_forcing_none,                 &
                                              theta_forcing_held_suarez,          &
                                              theta_forcing_earth_like,           &
                                              theta_forcing_tidally_locked_earth, &
@@ -15,27 +14,22 @@ module external_forcing_alg_mod
                                              theta_forcing_deep_hot_jupiter,     &
                                              theta_forcing_temp_tend,            &
                                              theta_forcing_nudging,              &
-                                             theta_relaxation,                   &
-                                             vapour_forcing,                     &
                                              vapour_forcing_none,                &
                                              vapour_forcing_profile,             &
-                                             wind_forcing,                       &
                                              wind_forcing_none,                  &
                                              wind_forcing_held_suarez,           &
                                              wind_forcing_filtering,             &
                                              wind_forcing_diffusion,             &
                                              wind_forcing_profile,               &
-                                             wind_forcing_nudging,               &
-                                             vertadvect_forcing,                 &
-                                             geostrophic_forcing,                &
-                                             filtering_order,                    &
-                                             diffusion_order,                    &
-                                             diffusion_coefficient,              &
-                                             pc2_force_response
+                                             wind_forcing_nudging
   use log_mod,                         only: log_event, log_scratch_space,       &
                                              LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   use lfric_xios_write_mod,            only: write_field_generic
   use field_parent_mod,                only: write_interface
+
+  use nudging_alg_mod,                 only: nudging_alg,                      &
+                                             set_nudging_reference_fields
+  use map_fd_to_prognostics_alg_mod,   only: set_wind
 
   use held_suarez_fv_kernel_mod,       only: held_suarez_fv_kernel_type
   use held_suarez_fv_wind_kernel_mod,  only: held_suarez_fv_wind_kernel_type
@@ -64,10 +58,8 @@ module external_forcing_alg_mod
                                              get_face_selector_ns
   use mesh_mod,                        only: mesh_type
   use mr_indices_mod,                  only: nummr
-  use planet_config_mod,               only: kappa
-  use io_config_mod,                   only: write_diag, use_xios_io
-  use section_choice_config_mod,       only: cloud, cloud_um
-  use cloud_config_mod,                only: scheme, scheme_pc2
+  use section_choice_config_mod,       only: cloud_um
+  use cloud_config_mod,                only: scheme_pc2
 
   use reference_element_mod,           only: T
   use sci_set_any_dof_kernel_mod,      only: set_any_dof_kernel_type
@@ -130,47 +122,86 @@ contains
 
     implicit none
 
-    type(config_type), intent(in) :: config
-
-    type( field_collection_type ), intent( in ) :: derived_fields, cloud_fields
-    type( field_type ), intent( in )            :: u, theta, exner, exner_in_wth, rho
-    type( field_type ), intent( in )            :: mr_n(nummr)
-    type( field_type ), intent( out )           :: dtheta_forcing, du_forcing
-    type( field_type ), intent( out )           :: dmv_forcing, dmcl_forcing, &
-                                                   dcfl_forcing, dbcf_forcing
-    type( mesh_type ),  intent( in ), pointer   :: twod_mesh
-    real( kind=r_def ), intent( in )            :: dt, time_now
-    logical( kind=l_def ), intent(inout)        :: theta_forcing_done,  &
-                                                   vapour_forcing_done, &
-                                                   wind_forcing_done
+    type(config_type),           intent(in)    :: config
+    type(field_collection_type), intent(inout) :: derived_fields
+    type(field_collection_type), intent(in)    :: cloud_fields
+    type(field_type),            intent(in)    :: u, theta, exner, exner_in_wth, rho
+    type(field_type),            intent(in)    :: mr_n(nummr)
+    type(field_type),            intent(out)   :: dtheta_forcing, du_forcing
+    type(field_type),            intent(out)   :: dmv_forcing, dmcl_forcing
+    type(field_type),            intent(out)   :: dcfl_forcing, dbcf_forcing
+    type(mesh_type),    pointer, intent(in)    :: twod_mesh
+    real(kind=r_def),            intent(in)    :: dt, time_now
+    logical(kind=l_def),         intent(inout) :: theta_forcing_done
+    logical(kind=l_def),         intent(inout) :: vapour_forcing_done
+    logical(kind=l_def),         intent(inout) :: wind_forcing_done
 
     ! Temporary field to unpack from field collection
-    type( field_type ), pointer :: u_physics => null()
-    type( field_type ), pointer :: w2_rmultiplicity => null()
-    type( field_type ), pointer :: dA => null()
-    type( field_type ), pointer :: chi(:) => null()
-    type( field_type ), pointer :: panel_id => null()
-    type( field_type ), pointer :: height_wth => null()
-    type( field_type ), pointer :: height_w1 => null()
-    type( field_type ), pointer :: height_w2 => null()
-    type( field_type ), pointer :: dx_at_w2 => null()
+    type(field_type),           pointer :: u_physics
+    type(field_type),           pointer :: w2_rmultiplicity
+    type(field_type),           pointer :: dA
+    type(field_type),           pointer :: chi(:)
+    type(field_type),           pointer :: panel_id
+    type(field_type),           pointer :: height_wth
+    type(field_type),           pointer :: height_w1
+    type(field_type),           pointer :: height_w2
+    type(field_type),           pointer :: dx_at_w2
+    type(field_type),           pointer :: u_in_w3
+    type(field_type),           pointer :: v_in_w3
+    type(field_type),           pointer :: u_in_w3_ref
+    type(field_type),           pointer :: v_in_w3_ref
+    type(field_type),           pointer :: theta_ref
+    type(integer_field_type),   pointer :: face_selector_ew
+    type(integer_field_type),   pointer :: face_selector_ns
+    type(mesh_type),            pointer :: mesh
+    procedure(write_interface), pointer :: write_behaviour
 
-    type( integer_field_type ), pointer :: face_selector_ew
-    type( integer_field_type ), pointer :: face_selector_ns
+    type(field_type)    :: u_smoothed, dx, visc_m
+    type(field_type)    :: du_in_w3, dv_in_w3, dw_in_wth
+    integer(kind=i_def) :: order, nlayers
+    real(kind=r_def)    :: diffusion_coefficient_scaled, dx_sum, dx_size
+    integer(tik)        :: id
 
-    type( field_type ) :: u_smoothed, dx, visc_m
-
-    integer( kind=i_def ) :: order, nlayers
-    real( kind=r_def )    :: diffusion_coefficient_scaled, dx_sum, dx_size
-
-    type( mesh_type ),  pointer :: mesh => null()
-    procedure(write_interface), pointer :: write_behaviour => null()
-    integer(tik)                        :: id
+    ! Config variables
+    integer(kind=i_def) :: theta_forcing
+    integer(kind=i_def) :: vapour_forcing, wind_forcing
+    logical(kind=l_def) :: geostrophic_forcing, vertadvect_forcing
+    logical(kind=l_def) :: pc2_force_response, theta_relaxation
+    integer(kind=i_def) :: filtering_order, diffusion_order
+    real(kind=r_def)    :: diffusion_coefficient
+    real(kind=r_def)    :: kappa
+    real(kind=r_def)    :: nudging_spinup_start
+    integer(kind=i_def) :: cloud, scheme
+    logical(kind=l_def) :: write_diag, use_xios_io
 
     if ( LPROF ) call start_timing( id, 'external_forcing' )
 
+    ! Get config variables
+    theta_forcing = config%external_forcing%theta_forcing()
+    theta_relaxation = config%external_forcing%theta_relaxation()
+    vapour_forcing = config%external_forcing%vapour_forcing()
+    wind_forcing = config%external_forcing%wind_forcing()
+    geostrophic_forcing = config%external_forcing%geostrophic_forcing()
+    vertadvect_forcing = config%external_forcing%vertadvect_forcing()
+    pc2_force_response = config%external_forcing%pc2_force_response()
+    filtering_order = config%external_forcing%filtering_order()
+    diffusion_order = config%external_forcing%diffusion_order()
+    diffusion_coefficient = config%external_forcing%diffusion_coefficient()
+    cloud = config%section_choice%cloud()
+    scheme = config%cloud%scheme()
+    write_diag = config%io%write_diag()
+    use_xios_io = config%io%use_xios_io()
+    kappa = config%planet%kappa()
+    nudging_spinup_start = config%nudging%nudging_spinup_start()
+
     mesh => theta%get_mesh()
     height_wth => get_height_fv(config, mesh, Wtheta)
+
+    ! If nudging is to be applied, obtain reference fields
+    if ( theta_forcing == theta_forcing_nudging .or.                           &
+         wind_forcing == wind_forcing_nudging ) then
+      call set_nudging_reference_fields(config, derived_fields, exner)
+    end if
 
     if ( theta_forcing /= theta_forcing_none .or. theta_relaxation .or.           &
          vertadvect_forcing ) then
@@ -235,7 +266,11 @@ contains
           call temp_tend_profile_alg( config, dtheta_forcing, exner_in_wth, time_now )
 
         case(theta_forcing_nudging)
-          ! DO nothing - placeholder for future, field will not be modified
+
+          if (time_now >= nudging_spinup_start) then
+            call derived_fields%get_field('theta_nudging_ref', theta_ref)
+            call nudging_alg(config, dtheta_forcing, theta, theta_ref)
+          end if
 
         case default
 
@@ -368,9 +403,27 @@ contains
 
         case ( wind_forcing_nudging )
 
-          ! Placeholder for future, only initialise forcing field
-          call du_forcing%initialise( vector_space = u%get_function_space() )
-          call invoke(setval_c(du_forcing, 0.0_r_def))
+          if (time_now >= nudging_spinup_start) then
+            ! Extract fields for spectral nudging
+            call derived_fields%get_field('u_in_w3', u_in_w3)
+            call derived_fields%get_field('v_in_w3', v_in_w3)
+            call derived_fields%get_field('u_in_w3_nudging_ref', u_in_w3_ref)
+            call derived_fields%get_field('v_in_w3_nudging_ref', v_in_w3_ref)
+
+            ! Initialise components for wind increment
+            call du_forcing%initialise(u%get_function_space())
+            call du_in_w3%initialise(u_in_w3%get_function_space())
+            call dv_in_w3%initialise(v_in_w3%get_function_space())
+            call dw_in_wth%initialise(theta%get_function_space())
+
+            ! Apply nudging to calculate increments for each component
+            call nudging_alg(config, du_in_w3, u_in_w3, u_in_w3_ref)
+            call nudging_alg(config, dv_in_w3, v_in_w3, v_in_w3_ref)
+            call invoke(setval_c(dw_in_wth, 0.0_r_def))
+
+            ! Combine increments to obtain full wind increment
+            call set_wind(config, du_forcing, du_in_w3, dv_in_w3, dw_in_wth)
+          end if
 
         case( wind_forcing_profile )
 

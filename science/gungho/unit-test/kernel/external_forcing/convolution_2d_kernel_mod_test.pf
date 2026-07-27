@@ -1,0 +1,98 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+module convolution_2d_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, PI
+  use funit
+
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use convolution_2d_kernel_mod, only: convolution_2d_code
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: stencil_size = 25
+    integer(kind=i_def), parameter :: ndf_2d = 1
+    integer(kind=i_def), parameter :: undf_2d = stencil_size
+    integer(kind=i_def), parameter :: ndf_3d = 1   ! This simplifies the test!
+    integer(kind=i_def), parameter :: undf_3d = stencil_size
+    integer(kind=i_def), parameter :: kmax = 40
+    integer(kind=i_def), parameter :: kmin = 4
+    real(kind=r_def),    parameter :: dx = 20.0_r_def
+    real(kind=r_def),    parameter :: dy = 10.0_r_def
+
+    real(kind=r_def),    parameter :: tol = 10.0_r_def*epsilon(1.0_r_def)
+
+    integer(kind=i_def) :: map_3d(ndf_3d)
+    integer(kind=i_def) :: map_2d(ndf_2d)
+    integer(kind=i_def) :: stencil_map(ndf_3d, stencil_size)
+    real(kind=r_def)    :: answer
+    real(kind=r_def)    :: filtered_field(undf_3d)
+    real(kind=r_def)    :: field_in(undf_3d)
+    real(kind=r_def)    :: weights(undf_2d)
+
+    integer(kind=i_def) :: i, j, ij
+    real(kind=r_def)    :: dist, chi1, chi2
+
+    map_3d(1) = 13
+    map_2d(1) = 1
+
+    ! Populate maps / weights
+    ! Set up regular grid of coordinates
+    do i = 1, 5
+      do j = 1, 5
+        ij = (i-1)*5 + j
+        stencil_map(1, ij) = ij
+        ! Coordinates ----------------------------------------------------------
+        chi1 = dx*REAL(i, r_def)
+        chi2 = dy*REAL(j, r_def)
+        ! Weights --------------------------------------------------------------
+        dist = sqrt((chi1 - 3.0_r_def*dx)**2 + (chi2 - 3.0_r_def*dy)**2)
+        if (dist < 1.0e-3_r_def) then
+          weights(ij) = 2.0_r_def*REAL(kmax - kmin, r_def)
+        else
+          weights(ij) = (                                                      &
+            SIN(2.0_r_def*PI*kmax*dist) / (PI*dist)                            &
+            - SIN(2.0_r_def*PI*kmin*dist) / (PI*dist)                          &
+          )
+        end if
+        ! Input field ----------------------------------------------------------
+        ! Make it linear in x
+        field_in(ij) = 100.0_r_def + 19.0_r_def*REAL(i, r_def)
+      end do
+    end do
+
+    ! Field is linear and convolution is symmetric, so answer should be central value
+    answer = field_in(13)
+
+    ! Normalise weights
+    weights(:) = weights(:) / SUM(weights(:))
+
+    ! Initialise output field to zero
+    filtered_field(:) = 0.0_r_def
+
+    call convolution_2d_code(                                                  &
+            nlayers, filtered_field, field_in, stencil_size, stencil_map,      &
+            weights, ndf_3d, undf_3d, map_3d, ndf_2d, undf_2d, map_2d          &
+    )
+
+    ! Only central value (13 out of 25) is set
+    @assertEqual(answer, filtered_field(13), tol)
+
+  end subroutine test_all
+
+end module convolution_2d_kernel_mod_test

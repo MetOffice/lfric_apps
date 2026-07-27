@@ -1,0 +1,285 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Computes the forcing from nudging to some external data.
+module nudging_alg_mod
+
+  ! Infrastructure
+  use config_mod,                      only: config_type
+  use constants_mod,                   only: i_def, l_def, r_def, str_def
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+  use function_space_mod,              only: function_space_type
+  use log_mod,                         only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                        only: mesh_type
+  use mesh_collection_mod,             only: mesh_collection
+  use timing_mod,                      only: start_timing, stop_timing,        &
+                                             tik, LPROF
+
+  ! Configs
+  use external_forcing_config_mod,     only: theta_forcing_nudging,            &
+                                             wind_forcing_nudging
+  use nudging_config_mod,              only: nudging_method_newtonian,         &
+                                             nudging_method_convolution
+
+  ! Kernels
+  use convolution_2d_kernel_mod,       only: convolution_2d_kernel_type
+  use nudging_vert_interp_kernel_mod,  only: nudging_vert_interp_kernel_type
+
+  ! Other algorithms
+  use intermesh_mappings_alg_mod,      only: map_scalar_intermesh,             &
+                                             prolong_scalar_simple
+
+  ! Getters to runtime constants
+  use physics_constants_mod,           only: get_convolution_weights,          &
+                                             get_nudging_weights
+
+  implicit none
+
+  private
+  public :: nudging_alg
+  public :: set_nudging_reference_fields
+
+contains
+
+  !> @details Computes the increment associated with nudging the spectrum of a
+  !!          field towards that of a reference field.
+  !> @param[in]     config     Application namelist configuration object
+  !> @param[in,out] increment  Increment field to be computed
+  !> @param[in]     field_in   Input field to be nudged
+  !> @param[in]     field_ref  Reference field to nudge towards
+  subroutine nudging_alg(config, increment, field_in, field_ref)
+
+    use multires_coupling_config_mod, only: recovery_order_linear
+
+    implicit none
+
+    type(config_type), intent(in)    :: config
+    type(field_type),  intent(inout) :: increment
+    type(field_type),  intent(in)    :: field_in, field_ref
+
+    type(mesh_type),           pointer :: mesh, coarse_mesh
+    type(field_type),          pointer :: convolution_weights
+    type(field_type),          pointer :: nudging_weights
+    type(function_space_type), pointer :: fs
+
+    type(field_type)    :: coarse_field_in, coarse_increment, coarse_field_diff
+    integer(kind=i_def) :: fs_id, coarse_mesh_id
+    integer(kind=tik)   :: id
+
+    ! Config variables
+    logical(kind=l_def)    :: coarse_nudging, use_multires_coupling
+    integer(kind=i_def)    :: nudging_method, spectral_stencil_extent
+    integer(kind=i_def)    :: nudge_data_levels
+    integer(kind=i_def)    :: theta_forcing, wind_forcing
+    character(len=str_def) :: nudging_mesh_name
+    real(kind=r_def)       :: p_zero, kappa
+
+    if ( LPROF ) call start_timing( id, 'nudging' )
+
+    ! ------------------------------------------------------------------------ !
+    ! Get config variables
+    ! ------------------------------------------------------------------------ !
+
+    coarse_nudging = config%multires_coupling%coarse_nudging()
+    use_multires_coupling = config%formulation%use_multires_coupling()
+    nudging_method = config%nudging%nudging_method()
+    spectral_stencil_extent = config%nudging%spectral_stencil_extent()
+    nudge_data_levels = config%nudging%nudge_data_levels()
+    theta_forcing = config%external_forcing%theta_forcing()
+    wind_forcing = config%external_forcing%wind_forcing()
+    nudging_mesh_name = config%multires_coupling%nudging_mesh_name()
+    p_zero = config%planet%p_zero()
+    kappa = config%planet%kappa()
+
+    ! ------------------------------------------------------------------------ !
+    ! Set pointers and initialise fields
+    ! ------------------------------------------------------------------------ !
+
+    if (use_multires_coupling .and. coarse_nudging) then
+      coarse_mesh => mesh_collection%get_mesh(trim(nudging_mesh_name))
+    else
+      mesh => field_in%get_mesh()
+      coarse_mesh => mesh
+    end if
+
+    ! Check reference field is on the correct mesh
+    coarse_mesh_id = coarse_mesh%get_id()
+    if (coarse_mesh_id /= field_ref%get_mesh_id()) then
+
+      call log_event(                                                          &
+              "nudging_alg: reference field is not on the mesh " //            &
+              "specified for nudging",                                         &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end if
+
+    ! Initialise coarse fields
+    fs => field_ref%get_function_space()
+    call coarse_field_in%initialise(fs)
+    call coarse_increment%initialise(fs)
+
+    ! Point to weights used for nudging
+    fs_id = field_ref%which_function_space()
+    nudging_weights => get_nudging_weights(config, coarse_mesh, fs_id)
+
+    ! ------------------------------------------------------------------------ !
+    ! Coarsen
+    ! ------------------------------------------------------------------------ !
+
+    if (coarse_nudging) then
+      call map_scalar_intermesh(coarse_field_in, field_in)
+    else
+      call invoke( setval_X(coarse_field_in, field_in) )
+    end if
+
+    select case (nudging_method)
+
+    ! ------------------------------------------------------------------------ !
+    ! Newtonian relaxation
+    ! ------------------------------------------------------------------------ !
+    case (nudging_method_newtonian)
+      ! Simply nudge towards reference field, with no spectral impact
+      call invoke(                                                             &
+          X_minus_Y(coarse_increment, field_ref, coarse_field_in),             &
+          inc_X_times_Y(coarse_increment, nudging_weights)                     &
+      )
+
+    ! ------------------------------------------------------------------------ !
+    ! Convolution
+    ! ------------------------------------------------------------------------ !
+    case (nudging_method_convolution)
+      ! Filter difference using a convolution in physical space
+      convolution_weights => get_convolution_weights(config, coarse_mesh)
+      call coarse_field_diff%initialise(fs, halo_depth=spectral_stencil_extent)
+      call invoke(                                                             &
+          X_minus_Y(coarse_field_diff, field_ref, coarse_field_in),            &
+          ! Compute convolution
+          setval_c(coarse_increment, 0.0_r_def),                               &
+          convolution_2d_kernel_type(                                          &
+              coarse_increment, coarse_field_diff,                             &
+              spectral_stencil_extent, convolution_weights                     &
+          ),                                                                   &
+          ! Scale convolution increment by weights
+          inc_X_times_Y(coarse_increment, nudging_weights)                     &
+      )
+
+    end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Reconstruction
+    ! ------------------------------------------------------------------------ !
+
+    if (coarse_nudging) then
+      call prolong_scalar_simple(                                              &
+          increment, coarse_increment, recovery_order_linear                   &
+      )
+    else
+      call invoke( setval_X(increment, coarse_increment) )
+    end if
+
+    if ( LPROF ) call stop_timing( id, 'nudging' )
+
+  end subroutine nudging_alg
+
+  !> @brief Sets the reference fields for nudging from external data
+  !> @param[in]     config             Application namelist configuration object
+  !> @param[in,out] derived_fields     Collection of derived fields, which holds
+  !!                                   both the model's reference fields and any
+  !!                                   external reference fields
+  !> @param[in]     exner              Current Exner pressure field
+  subroutine set_nudging_reference_fields(config, derived_fields, exner)
+
+    implicit none
+
+    ! Arguments
+    type(config_type),           intent(in)    :: config
+    type(field_collection_type), intent(inout) :: derived_fields
+    type(field_type),    target, intent(in)    :: exner
+
+    ! Local variables
+    type(field_type), pointer :: theta_ref
+    type(field_type), pointer :: u_in_w3_ref
+    type(field_type), pointer :: v_in_w3_ref
+    type(field_type), pointer :: T_nudging_ext_ref
+    type(field_type), pointer :: u_nudging_ext_ref
+    type(field_type), pointer :: v_nudging_ext_ref
+    type(field_type), pointer :: surfp_nudging_ext_ref
+    type(field_type), pointer :: exner_in_wth
+    type(field_type), pointer :: exner_in_w3
+    type(field_type), target  :: exner_in_wth_coarse
+    type(field_type), target  :: exner_in_w3_coarse
+
+    ! Config variables
+    integer(kind=i_def)    :: theta_forcing, wind_forcing
+    integer(kind=i_def)    :: nudge_data_levels
+    real(kind=r_def)       :: p_zero, kappa
+    logical(kind=l_def)    :: coarse_nudging
+
+    ! Get config variables
+    theta_forcing = config%external_forcing%theta_forcing()
+    wind_forcing = config%external_forcing%wind_forcing()
+    nudge_data_levels = config%nudging%nudge_data_levels()
+    p_zero = config%planet%p_zero()
+    kappa = config%planet%kappa()
+    coarse_nudging = config%multires_coupling%coarse_nudging()
+
+    ! Get target reference fields from derived field collection
+    if (theta_forcing == theta_forcing_nudging) then
+      call derived_fields%get_field('theta_nudging_ref', theta_ref)
+    end if
+
+    if (wind_forcing == wind_forcing_nudging) then
+      call derived_fields%get_field('u_in_w3_nudging_ref', u_in_w3_ref)
+      call derived_fields%get_field('v_in_w3_nudging_ref', v_in_w3_ref)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Set reference fields based on input external data
+    ! ------------------------------------------------------------------------ !
+    if (.not. (theta_forcing == theta_forcing_nudging .or.                     &
+                wind_forcing == wind_forcing_nudging) ) then
+      call log_event(                                                          &
+          "set_nudging_reference_fields: nudging to external data. This " //   &
+          "is currently only implemented to nudge both theta and wind",        &
+          LOG_LEVEL_ERROR                                                      &
+      )
+    end if
+
+    ! Get external fields
+    call derived_fields%get_field('temperature_nudging_ext_ref', T_nudging_ext_ref)
+    call derived_fields%get_field('u_nudging_ext_ref', u_nudging_ext_ref)
+    call derived_fields%get_field('v_nudging_ext_ref', v_nudging_ext_ref)
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field(                                             &
+        'surface_pressure_nudging_ext_ref', surfp_nudging_ext_ref              &
+    )
+
+    ! Map Exner fields to coarse mesh, if required
+    if (coarse_nudging) then
+      call exner_in_wth_coarse%initialise(theta_ref%get_function_space())
+      call exner_in_w3_coarse%initialise(u_in_w3_ref%get_function_space())
+      call map_scalar_intermesh(exner_in_wth_coarse, exner_in_wth)
+      call map_scalar_intermesh(exner_in_w3_coarse, exner)
+      exner_in_wth => exner_in_wth_coarse
+      exner_in_w3 => exner_in_w3_coarse
+    else
+      exner_in_w3 => exner
+    end if
+
+    ! Vertical remapping of external fields to model levels
+    call invoke(                                                               &
+        nudging_vert_interp_kernel_type(                                       &
+            theta_ref, u_in_w3_ref, v_in_w3_ref,                               &
+            T_nudging_ext_ref, u_nudging_ext_ref, v_nudging_ext_ref,           &
+            exner_in_wth, exner_in_w3, surfp_nudging_ext_ref,                  &
+            p_zero, kappa, nudge_data_levels                                   &
+        )                                                                      &
+    )
+
+  end subroutine set_nudging_reference_fields
+
+
+end module nudging_alg_mod

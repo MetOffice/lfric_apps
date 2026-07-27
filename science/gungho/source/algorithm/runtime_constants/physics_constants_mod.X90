@@ -42,7 +42,8 @@ module physics_constants_mod
   ! Variables private to this module that can only be accessed by public
   ! functions returning pointers to them
 
-  real(kind=r_def) :: dt_stored = 0.0_r_def
+  real(kind=r_def)    :: dt_stored = 0.0_r_def
+  logical(kind=l_def) :: to_update_nudging_weights = .true.
 
   ! ========================================================================== !
   ! Inventories for use in the rest of the model
@@ -53,6 +54,10 @@ module physics_constants_mod
   type(inventory_by_mesh_type) :: rdz_fd1_inventory
   type(inventory_by_mesh_type) :: rdz_w3_inventory
   type(inventory_by_mesh_type) :: max_diff_wtheta_inventory
+
+  type(inventory_by_mesh_type), target :: nudging_weights_w3_inventory
+  type(inventory_by_mesh_type), target :: nudging_weights_wt_inventory
+  type(inventory_by_local_mesh_type)   :: convolution_weights_inventory
 
 #ifdef UM_PHYSICS
   ! Spherical harmonics, used by stochastic physics
@@ -69,6 +74,10 @@ module physics_constants_mod
   public :: get_rdz_fd1
   public :: get_rdz_w3
   public :: get_max_diff
+  public :: get_convolution_weights
+  public :: get_nudging_weights
+  public :: update_nudging_weights
+
 #ifdef UM_PHYSICS
   public :: get_Pnm_star
 #endif
@@ -404,6 +413,158 @@ contains
 
   end function get_max_diff
 
+  !> @brief Returns the weights for performing a 2D convolution
+  !> @param[in] config  Application namelist configuration object
+  !> @param[in] mesh    The mesh to get the object for
+  !> @return The convolution_weights field
+  function get_convolution_weights(config, mesh) result(convolution_weights)
+
+    use base_mesh_config_mod,              only: geometry_spherical
+    use convolution_2d_weights_kernel_mod, only: convolution_2d_weights_kernel_type
+
+    implicit none
+
+    type(config_type),      intent(in) :: config
+    type(mesh_type),        intent(in) :: mesh
+    integer(kind=i_def)                :: local_mesh_id
+    integer(kind=i_def)                :: ndata
+    integer(kind=i_def)                :: stencil_depth
+    type(mesh_type),           pointer :: twod_mesh
+    type(local_mesh_type),     pointer :: local_mesh
+    type(function_space_type), pointer :: fs
+    type(field_type),          pointer :: convolution_weights
+    type(field_type),          pointer :: chi(:)
+    type(field_type),          pointer :: panel_id
+    logical(kind=l_def)                :: constant_exists
+    integer(kind=i_def)                :: geometry, topology, coord_system
+    integer(kind=i_def)                :: spectral_kmax, spectral_kmin
+    real(kind=r_def)                   :: scaled_radius
+    integer(kind=tik)                  :: id
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. convolution_weights_inventory%is_initialised()) then
+      call convolution_weights_inventory%initialise(name="convolution_weights")
+    end if
+
+    local_mesh => mesh%get_local_mesh()
+    local_mesh_id = local_mesh%get_id()
+    constant_exists = convolution_weights_inventory%paired_object_exists(local_mesh_id)
+
+    ! Create object if it doesn't already exist
+    if (.not. constant_exists) then
+      chi => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
+      twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+      geometry = config%base_mesh%geometry()
+      topology = config%base_mesh%topology()
+      coord_system = config%finite_element%coord_system()
+      scaled_radius = config%planet%scaled_radius()
+      spectral_kmax = config%nudging%spectral_kmax()
+      spectral_kmin = config%nudging%spectral_kmin()
+      stencil_depth = config%nudging%spectral_stencil_extent()
+      ndata = (2*stencil_depth + 1)**2
+
+      if (geometry /= geometry_spherical) then
+        call log_event(                                                        &
+                'Spectral nudging only implemented for spherical geometry',    &
+                LOG_LEVEL_ERROR                                                &
+        )
+      end if
+
+      if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )
+
+      fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3, ndata)
+      call convolution_weights_inventory%add_field(convolution_weights, fs, local_mesh)
+
+      call invoke( convolution_2d_weights_kernel_type(convolution_weights,     &
+                                                      chi, stencil_depth,      &
+                                                      panel_id, stencil_depth, &
+                                                      spectral_kmax,           &
+                                                      spectral_kmin,           &
+                                                      geometry, topology,      &
+                                                      coord_system,            &
+                                                      scaled_radius) )
+
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.physics' )
+    end if
+
+    call convolution_weights_inventory%get_field(local_mesh, convolution_weights)
+
+  end function get_convolution_weights
+
+  !> @brief Returns the weights for applying spectral nudging
+  !> @param[in] config  Application namelist configuration object
+  !> @param[in] mesh    The mesh to get the object for
+  !> @param[in] fs_id   The function space ID to get the object for
+  !> @return The nudging_weights field
+  function get_nudging_weights(config, mesh, fs_id) result(nudging_weights)
+
+    use nudging_weights_kernel_mod,  only: nudging_weights_kernel_type
+
+    implicit none
+
+    type(config_type),         intent(in) :: config
+    type(mesh_type),           intent(in) :: mesh
+    integer(kind=i_def),       intent(in) :: fs_id
+    integer(kind=i_def)                   :: mesh_id
+    type(function_space_type),    pointer :: fs
+    type(field_type),             pointer :: nudging_weights
+    type(inventory_by_mesh_type), pointer :: nudging_weights_inventory
+    logical(kind=l_def)                   :: constant_exists
+    character(len=str_def)                :: inventory_name
+    integer(kind=i_def)                   :: nudging_level_top
+    integer(kind=i_def)                   :: nudging_level_bottom
+    integer(kind=i_def)                   :: nudging_width_top
+    integer(kind=i_def)                   :: nudging_width_bottom
+    integer(kind=tik)                     :: id
+
+    if (fs_id == W3) then
+      nudging_weights_inventory => nudging_weights_w3_inventory
+      inventory_name = "nudging_weights_w3"
+    else if (fs_id == Wtheta) then
+      nudging_weights_inventory => nudging_weights_wt_inventory
+      inventory_name = "nudging_weights_wt"
+    else
+      call log_event(                                                          &
+              'Spectral nudging weights only implemented for W3 and Wtheta',   &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end if
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. nudging_weights_inventory%is_initialised()) then
+      call nudging_weights_inventory%initialise(name=inventory_name)
+    end if
+
+    mesh_id = mesh%get_id()
+    constant_exists = nudging_weights_inventory%paired_object_exists(mesh_id)
+    nudging_level_bottom = config%nudging%nudging_level_bottom()
+    nudging_level_top = config%nudging%nudging_level_top()
+    nudging_width_bottom = config%nudging%nudging_width_bottom()
+    nudging_width_top = config%nudging%nudging_width_top()
+
+    ! Create object if it doesn't already exist
+    if (.not. constant_exists) then
+      fs => function_space_collection%get_fs(mesh, 0, 0, fs_id)
+
+      if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )
+
+      call nudging_weights_inventory%add_field(nudging_weights, fs, mesh)
+
+      call invoke(                                                             &
+          nudging_weights_kernel_type(                                         &
+              nudging_weights, nudging_level_bottom, nudging_level_top,        &
+              nudging_width_bottom, nudging_width_top                          &
+          )                                                                    &
+      )
+
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.physics' )
+    end if
+
+    call nudging_weights_inventory%get_field(mesh, nudging_weights)
+
+  end function get_nudging_weights
+
 #ifdef UM_PHYSICS
   !> @brief Returns the Legendre Polynomials times the SH amplitude
   !> @param[in] config   Application namelist configuration object
@@ -472,10 +633,122 @@ contains
     call rdz_fd1_inventory%clear()
     call rdz_w3_inventory%clear()
     call max_diff_wtheta_inventory%clear()
+    call nudging_weights_w3_inventory%clear()
+    call nudging_weights_wt_inventory%clear()
+    call convolution_weights_inventory%clear()
 #ifdef UM_PHYSICS
     call Pnm_star_inventory%clear()
 #endif
 
   end subroutine final_physics_constants
+
+  ! ========================================================================== !
+  ! UPDATE SPECTRAL NUDGING WEIGHTS
+  ! ========================================================================== !
+  !> @brief Update the spectral nudging weights based on the current time
+  !> @param[in] model_clock  The model clock object
+  !> @param[in] config       Application namelist configuration object
+  !> @param[in] mesh         The mesh to compute the weights on
+  subroutine update_nudging_weights(model_clock, config, mesh)
+
+    use nudging_weights_kernel_mod,  only: nudging_weights_kernel_type
+
+    implicit none
+
+    class(model_clock_type), intent(in) :: model_clock
+    type(config_type),       intent(in) :: config
+    type(mesh_type),         intent(in) :: mesh
+    type(field_type),         pointer   :: nudging_weights
+    real(kind=r_def)                    :: nudging_spinup_ratio
+    real(kind=r_def)                    :: dt, time
+
+    ! Configuration variables
+    integer(kind=i_def) :: nudging_level_bottom, nudging_level_top
+    integer(kind=i_def) :: nudging_width_bottom, nudging_width_top
+    real(kind=r_def)    :: nudging_spinup_start, nudging_spinup_end
+    real(kind=r_def)    :: nudging_relax_time
+
+    ! Get nudging configuration variables
+    nudging_level_bottom = config%nudging%nudging_level_bottom()
+    nudging_level_top = config%nudging%nudging_level_top()
+    nudging_width_bottom = config%nudging%nudging_width_bottom()
+    nudging_width_top = config%nudging%nudging_width_top()
+    nudging_spinup_start = config%nudging%nudging_spinup_start()
+    nudging_spinup_end = config%nudging%nudging_spinup_end()
+    nudging_relax_time = config%nudging%nudging_relax_time()
+
+    ! NB: this assumes that dt is constant
+    dt = REAL(model_clock%get_seconds_per_step(), r_def)
+    time = dt*REAL(model_clock%get_step() - 1, r_def)
+
+    ! Set factor for nudging weight during spin-up period
+    if (time <= nudging_spinup_start) then
+      ! Before spin-up period
+      nudging_spinup_ratio = 0.0_r_def
+
+      ! Set weights to zero
+      nudging_weights => get_nudging_weights(config, mesh, W3)
+      call invoke( setval_c(nudging_weights, 0.0_r_def) )
+      nudging_weights => get_nudging_weights(config, mesh, Wtheta)
+      call invoke( setval_c(nudging_weights, 0.0_r_def) )
+
+      ! Do not need to call usual kernel so set flag to false
+      to_update_nudging_weights = .false.
+
+    else if (time > nudging_spinup_start .and. time < nudging_spinup_end) then
+      ! During spin-up period
+      if (ABS(nudging_spinup_end - nudging_spinup_start) < EPS) then
+        nudging_spinup_ratio = 1.0_r_def
+      else
+        nudging_spinup_ratio = (                                               &
+          (time - nudging_spinup_start)                                        &
+          / (nudging_spinup_end - nudging_spinup_start)                        &
+        )
+      end if
+      ! Ramping up nudging weights, so enforce that they are updated
+      to_update_nudging_weights = .true.
+
+    else
+      ! After spin-up period
+      nudging_spinup_ratio = 1.0_r_def
+    end if
+
+    ! Now adjust weighting based on relaxation time
+    if (nudging_relax_time > EPS) then
+      nudging_spinup_ratio = nudging_spinup_ratio * (                          &
+        MIN(1.0_r_def, dt / nudging_relax_time)                                &
+      )
+    end if
+
+    if (to_update_nudging_weights) then
+      ! Update W3 nudging weights
+      nudging_weights => get_nudging_weights(config, mesh, W3)
+
+      call invoke(                                                             &
+          nudging_weights_kernel_type(                                         &
+              nudging_weights, nudging_level_bottom, nudging_level_top,        &
+              nudging_width_bottom, nudging_width_top                          &
+          ),                                                                   &
+          inc_a_times_X(nudging_spinup_ratio, nudging_weights)                 &
+      )
+
+      ! Update Wtheta nudging weights
+      nudging_weights => get_nudging_weights(config, mesh, Wtheta)
+
+      call invoke(                                                             &
+          nudging_weights_kernel_type(                                         &
+              nudging_weights, nudging_level_bottom, nudging_level_top,        &
+              nudging_width_bottom, nudging_width_top                          &
+          ),                                                                   &
+          inc_a_times_X(nudging_spinup_ratio, nudging_weights)                 &
+      )
+
+      ! If after spin-up period, we don't need to update the weights any more
+      if (time >= nudging_spinup_end) then
+        to_update_nudging_weights = .false.
+      end if
+    end if
+
+  end subroutine update_nudging_weights
 
 end module physics_constants_mod
