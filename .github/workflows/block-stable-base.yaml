@@ -14,6 +14,9 @@ on:
     branches:
       - stable
 
+permissions:
+  contents: read
+
 jobs:
   block-merge:
     runs-on: ubuntu-latest
