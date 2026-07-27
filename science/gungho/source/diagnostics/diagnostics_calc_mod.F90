@@ -285,8 +285,9 @@ subroutine write_pv_diagnostic(u_field, theta, rho, exner, &
 
   ! Theta surface and PV surface diagnostics, both of which need PV on
   ! model levels
-  pv_surface_flag = diagnostic_to_be_sampled('thlev__pv') .or. &
-                    diagnostic_to_be_sampled('dyn_trop__theta')
+  pv_surface_flag =                                                     &
+    diagnostic_to_be_sampled('processed__pv_on_theta_levs') .or.        &
+    diagnostic_to_be_sampled('processed__theta_on_pv2')
 
   if (pv_modlev_flag .or. plev_pv_flag .or. pv_surface_flag) then
 

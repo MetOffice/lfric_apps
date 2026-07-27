@@ -992,8 +992,8 @@
   <field id="plev__rh_water" name="plev_rh_water" long_name="relative_humidity_wrt_water_at_pressure_levels" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__xi3" name="plev_xi3" long_name="vertical_vorticity_at_pressure_levels" unit="s-1" domain_ref="face" axis_ref="pressure_levels_xi3"/>
   <field id="plev__pv" name="plev_pv" long_name="potential_vorticity_at_pressure_levels" unit="m2 s-1 K kg-1" domain_ref="face" axis_ref="pressure_levels"/>
-  <field id="thlev__pv" name="thlev_pv" long_name="ertel_potential_vorticity_at_theta_levels" standard_name="ertel_potential_vorticity" unit="m2 s-1 K kg-1" domain_ref="face" axis_ref="theta_levels"/>
-  <field id="dyn_trop__theta" name="theta_at_pv2" long_name="potential_temperature_at_potential_vorticity_2_surface" standard_name="air_potential_temperature" unit="K" domain_ref="face"/>
+  <field id="processed__pv_on_theta_levs" name="pv_on_theta_levs" long_name="ertel_potential_vorticity_at_theta_levels" standard_name="ertel_potential_vorticity" unit="m2 s-1 K kg-1" domain_ref="face" axis_ref="theta_levels"/>
+  <field id="processed__theta_on_pv2" name="theta_on_pv2" long_name="potential_temperature_at_potential_vorticity_2_surface" standard_name="air_potential_temperature" unit="K" domain_ref="face"/>
   <field id="plev__uu_clim" name="plev_uu_clim" standard_name="square_of_eastward_wind" unit="m2 s-2" domain_ref="face" axis_ref="pressure_levels"> plev__u_clim * plev__u_clim </field>
   <field id="plev__uv_clim" name="plev_uv_clim" standard_name="product_of_eastward_wind_and_northward_wind" unit="m2 s-2" domain_ref="face" axis_ref="pressure_levels"> plev__u_clim * plev__v_clim </field>
   <field id="plev__uom_clim" name="plev_uom_clim" standard_name="product_of_eastward_wind_and_lagrangian_tendency_of_air_pressure" unit="Pa m s-2" domain_ref="face" axis_ref="pressure_levels"> plev__u_clim * plev__omega_clim </field>
