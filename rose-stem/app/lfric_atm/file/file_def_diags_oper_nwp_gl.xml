@@ -65,6 +65,8 @@
       <field field_ref="plev__thetaw"/>
       <field field_ref="processed__pmsl"/>
       <field field_ref="plev__rh_water"/>
+      <field field_ref="thlev__pv"/>
+      <field field_ref="dyn_trop__theta"/>
       <field field_ref="processed__tot_col_dry_air_mass"/>
       <field field_ref="processed__tot_col_wetplusdry_mass"/>
       <field field_ref="processed__tot_col_m_cl"/>

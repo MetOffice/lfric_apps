@@ -4,6 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
 !> @details Calls the routine that generates diagnostic output for
@@ -243,7 +245,8 @@ contains
     end if
     call write_vorticity_diagnostic( u, exner, modeldb%clock )
 #ifdef UM_PHYSICS
-    call write_pv_diagnostic( u, theta, rho, exner, modeldb%clock )
+    call write_pv_diagnostic( u, theta, rho, exner, derived_fields, &
+                              modeldb%clock )
 #else
     call write_pv_diagnostic( u, theta, rho, modeldb%clock )
 #endif
