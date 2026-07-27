@@ -34,6 +34,7 @@ module bl_imp_diags_mod
   logical( l_def ) :: dw_bl_flag
   logical( l_def ) :: u10m_flag
   logical( l_def ) :: v10m_flag
+  logical( l_def ) :: thermal_speed_flag
   logical( l_def ) :: wind_gust_flag
   logical( l_def ) :: scale_dep_wind_gust_flag
   logical( l_def ) :: wspd10m_neut_flag
@@ -265,6 +266,7 @@ contains
     type( field_type ), intent(inout) :: dcff_bl
 
     ! Local variables
+    type( field_type ) :: thermal_speed
     type( field_type ) :: wind_gust
     type( field_type ) :: scale_dep_wind_gust
     type( field_type ) :: visibility_with_precip
@@ -391,6 +393,7 @@ contains
     if (ustar_implicit_flag) call ustar_implicit%write_field()
 
     ! Local diagnostic calculated here
+    thermal_speed_flag = init_diag(thermal_speed, 'turbulence__thermal_speed')
     wind_gust_flag = init_diag(wind_gust, 'surface__wind_gust')
     scale_dep_wind_gust_flag = init_diag(scale_dep_wind_gust, 'surface__scale_dep_wind_gust')
     vis_no_precip_flag = init_diag(visibility_no_precip, 'surface__visibility_no_precip')
@@ -408,7 +411,8 @@ contains
       ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
     end if
 
-    if ( wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
+    if ( thermal_speed_flag .or.                                               &
+         wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
          vis_no_precip_flag .or. vis_with_precip_flag .or.                     &
          fog_fraction_flag .or. fog_fraction_ssi_flag .or.                     &
          fog_fraction_land_flag .or. vis_prob_5km_flag .or. dew_point_flag     &
@@ -429,6 +433,7 @@ contains
                                                ls_rain, ls_snow, lsca_2d,      &
                                                conv_rain, conv_snow, cca_2d,   &
                                                ustar_implicit,                 &
+                                               thermal_speed,                  &
                                                wind_gust, scale_dep_wind_gust, &
                                                fog_fraction, fog_fraction_ssi, &
                                                fog_fraction_land, vis_prob_5km,&
@@ -437,6 +442,7 @@ contains
                                                visibility_with_precip,         &
                                                visibility_no_precip ) )
 
+      if (thermal_speed_flag) call thermal_speed%write_field()
       if (wind_gust_flag) call wind_gust%write_field()
       if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
       if (vis_no_precip_flag) call visibility_no_precip%write_field()

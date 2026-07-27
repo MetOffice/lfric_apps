@@ -170,7 +170,8 @@ contains
       qcl1p5m_land_flag = init_diag(qcl1p5m_land, 'surface__qcl1p5m_land')
 
       ! Initialise fields where another diagnostic depends on them
-      if (samp_diag('surface__ustar_implicit') .or. &
+      if (samp_diag('turbulence__thermal_speed') .or. &
+          samp_diag('surface__ustar_implicit') .or. &
           samp_diag('surface__wind_gust') .or. &
           samp_diag('surface__scale_dep_wind_gust') .or. &
           samp_diag('surface__visibility_no_precip') .or. &

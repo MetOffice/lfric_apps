@@ -26,7 +26,7 @@ module bl_extra_diags_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_extra_diags_kernel_type
     private
-    type(arg_type) :: meta_args(41) = (/                                  &
+    type(arg_type) :: meta_args(42) = (/                                  &
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! rho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! wetrho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! heat_flux_bl
@@ -57,6 +57,7 @@ module bl_extra_diags_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! conv_snow_2d
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! cca_2d_in
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! ustar_implicit
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! thermal_speed
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! wind_gust
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! scale_dep_wind_gust
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! fog_fraction
@@ -111,6 +112,7 @@ contains
   !> @param[in]     conv_snow_2d           Surface convective snowfall rate
   !> @param[in]     cca_2d_in              2D convective cloud fraction
   !> @param[in]     ustar_implicit         Implicit friction velocity
+  !> @param[in,out] thermal_speed          Thermal speed
   !> @param[in,out] wind_gust              Wind gust
   !> @param[in,out] scale_dep_wind_gust    Scale dependent wind gust
   !> @param[in,out] fog_fraction           Fog_fraction
@@ -151,7 +153,9 @@ contains
                                   lsca_2d,                  &
                                   conv_rain_2d,             &
                                   conv_snow_2d, cca_2d_in,  &
-                                  ustar_implicit, wind_gust,&
+                                  ustar_implicit,           &
+                                  thermal_speed,            &
+                                  wind_gust,                &
                                   scale_dep_wind_gust,      &
                                   fog_fraction,             &
                                   fog_fraction_ssi,         &
@@ -177,6 +181,7 @@ contains
     use cloud_inputs_mod,     only : rhcrit
     use dewpnt_mod,           only : dewpnt
     use fog_fr_mod,           only : fog_fr
+    use jules_surface_mod,    only : min_ustar
     use mphys_constants_mod,  only : mprog_min
     use nlsizes_namelist_mod, only : row_length, rows
     use planet_config_mod,    only : p_zero, kappa, gravity, cp
@@ -221,6 +226,7 @@ contains
     real(kind=r_def), intent(in),    pointer :: t1p5m_land(:), q1p5m_land(:), qcl1p5m_land(:)
     real(kind=r_def), intent(in),    pointer :: wspd10m(:), z0m_eff(:)
     real(kind=r_def), intent(inout), pointer :: ustar_implicit(:)
+    real(kind=r_def), intent(inout), pointer :: thermal_speed(:)
     real(kind=r_def), intent(inout), pointer :: wind_gust(:), scale_dep_wind_gust(:)
     real(kind=r_def), intent(inout), pointer :: fog_fraction(:), vis_prob_5km(:)
     real(kind=r_def), intent(inout), pointer :: fog_fraction_ssi(:), fog_fraction_land(:)
@@ -234,6 +240,8 @@ contains
     ! Tunable parameters used in the calculation of the wind gust
     real(kind=r_def), parameter :: c_ws        = 1.0_r_def/24.0_r_def
     real(kind=r_def), parameter :: gust_const  = 2.29_r_def
+    ! Parameter used in the thermal speed calculation
+    real(kind=r_def), parameter :: a_stab      = 1.5_r_def
 
     ! Switches needed for visibility calculations
     logical(l_def),      parameter :: pct = .false.  ! Cloud amounts are in %
@@ -260,17 +268,36 @@ contains
 
     ! Local scalars
     real(kind=r_def) :: ftl_surf, fqw_surf, &
-                        wstar3_imp, std_dev, gust_contribution
+                        wstar3_imp, std_dev, gust_contribution, z_on_l, f_stab
 
     integer(kind=i_def) :: k, icode, i,j
 
     if ( .not. associated(wind_gust, empty_real_data) .or.                   &
-         .not. associated(scale_dep_wind_gust, empty_real_data) ) then
+         .not. associated(scale_dep_wind_gust, empty_real_data) .or.         &
+         .not. associated(thermal_speed, empty_real_data) ) then
       ftl_surf = heat_flux_bl(map_w3(1)) / cp
       fqw_surf = moist_flux_bl(map_w3(1))
       wstar3_imp = zh(map_2d(1)) * gravity * ( ftl_surf/t1p5m(map_2d(1)) +   &
                                                fqw_surf*c_virtual ) /        &
                                              rho_in_w3(map_w3(1))
+    end if
+
+    if (.not. associated(thermal_speed, empty_real_data) ) then
+      if (wstar3_imp > tiny(1.0_r_def)) then
+        if (ustar_implicit(map_2d(1)) > min_ustar) then
+          z_on_l = vkman * wstar3_imp / ustar_implicit(map_2d(1))**3.0_r_def
+          f_stab = a_stab * z_on_l / (1.0_r_def + a_stab * z_on_l)
+        else
+          f_stab = 1.0_r_def
+        end if
+        thermal_speed(map_2d(1)) = f_stab * wstar3_imp**one_third
+      else
+        thermal_speed(map_2d(1)) = 0.0_r_def
+      end if
+    end if
+
+    if ( .not. associated(wind_gust, empty_real_data) .or.                   &
+         .not. associated(scale_dep_wind_gust, empty_real_data) ) then
       if ( wstar3_imp > 0.0_r_def ) then
         ! Include the stability dependence
         std_dev = gust_const * ( ustar_implicit(map_2d(1))**3.0_r_def +      &
