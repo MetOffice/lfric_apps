@@ -54,12 +54,12 @@ contains
     type(field_type), intent(in) :: theta_in_w3
 
     ! Diagnostic fields
-    type(field_type) :: thlev_pv, theta_at_pv2
+    type(field_type) :: pv_on_theta_levs, theta_on_pv2
 
     ! Working fields
     type(field_type) :: mod_pv
 
-    logical(l_def) :: thlev_pv_flag, theta_at_pv2_flag
+    logical(l_def) :: pv_on_theta_levs_flag, theta_on_pv2_flag
 
     integer(i_def) :: nthlev
     real(r_def), allocatable :: thlevs(:)
@@ -67,10 +67,12 @@ contains
 
     integer(tik) :: id
 
-    thlev_pv_flag     = init_diag(thlev_pv, 'thlev__pv')
-    theta_at_pv2_flag = init_diag(theta_at_pv2, 'dyn_trop__theta')
+    pv_on_theta_levs_flag = init_diag(pv_on_theta_levs,               &
+                                      'processed__pv_on_theta_levs')
+    theta_on_pv2_flag     = init_diag(theta_on_pv2,                   &
+                                      'processed__theta_on_pv2')
 
-    if (.not. (thlev_pv_flag .or. theta_at_pv2_flag)) return
+    if (.not. (pv_on_theta_levs_flag .or. theta_on_pv2_flag)) return
     if (.not. use_xios_io) return
 
     if ( LPROF ) call start_timing( id, 'diags.pv_surfaces' )
@@ -78,7 +80,7 @@ contains
     ! Potential vorticity on theta surfaces. Theta increases with height
     ! through most of the atmosphere, so the coordinate is monotonic and cubic
     ! interpolation can be used.
-    if (thlev_pv_flag) then
+    if (pv_on_theta_levs_flag) then
 
       nthlev = get_axis_dimension('theta_levels')
       allocate(thlevs(nthlev))
@@ -86,9 +88,9 @@ contains
 
       call invoke_level_interp_mdi_kernel_type(pv, theta_in_w3,     &
                                                nthlev, thlevs,      &
-                                               thlev_pv,            &
+                                               pv_on_theta_levs,    &
                                                interp_order_cubic)
-      call thlev_pv%write_field()
+      call pv_on_theta_levs%write_field()
 
       deallocate(thlevs)
 
@@ -96,7 +98,7 @@ contains
 
     ! Theta on the PV = +/-2 surface. |PV| is far from monotonic, so linear
     ! interpolation to the uppermost crossing is used.
-    if (theta_at_pv2_flag) then
+    if (theta_on_pv2_flag) then
 
       call pv%copy_field_properties(mod_pv)
       call invoke( X_times_Y(mod_pv, pv, pv),               &
@@ -106,9 +108,9 @@ contains
 
       call invoke_level_interp_mdi_kernel_type(theta_in_w3, mod_pv,  &
                                                1_i_def, pv_levs,     &
-                                               theta_at_pv2,         &
+                                               theta_on_pv2,         &
                                                interp_order_linear)
-      call theta_at_pv2%write_field()
+      call theta_on_pv2%write_field()
 
     end if
 
