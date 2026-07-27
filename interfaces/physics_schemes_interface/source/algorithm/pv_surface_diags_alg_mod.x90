@@ -101,7 +101,8 @@ contains
     if (theta_on_pv2_flag) then
 
       call pv%copy_field_properties(mod_pv)
-      call invoke( X_times_Y(mod_pv, pv, pv),               &
+      call invoke( setval_X(mod_pv, pv),               &
+                   inc_X_powint_n(mod_pv, 2_i_def),    &
                    inc_X_powreal_a(mod_pv, 0.5_r_def) )
 
       pv_levs(1) = pv_trop_surface
