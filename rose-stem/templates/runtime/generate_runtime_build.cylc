@@ -11,10 +11,19 @@
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
-{% set inherit.str = "BUILD_"~task_ns.application|upper~"_"~task_ns.platform|upper~","~task_ns.platform|upper %}
 {% for family in task_values["build_families"] %}
-    {% set inherit.str = inherit.str~","~family|upper %}
+    {% set inherit.str = inherit.str~family|upper~"," %}
 {% endfor %}
+
+{# Generate a resource family for the task #}
+{% set resource_family = task~"_resources" %}
+{{ set_task_resources(
+    resource_family,
+    inherit.str,
+    task_values["build_wallclock"],
+    task_values["build_cpus"],
+    task_values["build_memory"]
+    ) }}
 
 {# Set the psyclone transformation #}
 {% if task_values["psyclone_transformation"] == "default" %}
@@ -33,17 +42,8 @@
     {%- endif %}
 {%- endif %}
 
-{# Generate a resource family for the task #}
-{% set resource_family = task~"_resources" %}
-{{ set_task_resources(
-    resource_family,
-    task_values["build_wallclock"],
-    task_values["build_cpus"],
-    task_values["build_memory"]
-    ) }}
-
     [[{{task}}]]
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=BUILD_{{task_ns.application|upper}}_{{task_ns.platform|upper}}, {{resource_family|upper}}
         script = 'if command -v module > /dev/null 2>&1; then module list; fi; rose task-run --app-key=compile'
         [[[environment]]]
             SOURCE_DIRECTORY        = $SOURCE_ROOT/{{src_path}}

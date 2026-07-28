@@ -120,6 +120,7 @@
 
 
 {% macro set_task_resources(family_name,
+                            family_inherits,
                             wallclock,
                             mpi_ranks,
                             memory,
@@ -131,6 +132,7 @@
                             ranks_depth_pad=1) %}
 
     [[{{family_name|upper}}]]
+        inherit = {{family_inherits|upper}}
         execution time limit = PT{{wallclock}}M
 
     {% set total_other_ranks = xios_nodes + ocean_nodes + river_nodes %}

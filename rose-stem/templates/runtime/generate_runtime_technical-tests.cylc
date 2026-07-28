@@ -19,26 +19,26 @@
 
 {# Set the family inheritance for this task #}
     {% set inherit = namespace(str="") %}
-    {% set inherit.str = "BUILD_"~task_ns.application|upper~"_"~task_ns.platform|upper %}
     {% for family in task_values["build_families"] %}
-        {% set inherit.str = inherit.str~","~family|upper %}
+        {% set inherit.str = inherit.str~family|upper~"," %}
     {% endfor %}
-
-    {# Build Script #}
-    {% set build_script_str = "rm -rf $WORKING_DIR ; "~
-                              "make -C $SOURCE_DIRECTORY -j 6 "~mode~"/build" %}
 
     {# Generate a resource family for the task #}
     {% set resource_family = task~"_resources" %}
     {{ set_task_resources(
         resource_family,
+        inherit.str,
         task_values["build_wallclock"],
         task_values["build_cpus"],
         task_values["build_memory"]
         ) }}
 
+    {# Build Script #}
+    {% set build_script_str = "rm -rf $WORKING_DIR ; "~
+                              "make -C $SOURCE_DIRECTORY -j 6 "~mode~"/build" %}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=BUILD_{{task_ns.application|upper}}_{{task_ns.platform|upper}}, {{resource_family|upper}}
         script={{build_script_str}}
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}
@@ -59,25 +59,25 @@
 
     {# Set the family inheritance for this task #}
     {% set inherit = namespace(str="") %}
-    {% set inherit.str = task_family|upper %}
     {% for family in task_values["techtests_families"] %}
-        {% set inherit.str = inherit.str~","~family|upper %}
+        {% set inherit.str = inherit.str~family|upper~"," %}
     {% endfor %}
-
-    {# Run script #}
-    {% set run_script_str = "make -C $SOURCE_DIRECTORY -j 6 "~mode~"/rerun" %}
 
     {# Generate a resource family for the task #}
     {% set resource_family = task~"_resources" %}
     {{ set_task_resources(
         resource_family,
+        inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
         task_values["tech-tests_memory"]
         ) }}
 
+    {# Run script #}
+    {% set run_script_str = "make -C $SOURCE_DIRECTORY -j 6 "~mode~"/rerun" %}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit={{task_family|upper}}, {{resource_family|upper}}
         script={{run_script_str}}
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}

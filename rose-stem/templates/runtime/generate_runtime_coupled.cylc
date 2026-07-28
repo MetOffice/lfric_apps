@@ -19,6 +19,7 @@
     {% set resource_family = task~"_resources" %}
     {{ set_task_resources(
         resource_family,
+        "",
         task_values["build_wallclock"],
         task_values["build_cpus"],
         task_values["build_memory"]

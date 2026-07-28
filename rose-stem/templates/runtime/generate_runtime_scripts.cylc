@@ -14,24 +14,26 @@
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
-{% if "kgo_groups_checker" not in task %}
-    {# The SCRIPTS family is used as a trigger for the housekeeping task #}
-    {# Dont want housekeeping to depend on the kgo_checker #}
-    {# So kgo_checker not part of SCRIPTS family #}
-    {% set inherit.str = "SCRIPTS" %}
+{% if "local_build_test" in task %}
+    {% if "launch_platform" in site_vars and site_vars.launch_platform == "azspice" %}
+        {% set inherit.str = site_vars["scripts_platform"]|upper~"_BUILD_GNU" %}
+    {% else %}
+        {% set inherit.str = site_vars["scripts_platform"]|upper~"_BUILD_INTEL" %}
+    {% endif %}
+{% else %}
+    {% for family in task_values["script_families"] %}
+        {% set inherit.str = inherit.str~family|upper~"," %}
+    {% endfor %}
 {% endif %}
-{% for family in task_values["script_families"] %}
-    {% set inherit.str = inherit.str~","~family|upper %}
-{% endfor %}
 {# Remove leading commas #}
 {% set inherit.str = inherit.str|trim(",") %}
 
 {# Generate a resource family for the task #}
-    {% set resource_family = task~"_resources" %}
+{% set resource_family = task~"_resources" %}
 {% if "local_build_test" in task %}
-    {{ set_task_resources(resource_family, 15, 6, [1, "GB"]) }}
+    {{ set_task_resources(resource_family, inherit.str, 15, 6, [1, "GB"]) }}
 {% else %}
-    {{ set_task_resources(resource_family, 15, 1, [1, "GB"]) }}
+    {{ set_task_resources(resource_family, inherit.str, 15, 1, [1, "GB"]) }}
 {% endif %}
 
 {# ######################## #}
@@ -41,37 +43,37 @@
     [[{{task}}]]
 {% if "config_dump_checker" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=check_config_dump"
 
 {% elif "style_checker" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=check_style"
 
 {% elif "fortitude_linter" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=check_fortitude_linter"
 
 {% elif "extract_checker" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=extract_list_checker"
 
 {% elif "site_validator" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=site_validator"
 
 {% elif "rose-stem_lint_checker" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=rose-stem_lint_check"
 
 {% elif "test_launch-exe" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=test_launch-exe"
         [[[environment]]]
             launch_exe_meto_path = $CYLC_WORKFLOW_RUN_DIR/site/meto/common/bin/launch-exe
@@ -83,14 +85,14 @@
 
 {% elif "validate_rose_meta" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=validate_rose_meta"
         [[[environment]]]
             ROSE_PYTHONPATH = $PYTHONPATH
 
 {% elif "kgo_groups_checker" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit={{resource_family|upper}}
         script="rose task-run --app-key=check_kgo_groups"
         {% set group_str = RUN_NAMES|join(",") %}
         [[[environment]]]
@@ -99,24 +101,18 @@
 
 {% elif "global_variables_checker" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=check_global_variables"
 
 {% elif "python_unit_tests" in task %}
 
-        inherit={{inherit.str|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=python_unit_tests"
 
 {% elif "local_build_test" in task %}
     {# Test the local_build script by building solver #}
 
-    {% if "launch_platform" in site_vars and site_vars.launch_platform == "azspice" %}
-        {% set local_build_inherit = "SCRIPTS,"~site_vars["scripts_platform"]|upper~"_BUILD_GNU" %}
-    {% else %}
-        {% set local_build_inherit = "SCRIPTS,"~site_vars["scripts_platform"]|upper~"_BUILD_INTEL" %}
-    {% endif %}
-
-        inherit={{local_build_inherit|upper}}, {{resource_family|upper}}
+        inherit=SCRIPTS, {{resource_family|upper}}
         execution time limit = PT25M
         script = """
                  cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_apps $CYLC_TASK_WORK_DIR/apps_local_build_source

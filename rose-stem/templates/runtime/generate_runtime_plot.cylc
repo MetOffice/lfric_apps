@@ -9,16 +9,16 @@
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
-{% set inherit.str = task_family|upper %}
 
 {% for family in task_values["plot_families"] %}
-    {% set inherit.str = inherit.str~","~family|upper %}
+    {% set inherit.str = inherit.str~family|upper~"," %}
 {% endfor %}
 
 {# Generate a resource family for the task #}
 {% set resource_family = task~"_resources" %}
 {{ set_task_resources(
     resource_family,
+    inherit.str,
     task_values["tech-tests_wallclock"],
     task_values["tech-tests_cpus"],
     task_values["tech-tests_memory"]
@@ -29,7 +29,7 @@
 {# Plotting Tasks #}
 
     [[{{task}}]]
-        inherit = {{inherit.str|upper}}, {{resource_family|upper}}
+        inherit = {{task_family|upper}}, {{resource_family|upper}}
         script = 'rose task-run --app-key=plot'
         [[[environment]]]
             NODAL_DATA_DIR = {{task_output_dir}}/results
@@ -43,7 +43,7 @@
                      "/NN" %}
 
     [[{{task}}]]
-        inherit = {{inherit.str|upper}}, {{resource_family|upper}}
+        inherit = {{task_family|upper}}, {{resource_family|upper}}
         script = 'rose task-run --app-key=memory_profile'
         [[[environment]]]
             PLOT_DIR = {{task_output_dir}}/plots

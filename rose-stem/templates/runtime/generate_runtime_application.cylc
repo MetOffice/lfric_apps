@@ -14,10 +14,35 @@
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
-{% set inherit.str = task_family|upper %}
 {% for family in task_values["run_families"] %}
-    {% set inherit.str = inherit.str~","~family|upper %}
+    {% set inherit.str = inherit.str~family|upper~"," %}
 {% endfor %}
+
+{# Generate a resource family for the task #}
+{% set resource_family = task~"_resources" %}
+{% if task_values["coupled"] %}
+    {{ set_task_resources(resource_family,
+                          inherit.str,
+                          task_values["wallclock"],
+                          task_values["mpi_parts"],
+                          task_values["memory"],
+                          threads=task_values["threads"],
+                          xios_nodes=task_values["xios_nodes"],
+                          ocean_nodes=task_values["ocean_nodes"],
+                          river_nodes=task_values["river_nodes"],
+                          ranks_per_node=task_values["task_ranks_per_node"],
+                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
+{% else %}
+    {{ set_task_resources(resource_family,
+                          inherit.str,
+                          task_values["wallclock"],
+                          task_values["mpi_parts"],
+                          task_values["memory"],
+                          threads=task_values["threads"],
+                          xios_nodes=task_values["xios_nodes"],
+                          ranks_per_node=task_values["task_ranks_per_node"],
+                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
+{% endif %}
 
 {# Generate the script command #}
 {% set script_str = namespace(name="") %}
@@ -93,33 +118,9 @@
     {% endif %}
 {% endif %}
 
-{# Generate a resource family for the task #}
-{% set resource_family = task~"_resources" %}
-{% if task_values["coupled"] %}
-    {{ set_task_resources(resource_family,
-                          task_values["wallclock"],
-                          task_values["mpi_parts"],
-                          task_values["memory"],
-                          threads=task_values["threads"],
-                          xios_nodes=task_values["xios_nodes"],
-                          ocean_nodes=task_values["ocean_nodes"],
-                          river_nodes=task_values["river_nodes"],
-                          ranks_per_node=task_values["task_ranks_per_node"],
-                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
-{% else %}
-    {{ set_task_resources(resource_family,
-                          task_values["wallclock"],
-                          task_values["mpi_parts"],
-                          task_values["memory"],
-                          threads=task_values["threads"],
-                          xios_nodes=task_values["xios_nodes"],
-                          ranks_per_node=task_values["task_ranks_per_node"],
-                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
-{% endif %}
-
 {# Define the task runtime section #}
     [[{{task}}]]
-        inherit = {{inherit.str|upper}}, {{resource_family|upper}}
+        inherit = {{task_family|upper}}, {{resource_family|upper}}
         script = {{script_str.name}}
         {{ generate_script("post-script", post_script_commands) }}
         [[[environment]]]

@@ -9,9 +9,8 @@
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
-{% set inherit.str = "MESH_"~task_ns.platform|upper %}
 {% for family in task_values["mesh_families"] %}
-    {% set inherit.str = inherit.str~","~family|upper %}
+    {% set inherit.str = inherit.str~family|upper~"," %}
 {% endfor %}
 
 {% set script_str = "rose task-run --app-key=mesh --opt-conf-key="~task_ns.conf_name %}
@@ -20,13 +19,14 @@
 {% set resource_family = task~"_resources" %}
 {{ set_task_resources(
     resource_family,
+    inherit.str,
     task_values["mesh_wallclock"],
     task_values["mesh_cpus"],
     task_values["mesh_memory"]
     ) }}
 
     [[{{task}}]]
-        inherit = {{inherit.str|upper}}, {{resource_family|upper}}
+        inherit = MESH_{{task_ns.platform|upper}}, {{resource_family|upper}}
         script = {{script_str}}
         [[[environment]]]
             DESTINATION_DIRECTORY = {{destination_dir}}
