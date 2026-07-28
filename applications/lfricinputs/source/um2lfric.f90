@@ -37,7 +37,7 @@ use um2lfric_read_um_file_mod,     only: um2lfric_close_um_file, &
 
 implicit none
 
-type(config_type), save :: lfric_config
+type(config_type) :: lfric_config
 
 !==========================================================================
 ! Read inputs and initialise setup
@@ -46,16 +46,17 @@ type(config_type), save :: lfric_config
 ! Read command line arguments and return details of filenames.
 call lfricinp_get_command_line_args(um2lfric_nl_fname)
 
-! Initialise common infrastructure
-call lfricinp_initialise(um2lfric_nl_fname)
-
-! Initialise um2lfric
-call um2lfric_initialise_um2lfric()
-
+! Read the LFRic infrastructure namelist and set up MPI, XIOS and logger
 lfric_config = lfricinp_setup_basics(program_name_arg="um2lfric",              &
                          required_lfric_namelists = required_lfric_namelists)
 
-! Initialise LFRic Infrastructure
+! Read common regridding configuration
+call lfricinp_initialise(um2lfric_nl_fname)
+
+! Read um2lfric configuration, STASHmaster and regrid weights
+call um2lfric_initialise_um2lfric()
+
+! Initialise rest of LFRic Infrastructure
 call lfricinp_initialise_lfric(                                                &
      config=lfric_config,                                                      &
      start_date = datetime % first_validity_time,                              &

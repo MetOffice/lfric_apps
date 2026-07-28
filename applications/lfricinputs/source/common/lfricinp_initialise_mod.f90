@@ -22,7 +22,7 @@ public :: lfricinp_initialise, lfricinp_get_command_line_args
 
 contains
 
-!> Initialises generic lfricinputs infrastructure
+!> Reads the command line that contains namelist file names
 !> @param [out] program_fname Filename for program specific namelists provided
 !>                            on the command line
 subroutine lfricinp_get_command_line_args(program_fname)
@@ -32,7 +32,6 @@ subroutine lfricinp_get_command_line_args(program_fname)
 
   character(len=fnamelen), intent(out) :: program_fname
 
-  call log_event('Reading command line', LOG_LEVEL_INFO)
   call lfricinp_read_command_line_args(program_fname, lfric_nl_fname, io_fname)
 
 end subroutine lfricinp_get_command_line_args

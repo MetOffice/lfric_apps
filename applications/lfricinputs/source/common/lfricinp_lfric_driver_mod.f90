@@ -318,9 +318,6 @@ integer              :: i
 
 allocate(success_map(size(required_lfric_namelists)))
 
-call log_event('Loading '//trim(program_name)//' configuration ...',           &
-               LOG_LEVEL_ALWAYS)
-
 call read_configuration( lfric_nl, config=config )
 
 okay = ensure_configuration(required_lfric_namelists, success_map)
