@@ -8,6 +8,7 @@
 module tl_mol_advective_alg_mod
 
   ! Infrastructure
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_def, i_def, l_def
   use field_mod,                        only: field_type
   use log_mod,                          only: log_event, LOG_LEVEL_ERROR
@@ -26,9 +27,9 @@ module tl_mol_advective_alg_mod
   use transport_metadata_mod,           only: transport_metadata_type
   use wind_precomputations_alg_mod,     only: wind_precomputations_type
 
-  ! Configuration
-  use transport_config_mod,             only: runge_kutta_method
-  use linear_config_mod,                only: transport_efficiency
+  ! Configuration modules
+  use transport_config_mod, only: runge_kutta_method
+  use linear_config_mod,    only: transport_efficiency
 
   implicit none
 
@@ -85,10 +86,13 @@ contains
     type(wind_precomputations_type), pointer :: ls_wind_precomputations
     type(wind_precomputations_type), pointer :: pert_wind_precomputations
 
+    type(config_type), pointer :: config
+
     ! ------------------------------------------------------------------------ !
     ! Extract transport objects and initialise temporary fields
     ! ------------------------------------------------------------------------ !
-    mesh => field%get_mesh()
+    config => tl_transport_controller%get_config()
+    mesh   => field%get_mesh()
 
     transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
@@ -180,9 +184,10 @@ contains
         end do
 
         ! Compute update: rhs = u.grad(rhs_field)
-        call advective_and_flux_alg(dummy, rhs, rhs_field, ls_field_n,     &
-                                    ls_advecting_wind, direction,          &
-                                    ls_transport_metadata, final_rk_stage, &
+        call advective_and_flux_alg(config,                                  &
+                                    dummy, rhs, rhs_field,                   &
+                                    ls_field_n,ls_advecting_wind, direction, &
+                                    ls_transport_metadata, final_rk_stage,   &
                                     dt_mol_substep, .false., .true. )
 
         ! Update field: f = f^n - dt*rhs
@@ -239,7 +244,7 @@ contains
         end do
 
         ! Compute update: rhs = u.grad(rhs_field)
-        call tl_advective_and_flux_alg(                                        &
+        call tl_advective_and_flux_alg(config,                                 &
                 dummy, dummy, rhs, rhs_field, advecting_wind,                  &
                 stored_ls_field(ls_substep, ls_stage), ls_advecting_wind,      &
                 direction, transport_metadata, final_rk_stage, dt_mol_substep, &

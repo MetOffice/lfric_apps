@@ -2,6 +2,8 @@ import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
+from .version31_32 import *
+
 
 class UpgradeError(Exception):
     """Exception created when an upgrade fails."""

@@ -7,7 +7,9 @@
 !!        finite difference formulations.
 module compute_total_mass_alg_mod
 
-  use constants_mod, only: r_def, i_def
+  use config_mod,           only: config_type
+  use constants_mod,        only: r_def, i_def
+  use extrusion_config_mod, only: planet_radius
 
   implicit none
 
@@ -20,12 +22,13 @@ contains
   !!          quadrature on the finite element representation,
   !!          or a finite difference calculation to mimic
   !!          UM(ENDGame).
+  !> @param[in]  config     Application namelist configuration object
   !> @param[out] total_mass Total dry mass of the atmosphere
   !> @param[in]  rho        Density of dry component of atmosphere
   !> @param[in]  mesh       Mesh information
   !> @param[in]  method     (Optional) Argument to specify which calculation
   !!                        method to use
-  subroutine compute_total_mass_alg( total_mass, rho, mesh, method )
+  subroutine compute_total_mass_alg( config, total_mass, rho, mesh, method )
 
     use compute_column_integral_kernel_mod, &
                                         only: compute_column_integral_kernel_type
@@ -34,16 +37,13 @@ contains
                                               integral_method_fd, &
                                               integral_method_fe
     use extrusion_mod,                  only: TWOD
-    use extrusion_config_mod,           only: planet_radius
     use sci_fem_constants_mod,          only: get_mass_matrix_fe, &
                                               get_mass_matrix_fv
     use fs_continuity_mod,              only: W3, Wtheta
     use field_mod,                      only: field_type
     use function_space_mod,             only: function_space_type
     use function_space_collection_mod,  only: function_space_collection
-    use sci_geometric_constants_mod,    only: get_coordinates, &
-                                              get_height_fv,   &
-                                              get_panel_id,    &
+    use sci_geometric_constants_mod,    only: get_height_fv, &
                                               get_da_msl_proj
     use log_mod,                        only: log_event,         &
                                               log_scratch_space, &
@@ -53,6 +53,8 @@ contains
     use operator_mod,                   only: operator_type
 
     implicit none
+
+    type( config_type ), intent(in)  :: config
 
     type( field_type ),              intent(in)  :: rho
     type( mesh_type ),     pointer,  intent(in)  :: mesh
@@ -87,10 +89,10 @@ contains
 
     select case( method_to_use )
     case( integral_method_fd )
-      height_w3  => get_height_fv( W3, mesh_id )
-      height_wth => get_height_fv( Wtheta, mesh_id )
+      height_w3  => get_height_fv(config, mesh, W3)
+      height_wth => get_height_fv(config, mesh, Wtheta)
       twod_mesh  => mesh_collection%get_mesh( mesh, TWOD )
-      dA         => get_da_msl_proj( twod_mesh%get_id() )
+      dA         => get_da_msl_proj(config, twod_mesh)
 
       call tot_col_mass%initialise( vector_space = &
                                     function_space_collection%get_fs( twod_mesh, 0, 0, W3 ) )

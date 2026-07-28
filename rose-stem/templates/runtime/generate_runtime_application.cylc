@@ -140,6 +140,8 @@
             CANNED_PRESCRIPT        = {{canned_prescript}}
             XIOS_SERVER_MODE        = {{task_values["xios_server_mode"]}}
             XIOS_SERVER_RANKS       = {{task_values["xios_server_ranks"]}}
+            XIOS_MIN_BUFFER_SIZE    = {{task_values["xios_min_buffer_size"]}}
+            XIOS_BUFFER_SIZE_FACTOR = {{task_values["xios_buffer_size_factor"]}}
             xios_nodes              = {{task_values["xios_nodes"]}}
             mpi_parts_xios          = {{task_values["mpi_parts_xios"]}}
             XIOS_INFO_LEVEL         = {{task_values['xios_info_level']}}

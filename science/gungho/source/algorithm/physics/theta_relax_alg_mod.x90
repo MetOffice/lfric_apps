@@ -17,6 +17,7 @@
 !>          the relaxation.
 module theta_relax_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def
   use field_mod,                     only: field_type
   use fs_continuity_mod,             only: Wtheta, W3
@@ -42,13 +43,14 @@ module theta_relax_alg_mod
 contains
 
   !> @brief Algorithm to calculate Newtonian relaxation of potential temperature
-  !> @param[in,out] dtheta_forcing Relaxation increment
-  !> @param[in]     theta Dry potential temperature
-  !> @param[in]     exner_in_wth Exner mapped to Wtheta space
-  !> @param[in]     twod_mesh Information  about the horizontal mesh
-  !> @param[in]     time_now Current model time in seconds
-  !> @param[in]     nlayers Number of layers in the grid
-  subroutine theta_relax_alg( dtheta_forcing, theta, exner_in_wth,   &
+  !> @param[in]     config          Application namelist configuration object
+  !> @param[in,out] dtheta_forcing  Relaxation increment
+  !> @param[in]     theta           Dry potential temperature
+  !> @param[in]     exner_in_wth    Exner mapped to Wtheta space
+  !> @param[in]     twod_mesh       Information about the horizontal mesh
+  !> @param[in]     time_now        Current model time in seconds
+  !> @param[in]     nlayers         Number of layers in the grid
+  subroutine theta_relax_alg( config, dtheta_forcing, theta, exner_in_wth, &
                               twod_mesh, time_now, nlayers )
 
   use theta_relax_config_mod, only: number_times,                     &
@@ -64,6 +66,8 @@ contains
 
   implicit none
 
+  type(config_type), intent(in) :: config
+
   type( field_type ), intent(inout)       :: dtheta_forcing
   type( field_type ), intent(in), target  :: theta
   type( field_type ), intent(in), target  :: exner_in_wth
@@ -75,11 +79,16 @@ contains
   real( kind=r_def )          :: dt_rdef
   real( kind=r_def )          :: theta_relax_now(number_heights)
   real( kind=r_def )          :: relaxation_coeff
-  integer( kind=i_def )       :: k, mesh_id
+  integer( kind=i_def )       :: k
+
   logical( kind=l_def )       :: profile_extrap
   type( field_type )          :: dtheta_relax
   type( field_type ), target  :: horiz_mean
-  type( field_type ), pointer :: height_wth => null()
+
+  type(field_type), pointer :: height_wth
+  type(mesh_type),  pointer :: mesh
+
+  nullify(mesh, height_wth)
 
   ! Only apply relaxation between the specified times, unless only
   ! one time is specified. In the later case relaxation applies at all times.
@@ -122,8 +131,8 @@ contains
       end do
       height_wth => exner_in_wth
     else
-      mesh_id = dtheta_relax%get_mesh_id()
-      height_wth => get_height_fv( Wtheta, mesh_id )
+      mesh => dtheta_relax%get_mesh()
+      height_wth => get_height_fv(config, mesh, Wtheta)
     end if
     profile_extrap = .false.
     call invoke( setval_X( dtheta_relax, horiz_mean),                  &

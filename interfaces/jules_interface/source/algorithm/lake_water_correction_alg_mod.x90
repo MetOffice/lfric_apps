@@ -8,11 +8,12 @@
 
 module lake_water_correction_alg_mod
 
+  use config_mod,                 only: config_type
   use constants_mod,              only: l_def, r_def
   use field_mod,                  only: field_type, field_proxy_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
   use mesh_mod,                   only: mesh_type
   use surface_config_mod,         only: check_soilm_negatives
-  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
   implicit none
 
@@ -28,6 +29,7 @@ contains
   !> moisture globally by the same small amount to account for this lake
   !> evaporation.
   !>
+  !> @param[in]     config                 Application namelist configuration object
   !> @param[in]     lake_evap              Evaporation from lakes (kg m-2 s-1)
   !> @param[in,out] soil_moisture          Soil moisture content (kg m-2)
   !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture fraction (m3 m-3)
@@ -35,9 +37,10 @@ contains
   !> @param[in]     soil_moist_wilt        Wilting point soil moisture fraction (m3 m-3)
   !> @param[in]     tile_fraction          The fraction of each surface tile
   !> @param[in]     dt                     Timestep length (s)
-  subroutine lake_water_correction(lake_evap, soil_moisture,                 &
-                                   unfrozen_soil_moisture, soil_moist_sat,   &
-                                   soil_moist_wilt, tile_fraction, dt)
+  subroutine lake_water_correction( config,                                 &
+                                    lake_evap, soil_moisture,               &
+                                    unfrozen_soil_moisture, soil_moist_sat, &
+                                    soil_moist_wilt, tile_fraction, dt )
 
     use sci_geometric_constants_mod, only: get_da_msl_proj
     use nlsizes_namelist_mod,        only: sm_levels
@@ -56,6 +59,7 @@ contains
 
     implicit none
 
+    type(config_type),  intent (in)     :: config
     type( field_type ), intent (in)     :: lake_evap
     type( field_type ), intent (inout)  :: soil_moisture
     type( field_type ), intent (inout)  :: unfrozen_soil_moisture
@@ -114,7 +118,7 @@ contains
     mesh => lake_evap%get_mesh()
 
     ! Calculate the grid cell areas (cell_area)
-    cell_area => get_dA_msl_proj( mesh%get_id() )
+    cell_area => get_dA_msl_proj(config, mesh)
 
     ! Multiply by the grid box areas
     call invoke(X_times_Y(evap_whole_grid_cell,lake_evap, cell_area),  &

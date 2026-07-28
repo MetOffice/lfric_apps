@@ -24,15 +24,15 @@
      integer :: idx_8
      integer :: idx_9
      integer :: idx_10
-@@ -143,10 +142,7 @@
+@@ -144,10 +143,7 @@
      do idx_8 = iw2v + nlayers, iw2v, -1
        lhs_w(idx_8) = 0.0
      enddo
 -    do idx_7 = UBOUND(t_col, dim=1), LBOUND(t_col, dim=1), -1
--      t_col = t_col + mt_lumped_inv(idx_7 + iwt - LBOUND(t_col(idx_7), 1)) * t_col(idx_7)
+-      t_col = t_col + mt_lumped_inv(idx_7 + iwt - LBOUND(t_col(idx_7), dim=1)) * t_col(idx_7)
 -      t_col(idx_7) = 0.0
 -    enddo
 +    t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1)
      do df = ndf_w2, 1, -1
        do idx_6 = nm1 + 1, 1, -1
-         u_e(idx_6 + LBOUND(u_e, 1) - 1,df) = u_e(idx_6 + LBOUND(u_e, 1) - 1,df) + (-pt2(idx_6 + ij - 1,2,df) * t_col(idx_6))
+         u_e(idx_6 + LBOUND(u_e, dim=1) - 1,df) = u_e(idx_6 + LBOUND(u_e, dim=1) - 1,df) + (-pt2(idx_6 + ij - 1,2,df) * t_col(idx_6))

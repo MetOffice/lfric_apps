@@ -70,20 +70,23 @@ module process_send_fields_0d_mod
       ! Get the mesh
       mesh => fld%get_mesh()
       ! Get the latitude field
-      latitude => get_latitude_fv(W3, mesh%get_id())
+
+      latitude => get_latitude_fv(modeldb%config, mesh, W3)
       call invoke(value_based_mask_kernel_type(fld, latitude, &
                                                0.0_r_def, 2.0_r_def) )
-    endif
+    end if
+
     if (fld_name == "lf_antarctic") then
       !Make a mask of the Southern Hemisphere
       ! Get the mesh
       mesh => fld%get_mesh()
       ! Get the latitude field
-      latitude => get_latitude_fv(W3, mesh%get_id())
+
+      latitude => get_latitude_fv( modeldb%config, mesh, W3)
       call invoke(value_based_mask_kernel_type(fld, latitude, &
                                                -2.0_r_def, 0.0_r_def) )
-    endif
-  endif
+    end if
+  end if
 
   ! Calculate the scalar icesheet mass
 
@@ -91,7 +94,8 @@ module process_send_fields_0d_mod
   call depository%get_field("tile_snow_mass", snow_mass_on_tiles_ptr)
   call depository%get_field('tile_fraction', tile_fraction_ptr)
 
-  call ice_sheet_mass( fld,                    &
+  call ice_sheet_mass( modeldb%config, &
+                       fld,            &
                        snow_mass_on_tiles_ptr, &
                        tile_fraction_ptr,      &
                        scalar )

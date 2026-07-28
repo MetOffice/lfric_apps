@@ -187,7 +187,7 @@ contains
                                     ls_u, ls_rho, ls_theta, ls_exner, &
                                     ls_mr, ls_moist_dyn, (num_steps == 1) )
 
-    call compute_si_operators( ls_theta, ls_rho, ls_exner, &
+    call compute_si_operators( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                modeldb%clock, ls_moist_dyn )
 
     do i = 1, num_steps
@@ -269,7 +269,7 @@ contains
     ! Adjoint code
     ! --------------------------------------------------------------------------
 
-    call atl_si_timestep%initialise( u, rho, theta, exner, mr, &
+    call atl_si_timestep%initialise( modeldb%config, u, rho, theta, exner, mr, &
                                      ls_theta, ls_exner, ls_mr, ls_moist_dyn )
 
     do i = 1, num_steps

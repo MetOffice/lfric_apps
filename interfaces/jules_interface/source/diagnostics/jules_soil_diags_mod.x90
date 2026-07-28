@@ -7,7 +7,7 @@
 
 module jules_soil_diags_mod
 
-  use constants_mod,               only: l_def
+  use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
   use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
