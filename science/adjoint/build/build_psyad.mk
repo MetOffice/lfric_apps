@@ -21,3 +21,5 @@ include $(ADJOINT_BUILD)/post_patch.mk
 
 $(DIRECTORIES):
 	mkdir -p $@
+
+# include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk

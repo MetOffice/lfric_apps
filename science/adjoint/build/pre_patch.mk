@@ -10,20 +10,6 @@
 define PRE_PATCH
 
 #-----------------------------------------------------------------------------
-# For F90s
-#-----------------------------------------------------------------------------
-# If a patch exists, copy source to target and patch the target.
-$(PSYAD_WDIR)/$2/%.F90: $1/$2/%.F90 \
-	$(PATCH_DIR)/kernel/%.patch | $(DIRECTORIES)
-	cp $$< $$@
-	patch $$@ $$(word 2,$$^)
-
-# If no patch exists, just copy source to target.
-$(PSYAD_WDIR)/$2/%.F90: $1/$2/%.F90 \
-	| $(DIRECTORIES)
-	cp $$< $$@
-
-#-----------------------------------------------------------------------------
 # For f90s
 #-----------------------------------------------------------------------------
 # If a patch exists, copy source to target and patch the target.

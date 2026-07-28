@@ -3,9 +3,9 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
-export PROJECT_SOURCE = $(APPS_ROOT_DIR)/science/adjoint/source
-PSYAD_CONFIG_FILE    ?= $(CORE_ROOT_DIR)/etc/psyclone.cfg
-BUILD_ADJ_TESTS      ?= FALSE
+PROJECT_SOURCE     = $(APPS_ROOT_DIR)/science/adjoint/source
+PSYAD_CONFIG_FILE ?= $(CORE_ROOT_DIR)/etc/psyclone.cfg
+BUILD_ADJ_TESTS   ?= FALSE
 
 .PHONY: import-adjoint
 import-adjoint: export ADJOINT_BUILD   := $(APPS_ROOT_DIR)/science/adjoint/build
@@ -37,4 +37,3 @@ ifeq "$(BUILD_ADJ_TESTS)" "TRUE"
 	          OPTIMISATION_PATH=$(OPTIMISATION_PATH) \
 	          PSYCLONE_CONFIG_FILE=$(PSYAD_CONFIG_FILE)
 endif
-
