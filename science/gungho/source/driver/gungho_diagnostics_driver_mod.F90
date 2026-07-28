@@ -340,7 +340,7 @@ contains
 
       ! TODO: make this look like #483 to minimise merge work
       ! Tropopause aviation diagnostics (pressure, temperature and height)
-!      call trop_diags_alg(modeldb%config, theta, exner_in_wth)
+      call trop_diags_alg(modeldb%config, theta, exner_in_wth)
 
 #endif
 
