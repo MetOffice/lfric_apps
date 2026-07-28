@@ -133,7 +133,7 @@ do k = k_bot_conv, k_top_conv
       end do
     end if
 
-  end if  ! ( n_updraft_types > 0 .and. n_updraft_layers > 0 )
+  end if  ! ( n_updraft_types > 0 .AND. n_updraft_layers > 0 )
 
   if ( n_dndraft_types > 0 .and. n_dndraft_layers > 0 ) then
 
@@ -173,7 +173,7 @@ do k = k_bot_conv, k_top_conv
       end do
     end if
 
-  end if  ! ( n_dndraft_types > 0 .and. n_dndraft_layers > 0 )
+  end if  ! ( n_dndraft_types > 0 .AND. n_dndraft_layers > 0 )
 
 
   ! Initialise count for number of convecting points to zero

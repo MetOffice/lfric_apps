@@ -1,7 +1,10 @@
 {% do LOG.debug("Entered site/esnz/variables.cylc") %}
 
 {% do site_vars.update({"known_applications": ["gungho_model",
+                                               "gravity_wave",
                                                "lfric_atm",
+                                               "lfricinputs",
+                                               "lfric2lfric",
                                                "ngarch",
                                                "mesh",
                                                "gungho",
@@ -11,7 +14,9 @@
 
 {% do site_vars.update({"site_platforms": ["cascade"]}) %}
 
-{% do site_vars.update({"mesh_build": {"cascade": "ifort_fast-debug-64bit"} }) %}
+{% do site_vars.update({"mesh_build": {"cascade": "ifx_fast-debug-64bit"} }) %}
+
+{% do site_vars.update({"lfricinputs_kgo_base": "/esi/project/niwa00001/rose-stem/um/standard_jobs/lfricinputs/kgo"}) %}
 
 {% do site_vars.update({"scripts_platform": "cascade"}) %}
 

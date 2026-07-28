@@ -34,6 +34,7 @@ module flux_precomputations_alg_mod
                                             transport_overwrite_freq_all,      &
                                             transport_overwrite_freq_final,    &
                                             transport_overwrite_freq_split_step
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def, str_def, imdi,       &
                                             r_tran, EPS_R_TRAN, r_def
   use departure_points_config_mod,    only: share_stencil_extent
@@ -143,9 +144,12 @@ module flux_precomputations_alg_mod
     logical(kind=l_def)                   :: ref_enforce_min_value
     real(kind=r_tran)                     :: ref_min_value
 
+    type(config_type), pointer :: config
+
     contains
 
     procedure, public  :: initialise_step
+    procedure, public  :: get_config
     procedure, public  :: get_local_mesh_id
     procedure, public  :: get_prime_extrusion_mesh_id
     procedure, public  :: get_mesh_id_from_idx
@@ -192,6 +196,7 @@ contains
   !!        If a 3D flux field is provided, it will be split into components
   !!        for each split step. Otherwise, individual flux fields must be
   !!        passed to this object.
+  !> @param[in] config        Application namelist configuration object
   !> @param[in] prime_mesh    The prime extrusion mesh
   !> @param[in] splitting     Splitting to be used for all pre-computations
   !> @param[in] num_substeps  Number of transport substeps
@@ -216,9 +221,9 @@ contains
   !!                          If specified, this will be used to set the depth
   !!                          of halos and the maximum stencil extents that can
   !!                          be used in horizontal calculations.
-  subroutine flux_precomputations_initialiser(self, prime_mesh,                &
-                                              splitting, num_substeps,         &
-                                              wind, dt, ref_field, flux,       &
+  subroutine flux_precomputations_initialiser(self, config, prime_mesh,  &
+                                              splitting, num_substeps,   &
+                                              wind, dt, ref_field, flux, &
                                               reset_unity, max_courant_num)
 
     use sci_mapping_constants_mod,  only: get_intermesh_weights_w3_rtran
@@ -239,6 +244,8 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type), target, intent(in) :: config
+
     class(flux_precomputations_type),           intent(inout) :: self
     type(mesh_type),                   pointer, intent(in)    :: prime_mesh
     integer(kind=i_def),                        intent(in)    :: splitting
@@ -263,7 +270,7 @@ contains
 
     type(local_mesh_type),     pointer :: local_mesh
     type(mesh_type),           pointer :: shifted_mesh
-    type(mesh_type),           pointer :: mesh
+    type(mesh_type),           pointer :: mesh, tmp_mesh
     type(function_space_type), pointer :: w2_fs
     type(function_space_type), pointer :: w2h_fs
     type(function_space_type), pointer :: w2v_fs
@@ -281,6 +288,7 @@ contains
 
     if ( LPROF ) call start_timing( id, 'transport.flux_precomp_init' )
 
+    self%config => config
     self%splitting = splitting
     self%num_substeps = num_substeps
     self%to_initialise_by_step = present(flux)
@@ -459,11 +467,12 @@ contains
 
     ! Multiply by cell volume to get mass
     ! If extended mesh, remap reference field here
-    detj_w3 => get_detj_at_w3_r_tran(self%mesh_ids(1))
+    mesh => mesh_collection%get_mesh(self%mesh_ids(1))
+    detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
     if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
       call tmp_field%initialise(w3_fs)
       call invoke( setval_X(tmp_field, self%ref_field(1,1)) )
-      call remap_on_extended_mesh(                                             &
+      call remap_on_extended_mesh(self%config,                                 &
               self%ref_field(1,1), tmp_field, self%ref_monotone,               &
               self%ref_enforce_min_value, self%ref_min_value, halo_depth       &
       )
@@ -500,9 +509,11 @@ contains
       ! If the flux is not on the mesh for this object, restrict it
       if (mesh%get_id() /= self%mesh_ids(1)) then
         ! Restrict flux to the mesh for this precomputation object
+        tmp_mesh => mesh_collection%get_mesh(self%mesh_ids(1))
         w2_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2)
-        face_selector_ew => get_face_selector_ew(self%mesh_ids(1))
-        face_selector_ns => get_face_selector_ns(self%mesh_ids(1))
+        face_selector_ew => get_face_selector_ew(tmp_mesh)
+        face_selector_ns => get_face_selector_ns(tmp_mesh)
+        nullify(tmp_mesh)
 
         call ref_flux_restricted%initialise(w2_fs)
 
@@ -516,13 +527,17 @@ contains
         flux_ptr => flux
       end if
 
+      call self%set_total_ref_flux(flux_ptr)
+
       ! Split flux into horizontal and vertical components ---------------------
       w2_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2)
       if (splitting /= splitting_none) then
+        tmp_mesh => mesh_collection%get_mesh(self%mesh_ids(1))
         w2h_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2H)
         w2v_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2V)
-        face_selector_ew => get_face_selector_ew(self%mesh_ids(1))
-        face_selector_ns => get_face_selector_ns(self%mesh_ids(1))
+        face_selector_ew => get_face_selector_ew(tmp_mesh)
+        face_selector_ns => get_face_selector_ns(tmp_mesh)
+        nullify(tmp_mesh)
 
         call flux_hori%initialise(w2h_fs)
         call flux_vert%initialise(w2v_fs)
@@ -538,7 +553,7 @@ contains
         do j = 1, num_split_steps
           step_idx = (i - 1_i_def) * num_split_steps + j
           direction = get_splitting_direction(splitting, j)
-          factor = get_splitting_factor(splitting, j)
+          factor = get_splitting_factor(splitting, j) / real(num_substeps, r_tran)
 
           select case (direction)
           case (direction_3d)
@@ -694,8 +709,8 @@ contains
       ! Restrict flux to the mesh for this precomputation object
       prime_mesh => mesh_collection%get_mesh(self%mesh_ids(1))
       w2_fs => function_space_collection%get_fs(prime_mesh, 0, 0, fs_id)
-      face_selector_ew => get_face_selector_ew(self%mesh_ids(1))
-      face_selector_ns => get_face_selector_ns(self%mesh_ids(1))
+      face_selector_ew => get_face_selector_ew(prime_mesh)
+      face_selector_ns => get_face_selector_ns(prime_mesh)
 
       call self%ref_flux(1, step)%initialise(w2_fs)
 
@@ -867,8 +882,8 @@ contains
       w2_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, fs_id)
       call self%ref_flux(2, step_idx)%initialise(w2_fs)
 
-      face_selector_ew => get_face_selector_ew(self%mesh_ids(2))
-      face_selector_ns => get_face_selector_ns(self%mesh_ids(2))
+      face_selector_ew => get_face_selector_ew(shifted_mesh)
+      face_selector_ns => get_face_selector_ns(shifted_mesh)
 
       if ( LPROF ) call start_timing( id, 'transport.flux_precomp' )
 
@@ -959,7 +974,7 @@ contains
     if (.not. self%ref_field(mesh_idx, step)%is_initialised()) then
       mesh => mesh_collection%get_mesh(mesh_id)
       halo_depth = mesh%get_halo_depth()
-      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
       w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
       ! Obtain reference field from mass
@@ -1066,7 +1081,7 @@ contains
       mesh => mesh_collection%get_mesh(mesh_id)
       halo_depth = mesh%get_halo_depth()
       w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
-      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
       call self%ref_mass(mesh_idx, step)%initialise(w3_fs, halo_depth=halo_depth)
 
       ! To determine the reference mass, use the following priorities:
@@ -1108,10 +1123,11 @@ contains
             .and. next_step_hori) then
           call tmp_mass%initialise(w3_fs)
           call tmp_field%initialise(w3_fs)
-          detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+          detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
           call invoke( X_minus_Y(tmp_mass, ref_mass_prev, increment),      &
                        X_divideby_Y(tmp_field, tmp_mass, detj_w3) )
           call remap_on_extended_mesh(                                         &
+              self%config,                                                     &
               self%ref_field(mesh_idx, step), tmp_field, self%ref_monotone,    &
               self%ref_enforce_min_value, self%ref_min_value, halo_depth       &
           )
@@ -1153,7 +1169,7 @@ contains
       else if (self%ref_field(mesh_idx, step)%is_initialised()) then
 
         if ( LPROF ) call start_timing( id, 'transport.flux_precomp' )
-        detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+        detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
         if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
           call invoke_deep_X_times_Y(self%ref_mass(mesh_idx, step),            &
                                      self%ref_field(mesh_idx, step), detj_w3)
@@ -1249,7 +1265,7 @@ contains
       mesh => mesh_collection%get_mesh(mesh_id)
       halo_depth = mesh%get_halo_depth()
       ref_mass => self%get_ref_mass_x(mesh_id, step)
-      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
       w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
       if ( LPROF ) call start_timing( id, 'transport.flux_precomp' )
@@ -1314,7 +1330,7 @@ contains
       mesh => mesh_collection%get_mesh(mesh_id)
       halo_depth = mesh%get_halo_depth()
       ref_mass => self%get_ref_mass_y(mesh_id, step)
-      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
       w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
       if ( LPROF ) call start_timing( id, 'transport.flux_precomp' )
@@ -1836,7 +1852,7 @@ contains
     mesh => mesh_collection%get_mesh(mesh_id)
     halo_depth = mesh%get_halo_depth()
     if (self%reset_unity) then
-      ref_mass_prev => get_detj_at_w3_r_tran(mesh_id)
+      ref_mass_prev => get_detj_at_w3_r_tran(self%config, mesh)
     else
       ref_mass_prev => self%get_ref_mass(mesh_id, step_idx) ! Use step_idx to avoid problems
     end if
@@ -1862,11 +1878,11 @@ contains
     if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
       call tmp_mass%initialise(w3_fs)
       call tmp_field%initialise(w3_fs)
-      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_w3 => get_detj_at_w3_r_tran(self%config, mesh)
       ! Remap field in x
       call invoke( setval_X(tmp_mass, self%ref_mass_x(mesh_idx, step_idx)),    &
                    X_divideby_Y(tmp_field, tmp_mass, detj_w3) )
-      call remap_on_extended_mesh(                                             &
+      call remap_on_extended_mesh(self%config,                                 &
           self%ref_field_x(mesh_idx, step_idx), tmp_field, self%ref_monotone,  &
           self%ref_enforce_min_value, self%ref_min_value, halo_depth           &
       )
@@ -1876,6 +1892,7 @@ contains
       call invoke( setval_X(tmp_mass, self%ref_mass_y(mesh_idx, step_idx)),    &
                    X_divideby_Y(tmp_field, tmp_mass, detj_w3) )
       call remap_on_extended_mesh(                                             &
+          self%config,                                                         &
           self%ref_field_y(mesh_idx, step_idx), tmp_field, self%ref_monotone,  &
           self%ref_enforce_min_value, self%ref_min_value, halo_depth           &
       )
@@ -1925,6 +1942,7 @@ contains
     integer(kind=i_def)                :: direction
     integer(kind=i_def)                :: dep_stencil_extent
     integer(kind=i_def)                :: ndata
+    type(mesh_type),           pointer :: mesh
     type(mesh_type),           pointer :: twod_mesh
     type(function_space_type), pointer :: w2_fs
     type(function_space_type), pointer :: depk_fs
@@ -1940,7 +1958,8 @@ contains
     direction = get_splitting_direction(self%splitting, step_of_substep)
 
     if (self%reset_unity) then
-      ref_mass => get_detj_at_w3_r_tran(mesh_id)
+      mesh => mesh_collection%get_mesh(mesh_id)
+      ref_mass => get_detj_at_w3_r_tran(self%config, mesh)
     else
       ref_mass => self%get_ref_mass(mesh_id, step_idx) ! Use step_idx to avoid problems
     end if
@@ -2136,10 +2155,12 @@ contains
       ! Protect this behind a log level check to avoid potentially hanging here
       if (log_at_level(LOG_LEVEL_INFO)) then
         call lipschitz_diag_alg(                                               &
+                self%config,                                                   &
                 self%splitting, self%transporting_wind,                        &
                 self%dt, LOG_LEVEL_WARNING                                     &
         )
         call print_field_stats_alg_rtran(                                      &
+                self%config,                                                   &
                 field, LOG_LEVEL_WARNING, 0.0_r_tran, HUGE(1.0_r_tran),        &
                 field_name                                                     &
         )
@@ -2331,5 +2352,16 @@ contains
     end if
 
   end subroutine log_courant
+
+  function get_config(self) result (config)
+
+    implicit none
+    class(flux_precomputations_type), target, intent(inout) :: self
+
+    type(config_type), pointer :: config
+
+    config => self%config
+
+  end function get_config
 
 end module flux_precomputations_alg_mod

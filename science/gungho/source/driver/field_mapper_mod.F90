@@ -127,7 +127,7 @@ contains
   !> @param[in,out] con_tracer_all_outer Second collection of fields that need to be advected every outer iteration
   !> @param[in,out] con_tracer_last_outer Second collection of fields that need to be advected at final outer iteration
   !> @param[in,out] derived_fields Collection of FD fields derived from FE fields
-  !> @param[in,out] radition_fields Collection of fields for radiation scheme
+  !> @param[in,out] radiation_fields Collection of fields for radiation scheme
   !> @param[in,out] microphysics_fields Collection of fields for microphys scheme
   !> @param[in,out] electric_fields Collection of fields for electric scheme
   !> @param[in,out] orography_fields Collection of fields for orogr drag scheme
@@ -384,6 +384,8 @@ contains
       axis => self%gungho_axes%lbc_time_axis
     case (time_axis_dict%ls)
       axis => self%gungho_axes%lbc_time_axis
+    case (time_axis_dict%nudging)
+      axis => self%gungho_axes%nudging_time_axis
     case (time_axis_dict%none)
       axis => null()
     case default

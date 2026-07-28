@@ -47,8 +47,8 @@ filename. ::
 Storing a local transformation script, ``local.py``
 +++++++++++++++++++++++++++++++++++++++++++++++++++
 All files to be optimised by transmute (see ``psyclone_transmute_file_list.mk``)
-in ``large_scale_precipitation`` will use this script unless overwritten with
-a matching filename.::
+in the ``large_scale_precipitation`` directory will use this script unless overwritten
+with a matching source filename.::
 
     optimisation/
     └── <platform>/
@@ -71,7 +71,7 @@ For a script with matching source filename
                     └── ls_ppn.F90
 
 
-* In the **built** ``lfric_atm`` application, ``ls_ppn.F90`` is found here -
+* To understand the required path for storing a matching source filename, the build directory of a built application should be consulted. In the **built** ``lfric_atm`` application, ``ls_ppn.F90`` is found here -
   **use this path**::
 
     <lfric_atm working directory>/
@@ -102,25 +102,51 @@ apply module-specific PSyclone transformations. This can be found at::
     └── build/
       └── psyclone_transmute_file_list.mk
 
-Within this makefile there are environment variables that hold the names of
-Fortran modules/transformation scripts that the science interface PSyclone
-makefile should target. These are::
+Within this makefile there are several environment variables which control the
+how files are passed to PSyclone Transmute. 
+These are:
 
-    PSYCLONE_PHSYICS_FILES_IMPORT
-    PSYCLONE_PHSYICS_FILES_FCM
+* ``PSYCLONE_PHYSICS_FILES``
+* ``PSYCLONE_PASS_NO_SCRIPT``
+* ``TRANSMUTE_INCLUDE_METHOD``
+* ``PSYCLONE_DIRECTORIES``
+* ``PSYCLONE_PHYSICS_EXCEPTION``
 
-* If the module for which you are adding a transformation script lives in the
-  LFRic Apps directory, please use ``PSYCLONE_PHSYICS_FILES_IMPORT``. This
-  includes any non-LFRic source stored in the ``interfaces/`` directory.
 
-* If the module is being imported from UKCA, JULES, CASIM, UM, SOCRATES, or any
-  other code base and does not have a copy in the LFRic Apps repository, please
-  use the ``PSYCLONE_PHSYICS_FILES_FCM`` variable.
+``PSYCLONE_PHYSICS_FILES`` is used with ``TRANSMUTE_INCLUDE_METHOD`` ``specify_include``.
+File names (without file extensions), which are to be affected by PSyclone, are
+added to this list. Any files not included in this list will not be processed by
+PSyclone.
+A PSyclone transformation script is applied to each respective file.
+The ``global.py`` script is used as the default transformation script, overridden by file- or directory-specific alternatives as detailed above.
+This is currently the default method for enabling PSyclone transformation scripts for
+source files.
+
+``PSYCLONE_PASS_NO_SCRIPT`` has been implemented for the ``TRANSMUTE_INCLUDE_METHOD``
+``specify_include``. Use of this variable for the ``specify_exclude`` method is not mature,
+however this could be expanded to exclude in the future (see `issue319 <https://github.com/MetOffice/lfric_apps/issues/319>`_,).
+This variable specifies files to be passed to PSyclone without applying any transformations.
+This can be useful to remove existing clauses from a file without otherwise modifying the Fortran source.
+Any files included in ``PSYCLONE_PASS_NO_SCRIPT`` are filtered out of the ``PSYCLONE_PHYSICS_FILES`` list, 
+and sent to a separate make script.
+
+``TRANSMUTE_INCLUDE_METHOD`` can be set to either ``specify_include`` or
+``specify_exclude``.
+With ``specify_include``, ``PSYCLONE_PHYSICS_FILES`` will be used to define the list
+of files to be passed to the PSyclone Transmute command, and only these files will be
+passed. All other Fortran source files will not be passed to PSyclone.
+
+When using ``specify_exclude``, a list of target directories is passed via
+``PSYCLONE_DIRECTORIES``. For all directories in this list, every Fortran source file
+found in these directories will be passed to PSyclone. To omit a file from being passed
+to PSyclone, the filename (including extension) can be added to
+``PSYCLONE_PHYSICS_EXCEPTION``. This can often be used with .h files currently.
+
 
 Module/transformation script names should be added in the following style (in
 accordance with GNUMake)::
 
-    PSYCLONE_PHSYICS_FILES_IMPORT = \
+    PSYCLONE_PHYSICS_FILES = \
     ls_ppn \
     lsp_taper_ndrop \
     mphys_air_density_mod
@@ -157,5 +183,5 @@ It is recommended for developers at this time to use the following process.
   with a comment in the Apps ticket and PSyTran issue. 
 * Currently PSyTran is not integrated into the build system.
 * Link this ticket
-  `Apps906 <https://code.metoffice.gov.uk/trac/lfric_apps/ticket/906#ticket>`_,
+  `issue320 <https://github.com/MetOffice/lfric_apps/issues/320>`_,
   and update it with the functions duplicated to capture technical debt.

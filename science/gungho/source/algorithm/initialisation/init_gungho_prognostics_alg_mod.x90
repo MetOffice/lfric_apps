@@ -10,6 +10,7 @@ module init_gungho_prognostics_alg_mod
   use log_mod,                         only: log_event,         &
                                              LOG_LEVEL_ERROR,   &
                                              LOG_LEVEL_INFO
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, radians_to_degrees
   use domain_mod,                      only: domain_type
   use extrusion_config_mod,            only: planet_radius
@@ -18,13 +19,11 @@ module init_gungho_prognostics_alg_mod
   use sci_geometric_constants_mod,     only: get_coordinates, &
                                              get_panel_id,    &
                                              get_height_fe,   &
-                                             get_height_fv
+                                             get_height_fv,   &
+                                             get_dA_at_w2
   use sci_fem_constants_mod,           only: get_inverse_mass_matrix_fe, &
                                              get_inverse_mass_matrix_fv, &
                                              get_qr_fe, get_qr_fv
-  use base_mesh_config_mod,            only: geometry,           &
-                                             geometry_spherical, &
-                                             geometry_planar
   use formulation_config_mod,          only: eos_method,              &
                                              eos_method_sampled,      &
                                              eos_method_projected,    &
@@ -48,8 +47,6 @@ module init_gungho_prognostics_alg_mod
                                              profile_NL_case_4,               &
                                              profile_rotational,              &
                                              profile_pw_linear
-  use planet_config_mod,               only: gravity, cp, rd, p_zero, kappa,  &
-                                             recip_epsilon
 
   ! PsyKAl-lite kernels
   use sci_field_bundle_builtins_mod,   only: set_bundle_scalar
@@ -84,6 +81,13 @@ module init_gungho_prognostics_alg_mod
   use mr_indices_mod,                  only: nummr, mr_names, imr_v
   use moist_dyn_mod,                   only: num_moist_factors, gas_law
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry,           &
+                                       geometry_spherical, &
+                                       geometry_planar
+  use planet_config_mod,         only: gravity, cp, rd, &
+                                       p_zero, kappa, recip_epsilon
+
   implicit none
 
   private
@@ -96,20 +100,23 @@ module init_gungho_prognostics_alg_mod
 contains
 
   !> @details This routine initialises the wind field.
-  !> @param[in,out] u          Wind velocity field
-  !> @param[in]     time       time, used for setting analytic profiles
-  subroutine init_u_field(u, time)
+  !> @param[in]     config  Application namelist configuration object
+  !> @param[in,out] u       Wind velocity field
+  !> @param[in]     time    time, used for setting analytic profiles
+  subroutine init_u_field(config, u, time)
 
     implicit none
 
-    type(field_type), intent(inout) :: u
-    real(kind=r_def), intent(in)    :: time
+    type(config_type), intent(in)    :: config
+    type(field_type),  intent(inout) :: u
+    real(kind=r_def),  intent(in)    :: time
 
-    type(mesh_type), pointer            :: mesh => null()
+    type(mesh_type), pointer            :: mesh
     type(field_type)                    :: r_u, r_psi, psi
-    type(field_type),           pointer :: chi(:) => null()
-    type(field_type),           pointer :: panel_id => null()
-    type(quadrature_xyoz_type), pointer :: qr => null()
+    type(field_type),           pointer :: chi(:)
+    type(field_type),           pointer :: panel_id
+    type(field_type),           pointer :: dA_at_w2
+    type(quadrature_xyoz_type), pointer :: qr
 
     type(domain_type)   :: domain
     real(kind=r_def)    :: domain_max_x
@@ -135,8 +142,8 @@ contains
       qr => get_qr_fv()
     end if
 
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
 
     !--------------------------------------------------------------------------!
     ! Initialise U according to formulation by sampling
@@ -148,11 +155,12 @@ contains
                        LOG_LEVEL_ERROR)
       end if
       if ( profile == profile_pw_linear ) then
-        call sample_init_u_alg( u )
+        call sample_init_u_alg(config, u)
       else
+        dA_at_w2 => get_dA_at_w2(mesh)
         call invoke( name = "get_u_from_sampling", &
                      setval_c( u, 0.0_r_def ),     &
-                     sample_initial_u_kernel_type( u, chi, u0, v0 ) )
+                     sample_initial_u_kernel_type( u, dA_at_w2, u0, v0 ) )
       end if
     else
 
@@ -228,13 +236,13 @@ contains
 
     type(field_type), intent(inout) :: theta
 
-    integer(kind=i_def)             :: mesh_id
-    type(field_type),       pointer :: chi(:) => null()
-    type(field_type),       pointer :: panel_id => null()
+    type(mesh_type),  pointer :: mesh
+    type(field_type), pointer :: chi(:)
+    type(field_type), pointer :: panel_id
 
-    mesh_id = theta%get_mesh_id()
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    mesh     => theta%get_mesh()
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
 
     call invoke( initial_theta_kernel_type( theta, chi, panel_id ) )
 
@@ -244,45 +252,53 @@ contains
 
 
   !> @details This routine initialises the Exner pressure field.
+  !> @param[in]     config     Application namelist configuration object
   !> @param[in,out] exner      Exner pressure field
   !> @param[in]     theta      potential temperature field
   !> @param[in]     moist_dyn  array of fields with moist dynamics factors
   !> @param[in]     time       time, used for setting analytic profiles
-  subroutine init_exner_field(exner, theta, moist_dyn, time)
+  subroutine init_exner_field(config, exner, theta, moist_dyn, time)
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(field_type), intent(inout) :: exner
     type(field_type), intent(in)    :: theta
     type(field_type), intent(in)    :: moist_dyn(num_moist_factors)
     real(kind=r_def), intent(in)    :: time
 
     ! Internal variables
-    integer(kind=i_def)                 :: mesh_id
-    integer(kind=i_def)                 :: element_order_h, &
-                                           element_order_v
-    type(field_type),           pointer :: chi(:) => null()
-    type(field_type),           pointer :: panel_id => null()
-    type(field_type),           pointer :: height_wth => null()
-    type(field_type),           pointer :: height_w3 => null()
-    type(quadrature_xyoz_type), pointer :: qr => null()
+    type(mesh_type),  pointer :: mesh
+    type(field_type), pointer :: chi(:)
+    type(field_type), pointer :: panel_id
+    type(field_type), pointer :: height_wth
+    type(field_type), pointer :: height_w3
+
+    type(quadrature_xyoz_type), pointer :: qr
+
+    integer(kind=i_def) :: element_order_h, element_order_v
 
     ! Get element orders
     element_order_h = exner%get_element_order_h()
     element_order_v = exner%get_element_order_v()
 
     ! Point to objects for this mesh
-    mesh_id = exner%get_mesh_id()
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    mesh     => exner%get_mesh()
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
+
     if (element_order_h > 0 .or. element_order_v > 0) then
-      height_w3 => get_height_fe(W3, mesh_id)
-      height_wth => get_height_fe(Wtheta, mesh_id)
+
+      height_w3  => get_height_fe(config, mesh, W3)
+      height_wth => get_height_fe(config, mesh, Wtheta)
       qr => get_qr_fe()
+
     else
-      height_w3 => get_height_fv(W3, mesh_id)
-      height_wth => get_height_fv(Wtheta, mesh_id)
+
+      height_w3  => get_height_fv(config, mesh, W3)
+      height_wth => get_height_fv(config, mesh, Wtheta)
       qr => get_qr_fv()
     end if
 
@@ -328,7 +344,6 @@ contains
     real(kind=r_def), intent(in)    :: time
 
     ! Internal variables
-    integer(kind=i_def)                 :: mesh_id
     integer(kind=i_def)                 :: element_order_h, &
                                            element_order_v
     type(field_type)                    :: r_rho
@@ -337,19 +352,21 @@ contains
     type(operator_type),        pointer :: m3_inv => null()
     type(quadrature_xyoz_type), pointer :: qr => null()
 
+    type(mesh_type), pointer :: mesh
+
     ! Get element orders
     element_order_h = exner%get_element_order_h()
     element_order_v = exner%get_element_order_v()
 
     ! Point to objects for this mesh
-    mesh_id = rho%get_mesh_id()
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    mesh     => rho%get_mesh()
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     if (element_order_h > 0 .or. element_order_v > 0) then
-      m3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+      m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
       qr => get_qr_fe()
     else
-      m3_inv => get_inverse_mass_matrix_fv(W3, mesh_id)
+      m3_inv => get_inverse_mass_matrix_fv(W3, mesh%get_id())
       qr => get_qr_fv()
     end if
 
@@ -381,16 +398,19 @@ contains
 
 
   !> @details This routine initialises the moisture mixing ratio fields.
+  !> @param[in]     config     Application namelist configuration object
   !> @param[in,out] mr         array of moisture mixing ratio fields
   !> @param[in]     theta      potential temperature field
   !> @param[in,out] exner      Exner pressure field
   !> @param[in,out] rho        dry density field
   !> @param[in,out] moist_dyn  moist dynamics factors
-  subroutine init_mr_fields(mr, theta, exner, rho, moist_dyn)
+  subroutine init_mr_fields(config, mr, theta, exner, rho, moist_dyn)
 
     use moist_dyn_factors_alg_mod, only: moist_dyn_factors_alg
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(inout) :: mr(nummr)
     type(field_type), intent(in)    :: theta
@@ -403,8 +423,9 @@ contains
     type(field_type), pointer :: height_w3 => null()
     type(field_type), pointer :: height_wth => null()
 
+    type(mesh_type), pointer :: mesh
+
     real(kind=r_def)    :: initial_time
-    integer(kind=i_def) :: mesh_id
     integer(kind=i_def) :: element_order_h, element_order_v
 
     if ( moisture_formulation == moisture_formulation_dry ) then
@@ -414,9 +435,9 @@ contains
       element_order_h = theta%get_element_order_h()
       element_order_v = theta%get_element_order_v()
 
-      mesh_id = theta%get_mesh_id()
-      chi => get_coordinates(mesh_id)
-      panel_id => get_panel_id(mesh_id)
+      mesh     => theta%get_mesh()
+      chi      => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
 
       call invoke( initial_mr_kernel_type( theta, exner, rho, mr, chi, &
                                            panel_id, p_zero, rd, kappa ) )
@@ -428,13 +449,18 @@ contains
         ! Recompute hydrostatic balance following the addition of moisture
         ! TODO: This should not be done here -- will be fixed by #2877
         ! This should be done by separate routines from the driver level
-        if( element_order_h > 0 .or. element_order_v > 0 ) then
-          height_w3 => get_height_fe(W3, mesh_id)
-          height_wth => get_height_fe(Wtheta, mesh_id)
+        if ( element_order_h > 0 .or. element_order_v > 0 ) then
+
+          height_w3  => get_height_fe(config, mesh, W3)
+          height_wth => get_height_fe(config, mesh, Wtheta)
+
         else
-          height_w3 => get_height_fv(W3, mesh_id)
-          height_wth => get_height_fv(Wtheta, mesh_id)
+
+          height_w3  => get_height_fv(config, mesh, W3)
+          height_wth => get_height_fv(config, mesh, Wtheta)
+
         end if
+
         initial_time = 0.0_r_def
         call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
                                                     height_wth, height_w3,   &
@@ -448,7 +474,5 @@ contains
     nullify(chi, panel_id, height_w3, height_wth)
 
   end subroutine init_mr_fields
-
-
 
 end module init_gungho_prognostics_alg_mod

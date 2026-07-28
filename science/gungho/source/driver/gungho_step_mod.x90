@@ -172,13 +172,14 @@ module gungho_step_mod
       if ( mod( nint( dt * model_clock%get_step() ), &
                 3600_i_def * reset_hours ) == 0 ) then
 
-        call compute_total_mass_alg( total_dry_mass, rho, mesh )
-        call compute_total_energy_alg( total_energy,                      &
-                                       derived_fields, &
-                                       u, theta, exner, rho, mr,          &
-                                       mesh, twod_mesh )
+        call compute_total_mass_alg( modeldb%config, total_dry_mass, &
+                                     rho, mesh )
+        call compute_total_energy_alg( modeldb%config, total_energy, &
+                                       derived_fields, u, theta,     &
+                                       exner, rho, mr, mesh,         &
+                                       twod_mesh )
 
-        call update_energy_correction_alg(                  &
+        call update_energy_correction_alg(modeldb%config,   &
                                temp_corr_io_value%data(1),  &
                                accumulated_fluxes,          &
                                total_dry_mass, dt,          &
@@ -196,17 +197,16 @@ module gungho_step_mod
              '("fd total_mass = ", E32.24)') total_dry_mass
       call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-      call conservation_algorithm( rho,              &
-                                   u,                &
-                                   theta,            &
-                                   mr,               &
-                                   exner )
+      call conservation_algorithm( modeldb%config, rho, &
+                                   u, theta, mr, exner )
+
       if ( use_moisture ) then
-        call moisture_conservation_alg( rho,              &
-                                        mr,               &
+
+        call moisture_conservation_alg( modeldb%config, rho, mr, &
                                         'After timestep' )
+
         if ( use_physics .and. cloud == cloud_um ) then
-          dA => get_dA_at_w2(mesh%get_id())
+          dA => get_dA_at_w2(mesh)
           call moisture_fluxes_alg( microphysics_fields, &
                                     convection_fields,   &
                                     turbulence_fields,   &

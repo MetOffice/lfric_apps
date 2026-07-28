@@ -36,20 +36,6 @@
 
     <field_definition prec="8" >
 
-      <field_group id="read_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts">
-        <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
-        <field id="read_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
-        <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
-        <field id="read_u10m" name="u10m" long_name="eastward_wind_at_10m" unit="m s-1" domain_ref="face" />
-        <field id="read_u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
-        <field id="read_v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
-        <field id="read_w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
-        <field id="read_m_v" name="m_v" long_name="vapour_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
-        <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
-        <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
-        <field id="read_m_s" name="m_s" long_name="snow_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
-      </field_group>
-
       <field_group id="write_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="0ts">
         <field id="write_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
         <field id="write_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
@@ -69,7 +55,20 @@
     <file_definition type="one_file" time_counter="none">
 
       <file id="read_model_data" name="read_model_data" output_freq="1ts" convention="UGRID" enabled=".FALSE." mode="read">
-        <field_group id="read_fields"/>
+        <field_group id="read_model_data_field_group" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts" >
+          <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+          <field id="read_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+          <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
+          <field id="read_u10m" name="u10m" long_name="eastward_wind_at_10m" unit="m s-1" domain_ref="face" />
+          <field id="read_u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+          <field id="read_v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+          <field id="read_w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+          <field id="read_m_v" name="m_v" long_name="vapour_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+          <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+          <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+          <field id="read_m_s" name="m_s" long_name="snow_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        </field_group>
+
       </file>
 
       <file id="write_model_data" name="write_model_data" output_freq="1ts" convention="UGRID" enabled=".FALSE." timeseries="both">
@@ -89,8 +88,8 @@
 
       <variable_group id = "parameters" >
         <variable id = "using_server" type = "bool" >true</variable>
-        <variable id = "info_level" type = "int" >50</variable>
-        <variable id = "print_file" type="bool">true</variable>
+        <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
+        <variable id = "print_file" type="bool">$XIOS_PRINT_FILE</variable>
       </variable_group>
     </variable_definition>
   </context>

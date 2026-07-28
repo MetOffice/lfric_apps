@@ -20,17 +20,18 @@ contains
 !> @param[in] stashcode_land_mask Stashcode for the UM land fraction
 subroutine lfricinp_init_masks(stashcode_land_mask)
 
-use log_mod,        only: log_event, log_scratch_space, LOG_LEVEL_INFO
 use field_mod,      only: lfric_field_type => field_type,                      &
                           lfric_proxy_type => field_proxy_type
 use local_mesh_mod, only: local_mesh_type
+use log_mod,        only: log_event, log_scratch_space, LOG_LEVEL_INFO
 use mesh_mod,       only: mesh_type
 
-use lfricinp_lfric_driver_mod,         only: local_rank
-use lfricinp_check_shumlib_status_mod, only: shumlib
-use um2lfric_read_um_file_mod,        only: um_input_file
+! LFRic Inputs modules
 use lfricinp_ancils_mod,               only: ancil_fields, l_land_area_fraction
-!
+use lfricinp_check_shumlib_status_mod, only: shumlib
+use lfricinp_lfric_driver_mod,         only: local_rank
+use um2lfric_read_um_file_mod,         only: um_input_file
+
 ! shumlib modules
 use f_shum_field_mod, only: shum_field_type
 

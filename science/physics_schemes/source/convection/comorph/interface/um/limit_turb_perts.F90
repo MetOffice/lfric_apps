@@ -25,10 +25,12 @@ subroutine limit_turb_perts( z_theta, z_rho, p_layer_centres, temperature,     &
                              ftl, fqw, fu_rh, fv_rh, w_var_rh )
 
 use atm_fields_bounds_mod, only: tdims, pdims
-use nlsizes_namelist_mod, only: bl_levels, global_row_length, global_rows
-use comorph_constants_mod, only: i_print_turb_perts_exceeded, i_check_bad_none
+use nlsizes_namelist_mod, only: bl_levels
+#if !defined(LFRIC)
+use nlsizes_namelist_mod, only: global_row_length, global_rows
 use um_parcore, only: mype, nproc
 use umprintmgr, only: umprint, ummessage, newline
+#endif
 use qsat_mod, only: qsat_wat_mix
 
 implicit none
@@ -113,26 +115,29 @@ real(kind=real_umphys) :: max_qw
 real(kind=real_umphys), parameter :: max_tl = 2.0
 real(kind=real_umphys), parameter :: max_uv = 5.0
 
+! Switch for whether to print info about points where limit on w_var imposed
+logical, parameter :: l_print_turb_perts_exceeded = .false.
+
 ! Loop counters
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(none)                                                   &
-!$OMP private( i, j, k, interp, qsat_rh, max_qw, min_w, min_w_var )            &
+!$OMP PARALLEL DEFAULT(NONE)                                                   &
+!$OMP PRIVATE( i, j, k, interp, qsat_rh, max_qw, min_w, min_w_var )            &
 !$OMP SHARED( bl_levels, tdims, pdims, qsat, temperature, p_layer_centres,     &
 !$OMP         z_rho, z_theta, ftl, fqw, fu_rh, fv_rh, w_var_ratio, w_var_rh )
 
 ! Calculate qsat (max allowed perturbation to q scales with qsat).
 ! Note that making max allowed q pert scale with q runs into problems
 ! when q goes negative in some runs!  Using qsat to avoid this...
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do k = 1, bl_levels
   call qsat_wat_mix( qsat(:,:,k), temperature(:,:,k), p_layer_centres(:,:,k),  &
                      tdims%i_len, tdims%j_len )
 end do
-!$OMP end do
+!$OMP END DO
 
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do k = 1, bl_levels
   if ( k==1 ) then
     ! Bottom rho-level; just use qsat from 1st theta-level
@@ -170,11 +175,12 @@ do k = 1, bl_levels
     end do
   end do
 end do  ! k = 1, bl_levels
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
-!$OMP end PARALLEL
+!$OMP END PARALLEL
 
-if ( i_print_turb_perts_exceeded > i_check_bad_none ) then
+#if !defined(LFRIC)
+if ( l_print_turb_perts_exceeded ) then
   ! If printing diagnostics of how much the limit has been applied...
 
   ! Count points where w variance was below the limit
@@ -196,6 +202,11 @@ if ( i_print_turb_perts_exceeded > i_check_bad_none ) then
     end do
   end do
 
+  ! Sum number of points where threshold exceeded, and mean and max increase
+  ! applied over all processors
+  call gc_isum( 1, nproc, istat, n_inc_w_var )
+  call gc_rsum( 1, nproc, istat, mean_inc_w_var )
+  call gc_rmax( 1, nproc, istat, max_inc_w_var )
 
   ! Print the info to standard-out
   if ( mype==0 .and. n_inc_w_var > 0 ) then
@@ -210,7 +221,8 @@ if ( i_print_turb_perts_exceeded > i_check_bad_none ) then
     call umPrint(ummessage,src='LIMIT_TURB_PERTS')
   end if
 
-end if ! i_print_turb_perts_exceeded
+end if ! l_print_turb_perts_exceeded
+#endif
 
 
 return

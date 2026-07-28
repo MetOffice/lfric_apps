@@ -1,0 +1,10 @@
+name: Validate Symlinks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  validate_symlinks:
+    uses: MetOffice/growss/.github/workflows/validate_symlinks.yaml@main

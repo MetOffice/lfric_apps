@@ -9,6 +9,10 @@ export PROFILE ?= fast-debug
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+export EXTRA_ROSE_META = jules
+export META_DIR = $(WORKING_DIR)/../rose-meta
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
+
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/science \
@@ -28,6 +32,7 @@ default: unit-tests integration-tests
 documentation doc docs: document-api
 	$(Q)echo > /dev/null
 
+include $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 
@@ -79,8 +84,8 @@ unit-tests/%: export PROJECT = adjoint
 unit-tests/%: export SOURCE_DIR = source
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: unit-tests/run
-
+unit-tests: extract_meta unit-tests/run
+unit-tests/build: extract_meta unit-tests/build
 
 ##############################################################################
 # Integration tests

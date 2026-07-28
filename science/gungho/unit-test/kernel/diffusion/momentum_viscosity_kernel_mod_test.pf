@@ -36,7 +36,7 @@ contains
     use feign_config_mod,          only : feign_finite_element_config
     use mixing_config_mod,         only : method_3d_smag
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
 
     implicit none
 
@@ -46,6 +46,8 @@ contains
         cellshape=cellshape_quadrilateral, &
         coord_order=0_i_def,               &
         coord_system=coord_system_xyz,     &
+        coord_order_nonprime=1_i_def,      &
+        coord_space=coord_space_wchi,      &
         element_order_h=0_i_def,           &
         element_order_v=0_i_def,           &
         rehabilitate=.true.,               &
@@ -58,8 +60,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use sci_chi_transform_mod,    only: final_chi_transforms
-    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
 
     implicit none
 
@@ -96,6 +98,10 @@ contains
     integer(i_def) :: ndf_w2, undf_w2
     integer(i_def) :: dim_space, dim_space_diff
     integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: ndf_w3_2d, undf_w3_2d
+    integer(i_def) :: map_w3_2d(1)
+    integer(i_def) :: face_selector_ew(1)
+    integer(i_def) :: face_selector_ns(1)
 
     integer(i_def), allocatable :: map_w2(:,:)
     integer(i_def), allocatable :: stencil_map_w2(:,:,:)
@@ -111,6 +117,12 @@ contains
                                   nlayers )
     call get_w2_m3x3_dofmap(map_w2)
     call get_m3x3_stencil_dofmap_cross(stencil_map_w2, map_w2)
+
+    ndf_w3_2d = 1
+    undf_w3_2d = 1
+    map_w3_2d(1) = 1
+    face_selector_ew(1) = 2
+    face_selector_ns(1) = 2
 
     ! Compute coordinates
     allocate(dx_at_w2(undf_w2))
@@ -134,16 +146,20 @@ contains
     u_inc(:) = 0.0_r_def
 
     cell = 5
-    call momentum_viscosity_code( &
-                                 nlayers, &
-                                 u_inc, &
-                                 u, &
+    call momentum_viscosity_code(                             &
+                                 nlayers,                     &
+                                 u_inc,                       &
+                                 u,                           &
                                  5, stencil_map_w2(:,:,cell), &
-                                 dx_at_w2, &
+                                 dx_at_w2,                    &
                                  5, stencil_map_w2(:,:,cell), &
-                                 viscosity_mu, &
-                                 ndf_w2, undf_w2, &
-                                 map_w2(:,cell) &
+                                 face_selector_ew,            &
+                                 face_selector_ns,            &
+                                 viscosity_mu,                &
+                                 ndf_w2, undf_w2,             &
+                                 map_w2(:,cell),              &
+                                 ndf_w3_2d, undf_w3_2d,       &
+                                 map_w3_2d                    &
                                 )
 
     answer = 0.0_r_def

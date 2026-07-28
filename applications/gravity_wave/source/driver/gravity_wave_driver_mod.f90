@@ -47,7 +47,6 @@ module gravity_wave_driver_mod
                                       log_scratch_space
   use mesh_mod,                 only: mesh_type
   use mesh_collection_mod,      only: mesh_collection
-  use namelist_collection_mod,  only: namelist_collection_type
   use io_mod,                   only: ts_fname
   use files_config_mod,         only: checkpoint_stem_name
 

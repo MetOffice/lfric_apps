@@ -72,7 +72,12 @@
     'find . -regex ".*PET0+\..+\.Log" -exec cp {} $ROSE_TASK_LOG_DIR \;',
     'find . -regex ".*PET0+\..+\.Log" -exec cp {} $TASK_OUTPUT_DIR \;',
     'ls -sh $TASK_OUTPUT_DIR/results > $ROSE_TASK_LOG_DIR/results_file_sizes.log',
+    '# Ensure that timing log information is performantly collated and located into the persistent task_log_dir.',
     'find . -name timer.txt -exec cp {} $ROSE_TASK_LOG_DIR \;',
+    'find . -name "xios_client_*.out"  -exec cat {} + > $ROSE_TASK_LOG_DIR/xios_client_collated.out ',
+    'if [ ! -s $ROSE_TASK_LOG_DIR/xios_client_collated.out ]; then rm -f $ROSE_TASK_LOG_DIR/xios_client_collated.out ; fi',
+    'find . -name "xios_server_*.out"  -exec cat {} + > $ROSE_TASK_LOG_DIR/xios_server_collated.out ',
+    'if [ ! -s $ROSE_TASK_LOG_DIR/xios_server_collated.out ]; then rm -f $ROSE_TASK_LOG_DIR/xios_server_collated.out ; fi',
     'test -f '~task_values["app_name"]~
         '-checksums.txt && cp $CYLC_TASK_WORK_DIR/'~
         task_values["app_name"]~'-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',
@@ -137,6 +142,8 @@
             XIOS_SERVER_RANKS       = {{task_values["xios_server_ranks"]}}
             xios_nodes              = {{task_values["xios_nodes"]}}
             mpi_parts_xios          = {{task_values["mpi_parts_xios"]}}
+            XIOS_INFO_LEVEL         = {{task_values['xios_info_level']}}
+            XIOS_PRINT_FILE         = {{task_values['xios_print_file']}}
             PAT_EXE_EXTEN           = {{PAT_EXE_EXTEN}}
             CORES_PER_NODE_OVERRIDE = {{task_values["task_ranks_per_node"]}}
             RANKS_DEPTH_PAD         = {{task_values["task_ranks_depth_pad"]}}

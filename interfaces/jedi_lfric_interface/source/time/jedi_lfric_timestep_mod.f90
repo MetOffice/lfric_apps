@@ -9,10 +9,9 @@
 !>
 module jedi_lfric_timestep_mod
 
+  use config_mod,              only : config_type
   use constants_mod,           only : i_timestep, r_second
   use jedi_lfric_duration_mod, only : jedi_duration_type
-  use namelist_collection_mod, only : namelist_collection_type
-  use namelist_mod,            only : namelist_type
 
   implicit none
 
@@ -23,22 +22,20 @@ contains
 
   !> @brief  Get time step from the configuration object
   !>
-  !> @param [in] configuration The configuration to extract timestep from
-  function get_configuration_timestep( configuration ) result(timestep)
+  !> @param [in] config The configuration to extract timestep from
+  function get_configuration_timestep( config ) result(timestep)
 
     implicit none
 
-    type( namelist_collection_type ), intent(in) :: configuration
+    type( config_type ), intent(in) :: config
 
     type( jedi_duration_type ) :: timestep
 
     ! Local
-    type( namelist_type ), pointer :: timestepping_nml
-    real( kind=r_second )          :: dt
+    real( kind=r_second ) :: dt
 
     ! Get configuration time-step
-    timestepping_nml => configuration%get_namelist('timestepping')
-    call timestepping_nml%get_value( 'dt', dt )
+    dt = config%timestepping%dt()
     call timestep%init( int(dt, i_timestep) )
 
   end function get_configuration_timestep

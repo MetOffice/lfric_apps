@@ -10,6 +10,7 @@
 
 module process_send_fields_2d_mod
 
+  use config_mod,                     only: config_type
   use field_mod,                      only: field_type
   use field_collection_mod,           only: field_collection_type
   use function_space_mod,             only: function_space_type
@@ -100,13 +101,17 @@ module process_send_fields_2d_mod
     call depository%get_field("r_ocean_fraction", r_ocean_fraction)
 
     ! Calculate the reciprocal of acc_step
-    ! If this is the first step after a restart then the division by 
+    ! If this is the first step after writing a checkpoint then the division by 
     ! acc_step has already been done in accumulate_send_fields before
     ! the field was written to the restart file so we set r_acc_step=1
     ! as we still need to divide by sea-ice fraction and copy values from
     ! depository field (dep_fld) to fld ready for coupling.
+    ! In this case acc_step will have been set to zero 
+    ! so we can use this as a test.
+
     call modeldb%values%get_value( 'accumulation_steps', acc_step )
-    if (modeldb%clock%get_step() /=  modeldb%clock%get_first_step() ) then
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    if (acc_step > 1.1_r_def) then
        r_acc_step = 1.0_r_def/acc_step
     else
        r_acc_step = 1.0_r_def
@@ -273,11 +278,13 @@ module process_send_fields_2d_mod
   end subroutine save_marine_fractions
 
   !> @brief Calculate the volume of snow on ice tile in region defined by mask
-  !> @param[in] mask_field - the coupling field (contains the region mask)
-  !> @param[in] snow_mass_on_tiles Pointer to the snow mass on tiles field
-  !> @param[in] tile_fraction Pointer to the tile fraction field
-  !> @param[out] imass Total snow mass as scalar
-  subroutine ice_sheet_mass(mask_field,         &
+  !> @param[in]  config        Application namelist configuration object
+  !> @param[in]  mask_field    The coupling field (contains the region mask)
+  !> @param[in]  snow_mass_on_tiles  Pointer to the snow mass on tiles field
+  !> @param[in]  tile_fraction  Pointer to the tile fraction field
+  !> @param[out] imass          Total snow mass as scalar
+  subroutine ice_sheet_mass(config,  &
+                            mask_field, &
                             snow_mass_on_tiles, &
                             tile_fraction,      &
                             imass)
@@ -291,6 +298,7 @@ module process_send_fields_2d_mod
 
     implicit none
 
+    type(config_type),           intent(in) :: config
     type( field_type ),          intent(in) :: mask_field
     type( field_type ), pointer, intent(in) :: snow_mass_on_tiles
     type( field_type ), pointer, intent(in) :: tile_fraction
@@ -316,7 +324,7 @@ module process_send_fields_2d_mod
     call tmp_field3%initialise( vector_space=tmp_fs, name="tmp_field3_W3" )
 
     ! Calculate the grid cell areas (dA)
-    dA => get_dA_msl_proj( mesh%get_id() )
+    dA => get_dA_msl_proj(config, mesh)
 
     call invoke(                                                             &
                 ! Extract snow mass on ice tile into tmp_field1

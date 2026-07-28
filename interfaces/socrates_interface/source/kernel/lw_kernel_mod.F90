@@ -7,21 +7,22 @@
 
 module lw_kernel_mod
 
-use argument_mod,      only : arg_type, &
-                              GH_FIELD, &
-                              GH_REAL, GH_INTEGER, &
-                              GH_READ, GH_WRITE, GH_READWRITE, &
-                              DOMAIN, &
-                              ANY_DISCONTINUOUS_SPACE_1, &
-                              ANY_DISCONTINUOUS_SPACE_2, &
-                              ANY_DISCONTINUOUS_SPACE_3, &
-                              ANY_DISCONTINUOUS_SPACE_4, &
-                              ANY_DISCONTINUOUS_SPACE_5, &
-                              ANY_DISCONTINUOUS_SPACE_6, &
-                              ANY_DISCONTINUOUS_SPACE_7
-use fs_continuity_mod, only : Wtheta
-use constants_mod,     only : r_def, i_def
-use kernel_mod,        only : kernel_type
+use argument_mod,        only : arg_type, &
+                                GH_FIELD, &
+                                GH_REAL, GH_INTEGER, &
+                                GH_READ, GH_WRITE, GH_READWRITE, &
+                                DOMAIN, &
+                                ANY_DISCONTINUOUS_SPACE_1, &
+                                ANY_DISCONTINUOUS_SPACE_2, &
+                                ANY_DISCONTINUOUS_SPACE_3, &
+                                ANY_DISCONTINUOUS_SPACE_4, &
+                                ANY_DISCONTINUOUS_SPACE_5, &
+                                ANY_DISCONTINUOUS_SPACE_6, &
+                                ANY_DISCONTINUOUS_SPACE_7
+use fs_continuity_mod,   only : Wtheta
+use constants_mod,       only : r_def, i_def
+use kernel_mod,          only : kernel_type
+use tuning_segments_mod, only : lw_seg_limit_size
 
 implicit none
 
@@ -427,8 +428,12 @@ subroutine lw_code(nlayers, n_profile, &
   logical        :: l_aerosol_mode
 
   ! Segmentation variables for threading call to Socrates
-  integer(i_def) :: max_threads, soc_lw_block, seg_start, seg_end
-
+  integer(i_def) :: max_threads, soc_lw_block, seg_start, seg_end, &
+                    ncols_per_thread, nblocks
+  
+  ! Note, changes to variables in this file may require corresponding changes in
+  ! applications/lfric_atm/optimisation/meto-ex1a/transmute/kernel/lw_kernel_mod.py
+  
   ! Set indexing
   wth_0 = map_wth(1,1)
   wth_1 = map_wth(1,1)+1
@@ -581,12 +586,13 @@ subroutine lw_code(nlayers, n_profile, &
                          n_cloud_layer(twod_1:twod_last) == k )
     n_profile_list = size(profile_list)
     if (n_profile_list > 0) then
-      soc_lw_block = ceiling(real(n_profile_list)/max_threads)
-
-      ! The number of indices to run through per k step can become quite small
-      ! this check ensures that should the generated block exceed the length
-      ! of n_profile_list it is set to n_profile_list
-      soc_lw_block = min(soc_lw_block, n_profile_list)
+      ! Compute the number of columns per LW segment for each thread.
+      ! The maximum segment size is limited by lw_seg_limit_size to prevent
+      ! overly large blocks. This ensures better load balancing across threads.
+      ncols_per_thread = ceiling(real(n_profile_list) / real(max_threads))
+      nblocks = ceiling(real(ncols_per_thread) / real(lw_seg_limit_size)) &
+                * max_threads
+      soc_lw_block = ceiling(real(n_profile_list) / real(nblocks))
 
       !$OMP PARALLEL DEFAULT(SHARED)                                           &
       !$OMP PRIVATE(ll, seg_start, seg_end, n_profile_list_seg)

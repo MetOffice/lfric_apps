@@ -64,8 +64,7 @@ module conv_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
-  subroutine initialise_diags_for_conv(theta_star,             &
-                                       rho,                    &
+  subroutine initialise_diags_for_conv(rho,                    &
                                        zh,                     &
                                        deep_in_col,            & ! 2-D
                                        shallow_in_col,         &
@@ -112,7 +111,7 @@ contains
     implicit none
 
     ! Fields passed in to copy properties from
-    type( field_type ), intent(in)    :: theta_star, rho, zh
+    type( field_type ), intent(in)    :: rho, zh
 
     ! Diagnostic fields to initialise
     type( field_type ), intent(inout) :: deep_in_col,             & ! 2-D

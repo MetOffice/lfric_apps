@@ -104,7 +104,8 @@
     {% elif task.startswith("check") or
             task.startswith("rose_ana") or
             task.startswith("pert_compare") or
-            task.startswith("phystest") %}
+            task.startswith("phystest") or
+            task.startswith("metadata_test") %}
 
         {% include "templates/runtime/generate_runtime_check.cylc" %}
 

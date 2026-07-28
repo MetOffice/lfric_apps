@@ -8,11 +8,11 @@
 module atl_si_timestep_alg_mod
 
   use atl_moist_dyn_factors_alg_mod,       only: atl_moist_dyn_factors_alg
+  use config_mod,                          only: config_type
   use constants_mod,                       only: i_def, r_def, l_def, str_def
   use log_mod,                             only: log_event, log_scratch_space, &
                                                  LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   use driver_modeldb_mod,                  only: modeldb_type
-  use namelist_mod,                        only: namelist_type
   use reference_element_mod,               only: T
   use formulation_config_mod,              only: dlayer_on, exner_from_eos, si_momentum_equation, &
                                                  moisture_formulation, moisture_formulation_dry,  &
@@ -134,6 +134,7 @@ module atl_si_timestep_alg_mod
 contains
 
   !> @brief Initialisation procedure for the adjoint timestepping algorithm
+  !> @param[in]     config       Application namelist configuration object
   !> @param[in,out] u            Change in 3D wind field
   !> @param[in,out] rho          Change in Density
   !> @param[in,out] theta        Change in Potential temperature
@@ -143,13 +144,15 @@ contains
   !> @param[in]     ls_exner     Lin. state for Exner pressure
   !> @param[in]     ls_mr        Lin. state for Mixing ratios
   !> @param[in]     ls_moist_dyn Lin. state for moist dynamical factors
-  subroutine initialise( self, u, rho, theta, exner, mr, &
+  subroutine initialise( self, config, u, rho, theta, exner, mr, &
                          ls_theta, ls_exner, ls_mr, ls_moist_dyn )
 
     implicit none
 
     ! Arguments
     class(atl_si_timestep_type), intent(inout) :: self
+
+    type(config_type),           intent(in)    :: config
     type(field_type),            intent(inout) :: u, rho, theta, exner
     type(field_type),            intent(inout) :: mr(nummr)
     type(field_type),            intent(inout) :: ls_theta, ls_exner
@@ -284,7 +287,7 @@ contains
     end if
 
     call self%adj_solver_lookup_cache%initialise(u%get_mesh())
-    call self%adj_trans_lookup_cache%initialise(u%get_mesh())
+    call self%adj_trans_lookup_cache%initialise(config, u%get_mesh())
 
     call self%adj_semi_implicit_solver%initialise(self%state, self%adj_solver_lookup_cache)
 
@@ -330,11 +333,10 @@ contains
     integer(kind=i_def)                                :: ls_outer, ls_inner
     integer(kind=i_def)                                :: next_outer, next_inner
     real(kind=r_def)                                   :: varalpha, varbeta
-    type(namelist_type), pointer                       :: mixed_solver_nml
-    type(namelist_type), pointer                       :: base_mesh_nml
     real(kind=r_def)                                   :: mixed_solver_a_tol
     type(field_type)                                   :: rhs_n_igh_u
     type(field_type)                                   :: advected_u
+    type(field_type)                                   :: dry_flux_solver
     type(mesh_type), pointer                           :: mesh
     character(len=str_def)                             :: prime_mesh_name
     integer(tik)                                       :: id
@@ -346,12 +348,13 @@ contains
     qr => get_qr_fe()
 
     ! Get mesh
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     mesh => mesh_collection%get_mesh(prime_mesh_name)
 
     mm_wt  => get_mass_matrix_fe( Wtheta, mesh%get_id() )
     mm_vel => get_mass_matrix_fe( W2,     mesh%get_id() )
+
+    call dry_flux_solver%initialise(u%get_function_space())
 
     ! If off-centring is being spun up then modify the alpha value
     if (spinup_alpha .and. modeldb%clock%is_spinning_up()) then
@@ -398,18 +401,22 @@ contains
     ! The reference_reset_time is specified in the configuration namelist.
     ! Note that this reset can only occur at most once per timestep.
     reference_reset_freq = nint( reference_reset_time / cast_dt, i_def )
-    if (mod( modeldb%clock%get_step() - 1_i_def, reference_reset_freq ) == 0_i_def) &
-      call compute_si_operators( self%ls_state(igh_t), self%ls_state(igh_d), self%ls_state(igh_p), &
+    if (mod( modeldb%clock%get_step() - 1_i_def, reference_reset_freq ) == 0_i_def) then
+      call compute_si_operators( modeldb%config, self%ls_state(igh_t),       &
+                                 self%ls_state(igh_d), self%ls_state(igh_p), &
                                  modeldb%clock, self%ls_moist_dyn_itns(:,1,1) )
+    end if
 
     ! Compute the time-level n dynamics terms
 
     call copy_bundle( self%ls_state_after_slow, self%ls_advected_state, bundle_size )
 
     if ( .not. fixed_ls ) then
-    call rhs_alg( self%ls_rhs_n, varbeta*cast_dt,                                           &
-                  self%ls_state_after_slow, self%ls_state_n, self%ls_moist_dyn_itns(:,1,1), &
-                  compute_eos=.false., compute_rhs_t_d=.true., dlayer_rhs=.false., model_clock=modeldb%clock )
+    call rhs_alg( self%ls_rhs_n, varbeta*cast_dt, &
+                  self%ls_state_after_slow, self%ls_state_n, &
+                  self%ls_moist_dyn_itns(:,1,1), &
+                  compute_eos=.false., compute_rhs_t_d=.true., &
+                  dlayer_rhs=.false., model_clock=modeldb%clock )
 
 
     if (.not. si_momentum_equation) call mass_matrix_solver_alg( self%ls_advected_state(igh_u), self%ls_rhs_n(igh_u) )
@@ -419,8 +426,10 @@ contains
     ! Start the outer (advection) loop
     !---------------------------------------------------------------------------
     ls_outer_dynamics_loop: do outer = 1, self%ls_outer_iterations
+      call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
 
-      call gungho_transport_control_alg( self%ls_rhs_adv(:,outer,1),        &
+      call gungho_transport_control_alg( modeldb%config,                    &
+                                         self%ls_rhs_adv(:,outer,1),        &
                                          self%ls_advected_state,            &
                                          self%ls_state_itns(igh_u,outer,1), &
                                          self%ls_state_n(igh_u),            &
@@ -528,9 +537,10 @@ contains
 
             call semi_implicit_solver_alg_step( self%ls_state_itns(:,next_outer,next_inner),             &
                                                 self%ls_rhs_np1(:,outer,inner),                          &
+                                                dry_flux_solver,                                         &
                                                 self%ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                                                 self%ls_mr_itns(:,next_outer,next_inner),                &
-                                                .false., first_iteration=(inner==1) )
+                                                first_iteration=(inner==1) )
             ! If not already done, update factors for moist dynamics
             if (.not. guess_np1 .and. self%use_moisture) then
               call moist_dyn_factors_alg( self%ls_moist_dyn_itns(:,next_outer,next_inner), &
@@ -581,6 +591,7 @@ contains
                  setval_c( self%state(igh_d), 0.0_r_def ), &
                  setval_c( self%state(igh_t), 0.0_r_def ), &
                  setval_c( self%state(igh_u), 0.0_r_def ), &
+                 setval_c( dry_flux_solver, 0.0_r_def ),   &
                  inc_X_plus_Y( self%state(igh_p), exner ), &
                  inc_X_plus_Y( self%state(igh_d), rho ),   &
                  inc_X_plus_Y( self%state(igh_t), theta ), &
@@ -645,14 +656,14 @@ contains
         ! Solve adjoint of semi-implicit system: A * inc = rhs
         !-----------------------------------------------------------------------
 
-        mixed_solver_nml => modeldb%configuration%get_namelist('mixed_solver')
-        call mixed_solver_nml%get_value( 'mixed_solver_a_tol', mixed_solver_a_tol )
+        mixed_solver_a_tol = modeldb%config%mixed_solver%mixed_solver_a_tol()
 
         ! If self%state is zero, there is no need to call the SI solver
         if (.not. bundle_is_zero( mixed_solver_a_tol, self%state, bundle_size )) then
           call self%adj_semi_implicit_solver%step( self%state, self%rhs_np1, &
+                                                   dry_flux_solver,          &
                                                    moist_dyn(gas_law), mr,   &
-                                                   .false., first_iteration=(inner==1) )
+                                                   first_iteration=(inner==1) )
         end if
 
         ! Accelerators for inner loop convergence
@@ -733,7 +744,8 @@ contains
                                                          self%theta_fv_inc, mm_wt ), &
                    setval_X( self%rhs_adv(igh_t), self%theta_fv_inc ) )
 
-      call atl_transport_control_alg( self%rhs_adv,                         &
+      call atl_transport_control_alg( modeldb%config,                       &
+                                      self%rhs_adv,                         &
                                       self%advected_state,                  & ! rhs_adv is INOUT,
                                       self%state(igh_u),                    &
                                       self%state_n(igh_u),                  & ! advected_state, state(igh_u), state_n(igh_u) are OUT

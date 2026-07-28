@@ -8,6 +8,7 @@
 
 module atl_wt_advective_update_alg_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: r_def, i_def, l_def
   use sci_fem_constants_mod,              only: get_inverse_lumped_mass_matrix_fe
   use field_mod,                          only: field_type
@@ -48,6 +49,7 @@ contains
 
   !=============================================================================
   !> @brief Compute advective update of a Wtheta field for adjoint app.
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] rhs                     ACTIVE Change in Advective increment
   !> @param[in]     adv_field               ACTIVE Change in Field to advect
   !> @param[in]     wind                    ACTIVE Change in Advecting wind field
@@ -58,7 +60,8 @@ contains
   !> @param[in]     transport_metadata      Contains transport configuration options
   !> @param[in]     final_rk_stage          Whether this is the last Runge-Kutta stage
   !> @param[in]     adj_lookup_table_cache  Lookup table cache
-  subroutine atl_wt_advective_update_alg( rhs, adv_field, wind,               &
+  subroutine atl_wt_advective_update_alg( config,                             &
+                                          rhs, adv_field, wind,               &
                                           ls_adv_field, ls_wind,              &
                                           dt, direction,                      &
                                           transport_metadata, final_rk_stage, &
@@ -71,6 +74,8 @@ contains
     use adj_split_w2_field_kernel_mod,   only : adj_split_w2_field_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),                  intent(inout) :: adv_field, wind
     type(field_type),                  intent(in)    :: ls_adv_field, ls_wind
@@ -114,8 +119,8 @@ contains
         w2v_fs => function_space_collection%get_fs(                            &
             mesh, element_order_h, element_order_v, W2V                        &
         )
-        face_selector_ew => get_face_selector_ew(mesh%get_id())
-        face_selector_ns => get_face_selector_ns(mesh%get_id())
+        face_selector_ew => get_face_selector_ew(mesh)
+        face_selector_ns => get_face_selector_ns(mesh)
         call wind_h%initialise(w2h_fs)
         call wind_v%initialise(w2v_fs)
         call ls_wind_h%initialise(w2h_fs)
@@ -131,13 +136,15 @@ contains
           call log_event( "ATL: consistent metric not implemented", LOG_LEVEL_ERROR )
         end if
 
-        call atl_vert_wt_update_alg( u_grad_f, wind_v, adv_field, &
-                                     ls_wind_v, ls_adv_field,     &
+        call atl_vert_wt_update_alg( config,u_grad_f, wind_v, adv_field, &
+                                     ls_wind_v, ls_adv_field,            &
                                      transport_metadata, final_rk_stage )
 
         ! Horizontal update
-        call atl_hori_wt_update_alg( u_grad_f, wind_h, ls_wind_h, ls_adv_field, transport_metadata )
-        call adj_hori_wt_update_alg( u_grad_f, ls_wind_h, ls_wind_h, adv_field, transport_metadata, &
+        call atl_hori_wt_update_alg( config, u_grad_f, wind_h, ls_wind_h, &
+                                     ls_adv_field, transport_metadata )
+        call adj_hori_wt_update_alg( config, u_grad_f, ls_wind_h, ls_wind_h, &
+                                     adv_field, transport_metadata,          &
                                      adj_lookup_table_cache )
 
         call invoke( adj_split_w2_field_kernel_type(wind_h, wind_v, wind,          &
@@ -146,14 +153,16 @@ contains
 
 
       case ( direction_h )
-        call atl_hori_wt_update_alg( u_grad_f, wind, ls_wind, ls_adv_field, transport_metadata )
-        call adj_hori_wt_update_alg( u_grad_f, ls_wind, ls_wind, adv_field, transport_metadata, &
+        call atl_hori_wt_update_alg( config, u_grad_f, wind, ls_wind, &
+                                     ls_adv_field, transport_metadata )
+        call adj_hori_wt_update_alg( config, u_grad_f, ls_wind, ls_wind, &
+                                     adv_field, transport_metadata,      &
                                      adj_lookup_table_cache )
 
 
       case ( direction_v )
-        call atl_vert_wt_update_alg( u_grad_f, wind, adv_field, &
-                                     ls_wind, ls_adv_field,     &
+        call atl_vert_wt_update_alg( config, u_grad_f, wind, adv_field, &
+                                     ls_wind, ls_adv_field,             &
                                      transport_metadata, final_rk_stage )
       case default
         call log_event('A.T.L. advective update: direction not recognised', LOG_LEVEL_ERROR)
@@ -168,12 +177,14 @@ contains
 
   !=============================================================================
   !> @brief Compute the adjoint of tangent linear of the horizontal advective update of a Wtheta field.
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Horizontal part of u.grad(f)
   !> @param[in]     wind                Advecting wind field
   !> @param[in]     wind_dir            Wind field used to determine direction in kernel
   !> @param[in]     ls_field            Linearisation state Wtheta field
   !> @param[in]     transport_metadata  Contains transport configuration options
-  subroutine atl_hori_wt_update_alg(u_grad_f, wind, wind_dir, ls_field, transport_metadata)
+  subroutine atl_hori_wt_update_alg( config, u_grad_f, wind, wind_dir, &
+                                     ls_field, transport_metadata )
 
     use poly1d_reconstruction_kernel_mod, only : poly1d_reconstruction_kernel_type
     use poly2d_reconstruction_kernel_mod, only : poly2d_reconstruction_kernel_type
@@ -186,6 +197,8 @@ contains
     use transport_constants_mod,          only : get_hori_wt_mol_coeffs
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),              intent(inout) :: u_grad_f
     type(field_type),              intent(inout) :: wind
@@ -223,7 +236,7 @@ contains
     end if
 
     stencil_extent = fv_horizontal_order/2_i_def
-    adv_coeffs => get_hori_wt_mol_coeffs(mesh_id)
+    adv_coeffs => get_hori_wt_mol_coeffs(config, mesh)
 
     ! Copy field to a large halo version
     call ls_field_big_halo%initialise( ls_field%get_function_space(), &
@@ -241,8 +254,8 @@ contains
     if ( panel_edge_treatment /= panel_edge_treatment_none                     &
          .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
-      call remap_on_extended_mesh(ls_remap_field, ls_field_big_halo,           &
-                                  monotone,                                    &
+      call remap_on_extended_mesh(config, ls_remap_field,                      &
+                                  ls_field_big_halo, monotone,                 &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)
@@ -302,6 +315,7 @@ contains
 
   !=============================================================================
   !> @brief Adjoint of tangent linear vertical advective update of a Wtheta field.
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] u_grad_f            Vertical part of u.grad(f)
   !> @param[in,out] wind                Advecting wind field
   !> @param[in,out] field               Wtheta field to advect
@@ -309,14 +323,17 @@ contains
   !> @param[in]     ls_field            Linearised Wtheta field to advect
   !> @param[in]     transport_metadata  Contains transport configuration options
   !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine atl_vert_wt_update_alg(u_grad_f, wind, field, ls_wind, ls_field, &
-                                   transport_metadata, final_rk_stage)
+  subroutine atl_vert_wt_update_alg( config, u_grad_f, wind, field, ls_wind, &
+                                     ls_field, transport_metadata,           &
+                                     final_rk_stage )
 
     use atl_poly1d_vert_adv_kernel_mod,     only: atl_poly1d_vert_adv_kernel_type
     use transport_constants_mod,            only: get_vert_wt_mol_coeffs, &
                                                   get_reversible_vert_wt_mol_coeffs
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),              intent(inout) :: field, wind
     type(field_type),              intent(in)    :: ls_field, ls_wind
@@ -341,10 +358,10 @@ contains
     mesh_id = mesh%get_id()
 
     if ( reversible ) then
-      vert_adv_coeffs => get_reversible_vert_wt_mol_coeffs(mesh_id)
+      vert_adv_coeffs => get_reversible_vert_wt_mol_coeffs(config, mesh)
       vertical_order = fv_vertical_order
     else
-      vert_adv_coeffs => get_vert_wt_mol_coeffs(mesh_id)
+      vert_adv_coeffs => get_vert_wt_mol_coeffs(config, mesh)
       vertical_order = fv_vertical_order + 1_i_def
     end if
 

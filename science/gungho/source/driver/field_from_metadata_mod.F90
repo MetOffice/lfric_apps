@@ -31,29 +31,6 @@ module field_from_metadata_mod
 
 contains
 
-  !> @brief Derive field status for prognostic and diagnostic fields
-  !> @param[in, optional] empty            Create empty field?
-  !> @param[in, optional] diag_status      Diagnostic enabling status
-  !> @return                               Field status
-  function combined_status(empty, diag_status) result(status)
-    implicit none
-
-    logical(l_def),         intent(in) :: empty
-    character(*), optional, intent(in) :: diag_status
-
-    character(:), allocatable :: status
-
-    if (present(diag_status)) then
-      status = trim(diag_status)
-    else
-      if (empty) then
-        status = 'Empty'
-      else
-        status = 'Progno'
-      end if
-    end if
-  end function combined_status
-
   !> @brief Initialise a real-valued field from XIOS metadata.
   !> @param[out]          field            Field to initialise
   !> @param[in]           xios_id          XIOS id of field
@@ -89,15 +66,12 @@ contains
     character(str_def), parameter :: routine_name = 'init_real_field_from_metadata'
 
     logical(l_def)                      :: make_empty
-    character(:), allocatable           :: status
     type(function_space_type),  pointer :: vector_space => null()
 
     make_empty = .false.
     if (present(empty)) make_empty = empty
 
-    status = trim(combined_status(make_empty, diag_status))
-
-    vector_space => space_from_metadata(xios_id, status,                 &
+    vector_space => space_from_metadata(xios_id,                         &
                                         mesh_3d, mesh_2d, force_mesh,    &
                                         force_rad_levels, force_order_h, &
                                         force_order_v, force_ndata)
@@ -159,15 +133,12 @@ contains
     character(str_def), parameter :: routine_name = 'init_field_from_metadata'
 
     logical(l_def)                      :: make_empty
-    character(str_def)                  :: status
     type(function_space_type),  pointer :: vector_space => null()
 
     make_empty = .false.
     if (present(empty)) make_empty = empty
 
-    status = combined_status(make_empty, diag_status)
-
-    vector_space => space_from_metadata(xios_id, status,                 &
+    vector_space => space_from_metadata(xios_id,                         &
                                         mesh_3d, mesh_2d, force_mesh,    &
                                         force_rad_levels, force_order_h, &
                                         force_order_v, force_ndata)

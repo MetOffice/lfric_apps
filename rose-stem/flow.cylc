@@ -91,6 +91,7 @@
 # Check if running physics - don't extract these if not
 {% if "lfric_atm" in requested_applications
       or "jules" in requested_applications
+      or "linear_model" in requested_applications
       or "ngarch" in requested_applications
       or "lfric_coupled" in requested_applications %}
 
@@ -101,11 +102,9 @@
     {% do LOG.debug("Not Running Physics Schemes") %}
 
     {% for item in ["casim",
-                    "jules",
                     "ukca",
                     "socrates",
-                    "socrates-spectral",
-                    "um_aux"] %}
+                    "socrates-spectral"] %}
 
         {% do dependencies.pop(item, None) %}
 

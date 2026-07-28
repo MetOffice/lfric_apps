@@ -7,6 +7,7 @@
 !>@brief Tangent linear for the Runge-Kutta time-discretisation.
 module tl_rk_alg_timestep_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def,r_def
   use fs_continuity_mod,                  only: W3
   use log_mod,                            only: log_event,         &
@@ -25,9 +26,11 @@ module tl_rk_alg_timestep_mod
   use derived_config_mod,                 only: bundle_size
   use sci_fem_constants_mod,              only: get_qr_fe, &
                                                 get_inverse_mass_matrix_fe
-  use sci_geometric_constants_mod,        only: get_coordinates, &
-                                                get_panel_id,    &
-                                                get_dx_at_w2
+  use sci_geometric_constants_mod,        only: get_coordinates,      &
+                                                get_panel_id,         &
+                                                get_dx_at_w2,         &
+                                                get_face_selector_ew, &
+                                                get_face_selector_ns
   use transport_config_mod,               only: operators, &
                                                 operators_fv
   use mixing_config_mod,                  only: viscosity, viscosity_mu
@@ -65,12 +68,14 @@ module tl_rk_alg_timestep_mod
   ! Derived Types
   use field_mod,                          only: field_type
   use field_collection_mod,               only: field_collection_type
+  use integer_field_mod,                  only: integer_field_type
   use quadrature_xyoz_mod,                only: quadrature_xyoz_type
   use quadrature_face_mod,                only: quadrature_face_type
   use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
   use operator_mod,                       only: operator_type
   use reference_element_mod,              only: reference_element_type
   use mesh_mod,                           only: mesh_type
+
   ! Algorithm
   use sci_mass_matrix_solver_alg_mod,     only: mass_matrix_solver_alg
   use gungho_transport_control_alg_mod,   only: gungho_transport_control_alg, &
@@ -200,6 +205,7 @@ contains
   !!          then uses this to compute the new perturbation using the same
   !!          runge-kutta method but calling the corresponding tangent linear
   !!          kernels.
+  !> @param[in]     config       Application namelist configuration object
   !> @param[in,out] u            Change in 3D wind field
   !> @param[in,out] rho          Change in density
   !> @param[in,out] theta        Change in potential temperature
@@ -214,11 +220,14 @@ contains
   !> @param[in]     ls_mr        Linearisation state for moisture mixing ratios
   !> @param[in]     model_clock  Time in the model
   !>
-  subroutine tl_rk_alg_step(u, rho, theta, moist_dyn, exner, mr,               &
-                            ls_u, ls_rho, ls_theta, ls_moist_dyn, ls_exner,    &
+  subroutine tl_rk_alg_step(config, u, rho, theta, moist_dyn, exner, mr,    &
+                            ls_u, ls_rho, ls_theta, ls_moist_dyn, ls_exner, &
                             ls_mr, model_clock)
 
     implicit none
+
+    type(config_type), intent(in) :: config
+
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u, rho, theta, exner
     type( field_type ), intent( inout ) :: mr(nummr)
@@ -246,6 +255,8 @@ contains
     type( field_type ),  pointer :: dx_at_w2 => null()
     type(operator_type), pointer :: m3_inv => null(), &
                                     coriolis => null()
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
 
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
 
@@ -275,8 +286,8 @@ contains
     geopotential => get_geopotential(mesh_id)
 
     ! Get coordinates
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi      => get_coordinates(u%get_mesh())
+    panel_id => get_panel_id(u%get_mesh())
 
     !=== Copy prognostic field data to state arrays ===========================!
     call invoke( name = "copy_fields_to_state",   &
@@ -306,7 +317,8 @@ contains
       write( log_scratch_space, '(A,I0)' ) '  Start of stage ', stage
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
       ! Compute advection terms
-      call gungho_transport_control_alg( rhs_prediction(:,stage),      &
+      call gungho_transport_control_alg( config,                       &
+                                         rhs_prediction(:,stage),      &
                                          ls_state_n,                   &
                                          ls_state_stage(igh_u,stage),  &
                                          ls_state_stage(igh_u,stage),  &
@@ -394,7 +406,8 @@ contains
       write( log_scratch_space, '(A,I0)' ) '  Start of stage ', stage
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
       ! Compute advection terms
-      call tl_transport_control_alg( rhs_prediction(:,stage), state_n, &
+      call tl_transport_control_alg( config,                           &
+                                     rhs_prediction(:,stage), state_n, &
                                      state(igh_u), state(igh_u),       &
                                      mr, mr,                           &
                                      ls_state_stage(:,stage),          &
@@ -489,12 +502,15 @@ contains
     ! Apply viscosity
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
-      dx_at_w2 => get_dx_at_w2(mesh_id)
+      dx_at_w2 => get_dx_at_w2(u%get_mesh())
       call invoke(setval_c(inc(igh_u), 0.0_r_def),                             &
                   tracer_viscosity_kernel_type(   inc(igh_t), state(igh_t), 1, &
                                                   dx_at_w2, viscosity_mu ),    &
                   momentum_viscosity_kernel_type( inc(igh_u), state(igh_u), 1, &
-                                                  dx_at_w2, 1, viscosity_mu ), &
+                                                  dx_at_w2, 1,                 &
+                                                  face_selector_ew,            &
+                                                  face_selector_ns,            &
+                                                  viscosity_mu ),              &
                   setval_c(inc(igh_d), 0.0_r_def) )
       call bundle_axpy(cast_dt, inc, state, state, bundle_size)
     end if

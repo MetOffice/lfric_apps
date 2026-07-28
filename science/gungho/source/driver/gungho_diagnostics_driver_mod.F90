@@ -148,7 +148,7 @@ contains
     call moisture_fields%get_field("moist_dyn", moist_dyn_array)
     moist_dyn => moist_dyn_array%bundle
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
-    panel_id => get_panel_id(mesh%get_id())
+    panel_id => get_panel_id(mesh)
     con_tracer_last_outer =>  modeldb%fields%get_field_collection("con_tracer_last_outer")
 
     ! Can't just iterate through the prognostic/diagnostic collections as
@@ -183,7 +183,7 @@ contains
         field_name = trim(prefix)//"height_"//trim(fs_names(i))
         fs = fs_ids(i)
         if (diagnostic_to_be_sampled(trim(field_name))) then
-          height => get_height_fe(fs, mesh%get_id())
+          height => get_height_fe(modeldb%config, mesh, fs)
           call height%set_write_behaviour(tmp_write_ptr)
           call height%write_field(trim(field_name))
         end if
@@ -201,7 +201,7 @@ contains
     ! Write out grid_cell area at initialisation only
     if ( use_physics .and. use_xios_io .and. modeldb%clock%is_initialisation() &
          .and. diagnostic_to_be_sampled("init_area_at_msl") ) then
-      dA => get_da_msl_proj(twod_mesh%get_id())
+      dA => get_da_msl_proj(modeldb%config, twod_mesh)
       tmp_write_ptr => write_field_generic
       call dA%set_write_behaviour(tmp_write_ptr)
       call dA%write_field("init_area_at_msl")
@@ -330,16 +330,18 @@ contains
       ! RH diagnostics
       call rh_diag_alg(exner_in_wth, theta, mr)
       ! Call PMSL algorithm
-      call pmsl_alg(exner, derived_fields, theta, twod_mesh)
+      call pmsl_alg(modeldb%config, exner, derived_fields, theta, twod_mesh)
       ! Pressure level diagnostics
-      call pres_lev_diags_alg(derived_fields, theta, exner, mr, moist_dyn)
+      call pres_lev_diags_alg(modeldb%config, derived_fields, theta, exner, &
+                              mr, moist_dyn)
       ! Wet bulb freezing level
-      call freeze_lev_alg(theta, mr, moist_dyn, exner_in_wth)
+      call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
-      call column_total_diagnostics_alg(rho, mr, derived_fields, exner, &
-                                        mesh, twod_mesh,             &
+      call column_total_diagnostics_alg(modeldb%config, rho, mr, &
+                                        derived_fields, exner,   &
+                                        mesh, twod_mesh,         &
                                         temp_corr_io_value%data(1))
 
     end if

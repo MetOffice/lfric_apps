@@ -63,8 +63,8 @@ integer, intent(in) :: nc
 integer, intent(in) :: n_points
 
 ! Number of each sort of argument
-integer, intent(in) :: n_real_sca   ! in real scalar arguments
-integer, intent(in) :: n_real_arr   ! in real array arguments
+integer, intent(in) :: n_real_sca   ! IN real scalar arguments
+integer, intent(in) :: n_real_arr   ! IN real array arguments
 
 ! List of scalar inputs (constants)
 real(kind=real_cvprec), intent(in) :: args_real_sca                            &
@@ -161,7 +161,7 @@ real(kind=real_cvprec), intent(in out) :: r_cond(n_points)
 real(kind=real_cvprec), intent(in out) :: wf_cond(n_points)
 ! Residual error of the fall-speed wf_after - wf_cond on input
 real(kind=real_cvprec), intent(in) :: resid(n_points)
-! Note: the final error is not output in this array
+! Note: the final error is NOT output in this array
 
 
 ! Work arrays to pass into Brent-Dekker algorithm:

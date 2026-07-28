@@ -7,6 +7,7 @@
 
 module w2_filter_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def
   use field_mod,                      only: field_type
   use mesh_mod,                       only: mesh_type
@@ -23,13 +24,16 @@ contains
 
   !> @details This first samples the W2 winds at W3 points and then projects back.
   !>          The net effect is similar to a 1-2-1 filter of orthogonal wind components.
-  !> @param[inout]   w2_field_inout   Input w2 field that is overwritten on output
-  subroutine w2_filter_alg(w2_field_inout)
+  !> @param[in]      config          Application namelist configuration object
+  !> @param[inout]   w2_field_inout  Input w2 field that is overwritten on output
+  subroutine w2_filter_alg(config, w2_field_inout)
 
     use physics_mappings_alg_mod,      only : map_physics_winds
     use map_fd_to_prognostics_alg_mod, only : set_wind
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent( inout ) :: w2_field_inout
 
@@ -73,7 +77,7 @@ contains
     call map_physics_winds(u_lon, u_lat, u_up, w2_field_inout)
 
     ! Project back to W2 points
-    call set_wind(w2_h_filtered, u_lon, u_lat, u_up_wt)
+    call set_wind(config, w2_h_filtered, u_lon, u_lat, u_up_wt)
     call invoke(setval_X(w2_field_inout, w2_h_filtered))
 
     nullify(mesh, w2_fs, w3_fs, wt_fs)

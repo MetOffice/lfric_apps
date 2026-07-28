@@ -18,6 +18,7 @@
         "tsteps": 144,
         "crun": 2,
         "crun_compare": false,
+        "metadata_test": true,
         "mpi_parts": 6,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
@@ -214,6 +215,8 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "info",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
         "memory_plot_ex": true,
     }) %}
@@ -229,6 +232,8 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "info",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
         "memory_plot_ex": true,
     }) %}
 
@@ -243,6 +248,7 @@
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "error",
+        "xios_info_level": 50,
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_ls_and_jedi-C224_MG" %}
@@ -256,20 +262,8 @@
         "wallclock": 10,
         "xios_nodes": 4,
         "mpi_parts_xios" : 16,
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9-C896_MG" %}
-
-    {% do task_dict.update({
-        "opt_confs": ["um_dump"],
-        "resolution": "C896_MG",
-        "DT": 240,
-        "tsteps": 120,
-        "mpi_parts": 4704,
-        "xios_nodes": 4,
-        "mpi_parts_xios" : 32,
-        "log_level": "info",
-        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
@@ -280,6 +274,32 @@
         "DT": 1800,
         "tsteps": 36,
         "mpi_parts": 24,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_nudging-era-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nudging-era","um_dump"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 24,
+        "log_level": "info",
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_nudging-era-coarse-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nudging-era-coarse","um_dump"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 24,
+        "log_level": "info",
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
@@ -305,6 +325,7 @@
         "tsteps": 144,
         "crun": 2,
         "crun_compare": false,
+        "metadata_test": true,
         "mpi_parts": 6,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
@@ -421,7 +442,7 @@
 {% elif task_ns.conf_name == "nwp_gal9_debug-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","no_diags"],
+        "opt_confs": ["um_dump","no_diags","cons_diag"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 4,
@@ -453,6 +474,17 @@
         "mpi_parts": 6,
         "kgo_checks": ["checksum"],
     }) %}
+{% elif task_ns.conf_name == "clim_gal9_short-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","lowres_stp","um_dump","no_diags"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 8,
+        "crun": 2,
+        "mpi_parts": 6,
+        "kgo_checks": ["checksum"],
+    }) %}
 
 {# Share Global Configurations - extended by Performance setups#}
 {% elif task_ns.conf_name.startswith("nwp_gal9-C896_MG") %}
@@ -465,11 +497,13 @@
         "tsteps": 120,
         "wallclock": 15,
         "mpi_parts": 4704,
-        "xios_nodes": 4,
-        "mpi_parts_xios" : 128,
+        "xios_nodes": 5,
+        "mpi_parts_xios" : 147,
         "log_level": "info",
         "log_to_rank_zero_only": ".true.",
         "memory_plot_ex": true,
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
@@ -647,7 +681,6 @@
         "DT": 60,
         "tsteps": 120,
         "crun": 2,
-        "crun_compare": false,
         "mpi_parts": 16,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
@@ -676,7 +709,7 @@
         "crun_compare": false,
         "mpi_parts": 729,
         "xios_nodes": 3,
-        "mpi_parts_xios" : 96,
+        "mpi_parts_xios" : 81,
         "log_level": "info",
         "wallclock": 30,
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
@@ -707,7 +740,7 @@
         "tsteps": 360,
         "mpi_parts": 2560,
         "xios_nodes": 4,
-        "mpi_parts_xios" : 128,
+        "mpi_parts_xios" : 64,
         "log_level": "info",
         "wallclock": 60,
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
@@ -768,7 +801,7 @@
         "crun_compare": false,
         "mpi_parts": 729,
         "xios_nodes": 2,
-        "mpi_parts_xios" : 64,
+        "mpi_parts_xios" : 81,
         "log_level": "info",
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
@@ -1030,7 +1063,7 @@
 {% elif task_ns.conf_name == "scm_comorph_dev_toga-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l85_85km","comorph_dev","no_aerosol","toga"],
+        "opt_confs": ["l85_85km","comorph_dev","no_aerosol","toga", "coord_order_1"],
         "resolution": "BiP2x2-50000x50000",
         "DT": 1200,
         "tsteps": 1368,

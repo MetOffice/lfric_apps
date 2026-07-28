@@ -34,7 +34,7 @@ subroutine kmkhz_9c (                                                          &
 ! INOUT fields
  ftl,fqw,zh,dzh,cumulus,ntml,w,etadot,t1_sd,q1_sd,wtrac_bl,                    &
 ! out fields
- rhokm,rhokh,rhokm_top,rhokh_top,zhsc,                                         &
+ rhokm,rhokh,rhokm_top,rhokh_top,zhsc,zdsc_base,                               &
  unstable,dsc,coupled,sml_disc_inv,dsc_disc_inv,                               &
  ntdsc,nbdsc,f_ngstress,tke_nl,grad_t_adj, grad_q_adj,                         &
  rhof2, rhofsc, ft_nt, fq_nt, ft_nt_dscb, fq_nt_dscb,                          &
@@ -107,18 +107,18 @@ logical, intent(in) ::                                                         &
 real(kind=r_bl), intent(in) ::                                                 &
  zmaxb_for_dsc,                                                                &
  zmaxt_for_dsc
-                            ! in Max heights to look for DSC cloud
+                            ! IN Max heights to look for DSC cloud
                             !    base and top
 
 integer, intent(in) ::                                                         &
  ntpar(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                            ! in Top level of parcel ascent.
+                            ! IN Top level of parcel ascent.
                             !    Used in convection scheme.
                             !    NOTE: CAN BE > BL_LEVELS-1
 
 logical, intent(in) ::                                                         &
  l_shallow(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                            ! in Flag to indicate shallow
+                            ! IN Flag to indicate shallow
                             !    convection
 
 ! Water tracer structure containing 'micro_tends' fields
@@ -126,76 +126,76 @@ type(atm_step_wtrac_type), intent(in) :: wtrac_as(n_wtrac)
 
 real(kind=r_bl), intent(in) ::                                                 &
  bq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
-                            ! in A buoyancy parameter for clear air
+                            ! IN A buoyancy parameter for clear air
                             !    on p,T,q-levels (full levels).
  bt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
-                            ! in A buoyancy parameter for clear air
+                            ! IN A buoyancy parameter for clear air
                             !    on p,T,q-levels (full levels).
  bqm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
-                            ! in A buoyancy parameter for clear air
+                            ! IN A buoyancy parameter for clear air
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
  btm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
-                            ! in A buoyancy parameter for clear air
+                            ! IN A buoyancy parameter for clear air
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
  bqm_cld(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          bl_levels),                                                           &
-                            ! in A buoyancy parameter for cloudy air
+                            ! IN A buoyancy parameter for cloudy air
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
  btm_cld(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
          bl_levels),                                                           &
-                            ! in A buoyancy parameter for cloudy air
+                            ! IN A buoyancy parameter for cloudy air
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
  a_qs(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
-                            ! in Saturated lapse rate factor
+                            ! IN Saturated lapse rate factor
                             !    on p,T,q-levels (full levels).
  a_qsm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-                            ! in Saturated lapse rate factor
+                            ! IN Saturated lapse rate factor
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
  a_dqsdtm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
           bl_levels),                                                          &
-                            ! in Saturated lapse rate factor
+                            ! IN Saturated lapse rate factor
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
  dqsdt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-                            ! in Partial derivative of QSAT w.r.t.
+                            ! IN Partial derivative of QSAT w.r.t.
                             !    temperature.
  p(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,0:bl_levels),           &
-                            ! in P(*,K) is pressure at full level k.
+                            ! IN P(*,K) is pressure at full level k.
  qw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
-                            ! in Total water content (kg per kg air).
+                            ! IN Total water content (kg per kg air).
  tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
-                            ! in Liquid/frozen water temperature (K).
+                            ! IN Liquid/frozen water temperature (K).
  t(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),             &
-                            ! in Temperature (K).
+                            ! IN Temperature (K).
  qcf(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,              &
      tdims_l%k_start:bl_levels),                                               &
-                            ! in Cloud ice (kg per kg air)
+                            ! IN Cloud ice (kg per kg air)
  qcl(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,              &
      tdims_l%k_start:bl_levels),                                               &
-                            ! in Cloud liquid water
+                            ! IN Cloud liquid water
  q(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,                &
    tdims_l%k_start:bl_levels),                                                 &
-                            ! in specific humidity
+                            ! IN specific humidity
  cf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
-                            ! in Cloud fractions for boundary levs.
+                            ! IN Cloud fractions for boundary levs.
  z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
-                            ! in Z_tq(*,K) is the height of the
+                            ! IN Z_tq(*,K) is the height of the
                             !    k-th full level above the surface.
  z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels+1),        &
-                            ! in Z_uv(*,K) is the height of level
+                            ! IN Z_uv(*,K) is the height of level
                             !       k-1/2 above the surface (m).
  dzl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
-                            ! in Layer depths (m).  DZL(,K) is the
+                            ! IN Layer depths (m).  DZL(,K) is the
                             !    distance from layer boundary K-1/2
                             !    to layer boundary K+1/2.  For K=1
                             !    the lower boundary is the surface.
  rdz(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
-                            ! in Reciprocal of distance between
+                            ! IN Reciprocal of distance between
                             !    full levels (m-1).  1/RDZ(,K) is
                             !    the vertical distance from level
                             !    K-1 to level K, except that for
@@ -203,44 +203,44 @@ real(kind=r_bl), intent(in) ::                                                 &
                             !    lowest atmospheric full level.
  rho_mix(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
          bl_levels),                                                           &
-                            ! in density on UV (ie. rho) levels,
+                            ! IN density on UV (ie. rho) levels,
                             !    used in RHOKH so dry density if
                             !    L_mr_physics is true
  rho_wet_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
             bl_levels),                                                        &
-                            ! in density on TQ (ie. theta) levels,
+                            ! IN density on TQ (ie. theta) levels,
                             !    used in RHOKM so wet density
  rho_mix_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
             bl_levels)
-                            ! in density on TQ (ie. theta) levels,
+                            ! IN density on TQ (ie. theta) levels,
                             !    used in non-turb flux integration
                             !    so dry density if L_mr_physics is true
 
 real(kind=r_bl), intent(in) ::                                                 &
  v_s(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                     &
-                            ! in Surface friction velocity (m/s)
+                            ! IN Surface friction velocity (m/s)
  fb_surf(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
-                            ! in Surface buoyancy flux over density
+                            ! IN Surface buoyancy flux over density
                             !       (m^2/s^3).
  rhostar_gb(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
-                            ! in Surface air density in kg/m3
+                            ! IN Surface air density in kg/m3
  z_lcl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
-                            ! in Height of lifting condensation
+                            ! IN Height of lifting condensation
                             !    level.
  zhpar(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
-                            ! in Height of top of NTPAR
+                            ! IN Height of top of NTPAR
                             !    NOTE: CAN BE ABOVE BL_LEVELS-1
  zh_prev(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                            ! in boundary layer height (m) from
+                            ! IN boundary layer height (m) from
                             !    previous timestep
 
 real(kind=r_bl), intent(in) ::                                                 &
  rad_hr(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
         2,bl_levels),                                                          &
-                            ! in (LW,SW) radiative heating rates (K/s)
+                            ! IN (LW,SW) radiative heating rates (K/s)
  micro_tends(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,              &
              2, bl_levels)
-                            ! in Tendencies from microphysics
+                            ! IN Tendencies from microphysics
                             !    (TL, K/s; QW, kg/kg/s)
 
 ! INOUT arrays
@@ -281,31 +281,31 @@ type(bl_wtrac_type), intent(in out) :: wtrac_bl(n_wtrac)
 ! out arrays
 integer, intent(out) ::                                                        &
  ntdsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
-                            ! out Top level for turb mixing in
+                            ! OUT Top level for turb mixing in
                             !       cloud layer
  nbdsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                   &
-                            ! out Bottom level of any decoupled
+                            ! OUT Bottom level of any decoupled
                             !       turbulently mixed Sc layer
  sml_disc_inv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),            &
-                            ! out Flags for whether discontinuous
+                            ! OUT Flags for whether discontinuous
  dsc_disc_inv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),            &
-                            ! out   inversions are diagnosed
+                            ! OUT   inversions are diagnosed
  kent(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                    &
-                            ! out Grid-levels of SML and DSC
+                            ! OUT Grid-levels of SML and DSC
  kent_dsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                &
-                            ! out   inversions (for tracer mixing)
+                            ! OUT   inversions (for tracer mixing)
  k_plume(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                            ! out   Start grid-level for surface-driven plume
+                            ! OUT   Start grid-level for surface-driven plume
 
 logical, intent(out) ::                                                        &
  unstable(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                &
-                            ! out Flag to indicate an unstable
+                            ! OUT Flag to indicate an unstable
                             !     surface layer.
  dsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                     &
-                            ! out Flag set if decoupled
+                            ! OUT Flag set if decoupled
                             !     stratocumulus layer found
  coupled(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                            ! out Flag to indicate Sc layer weakly
+                            ! OUT Flag to indicate Sc layer weakly
                             !     decoupled (implies mixing at SML
                             !     top is through K profiles rather
                             !     than entrainment parametrization)
@@ -313,80 +313,82 @@ logical, intent(out) ::                                                        &
 real(kind=r_bl), intent(out) ::                                                &
  rhokm(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                    &
        2:bl_levels),                                                           &
-                            ! out Non-local turbulent mixing
+                            ! OUT Non-local turbulent mixing
                             !     coefficient for momentum.
  rhokh(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                    &
        2:bl_levels),                                                           &
-                            ! out Non-local turbulent mixing
+                            ! OUT Non-local turbulent mixing
                             !     coefficient for scalars.
  rhokm_top(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                &
        2:bl_levels),                                                           &
-                            ! out Top-down turbulent mixing
+                            ! OUT Top-down turbulent mixing
                             !     coefficient for momentum.
  rhokh_top(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                &
        2:bl_levels),                                                           &
-                            ! out Top-down turbulent mixing
+                            ! OUT Top-down turbulent mixing
                             !     coefficient for scalars.
  tke_nl(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
        2:bl_levels),                                                           &
-                            ! out Non-local TKE diag (currently times rho)
+                            ! OUT Non-local TKE diag (currently times rho)
  f_ngstress(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,       &
             2:bl_levels),                                                      &
-                            ! out dimensionless function for
+                            ! OUT dimensionless function for
                             !     non-gradient stresses
  rhof2(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                    &
        2:bl_levels),                                                           &
  rhofsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                   &
          2:bl_levels)
-                            ! out f2 and fsc term shape profiles
+                            ! OUT f2 and fsc term shape profiles
                             !       multiplied by rho
 
 real(kind=r_bl), intent(out) ::                                                &
   ft_nt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels+1),      &
-                            ! out Non-turbulent heat and moisture
+                            ! OUT Non-turbulent heat and moisture
   fq_nt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels+1)
                             !       fluxes (rho*Km/s, rho*m/s)
 
 real(kind=r_bl), intent(out) ::                                                &
  tothf_zh(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                &
-                            ! out Total heat fluxes at inversions
+                            ! OUT Total heat fluxes at inversions
  tothf_zhsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
                             !     (rho*Km/s)
  totqf_zh(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                &
-                            ! out Total moisture fluxes at
+                            ! OUT Total moisture fluxes at
  totqf_zhsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
                             !      inversions (rho*m/s)
  ft_nt_dscb(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
-                            ! out Non-turbulent heat and moisture
+                            ! OUT Non-turbulent heat and moisture
  fq_nt_dscb(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
                             !      flux at the base of the DSC layer
  grad_t_adj(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
-                            ! out Temperature gradient adjustment
+                            ! OUT Temperature gradient adjustment
                             !     for non-local mixing in unstable
                             !     turbulent boundary layer.
  grad_q_adj(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
-                            ! out Humidity gradient adjustment
+                            ! OUT Humidity gradient adjustment
                             !     for non-local mixing in unstable
                             !     turbulent boundary layer.
- zhsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                            ! out Cloud layer height (m).
-    ! The following are used in tracer mixing.
-    ! At 9B 3 elements were used - here just (i,j,2) is used.
+ zhsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                    &
+                            ! OUT Cloud layer height (m).
+ zdsc_base(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
+                            ! OUT Height of base of K_top in DSC
+
+! The following are used in tracer mixing.
 real(kind=r_bl), intent(out) ::                                                &
  we_lim(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,3),                &
-                            ! out rho*entrainment rate implied by
+                            ! OUT rho*entrainment rate implied by
                             !     placing of subsidence
  zrzi_tr(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,3),               &
-                            ! out (z-z_base)/(z_i-z_base)
+                            ! OUT (z-z_base)/(z_i-z_base)
  t_frac_tr(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,3),             &
-                            ! out a fraction of the timestep
+                            ! OUT a fraction of the timestep
  we_lim_dsc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,3),            &
-                            ! out rho*entrainment rate implied by
+                            ! OUT rho*entrainment rate implied by
                             !     placing of subsidence
  zrzi_dsc_tr(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,3),           &
-                            ! out (z-z_base)/(z_i-z_base)
+                            ! OUT (z-z_base)/(z_i-z_base)
  t_frac_dsc_tr(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,3)
-                            ! out a fraction of the timestep
+                            ! OUT a fraction of the timestep
 
 !----------------------------------------------------------------------
 !    Local and other symbolic constants :-
@@ -655,9 +657,6 @@ real(kind=r_bl) ::                                                             &
         rhokh_dsct_ent(pdims%i_start:pdims%i_end,                              &
                        pdims%j_start:pdims%j_end),                             &
                         ! DSC top-driven entrainment KH
-        zdsc_base(pdims%i_start:pdims%i_end,                                   &
-                  pdims%j_start:pdims%j_end),                                  &
-                        ! Height of base of K_top in DSC
         we_parm(pdims%i_start:pdims%i_end,                                     &
                 pdims%j_start:pdims%j_end),                                    &
                         ! Parametrised entrainment rates (m/s)

@@ -13,6 +13,7 @@
 module horizontal_sl_advective_alg_mod
 
   ! Constants and types
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use integer_field_mod,                only: integer_field_type
@@ -121,7 +122,6 @@ module horizontal_sl_advective_alg_mod
     real(kind=r_tran)   :: one_over_dt, half_dt
     integer(tik)        :: id
 
-
     ! Transport objects
     type(wind_precomputations_type), pointer :: wind_precomputations
     type(flux_precomputations_type), pointer :: ffsl_precomputations
@@ -130,22 +130,26 @@ module horizontal_sl_advective_alg_mod
     type(r_tran_field_type),         pointer :: dep_dist_xy
     integer(kind=i_def)                      :: dep_stencil_extent_xy
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'transport.sl_horizontal' )
 
     ! Get mesh ID and panel ID
-    mesh_id = field_n%get_mesh_id()
+    config  => transport_controller%get_config()
+    mesh    => field_n%get_mesh()
+    mesh_id =  mesh%get_id()
+
 
     is_cubed_sphere = (                                                        &
       geometry == geometry_spherical .and. topology == topology_fully_periodic &
     )
 
     if (is_cubed_sphere) then
-      panel_id => get_panel_id(mesh_id)
+      panel_id        => get_panel_id(mesh)
       panel_edge_dist => get_panel_edge_dist(mesh_id)
     end if
 
     ! Get transport controlling objects
-    mesh => field_n%get_mesh()
     transport_counter => transport_controller%get_transport_counter()
     transport_metadata => transport_controller%get_transport_metadata()
 
@@ -200,7 +204,8 @@ module horizontal_sl_advective_alg_mod
     ! If needed remap the field on an extended cubed sphere
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       monotone_remap = ( hori_monotone /= monotone_none )
-      call remap_on_extended_mesh(field_big_halo, field_n, monotone_remap,     &
+      call remap_on_extended_mesh(config,                                      &
+                                  field_big_halo, field_n, monotone_remap,     &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   stencil_extent )
@@ -246,11 +251,13 @@ module horizontal_sl_advective_alg_mod
 
     ! If needed remap the field on an extended cubed sphere
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-      call remap_on_extended_mesh(field_x_big_halo, field_x, monotone_remap,   &
+      call remap_on_extended_mesh(config,                                      &
+                                  field_x_big_halo, field_x, monotone_remap,   &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   stencil_extent )
-      call remap_on_extended_mesh(field_y_big_halo, field_y, monotone_remap,   &
+      call remap_on_extended_mesh(config,                                      &
+                                  field_y_big_halo, field_y, monotone_remap,   &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   stencil_extent )

@@ -70,8 +70,8 @@ contains
     element_order_h = state(igh_p)%get_element_order_h()
     element_order_v = state(igh_p)%get_element_order_v()
 
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    chi      => get_coordinates(state(igh_p)%get_mesh())
+    panel_id => get_panel_id(state(igh_p)%get_mesh())
     m3_inv  => get_inverse_mass_matrix_fe(W3, mesh_id)
     qr => get_qr_fe()
 
