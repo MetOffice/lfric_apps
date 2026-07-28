@@ -58,6 +58,7 @@
       <field field_ref="cloud__cloud_fraction_below_1000feet_asl"/>
       <field field_ref="processed__freeze_lev"/>
       <field field_ref="cloud__ceilometer_cloud_amount_maxrnd"/>
+      <field field_ref="cloud__cloud_base_4p5_okta"/>
       <field field_ref="plev__u"/>
       <field field_ref="plev__v"/>
       <field field_ref="plev__w"/>   
