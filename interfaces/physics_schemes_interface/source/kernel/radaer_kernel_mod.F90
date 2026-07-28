@@ -1627,6 +1627,7 @@ subroutine radaer_code( nlayers,                                               &
 
     !------------------------------------------------
     ! Now calculate aod and aaod for Aitken Soluble mode
+    ! Note that we start from the second mode and so mode index has minus one.
 
     if ( .not. associated( aod_ukca_ait_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
@@ -1648,6 +1649,7 @@ subroutine radaer_code( nlayers,                                               &
 
     !------------------------------------------------
     ! Now calculate aod and aaod for Accumulation Soluble mode
+    ! Note that we start from the second mode and so mode index has minus one.
 
     if ( .not. associated( aod_ukca_acc_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
@@ -1669,6 +1671,7 @@ subroutine radaer_code( nlayers,                                               &
 
     !------------------------------------------------
     ! Now calculate aod and aaod for Coarse Soluble mode
+    ! Note that we start from the second mode and so mode index has minus one.
 
     if ( .not. associated( aod_ukca_cor_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
@@ -1690,6 +1693,7 @@ subroutine radaer_code( nlayers,                                               &
 
     !------------------------------------------------
     ! Now calculate aod and aaod for Aitken Insoluble mode
+    ! Note that we start from the second mode and so mode index has minus one.
 
     if ( .not. associated( aod_ukca_ait_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
@@ -1711,6 +1715,7 @@ subroutine radaer_code( nlayers,                                               &
 
     !------------------------------------------------
     ! Now calculate aod and aaod for Accumulation Insoluble mode
+    ! Note that we start from the second mode and so mode index has minus one.
 
     if ( .not. associated( aod_ukca_acc_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
@@ -1732,6 +1737,7 @@ subroutine radaer_code( nlayers,                                               &
 
     !------------------------------------------------
     ! Now calculate aod and aaod for Coarse Insoluble mode
+    ! Note that we start from the second mode and so mode index has minus one.
 
     if ( .not. associated( aod_ukca_cor_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
