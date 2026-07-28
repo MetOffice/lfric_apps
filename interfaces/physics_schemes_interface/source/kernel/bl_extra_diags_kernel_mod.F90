@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
 !> @brief Interface to various extra bl diagnostics that need to be calculated
 !>
 module bl_extra_diags_kernel_mod
@@ -11,7 +13,9 @@ module bl_extra_diags_kernel_mod
                                  GH_FIELD, GH_REAL,                        &
                                  GH_READ, GH_WRITE,                        &
                                  CELL_COLUMN,                              &
-                                 ANY_DISCONTINUOUS_SPACE_1
+                                 ANY_DISCONTINUOUS_SPACE_1,                &
+                                 ANY_DISCONTINUOUS_SPACE_2,                &
+                                 ANY_DISCONTINUOUS_SPACE_3
   use constants_mod,      only : r_def, i_def, i_um, r_um, l_def
   use empty_data_mod,     only : empty_real_data
   use fs_continuity_mod,  only : Wtheta, W3
@@ -26,7 +30,7 @@ module bl_extra_diags_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_extra_diags_kernel_type
     private
-    type(arg_type) :: meta_args(41) = (/                                  &
+    type(arg_type) :: meta_args(45) = (/                                  &
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! rho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! wetrho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! heat_flux_bl
@@ -67,7 +71,11 @@ module bl_extra_diags_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! dew_point_ssi
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! dew_point_land
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! visibility_with_precip
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! visibility_no_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! visibility_no_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), & ! vera_vis_prob_no_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), & ! vera_vis_prob_with_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), & ! vera_vis_centiles_no_precip
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3)  & ! vera_vis_centiles_with_precip
                                       /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -122,6 +130,10 @@ contains
   !> @param[in,out] dew_point_land         Dew point temperature over land
   !> @param[in,out] visibility_with_precip Visibility with precip included
   !> @param[in,out] visibility_no_precip   Visibility without including precip
+  !> @param[in,out] vera_vis_prob_no_precip Vera probability of visibility below each threshold, excluding precip
+  !> @param[in,out] vera_vis_prob_with_precip Vera probability of visibility below each threshold, including precip
+  !> @param[in,out] vera_vis_centiles_no_precip Vera visibility centiles, excluding precip
+  !> @param[in,out] vera_vis_centiles_with_precip Vera visibility centiles, including precip
   !> @param[in]     ndf_w3                 Number of degrees of freedom per cell for density space
   !> @param[in]     undf_w3                Number unique of degrees of freedom  for density space
   !> @param[in]     map_w3                 Dofmap for the cell at the base of the column for density space
@@ -131,6 +143,12 @@ contains
   !> @param[in]     ndf_2d                 Number of degrees of freedom per cell for 2D fields
   !> @param[in]     undf_2d                Number unique of degrees of freedom  for 2D fields
   !> @param[in]     map_2d                 Dofmap for the cell at the base of the column for 2D fields
+  !> @param[in]     ndf_vera_range         Number of degrees of freedom per cell for the Vera threshold space
+  !> @param[in]     undf_vera_range        Number unique of degrees of freedom for the Vera threshold space
+  !> @param[in]     map_vera_range         Dofmap for the cell at the base of the column for the Vera threshold space
+  !> @param[in]     ndf_vera_centile       Number of degrees of freedom per cell for the Vera centile space
+  !> @param[in]     undf_vera_centile      Number unique of degrees of freedom for the Vera centile space
+  !> @param[in]     map_vera_centile       Dofmap for the cell at the base of the column for the Vera centile space
 
   subroutine bl_extra_diags_code( nlayers,                  &
                                   rho_in_w3,                &
@@ -161,6 +179,10 @@ contains
                                   dew_point_land,           &
                                   visibility_with_precip,   &
                                   visibility_no_precip,     &
+                                  vera_vis_prob_no_precip,  &
+                                  vera_vis_prob_with_precip,&
+                                  vera_vis_centiles_no_precip,   &
+                                  vera_vis_centiles_with_precip, &
                                   ndf_w3,                   &
                                   undf_w3,                  &
                                   map_w3,                   &
@@ -169,7 +191,13 @@ contains
                                   map_wth,                  &
                                   ndf_2d,                   &
                                   undf_2d,                  &
-                                  map_2d                  )
+                                  map_2d,                   &
+                                  ndf_vera_range,           &
+                                  undf_vera_range,          &
+                                  map_vera_range,           &
+                                  ndf_vera_centile,         &
+                                  undf_vera_centile,        &
+                                  map_vera_centile        )
 
     use aerosol_config_mod,   only : murk_visibility
     use beta_precip_mod,      only : beta_precip
@@ -185,6 +213,10 @@ contains
     use visbty_constants_mod, only : n_vis_thresh, vis_thresh
     use visbty_mod,           only : visbty
     use variable_precision,   only : wp
+    use vera_global_mod,      only : vera_aerosol, vera_flag,                &
+                                     vera_koschmeider, vera_noise_control,   &
+                                     vera_phantom
+    use vera_mod,             only : vera
 
     implicit none
 
@@ -193,10 +225,14 @@ contains
     integer(kind=i_def), intent(in)     :: ndf_w3, undf_w3
     integer(kind=i_def), intent(in)     :: ndf_wth, undf_wth
     integer(kind=i_def), intent(in)     :: ndf_2d, undf_2d
+    integer(kind=i_def), intent(in)     :: ndf_vera_range, undf_vera_range
+    integer(kind=i_def), intent(in)     :: ndf_vera_centile, undf_vera_centile
 
     integer(kind=i_def), intent(in), dimension(ndf_w3)  :: map_w3
     integer(kind=i_def), intent(in), dimension(ndf_wth) :: map_wth
     integer(kind=i_def), intent(in), dimension(ndf_2d)  :: map_2d
+    integer(kind=i_def), intent(in), dimension(ndf_vera_range)   :: map_vera_range
+    integer(kind=i_def), intent(in), dimension(ndf_vera_centile) :: map_vera_centile
 
     real(kind=r_def), intent(in), dimension(undf_w3)    :: rho_in_w3
     real(kind=r_def), intent(in), dimension(undf_w3)    :: wetrho_in_w3
@@ -228,6 +264,10 @@ contains
     real(kind=r_def), intent(inout), pointer :: dew_point_ssi(:), dew_point_land(:)
     real(kind=r_def), intent(inout), pointer :: visibility_with_precip(:)
     real(kind=r_def), intent(inout), pointer :: visibility_no_precip(:)
+    real(kind=r_def), intent(inout), pointer :: vera_vis_prob_no_precip(:)
+    real(kind=r_def), intent(inout), pointer :: vera_vis_prob_with_precip(:)
+    real(kind=r_def), intent(inout), pointer :: vera_vis_centiles_no_precip(:)
+    real(kind=r_def), intent(inout), pointer :: vera_vis_centiles_with_precip(:)
 
     real(kind=r_def), parameter :: one_third   = 1.0_r_def/3.0_r_def
 
@@ -258,9 +298,22 @@ contains
     real(r_um), dimension(row_length,rows,1,n_vis_thresh) :: vis_threshold
     real(r_um), dimension(row_length,rows,n_vis_thresh)   :: pvis
 
+    ! Vera inputs and outputs. The threshold and centile counts come from the
+    ! Vera defaults, and must match the vera_vis_ranges and vera_vis_centiles
+    ! axis sizes in multidata_field_dimensions_mod.
+    real(r_um), dimension(row_length,rows) :: aerosol_mmr,                   &
+                                              scattering_ls, scattering_c
+    real(r_um), dimension(size(vera_noise_control%ranges_default),1) ::      &
+                                              vera_range, vera_range_precip
+    real(r_um), dimension(size(vera_noise_control%centiles_default),1) ::    &
+                                              vera_centiles,                 &
+                                              vera_centiles_precip
+
     ! Local scalars
     real(kind=r_def) :: ftl_surf, fqw_surf, &
                         wstar3_imp, std_dev, gust_contribution
+
+    logical(kind=l_def) :: l_vera, l_beta_precip
 
     integer(kind=i_def) :: k, icode, i,j
 
@@ -297,6 +350,17 @@ contains
 
     end if
 
+    ! Is any of the Vera visibility diagnostics wanted?
+    l_vera = .not. associated(vera_vis_prob_no_precip, empty_real_data)     .or. &
+             .not. associated(vera_vis_prob_with_precip, empty_real_data)   .or. &
+             .not. associated(vera_vis_centiles_no_precip, empty_real_data) .or. &
+             .not. associated(vera_vis_centiles_with_precip, empty_real_data)
+
+    ! The precipitation scattering coefficients are shared by the visibility
+    ! including precipitation and by Vera
+    l_beta_precip = l_vera .or.                                              &
+                    .not. associated(visibility_with_precip, empty_real_data)
+
     ! map main input fields
     if (.not. associated(visibility_no_precip, empty_real_data)   .or.       &
         .not. associated(visibility_with_precip, empty_real_data) .or.       &
@@ -306,7 +370,8 @@ contains
         .not. associated(vis_prob_5km, empty_real_data)           .or.       &
         .not. associated(dew_point, empty_real_data)              .or.       &
         .not. associated(dew_point_ssi, empty_real_data)          .or.       &
-        .not. associated(dew_point_land, empty_real_data) ) then
+        .not. associated(dew_point_land, empty_real_data)         .or.       &
+        l_vera ) then
       ! surface pressure
       p_star(1,1)    = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
       ! level 1 of aerosol (using the standard default of 10 for now)
@@ -315,6 +380,43 @@ contains
       t1p5m_loc(1,1)   = t1p5m(map_2d(1))
       q1p5m_loc(1,1)   = q1p5m(map_2d(1))
       qcl1p5m_loc(1,1) = qcl1p5m(map_2d(1))
+    end if
+
+    ! Precipitation scattering coefficients
+    if ( l_beta_precip ) then
+      ! map additional input fields
+      ! level 1 rho
+      rho1(1,1)      = wetrho_in_w3(map_w3(1))
+      ! level 1 cloud ice mixing ratio
+      qcf1(1,1)      = mci(map_wth(1) + 1)
+      ! level 1 rain mixing ratio
+      qrain1(1,1)    = mr(map_wth(1) + 1)
+      ! surface rain and snow rates from large-scale microphysics
+      ls_rain(1,1)   = ls_rain_2d(map_2d(1))
+      ls_snow(1,1)   = ls_snow_2d(map_2d(1))
+      ! surface rain and snow rates from convection
+      conv_rain(1,1) = conv_rain_2d(map_2d(1))
+      conv_snow(1,1) = conv_snow_2d(map_2d(1))
+      ! cca_2d
+      cca_2d(1,1)    = cca_2d_in(map_2d(1))
+      ! prob of ls precip - just use existing rain area fraction
+      plsp(1,1)      = lsca_2d(map_2d(1))
+
+      ! number prognostics used in the visibility calculation
+      ! We only copy these if casim is enabled. Otherwise they will
+      ! not be used.
+      if (microphysics_casim) then
+         rainnumber(1,1,1) = nr_mphys(map_wth(1) + 1)
+         snownumber(1,1,1) = ns_mphys(map_wth(1) + 1)
+      end if
+
+      call beta_precip( ls_rain, ls_snow,                                      &
+                        conv_rain, conv_snow, qcf1, qrain1,                    &
+                        rho1, t1p5m_loc, p_star, snownumber, rainnumber,       &
+                        plsp,cca_2d,pct,avg,                                   &
+                        1, 1, 1,                                               &
+                        beta_ls_rain, beta_ls_snow,                            &
+                        beta_c_rain, beta_c_snow )
     end if
 
     ! Visibility
@@ -330,39 +432,6 @@ contains
 
       ! Visibility at 1.5 m including precipitation
       if ( .not. associated(visibility_with_precip, empty_real_data) ) then
-        ! map additional input fields
-        ! level 1 rho
-        rho1(1,1)      = wetrho_in_w3(map_w3(1))
-        ! level 1 cloud ice mixing ratio
-        qcf1(1,1)      = mci(map_wth(1) + 1)
-        ! level 1 rain mixing ratio
-        qrain1(1,1)    = mr(map_wth(1) + 1)
-        ! surface rain and snow rates from large-scale microphysics
-        ls_rain(1,1)   = ls_rain_2d(map_2d(1))
-        ls_snow(1,1)   = ls_snow_2d(map_2d(1))
-        ! surface rain and snow rates from convection
-        conv_rain(1,1) = conv_rain_2d(map_2d(1))
-        conv_snow(1,1) = conv_snow_2d(map_2d(1))
-        ! cca_2d
-        cca_2d(1,1)    = cca_2d_in(map_2d(1))
-        ! prob of ls precip - just use existing rain area fraction
-        plsp(1,1)      = lsca_2d(map_2d(1))
-
-        ! number prognostics used in the visibility calculation
-        ! We only copy these if casim is enabled. Otherwise they will
-        ! not be used.
-        if (microphysics_casim) then
-           rainnumber(1,1,1) = nr_mphys(map_wth(1) + 1)
-           snownumber(1,1,1) = ns_mphys(map_wth(1) + 1)
-        end if
-
-        call beta_precip( ls_rain, ls_snow,                                    &
-                          conv_rain, conv_snow, qcf1, qrain1,                  &
-                          rho1, t1p5m_loc, p_star, snownumber, rainnumber,     &
-                          plsp,cca_2d,pct,avg,                                 &
-                          1, 1, 1,                                             &
-                          beta_ls_rain, beta_ls_snow,                          &
-                          beta_c_rain, beta_c_snow )
         call vis_precip( vis_no_precip,                                        &
                          plsp,cca_2d,pct,                                      &
                          beta_ls_rain, beta_ls_snow,                           &
@@ -374,6 +443,83 @@ contains
 
       end if ! vis with precip
     end if ! any vis
+
+    ! Vera visibility, giving the probability of the visibility falling below
+    ! each of a set of thresholds and a set of centiles of the visibility
+    ! distribution, both with and without the contribution of precipitation
+    if ( l_vera ) then
+
+      ! choose the aerosol mass mixing ratio to use
+      if ( vera_aerosol%aerosol_source == vera_aerosol%aerosol_source_murk ) then
+        ! use the MURK aerosol mass mixing ratio field
+        aerosol_mmr(1,1) = murk(map_wth(1)+0)
+      else
+        ! use the background aerosol mass mixing ratio,
+        ! this is the "fall through" default
+        aerosol_mmr(1,1) = vera_aerosol%am_background
+      end if
+
+      scattering_ls(1,1) = beta_ls_rain(1,1) + beta_ls_snow(1,1)
+      scattering_c(1,1)  = beta_c_rain(1,1)  + beta_c_snow(1,1)
+
+      ! initialise the threshold vis prob arrays
+      vera_range(:,:)           = 0.0_r_um
+      vera_range_precip(:,:)    = 0.0_r_um
+
+      ! initialise the vis centile arrays to the best possible visible range
+      vera_centiles(:,:)        = vera_koschmeider%clear_air_vis
+      vera_centiles_precip(:,:) = vera_koschmeider%clear_air_vis
+
+      ! if the switch vera_scheme_flag is set to ON, then use the Vera scheme
+      if ( vera_flag%vera_scheme_flag == vera_flag%vera_scheme_flag_on ) then
+        ! Vera takes rank one arrays of length n_points, so pass the first
+        ! (and, in Lfric, only) row of each of the single level fields
+        call vera( 1_i_um,                                                   &
+                   p_star(:,1), t1p5m_loc(:,1), q1p5m_loc(:,1),              &
+                   qcl1p5m_loc(:,1),                                         &
+                   aerosol_mmr     = aerosol_mmr(:,1),                       &
+                   vera_config     = vera_phantom%vera_config,               &
+                   n_noise         = vera_noise_control%n_noise,             &
+                   scattering_ls   = scattering_ls(:,1),                     &
+                   scattering_c    = scattering_c(:,1),                      &
+                   fractional_ls   = plsp(:,1),                              &
+                   fractional_c    = cca_2d(:,1),                            &
+                   ranges_use      = vera_noise_control%ranges_default,      &
+                   centiles_use    = vera_noise_control%centiles_default,    &
+                   centiles        = vera_centiles,                          &
+                   centiles_precip = vera_centiles_precip,                   &
+                   ranges          = vera_range,                             &
+                   ranges_precip   = vera_range_precip )
+      end if
+
+      if ( .not. associated(vera_vis_prob_no_precip, empty_real_data) ) then
+        do k = 1, size(vera_range,1)
+          vera_vis_prob_no_precip(map_vera_range(1)+k-1) = vera_range(k,1)
+        end do
+      end if
+
+      if ( .not. associated(vera_vis_prob_with_precip, empty_real_data) ) then
+        do k = 1, size(vera_range_precip,1)
+          vera_vis_prob_with_precip(map_vera_range(1)+k-1) =                 &
+                                                     vera_range_precip(k,1)
+        end do
+      end if
+
+      if ( .not. associated(vera_vis_centiles_no_precip, empty_real_data) ) then
+        do k = 1, size(vera_centiles,1)
+          vera_vis_centiles_no_precip(map_vera_centile(1)+k-1) =             &
+                                                     vera_centiles(k,1)
+        end do
+      end if
+
+      if ( .not. associated(vera_vis_centiles_with_precip, empty_real_data) ) then
+        do k = 1, size(vera_centiles_precip,1)
+          vera_vis_centiles_with_precip(map_vera_centile(1)+k-1) =           &
+                                                     vera_centiles_precip(k,1)
+        end do
+      end if
+
+    end if ! Vera
 
     ! fog fraction
     if ( .not. associated(fog_fraction, empty_real_data) .or.                  &

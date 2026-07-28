@@ -38,6 +38,10 @@
       <field field_ref="surface__dew_point" />                    <!-- s03i250 -->
       <field field_ref="surface__fog_fraction" />                 <!-- s03i248 -->
       <field field_ref="surface__visibility_with_precip" />       <!-- s03i281 -->
+      <field field_ref="surface__vera_vis_prob_no_precip" />
+      <field field_ref="surface__vera_vis_prob_with_precip" />
+      <field field_ref="surface__vera_vis_centiles_no_precip" />
+      <field field_ref="surface__vera_vis_centiles_with_precip" />
       <field field_ref="surface__grid_latent_heat" />             <!-- s03i234 -->
       <field field_ref="surface__grid_sensible_heat" />           <!-- s03i217 -->
       <field field_ref="surface__wspd10m" />                      <!-- s03i230 ?  -->

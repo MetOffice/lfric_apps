@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
 !> @brief The module multidata_field_dimensions_mod provides access to the
 !> config variables for multidata fields (tile fields).
 
@@ -28,7 +30,7 @@ module multidata_field_dimensions_mod
 #ifdef UM_PHYSICS
       !                   1         2         3
       !          123456789012345678901234567890
-      character(30), parameter :: multidata_items(35) = &
+      character(30), parameter :: multidata_items(37) = &
             [character(30) ::                           &
                 'plant_func_types',                     &
                 'sea_ice_categories',                   &
@@ -64,7 +66,9 @@ module multidata_field_dimensions_mod
                 'random_seed_size',                     &
                 'stph_spectral_dimensions',             &
                 'photol_species',                       &
-                'nudging_levels'                        &
+                'nudging_levels',                       &
+                'vera_vis_ranges',                      &
+                'vera_vis_centiles'                     &
       ]
 #endif
 
@@ -169,6 +173,7 @@ end subroutine sync_multidata_field_dimensions
     use chemistry_config_mod,    only: chem_scheme, chem_scheme_strattrop
     use um_ukca_init_mod,        only: n_phot_spc
     use nudging_config_mod,      only: nudge_data_levels
+    use vera_global_mod,         only: vera_noise_control
 #endif
 
     use log_mod,                 only: log_event, LOG_LEVEL_ERROR,             &
@@ -281,6 +286,12 @@ end subroutine sync_multidata_field_dimensions
             end if
       case ('nudging_levels')
            dim = nudge_data_levels
+      case ('vera_vis_ranges')
+           ! visual range thresholds at which Vera reports a probability
+           dim = size(vera_noise_control%ranges_default)
+      case ('vera_vis_centiles')
+           ! centiles of the Vera noisy visibility population
+           dim = size(vera_noise_control%centiles_default)
       case ('')
             dim = 1 ! ordinary (non-multidata) field
 #endif

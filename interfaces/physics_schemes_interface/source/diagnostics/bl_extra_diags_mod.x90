@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
 !> @brief Processes extra BL diagnostics
 
 module bl_extra_diags_mod
@@ -23,7 +25,54 @@ module bl_extra_diags_mod
 
   public :: output_diags_for_bl_extra
 
+  !> Whether the Vera scheme has yet been configured
+  logical( l_def ), save :: vera_configured = .false.
+
 contains
+
+  !> @brief Configure the Vera visibility scheme
+  !> @details Vera is driven entirely from the module data in vera_global_mod.
+  !> The UM sets that data from the run_vera namelist; there is no equivalent
+  !> namelist here, so the settings that differ from the vera_global_mod
+  !> defaults are applied once, from the algorithm layer, before the kernel is
+  !> ever entered. The values are those of the UM's operational configuration.
+  !> Note that Vera's runtime is proportional to n_noise and to (n_rd*n_b0)**2,
+  !> so the module defaults for n_rd and n_b0 are far too expensive to use for
+  !> a per-column diagnostic.
+  subroutine configure_vera()
+
+    use aerosol_config_mod, only: murk_visibility
+    use vera_kind_mod,      only: wp => vera_real
+    use vera_global_mod,    only: vera_aerosol, vera_flag, &
+                                  vera_noise_control, vera_phantom
+
+    implicit none
+
+    if ( vera_configured ) return
+
+    vera_flag%vera_scheme_flag = vera_flag%vera_scheme_flag_on
+
+    ! use the MURK aerosol where it is available, otherwise fall through to
+    ! the background aerosol mass mixing ratio
+    if ( murk_visibility ) then
+      vera_aerosol%aerosol_source = vera_aerosol%aerosol_source_murk
+    else
+      vera_aerosol%aerosol_source = vera_aerosol%aerosol_source_background
+    end if
+
+    ! number of synthetic noise perturbations of the meteorological inputs
+    vera_noise_control%n_noise = 5
+
+    ! size of the phantom aerosol population: n_rd particle sizes by n_b0
+    ! hygroscopicities, spanning the hygroscopicity range [b0_min, b0_max]
+    vera_phantom%n_rd   = 2
+    vera_phantom%n_b0   = 1
+    vera_phantom%b0_max = 0.2_wp
+    vera_phantom%b0_min = 0.1_wp
+
+    vera_configured = .true.
+
+  end subroutine configure_vera
 
   !> @brief Output extra BL diagnostics
   !> @param[in]     derived_fields           Collection of derived fields
@@ -102,6 +151,10 @@ contains
     type( field_type ) :: dew_point
     type( field_type ) :: dew_point_ssi
     type( field_type ) :: dew_point_land
+    type( field_type ) :: vera_vis_prob_no_precip
+    type( field_type ) :: vera_vis_prob_with_precip
+    type( field_type ) :: vera_vis_centiles_no_precip
+    type( field_type ) :: vera_vis_centiles_with_precip
 
     ! Logical indicating whether diagnostics are requested
     logical( l_def ) :: wind_gust_flag
@@ -115,6 +168,11 @@ contains
     logical( l_def ) :: dew_point_flag
     logical( l_def ) :: dew_point_ssi_flag
     logical( l_def ) :: dew_point_land_flag
+    logical( l_def ) :: vera_vis_prob_no_precip_flag
+    logical( l_def ) :: vera_vis_prob_with_precip_flag
+    logical( l_def ) :: vera_vis_centiles_no_precip_flag
+    logical( l_def ) :: vera_vis_centiles_with_precip_flag
+    logical( l_def ) :: any_vera_flag
     logical( l_def ) :: ignore
 
     if ( subroutine_timers ) call timer("bl_extra_diags")
@@ -153,17 +211,35 @@ contains
     dew_point_flag = init_diag(dew_point, 'surface__dew_point')
     dew_point_ssi_flag = init_diag(dew_point_ssi, 'surface__dew_point_ssi')
     dew_point_land_flag = init_diag(dew_point_land, 'surface__dew_point_land')
+    vera_vis_prob_no_precip_flag = &
+      init_diag(vera_vis_prob_no_precip, 'surface__vera_vis_prob_no_precip')
+    vera_vis_prob_with_precip_flag = &
+      init_diag(vera_vis_prob_with_precip, 'surface__vera_vis_prob_with_precip')
+    vera_vis_centiles_no_precip_flag = &
+      init_diag(vera_vis_centiles_no_precip, 'surface__vera_vis_centiles_no_precip')
+    vera_vis_centiles_with_precip_flag = &
+      init_diag(vera_vis_centiles_with_precip, 'surface__vera_vis_centiles_with_precip')
+
+    any_vera_flag = vera_vis_prob_no_precip_flag .or.                          &
+                    vera_vis_prob_with_precip_flag .or.                        &
+                    vera_vis_centiles_no_precip_flag .or.                      &
+                    vera_vis_centiles_with_precip_flag
 
     ! visibility_with_precip requires visibility_no_precip
     if (vis_with_precip_flag .and. .not. vis_no_precip_flag) then
       ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
     end if
 
+    ! Vera is driven from module data, which must be set up before the kernel
+    ! is entered
+    if (any_vera_flag) call configure_vera()
+
     if ( wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
          vis_no_precip_flag .or. vis_with_precip_flag .or.                     &
          fog_fraction_flag .or. fog_fraction_ssi_flag .or.                     &
          fog_fraction_land_flag .or. vis_prob_5km_flag .or. dew_point_flag     &
-         .or. dew_point_ssi_flag .or. dew_point_land_flag ) then
+         .or. dew_point_ssi_flag .or. dew_point_land_flag                      &
+         .or. any_vera_flag ) then
 
       ! Calculate various extra diagnostics
       call invoke( bl_extra_diags_kernel_type( rho_in_w3, wetrho_in_w3,        &
@@ -186,7 +262,11 @@ contains
                                                dew_point, dew_point_ssi,       &
                                                dew_point_land,                 &
                                                visibility_with_precip,         &
-                                               visibility_no_precip ) )
+                                               visibility_no_precip,           &
+                                               vera_vis_prob_no_precip,        &
+                                               vera_vis_prob_with_precip,      &
+                                               vera_vis_centiles_no_precip,    &
+                                               vera_vis_centiles_with_precip ) )
 
       if (wind_gust_flag) call wind_gust%write_field()
       if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
@@ -199,6 +279,14 @@ contains
       if (dew_point_flag) call dew_point%write_field()
       if (dew_point_ssi_flag) call dew_point_ssi%write_field()
       if (dew_point_land_flag) call dew_point_land%write_field()
+      if (vera_vis_prob_no_precip_flag) &
+        call vera_vis_prob_no_precip%write_field()
+      if (vera_vis_prob_with_precip_flag) &
+        call vera_vis_prob_with_precip%write_field()
+      if (vera_vis_centiles_no_precip_flag) &
+        call vera_vis_centiles_no_precip%write_field()
+      if (vera_vis_centiles_with_precip_flag) &
+        call vera_vis_centiles_with_precip%write_field()
     end if
 
     if ( subroutine_timers ) call timer("bl_extra_diags")

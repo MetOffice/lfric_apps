@@ -18,6 +18,8 @@
   <axis id="sea_ice_categories" name="sea_ice_categories" />
   <axis id="boundary_layer_types" name="boundary_layer_types" />
   <axis id="entrainment_levels" name="entrainment_levels" />
+  <axis id="vera_vis_ranges" name="vera_vis_ranges" />
+  <axis id="vera_vis_centiles" name="vera_vis_centiles" />
   <axis id="monthly_climatology" name="monthly_climatology" />
   <axis id="lbc_axis" name="lbc_axis" />
   <axis id="reynolds_timeseries" name="reynolds_timeseries" />
