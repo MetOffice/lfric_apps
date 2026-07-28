@@ -171,8 +171,10 @@ contains
     real(kind=r_def)    :: diffusion_coefficient
     real(kind=r_def)    :: kappa
     real(kind=r_def)    :: nudging_spinup_start
-    integer(kind=i_def) :: cloud, scheme
     logical(kind=l_def) :: write_diag, use_xios_io
+#ifdef UM_PHYSICS
+    integer(kind=i_def) :: cloud, scheme
+#endif
 
     if ( LPROF ) call start_timing( id, 'external_forcing' )
 
@@ -187,8 +189,6 @@ contains
     filtering_order = config%external_forcing%filtering_order()
     diffusion_order = config%external_forcing%diffusion_order()
     diffusion_coefficient = config%external_forcing%diffusion_coefficient()
-    cloud = config%section_choice%cloud()
-    scheme = config%cloud%scheme()
     write_diag = config%io%write_diag()
     use_xios_io = config%io%use_xios_io()
     kappa = config%planet%kappa()
@@ -522,6 +522,8 @@ contains
 
 #ifdef UM_PHYSICS
     if ( theta_forcing_done .or. vapour_forcing_done ) then
+      cloud = config%section_choice%cloud()
+      scheme = config%cloud%scheme()
       ! pc2 response to forcing if requested
       if (cloud == cloud_um .and. scheme == scheme_pc2 .and. &
            pc2_force_response) then

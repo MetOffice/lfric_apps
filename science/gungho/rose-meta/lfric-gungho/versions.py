@@ -40,7 +40,7 @@ class vn32_t670(MacroUpgrade):
         # Commands From: rose-meta/lfric-gungho
         # Add new nudging namelist options
         self.add_setting(
-            config, ["namelist:nudging", "nudge_method"], "'convolution'"
+            config, ["namelist:nudging", "nudging_method"], "'convolution'"
         )
         self.add_setting(
             config, ["namelist:nudging", "nudging_relax_time"], "3600.0"
