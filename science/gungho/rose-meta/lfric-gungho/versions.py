@@ -20,17 +20,15 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
+
 
 class vn32_t670(MacroUpgrade):
     """Upgrade macro for ticket #670 by Thomas Bendall."""
@@ -40,18 +38,6 @@ class vn32_t670(MacroUpgrade):
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
-        # Set nudging mesh name to dynamics mesh name
-        nudging_mesh_name = self.get_setting_value(
-            config, ["namelist:multires_coupling", "nudging_mesh_name"]
-        )
-        dynamics_mesh_name = self.get_setting_value(
-            config, ["namelist:multires_coupling", "dynamics_mesh_name"]
-        )
-        if nudging_mesh_name == "''":
-            self.change_setting_value(
-                config, ["namelist:multires_coupling", "nudge_method"],
-                dynamics_mesh_name
-            )
         # Add new nudging namelist options
         self.add_setting(
             config, ["namelist:nudging", "nudge_method"], "'convolution'"
@@ -65,17 +51,12 @@ class vn32_t670(MacroUpgrade):
         self.add_setting(
             config, ["namelist:nudging", "nudging_spinup_end"], "864000.0"
         )
-        self.add_setting(
-            config, ["namelist:nudging", "spectral_kmax"], "20"
-        )
-        self.add_setting(
-            config, ["namelist:nudging", "spectral_kmin"], "2"
-        )
+        self.add_setting(config, ["namelist:nudging", "spectral_kmax"], "20")
+        self.add_setting(config, ["namelist:nudging", "spectral_kmin"], "2")
         self.add_setting(
             config, ["namelist:nudging", "spectral_stencil_extent"], "12"
         )
         # Remove retired setting
-        self.remove_setting(
-            config, ["namelist:nudging", "nudging_source"]
-        )
+        self.remove_setting(config, ["namelist:nudging", "nudging_source"])
+
         return config, self.reports
