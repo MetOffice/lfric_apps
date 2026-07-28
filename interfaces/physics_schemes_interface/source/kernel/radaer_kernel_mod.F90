@@ -563,12 +563,12 @@ subroutine radaer_code( nlayers,                                               &
 
   real(r_um), allocatable :: ukca_mode_mix_ratio(:,:,:)
 
-  real(r_um), allocatable :: aer_lw_absorption(:,:,:,:)
-  real(r_um), allocatable :: aer_lw_scattering(:,:,:,:)
-  real(r_um), allocatable :: aer_lw_asymmetry(:,:,:,:)
-  real(r_um), allocatable :: aer_sw_absorption(:,:,:,:)
-  real(r_um), allocatable :: aer_sw_scattering(:,:,:,:)
-  real(r_um), allocatable :: aer_sw_asymmetry(:,:,:,:)
+  real(r_um), allocatable :: aer_lw_absorption_radaer(:,:,:,:)
+  real(r_um), allocatable :: aer_lw_scattering_radaer(:,:,:,:)
+  real(r_um), allocatable :: aer_lw_asymmetry_radaer(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_absorption_radaer(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_scattering_radaer(:,:,:,:)
+  real(r_um), allocatable :: aer_sw_asymmetry_radaer(:,:,:,:)
   real(r_um), allocatable :: aod_ukca_all_modes(:,:,:)
   real(r_um), allocatable :: sod_ukca_all_modes(:,:,:)
   real(r_um), allocatable :: aaod_ukca_all_modes(:,:,:)
@@ -761,12 +761,12 @@ subroutine radaer_code( nlayers,                                               &
   ! Allocation of arrays
 
   allocate( ukca_mode_mix_ratio( 1, nlayers, n_radaer_mode ) )
-  allocate( aer_lw_absorption( 1, nlayers, n_radaer_mode, n_lw_band ) )
-  allocate( aer_lw_scattering( 1, nlayers, n_radaer_mode, n_lw_band ) )
-  allocate( aer_lw_asymmetry( 1, nlayers, n_radaer_mode, n_lw_band ) )
-  allocate( aer_sw_absorption( 1, nlayers, n_radaer_mode, n_sw_band ) )
-  allocate( aer_sw_scattering( 1, nlayers, n_radaer_mode, n_sw_band ) )
-  allocate( aer_sw_asymmetry( 1, nlayers, n_radaer_mode, n_sw_band ) )
+  allocate( aer_lw_absorption_radaer( 1, nlayers, n_radaer_mode, n_lw_band ) )
+  allocate( aer_lw_scattering_radaer( 1, nlayers, n_radaer_mode, n_lw_band ) )
+  allocate( aer_lw_asymmetry_radaer( 1, nlayers, n_radaer_mode, n_lw_band ) )
+  allocate( aer_sw_absorption_radaer( 1, nlayers, n_radaer_mode, n_sw_band ) )
+  allocate( aer_sw_scattering_radaer( 1, nlayers, n_radaer_mode, n_sw_band ) )
+  allocate( aer_sw_asymmetry_radaer( 1, nlayers, n_radaer_mode, n_sw_band ) )
   allocate( aod_ukca_all_modes( 1, npd_ukca_aod_wavel, n_ukca_mode ) )
   allocate( sod_ukca_all_modes( 1, npd_ukca_aod_wavel, n_ukca_mode ) )
   allocate( aaod_ukca_all_modes( 1, npd_ukca_aod_wavel, n_ukca_mode ) )
@@ -1516,12 +1516,12 @@ subroutine radaer_code( nlayers,                                               &
       ! Modal mass-mixing ratios (input output)
       ukca_mode_mix_ratio,                                                     &
       ! Band-averaged optical properties (output)
-      aer_lw_absorption,                                                       &
-      aer_sw_absorption,                                                       &
-      aer_lw_scattering,                                                       &
-      aer_sw_scattering,                                                       &
-      aer_lw_asymmetry,                                                        &
-      aer_sw_asymmetry,                                                        &
+      aer_lw_absorption_radaer,                                                &
+      aer_sw_absorption_radaer,                                                &
+      aer_lw_scattering_radaer,                                                &
+      aer_sw_scattering_radaer,                                                &
+      aer_lw_asymmetry_radaer,                                                 &
+      aer_sw_asymmetry_radaer,                                                 &
       aod_ukca_all_modes,                                                      &
       aaod_ukca_all_modes )
 
@@ -1548,16 +1548,16 @@ subroutine radaer_code( nlayers,                                               &
 
             aer_lw_absorption( map_rmode_lw(1) +                               &
                                ( (i_rmode-1)*(nlayers+1) ) + k ) =             &
-                               aer_lw_absorption( 1, k, i_mode, i_band )
+                               aer_lw_absorption_radaer( 1, k, i_mode, i_band )
 
             aer_lw_scattering( map_rmode_lw(1) +                               &
                                ( (i_rmode-1)*(nlayers+1) ) + k ) =             &
-                               aer_lw_scattering( 1, k, i_mode, i_band )
+                               aer_lw_scattering_radaer( 1, k, i_mode, i_band )
 
             aer_lw_asymmetry( map_rmode_lw(1)  +                               &
                               ( (i_rmode-1)*(nlayers+1) ) + k ) =              &
                               max(minus1_plus_eps, min(one_minus_eps,          &
-                              aer_lw_asymmetry(   1, k, i_mode, i_band ) ) )
+                              aer_lw_asymmetry_radaer(1, k, i_mode, i_band ) ) )
 
         end do ! n_layers
       end do ! n_radaer_mode
@@ -1589,16 +1589,16 @@ subroutine radaer_code( nlayers,                                               &
 
               aer_sw_absorption( map_rmode_sw(1)     +                         &
                                  ( (i_rmode-1)*(nlayers+1) ) + k ) =           &
-                                 aer_sw_absorption( 1, k, i_mode, i_band )
+                                 aer_sw_absorption_radaer(1, k, i_mode, i_band )
 
               aer_sw_scattering( map_rmode_sw(1)     +                         &
                                  ( (i_rmode-1)*(nlayers+1) ) + k ) =           &
-                                 aer_sw_scattering( 1, k, i_mode, i_band )
+                                 aer_sw_scattering_radaer(1, k, i_mode, i_band )
 
               aer_sw_asymmetry( map_rmode_sw(1)      +                         &
                                 ( (i_rmode-1)*(nlayers+1) ) + k ) =            &
                                 max(minus1_plus_eps, min(one_minus_eps,        &
-                                aer_sw_asymmetry(  1, k, i_mode, i_band ) ) )
+                                aer_sw_asymmetry_radaer(1,k,i_mode, i_band ) ) )
 
             ! unlit points
             else
@@ -1775,12 +1775,12 @@ subroutine radaer_code( nlayers,                                               &
   deallocate(  sod_ukca_all_modes )
   deallocate(  aod_ukca_all_modes )
 
-  deallocate( aer_sw_asymmetry )
-  deallocate( aer_sw_scattering )
-  deallocate( aer_sw_absorption )
-  deallocate( aer_lw_asymmetry )
-  deallocate( aer_lw_scattering )
-  deallocate( aer_lw_absorption )
+  deallocate( aer_sw_asymmetry_radaer )
+  deallocate( aer_sw_scattering_radaer )
+  deallocate( aer_sw_absorption_radaer )
+  deallocate( aer_lw_asymmetry_radaer )
+  deallocate( aer_lw_scattering_radaer )
+  deallocate( aer_lw_absorption_radaer )
 
   deallocate( ukca_mode_mix_ratio )
 
