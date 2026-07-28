@@ -359,9 +359,9 @@ subroutine init_mesh( config,                  &
         call create_local_mesh_maps( mesh_file(dst) )
       end if
 
-      ! Clear the 
+      ! Clear the
       call global_mesh_collection%clear()
-      
+
     else
 
       ! SOURCE
@@ -397,7 +397,7 @@ subroutine init_mesh( config,                  &
       call global_mesh_collection%clear()
 
     end if
-   
+
   end if  ! prepartitioned
 
   !============================================================================
