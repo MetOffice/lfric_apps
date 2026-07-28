@@ -1462,6 +1462,14 @@ subroutine radaer_code( nlayers,                                               &
       npd_exclude_sw,                                                          &
       npd_ukca_aod_wavel,                                                      &
       ncp_max_x_nmodes,                                                        &
+      n_radaer_mode,                                                           &
+      ! Spectral Information
+      n_sw_band,                                                               &
+      n_lw_band,                                                               &
+      sw_n_band_exclude,                                                       &
+      lw_n_band_exclude,                                                       &
+      sw_index_exclude,                                                        &
+      lw_index_exclude,                                                        &
       ! Actual array dimensions (input)
       n_ukca_mode,                                                             &
       n_ukca_cpnt,                                                             &
