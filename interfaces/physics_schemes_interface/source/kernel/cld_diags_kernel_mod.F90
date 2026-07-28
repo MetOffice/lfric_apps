@@ -26,7 +26,7 @@ module cld_diags_kernel_mod
   !>
   type, public, extends(kernel_type) :: cld_diags_kernel_type
     private
-    type(arg_type) :: meta_args(21) = (/                                       &
+    type(arg_type) :: meta_args(22) = (/                                       &
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                         & ! combined_cld_amount_wth
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),     & ! cld_amount_max
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),     & ! cld_amount_rnd
