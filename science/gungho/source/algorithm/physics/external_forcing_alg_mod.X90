@@ -403,6 +403,8 @@ contains
 
         case ( wind_forcing_nudging )
 
+          call du_forcing%initialise(u%get_function_space())
+
           if (time_now >= nudging_spinup_start) then
             ! Extract fields for spectral nudging
             call derived_fields%get_field('u_in_w3', u_in_w3)
@@ -411,7 +413,6 @@ contains
             call derived_fields%get_field('v_in_w3_nudging_ref', v_in_w3_ref)
 
             ! Initialise components for wind increment
-            call du_forcing%initialise(u%get_function_space())
             call du_in_w3%initialise(u_in_w3%get_function_space())
             call dv_in_w3%initialise(v_in_w3%get_function_space())
             call dw_in_wth%initialise(theta%get_function_space())
@@ -423,6 +424,9 @@ contains
 
             ! Combine increments to obtain full wind increment
             call set_wind(config, du_forcing, du_in_w3, dv_in_w3, dw_in_wth)
+
+          else
+            call invoke(setval_c(du_forcing, 0.0_r_def))
           end if
 
         case( wind_forcing_profile )

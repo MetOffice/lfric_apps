@@ -97,7 +97,7 @@ subroutine nudging_weights_code(nlayers,                                       &
 
   do k = bottom_nudge_level-bottom_nudge_width, bottom_nudge_level+bottom_nudge_width
     weights(idx + k) = real(k - (bottom_nudge_level - bottom_nudge_width), r_def) / &
-                       real(2*bottom_nudge_width, r_def)
+                       real(MAX(1, 2*bottom_nudge_width), r_def)
   end do
 
   do k = bottom_nudge_level+bottom_nudge_width+1, top_nudge_level-top_nudge_width-1
@@ -106,7 +106,7 @@ subroutine nudging_weights_code(nlayers,                                       &
 
   do k = top_nudge_level-top_nudge_width, top_nudge_level+top_nudge_width
     weights(idx + k) = 1.0_r_def - real(k - (top_nudge_level - top_nudge_width), r_def) / &
-                       real(2*top_nudge_width, r_def)
+                       real(MAX(1, 2*top_nudge_width), r_def)
   end do
 
   do k = top_nudge_level+top_nudge_width+1, nl

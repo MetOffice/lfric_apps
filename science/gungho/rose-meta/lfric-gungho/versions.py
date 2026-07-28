@@ -31,3 +31,38 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn32_t670(MacroUpgrade):
+    """Upgrade macro for ticket #670 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t670"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add new nudging namelist options
+        self.add_setting(
+            config, ["namelist:nudging", "nudge_method"], "'convolution'"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_relax_time"], "3600.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_spinup_start"], "432000.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_spinup_end"], "864000.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "spectral_kmax"], "20"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "spectral_kmin"], "2"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "spectral_stencil_extent"], "12"
+        )
+        self.remove_setting(
+            config, ["namelist:nudging", "nudging_source"]
+        )
+        return config, self.reports
