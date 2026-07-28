@@ -273,7 +273,7 @@ subroutine write_pv_diagnostic(u_field, theta, rho, exner, &
 
   type(field_type) :: pv
   type(field_type) :: plev_pv
-  type(field_type), pointer :: theta_in_w3 => null()
+  type(field_type), pointer :: theta_in_w3
   logical(l_def) :: pv_modlev_flag, plev_pv_flag, pv_surface_flag
   logical(l_def), parameter :: xi3_axis = .false.
   logical(l_def), parameter :: add_W3_version = .false.
