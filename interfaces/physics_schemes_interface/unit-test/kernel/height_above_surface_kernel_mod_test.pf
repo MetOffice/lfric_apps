@@ -1,0 +1,185 @@
+! -----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! -----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!> @brief Test height_above_surface_kernel
+!>
+!> The kernel turns W3 heights above mean sea level into heights above the
+!> ground, using the lowest Wtheta level as the orography. The tests check
+!> that the orography is removed, that the answer over high ground matches
+!> the answer at sea level, and that only the W3 part of the column is
+!> written.
+
+module height_above_surface_kernel_mod_test
+
+  use funit
+  use constants_mod, only: i_def, r_def
+  use height_above_surface_kernel_mod, only: height_above_surface_code
+
+  implicit none
+
+  private
+  public :: test_over_orography, test_matches_sea_level, test_second_column
+
+  @TestCase
+  type, extends(TestCase), public :: height_above_surface_test_type
+    private
+      real(kind=r_def), allocatable :: height_w3(:)
+      real(kind=r_def), allocatable :: height_wth(:)
+      real(kind=r_def), allocatable :: height_agl(:)
+
+    contains
+      procedure setUp
+      procedure tearDown
+      procedure test_over_orography
+      procedure test_matches_sea_level
+      procedure test_second_column
+
+  end type height_above_surface_test_type
+
+  ! Six layers, with room for two columns side by side in the same array.
+  integer(kind=i_def), parameter :: nlayers = 6_i_def
+  integer(kind=i_def), parameter :: ndf_w3  = 1_i_def
+  integer(kind=i_def), parameter :: ndf_wth = 2_i_def
+  integer(kind=i_def), parameter :: undf_w3  = 2_i_def * nlayers
+  integer(kind=i_def), parameter :: undf_wth = 2_i_def * ( nlayers + 1_i_def )
+
+  ! Height of the Wtheta levels above the orography, so entry one is zero
+  real(kind=r_def), parameter :: eta_wth(nlayers+1) =                    &
+      (/    0.0_r_def,   20.0_r_def,   60.0_r_def,  140.0_r_def,         &
+          300.0_r_def,  620.0_r_def, 1260.0_r_def /)
+
+  ! W3 levels sit midway between the Wtheta levels, so the lowest is at 10 m
+  real(kind=r_def), parameter :: eta_w3(nlayers) =                       &
+      (/   10.0_r_def,   40.0_r_def,  100.0_r_def,  220.0_r_def,         &
+          460.0_r_def,  940.0_r_def /)
+
+  real(kind=r_def), parameter :: tolerance = 1.0e-12_r_def
+
+contains
+
+  @before
+  subroutine setUp( this )
+
+    implicit none
+
+    class(height_above_surface_test_type), intent(inout) :: this
+
+    allocate( this%height_w3(undf_w3) )
+    allocate( this%height_wth(undf_wth) )
+    allocate( this%height_agl(undf_w3) )
+
+    this%height_w3(:)  = 0.0_r_def
+    this%height_wth(:) = 0.0_r_def
+    this%height_agl(:) = -999.0_r_def
+
+  end subroutine setUp
+
+  @after
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(height_above_surface_test_type), intent(inout) :: this
+
+    deallocate( this%height_w3 )
+    deallocate( this%height_wth )
+    deallocate( this%height_agl )
+
+  end subroutine tearDown
+
+  !> A column over 800 m of orography. The orography is removed, and the
+  !> lowest level comes back at 10 m rather than zero.
+  @test
+  subroutine test_over_orography( this )
+
+    implicit none
+
+    class(height_above_surface_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: orography = 800.0_r_def
+
+    integer(kind=i_def) :: k
+
+    this%height_w3(1:nlayers)     = eta_w3(:)  + orography
+    this%height_wth(1:nlayers+1)  = eta_wth(:) + orography
+
+    call height_above_surface_code( nlayers, this%height_agl,           &
+                                    this%height_w3, this%height_wth,   &
+                                    ndf_w3, undf_w3, (/ 1_i_def /),    &
+                                    ndf_wth, undf_wth,                 &
+                                    (/ 1_i_def, 2_i_def /) )
+
+    @assertEqual( 10.0_r_def, this%height_agl(1), tolerance )
+    @assertEqual( 940.0_r_def, this%height_agl(nlayers), tolerance )
+
+    do k = 1, nlayers
+      @assertEqual( eta_w3(k), this%height_agl(k), tolerance )
+    end do
+
+    ! Only the W3 levels of this column have been written
+    @assertEqual( -999.0_r_def, this%height_agl(nlayers + 1_i_def), tolerance )
+
+  end subroutine test_over_orography
+
+  !> The same terrain following column at sea level gives the same answer.
+  @test
+  subroutine test_matches_sea_level( this )
+
+    implicit none
+
+    class(height_above_surface_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: k
+
+    this%height_w3(1:nlayers)    = eta_w3(:)
+    this%height_wth(1:nlayers+1) = eta_wth(:)
+
+    call height_above_surface_code( nlayers, this%height_agl,           &
+                                    this%height_w3, this%height_wth,   &
+                                    ndf_w3, undf_w3, (/ 1_i_def /),    &
+                                    ndf_wth, undf_wth,                 &
+                                    (/ 1_i_def, 2_i_def /) )
+
+    do k = 1, nlayers
+      @assertEqual( eta_w3(k), this%height_agl(k), tolerance )
+    end do
+
+  end subroutine test_matches_sea_level
+
+  !> Each column uses its own orography, taken from its own dofmap.
+  @test
+  subroutine test_second_column( this )
+
+    implicit none
+
+    class(height_above_surface_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: orography = 1500.0_r_def
+
+    integer(kind=i_def) :: k
+
+    this%height_w3(nlayers+1:undf_w3)    = eta_w3(:)  + orography
+    this%height_wth(nlayers+2:undf_wth)  = eta_wth(:) + orography
+
+    call height_above_surface_code( nlayers, this%height_agl,               &
+                                    this%height_w3, this%height_wth,       &
+                                    ndf_w3, undf_w3,                       &
+                                    (/ nlayers + 1_i_def /),               &
+                                    ndf_wth, undf_wth,                     &
+                                    (/ nlayers + 2_i_def,                  &
+                                       nlayers + 3_i_def /) )
+
+    do k = 1, nlayers
+      @assertEqual( eta_w3(k), this%height_agl(k + nlayers), tolerance )
+    end do
+
+    ! The first column has not been touched
+    @assertEqual( -999.0_r_def, this%height_agl(1), tolerance )
+
+  end subroutine test_second_column
+
+end module height_above_surface_kernel_mod_test
