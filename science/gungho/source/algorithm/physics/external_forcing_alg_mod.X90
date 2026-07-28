@@ -192,7 +192,6 @@ contains
     write_diag = config%io%write_diag()
     use_xios_io = config%io%use_xios_io()
     kappa = config%planet%kappa()
-    nudging_spinup_start = config%nudging%nudging_spinup_start()
 
     mesh => theta%get_mesh()
     height_wth => get_height_fv(config, mesh, Wtheta)
@@ -200,6 +199,7 @@ contains
     ! If nudging is to be applied, obtain reference fields
     if ( theta_forcing == theta_forcing_nudging .or.                           &
          wind_forcing == wind_forcing_nudging ) then
+      nudging_spinup_start = config%nudging%nudging_spinup_start()
       call set_nudging_reference_fields(config, derived_fields, exner)
     end if
 
