@@ -16,6 +16,8 @@
       <field field_ref="surface__u10m"/>
       <field field_ref="surface__v10m"/>
       <field field_ref="surface__wspd10m"/>
+      <field field_ref="processed__u50m"/>
+      <field field_ref="processed__v50m"/>
       <field field_ref="surface__grid_sensible_heat"/>
       <field field_ref="surface__grid_moisture_flux"/>
       <field field_ref="surface__grid_latent_heat"/>

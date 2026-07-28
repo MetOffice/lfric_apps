@@ -973,6 +973,8 @@
   <field id="processed__virtual_theta" name="virtual_theta" long_name="virtual_potential_temperature" standard_name="virtual_potential_temperature" unit="K" grid_ref="full_level_face_grid"> theta * (1 + 0.61 * processed__qv) </field>
   <field id="processed__pv_on_theta_levs" name="pv_on_theta_levs" long_name="ertel_potential_vorticity_at_theta_levels" standard_name="ertel_potential_vorticity" unit="m2 s-1 K kg-1" domain_ref="face" axis_ref="theta_levels"/>
   <field id="processed__theta_on_pv2" name="theta_on_pv2" long_name="potential_temperature_at_potential_vorticity_2_surface" unit="K" domain_ref="face"/>
+  <field id="processed__u50m" name="u50m" long_name="eastward_wind_at_50m" standard_name="eastward_wind" unit="m s-1" domain_ref="face"/>
+  <field id="processed__v50m" name="v50m" long_name="northward_wind_at_50m" standard_name="northward_wind" unit="m s-1" domain_ref="face"/>
   <!-- Pressure level diagnostic group -->
   <field id="plev__heaviside" name="heaviside_func" long_name="heaviside_function_at_pressure_levels" unit="1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__temp" name="plev_temp" long_name="temperature_at_pressure_levels" unit="K" domain_ref="face" axis_ref="pressure_levels"/>

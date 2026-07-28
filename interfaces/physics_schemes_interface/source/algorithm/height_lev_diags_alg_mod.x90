@@ -1,0 +1,119 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!> @brief Calculate diagnostics on height levels.
+!> @details Near surface wind components, obtained by linear interpolation of
+!!          the model level winds onto a fixed height above the ground.
+
+module height_lev_diags_alg_mod
+
+  use config_mod,                  only: config_type
+  use constants_mod,               only: r_def, i_def, l_def
+  use field_collection_mod,        only: field_collection_type
+  use field_mod,                   only: field_type
+  use fs_continuity_mod,           only: W3, Wtheta
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
+  use io_config_mod,               only: use_xios_io
+  use level_interp_mdi_kernel_mod, only: interp_order_linear
+  use sci_geometric_constants_mod, only: get_height_fv
+  use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
+
+  implicit none
+
+  private
+
+  public :: height_lev_diags_alg
+
+  !> Height above the ground, in metres, at which the near surface wind
+  !> diagnostics are produced.
+  real(r_def), parameter :: near_surface_wind_height = 50.0_r_def
+
+contains
+
+  !> @brief   Calculate near surface wind diagnostics on a height surface.
+  !> @details The wind components already held on W3 are interpolated onto a
+  !!          single height above ground. Both diagnostics are skipped
+  !!          entirely unless requested. The lowest W3 level lies part way up
+  !!          the first layer, so on a vertical grid coarse enough to put that
+  !!          level above the target height the diagnostic is missing data
+  !!          rather than extrapolated.
+  !> @param[in] config          Application namelist configuration object
+  !> @param[in] derived_fields  Group of derived fields
+  subroutine height_lev_diags_alg(config, derived_fields)
+
+    use height_above_surface_kernel_mod,      &
+                              only: height_above_surface_kernel_type
+    use psykal_lite_phys_mod, only: invoke_level_interp_mdi_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(config_type),           intent(in) :: config
+    type(field_collection_type), intent(in) :: derived_fields
+
+    ! Model level fields
+    type(field_type), pointer :: u_in_w3    => null()
+    type(field_type), pointer :: v_in_w3    => null()
+    type(field_type), pointer :: height_w3  => null()
+    type(field_type), pointer :: height_wth => null()
+
+    ! Diagnostic fields
+    type(field_type) :: u50m, v50m
+
+    ! Working fields
+    type(field_type) :: height_agl
+
+    logical(l_def) :: u50m_flag, v50m_flag
+
+    real(r_def) :: hlevs(1)
+
+    integer(tik) :: id
+
+    u50m_flag = init_diag(u50m, 'processed__u50m')
+    v50m_flag = init_diag(v50m, 'processed__v50m')
+
+    if (.not. (u50m_flag .or. v50m_flag)) return
+    if (.not. use_xios_io) return
+
+    if ( LPROF ) call start_timing( id, 'diags.height_levels' )
+
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
+    height_w3  => get_height_fv(config, u_in_w3%get_mesh(), W3)
+    height_wth => get_height_fv(config, u_in_w3%get_mesh(), Wtheta)
+
+    ! Heights are held above mean sea level, so remove the orography before
+    ! interpolating onto a fixed height above the ground.
+    call height_w3%copy_field_properties(height_agl)
+    call invoke( height_above_surface_kernel_type(   &
+                 height_agl, height_w3, height_wth) )
+
+    hlevs(1) = near_surface_wind_height
+
+    if (u50m_flag) then
+      call invoke_level_interp_mdi_kernel_type(u_in_w3,                 &
+                                               height_agl,              &
+                                               1_i_def, hlevs, u50m,    &
+                                               interp_order_linear)
+      call u50m%write_field()
+    end if
+
+    if (v50m_flag) then
+      call invoke_level_interp_mdi_kernel_type(v_in_w3,                 &
+                                               height_agl,              &
+                                               1_i_def, hlevs, v50m,    &
+                                               interp_order_linear)
+      call v50m%write_field()
+    end if
+
+    nullify(u_in_w3, v_in_w3, height_w3, height_wth)
+
+    if ( LPROF ) call stop_timing( id, 'diags.height_levels' )
+
+  end subroutine height_lev_diags_alg
+
+end module height_lev_diags_alg_mod
