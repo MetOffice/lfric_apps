@@ -473,10 +473,17 @@ contains
     if ( external_forcing_is_loaded() ) then
       theta_forcing = modeldb%config%external_forcing%theta_forcing()
       wind_forcing = modeldb%config%external_forcing%wind_forcing()
-      nudging_mesh_name = modeldb%config%multires_coupling%nudging_mesh_name()
 
       if ( theta_forcing == theta_forcing_nudging                              &
           .or. wind_forcing == wind_forcing_nudging) then
+        ! Getting nudging mesh name
+        nudging_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
+        if ( modeldb%config%formulation%use_multires_coupling() ) then
+          if ( modeldb%config%multires_coupling%coarse_nudging() ) then
+            nudging_mesh_name = modeldb%config%multires_coupling%nudging_mesh_name()
+          end if
+        end if
+
         derived_fields => modeldb%fields%get_field_collection("derived_fields")
         call update_variable_fields(                                           &
             model_axes%nudging_times_list, modeldb%clock, derived_fields       &

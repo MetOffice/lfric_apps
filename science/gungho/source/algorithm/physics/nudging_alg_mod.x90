@@ -83,7 +83,6 @@ contains
     ! Get config variables
     ! ------------------------------------------------------------------------ !
 
-    coarse_nudging = config%multires_coupling%coarse_nudging()
     use_multires_coupling = config%formulation%use_multires_coupling()
     nudging_method = config%nudging%nudging_method()
     spectral_stencil_extent = config%nudging%spectral_stencil_extent()
@@ -93,6 +92,16 @@ contains
     nudging_mesh_name = config%multires_coupling%nudging_mesh_name()
     p_zero = config%planet%p_zero()
     kappa = config%planet%kappa()
+
+    ! Getting nudging mesh name
+    coarse_nudging = .false.
+    nudging_mesh_name = config%base_mesh%prime_mesh_name()
+    if (use_multires_coupling) then
+      coarse_nudging = config%multires_coupling%coarse_nudging()
+      if (coarse_nudging) then
+        nudging_mesh_name = config%multires_coupling%nudging_mesh_name()
+      end if
+    end if
 
     ! ------------------------------------------------------------------------ !
     ! Set pointers and initialise fields

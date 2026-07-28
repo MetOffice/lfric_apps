@@ -680,6 +680,8 @@ contains
       coarse_aerosol_transport = config%multires_coupling%coarse_aerosol_transport()
       nudging_mesh_name        = config%multires_coupling%nudging_mesh_name()
       coarse_nudging           = config%multires_coupling%coarse_nudging()
+    else
+      coarse_nudging = .false.
     end if
 
     use_spectral_nudging = .false.
@@ -689,10 +691,12 @@ contains
       if (theta_forcing == theta_forcing_nudging                               &
           .or. wind_forcing == wind_forcing_nudging) then
         nudging_method = config%nudging%nudging_method()
-        if (nudging_method == nudging_method_convolution                       &
-            .and. use_multires_coupling) then
+        if (nudging_method == nudging_method_convolution) then
           spectral_stencil_extent = config%nudging%spectral_stencil_extent()
           use_spectral_nudging = .true.
+          if (.not. coarse_nudging) then
+            nudging_mesh_name = prime_mesh_name
+          end if
         end if
       end if
     end if
