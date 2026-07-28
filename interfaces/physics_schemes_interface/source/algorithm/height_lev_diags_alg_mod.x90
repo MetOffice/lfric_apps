@@ -56,10 +56,10 @@ contains
     type(field_collection_type), intent(in) :: derived_fields
 
     ! Model level fields
-    type(field_type), pointer :: u_in_w3    => null()
-    type(field_type), pointer :: v_in_w3    => null()
-    type(field_type), pointer :: height_w3  => null()
-    type(field_type), pointer :: height_wth => null()
+    type(field_type), pointer :: u_in_w3
+    type(field_type), pointer :: v_in_w3
+    type(field_type), pointer :: height_w3
+    type(field_type), pointer :: height_wth
 
     ! Diagnostic fields
     type(field_type) :: u50m, v50m
