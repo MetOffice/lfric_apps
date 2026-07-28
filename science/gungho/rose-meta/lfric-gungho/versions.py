@@ -42,14 +42,15 @@ class vn32_t670(MacroUpgrade):
         # Commands From: rose-meta/lfric-gungho
         # Set nudging mesh name to dynamics mesh name
         nudging_mesh_name = self.get_setting_value(
-            config, ["namelist:nudging", "nudging_mesh_name"]
+            config, ["namelist:multires_coupling", "nudging_mesh_name"]
         )
         dynamics_mesh_name = self.get_setting_value(
-            config, ["namelist:nudging", "dynamics_mesh_name"]
+            config, ["namelist:multires_coupling", "dynamics_mesh_name"]
         )
         if nudging_mesh_name == "''":
             self.change_setting_value(
-                config, ["namelist:nudging", "nudge_method"], dynamics_mesh_name
+                config, ["namelist:multires_coupling", "nudge_method"],
+                dynamics_mesh_name
             )
         # Add new nudging namelist options
         self.add_setting(
