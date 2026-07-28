@@ -353,6 +353,15 @@ subroutine init_mesh( config,                  &
                               partitioner_src,               &
                               enforce_constraints = .false. )
 
+      ! Create the associated local mesh maps
+      !===========================================================
+      if (regrid_method == regrid_method_map) then
+        call create_local_mesh_maps( mesh_file(dst) )
+      end if
+
+      ! Clear the 
+      call global_mesh_collection%clear()
+      
     else
 
       ! SOURCE
@@ -387,15 +396,8 @@ subroutine init_mesh( config,                  &
 
       call global_mesh_collection%clear()
 
-    endif
-
-    ! Read in the global intergrid mesh mappings,
-    ! then create the associated local mesh maps
-    !===========================================================
-    if (regrid_method == regrid_method_map) then
-      call create_local_mesh_maps( mesh_file(dst) )
     end if
-
+   
   end if  ! prepartitioned
 
   !============================================================================
