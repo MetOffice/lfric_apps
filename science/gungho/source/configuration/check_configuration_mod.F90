@@ -626,7 +626,8 @@ contains
   subroutine get_required_stencil_depth(stencil_depths, base_mesh_names, config)
 
     use external_forcing_config_mod, only: theta_forcing_nudging,              &
-                                           wind_forcing_nudging
+                                           wind_forcing_nudging,               &
+                                           external_forcing_is_loaded
     use nudging_config_mod,          only: nudging_method_convolution
 
     implicit none
@@ -647,6 +648,7 @@ contains
     logical(kind=l_def)    :: use_multires_coupling
     logical(kind=l_def)    :: coarse_aerosol_transport
     logical(kind=l_def)    :: coarse_nudging
+    logical(kind=l_def)    :: use_spectral_nudging
     integer(kind=i_def)    :: operators
     integer(kind=i_def)    :: fv_horizontal_order
     integer(kind=i_def)    :: panel_edge_treatment
@@ -664,17 +666,13 @@ contains
     ! ------------------------------------------------------------------------ !
     prime_mesh_name = config%base_mesh%prime_mesh_name()
 
-    operators               = config%transport%operators()
-    fv_horizontal_order     = config%transport%fv_horizontal_order()
-    panel_edge_treatment    = config%transport%panel_edge_treatment()
-    panel_edge_high_order   = config%transport%panel_edge_high_order()
-    dep_pt_stencil_extent   = config%transport%dep_pt_stencil_extent()
-    ffsl_inner_order        = config%transport%ffsl_inner_order()
-    ffsl_outer_order        = config%transport%ffsl_outer_order()
-    theta_forcing           = config%external_forcing%theta_forcing()
-    wind_forcing            = config%external_forcing%wind_forcing()
-    nudging_method          = config%nudging%nudging_method()
-    spectral_stencil_extent = config%nudging%spectral_stencil_extent()
+    operators             = config%transport%operators()
+    fv_horizontal_order   = config%transport%fv_horizontal_order()
+    panel_edge_treatment  = config%transport%panel_edge_treatment()
+    panel_edge_high_order = config%transport%panel_edge_high_order()
+    dep_pt_stencil_extent = config%transport%dep_pt_stencil_extent()
+    ffsl_inner_order      = config%transport%ffsl_inner_order()
+    ffsl_outer_order      = config%transport%ffsl_outer_order()
 
     use_multires_coupling = config%formulation%use_multires_coupling()
     if (use_multires_coupling) then
@@ -682,6 +680,21 @@ contains
       coarse_aerosol_transport = config%multires_coupling%coarse_aerosol_transport()
       nudging_mesh_name        = config%multires_coupling%nudging_mesh_name()
       coarse_nudging           = config%multires_coupling%coarse_nudging()
+    end if
+
+    use_spectral_nudging = .false.
+    if (external_forcing_is_loaded()) then
+      theta_forcing = config%external_forcing%theta_forcing()
+      wind_forcing = config%external_forcing%wind_forcing()
+      if (theta_forcing == theta_forcing_nudging                               &
+          .or. wind_forcing == wind_forcing_nudging) then
+        nudging_method = config%nudging%nudging_method()
+        if (nudging_method == nudging_method_convolution                       &
+            .and. use_multires_coupling) then
+          spectral_stencil_extent = config%nudging%spectral_stencil_extent()
+          use_spectral_nudging = .true.
+        end if
+      end if
     end if
 
     ! ------------------------------------------------------------------------ !
@@ -755,11 +768,8 @@ contains
         stencil_depths(i) = 2
       end if
 
-      if ( (theta_forcing == theta_forcing_nudging                             &
-            .or. wind_forcing == wind_forcing_nudging)                         &
-          .and. nudging_method == nudging_method_convolution                   &
-          .and. (use_multires_coupling .and. coarse_nudging                    &
-                 .and. trim(base_mesh_names(i)) == trim(nudging_mesh_name)) ) then
+      if ( use_spectral_nudging                                                &
+           .and. trim(base_mesh_names(i)) == trim(nudging_mesh_name) ) then
         stencil_depths(i) = MAX(stencil_depths(i), spectral_stencil_extent)
       end if
     end do
