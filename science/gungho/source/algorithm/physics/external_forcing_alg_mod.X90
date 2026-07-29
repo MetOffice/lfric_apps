@@ -43,7 +43,7 @@ module external_forcing_alg_mod
 #endif
   ! Derived Types
   use config_mod,                      only: config_type
-  use constants_mod,                   only: i_def, r_def, l_def
+  use constants_mod,                   only: i_def, r_def, l_def, IMDI, RMDI
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
   use integer_field_mod,               only: integer_field_type
@@ -58,8 +58,9 @@ module external_forcing_alg_mod
                                              get_face_selector_ns
   use mesh_mod,                        only: mesh_type
   use mr_indices_mod,                  only: nummr
-  use section_choice_config_mod,       only: cloud_um
-  use cloud_config_mod,                only: scheme_pc2
+  use section_choice_config_mod,       only: cloud_um, section_choice_is_loaded
+  use cloud_config_mod,                only: scheme_pc2, cloud_is_loaded
+  use nudging_config_mod,              only: nudging_is_loaded
 
   use reference_element_mod,           only: T
   use sci_set_any_dof_kernel_mod,      only: set_any_dof_kernel_type
@@ -172,9 +173,7 @@ contains
     real(kind=r_def)    :: kappa
     real(kind=r_def)    :: nudging_spinup_start
     logical(kind=l_def) :: write_diag, use_xios_io
-#ifdef UM_PHYSICS
     integer(kind=i_def) :: cloud, scheme
-#endif
 
     if ( LPROF ) call start_timing( id, 'external_forcing' )
 
@@ -192,6 +191,12 @@ contains
     write_diag = config%io%write_diag()
     use_xios_io = config%io%use_xios_io()
     kappa = config%planet%kappa()
+    cloud = IMDI
+    scheme = IMDI
+    nudging_spinup_start = RMDI
+    if (section_choice_is_loaded()) cloud = config%section_choice%cloud()
+    if (cloud_is_loaded()) scheme = config%cloud%scheme()
+    if (nudging_is_loaded()) nudging_spinup_start = config%nudging%nudging_spinup_start()
 
     mesh => theta%get_mesh()
     height_wth => get_height_fv(config, mesh, Wtheta)
@@ -199,11 +204,10 @@ contains
     ! If nudging is to be applied, obtain reference fields
     if ( theta_forcing == theta_forcing_nudging .or.                           &
          wind_forcing == wind_forcing_nudging ) then
-      nudging_spinup_start = config%nudging%nudging_spinup_start()
       call set_nudging_reference_fields(config, derived_fields, exner)
     end if
 
-    if ( theta_forcing /= theta_forcing_none .or. theta_relaxation .or.           &
+    if ( theta_forcing /= theta_forcing_none .or. theta_relaxation .or.        &
          vertadvect_forcing ) then
       call dtheta_forcing%initialise( vector_space = theta%get_function_space() )
       call invoke( setval_c(dtheta_forcing, 0.0_r_def) )
@@ -522,8 +526,6 @@ contains
 
 #ifdef UM_PHYSICS
     if ( theta_forcing_done .or. vapour_forcing_done ) then
-      cloud = config%section_choice%cloud()
-      scheme = config%cloud%scheme()
       ! pc2 response to forcing if requested
       if (cloud == cloud_um .and. scheme == scheme_pc2 .and. &
            pc2_force_response) then
