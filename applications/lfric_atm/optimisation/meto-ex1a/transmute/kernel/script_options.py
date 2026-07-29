@@ -3,6 +3,9 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
+# Some of the content of this file has been produced with the assistance of
+# Anthropic Claude Opus 5 (Claude Code).
+# -----------------------------------------------------------------------------
 '''
 This file lifts optional overrides, where possible, into a localised,
 single location.
@@ -35,6 +38,7 @@ SCRIPT_OPTIONS_DICT["bl_exp_kernel_mod"+str(FILE_EXTEN)] = {
         "parcel_buoyancy", "qsat_at_lcl", "bl_type_ind", "visc_m_blend",
         "visc_h_blend", "zh_2d", "zhsc_2d", "ntml_2d", "cumulus_2d",
         "rh_crit", "mix_len_bm", "dsldzm", "wvar", "zht", "oblen",
+        "cape_undilute_2d",
         ]
 }
 

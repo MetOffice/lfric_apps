@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> @brief Interface to the explicit UM boundary layer scheme.
 module bl_exp_kernel_mod
 
@@ -40,7 +43,7 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(93) = (/                                       &
+    type(arg_type) :: meta_args(94) = (/                                       &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! rho_in_wth
@@ -133,7 +136,8 @@ module bl_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_5),&! ent_t_frac_dsc
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_5),&! ent_zrzi_dsc
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! diag__zht
-         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1) &! diag__oblen
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! diag__oblen
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1) &! diag__cape_undilute
          /)
     integer :: operates_on = DOMAIN
   contains
@@ -242,6 +246,8 @@ contains
   !> @param[in,out] ent_zrzi_dsc           Level height as fraction of DSC inversion height above DSC ML base
   !> @param[in,out] zht                    Diagnostic: turb mixing height
   !> @param[in,out] oblen                  Diagnostic: Obukhov length
+  !> @param[in,out] cape_undilute_2d       Diagnostic: CAPE from an undilute
+  !>                                       parcel ascent
   !> @param[in]     ndf_wth                Number of DOFs per cell for potential temperature space
   !> @param[in]     undf_wth               Number of unique DOFs for potential temperature space
   !> @param[in]     map_wth                Dofmap for the cell at the base of the column for potential temperature space
@@ -357,6 +363,7 @@ contains
                          ent_zrzi_dsc,                          &
                          zht,                                   &
                          oblen,                                 &
+                         cape_undilute_2d,                      &
                          ndf_wth, undf_wth, map_wth,            &
                          ndf_w3, undf_w3, map_w3,               &
                          ndf_2d, undf_2d, map_2d,               &
@@ -501,6 +508,7 @@ contains
 
     real(kind=r_def), pointer, intent(inout) :: zht(:)
     real(kind=r_def), pointer, intent(inout) :: oblen(:)
+    real(kind=r_def), pointer, intent(inout) :: cape_undilute_2d(:)
     !-----------------------------------------------------------------------
     ! Local variables for the kernel
     !-----------------------------------------------------------------------
@@ -1160,6 +1168,11 @@ contains
     if (.not. associated(oblen, empty_real_data) ) then
       do i = 1, seg_len
         oblen(map_2d(1,i)) = BL_diag%oblen(i,1)
+      end do
+    end if
+    if (.not. associated(cape_undilute_2d, empty_real_data) ) then
+      do i = 1, seg_len
+        cape_undilute_2d(map_2d(1,i)) = real(cape_undilute(i,1), r_def)
       end do
     end if
 
