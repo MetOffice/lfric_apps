@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for bl_exp_alg
 
 module bl_exp_diags_mod
@@ -18,7 +21,7 @@ module bl_exp_diags_mod
   private
 
   ! Logical indicating whether diagnostics are requested
-  logical( l_def ) :: zht_flag, oblen_flag
+  logical( l_def ) :: zht_flag, oblen_flag, cape_undilute_flag
 
   public :: initialise_diags_for_bl_exp
   public :: output_diags_for_bl_exp
@@ -28,18 +31,21 @@ contains
   !> @brief Initialise fields for locally-computed diagnostics
   !> @param[inout] zht                Turbulent mixing height
   !> @param[inout] oblen              Obukhov length
-  subroutine initialise_diags_for_bl_exp(zht, oblen)
+  !> @param[inout] cape_undilute      CAPE from an undilute parcel ascent
+  subroutine initialise_diags_for_bl_exp(zht, oblen, cape_undilute)
 
     implicit none
 
     type( field_type ), intent(inout) :: zht
     type( field_type ), intent(inout) :: oblen
+    type( field_type ), intent(inout) :: cape_undilute
     integer( tik )                    :: id
 
     if ( LPROF ) call start_timing( id, 'diags.bl_exp' )
 
     zht_flag = init_diag(zht, 'turbulence__zht')
     oblen_flag = init_diag(oblen, 'turbulence__oblen')
+    cape_undilute_flag = init_diag(cape_undilute, 'convection__cape_undilute')
 
     if ( LPROF ) call stop_timing( id, 'diags.bl_exp' )
 
@@ -68,6 +74,7 @@ contains
   !> @param[in] ent_zrzi_dsc      Level height as fraction of DSC inversion height above DSC ML base
   !> @param[in] zht               Turbulent mixing height
   !> @param[in] oblen             Obukhov length
+  !> @param[in] cape_undilute     CAPE from an undilute parcel ascent
   !> @param[in] bl_weight_1dbl    Blending weight to 1D BL scheme in the BL
   subroutine output_diags_for_bl_exp(ntml, cumulus, bl_type_ind,               &
                                      wvar, dsldzm, mix_len_bm,                 &
@@ -76,7 +83,7 @@ contains
                                      ent_we_lim, ent_t_frac, ent_zrzi,         &
                                      ent_we_lim_dsc, ent_t_frac_dsc,           &
                                      ent_zrzi_dsc, zht, oblen,                 &
-                                     bl_weight_1dbl)
+                                     cape_undilute, bl_weight_1dbl)
 
     implicit none
 
@@ -87,7 +94,8 @@ contains
                                          zht,                                  &
                                          ent_we_lim, ent_t_frac, ent_zrzi,     &
                                          ent_we_lim_dsc, ent_t_frac_dsc,       &
-                                         ent_zrzi_dsc, oblen, bl_weight_1dbl
+                                         ent_zrzi_dsc, oblen, cape_undilute,   &
+                                         bl_weight_1dbl
     type(integer_field_type), intent(in) :: level_ent, level_ent_dsc, ntml,    &
                                             cumulus, bl_type_ind
     integer( tik )  :: id
@@ -120,6 +128,7 @@ contains
     ! Diagnostics computed in the kernel
     if (zht_flag) call zht%write_field()
     if (oblen_flag) call oblen%write_field()
+    if (cape_undilute_flag) call cape_undilute%write_field()
 
     if ( LPROF ) call stop_timing( id, 'diags.bl_exp' )
 

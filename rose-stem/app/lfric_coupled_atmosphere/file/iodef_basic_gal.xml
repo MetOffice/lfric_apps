@@ -333,6 +333,7 @@
 	<field id="convection__mid_in_col" name="mid_in_col" long_name="frequency_of_midlevel_convection" unit="1" domain_ref="face" />
 	<field id="convection__mid_cfl_limited" name="mid_cfl_limited" long_name="midlevel_convection_cfl_limited" unit="1" domain_ref="face" />
 	<field id="convection__cape_diluted" name="cape_diluted" long_name="cape_diluted" unit="J/kg" domain_ref="face" />
+	<field id="convection__cape_undilute" name="cape_undilute" long_name="cape_from_undilute_parcel_ascent" unit="J/kg" domain_ref="face" />
 	<field id="convection__cape_timescale" name="cape_timescale" long_name="cape_timescale" unit="s" domain_ref="face" />
 	<field id="convection__freeze_level" name="freeze_level" long_name="model_level_number_at_freezing_level" unit="1" domain_ref="face" />
 	<field id="convection__lowest_cv_base" name="lowest_cv_base" long_name="model_level_number_at_lowest_conv_cloud_base" unit="1" domain_ref="face" />
