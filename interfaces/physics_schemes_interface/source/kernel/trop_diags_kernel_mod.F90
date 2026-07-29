@@ -21,14 +21,18 @@ private
 
 type, public, extends(kernel_type) :: trop_diags_kernel_type
   private
-  type(arg_type) :: meta_args(8) = (/                                    &
+  type(arg_type) :: meta_args(12) = (/                                    &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
        arg_type(GH_SCALAR, GH_REAL, GH_READ),                            & ! g_over_r
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_press_flag
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_press
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_temp_flag
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_temp
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_height_flag
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_height
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_icao_height_flag
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! trop_icao_height
     /)
   integer :: operates_on = CELL_COLUMN
@@ -58,16 +62,16 @@ contains
 !> @param[in]  ndf_2d                 No. DOFs per cell for 2D space
 !> @param[in]  undf_2d                No. unique DOFs for 2D space
 !> @param[in]  map_2d                 Dofmap for 2D space column base cell
-subroutine trop_diags_code(nlayers,                    &
-                           theta,                      &
-                           exner_in_wth,               &
-                           height_wth,                 &
-                           g_over_r,                   &
-                           trop_press,                 &
-                           trop_temp,                  &
-                           trop_height,                &
-                           trop_icao_height,           &
-                           ndf_wth, undf_wth, map_wth, &
+subroutine trop_diags_code(nlayers,                                  &
+                           theta,                                    &
+                           exner_in_wth,                             &
+                           height_wth,                               &
+                           g_over_r,                                 &
+                           trop_pres_flag, trop_press,               &
+                           trop_temp_flag, trop_temp,                &
+                           trop_height_flag, trop_height,            &
+                           trop_icao_height_flag, trop_icao_height,  &
+                           ndf_wth, undf_wth, map_wth,               &
                            ndf_2d, undf_2d, map_2d)
 
   use planet_config_mod,        only : p_zero, kappa
@@ -78,13 +82,22 @@ subroutine trop_diags_code(nlayers,                    &
   implicit none
 
   ! Arguments (algorithm)
-  real(r_def), dimension(undf_wth), intent(in)   :: theta
-  real(r_def), dimension(undf_wth), intent(in)   :: exner_in_wth
-  real(r_def), dimension(undf_wth), intent(in)   :: height_wth
-  real(r_def), intent(in)                        :: g_over_r
+  real(r_def), dimension(undf_wth), intent(in) :: theta
+  real(r_def), dimension(undf_wth), intent(in) :: exner_in_wth
+  real(r_def), dimension(undf_wth), intent(in) :: height_wth
+  real(r_def), intent(in)                      :: g_over_r
 
-  real(r_def), pointer, intent(inout) :: &
-    trop_press(:), trop_temp(:), trop_height(:), trop_icao_height(:)
+  logical(l_def), intent(in)                   :: trop_pres_flag
+  real(r_def), dimension(undf_2d), intent(out) :: trop_press(:)
+
+  logical(l_def), intent(in)                   :: trop_temp_flag
+  real(r_def), dimension(undf_2d), intent(out) :: trop_temp(:)
+
+  logical(l_def), intent(in)                   :: trop_height_flag
+  real(r_def), dimension(undf_2d), intent(out) :: trop_height(:)
+
+  logical(l_def), intent(in)                   :: trop_icao_height_flag
+  real(r_def), dimension(undf_2d), intent(out) :: trop_icao_height(:)
 
   ! Arguments (kernel)
   integer(i_def), intent(in) :: nlayers
@@ -119,10 +132,10 @@ subroutine trop_diags_code(nlayers,                    &
 
   ! Initialise all outputs to missing data. They are only meaningful when a
   ! lapse-rate (WMO) tropopause has been located.
-  if (.not. associated(trop_press, empty_real_data))       trop_press(map_2d(1)) = rmdi
-  if (.not. associated(trop_temp, empty_real_data))        trop_temp(map_2d(1)) = rmdi
-  if (.not. associated(trop_height, empty_real_data))      trop_height(map_2d(1)) = rmdi
-  if (.not. associated(trop_icao_height, empty_real_data)) trop_icao_height(map_2d(1)) = rmdi
+  if (trop_pres_flag)        trop_press(map_2d(1))       = rmdi
+  if (trop_temp_flag)        trop_temp(map_2d(1))        = rmdi
+  if (trop_height_flag)      trop_height(map_2d(1))      = rmdi
+  if (trop_icao_height_flag) trop_icao_height(map_2d(1)) = rmdi
 
   ! Temperature and lapse rate on wth levels
   lapse_rate_trop_level = 0
@@ -174,7 +187,7 @@ subroutine trop_diags_code(nlayers,                    &
     end if
 
     ! height of tropopause between k and k+1
-    if (.not. associated(trop_height, empty_real_data)) then
+    if (trop_height_flag) then
       trop_height(map_2d(1)) = (                                     &
           (t_wth(k)   + (lapse_lwr * height_wth(map_wth(1)+k)))      &
         - (t_wth(k+1) + (lapse_upr * height_wth(map_wth(1)+k+1)))    &
@@ -182,13 +195,13 @@ subroutine trop_diags_code(nlayers,                    &
     end if
 
     ! temperature at tropopause
-    if (.not. associated(trop_temp, empty_real_data)) then
+    if (trop_temp_flag) then
       trop_temp(map_2d(1)) = t_wth(k) -                              &
         lapse_lwr * (trop_height(map_2d(1)) - height_wth(map_wth(1)+k))
     end if
 
     ! pressure at tropopause is derived from the hydrostatic equation
-    if (.not. associated(trop_press, empty_real_data)) then
+    if (trop_pres_flag) then
       if ( abs(lapse_lwr) < vsmall ) then
         if ( lapse_lwr >= 0.0_r_def ) lapse_lwr =  vsmall
         if ( lapse_lwr <  0.0_r_def ) lapse_lwr = -vsmall
@@ -199,7 +212,7 @@ subroutine trop_diags_code(nlayers,                    &
     end if
 
     ! ICAO height of the tropopause
-    if (.not. associated(trop_icao_height, empty_real_data)) then
+    if (trop_icao_height_flag) then
       call icao_heights_kernel_code( &
         nlayers, trop_icao_height, trop_press, g_over_r, &
         ndf_2d, undf_2d, map_2d)
