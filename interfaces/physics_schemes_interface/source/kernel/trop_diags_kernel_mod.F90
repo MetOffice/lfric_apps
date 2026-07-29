@@ -22,18 +22,18 @@ private
 type, public, extends(kernel_type) :: trop_diags_kernel_type
   private
   type(arg_type) :: meta_args(12) = (/                                    &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_press
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_temp
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_height
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_icao_height
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_press_flag
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_temp_flag
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_height_flag
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_icao_height_flag
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
-       arg_type(GH_SCALAR, GH_REAL, GH_READ),                            & ! g_over_r
-       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_press_flag
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_press
-       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_temp_flag
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_temp
-       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_height_flag
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_height
-       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_icao_height_flag
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  & ! trop_icao_height
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)                             & ! g_over_r
     /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -48,30 +48,38 @@ contains
 !> @details If a field is not empty, its dependencies are guaranteed by the caller.
 !>          If the tropopause is not found, outputs are set to missing data.
 !> @param[in]  nlayers                Number of layers
-!> @param[in]  theta                  Potential temperature
-!> @param[in]  exner_in_wth           Exner pressure in wth space
-!> @param[in]  height_wth             Height of wth levels above surface
-!> @param[in]  g_over_r               Gravity / specific dry air gas constant
 !> @param[out] trop_press             Pressure at the tropopause
 !> @param[out] trop_temp              Temperature at the tropopause
 !> @param[out] trop_height            Height of the tropopause above surface
 !> @param[out] trop_icao_height       ICAO height of the tropopause
+!> @param[in]  trop_press_flag        Request flag
+!> @param[in]  trop_temp_flag         Request flag
+!> @param[in]  trop_height_flag       Request flag
+!> @param[in]  trop_icao_height_flag  Request flag
+!> @param[in]  theta                  Potential temperature
+!> @param[in]  exner_in_wth           Exner pressure in wth space
+!> @param[in]  height_wth             Height of wth levels above surface
+!> @param[in]  g_over_r               Gravity / specific dry air gas constant
 !> @param[in]  ndf_wth                No. DOFs per cell for wth space
 !> @param[in]  undf_wth               No. unique DOFs for wth space
 !> @param[in]  map_wth                Dofmap for wth space column base cell
 !> @param[in]  ndf_2d                 No. DOFs per cell for 2D space
 !> @param[in]  undf_2d                No. unique DOFs for 2D space
 !> @param[in]  map_2d                 Dofmap for 2D space column base cell
-subroutine trop_diags_code(nlayers,                                  &
-                           theta,                                    &
-                           exner_in_wth,                             &
-                           height_wth,                               &
-                           g_over_r,                                 &
-                           trop_pres_flag, trop_press,               &
-                           trop_temp_flag, trop_temp,                &
-                           trop_height_flag, trop_height,            &
-                           trop_icao_height_flag, trop_icao_height,  &
-                           ndf_wth, undf_wth, map_wth,               &
+subroutine trop_diags_code(nlayers,                    &
+                           trop_press,                 &
+                           trop_temp,                  &
+                           trop_height,                &
+                           trop_icao_height,           &
+                           trop_pres_flag,             &
+                           trop_temp_flag,             &
+                           trop_height_flag,           &
+                           trop_icao_height_flag,      &
+                           theta,                      &
+                           exner_in_wth,               &
+                           height_wth,                 &
+                           g_over_r,                   &
+                           ndf_wth, undf_wth, map_wth, &
                            ndf_2d, undf_2d, map_2d)
 
   use planet_config_mod,        only : p_zero, kappa
@@ -82,22 +90,21 @@ subroutine trop_diags_code(nlayers,                                  &
   implicit none
 
   ! Arguments (algorithm)
+  real(r_def), dimension(undf_2d), intent(out) :: trop_press(:)
+  real(r_def), dimension(undf_2d), intent(out) :: trop_temp(:)
+  real(r_def), dimension(undf_2d), intent(out) :: trop_height(:)
+  real(r_def), dimension(undf_2d), intent(out) :: trop_icao_height(:)
+
+  logical(l_def), intent(in)                   :: trop_pres_flag
+  logical(l_def), intent(in)                   :: trop_temp_flag
+  logical(l_def), intent(in)                   :: trop_height_flag
+  logical(l_def), intent(in)                   :: trop_icao_height_flag
+
   real(r_def), dimension(undf_wth), intent(in) :: theta
   real(r_def), dimension(undf_wth), intent(in) :: exner_in_wth
   real(r_def), dimension(undf_wth), intent(in) :: height_wth
   real(r_def), intent(in)                      :: g_over_r
 
-  logical(l_def), intent(in)                   :: trop_pres_flag
-  real(r_def), dimension(undf_2d), intent(out) :: trop_press(:)
-
-  logical(l_def), intent(in)                   :: trop_temp_flag
-  real(r_def), dimension(undf_2d), intent(out) :: trop_temp(:)
-
-  logical(l_def), intent(in)                   :: trop_height_flag
-  real(r_def), dimension(undf_2d), intent(out) :: trop_height(:)
-
-  logical(l_def), intent(in)                   :: trop_icao_height_flag
-  real(r_def), dimension(undf_2d), intent(out) :: trop_icao_height(:)
 
   ! Arguments (kernel)
   integer(i_def), intent(in) :: nlayers
