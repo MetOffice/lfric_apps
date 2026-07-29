@@ -3,7 +3,6 @@
 | ------------------- | ------------------ | -------------------------------- | ---------- |
 | jedbakerMO          | Jed Baker          | Met Office                       | 2025-12-29 |
 | tommbendall         | Thomas Bendall     | Met Office                       | 2026-01-13 |
-| iboutle             | Ian Boutle         | Met Office                       | 2026-03-06 |
 | ukmo-juan-castillo  | Juan M. Castillo   | Met Office                       | 2026-01-23 |
 | t00sa               | Sam Clarke-Green   | Met Office                       | 2026-01-20 |
 | andrewcoughtrie     | Andrew Coughtrie   | Met Office                       | 2026-01-28 |
