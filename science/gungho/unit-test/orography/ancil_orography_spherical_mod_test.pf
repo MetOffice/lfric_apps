@@ -6,6 +6,8 @@
 module ancil_orography_spherical_mod_test
 
   use constants_mod,                 only : i_def, r_def
+  use extrusion_config_mod,          only : method_uniform,       &
+                                            stretching_method_linear
   use funit
 
   implicit none
@@ -17,6 +19,7 @@ module ancil_orography_spherical_mod_test
   real(r_def), parameter :: dlat = 1.0_r_def/180.0_r_def
   real(r_def), parameter :: dlon = 1.0_r_def/180.0_r_def
   real(r_def), parameter :: dr = 1000.0_r_def
+  real(r_def), parameter :: stretching_height = 1.0_r_def
   real(r_def), parameter :: domain_height = nlayers*dr
   real(r_def), parameter :: radius   = 6371229.0_r_def
   real(r_def), parameter :: domain_surface = radius
@@ -31,8 +34,6 @@ contains
 
     use base_mesh_config_mod,      only : geometry_spherical,      &
                                           topology_fully_periodic
-    use extrusion_config_mod,      only : method_uniform,       &
-                                          stretching_method_linear
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_finite_element_config, &
@@ -55,7 +56,7 @@ contains
                          planet_radius    = radius,                  &
                          domain_height    = domain_height,           &
                          number_of_layers = nlayers,                 &
-                         stretching_height= 1.0_r_def,               &
+                         stretching_height= stretching_height,       &
                          stretching_method= stretching_method_linear,&
                          eta_values=(/0.5_r_def/) )
 
@@ -217,6 +218,8 @@ contains
                                          srf_alt_w0,         &
                                          domain_surface,     &
                                          domain_height,      &
+                                         stretching_height,  &
+                                         stretching_method_linear, &
                                          ndf_wchi,           &
                                          undf_wchi,          &
                                          map_wchi(:, cell),  &
