@@ -93,7 +93,8 @@
       or "jules" in requested_applications
       or "linear_model" in requested_applications
       or "ngarch" in requested_applications
-      or "lfric_coupled" in requested_applications %}
+      or "lfric_coupled" in requested_applications
+      or "jedi_lfric_tests" in requested_applications %}
 
     {% do LOG.debug("Running Physics Schemes") %}
 
