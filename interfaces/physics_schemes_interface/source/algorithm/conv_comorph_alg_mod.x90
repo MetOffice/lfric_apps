@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Interface to the Comorph convection scheme
 
 module conv_comorph_alg_mod
@@ -270,6 +273,8 @@ contains
     type( field_type ) :: pres_cv_base,pres_cv_top
     type( field_type ) :: pres_lowest_cv_base, pres_lowest_cv_top, lowest_cca_2d
     type( field_type ) :: cloud_base_icao_height, cloud_top_icao_height
+    type( field_type ) :: lowest_cloud_base_icao_height
+    type( field_type ) :: lowest_cloud_top_icao_height
     type( field_type ) :: massflux_up_half
     type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
@@ -484,7 +489,9 @@ contains
                                       detrain_down,           &
                                       massflux_up_half,       &
                                       cloud_base_icao_height, &
-                                      cloud_top_icao_height)
+                                      cloud_top_icao_height,  &
+                                      lowest_cloud_base_icao_height, &
+                                      lowest_cloud_top_icao_height)
 
     ! call the scheme
     ncells = mesh%get_last_edge_cell()
@@ -692,7 +699,9 @@ contains
                                   detrain_down,           &
                                   massflux_up_half,       &
                                   cloud_base_icao_height, &
-                                  cloud_top_icao_height)
+                                  cloud_top_icao_height,  &
+                                  lowest_cloud_base_icao_height, &
+                                  lowest_cloud_top_icao_height)
 
     end if
 
