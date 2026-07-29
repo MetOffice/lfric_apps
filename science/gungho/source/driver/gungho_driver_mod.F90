@@ -358,17 +358,20 @@ contains
   !>
   subroutine step( modeldb )
 
+    use physics_constants_mod, only: update_nudging_weights
+
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
 
-    type(mesh_type), pointer :: mesh      => null()
-    type(mesh_type), pointer :: twod_mesh => null()
+    type(mesh_type), pointer :: mesh
+    type(mesh_type), pointer :: twod_mesh
+    type(mesh_type), pointer :: nudging_mesh
     integer(kind=i_def)      :: ts_start, rc
     integer(tik)             :: tid_first, tid_rest
 
 #if defined(COUPLED) || defined(UM_PHYSICS)
-    type( field_collection_type ), pointer :: depository => null()
+    type( field_collection_type ), pointer :: depository
 #endif
 
     type( field_collection_type ), pointer :: lbc_fields
@@ -379,7 +382,7 @@ contains
     type( field_collection_type ), pointer :: derived_fields
 
 #ifdef UM_PHYSICS
-    procedure(regridder), pointer :: regrid_operation => null()
+    procedure(regridder), pointer :: regrid_operation
     logical(l_def)                :: regrid_lowest_order
 
     type( field_collection_type ), pointer :: surface_fields
@@ -388,6 +391,7 @@ contains
 
     integer(i_def) :: theta_forcing
     integer(i_def) :: wind_forcing
+    character(len=str_def) :: nudging_mesh_name
 
     read(timestep_start,*,iostat=rc)  ts_start
     if ( LPROF ) then
@@ -472,10 +476,21 @@ contains
 
       if ( theta_forcing == theta_forcing_nudging                              &
           .or. wind_forcing == wind_forcing_nudging) then
+        ! Getting nudging mesh name
+        nudging_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
+        if ( modeldb%config%formulation%use_multires_coupling() ) then
+          if ( modeldb%config%multires_coupling%coarse_nudging() ) then
+            nudging_mesh_name = modeldb%config%multires_coupling%nudging_mesh_name()
+          end if
+        end if
+
         derived_fields => modeldb%fields%get_field_collection("derived_fields")
         call update_variable_fields(                                           &
             model_axes%nudging_times_list, modeldb%clock, derived_fields       &
         )
+
+        nudging_mesh => mesh_collection%get_mesh(trim(adjustl(nudging_mesh_name)))
+        call update_nudging_weights(modeldb%clock, modeldb%config, nudging_mesh)
       end if
     end if
 

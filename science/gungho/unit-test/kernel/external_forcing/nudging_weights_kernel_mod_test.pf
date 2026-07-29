@@ -1,0 +1,55 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+module nudging_weights_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, l_def
+  use funit
+
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use nudging_weights_kernel_mod, only: nudging_weights_code
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 10
+    integer(kind=i_def), parameter :: ndf = 1
+    integer(kind=i_def), parameter :: undf = nlayers
+    real(kind=r_def),    parameter :: tol = 10.0_r_def*epsilon(1.0_r_def)
+
+    integer(kind=i_def) :: map(ndf)
+    real(kind=r_def)    :: answer(undf)
+    real(kind=r_def)    :: weights(undf)
+    integer(kind=i_def) :: bottom_level, top_level, bottom_width, top_width
+
+    map(1) = 1
+    bottom_level = 2
+    top_level = 7
+    bottom_width = 1
+    top_width = 2
+    answer = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def, 1.0_r_def, 1.0_r_def,         &
+                1.0_r_def, 0.75_r_def, 0.5_r_def, 0.25_r_def, 0.0_r_def /)
+    weights(:) = 0.0_r_def
+
+    call nudging_weights_code(                                                 &
+        nlayers, weights, bottom_level, top_level, bottom_width, top_width,    &
+        ndf, undf, map                                                         &
+    )
+
+    @assertEqual(answer, weights, tol)
+
+  end subroutine test_all
+
+end module nudging_weights_kernel_mod_test

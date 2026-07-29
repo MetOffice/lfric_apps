@@ -625,6 +625,11 @@ contains
   !===========================================================================
   subroutine get_required_stencil_depth(stencil_depths, base_mesh_names, config)
 
+    use external_forcing_config_mod, only: theta_forcing_nudging,              &
+                                           wind_forcing_nudging,               &
+                                           external_forcing_is_loaded
+    use nudging_config_mod,          only: nudging_method_convolution
+
     implicit none
 
     integer(kind=i_def),    intent(inout) :: stencil_depths(:)
@@ -639,8 +644,11 @@ contains
     ! Configuration variables
     character(len=str_def) :: prime_mesh_name
     character(len=str_def) :: aerosol_mesh_name
+    character(len=str_def) :: nudging_mesh_name
     logical(kind=l_def)    :: use_multires_coupling
     logical(kind=l_def)    :: coarse_aerosol_transport
+    logical(kind=l_def)    :: coarse_nudging
+    logical(kind=l_def)    :: use_spectral_nudging
     integer(kind=i_def)    :: operators
     integer(kind=i_def)    :: fv_horizontal_order
     integer(kind=i_def)    :: panel_edge_treatment
@@ -648,6 +656,10 @@ contains
     integer(kind=i_def)    :: dep_pt_stencil_extent
     integer(kind=i_def)    :: ffsl_inner_order
     integer(kind=i_def)    :: ffsl_outer_order
+    integer(kind=i_def)    :: theta_forcing
+    integer(kind=i_def)    :: wind_forcing
+    integer(kind=i_def)    :: nudging_method
+    integer(kind=i_def)    :: spectral_stencil_extent
 
     ! ------------------------------------------------------------------------ !
     ! Get configuration variables
@@ -666,6 +678,27 @@ contains
     if (use_multires_coupling) then
       aerosol_mesh_name        = config%multires_coupling%aerosol_mesh_name()
       coarse_aerosol_transport = config%multires_coupling%coarse_aerosol_transport()
+      nudging_mesh_name        = config%multires_coupling%nudging_mesh_name()
+      coarse_nudging           = config%multires_coupling%coarse_nudging()
+    else
+      coarse_nudging = .false.
+    end if
+
+    use_spectral_nudging = .false.
+    if (external_forcing_is_loaded()) then
+      theta_forcing = config%external_forcing%theta_forcing()
+      wind_forcing = config%external_forcing%wind_forcing()
+      if (theta_forcing == theta_forcing_nudging                               &
+          .or. wind_forcing == wind_forcing_nudging) then
+        nudging_method = config%nudging%nudging_method()
+        if (nudging_method == nudging_method_convolution) then
+          spectral_stencil_extent = config%nudging%spectral_stencil_extent()
+          use_spectral_nudging = .true.
+          if (.not. coarse_nudging) then
+            nudging_mesh_name = prime_mesh_name
+          end if
+        end if
+      end if
     end if
 
     ! ------------------------------------------------------------------------ !
@@ -737,6 +770,11 @@ contains
       else
         ! No transport on this mesh, so set stencil depth to 2
         stencil_depths(i) = 2
+      end if
+
+      if ( use_spectral_nudging                                                &
+           .and. trim(base_mesh_names(i)) == trim(nudging_mesh_name) ) then
+        stencil_depths(i) = MAX(stencil_depths(i), spectral_stencil_extent)
       end if
     end do
 
