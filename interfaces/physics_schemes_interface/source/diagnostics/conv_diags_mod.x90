@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for conv_alg
 
 module conv_diags_mod
@@ -60,7 +63,9 @@ module conv_diags_mod
                       dth_conv_noshal_flag,        &
                       dmv_conv_noshal_flag,        &
                       cloud_base_icao_height_flag, &
-                      cloud_top_icao_height_flag
+                      cloud_top_icao_height_flag,  &
+                      lowest_cloud_base_icao_height_flag, &
+                      lowest_cloud_top_icao_height_flag
 
   public :: initialise_diags_for_conv
   public :: output_diags_for_conv
@@ -112,7 +117,9 @@ contains
                                        dth_conv_noshal,        &
                                        dmv_conv_noshal,        &
                                        cloud_base_icao_height, &
-                                       cloud_top_icao_height)
+                                       cloud_top_icao_height,  &
+                                       lowest_cloud_base_icao_height, &
+                                       lowest_cloud_top_icao_height)
 
     implicit none
 
@@ -162,7 +169,9 @@ contains
                                          dth_conv_noshal,         &
                                          dmv_conv_noshal,         &
                                          cloud_base_icao_height,  &
-                                         cloud_top_icao_height
+                                         cloud_top_icao_height,   &
+                                         lowest_cloud_base_icao_height, &
+                                         lowest_cloud_top_icao_height
 
     logical(l_def) :: ignore
     integer(tik)   :: id
@@ -223,12 +232,24 @@ contains
       activate=cloud_top_icao_height_flag)
     ! not zeroed because overwritten
 
+    lowest_cloud_base_icao_height_flag = init_diag( &
+      lowest_cloud_base_icao_height, &
+      'convection__lowest_conv_cloud_base_icao_height')
+    ! not zeroed because overwritten
+
+    lowest_cloud_top_icao_height_flag = init_diag( &
+      lowest_cloud_top_icao_height, &
+      'convection__lowest_conv_cloud_top_icao_height')
+    ! not zeroed because overwritten
+
     pres_lowest_cv_base_flag = init_diag(pres_lowest_cv_base, &
-                                         'convection__pres_lowest_cv_base')
+      'convection__pres_lowest_cv_base', &
+      activate=lowest_cloud_base_icao_height_flag)
     ! not zeroed because overwritten
 
     pres_lowest_cv_top_flag = init_diag(pres_lowest_cv_top, &
-                                        'convection__pres_lowest_cv_top')
+      'convection__pres_lowest_cv_top', &
+      activate=lowest_cloud_top_icao_height_flag)
     ! not zeroed because overwritten
 
     lowest_cca_2d_flag = init_diag(lowest_cca_2d, &
@@ -385,7 +406,9 @@ contains
                                     dth_conv_noshal,        &
                                     dmv_conv_noshal,        &
                                     cloud_base_icao_height, &
-                                    cloud_top_icao_height)
+                                    cloud_top_icao_height,  &
+                                    lowest_cloud_base_icao_height, &
+                                    lowest_cloud_top_icao_height)
 
     implicit none
 
@@ -454,7 +477,9 @@ contains
                                        dth_conv_noshal,        &
                                        dmv_conv_noshal,        &
                                        cloud_base_icao_height, &
-                                       cloud_top_icao_height
+                                       cloud_top_icao_height,  &
+                                       lowest_cloud_base_icao_height, &
+                                       lowest_cloud_top_icao_height
     integer( tik )  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.conv' )
@@ -496,6 +521,18 @@ contains
       call invoke(icao_heights_kernel_type( &
         cloud_top_icao_height, pres_cv_top, g_over_r_def))
       call cloud_top_icao_height%write_field()
+    end if
+
+    if (lowest_cloud_base_icao_height_flag) then
+      call invoke(icao_heights_kernel_type( &
+        lowest_cloud_base_icao_height, pres_lowest_cv_base, g_over_r_def))
+      call lowest_cloud_base_icao_height%write_field()
+    end if
+
+    if (lowest_cloud_top_icao_height_flag) then
+      call invoke(icao_heights_kernel_type( &
+        lowest_cloud_top_icao_height, pres_lowest_cv_top, g_over_r_def))
+      call lowest_cloud_top_icao_height%write_field()
     end if
 
     ! Diagnostics computed within the kernel

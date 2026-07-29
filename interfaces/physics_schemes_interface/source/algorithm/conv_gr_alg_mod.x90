@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Interface to the UM Gregory Rowntree convection scheme
 
 module conv_gr_alg_mod
@@ -271,6 +274,8 @@ contains
     type( field_type ) :: pres_cv_base, pres_cv_top
     type( field_type ) :: pres_lowest_cv_base, pres_lowest_cv_top, lowest_cca_2d
     type( field_type ) :: cloud_base_icao_height, cloud_top_icao_height
+    type( field_type ) :: lowest_cloud_base_icao_height
+    type( field_type ) :: lowest_cloud_top_icao_height
     type( field_type ) :: deep_cfl_limited, mid_cfl_limited
     type( field_type ) :: massflux_up_half, massflux_up_cmpta
     type( field_type ) :: dth_conv_noshal, dmv_conv_noshal
@@ -510,7 +515,9 @@ contains
                                    dth_conv_noshal,        &
                                    dmv_conv_noshal,        &
                                    cloud_base_icao_height, &
-                                   cloud_top_icao_height)
+                                   cloud_top_icao_height,  &
+                                   lowest_cloud_base_icao_height, &
+                                   lowest_cloud_top_icao_height)
 
     ! Calculate total ice field
     call mr(imr_s)%copy_field_properties(mr_ice)
@@ -798,7 +805,9 @@ contains
                                   dth_conv_noshal,       &
                                   dmv_conv_noshal,       &
                                   cloud_base_icao_height,&
-                                  cloud_top_icao_height)
+                                  cloud_top_icao_height, &
+                                  lowest_cloud_base_icao_height, &
+                                  lowest_cloud_top_icao_height)
 
     end if
 
