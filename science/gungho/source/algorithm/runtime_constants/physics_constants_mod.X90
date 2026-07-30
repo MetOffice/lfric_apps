@@ -438,6 +438,7 @@ contains
     logical(kind=l_def)                :: constant_exists
     integer(kind=i_def)                :: geometry, topology, coord_system
     integer(kind=i_def)                :: spectral_kmax, spectral_kmin
+    real(kind=r_def)                   :: envelope_width
     real(kind=r_def)                   :: scaled_radius
     integer(kind=tik)                  :: id
 
@@ -461,6 +462,7 @@ contains
       scaled_radius = config%planet%scaled_radius()
       spectral_kmax = config%nudging%spectral_kmax()
       spectral_kmin = config%nudging%spectral_kmin()
+      envelope_width = config%nudging%spectral_envelope_width()
       stencil_depth = config%nudging%spectral_stencil_extent()
       ndata = (2*stencil_depth + 1)**2
 
@@ -476,11 +478,13 @@ contains
       fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3, ndata)
       call convolution_weights_inventory%add_field(convolution_weights, fs, local_mesh)
 
-      call invoke( convolution_2d_weights_kernel_type(convolution_weights,     &
+      call invoke( setval_c(convolution_weights, 0.0_r_def),                   &
+                   convolution_2d_weights_kernel_type(convolution_weights,     &
                                                       chi, stencil_depth,      &
                                                       panel_id, stencil_depth, &
                                                       spectral_kmax,           &
                                                       spectral_kmin,           &
+                                                      envelope_width,          &
                                                       geometry, topology,      &
                                                       coord_system,            &
                                                       scaled_radius) )

@@ -43,7 +43,7 @@ class vn32_t670(MacroUpgrade):
             config, ["namelist:nudging", "nudging_method"], "'convolution'"
         )
         self.add_setting(
-            config, ["namelist:nudging", "nudging_relax_time"], "3600.0"
+            config, ["namelist:nudging", "nudging_relax_time"], "21600.0"
         )
         self.add_setting(
             config, ["namelist:nudging", "nudging_spinup_start"], "432000.0"
@@ -55,6 +55,9 @@ class vn32_t670(MacroUpgrade):
         self.add_setting(config, ["namelist:nudging", "spectral_kmin"], "2")
         self.add_setting(
             config, ["namelist:nudging", "spectral_stencil_extent"], "12"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "spectral_envelope_width"], "12"
         )
         # Remove retired setting
         self.remove_setting(config, ["namelist:nudging", "nudging_source"])

@@ -91,7 +91,7 @@ subroutine nudging_weights_code(nlayers,                                       &
   nl = nlayers - 2 + ndf  ! nlayers for Wtheta, nlayers - 1 for W3
   idx = map(1)
 
-  do k = 0, bottom_nudge_level-bottom_nudge_width-1
+  do k = 0, bottom_nudge_level-bottom_nudge_width-2
     weights(idx + k) = 0.0_r_def
   end do
 
@@ -100,7 +100,7 @@ subroutine nudging_weights_code(nlayers,                                       &
                        real(MAX(1, 2*bottom_nudge_width), r_def)
   end do
 
-  do k = bottom_nudge_level+bottom_nudge_width+1, top_nudge_level-top_nudge_width-1
+  do k = bottom_nudge_level+bottom_nudge_width, top_nudge_level-top_nudge_width-1
     weights(idx + k) = 1.0_r_def
   end do
 

@@ -72,6 +72,10 @@ contains
     real(kind=r_def),    parameter :: dlon = PI/48.0_r_def
     real(kind=r_def),    parameter :: dlat = PI/96.0_r_def
 
+    ! Gaussian envelope width, set to very large value to disable the envelope
+    ! for this unit-test
+    real(kind=r_def),    parameter :: sigma = 1.0E16_r_def
+
     real(kind=r_def),    parameter :: tol = 10.0_r_def*epsilon(1.0_r_def)
 
     integer(kind=i_def) :: map_chi(ndf_chi)
@@ -129,11 +133,7 @@ contains
             + 9.0_r_def*(1.0_r_def/8.0_r_def)*(                                &
                 35.0_r_def*dist**4 - 30.0_r_def*dist**2 + 3.0_r_def            &
             )                                                                  &
-        ) / (4.0_r_def*PI) * EXP(                                              &
-          -0.5_r_def * (dist / (                                               &
-            2.0_r_def*PI/(1.0_r_def + REAL(kmax, r_def)/3.0_r_def)             &
-          ))**2                                                                &
-        )
+        ) / (4.0_r_def*PI)
       end do
     end do
 
@@ -145,7 +145,7 @@ contains
 
     call convolution_2d_weights_code(                                          &
             nlayers, weights, chi1, chi2, chi3, stencil_size, stencil_map_chi, &
-            panel_id, stencil_size, stencil_map_pid, kmax, kmin,               &
+            panel_id, stencil_size, stencil_map_pid, kmax, kmin, sigma,        &
             geometry, topology, coord_system, scaled_radius,                   &
             ndf_2d, undf_2d, map_2d, ndf_chi, undf_chi, map_chi, basis_chi,    &
             ndf_pid, undf_pid, map_pid                                         &

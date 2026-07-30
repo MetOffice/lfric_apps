@@ -7,6 +7,10 @@
 !> @details This kernel computes weights for performing a convolution that is
 !!          used for nudging the spectrum of a field towards the spectrum of
 !!          a reference field.
+!!          The filter takes the form of a sum of Legendre polynomials which
+!!          help select certain wavenumbers to be nudged. The filter is
+!!          enveloped by a Gaussian function to ensure that the weights go
+!!          smoothly to zero.
 !!          Only implemented for the lowest-order elements
 module convolution_2d_weights_kernel_mod
 
@@ -36,7 +40,7 @@ module convolution_2d_weights_kernel_mod
   !> Contains the metadata needed by the Psy layer
   type, public, extends(kernel_type) :: convolution_2d_weights_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                                        &
+    type(arg_type) :: meta_args(10) = (/                                       &
         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_9), &
         arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_7,  &
                                                             STENCIL(REGION)),  &
@@ -44,6 +48,7 @@ module convolution_2d_weights_kernel_mod
                                                             STENCIL(REGION)),  &
         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                             &
         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                             &
+        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                             &
         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                             &
         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                             &
         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                             &
@@ -78,6 +83,7 @@ contains
 !> @param[in]     stencil_map_pid   Stencil map for the panel ID field
 !> @param[in]     kmax              Maximum wavenumber in filter
 !> @param[in]     kmin              Minimum wavenumber in filter
+!> @param[in]     sigma             Width of the Gaussian envelope to filter
 !> @param[in]     geometry          Geometry of the mesh
 !> @param[in]     topology          Topology of the mesh
 !> @param[in]     coord_system      System used by coordinate fields
@@ -104,6 +110,7 @@ subroutine convolution_2d_weights_code(nlayers,                                &
                                        stencil_map_pid,                        &
                                        kmax,                                   &
                                        kmin,                                   &
+                                       sigma,                                  &
                                        geometry,                               &
                                        topology,                               &
                                        coord_system,                           &
@@ -133,6 +140,7 @@ subroutine convolution_2d_weights_code(nlayers,                                &
   integer(kind=i_def), intent(in)    :: stencil_map_pid(ndf_pid, stencil_size_pid)
   real(kind=r_def),    intent(in)    :: basis_chi(1, ndf_chi, ndf_2d)
   integer(kind=i_def), intent(in)    :: kmax, kmin
+  real(kind=r_def),    intent(in)    :: sigma
   integer(kind=i_def), intent(in)    :: geometry, topology, coord_system
   real(kind=r_def),    intent(in)    :: scaled_radius
   real(kind=r_def),    intent(in)    :: panel_id(undf_pid)
@@ -243,11 +251,7 @@ subroutine convolution_2d_weights_code(nlayers,                                &
 
     ! Apply envelope to weights, to ensure they go smoothly to zero at the
     ! edge of the stencil, which can help avoid amplifying some wavenumbers
-    weights(idx_w) = weights(idx_w) * EXP(                                     &
-      -0.5_r_def * (dist / (                                                   &
-        2.0_r_def*PI/(1.0_r_def + REAL(kmax, r_def)/6.0_r_def)                 &
-      ))**2                                                                    &
-    )
+    weights(idx_w) = weights(idx_w) * EXP(-0.5_r_def * (dist / sigma)**2)
   end do
 
   ! Normalise the weights
