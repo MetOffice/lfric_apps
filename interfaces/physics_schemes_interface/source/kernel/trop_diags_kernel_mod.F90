@@ -40,6 +40,7 @@ contains
   procedure, nopass :: trop_diags_code
 end type
 
+
 public :: trop_diags_code
 
 contains
@@ -146,6 +147,9 @@ subroutine trop_diags_code(nlayers,                    &
   real(r_def), parameter :: tempcut = 243.0
 
 
+  logical(l_def), save :: print_once = .true.
+
+
   ! variables i need to find
   ! planet_radius (i seem to half-remember that lfric doesn't include this in "the numbers", unlike the um?)
 
@@ -163,9 +167,25 @@ subroutine trop_diags_code(nlayers,                    &
     t_wth(k) = theta_wth(map_wth(1)+k) * exner_wth(map_wth(1)+k)
   end do
 
+    if (print_once) then
+       write(log_scratch_space, '(A, I9)') 'planet_radius=', planet_radius
+       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    end if
+
+
   ! Locate the lapse-rate (WMO) tropopause
   trop_level = imdi
   do k=1, nlayers
+
+    if (print_once) then
+       write(log_scratch_space, '(A, I9)') 't_wth(k)=', t_wth(k)
+       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+       write(log_scratch_space, '(A, I9)') 'height_wth(k)=', height_wth(k)
+       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+       write(log_scratch_space, '(A, I9)') 'planet_radius=', planet_radius
+       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    end if
+
 
     if (t_wth(k) < tempcut .and.                         &
       height_wth(k)-planet_radius > heightcut_bot .and.  &
@@ -187,14 +207,21 @@ subroutine trop_diags_code(nlayers,                    &
             ! if 2km interval also < 2 then we have the tropopause level
             if (lapse_2km < lapse_trop) then
               trop_level = k
+              exit
             end if
 
           end if
 
-        end do
-      end if
+        end do  ! looking upwards for 2km
+
+      end if  ! lapse values in range
     end if
   end do
+
+  if (print_once) then
+     write(log_scratch_space, '(A, I0)') 'trop_level=', trop_level
+     call log_event(log_scratch_space, LOG_LEVEL_INFO)
+  end if
 
 
   ! if level found
@@ -244,6 +271,8 @@ subroutine trop_diags_code(nlayers,                    &
     end if
 
   end if
+
+  print_once = .false.
 
 end subroutine trop_diags_code
 
