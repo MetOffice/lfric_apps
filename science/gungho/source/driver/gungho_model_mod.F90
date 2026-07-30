@@ -496,6 +496,8 @@ contains
       ! Initialisation of UKCA physics variables
       call um_ukca_init(ncells_ukca, model_clock)
 
+      ! Maybe initialisation of radaer settings
+
     end if
 #endif
   end subroutine basic_initialisations
