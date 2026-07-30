@@ -120,7 +120,7 @@ subroutine trop_diags_code(nlayers,                    &
   integer(i_def) :: k, k2km
   integer(i_def) :: trop_level
   real(r_def) :: t_wth(nlayers)
-  real(r_def) :: lapse_above, lapse, lapse_below
+  real(r_def) :: lapse, lapse_below, lapse_above, lapse_2km
   real(r_def) :: dz
 !  real(r_def) :: lapse_upr, lapse_lwr
   real(r_def) :: delta_lapse, press_wth
@@ -177,13 +177,12 @@ subroutine trop_diags_code(nlayers,                    &
       if (lapse < lapse_trop .and. lapse_below > 0.0_r_def) then
         ! Lapse rate has dropped below the threshold. If this is maintained
         ! for 2km above then the WMO criteria for the tropopause has been met.
-        do k2km=k,model_levels
+        do k2km=k, nlayers
           if (height_wth(k2km)-planet_radius > heightcut_top) exit
           if ( (height_wth(k2km)-height_wth(k)) >= 2000.0 ) then
 
-
-            lapse_2km  = (t_wth(k) - t_wth(k2km)) / &
-                    (height_wth(k2km) - height_wth(k))
+            lapse_2km = (t_wth(k) - t_wth(k2km)) /         &
+                        (height_wth(k2km) - height_wth(k))
 
             ! if 2km interval also < 2 then we have the tropopause level
             if (lapse_2km < lapse_trop) then
