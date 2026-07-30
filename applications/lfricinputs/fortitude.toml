@@ -22,7 +22,6 @@ output-format = "grouped"                #group results by file
 
 "lfricinp_unit_handler_mod.f90" = ["C022"]
 "lfricinp_gather_lfric_field_mod.f90" = ["C121"]
-"read_from_file_mod.f90" = ["S071"]
 
 # Leaving out for now (these rules are used in the universal config):
 # C081, C061
