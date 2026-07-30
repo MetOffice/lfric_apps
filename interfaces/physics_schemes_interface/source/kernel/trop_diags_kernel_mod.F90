@@ -82,8 +82,8 @@ subroutine trop_diags_code(nlayers,                    &
                            ndf_2d, undf_2d, map_2d,    &
                            ndf_wth, undf_wth, map_wth)
 
-  use planet_config_mod,        only : p_zero, kappa
-  use missing_data_mod,         only : rmdi
+  use planet_config_mod,        only : p_zero, kappa, planet_radius
+  use missing_data_mod,         only : rmdi, imdi
   use icao_heights_kernel_mod,  only : icao_heights_kernel_code
   use empty_data_mod,           only : empty_real_data
 
@@ -116,11 +116,13 @@ subroutine trop_diags_code(nlayers,                    &
 
 
   ! Local variables
-  integer(i_def) :: k, kk
-  integer(i_def) :: lapse_rate_trop_level
-  real(r_def) :: exner_max, exner_min
-  real(r_def) :: t_wth(nlayers), lapse_rate(nlayers), lapse_rate_above, dz
-  real(r_def) :: lapse_upr, lapse_lwr, delta_lapse, press_wth
+  integer(i_def) :: k, k2km
+  integer(i_def) :: trop_level
+  real(r_def) :: t_wth(nlayers)
+  real(r_def) :: lapse_above, lapse, lapse_below
+  real(r_def) :: dz
+!  real(r_def) :: lapse_upr, lapse_lwr
+  real(r_def) :: delta_lapse, press_wth
 
   ! Parameters for WMO tropopause definition
   real(r_def), parameter :: lapse_trop = 0.002_r_def   ! K/m
@@ -134,8 +136,18 @@ subroutine trop_diags_code(nlayers,                    &
   real(r_def), parameter :: vsmall = 1.0e-9_r_def
 
 
-  exner_min = (p_min_trop/p_zero)**kappa
-  exner_max = (p_max_trop/p_zero)**kappa
+  ! cut off limits to be used in tropopause calculations.
+  ! todo: put this in a constants module? in the um it was in pws_diags_mod
+  ! arbritary limits for high and low trop levels for search
+  real(kind=real_umphys), parameter :: heightcut_top = 22000.0
+  real(kind=real_umphys), parameter :: heightcut_bot = 4500.0
+  ! max temp allowed for tropopause
+  real(kind=real_umphys), parameter :: tempcut = 243.0
+
+
+  ! variables i need to find
+  ! planet_radius (i seem to half-remember that lfric doesn't include this in "the numbers", unlike the um?)
+
 
   ! Initialise all outputs to missing data. They are only meaningful when a
   ! lapse-rate (WMO) tropopause has been located.
@@ -145,50 +157,55 @@ subroutine trop_diags_code(nlayers,                    &
   if (trop_height_flag)      trop_height(map_2d(1))      = rmdi
   if (trop_icao_height_flag) trop_icao_height(map_2d(1)) = rmdi
 
-  ! Temperature and lapse rate on wth levels
-  lapse_rate_trop_level = 0
-  t_wth(1) = theta_wth(map_wth(1)+1) * exner_wth(map_wth(1)+1)
-  do k=2, nlayers
+  ! Temperature on wth levels
+  do k=1, nlayers
     t_wth(k) = theta_wth(map_wth(1)+k) * exner_wth(map_wth(1)+k)
-    lapse_rate(k) = ( t_wth(k-1) - t_wth(k) ) &
-                  / ( height_wth(map_wth(1)+k) - height_wth(map_wth(1)+k-1) )
   end do
 
   ! Locate the lapse-rate (WMO) tropopause
-  do k=3, nlayers-1
-    if (exner_wth(map_wth(1)+k-1) > exner_min .and. &
-        exner_wth(map_wth(1)+k)   < exner_max) then
-      if (lapse_rate(k)   < lapse_trop .and. &
-          lapse_rate(k-1) > 0.0_r_def) then
+  trop_level = imdi
+  do k=1, nlayers
+
+    if (t_wth(k) < tempcut .and.                         &
+      height_wth(k)-planet_radius > heightcut_bot .and.  &
+      height_wth(k)-planet_radius < heightcut_top) then
+
+      lapse = (t_wth(k) - t_wth(k+1)) / (height_wth(k+1) - height_wth(k))
+      lapse_below = (t_wth(k-1) - t_wth(k)) / (height_wth(k) - height_wth(k-1))
+
+      if (lapse < lapse_trop .and. lapse_below > 0.0_r_def) then
         ! Lapse rate has dropped below the threshold. If this is maintained
         ! for 2km above then the WMO criteria for the tropopause has been met.
-        do kk=k+1, nlayers
-          dz = height_wth(map_wth(1)+kk) - height_wth(map_wth(1)+k)
-          if (dz >= dz_trop .or. kk==nlayers) then
-            lapse_rate_above = ( t_wth(k) - t_wth(kk) ) / dz
-            exit
+        do k2km=k,model_levels
+          if (height_wth(k2km)-planet_radius > heightcut_top) exit
+          if ( (height_wth(k2km)-height_wth(k)) >= 2000.0 ) then
+
+
+            lapse_2km  = (t_wth(k) - t_wth(k2km)) / &
+                    (height_wth(k2km) - height_wth(k))
+
+            ! if 2km interval also < 2 then we have the tropopause level
+            if (lapse_2km < lapse_trop) then
+              trop_level = k
+            end if
+
           end if
+
         end do
-        if (lapse_rate_above < lapse_trop) then
-          lapse_rate_trop_level = k
-          exit
-        end if
       end if
     end if
   end do
 
 
   ! if level found
-  if (lapse_rate_trop_level > 0) then
+  if (trop_level > 0) then
+    k = trop_level
 
-    k = lapse_rate_trop_level
+    ! todo: lapse_below was already calculated in the loop above
+    lapse_below = (t_wth(k-1) - t_wth(k)) / (height_wth(k) - height_wth(k-1))
+    lapse_above = (t_wth(k+1) - t_wth(k+2)) / (height_wth(k+2) - height_wth(k+1))
 
-    ! lapse rate for interval above, k+1 -> k+2
-    ! lapse rate for interval below, k-1 -> k
-    lapse_upr = lapse_rate(min(k+2, nlayers))
-    lapse_lwr = lapse_rate(k)
-
-    delta_lapse = lapse_lwr - lapse_upr
+    delta_lapse = lapse_below - lapse_above
     if ( abs(delta_lapse) < vsmall ) then
       if ( delta_lapse >= 0.0_r_def ) delta_lapse =  vsmall
       if ( delta_lapse <  0.0_r_def ) delta_lapse = -vsmall
@@ -197,26 +214,26 @@ subroutine trop_diags_code(nlayers,                    &
     ! height of tropopause between k and k+1
     if (trop_height_flag) then
       trop_height(map_2d(1)) = (                                     &
-          (t_wth(k)   + (lapse_lwr * height_wth(map_wth(1)+k)))      &
-        - (t_wth(k+1) + (lapse_upr * height_wth(map_wth(1)+k+1)))    &
+          (t_wth(k)   + (lapse_below * height_wth(map_wth(1)+k)))      &
+        - (t_wth(k+1) + (lapse_above * height_wth(map_wth(1)+k+1)))    &
         ) / delta_lapse
     end if
 
     ! temperature at tropopause
     if (trop_temp_flag) then
       trop_temp(map_2d(1)) = t_wth(k) -                              &
-        lapse_lwr * (trop_height(map_2d(1)) - height_wth(map_wth(1)+k))
+        lapse_below * (trop_height(map_2d(1)) - height_wth(map_wth(1)+k))
     end if
 
     ! pressure at tropopause is derived from the hydrostatic equation
     if (trop_pres_flag) then
-      if ( abs(lapse_lwr) < vsmall ) then
-        if ( lapse_lwr >= 0.0_r_def ) lapse_lwr =  vsmall
-        if ( lapse_lwr <  0.0_r_def ) lapse_lwr = -vsmall
+      if ( abs(lapse_below) < vsmall ) then
+        if ( lapse_below >= 0.0_r_def ) lapse_below =  vsmall
+        if ( lapse_below <  0.0_r_def ) lapse_below = -vsmall
       end if
       press_wth = p_zero * exner_wth(map_wth(1)+k) ** (1.0_r_def / kappa)
       trop_press(map_2d(1)) = press_wth *                           &
-        (trop_temp(map_2d(1)) / t_wth(k)) ** (g_over_r / lapse_lwr)
+        (trop_temp(map_2d(1)) / t_wth(k)) ** (g_over_r / lapse_below)
     end if
 
     ! ICAO height of the tropopause
