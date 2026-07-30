@@ -668,15 +668,15 @@ contains
 
     ! Configuration variables
     integer(kind=i_def) :: nudging_level_bottom, nudging_level_top
-    integer(kind=i_def) :: nudging_width_bottom, nudging_width_top
+    integer(kind=i_def) :: nudging_taper_bottom, nudging_taper_top
     real(kind=r_def)    :: nudging_spinup_start, nudging_spinup_end
     real(kind=r_def)    :: nudging_relax_time
 
     ! Get nudging configuration variables
     nudging_level_bottom = config%nudging%nudging_level_bottom()
     nudging_level_top = config%nudging%nudging_level_top()
-    nudging_width_bottom = config%nudging%nudging_width_bottom()
-    nudging_width_top = config%nudging%nudging_width_top()
+    nudging_taper_bottom = config%nudging%nudging_taper_bottom()
+    nudging_taper_top = config%nudging%nudging_taper_top()
     nudging_spinup_start = config%nudging%nudging_spinup_start()
     nudging_spinup_end = config%nudging%nudging_spinup_end()
     nudging_relax_time = config%nudging%nudging_relax_time()
@@ -731,7 +731,7 @@ contains
       call invoke(                                                             &
           nudging_weights_kernel_type(                                         &
               nudging_weights, nudging_level_bottom, nudging_level_top,        &
-              nudging_width_bottom, nudging_width_top                          &
+              nudging_taper_bottom, nudging_taper_top                          &
           ),                                                                   &
           inc_a_times_X(nudging_spinup_ratio, nudging_weights)                 &
       )
@@ -742,7 +742,7 @@ contains
       call invoke(                                                             &
           nudging_weights_kernel_type(                                         &
               nudging_weights, nudging_level_bottom, nudging_level_top,        &
-              nudging_width_bottom, nudging_width_top                          &
+              nudging_taper_bottom, nudging_taper_top                          &
           ),                                                                   &
           inc_a_times_X(nudging_spinup_ratio, nudging_weights)                 &
       )

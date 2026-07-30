@@ -7,8 +7,6 @@
 !> @details This kernel computes the height-dependent weights used in spectral
 !!          nudging, to allow the nudging to be targeted at certain vertical
 !!          heights in the atmosphere.
-!!          The weights are currently ramped linearly from 0 at the surface to
-!!          2km, and then held constant above this height
 !!          Only implemented for the lowest-order elements
 module nudging_weights_kernel_mod
 
@@ -16,9 +14,9 @@ module nudging_weights_kernel_mod
                                        GH_FIELD, GH_SCALAR,                    &
                                        GH_REAL, GH_INTEGER,                    &
                                        GH_READ, GH_WRITE,                      &
+                                       ANY_DISCONTINUOUS_SPACE_1,              &
                                        CELL_COLUMN
-  use constants_mod,             only: r_def, i_def
-  use fs_continuity_mod,         only: W3
+  use constants_mod,             only: r_def, i_def, EPS
   use kernel_mod,                only: kernel_type
 
   implicit none
@@ -33,7 +31,7 @@ module nudging_weights_kernel_mod
   type, public, extends(kernel_type) :: nudging_weights_kernel_type
     private
     type(arg_type) :: meta_args(5) = (/                                        &
-        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W3),                         &
+        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),  &
         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &
         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &
         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &
@@ -54,10 +52,12 @@ contains
 !> @brief Computes weights for scaling the spectral nudging increment.
 !> @param[in]     nlayers             Number of layers
 !> @param[in,out] weights             The weights to be computed
-!> @param[in]     bottom_nudge_level  Level below which nudging is turned off
-!> @param[in]     top_nudge_level     Level above which nudging is turned off
-!> @param[in]     bottom_nudge_width  Width of the ramp at the bottom
-!> @param[in]     top_nudge_width     Width of the ramp at the top
+!> @param[in]     bottom_nudge_level  Level at and above which nudging is full
+!!                                    strength
+!> @param[in]     top_nudge_level     Level at and below which nudging is full
+!!                                    strength
+!> @param[in]     taper_bottom_level  Level at and below which nudging is 0
+!> @param[in]     taper_top_level     Level at and above which nudging is 0
 !> @param[in]     ndf                 Num DoFs per cell
 !> @param[in]     undf                Num DoFs in this partition
 !> @param[in]     map                 DoFmap for this column
@@ -65,8 +65,8 @@ subroutine nudging_weights_code(nlayers,                                       &
                                 weights,                                       &
                                 bottom_nudge_level,                            &
                                 top_nudge_level,                               &
-                                bottom_nudge_width,                            &
-                                top_nudge_width,                               &
+                                taper_bottom_level,                            &
+                                taper_top_level,                               &
                                 ndf,                                           &
                                 undf,                                          &
                                 map)
@@ -80,37 +80,52 @@ subroutine nudging_weights_code(nlayers,                                       &
   integer(kind=i_def), intent(in)    :: map(ndf)
   integer(kind=i_def), intent(in)    :: bottom_nudge_level
   integer(kind=i_def), intent(in)    :: top_nudge_level
-  integer(kind=i_def), intent(in)    :: bottom_nudge_width
-  integer(kind=i_def), intent(in)    :: top_nudge_width
+  integer(kind=i_def), intent(in)    :: taper_bottom_level
+  integer(kind=i_def), intent(in)    :: taper_top_level
   real(kind=r_def),    intent(inout) :: weights(undf)
 
 
   ! Local variables
   integer(kind=i_def) :: k, idx, nl
+  real(kind=r_def)    :: k_real, w3_offset
+  real(kind=r_def)    :: taper_bottom, nudging_bottom, nudging_top, taper_top
 
-  nl = nlayers - 2 + ndf  ! nlayers for Wtheta, nlayers - 1 for W3
+  nl = nlayers + ndf - 2  ! nlayers for W3, nlayers+1 for Wtheta
+  w3_offset = 0.5_r_def * real(2 - ndf, r_def)  ! 0.5 for W3, 0.0 for Wtheta
   idx = map(1)
 
-  do k = 0, bottom_nudge_level-bottom_nudge_width-1
-    weights(idx + k) = 0.0_r_def
-  end do
+  ! Convert levels to reals for comparison with k_real
+  taper_bottom = real(taper_bottom_level, r_def)
+  nudging_bottom = real(bottom_nudge_level, r_def)
+  nudging_top = real(top_nudge_level, r_def)
+  taper_top = real(taper_top_level, r_def)
 
-  do k = bottom_nudge_level-bottom_nudge_width, bottom_nudge_level+bottom_nudge_width
-    weights(idx + k) = real(k - (bottom_nudge_level - bottom_nudge_width), r_def) / &
-                       real(MAX(1, 2*bottom_nudge_width), r_def)
-  end do
+  do k = 0, nl
+    k_real = real(k, r_def) + w3_offset
 
-  do k = bottom_nudge_level+bottom_nudge_width, top_nudge_level-top_nudge_width-1
-    weights(idx + k) = 1.0_r_def
-  end do
+    ! Below start of taper, weights = 0
+    if (k_real < taper_bottom + EPS) then
+      weights(idx + k) = 0.0_r_def
 
-  do k = top_nudge_level-top_nudge_width+1, top_nudge_level+top_nudge_width
-    weights(idx + k) = 1.0_r_def - real(k - (top_nudge_level - top_nudge_width), r_def) / &
-                       real(MAX(1, 2*top_nudge_width), r_def)
-  end do
+    ! Ramp up from 0 to 1 between taper_bottom and nudging_bottom
+    else if (k_real < nudging_bottom + EPS) then
+      weights(idx + k) = (k_real - taper_bottom) /                             &
+                         max(1.0_r_def, nudging_bottom - taper_bottom)
 
-  do k = top_nudge_level+top_nudge_width+1, nl
-    weights(idx + k) = 0.0_r_def
+    ! Full nudging between nudging_bottom and nudging_top
+    else if (k_real < nudging_top + EPS) then
+      weights(idx + k) = 1.0_r_def
+
+    ! Ramp down from 1 to 0 between nudging_top and taper_top
+    else if (k_real < taper_top + EPS) then
+      weights(idx + k) = 1.0_r_def - (k_real - nudging_top) /                  &
+                                     max(1.0_r_def, taper_top - nudging_top)
+
+    ! Above taper_top, weights = 0
+    else
+      weights(idx + k) = 0.0_r_def
+
+    end if
   end do
 
 end subroutine nudging_weights_code

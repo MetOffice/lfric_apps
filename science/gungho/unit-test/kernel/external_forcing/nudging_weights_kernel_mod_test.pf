@@ -24,31 +24,51 @@ contains
 
     implicit none
 
-    integer(kind=i_def), parameter :: nlayers = 10
-    integer(kind=i_def), parameter :: ndf = 1
-    integer(kind=i_def), parameter :: undf = nlayers
+    integer(kind=i_def), parameter :: nlayers = 20
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: undf_w3 = nlayers
+    integer(kind=i_def), parameter :: ndf_wt = 2
+    integer(kind=i_def), parameter :: undf_wt = nlayers + 1
     real(kind=r_def),    parameter :: tol = 10.0_r_def*epsilon(1.0_r_def)
 
-    integer(kind=i_def) :: map(ndf)
-    real(kind=r_def)    :: answer(undf)
-    real(kind=r_def)    :: weights(undf)
-    integer(kind=i_def) :: bottom_level, top_level, bottom_width, top_width
+    integer(kind=i_def) :: map_w3(ndf_w3), map_wt(ndf_wt)
+    real(kind=r_def)    :: answer_w3(undf_w3), answer_wt(undf_wt)
+    real(kind=r_def)    :: weights_w3(undf_w3), weights_wt(undf_wt)
+    integer(kind=i_def) :: bottom_level, top_level, bottom_taper, top_taper
 
-    map(1) = 1
-    bottom_level = 2
-    top_level = 7
-    bottom_width = 1
-    top_width = 2
-    answer = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def, 1.0_r_def, 1.0_r_def,         &
-                1.0_r_def, 0.75_r_def, 0.5_r_def, 0.25_r_def, 0.0_r_def /)
-    weights(:) = 0.0_r_def
+    map_w3(1) = 1
+    map_wt(1) = 1
+    map_wt(2) = 2
+    bottom_taper = 2
+    bottom_level = 3
+    top_level = 16
+    top_taper = 18
+    answer_w3 = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def, 1.0_r_def, 1.0_r_def,      &
+                   1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def,      &
+                   1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def,      &
+                   1.0_r_def, 0.75_r_def, 0.25_r_def, 0.0_r_def, 0.0_r_def /)
+    answer_wt = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def, 1.0_r_def, 1.0_r_def,      &
+                   1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def,      &
+                   1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def,      &
+                   1.0_r_def, 1.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def,      &
+                   0.0_r_def /)
 
+    weights_w3(:) = 100.0_r_def
     call nudging_weights_code(                                                 &
-        nlayers, weights, bottom_level, top_level, bottom_width, top_width,    &
-        ndf, undf, map                                                         &
+        nlayers, weights_w3, bottom_level, top_level, bottom_taper, top_taper, &
+        ndf_w3, undf_w3, map_w3                                                &
+    )
+    weights_wt(:) = 100.0_r_def
+    call nudging_weights_code(                                                 &
+        nlayers, weights_wt, bottom_level, top_level, bottom_taper, top_taper, &
+        ndf_wt, undf_wt, map_wt                                                &
     )
 
-    @assertEqual(answer, weights, tol)
+    write(*,*) 'weights_w3 = ', weights_w3
+    write(*,*) 'weights_wt = ', weights_wt
+
+    @assertEqual(answer_w3, weights_w3, tol)
+    @assertEqual(answer_wt, weights_wt, tol)
 
   end subroutine test_all
 
