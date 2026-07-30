@@ -82,7 +82,8 @@ subroutine trop_diags_code(nlayers,                    &
                            ndf_2d, undf_2d, map_2d,    &
                            ndf_wth, undf_wth, map_wth)
 
-  use planet_config_mod,        only : p_zero, kappa, planet_radius
+  use planet_config_mod,        only : p_zero, kappa
+  use planet_constants_mod,     only : planet_radius
   use missing_data_mod,         only : rmdi, imdi
   use icao_heights_kernel_mod,  only : icao_heights_kernel_code
   use empty_data_mod,           only : empty_real_data
@@ -139,10 +140,10 @@ subroutine trop_diags_code(nlayers,                    &
   ! cut off limits to be used in tropopause calculations.
   ! todo: put this in a constants module? in the um it was in pws_diags_mod
   ! arbritary limits for high and low trop levels for search
-  real(kind=real_umphys), parameter :: heightcut_top = 22000.0
-  real(kind=real_umphys), parameter :: heightcut_bot = 4500.0
+  real(r_def), parameter :: heightcut_top = 22000.0
+  real(r_def), parameter :: heightcut_bot = 4500.0
   ! max temp allowed for tropopause
-  real(kind=real_umphys), parameter :: tempcut = 243.0
+  real(r_def), parameter :: tempcut = 243.0
 
 
   ! variables i need to find
