@@ -73,10 +73,8 @@ module lfric2lfric_init_mod
 
     ! For get_field_list returns
     integer(kind=i_def)                 :: num_fields
-    character(len=str_def), allocatable :: source_config_list(:)
-    character(len=str_def), allocatable :: target_config_list(:)
-    character(len=nf90_max_name)        :: source_prefix
-    character(len=nf90_max_name)        :: target_prefix
+    character(len=str_def), allocatable :: config_list(:)
+    character(len=nf90_max_name)        :: prefix
 
     ! Source context pointer and temporary context for setup
     type(lfric_xios_context_type), pointer :: io_context
@@ -87,23 +85,14 @@ module lfric2lfric_init_mod
     call log_event( 'lfric2lfric: Initialising miniapp ...', log_level_info )
 
     if (mode == mode_ics) then
-      source_prefix = 'restart_'
+      prefix = 'restart_'
     else if (mode == mode_lbc) then
-      source_prefix = ''
-    end if
-    if (mode == mode_ics) then
-      target_prefix = 'checkpoint_'
-    else if (mode == mode_lbc) then
-      target_prefix = 'lbc_'
+      prefix = ''
     end if
 
     ! Get field names from filename and validate presence in iodef.xml
-    call get_field_list( num_fields, target_config_list, &
-         start_dump_filename, target_prefix )
-    
-    call get_field_list( num_fields, source_config_list, &
-         start_dump_filename, source_prefix )
-    
+    call get_field_list( num_fields, config_list, start_dump_filename, prefix )
+
     !--------------------------------------------------------------------------
     ! Initialise Source Fields
     !--------------------------------------------------------------------------
@@ -113,10 +102,10 @@ module lfric2lfric_init_mod
 
     ! Now need to loop over length of config_list make field for each
     do i = 1, num_fields
-      call field_maker( field_collection,      &
-                        source_config_list(i), &
-                        origin_mesh,           &
-                        origin_twod_mesh,      &
+      call field_maker( field_collection, &
+                        config_list(i),   &
+                        origin_mesh,      &
+                        origin_twod_mesh, &
                         prefix )
     end do
 
@@ -130,12 +119,18 @@ module lfric2lfric_init_mod
     call modeldb%io_contexts%get_io_context(context_dst, io_context)
     call io_context%set_current()
 
+    if (mode == mode_ics) then
+      prefix = 'checkpoint_'
+    else if (mode == mode_lbc) then
+      prefix = 'lbc_'
+    end if
+
     do i = 1, num_fields
-      call field_maker( field_collection,      &
-                        target_config_list(i), &
-                        target_mesh,           &
-                        target_twod_mesh,      &
-                        target_prefix )
+      call field_maker( field_collection, &
+                        config_list(i),   &
+                        target_mesh,      &
+                        target_twod_mesh, &
+                        prefix )
     end do
 
     call modeldb%io_contexts%get_io_context(context_src, io_context)
