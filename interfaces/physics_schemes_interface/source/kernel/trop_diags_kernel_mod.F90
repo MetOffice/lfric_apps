@@ -30,8 +30,8 @@ type, public, extends(kernel_type) :: trop_diags_kernel_type
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_temp_flag
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_height_flag
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_icao_height_flag
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
        arg_type(GH_SCALAR, GH_REAL, GH_READ)                             & ! g_over_r
     /)
@@ -56,8 +56,8 @@ contains
 !> @param[in]  trop_temp_flag         Request flag
 !> @param[in]  trop_height_flag       Request flag
 !> @param[in]  trop_icao_height_flag  Request flag
-!> @param[in]  theta                  Potential temperature
-!> @param[in]  exner_in_wth           Exner pressure in wth space
+!> @param[in]  theta_wth              Potential temperature
+!> @param[in]  exner_wth              Exner pressure in wth space
 !> @param[in]  height_wth             Height of wth levels above surface
 !> @param[in]  g_over_r               Gravity / specific dry air gas constant
 !> @param[in]  ndf_wth                No. DOFs per cell for wth space
@@ -75,11 +75,11 @@ subroutine trop_diags_code(nlayers,                    &
                            trop_temp_flag,             &
                            trop_height_flag,           &
                            trop_icao_height_flag,      &
-                           theta,                      &
-                           exner_in_wth,               &
+                           theta_wth,                  &
+                           exner_wth,                  &
                            height_wth,                 &
                            g_over_r,                   &
-                           ndf_2d, undf_2d, map_2d, &
+                           ndf_2d, undf_2d, map_2d,    &
                            ndf_wth, undf_wth, map_wth)
 
   use planet_config_mod,        only : p_zero, kappa
@@ -100,8 +100,8 @@ subroutine trop_diags_code(nlayers,                    &
   logical(l_def), intent(in)                   :: trop_height_flag
   logical(l_def), intent(in)                   :: trop_icao_height_flag
 
-  real(r_def), dimension(undf_wth), intent(in) :: theta
-  real(r_def), dimension(undf_wth), intent(in) :: exner_in_wth
+  real(r_def), dimension(undf_wth), intent(in) :: theta_wth
+  real(r_def), dimension(undf_wth), intent(in) :: exner_wth
   real(r_def), dimension(undf_wth), intent(in) :: height_wth
   real(r_def), intent(in)                      :: g_over_r
 
@@ -126,7 +126,7 @@ subroutine trop_diags_code(nlayers,                    &
   real(r_def), parameter :: lapse_trop = 0.002_r_def   ! K/m
   real(r_def), parameter :: dz_trop = 2000.0_r_def     ! m
 
-  ! Parameters to limitguaranteed tropopause to given pressure range
+  ! Parameters to limit tropopause to given pressure range
   real(r_def), parameter :: p_min_trop = 5000.0_r_def  ! Pa
   real(r_def), parameter :: p_max_trop = 50000.0_r_def ! Pa
 
@@ -139,6 +139,7 @@ subroutine trop_diags_code(nlayers,                    &
 
   ! Initialise all outputs to missing data. They are only meaningful when a
   ! lapse-rate (WMO) tropopause has been located.
+  ! todo: do this to fields which are initialised (not just the requested)
   if (trop_pres_flag)        trop_press(map_2d(1))       = rmdi
   if (trop_temp_flag)        trop_temp(map_2d(1))        = rmdi
   if (trop_height_flag)      trop_height(map_2d(1))      = rmdi
@@ -146,17 +147,17 @@ subroutine trop_diags_code(nlayers,                    &
 
   ! Temperature and lapse rate on wth levels
   lapse_rate_trop_level = 0
-  t_wth(1) = theta(map_wth(1)+1) * exner_in_wth(map_wth(1)+1)
+  t_wth(1) = theta_wth(map_wth(1)+1) * exner_wth(map_wth(1)+1)
   do k=2, nlayers
-    t_wth(k) = theta(map_wth(1)+k) * exner_in_wth(map_wth(1)+k)
+    t_wth(k) = theta_wth(map_wth(1)+k) * exner_wth(map_wth(1)+k)
     lapse_rate(k) = ( t_wth(k-1) - t_wth(k) ) &
                   / ( height_wth(map_wth(1)+k) - height_wth(map_wth(1)+k-1) )
   end do
 
   ! Locate the lapse-rate (WMO) tropopause
   do k=3, nlayers-1
-    if (exner_in_wth(map_wth(1)+k-1) > exner_min .and. &
-        exner_in_wth(map_wth(1)+k)   < exner_max) then
+    if (exner_wth(map_wth(1)+k-1) > exner_min .and. &
+        exner_wth(map_wth(1)+k)   < exner_max) then
       if (lapse_rate(k)   < lapse_trop .and. &
           lapse_rate(k-1) > 0.0_r_def) then
         ! Lapse rate has dropped below the threshold. If this is maintained
@@ -213,7 +214,7 @@ subroutine trop_diags_code(nlayers,                    &
         if ( lapse_lwr >= 0.0_r_def ) lapse_lwr =  vsmall
         if ( lapse_lwr <  0.0_r_def ) lapse_lwr = -vsmall
       end if
-      press_wth = p_zero * exner_in_wth(map_wth(1)+k) ** (1.0_r_def / kappa)
+      press_wth = p_zero * exner_wth(map_wth(1)+k) ** (1.0_r_def / kappa)
       trop_press(map_2d(1)) = press_wth *                           &
         (trop_temp(map_2d(1)) / t_wth(k)) ** (g_over_r / lapse_lwr)
     end if
