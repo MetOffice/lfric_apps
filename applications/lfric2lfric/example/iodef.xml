@@ -24,6 +24,7 @@
 
         <!-- Turbulence fields -->
 	      <field id="restart_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
+              <field id="restart_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_rgrain" unit="" domain_ref="face" operation="once" axis_ref="surface_tiles"/>
        </field_group>
       </file>
     </file_definition>
@@ -63,7 +64,8 @@
         <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" prec="8" domain_ref="checkpoint_W3" operation="once" />
 
         <!-- Turbulence fields -->
-	      <field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
+	<field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
+	<field id="checkpoint_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_rgrain" unit="" domain_ref="face" operation="once" axis_ref="land_tiles"/>
 
       </file>
     </file_definition>
