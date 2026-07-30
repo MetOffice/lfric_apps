@@ -79,8 +79,8 @@ subroutine trop_diags_code(nlayers,                    &
                            exner_in_wth,               &
                            height_wth,                 &
                            g_over_r,                   &
-                           ndf_wth, undf_wth, map_wth, &
-                           ndf_2d, undf_2d, map_2d)
+                           ndf_2d, undf_2d, map_2d, &
+                           ndf_wth, undf_wth, map_wth)
 
   use planet_config_mod,        only : p_zero, kappa
   use missing_data_mod,         only : rmdi
@@ -108,11 +108,11 @@ subroutine trop_diags_code(nlayers,                    &
 
   ! Arguments (kernel)
   integer(i_def), intent(in) :: nlayers
-  integer(i_def), intent(in) :: ndf_wth, ndf_2d
-  integer(i_def), intent(in) :: undf_wth, undf_2d
+  integer(i_def), intent(in) :: ndf_2d, ndf_wth
+  integer(i_def), intent(in) :: undf_2d, undf_wth
 
-  integer(i_def), dimension(ndf_wth), intent(in) :: map_wth
   integer(i_def), dimension(ndf_2d),  intent(in) :: map_2d
+  integer(i_def), dimension(ndf_wth), intent(in) :: map_wth
 
 
   ! Local variables
