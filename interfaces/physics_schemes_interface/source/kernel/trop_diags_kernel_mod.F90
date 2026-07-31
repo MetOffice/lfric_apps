@@ -172,7 +172,7 @@ subroutine trop_diags_code(nlayers,                    &
   end do
 
     if (print_once) then
-       write(log_scratch_space, '(A, I9)') 'planet_radius=', planet_radius
+       write(log_scratch_space, *) 'planet_radius=', planet_radius
        call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
     end if
 
@@ -182,11 +182,11 @@ subroutine trop_diags_code(nlayers,                    &
   do k=1, nlayers
 
     if (print_once) then
-       write(log_scratch_space, '(A, I9)') 't_wth(k)=', t_wth(k)
+       write(log_scratch_space, *) 't_wth(k)=', t_wth(k)
        call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-       write(log_scratch_space, '(A, I9)') 'height_wth(k)=', height_wth(k)
+       write(log_scratch_space, *) 'height_wth(k)=', height_wth(k)
        call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-       write(log_scratch_space, '(A, I9)') 'planet_radius=', planet_radius
+       write(log_scratch_space, *) 'planet_radius=', planet_radius
        call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
     end if
 
