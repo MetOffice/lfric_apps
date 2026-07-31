@@ -84,7 +84,7 @@ subroutine trop_diags_code(nlayers,                    &
                            ndf_2d, undf_2d, map_2d)
 
   use planet_config_mod,        only : p_zero, kappa
-  use planet_constants_mod,     only : planet_radius
+!  use planet_constants_mod,     only : planet_radius
   use missing_data_mod,         only : rmdi, imdi
   use icao_heights_kernel_mod,  only : icao_heights_kernel_code
   use empty_data_mod,           only : empty_real_data
@@ -153,10 +153,6 @@ subroutine trop_diags_code(nlayers,                    &
   logical(l_def), save :: print_once = .true.
 
 
-  ! variables i need to find
-  ! planet_radius (i seem to half-remember that lfric doesn't include this in "the numbers", unlike the um?)
-
-
   ! Initialise all outputs to missing data. They are only meaningful when a
   ! lapse-rate (WMO) tropopause has been located.
   ! todo: do this to fields which are initialised (not just the requested)
@@ -173,8 +169,8 @@ subroutine trop_diags_code(nlayers,                    &
   if (print_once) then
      write(log_scratch_space, *) 'nlayers=', nlayers
      call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-     write(log_scratch_space, *) 'planet_radius=', planet_radius
-     call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
+!     write(log_scratch_space, *) 'planet_radius=', planet_radius
+!     call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
   end if
 
 
@@ -190,9 +186,12 @@ subroutine trop_diags_code(nlayers,                    &
     end if
 
 
+!    if (t_wth(k) < tempcut .and.                         &
+!      height_wth(k)-planet_radius > heightcut_bot .and.  &
+!      height_wth(k)-planet_radius < heightcut_top) then
     if (t_wth(k) < tempcut .and.                         &
-      height_wth(k)-planet_radius > heightcut_bot .and.  &
-      height_wth(k)-planet_radius < heightcut_top) then
+        height_wth(k) > heightcut_bot .and.  &
+        height_wth(k) < heightcut_top) then
 
       lapse = (t_wth(k) - t_wth(k+1)) / (height_wth(k+1) - height_wth(k))
       lapse_below = (t_wth(k-1) - t_wth(k)) / (height_wth(k) - height_wth(k-1))
@@ -201,18 +200,16 @@ subroutine trop_diags_code(nlayers,                    &
         ! Lapse rate has dropped below the threshold. If this is maintained
         ! for 2km above then the WMO criteria for the tropopause has been met.
         do k2km=k, nlayers
-          if (height_wth(k2km)-planet_radius > heightcut_top) exit
-          if ( (height_wth(k2km)-height_wth(k)) >= 2000.0 ) then
+!          if (height_wth(k2km)-planet_radius > heightcut_top) exit
+          if (height_wth(k2km) > heightcut_top) exit
 
-            lapse_2km = (t_wth(k) - t_wth(k2km)) /         &
-                        (height_wth(k2km) - height_wth(k))
-
+          if ((height_wth(k2km)-height_wth(k)) >= 2000.0 ) then
+            lapse_2km = (t_wth(k) - t_wth(k2km)) / (height_wth(k2km) - height_wth(k))
             ! if 2km interval also < 2 then we have the tropopause level
             if (lapse_2km < lapse_trop) then
               trop_level = k
               exit
             end if
-
           end if
 
         end do  ! looking upwards for 2km
