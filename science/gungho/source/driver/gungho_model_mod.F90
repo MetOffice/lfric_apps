@@ -482,9 +482,6 @@ contains
       ! Initialisation of UM physics variables
       call um_physics_init()
 
-      ! Read all the radaer lut namelist files
-      call um_radaer_lut_init()
-
       ! Initialisation of Jules high-level variables
       call jules_control_init()
 
@@ -495,8 +492,13 @@ contains
 
       ! Initialisation of UKCA physics variables
       call um_ukca_init(ncells_ukca, model_clock)
+      ! This is the way into the UKCA repo
 
-      ! Maybe initialisation of radaer settings
+      ! Read all the radaer lut namelist files
+      call um_radaer_lut_init()
+
+      ! Maybe initialisation of radaer settings here
+      ! I should move the um_radaer_lut_init call here
 
     end if
 #endif
