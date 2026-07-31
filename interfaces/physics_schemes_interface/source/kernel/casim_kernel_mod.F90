@@ -366,7 +366,7 @@ subroutine casim_code( nlayers,                     &
 
     real(r_def) :: mwfv          ! Mass weighted fallspeed from the level above
     real(r_def) :: ice_above     ! Frozen water content of the level above
-    real(r_def) :: temp3         ! Fraction of the layer depth fallen through
+    real(r_def) :: frac_dep      ! Fraction of the layer depth fallen through
     real(r_def) :: overhang      ! Ice cloud overhang between levels
     real(r_def) :: dudz, dvdz    ! Wind differences across the layer
     real(r_def) :: shear         ! Magnitude of the vertical wind shear
@@ -659,11 +659,11 @@ subroutine casim_code( nlayers,                     &
           else
             mwfv = 0.0_r_def
           end if
-          temp3 = mwfv / deltaz(1,1,k)
+          frac_dep = mwfv / deltaz(1,1,k)
 
-          ! Ensure temp3 is positive
+          ! Ensure frac_dep is positive
           ! but allow "fraction fallen" to be > 1.
-          temp3 = max(temp3, 0.0_r_def)
+          frac_dep = max(frac_dep, 0.0_r_def)
 
           !--------------------------------------------------------------
           ! Calculate the amount of cloud overhang between levels
@@ -703,7 +703,8 @@ subroutine casim_code( nlayers,                     &
           ! certain fraction of the depth of the layer. Now assume the
           ! cloud fills the whole depth of the layer and
           ! reduce the lateral extent while conserving cloud volume.
-          deltacff = min(temp3 * overhang, 1.0_r_def - cff_wth(map_wth(1) + k))
+          deltacff = min(frac_dep * overhang, &
+                         1.0_r_def - cff_wth(map_wth(1) + k))
 
           ! Augment the change in ice cloud fraction to account
           ! for the lateral spreading out of ice cloud (e.g. cirrus).
