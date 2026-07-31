@@ -66,7 +66,7 @@ class vn32_t670(MacroUpgrade):
             config, ["namelist:nudging", "spectral_stencil_extent"], "12"
         )
         self.add_setting(
-            config, ["namelist:nudging", "spectral_envelope_width"], "12"
+            config, ["namelist:nudging", "spectral_envelope_width"], "0.1"
         )
         # Remove retired settings
         self.remove_setting(config, ["namelist:nudging", "nudging_source"])
