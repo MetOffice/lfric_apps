@@ -519,7 +519,7 @@
         "mesh_memory": [20, "GB"],
         "xios_nodes": 5,
         "mpi_parts_xios" : 147,
-        "log_level": "debug",
+        "log_level": "info",
         "log_to_rank_zero_only": ".true.",
         "xios_info_level": 1,
         "xios_print_file": ".true.",
