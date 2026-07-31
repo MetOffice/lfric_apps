@@ -171,12 +171,12 @@ subroutine trop_diags_code(nlayers,                    &
     t_wth(k) = theta_wth(map_wth(1)+k) * exner_wth(map_wth(1)+k)
   end do
 
-    if (print_once) then
-       write(log_scratch_space, *) 'nlayers=', nlayers
-       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-       write(log_scratch_space, *) 'planet_radius=', planet_radius
-       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-    end if
+  if (print_once) then
+     write(log_scratch_space, *) 'nlayers=', nlayers
+     call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
+     write(log_scratch_space, *) 'planet_radius=', planet_radius
+     call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
+  end if
 
 
   ! Locate the lapse-rate (WMO) tropopause
