@@ -8,7 +8,7 @@
 RADAER API
 ==========
 
-:Author: A._Hewitt
+:Author: Alan J Hewitt
 
 Description of RADAER API
 =========================
@@ -17,7 +17,7 @@ Radaer will be available to the parent application via a single API module as
 a minimal set of top_level subroutines. These will include an initialisation
 function to correctly set up radaer for the user inputs and a runtime module.
 
-Names of subroutines presented via the API will start ukca_radaer_
+Names of subroutines presented via the API will start ```ukca_radaer_```
 
 All run time communication between the parent model and UKCA will be via
 argument lists.
