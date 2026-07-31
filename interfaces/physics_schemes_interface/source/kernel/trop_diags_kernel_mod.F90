@@ -19,9 +19,14 @@ implicit none
 
 private
 
+! layered input fields before flat output fields for nlayers > 1
 type, public, extends(kernel_type) :: trop_diags_kernel_type
   private
   type(arg_type) :: meta_args(12) = (/                                    &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
+       arg_type(GH_SCALAR, GH_REAL, GH_READ),                            & ! g_over_r
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_press
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_temp
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_height
@@ -29,17 +34,12 @@ type, public, extends(kernel_type) :: trop_diags_kernel_type
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_press_flag
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_temp_flag
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_height_flag
-       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),                         & ! trop_icao_height_flag
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta_wth
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_wth
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
-       arg_type(GH_SCALAR, GH_REAL, GH_READ)                             & ! g_over_r
+       arg_type(GH_SCALAR, GH_LOGICAL, GH_READ)                          & ! trop_icao_height_flag
     /)
   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: trop_diags_code
 end type
-
 
 public :: trop_diags_code
 
@@ -49,6 +49,10 @@ contains
 !> @details If a field is not empty, its dependencies are guaranteed by the caller.
 !>          If the tropopause is not found, outputs are set to missing data.
 !> @param[in]  nlayers                Number of layers
+!> @param[in]  theta_wth              Potential temperature
+!> @param[in]  exner_wth              Exner pressure in wth space
+!> @param[in]  height_wth             Height of wth levels above surface
+!> @param[in]  g_over_r               Gravity / specific dry air gas constant
 !> @param[out] trop_press             Pressure at the tropopause
 !> @param[out] trop_temp              Temperature at the tropopause
 !> @param[out] trop_height            Height of the tropopause above surface
@@ -57,10 +61,6 @@ contains
 !> @param[in]  trop_temp_flag         Request flag
 !> @param[in]  trop_height_flag       Request flag
 !> @param[in]  trop_icao_height_flag  Request flag
-!> @param[in]  theta_wth              Potential temperature
-!> @param[in]  exner_wth              Exner pressure in wth space
-!> @param[in]  height_wth             Height of wth levels above surface
-!> @param[in]  g_over_r               Gravity / specific dry air gas constant
 !> @param[in]  ndf_wth                No. DOFs per cell for wth space
 !> @param[in]  undf_wth               No. unique DOFs for wth space
 !> @param[in]  map_wth                Dofmap for wth space column base cell
@@ -68,6 +68,10 @@ contains
 !> @param[in]  undf_2d                No. unique DOFs for 2D space
 !> @param[in]  map_2d                 Dofmap for 2D space column base cell
 subroutine trop_diags_code(nlayers,                    &
+                           theta_wth,                  &
+                           exner_wth,                  &
+                           height_wth,                 &
+                           g_over_r,                   &
                            trop_press,                 &
                            trop_temp,                  &
                            trop_height,                &
@@ -76,12 +80,9 @@ subroutine trop_diags_code(nlayers,                    &
                            trop_temp_flag,             &
                            trop_height_flag,           &
                            trop_icao_height_flag,      &
-                           theta_wth,                  &
-                           exner_wth,                  &
-                           height_wth,                 &
-                           g_over_r,                   &
+                           ndf_wth, undf_wth, map_wth, &
                            ndf_2d, undf_2d, map_2d,    &
-                           ndf_wth, undf_wth, map_wth)
+)
 
   use planet_config_mod,        only : p_zero, kappa
   use planet_constants_mod,     only : planet_radius
@@ -96,6 +97,11 @@ subroutine trop_diags_code(nlayers,                    &
   implicit none
 
   ! Arguments (algorithm)
+  real(r_def), dimension(undf_wth), intent(in) :: theta_wth
+  real(r_def), dimension(undf_wth), intent(in) :: exner_wth
+  real(r_def), dimension(undf_wth), intent(in) :: height_wth
+  real(r_def), intent(in)                      :: g_over_r
+
   real(r_def), dimension(undf_2d), intent(out) :: trop_press(:)
   real(r_def), dimension(undf_2d), intent(out) :: trop_temp(:)
   real(r_def), dimension(undf_2d), intent(out) :: trop_height(:)
@@ -105,11 +111,6 @@ subroutine trop_diags_code(nlayers,                    &
   logical(l_def), intent(in)                   :: trop_temp_flag
   logical(l_def), intent(in)                   :: trop_height_flag
   logical(l_def), intent(in)                   :: trop_icao_height_flag
-
-  real(r_def), dimension(undf_wth), intent(in) :: theta_wth
-  real(r_def), dimension(undf_wth), intent(in) :: exner_wth
-  real(r_def), dimension(undf_wth), intent(in) :: height_wth
-  real(r_def), intent(in)                      :: g_over_r
 
 
   ! Arguments (kernel)
@@ -127,7 +128,6 @@ subroutine trop_diags_code(nlayers,                    &
   real(r_def) :: t_wth(nlayers)
   real(r_def) :: lapse, lapse_below, lapse_above, lapse_2km
   real(r_def) :: dz
-!  real(r_def) :: lapse_upr, lapse_lwr
   real(r_def) :: delta_lapse, press_wth
 
   ! Parameters for WMO tropopause definition
@@ -172,6 +172,8 @@ subroutine trop_diags_code(nlayers,                    &
   end do
 
     if (print_once) then
+       write(log_scratch_space, *) 'nlayers=', nlayers
+       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
        write(log_scratch_space, *) 'planet_radius=', planet_radius
        call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
     end if
@@ -185,8 +187,6 @@ subroutine trop_diags_code(nlayers,                    &
        write(log_scratch_space, *) 't_wth(k)=', t_wth(k)
        call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
        write(log_scratch_space, *) 'height_wth(k)=', height_wth(k)
-       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-       write(log_scratch_space, *) 'planet_radius=', planet_radius
        call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
     end if
 
