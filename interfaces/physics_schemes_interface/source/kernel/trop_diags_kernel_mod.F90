@@ -174,6 +174,9 @@ subroutine trop_diags_code(nlayers,                    &
 
   ! Locate the lapse-rate (WMO) tropopause
   trop_level = imdi
+  ! todo: caution - can we read from k+1 in this loop?
+  !       find out if nlayers is the number of verical cells,
+  !       or the number of faces (one larger).
   do k=1, nlayers
 
     if (t_wth(k) < tempcut .and.             &
@@ -199,9 +202,13 @@ subroutine trop_diags_code(nlayers,                    &
           end if
 
         end do  ! looking upwards for 2km
-
       end if  ! lapse values in range
+
     end if
+
+    ! did we find the tropopause?
+    if (trop_level /= imdi) exit
+
   end do
 
   if (print_once) then
