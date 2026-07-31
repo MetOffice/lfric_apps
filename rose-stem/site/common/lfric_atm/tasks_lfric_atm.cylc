@@ -207,11 +207,29 @@
 {% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","june_case","C224_MG_offlineP"],
+        "opt_confs": ["um_dump","june_case"],
         "resolution": "C224_MG",
         "DT": 720,
         "tsteps": 120,
         "mpi_parts": 588,
+        "xios_nodes": 1,
+        "mpi_parts_xios" : 64,
+        "log_level": "info",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "memory_plot_ex": true,
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9-C224_MG_op" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","june_case","C224_MG_op"],
+        "resolution": "C224_MG_op",
+        "DT": 720,
+        "tsteps": 120,
+        "mpi_parts": 588,
+        "mesh_cpus": 4,
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "info",
@@ -240,7 +258,7 @@
 {% elif task_ns.conf_name == "nwp_gal9_debug-C224_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","june_case","no_diags","C224_MG_offlineP"],
+        "opt_confs": ["um_dump","june_case","no_diags"],
         "resolution": "C224_MG",
         "DT": 720,
         "tsteps": 6,
@@ -487,11 +505,33 @@
     }) %}
 
 {# Share Global Configurations - extended by Performance setups#}
+{% elif task_ns.conf_name.startswith("nwp_gal9-C896_op_MG") %}
+
+    {% do task_dict.update({
+        "CXI_MATCH_hybrid": true,
+        "opt_confs": ["um_dump","C896_MG_op"],
+        "resolution": "C896_MG_op",
+        "DT": 240,
+        "tsteps": 120,
+        "wallclock": 15,
+        "mpi_parts": 4704,
+        "mesh_cpus": 64,
+        "mesh_memory": [20, "GB"],
+        "xios_nodes": 5,
+        "mpi_parts_xios" : 147,
+        "log_level": "debug",
+        "log_to_rank_zero_only": ".true.",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
+        "xios_min_buffer_size": 10485760,
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name.startswith("nwp_gal9-C896_MG") %}
 
     {% do task_dict.update({
         "CXI_MATCH_hybrid": true,
-        "opt_confs": ["um_dump","C896_MG_offlineP"],
+        "opt_confs": ["um_dump"],
         "resolution": "C896_MG",
         "DT": 240,
         "tsteps": 120,
@@ -507,6 +547,7 @@
         "xios_min_buffer_size": 10485760,
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
+
 
 {# ###################################################################### #}
 {# Global Climate jobs #}

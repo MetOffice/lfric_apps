@@ -148,6 +148,12 @@
             {% if "mpi_parts" in task_values %}
                 {% do mesh_dict.update({"mpi_parts": task_values["mpi_parts"]}) %}
             {% endif %}
+            {% if "mesh_cpus" in task_values %}
+                {% do mesh_dict.update({"mesh_cpus": task_values["mesh_cpus"]}) %}
+            {% endif %}
+            {% if "mesh_memory" in task_values %}
+                {% do mesh_dict.update({"mesh_memory": task_values["mesh_memory"]}) %}
+            {% endif %}
             {% do tasks_to_run.update({mesh_run_task: mesh_dict}) %}
         {% endif %}
     {% endif %}
