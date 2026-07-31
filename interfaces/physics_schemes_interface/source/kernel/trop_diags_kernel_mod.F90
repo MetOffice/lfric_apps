@@ -81,8 +81,7 @@ subroutine trop_diags_code(nlayers,                    &
                            trop_height_flag,           &
                            trop_icao_height_flag,      &
                            ndf_wth, undf_wth, map_wth, &
-                           ndf_2d, undf_2d, map_2d,    &
-)
+                           ndf_2d, undf_2d, map_2d)
 
   use planet_config_mod,        only : p_zero, kappa
   use planet_constants_mod,     only : planet_radius
