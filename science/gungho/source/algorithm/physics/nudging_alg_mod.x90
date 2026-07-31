@@ -72,7 +72,6 @@ contains
     ! Config variables
     logical(kind=l_def)    :: coarse_nudging, use_multires_coupling
     integer(kind=i_def)    :: nudging_method, spectral_stencil_extent
-    integer(kind=i_def)    :: nudge_data_levels
     integer(kind=i_def)    :: theta_forcing, wind_forcing
     character(len=str_def) :: nudging_mesh_name
     real(kind=r_def)       :: p_zero, kappa
@@ -86,7 +85,6 @@ contains
     use_multires_coupling = config%formulation%use_multires_coupling()
     nudging_method = config%nudging%nudging_method()
     spectral_stencil_extent = config%nudging%spectral_stencil_extent()
-    nudge_data_levels = config%nudging%nudge_data_levels()
     theta_forcing = config%external_forcing%theta_forcing()
     wind_forcing = config%external_forcing%wind_forcing()
     nudging_mesh_name = config%multires_coupling%nudging_mesh_name()
@@ -223,14 +221,14 @@ contains
 
     ! Config variables
     integer(kind=i_def)    :: theta_forcing, wind_forcing
-    integer(kind=i_def)    :: nudge_data_levels
+    integer(kind=i_def)    :: num_ref_data_levels
     real(kind=r_def)       :: p_zero, kappa
     logical(kind=l_def)    :: coarse_nudging
 
     ! Get config variables
     theta_forcing = config%external_forcing%theta_forcing()
     wind_forcing = config%external_forcing%wind_forcing()
-    nudge_data_levels = config%nudging%nudge_data_levels()
+    num_ref_data_levels = config%nudging%num_ref_data_levels()
     p_zero = config%planet%p_zero()
     kappa = config%planet%kappa()
     coarse_nudging = config%multires_coupling%coarse_nudging()
@@ -284,7 +282,7 @@ contains
             theta_ref, u_in_w3_ref, v_in_w3_ref,                               &
             T_nudging_ext_ref, u_nudging_ext_ref, v_nudging_ext_ref,           &
             exner_in_wth, exner_in_w3, surfp_nudging_ext_ref,                  &
-            p_zero, kappa, nudge_data_levels                                   &
+            p_zero, kappa, num_ref_data_levels                                 &
         )                                                                      &
     )
 

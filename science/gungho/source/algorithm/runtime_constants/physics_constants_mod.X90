@@ -518,8 +518,8 @@ contains
     character(len=str_def)                :: inventory_name
     integer(kind=i_def)                   :: nudging_level_top
     integer(kind=i_def)                   :: nudging_level_bottom
-    integer(kind=i_def)                   :: nudging_width_top
-    integer(kind=i_def)                   :: nudging_width_bottom
+    integer(kind=i_def)                   :: nudging_taper_top
+    integer(kind=i_def)                   :: nudging_taper_bottom
     integer(kind=tik)                     :: id
 
     if (fs_id == W3) then
@@ -544,8 +544,8 @@ contains
     constant_exists = nudging_weights_inventory%paired_object_exists(mesh_id)
     nudging_level_bottom = config%nudging%nudging_level_bottom()
     nudging_level_top = config%nudging%nudging_level_top()
-    nudging_width_bottom = config%nudging%nudging_width_bottom()
-    nudging_width_top = config%nudging%nudging_width_top()
+    nudging_taper_bottom = config%nudging%nudging_level_taper_bottom()
+    nudging_taper_top = config%nudging%nudging_level_taper_top()
 
     ! Create object if it doesn't already exist
     if (.not. constant_exists) then
@@ -558,7 +558,7 @@ contains
       call invoke(                                                             &
           nudging_weights_kernel_type(                                         &
               nudging_weights, nudging_level_bottom, nudging_level_top,        &
-              nudging_width_bottom, nudging_width_top                          &
+              nudging_taper_bottom, nudging_taper_top                          &
           )                                                                    &
       )
 
@@ -675,8 +675,8 @@ contains
     ! Get nudging configuration variables
     nudging_level_bottom = config%nudging%nudging_level_bottom()
     nudging_level_top = config%nudging%nudging_level_top()
-    nudging_taper_bottom = config%nudging%nudging_taper_bottom()
-    nudging_taper_top = config%nudging%nudging_taper_top()
+    nudging_taper_bottom = config%nudging%nudging_level_taper_bottom()
+    nudging_taper_top = config%nudging%nudging_level_taper_top()
     nudging_spinup_start = config%nudging%nudging_spinup_start()
     nudging_spinup_end = config%nudging%nudging_spinup_end()
     nudging_relax_time = config%nudging%nudging_relax_time()
