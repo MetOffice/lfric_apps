@@ -39,7 +39,7 @@ moci:
 
 SimSys_Scripts:
     source: git@github.com:MetOffice/SimSys_Scripts.git
-    ref: 2026.07.1
+    ref: 77a5166b7fc656a3411aacd1fca8db76c2382863
 
 socrates:
     source: git@github.com:MetOffice/socrates.git
@@ -50,5 +50,5 @@ socrates-spectral:
     ref: 2026.07.1
 
 ukca:
-    source: git@github.com:alanjhewitt/ukca.git
+    source: cazcron1:/data/users/yaswant.pradhan/reviews/linked/ukca.git 
     ref: radaer_api_ukca_side_3

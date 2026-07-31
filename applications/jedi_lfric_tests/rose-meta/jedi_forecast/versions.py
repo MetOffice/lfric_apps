@@ -20,14 +20,44 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
+
+
+class vn32_t512(MacroUpgrade):
+    """Upgrade macro for ticket #512 by Steven Sandbach."""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t512"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jedi_forecast
+        # Blank Upgrade Macro
+        return config, self.reports
+
+
+class vn32_t634(MacroUpgrade):
+    """Upgrade macro for ticket #634 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.2_t512"
+    AFTER_TAG = "vn3.2_t634"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        nml = "namelist:boundaries"
+        self.add_setting(config, [nml, "lbc_bal_meth"], "'keep_rho'")
+        self.add_setting(config, [nml, "lbc_sort_theta"], ".true.")
+        nml = "namelist:initialization"
+        eos_height = self.get_setting_value(config, [nml, "model_eos_height"])
+        self.remove_setting(config, [nml, "model_eos_height"])
+        self.add_setting(config, [nml, "init_eos_height"], eos_height)
+        self.add_setting(config, [nml, "init_exner_method"], "'hydrostatic'")
+        self.add_setting(config, [nml, "init_sort_theta"], ".true.")
+
+        return config, self.reports

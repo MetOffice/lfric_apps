@@ -56,6 +56,7 @@ contains
     type( quadrature_xyoz_type ), pointer :: qr => null()
 
     type( mesh_type ), pointer :: mesh => null()
+    integer(i_def) :: nlayersm1
     integer( tik )  :: id
 
     if ( LPROF ) call start_timing( id, 'dynamics.exner_from_eos' )
@@ -66,12 +67,14 @@ contains
     chi      => get_coordinates( mesh )
     panel_id => get_panel_id( mesh )
     qr       => get_qr_fe()
+    nlayersm1 = mesh%get_nlayers()-1
 
     select case(eos_method)
     case(eos_method_sampled)
       call invoke( sample_eos_pressure_kernel_type( state(igh_p), state(igh_d), &
                                                     state(igh_t),               &
-                                                    moist_dyn_gas_law ) )
+                                                    moist_dyn_gas_law,          &
+                                                    0, nlayersm1) )
     case(eos_method_projected)
       call invoke( project_eos_pressure_kernel_type( state(igh_p), state(igh_d), &
                                                      state(igh_t),               &
