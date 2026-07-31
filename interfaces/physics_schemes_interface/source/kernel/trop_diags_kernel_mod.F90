@@ -89,6 +89,10 @@ subroutine trop_diags_code(nlayers,                    &
   use icao_heights_kernel_mod,  only : icao_heights_kernel_code
   use empty_data_mod,           only : empty_real_data
 
+  use log_mod,                        only: log_event,       &
+                                            LOG_LEVEL_ALWAYS,  &
+                                            log_scratch_space
+
   implicit none
 
   ! Arguments (algorithm)
@@ -169,7 +173,7 @@ subroutine trop_diags_code(nlayers,                    &
 
     if (print_once) then
        write(log_scratch_space, '(A, I9)') 'planet_radius=', planet_radius
-       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
     end if
 
 
@@ -179,11 +183,11 @@ subroutine trop_diags_code(nlayers,                    &
 
     if (print_once) then
        write(log_scratch_space, '(A, I9)') 't_wth(k)=', t_wth(k)
-       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
        write(log_scratch_space, '(A, I9)') 'height_wth(k)=', height_wth(k)
-       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
        write(log_scratch_space, '(A, I9)') 'planet_radius=', planet_radius
-       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
     end if
 
 
@@ -220,7 +224,7 @@ subroutine trop_diags_code(nlayers,                    &
 
   if (print_once) then
      write(log_scratch_space, '(A, I0)') 'trop_level=', trop_level
-     call log_event(log_scratch_space, LOG_LEVEL_INFO)
+     call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
   end if
 
 
