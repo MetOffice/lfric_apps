@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Interface to the CASIM Microphysics scheme
 
 module casim_alg_mod
@@ -89,6 +92,8 @@ contains
     type( field_type ), pointer :: w_in_wth           => null()
     type( field_type ), pointer :: wetrho_in_w3        => null()
     type( field_type ), pointer :: rho_in_wth          => null()
+    type( field_type ), pointer :: u_in_w3             => null()
+    type( field_type ), pointer :: v_in_w3             => null()
 
     type( field_type ), pointer :: bcf_in
     type( field_type ), pointer :: cfl_in              => null()
@@ -147,6 +152,9 @@ contains
     call derived_fields%get_field('w_in_wth', w_in_wth)
     call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
     call derived_fields%get_field('rho_in_wth', rho_in_wth)
+    ! Winds are needed for the PC2 cloud fraction response to falling ice
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
 
     call cloud_fields%get_field('bulk_fraction', bcf_in)
     call cloud_fields%get_field('liquid_fraction', cfl_in)
@@ -181,16 +189,18 @@ contains
     call invoke(name = "invoke_casim_kernel_type",                             &
                  casim_kernel_type ( mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),  &
                                      mr_n(imr_r), mr_n(imr_g), mr_n(imr_s),    &
-                                     cfl_in, cff_in,                           &
+                                     cfl_in, cff_in, bcf_in,                   &
                                      nl_mphys, nr_mphys,                       &
                                      ni_mphys, ns_mphys, ng_mphys,             &
                                      w_in_wth,                                 &
                                      theta, exner_in_wth,                      &
                                      wetrho_in_w3, dry_rho_in_w3,              &
+                                     u_in_w3, v_in_w3,                         &
                                      height_w3, height_wth,                    &
                                      dmr_mphys(imr_v),  dmr_mphys(imr_cl),     &
                                      dmr_mphys(imr_ci), dmr_mphys(imr_r),      &
                                      dmr_mphys(imr_g), dmr_mphys(imr_s),       &
+                                     dcfl, dcff, dbcf,                         &
                                      ls_rain, ls_snow, ls_graup, lsca_2d,      &
                                      ls_rain_3d, ls_snow_3d, ls_graup_3d,      &
                                      theta_inc, cloud_drop_no_conc, murk,      &
