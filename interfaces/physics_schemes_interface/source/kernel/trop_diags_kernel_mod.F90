@@ -84,7 +84,6 @@ subroutine trop_diags_code(nlayers,                    &
                            ndf_2d, undf_2d, map_2d)
 
   use planet_config_mod,        only : p_zero, kappa
-!  use planet_constants_mod,     only : planet_radius
   use missing_data_mod,         only : rmdi, imdi
   use icao_heights_kernel_mod,  only : icao_heights_kernel_code
   use empty_data_mod,           only : empty_real_data
@@ -162,6 +161,7 @@ subroutine trop_diags_code(nlayers,                    &
   if (trop_icao_height_flag) trop_icao_height(map_2d(1)) = rmdi
 
   ! Temperature on wth levels
+  ! todo: put into following loop
   do k=1, nlayers
     t_wth(k) = theta_wth(map_wth(1)+k) * exner_wth(map_wth(1)+k)
   end do
@@ -169,8 +169,6 @@ subroutine trop_diags_code(nlayers,                    &
   if (print_once) then
      write(log_scratch_space, *) 'nlayers=', nlayers
      call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-!     write(log_scratch_space, *) 'planet_radius=', planet_radius
-!     call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
   end if
 
 
@@ -178,18 +176,7 @@ subroutine trop_diags_code(nlayers,                    &
   trop_level = imdi
   do k=1, nlayers
 
-    if (print_once) then
-       write(log_scratch_space, *) 't_wth(k)=', t_wth(k)
-       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-       write(log_scratch_space, *) 'height_wth(k)=', height_wth(k)
-       call log_event(log_scratch_space, LOG_LEVEL_ALWAYS)
-    end if
-
-
-!    if (t_wth(k) < tempcut .and.                         &
-!      height_wth(k)-planet_radius > heightcut_bot .and.  &
-!      height_wth(k)-planet_radius < heightcut_top) then
-    if (t_wth(k) < tempcut .and.                         &
+    if (t_wth(k) < tempcut .and.             &
         height_wth(k) > heightcut_bot .and.  &
         height_wth(k) < heightcut_top) then
 
@@ -200,7 +187,6 @@ subroutine trop_diags_code(nlayers,                    &
         ! Lapse rate has dropped below the threshold. If this is maintained
         ! for 2km above then the WMO criteria for the tropopause has been met.
         do k2km=k, nlayers
-!          if (height_wth(k2km)-planet_radius > heightcut_top) exit
           if (height_wth(k2km) > heightcut_top) exit
 
           if ((height_wth(k2km)-height_wth(k)) >= 2000.0 ) then
@@ -229,9 +215,8 @@ subroutine trop_diags_code(nlayers,                    &
     k = trop_level
 
     ! todo: lapse_below was already calculated in the loop above
-    lapse_below = (t_wth(k-1) - t_wth(k)) / (height_wth(k) - height_wth(k-1))
     lapse_above = (t_wth(k+1) - t_wth(k+2)) / (height_wth(k+2) - height_wth(k+1))
-
+    lapse_below = (t_wth(k-1) - t_wth(k)) / (height_wth(k) - height_wth(k-1))
     delta_lapse = lapse_below - lapse_above
     if ( abs(delta_lapse) < vsmall ) then
       if ( delta_lapse >= 0.0_r_def ) delta_lapse =  vsmall
@@ -241,23 +226,33 @@ subroutine trop_diags_code(nlayers,                    &
     ! height of tropopause between k and k+1
     if (trop_height_flag) then
       trop_height(map_2d(1)) = (                                     &
-          (t_wth(k)   + (lapse_below * height_wth(map_wth(1)+k)))      &
+          (t_wth(k)   + (lapse_below * height_wth(map_wth(1)+k)))  &
         - (t_wth(k+1) + (lapse_above * height_wth(map_wth(1)+k+1)))    &
         ) / delta_lapse
+
+      ! ensure trop level doesn't undershoot
+      if (trop_height(map_2d(1)) < height_wth(map_wth(1)+k)) then
+        trop_height(map_2d(1)) = height_wth(map_wth(1)+k)
+      end if
+      ! or overshoot
+      if (trop_height(map_2d(1)) > height_wth(map_wth(1)+k+1)) then
+        trop_height(map_2d(1)) = height_wth(map_wth(1)+k+1)
+      end if
+
     end if
 
     ! temperature at tropopause
     if (trop_temp_flag) then
-      trop_temp(map_2d(1)) = t_wth(k) -                              &
-        lapse_below * (trop_height(map_2d(1)) - height_wth(map_wth(1)+k))
+      trop_temp(map_2d(1)) = t_wth(k) -                                     &
+        lapse_below * (trop_height(map_2d(1)) - height_wth(map_wth(1)+k-1))
     end if
 
     ! pressure at tropopause is derived from the hydrostatic equation
+    if ( abs(lapse_below) < vsmall ) then
+      if ( lapse_below >= 0.0_r_def ) lapse_below =  vsmall
+      if ( lapse_below <  0.0_r_def ) lapse_below = -vsmall
+    end if
     if (trop_pres_flag) then
-      if ( abs(lapse_below) < vsmall ) then
-        if ( lapse_below >= 0.0_r_def ) lapse_below =  vsmall
-        if ( lapse_below <  0.0_r_def ) lapse_below = -vsmall
-      end if
       press_wth = p_zero * exner_wth(map_wth(1)+k) ** (1.0_r_def / kappa)
       trop_press(map_2d(1)) = press_wth *                           &
         (trop_temp(map_2d(1)) / t_wth(k)) ** (g_over_r / lapse_below)
