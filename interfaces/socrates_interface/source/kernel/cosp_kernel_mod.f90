@@ -283,16 +283,24 @@ subroutine cosp_code(nlayers, n_profile, &
     sunlit_mask, &
     calipso_low_cloud, calipso_low_cloud_mask, &
     calipso_mid_cloud, calipso_mid_cloud_mask, &
-    calipso_high_cloud, calipso_high_cloud_mask
+    calipso_high_cloud, calipso_high_cloud_mask, &
+    weighted_cloud_albedo, weighted_ctp, &
+    tot_cloud_area
   real(r_def), pointer, dimension(:), intent(inout) :: & ! ptau
     isccp_ctp_tau
-  real(r_def), pointer, dimension(:), intent(inout) :: & ! 40
+   real(r_def), pointer, dimension(:), intent(inout) :: & ! 40
     calipso_cf_40_lvls_liq, calipso_cf_40_lvls_ice, &
-    calipso_cf_40_lvls_undet, calipso_cf_40_lvls_mask
+    calipso_cf_40_lvls_undet, calipso_cf_40_lvls_mask, &
+    calipso_cloudsat_40_cl_mask, &
+    cloudsat_gbxmean_ze_40, calipso_gbxmean_atb_40, &
+    calipso_mol_atb_40, calipso_cloudsat_40_cl, &     
+    cloudsat_cloud_area_40
   real(r_def), pointer, dimension(:), intent(inout) :: & ! subcol
     calipso_total_backscatter
   real(r_def), pointer, dimension(:), intent(inout) :: & ! atb40
     calipso_cfad_sr_40_lvls
+  real(r_def), pointer, dimension(:), intent(inout) :: & ! ze40
+    cloudsat_cfad_ze_40
   real(r_def), pointer, dimension(:), intent(inout) :: & ! wtheta
     cloud_thermal_absorptivity, cloud_solar_extinction
 
@@ -569,6 +577,48 @@ subroutine cosp_code(nlayers, n_profile, &
                                            1:n_subcol_gen, &
                                            1:n_profile) &
       => calipso_total_backscatter(subcol_0:subcol_last)
+  end if
+  if (.not. associated(calipso_cloudsat_40_cl_mask, empty_real_data)) then
+    cosp_diag%cosp_calipso_cloudsat_40_cl_mask(1:n_profile) &
+      => calipso_cloudsat_40_cl_mask(twod_1:twod_last)
+  end if
+  if (.not. associated(weighted_cloud_albedo, empty_real_data)) then
+    cosp_diag%cosp_weighted_cloud_albedo(1:n_profile) &
+      => weighted_cloud_albedo(twod_1:twod_last)
+  end if
+  if (.not. associated(weighted_ctp, empty_real_data)) then
+    cosp_diag%cosp_weighted_ctp(1:n_profile) &
+      => weighted_ctp(twod_1:twod_last)
+  end if
+  if (.not. associated(tot_cloud_area, empty_real_data)) then
+    cosp_diag%cosp_tot_cloud_area(1:n_profile) &
+      => tot_cloud_area(twod_1:twod_last)
+  end if
+  if (.not. associated(cloudsat_gbxmean_ze_40, empty_real_data)) then
+    cosp_diag%cosp_cloudsat_gbxmean_ze_40(1:n_cloudsat_levels, 1:n_profile) &
+      => cloudsat_gbxmean_ze_40(c40_1:c40_last)
+  end if
+  if (.not. associated(calipso_gbxmean_atb_40, empty_real_data)) then
+    cosp_diag%cosp_calipso_gbxmean_atb_40(1:n_cloudsat_levels, 1:n_profile) &
+      => calipso_gbxmean_ze_40(c40_1:c40_last)
+  end if
+  if (.not. associated(calipso_mol_atb_40, empty_real_data)) then
+    cosp_diag%cosp_calipso_mol_atb_40(1:n_cloudsat_levels, 1:n_profile) &
+      => calipso_mol_atb_40(c40_1:c40_last)
+  end if
+  if (.not. associated(calipso_cloudsat_40_cl, empty_real_data)) then
+    cosp_diag%cosp_calipso_cloudsat_40_cl(1:n_cloudsat_levels, 1:n_profile) &
+      => calipso_cloudsat_40_cl(c40_1:c40_last)
+  end if
+  if (.not. associated(cloudsat_cloud_area_40, empty_real_data)) then
+    cosp_diag%cosp_cloudsat_cloud_area_40(1:n_cloudsat_levels, 1:n_profile) &
+      => cloudsat_cloud_area_40(c40_1:c40_last)
+  end if
+  if (.not. associated(cloudsat_cfad_ze_40, empty_real_data)) then
+    cosp_diag%cosp_cloudsat_cfad_ze_40(1:n_backscatter_bins, &
+                                       1:n_cloudsat_levels, &
+                                       1:n_profile) &
+      => cloudsat_cfad_ze_40(atb40_1:atb40_last)
   end if
 
   ! Run COSP
