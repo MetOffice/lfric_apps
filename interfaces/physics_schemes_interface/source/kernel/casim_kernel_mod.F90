@@ -225,9 +225,8 @@ subroutine casim_code( nlayers,                     &
     ! Needed for the PC2 cloud fraction response to the CASIM increments
     use cderived_mod,               only: delta_lambda, delta_phi
     use cloud_inputs_mod,           only: i_cld_vn, cff_spread_rate
-    use gen_phys_inputs_mod,        only: l_mr_physics
     use pc2_constants_mod,          only: i_cld_pc2
-    use qsat_mod,                   only: qsat, qsat_mix
+    use qsat_mod,                   only: qsat_mix
 
     implicit none
 
@@ -356,30 +355,31 @@ subroutine casim_code( nlayers,                     &
     ! Relative humidity limits for the Wood and Field cloud fraction: the upper
     ! limit is the point at which the cloud fraction reaches one, the lower is
     ! the onset of cloud fraction formation.
-    real(r_um), parameter :: rh_cfrac_upper = 1.15_r_um
-    real(r_um), parameter :: rh_cfrac_lower = 0.95_r_um
-    real(r_um), parameter :: rcp_rhcfrac_upper_lower =                         &
-                                    1.0_r_um / (rh_cfrac_upper - rh_cfrac_lower)
+    real(r_def), parameter :: rh_cfrac_upper = 1.15_r_def
+    real(r_def), parameter :: rh_cfrac_lower = 0.95_r_def
+    real(r_def), parameter :: rcp_rhcfrac_upper_lower =                        &
+                                  1.0_r_def / (rh_cfrac_upper - rh_cfrac_lower)
 
     ! The horizontal grid is quasi-uniform, so the metric term that the UM
     ! applies when converting a grid spacing in radians to a length is one.
-    real(r_um), parameter :: fv_cos_theta_latitude = 1.0_r_um
+    real(r_def), parameter :: fv_cos_theta_latitude = 1.0_r_def
 
-    real(r_um) :: mwfv          ! Mass weighted fallspeed from the level above
-    real(r_um) :: ice_above     ! Frozen water content of the level above
-    real(r_um) :: temp3         ! Fraction of the layer depth fallen through
-    real(r_um) :: overhang      ! Ice cloud overhang between levels
-    real(r_um) :: dudz, dvdz    ! Wind differences across the layer
-    real(r_um) :: shear         ! Magnitude of the vertical wind shear
-    real(r_um) :: horiz_scale   ! Horizontal grid box scale
-    real(r_um) :: lateral_disp  ! Lateral displacement of the falling ice
-    real(r_um) :: cff_perimeter ! Perimeter of the ice cloud edge
-    real(r_um) :: deltacff      ! Change in ice cloud fraction
-    real(r_um) :: deltacf       ! Change in bulk cloud fraction
-    real(r_um) :: x_cff         ! Frozen plus vapour content over saturation
-    real(r_um) :: qsi           ! Saturation mixing ratio with respect to ice
+    real(r_def) :: mwfv          ! Mass weighted fallspeed from the level above
+    real(r_def) :: ice_above     ! Frozen water content of the level above
+    real(r_def) :: temp3         ! Fraction of the layer depth fallen through
+    real(r_def) :: overhang      ! Ice cloud overhang between levels
+    real(r_def) :: dudz, dvdz    ! Wind differences across the layer
+    real(r_def) :: shear         ! Magnitude of the vertical wind shear
+    real(r_def) :: horiz_scale   ! Horizontal grid box scale
+    real(r_def) :: lateral_disp  ! Lateral displacement of the falling ice
+    real(r_def) :: cff_perimeter ! Perimeter of the ice cloud edge
+    real(r_def) :: deltacff      ! Change in ice cloud fraction
+    real(r_def) :: deltacf       ! Change in bulk cloud fraction
+    real(r_def) :: x_cff         ! Frozen plus vapour content over saturation
+    real(r_def) :: qsi           ! Saturation mixing ratio with respect to ice
+    real(r_def) :: t_pc2         ! Temperature after the CASIM increments
 
-    real(r_um), dimension(nlayers) :: cff_work_pc2, cfl_work_pc2, cf_work_pc2
+    real(r_def), dimension(nlayers) :: cff_work_pc2, cfl_work_pc2, cf_work_pc2
 
     logical :: l_pc2_response   ! PC2 is the active cloud scheme
 
@@ -657,19 +657,19 @@ subroutine casim_code( nlayers,                     &
           if (ice_above > qi_tidy) then
             mwfv = casdiags % snowfall_3d(1,1,k+1) / ice_above
           else
-            mwfv = 0.0_r_um
+            mwfv = 0.0_r_def
           end if
           temp3 = mwfv / deltaz(1,1,k)
 
           ! Ensure temp3 is positive
           ! but allow "fraction fallen" to be > 1.
-          temp3 = max(temp3, 0.0_r_um)
+          temp3 = max(temp3, 0.0_r_def)
 
           !--------------------------------------------------------------
           ! Calculate the amount of cloud overhang between levels
           !--------------------------------------------------------------
           overhang = max(cff_wth(map_wth(1) + k+1) - cff_wth(map_wth(1) + k),  &
-                         0.0_r_um)
+                         0.0_r_def)
 
           ! using real shear method from lsp_fall_ice
           ! Increase the overhang depending on the vertical
@@ -703,7 +703,7 @@ subroutine casim_code( nlayers,                     &
           ! certain fraction of the depth of the layer. Now assume the
           ! cloud fills the whole depth of the layer and
           ! reduce the lateral extent while conserving cloud volume.
-          deltacff = min(temp3 * overhang, 1.0_r_um - cff_wth(map_wth(1) + k))
+          deltacff = min(temp3 * overhang, 1.0_r_def - cff_wth(map_wth(1) + k))
 
           ! Augment the change in ice cloud fraction to account
           ! for the lateral spreading out of ice cloud (e.g. cirrus).
@@ -711,21 +711,21 @@ subroutine casim_code( nlayers,                     &
           !
           ! Cloud can only spread out from its edges, so work out the
           ! perimeter of the cloud edge as a function of cloud fraction.
-          cff_perimeter = ( 2.0_r_um * cff_wth(map_wth(1) + k) )               &
-                        - ( 2.0_r_um * cff_wth(map_wth(1) + k)                 &
-                                     * cff_wth(map_wth(1) + k) )
+          cff_perimeter = ( 2.0_r_def * cff_wth(map_wth(1) + k) )              &
+                        - ( 2.0_r_def * cff_wth(map_wth(1) + k)                &
+                                      * cff_wth(map_wth(1) + k) )
 
           deltacff = deltacff + (cff_spread_rate * cff_perimeter * timestep)
-          deltacff = min(deltacff, 1.0_r_um - cff_wth(map_wth(1) + k))
+          deltacff = min(deltacff, 1.0_r_def - cff_wth(map_wth(1) + k))
 
-          if (cff_wth(map_wth(1) + k) < 1.0_r_um) then
+          if (cff_wth(map_wth(1) + k) < 1.0_r_def) then
             !------------------------------------------------------------
             ! Total cloud fraction will be increased, assuming minimum
             ! overlap
             !------------------------------------------------------------
-            deltacf = min(deltacff, 1.0_r_um - bcf_wth(map_wth(1) + k))
+            deltacf = min(deltacff, 1.0_r_def - bcf_wth(map_wth(1) + k))
           else
-            deltacf = 0.0_r_um
+            deltacf = 0.0_r_def
           end if
 
           dcff_wth(map_wth(1) + k) = dcff_wth(map_wth(1) + k) + deltacff
@@ -740,14 +740,11 @@ subroutine casim_code( nlayers,                     &
 
         do k = 1, nlayers
 
-          t_work = exner_in_wth(map_wth(1) + k) *                              &
-                   ( theta_in_wth(map_wth(1) + k) + theta_inc(map_wth(1) + k) )
+          t_pc2 = exner_in_wth(map_wth(1) + k) *                               &
+                  ( theta_in_wth(map_wth(1) + k) + theta_inc(map_wth(1) + k) )
 
-          if ( l_mr_physics ) then
-            call qsat_mix( qsi, t_work, real(p_casim(k,1,1), r_um) )
-          else ! l_mr_physics
-            call qsat( qsi, t_work, real(p_casim(k,1,1), r_um) )
-          end if ! l_mr_physics
+          ! LFRic runs with mixing ratio physics throughout
+          call qsat_mix( qsi, t_pc2, real(p_casim(k,1,1), r_def) )
 
           cff_work_pc2(k) = cff_wth(map_wth(1) + k) + dcff_wth(map_wth(1) + k)
           cfl_work_pc2(k) = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
@@ -764,19 +761,19 @@ subroutine casim_code( nlayers,                     &
                         dms_wth(map_wth(1) + k) + dmi_wth(map_wth(1) + k) +    &
                         mv_wth(map_wth(1) + k) + dmv_wth(map_wth(1) + k) ) / qsi
 
-              if (x_cff <= rh_cfrac_lower) cff_work_pc2(k) = 0.0_r_um
+              if (x_cff <= rh_cfrac_lower) cff_work_pc2(k) = 0.0_r_def
               if ((x_cff > rh_cfrac_lower) .and. (x_cff < rh_cfrac_upper))     &
                   cff_work_pc2(k) = (x_cff - rh_cfrac_lower)                   &
                                     * rcp_rhcfrac_upper_lower
-              if (x_cff >= rh_cfrac_upper) cff_work_pc2(k) = 1.0_r_um
+              if (x_cff >= rh_cfrac_upper) cff_work_pc2(k) = 1.0_r_def
 
             end if  ! no ice cloud fraction present - make some
           else
-            cff_work_pc2(k) = 0.0_r_um
+            cff_work_pc2(k) = 0.0_r_def
           end if
 
           ! Finalise PC2 increments
-          cf_work_pc2(k) = min(1.0_r_um, cfl_work_pc2(k) + cff_work_pc2(k))
+          cf_work_pc2(k) = min(1.0_r_def, cfl_work_pc2(k) + cff_work_pc2(k))
 
           dcff_wth(map_wth(1) + k) = cff_work_pc2(k) - cff_wth(map_wth(1) + k)
           dcfl_wth(map_wth(1) + k) = cfl_work_pc2(k) - cfl_wth(map_wth(1) + k)
