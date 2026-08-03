@@ -83,7 +83,7 @@ module gungho_model_mod
                                          final_runtime_constants
   use timestep_method_mod,        only : timestep_method_type, &
                                          get_timestep_method_from_collection
-  use timing_mod,                 only : start_timing, stop_timing, &                                                                        
+  use timing_mod,                 only : start_timing, stop_timing, &
                                          tik, LPROF
   use rk_alg_timestep_mod,        only : rk_timestep_type
   use semi_implicit_timestep_alg_mod, &
