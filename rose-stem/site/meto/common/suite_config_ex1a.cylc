@@ -6,7 +6,7 @@
 {% do LOG.debug("Entered site/meto/common/suite_config_ex1a.cylc") %}
 
 {% if site_vars.ex_trustzone == "collab" %}
-{% set ex1a_base = 'module use /projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
+{% set ex1a_base = 'module use /projects/metoff/spackadmin.mon/releases/2026.7.1/ngms' %}
 {% else %}
 {% set ex1a_base = 'module use /common/internal/spack/releases/2026.7.1/ngms' %}
 {% endif %}
@@ -147,6 +147,9 @@
         inherit=EX1A_BASE
         [[[directives]]]
             -l tmpsize=6GB
+{% if site_vars["ex_trustzone"] == "collab" %}
+            -q = collabshared
+{% endif %}
 
     [[EX1A_TECH_TESTS]]
         inherit=EX1A_TECH_BASE
