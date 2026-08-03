@@ -224,7 +224,7 @@
 {% elif task_ns.conf_name == "nwp_gal9-C224_MG_op" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","june_case","C224_MG_op"],
+        "opt_confs": ["um_dump","june_case"],
         "resolution": "C224_MG_op",
         "DT": 720,
         "tsteps": 120,
@@ -509,7 +509,7 @@
 
     {% do task_dict.update({
         "CXI_MATCH_hybrid": true,
-        "opt_confs": ["um_dump","C896_MG_op"],
+        "opt_confs": ["um_dump"],
         "resolution": "C896_MG_op",
         "DT": 240,
         "tsteps": 120,
