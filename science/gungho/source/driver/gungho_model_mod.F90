@@ -563,6 +563,8 @@ contains
     character(str_def), allocatable :: twod_names(:)
     character(str_def), allocatable :: shifted_names(:)
     character(str_def), allocatable :: double_names(:)
+    integer(i_def)                  :: stretching_method
+    real(r_def)                     :: stretching_height
 
     character(str_def), allocatable :: meshes_to_check(:)
 
@@ -620,14 +622,16 @@ contains
       chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
     end if
 
-    prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
-    geometry         = modeldb%config%base_mesh%geometry()
-    topology         = modeldb%config%base_mesh%topology()
-    prepartitioned   = modeldb%config%base_mesh%prepartitioned()
-    domain_height    = modeldb%config%extrusion%domain_height()
-    extrusion_method = modeldb%config%extrusion%method()
-    number_of_layers = modeldb%config%extrusion%number_of_layers()
-    scaled_radius    = modeldb%config%planet%scaled_radius()
+    prime_mesh_name   = modeldb%config%base_mesh%prime_mesh_name()
+    geometry          = modeldb%config%base_mesh%geometry()
+    topology          = modeldb%config%base_mesh%topology()
+    prepartitioned    = modeldb%config%base_mesh%prepartitioned()
+    domain_height     = modeldb%config%extrusion%domain_height()
+    extrusion_method  = modeldb%config%extrusion%method()
+    stretching_method = modeldb%config%extrusion%stretching_method()
+    stretching_height = modeldb%config%extrusion%stretching_height()
+    number_of_layers  = modeldb%config%extrusion%number_of_layers()
+    scaled_radius     = modeldb%config%planet%scaled_radius()
 
     if (prepartitioned) then
       tile_size_x = 1
@@ -1046,6 +1050,8 @@ contains
                               orography_mesh%get_mesh_name(), &
                               chi_inventory,                  &
                               panel_id_inventory,             &
+                              stretching_height,              &
+                              stretching_method,              &
                               surface_altitude )
 
 
