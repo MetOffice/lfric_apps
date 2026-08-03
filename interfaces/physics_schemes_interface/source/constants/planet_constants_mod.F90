@@ -26,7 +26,7 @@ module planet_constants_mod
             c_virtual_bl, etar_bl, repsilon_bl, ls_bl, r_32b, c_virtual_32b,  &
             etar_32b, lcrcp_32b, ls_32b, lsrcp_32b, planet_radius_bl,         &
             recip_kappa_bl, power, ex_power, lcrcp_def, lsrcp_def,            &
-            recip_kappa_def
+            recip_kappa_def, g_over_r, g_over_r_def
 
   ! The following variables have been hidden as they are not currently
   ! required to build the extracted UM code. They have been left in
@@ -36,7 +36,6 @@ module planet_constants_mod
 
   ! Disabled variables:
   !   sclht, omega, two_omega, recip_p_zero,
-  !   g_over_r
 
 
 !----------------------------------------------------------------------
@@ -141,6 +140,7 @@ module planet_constants_mod
   real(r_def), protected :: lcrcp_def
   real(r_def), protected :: lsrcp_def
   real(r_def), protected :: recip_kappa_def
+  real(r_def), protected :: g_over_r_def
 
 contains
 
@@ -238,7 +238,8 @@ subroutine set_planet_constants()
   lcrcp_def = real(lcrcp, r_def)
   lsrcp_def = real(lsrcp, r_def)
   recip_kappa_def = real(recip_kappa, r_def)
-
+  g_over_r_def = real(g_over_r, r_def)
+  
 end subroutine set_planet_constants
 
 end module planet_constants_mod

@@ -46,9 +46,10 @@ contains
   !> @param[in]  exner_w3        Exner pressure
   !> @param[in]  mr              Mixing ratio bundle
   !> @param[in]  moist_dyn       Moist_dynamics factors (for 1+sum(m_x))
+  !> @param[out] plev_geopot     Geopotential height on pressure levels
   subroutine pres_lev_diags_alg(config,                              &
                                 derived_fields, theta_wth, exner_w3, &
-                                mr, moist_dyn)
+                                mr, moist_dyn, plev_geopot)
 
     use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type,  &
                                     invoke_heaviside_kernel_type,    &
@@ -62,9 +63,10 @@ contains
     type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: derived_fields
-    type( field_type ), intent(in) :: theta_wth, exner_w3
-    type( field_type ), intent(in) :: mr(nummr)
-    type( field_type ), intent(in) :: moist_dyn(num_moist_factors)
+    type( field_type ), intent(in)  :: theta_wth, exner_w3
+    type( field_type ), intent(in)  :: mr(nummr)
+    type( field_type ), intent(in)  :: moist_dyn(num_moist_factors)
+    type( field_type ), intent(out) :: plev_geopot
     ! Internal variables
     type( field_type ), pointer     :: exner_wth
     type( field_type ), pointer     :: u_in_w3
@@ -76,7 +78,7 @@ contains
 
     ! Define fields
     type( field_type ) :: plev_heaviside, plev_temp, plev_u, plev_v, &
-         plev_w, plev_geopot, temp, omega, plev_omega, plev_mv, plev_qv, qv, &
+         plev_w, temp, omega, plev_omega, plev_mv, plev_qv, qv, &
          plev_thetaw, plev_temp_save
     integer(i_def) :: nplev
     real(r_def) :: minus_g
@@ -88,7 +90,14 @@ contains
          plev_w_flag, plev_w_clim_flag, plev_omega_clim_flag,          &
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
          plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
+
+    ! Aviation diagnostics require plev_geopot.
+    logical(l_def) :: aviation_geopot_flag
+
     integer(tik) :: id
+
+    ! For code tidiness, combines all flags requiring plev_geopot.
+    logical(l_def) :: plev_gepot_required
 
     if ( LPROF ) call start_timing( id, 'diags.pressure_lev' )
 
@@ -263,9 +272,17 @@ contains
     end if
 
     ! Geopotential height on pressure levels
+    aviation_geopot_flag = diag_samp('aviation__geopot_thickness_850') .or. &
+                           diag_samp('aviation__geopot_thickness_500') .or. &
+                           diag_samp('aviation__snow_probability')
     plev_geopot_clim_flag = diag_samp('plev__geopot_clim')
-    plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', activate=plev_geopot_clim_flag)
-    if ((plev_geopot_flag .or. plev_geopot_clim_flag) .and. use_xios_io) then
+    plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', &
+            activate=plev_geopot_clim_flag .or. aviation_geopot_flag)
+
+    plev_gepot_required = plev_geopot_flag .or. &
+                          plev_geopot_clim_flag .or. &
+                          aviation_geopot_flag
+    if (plev_gepot_required .and. use_xios_io) then
 
       height_w3 => get_height_fv(config, exner_w3%get_mesh(), W3)
 
