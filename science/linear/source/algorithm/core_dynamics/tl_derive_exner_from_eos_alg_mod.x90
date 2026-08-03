@@ -23,6 +23,9 @@ module tl_derive_exner_from_eos_alg_mod
   use tl_sample_eos_pressure_kernel_mod, &
                                         only: tl_sample_eos_pressure_kernel_type
 
+  ! Object types
+  use mesh_mod, only: mesh_type
+
   implicit none
 
   private
@@ -63,13 +66,13 @@ contains
     type( operator_type ),        pointer :: m3_inv => null()
     type( quadrature_xyoz_type ), pointer :: qr => null()
 
-    integer( kind=i_def ) :: mesh_id
+    type(mesh_type), pointer :: mesh
 
-    mesh_id = state(igh_p)%get_mesh_id()
+    mesh => state(igh_p)%get_mesh()
 
-    m3_inv  => get_inverse_mass_matrix_fe(W3, mesh_id)
-    chi => get_coordinates(mesh_id)
-    panel_id => get_panel_id(mesh_id)
+    m3_inv   => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     qr => get_qr_fe()
 
     select case(eos_method)

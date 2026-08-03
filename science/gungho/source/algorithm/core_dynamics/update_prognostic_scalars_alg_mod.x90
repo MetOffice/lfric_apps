@@ -61,14 +61,15 @@ contains
     type( quadrature_xyoz_type ), pointer :: qr => null()
 
     type(mesh_type), pointer :: mesh => null()
+    integer(i_def) :: nlayersm1
 
     mesh => state(igh_t)%get_mesh()
 
     call dtheta%initialise( state(igh_t)%get_function_space() )
 
-    m3_inv  => get_inverse_mass_matrix_fe(W3, mesh%get_id())
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    m3_inv   => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     qr => get_qr_fe()
 
     ! rho^np1 and theta^np1 can be updated directly from advection terms
@@ -81,14 +82,18 @@ contains
 
     select case(eos_method)
       case(eos_method_sampled)
-        call invoke( name = "sample_eos_pressure",                                     &
-                       sample_eos_pressure_kernel_type(state(igh_p), state(igh_d),     &
-                                                       state(igh_t), moist_dyn_gas_law) )
+        nlayersm1 = mesh%get_nlayers()-1
+        call invoke( name = "sample_eos_pressure",                             &
+                       sample_eos_pressure_kernel_type(state(igh_p),           &
+                                                       state(igh_d),           &
+                                                       state(igh_t),           &
+                                                       moist_dyn_gas_law,      &
+                                                       0, nlayersm1) )
 
       case(eos_method_projected)
-        m3_inv  => get_inverse_mass_matrix_fe(W3, mesh%get_id())
-        chi => get_coordinates(mesh%get_id())
-        panel_id => get_panel_id(mesh%get_id())
+        m3_inv   => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+        chi      => get_coordinates(mesh)
+        panel_id => get_panel_id(mesh)
         call invoke( name = "project_eos_pressure",                                    &
                      project_eos_pressure_kernel_type(state(igh_p), state(igh_d),      &
                                                       state(igh_t), moist_dyn_gas_law, &

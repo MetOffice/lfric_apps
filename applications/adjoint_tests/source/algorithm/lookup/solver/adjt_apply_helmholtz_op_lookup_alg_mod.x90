@@ -10,6 +10,7 @@
 module adjt_apply_helmholtz_op_lookup_alg_mod
 
   use adj_solver_lookup_cache_mod,   only: adj_solver_lookup_cache_type
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def, r_solver
   use field_mod,                     only: field_type
   use finite_element_config_mod,     only: element_order_h, element_order_v
@@ -40,15 +41,19 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
   !!          the result stored in the other, so we use three vectors to save on
   !!          variables. This differs from other adjoint tests as most adjoint
   !!          routines would increment one argument and set the other to zero.
+  !> @param[in] config                  Application namelist configuration object
   !> @param[in] mesh                    The model mesh
   !> @param[in] model_clock             The model clock
   !> @param[in] adj_lookup_table_cache  The lookup table cache
-  subroutine adjt_apply_helmholtz_op_lookup_alg( mesh, model_clock, adj_lookup_table_cache )
+  subroutine adjt_apply_helmholtz_op_lookup_alg( config, mesh, model_clock, &
+                                                 adj_lookup_table_cache )
 
     use apply_helmholtz_operator_kernel_mod, only: apply_helmholtz_operator_kernel_type
     use invoke_adj_a_h_o_lookup_kernel_mod,  only: invoke_adj_a_h_o_lookup_kernel
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(mesh_type),           pointer, intent(in) :: mesh
@@ -114,7 +119,8 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
       call invoke(setval_random(init_op_moist_dyn(idx)))
     end do
 
-    call compute_si_operators( init_op_t, init_op_d, init_op_p, model_clock, init_op_moist_dyn )
+    call compute_si_operators( config, init_op_t, init_op_d, init_op_p, &
+                               model_clock, init_op_moist_dyn )
 
     Helmholtz_operator => get_helmholtz_operator(level)
     lam_mesh = .false.

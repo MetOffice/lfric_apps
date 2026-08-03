@@ -117,8 +117,8 @@ contains
     if (.not. constant_exists) then
       w2_fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                 element_order_v, W2)
-      chi => get_coordinates(mesh_id)
-      panel_id => get_panel_id(mesh_id)
+      chi => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
       qr => get_qr_fe()
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
@@ -173,8 +173,8 @@ contains
       ! As this operator is used for initialisation, it always uses lowest-order
       w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
       wt_fs => function_space_collection%get_fs(mesh, 0, 0, Wtheta)
-      chi => get_coordinates(mesh_id)
-      panel_id => get_panel_id(mesh_id)
+      chi => get_coordinates(mesh)
+      panel_id => get_panel_id(mesh)
       qr => get_qr_fe()
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
@@ -226,7 +226,7 @@ contains
     if (.not. constant_exists) then
       w3_fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                 element_order_v, W3)
-      chi => get_coordinates(mesh_id)
+      chi => get_coordinates(mesh)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
 
@@ -372,8 +372,8 @@ contains
 
         ! Create damping layer mass matrix -------------------------------------
         if (dlayer_on) then
-          chi => get_coordinates(mesh_id)
-          panel_id => get_panel_id(mesh_id)
+          chi => get_coordinates(mesh)
+          panel_id => get_panel_id(mesh)
           qr => get_qr_fe()
 
           if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )

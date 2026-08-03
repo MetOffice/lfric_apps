@@ -68,7 +68,9 @@ program linear_model
   call init_config( filename, gungho_required_namelists, &
                     config=modeldb%config )
 
-  call init_logger( modeldb%mpi%get_comm(), application_name )
+  call init_logger( modeldb%config,         &
+                    modeldb%mpi%get_comm(), &
+                    application_name )
 
   subroutine_timers = modeldb%config%io%subroutine_timers()
   timer_output_path = modeldb%config%io%timer_output_path()

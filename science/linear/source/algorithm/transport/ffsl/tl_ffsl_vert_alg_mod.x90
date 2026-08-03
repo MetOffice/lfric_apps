@@ -10,6 +10,7 @@
 module tl_ffsl_vert_alg_mod
 
   ! Constants and types
+  use config_mod,                         only: config_type
   use constants_mod,                      only: r_tran, i_def, l_def
   use field_mod,                          only: field_type
   use fs_continuity_mod,                  only: W2V
@@ -142,7 +143,11 @@ contains
     character(*), parameter :: routine_name = 'transport.tl_ffsl_vert_transport_alg'
     integer(tik)            :: id
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, routine_name )
+
+    config => transport_controller%get_config()
 
     ! Get information from transport controller
     transport_counter  => pert_transport_controller%get_transport_counter()
@@ -175,7 +180,7 @@ contains
       ! f'_adv = (f' - dt F_1(f') - dt F_2(ls_u) + dt F_2(s) ls_f_adv )/(s - F(s))
       ! where F = F_1 + F_2 = div(flux), and s=1
 
-      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
       step = transport_counter%get_split_step_of_substep_counter()
 
       ! Get unity advection with ls wind
@@ -302,7 +307,10 @@ contains
     integer(kind=i_def) :: mesh_id
     integer(kind=i_def) :: step
 
+    type(config_type), pointer :: config
+
     ! Get pre-computed objects and set pointers --------------------------------
+    config => ls_transport_controller%get_config()
     mesh_id = field_n%get_mesh_id()
     mesh => field_n%get_mesh()
     transport_counter => pert_transport_controller%get_transport_counter()
@@ -324,7 +332,7 @@ contains
     ! Point to appropriate pre-computed fields ---------------------------------
     ls_wind_precomputations   => ls_transport_controller%get_wind_precomputations()
     step = transport_counter%get_split_step_of_substep_counter()
-    detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+    detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
     dep_pts_z => ls_wind_precomputations%get_dep_dist_z(                       &
         mesh_id, splitting, step                                               &
     )
@@ -338,7 +346,7 @@ contains
 
     if ( order /= 0 ) then
       ! Get objects only needed for high order flux
-      dz_w3_rdef => get_dz_w3(mesh_id)
+      dz_w3_rdef => get_dz_w3(config, mesh)
       call dz_w3%initialise( vector_space = field_fs )
       call invoke( real_to_real_x(dz_w3, dz_w3_rdef) )
     end if
@@ -356,8 +364,8 @@ contains
                                                        detj_at_w3,             &
                                                        step_dt) )
     case ( 1 )
-      dla_dz => get_third_dla_dz(mesh_id)
-      dlb_dz => get_third_dlb_dz(mesh_id)
+      dla_dz => get_third_dla_dz(config, mesh)
+      dlb_dz => get_third_dlb_dz(config, mesh)
       call invoke( tl_ffsl_flux_z_nirvana_kernel_type(mass_flux_pert,          &
                                                       mass_flux_ls,            &
                                                       frac_ls_wind,            &

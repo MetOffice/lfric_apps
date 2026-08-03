@@ -17,19 +17,11 @@
 module assign_orography_field_mod
 
   use constants_mod,                  only : r_def, i_def, l_def
-  use orography_config_mod,           only : orog_init_option,                 &
-                                             orog_init_option_analytic,        &
-                                             orog_init_option_ancil,           &
-                                             orog_init_option_none,            &
+  use orography_config_mod,           only : orog_init_option,          &
+                                             orog_init_option_analytic, &
+                                             orog_init_option_ancil,    &
+                                             orog_init_option_none,     &
                                              orog_init_option_start_dump
-  use base_mesh_config_mod,           only : geometry,                         &
-                                             geometry_spherical,               &
-                                             topology,                         &
-                                             topology_fully_periodic,          &
-                                             prime_mesh_name
-  use finite_element_config_mod,      only : coord_system,                     &
-                                             coord_order,                      &
-                                             coord_system_xyz
   use mesh_collection_mod,            only : mesh_collection
   use coord_transform_mod,            only : xyz2llr, llr2xyz
   use sci_chi_transform_mod,          only : chi2llr
@@ -46,6 +38,16 @@ module assign_orography_field_mod
   use fs_continuity_mod,              only : W0, Wchi
   use function_space_mod,             only : BASIS
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry,           &
+                                       geometry_spherical, &
+                                       topology,           &
+                                       topology_fully_periodic
+  use finite_element_config_mod, only: coord_system, &
+                                       coord_order,  &
+                                       coord_system_xyz
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -61,11 +63,11 @@ module assign_orography_field_mod
 
   interface
 
-    subroutine analytic_orography_interface(nlayers,                           &
-                                            ndf_chi, undf_chi, map_chi,        &
-                                            ndf_pid, undf_pid, map_pid,        &
-                                            domain_surface, domain_height,     &
-                                            chi_1_in, chi_2_in, chi_3_in,      &
+    subroutine analytic_orography_interface(nlayers,                       &
+                                            ndf_chi, undf_chi, map_chi,    &
+                                            ndf_pid, undf_pid, map_pid,    &
+                                            domain_surface, domain_height, &
+                                            chi_1_in, chi_2_in, chi_3_in,  &
                                             chi_1, chi_2, chi_3, panel_id)
 
       import :: i_def, r_def
@@ -90,14 +92,14 @@ module assign_orography_field_mod
 
   interface
 
-    subroutine ancil_orography_interface(nlayers,                              &
-                                         chi_1, chi_2, chi_3,                  &
-                                         chi_1_in, chi_2_in, chi_3_in,         &
-                                         panel_id,                             &
-                                         surface_altitude,                     &
-                                         domain_surface, domain_height,        &
-                                         ndf_chi, undf_chi, map_chi,           &
-                                         ndf_pid, undf_pid, map_pid,           &
+    subroutine ancil_orography_interface(nlayers,                       &
+                                         chi_1, chi_2, chi_3,           &
+                                         chi_1_in, chi_2_in, chi_3_in,  &
+                                         panel_id,                      &
+                                         surface_altitude,              &
+                                         domain_surface, domain_height, &
+                                         ndf_chi, undf_chi, map_chi,    &
+                                         ndf_pid, undf_pid, map_pid,    &
                                          ndf, undf, map, basis)
 
       import :: i_def, r_def
@@ -136,12 +138,12 @@ contains
   !> routines calculate analytic orography from horizontal coordinates or else
   !> use the surface_altitude field and then update the vertical coordinate.
   !>
-  !> @param[in,out] chi_inventory         Contains all of the model's coordinate
-  !!                                      fields, itemised by mesh
-  !> @param[in]     panel_id_inventory    Contains all of the model's panel ID
-  !!                                      fields, itemised by mesh
-  !> @param[in]     mesh                  Mesh to apply orography to
-  !> @param[in]     surface_altitude      Field containing the surface altitude
+  !> @param[in,out] chi_inventory       Contains all of the model's coordinate
+  !!                                    fields, itemised by mesh
+  !> @param[in]     panel_id_inventory  Contains all of the model's panel ID
+  !!                                    fields, itemised by mesh
+  !> @param[in]     mesh                Mesh to apply orography to
+  !> @param[in]     surface_altitude    Field containing the surface altitude
   !=============================================================================
   subroutine assign_orography_field(chi_inventory, panel_id_inventory,         &
                                     mesh, surface_altitude)
@@ -511,10 +513,10 @@ contains
         ! Model coordinates need to be converted to (long,lat,r) for reading
         ! analytic orography
         radius = chi_3_in(dfk) + domain_surface
-        call chi2llr(                                                          &
-            chi_1_in(dfk), chi_2_in(dfk), radius, ipanel,                      &
-            longitude, latitude, dummy_radius                                  &
-        )
+        call chi2llr(                                        &
+            chi_1_in(dfk), chi_2_in(dfk), radius, ipanel,    &
+            geometry, topology, coord_system, scaled_radius, &
+            longitude, latitude, dummy_radius )
 
         ! Calculate surface height for each DoF using selected analytic orography
         surface_height = orography_profile%analytic_orography(longitude, latitude)

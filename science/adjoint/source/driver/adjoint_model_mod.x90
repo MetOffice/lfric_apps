@@ -85,8 +85,9 @@ contains
 
     select case(method)
       case(method_semi_implicit)
-        call atl_si_timestep%initialise( &
-          u, rho, theta, exner, mr, ls_theta, ls_exner, ls_mr, ls_moist_dyn )
+        call atl_si_timestep%initialise( modeldb%config, u, rho, theta, exner, &
+                                         mr, ls_theta, ls_exner, ls_mr,        &
+                                         ls_moist_dyn )
       case default
         call log_event( "Timestepping method not available for adjoint", &
                         LOG_LEVEL_ERROR )

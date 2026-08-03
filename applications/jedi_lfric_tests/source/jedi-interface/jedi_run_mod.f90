@@ -120,7 +120,7 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
 
   ! Initialise the logger
   call lfric_comm%set_comm_mpi_val(model_communicator)
-  call init_logger( lfric_comm, self%jedi_run_name )
+  call init_logger( self%config, lfric_comm, self%jedi_run_name )
 
   ! Initialise timing wrapper
   subroutine_timers = self%config%io%subroutine_timers()
