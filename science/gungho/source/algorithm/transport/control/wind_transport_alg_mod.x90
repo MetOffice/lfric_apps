@@ -170,13 +170,15 @@ contains
           face_selector_ns => get_face_selector_ns(mesh)
 
           dA => get_da_at_w2( mesh )
+          call invoke(setval_c(u_w3_n(1), 0.0_r_def) )
           call invoke(split_w2_to_ws_kernel_type( u_w3_n(1), u_w3_n(2), &
                                                   wind_n, chi(3), dA,   &
                                                   face_selector_ew,     &
                                                   face_selector_ns ) )
 
+          call log_field_minmax( LOG_LEVEL_INFO, 'uv_n', u_w3_n(1) )
+          call log_field_minmax( LOG_LEVEL_INFO, 'w_n', u_w3_n(2) )
           do dir = 1,2
-            call log_field_minmax( LOG_LEVEL_INFO, 'wind_n', u_w3_n(dir) )
             call transport_field(                                                &
                     u_w3_np1(dir), u_w3_n(dir), transport_controller,            &
                     transport_metadata                                           &
