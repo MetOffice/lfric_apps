@@ -408,6 +408,12 @@
   <field id="convection__par_core_dtv_down" name="par_core_dtv_down" long_name="convection_downdraught_parcel_core_excess_virtual_temperature" unit="K" grid_ref="half_level_face_grid" />
   <field id="convection__par_core_rhl_up" name="par_core_rhl_up" long_name="convection_updraught_parcel_core_relative_humidity_wrt_liquid" unit="1" grid_ref="half_level_face_grid" />
   <field id="convection__par_core_rhl_down" name="par_core_rhl_down" long_name="convection_downdraught_parcel_core_relative_humidity_wrt_liquid" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__turb_pert_u" name="turb_pert_u" long_name="convection_turbulent_u_wind_perturbation" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__turb_pert_v" name="turb_pert_v" long_name="convection_turbulent_v_wind_perturbation" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__turb_pert_w" name="turb_pert_w" long_name="convection_turbulent_w_wind_perturbation" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__turb_pert_t" name="turb_pert_t" long_name="convection_turbulent_temperature_perturbation" unit="K" grid_ref="half_level_face_grid" />
+  <field id="convection__turb_pert_q" name="turb_pert_q" long_name="convection_turbulent_water_vapour_perturbation" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__turb_radius" name="turb_radius" long_name="convection_turbulent_parcel_radius" unit="m" grid_ref="full_level_face_grid" />
   <field id="convection__dd_dt" name="dd_dt" long_name="temperature_increment_from_downdraughts" unit="K s-1" grid_ref="full_level_face_grid" />
   <field id="convection__dd_dq" name="dd_dq" long_name="water_vapour_increment_from_downdraughts" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
   <field id="convection__conv_rain" name="conv_rain" long_name="surface_convective_rainfall_rate" unit="kg m-2 s-1" domain_ref="face" />

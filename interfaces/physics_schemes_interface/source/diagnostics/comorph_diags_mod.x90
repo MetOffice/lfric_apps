@@ -70,7 +70,13 @@ module comorph_diags_mod
                       par_core_dtv_up_flag,        &
                       par_core_dtv_down_flag,      &
                       par_core_rhl_up_flag,        &
-                      par_core_rhl_down_flag
+                      par_core_rhl_down_flag,      &
+                      turb_pert_u_flag,            &
+                      turb_pert_v_flag,            &
+                      turb_pert_w_flag,            &
+                      turb_pert_t_flag,            &
+                      turb_pert_q_flag,            &
+                      turb_radius_flag
 
   public :: initialise_diags_for_comorph
   public :: output_diags_for_comorph
@@ -129,7 +135,13 @@ contains
                                           par_core_dtv_up,        &
                                           par_core_dtv_down,      &
                                           par_core_rhl_up,        &
-                                          par_core_rhl_down)
+                                          par_core_rhl_down,      &
+                                          turb_pert_u,            &
+                                          turb_pert_v,            &
+                                          turb_pert_w,            &
+                                          turb_pert_t,            &
+                                          turb_pert_q,            &
+                                          turb_radius)
 
     implicit none
 
@@ -185,7 +197,13 @@ contains
                                          par_core_dtv_up,         &
                                          par_core_dtv_down,       &
                                          par_core_rhl_up,         &
-                                         par_core_rhl_down
+                                         par_core_rhl_down,       &
+                                         turb_pert_u,             &
+                                         turb_pert_v,             &
+                                         turb_pert_w,             &
+                                         turb_pert_t,             &
+                                         turb_pert_q,             &
+                                         turb_radius
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -397,6 +415,24 @@ contains
     if (par_core_rhl_down_flag) call invoke( setval_c(par_core_rhl_down,      &
                                                       0.0_r_def) )
 
+    turb_pert_u_flag = init_diag(turb_pert_u, 'convection__turb_pert_u')
+    if (turb_pert_u_flag) call invoke( setval_c(turb_pert_u, 0.0_r_def) )
+
+    turb_pert_v_flag = init_diag(turb_pert_v, 'convection__turb_pert_v')
+    if (turb_pert_v_flag) call invoke( setval_c(turb_pert_v, 0.0_r_def) )
+
+    turb_pert_w_flag = init_diag(turb_pert_w, 'convection__turb_pert_w')
+    if (turb_pert_w_flag) call invoke( setval_c(turb_pert_w, 0.0_r_def) )
+
+    turb_pert_t_flag = init_diag(turb_pert_t, 'convection__turb_pert_t')
+    if (turb_pert_t_flag) call invoke( setval_c(turb_pert_t, 0.0_r_def) )
+
+    turb_pert_q_flag = init_diag(turb_pert_q, 'convection__turb_pert_q')
+    if (turb_pert_q_flag) call invoke( setval_c(turb_pert_q, 0.0_r_def) )
+
+    turb_radius_flag = init_diag(turb_radius, 'convection__turb_radius')
+    if (turb_radius_flag) call invoke( setval_c(turb_radius, 0.0_r_def) )
+
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
   end subroutine initialise_diags_for_comorph
@@ -472,7 +508,13 @@ contains
                                     par_core_dtv_up,        &
                                     par_core_dtv_down,      &
                                     par_core_rhl_up,        &
-                                    par_core_rhl_down)
+                                    par_core_rhl_down,      &
+                                    turb_pert_u,            &
+                                    turb_pert_v,            &
+                                    turb_pert_w,            &
+                                    turb_pert_t,            &
+                                    turb_pert_q,            &
+                                    turb_radius)
 
     implicit none
 
@@ -550,7 +592,13 @@ contains
                                        par_core_dtv_up,        &
                                        par_core_dtv_down,      &
                                        par_core_rhl_up,        &
-                                       par_core_rhl_down
+                                       par_core_rhl_down,      &
+                                       turb_pert_u,            &
+                                       turb_pert_v,            &
+                                       turb_pert_w,            &
+                                       turb_pert_t,            &
+                                       turb_pert_q,            &
+                                       turb_radius
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -636,6 +684,12 @@ contains
     if (par_core_dtv_down_flag) call par_core_dtv_down%write_field()
     if (par_core_rhl_up_flag) call par_core_rhl_up%write_field()
     if (par_core_rhl_down_flag) call par_core_rhl_down%write_field()
+    if (turb_pert_u_flag) call turb_pert_u%write_field()
+    if (turb_pert_v_flag) call turb_pert_v%write_field()
+    if (turb_pert_w_flag) call turb_pert_w%write_field()
+    if (turb_pert_t_flag) call turb_pert_t%write_field()
+    if (turb_pert_q_flag) call turb_pert_q%write_field()
+    if (turb_radius_flag) call turb_radius%write_field()
 
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
