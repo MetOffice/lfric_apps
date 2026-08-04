@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> @brief Interface to the Comorph Convection scheme.
 !>
 module conv_comorph_kernel_mod
@@ -33,7 +36,7 @@ module conv_comorph_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_comorph_kernel_type
     private
-    type(arg_type) :: meta_args(195) = (/                                         &
+    type(arg_type) :: meta_args(197) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -228,7 +231,9 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! entrain_down
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! detrain_up
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! detrain_down
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! massflux_up_half
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! massflux_up_half
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_radius_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! par_radius_down
         /)
     integer :: operates_on = DOMAIN
   contains
@@ -435,6 +440,8 @@ contains
   !> @param[in,out] detrain_up           Convective upwards detrainment
   !> @param[in,out] detrain_down         Convective downwards detrainment
   !> @param[in,out] massflux_up_half     Convective upwards mass flux on half-levels (Pa/s)
+  !> @param[in,out] par_radius_up        Mean updraught parcel radius on half-levels (m)
+  !> @param[in,out] par_radius_down      Mean downdraught parcel radius on half-levels (m)
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs  for density space
   !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
@@ -646,6 +653,8 @@ contains
                           detrain_up,                        &
                           detrain_down,                      &
                           massflux_up_half,                  &
+                          par_radius_up,                     &
+                          par_radius_down,                   &
                           ndf_w3,                            &
                           undf_w3,                           &
                           map_w3,                            &
@@ -1012,7 +1021,9 @@ contains
                                                 entrain_down(:),     &
                                                 detrain_up(:),       &
                                                 detrain_down(:),     &
-                                                massflux_up_half(:)
+                                                massflux_up_half(:), &
+                                                par_radius_up(:),    &
+                                                par_radius_down(:)
 
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcfl_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcff_conv
@@ -1226,7 +1237,7 @@ contains
     real(kind=r_um), target :: up_flux_half(row_length, rows, nlayers)
     real(kind=r_um), target :: down_flux_half(row_length, rows, nlayers)
     real(kind=r_um), target, allocatable, dimension(:,:,:) :: ent_up, ent_down,&
-         det_up, det_down, pres_inc_env
+         det_up, det_down, pres_inc_env, rad_up, rad_down
 
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into CoMorph 3D arrays
@@ -2329,6 +2340,22 @@ contains
         comorph_diags % dndraft % plume_model % det_mass_d                     &
                                 % field_3d => det_down
       end if
+      ! Set requests and assign pointers for the mean parcel radius
+      ! diagnostics.  CoMorph calculates these on rho-levels.
+      if (.not. associated(par_radius_up, empty_real_data) ) then
+        allocate(rad_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % radius                                 &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % radius                                 &
+                                % field_3d => rad_up
+      end if
+      if (.not. associated(par_radius_down, empty_real_data) ) then
+        allocate(rad_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % radius                                 &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % radius                                 &
+                                % field_3d => rad_down
+      end if
     end if
     if (l_pc2_homog_conv_pressure) then
       allocate(pres_inc_env(row_length,rows,nlayers))
@@ -2627,6 +2654,26 @@ contains
           end do
         end do
         deallocate(det_down)
+      end if
+      if (.not. associated(par_radius_up, empty_real_data) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            ! map_w3(1) points to level 1.  The radius is already in m,
+            ! so no conversion is needed.
+            par_radius_up(map_w3(1,i) + k-1) = rad_up(i,1,k)
+          end do
+        end do
+        deallocate(rad_up)
+      end if
+      if (.not. associated(par_radius_down, empty_real_data) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            ! map_w3(1) points to level 1.  The radius is already in m,
+            ! so no conversion is needed.
+            par_radius_down(map_w3(1,i) + k-1) = rad_down(i,1,k)
+          end do
+        end do
+        deallocate(rad_down)
       end if
     end if ! outer_iterations
 

@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for comorph_alg
 
 module comorph_diags_mod
@@ -29,7 +32,9 @@ module comorph_diags_mod
                       entrain_down_flag,           &
                       detrain_up_flag,             &
                       detrain_down_flag,           &
-                      massflux_up_half_flag
+                      massflux_up_half_flag,       &
+                      par_radius_up_flag,          &
+                      par_radius_down_flag
 
   public :: initialise_diags_for_comorph
   public :: output_diags_for_comorph
@@ -50,7 +55,9 @@ contains
                                           entrain_down,           &
                                           detrain_up,             &
                                           detrain_down,           &
-                                          massflux_up_half)
+                                          massflux_up_half,       &
+                                          par_radius_up,          &
+                                          par_radius_down)
 
     implicit none
 
@@ -68,7 +75,9 @@ contains
                                          entrain_down,            &
                                          detrain_up,              &
                                          detrain_down,            &
-                                         massflux_up_half
+                                         massflux_up_half,        &
+                                         par_radius_up,           &
+                                         par_radius_down
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -104,6 +113,15 @@ contains
     if (detrain_down_flag) call invoke( setval_c(detrain_down, 0.0_r_def) )
 
     massflux_up_half_flag = init_diag(massflux_up_half, 'convection__massflux_up_half')
+
+    ! Convective diagnostics - 3d  - rho levels
+    par_radius_up_flag = init_diag(par_radius_up, 'convection__par_radius_up')
+    if (par_radius_up_flag) call invoke( setval_c(par_radius_up, 0.0_r_def) )
+
+    par_radius_down_flag = init_diag(par_radius_down, &
+                                     'convection__par_radius_down')
+    if (par_radius_down_flag) call invoke( setval_c(par_radius_down,           &
+                                                    0.0_r_def) )
 
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
@@ -142,7 +160,9 @@ contains
                                     entrain_down,           &
                                     detrain_up,             &
                                     detrain_down,           &
-                                    massflux_up_half)
+                                    massflux_up_half,       &
+                                    par_radius_up,          &
+                                    par_radius_down)
 
     implicit none
 
@@ -182,7 +202,9 @@ contains
                                        entrain_down,           &
                                        detrain_up,             &
                                        detrain_down,           &
-                                       massflux_up_half
+                                       massflux_up_half,       &
+                                       par_radius_up,          &
+                                       par_radius_down
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -230,6 +252,8 @@ contains
     if (detrain_up_flag) call detrain_up%write_field()
     if (detrain_down_flag) call detrain_down%write_field()
     if (massflux_up_half_flag) call massflux_up_half%write_field()
+    if (par_radius_up_flag) call par_radius_up%write_field()
+    if (par_radius_down_flag) call par_radius_down%write_field()
 
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
