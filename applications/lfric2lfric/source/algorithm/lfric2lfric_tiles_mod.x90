@@ -1,0 +1,76 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Reconfiguration associated with changes in tiles
+module lfric2lfric_tiles_mod
+
+  use constants_mod,            only: str_def, i_def
+  use driver_modeldb_mod,       only: modeldb_type
+  use extrusion_mod,            only: TWOD
+  use field_parent_mod,         only: field_parent_type
+  use field_mod,                only: field_type
+  use field_collection_mod,     only: field_collection_type
+  use field_collection_iterator_mod, &
+                                only: field_collection_iterator_type
+  use mesh_mod,                 only: mesh_type
+  use log_mod,                  only: log_event, &
+                                      log_level_info, &
+                                      log_scratch_space
+
+  implicit none
+
+  private
+  public :: lfric2lfric_tiles
+
+contains
+
+  !> @brief Apply the changes associated with the change in tiles.
+  !> @details Loop over the fields in the source_fields collection,
+  !!        and deal with the change in tiles.
+  !> @param modeldb        Model state object
+  !> @param source_fields  The collection of fields to be regridded
+  !> @param target_fields  The collection of regridded fields
+  subroutine lfric2lfric_tiles( modeldb, source_fields, target_fields )
+
+    implicit none
+
+    type(modeldb_type),            intent(inout) :: modeldb
+    type(field_collection_type),   intent(inout) :: source_fields
+    type(field_collection_type),   intent(inout) :: target_fields
+
+    type(field_collection_iterator_type) :: iter
+
+    class(field_parent_type), pointer :: field
+    type(field_type),         pointer :: field_src
+    type(field_type),         pointer :: field_dst
+    type(mesh_type),          pointer :: mesh
+
+    character(len=str_def) :: field_name
+
+    ! Main loop over fields to be processed
+    call iter%initialise(source_fields)
+    do
+      ! Locate the field to be processed in the field collections
+      if ( .not.iter%has_next() ) exit
+      field => iter%next()
+      field_name = field%get_name()
+
+      call source_fields%get_field(field_name, field_src)
+      call target_fields%get_field(field_name, field_dst)
+
+      mesh => field_src%get_mesh()
+      if (mesh%get_extrusion_id() == TWOD) then
+
+        write(log_scratch_space, '(A,A)') "Processing lfric field ", &
+                                          trim(field_name)
+        call log_event(log_scratch_space, log_level_info)
+
+        ! Apply changes associated with tiles
+       end if
+     end do
+
+  end subroutine lfric2lfric_tiles
+
+end module lfric2lfric_tiles_mod

@@ -27,6 +27,8 @@ module lfric2lfric_init_mod
   ! lfric2lfric mods
   use lfric2lfric_config_mod,     only: mode_ics, mode_lbc
   use lfric2lfric_field_init_mod, only: get_field_list, field_maker
+  use lfric2lfric_query_multilayer_mod, &
+                                  only: query_multilayer
 
   implicit none
   private
@@ -81,9 +83,12 @@ module lfric2lfric_init_mod
 
     logical(l_def), pointer :: horizontal_change
     logical(l_def), pointer :: vertical_change
+    logical(l_def), pointer :: tile_change
 
     ! For field creation and storage
-    type(field_collection_type), pointer :: field_collection
+    type(field_collection_type), pointer :: target_fields
+    type(field_collection_type), pointer :: source_fields
+    type(field_collection_type), pointer :: interm_fields
 
     ! For get_field_list returns
     integer(kind=i_def)                 :: num_fields
@@ -115,11 +120,11 @@ module lfric2lfric_init_mod
     !--------------------------------------------------------------------------
     ! Initialise our field collection
     call modeldb%fields%add_empty_field_collection(origin_collection_name)
-    field_collection => modeldb%fields%get_field_collection(origin_collection_name)
+    source_fields => modeldb%fields%get_field_collection(origin_collection_name)
 
     ! Now need to loop over length of config_list make field for each
     do i = 1, num_fields
-      call field_maker( field_collection, &
+      call field_maker( source_fields,    &
                         config_list(i),   &
                         origin_mesh,      &
                         origin_twod_mesh, &
@@ -130,8 +135,7 @@ module lfric2lfric_init_mod
     ! Initialise Target Fields
     !--------------------------------------------------------------------------
     call modeldb%fields%add_empty_field_collection(target_collection_name)
-    field_collection => &
-                    modeldb%fields%get_field_collection(target_collection_name)
+    target_fields => modeldb%fields%get_field_collection(target_collection_name)
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context)
     call io_context%set_current()
@@ -143,7 +147,7 @@ module lfric2lfric_init_mod
     end if
 
     do i = 1, num_fields
-      call field_maker( field_collection, &
+      call field_maker( target_fields,    &
                         config_list(i),   &
                         target_mesh,      &
                         target_twod_mesh, &
@@ -155,19 +159,22 @@ module lfric2lfric_init_mod
          orog_init_option == orog_init_option_start_dump ) then
        if ( mode == mode_ics ) then
 
-        call field_maker(field_collection, trim('surface_altitude'), &
+        call field_maker(target_fields, trim('surface_altitude'), &
              target_mesh, target_twod_mesh, prefix)
 
      end if
     end if
 
+    call query_multilayer( modeldb, source_fields, target_fields )
+    call modeldb%values%get_value("tile_change", tile_change)
+    
     !--------------------------------------------------------------------------
     ! Initialise Intermediate Fields
     !--------------------------------------------------------------------------
-    if (horizontal_change .and. vertical_change) then
+    if ( (horizontal_change .and. vertical_change) .or. &
+         (horizontal_change .and. tile_change)) then
       call modeldb%fields%add_empty_field_collection(interm_collection_name)
-      field_collection => &
-                      modeldb%fields%get_field_collection(interm_collection_name)
+      interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
 
       if (mode == mode_ics) then
         prefix = 'checkpoint_'
@@ -176,7 +183,7 @@ module lfric2lfric_init_mod
       end if
 
       do i = 1, num_fields
-        call field_maker( field_collection, &
+        call field_maker( interm_fields,    &
                           config_list(i),   &
                           interm_mesh,      &
                           interm_twod_mesh, &

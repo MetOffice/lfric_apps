@@ -40,6 +40,8 @@ module lfric2lfric_driver_mod
                                             src, dst
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
   use lfric2lfric_vert_mod,           only: lfric2lfric_vert
+  use lfric2lfric_tiles_mod,          only: lfric2lfric_tiles
+  
 
   implicit none
 
@@ -123,6 +125,8 @@ contains
 
     logical(kind=l_def), pointer :: vertical_change
     logical(kind=l_def), pointer :: horizontal_change
+    logical(kind=l_def), pointer :: tile_change
+    logical(kind=l_def) :: vertical_or_tile_change
 
     ! Extract configuration variables
     src_extrusion_method    = modeldb%config%extrusion%method()
@@ -151,14 +155,18 @@ contains
 
     call modeldb%values%get_value("vertical_change", vertical_change)
     call modeldb%values%get_value("horizontal_change", horizontal_change)
+    call modeldb%values%get_value("tile_change", tile_change)
 
-    if (horizontal_change .and. vertical_change) then
+    if (vertical_change .or. tile_change) then
+       vertical_or_tile_change = .true.
+    end if
+    if (horizontal_change .and. vertical_or_tile_change) then
        interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
 
-    else if (horizontal_change .and. .not. vertical_change) then
+    else if (horizontal_change .and. .not. vertical_or_tile_change) then
        interm_fields =>  modeldb%fields%get_field_collection(target_collection_name)
 
-    else if (vertical_change .and. .not. horizontal_change) then
+    else if (vertical_or_tile_change .and. .not. horizontal_change) then
        interm_fields =>  modeldb%fields%get_field_collection(source_collection_name)
     end if
 
@@ -172,6 +180,9 @@ contains
       end if
       if (vertical_change) then
         call lfric2lfric_vert(modeldb, interm_fields, target_fields)
+      end if
+      if (tile_change) then
+        call lfric2lfric_tiles(modeldb, interm_fields, target_fields)
       end if
 
       ! Write output
