@@ -2613,32 +2613,6 @@ contains
       end do
     end do
 
-    ! Frequency of updraught / downdraught on each level.  These use the
-    ! CoMorph mass flux before it is modified, so we know the complete set
-    ! of levels with non-zero values.
-    if (.not. associated(freq_up, empty_real_data) ) then
-      do k = 1, n_conv_levels
-        do i = 1, row_length
-          if (up_flux_half(i,1,k) > 0.0_r_um) then
-            freq_up(map_w3(1,i) + k-1) = 1.0_r_def
-          else
-            freq_up(map_w3(1,i) + k-1) = 0.0_r_def
-          end if
-        end do
-      end do
-    end if
-    if (.not. associated(freq_down, empty_real_data) ) then
-      do k = 1, n_conv_levels
-        do i = 1, row_length
-          if (down_flux_half(i,1,k) > 0.0_r_um) then
-            freq_down(map_w3(1,i) + k-1) = 1.0_r_def
-          else
-            freq_down(map_w3(1,i) + k-1) = 0.0_r_def
-          end if
-        end do
-      end do
-    end if
-
     if (l_pc2_homog_conv_pressure) then
       do k = 1, n_conv_levels
         do i = 1, row_length
@@ -2708,6 +2682,31 @@ contains
           end do
         end do
         deallocate(rad_down)
+      end if
+      ! Frequency of updraught / downdraught on each level.  These use
+      ! the CoMorph mass flux before it is modified, so we know the
+      ! complete set of levels with non-zero values.
+      if (.not. associated(freq_up, empty_real_data) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            if (up_flux_half(i,1,k) > 0.0_r_um) then
+              freq_up(map_w3(1,i) + k-1) = 1.0_r_def
+            else
+              freq_up(map_w3(1,i) + k-1) = 0.0_r_def
+            end if
+          end do
+        end do
+      end if
+      if (.not. associated(freq_down, empty_real_data) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            if (down_flux_half(i,1,k) > 0.0_r_um) then
+              freq_down(map_w3(1,i) + k-1) = 1.0_r_def
+            else
+              freq_down(map_w3(1,i) + k-1) = 0.0_r_def
+            end if
+          end do
+        end do
       end if
     end if ! outer_iterations
 
