@@ -36,7 +36,7 @@ module conv_comorph_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_comorph_kernel_type
     private
-    type(arg_type) :: meta_args(199) = (/                                         &
+    type(arg_type) :: meta_args(229) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -235,7 +235,37 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_radius_up
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_radius_down
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! freq_up
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! freq_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! freq_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_dtv_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_dtv_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_rhl_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_rhl_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_q_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_q_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qcl_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qcl_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qcf_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qcf_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qrain_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qrain_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qgraup_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qgraup_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qsnow_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_qsnow_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_cfl_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_cfl_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_cff_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_cff_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_cfb_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_cfb_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_u_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_u_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_v_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_v_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_w_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_w_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_t_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! par_mean_t_down
         /)
     integer :: operates_on = DOMAIN
   contains
@@ -446,6 +476,36 @@ contains
   !> @param[in,out] par_radius_down      Mean downdraught parcel radius on half-levels (m)
   !> @param[in,out] freq_up              Frequency of updraught on half-levels
   !> @param[in,out] freq_down            Frequency of downdraught on half-levels
+  !> @param[in,out] par_mean_dtv_up      Mean updraught parcel excess virtual temperature (K)
+  !> @param[in,out] par_mean_dtv_down    Mean downdraught parcel excess virtual temperature (K)
+  !> @param[in,out] par_mean_rhl_up      Mean updraught parcel relative humidity wrt liquid
+  !> @param[in,out] par_mean_rhl_down    Mean downdraught parcel relative humidity wrt liquid
+  !> @param[in,out] par_mean_q_up        Mean updraught parcel water vapour (kg/kg)
+  !> @param[in,out] par_mean_q_down      Mean downdraught parcel water vapour (kg/kg)
+  !> @param[in,out] par_mean_qcl_up      Mean updraught parcel liquid water (kg/kg)
+  !> @param[in,out] par_mean_qcl_down    Mean downdraught parcel liquid water (kg/kg)
+  !> @param[in,out] par_mean_qcf_up      Mean updraught parcel ice water (kg/kg)
+  !> @param[in,out] par_mean_qcf_down    Mean downdraught parcel ice water (kg/kg)
+  !> @param[in,out] par_mean_qrain_up    Mean updraught parcel rain (kg/kg)
+  !> @param[in,out] par_mean_qrain_down  Mean downdraught parcel rain (kg/kg)
+  !> @param[in,out] par_mean_qgraup_up   Mean updraught parcel graupel (kg/kg)
+  !> @param[in,out] par_mean_qgraup_down Mean downdraught parcel graupel (kg/kg)
+  !> @param[in,out] par_mean_qsnow_up    Mean updraught parcel snow (kg/kg)
+  !> @param[in,out] par_mean_qsnow_down  Mean downdraught parcel snow (kg/kg)
+  !> @param[in,out] par_mean_cfl_up      Mean updraught parcel liquid cloud fraction
+  !> @param[in,out] par_mean_cfl_down    Mean downdraught parcel liquid cloud fraction
+  !> @param[in,out] par_mean_cff_up      Mean updraught parcel ice cloud fraction
+  !> @param[in,out] par_mean_cff_down    Mean downdraught parcel ice cloud fraction
+  !> @param[in,out] par_mean_cfb_up      Mean updraught parcel bulk cloud fraction
+  !> @param[in,out] par_mean_cfb_down    Mean downdraught parcel bulk cloud fraction
+  !> @param[in,out] par_mean_u_up        Mean updraught parcel u wind (m/s)
+  !> @param[in,out] par_mean_u_down      Mean downdraught parcel u wind (m/s)
+  !> @param[in,out] par_mean_v_up        Mean updraught parcel v wind (m/s)
+  !> @param[in,out] par_mean_v_down      Mean downdraught parcel v wind (m/s)
+  !> @param[in,out] par_mean_w_up        Mean updraught parcel w wind (m/s)
+  !> @param[in,out] par_mean_w_down      Mean downdraught parcel w wind (m/s)
+  !> @param[in,out] par_mean_t_up        Mean updraught parcel temperature (K)
+  !> @param[in,out] par_mean_t_down      Mean downdraught parcel temperature (K)
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs  for density space
   !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
@@ -661,6 +721,36 @@ contains
                           par_radius_down,                   &
                           freq_up,                           &
                           freq_down,                         &
+                          par_mean_dtv_up,                   &
+                          par_mean_dtv_down,                 &
+                          par_mean_rhl_up,                   &
+                          par_mean_rhl_down,                 &
+                          par_mean_q_up,                     &
+                          par_mean_q_down,                   &
+                          par_mean_qcl_up,                   &
+                          par_mean_qcl_down,                 &
+                          par_mean_qcf_up,                   &
+                          par_mean_qcf_down,                 &
+                          par_mean_qrain_up,                 &
+                          par_mean_qrain_down,               &
+                          par_mean_qgraup_up,                &
+                          par_mean_qgraup_down,              &
+                          par_mean_qsnow_up,                 &
+                          par_mean_qsnow_down,               &
+                          par_mean_cfl_up,                   &
+                          par_mean_cfl_down,                 &
+                          par_mean_cff_up,                   &
+                          par_mean_cff_down,                 &
+                          par_mean_cfb_up,                   &
+                          par_mean_cfb_down,                 &
+                          par_mean_u_up,                     &
+                          par_mean_u_down,                   &
+                          par_mean_v_up,                     &
+                          par_mean_v_down,                   &
+                          par_mean_w_up,                     &
+                          par_mean_w_down,                   &
+                          par_mean_t_up,                     &
+                          par_mean_t_down,                   &
                           ndf_w3,                            &
                           undf_w3,                           &
                           map_w3,                            &
@@ -824,7 +914,7 @@ contains
     use comorph_diags_type_mod, only: comorph_diags_type
     use set_constants_from_um_mod, only: set_constants_from_um
     use comorph_constants_mod, only: l_init_constants, l_turb_par_gen,         &
-         l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,                            &
+         l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup, l_cv_cloudfrac,            &
          i_convcloud, i_convcloud_liqonly
     use calc_conv_incs_mod, only: calc_conv_incs, i_call_save_before_conv,     &
          i_call_diff_to_get_incs
@@ -1032,6 +1122,37 @@ contains
                                                 par_radius_down(:),  &
                                                 freq_up(:),          &
                                                 freq_down(:)
+
+    real(kind=r_def), pointer, intent(inout) :: par_mean_dtv_up(:),            &
+                                                par_mean_dtv_down(:),          &
+                                                par_mean_rhl_up(:),            &
+                                                par_mean_rhl_down(:),          &
+                                                par_mean_q_up(:),              &
+                                                par_mean_q_down(:),            &
+                                                par_mean_qcl_up(:),            &
+                                                par_mean_qcl_down(:),          &
+                                                par_mean_qcf_up(:),            &
+                                                par_mean_qcf_down(:),          &
+                                                par_mean_qrain_up(:),          &
+                                                par_mean_qrain_down(:),        &
+                                                par_mean_qgraup_up(:),         &
+                                                par_mean_qgraup_down(:),       &
+                                                par_mean_qsnow_up(:),          &
+                                                par_mean_qsnow_down(:),        &
+                                                par_mean_cfl_up(:),            &
+                                                par_mean_cfl_down(:),          &
+                                                par_mean_cff_up(:),            &
+                                                par_mean_cff_down(:),          &
+                                                par_mean_cfb_up(:),            &
+                                                par_mean_cfb_down(:),          &
+                                                par_mean_u_up(:),              &
+                                                par_mean_u_down(:),            &
+                                                par_mean_v_up(:),              &
+                                                par_mean_v_down(:),            &
+                                                par_mean_w_up(:),              &
+                                                par_mean_w_down(:),            &
+                                                par_mean_t_up(:),              &
+                                                par_mean_t_down(:)
 
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcfl_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcff_conv
@@ -1246,6 +1367,14 @@ contains
     real(kind=r_um), target :: down_flux_half(row_length, rows, nlayers)
     real(kind=r_um), target, allocatable, dimension(:,:,:) :: ent_up, ent_down,&
          det_up, det_down, pres_inc_env, rad_up, rad_down
+    real(kind=r_um), target, allocatable, dimension(:,:,:) ::                  &
+         mean_dtv_up, mean_dtv_down, mean_rhl_up, mean_rhl_down, mean_q_up,    &
+         mean_q_down, mean_qcl_up, mean_qcl_down, mean_qcf_up, mean_qcf_down,  &
+         mean_qrain_up, mean_qrain_down, mean_qgraup_up, mean_qgraup_down,     &
+         mean_qsnow_up, mean_qsnow_down, mean_cfl_up, mean_cfl_down,           &
+         mean_cff_up, mean_cff_down, mean_cfb_up, mean_cfb_down, mean_u_up,    &
+         mean_u_down, mean_v_up, mean_v_down, mean_w_up, mean_w_down,          &
+         mean_t_up, mean_t_down
 
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into CoMorph 3D arrays
@@ -2364,6 +2493,233 @@ contains
         comorph_diags % dndraft % par % radius                                 &
                                 % field_3d => rad_down
       end if
+
+      ! Set requests and assign pointers for the mean parcel property
+      ! diagnostics.  CoMorph calculates these on rho-levels.  Those for
+      ! the optional hydrometeors and the cloud fractions can only be
+      ! requested when convection is acting on them.
+      if (.not. associated(par_mean_dtv_up, empty_real_data) ) then
+        allocate(mean_dtv_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % virt_temp_excess                &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % virt_temp_excess                &
+                                % field_3d => mean_dtv_up
+      end if
+      if (.not. associated(par_mean_dtv_down, empty_real_data) ) then
+        allocate(mean_dtv_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % virt_temp_excess                &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % virt_temp_excess                &
+                                % field_3d => mean_dtv_down
+      end if
+      if (.not. associated(par_mean_rhl_up, empty_real_data) ) then
+        allocate(mean_rhl_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % rel_hum_liq                     &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % rel_hum_liq                     &
+                                % field_3d => mean_rhl_up
+      end if
+      if (.not. associated(par_mean_rhl_down, empty_real_data) ) then
+        allocate(mean_rhl_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % rel_hum_liq                     &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % rel_hum_liq                     &
+                                % field_3d => mean_rhl_down
+      end if
+      if (.not. associated(par_mean_q_up, empty_real_data) ) then
+        allocate(mean_q_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % q_vap                           &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % q_vap                           &
+                                % field_3d => mean_q_up
+      end if
+      if (.not. associated(par_mean_q_down, empty_real_data) ) then
+        allocate(mean_q_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % q_vap                           &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % q_vap                           &
+                                % field_3d => mean_q_down
+      end if
+      if (.not. associated(par_mean_qcl_up, empty_real_data) ) then
+        allocate(mean_qcl_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % q_cl                            &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % q_cl                            &
+                                % field_3d => mean_qcl_up
+      end if
+      if (.not. associated(par_mean_qcl_down, empty_real_data) ) then
+        allocate(mean_qcl_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % q_cl                            &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % q_cl                            &
+                                % field_3d => mean_qcl_down
+      end if
+      if (.not. associated(par_mean_qcf_up, empty_real_data) ) then
+        allocate(mean_qcf_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % q_cf                            &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % q_cf                            &
+                                % field_3d => mean_qcf_up
+      end if
+      if (.not. associated(par_mean_qcf_down, empty_real_data) ) then
+        allocate(mean_qcf_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % q_cf                            &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % q_cf                            &
+                                % field_3d => mean_qcf_down
+      end if
+      if (l_cv_rain .and.                                                      &
+          .not. associated(par_mean_qrain_up, empty_real_data) ) then
+        allocate(mean_qrain_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % q_rain                          &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % q_rain                          &
+                                % field_3d => mean_qrain_up
+      end if
+      if (l_cv_rain .and.                                                      &
+          .not. associated(par_mean_qrain_down, empty_real_data) ) then
+        allocate(mean_qrain_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % q_rain                          &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % q_rain                          &
+                                % field_3d => mean_qrain_down
+      end if
+      if (l_cv_graup .and.                                                     &
+          .not. associated(par_mean_qgraup_up, empty_real_data) ) then
+        allocate(mean_qgraup_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % q_graup                         &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % q_graup                         &
+                                % field_3d => mean_qgraup_up
+      end if
+      if (l_cv_graup .and.                                                     &
+          .not. associated(par_mean_qgraup_down, empty_real_data) ) then
+        allocate(mean_qgraup_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % q_graup                         &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % q_graup                         &
+                                % field_3d => mean_qgraup_down
+      end if
+      if (l_cv_snow .and.                                                      &
+          .not. associated(par_mean_qsnow_up, empty_real_data) ) then
+        allocate(mean_qsnow_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % q_snow                          &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % q_snow                          &
+                                % field_3d => mean_qsnow_up
+      end if
+      if (l_cv_snow .and.                                                      &
+          .not. associated(par_mean_qsnow_down, empty_real_data) ) then
+        allocate(mean_qsnow_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % q_snow                          &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % q_snow                          &
+                                % field_3d => mean_qsnow_down
+      end if
+      if (l_cv_cloudfrac .and.                                                 &
+          .not. associated(par_mean_cfl_up, empty_real_data) ) then
+        allocate(mean_cfl_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % cf_liq                          &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % cf_liq                          &
+                                % field_3d => mean_cfl_up
+      end if
+      if (l_cv_cloudfrac .and.                                                 &
+          .not. associated(par_mean_cfl_down, empty_real_data) ) then
+        allocate(mean_cfl_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % cf_liq                          &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % cf_liq                          &
+                                % field_3d => mean_cfl_down
+      end if
+      if (l_cv_cloudfrac .and.                                                 &
+          .not. associated(par_mean_cff_up, empty_real_data) ) then
+        allocate(mean_cff_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % cf_ice                          &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % cf_ice                          &
+                                % field_3d => mean_cff_up
+      end if
+      if (l_cv_cloudfrac .and.                                                 &
+          .not. associated(par_mean_cff_down, empty_real_data) ) then
+        allocate(mean_cff_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % cf_ice                          &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % cf_ice                          &
+                                % field_3d => mean_cff_down
+      end if
+      if (l_cv_cloudfrac .and.                                                 &
+          .not. associated(par_mean_cfb_up, empty_real_data) ) then
+        allocate(mean_cfb_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % cf_bulk                         &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % cf_bulk                         &
+                                % field_3d => mean_cfb_up
+      end if
+      if (l_cv_cloudfrac .and.                                                 &
+          .not. associated(par_mean_cfb_down, empty_real_data) ) then
+        allocate(mean_cfb_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % cf_bulk                         &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % cf_bulk                         &
+                                % field_3d => mean_cfb_down
+      end if
+      if (.not. associated(par_mean_u_up, empty_real_data) ) then
+        allocate(mean_u_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % wind_u                          &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % wind_u                          &
+                                % field_3d => mean_u_up
+      end if
+      if (.not. associated(par_mean_u_down, empty_real_data) ) then
+        allocate(mean_u_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % wind_u                          &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % wind_u                          &
+                                % field_3d => mean_u_down
+      end if
+      if (.not. associated(par_mean_v_up, empty_real_data) ) then
+        allocate(mean_v_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % wind_v                          &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % wind_v                          &
+                                % field_3d => mean_v_up
+      end if
+      if (.not. associated(par_mean_v_down, empty_real_data) ) then
+        allocate(mean_v_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % wind_v                          &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % wind_v                          &
+                                % field_3d => mean_v_down
+      end if
+      if (.not. associated(par_mean_w_up, empty_real_data) ) then
+        allocate(mean_w_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % wind_w                          &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % wind_w                          &
+                                % field_3d => mean_w_up
+      end if
+      if (.not. associated(par_mean_w_down, empty_real_data) ) then
+        allocate(mean_w_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % wind_w                          &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % wind_w                          &
+                                % field_3d => mean_w_down
+      end if
+      if (.not. associated(par_mean_t_up, empty_real_data) ) then
+        allocate(mean_t_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % mean % temperature                     &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % mean % temperature                     &
+                                % field_3d => mean_t_up
+      end if
+      if (.not. associated(par_mean_t_down, empty_real_data) ) then
+        allocate(mean_t_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % mean % temperature                     &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % mean % temperature                     &
+                                % field_3d => mean_t_down
+      end if
     end if
     if (l_pc2_homog_conv_pressure) then
       allocate(pres_inc_env(row_length,rows,nlayers))
@@ -2682,6 +3038,249 @@ contains
           end do
         end do
         deallocate(rad_down)
+      end if
+
+      ! Copy the mean parcel properties onto rho-levels.  No unit
+      ! conversion is needed for any of these.
+      if (allocated(mean_dtv_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_dtv_up(map_w3(1,i) + k-1) = mean_dtv_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_dtv_up)
+      end if
+      if (allocated(mean_dtv_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_dtv_down(map_w3(1,i) + k-1) = mean_dtv_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_dtv_down)
+      end if
+      if (allocated(mean_rhl_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_rhl_up(map_w3(1,i) + k-1) = mean_rhl_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_rhl_up)
+      end if
+      if (allocated(mean_rhl_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_rhl_down(map_w3(1,i) + k-1) = mean_rhl_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_rhl_down)
+      end if
+      if (allocated(mean_q_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_q_up(map_w3(1,i) + k-1) = mean_q_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_q_up)
+      end if
+      if (allocated(mean_q_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_q_down(map_w3(1,i) + k-1) = mean_q_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_q_down)
+      end if
+      if (allocated(mean_qcl_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qcl_up(map_w3(1,i) + k-1) = mean_qcl_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_qcl_up)
+      end if
+      if (allocated(mean_qcl_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qcl_down(map_w3(1,i) + k-1) = mean_qcl_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_qcl_down)
+      end if
+      if (allocated(mean_qcf_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qcf_up(map_w3(1,i) + k-1) = mean_qcf_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_qcf_up)
+      end if
+      if (allocated(mean_qcf_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qcf_down(map_w3(1,i) + k-1) = mean_qcf_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_qcf_down)
+      end if
+      if (allocated(mean_qrain_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qrain_up(map_w3(1,i) + k-1) = mean_qrain_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_qrain_up)
+      end if
+      if (allocated(mean_qrain_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qrain_down(map_w3(1,i) + k-1) = mean_qrain_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_qrain_down)
+      end if
+      if (allocated(mean_qgraup_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qgraup_up(map_w3(1,i) + k-1) = mean_qgraup_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_qgraup_up)
+      end if
+      if (allocated(mean_qgraup_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qgraup_down(map_w3(1,i) + k-1) = mean_qgraup_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_qgraup_down)
+      end if
+      if (allocated(mean_qsnow_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qsnow_up(map_w3(1,i) + k-1) = mean_qsnow_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_qsnow_up)
+      end if
+      if (allocated(mean_qsnow_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_qsnow_down(map_w3(1,i) + k-1) = mean_qsnow_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_qsnow_down)
+      end if
+      if (allocated(mean_cfl_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_cfl_up(map_w3(1,i) + k-1) = mean_cfl_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_cfl_up)
+      end if
+      if (allocated(mean_cfl_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_cfl_down(map_w3(1,i) + k-1) = mean_cfl_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_cfl_down)
+      end if
+      if (allocated(mean_cff_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_cff_up(map_w3(1,i) + k-1) = mean_cff_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_cff_up)
+      end if
+      if (allocated(mean_cff_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_cff_down(map_w3(1,i) + k-1) = mean_cff_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_cff_down)
+      end if
+      if (allocated(mean_cfb_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_cfb_up(map_w3(1,i) + k-1) = mean_cfb_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_cfb_up)
+      end if
+      if (allocated(mean_cfb_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_cfb_down(map_w3(1,i) + k-1) = mean_cfb_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_cfb_down)
+      end if
+      if (allocated(mean_u_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_u_up(map_w3(1,i) + k-1) = mean_u_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_u_up)
+      end if
+      if (allocated(mean_u_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_u_down(map_w3(1,i) + k-1) = mean_u_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_u_down)
+      end if
+      if (allocated(mean_v_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_v_up(map_w3(1,i) + k-1) = mean_v_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_v_up)
+      end if
+      if (allocated(mean_v_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_v_down(map_w3(1,i) + k-1) = mean_v_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_v_down)
+      end if
+      if (allocated(mean_w_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_w_up(map_w3(1,i) + k-1) = mean_w_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_w_up)
+      end if
+      if (allocated(mean_w_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_w_down(map_w3(1,i) + k-1) = mean_w_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_w_down)
+      end if
+      if (allocated(mean_t_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_t_up(map_w3(1,i) + k-1) = mean_t_up(i,1,k)
+          end do
+        end do
+        deallocate(mean_t_up)
+      end if
+      if (allocated(mean_t_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_mean_t_down(map_w3(1,i) + k-1) = mean_t_down(i,1,k)
+          end do
+        end do
+        deallocate(mean_t_down)
       end if
       ! Frequency of updraught / downdraught on each level.  These use
       ! the CoMorph mass flux before it is modified, so we know the

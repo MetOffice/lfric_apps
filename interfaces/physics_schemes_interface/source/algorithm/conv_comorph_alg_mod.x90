@@ -275,6 +275,21 @@ contains
     type( field_type ) :: massflux_up_half
     type( field_type ) :: par_radius_up,par_radius_down
     type( field_type ) :: freq_up,freq_down
+    type( field_type ) :: par_mean_dtv_up,par_mean_dtv_down
+    type( field_type ) :: par_mean_rhl_up,par_mean_rhl_down
+    type( field_type ) :: par_mean_q_up,par_mean_q_down
+    type( field_type ) :: par_mean_qcl_up,par_mean_qcl_down
+    type( field_type ) :: par_mean_qcf_up,par_mean_qcf_down
+    type( field_type ) :: par_mean_qrain_up,par_mean_qrain_down
+    type( field_type ) :: par_mean_qgraup_up,par_mean_qgraup_down
+    type( field_type ) :: par_mean_qsnow_up,par_mean_qsnow_down
+    type( field_type ) :: par_mean_cfl_up,par_mean_cfl_down
+    type( field_type ) :: par_mean_cff_up,par_mean_cff_down
+    type( field_type ) :: par_mean_cfb_up,par_mean_cfb_down
+    type( field_type ) :: par_mean_u_up,par_mean_u_down
+    type( field_type ) :: par_mean_v_up,par_mean_v_down
+    type( field_type ) :: par_mean_w_up,par_mean_w_down
+    type( field_type ) :: par_mean_t_up,par_mean_t_down
     type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
     type( mesh_type ), pointer  :: mesh
@@ -490,7 +505,37 @@ contains
                                       par_radius_up,        &
                                       par_radius_down,      &
                                       freq_up,              &
-                                      freq_down)
+                                      freq_down,            &
+                                      par_mean_dtv_up,      &
+                                      par_mean_dtv_down,    &
+                                      par_mean_rhl_up,      &
+                                      par_mean_rhl_down,    &
+                                      par_mean_q_up,        &
+                                      par_mean_q_down,      &
+                                      par_mean_qcl_up,      &
+                                      par_mean_qcl_down,    &
+                                      par_mean_qcf_up,      &
+                                      par_mean_qcf_down,    &
+                                      par_mean_qrain_up,    &
+                                      par_mean_qrain_down,  &
+                                      par_mean_qgraup_up,   &
+                                      par_mean_qgraup_down, &
+                                      par_mean_qsnow_up,    &
+                                      par_mean_qsnow_down,  &
+                                      par_mean_cfl_up,      &
+                                      par_mean_cfl_down,    &
+                                      par_mean_cff_up,      &
+                                      par_mean_cff_down,    &
+                                      par_mean_cfb_up,      &
+                                      par_mean_cfb_down,    &
+                                      par_mean_u_up,        &
+                                      par_mean_u_down,      &
+                                      par_mean_v_up,        &
+                                      par_mean_v_down,      &
+                                      par_mean_w_up,        &
+                                      par_mean_w_down,      &
+                                      par_mean_t_up,        &
+                                      par_mean_t_down)
 
     ! call the scheme
     ncells = mesh%get_last_edge_cell()
@@ -652,7 +697,37 @@ contains
                           par_radius_up,                                      &
                           par_radius_down,                                    &
                           freq_up,                                            &
-                          freq_down)                                          &
+                          freq_down,                                          &
+                          par_mean_dtv_up,                                    &
+                          par_mean_dtv_down,                                  &
+                          par_mean_rhl_up,                                    &
+                          par_mean_rhl_down,                                  &
+                          par_mean_q_up,                                      &
+                          par_mean_q_down,                                    &
+                          par_mean_qcl_up,                                    &
+                          par_mean_qcl_down,                                  &
+                          par_mean_qcf_up,                                    &
+                          par_mean_qcf_down,                                  &
+                          par_mean_qrain_up,                                  &
+                          par_mean_qrain_down,                                &
+                          par_mean_qgraup_up,                                 &
+                          par_mean_qgraup_down,                               &
+                          par_mean_qsnow_up,                                  &
+                          par_mean_qsnow_down,                                &
+                          par_mean_cfl_up,                                    &
+                          par_mean_cfl_down,                                  &
+                          par_mean_cff_up,                                    &
+                          par_mean_cff_down,                                  &
+                          par_mean_cfb_up,                                    &
+                          par_mean_cfb_down,                                  &
+                          par_mean_u_up,                                      &
+                          par_mean_u_down,                                    &
+                          par_mean_v_up,                                      &
+                          par_mean_v_down,                                    &
+                          par_mean_w_up,                                      &
+                          par_mean_w_down,                                    &
+                          par_mean_t_up,                                      &
+                          par_mean_t_down)                                    &
                                            ) ! end of invoke
 
     call um_sizes_init(1_i_def)
@@ -704,7 +779,37 @@ contains
                                   par_radius_up,         &
                                   par_radius_down,       &
                                   freq_up,               &
-                                  freq_down)
+                                  freq_down,             &
+                                  par_mean_dtv_up,       &
+                                  par_mean_dtv_down,     &
+                                  par_mean_rhl_up,       &
+                                  par_mean_rhl_down,     &
+                                  par_mean_q_up,         &
+                                  par_mean_q_down,       &
+                                  par_mean_qcl_up,       &
+                                  par_mean_qcl_down,     &
+                                  par_mean_qcf_up,       &
+                                  par_mean_qcf_down,     &
+                                  par_mean_qrain_up,     &
+                                  par_mean_qrain_down,   &
+                                  par_mean_qgraup_up,    &
+                                  par_mean_qgraup_down,  &
+                                  par_mean_qsnow_up,     &
+                                  par_mean_qsnow_down,   &
+                                  par_mean_cfl_up,       &
+                                  par_mean_cfl_down,     &
+                                  par_mean_cff_up,       &
+                                  par_mean_cff_down,     &
+                                  par_mean_cfb_up,       &
+                                  par_mean_cfb_down,     &
+                                  par_mean_u_up,         &
+                                  par_mean_u_down,       &
+                                  par_mean_v_up,         &
+                                  par_mean_v_down,       &
+                                  par_mean_w_up,         &
+                                  par_mean_w_down,       &
+                                  par_mean_t_up,         &
+                                  par_mean_t_down)
 
     end if
 

@@ -374,6 +374,36 @@
   <field id="convection__par_radius_down" name="par_radius_down" long_name="convection_downdraught_parcel_radius" unit="m" grid_ref="half_level_face_grid" />
   <field id="convection__freq_up" name="freq_up" long_name="convection_updraught_frequency" unit="1" grid_ref="half_level_face_grid" />
   <field id="convection__freq_down" name="freq_down" long_name="convection_downdraught_frequency" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_dtv_up" name="par_mean_dtv_up" long_name="convection_updraught_parcel_mean_excess_virtual_temperature" unit="K" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_dtv_down" name="par_mean_dtv_down" long_name="convection_downdraught_parcel_mean_excess_virtual_temperature" unit="K" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_rhl_up" name="par_mean_rhl_up" long_name="convection_updraught_parcel_mean_relative_humidity_wrt_liquid" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_rhl_down" name="par_mean_rhl_down" long_name="convection_downdraught_parcel_mean_relative_humidity_wrt_liquid" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_q_up" name="par_mean_q_up" long_name="convection_updraught_parcel_mean_water_vapour" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_q_down" name="par_mean_q_down" long_name="convection_downdraught_parcel_mean_water_vapour" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qcl_up" name="par_mean_qcl_up" long_name="convection_updraught_parcel_mean_liquid_water" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qcl_down" name="par_mean_qcl_down" long_name="convection_downdraught_parcel_mean_liquid_water" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qcf_up" name="par_mean_qcf_up" long_name="convection_updraught_parcel_mean_ice_water" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qcf_down" name="par_mean_qcf_down" long_name="convection_downdraught_parcel_mean_ice_water" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qrain_up" name="par_mean_qrain_up" long_name="convection_updraught_parcel_mean_rain" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qrain_down" name="par_mean_qrain_down" long_name="convection_downdraught_parcel_mean_rain" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qgraup_up" name="par_mean_qgraup_up" long_name="convection_updraught_parcel_mean_graupel" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qgraup_down" name="par_mean_qgraup_down" long_name="convection_downdraught_parcel_mean_graupel" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qsnow_up" name="par_mean_qsnow_up" long_name="convection_updraught_parcel_mean_snow" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_qsnow_down" name="par_mean_qsnow_down" long_name="convection_downdraught_parcel_mean_snow" unit="kg kg-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_cfl_up" name="par_mean_cfl_up" long_name="convection_updraught_parcel_mean_liquid_cloud_fraction" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_cfl_down" name="par_mean_cfl_down" long_name="convection_downdraught_parcel_mean_liquid_cloud_fraction" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_cff_up" name="par_mean_cff_up" long_name="convection_updraught_parcel_mean_ice_cloud_fraction" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_cff_down" name="par_mean_cff_down" long_name="convection_downdraught_parcel_mean_ice_cloud_fraction" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_cfb_up" name="par_mean_cfb_up" long_name="convection_updraught_parcel_mean_bulk_cloud_fraction" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_cfb_down" name="par_mean_cfb_down" long_name="convection_downdraught_parcel_mean_bulk_cloud_fraction" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_u_up" name="par_mean_u_up" long_name="convection_updraught_parcel_mean_u_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_u_down" name="par_mean_u_down" long_name="convection_downdraught_parcel_mean_u_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_v_up" name="par_mean_v_up" long_name="convection_updraught_parcel_mean_v_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_v_down" name="par_mean_v_down" long_name="convection_downdraught_parcel_mean_v_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_w_up" name="par_mean_w_up" long_name="convection_updraught_parcel_mean_w_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_w_down" name="par_mean_w_down" long_name="convection_downdraught_parcel_mean_w_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_t_up" name="par_mean_t_up" long_name="convection_updraught_parcel_mean_temperature" unit="K" grid_ref="half_level_face_grid" />
+  <field id="convection__par_mean_t_down" name="par_mean_t_down" long_name="convection_downdraught_parcel_mean_temperature" unit="K" grid_ref="half_level_face_grid" />
   <field id="convection__dd_dt" name="dd_dt" long_name="temperature_increment_from_downdraughts" unit="K s-1" grid_ref="full_level_face_grid" />
   <field id="convection__dd_dq" name="dd_dq" long_name="water_vapour_increment_from_downdraughts" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
   <field id="convection__conv_rain" name="conv_rain" long_name="surface_convective_rainfall_rate" unit="kg m-2 s-1" domain_ref="face" />
