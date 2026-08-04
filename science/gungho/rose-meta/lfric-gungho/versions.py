@@ -50,7 +50,7 @@ class vn32_t379(MacroUpgrade):
         )
         # Determine inner iterations settings
         inner_array = f"{inner}"
-        for _ in range(outer - 1):
+        for _ in range(int(outer) - 1):
             inner_array += f",{inner}"
         self.add_setting(
             config, ["namelist:timestepping", "inner_iterations_si"],
