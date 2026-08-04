@@ -20,17 +20,15 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
+
 
 class vn32_t379(MacroUpgrade):
     """Upgrade macro for ticket #379 by Thomas Bendall."""
@@ -49,12 +47,16 @@ class vn32_t379(MacroUpgrade):
             config, ["namelist:timestepping", "inner_iterations"]
         )
         # Determine inner iterations settings
-        inner_array = f"{inner}"
-        for _ in range(int(outer) - 1):
-            inner_array += f",{inner}"
+        if outer in [None, "''", ""]:
+            inner_array = "''"
+        else:
+            inner_array = f"{inner}"
+            for _ in range(int(outer) - 1):
+                inner_array += f",{inner}"
         self.add_setting(
-            config, ["namelist:timestepping", "inner_iterations_si"],
-            inner_array
+            config,
+            ["namelist:timestepping", "inner_iterations_si"],
+            inner_array,
         )
         # Remove old setting
         self.remove_setting(
