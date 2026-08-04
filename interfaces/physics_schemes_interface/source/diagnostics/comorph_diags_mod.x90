@@ -36,7 +36,37 @@ module comorph_diags_mod
                       par_radius_up_flag,          &
                       par_radius_down_flag,        &
                       freq_up_flag,                &
-                      freq_down_flag
+                      freq_down_flag,              &
+                      par_mean_dtv_up_flag,        &
+                      par_mean_dtv_down_flag,      &
+                      par_mean_rhl_up_flag,        &
+                      par_mean_rhl_down_flag,      &
+                      par_mean_q_up_flag,          &
+                      par_mean_q_down_flag,        &
+                      par_mean_qcl_up_flag,        &
+                      par_mean_qcl_down_flag,      &
+                      par_mean_qcf_up_flag,        &
+                      par_mean_qcf_down_flag,      &
+                      par_mean_qrain_up_flag,      &
+                      par_mean_qrain_down_flag,    &
+                      par_mean_qgraup_up_flag,     &
+                      par_mean_qgraup_down_flag,   &
+                      par_mean_qsnow_up_flag,      &
+                      par_mean_qsnow_down_flag,    &
+                      par_mean_cfl_up_flag,        &
+                      par_mean_cfl_down_flag,      &
+                      par_mean_cff_up_flag,        &
+                      par_mean_cff_down_flag,      &
+                      par_mean_cfb_up_flag,        &
+                      par_mean_cfb_down_flag,      &
+                      par_mean_u_up_flag,          &
+                      par_mean_u_down_flag,        &
+                      par_mean_v_up_flag,          &
+                      par_mean_v_down_flag,        &
+                      par_mean_w_up_flag,          &
+                      par_mean_w_down_flag,        &
+                      par_mean_t_up_flag,          &
+                      par_mean_t_down_flag
 
   public :: initialise_diags_for_comorph
   public :: output_diags_for_comorph
@@ -61,7 +91,37 @@ contains
                                           par_radius_up,          &
                                           par_radius_down,        &
                                           freq_up,                &
-                                          freq_down)
+                                          freq_down,              &
+                                          par_mean_dtv_up,        &
+                                          par_mean_dtv_down,      &
+                                          par_mean_rhl_up,        &
+                                          par_mean_rhl_down,      &
+                                          par_mean_q_up,          &
+                                          par_mean_q_down,        &
+                                          par_mean_qcl_up,        &
+                                          par_mean_qcl_down,      &
+                                          par_mean_qcf_up,        &
+                                          par_mean_qcf_down,      &
+                                          par_mean_qrain_up,      &
+                                          par_mean_qrain_down,    &
+                                          par_mean_qgraup_up,     &
+                                          par_mean_qgraup_down,   &
+                                          par_mean_qsnow_up,      &
+                                          par_mean_qsnow_down,    &
+                                          par_mean_cfl_up,        &
+                                          par_mean_cfl_down,      &
+                                          par_mean_cff_up,        &
+                                          par_mean_cff_down,      &
+                                          par_mean_cfb_up,        &
+                                          par_mean_cfb_down,      &
+                                          par_mean_u_up,          &
+                                          par_mean_u_down,        &
+                                          par_mean_v_up,          &
+                                          par_mean_v_down,        &
+                                          par_mean_w_up,          &
+                                          par_mean_w_down,        &
+                                          par_mean_t_up,          &
+                                          par_mean_t_down)
 
     implicit none
 
@@ -83,7 +143,37 @@ contains
                                          par_radius_up,           &
                                          par_radius_down,         &
                                          freq_up,                 &
-                                         freq_down
+                                         freq_down,               &
+                                         par_mean_dtv_up,         &
+                                         par_mean_dtv_down,       &
+                                         par_mean_rhl_up,         &
+                                         par_mean_rhl_down,       &
+                                         par_mean_q_up,           &
+                                         par_mean_q_down,         &
+                                         par_mean_qcl_up,         &
+                                         par_mean_qcl_down,       &
+                                         par_mean_qcf_up,         &
+                                         par_mean_qcf_down,       &
+                                         par_mean_qrain_up,       &
+                                         par_mean_qrain_down,     &
+                                         par_mean_qgraup_up,      &
+                                         par_mean_qgraup_down,    &
+                                         par_mean_qsnow_up,       &
+                                         par_mean_qsnow_down,     &
+                                         par_mean_cfl_up,         &
+                                         par_mean_cfl_down,       &
+                                         par_mean_cff_up,         &
+                                         par_mean_cff_down,       &
+                                         par_mean_cfb_up,         &
+                                         par_mean_cfb_down,       &
+                                         par_mean_u_up,           &
+                                         par_mean_u_down,         &
+                                         par_mean_v_up,           &
+                                         par_mean_v_down,         &
+                                         par_mean_w_up,           &
+                                         par_mean_w_down,         &
+                                         par_mean_t_up,           &
+                                         par_mean_t_down
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -135,6 +225,146 @@ contains
     freq_down_flag = init_diag(freq_down, 'convection__freq_down')
     if (freq_down_flag) call invoke( setval_c(freq_down, 0.0_r_def) )
 
+    par_mean_dtv_up_flag = init_diag(par_mean_dtv_up,                         &
+                                     'convection__par_mean_dtv_up')
+    if (par_mean_dtv_up_flag) call invoke( setval_c(par_mean_dtv_up,          &
+                                                    0.0_r_def) )
+
+    par_mean_dtv_down_flag = init_diag(par_mean_dtv_down,                     &
+                                       'convection__par_mean_dtv_down')
+    if (par_mean_dtv_down_flag) call invoke( setval_c(par_mean_dtv_down,      &
+                                                      0.0_r_def) )
+
+    par_mean_rhl_up_flag = init_diag(par_mean_rhl_up,                         &
+                                     'convection__par_mean_rhl_up')
+    if (par_mean_rhl_up_flag) call invoke( setval_c(par_mean_rhl_up,          &
+                                                    0.0_r_def) )
+
+    par_mean_rhl_down_flag = init_diag(par_mean_rhl_down,                     &
+                                       'convection__par_mean_rhl_down')
+    if (par_mean_rhl_down_flag) call invoke( setval_c(par_mean_rhl_down,      &
+                                                      0.0_r_def) )
+
+    par_mean_q_up_flag = init_diag(par_mean_q_up, 'convection__par_mean_q_up')
+    if (par_mean_q_up_flag) call invoke( setval_c(par_mean_q_up, 0.0_r_def) )
+
+    par_mean_q_down_flag = init_diag(par_mean_q_down,                         &
+                                     'convection__par_mean_q_down')
+    if (par_mean_q_down_flag) call invoke( setval_c(par_mean_q_down,          &
+                                                    0.0_r_def) )
+
+    par_mean_qcl_up_flag = init_diag(par_mean_qcl_up,                         &
+                                     'convection__par_mean_qcl_up')
+    if (par_mean_qcl_up_flag) call invoke( setval_c(par_mean_qcl_up,          &
+                                                    0.0_r_def) )
+
+    par_mean_qcl_down_flag = init_diag(par_mean_qcl_down,                     &
+                                       'convection__par_mean_qcl_down')
+    if (par_mean_qcl_down_flag) call invoke( setval_c(par_mean_qcl_down,      &
+                                                      0.0_r_def) )
+
+    par_mean_qcf_up_flag = init_diag(par_mean_qcf_up,                         &
+                                     'convection__par_mean_qcf_up')
+    if (par_mean_qcf_up_flag) call invoke( setval_c(par_mean_qcf_up,          &
+                                                    0.0_r_def) )
+
+    par_mean_qcf_down_flag = init_diag(par_mean_qcf_down,                     &
+                                       'convection__par_mean_qcf_down')
+    if (par_mean_qcf_down_flag) call invoke( setval_c(par_mean_qcf_down,      &
+                                                      0.0_r_def) )
+
+    par_mean_qrain_up_flag = init_diag(par_mean_qrain_up,                     &
+                                       'convection__par_mean_qrain_up')
+    if (par_mean_qrain_up_flag) call invoke( setval_c(par_mean_qrain_up,      &
+                                                      0.0_r_def) )
+
+    par_mean_qrain_down_flag = init_diag(par_mean_qrain_down,                 &
+                                         'convection__par_mean_qrain_down')
+    if (par_mean_qrain_down_flag) call invoke( setval_c(par_mean_qrain_down,  &
+                                                        0.0_r_def) )
+
+    par_mean_qgraup_up_flag = init_diag(par_mean_qgraup_up,                   &
+                                        'convection__par_mean_qgraup_up')
+    if (par_mean_qgraup_up_flag) call invoke( setval_c(par_mean_qgraup_up,    &
+                                                       0.0_r_def) )
+
+    par_mean_qgraup_down_flag = init_diag(par_mean_qgraup_down,               &
+                                          'convection__par_mean_qgraup_down')
+    if (par_mean_qgraup_down_flag) call invoke( setval_c(par_mean_qgraup_down,&
+                                                         0.0_r_def) )
+
+    par_mean_qsnow_up_flag = init_diag(par_mean_qsnow_up,                     &
+                                       'convection__par_mean_qsnow_up')
+    if (par_mean_qsnow_up_flag) call invoke( setval_c(par_mean_qsnow_up,      &
+                                                      0.0_r_def) )
+
+    par_mean_qsnow_down_flag = init_diag(par_mean_qsnow_down,                 &
+                                         'convection__par_mean_qsnow_down')
+    if (par_mean_qsnow_down_flag) call invoke( setval_c(par_mean_qsnow_down,  &
+                                                        0.0_r_def) )
+
+    par_mean_cfl_up_flag = init_diag(par_mean_cfl_up,                         &
+                                     'convection__par_mean_cfl_up')
+    if (par_mean_cfl_up_flag) call invoke( setval_c(par_mean_cfl_up,          &
+                                                    0.0_r_def) )
+
+    par_mean_cfl_down_flag = init_diag(par_mean_cfl_down,                     &
+                                       'convection__par_mean_cfl_down')
+    if (par_mean_cfl_down_flag) call invoke( setval_c(par_mean_cfl_down,      &
+                                                      0.0_r_def) )
+
+    par_mean_cff_up_flag = init_diag(par_mean_cff_up,                         &
+                                     'convection__par_mean_cff_up')
+    if (par_mean_cff_up_flag) call invoke( setval_c(par_mean_cff_up,          &
+                                                    0.0_r_def) )
+
+    par_mean_cff_down_flag = init_diag(par_mean_cff_down,                     &
+                                       'convection__par_mean_cff_down')
+    if (par_mean_cff_down_flag) call invoke( setval_c(par_mean_cff_down,      &
+                                                      0.0_r_def) )
+
+    par_mean_cfb_up_flag = init_diag(par_mean_cfb_up,                         &
+                                     'convection__par_mean_cfb_up')
+    if (par_mean_cfb_up_flag) call invoke( setval_c(par_mean_cfb_up,          &
+                                                    0.0_r_def) )
+
+    par_mean_cfb_down_flag = init_diag(par_mean_cfb_down,                     &
+                                       'convection__par_mean_cfb_down')
+    if (par_mean_cfb_down_flag) call invoke( setval_c(par_mean_cfb_down,      &
+                                                      0.0_r_def) )
+
+    par_mean_u_up_flag = init_diag(par_mean_u_up, 'convection__par_mean_u_up')
+    if (par_mean_u_up_flag) call invoke( setval_c(par_mean_u_up, 0.0_r_def) )
+
+    par_mean_u_down_flag = init_diag(par_mean_u_down,                         &
+                                     'convection__par_mean_u_down')
+    if (par_mean_u_down_flag) call invoke( setval_c(par_mean_u_down,          &
+                                                    0.0_r_def) )
+
+    par_mean_v_up_flag = init_diag(par_mean_v_up, 'convection__par_mean_v_up')
+    if (par_mean_v_up_flag) call invoke( setval_c(par_mean_v_up, 0.0_r_def) )
+
+    par_mean_v_down_flag = init_diag(par_mean_v_down,                         &
+                                     'convection__par_mean_v_down')
+    if (par_mean_v_down_flag) call invoke( setval_c(par_mean_v_down,          &
+                                                    0.0_r_def) )
+
+    par_mean_w_up_flag = init_diag(par_mean_w_up, 'convection__par_mean_w_up')
+    if (par_mean_w_up_flag) call invoke( setval_c(par_mean_w_up, 0.0_r_def) )
+
+    par_mean_w_down_flag = init_diag(par_mean_w_down,                         &
+                                     'convection__par_mean_w_down')
+    if (par_mean_w_down_flag) call invoke( setval_c(par_mean_w_down,          &
+                                                    0.0_r_def) )
+
+    par_mean_t_up_flag = init_diag(par_mean_t_up, 'convection__par_mean_t_up')
+    if (par_mean_t_up_flag) call invoke( setval_c(par_mean_t_up, 0.0_r_def) )
+
+    par_mean_t_down_flag = init_diag(par_mean_t_down,                         &
+                                     'convection__par_mean_t_down')
+    if (par_mean_t_down_flag) call invoke( setval_c(par_mean_t_down,          &
+                                                    0.0_r_def) )
+
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
   end subroutine initialise_diags_for_comorph
@@ -176,7 +406,37 @@ contains
                                     par_radius_up,          &
                                     par_radius_down,        &
                                     freq_up,                &
-                                    freq_down)
+                                    freq_down,              &
+                                    par_mean_dtv_up,        &
+                                    par_mean_dtv_down,      &
+                                    par_mean_rhl_up,        &
+                                    par_mean_rhl_down,      &
+                                    par_mean_q_up,          &
+                                    par_mean_q_down,        &
+                                    par_mean_qcl_up,        &
+                                    par_mean_qcl_down,      &
+                                    par_mean_qcf_up,        &
+                                    par_mean_qcf_down,      &
+                                    par_mean_qrain_up,      &
+                                    par_mean_qrain_down,    &
+                                    par_mean_qgraup_up,     &
+                                    par_mean_qgraup_down,   &
+                                    par_mean_qsnow_up,      &
+                                    par_mean_qsnow_down,    &
+                                    par_mean_cfl_up,        &
+                                    par_mean_cfl_down,      &
+                                    par_mean_cff_up,        &
+                                    par_mean_cff_down,      &
+                                    par_mean_cfb_up,        &
+                                    par_mean_cfb_down,      &
+                                    par_mean_u_up,          &
+                                    par_mean_u_down,        &
+                                    par_mean_v_up,          &
+                                    par_mean_v_down,        &
+                                    par_mean_w_up,          &
+                                    par_mean_w_down,        &
+                                    par_mean_t_up,          &
+                                    par_mean_t_down)
 
     implicit none
 
@@ -220,7 +480,37 @@ contains
                                        par_radius_up,          &
                                        par_radius_down,        &
                                        freq_up,                &
-                                       freq_down
+                                       freq_down,              &
+                                       par_mean_dtv_up,        &
+                                       par_mean_dtv_down,      &
+                                       par_mean_rhl_up,        &
+                                       par_mean_rhl_down,      &
+                                       par_mean_q_up,          &
+                                       par_mean_q_down,        &
+                                       par_mean_qcl_up,        &
+                                       par_mean_qcl_down,      &
+                                       par_mean_qcf_up,        &
+                                       par_mean_qcf_down,      &
+                                       par_mean_qrain_up,      &
+                                       par_mean_qrain_down,    &
+                                       par_mean_qgraup_up,     &
+                                       par_mean_qgraup_down,   &
+                                       par_mean_qsnow_up,      &
+                                       par_mean_qsnow_down,    &
+                                       par_mean_cfl_up,        &
+                                       par_mean_cfl_down,      &
+                                       par_mean_cff_up,        &
+                                       par_mean_cff_down,      &
+                                       par_mean_cfb_up,        &
+                                       par_mean_cfb_down,      &
+                                       par_mean_u_up,          &
+                                       par_mean_u_down,        &
+                                       par_mean_v_up,          &
+                                       par_mean_v_down,        &
+                                       par_mean_w_up,          &
+                                       par_mean_w_down,        &
+                                       par_mean_t_up,          &
+                                       par_mean_t_down
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -272,6 +562,36 @@ contains
     if (par_radius_down_flag) call par_radius_down%write_field()
     if (freq_up_flag) call freq_up%write_field()
     if (freq_down_flag) call freq_down%write_field()
+    if (par_mean_dtv_up_flag) call par_mean_dtv_up%write_field()
+    if (par_mean_dtv_down_flag) call par_mean_dtv_down%write_field()
+    if (par_mean_rhl_up_flag) call par_mean_rhl_up%write_field()
+    if (par_mean_rhl_down_flag) call par_mean_rhl_down%write_field()
+    if (par_mean_q_up_flag) call par_mean_q_up%write_field()
+    if (par_mean_q_down_flag) call par_mean_q_down%write_field()
+    if (par_mean_qcl_up_flag) call par_mean_qcl_up%write_field()
+    if (par_mean_qcl_down_flag) call par_mean_qcl_down%write_field()
+    if (par_mean_qcf_up_flag) call par_mean_qcf_up%write_field()
+    if (par_mean_qcf_down_flag) call par_mean_qcf_down%write_field()
+    if (par_mean_qrain_up_flag) call par_mean_qrain_up%write_field()
+    if (par_mean_qrain_down_flag) call par_mean_qrain_down%write_field()
+    if (par_mean_qgraup_up_flag) call par_mean_qgraup_up%write_field()
+    if (par_mean_qgraup_down_flag) call par_mean_qgraup_down%write_field()
+    if (par_mean_qsnow_up_flag) call par_mean_qsnow_up%write_field()
+    if (par_mean_qsnow_down_flag) call par_mean_qsnow_down%write_field()
+    if (par_mean_cfl_up_flag) call par_mean_cfl_up%write_field()
+    if (par_mean_cfl_down_flag) call par_mean_cfl_down%write_field()
+    if (par_mean_cff_up_flag) call par_mean_cff_up%write_field()
+    if (par_mean_cff_down_flag) call par_mean_cff_down%write_field()
+    if (par_mean_cfb_up_flag) call par_mean_cfb_up%write_field()
+    if (par_mean_cfb_down_flag) call par_mean_cfb_down%write_field()
+    if (par_mean_u_up_flag) call par_mean_u_up%write_field()
+    if (par_mean_u_down_flag) call par_mean_u_down%write_field()
+    if (par_mean_v_up_flag) call par_mean_v_up%write_field()
+    if (par_mean_v_down_flag) call par_mean_v_down%write_field()
+    if (par_mean_w_up_flag) call par_mean_w_up%write_field()
+    if (par_mean_w_down_flag) call par_mean_w_down%write_field()
+    if (par_mean_t_up_flag) call par_mean_t_up%write_field()
+    if (par_mean_t_down_flag) call par_mean_t_down%write_field()
 
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
