@@ -15,7 +15,7 @@ use argument_mod,      only : arg_type,              &
                               GH_READ, GH_INC,       &
                               GH_WRITE,              &
                               GH_REAL, CELL_COLUMN
-use constants_mod,     only : r_solver, i_def
+use constants_mod,     only : r_solver, i_def, BLOCK_SIZE
 use kernel_mod,        only : kernel_type
 use fs_continuity_mod, only : W2, W3, Wtheta, W2h, W2v
 
@@ -159,8 +159,10 @@ subroutine apply_mixed_operator_code(cell,                       &
   ! Internal variables
   integer(kind=i_def)                                :: df, df2, ij,   &
                                                         nm1, iw3, iwt, &
-                                                        iw2, iw2h, iw2v
-  real(kind=r_solver), dimension(0:nlayers-1,ndf_w2) :: u_e
+                                                        iw2, iw2h,     &
+                                                        iw2v, k, kk,   &
+                                                        kend
+  ! real(kind=r_solver), dimension(0:nlayers-1,ndf_w2) :: u_e
   real(kind=r_solver), dimension(0:nlayers)          :: t_col
 
   ! Set up some useful shorthands for indices
@@ -168,77 +170,128 @@ subroutine apply_mixed_operator_code(cell,                       &
   nm1 = nlayers-1
   iw3 = map_w3(1)
   iwt = map_wt(1)
+  iw2v = map_w2v(1)
 
-  ! Create the element velocity field
-  do df = 1, ndf_w2h
-    iw2h = map_w2h(df)
-    u_e(:,df) = wind_uv(iw2h:iw2h+nm1)
-  end do
-  do df = 1, ndf_w2v
-    iw2v = map_w2v(df)
-    u_e(:,ndf_w2h+df) = wind_w(iw2v:iw2v+nm1)
-  end do
+  do kk = 0, nlayers-1, BLOCK_SIZE
+    kend = min(kk+BLOCK_SIZE-1, nlayers-1)
 
-  ! LHS UV
-  do df = 1, ndf_w2h
-    iw2h = map_w2h(df)
-    iw2  = map_w2(df)
-    lhs_uv(iw2h:iw2h+nm1) = lhs_uv(iw2h:iw2h+nm1) &
-                          - norm_u(iw2:iw2+nm1)   &
-                           *grad(ij:ij+nm1, df, 1)*exner(iw3:iw3+nm1)
-  end do
-  do df2 = 1, ndf_w2
+    do k = kk, kend+1
+      lhs_w(iw2v+k) = 0.0_r_solver
+      t_col(k) = 0.0_r_solver
+    end do
+
+    ! Compute t for the column
+    do k = kk, kend+1
+      if (k < nlayers) then
+        do df = 1, ndf_w2h
+          iw2h = map_w2h(df)
+          t_col(k) = t_col(k) - pt2(ij+k,1,df) * wind_uv(iw2h+k)
+        end do
+        do df = 1, ndf_w2v
+          iw2v = map_w2v(df)
+          t_col(k) = t_col(k) - pt2(ij+k,1,ndf_w2h+df) * wind_w(iw2v+k)
+        end do
+      end if
+      if (k > 0) then
+        do df = 1, ndf_w2h
+          iw2h = map_w2h(df)
+          t_col(k) = t_col(k) - pt2(ij+k-1,2,df) * wind_uv(iw2h+k-1)
+        end do
+        do df = 1, ndf_w2v
+          iw2v = map_w2v(df)
+          t_col(k) = t_col(k) - pt2(ij+k-1,2,ndf_w2h+df) * wind_w(iw2v+k-1)
+        end do
+      end if
+    end do
+    do k = kk, kend+1
+      t_col(k) = t_col(k) * mt_lumped_inv(iwt+k)
+    end do
+
+    ! LHS UV
     do df = 1, ndf_w2h
       iw2h = map_w2h(df)
       iw2  = map_w2(df)
-      lhs_uv(iw2h:iw2h+nm1) = lhs_uv(iw2h:iw2h+nm1) &
-                            + norm_u(iw2:iw2+nm1)*  &
-                              mu_cd(ij:ij+nm1, df, df2)*u_e(:,df2)
+      do k = kk, kend
+        lhs_uv(iw2h+k) = lhs_uv(iw2h+k) &
+                              - norm_u(iw2+k)   &
+                               *grad(ij+k, df, 1)*exner(iw3+k)
+      end do
     end do
-  end do
-
-  ! Compute t for the column
-  t_col(:) = 0.0_r_solver
-  do df = 1, ndf_w2
-    t_col(0:nm1)   = t_col(0:nm1)   - pt2(ij:ij+nm1, 1, df)*u_e(:,df)
-    t_col(1:nm1+1) = t_col(1:nm1+1) - pt2(ij:ij+nm1, 2, df)*u_e(:,df)
-  end do
-  t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1)
-
-  ! LHS W
-  iw2v = map_w2v(1)
-  lhs_w(iw2v:iw2v+nlayers) = 0.0_r_solver
-
-  do df = 1, ndf_w2v
-    iw2v = map_w2v(df)
-    iw2  = map_w2(ndf_w2h+df)
-    lhs_w(iw2v:iw2v+nm1) = lhs_w(iw2v:iw2v+nm1) &
-                         + norm_u(iw2:iw2+nm1)*( &
-                         - p2t(ij:ij+nm1, ndf_w2h+df, 1)*t_col(0:nm1) &
-                         - p2t(ij:ij+nm1, ndf_w2h+df, 2)*t_col(1:nm1+1) &
-                         - grad(ij:ij+nm1, ndf_w2h+df, 1)*exner(iw3:iw3+nm1))
-
-  end do
-  do df2 = 1, ndf_w2
+    do df = 1, ndf_w2h
+      iw2h = map_w2h(df)
+      iw2  = map_w2(df)
+      do df2 = 1, ndf_w2h
+        do k = kk, kend
+          lhs_uv(iw2h+k) = lhs_uv(iw2h+k) &
+                                + norm_u(iw2+k)*  &
+                                  mu_cd(ij+k, df, df2)*wind_uv(map_w2h(df2)+k)
+        end do
+      end do
+      do df2 = 1, ndf_w2v
+        do k = kk, kend
+          lhs_uv(iw2h+k) = lhs_uv(iw2h+k) &
+                                + norm_u(iw2+k)*  &
+                                  mu_cd(ij+k, df, ndf_w2h+df2)*wind_w(map_w2v(df2)+k)
+        end do
+      end do
+    end do
+  
+    ! LHS W
     do df = 1, ndf_w2v
       iw2v = map_w2v(df)
       iw2  = map_w2(ndf_w2h+df)
-      lhs_w(iw2v:iw2v+nm1) = lhs_w(iw2v:iw2v+nm1) &
-                           + norm_u(iw2:iw2+nm1)* &
-                             mu_cd(ij:ij+nm1, ndf_w2h+df, df2)*u_e(:,df2)
+      do k = kk, kend
+        lhs_w(iw2v+k) = lhs_w(iw2v+k) &
+                             + norm_u(iw2+k)*( &
+                             - p2t(ij+k, ndf_w2h+df, 1)*t_col(k) &
+                             - p2t(ij+k, ndf_w2h+df, 2)*t_col(k+1) &
+                             - grad(ij+k, ndf_w2h+df, 1)*exner(iw3+k))
+      end do
+      do df2 = 1, ndf_w2h
+        do k = kk, kend
+          lhs_w(iw2v+k) = lhs_w(iw2v+k) &
+                               + norm_u(iw2+k)* &
+                                mu_cd(ij+k, ndf_w2h+df, df2)* &
+                                wind_uv(map_w2h(df2)+k)
 
+        end do
+      end do
+      do df2 = 1, ndf_w2v
+        do k = kk, kend
+          lhs_w(iw2v+k) = lhs_w(iw2v+k) &
+                               + norm_u(iw2+k)* &
+                                mu_cd(ij+k, ndf_w2h+df, df2)* &
+                                wind_w(map_w2v(df2)+k)
+
+        end do
+      end do
     end do
-  end do
-  ! Set BC for lhs_w
-  lhs_w(map_w2v(1)) = 0.0_r_solver
-  lhs_w(map_w2v(2)+nlayers-1) = 0.0_r_solver
 
-  ! LHS P
-  lhs_p(iw3:iw3+nm1) = m3p(ij:ij+nm1, 1, 1)*exner(iw3:iw3+nm1) &
-                     - p3t(ij:ij+nm1, 1, 1)*t_col(0:nm1)       &
-                     - p3t(ij:ij+nm1, 1, 2)*t_col(1:nm1+1)
-  do df = 1, ndf_w2
-    lhs_p(iw3:iw3+nm1) = lhs_p(iw3:iw3+nm1) + q32(ij:ij+nm1, 1, df)*u_e(:,df)
+    ! LHS P
+    do k = kk, kend
+      lhs_p(iw3+k) = m3p(ij+k, 1, 1)*exner(iw3+k) &
+                         - p3t(ij+k, 1, 1)*t_col(k)       &
+                         - p3t(ij+k, 1, 2)*t_col(k+1)
+    end do
+    do df = 1, ndf_w2h
+      do k = kk, kend
+        lhs_p(iw3+k) = lhs_p(iw3+k) + q32(ij+k, 1, df)*wind_uv(map_w2h(df)+k)
+      end do
+    end do
+    do df = 1, ndf_w2v
+      do k = kk, kend
+        lhs_p(iw3+k) = lhs_p(iw3+k) + q32(ij+k, 1, ndf_w2h+df)*wind_w(map_w2v(df)+k)
+      end do
+    end do
+
+    do k = kk, kend
+      if (k == 0) then
+        lhs_w(map_w2v(1)) = 0.0_r_solver
+      end if
+      if (k == nlayers-1) then
+        lhs_w(map_w2v(2)+nlayers-1) = 0.0_r_solver
+      end if
+    end do
   end do
 
 end subroutine apply_mixed_operator_code
