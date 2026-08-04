@@ -292,6 +292,8 @@ contains
     type( field_type ) :: par_mean_t_up,par_mean_t_down
     type( field_type ) :: par_core_dtv_up,par_core_dtv_down
     type( field_type ) :: par_core_rhl_up,par_core_rhl_down
+    type( field_type ) :: turb_pert_u,turb_pert_v,turb_pert_w
+    type( field_type ) :: turb_pert_t,turb_pert_q,turb_radius
     type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
     type( mesh_type ), pointer  :: mesh
@@ -541,7 +543,13 @@ contains
                                       par_core_dtv_up,      &
                                       par_core_dtv_down,    &
                                       par_core_rhl_up,      &
-                                      par_core_rhl_down)
+                                      par_core_rhl_down,    &
+                                      turb_pert_u,          &
+                                      turb_pert_v,          &
+                                      turb_pert_w,          &
+                                      turb_pert_t,          &
+                                      turb_pert_q,          &
+                                      turb_radius)
 
     ! call the scheme
     ncells = mesh%get_last_edge_cell()
@@ -737,7 +745,13 @@ contains
                           par_core_dtv_up,                                    &
                           par_core_dtv_down,                                  &
                           par_core_rhl_up,                                    &
-                          par_core_rhl_down)                                  &
+                          par_core_rhl_down,                                  &
+                          turb_pert_u,                                        &
+                          turb_pert_v,                                        &
+                          turb_pert_w,                                        &
+                          turb_pert_t,                                        &
+                          turb_pert_q,                                        &
+                          turb_radius)                                        &
                                            ) ! end of invoke
 
     call um_sizes_init(1_i_def)
@@ -823,7 +837,13 @@ contains
                                   par_core_dtv_up,       &
                                   par_core_dtv_down,     &
                                   par_core_rhl_up,       &
-                                  par_core_rhl_down)
+                                  par_core_rhl_down,     &
+                                  turb_pert_u,           &
+                                  turb_pert_v,           &
+                                  turb_pert_w,           &
+                                  turb_pert_t,           &
+                                  turb_pert_q,           &
+                                  turb_radius)
 
     end if
 

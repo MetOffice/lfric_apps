@@ -36,7 +36,7 @@ module conv_comorph_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_comorph_kernel_type
     private
-    type(arg_type) :: meta_args(233) = (/                                         &
+    type(arg_type) :: meta_args(239) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -269,7 +269,13 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_core_dtv_up
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_core_dtv_down
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_core_rhl_up
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! par_core_rhl_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_core_rhl_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! turb_pert_u
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! turb_pert_v
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! turb_pert_w
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! turb_pert_t
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! turb_pert_q
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA)                    &! turb_radius
         /)
     integer :: operates_on = DOMAIN
   contains
@@ -514,6 +520,12 @@ contains
   !> @param[in,out] par_core_dtv_down    Downdraught parcel core excess virtual temperature (K)
   !> @param[in,out] par_core_rhl_up      Updraught parcel core relative humidity wrt liquid
   !> @param[in,out] par_core_rhl_down    Downdraught parcel core relative humidity wrt liquid
+  !> @param[in,out] turb_pert_u          Turbulent u wind perturbation (m/s)
+  !> @param[in,out] turb_pert_v          Turbulent v wind perturbation (m/s)
+  !> @param[in,out] turb_pert_w          Turbulent w wind perturbation (m/s)
+  !> @param[in,out] turb_pert_t          Turbulent temperature perturbation (K)
+  !> @param[in,out] turb_pert_q          Turbulent water vapour perturbation (kg/kg)
+  !> @param[in,out] turb_radius          Turbulence-based parcel radius (m)
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs  for density space
   !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
@@ -763,6 +775,12 @@ contains
                           par_core_dtv_down,                 &
                           par_core_rhl_up,                   &
                           par_core_rhl_down,                 &
+                          turb_pert_u,                       &
+                          turb_pert_v,                       &
+                          turb_pert_w,                       &
+                          turb_pert_t,                       &
+                          turb_pert_q,                       &
+                          turb_radius,                       &
                           ndf_w3,                            &
                           undf_w3,                           &
                           map_w3,                            &
@@ -1172,6 +1190,13 @@ contains
                                                 par_core_rhl_up(:),            &
                                                 par_core_rhl_down(:)
 
+    real(kind=r_def), pointer, intent(inout) :: turb_pert_u(:),                &
+                                                turb_pert_v(:),                &
+                                                turb_pert_w(:),                &
+                                                turb_pert_t(:),                &
+                                                turb_pert_q(:),                &
+                                                turb_radius(:)
+
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcfl_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcff_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dbcf_conv
@@ -1395,6 +1420,8 @@ contains
          mean_t_up, mean_t_down
     real(kind=r_um), target, allocatable, dimension(:,:,:) ::                  &
          core_dtv_up, core_dtv_down, core_rhl_up, core_rhl_down
+    real(kind=r_um), target, allocatable, dimension(:,:,:) ::                  &
+         tpert_u, tpert_v, tpert_w, tpert_t, tpert_q, trad
 
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into CoMorph 3D arrays
@@ -2776,6 +2803,57 @@ contains
         comorph_diags % dndraft % par % core % rel_hum_liq                     &
                                 % field_3d => core_rhl_down
       end if
+
+      ! Set requests and assign pointers for the turbulence diagnostics.
+      ! These are only calculated when turbulence-based parcel generation
+      ! is in use.  The perturbations are on rho-levels, whereas the
+      ! turbulence-based parcel radius is on theta-levels.
+      if (l_turb_par_gen .and.                                                 &
+          .not. associated(turb_pert_u, empty_real_data) ) then
+        allocate(tpert_u(row_length,rows,nlayers))
+        comorph_diags % turb_fields_pert % wind_u                              &
+                                % request % x_y_z = .true.
+        comorph_diags % turb_fields_pert % wind_u                              &
+                                % field_3d => tpert_u
+      end if
+      if (l_turb_par_gen .and.                                                 &
+          .not. associated(turb_pert_v, empty_real_data) ) then
+        allocate(tpert_v(row_length,rows,nlayers))
+        comorph_diags % turb_fields_pert % wind_v                              &
+                                % request % x_y_z = .true.
+        comorph_diags % turb_fields_pert % wind_v                              &
+                                % field_3d => tpert_v
+      end if
+      if (l_turb_par_gen .and.                                                 &
+          .not. associated(turb_pert_w, empty_real_data) ) then
+        allocate(tpert_w(row_length,rows,nlayers))
+        comorph_diags % turb_fields_pert % wind_w                              &
+                                % request % x_y_z = .true.
+        comorph_diags % turb_fields_pert % wind_w                              &
+                                % field_3d => tpert_w
+      end if
+      if (l_turb_par_gen .and.                                                 &
+          .not. associated(turb_pert_t, empty_real_data) ) then
+        allocate(tpert_t(row_length,rows,nlayers))
+        comorph_diags % turb_fields_pert % temperature                         &
+                                % request % x_y_z = .true.
+        comorph_diags % turb_fields_pert % temperature                         &
+                                % field_3d => tpert_t
+      end if
+      if (l_turb_par_gen .and.                                                 &
+          .not. associated(turb_pert_q, empty_real_data) ) then
+        allocate(tpert_q(row_length,rows,nlayers))
+        comorph_diags % turb_fields_pert % q_vap                               &
+                                % request % x_y_z = .true.
+        comorph_diags % turb_fields_pert % q_vap                               &
+                                % field_3d => tpert_q
+      end if
+      if (l_turb_par_gen .and.                                                 &
+          .not. associated(turb_radius, empty_real_data) ) then
+        allocate(trad(row_length,rows,nlayers))
+        comorph_diags % turb_radius % request % x_y_z = .true.
+        comorph_diags % turb_radius % field_3d => trad
+      end if
     end if
     if (l_pc2_homog_conv_pressure) then
       allocate(pres_inc_env(row_length,rows,nlayers))
@@ -3372,6 +3450,57 @@ contains
           end do
         end do
         deallocate(core_rhl_down)
+      end if
+
+      ! Copy the turbulence diagnostics onto their respective levels.
+      ! No unit conversion is needed for any of these.
+      if (allocated(tpert_u) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            turb_pert_u(map_w3(1,i) + k-1) = tpert_u(i,1,k)
+          end do
+        end do
+        deallocate(tpert_u)
+      end if
+      if (allocated(tpert_v) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            turb_pert_v(map_w3(1,i) + k-1) = tpert_v(i,1,k)
+          end do
+        end do
+        deallocate(tpert_v)
+      end if
+      if (allocated(tpert_w) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            turb_pert_w(map_w3(1,i) + k-1) = tpert_w(i,1,k)
+          end do
+        end do
+        deallocate(tpert_w)
+      end if
+      if (allocated(tpert_t) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            turb_pert_t(map_w3(1,i) + k-1) = tpert_t(i,1,k)
+          end do
+        end do
+        deallocate(tpert_t)
+      end if
+      if (allocated(tpert_q) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            turb_pert_q(map_w3(1,i) + k-1) = tpert_q(i,1,k)
+          end do
+        end do
+        deallocate(tpert_q)
+      end if
+      if (allocated(trad) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            turb_radius(map_wth(1,i) + k) = trad(i,1,k)
+          end do
+        end do
+        deallocate(trad)
       end if
       ! Frequency of updraught / downdraught on each level.  These use
       ! the CoMorph mass flux before it is modified, so we know the
