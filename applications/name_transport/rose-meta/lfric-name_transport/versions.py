@@ -18,16 +18,21 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-"""
-Copy this template and complete to add your macro
+class vn32_t683(MacroUpgrade):
+    """
+    Upgrade macro for ticket #683 by Alan J Hewitt.
+    Users can now select GLOMAP setting via namelist.
+    NWP option glomap_mode_dust_and_clim is hard coded to i_mode_setup == 8
+    Simple option glomap_mode_climatology is hard coded to i_mode_setup == 8
+    """
 
-class vnXX_txxx(MacroUpgrade):
-    # Upgrade macro for <TICKET> by <Author>
-
-    BEFORE_TAG = "vnX.X"
-    AFTER_TAG = "vnX.X_txxx"
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t683"
 
     def upgrade(self, config, meta_config=None):
         # Add settings
+        self.add_setting( config, ["namelist:aerosol",
+                                   "i_mode_setup"], "8" )
+        
         return config, self.reports
-"""
+
