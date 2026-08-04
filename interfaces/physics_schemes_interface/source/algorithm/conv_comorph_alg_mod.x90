@@ -290,6 +290,8 @@ contains
     type( field_type ) :: par_mean_v_up,par_mean_v_down
     type( field_type ) :: par_mean_w_up,par_mean_w_down
     type( field_type ) :: par_mean_t_up,par_mean_t_down
+    type( field_type ) :: par_core_dtv_up,par_core_dtv_down
+    type( field_type ) :: par_core_rhl_up,par_core_rhl_down
     type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
     type( mesh_type ), pointer  :: mesh
@@ -535,7 +537,11 @@ contains
                                       par_mean_w_up,        &
                                       par_mean_w_down,      &
                                       par_mean_t_up,        &
-                                      par_mean_t_down)
+                                      par_mean_t_down,      &
+                                      par_core_dtv_up,      &
+                                      par_core_dtv_down,    &
+                                      par_core_rhl_up,      &
+                                      par_core_rhl_down)
 
     ! call the scheme
     ncells = mesh%get_last_edge_cell()
@@ -727,7 +733,11 @@ contains
                           par_mean_w_up,                                      &
                           par_mean_w_down,                                    &
                           par_mean_t_up,                                      &
-                          par_mean_t_down)                                    &
+                          par_mean_t_down,                                    &
+                          par_core_dtv_up,                                    &
+                          par_core_dtv_down,                                  &
+                          par_core_rhl_up,                                    &
+                          par_core_rhl_down)                                  &
                                            ) ! end of invoke
 
     call um_sizes_init(1_i_def)
@@ -809,7 +819,11 @@ contains
                                   par_mean_w_up,         &
                                   par_mean_w_down,       &
                                   par_mean_t_up,         &
-                                  par_mean_t_down)
+                                  par_mean_t_down,       &
+                                  par_core_dtv_up,       &
+                                  par_core_dtv_down,     &
+                                  par_core_rhl_up,       &
+                                  par_core_rhl_down)
 
     end if
 

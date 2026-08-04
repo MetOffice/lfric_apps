@@ -66,7 +66,11 @@ module comorph_diags_mod
                       par_mean_w_up_flag,          &
                       par_mean_w_down_flag,        &
                       par_mean_t_up_flag,          &
-                      par_mean_t_down_flag
+                      par_mean_t_down_flag,        &
+                      par_core_dtv_up_flag,        &
+                      par_core_dtv_down_flag,      &
+                      par_core_rhl_up_flag,        &
+                      par_core_rhl_down_flag
 
   public :: initialise_diags_for_comorph
   public :: output_diags_for_comorph
@@ -121,7 +125,11 @@ contains
                                           par_mean_w_up,          &
                                           par_mean_w_down,        &
                                           par_mean_t_up,          &
-                                          par_mean_t_down)
+                                          par_mean_t_down,        &
+                                          par_core_dtv_up,        &
+                                          par_core_dtv_down,      &
+                                          par_core_rhl_up,        &
+                                          par_core_rhl_down)
 
     implicit none
 
@@ -173,7 +181,11 @@ contains
                                          par_mean_w_up,           &
                                          par_mean_w_down,         &
                                          par_mean_t_up,           &
-                                         par_mean_t_down
+                                         par_mean_t_down,         &
+                                         par_core_dtv_up,         &
+                                         par_core_dtv_down,       &
+                                         par_core_rhl_up,         &
+                                         par_core_rhl_down
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -365,6 +377,26 @@ contains
     if (par_mean_t_down_flag) call invoke( setval_c(par_mean_t_down,          &
                                                     0.0_r_def) )
 
+    par_core_dtv_up_flag = init_diag(par_core_dtv_up,                         &
+                                     'convection__par_core_dtv_up')
+    if (par_core_dtv_up_flag) call invoke( setval_c(par_core_dtv_up,          &
+                                                    0.0_r_def) )
+
+    par_core_dtv_down_flag = init_diag(par_core_dtv_down,                     &
+                                       'convection__par_core_dtv_down')
+    if (par_core_dtv_down_flag) call invoke( setval_c(par_core_dtv_down,      &
+                                                      0.0_r_def) )
+
+    par_core_rhl_up_flag = init_diag(par_core_rhl_up,                         &
+                                     'convection__par_core_rhl_up')
+    if (par_core_rhl_up_flag) call invoke( setval_c(par_core_rhl_up,          &
+                                                    0.0_r_def) )
+
+    par_core_rhl_down_flag = init_diag(par_core_rhl_down,                     &
+                                       'convection__par_core_rhl_down')
+    if (par_core_rhl_down_flag) call invoke( setval_c(par_core_rhl_down,      &
+                                                      0.0_r_def) )
+
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
   end subroutine initialise_diags_for_comorph
@@ -436,7 +468,11 @@ contains
                                     par_mean_w_up,          &
                                     par_mean_w_down,        &
                                     par_mean_t_up,          &
-                                    par_mean_t_down)
+                                    par_mean_t_down,        &
+                                    par_core_dtv_up,        &
+                                    par_core_dtv_down,      &
+                                    par_core_rhl_up,        &
+                                    par_core_rhl_down)
 
     implicit none
 
@@ -510,7 +546,11 @@ contains
                                        par_mean_w_up,          &
                                        par_mean_w_down,        &
                                        par_mean_t_up,          &
-                                       par_mean_t_down
+                                       par_mean_t_down,        &
+                                       par_core_dtv_up,        &
+                                       par_core_dtv_down,      &
+                                       par_core_rhl_up,        &
+                                       par_core_rhl_down
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -592,6 +632,10 @@ contains
     if (par_mean_w_down_flag) call par_mean_w_down%write_field()
     if (par_mean_t_up_flag) call par_mean_t_up%write_field()
     if (par_mean_t_down_flag) call par_mean_t_down%write_field()
+    if (par_core_dtv_up_flag) call par_core_dtv_up%write_field()
+    if (par_core_dtv_down_flag) call par_core_dtv_down%write_field()
+    if (par_core_rhl_up_flag) call par_core_rhl_up%write_field()
+    if (par_core_rhl_down_flag) call par_core_rhl_down%write_field()
 
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
