@@ -76,7 +76,24 @@ module comorph_diags_mod
                       turb_pert_w_flag,            &
                       turb_pert_t_flag,            &
                       turb_pert_q_flag,            &
-                      turb_radius_flag
+                      turb_radius_flag,            &
+                      subreg_dry_frac_flag,        &
+                      subreg_liq_frac_flag,        &
+                      subreg_mph_frac_flag,        &
+                      subreg_icr_frac_flag,        &
+                      subreg_dry_t_flag,           &
+                      subreg_liq_t_flag,           &
+                      subreg_mph_t_flag,           &
+                      subreg_icr_t_flag,           &
+                      subreg_dry_q_flag,           &
+                      subreg_liq_q_flag,           &
+                      subreg_mph_q_flag,           &
+                      subreg_icr_q_flag,           &
+                      subreg_dry_rhl_flag,         &
+                      subreg_liq_rhl_flag,         &
+                      subreg_mph_rhl_flag,         &
+                      subreg_icr_rhl_flag,         &
+                      massflux_down_half_flag
 
   public :: initialise_diags_for_comorph
   public :: output_diags_for_comorph
@@ -141,7 +158,24 @@ contains
                                           turb_pert_w,            &
                                           turb_pert_t,            &
                                           turb_pert_q,            &
-                                          turb_radius)
+                                          turb_radius,            &
+                                          subreg_dry_frac,        &
+                                          subreg_liq_frac,        &
+                                          subreg_mph_frac,        &
+                                          subreg_icr_frac,        &
+                                          subreg_dry_t,           &
+                                          subreg_liq_t,           &
+                                          subreg_mph_t,           &
+                                          subreg_icr_t,           &
+                                          subreg_dry_q,           &
+                                          subreg_liq_q,           &
+                                          subreg_mph_q,           &
+                                          subreg_icr_q,           &
+                                          subreg_dry_rhl,         &
+                                          subreg_liq_rhl,         &
+                                          subreg_mph_rhl,         &
+                                          subreg_icr_rhl,         &
+                                          massflux_down_half)
 
     implicit none
 
@@ -203,7 +237,24 @@ contains
                                          turb_pert_w,             &
                                          turb_pert_t,             &
                                          turb_pert_q,             &
-                                         turb_radius
+                                         turb_radius,             &
+                                         subreg_dry_frac,         &
+                                         subreg_liq_frac,         &
+                                         subreg_mph_frac,         &
+                                         subreg_icr_frac,         &
+                                         subreg_dry_t,            &
+                                         subreg_liq_t,            &
+                                         subreg_mph_t,            &
+                                         subreg_icr_t,            &
+                                         subreg_dry_q,            &
+                                         subreg_liq_q,            &
+                                         subreg_mph_q,            &
+                                         subreg_icr_q,            &
+                                         subreg_dry_rhl,          &
+                                         subreg_liq_rhl,          &
+                                         subreg_mph_rhl,          &
+                                         subreg_icr_rhl,          &
+                                         massflux_down_half
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -433,6 +484,71 @@ contains
     turb_radius_flag = init_diag(turb_radius, 'convection__turb_radius')
     if (turb_radius_flag) call invoke( setval_c(turb_radius, 0.0_r_def) )
 
+    subreg_dry_frac_flag = init_diag(subreg_dry_frac,                          &
+                                     'convection__subreg_dry_frac')
+    if (subreg_dry_frac_flag) call invoke( setval_c(subreg_dry_frac,           &
+                                                    0.0_r_def) )
+
+    subreg_liq_frac_flag = init_diag(subreg_liq_frac,                          &
+                                     'convection__subreg_liq_frac')
+    if (subreg_liq_frac_flag) call invoke( setval_c(subreg_liq_frac,           &
+                                                    0.0_r_def) )
+
+    subreg_mph_frac_flag = init_diag(subreg_mph_frac,                          &
+                                     'convection__subreg_mph_frac')
+    if (subreg_mph_frac_flag) call invoke( setval_c(subreg_mph_frac,           &
+                                                    0.0_r_def) )
+
+    subreg_icr_frac_flag = init_diag(subreg_icr_frac,                          &
+                                     'convection__subreg_icr_frac')
+    if (subreg_icr_frac_flag) call invoke( setval_c(subreg_icr_frac,           &
+                                                    0.0_r_def) )
+
+    subreg_dry_t_flag = init_diag(subreg_dry_t, 'convection__subreg_dry_t')
+    if (subreg_dry_t_flag) call invoke( setval_c(subreg_dry_t, 0.0_r_def) )
+
+    subreg_liq_t_flag = init_diag(subreg_liq_t, 'convection__subreg_liq_t')
+    if (subreg_liq_t_flag) call invoke( setval_c(subreg_liq_t, 0.0_r_def) )
+
+    subreg_mph_t_flag = init_diag(subreg_mph_t, 'convection__subreg_mph_t')
+    if (subreg_mph_t_flag) call invoke( setval_c(subreg_mph_t, 0.0_r_def) )
+
+    subreg_icr_t_flag = init_diag(subreg_icr_t, 'convection__subreg_icr_t')
+    if (subreg_icr_t_flag) call invoke( setval_c(subreg_icr_t, 0.0_r_def) )
+
+    subreg_dry_q_flag = init_diag(subreg_dry_q, 'convection__subreg_dry_q')
+    if (subreg_dry_q_flag) call invoke( setval_c(subreg_dry_q, 0.0_r_def) )
+
+    subreg_liq_q_flag = init_diag(subreg_liq_q, 'convection__subreg_liq_q')
+    if (subreg_liq_q_flag) call invoke( setval_c(subreg_liq_q, 0.0_r_def) )
+
+    subreg_mph_q_flag = init_diag(subreg_mph_q, 'convection__subreg_mph_q')
+    if (subreg_mph_q_flag) call invoke( setval_c(subreg_mph_q, 0.0_r_def) )
+
+    subreg_icr_q_flag = init_diag(subreg_icr_q, 'convection__subreg_icr_q')
+    if (subreg_icr_q_flag) call invoke( setval_c(subreg_icr_q, 0.0_r_def) )
+
+    subreg_dry_rhl_flag = init_diag(subreg_dry_rhl,                            &
+                                    'convection__subreg_dry_rhl')
+    if (subreg_dry_rhl_flag) call invoke( setval_c(subreg_dry_rhl, 0.0_r_def) )
+
+    subreg_liq_rhl_flag = init_diag(subreg_liq_rhl,                            &
+                                    'convection__subreg_liq_rhl')
+    if (subreg_liq_rhl_flag) call invoke( setval_c(subreg_liq_rhl, 0.0_r_def) )
+
+    subreg_mph_rhl_flag = init_diag(subreg_mph_rhl,                            &
+                                    'convection__subreg_mph_rhl')
+    if (subreg_mph_rhl_flag) call invoke( setval_c(subreg_mph_rhl, 0.0_r_def) )
+
+    subreg_icr_rhl_flag = init_diag(subreg_icr_rhl,                            &
+                                    'convection__subreg_icr_rhl')
+    if (subreg_icr_rhl_flag) call invoke( setval_c(subreg_icr_rhl, 0.0_r_def) )
+
+    massflux_down_half_flag = init_diag(massflux_down_half,                    &
+                                        'convection__massflux_down_half')
+    if (massflux_down_half_flag) call invoke( setval_c(massflux_down_half,     &
+                                                       0.0_r_def) )
+
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
   end subroutine initialise_diags_for_comorph
@@ -514,7 +630,24 @@ contains
                                     turb_pert_w,            &
                                     turb_pert_t,            &
                                     turb_pert_q,            &
-                                    turb_radius)
+                                    turb_radius,            &
+                                    subreg_dry_frac,        &
+                                    subreg_liq_frac,        &
+                                    subreg_mph_frac,        &
+                                    subreg_icr_frac,        &
+                                    subreg_dry_t,           &
+                                    subreg_liq_t,           &
+                                    subreg_mph_t,           &
+                                    subreg_icr_t,           &
+                                    subreg_dry_q,           &
+                                    subreg_liq_q,           &
+                                    subreg_mph_q,           &
+                                    subreg_icr_q,           &
+                                    subreg_dry_rhl,         &
+                                    subreg_liq_rhl,         &
+                                    subreg_mph_rhl,         &
+                                    subreg_icr_rhl,         &
+                                    massflux_down_half)
 
     implicit none
 
@@ -598,7 +731,24 @@ contains
                                        turb_pert_w,            &
                                        turb_pert_t,            &
                                        turb_pert_q,            &
-                                       turb_radius
+                                       turb_radius,            &
+                                       subreg_dry_frac,        &
+                                       subreg_liq_frac,        &
+                                       subreg_mph_frac,        &
+                                       subreg_icr_frac,        &
+                                       subreg_dry_t,           &
+                                       subreg_liq_t,           &
+                                       subreg_mph_t,           &
+                                       subreg_icr_t,           &
+                                       subreg_dry_q,           &
+                                       subreg_liq_q,           &
+                                       subreg_mph_q,           &
+                                       subreg_icr_q,           &
+                                       subreg_dry_rhl,         &
+                                       subreg_liq_rhl,         &
+                                       subreg_mph_rhl,         &
+                                       subreg_icr_rhl,         &
+                                       massflux_down_half
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -690,6 +840,23 @@ contains
     if (turb_pert_t_flag) call turb_pert_t%write_field()
     if (turb_pert_q_flag) call turb_pert_q%write_field()
     if (turb_radius_flag) call turb_radius%write_field()
+    if (subreg_dry_frac_flag) call subreg_dry_frac%write_field()
+    if (subreg_liq_frac_flag) call subreg_liq_frac%write_field()
+    if (subreg_mph_frac_flag) call subreg_mph_frac%write_field()
+    if (subreg_icr_frac_flag) call subreg_icr_frac%write_field()
+    if (subreg_dry_t_flag) call subreg_dry_t%write_field()
+    if (subreg_liq_t_flag) call subreg_liq_t%write_field()
+    if (subreg_mph_t_flag) call subreg_mph_t%write_field()
+    if (subreg_icr_t_flag) call subreg_icr_t%write_field()
+    if (subreg_dry_q_flag) call subreg_dry_q%write_field()
+    if (subreg_liq_q_flag) call subreg_liq_q%write_field()
+    if (subreg_mph_q_flag) call subreg_mph_q%write_field()
+    if (subreg_icr_q_flag) call subreg_icr_q%write_field()
+    if (subreg_dry_rhl_flag) call subreg_dry_rhl%write_field()
+    if (subreg_liq_rhl_flag) call subreg_liq_rhl%write_field()
+    if (subreg_mph_rhl_flag) call subreg_mph_rhl%write_field()
+    if (subreg_icr_rhl_flag) call subreg_icr_rhl%write_field()
+    if (massflux_down_half_flag) call massflux_down_half%write_field()
 
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 

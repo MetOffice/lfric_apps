@@ -414,6 +414,23 @@
   <field id="convection__turb_pert_t" name="turb_pert_t" long_name="convection_turbulent_temperature_perturbation" unit="K" grid_ref="half_level_face_grid" />
   <field id="convection__turb_pert_q" name="turb_pert_q" long_name="convection_turbulent_water_vapour_perturbation" unit="kg kg-1" grid_ref="half_level_face_grid" />
   <field id="convection__turb_radius" name="turb_radius" long_name="convection_turbulent_parcel_radius" unit="m" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_dry_frac" name="subreg_dry_frac" long_name="convection_clear_sky_subregion_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_liq_frac" name="subreg_liq_frac" long_name="convection_liquid_cloud_subregion_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_mph_frac" name="subreg_mph_frac" long_name="convection_mixed_phase_subregion_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_icr_frac" name="subreg_icr_frac" long_name="convection_ice_rain_subregion_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_dry_t" name="subreg_dry_t" long_name="convection_clear_sky_subregion_temperature" unit="K" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_liq_t" name="subreg_liq_t" long_name="convection_liquid_cloud_subregion_temperature" unit="K" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_mph_t" name="subreg_mph_t" long_name="convection_mixed_phase_subregion_temperature" unit="K" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_icr_t" name="subreg_icr_t" long_name="convection_ice_rain_subregion_temperature" unit="K" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_dry_q" name="subreg_dry_q" long_name="convection_clear_sky_subregion_water_vapour" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_liq_q" name="subreg_liq_q" long_name="convection_liquid_cloud_subregion_water_vapour" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_mph_q" name="subreg_mph_q" long_name="convection_mixed_phase_subregion_water_vapour" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_icr_q" name="subreg_icr_q" long_name="convection_ice_rain_subregion_water_vapour" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_dry_rhl" name="subreg_dry_rhl" long_name="convection_clear_sky_subregion_relative_humidity_wrt_liquid" unit="1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_liq_rhl" name="subreg_liq_rhl" long_name="convection_liquid_cloud_subregion_relative_humidity_wrt_liquid" unit="1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_mph_rhl" name="subreg_mph_rhl" long_name="convection_mixed_phase_subregion_relative_humidity_wrt_liquid" unit="1" grid_ref="full_level_face_grid" />
+  <field id="convection__subreg_icr_rhl" name="subreg_icr_rhl" long_name="convection_ice_rain_subregion_relative_humidity_wrt_liquid" unit="1" grid_ref="full_level_face_grid" />
+  <field id="convection__massflux_down_half" name="massflux_down_half" long_name="conv_downward_massflux_half_levs" unit="Pa s-1" grid_ref="half_level_face_grid" />
   <field id="convection__dd_dt" name="dd_dt" long_name="temperature_increment_from_downdraughts" unit="K s-1" grid_ref="full_level_face_grid" />
   <field id="convection__dd_dq" name="dd_dq" long_name="water_vapour_increment_from_downdraughts" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
   <field id="convection__conv_rain" name="conv_rain" long_name="surface_convective_rainfall_rate" unit="kg m-2 s-1" domain_ref="face" />
