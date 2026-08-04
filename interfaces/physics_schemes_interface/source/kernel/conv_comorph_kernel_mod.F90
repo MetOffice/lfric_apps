@@ -36,7 +36,7 @@ module conv_comorph_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_comorph_kernel_type
     private
-    type(arg_type) :: meta_args(239) = (/                                         &
+    type(arg_type) :: meta_args(256) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -275,7 +275,24 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! turb_pert_w
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! turb_pert_t
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! turb_pert_q
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA)                    &! turb_radius
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! turb_radius
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_dry_frac
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_liq_frac
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_mph_frac
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_icr_frac
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_dry_t
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_liq_t
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_mph_t
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_icr_t
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_dry_q
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_liq_q
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_mph_q
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_icr_q
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_dry_rhl
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_liq_rhl
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_mph_rhl
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! subreg_icr_rhl
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! massflux_down_half
         /)
     integer :: operates_on = DOMAIN
   contains
@@ -526,6 +543,23 @@ contains
   !> @param[in,out] turb_pert_t          Turbulent temperature perturbation (K)
   !> @param[in,out] turb_pert_q          Turbulent water vapour perturbation (kg/kg)
   !> @param[in,out] turb_radius          Turbulence-based parcel radius (m)
+  !> @param[in,out] subreg_dry_frac      Clear-sky sub-region area fraction
+  !> @param[in,out] subreg_liq_frac      Liquid-cloud sub-region area fraction
+  !> @param[in,out] subreg_mph_frac      Mixed-phase sub-region area fraction
+  !> @param[in,out] subreg_icr_frac      Ice/rain sub-region area fraction
+  !> @param[in,out] subreg_dry_t         Clear-sky sub-region temperature (K)
+  !> @param[in,out] subreg_liq_t         Liquid-cloud sub-region temperature (K)
+  !> @param[in,out] subreg_mph_t         Mixed-phase sub-region temperature (K)
+  !> @param[in,out] subreg_icr_t         Ice/rain sub-region temperature (K)
+  !> @param[in,out] subreg_dry_q         Clear-sky sub-region water vapour (kg/kg)
+  !> @param[in,out] subreg_liq_q         Liquid-cloud sub-region water vapour (kg/kg)
+  !> @param[in,out] subreg_mph_q         Mixed-phase sub-region water vapour (kg/kg)
+  !> @param[in,out] subreg_icr_q         Ice/rain sub-region water vapour (kg/kg)
+  !> @param[in,out] subreg_dry_rhl       Clear-sky sub-region relative humidity wrt liquid
+  !> @param[in,out] subreg_liq_rhl       Liquid-cloud sub-region relative humidity wrt liquid
+  !> @param[in,out] subreg_mph_rhl       Mixed-phase sub-region relative humidity wrt liquid
+  !> @param[in,out] subreg_icr_rhl       Ice/rain sub-region relative humidity wrt liquid
+  !> @param[in,out] massflux_down_half   Convective downwards mass flux on half-levels (Pa/s)
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs  for density space
   !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
@@ -781,6 +815,23 @@ contains
                           turb_pert_t,                       &
                           turb_pert_q,                       &
                           turb_radius,                       &
+                          subreg_dry_frac,                   &
+                          subreg_liq_frac,                   &
+                          subreg_mph_frac,                   &
+                          subreg_icr_frac,                   &
+                          subreg_dry_t,                      &
+                          subreg_liq_t,                      &
+                          subreg_mph_t,                      &
+                          subreg_icr_t,                      &
+                          subreg_dry_q,                      &
+                          subreg_liq_q,                      &
+                          subreg_mph_q,                      &
+                          subreg_icr_q,                      &
+                          subreg_dry_rhl,                    &
+                          subreg_liq_rhl,                    &
+                          subreg_mph_rhl,                    &
+                          subreg_icr_rhl,                    &
+                          massflux_down_half,                &
                           ndf_w3,                            &
                           undf_w3,                           &
                           map_w3,                            &
@@ -942,6 +993,7 @@ contains
     use turb_type_mod, only: turb_type, turb_nullify
     use cloudfracs_type_mod, only: cloudfracs_type, cloudfracs_nullify
     use comorph_diags_type_mod, only: comorph_diags_type
+    use subregion_mod, only: i_dry, i_liq, i_mph, i_icr
     use set_constants_from_um_mod, only: set_constants_from_um
     use comorph_constants_mod, only: l_init_constants, l_turb_par_gen,         &
          l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup, l_cv_cloudfrac,            &
@@ -1197,6 +1249,25 @@ contains
                                                 turb_pert_q(:),                &
                                                 turb_radius(:)
 
+    real(kind=r_def), pointer, intent(inout) :: subreg_dry_frac(:),            &
+                                                subreg_liq_frac(:),            &
+                                                subreg_mph_frac(:),            &
+                                                subreg_icr_frac(:),            &
+                                                subreg_dry_t(:),               &
+                                                subreg_liq_t(:),               &
+                                                subreg_mph_t(:),               &
+                                                subreg_icr_t(:),               &
+                                                subreg_dry_q(:),               &
+                                                subreg_liq_q(:),               &
+                                                subreg_mph_q(:),               &
+                                                subreg_icr_q(:),               &
+                                                subreg_dry_rhl(:),             &
+                                                subreg_liq_rhl(:),             &
+                                                subreg_mph_rhl(:),             &
+                                                subreg_icr_rhl(:)
+
+    real(kind=r_def), pointer, intent(inout) :: massflux_down_half(:)
+
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcfl_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcff_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dbcf_conv
@@ -1422,6 +1493,11 @@ contains
          core_dtv_up, core_dtv_down, core_rhl_up, core_rhl_down
     real(kind=r_um), target, allocatable, dimension(:,:,:) ::                  &
          tpert_u, tpert_v, tpert_w, tpert_t, tpert_q, trad
+    real(kind=r_um), target, allocatable, dimension(:,:,:) ::                  &
+         sreg_dry_frac, sreg_liq_frac, sreg_mph_frac, sreg_icr_frac,           &
+         sreg_dry_t, sreg_liq_t, sreg_mph_t, sreg_icr_t,                       &
+         sreg_dry_q, sreg_liq_q, sreg_mph_q, sreg_icr_q,                       &
+         sreg_dry_rhl, sreg_liq_rhl, sreg_mph_rhl, sreg_icr_rhl
 
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into CoMorph 3D arrays
@@ -2854,6 +2930,118 @@ contains
         comorph_diags % turb_radius % request % x_y_z = .true.
         comorph_diags % turb_radius % field_3d => trad
       end if
+      if (.not. associated(subreg_dry_frac, empty_real_data) ) then
+        allocate(sreg_dry_frac(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_dry) % frac          &
+                                % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_dry) % frac          &
+                                % field_3d => sreg_dry_frac
+      end if
+      if (.not. associated(subreg_liq_frac, empty_real_data) ) then
+        allocate(sreg_liq_frac(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_liq) % frac          &
+                                % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_liq) % frac          &
+                                % field_3d => sreg_liq_frac
+      end if
+      if (.not. associated(subreg_mph_frac, empty_real_data) ) then
+        allocate(sreg_mph_frac(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_mph) % frac          &
+                                % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_mph) % frac          &
+                                % field_3d => sreg_mph_frac
+      end if
+      if (.not. associated(subreg_icr_frac, empty_real_data) ) then
+        allocate(sreg_icr_frac(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_icr) % frac          &
+                                % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_icr) % frac          &
+                                % field_3d => sreg_icr_frac
+      end if
+      if (.not. associated(subreg_dry_t, empty_real_data) ) then
+        allocate(sreg_dry_t(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_dry) % fields        &
+                                % temperature % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_dry) % fields        &
+                                % temperature % field_3d => sreg_dry_t
+      end if
+      if (.not. associated(subreg_liq_t, empty_real_data) ) then
+        allocate(sreg_liq_t(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_liq) % fields        &
+                                % temperature % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_liq) % fields        &
+                                % temperature % field_3d => sreg_liq_t
+      end if
+      if (.not. associated(subreg_mph_t, empty_real_data) ) then
+        allocate(sreg_mph_t(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_mph) % fields        &
+                                % temperature % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_mph) % fields        &
+                                % temperature % field_3d => sreg_mph_t
+      end if
+      if (.not. associated(subreg_icr_t, empty_real_data) ) then
+        allocate(sreg_icr_t(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_icr) % fields        &
+                                % temperature % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_icr) % fields        &
+                                % temperature % field_3d => sreg_icr_t
+      end if
+      if (.not. associated(subreg_dry_q, empty_real_data) ) then
+        allocate(sreg_dry_q(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_dry) % fields        &
+                                % q_vap % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_dry) % fields        &
+                                % q_vap % field_3d => sreg_dry_q
+      end if
+      if (.not. associated(subreg_liq_q, empty_real_data) ) then
+        allocate(sreg_liq_q(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_liq) % fields        &
+                                % q_vap % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_liq) % fields        &
+                                % q_vap % field_3d => sreg_liq_q
+      end if
+      if (.not. associated(subreg_mph_q, empty_real_data) ) then
+        allocate(sreg_mph_q(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_mph) % fields        &
+                                % q_vap % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_mph) % fields        &
+                                % q_vap % field_3d => sreg_mph_q
+      end if
+      if (.not. associated(subreg_icr_q, empty_real_data) ) then
+        allocate(sreg_icr_q(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_icr) % fields        &
+                                % q_vap % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_icr) % fields        &
+                                % q_vap % field_3d => sreg_icr_q
+      end if
+      if (.not. associated(subreg_dry_rhl, empty_real_data) ) then
+        allocate(sreg_dry_rhl(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_dry) % fields        &
+                                % rel_hum_liq % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_dry) % fields        &
+                                % rel_hum_liq % field_3d => sreg_dry_rhl
+      end if
+      if (.not. associated(subreg_liq_rhl, empty_real_data) ) then
+        allocate(sreg_liq_rhl(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_liq) % fields        &
+                                % rel_hum_liq % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_liq) % fields        &
+                                % rel_hum_liq % field_3d => sreg_liq_rhl
+      end if
+      if (.not. associated(subreg_mph_rhl, empty_real_data) ) then
+        allocate(sreg_mph_rhl(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_mph) % fields        &
+                                % rel_hum_liq % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_mph) % fields        &
+                                % rel_hum_liq % field_3d => sreg_mph_rhl
+      end if
+      if (.not. associated(subreg_icr_rhl, empty_real_data) ) then
+        allocate(sreg_icr_rhl(row_length,rows,nlayers))
+        comorph_diags % genesis_diags % subregion_diags(i_icr) % fields        &
+                                % rel_hum_liq % request % x_y_z = .true.
+        comorph_diags % genesis_diags % subregion_diags(i_icr) % fields        &
+                                % rel_hum_liq % field_3d => sreg_icr_rhl
+      end if
     end if
     if (l_pc2_homog_conv_pressure) then
       allocate(pres_inc_env(row_length,rows,nlayers))
@@ -3501,6 +3689,143 @@ contains
           end do
         end do
         deallocate(trad)
+      end if
+      if (allocated(sreg_dry_frac) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_dry_frac(map_wth(1,i) + k) = sreg_dry_frac(i,1,k)
+          end do
+        end do
+        deallocate(sreg_dry_frac)
+      end if
+      if (allocated(sreg_liq_frac) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_liq_frac(map_wth(1,i) + k) = sreg_liq_frac(i,1,k)
+          end do
+        end do
+        deallocate(sreg_liq_frac)
+      end if
+      if (allocated(sreg_mph_frac) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_mph_frac(map_wth(1,i) + k) = sreg_mph_frac(i,1,k)
+          end do
+        end do
+        deallocate(sreg_mph_frac)
+      end if
+      if (allocated(sreg_icr_frac) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_icr_frac(map_wth(1,i) + k) = sreg_icr_frac(i,1,k)
+          end do
+        end do
+        deallocate(sreg_icr_frac)
+      end if
+      if (allocated(sreg_dry_t) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_dry_t(map_wth(1,i) + k) = sreg_dry_t(i,1,k)
+          end do
+        end do
+        deallocate(sreg_dry_t)
+      end if
+      if (allocated(sreg_liq_t) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_liq_t(map_wth(1,i) + k) = sreg_liq_t(i,1,k)
+          end do
+        end do
+        deallocate(sreg_liq_t)
+      end if
+      if (allocated(sreg_mph_t) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_mph_t(map_wth(1,i) + k) = sreg_mph_t(i,1,k)
+          end do
+        end do
+        deallocate(sreg_mph_t)
+      end if
+      if (allocated(sreg_icr_t) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_icr_t(map_wth(1,i) + k) = sreg_icr_t(i,1,k)
+          end do
+        end do
+        deallocate(sreg_icr_t)
+      end if
+      if (allocated(sreg_dry_q) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_dry_q(map_wth(1,i) + k) = sreg_dry_q(i,1,k)
+          end do
+        end do
+        deallocate(sreg_dry_q)
+      end if
+      if (allocated(sreg_liq_q) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_liq_q(map_wth(1,i) + k) = sreg_liq_q(i,1,k)
+          end do
+        end do
+        deallocate(sreg_liq_q)
+      end if
+      if (allocated(sreg_mph_q) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_mph_q(map_wth(1,i) + k) = sreg_mph_q(i,1,k)
+          end do
+        end do
+        deallocate(sreg_mph_q)
+      end if
+      if (allocated(sreg_icr_q) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_icr_q(map_wth(1,i) + k) = sreg_icr_q(i,1,k)
+          end do
+        end do
+        deallocate(sreg_icr_q)
+      end if
+      if (allocated(sreg_dry_rhl) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_dry_rhl(map_wth(1,i) + k) = sreg_dry_rhl(i,1,k)
+          end do
+        end do
+        deallocate(sreg_dry_rhl)
+      end if
+      if (allocated(sreg_liq_rhl) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_liq_rhl(map_wth(1,i) + k) = sreg_liq_rhl(i,1,k)
+          end do
+        end do
+        deallocate(sreg_liq_rhl)
+      end if
+      if (allocated(sreg_mph_rhl) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_mph_rhl(map_wth(1,i) + k) = sreg_mph_rhl(i,1,k)
+          end do
+        end do
+        deallocate(sreg_mph_rhl)
+      end if
+      if (allocated(sreg_icr_rhl) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            subreg_icr_rhl(map_wth(1,i) + k) = sreg_icr_rhl(i,1,k)
+          end do
+        end do
+        deallocate(sreg_icr_rhl)
+      end if
+      ! Downdraught mass flux on rho levels.  Scale by g to convert
+      ! to Pa s-1.
+      if (.not. associated(massflux_down_half, empty_real_data) ) then
+        do k = 1, nlayers
+          do i = 1, row_length
+            massflux_down_half(map_w3(1,i) + k-1) = down_flux_half(i,1,k) * g
+          end do
+        end do
       end if
       ! Frequency of updraught / downdraught on each level.  These use
       ! the CoMorph mass flux before it is modified, so we know the

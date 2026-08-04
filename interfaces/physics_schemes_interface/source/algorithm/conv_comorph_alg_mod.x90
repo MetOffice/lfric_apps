@@ -294,6 +294,12 @@ contains
     type( field_type ) :: par_core_rhl_up,par_core_rhl_down
     type( field_type ) :: turb_pert_u,turb_pert_v,turb_pert_w
     type( field_type ) :: turb_pert_t,turb_pert_q,turb_radius
+    type( field_type ) :: subreg_dry_frac,subreg_liq_frac,subreg_mph_frac
+    type( field_type ) :: subreg_icr_frac,subreg_dry_t,subreg_liq_t
+    type( field_type ) :: subreg_mph_t,subreg_icr_t,subreg_dry_q
+    type( field_type ) :: subreg_liq_q,subreg_mph_q,subreg_icr_q
+    type( field_type ) :: subreg_dry_rhl,subreg_liq_rhl,subreg_mph_rhl
+    type( field_type ) :: subreg_icr_rhl,massflux_down_half
     type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
     type( mesh_type ), pointer  :: mesh
@@ -549,7 +555,24 @@ contains
                                       turb_pert_w,          &
                                       turb_pert_t,          &
                                       turb_pert_q,          &
-                                      turb_radius)
+                                      turb_radius,          &
+                                      subreg_dry_frac,      &
+                                      subreg_liq_frac,      &
+                                      subreg_mph_frac,      &
+                                      subreg_icr_frac,      &
+                                      subreg_dry_t,         &
+                                      subreg_liq_t,         &
+                                      subreg_mph_t,         &
+                                      subreg_icr_t,         &
+                                      subreg_dry_q,         &
+                                      subreg_liq_q,         &
+                                      subreg_mph_q,         &
+                                      subreg_icr_q,         &
+                                      subreg_dry_rhl,       &
+                                      subreg_liq_rhl,       &
+                                      subreg_mph_rhl,       &
+                                      subreg_icr_rhl,       &
+                                      massflux_down_half)
 
     ! call the scheme
     ncells = mesh%get_last_edge_cell()
@@ -751,7 +774,24 @@ contains
                           turb_pert_w,                                        &
                           turb_pert_t,                                        &
                           turb_pert_q,                                        &
-                          turb_radius)                                        &
+                          turb_radius,                                        &
+                          subreg_dry_frac,                                    &
+                          subreg_liq_frac,                                    &
+                          subreg_mph_frac,                                    &
+                          subreg_icr_frac,                                    &
+                          subreg_dry_t,                                       &
+                          subreg_liq_t,                                       &
+                          subreg_mph_t,                                       &
+                          subreg_icr_t,                                       &
+                          subreg_dry_q,                                       &
+                          subreg_liq_q,                                       &
+                          subreg_mph_q,                                       &
+                          subreg_icr_q,                                       &
+                          subreg_dry_rhl,                                     &
+                          subreg_liq_rhl,                                     &
+                          subreg_mph_rhl,                                     &
+                          subreg_icr_rhl,                                     &
+                          massflux_down_half)                                 &
                                            ) ! end of invoke
 
     call um_sizes_init(1_i_def)
@@ -843,7 +883,24 @@ contains
                                   turb_pert_w,           &
                                   turb_pert_t,           &
                                   turb_pert_q,           &
-                                  turb_radius)
+                                  turb_radius,           &
+                                  subreg_dry_frac,       &
+                                  subreg_liq_frac,       &
+                                  subreg_mph_frac,       &
+                                  subreg_icr_frac,       &
+                                  subreg_dry_t,          &
+                                  subreg_liq_t,          &
+                                  subreg_mph_t,          &
+                                  subreg_icr_t,          &
+                                  subreg_dry_q,          &
+                                  subreg_liq_q,          &
+                                  subreg_mph_q,          &
+                                  subreg_icr_q,          &
+                                  subreg_dry_rhl,        &
+                                  subreg_liq_rhl,        &
+                                  subreg_mph_rhl,        &
+                                  subreg_icr_rhl,        &
+                                  massflux_down_half)
 
     end if
 
