@@ -36,7 +36,7 @@ module conv_comorph_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_comorph_kernel_type
     private
-    type(arg_type) :: meta_args(229) = (/                                         &
+    type(arg_type) :: meta_args(233) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -265,7 +265,11 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_w_up
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_w_down
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_t_up
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! par_mean_t_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_mean_t_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_core_dtv_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_core_dtv_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_core_rhl_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! par_core_rhl_down
         /)
     integer :: operates_on = DOMAIN
   contains
@@ -506,6 +510,10 @@ contains
   !> @param[in,out] par_mean_w_down      Mean downdraught parcel w wind (m/s)
   !> @param[in,out] par_mean_t_up        Mean updraught parcel temperature (K)
   !> @param[in,out] par_mean_t_down      Mean downdraught parcel temperature (K)
+  !> @param[in,out] par_core_dtv_up      Updraught parcel core excess virtual temperature (K)
+  !> @param[in,out] par_core_dtv_down    Downdraught parcel core excess virtual temperature (K)
+  !> @param[in,out] par_core_rhl_up      Updraught parcel core relative humidity wrt liquid
+  !> @param[in,out] par_core_rhl_down    Downdraught parcel core relative humidity wrt liquid
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs  for density space
   !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
@@ -751,6 +759,10 @@ contains
                           par_mean_w_down,                   &
                           par_mean_t_up,                     &
                           par_mean_t_down,                   &
+                          par_core_dtv_up,                   &
+                          par_core_dtv_down,                 &
+                          par_core_rhl_up,                   &
+                          par_core_rhl_down,                 &
                           ndf_w3,                            &
                           undf_w3,                           &
                           map_w3,                            &
@@ -915,6 +927,7 @@ contains
     use set_constants_from_um_mod, only: set_constants_from_um
     use comorph_constants_mod, only: l_init_constants, l_turb_par_gen,         &
          l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup, l_cv_cloudfrac,            &
+         l_par_core,                                                          &
          i_convcloud, i_convcloud_liqonly
     use calc_conv_incs_mod, only: calc_conv_incs, i_call_save_before_conv,     &
          i_call_diff_to_get_incs
@@ -1154,6 +1167,11 @@ contains
                                                 par_mean_t_up(:),              &
                                                 par_mean_t_down(:)
 
+    real(kind=r_def), pointer, intent(inout) :: par_core_dtv_up(:),            &
+                                                par_core_dtv_down(:),          &
+                                                par_core_rhl_up(:),            &
+                                                par_core_rhl_down(:)
+
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcfl_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcff_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dbcf_conv
@@ -1375,6 +1393,8 @@ contains
          mean_cff_up, mean_cff_down, mean_cfb_up, mean_cfb_down, mean_u_up,    &
          mean_u_down, mean_v_up, mean_v_down, mean_w_up, mean_w_down,          &
          mean_t_up, mean_t_down
+    real(kind=r_um), target, allocatable, dimension(:,:,:) ::                  &
+         core_dtv_up, core_dtv_down, core_rhl_up, core_rhl_down
 
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into CoMorph 3D arrays
@@ -2720,6 +2740,42 @@ contains
         comorph_diags % dndraft % par % mean % temperature                     &
                                 % field_3d => mean_t_down
       end if
+
+      ! Set requests and assign pointers for the parcel core property
+      ! diagnostics.  These only exist when the parcel core properties
+      ! are in use.
+      if (l_par_core .and.                                                     &
+          .not. associated(par_core_dtv_up, empty_real_data) ) then
+        allocate(core_dtv_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % core % virt_temp_excess                &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % core % virt_temp_excess                &
+                                % field_3d => core_dtv_up
+      end if
+      if (l_par_core .and.                                                     &
+          .not. associated(par_core_dtv_down, empty_real_data) ) then
+        allocate(core_dtv_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % core % virt_temp_excess                &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % core % virt_temp_excess                &
+                                % field_3d => core_dtv_down
+      end if
+      if (l_par_core .and.                                                     &
+          .not. associated(par_core_rhl_up, empty_real_data) ) then
+        allocate(core_rhl_up(row_length,rows,nlayers))
+        comorph_diags % updraft % par % core % rel_hum_liq                     &
+                                % request % x_y_z = .true.
+        comorph_diags % updraft % par % core % rel_hum_liq                     &
+                                % field_3d => core_rhl_up
+      end if
+      if (l_par_core .and.                                                     &
+          .not. associated(par_core_rhl_down, empty_real_data) ) then
+        allocate(core_rhl_down(row_length,rows,nlayers))
+        comorph_diags % dndraft % par % core % rel_hum_liq                     &
+                                % request % x_y_z = .true.
+        comorph_diags % dndraft % par % core % rel_hum_liq                     &
+                                % field_3d => core_rhl_down
+      end if
     end if
     if (l_pc2_homog_conv_pressure) then
       allocate(pres_inc_env(row_length,rows,nlayers))
@@ -3281,6 +3337,41 @@ contains
           end do
         end do
         deallocate(mean_t_down)
+      end if
+
+      ! Copy the parcel core properties onto rho-levels.  No unit
+      ! conversion is needed for either of these.
+      if (allocated(core_dtv_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_core_dtv_up(map_w3(1,i) + k-1) = core_dtv_up(i,1,k)
+          end do
+        end do
+        deallocate(core_dtv_up)
+      end if
+      if (allocated(core_dtv_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_core_dtv_down(map_w3(1,i) + k-1) = core_dtv_down(i,1,k)
+          end do
+        end do
+        deallocate(core_dtv_down)
+      end if
+      if (allocated(core_rhl_up) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_core_rhl_up(map_w3(1,i) + k-1) = core_rhl_up(i,1,k)
+          end do
+        end do
+        deallocate(core_rhl_up)
+      end if
+      if (allocated(core_rhl_down) ) then
+        do k = 1, n_conv_levels
+          do i = 1, row_length
+            par_core_rhl_down(map_w3(1,i) + k-1) = core_rhl_down(i,1,k)
+          end do
+        end do
+        deallocate(core_rhl_down)
       end if
       ! Frequency of updraught / downdraught on each level.  These use
       ! the CoMorph mass flux before it is modified, so we know the
