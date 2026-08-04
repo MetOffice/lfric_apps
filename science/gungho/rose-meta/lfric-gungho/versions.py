@@ -64,11 +64,9 @@ class vn32_t379(MacroUpgrade):
         # This is easier because it's new and we can prescribe what to do
         self.add_setting(
             config, ["namelist:timestepping", "inner_iterations_tr"], "2,1"
-            inner_array
         )
         self.add_setting(
             config, ["namelist:timestepping", "inner_iterations_bdf2"], "1,1"
-            inner_array
         )
 
         return config, self.reports
