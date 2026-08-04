@@ -372,6 +372,8 @@
   <field id="convection__detrain_down" name="detrain_down" long_name="convection_downward_detrain" unit="1" grid_ref="full_level_face_grid" />
   <field id="convection__par_radius_up" name="par_radius_up" long_name="convection_updraught_parcel_radius" unit="m" grid_ref="half_level_face_grid" />
   <field id="convection__par_radius_down" name="par_radius_down" long_name="convection_downdraught_parcel_radius" unit="m" grid_ref="half_level_face_grid" />
+  <field id="convection__freq_up" name="freq_up" long_name="convection_updraught_frequency" unit="1" grid_ref="half_level_face_grid" />
+  <field id="convection__freq_down" name="freq_down" long_name="convection_downdraught_frequency" unit="1" grid_ref="half_level_face_grid" />
   <field id="convection__dd_dt" name="dd_dt" long_name="temperature_increment_from_downdraughts" unit="K s-1" grid_ref="full_level_face_grid" />
   <field id="convection__dd_dq" name="dd_dq" long_name="water_vapour_increment_from_downdraughts" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
   <field id="convection__conv_rain" name="conv_rain" long_name="surface_convective_rainfall_rate" unit="kg m-2 s-1" domain_ref="face" />

@@ -274,6 +274,7 @@ contains
     type( field_type ) :: pres_lowest_cv_base,pres_lowest_cv_top, lowest_cca_2d
     type( field_type ) :: massflux_up_half
     type( field_type ) :: par_radius_up,par_radius_down
+    type( field_type ) :: freq_up,freq_down
     type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
     type( mesh_type ), pointer  :: mesh
@@ -487,7 +488,9 @@ contains
                                       detrain_down,         &
                                       massflux_up_half,     &
                                       par_radius_up,        &
-                                      par_radius_down)
+                                      par_radius_down,      &
+                                      freq_up,              &
+                                      freq_down)
 
     ! call the scheme
     ncells = mesh%get_last_edge_cell()
@@ -647,7 +650,9 @@ contains
                           detrain_down,                                       &
                           massflux_up_half,                                   &
                           par_radius_up,                                      &
-                          par_radius_down)                                    &
+                          par_radius_down,                                    &
+                          freq_up,                                            &
+                          freq_down)                                          &
                                            ) ! end of invoke
 
     call um_sizes_init(1_i_def)
@@ -697,7 +702,9 @@ contains
                                   detrain_down,          &
                                   massflux_up_half,      &
                                   par_radius_up,         &
-                                  par_radius_down)
+                                  par_radius_down,       &
+                                  freq_up,               &
+                                  freq_down)
 
     end if
 

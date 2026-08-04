@@ -34,7 +34,9 @@ module comorph_diags_mod
                       detrain_down_flag,           &
                       massflux_up_half_flag,       &
                       par_radius_up_flag,          &
-                      par_radius_down_flag
+                      par_radius_down_flag,        &
+                      freq_up_flag,                &
+                      freq_down_flag
 
   public :: initialise_diags_for_comorph
   public :: output_diags_for_comorph
@@ -57,7 +59,9 @@ contains
                                           detrain_down,           &
                                           massflux_up_half,       &
                                           par_radius_up,          &
-                                          par_radius_down)
+                                          par_radius_down,        &
+                                          freq_up,                &
+                                          freq_down)
 
     implicit none
 
@@ -77,7 +81,9 @@ contains
                                          detrain_down,            &
                                          massflux_up_half,        &
                                          par_radius_up,           &
-                                         par_radius_down
+                                         par_radius_down,         &
+                                         freq_up,                 &
+                                         freq_down
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -123,6 +129,12 @@ contains
     if (par_radius_down_flag) call invoke( setval_c(par_radius_down,           &
                                                     0.0_r_def) )
 
+    freq_up_flag = init_diag(freq_up, 'convection__freq_up')
+    if (freq_up_flag) call invoke( setval_c(freq_up, 0.0_r_def) )
+
+    freq_down_flag = init_diag(freq_down, 'convection__freq_down')
+    if (freq_down_flag) call invoke( setval_c(freq_down, 0.0_r_def) )
+
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
   end subroutine initialise_diags_for_comorph
@@ -162,7 +174,9 @@ contains
                                     detrain_down,           &
                                     massflux_up_half,       &
                                     par_radius_up,          &
-                                    par_radius_down)
+                                    par_radius_down,        &
+                                    freq_up,                &
+                                    freq_down)
 
     implicit none
 
@@ -204,7 +218,9 @@ contains
                                        detrain_down,           &
                                        massflux_up_half,       &
                                        par_radius_up,          &
-                                       par_radius_down
+                                       par_radius_down,        &
+                                       freq_up,                &
+                                       freq_down
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -254,6 +270,8 @@ contains
     if (massflux_up_half_flag) call massflux_up_half%write_field()
     if (par_radius_up_flag) call par_radius_up%write_field()
     if (par_radius_down_flag) call par_radius_down%write_field()
+    if (freq_up_flag) call freq_up%write_field()
+    if (freq_down_flag) call freq_down%write_field()
 
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 

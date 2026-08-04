@@ -36,7 +36,7 @@ module conv_comorph_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_comorph_kernel_type
     private
-    type(arg_type) :: meta_args(197) = (/                                         &
+    type(arg_type) :: meta_args(199) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -233,7 +233,9 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! detrain_down
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! massflux_up_half
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_radius_up
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! par_radius_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! par_radius_down
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! freq_up
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3)                        &! freq_down
         /)
     integer :: operates_on = DOMAIN
   contains
@@ -442,6 +444,8 @@ contains
   !> @param[in,out] massflux_up_half     Convective upwards mass flux on half-levels (Pa/s)
   !> @param[in,out] par_radius_up        Mean updraught parcel radius on half-levels (m)
   !> @param[in,out] par_radius_down      Mean downdraught parcel radius on half-levels (m)
+  !> @param[in,out] freq_up              Frequency of updraught on half-levels
+  !> @param[in,out] freq_down            Frequency of downdraught on half-levels
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
   !> @param[in]     undf_w3              Number of unique DOFs  for density space
   !> @param[in]     map_w3               Dofmap for the cell at the base of the column for density space
@@ -655,6 +659,8 @@ contains
                           massflux_up_half,                  &
                           par_radius_up,                     &
                           par_radius_down,                   &
+                          freq_up,                           &
+                          freq_down,                         &
                           ndf_w3,                            &
                           undf_w3,                           &
                           map_w3,                            &
@@ -1023,7 +1029,9 @@ contains
                                                 detrain_down(:),     &
                                                 massflux_up_half(:), &
                                                 par_radius_up(:),    &
-                                                par_radius_down(:)
+                                                par_radius_down(:),  &
+                                                freq_up(:),          &
+                                                freq_down(:)
 
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcfl_conv
     real(kind=r_def), dimension(undf_wth), intent(inout) :: dcff_conv
@@ -2604,6 +2612,32 @@ contains
                                     +  interp  * down_flux_half(i,1,k+1) * g
       end do
     end do
+
+    ! Frequency of updraught / downdraught on each level.  These use the
+    ! CoMorph mass flux before it is modified, so we know the complete set
+    ! of levels with non-zero values.
+    if (.not. associated(freq_up, empty_real_data) ) then
+      do k = 1, n_conv_levels
+        do i = 1, row_length
+          if (up_flux_half(i,1,k) > 0.0_r_um) then
+            freq_up(map_w3(1,i) + k-1) = 1.0_r_def
+          else
+            freq_up(map_w3(1,i) + k-1) = 0.0_r_def
+          end if
+        end do
+      end do
+    end if
+    if (.not. associated(freq_down, empty_real_data) ) then
+      do k = 1, n_conv_levels
+        do i = 1, row_length
+          if (down_flux_half(i,1,k) > 0.0_r_um) then
+            freq_down(map_w3(1,i) + k-1) = 1.0_r_def
+          else
+            freq_down(map_w3(1,i) + k-1) = 0.0_r_def
+          end if
+        end do
+      end do
+    end if
 
     if (l_pc2_homog_conv_pressure) then
       do k = 1, n_conv_levels
