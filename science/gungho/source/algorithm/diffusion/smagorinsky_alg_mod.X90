@@ -58,8 +58,8 @@ module smagorinsky_alg_mod
                                  only: tracer_smagorinsky_diff_kernel_type
   use sci_w3_to_w2_average_kernel_mod,                                         &
                                  only: w3_to_w2_average_kernel_type
-  use interp_wtheta_to_w3_kernel_mod,                                          &
-                                 only: interp_wtheta_to_w3_kernel_type
+  use sci_sample_wtheta_to_w3_kernel_mod,                                      &
+                                 only: sample_wtheta_to_w3_kernel_type
   use diffusion_momentum_flux_kernel_mod,                                      &
                                  only: diffusion_momentum_flux_kernel_type
   use divergence_momentum_flux_kernel_mod,                                     &
@@ -118,7 +118,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     type(field_collection_type), intent(in)    :: derived_fields
     type(field_collection_type), intent(in)    :: cloud_fields
     type(field_type),            intent(in)    :: exner, theta, u
-    type(field_type),            intent(in), target :: rho
+    type(field_type), target,    intent(in)    :: rho
     real(kind=r_def),            intent(in)    :: dt
     class(model_clock_type),     intent(in)    :: model_clock
 
@@ -486,7 +486,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
   end subroutine smagorinsky_tracer_alg
 
   !> @details Performs Smagorinsky diffusion on a W2 momentum field
-  !> @param[in]     config         Application namelist configuration object
+  !> @param[in]     config        Application namelist configuration object
   !> @param[in,out] du            The diffusion increment for the wind
   !> @param[in]     u             Input wind field
   !> @param[in]     visc_m        Viscosity in wtheta points
@@ -502,14 +502,14 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     implicit none
 
     ! Arguments
-    type(config_type), intent(in) :: config
-    type(field_type), intent(inout) :: du
-    type(field_type), intent(in)    :: u
-    type(field_type), intent(in)    :: visc_m
-    type(field_type), intent(in)    :: visc_m_sh_w2h
-    type(field_type), intent(in)    :: rho_in_wth
-    type(field_type), intent(in)    :: rho_in_w3
-    type(field_type), intent(in)    :: rho_in_sh_w2h
+    type(config_type), intent(in)    :: config
+    type(field_type),  intent(inout) :: du
+    type(field_type),  intent(in)    :: u
+    type(field_type),  intent(in)    :: visc_m
+    type(field_type),  intent(in)    :: visc_m_sh_w2h
+    type(field_type),  intent(in)    :: rho_in_wth
+    type(field_type),  intent(in)    :: rho_in_w3
+    type(field_type),  intent(in)    :: rho_in_sh_w2h
 
     ! Internal variables
     type(field_type), pointer :: height_w3
@@ -536,6 +536,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     type(field_type) :: vflux_w1
     type(field_type) :: wflux_sh_w2h
     type(integer_field_type),  pointer :: face_selector_ew, face_selector_ns
+    logical( kind=l_def ) :: fullstress
 
     ! Stencil depth for the Smagorinsky diffusion kernel
     integer(kind=i_def), parameter :: smag_stencil_depth = 1
@@ -561,6 +562,8 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
       dA_at_sh_w2 => get_dA_at_w2( shifted_mesh )
       detj_at_sh_w2 => get_detj_at_w3_fv( shifted_mesh )
 
+      fullstress = config%mixing%fullstress()
+
       call u % copy_field_properties( u_physics )
       call height_w3 % copy_field_properties( visc_m_w3 )
       call height_w1 % copy_field_properties( uflux_w1 )
@@ -582,14 +585,13 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
         vector_space=w3_fs, halo_depth=smag_stencil_depth &
       )
 
-      ! This invoke must be separated from the latter one.
-      ! because it makes wrong meta data of W2 space(ndf_w2, undf_w2, map_w2)
-      ! , passing W2H data as W2 data to a kernel.
+      ! This invoke must be separated from the following one, to avoid
+      ! confusing W2H and W2 metadata.
       call invoke(                                                             &
           setval_C(visc_m_w2h, 0.0_r_def),                                     &
           setval_C(rho_in_w2h, 0.0_r_def),                                     &
-          interp_wtheta_to_w3_kernel_type(                                     &
-            visc_m_w3, visc_m, height_w3, height_wth                           &
+          sample_wtheta_to_w3_kernel_type(                                     &
+            visc_m_w3, visc_m                                                  &
           ),                                                                   &
           w3_to_w2_average_kernel_type(                                        &
             visc_m_w2h, visc_m_w3, rmult                                       &
@@ -619,7 +621,8 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
             visc_m_sh_w2h, visc_m_w3, rho_in_w3, rho_in_sh_w2h,                &
             rho_in_w2h, smag_stencil_depth,                                    &
             panel_id, smag_stencil_depth,                                      &
-            face_selector_ew, face_selector_ns                                 &
+            face_selector_ew, face_selector_ns,                                &
+            fullstress                                                         &
           ),                                                                   &
           divergence_momentum_flux_kernel_type(                                &
             du,                                                                &
@@ -629,7 +632,8 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
             detj_at_w2,                                                        &
             rho_in_wth, rho_in_w2h,                                            &
             panel_id, smag_stencil_depth,                                      &
-            face_selector_ew, face_selector_ns                                 &
+            face_selector_ew, face_selector_ns,                                &
+            fullstress                                                         &
           ),                                                                   &
           inc_X_times_Y(du, dA_at_w2)                                          &
       )

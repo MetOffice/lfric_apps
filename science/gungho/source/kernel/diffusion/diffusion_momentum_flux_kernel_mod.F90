@@ -1,52 +1,78 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2026 Met Office. All rights reserved.
+! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Calculate diffusion flux of momentum as detailed in UMDP28.
-!>
+!> @brief Calculates the horizontal diffusion flux for momentum
+!> @details The conservative form of horizontal diffusion requires calculating
+!!          horizontal diffusion fluxes of the momentum components.
+!!          These fluxes for horizontal momentum are expressed as zonal and
+!!          meridional fluxes at both W3 and W1 points, creating a
+!!          "control volume" around each W2H point. Horizontal fluxes of
+!!          vertical momentum are calculated at shifted W2H points.
+!!          This kernel calculates these fluxes for horizontal diffusion,
+!!          by taking finite differences along model layers, assuming
+!!          orthogonal wind components and a flat mesh.
+!!
+!!          When the tensorial diffusion option is selected,
+!!          flux of \f$ u_i \f$ in \f$ x_j \f$ direction (\f$ \tau_{ij} \f$)
+!!          is calculated as:
+!!          \f[
+!!            \tau_{ij} =
+!!                -\nu \left( \frac{\partial u_i}{\partial x_j}
+!!                          + \frac{\partial u_j}{\partial x_i} \right),
+!!          \f]
+!!          instead of:
+!!          \f[
+!!            \tau_{ij} = -\nu \frac{\partial u_i}{\partial x_j}.
+!!          \f]
+!!
+!!          The terms proportional to the vertical gradient in the vertical
+!!          fluxes are ommited as they are calculated separetely
+!!          in the boundary layer scheme.
 module diffusion_momentum_flux_kernel_mod
 
   use argument_mod,                  only : arg_type,                          &
-                                            GH_FIELD, GH_REAL, GH_INTEGER,     &
+                                            GH_FIELD, GH_SCALAR,               &
+                                            GH_REAL, GH_INTEGER, GH_LOGICAL,   &
                                             GH_READ, GH_WRITE,                 &
                                             STENCIL, CROSS, CELL_COLUMN,       &
                                             ANY_SPACE_1, ANY_SPACE_2,          &
                                             ANY_DISCONTINUOUS_SPACE_3,         &
                                             ANY_DISCONTINUOUS_SPACE_9
-  use constants_mod,                 only : r_def, i_def
+  use constants_mod,                 only : r_def, i_def, l_def
   use fs_continuity_mod,             only : W3, W2, W1, Wtheta, W2H
   use kernel_mod,                    only : kernel_type
   use sci_face_selector_support_mod, only : face_from_face_selector
-  use mixing_config_mod,             only : fullstress
 
   implicit none
   private
 
   type, public, extends(kernel_type) :: diffusion_momentum_flux_kernel_type
     private
-    type(arg_type) :: meta_args(19) = (/                                       &
-         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                       &! uflux_w3
-         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                       &! vflux_w3
-         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W1),                       &! uflux_w1
-         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W1),                       &! vflux_w1
-         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, ANY_SPACE_1),              &! wflux_sh_w2h
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2, STENCIL(CROSS)),       &! u_physics
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2, STENCIL(CROSS)),       &! dx_at_w2
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2, STENCIL(CROSS)),       &! dA_at_w2
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_2),              &! dx_at_sh_w2
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_2),              &! dA_at_sh_w2
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2H, STENCIL(CROSS)),      &! visc_m_w2h
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_1),              &! visc_m_sh_w2h
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),                       &! visc_m_w3
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),                       &! rho_in_w3
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_1),              &! rho_in_sh_w2h
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2H, STENCIL(CROSS)),      &! rho_in_w2h
+    type(arg_type) :: meta_args(20) = (/                                       &
+         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                       & ! uflux_w3
+         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                       & ! vflux_w3
+         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W1),                       & ! uflux_w1
+         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W1),                       & ! vflux_w1
+         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, ANY_SPACE_1),              & ! wflux_sh_w2h
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2, STENCIL(CROSS)),       & ! u_physics
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2, STENCIL(CROSS)),       & ! dx_at_w2
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2, STENCIL(CROSS)),       & ! dA_at_w2
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_2),              & ! dx_at_sh_w2
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_2),              & ! dA_at_sh_w2
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2H, STENCIL(CROSS)),      & ! visc_m_w2h
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_1),              & ! visc_m_sh_w2h
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),                       & ! visc_m_w3
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),                       & ! rho_in_w3
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_1),              & ! rho_in_sh_w2h
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2H, STENCIL(CROSS)),      & ! rho_in_w2h
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9, &
-                                                            STENCIL(CROSS)),   &! panel_id
-         arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),&! face_selector_ew
-         arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &! face_selector_ns
+                                                            STENCIL(CROSS)),   & ! panel_id
+         arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ew
+         arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ns
+         arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ)                             & ! fullstress
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -90,6 +116,7 @@ contains
 !> @param[in]     smap_pid         Stencil map for panel_id
 !> @param[in]     face_selector_ew 2D field indicating which W/E faces to loop
 !> @param[in]     face_selector_ns 2D field indicating which N/S faces to loop
+!> @param[in]     fullstress       Switch for tensorial diffusion option
 !> @param[in]     ndf_w3           Number of DOFs for W3 space
 !> @param[in]     undf_w3          Number of unique DOFs for W3 space
 !> @param[in]     map_w3           Dofmap for the cell at the base of the column
@@ -140,6 +167,7 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
                                          smap_pid_size, smap_pid,              &
                                          face_selector_ew,                     &
                                          face_selector_ns,                     &
+                                         fullstress,                           &
                                          ndf_w3, undf_w3, map_w3,              &
                                          ndf_w1, undf_w1, map_w1,              &
                                          ndf_sh_w2h, undf_sh_w2h, map_sh_w2h,  &
@@ -202,6 +230,7 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   real(kind=r_def), dimension(undf_pid),    intent(in)    :: panel_id
   integer(kind=i_def), dimension(undf_w3_2d), intent(in)  :: face_selector_ew, &
                                                              face_selector_ns
+  logical(kind=l_def),                      intent(in)    :: fullstress
 
   ! Internal variables
   integer(kind=i_def) :: k, df, j
@@ -466,7 +495,7 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   end do
 
   ! --------------------------------------------------------------------
-  ! Compute horizontal flux on sfifted W2 point.
+  ! Compute horizontal flux on shifted W2 point.
   ! --------------------------------------------------------------------
   do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
     df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))

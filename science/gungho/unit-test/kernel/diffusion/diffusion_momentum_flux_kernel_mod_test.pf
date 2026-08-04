@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2026 Met Office. All rights reserved.
+! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -266,6 +266,7 @@ contains
            rho_in_w2h, stemcil_map_size, smap_w2h(:,:,cell),                   &
            panel_id, stemcil_map_size, smap_pid(:,:,cell),                     &
            face_selector_ew, face_selector_ns,                                 &
+           fullstress,                                                         &
            ndf_w3, undf_w3, map_w3(:,cell),                                    &
            ndf_w1, undf_w1, map_w1(:,cell),                                    &
            ndf_sh_w2h, undf_sh_w2h, map_sh_w2h(:,cell),                        &

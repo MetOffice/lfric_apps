@@ -1,16 +1,23 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2026 Met Office. All rights reserved.
+! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Calculate divergence of momentum flux and update wind field
-!>        as detailed in UMDP28.
-!>
+!> @brief Calculates divergence of horizontal diffusion fluxes for momentum
+!> @details The conservative form of the horizontal diffusion operator for
+!!          momentum involves taking the divergence of fluxes.
+!!          These fluxes are expressed as zonal and meridional fluxes at
+!!          both W3 and W1 points, creating a "control volume" around each
+!!          W2H point. Horizontal fluxes of vertical momentum are calculated
+!!          at shifted W2H points. This kernel calculates the divergence from
+!!          these fluxes to give the increment associated with conservative
+!!          horizontal diffusion for momentum.
 module divergence_momentum_flux_kernel_mod
 
   use argument_mod,                  only : arg_type,                          &
-                                            GH_FIELD, GH_REAL, GH_INTEGER,     &
+                                            GH_FIELD, GH_SCALAR,               &
+                                            GH_REAL, GH_INTEGER, GH_LOGICAL,   &
                                             GH_READ, GH_WRITE,                 &
                                             STENCIL, CROSS, CELL_COLUMN,       &
                                             ANY_SPACE_1,                       &
@@ -20,27 +27,27 @@ module divergence_momentum_flux_kernel_mod
   use fs_continuity_mod,             only : Wtheta, W3, W2, W2H, W1
   use kernel_mod,                    only : kernel_type
   use sci_face_selector_support_mod, only : face_from_face_selector
-  use mixing_config_mod,             only : fullstress
 
   implicit none
   private
 
   type, public, extends(kernel_type) :: divergence_momentum_flux_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/                                       &
-         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE,  W2),                      &! u_inc
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W3, STENCIL(CROSS)),      &! uflux_w3
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W3, STENCIL(CROSS)),      &! vflux_w3
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W1),                      &! uflux_w1
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W1),                      &! vflux_w1
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   ANY_SPACE_1),             &! wflux_sh_w2h
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W2),                      &! detj_at_w2
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   Wtheta),                  &! rho_in_wth
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W2H),                     &! rho_in_w2h
+    type(arg_type) :: meta_args(13) = (/                                       &
+         arg_type(GH_FIELD,   GH_REAL,    GH_WRITE,  W2),                      & ! u_inc
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W3, STENCIL(CROSS)),      & ! uflux_w3
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W3, STENCIL(CROSS)),      & ! vflux_w3
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W1),                      & ! uflux_w1
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W1),                      & ! vflux_w1
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   ANY_SPACE_1),             & ! wflux_sh_w2h
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W2),                      & ! detj_at_w2
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   Wtheta),                  & ! rho_in_wth
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W2H),                     & ! rho_in_w2h
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   ANY_DISCONTINUOUS_SPACE_9,&
-                                                             STENCIL(CROSS)),  &! panel_id
-         arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),&! face_selector_ew
-         arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3) &! face_selector_ns
+                                                             STENCIL(CROSS)),  & ! panel_id
+         arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ew
+         arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ns
+         arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ)                             & ! fullstress
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -51,7 +58,7 @@ module divergence_momentum_flux_kernel_mod
 
 contains
 
-!> @brief Calculates dievrgence of momentum flux.
+!> @brief Calculates divergence of momentum flux.
 !> @param[in]     nlayers          Number of layers in the mesh
 !> @param[in,out] u_n              Increment of wind field
 !> @param[in]     uflux_w3         One component of flux of U
@@ -71,6 +78,7 @@ contains
 !> @param[in]     smap_pid         Stencil map for panel_id
 !> @param[in]     face_selector_ew 2D field indicating which W/E faces to loop
 !> @param[in]     face_selector_ns 2D field indicating which N/S faces to loop
+!> @param[in]     fullstress       Switch for tensorial diffusion option
 !> @param[in]     ndf_w2           Number of DOFs for W2 space
 !> @param[in]     undf_w2          Number of unique DOFs for W2 space
 !> @param[in]     map_w2           Dofmap for the cell at the base of the column
@@ -111,6 +119,7 @@ subroutine divergence_momentum_flux_code( nlayers,                             &
                                           smap_pid_size, smap_pid,             &
                                           face_selector_ew,                    &
                                           face_selector_ns,                    &
+                                          fullstress,                          &
                                           ndf_w2, undf_w2, map_w2,             &
                                           ndf_w3, undf_w3, map_w3,             &
                                           ndf_w1, undf_w1, map_w1,             &
@@ -160,6 +169,7 @@ subroutine divergence_momentum_flux_code( nlayers,                             &
   real(kind=r_def), dimension(undf_pid),    intent(in)    :: panel_id
   integer(kind=i_def), dimension(undf_w3_2d), intent(in)  :: face_selector_ew, &
                                                              face_selector_ns
+  logical(kind=l_def),                      intent(in)    :: fullstress
 
   ! Internal variables
   integer(kind=i_def) :: k, df, j
