@@ -18,6 +18,11 @@ module initial_swe_tracer_kernel_mod
   use constants_mod,        only: r_def, i_def
   use kernel_mod,           only: kernel_type
 
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   !-------------------------------------------------------------------------------
@@ -112,7 +117,11 @@ contains
         coord(3) = coord(3) + chi_3_e(df0)*wx_basis(1,df0,df)
       end do
 
-      call chi2xyz(coord(1), coord(2), coord(3), ipanel, xyz(1), xyz(2), xyz(3))
+      call chi2xyz( coord(1), coord(2), coord(3), &
+                    ipanel, geometry, topology,   &
+                    coord_system, scaled_radius,  &
+                    xyz(1), xyz(2), xyz(3) )
+
       tracer(map_w3(df)) = analytic_tracer(xyz, domain_x)
 
     end do

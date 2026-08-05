@@ -28,8 +28,10 @@ program cma_test
                                              test_cma_add,                   &
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, r_def, i_def, l_def, imdi, &
-                                             r_solver, pi, str_def
+                                             r_solver, pi, str_def,            &
+                                             str_max_filename
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
                                              uniform_extrusion_type, &
@@ -39,7 +41,7 @@ program cma_test
   use function_space_mod,             only : function_space_type
   use halo_comms_mod,                 only : initialise_halo_comms, &
                                              finalise_halo_comms
-  use configuration_mod,              only : read_configuration, &
+  use config_loader_mod,              only : read_configuration, &
                                              ensure_configuration
   use driver_collections_mod,         only : init_collections, final_collections
   use driver_mesh_mod,                only : init_mesh
@@ -55,9 +57,6 @@ program cma_test
                                              LOG_LEVEL_INFO
   use mesh_mod,                       only : mesh_type
   use mesh_collection_mod,            only : mesh_collection
-  use namelist_collection_mod,        only : namelist_collection_type
-  use namelist_mod,                   only : namelist_type
-
   use base_mesh_config_mod,           only : GEOMETRY_SPHERICAL
   use create_mesh_mod,                only : create_mesh
   use add_mesh_map_mod,               only : assign_mesh_maps
@@ -123,22 +122,24 @@ program cma_test
   logical :: do_test_diag_dhmdht = .false.
 
   ! Namelist and configuration variables
-  type(namelist_collection_type), save :: configuration
+  type(config_type), save :: config
 
-  type(namelist_type), pointer :: extrusion_nml
-  type(namelist_type), pointer :: base_mesh_nml
-  type(namelist_type), pointer :: planet_nml
+  character(str_max_filename) :: file_prefix
 
   integer(i_def)     :: stencil_depth(1)
-  character(str_def) :: file_prefix
   character(str_def) :: prime_mesh_name
   real(r_def)        :: radius
   real(r_def)        :: scaled_radius
-  integer            :: geometry
-  integer            :: extrusion_method
+  integer(i_def)     :: geometry
+  integer(i_def)     :: extrusion_method
+  integer(i_def)     :: tile_size_x
+  integer(i_def)     :: tile_size_y
   integer(i_def)     :: number_of_layers
   logical(l_def)     :: prepartitioned
-  logical            :: check_partitions = .false.
+  logical(l_def)     :: check_partitions = .false.
+  logical(l_def)     :: inner_halo_tiles
+
+  integer(i_def), allocatable :: tile_size(:,:)
 
   ! Error tolerance for tests
   ! Note: tolerance is for r_solver = real64
@@ -230,7 +231,7 @@ program cma_test
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call configuration%initialise( program_name, table_len=10 )
+  call config%initialise( program_name )
 
   deallocate(program_name)
   deallocate(test_flag)
@@ -242,7 +243,7 @@ program cma_test
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   allocate( success_map(size(required_configuration)) )
-  call read_configuration( filename, configuration )
+  call read_configuration( filename, config=config )
 
   okay = ensure_configuration( required_configuration, success_map )
   if (.not. okay) then
@@ -261,19 +262,25 @@ program cma_test
 
   call init_collections()
 
-  extrusion_nml => configuration%get_namelist('extrusion')
-  base_mesh_nml => configuration%get_namelist('base_mesh')
-  planet_nml    => configuration%get_namelist('planet')
+  extrusion_method = config%extrusion%method()
+  radius           = config%extrusion%planet_radius()
+  number_of_layers = config%extrusion%number_of_layers()
+  domain_height    = config%extrusion%domain_height()
+  file_prefix      = config%base_mesh%file_prefix()
+  prepartitioned   = config%base_mesh%prepartitioned()
+  geometry         = config%base_mesh%geometry()
+  prime_mesh_name  = config%base_mesh%prime_mesh_name()
+  scaled_radius    = config%planet%scaled_radius()
 
-  call extrusion_nml%get_value( 'method', extrusion_method )
-  call extrusion_nml%get_value( 'planet_radius', radius )
-  call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-  call extrusion_nml%get_value( 'domain_height', domain_height )
-  call base_mesh_nml%get_value( 'file_prefix', file_prefix )
-  call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-  call base_mesh_nml%get_value( 'geometry', geometry )
-  call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-  call planet_nml%get_value( 'scaled_radius', scaled_radius )
+  if (prepartitioned) then
+    inner_halo_tiles = .false.
+    tile_size_x      = 1
+    tile_size_y      = 1
+  else
+    inner_halo_tiles = config%partitioning%inner_halo_tiles()
+    tile_size_x      = config%partitioning%tile_size_x()
+    tile_size_y      = config%partitioning%tile_size_y()
+  end if
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialise
@@ -290,9 +297,16 @@ program cma_test
 
   stencil_depth = 2
   check_partitions = .false.
-  call init_mesh( configuration,              &
-                  local_rank, total_ranks,    &
-                  base_mesh_names, extrusion, &
+
+  if (allocated(tile_size)) deallocate(tile_size)
+  allocate(tile_size(2, size(base_mesh_names)))
+  tile_size(1,:) = tile_size_x
+  tile_size(2,:) = tile_size_y
+
+  call init_mesh( config,                      &
+                  local_rank, total_ranks,     &
+                  base_mesh_names, extrusion,  &
+                  inner_halo_tiles, tile_size, &
                   stencil_depth, check_partitions )
 
   allocate( twod_names, source=base_mesh_names )
@@ -303,6 +317,7 @@ program cma_test
                                          0.0_r_def, &
                                          1_i_def, TWOD )
   call create_mesh( base_mesh_names, extrusion_2d, &
+                    inner_halo_tiles, tile_size,   &
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
@@ -345,7 +360,7 @@ program cma_test
   call log_event( 'Initialising test', LOG_LEVEL_INFO )
 
   ! Initialise CMA test module
-  call cma_test_init( mesh )
+  call cma_test_init(config,  mesh)
 
   ! Run all requested tests
   if (do_test_apply_mass_p)             call test_cma_apply_mass_p(tolerance)

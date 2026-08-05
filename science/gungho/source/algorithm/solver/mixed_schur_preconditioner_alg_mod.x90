@@ -354,8 +354,8 @@ contains
 
     call rhs_uvw%initialise( vector_space = self%rhs_u%get_function_space() )
     if (split_w) then
-      face_selector_ew => get_face_selector_ew( mesh_id )
-      face_selector_ns => get_face_selector_ns( mesh_id )
+      face_selector_ew => get_face_selector_ew( rhs_uv%get_mesh() )
+      face_selector_ns => get_face_selector_ns( rhs_uv%get_mesh() )
       rhs_w => rhs0%vector(isol_w)
       call invoke( name="combine_wind", &
                    combine_w2_field_kernel_type( rhs_uvw, rhs_uv, rhs_w, &

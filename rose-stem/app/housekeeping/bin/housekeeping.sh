@@ -18,10 +18,8 @@ if [ -n ${CYLC_WORKFLOW_WORK_DIR} ]; then
 fi
 if [ -n ${CYLC_WORKFLOW_SHARE_DIR} ]; then
     if [ -L ${CYLC_WORKFLOW_SHARE_DIR} ]; then
-        rm -rfv "$(readlink -f $CYLC_WORKFLOW_SHARE_DIR)"/source
         rm -rfv "$(readlink -f $CYLC_WORKFLOW_SHARE_DIR)"/data
     else
-        rm -rfv $CYLC_WORKFLOW_SHARE_DIR/source
         rm -rfv $CYLC_WORKFLOW_SHARE_DIR/data
     fi
 fi

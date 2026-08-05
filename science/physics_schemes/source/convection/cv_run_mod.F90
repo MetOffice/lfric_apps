@@ -840,6 +840,7 @@ use chk_opts_mod, only: chk_var, def_src
 use cv_param_mod, only: ccp_off, ccp_prop, ccp_sc
 use ereport_mod,  only: ereport
 use timestep_mod, only: timestep
+use convection_config_mod, only: llcs_first_outer
 
 implicit none
 
@@ -1144,7 +1145,7 @@ if (l_param_conv) then
   end if
 
   ! LLCS checks
-  if (i_convection_vn == i_cv_llcs) then
+  if (i_convection_vn == i_cv_llcs .or. llcs_first_outer) then
     ! Check that the cloud-precip switch is within options available
     call chk_var(llcs_cloud_precip, 'llcs_cloud_precip', '[0,1,2,3]')
     ! Check the critical RH for LLCS is not a percentage

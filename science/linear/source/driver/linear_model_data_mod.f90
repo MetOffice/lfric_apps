@@ -385,10 +385,11 @@ contains
 
       case( ls_option_file )
 
-        call init_ls_file_alg( model_axes%ls_times_list, &
-                               modeldb%clock,                    &
-                               ls_fields,                        &
-                               ls_mr_array%bundle,               &
+        call init_ls_file_alg( modeldb%config,           &
+                               model_axes%ls_times_list, &
+                               modeldb%clock,            &
+                               ls_fields,                &
+                               ls_mr_array%bundle,       &
                                ls_moist_dyn_array%bundle )
 
       case default

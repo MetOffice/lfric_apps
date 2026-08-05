@@ -359,7 +359,7 @@ end if
 
 ! Call checking routine
 ! Pass field arrays without halo cells.
-call pc2_checks(p_theta_levels,                                                &
+call pc2_checks(p_theta_levels, p,                                             &
     t, cf, cfl, cff, q, qcl, qcf,                                              &
     l_mixing_ratio,                                                            &
     tdims%i_len, tdims%j_len, tdims%k_end,                                     &
@@ -511,7 +511,7 @@ end if
 
 ! Call first checking routine again
 ! Pass field arrays without halo cells.
-call pc2_checks(p_theta_levels,                                                &
+call pc2_checks(p_theta_levels, p,                                             &
     t, cf, cfl, cff, q, qcl, qcf,                                              &
     l_mixing_ratio,                                                            &
     tdims%i_len, tdims%j_len, tdims%k_end,                                     &

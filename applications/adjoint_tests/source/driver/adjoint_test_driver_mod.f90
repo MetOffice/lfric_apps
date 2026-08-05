@@ -43,6 +43,12 @@ contains
     ! ./
     use adjt_sci_psykal_builtin_alg_mod,            only : adjt_convert_cart2sphere_vector_alg
 
+    ! ./algebra
+    use adjt_matrix_vector_alg_mod,                 only : adjt_matrix_vector_alg
+    use adjt_dg_matrix_vector_alg_mod,              only : adjt_dg_matrix_vector_alg
+    use adjt_dg_inc_matrix_vector_alg_mod,          only : adjt_dg_inc_matrix_vector_alg
+    use adjt_transpose_matrix_vector_alg_mod,       only : adjt_transpose_matrix_vector_alg
+
     ! ./inter_function_space
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
 
@@ -95,6 +101,14 @@ contains
     use atlt_transport_control_alg_mod,             only : atlt_transport_control_alg
 
     ! ./core_dynamics
+    use atlt_hydrostatic_alg_mod,                   only : atlt_hydrostatic_alg
+    use atlt_kinetic_energy_gradient_alg_mod,       only : atlt_kinetic_energy_gradient_alg
+    use atlt_moist_dyn_gas_alg_mod,                 only : atlt_moist_dyn_gas_alg
+    use atlt_moist_dyn_mass_alg_mod,                only : atlt_moist_dyn_mass_alg
+    use atlt_project_eos_pressure_alg_mod,          only : atlt_project_eos_pressure_alg
+    use atlt_rhs_project_eos_alg_mod,               only : atlt_rhs_project_eos_alg
+    use atlt_rhs_sample_eos_alg_mod,                only : atlt_rhs_sample_eos_alg
+    use atlt_sample_eos_pressure_alg_mod,           only : atlt_sample_eos_pressure_alg
     use atlt_pressure_gradient_bd_alg_mod,          only : atlt_pressure_gradient_bd_alg
     use atlt_rhs_alg_mod,                           only : atlt_rhs_alg
     use adjt_compute_vorticity_alg_mod,             only : adjt_compute_vorticity_alg
@@ -128,11 +142,12 @@ contains
     type(adj_trans_lookup_cache_type)          :: adj_trans_lookup_cache
 
     mesh => mesh_collection%get_mesh( prime_mesh_name )
-    chi => get_coordinates( mesh%get_id() )
-    panel_id => get_panel_id( mesh%get_id() )
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     twod_mesh => mesh_collection%get_mesh( mesh, TWOD )
+
     call adj_solver_lookup_cache%initialise(mesh)
-    call adj_trans_lookup_cache%initialise(mesh)
+    call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
 
     call log_event( "TESTING generated adjoint kernels", LOG_LEVEL_INFO )
     call run_gen_adj_kernel_tests( mesh, chi, panel_id )
@@ -141,16 +156,24 @@ contains
 
     ! ./transport/mol
     call atlt_poly_adv_update_alg( mesh )
-    call atlt_poly1d_vert_w3_recon_alg( mesh )
+    call atlt_poly1d_vert_w3_recon_alg( modeldb%config, mesh )
     call atlt_w3h_advective_update_alg( mesh )
     ! -- Lookup table solutions.
-    call adjt_poly1d_recon_lookup_alg( mesh, adj_trans_lookup_cache )
-    call adjt_poly2d_recon_lookup_alg( mesh, Wtheta, adj_trans_lookup_cache )
-    call adjt_poly2d_recon_lookup_alg( mesh, W3, adj_trans_lookup_cache )
+    call adjt_poly1d_recon_lookup_alg( modeldb%config, mesh, adj_trans_lookup_cache )
+    call adjt_poly2d_recon_lookup_alg( modeldb%config, mesh, Wtheta, adj_trans_lookup_cache )
+    call adjt_poly2d_recon_lookup_alg( modeldb%config, mesh, W3, adj_trans_lookup_cache )
     call adjt_poly_adv_upd_lookup_alg( mesh, adj_trans_lookup_cache )
     call adjt_w3h_adv_upd_lookup_alg( mesh, adj_trans_lookup_cache )
 
     ! ./core_dynamics
+    call atlt_hydrostatic_alg( mesh )
+    call atlt_kinetic_energy_gradient_alg( mesh, chi, panel_id )
+    call atlt_moist_dyn_gas_alg( mesh )
+    call atlt_moist_dyn_mass_alg( mesh )
+    call atlt_project_eos_pressure_alg( mesh, chi, panel_id )
+    call atlt_rhs_project_eos_alg( mesh, chi, panel_id )
+    call atlt_rhs_sample_eos_alg( mesh )
+    call atlt_sample_eos_pressure_alg( mesh )
     call atlt_pressure_gradient_bd_alg( mesh )
 
     ! ./linear_physics
@@ -158,6 +181,12 @@ contains
 
     ! ./inter_function_space
     call adjt_sci_convert_hdiv_field_alg( mesh, chi, panel_id )
+
+    ! ./algebra
+    call adjt_matrix_vector_alg( mesh )
+    call adjt_dg_matrix_vector_alg( mesh )
+    call adjt_dg_inc_matrix_vector_alg( mesh )
+    call adjt_transpose_matrix_vector_alg( mesh )
 
     call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
     ! ./
@@ -169,34 +198,34 @@ contains
     call adjt_interp_w2_to_w3wth_alg( mesh )
 
     ! ./transport/common
-    call adjt_initialise_step_alg( mesh, modeldb%clock )
-    call adjt_flux_precomputations_initialiser_alg( mesh, modeldb%clock )
-    call adjt_wind_precomputations_initialiser_alg( mesh, modeldb%clock )
-    call adjt_build_up_flux_alg( mesh, modeldb%clock )
-    call atlt_end_adv_step_alg( mesh, modeldb%clock )
-    call atlt_end_con_step_alg( mesh, modeldb%clock )
+    call adjt_initialise_step_alg( modeldb%config, mesh, modeldb%clock )
+    call adjt_flux_precomputations_initialiser_alg(modeldb%config, mesh, modeldb%clock )
+    call adjt_wind_precomputations_initialiser_alg(modeldb%config, mesh, modeldb%clock )
+    call adjt_build_up_flux_alg( modeldb%config, mesh, modeldb%clock )
+    call atlt_end_adv_step_alg( modeldb%config, mesh, modeldb%clock )
+    call atlt_end_con_step_alg( modeldb%config, mesh, modeldb%clock )
 
     ! ./transport/mol
-    call adjt_hori_w3_reconstruct_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_vert_w3_reconstruct_alg( mesh, modeldb%clock )
-    call atlt_reconstruct_w3_field_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_hori_wt_update_alg( mesh, modeldb%clock )
-    call atlt_vert_wt_update_alg( mesh, modeldb%clock )
-    call adjt_hori_wt_update_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_wt_advective_update_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_advective_and_flux_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_mol_conservative_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_mol_advective_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call adjt_hori_w3_reconstruct_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_vert_w3_reconstruct_alg( modeldb%config, mesh, modeldb%clock )
+    call atlt_reconstruct_w3_field_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_hori_wt_update_alg( modeldb%config, mesh, modeldb%clock )
+    call atlt_vert_wt_update_alg( modeldb%config, mesh, modeldb%clock )
+    call adjt_hori_wt_update_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_wt_advective_update_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_advective_and_flux_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_mol_conservative_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_mol_advective_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
 
     ! ./transport/control
-    call atlt_transport_field_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_wind_transport_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_moist_mr_transport_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call atlt_theta_transport_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
-    call adjt_ls_wind_pert_rho_initialiser_alg( mesh, modeldb%clock )
-    call adjt_pert_wind_ls_rho_initialiser_alg( mesh, modeldb%clock )
-    call atlt_transport_controller_initialiser_alg( mesh, modeldb%clock )
-    call atlt_transport_control_alg( mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_transport_field_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_wind_transport_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_moist_mr_transport_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call atlt_theta_transport_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
+    call adjt_ls_wind_pert_rho_initialiser_alg( modeldb%config, mesh, modeldb%clock )
+    call adjt_pert_wind_ls_rho_initialiser_alg( modeldb%config, mesh, modeldb%clock )
+    call atlt_transport_controller_initialiser_alg( modeldb%config, mesh, modeldb%clock )
+    call atlt_transport_control_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
 
     ! ./core_dynamics
     call atlt_rhs_alg( mesh, modeldb%clock )
@@ -209,7 +238,7 @@ contains
 
     ! ./solver
     call adjt_pressure_precon_alg( modeldb, mesh, modeldb%clock, adj_solver_lookup_cache )
-    call adjt_mixed_operator_alg( mesh, modeldb%clock )
+    call adjt_mixed_operator_alg( modeldb%config, mesh, modeldb%clock )
     call adjt_mixed_schur_preconditioner_alg( modeldb,  mesh, modeldb%clock, adj_solver_lookup_cache )
     call adjt_mixed_solver_alg( modeldb, mesh, modeldb%clock, adj_solver_lookup_cache )
     call adjt_semi_implicit_solver_step_alg( modeldb, mesh, modeldb%clock, adj_solver_lookup_cache )

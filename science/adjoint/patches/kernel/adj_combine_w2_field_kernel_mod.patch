@@ -6,7 +6,7 @@
    use constants_mod, only : i_def, l_def, r_double, r_single
    use fs_continuity_mod, only : w2, w2h, w2v
    use kernel_mod, only : kernel_type
-   use reference_element_mod, only : n
+   use sci_face_selector_support_mod, only : face_from_face_selector
    implicit none
 -  interface combine_w2_field_code
 +  interface adj_combine_w2_field_code

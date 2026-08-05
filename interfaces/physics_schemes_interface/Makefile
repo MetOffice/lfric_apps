@@ -37,6 +37,8 @@ export EXTERNAL_STATIC_LIBRARIES =
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta
+
 .PHONY: all
 all: default
 

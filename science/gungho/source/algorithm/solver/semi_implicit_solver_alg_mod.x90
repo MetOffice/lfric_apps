@@ -38,7 +38,6 @@ module semi_implicit_solver_alg_mod
   use field_indices_mod,                  only: isol_p, isol_u, isol_w, isol_uv, &
                                                 igh_p, igh_t, igh_d,             &
                                                 igh_u, igh_w, igh_uv
-  use copy_field_alg_mod,                 only: copy_field
 
   ! Pointers
   use sci_geometric_constants_mod,        only: get_face_selector_ew, &
@@ -489,14 +488,13 @@ contains
   !>
   !> @param[in,out] state               Prognostic model state
   !> @param[in,out] rhs                 Residuals
+  !> @param[in,out] dry_flux_solver     Solver contributions to dry flux
   !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics factors
   !> @param[in]     mr                  Mixing ratio array
-  !> @param[in]     write_moisture_diag Flag to control output of moisture
-  !!                                    conservation diagnostics
   !> @param[in]     first_iteration     Flag for first inner iteration
   subroutine semi_implicit_solver_alg_step(state, rhs,              &
-                                           moist_dyn_gas_law,       &
-                                           mr, write_moisture_diag, &
+                                           dry_flux_solver,         &
+                                           moist_dyn_gas_law, mr,   &
                                            first_iteration)
 
     use solver_constants_mod,          only: get_normalisation_r_solver, &
@@ -504,7 +502,6 @@ contains
                                              get_normalisation
     use fs_continuity_mod,             only: W2, Wtheta
     use mr_indices_mod,                only: nummr
-    use moisture_conservation_alg_mod, only: moisture_conservation_alg
     use si_operators_alg_mod,          only: get_m3_rho_star,       &
                                              get_rho_at_u,          &
                                              get_p2theta,           &
@@ -524,7 +521,6 @@ contains
     use sci_enforce_bc_kernel_mod,     only: enforce_bc_kernel_type
     use sci_mass_matrix_solver_alg_mod, &
                                        only: mass_matrix_solver_alg
-    use sci_psykal_light_mod,          only: invoke_inc_rdefX_plus_rsolverY
     use sci_field_minmax_alg_mod,      only: log_field_minmax
 
     implicit none
@@ -532,9 +528,9 @@ contains
     ! Prognostic fields
     type( field_type ), dimension(bundle_size), intent( inout ) :: state
     type( field_type ), dimension(bundle_size), intent( inout ) :: rhs
+    type( field_type ),                         intent( inout ) :: dry_flux_solver
     type( field_type ),                         intent( in )    :: moist_dyn_gas_law
     type( field_type ), dimension(nummr),       intent( in )    :: mr
-    logical( kind=l_def ),                      intent( in )    :: write_moisture_diag
     logical( kind=l_def),                       intent( in )    :: first_iteration
 
     real( kind=r_def )                    :: si_err(bundle_size)
@@ -544,9 +540,10 @@ contains
 
     ! For analytic elimination of rho and theta
     type( field_type ) :: rhs_rdef,  &
-                          inc_theta
+                          inc_theta, &
+                          f_star_rdef
 
-    type( field_type ) :: rho_guess
+    real( kind=r_def ) :: tau_r_dt_rdef
 
     type( r_solver_field_type ), dimension(bundle_size) :: rhs_rsol
     type( r_solver_field_type ) :: div_u,          &
@@ -569,8 +566,15 @@ contains
                                                ptheta2,     &
                                                q2t_op,      &
                                                q3t_op
+    type( field_type ) :: inc_uvw_rdef,   &
+                          inc_exner_rdef, &
+                          inc_theta_rdef, &
+                          inc_rho_rdef
     real( kind=r_solver ) :: tau_r_dt
     integer( kind=i_def ) :: mesh_id
+
+    type(mesh_type), pointer :: mesh
+
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
     integer(tik)                      :: id_si, id_mix
@@ -578,16 +582,8 @@ contains
     if ( LPROF ) call start_timing( id_si, 'dynamics.solver' )
 
     ! Input fields are r_def fields so preliminary work uses field_types
-    mesh_id = state(igh_p)%get_mesh_id()
-
-    if ( write_moisture_diag ) then
-      ! Best guess for the prognostic fields state can be calculated as
-      ! state_best_guess = rhs_n - rhs_np1 + state + rhs_adv + rhs_phys
-      ! where fortunately all of the above except "state" is already in "rhs_np1"
-      call rho_guess%initialise( state(igh_d)%get_function_space() )
-      call invoke(X_plus_Y(rho_guess, state(igh_d), rhs(igh_d)))
-      call moisture_conservation_alg( rho_guess, mr, 'Before solve' )
-    end if
+    mesh_id =  state(igh_p)%get_mesh_id()
+    mesh    => state(igh_p)%get_mesh()
 
     ! Normalise theta & u residual
     ! @TODO #416: can these be at r_solver precision?
@@ -632,11 +628,11 @@ contains
     call rhs_rsol(igh_p)%initialise( rhs(igh_p)%get_function_space() )
     ! This is required to put sensible data in the halo so there is something
     ! for enforce_bc_kernel to work with
-    call invoke(setval_c(rhs_rsol(igh_u), 0.0_r_solver) )
-    call copy_field(rhs(igh_u), rhs_rsol(igh_u))
-    call copy_field(rhs(igh_t), rhs_rsol(igh_t))
-    call copy_field(rhs(igh_d), rhs_rsol(igh_d))
-    call copy_field(rhs(igh_p), rhs_rsol(igh_p))
+    call invoke( setval_c(rhs_rsol(igh_u), 0.0_r_solver), &
+                 real_to_real_x(rhs_rsol(igh_u), rhs(igh_u)), &
+                 real_to_real_x(rhs_rsol(igh_t), rhs(igh_t)), &
+                 real_to_real_x(rhs_rsol(igh_d), rhs(igh_d)), &
+                 real_to_real_x(rhs_rsol(igh_p), rhs(igh_p)) )
 
     if ( first_iteration ) then
       ! Modify RHS due to elimination of rho and theta only for inner iteration 1
@@ -661,7 +657,7 @@ contains
         ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
         call rhs_tmp%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
         p2theta => get_p2theta()
-        call invoke( setval_c(rhs_tmp, 0.0_r_def),                                   &
+        call invoke( setval_c(rhs_tmp, 0.0_r_solver),                                &
                      matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
                      inc_X_times_Y(rhs_tmp, m2_diag),                                &
                      inc_X_plus_Y(rhs_rsol(igh_u), rhs_tmp),                         &
@@ -688,8 +684,8 @@ contains
     if ( split_w ) then
       inc_uv_rsol => vector_inc%get_field_from_position(isol_uv)
       inc_w_rsol  => vector_inc%get_field_from_position(isol_w)
-      face_selector_ew => get_face_selector_ew( mesh_id )
-      face_selector_ns => get_face_selector_ns( mesh_id )
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
       call invoke( &
         combine_w2_field_kernel_type( inc_uvw_rsol, inc_uv_rsol, inc_w_rsol, &
                                       face_selector_ew, face_selector_ns ) &
@@ -717,31 +713,43 @@ contains
                  aX_plus_Y(inc_rho_rsol, tau_r_dt, div_u, rhs_rsol(igh_d)) &
                )
 
+    call f_star_rdef%initialise( vector_space = rhs(igh_u)%get_function_space() )
+    tau_r_dt_rdef = real(tau_r*dt, kind=r_def)
+    call invoke(                                                               &
+        real_to_real_x(f_star_rdef, f_star),                                   &
+        inc_X_plus_bY(dry_flux_solver, tau_r_dt_rdef, f_star_rdef)             &
+    )
+
     ! Compute theta increment since solver does not provide one
     ptheta2 => get_ptheta2()
     mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh_id)
     call rhs_tmp%initialise( vector_space = rhs_rsol(igh_t)%get_function_space() )
-    call invoke( setval_c(rhs_tmp, 0.0_r_def), &
+    call invoke( setval_c(rhs_tmp, 0.0_r_solver), &
                  dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2))
 
     if (  eliminate_variables == eliminate_variables_analytic ) then
-      call copy_field(rhs_tmp, rhs_rdef)
+      call invoke( real_to_real_x(rhs_rdef, rhs_tmp) )
       call inc_theta%initialise( state(igh_t)%get_function_space() )
       call mass_matrix_solver_alg( inc_theta, rhs_rdef )
-      call copy_field(inc_theta, rhs_tmp)
+      call invoke( real_to_real_x(rhs_tmp, inc_theta) )
     else
       call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv) )
     end if
     call invoke( X_minus_Y( inc_theta_rsol, rhs_rsol(igh_t), rhs_tmp) )
 
     ! Finally we need to add r_solver increments to the r_def state field
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_u), inc_uvw_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_p), inc_exner_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_t), inc_theta_rsol )
-    call invoke_inc_rdefX_plus_rsolverY( state(igh_d), inc_rho_rsol )
-
-    if ( write_moisture_diag )  &
-      call moisture_conservation_alg( state(igh_d), mr, 'After solve' )
+    call state(igh_u)%copy_field_properties(inc_uvw_rdef)
+    call state(igh_p)%copy_field_properties(inc_exner_rdef)
+    call state(igh_t)%copy_field_properties(inc_theta_rdef)
+    call state(igh_d)%copy_field_properties(inc_rho_rdef)
+    call invoke( real_to_real_x(inc_uvw_rdef, inc_uvw_rsol),     &
+                 inc_X_plus_Y(state(igh_u), inc_uvw_rdef),       &
+                 real_to_real_x(inc_exner_rdef, inc_exner_rsol), &
+                 inc_X_plus_Y(state(igh_p), inc_exner_rdef),     &
+                 real_to_real_x(inc_theta_rdef, inc_theta_rsol), &
+                 inc_X_plus_Y(state(igh_t), inc_theta_rdef),     &
+                 real_to_real_x(inc_rho_rdef, inc_rho_rsol),     &
+                 inc_X_plus_Y(state(igh_d), inc_rho_rdef) )
 
     if ( LPROF ) call stop_timing( id_si, 'dynamics.solver' )
 
@@ -779,8 +787,8 @@ contains
       element_order_h =  bundle_state(igh_u)%get_element_order_h()
       element_order_v =  bundle_state(igh_u)%get_element_order_v()
       mesh => bundle_state(igh_u)%get_mesh()
-      face_selector_ew => get_face_selector_ew( mesh%get_id() )
-      face_selector_ns => get_face_selector_ns( mesh%get_id() )
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
 
       call uv%initialise( function_space_collection%get_fs( mesh, element_order_h, &
                                                             element_order_v, W2h ) )

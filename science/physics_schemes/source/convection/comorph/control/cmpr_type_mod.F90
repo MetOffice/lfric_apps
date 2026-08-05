@@ -36,7 +36,7 @@ type(cmpr_type), intent(in out) :: cmpr
 integer, intent(in) :: n_points
 
 ! Note: the allocated size of the compression index arrays is
-! passed in as an argument here and is not always the same as the
+! passed in as an argument here and is NOT always the same as the
 ! compression list length stored in the structure
 ! (cmpr % n_points).
 ! This is because, once allocated, it is often advantageous to
@@ -207,7 +207,7 @@ else
         end if
       end if
 
-    end do  ! while
+    end do  ! WHILE
 
     ! Save number of points in the merged list
     cmpr_m % n_points = i_m - 1

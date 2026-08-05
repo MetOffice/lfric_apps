@@ -20,6 +20,7 @@ module drag_incs_kernel_mod_test
     private
     real(kind=r_def), allocatable :: answer_du(:), du_out(:),  &
                                      du_in(:), u_in(:)
+    integer(kind=i_def), allocatable :: face_selector_ew(:), face_selector_ns(:)
 
   contains
     procedure setUp
@@ -36,14 +37,17 @@ contains
 
   class(drag_incs_test_type), intent(inout) :: this
 
-  integer(kind=i_def) :: undf_w2
+  integer(kind=i_def) :: undf_w2, undf_2d
 
   undf_w2 = 11_i_def
+  undf_2d = 1_i_def
 
   allocate( this%answer_du(undf_w2) )
   allocate( this%du_out(undf_w2) )
   allocate( this%du_in(undf_w2) )
   allocate( this%u_in(undf_w2) )
+  allocate( this%face_selector_ew(undf_2d) )
+  allocate( this%face_selector_ns(undf_2d) )
 
   end subroutine setUp
 
@@ -54,7 +58,8 @@ contains
 
   class(drag_incs_test_type), intent(inout) :: this
 
-  deallocate ( this%answer_du, this%du_out, this%du_in, this%u_in)
+  deallocate ( this%answer_du, this%du_out, this%du_in, this%u_in, &
+               this%face_selector_ew, this%face_selector_ns )
 
   end subroutine tearDown
 
@@ -72,13 +77,16 @@ contains
 
   ! Argument list variables for drag_incs_code
   integer(kind=i_def), allocatable :: map_w2(:)
+  integer(kind=i_def), allocatable :: map_2d(:)
   integer(kind=i_def)              :: nlayers, df
-  integer(kind=i_def)              :: ndf_w2
-  integer(kind=i_def)              :: undf_w2
+  integer(kind=i_def)              :: ndf_w2, ndf_2d
+  integer(kind=i_def)              :: undf_w2, undf_2d
 
   nlayers  = 2_i_def
   ndf_w2  = 6_i_def
   undf_w2 = 11_i_def
+  ndf_2d  = 1_i_def
+  undf_2d = 1_i_def
 
   allocate(map_w2(ndf_w2))
   do df = 1, 4
@@ -87,11 +95,16 @@ contains
   map_w2(5) = 1 + 4*nlayers
   map_w2(6) = map_w2(5)+1
 
+  allocate(map_2d(ndf_2d))
+  map_2d(1) = 1
+
   ! Set initial fields
   this%du_out(:) = 0.0_r_def
   this%du_in(:) = 0.0_r_def
   this%u_in(:) = 0.0_r_def
   this%answer_du(:) = 0.0_r_def
+  this%face_selector_ew(:) = 2_i_def
+  this%face_selector_ns(:) = 2_i_def
 
   ! This dof is correct - the drag is opposite and less than the wind
   this%u_in(1) = 4.0_r_def
@@ -137,17 +150,23 @@ contains
   this%du_in(8) = -2.0_r_def
   this%answer_du(8) = 0.0_r_def
 
-  call drag_incs_code( nlayers,          &
-                       this%du_out(:),   &
-                       this%du_in(:),    &
-                       this%u_in(:),     &
-                       ndf_w2,           &
-                       undf_w2,          &
-                       map_w2 )
+  call drag_incs_code( nlayers,                  &
+                       this%du_out(:),           &
+                       this%du_in(:),            &
+                       this%u_in(:),             &
+                       this%face_selector_ew(:), &
+                       this%face_selector_ns(:), &
+                       ndf_w2,                   &
+                       undf_w2,                  &
+                       map_w2,                   &
+                       ndf_2d,                   &
+                       undf_2d,                  &
+                       map_2d )
 
   @assertEqual(this%answer_du(:), this%du_out(:), tol )
 
   deallocate( map_w2 )
+  deallocate( map_2d )
 
   end subroutine test_drag_incs
 

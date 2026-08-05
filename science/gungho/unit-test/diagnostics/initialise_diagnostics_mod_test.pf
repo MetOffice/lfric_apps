@@ -68,7 +68,7 @@ contains
 
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 
@@ -112,6 +112,7 @@ contains
                           write_diag=.true., &
                           write_dump=.false., &
                           write_fluxes=.false., &
+                          write_initial=.false., &
                           write_minmax_tseries=.false. )
 
     @assertTrue(init_diag(test_field, 'diag_field_half_level_face_grid'))

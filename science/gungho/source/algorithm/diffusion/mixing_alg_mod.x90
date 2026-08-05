@@ -7,6 +7,8 @@
 !> @brief Apply diffusion or mixing to model variables
 module mixing_alg_mod
 
+  use config_mod, only: config_type
+
   implicit none
 
   private
@@ -16,21 +18,27 @@ contains
 
   !> @details Diffuse prognostic fields using Smagorinsky coefficients or
   !>          simple viscosity operator
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] mr             mixing ratios
   !> @param[in,out] theta          Potential temperature
   !> @param[in,out] u              3D wind field
   !> @param[in]     derived_fields Group of derived fields
+  !> @param[in]     cloud_fields   Group of cloud fields
   !> @param[in]     rho            Density
   !> @param[in]     dt             The model timestep length
-  subroutine mixing_alg(mr, theta, u, derived_fields, &
-                        rho, dt)
+  !> @param[in]     model_clock    The model clock
+  subroutine mixing_alg(config, mr, theta, u, derived_fields, &
+                        cloud_fields, rho, exner, dt, model_clock)
 
     use constants_mod,                 only: i_def,r_def
     use log_mod,                       only: log_event,         &
                                              LOG_LEVEL_INFO
     use field_mod,                     only: field_type
+    use integer_field_mod,             only: integer_field_type
     use field_collection_mod,          only: field_collection_type
-    use sci_geometric_constants_mod,   only: get_dx_at_w2
+    use sci_geometric_constants_mod,   only: get_dx_at_w2, &
+                                             get_face_selector_ew, &
+                                             get_face_selector_ns
     use mesh_mod,                      only: mesh_type
     use mr_indices_mod,                only: nummr
     use mixing_config_mod,             only: viscosity, smagorinsky, viscosity_mu
@@ -39,25 +47,31 @@ contains
     use momentum_viscosity_kernel_mod, only: momentum_viscosity_kernel_type
     use physics_config_mod,            only: smagorinsky_placement, &
                                              smagorinsky_placement_end
+    use model_clock_mod,               only: model_clock_type
 
     implicit none
+
+    type( config_type ), intent(in) :: config
 
     ! Prognostic fields
     type( field_type ), intent(inout) :: u, theta
     type( field_type ), intent(inout) :: mr ( nummr )
 
     type( field_collection_type ), intent(in) :: derived_fields
-    type( field_type ), intent(in) :: rho
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_type ), intent(in) :: rho, exner
 
     ! Timestepping information
     real( r_def ),      intent(in) :: dt
+    class( model_clock_type ), intent(in) :: model_clock
 
     ! Increment fields
     type( field_type ) :: du, dtheta
 
-    type( field_type ), pointer :: dx_at_w2 => null()
-
-    type( mesh_type ), pointer   :: mesh => null()
+    type( field_type ),         pointer :: dx_at_w2
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+    type( mesh_type ),          pointer :: mesh
 
     !--------------------------------------------------------------------
     ! Apply horizontal Smagorinsky subgrid mixing
@@ -68,7 +82,8 @@ contains
       call du%initialise( u%get_function_space() )
       call invoke( setval_c(dtheta, 0.0_r_def), &
                    setval_c(du, 0.0_r_def) )
-      call smagorinsky_alg(dtheta, du, mr, theta, u, derived_fields, rho, dt)
+      call smagorinsky_alg(config, dtheta, du, mr, theta, u, derived_fields, &
+                           cloud_fields, rho, exner, dt, model_clock)
       call invoke( inc_X_plus_Y( theta, dtheta ), &
                    inc_X_plus_Y( u,     du ) )
 
@@ -86,11 +101,16 @@ contains
       call dtheta%initialise( theta%get_function_space() )
       call du%initialise( u%get_function_space() )
 
-      dx_at_w2 => get_dx_at_w2(mesh%get_id())
+      dx_at_w2 => get_dx_at_w2(mesh)
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
+
       call invoke( setval_c(du, 0.0_r_def),                                   &
                    tracer_viscosity_kernel_type( dtheta, theta, 1, dx_at_w2,  &
                                                  viscosity_mu ),              &
                    momentum_viscosity_kernel_type( du, u, 1, dx_at_w2, 1,     &
+                                                   face_selector_ew,          &
+                                                   face_selector_ns,          &
                                                    viscosity_mu ),            &
                    inc_X_plus_bY( theta, dt, dtheta ),                        &
                    inc_X_plus_bY( u,     dt, du ) )

@@ -34,6 +34,7 @@ counter_output_suffix='counter.txt',
 timer_output_path='timer.txt',
 write_conservation_diag=.false.,
 write_fluxes=.false.,
+write_initial=.true.,
 write_minmax_tseries=.false.,
 /
 
@@ -276,6 +277,8 @@ start_dump_directory = ''
         ! These do not need changing
 cellshape       = 'quadrilateral'
 coord_order     = 1
+coord_order_nonprime = 1
+coord_space     = 'Wchi'
 coord_system    = 'native'
 element_order_h = 0
 element_order_v = 0

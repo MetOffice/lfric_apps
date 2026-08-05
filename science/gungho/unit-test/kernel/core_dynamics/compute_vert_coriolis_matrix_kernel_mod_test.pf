@@ -48,7 +48,7 @@ contains
     use extrusion_config_mod,      only : method_uniform,                      &
                                           stretching_method_linear
     use finite_element_config_mod, only : cellshape_quadrilateral,             &
-                                          coord_system_native
+                                          coord_system_native, coord_space_wchi
     use formulation_config_mod,    only : eos_method_sampled,                  &
                                           moisture_formulation_dry
     use feign_config_mod,          only : feign_base_mesh_config,              &
@@ -86,6 +86,8 @@ contains
             element_order_v=0_i_def,                                           &
             rehabilitate=.true.,                                               &
             coord_order=0_i_def,                                               &
+            coord_order_nonprime=1_i_def,                                      &
+            coord_space=coord_space_wchi,                                      &
             coord_system=coord_system_native,                                  &
             vorticity_in_w1=.false.                                            &
     )
@@ -110,6 +112,7 @@ contains
             si_momentum_equation=.true.,                                       &
             horizontal_physics_predictor=.false.,                              &
             horizontal_transport_predictor=.false.,                            &
+            solver_moisture_conservation=.true.,                               &
             vector_invariant=.true.                                            &
     )
     call feign_planet_config(                                                  &
@@ -128,8 +131,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 

@@ -10,21 +10,17 @@
 !!          More details of the solver forumulation can be found in the solver section of:
 !!          https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
 module si_operators_alg_mod
-  use base_mesh_config_mod,      only: prime_mesh_name
+
+  use config_mod,                only: config_type
   use constants_mod,             only: i_def, r_def, r_solver
   use model_clock_mod,           only: model_clock_type
   use operator_mod,              only: operator_type, r_solver_operator_type
   use field_mod,                 only: field_type
   use function_space_mod,        only: function_space_type
-  use finite_element_config_mod, only: element_order_h, &
-                                       element_order_v, &
-                                       nqp_h_exact,     &
-                                       nqp_v_exact
   use function_space_collection_mod, &
                                  only: function_space_collection
   use r_solver_field_mod,        only: r_solver_field_type
   use fs_continuity_mod,         only: W2, W3
-  use copy_field_alg_mod,        only: copy_field
   use log_mod,                   only: log_event,      &
                                        LOG_LEVEL_DEBUG, &
                                        LOG_LEVEL_ERROR, &
@@ -36,19 +32,24 @@ module si_operators_alg_mod
                                        preconditioner_multigrid,    &
                                        normalise
   use timing_mod,                only: start_timing, stop_timing, tik, LPROF
-  use function_space_chain_mod,  only: multigrid_function_space_chain, &
-                                       w2_multigrid_function_space_chain, &
-                                       wtheta_multigrid_function_space_chain
   use formulation_config_mod,    only: l_multigrid,          &
                                        eos_method,           &
                                        eos_method_sampled,   &
                                        eos_method_projected, &
                                        p2theta_vert,         &
                                        moisture_in_solver
+  use multigrid_mod,             only: multigrid_function_space_chain, &
+                                       w2_multigrid_function_space_chain, &
+                                       wtheta_multigrid_function_space_chain
   use multigrid_config_mod,      only: multigrid_chain_nitems
   use mixed_solver_config_mod,   only: eliminate_variables, &
                                        eliminate_variables_analytic
   use moist_dyn_mod,             only: num_moist_factors, gas_law, total_mass
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: prime_mesh_name
+  use finite_element_config_mod, only: element_order_h, element_order_v, &
+                                       nqp_h_exact, nqp_v_exact
 
   implicit none
   private
@@ -350,12 +351,14 @@ contains
   end subroutine final_si_operators
 
   !> @brief Subroutine to compute the si operators
+  !> @param[in] config        Application namelist configuration object
   !> @param[in] theta_ref     Reference Potential temperature
   !> @param[in] rho_ref       Reference Density
   !> @param[in] exner_ref     Reference Exner pressure
   !> @param[in] model_clock   Time in the model
   !> @param[in] moist_dyn_ref Bundle of reference moist dynamics factors
-  subroutine compute_si_operators(theta_ref, rho_ref, exner_ref, model_clock, moist_dyn_ref)
+  subroutine compute_si_operators(config, theta_ref, rho_ref, exner_ref, &
+                                  model_clock, moist_dyn_ref)
 
     use quadrature_xyoz_mod,                  only: quadrature_xyoz_type
     use quadrature_face_mod,                  only: quadrature_face_type
@@ -419,6 +422,8 @@ contains
     use model_clock_mod,                      only: model_clock_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(in)           :: theta_ref, rho_ref, exner_ref
     type(field_type), intent(in)           :: moist_dyn_ref(num_moist_factors)
@@ -484,9 +489,9 @@ contains
     call exner%initialise( w3_fs, halo_depth = req_halo_depth )
     call rho%initialise( w3_fs, halo_depth = req_halo_depth )
     call theta%initialise( wt_fs, halo_depth = req_halo_depth )
-    call copy_field(exner_ref, exner)
-    call copy_field(rho_ref, rho)
-    call copy_field(theta_ref, theta)
+    call invoke( real_to_real_x(exner, exner_ref), &
+                 real_to_real_x(rho, rho_ref),     &
+                 real_to_real_x(theta, theta_ref) )
     if (dry_static_adjust) &
       call invoke( sort_ref_kernel_type(theta) )
 
@@ -496,7 +501,7 @@ contains
     if (moisture_in_solver) then
       call moist_dyn_factor_rdef%initialise( wt_fs )
       call invoke( X_divideby_Y(moist_dyn_factor_rdef, moist_dyn_ref(gas_law), moist_dyn_ref(total_mass)) )
-      call copy_field(moist_dyn_factor_rdef, moist_dyn_factor)
+      call invoke( real_to_real_x(moist_dyn_factor, moist_dyn_factor_rdef) )
     else
       ! Set factor to 1 and everything else will be unchanged
       call invoke( setval_c(moist_dyn_factor, 1.0_r_solver) )
@@ -523,8 +528,8 @@ contains
        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
        mesh     => rho_at_u(level)%get_mesh()
-       chi      => get_coordinates( mesh%get_id() )
-       panel_id => get_panel_id( mesh%get_id() )
+       chi      => get_coordinates(mesh)
+       panel_id => get_panel_id(mesh)
 
        u_normalisation => get_normalisation_r_solver(W2, mesh%get_id())
 
@@ -536,8 +541,8 @@ contains
        ! Non-topological operators
        call exner_in_wth%initialise( vector_space = theta%get_function_space() )
        if ( element_order_h == 0 .and. element_order_v == 0) then
-         height_w3 => get_height_fv(W3, mesh%get_id())
-         height_wt => get_height_fv(Wtheta, mesh%get_id())
+         height_w3 => get_height_fv(config, mesh, W3)
+         height_wt => get_height_fv(config, mesh, Wtheta)
          call invoke( sample_w3_to_wtheta_kernel_type(exner_in_wth, exner, &
                                                       height_wt, height_w3 ) )
          nullify(height_w3, height_wt)
@@ -580,11 +585,11 @@ contains
           call ones%initialise( vector_space = w2_fs )
           w2_rmultiplicity => get_rmultiplicity_fe( W2, mesh%get_id() )
           call rsol_w2_rmultiplicity%initialise( w2_fs )
-          call copy_field(w2_rmultiplicity, rsol_w2_rmultiplicity)
-          call invoke( setval_c(ones,            1.0_r_solver),       &
-                       setval_c(rho_at_u(level), 0.0_r_solver),       &
-                       sample_flux_kernel_type(rho_at_u(level), ones, &
-                                               rsol_w2_rmultiplicity, &
+          call invoke( real_to_real_x(rsol_w2_rmultiplicity, w2_rmultiplicity), &
+                       setval_c(ones,            1.0_r_solver),                 &
+                       setval_c(rho_at_u(level), 0.0_r_solver),                 &
+                       sample_flux_kernel_type(rho_at_u(level), ones,           &
+                                               rsol_w2_rmultiplicity,           &
                                                rho) )
        end if
 
@@ -704,7 +709,7 @@ contains
          call rsol_w2_mask%initialise( vector_space = w2_fs )
          if ( limited_area ) then
            w2_mask => get_mask_fv(W2, mesh%get_id(), prime_mesh_name)
-           call copy_field(w2_mask, rsol_w2_mask)
+           call invoke( real_to_real_x(rsol_w2_mask, w2_mask) )
          else
            ! Create dummy mask arrays with 1 in every entry
            call invoke( setval_c(rsol_w2_mask, 1.0_r_solver) )

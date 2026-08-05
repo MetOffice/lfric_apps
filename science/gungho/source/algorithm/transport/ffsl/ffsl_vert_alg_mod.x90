@@ -9,6 +9,7 @@
 module ffsl_vert_alg_mod
 
   ! Constants and types
+  use config_mod,                       only: config_type
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use fs_continuity_mod,                only: W2V
@@ -36,7 +37,6 @@ module ffsl_vert_alg_mod
   use wind_precomputations_alg_mod,     only: wind_precomputations_type
 
   ! Algorithms
-  use copy_field_alg_mod,               only: copy_field
   use ffsl_advective_updates_alg_mod,   only: swift_inner_update_tracer,       &
                                               ffsl_advective_increment
 
@@ -49,10 +49,10 @@ module ffsl_vert_alg_mod
   use fv_difference_z_kernel_mod,       only: fv_difference_z_kernel_type
   use fv_divergence_z_kernel_mod,       only: fv_divergence_z_kernel_type
 
-  ! Configuration options
-  use transport_config_mod,             only: ffsl_unity_3d,                   &
-                                              wind_mono_top,                   &
-                                              wind_mono_top_depth
+  ! Configuration modules
+  use transport_config_mod, only: ffsl_unity_3d, &
+                                  wind_mono_top, &
+                                  wind_mono_top_depth
 
   implicit none
 
@@ -133,7 +133,11 @@ contains
     real(kind=r_tran)   :: one_over_dt
     integer(tik)        :: id
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'transport.ffsl_vertical' )
+
+    config => transport_controller%get_config()
 
     transport_counter => transport_controller%get_transport_counter()
     transport_metadata => transport_controller%get_transport_metadata()
@@ -164,7 +168,7 @@ contains
       mesh_id = field_n%get_mesh_id()
       mesh => field_n%get_mesh()
       field_fs => field_n%get_function_space()
-      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
       one_over_dt = 1.0_r_tran / step_dt
 
       call increment%initialise( vector_space = field_fs )
@@ -271,10 +275,14 @@ contains
     integer(kind=i_def) :: monotone_above
     integer(kind=i_def) :: nlayers
 
+    type(config_type), pointer :: config
+
     ! Get pre-computed objects and set pointers --------------------------------
-    mesh_id = field_n%get_mesh_id()
+    config => transport_controller%get_config()
     mesh => field_n%get_mesh()
-    transport_counter => transport_controller%get_transport_counter()
+    mesh_id = field_n%get_mesh_id()
+
+    transport_counter  => transport_controller%get_transport_counter()
     transport_metadata => transport_controller%get_transport_metadata()
 
     ! Function spaces
@@ -325,7 +333,7 @@ contains
       frac_wind_or_flux => ffsl_precomputations%get_frac_flux(mesh_id, step)
       detj_at_w3 => ffsl_precomputations%get_ref_mass(mesh_id, step)
     else
-      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      detj_at_w3 => get_detj_at_w3_r_tran(config, mesh)
       dep_pts_z => wind_precomputations%get_dep_dist_z(                        &
           mesh_id, splitting, step                                             &
       )
@@ -336,9 +344,9 @@ contains
 
     if ( vertical_order /= 0 ) then
       ! Get objects only needed for high order flux
-      dz_w3_rdef => get_dz_w3(mesh_id)
+      dz_w3_rdef => get_dz_w3(config, mesh)
       call dz_w3%initialise( vector_space = field_fs )
-      call copy_field(dz_w3_rdef, dz_w3)
+      call invoke( real_to_real_x(dz_w3, dz_w3_rdef) )
     end if
 
     ! Compute fluxes -----------------------------------------------------------
@@ -379,8 +387,8 @@ contains
           monotone_above = 1
         end if
 
-        dla_dz => get_third_dla_dz(mesh_id)
-        dlb_dz => get_third_dlb_dz(mesh_id)
+        dla_dz => get_third_dla_dz(config, mesh)
+        dlb_dz => get_third_dlb_dz(config, mesh)
         call invoke( ffsl_flux_z_nirvana_kernel_type(mass_flux,                &
                                                      frac_wind_or_flux,        &
                                                      dep_pts_z,                &
@@ -399,7 +407,7 @@ contains
 
     case ( 2 )
       ! PPM reconstruction
-      dl_dz => get_fourth_dl_dz(mesh_id)
+      dl_dz => get_fourth_dl_dz(config, mesh)
       call invoke( ffsl_flux_z_ppm_kernel_type(mass_flux,                      &
                                                frac_wind_or_flux,              &
                                                dep_pts_z,                      &

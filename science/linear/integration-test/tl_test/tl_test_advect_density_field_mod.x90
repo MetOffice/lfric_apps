@@ -138,7 +138,7 @@ module tl_test_advect_density_field_mod
 
     ! Init stuff
     call gungho_transport_control_alg_init(mesh)
-    call tl_transport_controller%initialise(                                   &
+    call tl_transport_controller%initialise(modeldb%config,                    &
             modeldb%clock, n_rho, ls_rho, n_u, n_u, ls_u, ls_u                 &
     )
     transport_metadata => transport_metadata_collection%get_transport_metadata('density')
@@ -169,11 +169,11 @@ module tl_test_advect_density_field_mod
                    inc_X_plus_Y( n_u, p_u ),                  &
                    inc_X_plus_Y( n_rho, p_rho ) )
 
-      call n_transport_controller%initialise(modeldb%clock, n_rho, n_u)
+      call n_transport_controller%initialise(modeldb%config, modeldb%clock, n_rho, n_u)
       call transport_field( n_rho_np1, n_rho, n_transport_controller, transport_metadata )
       call invoke( X_minus_Y( n2_advection_inc, n_rho_np1, n_rho ) )
 
-      call tl_transport_controller%initialise(                                 &
+      call tl_transport_controller%initialise(modeldb%config,                  &
               modeldb%clock, n_rho, ls_rho, p_u, p_u, ls_u, ls_u               &
       )
       call tl_transport_field(                                                 &
