@@ -86,7 +86,7 @@ subroutine set_r_ocean_fraction_code(nlayers,                        &
   ! Calculate the total sea ice fraction.
   total_sea_ice_fraction = 0.0_r_def
   do i = 1, n_sea_ice_tile
-    total_sea_ice_fraction = total_sea_ice_fraction +                & 
+    total_sea_ice_fraction = total_sea_ice_fraction +                &
                              sea_ice_fraction(map_sea_ice(1) + i-1)
   end do
 

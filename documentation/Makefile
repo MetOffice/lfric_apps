@@ -8,6 +8,11 @@ SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = source
 BUILDDIR      = build
 
+# For local deployment to ~/public_html/<repo>/<branch>
+REPO := $(notdir $(shell git rev-parse --show-toplevel))
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+DEPLOYDIR  = $(HOME)/public_html
+
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -18,9 +23,14 @@ help:
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
-	
+
 .PHONY: clean
 clean:
 	@echo "***** Removing, $(BUILDDIR) directory *****"
 	@rm -rf $(BUILDDIR)
 
+deploy:
+	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(DEPLOYDIR)/$(REPO)/$(BRANCH)" $(SPHINXOPTS) $(O)
+
+lint:
+	sphinx-lint --d "horizontal-tab" --max-line-length 80 "$(SOURCEDIR)"

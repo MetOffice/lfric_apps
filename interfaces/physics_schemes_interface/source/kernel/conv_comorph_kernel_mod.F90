@@ -15,7 +15,7 @@ module conv_comorph_kernel_mod
                                       ANY_DISCONTINUOUS_SPACE_1, &
                                       ANY_DISCONTINUOUS_SPACE_2, &
                                       ANY_DISCONTINUOUS_SPACE_3
-  use constants_mod,           only : i_def, i_um, r_def, r_um
+  use constants_mod,           only : i_def, i_um, r_def, r_um, rmdi
   use empty_data_mod,          only : empty_real_data
   use fs_continuity_mod,       only : W3, Wtheta
   use kernel_mod,              only : kernel_type
@@ -2750,7 +2750,7 @@ contains
           if (cct(i,1) > 0) then
             pres_cv_top(map_2d(1,i)) = p_rho_levels(i,1,cct(i,1))
           else
-            pres_cv_top(map_2d(1,i)) = 0.0_r_def
+            pres_cv_top(map_2d(1,i)) = rmdi
           end if
         end do
       end if
@@ -2759,7 +2759,7 @@ contains
           if (ccb(i,1) > 0) then
             pres_cv_base(map_2d(1,i)) = p_rho_levels(i,1,ccb(i,1))
           else
-            pres_cv_base(map_2d(1,i))= 0.0_r_def
+            pres_cv_base(map_2d(1,i))= rmdi
           end if
         end do
       end if
@@ -2770,7 +2770,7 @@ contains
           if (lctop(i,1) > 0) then
             pres_lowest_cv_top(map_2d(1,i)) = p_rho_levels(i,1,lctop(i,1))
           else
-            pres_lowest_cv_top(map_2d(1,i)) = 0.0_r_def
+            pres_lowest_cv_top(map_2d(1,i)) = rmdi
         end if
       end do
       end if
@@ -2779,7 +2779,7 @@ contains
           if (lcbase(i,1) > 0) then
             pres_lowest_cv_base(map_2d(1,i)) = p_rho_levels(i,1,lcbase(i,1))
           else
-            pres_lowest_cv_base(map_2d(1,i))= 0.0_r_def
+            pres_lowest_cv_base(map_2d(1,i))= rmdi
           end if
         end do
       end if
