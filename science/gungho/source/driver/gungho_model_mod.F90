@@ -109,6 +109,7 @@ module gungho_model_mod
   use um_domain_init_mod,          only : um_domain_init
   use um_sizes_init_mod,           only : um_sizes_init
   use um_physics_init_mod,         only : um_physics_init
+  use um_radaer_init_mod,          only : um_radaer_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
   use jules_timestep_alg_mod,      only : jules_timestep_type
@@ -497,8 +498,8 @@ contains
       ! Read all the radaer lut namelist files
       call um_radaer_lut_init()
 
-      ! Maybe initialisation of radaer settings here
-      ! I should move the um_radaer_lut_init call here
+      ! Initialisation of UKCA RADAER variables
+      call um_radaer_init()
 
     end if
 #endif
