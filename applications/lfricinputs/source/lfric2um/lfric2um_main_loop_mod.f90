@@ -111,7 +111,7 @@ do i_stash = 1, lfric2um_config%num_fields
     ! Gather local lfric fields into global array on base rank
     !---------------------------------------------------------------------------
     call lfricinp_gather_lfric_field( lfric_field, global_field_array, comm, &
-         num_levels, level, twod_mesh )
+         level, twod_mesh )
     if (local_rank == 0 ) then
 
       !-------------------------------------------------------------------------
