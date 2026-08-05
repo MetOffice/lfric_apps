@@ -7,8 +7,8 @@
 !> @brief Calculates the horizontal diffusion flux for momentum
 !> @details The conservative form of horizontal diffusion requires calculating
 !!          horizontal diffusion fluxes of the momentum components.
-!!          These fluxes for horizontal momentum are expressed as zonal and
-!!          meridional fluxes at both W3 and W1 points, creating a
+!!          These fluxes for horizontal momentum are expressed as contra-
+!!          variant flux components at both W3 and W1 points, creating a
 !!          "control volume" around each W2H point. Horizontal fluxes of
 !!          vertical momentum are calculated at shifted W2H points.
 !!          This kernel calculates these fluxes for horizontal diffusion,
@@ -29,7 +29,7 @@
 !!          \f]
 !!
 !!          The terms proportional to the vertical gradient in the vertical
-!!          fluxes are ommited as they are calculated separetely
+!!          fluxes are omitted as they are calculated separately
 !!          in the boundary layer scheme.
 module diffusion_momentum_flux_kernel_mod
 

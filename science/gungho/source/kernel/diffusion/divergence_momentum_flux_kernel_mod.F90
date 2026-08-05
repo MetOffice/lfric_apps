@@ -7,7 +7,7 @@
 !> @brief Calculates divergence of horizontal diffusion fluxes for momentum
 !> @details The conservative form of the horizontal diffusion operator for
 !!          momentum involves taking the divergence of fluxes.
-!!          These fluxes are expressed as zonal and meridional fluxes at
+!!          These fluxes are expressed as zonal and contravariant components at
 !!          both W3 and W1 points, creating a "control volume" around each
 !!          W2H point. Horizontal fluxes of vertical momentum are calculated
 !!          at shifted W2H points. This kernel calculates the divergence from
