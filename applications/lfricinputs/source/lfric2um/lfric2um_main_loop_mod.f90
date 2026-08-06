@@ -122,7 +122,7 @@ do i_stash = 1, lfric2um_config%num_fields
   !---------------------------------------------------------------------------
   ! Loop over number of levels in field
   !---------------------------------------------------------------------------
-  do level = 1, n_um_levels - lfric_level_offset
+  do level = 1, n_um_levels
     global_field_array(:) = 0.0_real64
 
     !---------------------------------------------------------------------------
