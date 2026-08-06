@@ -196,10 +196,10 @@ subroutine trop_diags_code(nlayers,                    &
 
   ! Locate the lapse-rate (WMO) tropopause
   trop_level = imdi
-  ! note: the UM looped from 1 to nlayers, with a comment explaining that
-  !       it wouldn't go out of bounds because they
-  !       "lie outside the height range search criteria for the tropopause"
-  do k=3, nlayers-1
+  ! Note: The UM looped from 1 to nlayers, explaining that it wouldn't go
+  !       out of bounds due to the height range search criteria.
+  !       Here, we limit the loop for robustness, e.g for edge-case testing.
+  do k=3, nlayers-2
 
     if (t_wth(k) < tempcut .and.             &
         height_wth(map_wth(1)+k) > heightcut_bot .and.  &
