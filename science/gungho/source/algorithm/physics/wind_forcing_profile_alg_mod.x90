@@ -7,17 +7,20 @@
 !> @brief Apply wind tendency forcing to the horizontal wind component fields
 module wind_forcing_profile_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def
-  use kernel_mod,                    only: kernel_type
   use field_mod,                     only: field_type
   use fs_continuity_mod,             only: Wtheta, W3
   use function_space_collection_mod, only: function_space_collection
-  use sci_geometric_constants_mod,   only: get_height_fv
+  use kernel_mod,                    only: kernel_type
   use log_mod,                       only: log_event, LOG_LEVEL_ERROR
   use map_fd_to_prognostics_alg_mod, only: set_wind
   use mesh_mod,                      only: mesh_type
-  use planet_config_mod,             only: kappa, p_zero
-  use timestepping_config_mod,       only: dt
+  use sci_geometric_constants_mod,   only: get_height_fv
+
+  ! Configuration modules
+  use planet_config_mod,       only: kappa, p_zero
+  use timestepping_config_mod, only: dt
 
   implicit none
 
@@ -39,10 +42,11 @@ contains
   !>          Profiles may be specified at multiple times, with linear
   !>          interpolation used to evaluate the forcing profile at the
   !>          current model time.
+  !> @param[in]     config    Application namelist configuration object
   !> @param[in,out] du        Forcing increment for wind field (m/s)
   !> @param[in]     exner     Exner field
   !> @param[in]     time_now  Current model time (s)
-  subroutine wind_forcing_profile_alg( du, exner, time_now )
+  subroutine wind_forcing_profile_alg(config,  du, exner, time_now)
 
     use wind_forcing_config_mod, only: number_times,       &
                                        number_heights,     &
@@ -66,6 +70,8 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type( field_type ), intent( inout )      :: du
     type( field_type ), intent( in ), target :: exner
     real( kind=r_def ), intent( in )         :: time_now
@@ -74,14 +80,16 @@ contains
     real( kind=r_def )    :: dt_rdef
     real( kind=r_def )    :: u_forcing_now( number_heights )
     real( kind=r_def )    :: v_forcing_now( number_heights )
-    integer( kind=i_def ) :: mesh_id, k
+    integer( kind=i_def ) :: k
     logical( kind=l_def ) :: pressure_coord, profile_extrap
     type( field_type )    :: du_in_w3
     type( field_type )    :: dv_in_w3
     type( field_type )    :: dw_in_wth
 
-    type( mesh_type ),  pointer :: mesh
-    type( field_type ), pointer :: height_w3
+    type(mesh_type),  pointer :: mesh
+    type(field_type), pointer :: height_w3
+
+    nullify(mesh, height_w3)
 
     ! dt is r_second, and must be needs casting to r_def in invokes
     dt_rdef = real( dt, kind=r_def )
@@ -125,8 +133,8 @@ contains
           height_w3 => exner
           pressure_coord = .true.
         case( coordinate_height )
-          mesh_id = du_in_w3%get_mesh_id()
-          height_w3 => get_height_fv( W3, mesh_id )
+          mesh => du_in_w3%get_mesh()
+          height_w3 => get_height_fv(config, mesh, W3)
           pressure_coord = .false.
         case default
           call log_event( 'Unknown coordinate', LOG_LEVEL_ERROR )
@@ -172,7 +180,7 @@ contains
 
     end if
 
-    call set_wind( du, du_in_w3, dv_in_w3, dw_in_wth )
+    call set_wind( config, du, du_in_w3, dv_in_w3, dw_in_wth )
 
   end subroutine wind_forcing_profile_alg
 

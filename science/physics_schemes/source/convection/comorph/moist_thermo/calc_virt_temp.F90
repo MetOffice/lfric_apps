@@ -161,7 +161,7 @@ call calc_q_tot_3d( lb_v, ub_v, q_vap,  lb_l, ub_l, q_cl,                      &
                     q_tot )
 
 ! Complete the formula for virtual temperature
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC) private( i, j, k )            &
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, virt_temp, q_tot )
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
@@ -170,7 +170,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 return
 end subroutine calc_virt_temp_3d

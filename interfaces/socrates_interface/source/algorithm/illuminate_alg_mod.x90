@@ -7,6 +7,7 @@
 
 module illuminate_alg_mod
 
+use config_mod,              only: config_type
 use constants_mod,           only: i_def, i_timestep, r_def, l_def
 use field_mod,               only: field_type
 use field_collection_mod,    only: field_collection_type
@@ -17,7 +18,9 @@ use sci_geometric_constants_mod,   &
                              only: get_latitude_fv, get_longitude_fv
 use illuminate_kernel_mod,   only: illuminate_kernel_type
 use timing_mod,              only: start_timing, stop_timing, tik, LPROF
+
 implicit none
+
 private
 
 !------------------------------------------------------------------------------
@@ -27,17 +30,19 @@ public :: illuminate_alg
 
 contains
 
+!> @param[in]     config           Application namelist configuration object
 !> @param[in,out] radiation_fields Fields for radiation scheme
 !> @param[in]     timestep         Model timestep number
 !> @param[in]     dt               Model timestep length
 
-subroutine illuminate_alg(radiation_fields, timestep, dt)
+subroutine illuminate_alg(config, radiation_fields, timestep, dt)
 
   use xios, only: xios_date, xios_get_current_date, &
                   xios_date_get_day_of_year, xios_date_get_second_of_day
 
   implicit none
 
+  type(config_type),             intent(in)    :: config
   type( field_collection_type ), intent(inout) :: radiation_fields
   integer(kind=i_timestep),      intent(in)    :: timestep
   real(r_def),                   intent(in)    :: dt
@@ -93,8 +98,8 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
 
     mesh => cos_zenith_angle%get_mesh()
 
-    latitude  => get_latitude_fv( W3, mesh%get_id() )
-    longitude => get_longitude_fv( W3, mesh%get_id() )
+    latitude  => get_latitude_fv(config, mesh,  W3)
+    longitude => get_longitude_fv(config, mesh, W3)
 
     call invoke( illuminate_kernel_type( &
                  cos_zenith_angle, lit_fraction, &

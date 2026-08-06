@@ -98,4 +98,9 @@
         "plot_str": "", }) %}
 {% endif %}
 
+{% if build_dict.get("coupled", false) %}
+    {% do task_dict.update({"build_families": ["EX1A_BUILD_COUPLED_"~task_ns.compiler|upper]}) %}
+    {% do task_dict.update({"run_families": ["EX1A_RUN_COUPLED_"~task_ns.compiler|upper]}) %}
+{% endif %}
+
 {% do LOG.debug("Finised in site/meto/lfric_atm/tasks_lfric_atm_ex1a.cylc") %}

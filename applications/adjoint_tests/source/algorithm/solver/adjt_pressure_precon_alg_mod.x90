@@ -149,7 +149,7 @@ contains
     call moisture_fields%get_field( "ls_moist_dyn", ls_moist_dyn_array )
     ls_moist_dyn => ls_moist_dyn_array%bundle
 
-    call compute_si_operators( ls_theta, ls_rho, ls_exner, &
+    call compute_si_operators( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                model_clock, ls_moist_dyn )
 
     call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner )

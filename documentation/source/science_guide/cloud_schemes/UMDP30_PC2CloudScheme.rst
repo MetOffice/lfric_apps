@@ -6,7 +6,7 @@
 
 .. attention::
 
-   This documentation has been transfered directly from the UM to LFRic;
+   This documentation has been transferred directly from the UM to LFRic;
    It is still a work in progress. There are still UM-specific references
    and terminology that are yet to be updated.
 
@@ -107,7 +107,7 @@ valid structures to use in this respect.*
   diagnose the cloud fraction and condensate contents.
 
 Many years of experience of the results from the
-`Smith (1990)`_ scheme have highlighted deficiences in the
+`Smith (1990)`_ scheme have highlighted deficiencies in the
 diagnosis of cloud from this scheme, which we feel can only be tackled
 by adding the memory of cloud history available by using a prognostic
 based scheme. We chose to develop a scheme that directly specified the
@@ -370,7 +370,7 @@ schematically:
    \frac{\partial C_t}{\partial t} |_{precipitation} + ... ,
    \end{aligned}
 
-where :math:`\overline{q_{cf}}` is the ice water specfic humidity,
+where :math:`\overline{q_{cf}}` is the ice water specific humidity,
 :math:`C_l` is the liquid cloud *volume* fraction, :math:`C_i` is the
 ice cloud volume fraction, and :math:`C_t` is the combined ice or liquid
 cloud volume fraction. The amount of mixed phase cloud, :math:`C_{mp}`,
@@ -417,7 +417,7 @@ forcing,
 section :ref:`Injection forcing <sec_inhomog>`) and Width Changing (section
 :ref:`Changing the width of the PDF - PC2 erosion <sec_width>`). Two additional
 modules are available to assist
-with PC2, liquid cloud initiaion (section :ref:`Initiation of cloud
+with PC2, liquid cloud initiation (section :ref:`Initiation of cloud
 <sec_init>`) and the
 calculation of total cloud fraction changes (section :ref:`Ice cloud and mixed
 phase regions <sec_ct>`).
@@ -439,7 +439,7 @@ single cloud fraction, as in `Tiedtke (1993)`_. The hypothesis was
 that by detraining cloud directly from the convection scheme we would no
 longer need a separate representation of this cloud type. Our experience
 with PC2 is that this is not necessarily the case. We suspect that the
-basic reason is that we are unable to truely represent the extreme PDF
+basic reason is that we are unable to truly represent the extreme PDF
 shapes that result from convective activity. Additionally, we only
 create cloud associated with the detrainment part of the convection
 scheme, assuming that cloud associated with the active updraughts in
@@ -460,7 +460,7 @@ Physical basis of the PC2 prognostic cloud scheme
 In this section we will develop the physical models that PC2 uses in
 order to calculate its prognostic increment terms. We will also consider
 the numerical solution of the models. The way in which these are
-incorporated into the Unifed Model will be discussed in section
+incorporated into the Unified Model will be discussed in section
 :ref:`Implementation in the Unified Model <sec_um>`
 
 Instantaneous condensation
@@ -6318,8 +6318,8 @@ Therefore, from :eq:`eq:qclbar=int`
 
 .. math:: \overline{q_{cl \, max}} = \int_{s=-b_s}^{\infty} G(s) (b_s + s) ds .
 
-We will use the current value of :math:`Q_c` (which won't in general to
-be equal to :math:`b_s`) to split the integral into two ranges of s:
+We will use the current value of :math:`Q_c` (which won't in general be
+equal to :math:`b_s`) to split the integral into two ranges of s:
 
 .. math::
 

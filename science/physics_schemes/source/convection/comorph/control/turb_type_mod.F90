@@ -272,6 +272,58 @@ end subroutine turb_list_clear
 
 
 !----------------------------------------------------------------
+! Subroutine to check turb fields for bad values
+!----------------------------------------------------------------
+subroutine turb_check_bad_values( turb, where_string )
+
+use comorph_constants_mod, only: name_length
+use check_bad_values_mod, only: check_bad_values_3d
+
+implicit none
+
+type(turb_type), intent(in) :: turb
+
+! Character string describing where in the convection scheme
+! we are, for constructing error message if bad value found.
+character(len=name_length), intent(in) :: where_string
+
+! Character string to store field names
+character(len=name_length) :: field_name
+
+! Lower and upper bounds of array
+integer :: lb(3), ub(3)
+
+! Flag passed into check_bad_values;
+logical, parameter :: l_positive_true = .true.
+
+! Loop counter
+integer :: i_turb
+
+! Check the turbulent fluxes and w-variance in the list
+do i_turb = 1, n_turb
+  lb = lbound( turb % list(i_turb)%pt )
+  ub = ubound( turb % list(i_turb)%pt )
+  call check_bad_values_3d( lb, ub, turb%list(i_turb)%pt,                      &
+                            where_string, turb_names(i_turb),                  &
+                            turb_positive(i_turb),                             &
+                            l_half=.true., l_init=.true. )
+end do
+
+! Check other fields that are not in the list...
+
+field_name = "lengthscale"
+lb = lbound( turb % lengthscale )
+ub = ubound( turb % lengthscale )
+call check_bad_values_3d( lb, ub, turb % lengthscale,                          &
+                          where_string, field_name,                            &
+                          l_positive_true, l_init=.true. )
+
+
+return
+end subroutine turb_check_bad_values
+
+
+!----------------------------------------------------------------
 ! Subroutine to check consistency between the turbulence fields
 !----------------------------------------------------------------
 subroutine turb_check_consistent( turb )

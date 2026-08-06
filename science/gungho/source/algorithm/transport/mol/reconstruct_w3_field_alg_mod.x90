@@ -20,6 +20,7 @@ module reconstruct_w3_field_alg_mod
 
   use sci_combine_multidata_field_kernel_mod, &
                                       only: combine_multidata_field_kernel_type
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, str_def
   use r_tran_field_mod,               only: r_tran_field_type
   use field_mod,                      only: field_type
@@ -77,16 +78,19 @@ contains
   !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
   !!          desired spatial reconstruction.
   !!          Options for this are either FE or FV reconstructions.
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           Reconstructed field at W2 points
   !> @param[in]     field_old           Initial W3 field
   !> @param[in]     direction           Splitting direction (h, v, or 3d) to
   !!                                    compute reconstruction
   !> @param[in]     transport_metadata  Contains transport configuration options
   !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine reconstruct_w3_field_alg(field_new, field_old, direction, &
+  subroutine reconstruct_w3_field_alg(config, field_new, field_old, direction, &
                                       transport_metadata, final_rk_stage)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type), target, intent(in)    :: field_old
     type(r_tran_field_type),         intent(inout) :: field_new
@@ -125,9 +129,9 @@ contains
         call field_new_v%initialise( vector_space=w3md_v_fs )
 
         ! Reconstruct W3 field separately in horizontal and vertical
-        call hori_w3_reconstruct_alg(field_new_h, field_old, &
+        call hori_w3_reconstruct_alg(config, field_new_h, field_old, &
                                      transport_metadata)
-        call vert_w3_reconstruct_alg(field_new_v, field_old, &
+        call vert_w3_reconstruct_alg(config, field_new_v, field_old, &
                                      transport_metadata, final_rk_stage)
 
         ! Combine horizontal and vertical components of W3 multidata field
@@ -137,10 +141,10 @@ contains
         nullify( w3md_h_fs, w3md_v_fs )
 
       case ( direction_h )
-        call hori_w3_reconstruct_alg(field_new, field_old, &
+        call hori_w3_reconstruct_alg(config, field_new, field_old, &
                                      transport_metadata)
       case ( direction_v )
-        call vert_w3_reconstruct_alg(field_new, field_old, &
+        call vert_w3_reconstruct_alg(config, field_new, field_old, &
                                      transport_metadata, final_rk_stage)
       case default
         call log_event('W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
@@ -151,15 +155,18 @@ contains
   end subroutine reconstruct_w3_field_alg
 
   !> @brief Reconstructs a W3 field in the horizontal component of W2
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           The resulting horizontal W2 field
   !> @param[in]     field_old           The input W3 field
   !> @param[in]     transport_metadata  Contains transport configuration options
-  subroutine hori_w3_reconstruct_alg(field_new, field_old, &
+  subroutine hori_w3_reconstruct_alg(config, field_new, field_old, &
                                      transport_metadata)
 
     use transport_constants_mod, only: get_hori_w3_mol_coeffs
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type),       intent(inout) :: field_new
     type(r_tran_field_type),       intent(in)    :: field_old
@@ -192,7 +199,7 @@ contains
       stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
     end if
 
-    flux_coeffs => get_hori_w3_mol_coeffs(mesh_id)
+    flux_coeffs => get_hori_w3_mol_coeffs(config, mesh)
 
     ! Copy field to a large halo version
     call field_old_big_halo%initialise( field_old%get_function_space(), &
@@ -203,7 +210,7 @@ contains
     if ( panel_edge_treatment /= panel_edge_treatment_none                     &
          .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
-      call remap_on_extended_mesh(remap_field, field_old_big_halo,             &
+      call remap_on_extended_mesh(config, remap_field, field_old_big_halo,     &
                                   monotone,                                    &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
@@ -242,17 +249,20 @@ contains
   end subroutine hori_w3_reconstruct_alg
 
   !> @brief Reconstructs a W3 field in the vertical component of W2
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] field_new           The resulting vertical W2 field
   !> @param[in]     field_old           The input W3 field
   !> @param[in]     transport_metadata  Contains transport configuration options
   !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
-  subroutine vert_w3_reconstruct_alg(field_new, field_old, &
+  subroutine vert_w3_reconstruct_alg(config, field_new, field_old, &
                                      transport_metadata, final_rk_stage)
 
     use transport_constants_mod, only: get_vert_w3_mol_coeffs,                 &
                                        get_reversible_vert_w3_mol_coeffs
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type),       intent(inout) :: field_new
     type(r_tran_field_type),       intent(in)    :: field_old
@@ -281,16 +291,16 @@ contains
 
     if ( reversible ) then
       ndata_v = fv_vertical_order
-      vert_flux_coeffs => get_reversible_vert_w3_mol_coeffs(mesh_id)
+      vert_flux_coeffs => get_reversible_vert_w3_mol_coeffs(config, mesh)
       vertical_order = fv_vertical_order - 1_i_def
     else
       ndata_v = 2*(fv_vertical_order + 1)
-      vert_flux_coeffs => get_vert_w3_mol_coeffs(mesh_id)
+      vert_flux_coeffs => get_vert_w3_mol_coeffs(config, mesh)
       vertical_order = fv_vertical_order
     end if
 
     if ( monotonicity == monotone_koren ) then
-      height_tr => get_height_fv( Wtheta, mesh%get_id() )
+      height_tr => get_height_fv(config, mesh, Wtheta)
       call invoke(name="w3_vert_reconstruction_koren",                         &
                   polyv_w3_koren_kernel_type( field_new,                       &
                                               field_old,                       &

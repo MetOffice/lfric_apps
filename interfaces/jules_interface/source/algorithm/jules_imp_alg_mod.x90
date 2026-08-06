@@ -7,7 +7,8 @@
 
 module jules_imp_alg_mod
 
-  use constants_mod,                 only: i_def
+  use config_mod,                    only: config_type
+  use constants_mod,                 only: i_def, r_def
   use model_clock_mod,               only: model_clock_type
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
@@ -39,6 +40,7 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
   !>         NB This version uses winds in w3 space (i.e. A-grid)
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] mr                Mixing ratios
   !>@param[in,out] surf_heat_flux    Net surface heat flux
   !>@param[in,out] canopy_evap       Canopy evaporation from land tiles
@@ -63,7 +65,8 @@ contains
   !>@param[in,out] fqw               total water flux
   !>@param[in,out] rhokh             Heat eddy diffusivity
   !>@param[in]     mr_ice            Mixing ratio for ice cloud
-  subroutine jules_imp_alg(mr, surf_heat_flux, canopy_evap,              &
+  subroutine jules_imp_alg(config,                                       &
+                           mr, surf_heat_flux, canopy_evap,              &
                            water_extraction, lake_evap,                  &
                            derived_fields, radiation_fields,             &
                            turbulence_fields, cloud_fields,              &
@@ -79,6 +82,7 @@ contains
 
     implicit none
 
+    type(config_type),  intent(in)      :: config
     type( field_type ), intent( inout ) :: qw, tl, ftl, fqw, rhokh,           &
                                            surf_heat_flux, canopy_evap,       &
                                            water_extraction, lake_evap,       &
@@ -233,10 +237,9 @@ contains
     call snow_fields%get_field('snow_depth', snow_depth)
 
     mesh       => exner_in_wth%get_mesh()
-    height_wth => get_height_fv(Wtheta, mesh%get_id())
-
+    height_wth => get_height_fv(config, mesh, Wtheta)
     mesh       => ustar%get_mesh()
-    latitude   => get_latitude_fv(W3, mesh%get_id())
+    latitude   => get_latitude_fv(config, mesh, W3)
 
     if ( loop == 1 ) then
 

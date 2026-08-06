@@ -97,8 +97,8 @@ module tl_test_vorticity_mod
     call log_event( "TL Test: " // trim(label), &
                      LOG_LEVEL_INFO )
 
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     qr => get_qr_fe()
 
     prognostic_fields => modeldb%fields%get_field_collection(&

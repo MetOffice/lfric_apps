@@ -21,7 +21,7 @@ contains
 
 ! Method: first see if the solution with no melting yields
 ! melting of any of the species.  If it does, change
-! coefficients to turn on melting of all ice species and
+! coefficients to turn on melting of ALL ice species and
 ! recompute the implicit solution for T,q.  Then compute the
 ! melting rates; if any are negative, turn them off again and
 ! recompute.
@@ -563,7 +563,7 @@ do while ( maxval(nc_check)>0 .and. iter<n_cond_species_ice )
   end do
 
 
-end do  ! while (maxval(nc_check)>0.and.iter<n_cond_species_ice)
+end do  ! WHILE (MAXVAL(nc_check)>0.AND.iter<n_cond_species_ice)
 
 
 return

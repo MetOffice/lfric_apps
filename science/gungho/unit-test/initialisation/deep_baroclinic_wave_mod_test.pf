@@ -100,6 +100,7 @@ contains
                                   si_momentum_equation=.true.,             &
                                   horizontal_physics_predictor=.false.,    &
                                   horizontal_transport_predictor=.false.,  &
+                                  solver_moisture_conservation=.true.,     &
                                   vector_invariant=.true.)
 
   end subroutine set_up

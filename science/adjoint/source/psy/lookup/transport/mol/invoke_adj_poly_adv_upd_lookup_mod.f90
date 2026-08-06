@@ -31,28 +31,28 @@ module invoke_adj_poly_adv_upd_lookup_mod
     type(r_tran_field_type), intent(in) :: advective, reconstruction, wind, wind_dir
     type(integer_field_type), intent(in) :: lookup_poly_adv_upd_field, num_sets_poly_adv_upd_field
     integer(kind=i_def), intent(in) :: stencil_extent
-    integer(kind=i_def) df
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop1_start, loop1_stop
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers_advective
+    integer(kind=i_def) :: df
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop1_start, loop1_stop
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers_advective
     integer(kind=i_def), pointer, dimension(:) :: num_sets_poly_adv_upd_field_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_poly_adv_upd_field_data
-    type(integer_field_proxy_type) lookup_poly_adv_upd_field_proxy, num_sets_poly_adv_upd_field_proxy
+    type(integer_field_proxy_type) :: lookup_poly_adv_upd_field_proxy, num_sets_poly_adv_upd_field_proxy
     real(kind=r_tran), pointer, dimension(:) :: wind_dir_data
     real(kind=r_tran), pointer, dimension(:) :: wind_data
     real(kind=r_tran), pointer, dimension(:) :: reconstruction_data
     real(kind=r_tran), pointer, dimension(:) :: advective_data
-    type(r_tran_field_proxy_type) advective_proxy, reconstruction_proxy, wind_proxy, wind_dir_proxy
+    type(r_tran_field_proxy_type) :: advective_proxy, reconstruction_proxy, wind_proxy, wind_dir_proxy
     integer(kind=i_def), pointer :: map_adspc1_reconstruction(:,:), &
 &map_adspc2_lookup_poly_adv_upd_field(:,:), map_adspc3_num_sets_poly_adv_upd_field(:,:), &
 &map_w2(:,:), map_wtheta(:,:)
-    integer(kind=i_def) ndf_wtheta, undf_wtheta, ndf_adspc1_reconstruction, undf_adspc1_reconstruction, &
+    integer(kind=i_def) :: ndf_wtheta, undf_wtheta, ndf_adspc1_reconstruction, undf_adspc1_reconstruction, &
 &ndf_adspc2_lookup_poly_adv_upd_field, undf_adspc2_lookup_poly_adv_upd_field, ndf_adspc3_num_sets_poly_adv_upd_field, &
 &undf_adspc3_num_sets_poly_adv_upd_field, ndf_w2, undf_w2, ndf_aspc1_advective, undf_aspc1_advective
-    integer(kind=i_def) max_halo_depth_mesh
+    integer(kind=i_def) :: max_halo_depth_mesh
     type(mesh_type), pointer :: mesh
-    integer(kind=i_def) wind_max_branch_length
+    integer(kind=i_def) :: wind_max_branch_length
     integer(kind=i_def), pointer :: wind_stencil_size(:,:)
     integer(kind=i_def), pointer :: wind_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: wind_stencil_map

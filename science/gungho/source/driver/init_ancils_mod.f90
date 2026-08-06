@@ -99,10 +99,12 @@ contains
 
   !> @details Organises fields to be read from ancils into ancil_fields
   !           collection then reads them.
-  !> @param[in,out] depository The depository field collection
-  !> @param[in,out] ancil_fields Collection for ancillary fields
-  !> @param[in] mesh      The current 3d mesh
-  !> @param[in] twod_mesh The current 2d mesh
+  !> @param[in,out] depository    The depository field collection
+  !> @param[in,out] ancil_fields  Collection for ancillary fields
+  !> @param[in] mesh              The current 3d mesh
+  !> @param[in] twod_mesh         The current 2d mesh
+  !> @param[in] aerosol_mesh      Aerosol 3d mesh
+  !> @param[in] aerosol_twod_mesh Aerosol 2d mesh
   subroutine create_fd_ancils( depository, ancil_fields, mesh, &
                                twod_mesh, aerosol_mesh, aerosol_twod_mesh, ancil_times_list )
 

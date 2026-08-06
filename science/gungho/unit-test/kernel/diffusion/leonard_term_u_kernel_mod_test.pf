@@ -78,6 +78,8 @@ contains
     integer(i_def), allocatable :: true_stencil_map_w2(:,:,:)
     integer(i_def), allocatable :: stencil_map_wt(:,:,:)
     integer(i_def), allocatable :: stencil_map_pid(:,:,:)
+    integer(i_def), allocatable :: face_selector_ew(:)
+    integer(i_def), allocatable :: face_selector_ns(:)
 
     real(r_def), allocatable :: u_inc(:)
     real(r_def), allocatable :: u(:)
@@ -160,6 +162,8 @@ contains
     allocate(dtrdz(undf_w2))
     allocate(rho(undf_w2))
     allocate(panel_id(undf_pid))
+    allocate(face_selector_ew(undf_pid))
+    allocate(face_selector_ns(undf_pid))
 
     u_inc(:) = 0.0_r_def
     u(:) = 1.0_r_def
@@ -168,6 +172,8 @@ contains
     dtrdz(:) = 0.001_r_def
     rho(:) = 1.0_r_def
     panel_id = 2.0_r_def
+    face_selector_ew(:) = 2
+    face_selector_ns(:) = 2
 
     cell = 5
     k = 1
@@ -203,34 +209,41 @@ contains
                               rho,                                   &
                               panel_id,                              &
                               9, stencil_map_pid(:,:,cell),          &
+                              face_selector_ew,                      &
+                              face_selector_ns,                      &
                               planet_radius,                         &
                               leonard_kl,                            &
                               dt, nlayers,                           &
                               ndf_w2, undf_w2, map_w2(:,cell),       &
                               ndf_wt, undf_wt, map_wt(:,cell),       &
                               ndf_w1, undf_w1, map_w1(:,cell),       &
+                              ndf_pid, undf_pid, map_pid(:,cell),    &
                               ndf_pid, undf_pid, map_pid(:,cell)     &
                              )
 
-     answer = 0.1152_r_def
-     @assertEqual(answer, u_inc(map_w2(1,cell) + k), tol)
+    answer = 0.1152_r_def
+    @assertEqual(answer, u_inc(map_w2(1,cell) + k), tol)
 
-     deallocate(map_w2)
-     deallocate(stencil_map_w2)
-     deallocate(true_map_w2)
-     deallocate(true_stencil_map_w2)
-     deallocate(map_wt)
-     deallocate(stencil_map_wt)
-     deallocate(map_w1)
-     deallocate(height_w1)
-     deallocate(height_w2)
-     deallocate(u)
-     deallocate(u_inc)
-     deallocate(w)
-     deallocate(w_inc)
-     deallocate(dtrdz)
-     deallocate(rho)
-     deallocate(panel_id)
+    deallocate(map_w2)
+    deallocate(stencil_map_w2)
+    deallocate(true_map_w2)
+    deallocate(true_stencil_map_w2)
+    deallocate(map_wt)
+    deallocate(stencil_map_wt)
+    deallocate(map_w1)
+    deallocate(height_w1)
+    deallocate(height_w2)
+    deallocate(u)
+    deallocate(u_inc)
+    deallocate(w)
+    deallocate(w_inc)
+    deallocate(dtrdz)
+    deallocate(rho)
+    deallocate(panel_id)
+    deallocate(stencil_map_pid)
+    deallocate(map_pid)
+    deallocate(face_selector_ew)
+    deallocate(face_selector_ns)
 
   end subroutine test_all
 

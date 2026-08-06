@@ -5,7 +5,7 @@
 # under which the code may be used.
 
 EXEC_PATH="${BIN_DIR}/${EXEC_NAME}"
-NAMELIST_FILE=configuration.nml
+NAMELIST_FILE=${EXTRA_NAMELIST_FILES:=configuration.nml}
 XIOS_SERVER_EXEC_PATH="xios_server.exe"
 
 

@@ -6,6 +6,7 @@
 program um2lfric
 
 ! lfricinputs modules
+use config_mod,                    only: config_type
 use lfricinp_lfric_driver_mod,     only: lfricinp_initialise_lfric,     &
                                          lfricinp_finalise_lfric, mesh, &
                                          twod_mesh, lfric_fields
@@ -34,6 +35,8 @@ use um2lfric_read_um_file_mod,     only: um2lfric_close_um_file, &
 
 implicit none
 
+type(config_type), save :: lfric_config
+
 !==========================================================================
 ! Read inputs and initialise setup
 !==========================================================================
@@ -46,7 +49,8 @@ call lfricinp_initialise(um2lfric_nl_fname)
 call um2lfric_initialise_um2lfric()
 
 ! Initialise LFRic Infrastructure
-call lfricinp_initialise_lfric(program_name_arg="um2lfric",                    &
+lfric_config = lfricinp_initialise_lfric(                                      &
+     program_name_arg="um2lfric",                                              &
      required_lfric_namelists = required_lfric_namelists,                      &
      start_date = datetime % first_validity_time,                              &
      time_origin = datetime % first_validity_time,                             &
