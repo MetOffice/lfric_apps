@@ -247,7 +247,8 @@ subroutine casim_code( nlayers,                     &
     use atm_fields_bounds_mod,      only: pdims
 
     use nlsizes_namelist_mod,       only: tr_ukca
-    use mphys_inputs_mod,           only: casim_aerosol_option
+    use mphys_inputs_mod,           only: casim_aerosol_option,               &
+                                          casim_iopt_act, fixed_number
     use aerosol_extract_convert_mod, only: aerosol_extract_convert
     use casim_ukca_tracer_mod,      only: casim_ukca_tracer_column
 
@@ -413,8 +414,11 @@ subroutine casim_code( nlayers,                     &
     ! Configure optional diagnostics
     casdiags % l_graupfall_3d = ls_graup_3d_flag
 
-    ! Set CDNC for radiation here as we need the start of timestep value
-    if (casim_cdnc_opt == casim_cdnc_opt_fixed) then
+    ! Set CDNC for radiation here as we need the start of timestep value.
+    ! The mechanistic activation options always work the cloud number out from
+    ! the aerosol, so the in-cloud number for radiation comes from CASIM too.
+    if (casim_iopt_act /= fixed_number .or.                                    &
+        casim_cdnc_opt == casim_cdnc_opt_fixed) then
       do k = 0, nlayers
         if (cfl_wth(map_wth(1) + k) > 0.001_r_def) then
           cloud_drop_no_conc(map_wth(1) + k) = max(nl_mphys(map_wth(1) + k) / &

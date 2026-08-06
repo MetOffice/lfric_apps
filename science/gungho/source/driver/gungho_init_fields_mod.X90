@@ -960,6 +960,7 @@ subroutine create_model_data( modeldb,           &
                                  cloud_fields,                             &
                                  microphysics_fields,                      &
                                  convection_fields,                        &
+                                 aerosol_fields, turbulence_fields,        &
                                  initialise=.true.)
       end if
 #endif
