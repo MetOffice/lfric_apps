@@ -32,7 +32,7 @@ contains
   !>                           including cloud base and top pressures.
   !> @param[in]  theta         Potential temperature
   !> @param[in]  exner_in_wth  Exner pressure in wth space
-  subroutine aviation_diags_alg(modeldb%config, plev_geopot, theta, exner_in_wth)
+  subroutine aviation_diags_alg(config, plev_geopot, theta, exner_in_wth)
     implicit none
 
     ! Arguments
@@ -42,7 +42,7 @@ contains
     call from_plev_geopot(plev_geopot)
 
     ! Tropopause aviation diagnostics (pressure, temperature and height)
-    call trop_diags_alg(modeldb%config, theta, exner_in_wth)
+    call trop_diags_alg(config, theta, exner_in_wth)
 
 
   end subroutine aviation_diags_alg
