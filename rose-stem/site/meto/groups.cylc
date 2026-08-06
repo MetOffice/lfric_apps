@@ -72,7 +72,6 @@
 {% include "site/meto/groups/groups_lfricinputs.cylc" %}
 {% include "site/meto/groups/groups_lfric2lfric.cylc" %}
 {% include "site/meto/groups/groups_lfric_atm.cylc" %}
-{% include "site/meto/groups/groups_lfric_coupled.cylc" %}
 {% include "site/meto/groups/groups_linear.cylc" %}
 {% include "site/meto/groups/groups_linear_model.cylc" %}
 {% include "site/meto/groups/groups_name_transport.cylc" %}
