@@ -17,7 +17,8 @@ module aviation_diags_alg_mod
 
   use aviation_thickness_snow_kernel_mod,                                   &
                                   only: aviation_thickness_snow_kernel_type
-  use trop_diags_alg_mod,        only : trop_diags_alg
+  use trop_diags_alg_mod,         only: trop_diags_alg
+  use config_mod,                 only: config_type
 
   implicit none
 
@@ -36,7 +37,10 @@ contains
     implicit none
 
     ! Arguments
-    type(field_type), intent(in)               :: plev_geopot
+    type(field_type),  intent(in) :: plev_geopot
+    type(config_type), intent(in) :: config
+    type(field_type),  intent(in) :: theta
+    type(field_type),  intent(in) :: exner_in_wth
 
     ! Calculate geopotential thickness and snow probbability.
     call from_plev_geopot(plev_geopot)
