@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!----------------------------------------------------------------------------
 !> @brief Controls the setting of variables for UM physics schemes, which
 !>         are either fixed in LFRic or derived from LFRic inputs
 
@@ -179,6 +182,9 @@ module um_physics_init_mod
                                         nsigmasf_in => nsigmasf,             &
                                         nscalesf_in => nscalesf,             &
                                         microphysics_casim,                  &
+                                        casim_activation,                    &
+                                        casim_activation_fixed,              &
+                                        casim_activation_arg,                &
                                         ci_input_in => ci_input,             &
                                         cic_input_in => cic_input,           &
                                         c_r_correl_in => c_r_correl,         &
@@ -456,6 +462,7 @@ contains
         a_ratio_fac, l_droplet_tpr, qclrime, l_shape_rime, ndrop_surf,       &
         z_surf, l_fsd_generator, mp_dz_scal, l_subgrid_qcl_mp, aut_qc,       &
         l_mphys_nonshallow, casim_iopt_act, casim_iopt_inuc,                 &
+        abdul_razzak_ghan,                                                   &
         casim_aerosol_couple_choice,l_casim,                                 &
         casim_aerosol_process_level,casim_moments_choice,                    &
         casim_aerosol_option,                                                &
@@ -478,7 +485,8 @@ contains
                               irs, ire, jrs, jre, krs, kre,              &
                               casim_moments_option, n_casim_tracers,     &
                               l_casim_warm_only,                         &
-                              l_ukca_aerosol, no_aerosol_modes
+                              l_ukca_aerosol, no_aerosol_modes,          &
+                              soluble_insoluble_modes
     use casim_stph, only: l_rp2_casim
     use casim_set_dependent_switches_mod, only:                                &
           casim_set_dependent_switches,                                        &
@@ -1374,14 +1382,45 @@ contains
 
 
         casim_moments_option = 22222   ! all double moment
-        casim_iopt_act = 0_i_um     ! 'fixed number'
         casim_aerosol_option = 0_i_um   ! no soluble or insoluble aerosol modes
         casim_aerosol_process_level = 0_i_um
         casim_aerosol_couple_choice = 0_i_um
         l_ukca_aerosol = .false.
 
+        select case (casim_activation)
+
+          case (casim_activation_fixed)
+            casim_iopt_act = fixed_number
+
+          case (casim_activation_arg)
+            ! Mechanistic activation following Abdul-Razzak and Ghan, driven by
+            ! the GLOMAP modal aerosol, which must therefore be available.
+            if ( glomap_mode /= glomap_mode_ukca ) then
+              write( log_scratch_space, '(A)' )                                &
+                 'CASIM Abdul-Razzak and Ghan activation requires the UKCA '// &
+                 'GLOMAP aerosol, stopping'
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            end if
+            casim_iopt_act = abdul_razzak_ghan
+
+          case default
+            write( log_scratch_space, '(A,I0)' )                               &
+               'Invalid CASIM activation option, stopping', casim_activation
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+        end select
+
         casim_moments_choice = 1_i_um
         CALL casim_set_dependent_switches
+
+        if (casim_iopt_act == abdul_razzak_ghan) then
+          ! casim_set_dependent_switches only asks for the insoluble modes when
+          ! the ice nucleation scheme needs them, but LFRic always supplies the
+          ! full set of soluble and insoluble GLOMAP modes to CASIM. This is
+          ! safe here because the aerosol option is not passed on to CASIM until
+          ! the call to set_mphys_switches below.
+          casim_aerosol_option = soluble_insoluble_modes
+        end if
 
         ! Tell CASIM that its parent model is the UM. This allows for any UM-specific
         ! operations to take place within CASIM.
