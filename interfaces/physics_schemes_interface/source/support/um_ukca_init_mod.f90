@@ -3,6 +3,10 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+!----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!----------------------------------------------------------------------------
 !> @brief UKCA initialisation subroutine for UM science configuration
 
 module um_ukca_init_mod
@@ -1081,18 +1085,18 @@ contains
     ! Retrieve the lists of required fields for the configuration
     call set_ukca_field_lists()
 
-    ! Set up indexing data needed for plume scavenging of UKCA tracers in the
-    ! GR convection scheme
-    if (l_ukca_plume_scav) then
-      n = size(tracer_names)
-      allocate(nm_spec_active(n))
-      do i = 1, n
-        nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
-      end do
-      call ukca_set_conv_indices()
-      tracer_info%i_ukca_first = 1
-      tracer_info%i_ukca_last = n
-    end if
+    ! Set up the indexing data that locates the GLOMAP mode numbers and
+    ! component masses within the UKCA tracer array. This is needed for plume
+    ! scavenging of UKCA tracers in the GR convection scheme and by the CASIM
+    ! aerosol interface, so it is always set up.
+    n = size(tracer_names)
+    allocate(nm_spec_active(n))
+    do i = 1, n
+      nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
+    end do
+    call ukca_set_conv_indices()
+    tracer_info%i_ukca_first = 1
+    tracer_info%i_ukca_last = n
 
     ! Register emissions required for this run
     call ukca_emiss_init()
@@ -1513,6 +1517,8 @@ contains
   !>@brief Set the lists of fields required for the UKCA configuration
   subroutine set_ukca_field_lists()
 
+    use nlsizes_namelist_mod, only: tr_ukca
+
     implicit none
 
     ! Local variables
@@ -1536,6 +1542,9 @@ contains
            ukca_errmsg
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
+    ! Record the number of UKCA tracers where the UM code expects to find it.
+    tr_ukca = size(tracer_names)
+
     write( log_scratch_space, '(A,I0,A)' )                                     &
          'Tracers required (', size(tracer_names), '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -1896,20 +1905,19 @@ contains
     ! Retrieve the lists of required fields for the configuration
     call set_ukca_field_lists()
 
-    ! Set up indexing data needed for plume scavenging of UKCA tracers in the
-    ! GR convection scheme
-    if (l_ukca_plume_scav) then
-      n = size(tracer_names)
-      allocate(nm_spec_active(n))
-      do i = 1, n
-        nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
-      end do
+    ! Set up the indexing data that locates the GLOMAP mode numbers and
+    ! component masses within the UKCA tracer array. This is needed for plume
+    ! scavenging of UKCA tracers in the GR convection scheme and by the CASIM
+    ! aerosol interface, so it is always set up.
+    n = size(tracer_names)
+    allocate(nm_spec_active(n))
+    do i = 1, n
+      nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
+    end do
 
-      call ukca_set_conv_indices()
-      tracer_info%i_ukca_first = 1
-      tracer_info%i_ukca_last  = n
-
-    end if
+    call ukca_set_conv_indices()
+    tracer_info%i_ukca_first = 1
+    tracer_info%i_ukca_last  = n
 
     ! Switch on optional UM microphysics diagnostics required by UKCA
     if (any(env_names_fullht_real(:) == fldname_autoconv))                     &

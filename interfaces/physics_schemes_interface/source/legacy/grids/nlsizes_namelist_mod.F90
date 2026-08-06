@@ -3,6 +3,10 @@
 ! For further details please refer to the file COPYRIGHT.txt
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
+!-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !
 ! Sizes for many of the UM's main, dynamic data arrays
 !
@@ -45,5 +49,7 @@ integer :: rows                 ! Number of local (theta) rows
 integer :: ntiles               ! Number of land surface tiles
 
 integer :: n_cca_lev            ! Number of CCA levels
+
+integer :: tr_ukca = 0          ! Number of UKCA tracers
 
 end module nlsizes_namelist_mod
