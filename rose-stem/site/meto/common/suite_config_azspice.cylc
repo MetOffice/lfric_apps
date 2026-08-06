@@ -31,7 +31,7 @@
 
     [[AZSPICE_BUILD]]
         [[[environment]]]
-            USE_LEGACY_TIMER=true
+            USE_VERNIER=true
             USE_TIMING_WRAPPER=true
         [[[directives]]]
             --gres=tmp:1024
