@@ -1426,7 +1426,6 @@ contains
           end do
         end if
         if (sf_diag%l_t10m .or. sf_diag%l_q10m) then
-          ! Convert to mixing ratios
           do i = 1, seg_len
             sf_diag%q10m(i,1) = sf_diag%q10m(i,1) / &
                                 (1.0_r_um+sf_diag%q10m(i,1)+qcf_latest(i,1))
