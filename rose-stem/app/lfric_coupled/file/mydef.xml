@@ -346,6 +346,12 @@
        </field_group>
       </file>
 
+  <file id="soil_rough_ancil" name="soil_rough_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+   <field_group id="soil_rough_ancil_field_group" >
+    <field id="soil_roughness" name="surface_roughness_length" long_name="soil_surface_roughness_length" unit="m" operation="once" domain_ref="face"/>
+   </field_group>
+  </file>
+
       <file id="surface_frac_ancil" name="surface_frac_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
        <field_group id="surface_frac_ancil_field_group">
 	<field id="land_tile_fraction" name="vegetation_area_fraction" long_name="fractions_of_vegetation_types" unit="1" operation="once" domain_ref="face" axis_ref="land_tiles"/>
