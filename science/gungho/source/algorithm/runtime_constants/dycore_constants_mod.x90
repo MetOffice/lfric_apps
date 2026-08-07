@@ -74,10 +74,10 @@ module dycore_constants_mod
   integer(kind=i_def), parameter, public :: w2_si_matrix = 891
 
   ! Timestepping enumerators
-  integer(kind=i_def), parameter, public :: stepper_siqn = 222
-  integer(kind=i_def), parameter, public :: stepper_tr = -46
-  integer(kind=i_def), parameter, public :: stepper_bdf2 = 919
-  integer(kind=i_def), parameter, public :: stepper_rk = 553
+  integer(kind=i_def), parameter, public :: stepper_siqn = 2
+  integer(kind=i_def), parameter, public :: stepper_tr = 3
+  integer(kind=i_def), parameter, public :: stepper_bdf2 = 4
+  integer(kind=i_def), parameter, public :: stepper_rk = 1
 
   ! TR-BDF2 gamma values
   ! gamma = 1 - 0.5*sqrt(2)

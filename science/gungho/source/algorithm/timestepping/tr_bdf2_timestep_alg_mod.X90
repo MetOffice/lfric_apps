@@ -284,17 +284,13 @@ contains
     real(kind=r_def)              :: dtemp_encorr
 #ifdef UM_PHYSICS
     integer(kind=i_def)           :: stph_spectral_dim
-#endif
-    ! Configuration options retrieved from the config object
     logical(kind=l_def)           :: use_spt
     logical(kind=l_def)           :: use_skeb
+#endif
 
     ! Get pointers to field collections for use downstream
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
     model_clock => modeldb%clock
-
-    use_spt  = self%config%stochastic_physics%use_spt()
-    use_skeb = self%config%stochastic_physics%use_skeb()
 
     ! Get pointers to fields for use downstream
     call prognostic_fields%get_field('theta', theta)
@@ -340,6 +336,9 @@ contains
     dtemp_encorr = dt * temp_corr_io_value%data(1)
 
 #ifdef UM_PHYSICS
+    use_spt = self%config%stochastic_physics%use_spt()
+    use_skeb = self%config%stochastic_physics%use_skeb()
+
     if (use_spt) then
       ! Get spectral coefficients and power law from the model database
       stph_spectral_dim = self%config%stochastic_physics%stph_spectral_dim()
