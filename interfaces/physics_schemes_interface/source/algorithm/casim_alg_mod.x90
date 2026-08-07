@@ -92,8 +92,8 @@ contains
     type( field_type ), pointer :: w_in_wth           => null()
     type( field_type ), pointer :: wetrho_in_w3        => null()
     type( field_type ), pointer :: rho_in_wth          => null()
-    type( field_type ), pointer :: u_in_w3             => null()
-    type( field_type ), pointer :: v_in_w3             => null()
+    type( field_type ), pointer :: u_in_w3
+    type( field_type ), pointer :: v_in_w3
 
     type( field_type ), pointer :: bcf_in
     type( field_type ), pointer :: cfl_in              => null()

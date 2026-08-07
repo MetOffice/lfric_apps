@@ -546,8 +546,6 @@ subroutine casim_code( nlayers,                     &
     l_refl_1km = .not. associated(refl_1km, empty_real_data)
 
     if (l_refl_tot .or. l_refl_1km) casdiags % l_radar = .true.
-    ! The snowfall rate is needed by the murk scavenging and by the PC2 shear
-    ! response to the falling ice.
     if (murk_prognostic) casdiags % l_snowfall_3d = .true.
 
     call allocate_diagnostic_space(its, ite, jts, jte, kts, kte)
