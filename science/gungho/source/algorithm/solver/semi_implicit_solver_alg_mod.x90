@@ -530,7 +530,8 @@ contains
                                              get_eliminated_q2t,    &
                                              get_eliminated_q3t,    &
                                              get_tau_u_dt_cp,       &
-                                             get_tau_t_dt
+                                             get_tau_t_dt,          &
+                                             get_tau_r_dt
     use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
     use dg_inc_matrix_vector_kernel_mod, &
@@ -539,7 +540,6 @@ contains
                                              r_solver_operator_type
     use field_mod,                     only: field_type
     use r_solver_field_mod,            only: r_solver_field_type
-    use timestepping_config_mod,       only: dt, tau_r
     use sci_enforce_bc_kernel_mod,     only: enforce_bc_kernel_type
     use sci_mass_matrix_solver_alg_mod, &
                                        only: mass_matrix_solver_alg
@@ -745,7 +745,7 @@ contains
     ! Compute rho increment since solver does not provide one
     div      => get_im3_div_r_solver(mesh_id)
     rho_at_u => get_rho_at_u()
-    tau_r_dt = real(-tau_r*dt, kind=r_solver)
+    tau_r_dt = -get_tau_r_dt(stepper)
     call div_u%initialise( vector_space = rhs_rsol(igh_p)%get_function_space() )
     call f_star%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
 
@@ -755,7 +755,7 @@ contains
                )
 
     call f_star_rdef%initialise( vector_space = rhs(igh_u)%get_function_space() )
-    tau_r_dt_rdef = real(tau_r*dt, kind=r_def)
+    tau_r_dt_rdef = real(-tau_r_dt, kind=r_def)
     call invoke(                                                               &
         real_to_real_x(f_star_rdef, f_star),                                   &
         inc_X_plus_bY(dry_flux_solver, tau_r_dt_rdef, f_star_rdef)             &
