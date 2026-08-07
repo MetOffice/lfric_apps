@@ -84,6 +84,7 @@ module lfric2lfric_init_mod
     logical(l_def), pointer :: horizontal_change
     logical(l_def), pointer :: vertical_change
     logical(l_def), pointer :: tile_change
+    logical(l_def), parameter :: no_xios = .true.
 
     ! For field creation and storage
     type(field_collection_type), pointer :: target_fields
@@ -171,15 +172,18 @@ module lfric2lfric_init_mod
     !--------------------------------------------------------------------------
     ! Initialise Intermediate Fields
     !--------------------------------------------------------------------------
+    call modeldb%io_contexts%get_io_context(context_src, io_context)
+    call io_context%set_current()
+    
     if ( (horizontal_change .and. vertical_change) .or. &
          (horizontal_change .and. tile_change)) then
       call modeldb%fields%add_empty_field_collection(interm_collection_name)
       interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
 
       if (mode == mode_ics) then
-        prefix = 'checkpoint_'
+        prefix = 'restart_'
       else if (mode == mode_lbc) then
-        prefix = 'lbc_'
+        prefix = ''
       end if
 
       do i = 1, num_fields
@@ -187,12 +191,10 @@ module lfric2lfric_init_mod
                           config_list(i),   &
                           interm_mesh,      &
                           interm_twod_mesh, &
-                          prefix )
+                          prefix,           &
+                          no_xios )
       end do
     end if
-
-    call modeldb%io_contexts%get_io_context(context_src, io_context)
-    call io_context%set_current()
 
     ! Now finished with config_list, deallocate
     deallocate(config_list)

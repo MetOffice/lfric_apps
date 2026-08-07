@@ -68,7 +68,7 @@ coord_space             = 'Wchi',
 /
 
 &logging
-  run_log_level         = 'info',
+  run_log_level         = 'debug',
 /
 
 &time
@@ -109,4 +109,8 @@ coord_space             = 'Wchi',
 
 &orography
   orog_init_option      = 'none'
+/
+
+&dst_jules_surface_types
+  multidata_map       = 1,2,11,6,6,6,7,8,9
 /
