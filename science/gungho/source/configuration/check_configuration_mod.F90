@@ -51,7 +51,8 @@ module check_configuration_mod
                                   substep_transport_off,                       &
                                   adjust_vhv_wind,                             &
                                   ffsl_unity_3d,                               &
-                                  wind_mono_top
+                                  wind_mono_top,                               &
+                                  native_w2_wind_transport
   use transport_enumerated_types_mod,                                          &
                             only: scheme_mol_3d,                               &
                                   scheme_ffsl_3d,                              &
@@ -607,6 +608,23 @@ contains
           write( log_scratch_space, '(A)' ) 'reference_reset_time must be greater than or equal to time step size dt'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
+      end if
+
+      if ( native_w2_wind_transport ) then
+        if ( geometry == geometry_spherical .and. topology == topology_fully_periodic ) then
+          write( log_scratch_space, '(A)' ) 'Native wind transport on global spherical domains is not supported'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        do i = 1, profile_size
+          if ( field_names(i) == "wind" ) then
+            if ( ( horizontal_method(i) /= split_method_sl  .or. &
+                   vertical_method(i) /= split_method_sl ) ) then
+              write( log_scratch_space, '(A)' ) 'Native wind transport requires SL scheme for the winds'
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            end if
+            exit
+          end if
+        end do
       end if
 
       call log_event( '...Check gungho config done', LOG_LEVEL_INFO )
