@@ -145,7 +145,7 @@ contains
                                            dt,                                 &
                                            alpha,                              &
                                            outer_iterations,                   &
-                                           inner_iterations
+                                           inner_iterations_si
     use base_mesh_config_mod,        only: geometry,                           &
                                            geometry_spherical,                 &
                                            geometry_planar,                    &
@@ -268,9 +268,9 @@ contains
           outer_iterations
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
-        if ( inner_iterations < 1 ) then
+        if ( minval(inner_iterations_si) < 1 ) then
           write( log_scratch_space, '(A,I4)' ) 'Invalid Choice: inner_iterations must be at least 1:', &
-          inner_iterations
+          minval(inner_iterations_si)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
       end if

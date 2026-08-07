@@ -15,6 +15,7 @@ module swe_timestep_alg_mod
 
   ! Constants
   use constants_mod,                  only: i_def, r_def
+  use dycore_constants_mod,           only: stepper_siqn
   use field_indices_mod,              only: isw_u, &
                                             isw_g, &
                                             isw_b, &
@@ -36,7 +37,7 @@ module swe_timestep_alg_mod
                                             tik, LPROF
   use timestepping_config_mod,        only: alpha,            &
                                             outer_iterations, &
-                                            inner_iterations
+                                            inner_iterations_si
   use transport_config_mod,           only: cheap_update
 
   ! Derived Types
@@ -486,13 +487,14 @@ contains
     outer_dynamics_loop: do outer = 1,outer_iterations
 
       ! Advect quantities
-      call swe_transport_control_alg_step( config,      &
-                                           rhs_adv,     &
-                                           adv_fields,  &
-                                           state_n,     &
-                                           state,       &
-                                           model_clock, &
-                                           outer,       &
+      call swe_transport_control_alg_step( config,       &
+                                           rhs_adv,      &
+                                           adv_fields,   &
+                                           state_n,      &
+                                           state,        &
+                                           model_clock,  &
+                                           outer,        &
+                                           stepper_siqn, &
                                            wind_prev )
 
       ! Set wind_prev to be latest estimate of wind
@@ -530,7 +532,7 @@ contains
       !============================================================================
       ! Start the inner loop
       !============================================================================
-      inner_dynamics_loop: do inner = 1,inner_iterations
+      inner_dynamics_loop: do inner = 1,inner_iterations_si(outer)
 
         ! Build residual: -R = -( rhs(state, alpha) - rhs(state_n, alpha-1) - rhs_adv)
         call swe_rhs_alg( rhs_np1, alpha_dt, state, s_geopot )
@@ -668,13 +670,14 @@ contains
     ! Advect quantities
     outer_iteration = 1_i_def
     call rhs_adv%set_scalar(0.0_r_def)
-    call swe_transport_control_alg_step( config,      &
-                                         rhs_adv,     &
-                                         adv_fields,  &
-                                         state_n,     &
-                                         state,       &
-                                         model_clock, &
-                                         outer_iteration )
+    call swe_transport_control_alg_step( config,          &
+                                         rhs_adv,         &
+                                         adv_fields,      &
+                                         state_n,         &
+                                         state,           &
+                                         model_clock,     &
+                                         outer_iteration, &
+                                         stepper_rk )
 
     ! Put RHS together
     call rhs_n%axpy(1.0_r_def, rhs_adv)

@@ -9,6 +9,7 @@ module atlt_transport_controller_alg_mod
 
   use config_mod,                         only : config_type
   use constants_mod,                      only : i_def, r_def, l_def
+  use dycore_constants_mod,               only : stepper_siqn
   use field_mod,                          only : field_type
   use r_tran_field_mod,                   only : r_tran_field_type
   use log_mod,                            only : log_event,         &
@@ -197,7 +198,7 @@ module atlt_transport_controller_alg_mod
                  setval_X( wind_np1_rdef_inp, wind_np1_rdef ) )
 
     ! Initialise tl_transport_controller object
-    call tl_transport_controller%initialise( config, model_clock,               &
+    call tl_transport_controller%initialise( config, model_clock, stepper_siqn, &
                                              ref_field_rdef, ls_ref_field_rdef, &
                                              wind_n_rdef, wind_np1_rdef,        &
                                              ls_wind_n_rdef, ls_wind_np1_rdef,  &

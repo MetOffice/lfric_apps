@@ -8,34 +8,36 @@
 module gungho_transport_control_alg_mod
 
   use config_mod,                        only: config_type
-  use constants_mod,                     only: i_def, r_def, l_def, r_tran, &
+  use constants_mod,                     only: i_def, r_def, l_def, r_tran,    &
                                                PRECISION_R_TRAN
+  use dycore_constants_mod,              only: stepper_siqn, stepper_tr,       &
+                                               stepper_bdf2
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
   use flux_precomputations_alg_mod,      only: flux_precomputations_type
-  use formulation_config_mod,            only: moisture_formulation,     &
-                                               moisture_formulation_dry, &
+  use formulation_config_mod,            only: moisture_formulation,           &
+                                               moisture_formulation_dry,       &
                                                use_multires_coupling
   use local_mesh_mod,                    only: local_mesh_type
-  use log_mod,                           only: log_event,         &
-                                               log_scratch_space, &
-                                               LOG_LEVEL_DEBUG,   &
-                                               LOG_LEVEL_ERROR,   &
+  use log_mod,                           only: log_event,                      &
+                                               log_scratch_space,              &
+                                               LOG_LEVEL_DEBUG,                &
+                                               LOG_LEVEL_ERROR,                &
                                                LOG_LEVEL_ALWAYS
   use mesh_collection_mod,               only: mesh_collection
   use mesh_mod,                          only: mesh_type
-  use multires_coupling_config_mod,      only: coarse_aerosol_transport, &
+  use multires_coupling_config_mod,      only: coarse_aerosol_transport,       &
                                                aerosol_mesh_name
   use r_tran_field_mod,                  only: r_tran_field_type
   use transport_config_mod,              only: transport_ageofair
   use transport_controller_mod,          only: transport_controller_type
   use transport_metadata_mod,            only: transport_metadata_type
-  use transport_metadata_collection_mod, only: transport_metadata_collection_type, &
-                                               transport_metadata_collection
-  use check_configuration_mod,           only: check_any_shifted,    &
-                                               check_transport_name, &
+  use transport_metadata_collection_mod, only: transport_metadata_collection,  &
+                                               transport_metadata_collection_type
+  use check_configuration_mod,           only: check_any_shifted,              &
+                                               check_transport_name,           &
                                                check_any_eqn_consistent
-  use timing_mod,                        only: start_timing, stop_timing, &
+  use timing_mod,                        only: start_timing, stop_timing,      &
                                                tik, LPROF
   implicit none
 
@@ -148,6 +150,7 @@ contains
   !> @param[in]     mr_in           Moisture fields before transport
   !> @param[in]     model_clock     Time within the model
   !> @param[in]     outer           Outer (advection) iteration number
+  !> @param[in]     stepper         Enumerator for timestepper
   !> @param[in]     cheap_update    Logical flag for cheap transport update
   !> @param[in]     prev_inc        (Optional) Advective increment after 1st outer
   !!                                iteration transport used for cheap transport update
@@ -155,6 +158,8 @@ contains
   !!                                previous outer iteration
   !> @param[in]     rho_d_n         (Optional) dry density to be transported,
   !!                                without the predictor factor
+  !> @param[in]     rho_d_n_start   (Optional) dry density at start of timestep,
+  !!                                for use with TR-BDF2 timestepper
   !> @param[in]     total_dry_flux  (Optional) the mass flux used to transport
   !!                                the dry density
   !> @param[in,out] adv_tracer_all_outer
@@ -177,9 +182,9 @@ contains
   subroutine gungho_transport_control_alg(config,                              &
                                           advection_inc, advected_fields,      &
                                           wind_np1, wind_n, mr_out, mr_in,     &
-                                          model_clock, outer,                  &
+                                          model_clock, outer, stepper,         &
                                           cheap_update, prev_inc, wind_prev,   &
-                                          rho_d_n,                             &
+                                          rho_d_n, rho_d_n_start,              &
                                           total_dry_flux,                      &
                                           adv_tracer_all_outer,                &
                                           adv_tracer_all_outer_after_slow,     &
@@ -227,10 +232,12 @@ contains
     type(field_type),            intent(in)    :: mr_in(nummr)
     class(model_clock_type),     intent(in)    :: model_clock
     integer(kind=i_def),         intent(in)    :: outer
+    integer(kind=i_def),         intent(in)    :: stepper
     logical(kind=l_def),         intent(in)    :: cheap_update
     type(field_type),            intent(in),    optional :: prev_inc(bundle_size)
     type(field_type),            intent(in),    optional :: wind_prev
     type(field_type),    target, intent(in),    optional :: rho_d_n
+    type(field_type),            intent(in),    optional :: rho_d_n_start
     type(r_tran_field_type),     intent(in),    optional :: total_dry_flux
     type(field_collection_type), intent(inout), optional :: adv_tracer_all_outer
     type(field_collection_type), intent(in),    optional :: adv_tracer_all_outer_after_slow
@@ -251,6 +258,7 @@ contains
     type(field_type)                       :: rho_d_np1
     type(field_type)                       :: aerosol_wind_n, aerosol_wind_np1
     type(field_type)                       :: aerosol_reference_rho
+    type(r_tran_field_type)                :: tr_and_bdf2_flux
     type(field_type),              pointer :: rho_d_n_ptr
     type(field_type),              target  :: rho_d_n_trgt
     type(field_type),              pointer :: rho_d_latest_ptr
@@ -294,6 +302,12 @@ contains
     ! Determine aspects relating to cheap update steps -------------------------
     ! Check whether it is a cheap update step
     cheap_update_step = (cheap_update .and. outer > 1)
+    if (cheap_update .and. .not. stepper == stepper_siqn) then
+      call log_event(                                                          &
+          'Cheap transport update not implemented for TR-BDF2 stepper',        &
+          LOG_LEVEL_ERROR                                                      &
+      )
+    end if
 
     call wind_for_adv%initialise( wind_n%get_function_space() )
     if (cheap_update .AND. outer > 2 .AND. present(wind_prev) ) then
@@ -314,8 +328,9 @@ contains
     end if
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise(config,                               &
-            model_clock, rho_d_latest_ptr, wind_for_adv, wind_np1, outer,      &
+    call transport_controller%initialise(                                      &
+            config, model_clock, stepper,                                      &
+            rho_d_latest_ptr, wind_for_adv, wind_np1, outer,                   &
             cheap_update_step                                                  &
     )
 
@@ -338,10 +353,26 @@ contains
 
     ! Increment the whole time step's dry flux, which is to be used in the
     ! transport of tracers in the final outer step, if using the cheap update
-    if (cheap_update) then
+    ! or the TR-BDF2 timestepper
+    if (cheap_update .or. (                                                    &
+        stepper == stepper_bdf2 .and. outer == outer_iterations)               &
+      ) then
       flux_precomputations => transport_controller%get_flux_precomputations()
       flux_this_outer => flux_precomputations%get_total_ref_flux()
       call invoke( inc_X_plus_Y(total_dry_flux, flux_this_outer) )
+
+    ! If in BDF2 stage of TR-BDF2, but not last outer, need to store flux
+    else if (stepper == stepper_bdf2 .and. outer < outer_iterations) then
+      flux_precomputations => transport_controller%get_flux_precomputations()
+      flux_this_outer => flux_precomputations%get_total_ref_flux()
+      call tr_and_bdf2_flux%initialise(total_dry_flux%get_function_space())
+      call invoke( X_plus_Y(tr_and_bdf2_flux, total_dry_flux, flux_this_outer) )
+
+    ! Store dry flux in final outer iteration of TR
+    else if (stepper == stepper_tr .and. outer == outer_iterations) then
+      flux_precomputations => transport_controller%get_flux_precomputations()
+      flux_this_outer => flux_precomputations%get_total_ref_flux()
+      call invoke( setval_X(total_dry_flux, flux_this_outer) )
     end if
 
     ! Check negative reference fields at this point
@@ -385,9 +416,44 @@ contains
               mr_out, mr_in, nummr_to_transport,                               &
               transport_controller, transport_metadata                         &
       )
-      ! ---------------------------------------------------------------------- !
-      ! Transport tracers which are active in fast physics, and therefore need
-      ! transporting on every outer iteration
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport potential temperature
+    ! (must be after moisture but before last_outer tracers due to cheap update)
+    ! Note: the theta increment is pointwise
+    call log_event( "Transporting potential temperature...", LOG_LEVEL_DEBUG)
+    transport_metadata =>                                                      &
+        transport_metadata_collection%get_transport_metadata('potential_temperature')
+
+    call theta_transport_alg(                                                  &
+            fields_np1(igh_t), advection_inc(igh_t), advected_fields(igh_t),   &
+            mr_out, mr_in, transport_controller, transport_metadata            &
+    )
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport tracers which are active in fast physics, and therefore need
+    ! transporting on every outer iteration
+    ! Not transported in TR step of TR-BDF2
+    if ( moisture_formulation /= moisture_formulation_dry ) then
+
+      if (stepper == stepper_bdf2) then
+        ! Reset transport controller -- transport is done over whole timestep
+        ! Set stepper to SIQN to use time-averaged wind
+        call transport_controller%finalise()
+        call transport_controller%initialise(                                  &
+                config, model_clock, stepper_siqn,                             &
+                rho_d_n_start, wind_n, wind_np1, outer=outer,                  &
+                cheap_update_step=.false.                                      &
+        )
+        ! Copy dry density flux for the whole timestep into flux precomputations
+        if (outer < outer_iterations) then
+          call transport_controller%initialise_flux_precomputations(tr_and_bdf2_flux)
+        else
+          call transport_controller%initialise_flux_precomputations(total_dry_flux)
+        end if
+      end if
+
       if (present(adv_tracer_all_outer)                                        &
           .and. check_transport_name('adv_tracer') ) then
         call log_event(                                                        &
@@ -416,19 +482,6 @@ contains
       end if
     end if
 
-    ! ------------------------------------------------------------------------ !
-    ! Transport potential temperature
-    ! (must be after moisture but before last_outer tracers due to cheap update)
-    ! Note: the theta increment is pointwise
-    call log_event( "Transporting potential temperature...", LOG_LEVEL_DEBUG)
-    transport_metadata =>                                                      &
-        transport_metadata_collection%get_transport_metadata('potential_temperature')
-
-    call theta_transport_alg(                                                  &
-            fields_np1(igh_t), advection_inc(igh_t), advected_fields(igh_t),   &
-            mr_out, mr_in, transport_controller, transport_metadata            &
-    )
-
     ! ======================================================================== !
     ! TRANSPORT OF PROGNOSTICS: LAST OUTER LOOP
     ! ======================================================================== !
@@ -446,8 +499,8 @@ contains
         ! the difference in winds from the cheap update
         call transport_controller%finalise()
         call transport_controller%initialise(                                  &
-                config,                                                        &
-                model_clock, rho_d_n_ptr, wind_n, wind_np1,                    &
+                config, model_clock, stepper_siqn,                             &
+                rho_d_n_ptr, wind_n, wind_np1,                                 &
                 outer=outer, cheap_update_step=.false.                         &
         )
         ! Copy dry density flux for the whole timestep into flux precomputations
@@ -470,8 +523,8 @@ contains
 
         ! Set up new transport controller for coarser mesh
         call aerosol_transport_controller%initialise(                          &
-                config,                                                        &
-                model_clock, aerosol_reference_rho, aerosol_wind_n,            &
+                config, model_clock, stepper_siqn,                             &
+                aerosol_reference_rho, aerosol_wind_n,                         &
                 aerosol_wind_np1, outer, cheap_update_step=.false.             &
         )
         ! Copy dry density flux for the whole timestep into flux precomputations

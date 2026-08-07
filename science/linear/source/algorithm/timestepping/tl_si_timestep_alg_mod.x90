@@ -34,7 +34,7 @@ module tl_si_timestep_alg_mod
   use mixed_solver_config_mod,     only: guess_np1,                            &
                                          reference_reset_time
   use timestepping_config_mod,     only: alpha,                                &
-                                         outer_iterations, inner_iterations,   &
+                                         outer_iterations, inner_iterations_si,&
                                          spinup_alpha
   use transport_config_mod,        only: use_density_predictor
   use derived_config_mod,          only: bundle_size
@@ -150,7 +150,8 @@ module tl_si_timestep_alg_mod
   type( field_type ), allocatable :: ls_rhs_phys(:,:,:)
   type( field_type ), allocatable :: ls_mr_itns(:,:,:)
   type( field_type ), allocatable :: ls_moist_dyn_itns(:,:,:)
-  integer( i_def ) :: ls_outer_iterations, ls_inner_iterations
+  integer( i_def ),   allocatable :: ls_inner_iterations(:)
+  integer( i_def ) :: ls_outer_iterations
 
   type( field_type ) :: theta_fv_inc ! theta fv transport increment to change to weak form
 
@@ -217,12 +218,14 @@ contains
       ! but ls_outer_iterations and ls_inner_iterations are set to
       ! 1 so that the arrays are defined.
       ls_outer_iterations = 1_i_def
-      ls_inner_iterations = 1_i_def
+      allocate(ls_inner_iterations(1))
+      ls_inner_iterations(:) = 1_i_def
     else
       ! The linearisation state is evolved, and the intermediate iterations
       ! are used to calculate the evolution of the perturbation.
       ls_outer_iterations = outer_iterations
-      ls_inner_iterations = inner_iterations
+      allocate(ls_inner_iterations(outer_iterations))
+      ls_inner_iterations(:) = inner_iterations_si(:)
     end if
 
     if (full_init) then
@@ -249,19 +252,19 @@ contains
       allocate(ls_mr_after_slow(nummr))
 
       allocate(ls_state_itns(bundle_size, &
-               ls_outer_iterations, ls_inner_iterations ))
+               ls_outer_iterations, maxval(ls_inner_iterations) ))
       allocate(ls_rhs_np1(bundle_size, &
-               ls_outer_iterations, ls_inner_iterations ))
+               ls_outer_iterations, maxval(ls_inner_iterations) ))
       allocate(ls_rhs_adv(bundle_size, &
-               ls_outer_iterations, ls_inner_iterations ))
+               ls_outer_iterations, maxval(ls_inner_iterations) ))
       allocate(ls_rhs_phys(bundle_size, &
-               ls_outer_iterations, ls_inner_iterations ))
+               ls_outer_iterations, maxval(ls_inner_iterations) ))
       allocate(ls_mr_inc(nummr, &
-               ls_outer_iterations, ls_inner_iterations ))
+               ls_outer_iterations, maxval(ls_inner_iterations) ))
       allocate(ls_mr_itns(nummr, &
-               ls_outer_iterations, ls_inner_iterations ))
+               ls_outer_iterations, maxval(ls_inner_iterations) ))
       allocate(ls_moist_dyn_itns(num_moist_factors, &
-               ls_outer_iterations, ls_inner_iterations ))
+               ls_outer_iterations, maxval(ls_inner_iterations) ))
     end if
 
     !--------------------------------------------------------------------
@@ -294,7 +297,7 @@ contains
     call clone_bundle(state, ls_rhs_n,            bundle_size)
 
     do outer = 1, ls_outer_iterations
-      do inner = 1, ls_inner_iterations
+      do inner = 1, ls_inner_iterations(outer)
         call clone_bundle(state, ls_state_itns(:, outer, inner), bundle_size)
         call clone_bundle(state, ls_rhs_np1(:, outer, inner),    bundle_size)
         call clone_bundle(state, ls_rhs_adv(:, outer, inner),    bundle_size)
@@ -319,7 +322,7 @@ contains
     call clone_bundle(ls_mr, ls_mr_after_slow, nummr)
 
     do outer = 1,ls_outer_iterations
-      do inner = 1, ls_inner_iterations
+      do inner = 1, ls_inner_iterations(outer)
         call clone_bundle(ls_moist_dyn, ls_moist_dyn_itns(:, outer, inner), &
                           num_moist_factors)
         call clone_bundle(ls_mr, ls_mr_itns(:, outer, inner), nummr)
@@ -508,7 +511,8 @@ contains
     call rhs_alg( ls_rhs_n, varbeta*cast_dt, ls_state_after_slow, &
                   ls_state_n, ls_moist_dyn_itns(:,1,1),           &
                   compute_eos=.false., compute_rhs_t_d=.true.,    &
-                  dlayer_rhs=.false., model_clock=modeldb%clock )
+                  dlayer_rhs=.false., stepper=stepper_siqn,       &
+                  model_clock=modeldb%clock )
 
     if ( .not. si_momentum_equation ) then
       ! Predictor of the wind field (u-beta*dt*rhs) to be advected if using
@@ -530,6 +534,7 @@ contains
                                         ls_mr_itns(:, outer, 1),        &
                                         ls_mr_after_slow(:),            &
                                         modeldb%clock, outer,           &
+                                        stepper_siqn,                   &
                                         cheap_update = .false. )
 
       ! Convert theta increment to weak form
@@ -558,14 +563,14 @@ contains
         !=====================================================================
         ! Start the Inner (nonlinear, coriolis) loop
         !=====================================================================
-        ls_inner_dynamics_loop: do inner = 1,ls_inner_iterations
+        ls_inner_dynamics_loop: do inner = 1,ls_inner_iterations(outer)
 
           write( log_scratch_space, '(A,2I3)' ) 'loop indices (o, i): ', &
                                                 outer, inner
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
           ! Calculate the counters for the next iteration
-          if ( inner == inner_iterations ) then
+          if ( inner == inner_iterations_si(outer) ) then
             next_inner = 1
             next_outer = outer + 1
           else
@@ -577,7 +582,7 @@ contains
           ! - and not the final iteration. So the final loop of the nonlinear is
           ! not required.
           if ( next_outer <= outer_iterations .and. &
-               next_inner <= inner_iterations ) then
+               next_inner <= inner_iterations_si(outer) ) then
 
             !--------------------------------------------------------------------
             ! Compute the time-level n+1 dynamics terms
@@ -590,6 +595,7 @@ contains
                           compute_eos=.true.,                 &
                           compute_rhs_t_d=.true.,             &
                           dlayer_rhs=dlayer_on,               &
+                          stepper=stepper_siqn,               &
                           model_clock=modeldb%clock )
 
             !--------------------------------------------------------------------
@@ -729,7 +735,7 @@ contains
     !--------------------------------------------------------------------
     call tl_rhs_alg( rhs_n, varbeta*cast_dt, state_after_slow, state_n, &
                      moist_dyn, ls_state_n, ls_moist_dyn_itns(:, 1,1),  &
-                     .false., .false., model_clock=modeldb%clock )
+                     .false., .false., stepper_siqn, model_clock=modeldb%clock )
 
     call invoke(setval_c( rhs_np1(igh_u), 0.0_r_def ))
 
@@ -770,7 +776,8 @@ contains
                                     ls_state_n(igh_u),                 &
                                     ls_mr_after_slow,                  &
                                     modeldb%clock,                     &
-                                    outer )
+                                    outer,                             &
+                                    stepper_siqn)
 
       ! Convert theta increment to weak form
       call invoke( setval_X(theta_fv_inc, rhs_adv(igh_t)),          &
@@ -792,6 +799,7 @@ contains
                          ls_moist_dyn_itns( :, ls_outer, 1 ), &
                          .true.,                              &
                          dlayer_on,                           &
+                         stepper_siqn,                        &
                          modeldb%clock )
       end if
 
@@ -819,7 +827,7 @@ contains
         !=======================================================================
         ! Start the Inner (nonlinear, coriolis) loop
         !=======================================================================
-        inner_dynamics_loop: do inner = 1,inner_iterations
+        inner_dynamics_loop: do inner = 1,inner_iterations_si(outer)
           write( log_scratch_space, '(A,2I3)' ) 'loop indices (o, i): ', &
                                                 outer, inner
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -844,6 +852,7 @@ contains
                             ls_moist_dyn_itns(:, ls_outer, ls_inner), &
                             .true.,                                   &
                             dlayer_on,                                &
+                            stepper_siqn,                             &
                             modeldb%clock)
           end if
 
@@ -1021,6 +1030,7 @@ contains
     if (allocated(ls_mr_inc))           deallocate(ls_mr_inc)
     if (allocated(ls_mr_itns))          deallocate(ls_mr_itns)
     if (allocated(ls_moist_dyn_itns))   deallocate(ls_moist_dyn_itns)
+    if (allocated(ls_inner_iterations)) deallocate(ls_inner_iterations)
 
     return
   end subroutine tl_semi_implicit_alg_final

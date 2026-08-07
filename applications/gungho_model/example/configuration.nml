@@ -284,7 +284,7 @@ timestep_start='1',
 &timestepping
 alpha=0.55,
 dt=3600,
-inner_iterations=2,
+inner_iterations_si=2,2
 method='semi_implicit',
 outer_iterations=2,
 runge_kutta_method='forward_euler',

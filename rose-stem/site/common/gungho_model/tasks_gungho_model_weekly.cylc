@@ -63,6 +63,19 @@
         "plot_str": "baroclinic.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip dry surface_pressure_temperature",
     }) %}
 
+{% elif task_ns.conf_name == "baroclinic-tr_bdf2-C192_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["baroclinic"],
+        "resolution": "C192_MG",
+        "DT": 1800,
+        "mpi_parts": 384,
+        "tsteps": 480,
+        "wallclock": 30,
+        "kgo_checks": [],
+        "plot_str": "baroclinic.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip dry surface_pressure_temperature",
+    }) %}
+
 {% elif task_ns.conf_name == "baroclinic-no_io-C192_MG" %}
 
     {% do task_dict.update({

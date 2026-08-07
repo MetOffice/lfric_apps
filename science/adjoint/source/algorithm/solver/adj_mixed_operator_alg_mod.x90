@@ -153,7 +153,7 @@ contains
     ! Obtain operators from runtime constants
     mt_lumped_inv => get_normalisation_r_solver( Wtheta, mesh%get_id() )
     m2_diag       => get_normalisation_r_solver( W2, mesh%get_id() )
-    mm_vel => get_w2_mass_matrix_r_solver( w2_si_matrix, mesh%get_id() )
+    mm_vel => get_w2_mass_matrix_r_solver( w2_si_matrix, self%stepper, mesh%get_id() )
 
     ! Obtain operators from SI operators
     p2theta       => get_p2theta()

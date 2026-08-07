@@ -57,13 +57,15 @@ contains
   !> @param[in]     ls_mr_in                 PASSIVE Moisture fields before transport
   !> @param[in]     model_clock              Time within the model
   !> @param[in]     outer                    Outer (advection) iteration number
+  !> @param[in]     stepper                  Enumerator for timestepper
   !> @param[in]     adj_lookup_table_cache   Lookup table cache
   !>
   subroutine atl_transport_control_alg(config, advection_inc, advected_fields,  &
                                        wind_np1, wind_n, mr_out, mr_in,         &
                                        ls_advected_fields,                      &
                                        ls_wind_np1, ls_wind_n, ls_mr_in,        &
-                                       model_clock, outer, adj_lookup_table_cache )
+                                       model_clock, outer, stepper,             &
+                                       adj_lookup_table_cache )
 
     use derived_config_mod,               only: bundle_size
     use sci_field_bundle_builtins_mod,    only: clone_bundle, set_bundle_scalar
@@ -98,6 +100,7 @@ contains
     type(field_type),                  intent(in)    :: ls_mr_in(nummr)
     class(model_clock_type),           intent(in)    :: model_clock
     integer(kind=i_def),               intent(in)    :: outer
+    integer(kind=i_def),               intent(in)    :: stepper
     type(adj_trans_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
     ! Internal variables
@@ -145,8 +148,9 @@ contains
                  setval_c( zero_wind_n, 0.0_r_def ),                            &
                  setval_c( zero_wind_np1, 0.0_r_def ) )
 
-    call tl_transport_controller%initialise( config,                            &
-            model_clock, zero_adv_fields, ls_advected_fields(igh_d),            &
+    call tl_transport_controller%initialise(                                    &
+            config, model_clock, stepper,                                       &
+            zero_adv_fields, ls_advected_fields(igh_d),                         &
             zero_wind_n, zero_wind_np1, ls_wind_n, ls_wind_np1,                 &
             outer=outer, cheap_update_step=cheap_update_step )
 

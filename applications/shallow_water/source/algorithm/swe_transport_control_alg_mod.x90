@@ -138,6 +138,7 @@ contains
   !> @param[in]     state_np1       Estimate of fields at time n+1
   !> @param[in]     model_clock     Time within the model
   !> @param[in]     outer           Outer (advection) iteration number
+  !> @param[in]     stepper         Enumerator for timestepper
   !> @param[in]     wind_prev       (Optional) Estimate of end of timestep wind
   !!                                from previous outer iteration
   subroutine swe_transport_control_alg_step( config,          &
@@ -147,6 +148,7 @@ contains
                                              state_np1,       &
                                              model_clock,     &
                                              outer,           &
+                                             stepper,         &
                                              wind_prev )
 
     use sci_fem_constants_mod,           only: get_mass_matrix_fe
@@ -165,6 +167,7 @@ contains
     type(field_vector_type), target, intent(in)    :: state_n
     class(model_clock_type),         intent(in)    :: model_clock
     integer(kind=i_def),             intent(in)    :: outer
+    integer(kind=i_def),             intent(in)    :: stepper
     type(field_type),                intent(in), optional :: wind_prev
 
     ! Fields from advected_fields, state_n and state_np1 vector
@@ -239,7 +242,8 @@ contains
     prev_inc = advection_inc
 
     ! Create transport_controller object (advecting wind etc)
-    call transport_controller%initialise(config,                               &
+    call transport_controller%initialise(                                      &
+            config, model_clock, stepper,                                      &
             model_clock, q, wind_for_adv, wind_np1,                            &
             outer=outer, cheap_update_step=cheap_update_step                   &
     )

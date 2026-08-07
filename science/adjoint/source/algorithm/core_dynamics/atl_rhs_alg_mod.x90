@@ -74,10 +74,11 @@ contains
   !> @param[in]     compute_eos Flag to control computation of the equation of
   !!                state
   !> @param[in]     dlayer_rhs Use damping layer in rhs yes/no
+  !> @param[in]     stepper Enumerator for timestepper
   !> @param[in]     model_clock Time in the model
 subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
                        ls_state, ls_moist_dyn, compute_eos,                &
-                       dlayer_rhs, model_clock)
+                       dlayer_rhs, stepper, model_clock)
 
     implicit none
 
@@ -92,6 +93,7 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     type(field_type),             intent(in)    :: ls_moist_dyn(num_moist_factors)
     type(field_type),             intent(inout) :: rhs(bundle_size)
     logical(kind=l_def),          intent(in)    :: compute_eos
+    integer(kind=i_def),          intent(in)    :: stepper
     class(model_clock_type),      intent(in)    :: model_clock
 
     type(operator_type), pointer :: mm_vel,    &
@@ -145,7 +147,7 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
 
     ! Using modified velocity mass matrix if using damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh%get_id(), model_clock)
+      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, stepper, mesh%get_id(), model_clock)
     else
       mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
     end if

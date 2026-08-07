@@ -1,0 +1,1634 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief A three time-level iterative timestepper for the 3D nonlinear
+!!        compressible Euler equations, using a Quasi-Newton method with a
+!!        Trapezoidal Backward-Difference (TR-BDF2) time discretisation.
+module tr_bdf2_timestep_alg_mod
+
+  ! Infrastructure
+  use config_mod,                 only: config_type
+  use constants_mod,              only: i_def, r_def, l_def, str_def, r_tran
+  use driver_modeldb_mod,         only: modeldb_type
+  use extrusion_mod,              only: TWOD
+  use field_mod,                  only: field_type
+  use field_array_mod,            only: field_array_type
+  use field_collection_mod,       only: field_collection_type
+  use fs_continuity_mod,          only: Wtheta, W2
+  use io_value_mod,               only: io_value_type,                         &
+                                        get_io_value
+
+  use log_mod,                    only: log_event, log_scratch_space,          &
+                                        LOG_LEVEL_INFO
+  use mesh_mod,                   only: mesh_type
+  use mesh_collection_mod,        only: mesh_collection
+  use model_clock_mod,            only: model_clock_type
+  use operator_mod,               only: operator_type
+  use r_tran_field_mod,           only: r_tran_field_type
+  use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
+
+  ! Field bundle built-ins
+  use derived_config_mod,         only: bundle_size
+  use sci_field_bundle_builtins_mod,                                           &
+                                  only: clone_bundle,                          &
+                                        bundle_axpy,                           &
+                                        bundle_axpby,                          &
+                                        add_bundle,                            &
+                                        copy_bundle,                           &
+                                        set_bundle_scalar
+
+  ! Apps routines
+  use cld_incs_mod,               only: cld_incs_init, cld_incs_output
+  use field_indices_mod,          only: igh_u, igh_t, igh_d, igh_p
+  use moist_dyn_mod,              only: num_moist_factors, gas_law
+  use mr_indices_mod,             only: nummr, imr_v, imr_cl, imr_ci,          &
+                                        imr_s, imr_r, imr_g
+  use si_diagnostics_mod,         only: output_diags_for_si
+  use timestepping_common_mod,    only: conditional_collection_copy,           &
+                                        get_stph_values, put_stph_values
+  use timestep_method_mod,        only: timestep_method_type
+
+  ! Algorithms
+  use sci_mass_matrix_solver_alg_mod,                                          &
+                                  only: mass_matrix_solver_alg
+  use ageofair_alg_mod,           only: ageofair_update
+  use calc_phys_predictors_alg_mod,                                            &
+                                  only: calc_phys_predictors_alg
+  use derive_exner_from_eos_alg_mod,                                           &
+                                  only: derive_exner_from_eos
+  use fast_physics_alg_mod,       only: fast_physics
+  use gungho_transport_control_alg_mod,                                        &
+                                  only: gungho_transport_control_alg_init,     &
+                                        gungho_transport_control_alg
+  use lam_rhs_alg_mod,            only: calc_rhs_lbc,                          &
+                                        apply_mask_rhs
+
+  use limited_area_lbc_alg_mod,   only: lam_solver_lbc,                        &
+                                        lam_blend_lbc
+  use map_physics_fields_alg_mod, only: map_physics_fields_alg
+  use mixing_alg_mod,             only: mixing_alg
+  use moist_dyn_factors_alg_mod,  only: moist_dyn_factors_alg
+  use moisture_conservation_alg_mod,                                           &
+                                  only: moisture_conservation_alg
+  use rhs_alg_mod,                only: rhs_alg
+  use predictors_alg_mod,         only: predictors_alg
+  use semi_implicit_solver_alg_mod,                                            &
+                                  only: semi_implicit_solver_alg_init,         &
+                                        semi_implicit_solver_alg_step,         &
+                                        semi_implicit_solver_alg_final
+  use si_operators_alg_mod,       only: create_si_operators,                   &
+                                        compute_si_operators,                  &
+                                        final_si_operators
+  use slow_physics_alg_mod,       only: slow_physics
+  use smagorinsky_alg_mod,        only: smagorinsky_alg
+  use solver_moist_correction_alg_mod,                                         &
+                                  only: solver_moist_correction_alg
+  use update_prognostic_scalars_alg_mod,                                       &
+                                  only: update_prognostic_scalars_alg
+#ifdef UM_PHYSICS
+  use cld_alg_mod,                only: cld_alg
+  use aerosol_ukca_alg_mod,       only: aerosol_ukca_alg
+  use casim_activate_alg_mod,     only: casim_activate_alg
+  use lsp_precfrac_checks_kernel_mod,                                          &
+                                  only: lsp_precfrac_checks_kernel_type
+  use stph_main_alg_mod,          only: spt_array_names,                       &
+                                        spt_array_count,                       &
+                                        skeb_array_names,                      &
+                                        skeb_array_count
+#endif
+
+  ! Kernels
+  use sci_enforce_bc_kernel_mod,  only: enforce_bc_kernel_type
+  use dg_matrix_vector_kernel_mod,                                             &
+                                  only: dg_matrix_vector_kernel_type
+  use dg_inc_matrix_vector_kernel_mod,                                         &
+                                  only: dg_inc_matrix_vector_kernel_type
+  use matrix_vector_kernel_mod,   only: matrix_vector_kernel_type
+
+  ! Pointers
+  use sci_fem_constants_mod,      only: get_mass_matrix_fe,                    &
+                                        get_mass_matrix_fv
+  use dycore_constants_mod,       only: stepper_tr, stepper_bdf2,              &
+                                        gamma, gamma2, gamma3
+
+  ! Configuration options
+  use aerosol_config_mod,         only: glomap_mode_dust_and_clim,             &
+                                        glomap_mode_ukca
+  use boundaries_config_mod,      only: blend_frequency_inner,                 &
+                                        blend_frequency_outer,                 &
+                                        blend_frequency_final
+  use formulation_config_mod,     only: moisture_formulation_dry
+  use initialization_config_mod,  only: init_option_checkpoint_dump,           &
+                                        lbc_option_um2lfric_file
+  use physics_config_mod,         only: smagorinsky_placement_outer
+  use section_choice_config_mod,  only: cloud_um, aerosol_um
+
+  implicit none
+
+  private
+
+  ! State object for the semi-implicit time-stepping method
+  type, extends(timestep_method_type), public :: tr_bdf2_timestep_type
+    private
+
+    type(config_type), pointer :: config
+    logical(kind=l_def)        :: use_moisture
+    logical(kind=l_def)        :: output_cld_incs
+    type(r_tran_field_type)    :: total_dry_flux      ! dry density flux stored
+                                                      ! stored over whole step
+    type(field_type)           :: dtheta, dtheta_cld  ! increment to theta
+    type(field_type)           :: du                  ! increment to u
+    type(field_type)           :: wind_prev           ! u from prev iteration
+                                                      ! used for cheap transport update
+
+    type(field_type), allocatable :: state(:)         ! Latest estimate of time n+1
+    type(field_type), allocatable :: state_n(:)       ! Fields at time n
+    type(field_type), allocatable :: state_m(:)       ! Latest estimate of midpoint
+    type(field_type), allocatable :: state_q(:)       ! Used to calculate state_bdf
+    type(field_type), allocatable :: state_bdf(:)     ! Initial state for BDF2 step
+    type(field_type), allocatable :: state_dag(:)     ! State after slow physics
+    type(field_type), allocatable :: state_to_adv(:)  ! State to transport (both steps)
+    type(field_type), allocatable :: state_aft_adv(:) ! State after transport (both steps)
+    type(field_type), allocatable :: mr_n(:)          ! Mixing ratios at time n
+    type(field_type), allocatable :: mr_aft_adv(:)    ! Mixing ratios after transport (both steps)
+    type(field_type), allocatable :: mr_dag(:)        ! Mixing ratios after slow physics
+    type(field_type), allocatable :: mr_bdf(:)        ! Mixing ratios after BDF2 step
+    type(field_type), allocatable :: rhs_n(:)         ! Explicit RHS (TR)
+    type(field_type), allocatable :: rhs_np1(:)       ! Implicit RHS (BDF2)
+    type(field_type), allocatable :: rhs_adv(:)       ! Transport RHS (both)
+    type(field_type), allocatable :: rhs_bdf(:)       ! Explicit RHS (BDF2)
+    type(field_type), allocatable :: rhs_m(:)         ! Implicit RHS (TR)
+    type(field_type), allocatable :: adv_inc_prev(:)  ! Transport increment from
+                                                      ! prev iteration (for cheap update)
+    type(field_type), allocatable :: rhs_phys(:)      ! Physics RHS (both steps)
+    type(field_type), allocatable :: rhs_lbc(:)       ! LBC RHS (both steps)
+
+  contains
+    private
+
+    procedure, public  :: step => tr_bdf2_alg_step
+    procedure, public  :: finalise => tr_bdf2_alg_final
+    procedure, nopass  :: run_init
+    procedure, nopass  :: run_step
+
+  end type tr_bdf2_timestep_type
+
+  ! Constructor for type
+  interface tr_bdf2_timestep_type
+    module procedure tr_bdf2_alg_init
+  end interface tr_bdf2_timestep_type
+
+contains
+
+  !> Extracts data from modeldb to prepare for initialising object
+  !> @param[in] modeldb Holds the model state
+  function tr_bdf2_alg_init(modeldb) result(self)
+    implicit none
+
+    type(modeldb_type), target, intent(in) :: modeldb
+
+    type(tr_bdf2_timestep_type)          :: self
+    type(field_collection_type), pointer :: prognostic_fields
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_type),            pointer :: u
+    type(field_type),            pointer :: rho
+    type(field_type),            pointer :: theta
+    type(field_type),            pointer :: exner
+    type(field_array_type),      pointer :: mr_array
+    type(field_type),            pointer :: mr(:)
+    class(model_clock_type),     pointer :: model_clock
+
+    ! Get pointer to clock to use downstream
+    model_clock => modeldb%clock
+
+    ! Get pointers to field collections for use downstream
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+
+    ! Get pointers to fields in the prognostic/diagnostic field collections
+    ! for use downstream
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field('exner', exner)
+
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    mr => mr_array%bundle
+
+    ! Run the initialisation process
+    call run_init(                                                             &
+            self, modeldb%config, u, rho, theta, exner, mr,                    &
+            prognostic_fields, moisture_fields, model_clock                    &
+    )
+
+  end function tr_bdf2_alg_init
+
+  !> Extracts data from input objects to prepare for running timestep
+  !> @param[in] modeldb The gungho model data object
+  subroutine tr_bdf2_alg_step(self, modeldb)
+
+    implicit none
+
+    class(tr_bdf2_timestep_type), intent(inout) :: self
+    type(modeldb_type),   target, intent(in)    :: modeldb
+
+    type(mesh_type),             pointer :: mesh
+    type(mesh_type),             pointer :: twod_mesh
+
+    class(model_clock_type),     pointer :: model_clock
+    type(io_value_type),         pointer :: temp_corr_io_value
+
+    type(field_collection_type), pointer :: prognostic_fields
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_type),            pointer :: u
+    type(field_type),            pointer :: rho
+    type(field_type),            pointer :: theta
+    type(field_type),            pointer :: exner
+    type(field_array_type),      pointer :: mr_array
+    type(field_type),            pointer :: mr(:)
+    type(field_array_type),      pointer :: moist_dyn_array
+    type(field_type),            pointer :: moist_dyn(:)
+
+    type(field_collection_type), pointer :: adv_tracer_all_outer
+    type(field_collection_type), pointer :: adv_tracer_last_outer
+    type(field_collection_type), pointer :: con_tracer_all_outer
+    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: derived_fields
+    type(field_collection_type), pointer :: radiation_fields
+    type(field_collection_type), pointer :: microphysics_fields
+    type(field_collection_type), pointer :: electric_fields
+    type(field_collection_type), pointer :: orography_fields
+    type(field_collection_type), pointer :: turbulence_fields
+    type(field_collection_type), pointer :: convection_fields
+    type(field_collection_type), pointer :: cloud_fields
+    type(field_collection_type), pointer :: surface_fields
+    type(field_collection_type), pointer :: soil_fields
+    type(field_collection_type), pointer :: snow_fields
+    type(field_collection_type), pointer :: chemistry_fields
+    type(field_collection_type), pointer :: aerosol_fields
+    type(field_collection_type), pointer :: stph_fields
+    type(field_collection_type), pointer :: lbc_fields
+
+    ! Arrays for passing modeldb data to stochastic physics scheme
+    real(kind=r_def), allocatable :: spt_spectral_coeffc(:)
+    real(kind=r_def), allocatable :: spt_spectral_coeffs(:)
+    real(kind=r_def), allocatable :: spt_power_law(:)
+    real(kind=r_def), allocatable :: skeb_spectral_coeffc(:)
+    real(kind=r_def), allocatable :: skeb_spectral_coeffs(:)
+    real(kind=r_def), allocatable :: skeb_power_law(:)
+
+    real(kind=r_def)              :: dt
+    real(kind=r_def)              :: dtemp_encorr
+#ifdef UM_PHYSICS
+    integer(kind=i_def)           :: stph_spectral_dim
+#endif
+    ! Configuration options retrieved from the config object
+    logical(kind=l_def)           :: use_spt
+    logical(kind=l_def)           :: use_skeb
+
+    ! Get pointers to field collections for use downstream
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+    model_clock => modeldb%clock
+
+    use_spt  = self%config%stochastic_physics%use_spt()
+    use_skeb = self%config%stochastic_physics%use_skeb()
+
+    ! Get pointers to fields for use downstream
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field('exner', exner)
+
+    ! Get timestep parameters from clock
+    dt = real(model_clock%get_seconds_per_step(), r_def)
+
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    lbc_fields => modeldb%fields%get_field_collection("lbc_fields")
+    radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    mr => mr_array%bundle
+    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
+    moist_dyn => moist_dyn_array%bundle
+
+    ! Get the mesh from one of the fields
+    mesh => theta%get_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    adv_tracer_all_outer => modeldb%fields%get_field_collection("adv_tracer_all_outer")
+    adv_tracer_last_outer => modeldb%fields%get_field_collection("adv_tracer_last_outer")
+    con_tracer_all_outer => modeldb%fields%get_field_collection("con_tracer_all_outer")
+    con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
+    derived_fields => modeldb%fields%get_field_collection("derived_fields")
+    microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
+    turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
+    convection_fields => modeldb%fields%get_field_collection("convection_fields")
+    cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
+    surface_fields => modeldb%fields%get_field_collection("surface_fields")
+    soil_fields => modeldb%fields%get_field_collection("soil_fields")
+    snow_fields => modeldb%fields%get_field_collection("snow_fields")
+    chemistry_fields => modeldb%fields%get_field_collection("chemistry_fields")
+    aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+    stph_fields => modeldb%fields%get_field_collection("stph_fields")
+    electric_fields => modeldb%fields%get_field_collection("electric_fields")
+    orography_fields => modeldb%fields%get_field_collection("orography_fields")
+
+    temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+    ! Get temperature increment for energy correction
+    dtemp_encorr = dt * temp_corr_io_value%data(1)
+
+#ifdef UM_PHYSICS
+    if (use_spt) then
+      ! Get spectral coefficients and power law from the model database
+      stph_spectral_dim = self%config%stochastic_physics%stph_spectral_dim()
+      call get_stph_values(                                                    &
+              modeldb, spt_array_names, stph_spectral_dim,                     &
+              spt_spectral_coeffc, spt_spectral_coeffs, spt_power_law          &
+      )
+    end if
+    if (use_skeb) then
+      ! Get spectral coefficients and power law from the model database
+      call get_stph_values(                                                    &
+              modeldb, skeb_array_names, stph_spectral_dim,                    &
+              skeb_spectral_coeffc, skeb_spectral_coeffs, skeb_power_law       &
+      )
+    end if
+#endif
+
+    ! Run the timestep
+    call run_step(                                                             &
+            self, modeldb, u, rho, theta, exner, mr, moist_dyn,                &
+            adv_tracer_all_outer, adv_tracer_last_outer,                       &
+            con_tracer_all_outer, con_tracer_last_outer,                       &
+            prognostic_fields, moisture_fields,                                &
+            derived_fields, radiation_fields, microphysics_fields,             &
+            electric_fields, orography_fields, turbulence_fields,              &
+            convection_fields, cloud_fields, surface_fields, soil_fields,      &
+            snow_fields, chemistry_fields, aerosol_fields, stph_fields,        &
+            lbc_fields,                                                        &
+            model_clock, dtemp_encorr,                                         &
+            spt_spectral_coeffc, spt_spectral_coeffs, spt_power_law,           &
+            skeb_spectral_coeffc, skeb_spectral_coeffs, skeb_power_law,        &
+            mesh, twod_mesh                                                    &
+    )
+
+#ifdef UM_PHYSICS
+    if (use_spt) then
+      ! Put spectral coefficients and power law back into model database
+      call put_stph_values(                                                    &
+              modeldb, spt_array_names, spt_spectral_coeffc,                   &
+              spt_spectral_coeffs, spt_power_law                               &
+      )
+    end if
+
+    if (use_skeb) then
+      ! Put spectral coefficients and power law back into model database
+      call put_stph_values(                                                    &
+              modeldb, skeb_array_names, skeb_spectral_coeffc,                 &
+              skeb_spectral_coeffs, skeb_power_law                             &
+      )
+    end if
+#endif
+
+  end subroutine tr_bdf2_alg_step
+
+  !> @details Initialisation procedure for the timestepping algorithm
+  !>          Initialises various internal fields
+  !> @param[in]     config            Application namelist configuration object
+  !> @param[in,out] u                 3D wind field
+  !> @param[in,out] rho               Density
+  !> @param[in,out] theta             Potential temperature
+  !> @param[in,out] exner             Exner pressure
+  !> @param[in,out] mr                Mixing ratios
+  !> @param[in,out] prognostic_fields Prognostic field collection
+  !> @param[in,out] moisture_fields   Moisture field collection
+  !> @param[in]     model_clock       Time in the model.
+  subroutine run_init(                                                         &
+          self, config, u, rho, theta, exner, mr,                              &
+          prognostic_fields, moisture_fields, model_clock                      &
+  )
+
+    implicit none
+
+    type(tr_bdf2_timestep_type),  intent(inout) :: self
+    type(config_type),    target, intent(in)    :: config
+    type(field_type),             intent(in)    :: u, rho, theta, exner
+    type(field_type),   optional, intent(in)    :: mr(:)
+    type(field_collection_type ), intent(inout) :: prognostic_fields
+    type(field_collection_type ), intent(inout) :: moisture_fields
+    class(model_clock_type),      intent(in)    :: model_clock
+
+    ! Mesh
+    type(mesh_type),         pointer :: mesh
+    ! Reference fields
+    type(field_type),        pointer :: rho_ref, theta_ref, exner_ref
+    ! Reference moist dynamics factors
+    type(field_array_type),  pointer :: moist_dyn_ref_array
+    type(field_type),        pointer :: moist_dyn_ref(:)
+
+    ! Timestep
+    real(kind=r_def) :: dt
+
+    ! Reset frequency of semi-implicit operators
+    integer(kind=i_def) :: reference_reset_freq
+
+    ! Configuration options retrieved from the config object
+    logical(kind=l_def)  :: use_wavedynamics
+    integer(kind=i_def)  :: moisture_formulation
+    logical(kind=l_def)  :: write_diag
+    logical(kind=l_def)  :: use_xios_io
+    real(kind=r_def)     :: reference_reset_time
+
+    self%config => config
+
+    use_wavedynamics     = config%formulation%use_wavedynamics()
+    moisture_formulation = config%formulation%moisture_formulation()
+    write_diag           = config%io%write_diag()
+    use_xios_io          = config%io%use_xios_io()
+    reference_reset_time = config%mixed_solver%reference_reset_time()
+
+    ! Get the mesh from one of the fields
+    mesh => theta%get_mesh()
+
+    !------------------------------------------------------------------------- !
+    ! Allocate internal state field arrays
+    !------------------------------------------------------------------------- !
+    allocate(self%state(bundle_size))
+    allocate(self%state_n(bundle_size))
+    allocate(self%state_m(bundle_size))
+    allocate(self%state_q(bundle_size))
+    allocate(self%state_bdf(bundle_size))
+    allocate(self%state_dag(bundle_size))
+    allocate(self%state_to_adv(bundle_size))
+    allocate(self%state_aft_adv(bundle_size))
+    allocate(self%rhs_n(bundle_size))
+    allocate(self%rhs_m(bundle_size))
+    allocate(self%rhs_bdf(bundle_size))
+    allocate(self%rhs_np1(bundle_size))
+    allocate(self%rhs_adv(bundle_size))
+    allocate(self%adv_inc_prev(bundle_size))
+    allocate(self%rhs_phys(bundle_size))
+    allocate(self%rhs_lbc(bundle_size))
+    allocate(self%mr_n(nummr))
+    allocate(self%mr_bdf(nummr))
+    allocate(self%mr_dag(nummr))
+    allocate(self%mr_aft_adv(nummr))
+
+    self%use_moisture = ( moisture_formulation /= moisture_formulation_dry )
+    self%output_cld_incs = (                                                   &
+        self%use_moisture .and. write_diag .and. use_xios_io                   &
+    )
+
+    !------------------------------------------------------------------------- !
+    ! Initialise internal state field objects
+    !------------------------------------------------------------------------- !
+
+    call u%copy_field_properties(self%state(igh_u))
+    call theta%copy_field_properties(self%state(igh_t))
+    call rho%copy_field_properties(self%state(igh_d))
+    call exner%copy_field_properties(self%state(igh_p))
+
+    call clone_bundle(self%state, self%state_n, bundle_size)
+    call clone_bundle(self%state, self%state_m, bundle_size)
+    call clone_bundle(self%state, self%state_q, bundle_size)
+    call clone_bundle(self%state, self%state_dag, bundle_size)
+    call clone_bundle(self%state, self%state_bdf, bundle_size)
+    call clone_bundle(self%state, self%state_to_adv, bundle_size)
+    call clone_bundle(self%state, self%state_aft_adv, bundle_size)
+    call clone_bundle(self%state, self%rhs_n, bundle_size)
+    call clone_bundle(self%state, self%rhs_m, bundle_size)
+    call clone_bundle(self%state, self%rhs_bdf, bundle_size)
+    call clone_bundle(self%state, self%rhs_np1, bundle_size)
+    call clone_bundle(self%state, self%rhs_adv, bundle_size)
+    call clone_bundle(self%state, self%rhs_phys, bundle_size)
+    call clone_bundle(self%state, self%rhs_lbc, bundle_size)
+    call clone_bundle(self%state, self%adv_inc_prev, bundle_size)
+
+    call theta%copy_field_properties(self%dtheta)
+    call theta%copy_field_properties(self%dtheta_cld)
+    call invoke(setval_c(self%dtheta_cld, 0.0_r_def))
+    call u%copy_field_properties(self%du)
+    call u%copy_field_properties(self%wind_prev)
+
+    call self%total_dry_flux%initialise(u%get_function_space())
+
+    call clone_bundle(mr, self%mr_n, nummr)
+    call clone_bundle(mr, self%mr_dag, nummr)
+    call clone_bundle(mr, self%mr_bdf, nummr)
+    if (self%use_moisture) then
+      call clone_bundle(mr, self%mr_aft_adv, nummr)
+    else
+      call set_bundle_scalar(0.0_r_def, self%mr_n, nummr)
+      call set_bundle_scalar(0.0_r_def, self%mr_dag, nummr)
+      call set_bundle_scalar(0.0_r_def, self%mr_bdf, nummr)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Initialise the physics increments to 0
+    ! ------------------------------------------------------------------------ !
+    call set_bundle_scalar(0.0_r_def, self%rhs_phys, bundle_size)
+
+    ! ------------------------------------------------------------------------ !
+    ! Operators for si solves
+    ! ------------------------------------------------------------------------ !
+    call create_si_operators(mesh, stepper_tr, self%config, model_clock)
+    call create_si_operators(mesh, stepper_bdf2, self%config, model_clock)
+
+    ! If using checkpointed reference state, then calculate semi-implicit
+    ! operators using the checkpointed reference state
+    dt = real(model_clock%get_seconds_per_step(), r_def)
+    reference_reset_freq = nint(reference_reset_time / dt, i_def)
+    if (mod(model_clock%get_first_step()-1, reference_reset_freq) /= 0) then
+      call moisture_fields%get_field("moist_dyn_ref", moist_dyn_ref_array)
+      moist_dyn_ref => moist_dyn_ref_array%bundle
+      call prognostic_fields%get_field('theta_ref', theta_ref)
+      call prognostic_fields%get_field('rho_ref', rho_ref)
+      call prognostic_fields%get_field('exner_ref', exner_ref)
+
+      ! Compute TR and BDF2 operators (only one call needed)
+      call compute_si_operators(                                               &
+          self%config, theta_ref, rho_ref, exner_ref,                          &
+          model_clock, moist_dyn_ref, stepper_tr                               &
+      )
+      ! TODO: this should be a common part and a specific part to avoid duplication 
+      call compute_si_operators(                                               &
+          self%config, theta_ref, rho_ref, exner_ref,                          &
+          model_clock, moist_dyn_ref, stepper_bdf2                             &
+      )
+    end if
+
+    if (use_wavedynamics) then
+      call gungho_transport_control_alg_init(mesh)
+
+      ! Construct semi-implicit solver
+      call semi_implicit_solver_alg_init(self%state, stepper_tr)
+      call semi_implicit_solver_alg_init(self%state, stepper_bdf2)
+    end if
+
+    call log_event(                                                            &
+        "tr_bdf2_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO &
+    )
+
+  end subroutine run_init
+
+  !> @details The control algorithm for the TR-BDF2 timestepper. This is a three
+  !!          time-level scheme that consists of two phases: the Trapezoidal
+  !!          (TR) step and the Backward-Difference (BDF2) step, each of which
+  !!          involves an implicit method that is solved with a Quasi-Newton
+  !!          method.
+  !> @param[in]     modeldb                Holds the model state
+  !> @param[in,out] u                      3D wind field
+  !> @param[in,out] rho                    Density
+  !> @param[in,out] theta                  Potential temperature
+  !> @param[in,out] exner                  Exner pressure
+  !> @param[in,out] mr                     Mixing ratios
+  !> @param[in,out] moist_dyn              Factors for moist dynamics
+  !> @param[in,out] adv_tracer_all_outer   Group of fields to be advected
+  !> @param[in,out] adv_tracer_last_outer  Group of fields to be advected
+  !> @param[in,out] con_tracer_all_outer   Second group of fields to be advected
+  !> @param[in,out] con_tracer_last_outer  Second group of fields to be advected
+  !> @param[in,out] prognostic_fields      Prognostic field collection
+  !> @param[in,out] moisture_fields        Moisture field collection
+  !> @param[in,out] derived_fields         Group of derived fields
+  !> @param[in,out] radiation_fields       Fields for radiation scheme
+  !> @param[in,out] microphysics_fields    Fields for mphys scheme
+  !> @param[in,out] electric_fields        Fields for electric (lighting) scheme
+  !> @param[in]     orography_fields       Fields for orog drag scheme
+  !> @param[in,out] turbulence_fields      Fields for turbulence scheme
+  !> @param[in,out] convection_fields      Fields for convection scheme
+  !> @param[in,out] cloud_fields           Fields for cloud scheme
+  !> @param[in,out] surface_fields         Fields for surface scheme
+  !> @param[in,out] soil_fields            Fields for soil hydrology scheme
+  !> @param[in,out] snow_fields            Fields for snow scheme
+  !> @param[in,out] chemistry_fields       Fields for chemistry scheme
+  !> @param[in,out] aerosol_fields         Fields for aerosol scheme
+  !> @param[in,out] stph_fields            Fields for stohcastic physics schemes
+  !> @param[in,out] lbc_fields             Fields for lateral boundaries
+  !> @param[in]     model_clock            Time in the model.
+  !> @param[in]     dtemp_encorr           Temperature increment for energy
+  !!                                       correction
+  !> @param[in,out] spt_spectral_coeffc    Real Spectral coefficients
+  !> @param[in,out] spt_spectral_coeffs    Imaginary Spectral coefficients
+  !> @param[in,out] spt_power_law          Spectral power law
+  !> @param[in,out] skeb_spectral_coeffc   Real Spectral coefficients
+  !> @param[in,out] skeb_spectral_coeffs   Imaginary Spectral coefficients
+  !> @param[in,out] skeb_power_law         Spectral power law
+  !> @param[in]     mesh                   The current mesh
+  !> @param[in]     twod_mesh              The current 2d mesh
+  subroutine run_step(                                                         &
+          self, modeldb, u, rho, theta, exner, mr, moist_dyn,                  &
+          adv_tracer_all_outer, adv_tracer_last_outer,                         &
+          con_tracer_all_outer, con_tracer_last_outer,                         &
+          prognostic_fields, moisture_fields, derived_fields,                  &
+          radiation_fields, microphysics_fields, electric_fields,              &
+          orography_fields, turbulence_fields, convection_fields,              &
+          cloud_fields, surface_fields, soil_fields, snow_fields,              &
+          chemistry_fields, aerosol_fields, stph_fields, lbc_fields,           &
+          model_clock, dtemp_encorr,                                           &
+          spt_spectral_coeffc, spt_spectral_coeffs, spt_power_law,             &
+          skeb_spectral_coeffc, skeb_spectral_coeffs, skeb_power_law,          &
+          mesh, twod_mesh                                                      &
+    )
+
+    implicit none
+
+    ! Arguments
+    type(tr_bdf2_timestep_type), target, intent(inout) :: self
+    type(modeldb_type),          target, intent(in)    :: modeldb
+
+    type(field_type),                    intent(inout) :: u, rho, theta, exner
+    type(field_type),                    intent(inout) :: mr(nummr)
+    type(field_type),                    intent(inout) :: moist_dyn(num_moist_factors)
+
+    type(field_collection_type),         intent(inout) :: adv_tracer_all_outer
+    type(field_collection_type),         intent(inout) :: adv_tracer_last_outer
+    type(field_collection_type),         intent(inout) :: con_tracer_all_outer
+    type(field_collection_type),         intent(inout) :: con_tracer_last_outer
+    type(field_collection_type),         intent(inout) :: prognostic_fields
+    type(field_collection_type),         intent(inout) :: moisture_fields
+    type(field_collection_type),         intent(inout) :: derived_fields
+    type(field_collection_type),         intent(inout) :: radiation_fields
+    type(field_collection_type),         intent(inout) :: microphysics_fields
+    type(field_collection_type),         intent(inout) :: electric_fields
+    type(field_collection_type),         intent(in)    :: orography_fields
+    type(field_collection_type),         intent(inout) :: turbulence_fields
+    type(field_collection_type),         intent(inout) :: convection_fields
+    type(field_collection_type),         intent(inout) :: cloud_fields
+    type(field_collection_type),         intent(inout) :: surface_fields
+    type(field_collection_type),         intent(inout) :: soil_fields
+    type(field_collection_type),         intent(inout) :: snow_fields
+    type(field_collection_type),         intent(inout) :: chemistry_fields
+    type(field_collection_type),         intent(inout) :: aerosol_fields
+    type(field_collection_type),         intent(inout) :: stph_fields
+    type(field_collection_type),         intent(inout) :: lbc_fields
+
+    class(model_clock_type),             intent(in)    :: model_clock
+    real(kind=r_def),                    intent(in)    :: dtemp_encorr
+    real(kind=r_def),                    intent(inout) :: spt_spectral_coeffc(:)
+    real(kind=r_def),                    intent(inout) :: spt_spectral_coeffs(:)
+    real(kind=r_def),                    intent(inout) :: spt_power_law(:)
+    real(kind=r_def),                    intent(inout) :: skeb_spectral_coeffc(:)
+    real(kind=r_def),                    intent(inout) :: skeb_spectral_coeffs(:)
+    real(kind=r_def),                    intent(inout) :: skeb_power_law(:)
+    type(mesh_type),            pointer, intent(in)    :: mesh
+    type(mesh_type),            pointer, intent(in)    :: twod_mesh
+
+    ! Internal variables
+    ! Reference fields
+    type(field_type),       pointer :: rho_ref
+    type(field_type),       pointer :: theta_ref
+    type(field_type),       pointer :: exner_ref
+    type(field_type),       pointer :: moist_dyn_ref(:)
+    type(field_array_type), pointer :: moist_dyn_ref_array
+
+    ! Moisture field to transport
+    type(field_type),       pointer :: mr_to_adv(:)
+    type(field_type)                :: dry_flux_solver
+    type(field_type)                :: rho_star
+
+    type(field_type)              :: dcfl_tot, dcff_tot, dbcf_tot
+    type(field_type)              :: dcfl_adv, dcff_adv, dbcf_adv
+    character(str_def), parameter :: sec_tot='processed'
+    character(str_def), parameter :: suffix_tot='tot'
+    character(str_def), parameter :: sec_adv='advection'
+    character(str_def), parameter :: suffix_adv='adv'
+
+    type(field_type),     pointer :: ageofair
+    type(operator_type),  pointer :: mm_wt
+    type(operator_type),  pointer :: mm_vel
+
+#ifdef UM_PHYSICS
+    type(field_type),     pointer :: precfrac
+    integer(kind=i_def)           :: glomap_mode
+#endif
+
+    integer(kind=i_def)         :: outer, inner, reference_reset_freq
+    logical(kind=l_def)         :: write_moisture_diag, do_moist_correction
+    type(field_collection_type) :: adv_tracer_all_outer_dag
+    type(field_collection_type) :: adv_tracer_last_outer_dag
+    type(field_collection_type) :: con_tracer_all_outer_dag
+    type(field_collection_type) :: con_tracer_last_outer_dag
+    logical(kind=l_def)         :: checkpoint_reference_fields
+    character(len=str_def)      :: prime_mesh_name
+    integer(kind=i_def)         :: lbc_option
+    logical(kind=l_def)         :: microphysics_casim
+    logical(kind=l_def)         :: l_mcr_precfrac
+    logical(kind=l_def)         :: murk_lbc
+    logical(kind=l_def)         :: fast_smagorinsky
+    logical(kind=l_def)         :: to_blend_lbc
+    real(kind=r_def)            :: dt
+    integer(kind=tik)           :: id
+
+    ! Configuration options retrieved from the config object
+    logical(kind=l_def)              :: limited_area
+    integer(kind=i_def)               :: blend_frequency
+    integer(kind=i_def)               :: element_order_h
+    integer(kind=i_def)               :: element_order_v
+    logical(kind=l_def)               :: use_physics
+    logical(kind=l_def)               :: dlayer_on
+    logical(kind=l_def)               :: use_wavedynamics
+    integer(kind=i_def)               :: moisture_formulation
+    logical(kind=l_def)               :: exner_from_eos
+    logical(kind=l_def)               :: solver_moisture_conservation
+    integer(kind=i_def)               :: init_option
+    logical(kind=l_def)               :: subroutine_timers
+    logical(kind=l_def)               :: write_conservation_diag
+    logical(kind=l_def)               :: write_diag
+    logical(kind=l_def)               :: use_xios_io
+    integer(kind=i_def)               :: diagnostic_frequency
+    logical(kind=l_def)               :: checkpoint_read
+    logical(kind=l_def)               :: smagorinsky
+    real(kind=r_def)                  :: reference_reset_time
+    integer(kind=i_def)               :: smagorinsky_placement
+    integer(kind=i_def)               :: cloud
+    integer(kind=i_def)               :: aerosol
+    integer(kind=i_def)               :: outer_iterations
+    integer(kind=i_def), allocatable  :: inner_iterations_tr(:)
+    integer(kind=i_def), allocatable  :: inner_iterations_bdf2(:)
+    logical(kind=l_def)               :: cheap_update
+    logical(kind=l_def)               :: transport_ageofair
+
+    if (LPROF) call start_timing(id, 'tr_bdf2_timestep_alg')
+
+    ! Get config variables
+    limited_area = self%config%boundaries%limited_area()
+    blend_frequency = self%config%boundaries%blend_frequency()
+    element_order_h = self%config%finite_element%element_order_h()
+    element_order_v = self%config%finite_element%element_order_v()
+    use_physics = self%config%formulation%use_physics()
+    dlayer_on = self%config%formulation%dlayer_on()
+    use_wavedynamics = self%config%formulation%use_wavedynamics()
+    moisture_formulation = self%config%formulation%moisture_formulation()
+    exner_from_eos = self%config%formulation%exner_from_eos()
+    solver_moisture_conservation =                                             &
+        self%config%formulation%solver_moisture_conservation()
+    init_option = self%config%initialization%init_option()
+    subroutine_timers = self%config%io%subroutine_timers()
+    write_conservation_diag = self%config%io%write_conservation_diag()
+    write_diag = self%config%io%write_diag()
+    use_xios_io = self%config%io%use_xios_io()
+    diagnostic_frequency = self%config%io%diagnostic_frequency()
+    checkpoint_read = self%config%io%checkpoint_read()
+    smagorinsky = self%config%mixing%smagorinsky()
+    reference_reset_time = self%config%mixed_solver%reference_reset_time()
+    smagorinsky_placement = self%config%physics%smagorinsky_placement()
+    cloud = self%config%section_choice%cloud()
+    aerosol = self%config%section_choice%aerosol()
+    cheap_update = self%config%transport%cheap_update()
+    transport_ageofair = self%config%transport%transport_ageofair()
+    outer_iterations = self%config%timestepping%outer_iterations()
+    allocate(inner_iterations_tr(outer_iterations))
+    allocate(inner_iterations_bdf2(outer_iterations))
+    inner_iterations_tr(:) = self%config%timestepping%inner_iterations_tr()
+    inner_iterations_bdf2(:) = self%config%timestepping%inner_iterations_bdf2()
+
+    lbc_option = 0
+    dt = real(model_clock%get_seconds_per_step(), r_def)
+
+    if (limited_area .and. use_wavedynamics) then
+
+      prime_mesh_name = self%config%base_mesh%prime_mesh_name()
+      lbc_option = self%config%initialization%lbc_option()
+
+      if (lbc_option == lbc_option_um2lfric_file) then
+        murk_lbc = self%config%aerosol%murk_lbc()
+      end if
+    end if
+    if (lbc_option == lbc_option_um2lfric_file                                 &
+        .or. (use_physics .and. cloud == cloud_um)) then
+      microphysics_casim = self%config%microphysics%microphysics_casim()
+      l_mcr_precfrac = self%config%microphysics%l_mcr_precfrac()
+    end if
+
+    if (element_order_h == 0 .and. element_order_v == 0) then
+      ! Lowest order so use finite volume constants
+      mm_wt => get_mass_matrix_fv(Wtheta, mesh%get_id())
+      mm_vel => get_mass_matrix_fv(W2, mesh%get_id())
+    else
+      mm_wt => get_mass_matrix_fe(Wtheta, mesh%get_id())
+      mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+    end if
+
+    !---------------------------------------------------------------------------
+    ! Copy prognostic field data to state arrays
+    !---------------------------------------------------------------------------
+    call invoke(                                                               &
+        name="copy_init_fields_to_state",                                      &
+        setval_X(self%state(igh_u), u ),                                       &
+        setval_X(self%state(igh_t), theta),                                    &
+        setval_X(self%state(igh_d), rho),                                      &
+        setval_X(self%state(igh_p), exner),                                    &
+        setval_c(self%total_dry_flux, 0.0_r_tran)                              &
+    )
+
+    call copy_bundle(self%state, self%state_n, bundle_size)
+    call copy_bundle(self%state, self%state_m, bundle_size)
+    call copy_bundle(self%state, self%state_dag, bundle_size)
+    if (self%use_moisture) then
+      call copy_bundle(mr, self%mr_n, nummr)
+      call copy_bundle(mr, self%mr_dag, nummr)
+    end if
+
+    call rho_star%initialise(rho%get_function_space())
+    call dry_flux_solver%initialise(u%get_function_space())
+
+    ! ======================================================================== !
+    ! SLOW PHYSICS
+    ! ======================================================================== !
+
+    if (use_physics) then
+      if (self%output_cld_incs) then
+        call cld_incs_init(                                                    &
+            cloud_fields, dcfl_tot, dcff_tot, dbcf_tot, sec_tot, suffix_tot    &
+        )
+      end if
+
+      call slow_physics(                                                       &
+          modeldb, self%du, self%dtheta, self%mr_dag,                          &
+          self%state_n(igh_t), self%state_n(igh_u), self%state_n(igh_d),       &
+          self%state_n(igh_p), moist_dyn, self%mr_n,                           &
+          derived_fields, radiation_fields, microphysics_fields,               &
+          electric_fields, orography_fields, turbulence_fields,                &
+          convection_fields, cloud_fields, surface_fields, soil_fields,        &
+          snow_fields, chemistry_fields, aerosol_fields, model_clock,          &
+          dt, dtemp_encorr, mesh, twod_mesh                                    &
+      )
+
+      call invoke(                                                             &
+          name="update_from_slow_physics",                                     &
+          inc_X_plus_Y(self%state_dag(igh_t), self%dtheta),                    &
+          inc_X_plus_Y(self%state_dag(igh_u), self%du)                         &
+      )
+      ! mr_dag is already updated in slow_physics
+
+      if (self%output_cld_incs) then
+        call cld_incs_init(                                                    &
+            cloud_fields, dcfl_adv, dcff_adv, dbcf_adv, sec_adv, suffix_adv    &
+        )
+      end if
+    end if ! use_physics
+
+    call conditional_collection_copy(                                          &
+        adv_tracer_all_outer_dag, generic_fields_to_copy=adv_tracer_all_outer, &
+        field_list=adv_tracer_all_outer                                        &
+    )
+    call conditional_collection_copy(                                          &
+        adv_tracer_last_outer_dag,                                             &
+        generic_fields_to_copy=adv_tracer_last_outer,                          &
+        field_list=adv_tracer_last_outer                                       &
+    )
+    call conditional_collection_copy(                                          &
+        con_tracer_all_outer_dag, generic_fields_to_copy=con_tracer_all_outer, &
+        field_list=con_tracer_all_outer                                        &
+    )
+    call conditional_collection_copy(                                          &
+        con_tracer_last_outer_dag,                                             &
+        generic_fields_to_copy=con_tracer_last_outer,                          &
+        field_list=con_tracer_last_outer                                       &
+    )
+
+    ! ======================================================================== !
+    ! DYNAMICS -- TRAPEZOIDAL STEP
+    ! ======================================================================== !
+
+    ! X^m + gamma*dt*F[X^m] = T[X^dag - gamma*dt*F[X^n]]
+
+    ! ------------------------------------------------------------------------ !
+    ! Compute the semi-implicit operators
+    ! ------------------------------------------------------------------------ !
+    ! Reset the reference state in the semi-implicit operators using the latest
+    ! value of the state. This occurs every n timesteps, where n is calculated
+    ! as reference_reset_time divided by dt.
+    ! The reference_reset_time is specified in the configuration namelist.
+    ! Note that this reset can only occur at most once per timestep.
+    reference_reset_freq = nint(reference_reset_time / dt, i_def)
+
+    if (mod(model_clock%get_step()-1, reference_reset_freq) == 0) then
+      ! Compute semi-implicit operators with current model state
+      ! TODO: this should be separated
+      call compute_si_operators(                                               &
+              self%config, self%state(igh_t), self%state(igh_d),               &
+              self%state(igh_p), model_clock, moist_dyn, stepper_tr            &
+      )
+      call compute_si_operators(                                               &
+              self%config, self%state(igh_t), self%state(igh_d),               &
+              self%state(igh_p), model_clock, moist_dyn, stepper_bdf2          &
+      )
+
+      checkpoint_reference_fields = (                                          &
+          mod(model_clock%get_first_step()-1, reference_reset_freq) /= 0 .or.  &
+          mod(model_clock%get_last_step(),    reference_reset_freq) /= 0       &
+      )
+
+      if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
+        ! If the first timestep of this run IS an operator calc timestep, but
+        ! the first timestep of the next run IS NOT, then checkpoint_flag
+        ! must be false to allow model to start running, as the operator
+        ! prognostics will not be in the initial dump
+        if (mod(model_clock%get_first_step()-1, reference_reset_freq) == 0     &
+            .and. mod(model_clock%get_last_step(), reference_reset_freq) /= 0) then
+          checkpoint_reference_fields = .false.
+        end if
+      end if
+
+      ! Copy over model state for checkpointing if required
+      if (checkpoint_reference_fields) then
+        call prognostic_fields%get_field('theta_ref', theta_ref)
+        call prognostic_fields%get_field('rho_ref', rho_ref)
+        call prognostic_fields%get_field('exner_ref', exner_ref)
+        call moisture_fields%get_field("moist_dyn_ref", moist_dyn_ref_array)
+        moist_dyn_ref => moist_dyn_ref_array%bundle
+        call copy_bundle(moist_dyn, moist_dyn_ref, num_moist_factors)
+        call invoke(                                                           &
+            setval_X(theta_ref, self%state(igh_t)),                            &
+            setval_X(rho_ref, self%state(igh_d)),                              &
+            setval_X(exner_ref, self%state(igh_p))                             &
+        )
+      end if
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Forcings: time-level n
+    ! ------------------------------------------------------------------------ !
+
+    ! rhs_n = M[X^dag - gamma*dt*F[X^n]]
+    call rhs_alg(                                                              &
+            self%rhs_n, gamma*dt, self%state_dag, self%state_n, moist_dyn,     &
+            compute_eos=.false., compute_rhs_t_d=.true., dlayer_rhs=.false.,   &
+            stepper=stepper_tr, model_clock=model_clock                        &
+    )
+
+    ! ======================================================================== !
+    ! Outer dynamics loop
+    ! ======================================================================== !
+
+    ! Transported variables are set to those after slow physics
+    call copy_bundle(self%state_dag, self%state_to_adv, bundle_size)
+    mr_to_adv => self%mr_dag
+
+    ! Set predictors for transport
+    call predictors_alg(                                                       &
+            self%state_to_adv, self%state_n(igh_u), self%rhs_n(igh_u),         &
+            gamma, model_clock                                                 &
+    )
+
+    outer_tr_loop: do outer = 1, outer_iterations
+
+      if (use_wavedynamics) then
+
+        call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
+
+        ! -------------------------------------------------------------------- !
+        ! Transport
+        ! -------------------------------------------------------------------- !
+        ! Transport state_dag & mr_dag: put results in rhs_adv & mr
+        ! Transporting wind is 0.5*(u^n + u^m)
+        call gungho_transport_control_alg(                                     &
+                self%config, self%rhs_adv,                                     &
+                self%state_to_adv, self%state_m(igh_u), self%state_n(igh_u),   &
+                mr, mr_to_adv, model_clock, outer, stepper_tr,                 &
+                cheap_update=.false.,                                          &
+                rho_d_n=self%state_dag(igh_d),                                 &
+                rho_d_n_start=self%state_dag(igh_d),                           &
+                total_dry_flux=self%total_dry_flux                             &
+        )
+
+        if (outer == outer_iterations) then
+          ! Store the transported state for the BDF2 step
+          ! Need mass matrix solve on u:
+          call mass_matrix_solver_alg(self%du, self%rhs_adv(igh_u))
+          call invoke(                                                         &
+              X_plus_Y(                                                        &
+                self%state_aft_adv(igh_u), self%du, self%state_to_adv(igh_u)   &
+              ),                                                               &
+              X_plus_Y(                                                        &
+                self%state_aft_adv(igh_t), self%rhs_adv(igh_t),                &
+                self%state_to_adv(igh_t)                                       &
+              ),                                                               &
+              X_plus_Y(                                                        &
+                self%state_aft_adv(igh_d), self%rhs_adv(igh_d),                &
+                self%state_to_adv(igh_d)                                       &
+              ),                                                               &
+              X_plus_Y(                                                        &
+                self%state_aft_adv(igh_p), self%rhs_adv(igh_p),                &
+                self%state_to_adv(igh_p)                                       &
+              )                                                                &
+          )
+        end if
+
+        ! Convert theta increment to weak form
+        call invoke(                                                           &
+            setval_X(self%dtheta, self%rhs_adv(igh_t)),                        &
+            setval_c(self%rhs_adv(igh_t), 0.0_r_def),                          &
+            dg_inc_matrix_vector_kernel_type(                                  &
+                self%rhs_adv(igh_t), self%dtheta, mm_wt                        &
+            )                                                                  &
+        )
+
+      else  ! No wavedynamics
+        if (self%use_moisture) call copy_bundle(self%mr_dag, mr, nummr)
+        call set_bundle_scalar(0.0_r_def, self%rhs_adv, bundle_size)
+        call copy_bundle(self%state_dag, self%state_aft_adv, bundle_size)
+      end if
+
+      ! Update the moisture after transport (mr_aft_adv)
+      if (self%use_moisture) call copy_bundle(mr, self%mr_aft_adv, nummr)
+
+      ! ====================================================================== !
+      ! Inner dynamics loop
+      ! ====================================================================== !
+      if (use_wavedynamics) then
+
+        inner_tr_loop: do inner = 1, inner_iterations_tr(outer)
+          write( log_scratch_space, '(A,2I3)' )                                &
+              'TR loop indices (o, i): ', outer, inner
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+          ! --------------------------------------------------------------------
+          ! Forcings: time-level m
+          ! --------------------------------------------------------------------
+          call rhs_alg(                                                        &
+              self%rhs_m, -gamma*dt, self%state_m, self%state_m, moist_dyn,    &
+              compute_eos=.true., compute_rhs_t_d=(inner==1),                  &
+              dlayer_rhs=dlayer_on, stepper=stepper_tr,                        &
+              model_clock=model_clock                                          &
+          )
+
+          !---------------------------------------------------------------------
+          ! LAM LBCs and RHS
+          !---------------------------------------------------------------------
+          if (limited_area .and. inner == 1 .and. outer == 1) then
+            call lam_solver_lbc(                                               &
+                self%state_m(igh_u), lbc_fields, prime_mesh_name               &
+            )
+            ! TODO: is tau_r = 1 correct here? 
+            call calc_rhs_lbc(                                                 &
+                self%rhs_lbc, lbc_fields, model_clock, prime_mesh_name,        &
+                1.0_r_def, stepper_tr                                          &
+            )
+          end if
+
+          !---------------------------------------------------------------------
+          ! Compute the residuals
+          !---------------------------------------------------------------------
+          ! Add on advective terms: rhs = rhs_n - rhs_m + rhs_adv
+          ! (reuse rhs_m for rhs)
+          call bundle_axpy(                                                    &
+              -1.0_r_def, self%rhs_m, self%rhs_n, self%rhs_m, bundle_size      &
+          )
+          call add_bundle(self%rhs_m, self%rhs_adv, self%rhs_m, bundle_size)
+
+          if (limited_area) then
+            if (inner == 1 .and. outer == 1) then
+              ! Add on the RHS for LBCs
+              call add_bundle(self%rhs_m, self%rhs_lbc, self%rhs_m, bundle_size)
+            end if
+            ! Apply masks to RHS
+            call apply_mask_rhs(self%rhs_m, prime_mesh_name)
+          end if
+
+          ! Accelerators for inner loop convergence
+          if (inner > 1) then
+            call invoke( setval_c(self%rhs_m(igh_d), 0.0_r_def),               &
+                         setval_c(self%rhs_m(igh_t), 0.0_r_def) )
+          end if
+
+          write_moisture_diag = (                                              &
+              self%use_moisture .and. write_conservation_diag                  &
+              .and. outer == outer_iterations                                  &
+              .and. inner == outer_iterations                                  &
+          )
+          if (write_moisture_diag) then
+            ! TODO: make sure this is right for TR-BDF2 
+            ! Calculate transported density
+            call self%state(igh_d)%copy_field_properties(rho_star)
+            call invoke(                                                       &
+                X_plus_Y(rho_star, self%state_dag(igh_d), self%rhs_adv(igh_d)) &
+            )
+            call moisture_conservation_alg(                                    &
+                self%config, rho_star, mr, 'Before solve'                      &
+            )
+          end if
+
+          !---------------------------------------------------------------------
+          ! Solve system: A*inc = rhs_m, and increment state by inc
+          !---------------------------------------------------------------------
+          call semi_implicit_solver_alg_step(                                  &
+              self%state_m, self%rhs_m,                                        &
+              dry_flux_solver, moist_dyn(gas_law), mr,                         &
+              first_iteration=(inner==1), stepper=stepper_tr                   &
+          )
+
+          if (write_moisture_diag) then
+            ! TODO: make sure this is right for TR-BDF2 
+            call moisture_conservation_alg(                                    &
+                self%config, self%state(igh_d), mr, 'After solve'              &
+            )
+          end if
+
+          ! If not already done update factors for moist dynamics
+          if (self%use_moisture) then
+            call moist_dyn_factors_alg(moist_dyn, mr)
+          end if
+
+          if (exner_from_eos) then
+            call derive_exner_from_eos(self%state_m, moist_dyn(gas_law))
+          end if
+
+          ! TODO: should there be any LAM blending here?
+        end do inner_tr_loop
+
+      end if  ! use_wavedynamics
+    end do outer_tr_loop
+
+    ! ======================================================================== !
+    ! DYNAMICS -- BACKWARD-DIFFERENCE STEP
+    ! ======================================================================== !
+
+    ! X^{n+1} + gamma2*dt*F[X^{n+1}] = T[(1-gamma3)*X^q + gamma3*X^m]
+    ! where X^q = X_dag + X_aft_adv - X_to_adv
+
+    ! First guess of X^{n+1} is X^m
+    call bundle_axpby(                                                         &
+        (1.0_r_def - 0.5_r_def/gamma), self%state_n,                           &
+        0.5_r_def/gamma, self%state_m,                                         &
+        self%state, bundle_size                                                &
+    )
+
+    ! ------------------------------------------------------------------------ !
+    ! Compute initial BDF state
+    ! ------------------------------------------------------------------------ !
+
+    ! X^q = X_dag + X_aft_adv - X_to_adv
+    call bundle_axpy(                                                          &
+        -1.0_r_def, self%state_to_adv, self%state_aft_adv, self%state_q,       &
+        bundle_size                                                            &
+    )
+    call add_bundle(self%state_q, self%state_dag, self%state_q, bundle_size)
+
+    ! X_bdf = (1-gamma3)*X^q + gamma3*X^m
+    call bundle_axpby(                                                         &
+        (1.0_r_def - gamma3), self%state_q, gamma3, self%state_m,              &
+        self%state_bdf, bundle_size                                            &
+    )
+
+    do_moist_correction = (solver_moisture_conservation .and. self%use_moisture)
+    if (do_moist_correction) then
+      call invoke( inc_a_times_X(gamma3, dry_flux_solver) )
+      call solver_moist_correction_alg(                                        &
+          self%config, mr, self%state_bdf(igh_d), self%state_aft_adv(igh_d),   &
+          dry_flux_solver                                                      &
+      )
+    end if
+
+    ! Note that for mr, the value at the m-level is equal to that at the q-level
+    ! so we can just use mr as mr_bdf
+    call copy_bundle(mr, self%mr_bdf, nummr)
+    mr_to_adv => self%mr_bdf
+
+    ! Compute BDF2 RHS, by multiplying by mass matrices
+    ! The pressure contribution is set to zero
+    call invoke(                                                               &
+        name="compute_rhs_bdf_from_state_bdf",                                 &
+        setval_c(self%rhs_bdf(igh_u), 0.0_r_def),                              &
+        matrix_vector_kernel_type(                                             &
+            self%rhs_bdf(igh_u), self%state_bdf(igh_u), mm_vel                 &
+        ),                                                                     &
+        enforce_bc_kernel_type(self%rhs_bdf(igh_u)),                           &
+        dg_matrix_vector_kernel_type(                                          &
+            self%rhs_bdf(igh_t), self%state_bdf(igh_t), mm_wt                  &
+        ),                                                                     &
+        setval_X(self%rhs_bdf(igh_d), self%state_bdf(igh_d)),                  &
+        setval_c(self%rhs_bdf(igh_p), 0.0_r_def)                               &
+    )
+
+    ! ======================================================================== !
+    ! Outer transport loop
+    ! ======================================================================== !
+
+    outer_bdf_loop: do outer = 1, outer_iterations
+
+      if (use_wavedynamics) then
+
+        call invoke( setval_c(dry_flux_solver, 0.0_r_def) )
+
+        ! -------------------------------------------------------------------- !
+        ! Transport
+        ! -------------------------------------------------------------------- !
+        ! Transport state_bdf & mr_bdf: put results in rhs_adv & mr
+        ! Transporting wind is u^{n+1}
+        ! Here we also transport other fields using 0.5*(u^n + u^{n+1})
+        call gungho_transport_control_alg(                                     &
+                self%config, self%rhs_adv,                                     &
+                self%state_bdf, self%state(igh_u), self%state_n(igh_u),        &
+                mr, mr_to_adv, model_clock, outer, stepper_bdf2,               &
+                cheap_update, self%adv_inc_prev, self%wind_prev,               &
+                self%state_bdf(igh_d), self%state_dag(igh_d),                  &
+                self%total_dry_flux,                                           &
+                adv_tracer_all_outer, adv_tracer_all_outer_dag,                &
+                adv_tracer_last_outer, adv_tracer_last_outer_dag,              &
+                con_tracer_all_outer, con_tracer_all_outer_dag,                &
+                con_tracer_last_outer, con_tracer_last_outer_dag               &
+        )
+
+        ! Convert theta increment to weak form
+        call invoke(                                                           &
+            setval_X(self%dtheta, self%rhs_adv(igh_t)),                        &
+            setval_c(self%rhs_adv(igh_t), 0.0_r_def),                          &
+            dg_inc_matrix_vector_kernel_type(                                  &
+                self%rhs_adv(igh_t), self%dtheta, mm_wt                        &
+            )                                                                  &
+        )
+
+        ! ----------------------------------------------------------------------
+        ! Forcings: time-level n+1
+        ! ----------------------------------------------------------------------
+        ! Used for fast physics predictors, so calculated here
+        call rhs_alg(                                                          &
+            self%rhs_np1, -gamma2*dt, self%state, self%state, moist_dyn,       &
+            compute_eos=.true., compute_rhs_t_d=.true., dlayer_rhs=dlayer_on,  &
+            stepper=stepper_bdf2, model_clock=model_clock                      &
+        )
+      else  ! No wavedynamics
+        call set_bundle_scalar(0.0_r_def, self%rhs_adv, bundle_size)
+        if (self%use_moisture) call copy_bundle(self%mr_dag, mr, nummr)
+      end if
+
+      ! Update the moisture after transport (mr_aft_adv)
+      if (self%use_moisture) call copy_bundle(mr, self%mr_aft_adv, nummr)
+
+      ! ====================================================================== !
+      ! FAST PHYSICS
+      ! ====================================================================== !
+
+      if (use_physics) then
+        !-----------------------------------------------------------------------
+        ! Predictors
+        !-----------------------------------------------------------------------
+        call calc_phys_predictors_alg(                                         &
+            derived_fields, self%rhs_np1, self%rhs_adv, self%rhs_bdf,          &
+            self%state, self%state_dag, lbc_fields, model_clock                &
+        )
+
+        if (outer == outer_iterations .and. self%output_cld_incs) then
+          call cld_incs_output(                                                &
+              cloud_fields, dcfl_adv, dcff_adv, dbcf_adv, sec_adv, suffix_adv  &
+          )
+        end if
+
+        call fast_physics(                                                     &
+            self%config, self%du, self%dtheta, mr, self%state_n(igh_t),        &
+            self%state_n(igh_d), self%state_n(igh_u), self%state_n(igh_p),     &
+            self%mr_n, derived_fields, radiation_fields, microphysics_fields,  &
+            orography_fields, turbulence_fields, convection_fields,            &
+            cloud_fields, surface_fields, soil_fields, snow_fields,            &
+            chemistry_fields, aerosol_fields, stph_fields,                     &
+            spt_spectral_coeffc, spt_spectral_coeffs, spt_power_law,           &
+            skeb_spectral_coeffc, skeb_spectral_coeffs, skeb_power_law,        &
+            outer, model_clock, dt                                             &
+        )
+
+        fast_smagorinsky = (                                                   &
+            smagorinsky .and.                                                  &
+            smagorinsky_placement == smagorinsky_placement_outer               &
+        )
+        if (fast_smagorinsky) then
+          call smagorinsky_alg(                                                &
+              self%config, self%dtheta, self%du, mr,                           &
+              self%state(igh_t), self%state(igh_u), derived_fields,            &
+              cloud_fields, self%state(igh_d), self%state(igh_p),              &
+              dt, model_clock                                                  &
+          )
+        end if
+
+        if (use_wavedynamics) then
+          ! copy incs into rhs_phys, including multiplication by mass matrix
+          ! need to reset rhs_phys to 0 because matrix_vector_kernel_type
+          ! increments the field rather than over-writing it
+          call set_bundle_scalar(0.0_r_def, self%rhs_phys, bundle_size)
+          call invoke(                                                         &
+              name="update_rhs_phys_from_fast_physics",                        &
+              dg_inc_matrix_vector_kernel_type(                                &
+                  self%rhs_phys(igh_t), self%dtheta, mm_wt                     &
+              ),                                                               &
+              matrix_vector_kernel_type(                                       &
+                  self%rhs_phys(igh_u), self%du, mm_vel),                      &
+              enforce_bc_kernel_type(self%rhs_phys(igh_u))                     &
+          )
+        end if
+      end if ! use_physics
+
+      ! ====================================================================== !
+      ! Inner dynamics loop
+      ! ====================================================================== !
+      if (use_wavedynamics) then
+
+        inner_bdf_loop: do inner = 1, inner_iterations_bdf2(outer)
+          write( log_scratch_space, '(A,2I3)' )                                &
+              'BDF loop indices (o, i): ', outer, inner
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+          ! --------------------------------------------------------------------
+          ! Forcings: time-level n+1
+          ! --------------------------------------------------------------------
+          if (inner > 1) then
+            call rhs_alg(                                                      &
+                self%rhs_np1, -gamma2*dt, self%state, self%state, moist_dyn,   &
+                compute_eos=.true., compute_rhs_t_d=.false.,                   &
+                dlayer_rhs=dlayer_on, stepper=stepper_bdf2,                    &
+                model_clock=model_clock                                        &
+            )
+          end if
+
+          !---------------------------------------------------------------------
+          ! LAM LBCs and RHS
+          !---------------------------------------------------------------------
+          if (limited_area .and. inner == 1 .and. outer == 1) then
+            call lam_solver_lbc(                                               &
+                self%state(igh_u), lbc_fields, prime_mesh_name                 &
+            )
+            ! TODO: is tau_r = 1 correct here? 
+            call calc_rhs_lbc(                                                 &
+                self%rhs_lbc, lbc_fields, model_clock, prime_mesh_name,        &
+                1.0_r_def, stepper_bdf2                                        &
+            )
+          end if
+
+          !---------------------------------------------------------------------
+          ! Compute the residuals
+          !---------------------------------------------------------------------
+          ! Add on advective terms: rhs = rhs_bdf - rhs_np1 + rhs_adv + rhs_phys
+          ! (reuse rhs_np1 for rhs)
+          call bundle_axpy(                                                    &
+              -1.0_r_def, self%rhs_np1, self%rhs_bdf, self%rhs_np1,            &
+              bundle_size                                                      &
+          )
+          call add_bundle(self%rhs_np1, self%rhs_adv, self%rhs_np1, bundle_size)
+          call add_bundle(self%rhs_np1, self%rhs_phys, self%rhs_np1, bundle_size)
+
+          if (limited_area) then
+            if (inner == 1 .and. outer == 1) then
+              ! Add on the RHS for LBCs
+              call add_bundle(                                                 &
+                  self%rhs_np1, self%rhs_lbc, self%rhs_np1, bundle_size        &
+              )
+            end if
+            ! Apply masks to RHS
+            call apply_mask_rhs(self%rhs_np1, prime_mesh_name)
+          end if
+
+          ! Accelerators for inner loop convergence
+          if (inner > 1) then
+            call invoke( setval_c(self%rhs_np1(igh_d), 0.0_r_def),             &
+                         setval_c(self%rhs_np1(igh_t), 0.0_r_def) )
+          end if
+
+          write_moisture_diag = (                                              &
+              self%use_moisture .and. write_conservation_diag                  &
+              .and. outer == outer_iterations                                  &
+              .and. inner == outer_iterations                                  &
+          )
+          if (write_moisture_diag) then
+            ! TODO: make sure this is right for TR-BDF2 
+            ! Calculate transported density
+            call self%state(igh_d)%copy_field_properties(rho_star)
+            call invoke(                                                       &
+                X_plus_Y(rho_star, self%state_dag(igh_d), self%rhs_adv(igh_d)) &
+            )
+            call moisture_conservation_alg(                                    &
+                self%config, rho_star, mr, 'Before solve'                      &
+            )
+          end if
+
+          !---------------------------------------------------------------------
+          ! Solve system: A*inc = rhs_m, and increment state by inc
+          !---------------------------------------------------------------------
+          call semi_implicit_solver_alg_step(                                  &
+              self%state, self%rhs_np1,                                        &
+              dry_flux_solver, moist_dyn(gas_law), mr,                         &
+              first_iteration=(inner==1), stepper=stepper_bdf2                 &
+          )
+
+          if (write_moisture_diag) then
+            ! TODO: make sure this is right for TR-BDF2 
+            call moisture_conservation_alg(                                    &
+                self%config, self%state(igh_d), mr, 'After solve'              &
+            )
+          end if
+
+          ! If not already done update factors for moist dynamics
+          if (self%use_moisture) then
+            call moist_dyn_factors_alg(moist_dyn, mr)
+          end if
+
+          if (exner_from_eos) then
+            call derive_exner_from_eos(self%state, moist_dyn(gas_law))
+          end if
+
+          !---------------------------------------------------------------------
+          ! LAM Overwrite and Blend LBCs
+          !---------------------------------------------------------------------
+          if (limited_area) then
+            to_blend_lbc = (                                                   &
+              blend_frequency == blend_frequency_inner .or. (                  &
+                blend_frequency == blend_frequency_outer                       &
+                .and. inner == inner_iterations_bdf2(outer_iterations)         &
+              ) .or. (                                                         &
+                blend_frequency == blend_frequency_final                       &
+                .and. inner == inner_iterations_bdf2(outer_iterations)         &
+                .and. outer == outer_iterations                                &
+              )                                                                &
+            )
+            if (to_blend_lbc) then
+              call lam_blend_lbc(                                              &
+                  self%state(igh_u), self%state(igh_p), self%state(igh_d),     &
+                  self%state(igh_t), mr, lbc_fields, microphysics_fields,      &
+                  aerosol_fields, lbc_option, microphysics_casim, murk_lbc,    &
+                  moisture_formulation, prime_mesh_name                        &
+              )
+            end if
+          end if
+        end do inner_bdf_loop
+
+        do_moist_correction = (                                                &
+          solver_moisture_conservation .and. self%use_moisture                 &
+          .and. outer == outer_iterations                                      &
+        )
+        if (do_moist_correction) then
+          call invoke(                                                         &
+              X_plus_Y(rho_star, self%rhs_adv(igh_d), self%state_bdf(igh_d))   &
+          )
+          call solver_moist_correction_alg(                                    &
+              self%config, mr, self%state(igh_d), rho_star, dry_flux_solver    &
+          )
+        end if
+
+      else ! when use_wavedynamics=false, just add physics increments here
+
+        call invoke(                                                           &
+            X_plus_Y(self%state(igh_t), self%state_dag(igh_t), self%dtheta),   &
+            X_plus_Y(self%state(igh_u), self%state_dag(igh_u), self%du)        &
+        )
+      end if  ! use_wavedynamics
+    end do outer_bdf_loop
+
+    ! ======================================================================== !
+    ! END-OF-STEP PHYSICS
+    ! ======================================================================== !
+
+    call adv_tracer_all_outer_dag%clear()
+    call adv_tracer_last_outer_dag%clear()
+    call con_tracer_all_outer_dag%clear()
+    call con_tracer_last_outer_dag%clear()
+
+    if (transport_ageofair) then
+      call con_tracer_last_outer%get_field('ageofair', ageofair)
+      call ageofair_update(ageofair, model_clock)
+    end if
+
+    !---------------------------------------------------------------------------
+    ! Apply mixing
+    !---------------------------------------------------------------------------
+    call mixing_alg(                                                           &
+        self%config, mr, self%state(igh_t), self%state(igh_u), derived_fields, &
+        cloud_fields, self%state(igh_d), self%state(igh_p), dt, model_clock    &
+    )
+
+    ! --------------------------------------------------------------------------
+    ! Call cloud scheme to generate cloud and latent heating after pressure
+    ! changes are applied from the solver.
+    ! --------------------------------------------------------------------------
+#ifdef UM_PHYSICS
+    if (use_physics .and. cloud == cloud_um) then
+      call cld_alg(                                                            &
+          self%config, self%dtheta_cld, mr, self%state(igh_t),                 &
+          self%state(igh_p), self%state(igh_d), derived_fields,                &
+          turbulence_fields, cloud_fields, convection_fields,                  &
+          self%state_n(igh_t), self%mr_n,                                      &
+          model_clock%get_step(), dt, .false.                                  &
+      )
+      call invoke(inc_X_plus_Y(self%state(igh_t), self%dtheta_cld))
+
+      if (l_mcr_precfrac) then
+        call microphysics_fields%get_field('precfrac', precfrac)
+        call invoke(                                                           &
+            lsp_precfrac_checks_kernel_type(                                   &
+                exner, mr(imr_v), mr(imr_cl), mr(imr_ci),                      &
+                mr(imr_s), mr(imr_r), mr(imr_g), precfrac                      &
+            )                                                                  &
+        )
+      end if
+
+      if (microphysics_casim) then
+        call casim_activate_alg(                                               &
+            self%config, self%state(igh_t), mr, derived_fields, cloud_fields,  &
+            microphysics_fields, convection_fields, initialise=.false.         &
+        )
+      end if ! microphysics_casim
+    end if
+#endif
+
+    ! Update derived variables for time level n+1
+    if (self%use_moisture) then
+      call moist_dyn_factors_alg(moist_dyn, mr)
+    end if
+    if (use_physics) then
+      call map_physics_fields_alg(                                             &
+          self%config, self%state(igh_u), self%state(igh_p),                   &
+          self%state(igh_d), self%state(igh_t), moist_dyn, derived_fields      &
+      )
+    end if
+
+    !----------------------------------------------------------------------------
+    ! Call UKCA for GLOMAP-mode prognostic aerosol updates
+    !---------------------------------------------------------------------------
+#ifdef UM_PHYSICS
+    if (aerosol == aerosol_um) then
+      glomap_mode = self%config%aerosol%glomap_mode()
+    end if
+    if (aerosol == aerosol_um .and.                                            &
+        (glomap_mode == glomap_mode_ukca .or.                                  &
+         glomap_mode == glomap_mode_dust_and_clim)) then
+      call aerosol_ukca_alg(                                                   &
+          self%config, chemistry_fields, aerosol_fields,                       &
+          radiation_fields, derived_fields, microphysics_fields,               &
+          turbulence_fields, convection_fields, cloud_fields, surface_fields,  &
+          soil_fields, self%state, mr, model_clock                             &
+      )
+    end if
+#endif
+
+    ! Write diagnostic output
+    if (use_physics .and. self%output_cld_incs) then
+      call cld_incs_output(                                                    &
+          cloud_fields, dcfl_tot, dcff_tot, dbcf_tot, sec_tot, suffix_tot      &
+      )
+    end if
+    if (write_diag .and. use_xios_io .and.                                     &
+        mod(model_clock%get_step(), diagnostic_frequency) == 0) then
+      ! TODO: these are very unlikely to be right
+      call output_diags_for_si(                                                &
+          self%state, self%state_n, self%state_dag, mr, self%mr_n,             &
+          self%mr_dag, self%mr_aft_adv, derived_fields,                        &
+          self%du, self%dtheta, self%dtheta_cld                                &
+      )
+    end if
+
+    !---------------------------------------------------------------------------
+    ! Update fields held in the driver layer
+    !---------------------------------------------------------------------------
+    call invoke( setval_X(u, self%state(igh_u)),                               &
+                 setval_X(theta, self%state(igh_t)),                           &
+                 setval_X(rho, self%state(igh_d)),                             &
+                 setval_X(exner, self%state(igh_p)) )
+
+    deallocate(inner_iterations_tr)
+    deallocate(inner_iterations_bdf2)
+
+    if (LPROF) call stop_timing(id, 'tr_bdf2_timestep_alg')
+
+  end subroutine run_step
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Release all claimed resources once completed.
+  subroutine tr_bdf2_alg_final(self)
+
+    implicit none
+
+    class(tr_bdf2_timestep_type), intent(inout) :: self
+
+    call semi_implicit_solver_alg_final()
+    call final_si_operators()
+
+    if (allocated(self%state))            deallocate(self%state)
+    if (allocated(self%state_n))          deallocate(self%state_n)
+    if (allocated(self%state_m))          deallocate(self%state_m)
+    if (allocated(self%state_bdf))        deallocate(self%state_bdf)
+    if (allocated(self%state_q))          deallocate(self%state_q)
+    if (allocated(self%state_aft_adv))    deallocate(self%state_aft_adv)
+    if (allocated(self%state_dag))        deallocate(self%state_dag)
+    if (allocated(self%state_to_adv))     deallocate(self%state_to_adv)
+    if (allocated(self%rhs_n))            deallocate(self%rhs_n)
+    if (allocated(self%rhs_m))            deallocate(self%rhs_m)
+    if (allocated(self%rhs_bdf))          deallocate(self%rhs_bdf)
+    if (allocated(self%rhs_np1))          deallocate(self%rhs_np1)
+    if (allocated(self%rhs_adv))          deallocate(self%rhs_adv)
+    if (allocated(self%rhs_phys))         deallocate(self%rhs_phys)
+    if (allocated(self%rhs_lbc))          deallocate(self%rhs_lbc)
+    if (allocated(self%adv_inc_prev))     deallocate(self%adv_inc_prev)
+    if (allocated(self%mr_n))             deallocate(self%mr_n)
+    if (allocated(self%mr_dag))           deallocate(self%mr_dag)
+    if (allocated(self%mr_bdf))           deallocate(self%mr_bdf)
+    if (allocated(self%mr_aft_adv))       deallocate(self%mr_aft_adv)
+
+    call self%dtheta%field_final()
+    call self%du%field_final()
+    call self%total_dry_flux%field_final()
+
+    return
+  end subroutine tr_bdf2_alg_final
+
+end module tr_bdf2_timestep_alg_mod

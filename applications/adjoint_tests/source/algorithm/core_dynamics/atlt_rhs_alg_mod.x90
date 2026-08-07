@@ -29,6 +29,7 @@ module atlt_rhs_alg_mod
   use adjoint_test_parameters_mod,         only : ls_u_range, ls_theta_range,   &
                                                   ls_rho_range, ls_exner_range, &
                                                   ls_md1_range, ls_md2_range, ls_md3_range
+  use dycore_constants_mod,                only : stepper_siqn
 
   implicit none
 
@@ -208,7 +209,7 @@ module atlt_rhs_alg_mod
     ! Tangent linear
     call tl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
                      ls_state, ls_moist_dyn, compute_eos,                &
-                     dlayer_rhs, model_clock )
+                     dlayer_rhs, stepper_siqn, model_clock )
 
     ! < Mx, Mx >
     call invoke( x_innerproduct_x( base_state_inner_prod(igh_u), base_state(igh_u) ), &
@@ -312,7 +313,7 @@ module atlt_rhs_alg_mod
     ! Adjoint
     call atl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
                       ls_state, ls_moist_dyn, compute_eos,                &
-                      dlayer_rhs, model_clock )
+                      dlayer_rhs, stepper_siqn, model_clock )
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( base_state_base_state_input_inner_prod(igh_u), &

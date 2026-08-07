@@ -48,7 +48,8 @@ module si_operators_alg_mod
   use mixed_solver_config_mod,   only: eliminate_variables, &
                                        eliminate_variables_analytic
   use moist_dyn_mod,             only: num_moist_factors, gas_law, total_mass
-  use dycore_constants_mod,      only: stepper_siqn
+  use dycore_constants_mod,      only: stepper_siqn, stepper_tr, stepper_bdf2, &
+                                       gamma, gamma2
 
   ! Configuration modules
   use base_mesh_config_mod,      only: prime_mesh_name
@@ -413,13 +414,32 @@ contains
     ! the timestep length obtained from the clock
     dt = real(clock%get_seconds_per_step(), r_def)
     cp = config%planet%cp()
-    tau_u = config%timestepping%tau_u()
-    tau_r = config%timestepping%tau_r()
-    tau_t = config%timestepping%tau_t()
-    tau_u_dt_cp   = real(tau_u*dt*cp, r_solver)
-    tau_t_dt      = real(tau_t*dt, r_solver)
-    tau_r_dt      = real(tau_r*dt, r_solver)
-    tau_tu_dt2_cp = real(tau_t*tau_u*dt**2*cp, r_solver)
+
+    select case (stepper)
+    case (stepper_siqn)
+      tau_u = config%timestepping%tau_u()
+      tau_r = config%timestepping%tau_r()
+      tau_t = config%timestepping%tau_t()
+      tau_u_dt_cp   = real(tau_u*dt*cp, r_solver)
+      tau_t_dt      = real(tau_t*dt, r_solver)
+      tau_r_dt      = real(tau_r*dt, r_solver)
+      tau_tu_dt2_cp = real(tau_t*tau_u*dt**2*cp, r_solver)
+    case (stepper_tr)
+      ! tau_u = gamma, tau_r = 2*gamma, tau_t = 2*gamma
+      tau_u_dt_cp   = real(gamma*dt*cp, r_solver)
+      tau_t_dt      = 2.0_r_solver*real(gamma*dt, r_solver)
+      tau_r_dt      = 2.0_r_solver*real(gamma*dt, r_solver)
+      tau_tu_dt2_cp = 2.0_r_solver*real(gamma**2*dt**2*cp, r_solver)
+    case (stepper_bdf2)
+      ! tau_u = gamma2, tau_r = 1, tau_t = 1
+      tau_u_dt_cp   = real(gamma2*dt*cp, r_solver)
+      tau_t_dt      = real(dt, r_solver)
+      tau_r_dt      = real(dt, r_solver)
+      tau_tu_dt2_cp = real(gamma2*dt**2*cp, r_solver)
+    case default
+      call log_event( "Unknown stepper enumerator in create_si_operators", &
+                      LOG_LEVEL_ERROR )
+    end select
 
     call tau_u_dt_cp_inventory%add_real(tau_u_dt_cp, stepper)
     call tau_t_dt_inventory%add_real(tau_t_dt, stepper)
@@ -825,7 +845,7 @@ contains
        ! mass matrix should include damping layer and lagged-orography terms
        ! if these options are not true, this matrix won't contain the terms
        m2 => get_w2_mass_matrix(                                               &
-          w2_lagged_damping_layer_matrix, mesh%get_id(), model_clock           &
+          w2_lagged_damping_layer_matrix, stepper, mesh%get_id(), model_clock  &
       )
 
        call m2_r_solver%initialise( w2_fs, w2_fs )

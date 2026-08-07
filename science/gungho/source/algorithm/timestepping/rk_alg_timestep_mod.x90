@@ -47,7 +47,8 @@ module rk_alg_timestep_mod
                                                 copy_bundle,  &
                                                 set_bundle_scalar
   use dycore_constants_mod,               only: get_geopotential,  &
-                                                get_coriolis
+                                                get_coriolis,      &
+                                                stepper_rk
 
   ! PsyKAl PSYClone kernels
   use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
@@ -389,7 +390,8 @@ contains
       call gungho_transport_control_alg( self%config,                              &
                                          self%rhs_prediction(:,stage), self%state, &
                                          self%state(igh_u), self%state(igh_u),     &
-                                         mr, mr, model_clock, outer, cheap_update )
+                                         mr, mr, model_clock, outer, stepper_rk,   &
+                                         cheap_update )
       ! Compute new rhs
       if ( rotating ) then
         coriolis => get_coriolis(mesh_id)

@@ -19,7 +19,7 @@ module atl_si_timestep_alg_mod
                                                  use_physics, use_wavedynamics
   use mixed_solver_config_mod,             only: guess_np1, reference_reset_time
   use timestepping_config_mod,             only: alpha, spinup_alpha, &
-                                                 outer_iterations, inner_iterations
+                                                 outer_iterations, inner_iterations_si
   use linear_config_mod,                   only: fixed_ls,                 &
                                                  l_stabilise_bl,           &
                                                  n_bl_levels_to_stabilise, &
@@ -109,7 +109,8 @@ module atl_si_timestep_alg_mod
     type(field_type), allocatable :: ls_rhs_phys(:,:,:)
     type(field_type), allocatable :: ls_mr_itns(:,:,:)
     type(field_type), allocatable :: ls_moist_dyn_itns(:,:,:)
-    integer( i_def ) :: ls_outer_iterations, ls_inner_iterations
+    integer( i_def ), allocatable :: ls_inner_iterations(:)
+    integer( i_def ) :: ls_outer_iterations
 
     ! theta_fv transport increment to change to weak form
     type(field_type) :: theta_fv_inc
@@ -172,12 +173,14 @@ contains
        ! but ls_outer_iterations and ls_inner_iterations are set to
        ! 1 so that the arrays are defined.
        self%ls_outer_iterations = 1_i_def
-       self%ls_inner_iterations = 1_i_def
+       allocate(self%ls_inner_iterations(1))
+       self%ls_inner_iterations(:) = 1_i_def
     else
        ! The linearisation state is evolved, and the intermediate iterations
        ! are used to calculate the evolution of the perturbation.
        self%ls_outer_iterations = outer_iterations
-       self%ls_inner_iterations = inner_iterations
+       allocate(self%ls_inner_iterations(outer_iterations))
+       self%ls_inner_iterations(:) = inner_iterations_si(:)
     end if
 
     allocate(self%state(bundle_size))
@@ -208,13 +211,20 @@ contains
     allocate(self%ls_mr_n(nummr))
     allocate(self%ls_mr_after_slow(nummr))
 
-    allocate(self%ls_state_itns( bundle_size, self%ls_outer_iterations, self%ls_inner_iterations ))
-    allocate(self%ls_rhs_np1( bundle_size, self%ls_outer_iterations, self%ls_inner_iterations ))
-    allocate(self%ls_rhs_adv( bundle_size, self%ls_outer_iterations, self%ls_inner_iterations ))
-    allocate(self%ls_rhs_phys( bundle_size, self%ls_outer_iterations, self%ls_inner_iterations ))
-    allocate(self%ls_mr_inc( nummr, self%ls_outer_iterations, self%ls_inner_iterations ))
-    allocate(self%ls_mr_itns( nummr, self%ls_outer_iterations, self%ls_inner_iterations ))
-    allocate(self%ls_moist_dyn_itns( num_moist_factors, self%ls_outer_iterations, self%ls_inner_iterations ))
+    allocate(self%ls_state_itns( bundle_size, self%ls_outer_iterations,        &
+                                 maxval(self%ls_inner_iterations) ))
+    allocate(self%ls_rhs_np1( bundle_size, self%ls_outer_iterations,           &
+                              maxval(self%ls_inner_iterations) ))
+    allocate(self%ls_rhs_adv( bundle_size, self%ls_outer_iterations,           &
+                              maxval(self%ls_inner_iterations) ))
+    allocate(self%ls_rhs_phys( bundle_size, self%ls_outer_iterations,          &
+                               maxval(self%ls_inner_iterations) ))
+    allocate(self%ls_mr_inc( nummr, self%ls_outer_iterations,                  &
+                             maxval(self%ls_inner_iterations) ))
+    allocate(self%ls_mr_itns( nummr, self%ls_outer_iterations,                 &
+                              maxval(self%ls_inner_iterations) ))
+    allocate(self%ls_moist_dyn_itns( num_moist_factors,                        &
+             self%ls_outer_iterations, maxval(self%ls_inner_iterations) ))
 
     ! Initialise internal state field objects
 
@@ -250,7 +260,7 @@ contains
     call clone_bundle( self%state, self%ls_rhs_n,            bundle_size )
 
     do outer = 1, self%ls_outer_iterations
-      do inner = 1, self%ls_inner_iterations
+      do inner = 1, self%ls_inner_iterations(outer)
         call clone_bundle( self%state, self%ls_state_itns(:,outer,inner), bundle_size )
         call clone_bundle( self%state, self%ls_rhs_np1(:,outer,inner),    bundle_size )
         call clone_bundle( self%state, self%ls_rhs_adv(:,outer,inner),    bundle_size )
@@ -275,7 +285,7 @@ contains
     call clone_bundle( ls_mr, self%ls_mr_after_slow, nummr )
 
     do outer = 1, self%ls_outer_iterations
-      do inner = 1, self%ls_inner_iterations
+      do inner = 1, self%ls_inner_iterations(outer)
         call clone_bundle( ls_moist_dyn, self%ls_moist_dyn_itns(:,outer,inner), num_moist_factors )
         call clone_bundle( ls_mr, self%ls_mr_itns(:,outer,inner), nummr )
         if (self%use_moisture) call clone_bundle( ls_mr, self%ls_mr_inc(:,outer,inner), nummr )
@@ -418,7 +428,8 @@ contains
                   self%ls_state_after_slow, self%ls_state_n, &
                   self%ls_moist_dyn_itns(:,1,1), &
                   compute_eos=.false., compute_rhs_t_d=.true., &
-                  dlayer_rhs=.false., model_clock=modeldb%clock )
+                  dlayer_rhs=.false., stepper=stepper_siqn,    &
+                  model_clock=modeldb%clock )
 
 
     if (.not. si_momentum_equation) call mass_matrix_solver_alg( self%ls_advected_state(igh_u), self%ls_rhs_n(igh_u) )
@@ -438,6 +449,7 @@ contains
                                          self%ls_mr_itns(:,outer,1),        &
                                          self%ls_mr_after_slow(:),          &
                                          modeldb%clock, outer,              &
+                                         stepper_siqn,                      &
                                          cheap_update=.false. )
 
       ! Convert theta increment to weak form
@@ -460,10 +472,10 @@ contains
         !-----------------------------------------------------------------------
         ! Start the inner (nonlinear, Coriolis) loop
         !-----------------------------------------------------------------------
-        ls_inner_dynamics_loop: do inner = 1,self%ls_inner_iterations
+        ls_inner_dynamics_loop: do inner = 1,self%ls_inner_iterations(outer)
 
           ! Calculate the counters for the next iteration
-          if (inner == inner_iterations) then
+          if (inner == inner_iterations_si(outer)) then
             next_inner = 1
             next_outer = outer + 1
           else
@@ -473,7 +485,7 @@ contains
 
           ! Only intermediate iterations are required for the adjoint and not
           ! the final iteration so the final loop of the nonlinear isn't required
-          if (next_outer <= outer_iterations .and. next_inner <= inner_iterations) then
+          if (next_outer <= outer_iterations .and. next_inner <= inner_iterations_si(outer)) then
 
             ! Compute the time-level n + 1 dynamics terms
             call rhs_alg( self%ls_rhs_np1(:,outer,inner),        &
@@ -484,6 +496,7 @@ contains
                           compute_eos=.true.,                    &
                           compute_rhs_t_d=.true.,                &
                           dlayer_rhs=dlayer_on,                  &
+                          stepper=stepper_siqn,                  &
                           model_clock=modeldb%clock )
 
             ! Compute the LAM LBCs and RHS
@@ -631,7 +644,7 @@ contains
       !-------------------------------------------------------------------------
       ! Start the inner (nonlinear, Coriolis) loop
       !-------------------------------------------------------------------------
-      inner_dynamics_loop: do inner = inner_iterations, 1, -1
+      inner_dynamics_loop: do inner = inner_iterations(outer), 1, -1
 
         if (fixed_ls) then
            ls_inner = 1
@@ -695,6 +708,7 @@ contains
                               self%ls_moist_dyn_itns(:,ls_outer,ls_inner), &
                               .true.,                                      &
                               dlayer_on,                                   &
+                              stepper=stepper_siqn,                        &
                               modeldb%clock )
 
             call add_bundle( self%state, self%state2, self%state, bundle_size )
@@ -736,6 +750,7 @@ contains
                         self%ls_moist_dyn_itns(:,ls_outer,1),        &
                         .true.,                                      &
                         dlayer_on,                                   &
+                        stepper_siqn,                                &
                         modeldb%clock )
 
       call add_bundle( self%state, self%state2, self%state, bundle_size )
@@ -759,6 +774,7 @@ contains
                                       self%ls_mr_after_slow,                &
                                       modeldb%clock,                        &
                                       outer,                                &
+                                      stepper_siqn,                         &
                                       self%adj_trans_lookup_cache ) ! advected_state finished with
 
     end do outer_dynamics_loop
@@ -782,7 +798,8 @@ contains
 
     call atl_rhs_alg( self%rhs_n, varbeta * cast_dt, self%state_after_slow, &
                       self%state_n, moist_dyn, self%ls_state_n,             &
-                      self%ls_moist_dyn_itns(:, 1,1), .false., .false., modeldb%clock )
+                      self%ls_moist_dyn_itns(:, 1,1), .false., .false.,     &
+                      stepper_siqn, modeldb%clock )
 
     call copy_bundle( self%state, self%state_copy, bundle_size )
     call add_bundle( self%state_copy, self%state_after_slow, self%state, bundle_size )
@@ -859,6 +876,8 @@ contains
     if (allocated(self%ls_mr_inc))           deallocate(self%ls_mr_inc)
     if (allocated(self%ls_mr_itns))          deallocate(self%ls_mr_itns)
     if (allocated(self%ls_moist_dyn_itns))   deallocate(self%ls_moist_dyn_itns)
+
+    if (allocated(self%ls_inner_iterations)) deallocate(self%ls_inner_iterations)
 
     call self%adj_solver_lookup_cache%finalise()
     call self%adj_trans_lookup_cache%finalise()

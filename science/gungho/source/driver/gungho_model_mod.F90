@@ -86,6 +86,7 @@ module gungho_model_mod
   use rk_alg_timestep_mod,        only : rk_timestep_type
   use semi_implicit_timestep_alg_mod, &
                                   only : semi_implicit_timestep_type
+  use tr_bdf2_timestep_alg_mod,   only : tr_bdf2_timestep_type
   use setup_orography_alg_mod,    only : setup_orography_alg
   use idealised_config_mod,       only : perturb_init, perturb_seed
   use initial_temperature_config_mod, only : perturb, perturb_random
@@ -1128,6 +1129,7 @@ contains
     use timestepping_config_mod, only: method,                 &
                                        method_semi_implicit,   &
                                        method_rk,              &
+                                       method_tr_bdf2,         &
                                        method_no_timestepping, &
                                        method_jules
 
@@ -1178,42 +1180,18 @@ contains
       case( method_semi_implicit )  ! Semi-Implicit
         ! Initialise the semi-implicit timestep method
         allocate( timestep_method, source=semi_implicit_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
-        ! Output initial conditions
-        if ( write_conservation_diag ) then
-          call conservation_algorithm( modeldb%config, rho, u, theta, &
-                                       mr, exner )
-          if ( use_moisture ) then
-            call moisture_conservation_alg( modeldb%config, rho, mr, &
-                                            'Before timestep' )
-          end if
-        end if
+
+      case( method_tr_bdf2 )         ! TR-BDF2
+        ! Initialise the TR-BDF2 timestep method
+        allocate( timestep_method, source=tr_bdf2_timestep_type(modeldb) )
 
       case( method_rk )             ! RK
         ! Initialise the Runge-Kutta timestep method
         allocate( timestep_method, source=rk_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
-
-        ! Output initial conditions
-        if ( write_conservation_diag ) then
-          call conservation_algorithm( modeldb%config, rho, u, theta, &
-                                       mr, exner )
-          if ( use_moisture ) then
-            call moisture_conservation_alg( modeldb%config, rho, mr, &
-                                            'Before timestep' )
-          end if
-        end if
 
       case( method_no_timestepping )
         ! Initialise a null-timestep method
         allocate( timestep_method, source=no_timestep_type() )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
         write( log_scratch_space, &
                     '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
                     ' Prognostic fields not evolved'
@@ -1223,15 +1201,23 @@ contains
       case( method_jules )  ! jules
         ! Initialise the jules timestep method
         allocate( timestep_method, source=jules_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                      timestep_method)
 #endif
 
       case default
         call log_event("Gungho: Incorrect time stepping option chosen, "// &
                         "stopping program! ",LOG_LEVEL_ERROR)
     end select
+
+    ! Add to the model database
+    call modeldb%values%add_key_value('timestep_method', timestep_method)
+
+    ! Output initial conditions
+    if ( write_conservation_diag ) then
+      call conservation_algorithm(modeldb%config, rho, u, theta, mr, exner)
+      if ( use_moisture ) then
+        call moisture_conservation_alg(modeldb%config, rho, mr, 'Before timestep')
+      end if
+    end if
 
   end subroutine initialise_model
 

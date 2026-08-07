@@ -11,6 +11,7 @@ module atlt_transport_control_alg_mod
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
   use constants_mod,                       only : r_def, i_def, l_def
+  use dycore_constants_mod,                only : stepper_siqn
   use log_mod,                             only : log_event,         &
                                                   log_scratch_space, &
                                                   LOG_LEVEL_INFO,    &
@@ -276,7 +277,7 @@ module atlt_transport_control_alg_mod
                                    wind_np1, wind_n, mr_out, mr_in,  &
                                    ls_advected_fields,               &
                                    ls_wind_np1, ls_wind_n, ls_mr_in, &
-                                   model_clock, outer )
+                                   model_clock, outer, stepper_siqn )
 
     ! < Mx, Mx >
     adv_inc_inner_prod = 0.0_r_def
@@ -385,7 +386,8 @@ module atlt_transport_control_alg_mod
                                     wind_np1, wind_n, mr_out, mr_in,  &
                                     ls_advected_fields,               &
                                     ls_wind_np1, ls_wind_n, ls_mr_in, &
-                                    model_clock, outer, adj_lookup_table_cache )
+                                    model_clock, outer, stepper_siqn, &
+                                    adj_lookup_table_cache )
 
     ! < AMx, x >
     ai_ai_inp_inner_prod = 0.0_r_def

@@ -59,6 +59,7 @@ contains
   !!          and perturbed winds and densities.
   !> @param[in] config                Application namelist configuration object
   !> @param[in] model_clock           Tracks the time within the model
+  !> @param[in] stepper               Enumerator for timestepper
   !> @param[in] ref_field_rdef        Perturbed reference density to use for
   !!                                  conservative transport of tracers.
   !> @param[in] ls_ref_field_rdef     Linear reference density to use for
@@ -77,8 +78,9 @@ contains
   !!                                  the transporting wind is the *difference*
   !!                                  in wind from the previous step, rather
   !!                                  than the full transport wind.
-  subroutine initialise(self, config, model_clock, ref_field_rdef,     &
-                        ls_ref_field_rdef, wind_n_rdef, wind_np1_rdef, &
+  subroutine initialise(self, config, model_clock, stepper,            &
+                        ref_field_rdef, ls_ref_field_rdef,             &
+                        wind_n_rdef, wind_np1_rdef,                    &
                         ls_wind_n_rdef, ls_wind_np1_rdef,              &
                         outer, cheap_update_step)
 
@@ -99,16 +101,19 @@ contains
 
     self%config => config
 
-    call self%ls_wind_ls_rho_controller%initialise( self%config,               &
-            model_clock, ls_ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,  &
+    call self%ls_wind_ls_rho_controller%initialise(                            &
+            self%config, model_clock, stepper,                                 &
+            ls_ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,               &
             outer=outer, cheap_update_step=cheap_update_step )
 
-    call self%ls_wind_pert_rho_controller%initialise( self%config,             &
-            model_clock, ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,     &
+    call self%ls_wind_pert_rho_controller%initialise(                          &
+            self%config, model_clock, stepper,                                 &
+            ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,                  &
             outer=outer, cheap_update_step=cheap_update_step )
 
-    call self%pert_wind_ls_rho_controller%initialise( self%config,             &
-            model_clock, ls_ref_field_rdef, wind_n_rdef, wind_np1_rdef,        &
+    call self%pert_wind_ls_rho_controller%initialise(                          &
+            self%config, model_clock, stepper,                                 &
+            ls_ref_field_rdef, wind_n_rdef, wind_np1_rdef,                     &
             outer=outer, cheap_update_step=cheap_update_step )
 
   end subroutine initialise
