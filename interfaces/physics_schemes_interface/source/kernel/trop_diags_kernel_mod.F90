@@ -127,6 +127,14 @@ subroutine trop_diags_code(nlayers,                    &
 
   implicit none
 
+  ! Arguments (kernel)
+  integer(i_def), intent(in) :: nlayers
+  integer(i_def), intent(in) :: ndf_2d, ndf_wth
+  integer(i_def), intent(in) :: undf_2d, undf_wth
+
+  integer(i_def), dimension(ndf_2d),  intent(in) :: map_2d
+  integer(i_def), dimension(ndf_wth), intent(in) :: map_wth
+
   ! Arguments (algorithm)
   real(r_def), dimension(undf_wth), intent(in) :: theta_wth
   real(r_def), dimension(undf_wth), intent(in) :: exner_wth
@@ -137,15 +145,6 @@ subroutine trop_diags_code(nlayers,                    &
   real(r_def), pointer, dimension(:), intent(inout) :: trop_temp
   real(r_def), pointer, dimension(:), intent(inout) :: trop_height
   real(r_def), pointer, dimension(:), intent(inout) :: trop_icao_height
-
-
-  ! Arguments (kernel)
-  integer(i_def), intent(in) :: nlayers
-  integer(i_def), intent(in) :: ndf_2d, ndf_wth
-  integer(i_def), intent(in) :: undf_2d, undf_wth
-
-  integer(i_def), dimension(ndf_2d),  intent(in) :: map_2d
-  integer(i_def), dimension(ndf_wth), intent(in) :: map_wth
 
 
   ! Local variables
