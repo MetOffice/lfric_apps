@@ -284,7 +284,9 @@
         "gungho_model_cart-agnesi_hyd_ex1a_gnu_fast-debug-64bit",
         "gungho_model_cart-agnesi_nhyd_ex1a_gnu_fast-debug-64bit",
         "gungho_model_cart-schar_ex1a_gnu_fast-debug-64bit",
+        "gungho_model_cart-schar-native-wind_ex1a_gnu_fast-debug-64bit",
         "gungho_model_cart-bell_3d_ex1a_gnu_fast-debug-64bit",
+        "gungho_model_cart-bell_3d-native-wind_ex1a_gnu_fast-debug-64bit",
         "gungho_model_cart-warm3dbubble_ex1a_gnu_fast-debug-64bit",
     ],
     "gungho_model_ex1a_perftools": [

@@ -677,7 +677,7 @@
 {% elif task_ns.conf_name == "ral3-seuk_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve"],
+        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","native_wind_transport"],
         "resolution": "seuk_MG",
         "DT": 60,
         "tsteps": 120,
@@ -690,7 +690,7 @@
 {% elif task_ns.conf_name == "ral3-seuk_ls_and_jedi" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","ral_ls_and_jedi"],
+        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","ral_ls_and_jedi","native_wind_transport"],
         "resolution": "seuk_MG",
         "DT": 60,
         "tsteps": 120,
@@ -703,7 +703,7 @@
 {% elif task_ns.conf_name == "ral3-uk_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","murk","hh_solve"],
+        "opt_confs": ["l70_40km","ral3","ral_opts","murk","hh_solve","native_wind_transport"],
         "resolution": "uk_MG",
         "DT": 60,
         "tsteps": 360,
@@ -721,7 +721,7 @@
 {% elif task_ns.conf_name == "ral3-uk_672_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve"],
+        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","native_wind_transport"],
         "resolution": "uk_672x672_MG",
         "DT": 60,
         "tsteps": 180,
@@ -738,7 +738,7 @@
 {% elif task_ns.conf_name == "ral3-ukv_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve"],
+        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","native_wind_transport"],
         "resolution": "ukv_MG",
         "DT": 60,
         "tsteps": 360,
@@ -754,7 +754,7 @@
 {% elif task_ns.conf_name == "ral3-melbourne_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve"],
+        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","native_wind_transport"],
         "resolution": "melbourne_MG",
         "DT": 60,
         "tsteps": 360,
@@ -771,7 +771,7 @@
 {% elif task_ns.conf_name == "ral3_ens-seuk_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral3_ens","ral_opts","hh_solve"],
+        "opt_confs": ["l70_40km","ral3","ral3_ens","ral_opts","hh_solve","native_wind_transport"],
         "resolution": "seuk_MG",
         "DT": 60,
         "tsteps": 120,
