@@ -154,7 +154,7 @@ module vertical_cubic_sl_kernel_mod
       case ( 2 ) ! Wtheta
         nl = nlayers
         ndofs = 1
-      case ( 4 ) ! W2h  
+      case ( 4 ) ! W2h
         nl = nlayers - 1
         ndofs = 2
       case default
