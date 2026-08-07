@@ -194,7 +194,7 @@ contains
                                      ni_mphys, ns_mphys, ng_mphys,             &
                                      w_in_wth,                                 &
                                      theta, exner_in_wth,                      &
-                                     wetrho_in_w3, dry_rho_in_w3,              &
+                                     wetrho_in_w3, dry_rho_in_w3, rho_in_wth,  &
                                      u_in_w3, v_in_w3,                         &
                                      height_w3, height_wth,                    &
                                      dmr_mphys(imr_v),  dmr_mphys(imr_cl),     &
