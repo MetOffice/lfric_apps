@@ -36,7 +36,7 @@ private
 
 type, public, extends(kernel_type) :: casim_kernel_type
   private
-  type(arg_type) :: meta_args(46) = (/                                      &
+  type(arg_type) :: meta_args(47) = (/                                      &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mv_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! ml_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mi_wth
@@ -56,6 +56,7 @@ type, public, extends(kernel_type) :: casim_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! exner_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! wetrho_in_w3
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! dry_rho_in_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! dry_rho_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! u_in_w3
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! v_in_w3
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! height_w3
@@ -121,6 +122,7 @@ contains
 !> @param[in]     exner_in_wth        Exner pressure in potential temperature space
 !> @param[in]     wetrho_in_w3        Wet density in density space
 !> @param[in]     dry_rho_in_w3       Dry density in density space
+!> @param[in]     dry_rho_in_wth      Dry density in potential temperature space
 !> @param[in]     u_in_w3             'Zonal' wind in density space
 !> @param[in]     v_in_w3             'Meridional' wind in density space
 !> @param[in]     height_w3           Height of density space levels above surface
@@ -178,6 +180,7 @@ subroutine casim_code( nlayers,                     &
                        theta_in_wth,                &
                        exner_in_wth, wetrho_in_w3,  &
                        dry_rho_in_w3,               &
+                       dry_rho_in_wth,              &
                        u_in_w3, v_in_w3,            &
                        height_w3, height_wth,       &
                        dmv_wth,  dml_wth,  dmi_wth, &
@@ -253,7 +256,7 @@ subroutine casim_code( nlayers,                     &
     real(kind=r_def), intent(in),  dimension(undf_w3)  :: u_in_w3
     real(kind=r_def), intent(in),  dimension(undf_w3)  :: v_in_w3
     real(kind=r_def), intent(in),  dimension(undf_w3)  :: height_w3
-
+    real(kind=r_def), intent(in),  dimension(undf_wth) :: dry_rho_in_wth
     real(kind=r_def), intent(inout), dimension(undf_wth) :: nl_mphys
     real(kind=r_def), intent(inout), dimension(undf_wth) :: nr_mphys
     real(kind=r_def), intent(inout), dimension(undf_wth) :: ni_mphys
@@ -396,8 +399,9 @@ subroutine casim_code( nlayers,                     &
     if (casim_cdnc_opt == casim_cdnc_opt_fixed) then
       do k = 0, nlayers
         if (cfl_wth(map_wth(1) + k) > 0.001_r_def) then
-          cloud_drop_no_conc(map_wth(1) + k) = max(nl_mphys(map_wth(1) + k) / &
-                                                   cfl_wth(map_wth(1) + k), &
+          cloud_drop_no_conc(map_wth(1) + k) = max(nl_mphys(map_wth(1) + k) * &
+                                              dry_rho_in_wth(map_wth(1) + k)/ &
+                                                   cfl_wth(map_wth(1) + k),   &
                                                    min_cdnc_sea_ice)
         else
           cloud_drop_no_conc(map_wth(1) + k) = min_cdnc_sea_ice
@@ -410,7 +414,9 @@ subroutine casim_code( nlayers,                     &
       ! after that has happened, hence why it needs to happen here.
       do k = 1, nlayers
         if (ml_wth(map_wth(1) + k) > ql_tidy) then
-          nl_mphys( map_wth(1) + k) = cloud_drop_no_conc(map_wth(1) + k) * cfl_wth(map_wth(1) + k)
+          nl_mphys( map_wth(1) + k) = cloud_drop_no_conc(map_wth(1) + k)  &
+                                      * cfl_wth(map_wth(1) + k)           &
+                                      / dry_rho_in_wth(map_wth(1) + k)
         else
           nl_mphys( map_wth(1) + k) = 0.0_r_def
         end if
