@@ -1864,7 +1864,8 @@ contains
            !
            i_mode_nzts=15,                                                     &
            ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
-           i_mode_setup=i_mode_setup,                                          &
+           ! i_mode_setup hard coded to (6) dust only for dust_and_clim
+           i_mode_setup=6,                                                     &
            i_mode_nucscav=i_mode_nucscav,                                      &
            l_cv_rainout=.not.(l_ukca_plume_scav),                              &
            l_dust_mp_slinn_impc_scav=.true.,                                   &
