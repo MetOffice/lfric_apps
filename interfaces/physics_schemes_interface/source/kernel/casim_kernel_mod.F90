@@ -548,7 +548,7 @@ subroutine casim_code( nlayers,                     &
     if (l_refl_tot .or. l_refl_1km) casdiags % l_radar = .true.
     ! The snowfall rate is needed by the murk scavenging and by the PC2 shear
     ! response to the falling ice.
-    if (murk_prognostic .or. l_pc2_response) casdiags % l_snowfall_3d = .true.
+    if (murk_prognostic) casdiags % l_snowfall_3d = .true.
 
     call allocate_diagnostic_space(its, ite, jts, jte, kts, kte)
 
@@ -656,16 +656,15 @@ subroutine casim_code( nlayers,                     &
         do k = nlayers-1, 1, -1  ! start 1 level below the top
 
           ice_above = ms_wth(map_wth(1) + k+1) + mi_wth(map_wth(1) + k+1) +    &
-                      mg_wth(map_wth(1) + k+1) + dms_wth(map_wth(1) + k+1) +   &
-                      dmi_wth(map_wth(1) + k+1) + dmg_wth(map_wth(1) + k+1)
+                      dms_wth(map_wth(1) + k+1) + dmi_wth(map_wth(1) + k+1)
 
           ! mwfv is fallspeed from above.
           if (ice_above > qi_tidy) then
-            mwfv = casdiags % snowfall_3d(1,1,k+1) / ice_above
+            mwfv = casdiags % snowonly_3d(1,1,k+1) / ice_above
           else
             mwfv = 0.0_r_def
           end if
-          frac_dep = mwfv / deltaz(1,1,k)
+          frac_dep = mwfv * timestep / deltaz(1,1,k)
 
           ! Ensure frac_dep is positive
           ! but allow "fraction fallen" to be > 1.
@@ -674,7 +673,9 @@ subroutine casim_code( nlayers,                     &
           !--------------------------------------------------------------
           ! Calculate the amount of cloud overhang between levels
           !--------------------------------------------------------------
-          overhang = max(cff_wth(map_wth(1) + k+1) - cff_wth(map_wth(1) + k),  &
+          overhang = max(cff_wth(map_wth(1) + k+1) +  &
+                         dcff_wth(map_wth(1) + k+1) - &
+                         cff_wth(map_wth(1) + k),     &
                          0.0_r_def)
 
           ! using real shear method from lsp_fall_ice
