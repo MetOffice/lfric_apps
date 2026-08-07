@@ -130,7 +130,7 @@
 {% elif task_ns.conf_name == "baroclinic-tr_bdf2-C24_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["baroclinic", "tr_bdf"],
+        "opt_confs": ["baroclinic", "tr_bdf2"],
         "resolution": "C24_MG",
         "DT": 3600,
         "threads": 4,
@@ -250,7 +250,7 @@
 {% elif task_ns.conf_name == "held-suarez-tr_bdf2-C24_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["held-suarez", "io_nwp", "tr_bdf"],
+        "opt_confs": ["held-suarez", "io_nwp", "tr_bdf2"],
         "resolution": "C24_MG",
         "DT": 3600,
         "mpi_parts": 6,
@@ -452,7 +452,7 @@
 {% elif task_ns.conf_name == "schar_cart-tr_bdf2-BiP200x8-500x500" %}
 
     {% do task_dict.update({
-        "opt_confs": ["schar_cart", "tr_bdf"],
+        "opt_confs": ["schar_cart", "tr_bdf2"],
         "resolution": "BiP200x8-500x500",
         "DT": 40,
         "mpi_parts": 5,
@@ -610,7 +610,7 @@
 {% elif task_ns.conf_name == "straka_200m-tr_bdf2-BiP256x8-200x200" %}
 
     {% do task_dict.update({
-        "opt_confs": ["straka_200m"],
+        "opt_confs": ["straka_200m", "tr_bdf2"],
         "resolution": "BiP256x8-200x200",
         "DT": 10,
         "mpi_parts": 8,

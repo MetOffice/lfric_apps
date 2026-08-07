@@ -66,7 +66,7 @@
 {% elif task_ns.conf_name == "baroclinic-tr_bdf2-C192_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["baroclinic"],
+        "opt_confs": ["baroclinic", "tr_bdf2"],
         "resolution": "C192_MG",
         "DT": 1800,
         "mpi_parts": 384,
