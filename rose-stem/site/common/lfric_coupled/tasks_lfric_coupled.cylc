@@ -8,7 +8,7 @@
 {% if task_ns.conf_name == "nwp_gal9-C48" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump"],
+        "opt_confs": ["coupled","um_dump"],
         "resolution": "C48_MG",
         "DT": 1800,
         "tsteps": 24,
