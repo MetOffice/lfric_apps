@@ -20,6 +20,8 @@
 casim:
     source: git@github.com:MetOffice/casim.git
     ref: 2026.07.1
+    source: git@github.com:iboutle/casim.git
+    ref: activation_fix
 
 jules:
     source: git@github.com:MetOffice/jules.git
