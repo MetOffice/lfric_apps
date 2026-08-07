@@ -21,11 +21,14 @@ module vertical_cubic_sl_kernel_mod
                                     ANY_DISCONTINUOUS_SPACE_2
   use constants_mod,         only : r_tran, i_def, l_def, EPS_R_TRAN
   use kernel_mod,            only : kernel_type
-  use transport_enumerated_types_mod, only : monotone_none,                    &
-                                             vertical_monotone_order_constant, &
-                                             vertical_monotone_order_linear,   &
-                                             vertical_monotone_order_high
-  use sl_support_mod,   only : monotone_cubic_sl
+  use transport_enumerated_types_mod, &
+                             only : monotone_none,                    &
+                                    vertical_monotone_order_constant, &
+                                    vertical_monotone_order_linear,   &
+                                    vertical_monotone_order_high
+  use sl_support_mod,        only : monotone_cubic_sl
+  use log_mod,               only : log_event, LOG_LEVEL_ERROR
+
   implicit none
 
   private
@@ -132,64 +135,84 @@ module vertical_cubic_sl_kernel_mod
     logical(kind=l_def), intent(in)    :: log_space
 
     ! Local arrays
-    real(kind=r_tran) :: field_local(nlayers+ndf_wf-1,4)
-    real(kind=r_tran) :: field_dep(nlayers+ndf_wf-1)
+    real(kind=r_tran), allocatable :: field_local(:,:)
+    real(kind=r_tran), allocatable :: field_dep(:)
 
     real(kind=r_tran), allocatable :: log_field_local(:,:)
 
     ! Indices
-    integer(kind=i_def) :: k, nl, wf_idx, wc_idx
+    integer(kind=i_def) :: k, nl, wf_idx, wc_idx, ndofs, df
 
-    ! nl = nlayers    for w3
+    ! nl = nlayers    for w3/w2h
     !    = nlayers+1  for wtheta
-    nl = nlayers + ndf_wf - 1
-    wf_idx = map_wf(1)
-    wc_idx = map_wc(1)
+    ! ndofs = 1 for w3/wtheta
+    !       = 2 for w2
+    select case( ndf_wf )
+      case ( 1 ) ! W3
+        nl = nlayers - 1
+        ndofs = 1
+      case ( 2 ) ! Wtheta
+        nl = nlayers
+        ndofs = 1
+      case ( 4 ) ! W2h  
+        nl = nlayers - 1
+        ndofs = 2
+      case default
+        call log_event('Invalid ndf in vertical_cubic_sl_kernel', LOG_LEVEL_ERROR)
+    end select
 
-    do k = 1, nl
-      field_local(k,1) = field(wf_idx + cubic_indices_1(wc_idx+k-1) - 1)
-      field_local(k,2) = field(wf_idx + cubic_indices_2(wc_idx+k-1) - 1)
-      field_local(k,3) = field(wf_idx + cubic_indices_3(wc_idx+k-1) - 1)
-      field_local(k,4) = field(wf_idx + cubic_indices_4(wc_idx+k-1) - 1)
+    allocate( field_local(nl, 4), field_dep(nl) )
+
+    do df = 1, ndofs
+      wf_idx = map_wf(df)
+      wc_idx = map_wc(df)
+
+      do k = 1, nl
+        field_local(k,1) = field(wf_idx + cubic_indices_1(wc_idx+k-1) - 1)
+        field_local(k,2) = field(wf_idx + cubic_indices_2(wc_idx+k-1) - 1)
+        field_local(k,3) = field(wf_idx + cubic_indices_3(wc_idx+k-1) - 1)
+        field_local(k,4) = field(wf_idx + cubic_indices_4(wc_idx+k-1) - 1)
+      end do
+
+      if (log_space) then
+        allocate(log_field_local(nl,4))
+        log_field_local(:,:) = LOG(MAX(ABS(field_local(:,:)), EPS_R_TRAN))
+
+        ! Do interpolation on log(field) using cubic coefficients and indices
+        field_dep(:) = EXP(                                                      &
+            cubic_coef_1(wc_idx : wc_idx+nl-1)*log_field_local(:,1)              &
+          + cubic_coef_2(wc_idx : wc_idx+nl-1)*log_field_local(:,2)              &
+          + cubic_coef_3(wc_idx : wc_idx+nl-1)*log_field_local(:,3)              &
+          + cubic_coef_4(wc_idx : wc_idx+nl-1)*log_field_local(:,4)              &
+        )
+
+        deallocate(log_field_local)
+
+      else
+        ! Interpolate field as is
+        field_dep(:) = (                                                         &
+            cubic_coef_1(wc_idx : wc_idx+nl-1)*field_local(:,1)                  &
+            + cubic_coef_2(wc_idx : wc_idx+nl-1)*field_local(:,2)                &
+            + cubic_coef_3(wc_idx : wc_idx+nl-1)*field_local(:,3)                &
+            + cubic_coef_4(wc_idx : wc_idx+nl-1)*field_local(:,4)                &
+        )
+      end if
+
+      ! Enforce monotonicity if required
+      if ( vertical_monotone /= monotone_none ) then
+        ! Apply monotonicity
+        call monotone_cubic_sl(                                                  &
+                field_dep, field_local,                                          &
+                linear_coef_1(wc_idx : wc_idx+nl-1),                             &
+                linear_coef_2(wc_idx : wc_idx+nl-1),                             &
+                vertical_monotone, vertical_monotone_order, nl                   &
+        )
+      end if
+
+      ! Put answer back from local array into global field
+      field(wf_idx : wf_idx+nl-1) = field_dep(:)
     end do
-
-    if (log_space) then
-      allocate(log_field_local(nl,4))
-      log_field_local(:,:) = LOG(MAX(ABS(field_local(:,:)), EPS_R_TRAN))
-
-      ! Do interpolation on log(field) using cubic coefficients and indices
-      field_dep(:) = EXP(                                                      &
-          cubic_coef_1(wc_idx : wc_idx+nl-1)*log_field_local(:,1)              &
-          + cubic_coef_2(wc_idx : wc_idx+nl-1)*log_field_local(:,2)            &
-          + cubic_coef_3(wc_idx : wc_idx+nl-1)*log_field_local(:,3)            &
-          + cubic_coef_4(wc_idx : wc_idx+nl-1)*log_field_local(:,4)            &
-      )
-
-      deallocate(log_field_local)
-
-    else
-      ! Interpolate field as is
-      field_dep(:) = (                                                         &
-          cubic_coef_1(wc_idx : wc_idx+nl-1)*field_local(:,1)                  &
-          + cubic_coef_2(wc_idx : wc_idx+nl-1)*field_local(:,2)                &
-          + cubic_coef_3(wc_idx : wc_idx+nl-1)*field_local(:,3)                &
-          + cubic_coef_4(wc_idx : wc_idx+nl-1)*field_local(:,4)                &
-      )
-    end if
-
-    ! Enforce monotonicity if required
-    if ( vertical_monotone /= monotone_none ) then
-      ! Apply monotonicity
-      call monotone_cubic_sl(                                                  &
-              field_dep, field_local,                                          &
-              linear_coef_1(wc_idx : wc_idx+nl-1),                             &
-              linear_coef_2(wc_idx : wc_idx+nl-1),                             &
-              vertical_monotone, vertical_monotone_order, nl                   &
-      )
-    end if
-
-    ! Put answer back from local array into global field
-    field(wf_idx : wf_idx+nl-1) = field_dep(:)
+    deallocate( field_local, field_dep )
 
   end subroutine vertical_cubic_sl_code
 
