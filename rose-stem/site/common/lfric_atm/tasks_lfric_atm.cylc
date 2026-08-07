@@ -505,7 +505,7 @@
 {% elif task_ns.conf_name.startswith("nwp_gal9-C896_MG") %}
 
     {% do task_dict.update({
-        "CXI_MATCH_hybrid": true,
+        "CXI_MATCH_software": true,
         "opt_confs": ["um_dump"],
         "resolution": "C896_MG",
         "DT": 240,
@@ -521,6 +521,27 @@
         "xios_print_file": ".true.",
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
+
+{% elif task_ns.conf_name.startswith("nwp_gal9-98node-C896_MG") %}
+
+    {% do task_dict.update({
+        "CXI_MATCH_software": true,
+        "opt_confs": ["um_dump", "oper_diags_hres"],
+        "resolution": "C896_MG",
+        "DT": 240,
+        "tsteps": 360,
+        "wallclock": 20,
+        "mpi_parts": 12544,
+        "xios_nodes": 10,
+        "mpi_parts_xios" : 480,
+        "log_level": "info",
+        "log_to_rank_zero_only": ".true.",
+        "memory_plot_ex": false,
+        "panel_decomp": "custom",
+        "xproc": 112,
+        "yproc": 56,
+    }) %}
+
 
 {# ###################################################################### #}
 {# Global Climate jobs #}
@@ -1281,5 +1302,11 @@
     }) %}
 {% endif %}
 
+{% if task_ns.conf_name.startswith("nwp_gal9-98node-C896_MG-chebyshev") %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","chebyshev", "oper_diags_hres"],
+    }) %}
+{% endif %}
 
 {% do LOG.debug("Finished in site/common/lfric_atm/tasks_lfric_atm.cylc") %}

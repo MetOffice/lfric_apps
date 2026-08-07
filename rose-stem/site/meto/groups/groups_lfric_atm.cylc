@@ -221,6 +221,8 @@
     "lfric_atm_chebyshev": [
         "lfric_atm_nwp_gal9-C896_MG_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9-C896_MG-chebyshev_ex1a_cce_production-32bit",
+        "lfric_atm_nwp_gal9-98node-C896_MG_ex1a_cce_production-32bit",
+        "lfric_atm_nwp_gal9-98node-C896_MG-chebyshev_ex1a_cce_production-32bit",
         "lfric_atm_clim_gal9-C48_MG_ex1a_cce_production-32bit",
         "lfric_atm_clim_gal9-chebyshev-C48_MG_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_production-32bit",
