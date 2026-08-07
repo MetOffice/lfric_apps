@@ -20,7 +20,7 @@ class UpgradeError(Exception):
 
 class vn32_t683(MacroUpgrade):
     """
-    Upgrade macro for ticket #683 by Alan J Hewitt.
+    Upgrade macro for ticket #698 by Alan J Hewitt.
     Users can now select UKCA GLOMAP setting via namelist.
 
     Note that dust_and_clim is treated by UKCA as if setting (6)
@@ -28,7 +28,7 @@ class vn32_t683(MacroUpgrade):
     """
 
     BEFORE_TAG = "vn3.2"
-    AFTER_TAG = "vn3.2_t683"
+    AFTER_TAG = "vn3.2_t698"
 
     def upgrade(self, config, meta_config=None):
         # Add settings
