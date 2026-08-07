@@ -16,8 +16,7 @@ module um_ukca_init_mod
                                        ukca_scale_marine_pom_ems,              &
                                        marine_pom_ems_scaling,                 &
                                        ukca_scale_sea_salt_ems,                &
-                                       sea_salt_ems_scaling,                   &
-                                       i_mode_setup
+                                       sea_salt_ems_scaling
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
                                        chem_scheme_strattrop, chem_scheme_none,&
@@ -1023,7 +1022,7 @@ contains
            i_photol_scheme_fastjx = photol_fastjx,                             &
            ! General GLOMAP configuration options
            i_mode_nzts=15,                                                     &
-           i_mode_setup=i_mode_setup,                                          &
+           i_mode_setup=8,                                                     &
            l_mode_bhn_on=.true.,                                               &
            l_mode_bln_on=.false.,                                              &
            i_mode_nucscav=i_mode_nucscav,                                      &
@@ -1864,8 +1863,7 @@ contains
            !
            i_mode_nzts=15,                                                     &
            ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
-           ! For dust_and_clim the GLOMAP setting must be dust only
-           i_mode_setup=i_mode_setup,                                          &
+           i_mode_setup=6,                                                     &
            i_mode_nucscav=i_mode_nucscav,                                      &
            l_cv_rainout=.not.(l_ukca_plume_scav),                              &
            l_dust_mp_slinn_impc_scav=.true.,                                   &
@@ -2142,7 +2140,6 @@ if (allocated(fl)) deallocate(fl)
 
 return
 end subroutine deallocate_fastjx_filevars
-
 
 
 end module um_ukca_init_mod
