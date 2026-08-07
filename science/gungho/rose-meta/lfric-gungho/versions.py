@@ -18,34 +18,44 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-"""
-Copy this template and complete to add your macro
-class vnXX_txxx(MacroUpgrade):
-    # Upgrade macro for <TICKET> by <Author>
-    BEFORE_TAG = "vnX.X"
-    AFTER_TAG = "vnX.X_txxx"
-    def upgrade(self, config, meta_config=None):
-        # Add settings
-        return config, self.reports
-"""
+class vn32_t683(MacroUpgrade):
+    """
+    Upgrade macro for ticket #698 by Alan J Hewitt.
+    Users can now select UKCA GLOMAP setting via namelist.
 
-
-class vn32_t634(MacroUpgrade):
-    """Upgrade macro for ticket #634 by Ian Boutle."""
+    Note that dust_and_clim is treated by UKCA as if setting (6)
+    but is treated by RADAER as if setting (8)
+    """
 
     BEFORE_TAG = "vn3.2"
-    AFTER_TAG = "vn3.2_t634"
+    AFTER_TAG = "vn3.2_t698"
 
     def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/lfric-gungho
-        nml = "namelist:boundaries"
-        self.add_setting(config, [nml, "lbc_bal_meth"], "'keep_rho'")
-        self.add_setting(config, [nml, "lbc_sort_theta"], ".true.")
-        nml = "namelist:initialization"
-        eos_height = self.get_setting_value(config, [nml, "model_eos_height"])
-        self.remove_setting(config, [nml, "model_eos_height"])
-        self.add_setting(config, [nml, "init_eos_height"], eos_height)
-        self.add_setting(config, [nml, "init_exner_method"], "'hydrostatic'")
-        self.add_setting(config, [nml, "init_sort_theta"], ".true.")
+        # Add settings
 
+        aerosol_setting = self.get_setting_value(config,
+                                                 ["namelist:aerosol",
+                                                  "glomap_mode"])
+
+        if glomap_mode == "'glomap_mode_dust_and_clim'":
+            # Existing suites with dust_and_clim need i_mode_setup==6
+            i_mode_setup = "6"
+        else if glomap_mode == "'glomap_mode_ukca'":
+            # Existing suites with ukca need i_mode_setup==8
+            i_mode_setup = "8"
+        else if glomap_mode == "'glomap_mode_radaer_test'":
+            # Existing suites with ukca need i_mode_setup==8
+            i_mode_setup = "8"
+        else if glomap_mode == "'glomap_mode_climatology'":
+            # This is trigger ignored
+            i_mode_setup = "0"
+        else:
+            # This is trigger ignored
+            i_mode_setup = "0"
+
+        # Add new settings with the specified option
+        self.add_setting( config, ["namelist:aerosol","i_mode_setup"],
+                          i_mode_setup )
+        
         return config, self.reports
+
