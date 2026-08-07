@@ -161,7 +161,7 @@ do k = 1, top_level
         end if ! component(jmode, icp)
       end do ! icp
 
-      mode_Bk = bk_numerator / volume
+      mode_Bk = bk_numerator / max(volume, eps_1)
 
     end if ! mode(jmode)
 
