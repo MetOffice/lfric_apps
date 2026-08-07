@@ -742,6 +742,7 @@ min_val_method='iterative'
 horizontal_monotone=1,1,1,1,
 vertical_monotone=1,1,1,1,
 vertical_monotone_order=3,3,3,3,
+native_w2_wind_transport=.false.,
 oned_reconstruction=.false.,
 operators='fv',
 panel_edge_high_order=.true.,
