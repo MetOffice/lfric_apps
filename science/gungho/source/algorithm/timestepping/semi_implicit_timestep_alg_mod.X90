@@ -1129,11 +1129,6 @@ contains
                                               first_iteration=(inner==1), &
                                               stepper=stepper_siqn )
 
-          if (write_moisture_diag) then
-            call moisture_conservation_alg(self%config, self%state(igh_d), mr, &
-                                           'After solve')
-          end if
-
           ! If not already done update factors for moist dynamics
           if ( .not. guess_np1 .and. self%use_moisture ) &
             call moist_dyn_factors_alg(moist_dyn, mr)
@@ -1181,6 +1176,11 @@ contains
           call solver_moist_correction_alg(self%config,                        &
               mr, self%state(igh_d), rho_star, dry_flux_solver                 &
               )
+        end if
+
+        if (write_moisture_diag) then
+          call moisture_conservation_alg(self%config, self%state(igh_d), mr,   &
+                                         'After solve')
         end if
 
       else ! when use_wavedynamics=false, just add physics increments here

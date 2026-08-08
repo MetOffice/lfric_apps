@@ -46,7 +46,19 @@
         "memory": [24, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "clim_gal9_chem-tr_bdf2-C12" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
 {% elif task_ns.conf_name == "ral3-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "ral3-tr_bdf2-seuk_MG" %}
 
     {% do task_dict.update({
         "memory": [24, "GB"],
