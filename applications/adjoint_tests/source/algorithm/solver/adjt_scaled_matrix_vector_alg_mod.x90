@@ -26,7 +26,9 @@ module adjt_scaled_matrix_vector_alg_mod
   use operator_mod,                  only: r_solver_operator_type
   use r_solver_field_mod,            only: r_solver_field_type
   use sci_r_solver_field_vector_mod, only: r_solver_field_vector_type
-  use si_operators_alg_mod,          only: compute_si_operators, get_div_star, get_Hb_lumped_inv, &
+  use si_operators_alg_mod,          only: compute_si_operators_common, &
+                                           compute_helmholtz_operators, &
+                                           get_div_star, get_Hb_lumped_inv, &
                                            get_tau_u_dt_cp
   use dycore_constants_mod,          only: stepper_siqn
   use solver_constants_mod,          only: get_normalisation_r_solver
@@ -112,8 +114,9 @@ module adjt_scaled_matrix_vector_alg_mod
       call invoke(setval_random(init_op_moist_dyn(idx)))
     end do
 
-    call compute_si_operators( config, init_op_t, init_op_d, init_op_p, &
-                               model_clock, init_op_moist_dyn, stepper_siqn )
+    call compute_si_operators_common( config, init_op_t, init_op_d, init_op_p, &
+                                      init_op_moist_dyn )
+    call compute_helmholtz_operators( model_clock, stepper_siqn )
 
     call vector_x%initialise(vector_space_w3_ptr)
     call vector_mx%initialise(vector_space_w2_ptr)
@@ -131,8 +134,8 @@ module adjt_scaled_matrix_vector_alg_mod
 
     ! Tangent linear (Mx)
 
-                 scaled_matrix_vector_kernel_type( vector_mx, vector_x, div_star, u_normalisation, Hb_lumped_inv ), &
-                 inc_a_times_X( const_u, vector_mx ),                                                               &
+                 scaled_matrix_vector_kernel_type( vector_mx, vector_x, div_star, u_normalisation, Hb_lumped_inv, &
+                                                   const_u ),                                                        &
 
     ! <Mx,Mx>
 
@@ -152,8 +155,8 @@ module adjt_scaled_matrix_vector_alg_mod
 
     ! Adjoint (AMx)
 
-                 adj_scaled_matrix_vector_kernel_type( vector_mx, vector_amx, div_star, u_normalisation, Hb_lumped_inv ), &
-                 inc_a_times_X( const_u, vector_amx ),                                                              &
+                 adj_scaled_matrix_vector_kernel_type( vector_mx, vector_amx, div_star, u_normalisation,          &
+                                                       Hb_lumped_inv, const_u ),                                   &
 
     ! <AMx,x>
 

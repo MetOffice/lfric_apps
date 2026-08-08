@@ -8,7 +8,7 @@
 module adj_scaled_matrix_vector_kernel_mod
 
   use argument_mod,      only: arg_type, &
-                               GH_FIELD, GH_OPERATOR, GH_REAL, &
+                               GH_FIELD, GH_OPERATOR, GH_REAL, GH_SCALAR, &
                                GH_READ, GH_READWRITE, GH_INC,  &
                                CELL_COLUMN
   use constants_mod,     only: i_def, r_solver
@@ -23,12 +23,13 @@ module adj_scaled_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: adj_scaled_matrix_vector_kernel_type
     private
-    type(ARG_TYPE) :: META_ARGS(5) = (/                     &
+    type(ARG_TYPE) :: META_ARGS(6) = (/                     &
       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),     &
       arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W3),     &
       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W3), &
       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),     &
-      arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2)      &
+      arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),     &
+      arg_type(GH_SCALAR,   GH_REAL, GH_READ)              &
       /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -54,6 +55,7 @@ contains
 !> @param[in]     matrix   Local matrix assembly form of the operator A
 !> @param[in]     y        Field to scale output by
 !> @param[in]     z        Second field to scale output by
+!> @param[in]     scalar   Scalar to scale output by
 !> @param[in]     ndf1     No. degrees of freedom per cell for y/z/lhs
 !> @param[in]     undf1    Unique no. degrees of freedom  for y/z/lhs
 !> @param[in]     map1     Dofmap for cell at base of column for y/z/lhs
@@ -64,6 +66,7 @@ subroutine adj_scaled_matrix_vector_code(cell, nlayers, lhs, &
                                          x,                  &
                                          ncell_3d,           &
                                          matrix, y, z,       &
+                                         scalar,             &
                                          ndf1, undf1, map1,  &
                                          ndf2, undf2, map2)
 
@@ -76,6 +79,7 @@ subroutine adj_scaled_matrix_vector_code(cell, nlayers, lhs, &
   integer(kind=i_def), intent(in) :: ncell_3d, ndf1, ndf2
   real(kind=r_solver), intent(in) :: matrix(ncell_3d,ndf1,ndf2)
   real(kind=r_solver), intent(in) :: y(undf1), z(undf1)
+  real(kind=r_solver), intent(in) :: scalar
   integer(kind=i_def), dimension(ndf1), intent(in) :: map1(ndf1), map2(ndf2)
 
   ! Local variables
@@ -89,7 +93,7 @@ subroutine adj_scaled_matrix_vector_code(cell, nlayers, lhs, &
       do k = nlayers - 1, 0, -1
         ik = cell * nlayers + k - nlayers + 1
         x(k + map2(df2)) = x(k + map2(df2)) + &
-          matrix( ik, df, df2 ) * lhs(map1(df) + k) &
+          scalar * matrix( ik, df, df2 ) * lhs(map1(df) + k) &
           * y(k + map1(df)) * z(k + map1(df))
       end do
     end do

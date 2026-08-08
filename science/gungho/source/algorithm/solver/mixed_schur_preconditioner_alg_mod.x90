@@ -314,7 +314,8 @@ contains
   !!                     of the mixed system
   subroutine build_pressure_rhs(self, rhs0)
 
-    use dg_matrix_vector_kernel_mod,      only: dg_matrix_vector_kernel_type
+    use apply_analytic_q32_rhs_kernel_mod,                                     &
+                                          only: apply_analytic_q32_rhs_kernel_type
     use apply_variable_hx_kernel_mod,     only: apply_variable_hx_kernel_type
     use opt_apply_variable_hx_kernel_mod, only: opt_apply_variable_hx_kernel_type
     use operator_mod,                     only: r_solver_operator_type
@@ -336,7 +337,7 @@ contains
     type( r_solver_field_type ),    pointer :: mt_lumped_inv,  &
                                                h_diag,         &
                                                Hb_lumped_inv
-    type( r_solver_field_type )             :: r_p, rhs_d, r_p_theta
+    type( r_solver_field_type )             :: r_p, rhs_d
     real( kind=r_solver )                   :: const_r, const_t
     real( kind=r_solver )                   :: minus_const_r, minus_const_t
     type( r_solver_field_type )             :: rhs_uvw
@@ -409,13 +410,11 @@ contains
       q32_rho_op   => get_eliminated_q32_rho()
       q32_theta_op => get_eliminated_q32_theta()
       call r_p%initialise( rhs%get_function_space() )
-      call r_p_theta%initialise( rhs%get_function_space() )
-      call invoke( dg_matrix_vector_kernel_type(r_p, self%rhs_u, q32_rho_op),         &
-                   inc_a_times_X(const_r, r_p),                                       &
-                   dg_matrix_vector_kernel_type(r_p_theta, self%rhs_u, q32_theta_op), &
-                   inc_a_times_X(const_t, r_p_theta),                                 &
-                   inc_X_plus_Y(r_p, r_p_theta),                                      &
-                   X_minus_Y(rhs, rhs_p, r_p ) )
+      call invoke( apply_analytic_q32_rhs_kernel_type(r_p, self%rhs_u,         &
+                                                      q32_rho_op,              &
+                                                      q32_theta_op,            &
+                                                      const_r, const_t),       &
+                   X_minus_Y(rhs, rhs_p, r_p) )
     else
       ! r_pi = rhs_pi + P03*M0^-1*rhs_t + M3rho*M3^-1*rhs_r
       ! r_rho already contains M3^-1 factor
@@ -528,8 +527,7 @@ contains
                    setval_c(u_inc, 0.0_r_solver),                              &
                    scaled_matrix_vector_kernel_type(u_inc, exner_inc,          &
                                                     div_star, u_normalisation, &
-                                                    Hb_lumped_inv),            &
-                   inc_a_times_X(const_u, u_inc),                              &
+                                                    Hb_lumped_inv, const_u),   &
                    inc_X_plus_Y(u_inc, self%rhs_u),                            &
                    enforce_bc_kernel_type(u_inc) )
       if ( limited_area ) then

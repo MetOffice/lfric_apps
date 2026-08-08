@@ -220,8 +220,7 @@ contains
                          setval_c( y_vec,  0.0_r_solver ),                             &
                          scaled_matrix_vector_kernel_type(grad_p, x_vec,               &
                                                           div_star, hb_lumped_inv,     &
-                                                          u_normalisation),            &
-                         inc_a_times_X( const_u, grad_p ),                             &
+                                                          u_normalisation, const_u),   &
                          enforce_bc_kernel_type( grad_p ),                             &
                          inc_X_times_Y( grad_p, w2_mask ),                             &
                          apply_variable_hx_kernel_type(y_vec, grad_p,                  &
@@ -233,8 +232,7 @@ contains
                          setval_c( y_vec, 0.0_r_solver ),                              &
                          scaled_matrix_vector_kernel_type(grad_p, x_vec,               &
                                                           div_star, hb_lumped_inv,     &
-                                                          u_normalisation),            &
-                         inc_a_times_X( const_u, grad_p ),                             &
+                                                          u_normalisation, const_u),   &
                          enforce_bc_kernel_type( grad_p ),                             &
                          apply_variable_hx_kernel_type(y_vec, grad_p,                  &
                                                        mt_lumped_inv, x_vec,           &

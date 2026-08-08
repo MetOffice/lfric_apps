@@ -32,7 +32,8 @@ module adjt_mixed_operator_alg_mod
   use function_space_collection_mod,    only: function_space_collection
   use moist_dyn_mod,                    only: num_moist_factors
   use fs_continuity_mod,                only: W2, W3, Wtheta
-  use si_operators_alg_mod,             only: compute_si_operators
+  use si_operators_alg_mod,             only: compute_si_operators_common, &
+                                              compute_helmholtz_operators
   use dycore_constants_mod,             only: stepper_siqn
   use sci_enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
   use model_clock_mod,                  only: model_clock_type
@@ -116,8 +117,9 @@ contains
       call invoke(setval_random(moist_dyn(idx)))
     end do
 
-    call compute_si_operators( config, rhs(igh_t), rhs(igh_d), rhs(igh_p), &
-                               model_clock, moist_dyn, stepper_siqn )
+    call compute_si_operators_common( config, rhs(igh_t), rhs(igh_d), rhs(igh_p), &
+                                      moist_dyn )
+    call compute_helmholtz_operators( model_clock, stepper_siqn )
 
     ! Input fields are r_def fields so preliminary work uses field_types
 
