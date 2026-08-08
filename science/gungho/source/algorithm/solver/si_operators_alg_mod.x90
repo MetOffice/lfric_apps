@@ -85,7 +85,8 @@ module si_operators_alg_mod
   ! algorithm that applies them must multiply in the appropriate constant.
   !
   ! The stepper enumerator is passed as an argument to the getters (and to
-  ! compute_si_operators) so that the appropriate operator can be picked up.
+  ! compute_helmholtz_operators) so that the appropriate operator can be
+  ! picked up.
   type(inventory_by_integer_type) :: tri_precon_inventory
   type(inventory_by_integer_type) :: helmholtz_operator_inventory
   type(inventory_by_integer_type) :: helm_diag_inventory
@@ -114,7 +115,8 @@ module si_operators_alg_mod
 
   ! Public functions to create and access the module contents
   public :: create_si_operators
-  public :: compute_si_operators
+  public :: compute_si_operators_common
+  public :: compute_helmholtz_operators
   public :: final_si_operators
   public :: get_m3_rho_star
   public :: get_m3_exner_star
@@ -230,14 +232,14 @@ contains
     real(kind=r_def)    :: dt, tau_u, tau_r, tau_t, cp
     real(kind=r_solver) :: tau_u_dt_cp, tau_t_dt, tau_r_dt, tau_tu_dt2_cp
 
-    ! Local working fields, built level-by-level (each level on its own mesh /
-    ! function space) and then copied into the inventories (keyed by stepper)
-    ! via copy_field_array below. tri_precon and Helmholtz_operator are only
-    ! built for certain configurations, so are left unallocated otherwise.
-    type(r_solver_field_type), allocatable :: tri_precon(:,:)
-    type(r_solver_field_type), allocatable :: Helmholtz_operator(:,:)
-    type(r_solver_field_type), allocatable :: Helm_diag(:)
-    type(r_solver_field_type), allocatable :: Hb_lumped_inv(:)
+    ! Working fields, created directly in the inventories (keyed by stepper)
+    ! via add_field_array below, and then initialised level-by-level on their
+    ! own mesh / function space. tri_precon and Helmholtz_operator are only
+    ! built for certain configurations, so are left unassociated otherwise.
+    type(r_solver_field_type), pointer :: tri_precon(:,:) => null()
+    type(r_solver_field_type), pointer :: Helmholtz_operator(:,:) => null()
+    type(r_solver_field_type), pointer :: Helm_diag(:) => null()
+    type(r_solver_field_type), pointer :: Hb_lumped_inv(:) => null()
 
     call log_event( "Gungho: creating si_operators", LOG_LEVEL_DEBUG )
 
@@ -347,13 +349,22 @@ contains
         call log_event( "tridiagonal precon only valid for order 0", &
               LOG_LEVEL_ERROR )
       end if
-      allocate( tri_precon(3, multigrid_levels) )
+      call tri_precon_inventory%add_field_array(                               &
+              tri_precon, w3_fs, 3, multigrid_levels, stepper                  &
+      )
     end if
     if ( element_order_h == 0 .and. element_order_v == 0 ) then
-      allocate( Helmholtz_operator(helmholtz_stencil_size, multigrid_levels) )
+      call helmholtz_operator_inventory%add_field_array(                       &
+              Helmholtz_operator, w3_fs, helmholtz_stencil_size,               &
+              multigrid_levels, stepper                                        &
+      )
     end if
-    allocate( Helm_diag(multigrid_levels) )
-    allocate( Hb_lumped_inv(multigrid_levels) )
+    call helm_diag_inventory%add_field_array(                                  &
+            Helm_diag, w3_fs, multigrid_levels, stepper                        &
+    )
+    call hb_lumped_inv_inventory%add_field_array(                              &
+            Hb_lumped_inv, w2_fs, multigrid_levels, stepper                    &
+    )
 
     if (l_multigrid) then
       call multigrid_function_space_chain%set_current(w3_fs%get_id())
@@ -384,26 +395,6 @@ contains
           wt_fs => wtheta_multigrid_function_space_chain%get_next()
       end if
     end do
-
-    ! Copy the working fields into their inventories, keyed by stepper. Using
-    ! copy_field_array (rather than add_field_array) preserves the distinct
-    ! per-level function spaces set up in the loop above.
-    if ( preconditioner == preconditioner_tridiagonal .or. &
-                  preconditioner == preconditioner_multigrid ) then
-      call tri_precon_inventory%copy_field_array( tri_precon, stepper )
-    end if
-    if ( element_order_h == 0 .and. element_order_v == 0 ) then
-      call helmholtz_operator_inventory%copy_field_array( Helmholtz_operator, &
-                                                          stepper )
-    end if
-    call helm_diag_inventory%copy_field_array( helm_diag, stepper )
-    call hb_lumped_inv_inventory%copy_field_array( Hb_lumped_inv, stepper )
-
-    ! Deallocate the local working arrays now that they have been copied in
-    if (allocated(tri_precon))         deallocate(tri_precon)
-    if (allocated(Helmholtz_operator)) deallocate(Helmholtz_operator)
-    if (allocated(Helm_diag))          deallocate(Helm_diag)
-    if (allocated(Hb_lumped_inv))      deallocate(Hb_lumped_inv)
 
     ! ======================================================================== !
     ! Store scaling constants for this stepper
@@ -494,16 +485,17 @@ contains
 
   end subroutine final_si_operators
 
-  !> @brief Subroutine to compute the si operators
+  !> @brief Subroutine to compute the generic (stepper-independent) SI operators
+  !> @details Computes the reference-state-dependent operators and fields
+  !!          that do not depend on the tau*dt scaling constants, storing
+  !!          them in the plain module arrays (not keyed by stepper).
   !> @param[in] config        Application namelist configuration object
   !> @param[in] theta_ref     Reference Potential temperature
   !> @param[in] rho_ref       Reference Density
   !> @param[in] exner_ref     Reference Exner pressure
-  !> @param[in] model_clock   Time in the model
   !> @param[in] moist_dyn_ref Bundle of reference moist dynamics factors
-  !> @param[in] stepper       Timestepper enumerator used to key the inventories
-  subroutine compute_si_operators(config, theta_ref, rho_ref, exner_ref, &
-                                  model_clock, moist_dyn_ref, stepper)
+  subroutine compute_si_operators_common(config, theta_ref, rho_ref, &
+                                         exner_ref, moist_dyn_ref)
 
     use quadrature_xyoz_mod,                  only: quadrature_xyoz_type
     use quadrature_face_mod,                  only: quadrature_face_type
@@ -527,27 +519,15 @@ contains
                                                     get_panel_id, &
                                                     get_height_fv
     use sci_fem_constants_mod,                only: get_rmultiplicity_fe
-    use dycore_constants_mod,                 only: get_w2_mass_matrix, &
-                                                    w2_lagged_damping_layer_matrix
     use solver_constants_mod,                 only: get_detj_at_w3_r_solver,   &
                                                     get_im3_div_r_solver,      &
                                                     get_normalisation_r_solver, &
                                                     get_inverse_mass_matrix_r_solver
-    use limited_area_constants_mod,           only: get_mask_fv
-    use sci_invert_local_operator_kernel_mod, only: invert_local_operator_kernel_type
-    use field_indices_mod,                    only: igh_u, igh_t, igh_d, igh_p
     use planet_config_mod,                    only: kappa, rd, p_zero
     use reference_element_mod,                only: reference_element_type
     use mesh_mod,                             only: mesh_type
-    use matrix_vector_kernel_mod,             only: matrix_vector_kernel_type
-    use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
-    use formulation_config_mod,               only: dlayer_on,       &
-                                                    lagged_orog,     &
-                                                    dry_static_adjust
+    use formulation_config_mod,               only: dry_static_adjust
     use sci_sort_ref_kernel_mod,              only: sort_ref_kernel_type
-    use psykal_lite_mod,                      only: invoke_helmholtz_operator_kernel_type, &
-                                                    invoke_elim_helmholtz_operator_kernel_type
-    use boundaries_config_mod,                only: limited_area
     use sample_eliminated_theta_q32_kernel_mod, &
                                  only: sample_eliminated_theta_q32_kernel_type
     use project_eliminated_theta_q32_kernel_mod, &
@@ -563,7 +543,6 @@ contains
     use sci_restrict_scalar_unweighted_kernel_mod, &
                                               only: restrict_scalar_unweighted_kernel_type
     use sci_operator_algebra_kernel_mod,      only: operator_setval_x_kernel_type
-    use model_clock_mod,                      only: model_clock_type
 
     implicit none
 
@@ -571,17 +550,7 @@ contains
 
     type(field_type), intent(in)           :: theta_ref, rho_ref, exner_ref
     type(field_type), intent(in)           :: moist_dyn_ref(num_moist_factors)
-    class(model_clock_type), intent(in)    :: model_clock
-    integer(kind=i_def), intent(in)        :: stepper
 
-    real(kind=r_solver),           pointer :: tau_u_dt_cp
-    real(kind=r_solver),           pointer :: tau_t_dt
-    real(kind=r_solver),           pointer :: tau_r_dt
-    real(kind=r_solver),           pointer :: tau_tu_dt2_cp
-    type(r_solver_field_type),     pointer :: tri_precon(:,:)
-    type(r_solver_field_type),     pointer :: Helmholtz_operator(:,:)
-    type(r_solver_field_type),     pointer :: Helm_diag(:)
-    type(r_solver_field_type),     pointer :: Hb_lumped_inv(:)
     type(quadrature_xyoz_type)             :: qr
     type(quadrature_face_type)             :: qrf
     type(quadrature_rule_gaussian_type)    :: quadrature_rule
@@ -593,17 +562,10 @@ contains
     type(function_space_type),     pointer :: w3_fs => null()
     type(function_space_type),     pointer :: w2_fs => null()
     type(function_space_type),     pointer :: wt_fs => null()
-    integer(kind=i_def), parameter         :: imone = -1_i_def
     class(reference_element_type), pointer :: reference_element =>null()
     type(mesh_type),               pointer :: mesh => null()
-    type(operator_type),           pointer :: m2 => null()
-    type(r_solver_field_type),     pointer :: u_normalisation => null(), &
-                                              t_normalisation => null()
-    type(r_solver_field_type)              :: m2_u, theta_adv_term
-    type(r_solver_field_type)              :: scaled_ones
-    integer(kind=i_def)                    :: level, i
-    type(r_solver_field_type)              :: rsol_w2_mask
-    type(field_type),              pointer :: w2_mask => null()
+    type(r_solver_field_type),     pointer :: u_normalisation => null()
+    integer(kind=i_def)                    :: level
     type(field_type), pointer              :: height_w3 => null()
     type(field_type), pointer              :: height_wt => null()
     type(r_solver_field_type)              :: multiplicity
@@ -614,7 +576,6 @@ contains
                                               theta,        &
                                               coarse_field
     type(r_solver_field_type)              :: rsol_w2_rmultiplicity
-    type(r_solver_operator_type)           :: m2_r_solver
     type(r_solver_field_type),     pointer :: detj_at_w3 => null()
     type(field_type)                       :: moist_dyn_factor_rdef
     type(r_solver_field_type)              :: moist_dyn_factor, theta_v
@@ -626,26 +587,8 @@ contains
     integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
     integer(tik)                   :: id
 
-    if ( LPROF ) call start_timing( id, 'dynamics.compute_si_operators' )
-    call log_event( "Gungho: computing si_operators", LOG_LEVEL_DEBUG )
-
-    ! Retrieve the tau*dt scaling constants (computed in create_si_operators)
-    ! and pointers to the working fields, all keyed by the active stepper
-    call tau_u_dt_cp_inventory%get_real(stepper, tau_u_dt_cp)
-    call tau_t_dt_inventory%get_real(stepper, tau_t_dt)
-    call tau_r_dt_inventory%get_real(stepper, tau_r_dt)
-    call tau_tu_dt2_cp_inventory%get_real(stepper, tau_tu_dt2_cp)
-
-    call helm_diag_inventory%get_field_array(stepper, Helm_diag)
-    call hb_lumped_inv_inventory%get_field_array(stepper, Hb_lumped_inv)
-    if ( preconditioner == preconditioner_tridiagonal .or. &
-         preconditioner == preconditioner_multigrid ) then
-      call tri_precon_inventory%get_field_array(stepper, tri_precon)
-    end if
-    if ( element_order_h == 0 .and. element_order_v == 0 ) then
-      call helmholtz_operator_inventory%get_field_array(stepper, &
-                                                        Helmholtz_operator)
-    end if
+    if ( LPROF ) call start_timing( id, 'dynamics.compute_si_operators_common' )
+    call log_event( "Gungho: computing si_operators_common", LOG_LEVEL_DEBUG )
 
     mesh  => exner_ref%get_mesh()
 
@@ -821,6 +764,168 @@ contains
          end select
        end if
 
+       ! Restrict the fields for the next level, provided not last time round
+       ! the loop
+       if (level < multigrid_levels) then
+          ! should not get here if no multigrid, but just in case
+          if (l_multigrid) then
+
+             write(log_scratch_space,'(A,I0,A,I0)') &
+                  "si_ops:MG restrict L",level," to L",level+1
+             call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
+
+             ! copy current field to coarse field
+             call theta%copy_field_properties(coarse_field)
+             call invoke( setval_X(coarse_field, theta) )
+             ! set the fs to the next (fine)
+             wt_fs=>wtheta_multigrid_function_space_chain%get_next()
+             call theta%initialise(vector_space = wt_fs, halo_depth=req_halo_depth )
+             ! call restrict
+             call invoke( restrict_scalar_unweighted_kernel_type(theta, coarse_field) )
+
+             ! copy current field to coarse field
+             call moist_dyn_factor%copy_field_properties(coarse_field)
+             call invoke( setval_X(coarse_field, moist_dyn_factor) )
+             call moist_dyn_factor%initialise(vector_space = wt_fs)
+             ! call restrict
+             call invoke( restrict_scalar_unweighted_kernel_type(moist_dyn_factor, coarse_field) )
+
+             ! copy current field to coarse field
+             call rho%copy_field_properties(coarse_field)
+             call invoke( setval_X(coarse_field, rho) )
+             ! set the fs to the next (fine)
+             w3_fs=>multigrid_function_space_chain%get_next()
+             call rho%initialise(vector_space = w3_fs, halo_depth=req_halo_depth )
+             ! call restrict
+             call invoke( restrict_scalar_unweighted_kernel_type(rho, coarse_field) )
+
+             ! copy current field to coarse field
+             call exner%copy_field_properties(coarse_field)
+             call invoke( setval_X(coarse_field, exner) )
+             ! fs already set fine
+             call exner%initialise(vector_space = w3_fs , halo_depth=req_halo_depth)
+             ! call restrict
+             call invoke( restrict_scalar_unweighted_kernel_type(exner, coarse_field) )
+             ! set w2_fs to next in chain
+             w2_fs=>w2_multigrid_function_space_chain%get_next()
+          end if
+       end if
+
+    end do ! end of multigrid levels loop
+
+    nullify( chi, panel_id, m3_inv, div, w2_rmultiplicity, &
+             mesh, reference_element, u_normalisation )
+    if ( LPROF ) call stop_timing( id, 'dynamics.compute_si_operators_common' )
+
+  end subroutine compute_si_operators_common
+
+  !> @brief Subroutine to compute the stepper-dependent Helmholtz operators.
+  !> @details Computes the Hb_lumped_inv, Helmholtz_operator, tri_precon and
+  !!          Helm_diag fields, applying the tau*dt scaling constants for the
+  !!          given stepper, and storing the results in the per-stepper
+  !!          inventories. Requires compute_si_operators_common to have been
+  !!          called first.
+  !> @param[in] model_clock Time in the model
+  !> @param[in] stepper     Timestepper enumerator
+  subroutine compute_helmholtz_operators(model_clock, stepper)
+
+    use fs_continuity_mod,                    only: W2, W3, Wtheta
+    use dycore_constants_mod,                 only: get_w2_mass_matrix, &
+                                                    w2_lagged_damping_layer_matrix
+    use solver_constants_mod,                 only: get_normalisation_r_solver
+    use limited_area_constants_mod,           only: get_mask_fv
+    use matrix_vector_kernel_mod,             only: matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod,       only: dg_inc_matrix_vector_kernel_type
+    use psykal_lite_mod,                      only: invoke_helmholtz_operator_kernel_type, &
+                                                    invoke_elim_helmholtz_operator_kernel_type
+    use boundaries_config_mod,                only: limited_area
+    use sci_operator_algebra_kernel_mod,      only: operator_setval_x_kernel_type
+    use mesh_mod,                             only: mesh_type
+    use model_clock_mod,                      only: model_clock_type
+
+    implicit none
+
+    class(model_clock_type),  intent(in)    :: model_clock
+    integer(kind=i_def),      intent(in)    :: stepper
+
+    real(kind=r_solver),           pointer :: tau_u_dt_cp
+    real(kind=r_solver),           pointer :: tau_t_dt
+    real(kind=r_solver),           pointer :: tau_r_dt
+    real(kind=r_solver),           pointer :: tau_tu_dt2_cp
+    type(r_solver_field_type),     pointer :: tri_precon(:,:)
+    type(r_solver_field_type),     pointer :: Helmholtz_operator(:,:)
+    type(r_solver_field_type),     pointer :: Helm_diag(:)
+    type(r_solver_field_type),     pointer :: Hb_lumped_inv(:)
+    type(function_space_type),     pointer :: w3_fs
+    type(function_space_type),     pointer :: w2_fs
+    type(function_space_type),     pointer :: wt_fs
+    integer(kind=i_def), parameter         :: imone = -1_i_def
+    type(mesh_type),               pointer :: mesh
+    type(operator_type),           pointer :: m2
+    type(r_solver_field_type),     pointer :: u_normalisation
+    type(r_solver_field_type),     pointer :: t_normalisation
+    type(r_solver_field_type)              :: ones, m2_u, theta_adv_term
+    integer(kind=i_def)                    :: level, i
+    type(r_solver_field_type)              :: rsol_w2_mask
+    type(field_type),              pointer :: w2_mask
+    type(r_solver_operator_type)           :: m2_r_solver
+
+    ! For continuous fields the default looping depth is to the depth 1 halo
+    ! and so for any fields that are accessed with a stencil the halo_depth
+    ! needs to be one bigger than the required stencil_depth
+    integer(kind=i_def), parameter :: req_stencil_depth = 1
+    integer(tik)                   :: id
+
+    if ( LPROF ) call start_timing( id, 'dynamics.compute_helmholtz_operators' )
+    call log_event( "Gungho: computing helmholtz_operators", LOG_LEVEL_DEBUG )
+
+    if ( .not. allocated(m3_rho_star) ) then
+      call log_event( "Gungho: compute_helmholtz_operators called before " // &
+                      "compute_si_operators_common", LOG_LEVEL_ERROR )
+    end if
+
+    ! Retrieve the tau*dt scaling constants (computed in create_si_operators)
+    ! and pointers to the working fields, all keyed by the active stepper
+    call tau_u_dt_cp_inventory%get_real(stepper, tau_u_dt_cp)
+    call tau_t_dt_inventory%get_real(stepper, tau_t_dt)
+    call tau_r_dt_inventory%get_real(stepper, tau_r_dt)
+    call tau_tu_dt2_cp_inventory%get_real(stepper, tau_tu_dt2_cp)
+
+    call helm_diag_inventory%get_field_array(stepper, Helm_diag)
+    call hb_lumped_inv_inventory%get_field_array(stepper, Hb_lumped_inv)
+    if ( preconditioner == preconditioner_tridiagonal .or. &
+         preconditioner == preconditioner_multigrid ) then
+      call tri_precon_inventory%get_field_array(stepper, tri_precon)
+    end if
+    if ( element_order_h == 0 .and. element_order_v == 0 ) then
+      call helmholtz_operator_inventory%get_field_array(stepper, &
+                                                        Helmholtz_operator)
+    end if
+
+    ! Fetch the finest-level function spaces from the generic module arrays,
+    ! then reset the multigrid function space chains to walk them again
+    ! independently of the loop in compute_si_operators_common
+    mesh  => rho_at_u(1)%get_mesh()
+    w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W3 )
+    w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W2 )
+    wt_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, Wtheta )
+
+    if (l_multigrid) then
+       call multigrid_function_space_chain%set_current(w3_fs%get_id())
+       call w2_multigrid_function_space_chain%set_current(w2_fs%get_id())
+       call wtheta_multigrid_function_space_chain%set_current(wt_fs%get_id())
+    end if
+
+    do level = 1, multigrid_levels
+
+       write(log_scratch_space,'(A,I0)') "si_ops helmholtz: mg level=",level
+       call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+       mesh => rho_at_u(level)%get_mesh()
+
        ! Compute Hb_lumped_inv field
        ! mass matrix should include damping layer and lagged-orography terms
        ! if these options are not true, this matrix won't contain the terms
@@ -835,17 +940,16 @@ contains
 
        call m2_u%initialise( vector_space = w2_fs )
        call ones%initialise( vector_space = w2_fs )
-       call scaled_ones%initialise( vector_space = w2_fs )
        if ( eliminate_variables == eliminate_variables_analytic ) then
          ! H_B = (Nu * Mu - tau_tu_dt2_cp * Q22) * ones
          call invoke( name = "compute_analytic_lumped_inverse_h_b_operator",              &
                       setval_c(ones, 1.0_r_solver),                                       &
-                      setval_c(scaled_ones, tau_tu_dt2_cp),                               &
                       setval_c(Hb_lumped_inv(level), 0.0_r_solver),                       &
                       setval_c(m2_u, 0.0_r_solver),                                       &
                       matrix_vector_kernel_type(Hb_lumped_inv(level), ones, m2_r_solver), &
                       inc_X_times_Y(Hb_lumped_inv(level), u_normalisation),               &
-                      matrix_vector_kernel_type(m2_u, scaled_ones, eliminated_q22(level)), &
+                      matrix_vector_kernel_type(m2_u, ones, eliminated_q22(level)),       &
+                      inc_X_minus_bY(Hb_lumped_inv(level), tau_tu_dt2_cp, m2_u),          &
                       inc_X_minus_Y(Hb_lumped_inv(level), m2_u),                          &
                       inc_X_powint_n(Hb_lumped_inv(level), imone) )
 
@@ -854,12 +958,12 @@ contains
          call theta_adv_term%initialise( vector_space = wt_fs )
          call invoke( name = "compute_lumped_inverse_h_b_operator",         &
                       setval_c(ones, 1.0_r_solver),                         &
-                      setval_c(scaled_ones, tau_t_dt),                      &
                       setval_c(Hb_lumped_inv(level), 0.0_r_solver),         &
                       setval_c(theta_adv_term, 0.0_r_solver),               &
                       dg_inc_matrix_vector_kernel_type(                     &
-                                theta_adv_term, scaled_ones, ptheta2v(level)), &
-                      inc_X_times_Y(theta_adv_term, t_normalisation),       &
+                                theta_adv_term, ones, ptheta2v(level)),     &
+                      inc_aX_times_Y(tau_t_dt, theta_adv_term,              &
+                                     t_normalisation),                      &
                       inc_a_times_X(tau_u_dt_cp, theta_adv_term),           &
                       matrix_vector_kernel_type(                            &
                                 Hb_lumped_inv(level), theta_adv_term,       &
@@ -941,61 +1045,18 @@ contains
           call invoke( setval_c(Helm_diag(level), 1.0_r_solver) )
        end if
 
-      ! Restrict the fields for the next level, provided not last time round
-       ! the loop
-       if (level < multigrid_levels) then
-          ! should not get here if no multigrid, but just in case
-          if (l_multigrid) then
-
-             write(log_scratch_space,'(A,I0,A,I0)') &
-                  "si_ops:MG restrict L",level," to L",level+1
-             call log_event(log_scratch_space,LOG_LEVEL_DEBUG)
-
-             ! copy current field to coarse field
-             call theta%copy_field_properties(coarse_field)
-             call invoke( setval_X(coarse_field, theta) )
-             ! set the fs to the next (fine)
-             wt_fs=>wtheta_multigrid_function_space_chain%get_next()
-             call theta%initialise(vector_space = wt_fs, halo_depth=req_halo_depth )
-             ! call restrict
-             call invoke( restrict_scalar_unweighted_kernel_type(theta, coarse_field) )
-
-             ! copy current field to coarse field
-             call moist_dyn_factor%copy_field_properties(coarse_field)
-             call invoke( setval_X(coarse_field, moist_dyn_factor) )
-             call moist_dyn_factor%initialise(vector_space = wt_fs)
-             ! call restrict
-             call invoke( restrict_scalar_unweighted_kernel_type(moist_dyn_factor, coarse_field) )
-
-             ! copy current field to coarse field
-             call rho%copy_field_properties(coarse_field)
-             call invoke( setval_X(coarse_field, rho) )
-             ! set the fs to the next (fine)
-             w3_fs=>multigrid_function_space_chain%get_next()
-             call rho%initialise(vector_space = w3_fs, halo_depth=req_halo_depth )
-             ! call restrict
-             call invoke( restrict_scalar_unweighted_kernel_type(rho, coarse_field) )
-
-             ! copy current field to coarse field
-             call exner%copy_field_properties(coarse_field)
-             call invoke( setval_X(coarse_field, exner) )
-             ! fs already set fine
-             call exner%initialise(vector_space = w3_fs , halo_depth=req_halo_depth)
-             ! call restrict
-             call invoke( restrict_scalar_unweighted_kernel_type(exner, coarse_field) )
-             ! set w2_fs to next in chain
-             w2_fs=>w2_multigrid_function_space_chain%get_next()
-          end if
+       if (level < multigrid_levels .and. l_multigrid) then
+          w3_fs => multigrid_function_space_chain%get_next()
+          w2_fs => w2_multigrid_function_space_chain%get_next()
+          wt_fs => wtheta_multigrid_function_space_chain%get_next()
        end if
 
     end do ! end of multigrid levels loop
 
-    nullify( chi, panel_id, m3_inv, div, w2_rmultiplicity, &
-             mesh, reference_element, m2, u_normalisation, t_normalisation, &
-             w2_mask, mesh )
-    if ( LPROF ) call stop_timing( id, 'dynamics.compute_si_operators' )
+    nullify( mesh, m2, u_normalisation, t_normalisation, w2_mask )
+    if ( LPROF ) call stop_timing( id, 'dynamics.compute_helmholtz_operators' )
 
-  end subroutine compute_si_operators
+  end subroutine compute_helmholtz_operators
 
   !> @brief Function to return a pointer to the m3_rho_star
   !!        on the finest multigrid level.

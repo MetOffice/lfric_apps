@@ -77,8 +77,9 @@ module tl_si_timestep_alg_mod
   use tl_transport_control_alg_mod, &
                                    only: tl_transport_control_alg
 
-  use si_operators_alg_mod,        only: create_si_operators,  &
-                                         compute_si_operators, &
+  use si_operators_alg_mod,        only: create_si_operators,           &
+                                         compute_si_operators_common,   &
+                                         compute_helmholtz_operators,   &
                                          final_si_operators
   use dycore_constants_mod,        only: stepper_siqn
   use checks_and_balances_alg_mod, only: check_fields
@@ -488,14 +489,14 @@ contains
     ! The reference_reset_time is specified in the configuration namelist.
     ! Note that this reset can only occur at most once per timestep.
     reference_reset_freq = nint(reference_reset_time / cast_dt, i_def)
-    if ( mod(modeldb%clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) &
-      call compute_si_operators(modeldb%config,  &
-                                ls_state(igh_t), &
-                                ls_state(igh_d), &
-                                ls_state(igh_p), &
-                                modeldb%clock,   &
-                                ls_moist_dyn_itns(:,1,1), &
-                                stepper_siqn)
+    if ( mod(modeldb%clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) then
+      call compute_si_operators_common(modeldb%config,  &
+                                       ls_state(igh_t), &
+                                       ls_state(igh_d), &
+                                       ls_state(igh_p), &
+                                       ls_moist_dyn_itns(:,1,1))
+      call compute_helmholtz_operators(modeldb%clock, stepper_siqn)
+    end if
 
 
     !--------------------------------------------------------------------

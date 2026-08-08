@@ -97,8 +97,9 @@ module semi_implicit_timestep_alg_mod
                                   only: gungho_transport_control_alg_init, &
                                         gungho_transport_control_alg
 
-  use si_operators_alg_mod,       only: create_si_operators,  &
-                                        compute_si_operators, &
+  use si_operators_alg_mod,       only: create_si_operators,           &
+                                        compute_si_operators_common,   &
+                                        compute_helmholtz_operators,   &
                                         final_si_operators
   use dycore_constants_mod,       only: stepper_siqn
   use fast_physics_alg_mod,       only: fast_physics
@@ -554,8 +555,9 @@ contains
       call prognostic_fields%get_field('theta_ref', theta_ref)
       call prognostic_fields%get_field('rho_ref', rho_ref)
       call prognostic_fields%get_field('exner_ref', exner_ref)
-      call compute_si_operators(self%config, theta_ref, rho_ref, exner_ref, &
-                                model_clock, moist_dyn_ref, stepper_siqn)
+      call compute_si_operators_common(self%config, theta_ref, rho_ref, &
+                                       exner_ref, moist_dyn_ref)
+      call compute_helmholtz_operators(model_clock, stepper_siqn)
       nullify(theta_ref, rho_ref, exner_ref, moist_dyn_ref, moist_dyn_ref_array)
     end if
 
@@ -799,9 +801,10 @@ contains
 
     if ( mod(model_clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) then
       ! Compute semi-implicit operators with current model state
-      call compute_si_operators( self%config, self%state(igh_t),       &
-                                 self%state(igh_d), self%state(igh_p), &
-                                 model_clock, moist_dyn, stepper_siqn )
+      call compute_si_operators_common(self%config, self%state(igh_t),       &
+                                       self%state(igh_d), self%state(igh_p), &
+                                       moist_dyn)
+      call compute_helmholtz_operators(model_clock, stepper_siqn)
 
       checkpoint_reference_fields = &
            mod(model_clock%get_first_step()-1, reference_reset_freq) /= 0 .or. &

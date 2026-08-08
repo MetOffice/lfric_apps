@@ -685,8 +685,7 @@ contains
         call invoke( dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), q3t_op ), &
                      setval_c(rhs_tmp, 0.0_r_solver),                                    &
                      matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), q2t_op ),      &
-                     inc_a_times_X( const_u, rhs_tmp ),                                  &
-                     inc_X_plus_Y( rhs_rsol(igh_u), rhs_tmp ),                           &
+                     inc_X_plus_bY( rhs_rsol(igh_u), const_u, rhs_tmp ),                 &
                      enforce_bc_kernel_type( rhs_rsol(igh_u) ) )
       else
         p3theta   => get_p3theta()
@@ -699,8 +698,7 @@ contains
         ! p2theta is assembled unscaled, so apply the scaling tau_u*dt*cp
         call invoke( setval_c(rhs_tmp, 0.0_r_solver),                                &
                      matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
-                     inc_X_times_Y(rhs_tmp, m2_diag),                                &
-                     inc_a_times_X(const_u, rhs_tmp),                                &
+                     inc_aX_times_Y(const_u, rhs_tmp, m2_diag),                      &
                      inc_X_plus_Y(rhs_rsol(igh_u), rhs_tmp),                         &
                      enforce_bc_kernel_type( rhs_rsol(igh_u) ) )
       end if

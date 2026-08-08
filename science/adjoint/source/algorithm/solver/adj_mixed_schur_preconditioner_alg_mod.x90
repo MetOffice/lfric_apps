@@ -391,10 +391,9 @@ contains
     call invoke( name = "compute_increments",                                     &
                  enforce_bc_kernel_type(u_inc),                                   &
                  inc_X_plus_Y( self%rhs_u, u_inc ),                               &
-                 inc_a_times_X( const_u, u_inc ),                                 &
                  adj_scaled_matrix_vector_kernel_type( u_inc, exner_inc,          &
                                                        div_star, u_normalisation, &
-                                                       Hb_lumped_inv ),           &
+                                                       Hb_lumped_inv, const_u ),  &
                  setval_c(u_inc, 0.0_r_solver) )
 
     if ( LPROF ) call stop_timing( id, 'adj_schur_precon.back_sub' )
