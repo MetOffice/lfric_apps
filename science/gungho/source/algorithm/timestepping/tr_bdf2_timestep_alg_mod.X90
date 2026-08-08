@@ -80,7 +80,8 @@ module tr_bdf2_timestep_alg_mod
                                         semi_implicit_solver_alg_step,         &
                                         semi_implicit_solver_alg_final
   use si_operators_alg_mod,       only: create_si_operators,                   &
-                                        compute_si_operators,                  &
+                                        compute_si_operators_common,           &
+                                        compute_helmholtz_operators,           &
                                         final_si_operators
   use slow_physics_alg_mod,       only: slow_physics
   use smagorinsky_alg_mod,        only: smagorinsky_alg
@@ -549,16 +550,11 @@ contains
       call prognostic_fields%get_field('rho_ref', rho_ref)
       call prognostic_fields%get_field('exner_ref', exner_ref)
 
-      ! Compute TR and BDF2 operators (only one call needed)
-      call compute_si_operators(                                               &
-          self%config, theta_ref, rho_ref, exner_ref,                          &
-          model_clock, moist_dyn_ref, stepper_tr                               &
+      call compute_si_operators_common(                                        &
+          self%config, theta_ref, rho_ref, exner_ref, moist_dyn_ref            &
       )
-      ! TODO: this should be a common part and a specific part to avoid duplication 
-      call compute_si_operators(                                               &
-          self%config, theta_ref, rho_ref, exner_ref,                          &
-          model_clock, moist_dyn_ref, stepper_bdf2                             &
-      )
+      call compute_helmholtz_operators(model_clock, stepper_tr)
+      call compute_helmholtz_operators(model_clock, stepper_bdf2)
     end if
 
     if (use_wavedynamics) then
@@ -909,15 +905,11 @@ contains
 
     if (mod(model_clock%get_step()-1, reference_reset_freq) == 0) then
       ! Compute semi-implicit operators with current model state
-      ! TODO: this should be separated
-      call compute_si_operators(                                               &
-              self%config, self%state(igh_t), self%state(igh_d),               &
-              self%state(igh_p), model_clock, moist_dyn, stepper_tr            &
+      call compute_si_operators_common(                                        &
+          self%config, theta_ref, rho_ref, exner_ref, moist_dyn_ref            &
       )
-      call compute_si_operators(                                               &
-              self%config, self%state(igh_t), self%state(igh_d),               &
-              self%state(igh_p), model_clock, moist_dyn, stepper_bdf2          &
-      )
+      call compute_helmholtz_operators(model_clock, stepper_tr)
+      call compute_helmholtz_operators(model_clock, stepper_bdf2)
 
       checkpoint_reference_fields = (                                          &
           mod(model_clock%get_first_step()-1, reference_reset_freq) /= 0 .or.  &
