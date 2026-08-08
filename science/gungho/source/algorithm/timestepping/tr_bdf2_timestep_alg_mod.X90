@@ -906,7 +906,8 @@ contains
     if (mod(model_clock%get_step()-1, reference_reset_freq) == 0) then
       ! Compute semi-implicit operators with current model state
       call compute_si_operators_common(                                        &
-          self%config, theta_ref, rho_ref, exner_ref, moist_dyn_ref            &
+          self%config, self%state(igh_t), self%state(igh_d),                   &
+          self%state(igh_p), moist_dyn                                         &
       )
       call compute_helmholtz_operators(model_clock, stepper_tr)
       call compute_helmholtz_operators(model_clock, stepper_bdf2)
