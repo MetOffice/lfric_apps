@@ -25,6 +25,7 @@ class INTER:
         self.lfric_grid_path = None
         self.um_grid_type = None
         self.um_grid_path = None
+        self.um_mask_value = None
 
     def set_regrid_info(self):
         '''Set information from environment variables'''
@@ -40,6 +41,7 @@ class INTER:
         self.um_grid_path = os.environ.get('GRID_PATH_UM')
         self.lfric_grid_type = os.environ.get('GRID_TYPE_LFRIC')
         self.lfric_grid_path = os.environ.get('GRID_PATH_LFRIC')
+        self.um_mask_value = um_rmdi
 
     def set_arguments_um2lfric(self):
         '''Set ESMF regrid command line options'''
@@ -48,6 +50,8 @@ class INTER:
         options = options + ' --dst_loc center'
         options = options + ' --64bit_offset --check -m ' + self.method
         options = options + ' --extrap_method neareststod'
+        options = options + ' --src_missingvalue um_mask_value'
+        options = options + ' -v mask_b,dst_grid_imask'
         if self.um_grid_type == 'regional':
             options = options + ' --src_regional '
         if self.lfric_grid_type == 'regional':
@@ -71,6 +75,8 @@ class INTER:
         options = options + ' --src_loc center'
         options = options + ' -d ' + self.um_grid_path
         options = options + ' --64bit_offset --check -m ' + self.method
+        options = options + ' -v mask_a,src_grid_imask'
+        options = options + ' --dst_missingvalue um_mask_value'
         if self.um_grid_type == 'regional':
             options = options + ' --src_regional '
         if self.lfric_grid_type == 'regional':
