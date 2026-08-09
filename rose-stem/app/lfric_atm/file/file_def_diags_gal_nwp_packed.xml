@@ -1,0 +1,181 @@
+<file_definition>
+
+  <!-- Diagnostic fields - Daily - mean/min/max -->
+  <file id="lfric_diagnostics" name="results/lfric_diagnostics" output_freq="1d" convention="UGRID" enabled=".TRUE.">
+    <!-- 2D fields averaged every timestep -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+<field add_offset="68674.0" scale_factor="1.1" prec="2" conversion_by_netcdf=".false." field_ref="processed__pstar"/>
+<field add_offset="7016.0" scale_factor="0.11" prec="2" conversion_by_netcdf=".false." field_ref="processed__tot_col_dry_air_mass"/>
+<field add_offset="7016.0" scale_factor="0.11" prec="2" conversion_by_netcdf=".false." field_ref="processed__tot_col_wetplusdry_mass"/>
+<field add_offset="0.0" scale_factor="0.002" prec="2" conversion_by_netcdf=".false." field_ref="processed__tot_col_m_v"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__tot_col_m_cl"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__tot_col_m_cf"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__tot_col_m_r"/>
+<field add_offset="-1.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__total_rain"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__total_snow"/>
+<field add_offset="-1.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__total_prec"/>
+<field add_offset="-1.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="microphysics__ls_rain"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="microphysics__ls_snow"/>
+<field add_offset="-1.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="microphysics__ls_prec"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__conv_rain"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__conv_snow"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__conv_prec"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="turbulence__bl_type_ind"/>
+<field add_offset="27.0" scale_factor="0.11" prec="2" conversion_by_netcdf=".false." field_ref="turbulence__zh"/>
+<field add_offset="27.0" scale_factor="0.14" prec="2" conversion_by_netcdf=".false." field_ref="turbulence__zht"/>
+<field add_offset="-1390.0" scale_factor="0.049" prec="2" conversion_by_netcdf=".false." field_ref="turbulence__rib"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="turbulence__cumulus"/>
+      <field field_ref="convection__pres_cv_base"/>
+      <field field_ref="convection__pres_cv_top"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__mid_cfl_limited"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__mid_prec"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__mid_in_col"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__shallow_prec"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__shallow_in_col"/>
+      <field field_ref="soil__soil_moisture_content"/>
+      <field field_ref="soil__soil_moisture"/>
+<field add_offset="-1073741825.0" scale_factor="33000.0" prec="2" conversion_by_netcdf=".false." field_ref="soil__soil_temperature"/>
+      <field field_ref="soil__unfrozen_soil_moisture"/>
+      <field field_ref="soil__frozen_soil_moisture"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="soil__surface_runoff"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="soil__sub_surface_runoff"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__cloud_amount_rnd"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__cloud_amount_maxrnd"/>
+<field add_offset="-1.0" scale_factor="9.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__very_low_type_cloud_amount"/>
+<field add_offset="-1.0" scale_factor="9.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__low_type_cloud_amount"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__medium_type_cloud_amount"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__high_type_cloud_amount"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__very_high_type_cloud_amount"/>
+<field add_offset="-34.0" scale_factor="0.0076" prec="2" conversion_by_netcdf=".false." field_ref="surface__grid_sensible_heat"/>
+<field add_offset="-1.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="surface__grid_moisture_flux"/>
+<field add_offset="-1.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="surface__surface_taux"/>
+<field add_offset="-1.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="surface__surface_tauy"/>
+<field add_offset="-25.0" scale_factor="0.011" prec="2" conversion_by_netcdf=".false." field_ref="surface__grid_latent_heat"/>
+      <field field_ref="surface__grid_canopy_water"/>
+<field add_offset="216.0" scale_factor="0.0029" prec="2" conversion_by_netcdf=".false." field_ref="surface__grid_surface_temperature"/>
+<field add_offset="-12.0" scale_factor="0.00083" prec="2" conversion_by_netcdf=".false." field_ref="surface__u10m"/>
+<field add_offset="-10.0" scale_factor="0.00065" prec="2" conversion_by_netcdf=".false." field_ref="surface__v10m"/>
+<field add_offset="0.0" scale_factor="0.00046" prec="2" conversion_by_netcdf=".false." field_ref="surface__wspd10m"/>
+<field add_offset="219.0" scale_factor="0.0027" prec="2" conversion_by_netcdf=".false." field_ref="surface__t1p5m"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="surface__q1p5m"/>
+<field add_offset="7.0" scale_factor="0.0045" prec="2" conversion_by_netcdf=".false." field_ref="surface__rh1p5m"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="surface__z0m"/>
+<field add_offset="-1.0" scale_factor="1.6" prec="2" conversion_by_netcdf=".false." field_ref="snow__grid_snow_mass"/>
+    </field_group>
+
+    <!-- 2D fields, minimum over sampling period -->
+    <field_group operation="minimum" freq_op="1ts" prec="4">
+<field field_ref="surface__t1p5m" add_offset="219.0" scale_factor="0.0027" prec="2" conversion_by_netcdf=".false." name="t1p5m_minimum"/>
+<field field_ref="surface__grid_surface_temperature" add_offset="216.0" scale_factor="0.0029" prec="2" conversion_by_netcdf=".false." name="tstar_minimum"/>
+    </field_group>
+
+    <!-- 2D fields, maximum over sampling period -->
+    <field_group operation="maximum" freq_op="1ts" prec="4">
+<field field_ref="turbulence__zh" add_offset="27.0" scale_factor="0.11" prec="2" conversion_by_netcdf=".false." name="zh_maximum"/>
+<field field_ref="surface__t1p5m" add_offset="219.0" scale_factor="0.0027" prec="2" conversion_by_netcdf=".false." name="t1p5m_maximum"/>
+<field field_ref="surface__grid_surface_temperature" add_offset="216.0" scale_factor="0.0029" prec="2" conversion_by_netcdf=".false." name="tstar_maximum"/>
+    </field_group>
+
+    <!-- Model timestep radiation diagnostics ("corrected") -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+<field add_offset="-138.0" scale_factor="0.0047" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_net_surf"/>
+<field add_offset="92.0" scale_factor="0.011" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_down_surf"/>
+<field add_offset="124.0" scale_factor="0.013" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_up_surf"/>
+<field add_offset="103.0" scale_factor="0.0066" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_up_toa"/>
+<field add_offset="1.0" scale_factor="0.0092" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_net_surf"/>
+<field add_offset="7.0" scale_factor="0.0099" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_down_surf"/>
+<field add_offset="0.0" scale_factor="0.004" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_up_surf"/>
+<field add_offset="11.0" scale_factor="0.0087" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_up_toa"/>
+<field add_offset="18.0" scale_factor="0.013" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_direct_toa"/>
+    </field_group>
+
+    <!-- Radiation timestep radiation diagnostics -->
+    <field_group operation="average" freq_op="1h" freq_offset="0ts" prec="4">
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__cloud_cover_rts"/>
+<field add_offset="-138.0" scale_factor="0.0047" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_net_surf_rts"/>
+<field add_offset="92.0" scale_factor="0.011" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_down_surf_rts"/>
+<field add_offset="125.0" scale_factor="0.013" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_up_surf_rts"/>
+<field add_offset="103.0" scale_factor="0.0066" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_up_toa_rts"/>
+<field add_offset="1.0" scale_factor="0.0092" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_net_surf_rts"/>
+<field add_offset="7.0" scale_factor="0.0099" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_down_surf_rts"/>
+<field add_offset="0.0" scale_factor="0.004" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_up_surf_rts"/>
+<field add_offset="11.0" scale_factor="0.0087" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_up_toa_rts"/>
+<field add_offset="18.0" scale_factor="0.013" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_direct_toa_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_down_uv_surf_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_direct_uv_surf_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_up_uv_surf_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_down_uv_clear_surf_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_direct_uv_clear_surf_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_up_uv_clear_surf_rts"/>
+<field add_offset="88.0" scale_factor="0.011" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_down_clear_surf_rts"/>
+<field add_offset="125.0" scale_factor="0.013" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_up_clear_surf_rts"/>
+<field add_offset="137.0" scale_factor="0.0056" prec="2" conversion_by_netcdf=".false." field_ref="radiation__lw_up_clear_toa_rts"/>
+<field add_offset="9.0" scale_factor="0.0099" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_down_clear_surf_rts"/>
+<field add_offset="7.0" scale_factor="0.0044" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_up_clear_surf_rts"/>
+<field add_offset="11.0" scale_factor="0.0046" prec="2" conversion_by_netcdf=".false." field_ref="radiation__sw_up_clear_toa_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__warm_cloud_top_weight_rts"/>
+<field add_offset="0.0" scale_factor="0.00022" prec="2" conversion_by_netcdf=".false." field_ref="radiation__warm_cloud_top_re_microns_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__sw_aer_optical_depth_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__lw_aer_optical_depth_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aod_ukca_ait_sol"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aaod_ukca_ait_sol"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aod_ukca_acc_sol"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aaod_ukca_acc_sol"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aod_ukca_cor_sol"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aaod_ukca_cor_sol"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aod_ukca_ait_ins"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aaod_ukca_ait_ins"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aod_ukca_acc_ins"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aaod_ukca_acc_ins"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aod_ukca_cor_ins"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="aerosol__aaod_ukca_cor_ins"/>
+    </field_group>
+
+    <!-- Full model level diagnostics - not being interpolated to pressure levels -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+<field add_offset="0.0" scale_factor="3.2" prec="2" conversion_by_netcdf=".false." field_ref="processed__pressure_in_wth"/>
+<field add_offset="233.0" scale_factor="0.17" prec="2" conversion_by_netcdf=".false." field_ref="theta"/>
+<field add_offset="-1.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="w_in_wth"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="m_v"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="m_cl"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="m_cf"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="m_r"/>
+<field add_offset="160.0" scale_factor="0.0045" prec="2" conversion_by_netcdf=".false." field_ref="processed__temperature"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__frozen_fraction"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__liquid_fraction"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__bulk_fraction"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="cloud__area_fraction"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__cca"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__massflux_up"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="convection__massflux_down"/>
+      <field field_ref="orographic_drag__taux_orographic_drag"/>
+      <field field_ref="orographic_drag__tauy_orographic_drag"/>
+    </field_group>
+
+    <!-- Half model level diagnostics - not being interpolated to pressure levels -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+<field add_offset="1.0" scale_factor="3.2" prec="2" conversion_by_netcdf=".false." field_ref="processed__pressure_in_w3"/>
+<field add_offset="-48.0" scale_factor="0.0039" prec="2" conversion_by_netcdf=".false." field_ref="u_in_w3"/>
+<field add_offset="-43.0" scale_factor="0.0024" prec="2" conversion_by_netcdf=".false." field_ref="v_in_w3"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="rho"/>
+      <field field_ref="orographic_drag__dudt_orographic_drag"/>
+      <field field_ref="orographic_drag__dvdt_orographic_drag"/>
+    </field_group>
+
+    <!-- Full level diagnostics on radiation timesteps -->
+    <field_group operation="average" freq_op="1h" freq_offset="0ts" prec="4">
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__liq_cloud_mmr_rts"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__ice_cloud_mmr_rts"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__liq_cloud_frac_rts"/>
+<field add_offset="0.0" scale_factor="6.2e-05" prec="2" conversion_by_netcdf=".false." field_ref="radiation__ice_cloud_frac_rts"/>
+    </field_group>
+
+    <!-- Specific quantities For UM comparison -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__qv"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__qcl"/>
+<field add_offset="0.0" scale_factor="3.1e-05" prec="2" conversion_by_netcdf=".false." field_ref="processed__qcf"/>
+    </field_group>
+  </file>
+
+</file_definition>
