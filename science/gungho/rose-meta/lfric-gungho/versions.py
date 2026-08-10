@@ -18,27 +18,31 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-class vn32_t699(MacroUpgrade):
+"""
+Copy this template and complete to add your macro
+class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
+    BEFORE_TAG = "vnX.X"
+    AFTER_TAG = "vnX.X_txxx"
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        return config, self.reports
+"""
+
+
+class vn32_t699(MacroUpgrade):
+    """Upgrade macro for ticket TTTT by Unknown."""
 
     BEFORE_TAG = "vn3.2"
     AFTER_TAG = "vn3.2_t699"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
         """Add native_w2_wind_transport to namelist transport"""
-        self.add_setting(config,["namelist:transport", "native_w2_wind_transport"], ".false.")
+        self.add_setting(
+            config,
+            ["namelist:transport", "native_w2_wind_transport"],
+            ".false.",
+        )
+
         return config, self.reports
-
-"""
-Copy this template and complete to add your macro
-
-class vnXX_txxx(MacroUpgrade):
-    # Upgrade macro for <TICKET> by <Author>
-
-    BEFORE_TAG = "vnX.X"
-    AFTER_TAG = "vnX.X_txxx"
-
-    def upgrade(self, config, meta_config=None):
-        # Add settings
-        return config, self.reports
-"""
