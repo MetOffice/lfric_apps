@@ -1198,7 +1198,7 @@
 {% elif task_ns.conf_name == "nwp_gc6-C48_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["coupled","um_dump"],
+        "opt_confs": ["coupled","no_dust","um_dump"],
         "resolution": "C48_MG",
         "DT": 1800,
         "tsteps": 24,
