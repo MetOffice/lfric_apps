@@ -1,0 +1,162 @@
+! -----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! -----------------------------------------------------------------------------
+!> @brief Calculate aviation diagnostics.
+!>
+module aviation_diags_alg_mod
+
+  use constants_mod,              only: r_def, i_def, l_def, str_long, RMDI
+  use field_mod,                  only: field_type
+  use field_collection_mod,       only: field_collection_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  use lfric_xios_diag_mod,        only: get_axis_dimension, get_axis_values
+  use log_mod,                    only: log_event, log_level_error
+
+  use aviation_thickness_snow_kernel_mod,                                   &
+                                  only: aviation_thickness_snow_kernel_type
+
+  implicit none
+
+private
+public :: aviation_diags_alg
+
+contains
+
+  !> @brief Calculate aviation diagnostics.
+  !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
+  !>                                   including cloud base and top pressures.
+  subroutine aviation_diags_alg(plev_geopot)
+    implicit none
+
+    ! Arguments
+    type(field_type), intent(in)               :: plev_geopot
+
+    ! Calculate geopotential thickness and snow probbability.
+    call from_plev_geopot(plev_geopot)
+
+  end subroutine aviation_diags_alg
+
+  !> @brief Calculate geopotential thickness and snow probabbility
+  !>        from geopotential height at pressure levels.
+  !> @param[in]    plev_geopot    Geopotential height at pressure levels in m.
+  subroutine from_plev_geopot(plev_geopot)
+    implicit none
+
+    ! Arguments
+    type(field_type), intent(in) :: plev_geopot
+
+    ! Local variables
+
+    ! These flags tell us which results are requested at this time step.
+    logical(l_def) :: thick_850_flag, thick_500_flag, snow_probability_flag
+
+    ! The array of pressure levels.
+    integer(i_def) :: nplev
+    real(r_def), allocatable :: plevs(:)
+    integer(i_def) :: plevs_alloc_stat
+
+    ! Level indices for the three pressure levels we want to read.
+    integer(i_def) :: i1000, i850, i500
+
+    ! Approximate equality tolerance - is there a common variable somewhere?
+    real(r_def), parameter :: plev_tol = 0.1_r_def
+
+    ! The output fields we produce.
+    type( field_type ) :: thick_850, thick_500, snow_probability
+
+    integer(i_def) :: i
+
+    character(len=str_long) :: message
+
+
+    ! Check the request flags.
+    snow_probability_flag = &
+      init_diag(snow_probability, 'aviation__snow_probability')
+    thick_850_flag = &
+      init_diag(thick_850, 'aviation__geopot_thickness_850')
+    thick_500_flag = &
+      init_diag(thick_500, 'aviation__geopot_thickness_500')
+
+    ! Anything to do?
+    if ( .not. (thick_850_flag .or. &
+                thick_500_flag .or. &
+                snow_probability_flag) ) then
+      return
+    end if
+
+    ! Get the array of pressure levels.
+    nplev = get_axis_dimension('pressure_levels')
+    if (nplev <= 0) then
+      message = 'Aviation: No pressure levels'
+      call log_event( message, log_level_error )
+    end if
+
+    allocate(plevs(nplev), stat=plevs_alloc_stat)
+    if (plevs_alloc_stat /= 0) then
+      message = 'Aviation: allocate(plevs) failed'
+      call log_event( message, log_level_error )
+    end if
+    plevs = get_axis_values('pressure_levels',nplev)
+
+    ! Find the level indices for our three pressures of interest.
+    ! Assumes hPa.
+    i1000 = -1
+    i850  = -1
+    i500  = -1
+    do i = 1, nplev
+
+      ! 1000?
+      if (abs(plevs(i) - 100000.0_r_def) < plev_tol) then
+        i1000 = i
+
+      ! 850?
+      else if (abs(plevs(i) - 85000.0_r_def) < plev_tol) then
+        i850 = i
+
+      ! 500?
+      else if (abs(plevs(i) - 50000.0_r_def) < plev_tol) then
+        i500 = i
+
+      end if
+    end do
+
+    ! Check we found the required levels.
+    if (i1000 == -1) then
+      message = 'Aviation: could not find 1000hPa'
+      call log_event( message, log_level_error )
+    end if
+
+    if ((thick_850_flag .or. snow_probability_flag) .and. i850 == -1) then
+      message = 'Aviation: could not find 850hPa'
+      call log_event( message, log_level_error )
+    end if
+
+    if (thick_500_flag .and. i500 == -1) then
+      message = 'Aviation: could not find 500hPa'
+      call log_event( message, log_level_error )
+    end if
+
+    ! Call the kernel to subtract the levels.
+    call invoke( aviation_thickness_snow_kernel_type(        &
+      thick_850, thick_500, snow_probability,                &
+      plev_geopot,                                           &
+      thick_850_flag, thick_500_flag, snow_probability_flag, &
+      i1000, i850, i500))
+
+    ! Write the fields
+    if (thick_850_flag) call thick_850%write_field()
+    if (thick_500_flag) call thick_500%write_field()
+    if (snow_probability_flag) call snow_probability%write_field()
+
+    ! Clean up.
+    if (allocated(plevs)) then
+      deallocate(plevs)
+    end if
+
+  end subroutine from_plev_geopot
+
+
+end module aviation_diags_alg_mod
