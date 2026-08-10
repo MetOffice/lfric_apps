@@ -362,6 +362,7 @@
   <field id="convection__cca_2d" name="cca_2d" long_name="convective_cloud_amount_(2d)_with_no_anvil" unit="1" domain_ref="face" />
   <field id="convection__lowest_cca_2d" name="lowest_cca_2d" long_name="lowest_convective_cloud_amount_(2d)_with_no_anvil" unit="1" domain_ref="face" />
   <field id="convection__ccw" name="ccw" long_name="convective_cloud_water" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="convection__ccw_unadjusted" name="ccw_unadjusted" long_name="convective_cloud_water_unadjusted_for_rad" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="convection__massflux_up" name="massflux_up" long_name="convection_upward_massflux" unit="Pa s-1" grid_ref="full_level_face_grid" />
   <field id="convection__massflux_up_half" name="massflux_up_half" long_name="conv_upward_massflux_half_levs" unit="Pa s-1" grid_ref="half_level_face_grid" />
   <field id="convection__massflux_up_cmpta" name="massflux_up_cmpta" long_name="conv_upward_mfx_component_a" unit="Pa s-1" grid_ref="half_level_face_grid" />

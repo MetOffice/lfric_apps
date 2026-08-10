@@ -60,6 +60,7 @@ module conv_diags_mod
                       massflux_up_half_flag,       &
                       massflux_up_cmpta_flag,      &
                       cca_unadjusted_flag,         &
+                      ccw_unadjusted_flag,         &
                       dth_conv_noshal_flag,        &
                       dmv_conv_noshal_flag,        &
                       cloud_base_icao_height_flag, &
@@ -114,6 +115,7 @@ contains
                                        massflux_up_half,       &
                                        massflux_up_cmpta,      &
                                        cca_unadjusted,         &
+                                       ccw_unadjusted,         &
                                        dth_conv_noshal,        &
                                        dmv_conv_noshal,        &
                                        cloud_base_icao_height, &
@@ -166,6 +168,7 @@ contains
                                          massflux_up_half,        &
                                          massflux_up_cmpta,       &
                                          cca_unadjusted,          &
+                                         ccw_unadjusted,          &
                                          dth_conv_noshal,         &
                                          dmv_conv_noshal,         &
                                          cloud_base_icao_height,  &
@@ -322,6 +325,9 @@ contains
     cca_unadjusted_flag = init_diag(cca_unadjusted, 'convection__cca_unadjusted')
     if (cca_unadjusted_flag) call invoke( setval_c(cca_unadjusted, 0.0_r_def) )
 
+    ccw_unadjusted_flag = init_diag(ccw_unadjusted, 'convection__ccw_unadjusted')
+    if (ccw_unadjusted_flag) call invoke( setval_c(ccw_unadjusted, 0.0_r_def) )
+
     dth_conv_noshal_flag = init_diag(dth_conv_noshal, 'convection__dth_conv_noshal')
 
     dmv_conv_noshal_flag = init_diag(dmv_conv_noshal, 'convection__dmv_conv_noshal')
@@ -403,6 +409,7 @@ contains
                                     massflux_up_half,       &
                                     massflux_up_cmpta,      &
                                     cca_unadjusted,         &
+                                    ccw_unadjusted,         &
                                     dth_conv_noshal,        &
                                     dmv_conv_noshal,        &
                                     cloud_base_icao_height, &
@@ -474,6 +481,7 @@ contains
                                        massflux_up_half,       &
                                        massflux_up_cmpta,      &
                                        cca_unadjusted,         &
+                                       ccw_unadjusted,         &
                                        dth_conv_noshal,        &
                                        dmv_conv_noshal,        &
                                        cloud_base_icao_height, &
@@ -577,6 +585,7 @@ contains
     if (massflux_up_half_flag) call massflux_up_half%write_field()
     if (massflux_up_cmpta_flag) call massflux_up_cmpta%write_field()
     if (cca_unadjusted_flag) call cca_unadjusted%write_field()
+    if (ccw_unadjusted_flag) call ccw_unadjusted%write_field()
     if (dth_conv_noshal_flag) call dth_conv_noshal%write_field()
     if (dmv_conv_noshal_flag) call dmv_conv_noshal%write_field()
 

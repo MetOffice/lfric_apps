@@ -262,6 +262,7 @@ contains
 
     ! Local variables
     type( field_type ) :: cca_unadjusted
+    type( field_type ) :: ccw_unadjusted
     type( field_type ) :: deep_in_col, shallow_in_col, mid_in_col, deep_term
     type( field_type ) :: deep_prec, shallow_prec, mid_prec
     type( field_type ) :: freeze_level, cape_timescale
@@ -512,6 +513,7 @@ contains
                                    massflux_up_half,       &
                                    massflux_up_cmpta,      &
                                    cca_unadjusted,         &
+                                   ccw_unadjusted,         &
                                    dth_conv_noshal,        &
                                    dmv_conv_noshal,        &
                                    cloud_base_icao_height, &
@@ -727,7 +729,8 @@ contains
                           deep_tops,                                          &
                           massflux_up_half,                                   &
                           massflux_up_cmpta,                                  &
-                          cca_unadjusted, dth_conv_noshal, dmv_conv_noshal )  &
+                          cca_unadjusted, ccw_unadjusted,                     &
+                          dth_conv_noshal, dmv_conv_noshal )                  &
                           ) ! end of invoke
 
     ! Switch UM back to columns
@@ -802,6 +805,7 @@ contains
                                   massflux_up_half,      &
                                   massflux_up_cmpta,     &
                                   cca_unadjusted,        &
+                                  ccw_unadjusted,        &
                                   dth_conv_noshal,       &
                                   dmv_conv_noshal,       &
                                   cloud_base_icao_height,&

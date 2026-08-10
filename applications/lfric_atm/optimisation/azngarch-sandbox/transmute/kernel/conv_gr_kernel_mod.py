@@ -3,6 +3,9 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
+# Some of the content of this file has been produced with the assistance of
+# Anthropic Claude Opus 5 (Claude Code).
+# -----------------------------------------------------------------------------
 """
 PSyclone script for applying OpenMP transformations specific to the
 Gregory-Rowntree convection kernel.
@@ -240,6 +243,7 @@ ignore_dependencies_block2_after_numseg = [
     "mid_dt",
     "mid_dq",
     "cca_unadjusted",
+    "ccw_unadjusted",
     "massflux_up_half",
     "du_conv",
     "dv_conv",
