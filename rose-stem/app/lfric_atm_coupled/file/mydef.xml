@@ -2,7 +2,6 @@
 <simulation>
 
   <!-- In this version we have ONE context  -->
-
   <context id = "gungho_atm">
 
     <!-- Include variable definitions -->
@@ -10,7 +9,7 @@
 
     <!-- Include axis definitions -->
     <axis_definition src="$METADATA/axis_def_main.xml"/>
-    <axis_definition src="axis_def_plev.xml"/>
+    <axis_definition src="./axis_def_plev.xml"/>
 
     <!-- Include domain definitions -->
     <domain_definition src="$METADATA/domain_def_main.xml"/>
@@ -26,204 +25,15 @@
     <field_definition src="$METADATA/field_def_initial_diags.xml"/>
 
     <!-- Include file definitions -->
+    <file_definition src="./file_def_check_restart.xml"/>
     <file_definition src="./file_def_ancil_main.xml"/>
     <file_definition src="./file_def_ancil_gal.xml"/>
     <file_definition src="./file_def_ancil_hadisst.xml"/>
+    <file_definition src="./file_def_diags_idealised.xml"/>
+    <file_definition src="./file_def_initial_diags.xml"/>
 
-    <field_definition prec="8" >
-
-      <!-- Checkpoint group -->
-      <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".TRUE." >
-	<field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" />
-	<field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" />
-	<field id="checkpoint_exner" name="exner" long_name="exner_pressure" unit="1" domain_ref="checkpoint_W3" />
-	<field id="checkpoint_u" name="u" long_name="U" unit="m s-1" domain_ref="checkpoint_W2" />
-	<field id="checkpoint_m_v" name="m_v" long_name="m_v" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
-	<field id="checkpoint_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
-	<field id="checkpoint_m_r" name="m_r" long_name="m_r" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
-	<field id="checkpoint_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
-	<field id="checkpoint_m_s" name="m_s" long_name="m_s" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
-	<field id="checkpoint_m_g" name="m_g" long_name="m_g" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
-      </field_group>
-
-      <!-- Coupling fields group -->
-      <field_group id="coupled_fields" freq_op="1ts" operation="instant" enabled=".TRUE." >
-        <field id="lf_icefrc" name="lf_icefrc" long_name="lf_icefrc" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_icetck" name="lf_icetck" long_name="lf_icetck" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_icelayert" name="lf_icelayert" long_name="lf_icelayert" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_ocn_sst" name="lf_ocn_sst" long_name="lf_ocn_sst" unit="K" domain_ref="face" />
-        <field id="lf_taux" name="lf_taux" long_name="lf_taux" unit="m" domain_ref="face" />
-        <field id="lf_tauy" name="lf_tauy" long_name="lf_tauy" unit="m" domain_ref="face" />
-        <field id="lf_solar" name="lf_solar" long_name="lf_solar" unit="m" domain_ref="face" />
-        <field id="lf_heatflux" name="lf_heatflux" long_name="lf_heatflux" unit="m" domain_ref="face" />
-        <field id="lf_train" name="lf_train" long_name="lf_train" unit="m" domain_ref="face" />
-        <field id="lf_tsnow" name="lf_tsnow" long_name="lf_tsnow" unit="" domain_ref="face" />
-        <field id="lf_w10" name="lf_w10" long_name="lf_w10" unit="" domain_ref="face" />
-        <field id="lf_rsurf" name="lf_rsurf" long_name="lf_rsurf" unit="kg m-2 s-1" domain_ref="face" />
-        <field id="lf_rsub" name="lf_rsub" long_name="lf_rsub" unit="kg m-2 s-1" domain_ref="face" />
-        <field id="lf_evap" name="lf_evap" long_name="lf_evap" unit="kg m-2 s-1" domain_ref="face" />
-        <field id="lf_topmelt" name="lf_topmelt" long_name="lf_topmelt" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_iceheatflux" name="lf_iceheatflux" long_name="lf_iceheatflux" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_sublimation" name="lf_sublimation" long_name="lf_sublimation" unit="kg m-2 s-1" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_iceskint" name="lf_iceskint" long_name="lf_iceskint" unit="K" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_pensolar" name="lf_pensolar" long_name="lf_pensolar" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_conductivity" name="lf_conductivity" long_name="lf_conductivity" unit="W m-2 K-1" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_snow_depth" name="lf_snow_depth" long_name="snow depth on sea ice" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_pond_frac" name="lf_pond_frac" long_name="lf_pond_frac" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_pond_depth" name="lf_pond_depth" long_name="lf_pond_depth" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
-        <field id="lf_sunocean" name="lf_sunocean" long_name="lf_sunocean" unit="ms-1" domain_ref="face" />
-        <field id="lf_svnocean" name="lf_svnocean" long_name="lf_svnocean" unit="ms-1" domain_ref="face" />
-      </field_group>
-
-    </field_definition>
-
-    <file_definition
-	type="one_file"
-	time_counter="none">
-
-      <!-- Checkpoint groups -->
-
-      <!-- File definition for checkpoint write -->
-      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="CF" enabled=".FALSE.">
-        <field_group group_ref="checkpoint_fields" />
-      </file>
-
-      <!-- File definition for checkpoint read -->
-      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
-       <field_group id="lfric_checkpoint_read_field_group">
-	<field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="checkpoint_Wtheta" />
-	<field id="restart_exner" name="exner" long_name="exner_pressure" unit="1" operation="instant" domain_ref="checkpoint_W3" />
-	<field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" operation="instant" domain_ref="checkpoint_W3" />
-	<field id="restart_u" name="u" long_name="U" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
-	<field id="restart_m_v" name="m_v" long_name="m_v" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
-	<field id="restart_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
-	<field id="restart_m_r" name="m_r" long_name="m_r" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
-	<field id="restart_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
-	<field id="restart_m_s" name="m_s" long_name="m_s" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
-	<field id="restart_m_g" name="m_g" long_name="m_g" unit="kg kg-1" operation="instant" domain_ref="checkpoint_Wtheta" />
-       </field_group>
-      </file>
-
-      <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
-	<field field_ref="theta" />
-	<field field_ref="m_v" />
-	<field field_ref="m_cl" />
-	<field field_ref="m_cf" />
-	<field field_ref="exner_in_wth" />
-	<field field_ref="u_in_w2h" />
-	<field field_ref="u_in_w3" />
-	<field field_ref="v_in_w3" />
-	<field field_ref="w_in_wth" />
-	<field field_ref="divergence" />
-	<field field_ref="potential_vorticity"/>
-	<field field_ref="cloud__cloud_amount_maxrnd" />
-	<field field_ref="cloud__combined_cloud_amount" />
-	<field field_ref="surface__tile_fraction" />
-	<field field_ref="surface__wspd10m" />
-	<field field_ref="surface__grid_surface_temperature" />
-	<field field_ref="snow__grid_snow_mass" />
-	<field field_ref="soil__soil_moisture_content" />
-	<field field_ref="turbulence__zh" />
-	<field field_ref="radiation__sw_up_toa" />
-	<field field_ref="radiation__sw_down_surf" />
-	<field field_ref="radiation__lw_up_toa" />
-	<field field_ref="radiation__lw_down_surf" />
-	<field field_ref="radiation__sw_aer_optical_depth_rts" />
-	<field field_ref="radiation__lw_aer_optical_depth_rts" />
-	<field field_ref="processed__tot_col_wetplusdry_mass" />
-        <field field_ref="processed__tot_col_int_energy" />
-        <field field_ref="processed__tot_col_pot_energy" />
-        <field field_ref="processed__tot_col_pot_energy_gr" />
-        <field field_ref="processed__tot_col_uv_kinetic_energy" />
-        <field field_ref="processed__tot_col_w_kinetic_energy" />
-        <field field_ref="processed__tot_col_kinetic_energy" />
-        <field field_ref="processed__tot_col_encorr" />
-	<field field_ref="processed__trop_level" />
-	<field field_ref="processed__total_prec" />
-	<field field_ref="chemistry__h2o2" />
-	<field field_ref="chemistry__dms" />
-	<field field_ref="chemistry__so2" />
-	<field field_ref="chemistry__h2so4" />
-	<field field_ref="chemistry__dmso" />
-	<field field_ref="chemistry__monoterpene" />
-	<field field_ref="chemistry__secondary_organic" />
-	<field field_ref="aerosol__aod_ukca_ait_sol" />
-	<field field_ref="aerosol__aaod_ukca_ait_sol" />
-	<field field_ref="aerosol__aod_ukca_acc_sol" />
-	<field field_ref="aerosol__aaod_ukca_acc_sol" />
-	<field field_ref="aerosol__aod_ukca_cor_sol" />
-	<field field_ref="aerosol__aaod_ukca_cor_sol" />
-	<field field_ref="aerosol__aod_ukca_ait_ins" />
-	<field field_ref="aerosol__aaod_ukca_ait_ins" />
-	<field field_ref="aerosol__aod_ukca_acc_ins" />
-	<field field_ref="aerosol__aaod_ukca_acc_ins" />
-	<field field_ref="aerosol__aod_ukca_cor_ins" />
-	<field field_ref="aerosol__aaod_ukca_cor_ins" />
-	<field field_ref="aerosol__n_nuc_sol" />
-	<field field_ref="aerosol__n_ait_sol" />
-	<field field_ref="aerosol__n_acc_sol" />
-	<field field_ref="aerosol__n_cor_sol" />
-	<field field_ref="aerosol__n_ait_ins" />
-	<field field_ref="aerosol__n_acc_ins" />
-	<field field_ref="aerosol__n_cor_ins" />
-	<field field_ref="aerosol__nuc_sol_su" />
-	<field field_ref="aerosol__nuc_sol_om" />
-	<field field_ref="aerosol__ait_sol_su" />
-	<field field_ref="aerosol__ait_sol_bc" />
-	<field field_ref="aerosol__ait_sol_om" />
-	<field field_ref="aerosol__acc_sol_su" />
-	<field field_ref="aerosol__acc_sol_bc" />
-	<field field_ref="aerosol__acc_sol_om" />
-	<field field_ref="aerosol__acc_sol_ss" />
-	<field field_ref="aerosol__cor_sol_su" />
-	<field field_ref="aerosol__cor_sol_bc" />
-	<field field_ref="aerosol__cor_sol_om" />
-	<field field_ref="aerosol__cor_sol_ss" />
-	<field field_ref="aerosol__ait_ins_bc" />
-	<field field_ref="aerosol__ait_ins_om" />
-	<field field_ref="aerosol__acc_ins_du" />
-	<field field_ref="aerosol__cor_ins_du" />
-	<field field_ref="aerosol__cloud_drop_no_conc" />
-      </file>
-
-      <file id="lfric_atm_coupled" name="lfric_atm_coupled" output_freq="1h" convention="UGRID" enabled=".TRUE.">
-
-        <!-- All the raw data coming through the coupler is already in a field_group so we just use that -->
-        <field_group group_ref="coupled_fields" />
-
-        <!-- The prognostic fields that get updated by the coupler should also be output -->
-	<field id="surface__tile_temperature" />      <!-- For sea surface temperature -->
-	<field id="seaice__sea_ice_fraction" />
-        <field id="seaice__sea_ice_thickness" />
-        <field id="seaice__sea_ice_temperature" />
-        <field id="seaice__sea_ice_conductivity" />
-        <field id="seaice__sea_ice_pensolar" />
-        <field id="processed__sea_ice_pensolar" />
-        <field id="seaice__melt_pond_fraction" />
-        <field id="seaice__melt_pond_depth" />
-	<field id="snow__snow_mass" />                <!-- For snow on sea ice. tile_snow_mass in the code. -->
-	<field id="soil__surface_runoff" />
-	<field id="soil__sub_surface_runoff" />
-	<field id="processed__total_prec" />
-	<field id="surface__tile_fraction" />
-	<field id="surface__lake_evap" />
-        <field id="soil__soilm_change_lakes" />
-        <field id="soil__soil_moisture" />
-        <field id="soil__unfrozen_soil_moisture" />
-      </file>
-
-      <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
-        <field field_ref="theta" operation="average" />
-        <field field_ref="exner" operation="average" />
-        <field field_ref="u_in_w3" operation="average" />
-        <field field_ref="v_in_w3" operation="average" />
-        <field field_ref="w_in_wth" operation="average" />
-        <field field_ref="divergence" operation="average" />
-      </file>
-
-      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
-        <field_group group_ref="initial_fields" />
-      </file>
+    <!-- Local file definitions -->
+    <file_definition type="one_file" time_counter="none">
 
       <!-- File definition for writing an FD dump -->
       <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
@@ -231,8 +41,8 @@
 
       <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
       <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
-       <field_group id="read_lfric_fd_dump_field_group">
-	<!-- aquaplanet fields -->
+       <field_group id="read_lfric_fd_dump_field_group" >
+	<!-- Atmosphere fields -->
 	<field id="read_ew_wind_in_w3" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
 	<field id="read_ns_wind_in_w3" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
 	<field id="read_upward_wind_in_wtheta" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" />
@@ -248,7 +58,7 @@
 	<field id="read_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
 	<field id="read_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
 	<field id="read_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" operation="once" />
-	<!-- extra fields for basic_gal -->
+	<!-- surface fields -->
 	<field id="read_dd_mf_cb" name="dd_mf_cb" long_name="downdraft_massflux_at_cloud_base" unit="Pa s-1" domain_ref="face" operation="once" />
 	<field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" operation="once" />
 	<field id="read_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="once" />
