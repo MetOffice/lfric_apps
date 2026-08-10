@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> @brief Interface to the UM Gregory Rowntree Convection scheme.
 !>
 module conv_gr_kernel_mod
@@ -34,7 +37,7 @@ module conv_gr_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_gr_kernel_type
     private
-    type(arg_type) :: meta_args(210) = (/                                         &
+    type(arg_type) :: meta_args(211) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -243,6 +246,7 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! massflux_up_half
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! massflux_up_cmpta
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cca_unadjusted
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ccw_unadjusted
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     WTHETA),                   &! dth_conv_noshal
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     WTHETA)                    &! dmv_conv_noshal
         /)
@@ -469,6 +473,7 @@ contains
   !> @param[in,out] massflux_up_half     Convective upwards mass flux on half-levels (Pa/s)
   !> @param[in,out] massflux_up_cmpta    Convective upwards mass flux component A (Pa/s)
   !> @param[in,out] cca_unadjusted       Convective cloud amout unadjusted for radiation calc.
+  !> @param[in,out] ccw_unadjusted       Convective cloud water unadjusted for radiation calc.
   !> @param[out]    dth_conv_noshal      Convection theta increment from non-shallow regions
   !> @param[out]    dmv_conv_noshal      Convection vapour increment from non-shallow regions
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
@@ -693,6 +698,7 @@ contains
                           massflux_up_half,                  &
                           massflux_up_cmpta,                 &
                           cca_unadjusted,                    &
+                          ccw_unadjusted,                    &
                           dth_conv_noshal,                   &
                           dmv_conv_noshal,                   &
                           ndf_w3,                            &
@@ -1071,6 +1077,7 @@ contains
                                                 massflux_up_half(:), &
                                                 massflux_up_cmpta(:),&
                                                 cca_unadjusted(:),   &
+                                                ccw_unadjusted(:),   &
                                                 dth_conv_noshal(:),  &
                                                 dmv_conv_noshal(:)
 
@@ -2516,6 +2523,14 @@ contains
             do i = 1, ncells
               cca_unadjusted(map_wth(1,i) + k) = cca_unadjusted(map_wth(1,i) + k) +  &
                                            it_cca(i,1,k)*one_over_conv_calls
+            end do
+          end do
+        end if
+        if (.not. associated(ccw_unadjusted, empty_real_data) ) then
+          do k = 1, n_conv_levels
+            do i = 1, ncells
+              ccw_unadjusted(map_wth(1,i) + k) = ccw_unadjusted(map_wth(1,i) + k) +  &
+                                           it_ccw(i,1,k)*one_over_conv_calls
             end do
           end do
         end if
