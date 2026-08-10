@@ -560,7 +560,16 @@
   <field id="surface__visibility_no_precip" name="visibility_no_precip" long_name="visibility_excluding precipitation_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
   <field id="surface__visibility_with_precip" name="visibility_with_precip" long_name="visibility_including_precipitation_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
   <field id="surface__tile_heat_flux" name="tile_heat_flux" long_name="surface_sensible_heat_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <!-- First line extracts the open-sea tile, second line removes pseudo-level coordinate, cannot do as one -->
+  <!-- The tiled flux is per unit open water, so the third line rescales it to a mean over the whole sea portion of the grid-box -->
+  <field id="zoomed__sea_heat_flux" field_ref="surface__tile_heat_flux" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
+  <field id="temporary__sea_heat_flux" domain_ref="face"> zoomed__sea_heat_flux </field>
+  <field id="surface__sea_heat_flux" name="sea_heat_flux" long_name="sea_mean_surface_upward_sensible_heat_flux_from_open_sea" unit="W m-2" domain_ref="face"> temporary__sea_heat_flux * (1.0 - surface__sea_ice_fraction) </field>
   <field id="surface__tile_moisture_flux" name="tile_moisture_flux" long_name="surface_moisture_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles" />
+  <!-- As above, extract the open-sea tile, remove the pseudo-level coordinate, then rescale to a sea mean -->
+  <field id="zoomed__sea_moisture_flux" field_ref="surface__tile_moisture_flux" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
+  <field id="temporary__sea_moisture_flux" domain_ref="face"> zoomed__sea_moisture_flux </field>
+  <field id="surface__sea_moisture_flux" name="sea_moisture_flux" long_name="sea_mean_surface_moisture_flux_from_open_sea" unit="kg m-2 s-1" domain_ref="face"> temporary__sea_moisture_flux * (1.0 - surface__sea_ice_fraction) </field>
   <field id="surface__latent_heat" name="latent_heat" long_name="surface_upward_latent_heat_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__grid_latent_heat" name="grid_latent_heat" long_name="grid_surface_upward_latent_heat_flux" unit="W m-2" domain_ref="face" />
   <field id="surface__canopy_water" name="canopy_water_content" long_name="canopy_water_amount" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
