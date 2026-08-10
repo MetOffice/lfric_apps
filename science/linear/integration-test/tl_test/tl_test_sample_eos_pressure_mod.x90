@@ -89,6 +89,7 @@ module tl_test_sample_eos_pressure_mod
 
     integer :: n, i
     real(r_def), parameter :: tol = 1.e-3_r_def
+    integer(i_def) :: nlayersm1
 
     call log_event( "TL Test: " // trim(label), &
                      LOG_LEVEL_INFO )
@@ -132,9 +133,11 @@ module tl_test_sample_eos_pressure_mod
 
     ! Taylor Remainder Convergence Test
     call invoke( setval_C( n1_exner, 0.0_r_def ) )
+    nlayersm1 = mesh%get_nlayers()-1
     call invoke( sample_eos_pressure_kernel_type(      &
                    n1_exner, ls_rho, ls_theta,      &
-                   ls_moist_dyn(gas_law)) )
+                   ls_moist_dyn(gas_law),           &
+                   0, nlayersm1) )
 
     call invoke( assign_field_random_kernel_type( random_rho, 1.0_r_def ) )
     call invoke( assign_field_random_kernel_type( random_theta, 1.0_r_def  ) )
@@ -165,7 +168,8 @@ module tl_test_sample_eos_pressure_mod
 
       call invoke( sample_eos_pressure_kernel_type(      &
                          n2_exner, n_rho, n_theta,       &
-                         n_moist_dyn(gas_law)) )
+                         n_moist_dyn(gas_law),           &
+                         0, nlayersm1) )
 
       call invoke( tl_sample_eos_pressure_kernel_type(           &
                          p_exner, p_rho, p_theta,                &
