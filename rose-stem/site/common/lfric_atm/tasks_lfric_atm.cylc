@@ -255,7 +255,7 @@
 {% elif task_ns.conf_name == "nwp_gal9-tr_bdf2-C224_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","june_case","tr_bdf2"],
+        "opt_confs": ["um_dump","june_case","tr_bdf2_big"],
         "resolution": "C224_MG",
         "DT": 1200,
         "tsteps": 72,

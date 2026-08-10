@@ -125,7 +125,10 @@ module tr_bdf2_timestep_alg_mod
   use initialization_config_mod,  only: init_option_checkpoint_dump,           &
                                         lbc_option_um2lfric_file
   use physics_config_mod,         only: smagorinsky_placement_outer
-  use section_choice_config_mod,  only: cloud_um, aerosol_um
+  use section_choice_config_mod,  only: cloud_um, aerosol_um, cloud_none,      &
+                                        aerosol_none
+  use stochastic_physics_config_mod,                                           &
+                                  only: stochastic_physics_is_loaded
 
   implicit none
 
@@ -338,8 +341,13 @@ contains
     dtemp_encorr = dt * temp_corr_io_value%data(1)
 
 #ifdef UM_PHYSICS
-    use_spt = self%config%stochastic_physics%use_spt()
-    use_skeb = self%config%stochastic_physics%use_skeb()
+    if (stochastic_physics_is_loaded()) then
+      use_spt = self%config%stochastic_physics%use_spt()
+      use_skeb = self%config%stochastic_physics%use_skeb()
+    else
+      use_spt = .false.
+      use_skeb = .false.
+    end if
 
     if (use_spt) then
       ! Get spectral coefficients and power law from the model database
@@ -633,7 +641,7 @@ contains
     implicit none
 
     ! Arguments
-    class(tr_bdf2_timestep_type), target, intent(inout) :: self
+    type(tr_bdf2_timestep_type),  target, intent(inout) :: self
     type(modeldb_type),           target, intent(in)    :: modeldb
 
     type(field_type),                    intent(inout) :: u, rho, theta, exner
@@ -751,17 +759,8 @@ contains
     if (LPROF) call start_timing(id, 'tr_bdf2_timestep_alg')
 
     ! Get config variables
-    limited_area = self%config%boundaries%limited_area()
-    blend_frequency = self%config%boundaries%blend_frequency()
     element_order_h = self%config%finite_element%element_order_h()
     element_order_v = self%config%finite_element%element_order_v()
-    use_physics = self%config%formulation%use_physics()
-    dlayer_on = self%config%formulation%dlayer_on()
-    use_wavedynamics = self%config%formulation%use_wavedynamics()
-    moisture_formulation = self%config%formulation%moisture_formulation()
-    exner_from_eos = self%config%formulation%exner_from_eos()
-    solver_moisture_conservation =                                             &
-        self%config%formulation%solver_moisture_conservation()
     init_option = self%config%initialization%init_option()
     subroutine_timers = self%config%io%subroutine_timers()
     write_conservation_diag = self%config%io%write_conservation_diag()
@@ -769,11 +768,19 @@ contains
     use_xios_io = self%config%io%use_xios_io()
     diagnostic_frequency = self%config%io%diagnostic_frequency()
     checkpoint_read = self%config%io%checkpoint_read()
+    use_physics = self%config%formulation%use_physics()
+    dlayer_on = self%config%formulation%dlayer_on()
+    use_wavedynamics = self%config%formulation%use_wavedynamics()
+    moisture_formulation = self%config%formulation%moisture_formulation()
+    exner_from_eos = self%config%formulation%exner_from_eos()
+    if (moisture_formulation /= moisture_formulation_dry) then
+      solver_moisture_conservation =                                           &
+          self%config%formulation%solver_moisture_conservation()
+    else
+      solver_moisture_conservation = .false.
+    end if
     smagorinsky = self%config%mixing%smagorinsky()
     reference_reset_time = self%config%mixed_solver%reference_reset_time()
-    smagorinsky_placement = self%config%physics%smagorinsky_placement()
-    cloud = self%config%section_choice%cloud()
-    aerosol = self%config%section_choice%aerosol()
     cheap_update = self%config%transport%cheap_update()
     transport_ageofair = self%config%transport%transport_ageofair()
     outer_iterations = self%config%timestepping%outer_iterations()
@@ -781,7 +788,19 @@ contains
     allocate(inner_iterations_bdf2(outer_iterations))
     inner_iterations_tr(:) = self%config%timestepping%inner_iterations_tr()
     inner_iterations_bdf2(:) = self%config%timestepping%inner_iterations_bdf2()
-
+    limited_area = self%config%boundaries%limited_area()
+    if (limited_area) then
+      blend_frequency = self%config%boundaries%blend_frequency()
+    end if
+    if (use_physics) then
+      smagorinsky_placement = self%config%physics%smagorinsky_placement()
+      cloud = self%config%section_choice%cloud()
+      aerosol = self%config%section_choice%aerosol()
+    else
+      smagorinsky_placement = smagorinsky_placement_outer
+      cloud = cloud_none
+      aerosol = aerosol_none
+    end if
     lbc_option = 0
     dt = real(model_clock%get_seconds_per_step(), r_def)
 
