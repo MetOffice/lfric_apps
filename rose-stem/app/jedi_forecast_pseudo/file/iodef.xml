@@ -55,7 +55,7 @@
     <file_definition type="one_file" time_counter="none">
 
       <file id="read_model_data" name="read_model_data" output_freq="1ts" convention="UGRID" enabled=".FALSE." mode="read">
-        <field_group id="read_model_data_field_group" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts" >
+        <field_group id="read_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts" >
           <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
           <field id="read_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
           <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />

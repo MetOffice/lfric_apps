@@ -102,6 +102,12 @@ program jedi_forecast
 
   call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
 
+  ! finalise state (finalises model io context)
+  call jedi_state%jedi_state_final()
+
+  ! Finalize jedi contexts before program shutdown
+  call jedi_geometry%finalise_io_context()
+
   call jedi_run%finalise()
 
 end program jedi_forecast
