@@ -813,7 +813,7 @@
 {% elif task_ns.conf_name == "rce-BiP64x64-1500x1500_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","hh_solve","no_aerosol","rce"],
+        "opt_confs": ["l70_40km","ral3","native_wind_transport","hh_solve","no_aerosol","rce"],
         "resolution": "BiP64x64-1500x1500_MG",
         "DT": 60,
         "tsteps": 120,
@@ -826,7 +826,7 @@
 {% elif task_ns.conf_name == "comp_tran_ref_3d_l120-BiP64x64-1500x1500_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l120_40km","ral3","hh_solve","no_aerosol","comp_tran_ref","3dIdeal"],
+        "opt_confs": ["l120_40km","ral3","native_wind_transport","hh_solve","no_aerosol","comp_tran_ref","3dIdeal"],
         "resolution": "BiP64x64-1500x1500_MG",
         "DT": 60,
         "tsteps": 1440,
