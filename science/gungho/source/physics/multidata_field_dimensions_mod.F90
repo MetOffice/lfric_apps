@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief The module multidata_field_dimensions_mod provides access to the
 !> config variables for multidata fields (tile fields).
 
@@ -123,6 +126,15 @@ subroutine sync_multidata_field_dimensions()
               1,                                                                &
               tolerate_missing_axes)
       end if
+
+      ! The first shortwave band occupies the leading radiation_levels entries
+      ! of the combined band and level axis, so zooming onto them selects the
+      ! whole column in that band
+      call set_zoom_axis_attr(                                                &
+            'uv_band_zoom_axis',                                              &
+            0,                                                                &
+            get_multidata_field_dimension('radiation_levels'),                &
+            tolerate_missing_axes)
 
 #endif
 end subroutine sync_multidata_field_dimensions
