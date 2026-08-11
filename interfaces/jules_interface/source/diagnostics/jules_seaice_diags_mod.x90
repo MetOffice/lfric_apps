@@ -10,7 +10,7 @@
 
 module jules_seaice_diags_mod
 
-  use constants_mod,             only: r_def
+  use constants_mod,             only: r_def, i_def
   use field_mod,                 only: field_type
   use timing_mod,                only: start_timing, stop_timing, tik, LPROF
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
@@ -59,6 +59,7 @@ contains
     type( field_type )             :: sea_ice_fraction, weights_one, &
                                       sea_ice_tile, sea_ice_topmelt
     real(r_def)                    :: num_sice_tiles
+    integer(i_def)                 :: num_ssi_tiles
     integer( tik )                 :: id
 
     if ( LPROF ) call start_timing( id, 'diags.jules_seaice' )
@@ -98,10 +99,11 @@ contains
     ! sea tile, so only the sea-ice contributes to the sum. It is converted
     ! from a melt rate to an energy flux by the latent heat of fusion.
     if(init_diag(sea_ice_topmelt, 'seaice__ssi_mean_topmelt_heat_flux')) then
+      num_ssi_tiles = n_sea_tile + n_sea_ice_tile
       call invoke(weighted_ave_kernel_type(sea_ice_topmelt,                   &
                                        snowice_melt, tile_fraction,           &
                                        first_sea_tile,                        &
-                                       n_sea_tile + n_sea_ice_tile),          &
+                                       num_ssi_tiles),                        &
                   inc_a_times_X(latent_heat_h2o_fusion, sea_ice_topmelt))
       call sea_ice_topmelt%write_field()
     end if
