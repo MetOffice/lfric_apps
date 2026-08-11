@@ -299,6 +299,13 @@ contains
       call land_surface_temperature%write_field()
     end if
 
+    if(init_diag(sea_ice_surface_temperature, 'surface__sea_ice_surface_temperature')) then
+      call invoke(weighted_ave_kernel_type(sea_ice_surface_temperature,       &
+                                       tile_temperature, tile_fraction,    &
+                                       first_sea_ice_tile, n_sea_ice_tile))
+      call sea_ice_surface_temperature%write_field()
+    end if
+
     ! Averaging the tiled flux over the land tiles, weighted by their grid-box
     ! fractions, divides by the land fraction and so gives a mean over the
     ! land portion of the grid-box.
@@ -307,13 +314,6 @@ contains
                                        tile_heat_flux, tile_fraction,      &
                                        1, n_land_tile))
       call land_mean_heat_flux%write_field()
-    end if
-
-    if(init_diag(sea_ice_surface_temperature, 'surface__sea_ice_surface_temperature')) then
-      call invoke(weighted_ave_kernel_type(sea_ice_surface_temperature,       &
-                                       tile_temperature, tile_fraction,    &
-                                       first_sea_ice_tile, n_sea_ice_tile))
-      call sea_ice_surface_temperature%write_field()
     end if
 
     if (init_diag(grid_canopy_evap, 'surface__grid_canopy_evap')) then
