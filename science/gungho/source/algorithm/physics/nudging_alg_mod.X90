@@ -290,7 +290,10 @@ contains
 
     if (nudging_min_tropopause_level < nudging_level_taper_top) then
 #ifdef UM_PHYSICS
-      call locate_tropopause_alg(config, trop_level, theta, exner, trop_diag=.false.)
+      call locate_tropopause_alg(                                              &
+              config, trop_level, theta, exner,                                &
+              nudging_twod_mesh, trop_diag=.false.                             &
+      )
 #else
       call invoke( int_setval_c(trop_level, nudging_min_tropopause_level) )
 #endif
