@@ -645,6 +645,8 @@
   <field id="seaice__melt_pond_fraction" name="melt_pond_fraction" long_name="sea ice melt pond fraction" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
   <field id="seaice__melt_pond_depth" name="melt_pond_depth" long_name="sea ice melt pond depth" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
   <field id="seaice__ssi_mean_topmelt_heat_flux" name="ssi_mean_topmelt_heat_flux" long_name="sea_ice_surface_melt_heat_flux_mean_over_sea_seaice" unit="W m-2" domain_ref="face" />
+  <field id="seaice__ice_mean_thickness" name="ice_mean_thickness" long_name="sea_ice_thickness_mean_over_ice" unit="m" domain_ref="face" />
+  <field id="seaice__ice_mean_temperature" name="ice_mean_temperature" long_name="sea_ice_temperature_mean_over_ice" unit="K" domain_ref="face" />
   <!-- Jules soil diagnostics -->
   <field id="soil__surface_runoff" name="surface_runoff" long_name="surface_runoff_flux" unit="kg m-2 s-1" domain_ref="face" />
   <field id="soil__sub_surface_runoff" name="sub_surface_runoff" long_name="subsurface_runoff_flux" unit="kg m-2 s-1" domain_ref="face" />
