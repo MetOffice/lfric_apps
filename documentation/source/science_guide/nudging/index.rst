@@ -2,6 +2,9 @@
     (c) Crown copyright Met Office. All rights reserved.
     The file LICENCE, distributed with this code, contains details of the terms
     under which the code may be used.
+
+    Some of the content of this file has been produced with the assistance of
+    Met Office GitHub Copilot Enterprise.
    -----------------------------------------------------------------------------
 .. _nudging_science_index:
 

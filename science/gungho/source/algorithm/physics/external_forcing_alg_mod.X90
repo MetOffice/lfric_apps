@@ -28,7 +28,9 @@ module external_forcing_alg_mod
   use field_parent_mod,                only: write_interface
 
   use nudging_alg_mod,                 only: nudging_alg,                      &
-                                             set_nudging_reference_fields
+                                             set_nudging_reference_fields,     &
+                                             set_nudging_trop_level,           &
+                                             compute_nudging_spinup_factor
   use map_fd_to_prognostics_alg_mod,   only: set_wind
 
   use held_suarez_fv_kernel_mod,       only: held_suarez_fv_kernel_type
@@ -43,7 +45,7 @@ module external_forcing_alg_mod
 #endif
   ! Derived Types
   use config_mod,                      only: config_type
-  use constants_mod,                   only: i_def, r_def, l_def, IMDI, RMDI
+  use constants_mod,                   only: i_def, r_def, l_def, IMDI, str_def
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
   use integer_field_mod,               only: integer_field_type
@@ -157,9 +159,12 @@ contains
     type(mesh_type),            pointer :: mesh
     procedure(write_interface), pointer :: write_behaviour
 
+    type(integer_field_type) :: trop_level
+
     type(field_type)    :: u_smoothed, dx, visc_m
     type(field_type)    :: du_in_w3, dv_in_w3, dw_in_wth
     integer(kind=i_def) :: order, nlayers
+    real(kind=r_def)    :: nudging_time_weight
     real(kind=r_def)    :: diffusion_coefficient_scaled, dx_sum, dx_size
     integer(tik)        :: id
 
@@ -171,7 +176,8 @@ contains
     integer(kind=i_def) :: filtering_order, diffusion_order
     real(kind=r_def)    :: diffusion_coefficient
     real(kind=r_def)    :: kappa
-    real(kind=r_def)    :: nudging_spinup_start
+    real(kind=r_def)    :: nudging_spinup_factor
+    real(kind=r_def)    :: nudging_relax_time
     logical(kind=l_def) :: write_diag, use_xios_io
     integer(kind=i_def) :: cloud, scheme
 
@@ -193,10 +199,8 @@ contains
     kappa = config%planet%kappa()
     cloud = IMDI
     scheme = IMDI
-    nudging_spinup_start = RMDI
     if (section_choice_is_loaded()) cloud = config%section_choice%cloud()
     if (cloud_is_loaded()) scheme = config%cloud%scheme()
-    if (nudging_is_loaded()) nudging_spinup_start = config%nudging%nudging_spinup_start()
 
     mesh => theta%get_mesh()
     height_wth => get_height_fv(config, mesh, Wtheta)
@@ -205,6 +209,10 @@ contains
     if ( theta_forcing == theta_forcing_nudging .or.                           &
          wind_forcing == wind_forcing_nudging ) then
       call set_nudging_reference_fields(config, derived_fields, exner)
+      nudging_spinup_factor = compute_nudging_spinup_factor(config, time_now)
+      if (nudging_spinup_factor > 0.0_r_def) then
+        call set_nudging_trop_level(config, trop_level, theta, exner_in_wth)
+      end if
     end if
 
     if ( theta_forcing /= theta_forcing_none .or. theta_relaxation .or.        &
@@ -270,10 +278,21 @@ contains
           call temp_tend_profile_alg( config, dtheta_forcing, exner_in_wth, time_now )
 
         case(theta_forcing_nudging)
+          ! Determine nudging time-weighting for theta
+          nudging_relax_time = config%nudging%nudging_relax_time_theta()
+          if (nudging_relax_time > 0.0_r_def) then
+            nudging_time_weight = dt * nudging_spinup_factor / nudging_relax_time
+          else
+            nudging_time_weight = 0.0_r_def
+          end if
 
-          if (time_now >= nudging_spinup_start) then
+          ! Perform nudging
+          if (nudging_time_weight > 0.0_r_def) then
             call derived_fields%get_field('theta_nudging_ref', theta_ref)
-            call nudging_alg(config, dtheta_forcing, theta, theta_ref)
+            call nudging_alg(config, dtheta_forcing, theta, theta_ref,         &
+                             nudging_time_weight, trop_level)
+          else
+            call invoke(setval_c(dtheta_forcing, 0.0_r_def))
           end if
 
         case default
@@ -409,12 +428,10 @@ contains
 
           call du_forcing%initialise(u%get_function_space())
 
-          if (time_now >= nudging_spinup_start) then
+          if (nudging_spinup_factor > 0.0_r_def) then
             ! Extract fields for spectral nudging
             call derived_fields%get_field('u_in_w3', u_in_w3)
             call derived_fields%get_field('v_in_w3', v_in_w3)
-            call derived_fields%get_field('u_in_w3_nudging_ref', u_in_w3_ref)
-            call derived_fields%get_field('v_in_w3_nudging_ref', v_in_w3_ref)
 
             ! Initialise components for wind increment
             call du_in_w3%initialise(u_in_w3%get_function_space())
@@ -422,11 +439,40 @@ contains
             call dw_in_wth%initialise(theta%get_function_space())
 
             ! Apply nudging to calculate increments for each component
-            call nudging_alg(config, du_in_w3, u_in_w3, u_in_w3_ref)
-            call nudging_alg(config, dv_in_w3, v_in_w3, v_in_w3_ref)
-            call invoke(setval_c(dw_in_wth, 0.0_r_def))
+            ! u ----------------------------------------------------------------
+            nudging_relax_time = config%nudging%nudging_relax_time_u()
+            if (nudging_relax_time > 0.0_r_def) then
+              nudging_time_weight = dt * nudging_spinup_factor / nudging_relax_time
+            else
+              nudging_time_weight = 0.0_r_def
+            end if
+
+            if (nudging_time_weight > 0.0_r_def) then
+              call derived_fields%get_field('u_in_w3_nudging_ref', u_in_w3_ref)
+              call nudging_alg(config, du_in_w3, u_in_w3, u_in_w3_ref,         &
+                               nudging_time_weight, trop_level)
+            else
+              call invoke(setval_c(du_in_w3, 0.0_r_def))
+            end if
+
+            ! v ----------------------------------------------------------------
+            nudging_relax_time = config%nudging%nudging_relax_time_v()
+            if (nudging_relax_time > 0.0_r_def) then
+              nudging_time_weight = dt * nudging_spinup_factor / nudging_relax_time
+            else
+              nudging_time_weight = 0.0_r_def
+            end if
+
+            if (nudging_time_weight > 0.0_r_def) then
+              call derived_fields%get_field('v_in_w3_nudging_ref', v_in_w3_ref)
+              call nudging_alg(config, dv_in_w3, v_in_w3, v_in_w3_ref,         &
+                               nudging_time_weight, trop_level)
+            else
+              call invoke(setval_c(dv_in_w3, 0.0_r_def))
+            end if
 
             ! Combine increments to obtain full wind increment
+            call invoke(setval_c(dw_in_wth, 0.0_r_def))
             call set_wind(config, du_forcing, du_in_w3, dv_in_w3, dw_in_wth)
 
           else

@@ -6,7 +6,7 @@
 ! Some of the content of this file has been produced with the assistance of
 ! GitHub Copilot (Claude Sonnet 5).
 !-------------------------------------------------------------------------------
-module nudging_vert_interp_kernel_mod_test
+module nudging_ecmwf_vert_interp_kernel_mod_test
 
   use constants_mod, only : i_def, r_def
   use funit
@@ -22,8 +22,8 @@ contains
   @Test
   subroutine test_all( )
 
-    use nudging_vert_interp_kernel_mod, only: nudging_vert_interp_code
-    use ecmwf_level_support_mod,        only: ak_ec_137, bk_ec_137
+    use nudging_ecmwf_vert_interp_kernel_mod, only: nudging_ecmwf_vert_interp_code
+    use ecmwf_level_support_mod,              only: ak_ec_137, bk_ec_137
 
     implicit none
 
@@ -125,7 +125,7 @@ contains
                        332.65624218452757_r_def, 336.2736730367809_r_def,      &
                        341.0504790035589_r_def, 348.100533442245_r_def /)
 
-    call nudging_vert_interp_code(                                             &
+    call nudging_ecmwf_vert_interp_code(                                       &
         nlayers,                                                               &
         theta_mod_levs, u_mod_levs, v_mod_levs,                                &
         T_nudge_levs, u_nudge_levs, v_nudge_levs,                              &
@@ -143,4 +143,4 @@ contains
 
   end subroutine test_all
 
-end module nudging_vert_interp_kernel_mod_test
+end module nudging_ecmwf_vert_interp_kernel_mod_test

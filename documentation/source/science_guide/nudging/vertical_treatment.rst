@@ -2,6 +2,9 @@
     (c) Crown copyright Met Office. All rights reserved.
     The file LICENCE, distributed with this code, contains details of the terms
     under which the code may be used.
+
+    Some of the content of this file has been produced with the assistance of
+    Met Office GitHub Copilot Enterprise.
    -----------------------------------------------------------------------------
 .. _nudging_science_vertical_treatment:
 
@@ -113,3 +116,33 @@ levels below and above which nudging is zero. The quantity
 while :math:`\mathbb{W}_3` points are offset by half a level. Using this common
 coordinate ensures that both sets of levels see a consistent, vertically-aligned
 taper profile.
+
+.. _nudging_science_tropopause_cap:
+
+Tropopause capping
+-------------------
+
+Nudging towards external reference data is generally undesirable well above
+the tropopause: the stratosphere is only loosely constrained (if at all) by
+the coarse vertical and temporal sampling of typical reference datasets, and
+imposing large-scale forcing there can disrupt the model's own
+stratospheric transport and composition. Rather than relying solely on a
+fixed upper taper level, chosen in advance to sit safely below the
+tropopause for an expected range of conditions, the upper extent of the
+tapering profile described above may instead be capped dynamically by the
+model's own, evolving tropopause height.
+
+When this option is used, the upper full-strength and taper levels,
+:math:`k_{top}` and :math:`k_{taper,top}`, in :eq:`eq:nudging_vertical_taper`
+are replaced at each application of the scheme by the lesser of their
+configured values and the current tropopause level, diagnosed
+independently for each atmospheric column from the model's evolving
+temperature structure. This allows the vertical extent of nudging to track
+a rising or falling tropopause, rather than remaining fixed, and ensures
+nudging is switched off in the stratosphere even where the diagnosed
+tropopause sits below the configured upper taper level. A fixed minimum
+level may also be enforced as a floor for the diagnosed tropopause level,
+guarding against spuriously low diagnoses; setting this floor high enough
+disables the dynamic capping altogether, recovering the fixed taper profile
+described above.
+

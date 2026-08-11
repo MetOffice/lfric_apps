@@ -2,6 +2,9 @@
      (c) Crown copyright Met Office. All rights reserved.
      The file LICENCE, distributed with this code, contains details of the terms
      under which the code may be used.
+
+     Some of the content of this file has been produced with the assistance of
+     Met Office GitHub Copilot Enterprise.
    -----------------------------------------------------------------------------
 
 .. _nudging_user_index:
@@ -72,15 +75,20 @@ The behaviour of the nudging scheme is controlled by the
         relax only the large scales of the field, using a convolution in
         physical space that emulates a low-pass top-hat filter in spectral
         space (see the :ref:`Science Guide <nudging_science_index>`).
-    * - ``nudging_relax_time``
-      - Timescale, in seconds, over which the field (or its large-scale
-        component) is relaxed towards the reference state. A value of zero
-        sets the field to the reference state in a single time step.
+    * - ``nudging_relax_time_theta`` / ``nudging_relax_time_u`` /
+        ``nudging_relax_time_v``
+      - Timescale, in hours, over which potential temperature, zonal wind
+        and meridional wind respectively are relaxed towards the reference
+        state. Setting a timescale to zero disables nudging of that field
+        entirely.
     * - ``nudging_spinup_start`` / ``nudging_spinup_end``
-      - Times, in seconds since the start of the run, over which the
+      - Times, in hours since the start of the run, over which the
         strength of nudging is ramped up linearly from zero to full
         strength. This allows nudging to be introduced gradually rather
         than as a step change.
+    * - ``nudging_stop_time``
+      - Time, in hours since the start of the run, at which nudging is
+        switched off.
     * - ``num_ref_data_levels``
       - Number of vertical levels on which the reference data for temperature
         and wind components are provided.
@@ -93,6 +101,13 @@ The behaviour of the nudging scheme is controlled by the
         ``nudging_level_bottom``, and between ``nudging_level_top`` and
         ``nudging_level_taper_top`` (see the :ref:`Science Guide
         <nudging_science_vertical_taper>`).
+    * - ``nudging_min_tropopause_level``
+      - Model level enforced as a floor for the tropopause level used to
+        cap the vertical extent of nudging (see the :ref:`Science Guide
+        <nudging_science_tropopause_cap>`). Set to ``0`` to always cap
+        nudging using the model-diagnosed tropopause level. Set to
+        ``nudging_level_taper_top`` (or above) to always apply nudging up
+        to that level, regardless of the diagnosed tropopause.
     * - ``spectral_kmin`` / ``spectral_kmax``
       - (``nudging_method = 'convolution'`` only) Minimum and maximum
         wavenumbers retained by the top-hat spectral filter.
@@ -156,6 +171,28 @@ vertically staggered by half a level relative to the potential temperature
 levels (see the :ref:`Science Guide <nudging_science_vertical_taper>`). The
 same integer level values are used for both, so the two sets of levels see
 a consistent, vertically-aligned taper profile.
+
+Capping nudging at the tropopause
+------------------------------------
+
+The upper end of the vertical range configured above (``nudging_level_top``
+and ``nudging_level_taper_top``) can additionally be capped by the model's
+own diagnosed tropopause level, so that nudging is switched off in the
+stratosphere even where the tropopause is currently lower than these
+configured levels (see the :ref:`Science Guide
+<nudging_science_tropopause_cap>`). This behaviour is controlled by
+``nudging_min_tropopause_level``, which sets a floor below which the
+diagnosed tropopause level is never allowed to cap nudging:
+
+* Setting ``nudging_min_tropopause_level`` to ``0`` means nudging always
+  follows the diagnosed tropopause level, wherever it is.
+* Setting ``nudging_min_tropopause_level`` to ``nudging_level_taper_top``
+  (or higher) disables the dynamic capping, so nudging always extends up
+  to the fixed levels configured above, regardless of the diagnosed
+  tropopause.
+* Intermediate values allow the diagnosed tropopause to lower the effective
+  top of the nudged region, but prevent it from doing so below the
+  specified floor.
 
 Coarse-mesh nudging
 --------------------

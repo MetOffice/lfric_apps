@@ -43,7 +43,6 @@ module physics_constants_mod
   ! functions returning pointers to them
 
   real(kind=r_def)    :: dt_stored = 0.0_r_def
-  logical(kind=l_def) :: to_update_nudging_weights = .true.
 
   ! ========================================================================== !
   ! Inventories for use in the rest of the model
@@ -55,9 +54,11 @@ module physics_constants_mod
   type(inventory_by_mesh_type) :: rdz_w3_inventory
   type(inventory_by_mesh_type) :: max_diff_wtheta_inventory
 
-  type(inventory_by_mesh_type), target :: nudging_weights_w3_inventory
-  type(inventory_by_mesh_type), target :: nudging_weights_wt_inventory
-  type(inventory_by_local_mesh_type)   :: convolution_weights_inventory
+  type(inventory_by_local_mesh_type) :: convolution_weights_inventory
+
+  ! 1D vertical nudging weights
+  real(kind=r_def), target, allocatable :: nudging_weights_w3(:)
+  real(kind=r_def), target, allocatable :: nudging_weights_wt(:)
 
 #ifdef UM_PHYSICS
   ! Spherical harmonics, used by stochastic physics
@@ -76,7 +77,6 @@ module physics_constants_mod
   public :: get_max_diff
   public :: get_convolution_weights
   public :: get_nudging_weights
-  public :: update_nudging_weights
 
 #ifdef UM_PHYSICS
   public :: get_Pnm_star
@@ -496,76 +496,111 @@ contains
 
   end function get_convolution_weights
 
-  !> @brief Returns the weights for applying spectral nudging
+  !> @brief Returns the vertical weights for applying spectral nudging
   !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh    The mesh to get the object for
   !> @param[in] fs_id   The function space ID to get the object for
-  !> @return The nudging_weights field
-  function get_nudging_weights(config, mesh, fs_id) result(nudging_weights)
-
-    use nudging_weights_kernel_mod,  only: nudging_weights_kernel_type
+  !> @return The 1D vertical nudging_weights array
+  function get_nudging_weights(config, mesh, fs_id) result(weights)
 
     implicit none
 
-    type(config_type),         intent(in) :: config
-    type(mesh_type),           intent(in) :: mesh
-    integer(kind=i_def),       intent(in) :: fs_id
-    integer(kind=i_def)                   :: mesh_id
-    type(function_space_type),    pointer :: fs
-    type(field_type),             pointer :: nudging_weights
-    type(inventory_by_mesh_type), pointer :: nudging_weights_inventory
-    logical(kind=l_def)                   :: constant_exists
-    character(len=str_def)                :: inventory_name
-    integer(kind=i_def)                   :: nudging_level_top
-    integer(kind=i_def)                   :: nudging_level_bottom
-    integer(kind=i_def)                   :: nudging_taper_top
-    integer(kind=i_def)                   :: nudging_taper_bottom
-    integer(kind=tik)                     :: id
-
-    if (fs_id == W3) then
-      nudging_weights_inventory => nudging_weights_w3_inventory
-      inventory_name = "nudging_weights_w3"
-    else if (fs_id == Wtheta) then
-      nudging_weights_inventory => nudging_weights_wt_inventory
-      inventory_name = "nudging_weights_wt"
-    else
-      call log_event(                                                          &
-              'Spectral nudging weights only implemented for W3 and Wtheta',   &
-              LOG_LEVEL_ERROR                                                  &
-      )
-    end if
-
-    ! Initialise inventory if it hasn't been done so already
-    if (.not. nudging_weights_inventory%is_initialised()) then
-      call nudging_weights_inventory%initialise(name=inventory_name)
-    end if
+    type(config_type),          intent(in) :: config
+    type(mesh_type),            intent(in) :: mesh
+    integer(kind=i_def),        intent(in) :: fs_id
+    integer(kind=i_def)                    :: mesh_id
+    real(kind=r_def),              pointer :: weights(:)
+    integer(kind=i_def)                    :: nudging_level_top
+    integer(kind=i_def)                    :: nudging_level_bottom
+    integer(kind=i_def)                    :: nudging_taper_top
+    integer(kind=i_def)                    :: nudging_taper_bottom
+    integer(kind=i_def)                    :: k, nlayers, nl
+    real(kind=r_def)                       :: k_real, w3_offset
+    real(kind=r_def)                       :: taper_bottom, nudging_bottom
+    real(kind=r_def)                       :: nudging_top, taper_top
+    logical(kind=l_def)                    :: compute_weights
+    integer(kind=tik)                      :: id
 
     mesh_id = mesh%get_id()
-    constant_exists = nudging_weights_inventory%paired_object_exists(mesh_id)
     nudging_level_bottom = config%nudging%nudging_level_bottom()
     nudging_level_top = config%nudging%nudging_level_top()
     nudging_taper_bottom = config%nudging%nudging_level_taper_bottom()
     nudging_taper_top = config%nudging%nudging_level_taper_top()
 
-    ! Create object if it doesn't already exist
-    if (.not. constant_exists) then
-      fs => function_space_collection%get_fs(mesh, 0, 0, fs_id)
+    ! Work out if object exists
+    compute_weights = .false.
+    select case (fs_id)
+    case (W3)
+      if (.not. allocated(nudging_weights_w3)) compute_weights = .true.
+    case (Wtheta)
+      if (.not. allocated(nudging_weights_wt)) compute_weights = .true.
+    case default
+      call log_event(                                                          &
+              'Spectral nudging weights only implemented for W3 and Wtheta',   &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end select
+
+    if (compute_weights) then
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )
 
-      call nudging_weights_inventory%add_field(nudging_weights, fs, mesh)
+      nlayers = mesh%get_nlayers()
+      select case (fs_id)
+      case (W3)
+        nl = nlayers
+        w3_offset = 0.5_r_def
+        allocate(nudging_weights_w3(nl))
+        weights => nudging_weights_w3
+      case (Wtheta)
+        nl = nlayers + 1
+        w3_offset = 0.0_r_def
+        allocate(nudging_weights_wt(nl))
+        weights => nudging_weights_wt
+      end select
 
-      call invoke(                                                             &
-          nudging_weights_kernel_type(                                         &
-              nudging_weights, nudging_level_bottom, nudging_level_top,        &
-              nudging_taper_bottom, nudging_taper_top                          &
-          )                                                                    &
-      )
+      do k = 0, nl-1
+        k_real = real(k, r_def) + w3_offset
 
+        ! Below start of taper, weights = 0
+        if (k_real < taper_bottom + EPS) then
+          weights(1 + k) = 0.0_r_def
+
+        ! Ramp up from 0 to 1 between taper_bottom and nudging_bottom
+        else if (k_real < nudging_bottom + EPS) then
+          weights(1 + k) = (k_real - taper_bottom) /                           &
+                            max(1.0_r_def, nudging_bottom - taper_bottom)
+
+        ! Full nudging between nudging_bottom and nudging_top
+        else if (k_real < nudging_top + EPS) then
+          weights(1 + k) = 1.0_r_def
+
+        ! Ramp down from 1 to 0 between nudging_top and taper_top
+        else if (k_real < taper_top + EPS) then
+          weights(1 + k) = 1.0_r_def - (k_real - nudging_top) /                &
+                                        max(1.0_r_def, taper_top - nudging_top)
+
+        ! Above taper_top, weights = 0
+        else
+          weights(1 + k) = 0.0_r_def
+
+        end if
+      end do
       if ( LPROF ) call stop_timing( id, 'runtime_constants.physics' )
     end if
 
-    call nudging_weights_inventory%get_field(mesh, nudging_weights)
+    ! Point to existing object
+    select case (fs_id)
+    case (W3)
+      weights => nudging_weights_w3
+    case (Wtheta)
+      weights => nudging_weights_wt
+    case default
+      call log_event(                                                          &
+              'Spectral nudging weights only implemented for W3 and Wtheta',   &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end select
 
   end function get_nudging_weights
 
@@ -637,122 +672,13 @@ contains
     call rdz_fd1_inventory%clear()
     call rdz_w3_inventory%clear()
     call max_diff_wtheta_inventory%clear()
-    call nudging_weights_w3_inventory%clear()
-    call nudging_weights_wt_inventory%clear()
+    if (allocated(nudging_weights_w3)) deallocate(nudging_weights_w3)
+    if (allocated(nudging_weights_wt)) deallocate(nudging_weights_wt)
     call convolution_weights_inventory%clear()
 #ifdef UM_PHYSICS
     call Pnm_star_inventory%clear()
 #endif
 
   end subroutine final_physics_constants
-
-  ! ========================================================================== !
-  ! UPDATE SPECTRAL NUDGING WEIGHTS
-  ! ========================================================================== !
-  !> @brief Update the spectral nudging weights based on the current time
-  !> @param[in] model_clock  The model clock object
-  !> @param[in] config       Application namelist configuration object
-  !> @param[in] mesh         The mesh to compute the weights on
-  subroutine update_nudging_weights(model_clock, config, mesh)
-
-    use nudging_weights_kernel_mod,  only: nudging_weights_kernel_type
-
-    implicit none
-
-    class(model_clock_type), intent(in) :: model_clock
-    type(config_type),       intent(in) :: config
-    type(mesh_type),         intent(in) :: mesh
-    type(field_type),         pointer   :: nudging_weights
-    real(kind=r_def)                    :: nudging_spinup_ratio
-    real(kind=r_def)                    :: dt, time
-
-    ! Configuration variables
-    integer(kind=i_def) :: nudging_level_bottom, nudging_level_top
-    integer(kind=i_def) :: nudging_taper_bottom, nudging_taper_top
-    real(kind=r_def)    :: nudging_spinup_start, nudging_spinup_end
-    real(kind=r_def)    :: nudging_relax_time
-
-    ! Get nudging configuration variables
-    nudging_level_bottom = config%nudging%nudging_level_bottom()
-    nudging_level_top = config%nudging%nudging_level_top()
-    nudging_taper_bottom = config%nudging%nudging_level_taper_bottom()
-    nudging_taper_top = config%nudging%nudging_level_taper_top()
-    nudging_spinup_start = config%nudging%nudging_spinup_start()
-    nudging_spinup_end = config%nudging%nudging_spinup_end()
-    nudging_relax_time = config%nudging%nudging_relax_time()
-
-    ! NB: this assumes that dt is constant
-    dt = REAL(model_clock%get_seconds_per_step(), r_def)
-    time = dt*REAL(model_clock%get_step() - 1, r_def)
-
-    ! Set factor for nudging weight during spin-up period
-    if (time <= nudging_spinup_start) then
-      ! Before spin-up period
-      nudging_spinup_ratio = 0.0_r_def
-
-      ! Set weights to zero
-      nudging_weights => get_nudging_weights(config, mesh, W3)
-      call invoke( setval_c(nudging_weights, 0.0_r_def) )
-      nudging_weights => get_nudging_weights(config, mesh, Wtheta)
-      call invoke( setval_c(nudging_weights, 0.0_r_def) )
-
-      ! Do not need to call usual kernel so set flag to false
-      to_update_nudging_weights = .false.
-
-    else if (time > nudging_spinup_start .and. time < nudging_spinup_end) then
-      ! During spin-up period
-      if (ABS(nudging_spinup_end - nudging_spinup_start) < EPS) then
-        nudging_spinup_ratio = 1.0_r_def
-      else
-        nudging_spinup_ratio = (                                               &
-          (time - nudging_spinup_start)                                        &
-          / (nudging_spinup_end - nudging_spinup_start)                        &
-        )
-      end if
-      ! Ramping up nudging weights, so enforce that they are updated
-      to_update_nudging_weights = .true.
-
-    else
-      ! After spin-up period
-      nudging_spinup_ratio = 1.0_r_def
-    end if
-
-    ! Now adjust weighting based on relaxation time
-    if (nudging_relax_time > EPS) then
-      nudging_spinup_ratio = nudging_spinup_ratio * (                          &
-        MIN(1.0_r_def, dt / nudging_relax_time)                                &
-      )
-    end if
-
-    if (to_update_nudging_weights) then
-      ! Update W3 nudging weights
-      nudging_weights => get_nudging_weights(config, mesh, W3)
-
-      call invoke(                                                             &
-          nudging_weights_kernel_type(                                         &
-              nudging_weights, nudging_level_bottom, nudging_level_top,        &
-              nudging_taper_bottom, nudging_taper_top                          &
-          ),                                                                   &
-          inc_a_times_X(nudging_spinup_ratio, nudging_weights)                 &
-      )
-
-      ! Update Wtheta nudging weights
-      nudging_weights => get_nudging_weights(config, mesh, Wtheta)
-
-      call invoke(                                                             &
-          nudging_weights_kernel_type(                                         &
-              nudging_weights, nudging_level_bottom, nudging_level_top,        &
-              nudging_taper_bottom, nudging_taper_top                          &
-          ),                                                                   &
-          inc_a_times_X(nudging_spinup_ratio, nudging_weights)                 &
-      )
-
-      ! If after spin-up period, we don't need to update the weights any more
-      if (time >= nudging_spinup_end) then
-        to_update_nudging_weights = .false.
-      end if
-    end if
-
-  end subroutine update_nudging_weights
 
 end module physics_constants_mod

@@ -26,30 +26,45 @@ contains
 
     integer(kind=i_def), parameter :: nlayers = 1
     integer(kind=i_def), parameter :: stencil_size = 25
+    integer(kind=i_def), parameter :: ndf_2d_cw = 1
+    integer(kind=i_def), parameter :: undf_2d_cw = stencil_size
     integer(kind=i_def), parameter :: ndf_2d = 1
-    integer(kind=i_def), parameter :: undf_2d = stencil_size
+    integer(kind=i_def), parameter :: undf_2d = 1
     integer(kind=i_def), parameter :: ndf_3d = 1   ! This simplifies the test!
     integer(kind=i_def), parameter :: undf_3d = stencil_size
+    integer(kind=i_def), parameter :: nvert(1) = 1
     integer(kind=i_def), parameter :: kmax = 40
     integer(kind=i_def), parameter :: kmin = 4
     real(kind=r_def),    parameter :: dx = 20.0_r_def
     real(kind=r_def),    parameter :: dy = 10.0_r_def
+    ! With nlayers = 1 and ndf_3d = 1, only a single level (level 0) exists, so
+    ! min_level/max_level/tropopause_level are all capped down to that single
+    ! level regardless of their values here
+    integer(kind=i_def), parameter :: min_level = 0
+    integer(kind=i_def), parameter :: max_level = 2
+    real(kind=r_def),    parameter :: time_weight = 3.0_r_def
 
     real(kind=r_def),    parameter :: tol = 10.0_r_def*epsilon(1.0_r_def)
 
     integer(kind=i_def) :: map_3d(ndf_3d)
+    integer(kind=i_def) :: map_2d_cw(ndf_2d_cw)
     integer(kind=i_def) :: map_2d(ndf_2d)
     integer(kind=i_def) :: stencil_map(ndf_3d, stencil_size)
+    integer(kind=i_def) :: tropopause_level(undf_2d)
     real(kind=r_def)    :: answer
     real(kind=r_def)    :: filtered_field(undf_3d)
     real(kind=r_def)    :: field_in(undf_3d)
-    real(kind=r_def)    :: weights(undf_2d)
+    real(kind=r_def)    :: conv_weights(undf_2d_cw)
+    real(kind=r_def)    :: vert_weights(nvert(1))
 
     integer(kind=i_def) :: i, j, ij
     real(kind=r_def)    :: dist, chi1, chi2
 
     map_3d(1) = 13
+    map_2d_cw(1) = 1
     map_2d(1) = 1
+    tropopause_level(1) = 4
+    vert_weights(1) = 2.0_r_def
 
     ! Populate maps / weights
     ! Set up regular grid of coordinates
@@ -63,9 +78,9 @@ contains
         ! Weights --------------------------------------------------------------
         dist = sqrt((chi1 - 3.0_r_def*dx)**2 + (chi2 - 3.0_r_def*dy)**2)
         if (dist < 1.0e-3_r_def) then
-          weights(ij) = 2.0_r_def*REAL(kmax - kmin, r_def)
+          conv_weights(ij) = 2.0_r_def*REAL(kmax - kmin, r_def)
         else
-          weights(ij) = (                                                      &
+          conv_weights(ij) = (                                                 &
             SIN(2.0_r_def*PI*kmax*dist) / (PI*dist)                            &
             - SIN(2.0_r_def*PI*kmin*dist) / (PI*dist)                          &
           )
@@ -76,18 +91,23 @@ contains
       end do
     end do
 
-    ! Field is linear and convolution is symmetric, so answer should be central value
-    answer = field_in(13)
+    ! Field is linear and convolution is symmetric, so the convolution alone
+    ! should reproduce the central value; the kernel then scales this by the
+    ! time weight and vertical weight
+    answer = field_in(13) * time_weight * vert_weights(1)
 
     ! Normalise weights
-    weights(:) = weights(:) / SUM(weights(:))
+    conv_weights(:) = conv_weights(:) / SUM(conv_weights(:))
 
     ! Initialise output field to zero
     filtered_field(:) = 0.0_r_def
 
     call convolution_2d_code(                                                  &
             nlayers, filtered_field, field_in, stencil_size, stencil_map,      &
-            weights, ndf_3d, undf_3d, map_3d, ndf_2d, undf_2d, map_2d          &
+            nvert, vert_weights, conv_weights, tropopause_level,               &
+            min_level, max_level, time_weight,                                 &
+            ndf_3d, undf_3d, map_3d, ndf_2d_cw, undf_2d_cw, map_2d_cw,         &
+            ndf_2d, undf_2d, map_2d                                            &
     )
 
     ! Only central value (13 out of 25) is set

@@ -11,10 +11,11 @@
 module convolution_2d_kernel_mod
 
   use argument_mod,              only: arg_type,                               &
-                                       GH_FIELD,                               &
-                                       GH_REAL, GH_READ, GH_WRITE,             &
+                                       GH_FIELD, GH_SCALAR_ARRAY, GH_SCALAR,   &
+                                       GH_REAL, GH_INTEGER, GH_READ, GH_WRITE, &
                                        CELL_COLUMN, STENCIL, REGION,           &
                                        ANY_DISCONTINUOUS_SPACE_1,              &
+                                       ANY_DISCONTINUOUS_SPACE_2,              &
                                        ANY_DISCONTINUOUS_SPACE_9
 
   use constants_mod,             only: r_def, i_def
@@ -31,11 +32,17 @@ module convolution_2d_kernel_mod
   !> Contains the metadata needed by the Psy layer
   type, public, extends(kernel_type) :: convolution_2d_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                        &
-        arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),   &
-        arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1,    &
+    type(arg_type) :: meta_args(8) = (/                                        &
+        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),  &
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1,   &
                                                             STENCIL(REGION)),  &
-        arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9)    &
+        arg_type(GH_SCALAR_ARRAY,                                              &
+                            GH_REAL,    GH_READ, 1),                           &
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9),  &
+        arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &
+        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &
+        arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &
+        arg_type(GH_SCALAR, GH_REAL,    GH_READ)                               &
     /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -49,28 +56,46 @@ module convolution_2d_kernel_mod
 
 contains
 
-!> @brief Computes weights for performing convolution for spectral nudging.
-!> @param[in]     nlayers         Number of layers
-!> @param[in,out] filtered_field  The filtered field to compute
-!> @param[in]     field_in        Field to be filtered
-!> @param[in]     stencil_size    Size of the stencil used in the convolution
-!> @param[in]     stencil_map     Map of the stencil used in the convolution
-!> @param[in]     weights         Weights for performing the convolution
-!> @param[in]     ndf_3d          Number of DoFs per cell in 3D field
-!> @param[in]     undf_3d         Number of DoFs in this partition in 3D field
-!> @param[in]     map_3d          DoF map for the 3D field
-!> @param[in]     ndf_2d          Num of DoFs per cell in weights field
-!> @param[in]     undf_2d         Num of DoFs in this partition in weights field
-!> @param[in]     map_2d          DoF map for the weights field
+!> @brief Performs convolution for spectral nudging.
+!> @param[in]     nlayers          Number of layers
+!> @param[in,out] filtered_field   The filtered field to compute
+!> @param[in]     field_in         Field to be filtered
+!> @param[in]     stencil_size     Size of the stencil used in the convolution
+!> @param[in]     stencil_map      Map of the stencil used in the convolution
+!> @param[in]     nvert            Number of vertical weights
+!> @param[in]     vert_weights     1D array of vertical weights for nudging
+!> @param[in]     conv_weights     2D weights for performing the convolution
+!> @param[in]     tropopause_level Tropopause level for each column
+!> @param[in]     min_level        Minimum vertical level for nudging
+!> @param[in]     max_level        Maximum vertical level for nudging
+!> @param[in]     time_weight      Time weight for nudging
+!> @param[in]     ndf_3d           Number of DoFs per cell in 3D field
+!> @param[in]     undf_3d          Number of DoFs in this partition in 3D field
+!> @param[in]     map_3d           DoF map for the 3D field
+!> @param[in]     ndf_2d_cw        Num of DoFs per cell in weights field
+!> @param[in]     undf_2d_cw       Num DoFs in this partition in weights field
+!> @param[in]     map_2d_cw        DoF map for the weights field
+!> @param[in]     ndf_2d           Num of DoFs per cell in 2D trop field
+!> @param[in]     undf_2d          Num DoFs in this partition in 2D trop field
+!> @param[in]     map_2d           DoF map for the 2D trop field
 subroutine convolution_2d_code(nlayers,                                        &
                                filtered_field,                                 &
                                field_in,                                       &
                                stencil_size,                                   &
                                stencil_map,                                    &
-                               weights,                                        &
+                               nvert,                                          &
+                               vert_weights,                                   &
+                               conv_weights,                                   &
+                               tropopause_level,                               &
+                               min_level,                                      &
+                               max_level,                                      &
+                               time_weight,                                    &
                                ndf_3d,                                         &
                                undf_3d,                                        &
                                map_3d,                                         &
+                               ndf_2d_cw,                                      &
+                               undf_2d_cw,                                     &
+                               map_2d_cw,                                      &
                                ndf_2d,                                         &
                                undf_2d,                                        &
                                map_2d)
@@ -79,31 +104,49 @@ subroutine convolution_2d_code(nlayers,                                        &
 
   ! Arguments
   integer(kind=i_def), intent(in)    :: nlayers
-  integer(kind=i_def), intent(in)    :: ndf_2d, ndf_3d
-  integer(kind=i_def), intent(in)    :: undf_2d, undf_3d
+  integer(kind=i_def), intent(in)    :: ndf_2d, ndf_2d_cw, ndf_3d
+  integer(kind=i_def), intent(in)    :: undf_2d, undf_2d_cw, undf_3d
+  integer(kind=i_def), intent(in)    :: nvert(1)
   integer(kind=i_def), intent(in)    :: stencil_size
+  integer(kind=i_def), intent(in)    :: min_level, max_level
   integer(kind=i_def), intent(in)    :: map_2d(ndf_2d)
+  integer(kind=i_def), intent(in)    :: map_2d_cw(ndf_2d_cw)
   integer(kind=i_def), intent(in)    :: map_3d(ndf_3d)
   integer(kind=i_def), intent(in)    :: stencil_map(ndf_3d, stencil_size)
-  real(kind=r_def),    intent(in)    :: weights(undf_2d)
+  real(kind=r_def),    intent(in)    :: vert_weights(nvert(1))
+  real(kind=r_def),    intent(in)    :: time_weight
+  real(kind=r_def),    intent(in)    :: conv_weights(undf_2d_cw)
+  integer(kind=i_def), intent(in)    :: tropopause_level(undf_2d)
   real(kind=r_def),    intent(in)    :: field_in(undf_3d)
   real(kind=r_def),    intent(inout) :: filtered_field(undf_3d)
 
   ! Local variables
-  integer(kind=i_def) :: i, idx_w, idx_s, idx_f, nl
+  integer(kind=i_def) :: i, nl
+  integer(kind=i_def) :: idx_w, idx_sb, idx_st, idx_fb, idx_ft, idx_vb, idx_vt
+  integer(kind=i_def) :: max_level_loc
 
+  ! Set maximum level
   nl = nlayers - 2 + ndf_3d  ! nlayers for Wtheta, nlayers - 1 for W3
-  idx_f = map_3d(1)
+  max_level_loc = MIN(max_level, nl, tropopause_level(map_2d(1)))
+  idx_fb = map_3d(1) + min_level
+  idx_ft = idx_fb + max_level_loc
+  idx_vb = min_level + 1
+  idx_vt = idx_vb + max_level_loc
 
   do i = 1, stencil_size
-    idx_w = map_2d(1) + i - 1  ! Multidata index
-    idx_s = stencil_map(1, i)  ! Stencil index
+    idx_w = map_2d_cw(1) + i - 1            ! Multidata index
+    idx_sb = stencil_map(1, i) + min_level  ! Stencil index bottom
+    idx_st = idx_sb + max_level_loc         ! Stencil index top
 
-    filtered_field(idx_f:idx_f+nl) = (                                          &
-        filtered_field(idx_f:idx_f+nl)                                          &
-        + weights(idx_w) * field_in(idx_s:idx_s+nl)                             &
+    filtered_field(idx_fb:idx_ft) = (                                          &
+        filtered_field(idx_fb:idx_ft)                                          &
+        + field_in(idx_sb:idx_st) * conv_weights(idx_w)                        &
     )
   end do
+  ! Apply vertical weights
+  filtered_field(idx_fb:idx_ft) = (                                            &
+    filtered_field(idx_fb:idx_ft) * time_weight * vert_weights(idx_vb:idx_vt)  &
+  )
 
 end subroutine convolution_2d_code
 

@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
 !> @brief Performs vertical remapping of nudging reference fields
-module nudging_vert_interp_kernel_mod
+module nudging_ecmwf_vert_interp_kernel_mod
 
   use argument_mod,      only: arg_type,                                       &
                                GH_FIELD, GH_SCALAR,                            &
@@ -25,7 +25,7 @@ module nudging_vert_interp_kernel_mod
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
-  type, public, extends(kernel_type) :: nudging_vert_interp_kernel_type
+  type, public, extends(kernel_type) :: nudging_ecmwf_vert_interp_kernel_type
     private
     type(arg_type) :: meta_args(12) = (/                                       &
         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, Wtheta),                     & ! Interpolated theta field
@@ -43,13 +43,13 @@ module nudging_vert_interp_kernel_mod
     /)
     integer :: operates_on = CELL_COLUMN
 contains
-    procedure, nopass :: nudging_vert_interp_code
-end type nudging_vert_interp_kernel_type
+    procedure, nopass :: nudging_ecmwf_vert_interp_code
+end type nudging_ecmwf_vert_interp_kernel_type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public :: nudging_vert_interp_code
+public :: nudging_ecmwf_vert_interp_code
 
 contains
   !-----------------------------------------------------------------------------
@@ -80,7 +80,7 @@ contains
   !> @param[in]     ndf_ec_2d       num DoFs per cell for surface pressure
   !> @param[in]     undf_ec_2d      num DoFs in this partition for surf pressure
   !> @param[in]     map_ec_2d       dofmap for surf pressure field
-  subroutine nudging_vert_interp_code(                                         &
+  subroutine nudging_ecmwf_vert_interp_code(                                   &
           nlayers,                                                             &
           theta_mod_levs, u_mod_levs, v_mod_levs,                              &
           T_nudge_levs, u_nudge_levs, v_nudge_levs,                            &
@@ -92,7 +92,7 @@ contains
           ndf_ec2d, undf_ec2d, map_ec2d                                        &
   )
 
-    use ecmwf_level_support_mod, only: ak_ec_137, bk_ec_137,                 &
+    use ecmwf_level_support_mod, only: ak_ec_137, bk_ec_137,                   &
                                        ak_ec_137_50, bk_ec_137_50
 
     implicit none
@@ -259,6 +259,6 @@ contains
     ! Set bottom value of theta to the value of the next level up
     theta_mod_levs(wt_idx) = theta_mod_levs(wt_idx+1)
 
-  end subroutine nudging_vert_interp_code
+  end subroutine nudging_ecmwf_vert_interp_code
 
-end module nudging_vert_interp_kernel_mod
+end module nudging_ecmwf_vert_interp_kernel_mod

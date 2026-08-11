@@ -43,19 +43,34 @@ class vn32_t670(MacroUpgrade):
             config, ["namelist:nudging", "nudging_method"], "'convolution'"
         )
         self.add_setting(
-            config, ["namelist:nudging", "nudging_relax_time"], "21600.0"
+            config, ["namelist:nudging", "nudging_relax_time_theta"], "6.0"
         )
         self.add_setting(
-            config, ["namelist:nudging", "nudging_spinup_start"], "43200.0"
+            config, ["namelist:nudging", "nudging_relax_time_u"], "6.0"
         )
         self.add_setting(
-            config, ["namelist:nudging", "nudging_spinup_end"], "86400.0"
+            config, ["namelist:nudging", "nudging_relax_time_v"], "6.0"
         )
         self.add_setting(
-            config, ["namelist:nudging", "nudging_level_taper_bottom"], "4"
+            config, ["namelist:nudging", "nudging_spinup_start"], "12.0"
         )
         self.add_setting(
-            config, ["namelist:nudging", "nudging_level_taper_top"], "54"
+            config, ["namelist:nudging", "nudging_spinup_end"], "24.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_stop_time"], "144.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_taper_bottom"], "5"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_taper_top"], "52"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_min_tropopause_level"], "48"
+        )
+        self.change_setting_value(
+            config, ["namelist:nudging", "nudging_level_bottom"], "6"
         )
         self.add_setting(
             config, ["namelist:nudging", "num_ref_data_levels"], "137"

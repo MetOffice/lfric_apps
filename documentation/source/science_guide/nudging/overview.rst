@@ -2,6 +2,9 @@
     (c) Crown copyright Met Office. All rights reserved.
     The file LICENCE, distributed with this code, contains details of the terms
     under which the code may be used.
+
+    Some of the content of this file has been produced with the assistance of
+    Met Office GitHub Copilot Enterprise.
    -----------------------------------------------------------------------------
 .. _nudging_science_overview:
 
@@ -28,7 +31,8 @@ tendencies. Two methods are available for calculating this increment:
 In both cases the increment is scaled by a set of weights which:
 
 * ramp the nudging increment smoothly up and down with height, targeting
-  nudging at a chosen range of vertical levels (see
+  nudging at a chosen range of vertical levels, optionally capped by the
+  model's diagnosed tropopause level (see
   :ref:`nudging_science_vertical_treatment`);
 * ramp the nudging on gradually at the start of a run, over a configurable
   spin-up period;

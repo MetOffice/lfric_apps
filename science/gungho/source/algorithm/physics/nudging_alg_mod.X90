@@ -9,9 +9,13 @@ module nudging_alg_mod
   ! Infrastructure
   use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, l_def, r_def, str_def
+  use extrusion_mod,                   only: TWOD
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
+  use fs_continuity_mod,               only: W3
   use function_space_mod,              only: function_space_type
+  use function_space_collection_mod,   only: function_space_collection
+  use integer_field_mod,               only: integer_field_type
   use log_mod,                         only: log_event, LOG_LEVEL_ERROR
   use mesh_mod,                        only: mesh_type
   use mesh_collection_mod,             only: mesh_collection
@@ -26,7 +30,11 @@ module nudging_alg_mod
 
   ! Kernels
   use convolution_2d_kernel_mod,       only: convolution_2d_kernel_type
-  use nudging_vert_interp_kernel_mod,  only: nudging_vert_interp_kernel_type
+  use newtonian_nudging_kernel_mod,    only: newtonian_nudging_kernel_type
+  use nudging_ecmwf_vert_interp_kernel_mod,                                    &
+                                       only: nudging_ecmwf_vert_interp_kernel_type
+  use psykal_lite_mod,                 only: invoke_newtonian_nudging_kernel_type, &
+                                             invoke_convolution_2d_kernel_type
 
   ! Other algorithms
   use intermesh_mappings_alg_mod,      only: map_scalar_intermesh,             &
@@ -40,6 +48,8 @@ module nudging_alg_mod
 
   private
   public :: nudging_alg
+  public :: compute_nudging_spinup_factor
+  public :: set_nudging_trop_level
   public :: set_nudging_reference_fields
 
 contains
@@ -50,29 +60,34 @@ contains
   !> @param[in,out] increment  Increment field to be computed
   !> @param[in]     field_in   Input field to be nudged
   !> @param[in]     field_ref  Reference field to nudge towards
-  subroutine nudging_alg(config, increment, field_in, field_ref)
+  subroutine nudging_alg(config, increment, field_in, field_ref,               &
+                         time_weight, tropopause_level)
 
     use multires_coupling_config_mod, only: recovery_order_linear
 
     implicit none
 
-    type(config_type), intent(in)    :: config
-    type(field_type),  intent(inout) :: increment
-    type(field_type),  intent(in)    :: field_in, field_ref
+    type(config_type),        intent(in)    :: config
+    type(field_type),         intent(inout) :: increment
+    type(field_type),         intent(in)    :: field_in, field_ref
+    real(kind=r_def),         intent(in)    :: time_weight
+    type(integer_field_type), intent(in)    :: tropopause_level
 
     type(mesh_type),           pointer :: mesh, coarse_mesh
     type(field_type),          pointer :: convolution_weights
-    type(field_type),          pointer :: nudging_weights
+    real(kind=r_def),          pointer :: vertical_weights(:)
     type(function_space_type), pointer :: fs
 
     type(field_type)    :: coarse_field_in, coarse_increment, coarse_field_diff
     integer(kind=i_def) :: fs_id, coarse_mesh_id
+    integer(kind=i_def) :: nvert(1)
     integer(kind=tik)   :: id
 
     ! Config variables
     logical(kind=l_def)    :: coarse_nudging, use_multires_coupling
     integer(kind=i_def)    :: nudging_method, spectral_stencil_extent
     integer(kind=i_def)    :: theta_forcing, wind_forcing
+    integer(kind=i_def)    :: min_level, max_level
     character(len=str_def) :: nudging_mesh_name
     real(kind=r_def)       :: p_zero, kappa
 
@@ -90,6 +105,8 @@ contains
     nudging_mesh_name = config%multires_coupling%nudging_mesh_name()
     p_zero = config%planet%p_zero()
     kappa = config%planet%kappa()
+    min_level = config%nudging%nudging_level_taper_bottom()
+    max_level = config%nudging%nudging_level_taper_top()
 
     ! Getting nudging mesh name
     coarse_nudging = .false.
@@ -130,7 +147,8 @@ contains
 
     ! Point to weights used for nudging
     fs_id = field_ref%which_function_space()
-    nudging_weights => get_nudging_weights(config, coarse_mesh, fs_id)
+    vertical_weights => get_nudging_weights(config, coarse_mesh, fs_id)
+    nvert(:) = SIZE(vertical_weights)
 
     ! ------------------------------------------------------------------------ !
     ! Coarsen
@@ -150,8 +168,12 @@ contains
     case (nudging_method_newtonian)
       ! Simply nudge towards reference field, with no spectral impact
       call invoke(                                                             &
-          X_minus_Y(coarse_increment, field_ref, coarse_field_in),             &
-          inc_X_times_Y(coarse_increment, nudging_weights)                     &
+          setval_c(coarse_increment, 0.0_r_def)                                &
+      )
+      call invoke_newtonian_nudging_kernel_type(                               &
+              coarse_increment, coarse_field_in, field_ref,                    &
+              vertical_weights, tropopause_level,                              &
+              min_level, max_level, time_weight, nvert                         &
       )
 
     ! ------------------------------------------------------------------------ !
@@ -164,13 +186,12 @@ contains
       call invoke(                                                             &
           X_minus_Y(coarse_field_diff, field_ref, coarse_field_in),            &
           ! Compute convolution
-          setval_c(coarse_increment, 0.0_r_def),                               &
-          convolution_2d_kernel_type(                                          &
-              coarse_increment, coarse_field_diff,                             &
-              spectral_stencil_extent, convolution_weights                     &
-          ),                                                                   &
-          ! Scale convolution increment by weights
-          inc_X_times_Y(coarse_increment, nudging_weights)                     &
+          setval_c(coarse_increment, 0.0_r_def)                                &
+      )
+      call invoke_convolution_2d_kernel_type(                                  &
+              coarse_increment, coarse_field_diff, spectral_stencil_extent,    &
+              vertical_weights, convolution_weights,                           &
+              tropopause_level, min_level, max_level, time_weight, nvert       &
       )
 
     end select
@@ -191,6 +212,94 @@ contains
 
   end subroutine nudging_alg
 
+  !> @brief Computes a spinup factor for nudging based on the current time
+  !> @param[in] config    Application namelist configuration object
+  !> @param[in] time      Current model time in seconds
+  !> @return              Spinup factor for nudging, between 0 and 1
+  function compute_nudging_spinup_factor(config, time) result(spinup_factor)
+
+    implicit none
+
+    type(config_type), intent(in) :: config
+    real(kind=r_def),  intent(in) :: time
+
+    ! Local variables
+    real(kind=r_def) :: nudging_spinup_start
+    real(kind=r_def) :: nudging_spinup_end
+    real(kind=r_def) :: nudging_stop_time
+    real(kind=r_def) :: time_hours
+    real(kind=r_def) :: spinup_factor
+
+    nudging_spinup_start = config%nudging%nudging_spinup_start()
+    nudging_spinup_end = config%nudging%nudging_spinup_end()
+    nudging_stop_time = config%nudging%nudging_stop_time()
+
+    ! Convert time to hours
+    time_hours = time / 3600.0_r_def
+
+    if (time_hours < nudging_spinup_start) then
+      spinup_factor = 0.0_r_def
+    else if (time_hours < nudging_spinup_end) then
+      spinup_factor = (                                                        &
+        (time_hours - nudging_spinup_start)                                    &
+        / (nudging_spinup_end - nudging_spinup_start)                          &
+      )
+    else if (time_hours < nudging_stop_time) then
+      spinup_factor = 1.0_r_def
+    else
+      spinup_factor = 0.0_r_def
+    end if
+
+  end function compute_nudging_spinup_factor
+
+  !> @brief Sets the tropopause level for nudging based on  current model state
+  !> @param[in]     config        Application namelist configuration object
+  !> @param[in,out] trop_level    Level of tropopause
+  !> @param[in]     theta         Potential temperature
+  !> @param[in]     exner         Exner pressure field (in same space as theta)
+  subroutine set_nudging_trop_level(config, trop_level, theta, exner)
+
+#ifdef UM_PHYSICS
+    use locate_tropopause_alg_mod, only: locate_tropopause_alg
+#endif
+
+    implicit none
+
+    type(config_type),        intent(in)    :: config
+    type(integer_field_type), intent(inout) :: trop_level
+    type(field_type),         intent(in)    :: theta, exner
+
+    ! Local variables
+    integer(kind=i_def) :: nudging_min_tropopause_level
+    integer(kind=i_def) :: nudging_level_taper_top
+    character(str_def)  :: nudging_mesh_name
+
+    type(mesh_type),           pointer :: nudging_mesh
+    type(mesh_type),           pointer :: nudging_twod_mesh
+    type(function_space_type), pointer :: w3_2d_fs
+
+    nudging_min_tropopause_level = config%nudging%nudging_min_tropopause_level()
+    nudging_level_taper_top = config%nudging%nudging_level_taper_top()
+
+    nudging_mesh_name = trim(config%multires_coupling%nudging_mesh_name())
+    nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
+    nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
+    w3_2d_fs => function_space_collection%get_fs(nudging_twod_mesh, 0, 0, W3)
+
+    call trop_level%initialise(w3_2d_fs)
+
+    if (nudging_min_tropopause_level < nudging_level_taper_top) then
+#ifdef UM_PHYSICS
+      call locate_tropopause_alg(config, trop_level, theta, exner, trop_diag=.false.)
+#else
+      call invoke( int_setval_c(trop_level, nudging_min_tropopause_level) )
+#endif
+    else
+      call invoke( int_setval_c(trop_level, nudging_min_tropopause_level) )
+    end if
+
+  end subroutine set_nudging_trop_level
+
   !> @brief Sets the reference fields for nudging from external data
   !> @param[in]     config             Application namelist configuration object
   !> @param[in,out] derived_fields     Collection of derived fields, which holds
@@ -198,6 +307,8 @@ contains
   !!                                   external reference fields
   !> @param[in]     exner              Current Exner pressure field
   subroutine set_nudging_reference_fields(config, derived_fields, exner)
+
+    use nudging_config_mod, only: nudging_source_ecmwf
 
     implicit none
 
@@ -224,6 +335,7 @@ contains
     integer(kind=i_def)    :: num_ref_data_levels
     real(kind=r_def)       :: p_zero, kappa
     logical(kind=l_def)    :: coarse_nudging
+    integer(kind=i_def)    :: nudging_source
 
     ! Get config variables
     theta_forcing = config%external_forcing%theta_forcing()
@@ -232,6 +344,7 @@ contains
     p_zero = config%planet%p_zero()
     kappa = config%planet%kappa()
     coarse_nudging = config%multires_coupling%coarse_nudging()
+    nudging_source = config%nudging%nudging_source()
 
     ! Get target reference fields from derived field collection
     if (theta_forcing == theta_forcing_nudging) then
@@ -255,36 +368,43 @@ contains
       )
     end if
 
-    ! Get external fields
-    call derived_fields%get_field('temperature_nudging_ext_ref', T_nudging_ext_ref)
-    call derived_fields%get_field('u_nudging_ext_ref', u_nudging_ext_ref)
-    call derived_fields%get_field('v_nudging_ext_ref', v_nudging_ext_ref)
-    call derived_fields%get_field('exner_in_wth', exner_in_wth)
-    call derived_fields%get_field(                                             &
-        'surface_pressure_nudging_ext_ref', surfp_nudging_ext_ref              &
-    )
+    if (nudging_source == nudging_source_ecmwf) then
+      ! Get external fields
+      call derived_fields%get_field('temperature_nudging_ext_ref', T_nudging_ext_ref)
+      call derived_fields%get_field('u_nudging_ext_ref', u_nudging_ext_ref)
+      call derived_fields%get_field('v_nudging_ext_ref', v_nudging_ext_ref)
+      call derived_fields%get_field('exner_in_wth', exner_in_wth)
+      call derived_fields%get_field(                                           &
+          'surface_pressure_nudging_ext_ref', surfp_nudging_ext_ref            &
+      )
 
-    ! Map Exner fields to coarse mesh, if required
-    if (coarse_nudging) then
-      call exner_in_wth_coarse%initialise(theta_ref%get_function_space())
-      call exner_in_w3_coarse%initialise(u_in_w3_ref%get_function_space())
-      call map_scalar_intermesh(exner_in_wth_coarse, exner_in_wth)
-      call map_scalar_intermesh(exner_in_w3_coarse, exner)
-      exner_in_wth => exner_in_wth_coarse
-      exner_in_w3 => exner_in_w3_coarse
+      ! Map Exner fields to coarse mesh, if required
+      if (coarse_nudging) then
+        call exner_in_wth_coarse%initialise(theta_ref%get_function_space())
+        call exner_in_w3_coarse%initialise(u_in_w3_ref%get_function_space())
+        call map_scalar_intermesh(exner_in_wth_coarse, exner_in_wth)
+        call map_scalar_intermesh(exner_in_w3_coarse, exner)
+        exner_in_wth => exner_in_wth_coarse
+        exner_in_w3 => exner_in_w3_coarse
+      else
+        exner_in_w3 => exner
+      end if
+
+      ! Vertical remapping of external fields to model levels
+      call invoke(                                                             &
+          nudging_ecmwf_vert_interp_kernel_type(                               &
+              theta_ref, u_in_w3_ref, v_in_w3_ref,                             &
+              T_nudging_ext_ref, u_nudging_ext_ref, v_nudging_ext_ref,         &
+              exner_in_wth, exner_in_w3, surfp_nudging_ext_ref,                &
+              p_zero, kappa, num_ref_data_levels                               &
+          )                                                                    &
+      )
     else
-      exner_in_w3 => exner
+      call log_event(                                                          &
+          "set_nudging_reference_fields: nudging_source is only currently " // &
+          "implemented for nudging_source_ecmwf",  LOG_LEVEL_ERROR             &
+      )
     end if
-
-    ! Vertical remapping of external fields to model levels
-    call invoke(                                                               &
-        nudging_vert_interp_kernel_type(                                       &
-            theta_ref, u_in_w3_ref, v_in_w3_ref,                               &
-            T_nudging_ext_ref, u_nudging_ext_ref, v_nudging_ext_ref,           &
-            exner_in_wth, exner_in_w3, surfp_nudging_ext_ref,                  &
-            p_zero, kappa, num_ref_data_levels                                 &
-        )                                                                      &
-    )
 
   end subroutine set_nudging_reference_fields
 
