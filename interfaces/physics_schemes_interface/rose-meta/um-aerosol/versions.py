@@ -27,6 +27,9 @@ class vn32_t683(MacroUpgrade):
     but is treated by RADAER as if setting (8).
 
     Users can now set dust ageing via the namelist.
+
+    Users can now set radaer SUstrat via the namelist.
+
     """
 
     BEFORE_TAG = "vn3.2"
@@ -60,8 +63,14 @@ class vn32_t683(MacroUpgrade):
                           i_mode_setup )
 
         # Default to false since this is the setting in all existing tests
-        self.add_setting( config, ["namelist:aerosol", "l_dust_mp_ageing"],
+        self.add_setting( config,
+                          ["namelist:aerosol", "l_dust_mp_ageing"],
                           ".false." )
-        
+
+        # Default to false since this is the setting in all existing tests
+        self.add_setting( config,
+                          ["namelist:aerosol", "l_ukca_radaer_sustrat"],
+                          ".false." )
+
         return config, self.reports
 
