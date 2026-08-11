@@ -575,6 +575,9 @@
   <field id="surface__surf_ht_flux" name="surf_ht_flux" long_name="downward_heat_flux_at_ground_level" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__soil_surf_ht_flux" name="soil_surf_ht_flux" long_name="downward_heat_flux_at_ground_level_in_soil" unit="W m-2" domain_ref="face" />
   <field id="surface__surf_sw_net" name="surf_sw_net" long_name="surface_net_downward_shortwave_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="zoomed__sea_sw_net" field_ref="surface__surf_sw_net" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
+  <field id="surface__sea_tile_sw_net" name="sea_tile_sw_net" long_name="surface_net_downward_shortwave_flux_of_sea_tile" unit="W m-2" domain_ref="face"> zoomed__sea_sw_net </field>
+  <field id="surface__sea_mean_sw_net" name="sea_mean_sw_net" long_name="surface_net_downward_shortwave_flux_sea_area_mean" unit="W m-2" domain_ref="face"> surface__sea_tile_sw_net * (1.0 - surface__sea_ice_fraction) </field>
   <field id="surface__surf_radnet" name="surf_radnet" long_name="surface_net_downward_radiative_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__surf_lw_up" name="surf_lw_up" long_name="surface_upward_longwave_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__surf_lw_down" name="surf_lw_down" long_name="surface_downward_longwave_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
