@@ -219,13 +219,13 @@ contains
       ! but ls_outer_iterations and ls_inner_iterations are set to
       ! 1 so that the arrays are defined.
       ls_outer_iterations = 1_i_def
-      allocate(ls_inner_iterations(1))
+      if (.not. allocated(ls_inner_iterations)) allocate(ls_inner_iterations(1))
       ls_inner_iterations(:) = 1_i_def
     else
       ! The linearisation state is evolved, and the intermediate iterations
       ! are used to calculate the evolution of the perturbation.
       ls_outer_iterations = outer_iterations
-      allocate(ls_inner_iterations(outer_iterations))
+      if (.not. allocated(ls_inner_iterations)) allocate(ls_inner_iterations(outer_iterations))
       ls_inner_iterations(:) = inner_iterations_si(:)
     end if
 

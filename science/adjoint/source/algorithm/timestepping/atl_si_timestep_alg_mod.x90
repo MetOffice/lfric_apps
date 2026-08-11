@@ -174,13 +174,13 @@ contains
        ! but ls_outer_iterations and ls_inner_iterations are set to
        ! 1 so that the arrays are defined.
        self%ls_outer_iterations = 1_i_def
-       allocate(self%ls_inner_iterations(1))
+       if (.not. allocated(self%ls_inner_iterations)) allocate(self%ls_inner_iterations(1))
        self%ls_inner_iterations(:) = 1_i_def
     else
        ! The linearisation state is evolved, and the intermediate iterations
        ! are used to calculate the evolution of the perturbation.
        self%ls_outer_iterations = outer_iterations
-       allocate(self%ls_inner_iterations(outer_iterations))
+       if (.not. allocated(self%ls_inner_iterations)) allocate(self%ls_inner_iterations(outer_iterations))
        self%ls_inner_iterations(:) = inner_iterations_si(:)
     end if
 
@@ -645,7 +645,7 @@ contains
       !-------------------------------------------------------------------------
       ! Start the inner (nonlinear, Coriolis) loop
       !-------------------------------------------------------------------------
-      inner_dynamics_loop: do inner = inner_iterations(outer), 1, -1
+      inner_dynamics_loop: do inner = inner_iterations_si(outer), 1, -1
 
         if (fixed_ls) then
            ls_inner = 1
@@ -709,7 +709,7 @@ contains
                               self%ls_moist_dyn_itns(:,ls_outer,ls_inner), &
                               .true.,                                      &
                               dlayer_on,                                   &
-                              stepper=stepper_siqn,                        &
+                              stepper_siqn,                                &
                               modeldb%clock )
 
             call add_bundle( self%state, self%state2, self%state, bundle_size )

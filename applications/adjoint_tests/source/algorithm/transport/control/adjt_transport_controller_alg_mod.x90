@@ -23,6 +23,7 @@ module adjt_transport_controller_alg_mod
   use finite_element_config_mod,          only : element_order_h, &
                                                  element_order_v
   use fs_continuity_mod,                  only : W2, W3
+  use dycore_constants_mod,               only : stepper_siqn
   use init_from_controller_alg_mod,       only : init_ctrlr_fieldvals
   use inner_from_controller_rdef_alg_mod, only : ctrlr_ref_field_prod_rdef,         &
                                                  ctrlr_ref_field_inp_prod_rdef,     &
@@ -166,6 +167,7 @@ module adjt_transport_controller_alg_mod
     ref_field_inner_prod = 0.0_r_def
     call ls_wind_pert_rho_controller%initialise( config,           &
                                                  model_clock,      &
+                                                 stepper_siqn,     &
                                                  ref_field_rdef,   &
                                                  ls_wind_n_rdef,   &
                                                  ls_wind_np1_rdef, &
@@ -355,6 +357,7 @@ module adjt_transport_controller_alg_mod
     wind_np1_inner_prod = 0.0_r_def
     call pert_wind_ls_rho_controller%initialise( config,            &
                                                  model_clock,       &
+                                                 stepper_siqn,      &
                                                  ls_ref_field_rdef, &
                                                  wind_n_rdef,       &
                                                  wind_np1_rdef,     &

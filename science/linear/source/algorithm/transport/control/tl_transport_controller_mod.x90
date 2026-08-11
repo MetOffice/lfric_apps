@@ -96,6 +96,7 @@ contains
     type(field_type),                    intent(in)    :: ls_wind_np1_rdef
     type(field_type),                    intent(in)    :: ref_field_rdef
     type(field_type),                    intent(in)    :: ls_ref_field_rdef
+    integer(kind=i_def),                 intent(in)    :: stepper
     integer(kind=i_def),       optional, intent(in)    :: outer
     logical(kind=l_def),       optional, intent(in)    :: cheap_update_step
 
