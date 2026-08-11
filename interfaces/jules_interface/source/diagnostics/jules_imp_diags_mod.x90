@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for jules_imp_alg
 
 module jules_imp_diags_mod
@@ -39,6 +42,7 @@ module jules_imp_diags_mod
   logical( l_def ) :: rh1p5m_land_flag
   logical( l_def ) :: latent_heat_flag
   logical( l_def ) :: grid_latent_heat_flag
+  logical( l_def ) :: land_mean_latent_heat_flag
   logical( l_def ) :: snomlt_surf_htf_flag
   logical( l_def ) :: soil_evap_flag
   logical( l_def ) :: soil_surf_ht_flux_flag
@@ -139,10 +143,13 @@ contains
       ! and save from 1st to 2nd loop
       latent_heat_flag = init_diag(latent_heat, 'surface__latent_heat')
       grid_latent_heat_flag = samp_diag('surface__grid_latent_heat')
-      if (grid_latent_heat_flag .and. .not. latent_heat_flag) then
+      land_mean_latent_heat_flag = samp_diag('surface__land_mean_latent_heat')
+      if ((grid_latent_heat_flag .or. land_mean_latent_heat_flag) .and. &
+          .not. latent_heat_flag) then
         ignore = init_diag(latent_heat, 'surface__latent_heat', activate=.true.)
       end if
-      if (latent_heat_flag .or. grid_latent_heat_flag) &
+      if (latent_heat_flag .or. grid_latent_heat_flag .or. &
+          land_mean_latent_heat_flag) &
            call invoke(setval_c(latent_heat,0.0_r_def))
 
       ! diagnostics which are needed in BL code, so allocate on 1st loop
@@ -261,7 +268,8 @@ contains
   ! Local variables
   type( field_type ) :: land_surface_temperature, grid_canopy_evap, &
        grid_surface_temperature, grid_latent_heat, grid_sublimation, &
-       sea_ice_surface_temperature
+       sea_ice_surface_temperature, land_mean_heat_flux, &
+       land_mean_latent_heat
   integer( tik )     :: id
 
   if ( LPROF ) call start_timing( id, 'diags.jules_imp' )
@@ -289,6 +297,16 @@ contains
                                        tile_temperature, tile_fraction,    &
                                        1, n_land_tile))
       call land_surface_temperature%write_field()
+    end if
+
+    ! Averaging the tiled flux over the land tiles, weighted by their grid-box
+    ! fractions, divides by the land fraction and so gives a mean over the
+    ! land portion of the grid-box.
+    if(init_diag(land_mean_heat_flux, 'surface__land_mean_heat_flux')) then
+      call invoke(weighted_ave_kernel_type(land_mean_heat_flux,            &
+                                       tile_heat_flux, tile_fraction,      &
+                                       1, n_land_tile))
+      call land_mean_heat_flux%write_field()
     end if
 
     if(init_diag(sea_ice_surface_temperature, 'surface__sea_ice_surface_temperature')) then
@@ -321,6 +339,14 @@ contains
                                        latent_heat, tile_fraction,         &
                                        1, n_surf_tile))
       call grid_latent_heat%write_field()
+    end if
+
+    ! As above, a mean over the land portion of the grid-box
+    if (init_diag(land_mean_latent_heat, 'surface__land_mean_latent_heat')) then
+      call invoke(weighted_ave_kernel_type(land_mean_latent_heat,          &
+                                       latent_heat, tile_fraction,         &
+                                       1, n_land_tile))
+      call land_mean_latent_heat%write_field()
     end if
 
   else !loop=1

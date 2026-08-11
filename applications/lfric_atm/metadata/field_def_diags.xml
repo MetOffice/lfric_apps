@@ -565,6 +565,7 @@
   <field id="zoomed__sea_heat_flux" field_ref="surface__tile_heat_flux" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
   <field id="surface__sea_tile_heat_flux" name="sea_tile_heat_flux" long_name="surface_sensible_heat_flux_of_sea_tile" unit="W m-2" domain_ref="face"> zoomed__sea_heat_flux </field>
   <field id="surface__sea_mean_heat_flux" name="sea_mean_heat_flux" long_name="surface_sensible_heat_flux_sea_area_mean" unit="W m-2" domain_ref="face"> surface__sea_tile_heat_flux * (1.0 - surface__sea_ice_fraction) </field>
+  <field id="surface__land_mean_heat_flux" name="land_mean_heat_flux" long_name="surface_sensible_heat_flux_land_area_mean" unit="W m-2" domain_ref="face" />
   <field id="surface__tile_moisture_flux" name="tile_moisture_flux" long_name="surface_moisture_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles" />
   <!-- As above, extract the open-sea tile, remove the pseudo-level coordinate, then rescale to a sea mean -->
   <field id="zoomed__sea_moisture_flux" field_ref="surface__tile_moisture_flux" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
@@ -572,6 +573,7 @@
   <field id="surface__sea_mean_moisture_flux" name="sea_mean_moisture_flux" long_name="surface_moisture_flux_sea_area_mean" unit="kg m-2 s-1" domain_ref="face"> surface__sea_tile_moisture_flux * (1.0 - surface__sea_ice_fraction) </field>
   <field id="surface__latent_heat" name="latent_heat" long_name="surface_upward_latent_heat_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__grid_latent_heat" name="grid_latent_heat" long_name="grid_surface_upward_latent_heat_flux" unit="W m-2" domain_ref="face" />
+  <field id="surface__land_mean_latent_heat" name="land_mean_latent_heat" long_name="surface_upward_latent_heat_flux_land_area_mean" unit="W m-2" domain_ref="face" />
   <field id="surface__canopy_water" name="canopy_water_content" long_name="canopy_water_amount" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__grid_canopy_water" name="grid_canopy_water_content" long_name="grid_canopy_water_amount" unit="kg m-2" domain_ref="face" />
   <field id="surface__throughfall" name="throughfall_rate" long_name="canopy_throughfall_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles" />
