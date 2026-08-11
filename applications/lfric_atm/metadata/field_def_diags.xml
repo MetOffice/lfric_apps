@@ -768,7 +768,9 @@
   <field id="radiation__sw_direct_band_rts" name="sw_direct_band_rts" long_name="direct_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
   <field id="radiation__direct_uv_flux_rts" field_ref="radiation__sw_direct_band_rts" name="direct_uv_flux_rts" long_name="direct_0-320nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="uv_band_zoom" />
   <field id="radiation__sw_down_band_rts" name="sw_down_band_rts" long_name="downward_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
+  <field id="radiation__down_uv_flux_rts" field_ref="radiation__sw_down_band_rts" name="down_uv_flux_rts" long_name="downward_0-320nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="uv_band_zoom" />
   <field id="radiation__sw_up_band_rts" name="sw_up_band_rts" long_name="upward_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
+  <field id="radiation__up_uv_flux_rts" field_ref="radiation__sw_up_band_rts" name="up_uv_flux_rts" long_name="upward_0-320nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="uv_band_zoom" />
   <field id="radiation__sw_direct_clear_band_rts" name="sw_direct_clear_band_rts" long_name="direct_clear_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
   <field id="radiation__sw_down_clear_band_rts" name="sw_down_clear_band_rts" long_name="downward_clear_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
   <field id="radiation__sw_up_clear_band_rts" name="sw_up_clear_band_rts" long_name="upward_clear_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
