@@ -838,7 +838,7 @@
 {% elif task_ns.conf_name == "ral3-tr_bdf2-seuk_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","tr_bdf2"],
+        "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","tr_bdf2_big_ral"],
         "resolution": "seuk_MG",
         "DT": 120,
         "tsteps": 60,
