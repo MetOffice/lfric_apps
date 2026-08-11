@@ -638,6 +638,8 @@
   <field id="processed__sea_ice_pensolar" name="sea_ice_pensolar_gbm" long_name="sea_ice_pensolar_grid_box_mean" unit="W m-2" domain_ref="face" axis_ref="sea_ice_categories">seaice__sea_ice_pensolar * seaice__sea_ice_fraction</field>
   <field id="seaice__melt_pond_fraction" name="melt_pond_fraction" long_name="sea ice melt pond fraction" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
   <field id="seaice__melt_pond_depth" name="melt_pond_depth" long_name="sea ice melt pond depth" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
+  <!-- Averaged over the sea and sea-ice tiles in the code, giving a mean over the marine portion of the grid-box -->
+  <field id="seaice__sea_mean_topmelt_heat_flux" name="sea_mean_topmelt_heat_flux" long_name="sea_mean_sea_ice_surface_melt_heat_flux" unit="W m-2" domain_ref="face" />
   <!-- Jules soil diagnostics -->
   <field id="soil__surface_runoff" name="surface_runoff" long_name="surface_runoff_flux" unit="kg m-2 s-1" domain_ref="face" />
   <field id="soil__sub_surface_runoff" name="sub_surface_runoff" long_name="subsurface_runoff_flux" unit="kg m-2 s-1" domain_ref="face" />
