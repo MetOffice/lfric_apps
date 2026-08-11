@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+##############################################################################
+# (c) Crown copyright 2024 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+"""
+Creates a driver program to run all the adjoint kernel tests.
+"""
+from argparse import ArgumentParser, Namespace
+from datetime import datetime
+from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+
+def main(template_file: Path, output_file: Path, kernel_files: list[str]) -> None:
+    algorithms: list[str] = []
+    for kernel_file in kernel_files:
+        name = kernel_file.replace('_kernel_mod', '')
+
+        if name.startswith('tl_'):
+            algorithms.append('atlt_' + name[3:])
+        else:  # Does not start with 'tl_'
+            algorithms.append('adjt_' + name)
+
+    environment = Environment(loader=FileSystemLoader(template_file.parent),
+                              autoescape=select_autoescape())
+    template = environment.get_template(template_file.name)
+    with open(output_file, 'wt') as stream:
+        print(template.render(algorithms=algorithms), file=stream)
+
+
+def cli() -> Namespace:
+    parser = ArgumentParser(
+        description="Generates an adjoint kernel test application."
+    )
+    parser.add_argument('template_file', metavar='TEMPLATE_FILE', type=Path,
+                        help="Driver template file.")
+    parser.add_argument('output_file', metavar='DRIVER_FILE', type=Path,
+                        help="Filename for generated driver program source file.")
+    parser.add_argument('kernels', metavar='KERNEL', nargs='+',
+                        help="Adjoint kernel name.")
+    arguments = parser.parse_args()
+    if arguments.template_file.suffixes[-2:] != ['.f90', '.jinja']:
+        raise ValueError(
+            f"Template file name must end with '.f90.jinja': {arguments.template_file}"
+        )
+    return arguments
+
+if __name__ == "__main__":
+    arguments = cli()
+    main(arguments.template_file, arguments.output_file, arguments.kernels)

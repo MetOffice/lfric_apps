@@ -108,7 +108,7 @@ def build_makefile(
 
     print(f"Calling make command for makefile at {project_path}")
     make_command = (
-        f"make -dr {target} -C {project_path} -j {ncores} "
+        f"make {target} -C {project_path} -j {ncores} "
         f"WORKING_DIR={working_path} "
         f"CORE_ROOT_DIR={working_dir / 'scratch' / 'lfric_core'} "
         f"APPS_ROOT_DIR={root_dir} "
