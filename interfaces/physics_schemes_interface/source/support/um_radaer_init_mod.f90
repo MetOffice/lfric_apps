@@ -13,12 +13,15 @@ module um_radaer_init_mod
                                         glomap_mode_dust_and_clim,             &
                                         glomap_mode_off,                       &
                                         glomap_mode_radaer_test,               &
-                                        glomap_mode_ukca,                      &
-                                        i_mode_setup
+                                        glomap_mode_ukca
 
   use constants_mod,              only: i_um
 
   use ukca_radaer_lfric_init_mod, only: ukca_radaer_lfric_init
+
+  use ukca_mode_setup,            only: i_mode_setup,                          &
+                                        i_ukca_bc_tuned,                       &
+                                        l_dust_mp_ageing
 
   implicit none
 
@@ -39,28 +42,56 @@ subroutine um_radaer_init()
 
   integer, parameter :: i_radaer_mode_setup_eight = 8
 
+  integer, parameter :: i_ukca_bc_tuned_zero = 0
+
   if ( glomap_mode == glomap_mode_climatology ) then
     ! i_mode_setup is not set in the namelist for glomap_mode_climatology
     ! this is always fixed to eight.
     i_mode_setup_radaer_local = i_radaer_mode_setup_eight
- 
+
+    ! Tune BC turned off
+    i_ukca_tune_bc_local      = i_ukca_bc_tuned_zero
+
+    ! Dust ageing turned off
+    l_dust_mp_ageing_local    = .false.
+
   else if ( glomap_mode == glomap_mode_dust_and_clim ) then
     ! dust_and_clim runs with a diffent i_mode_setup between ukca and radaer
     ! this is always fixed to eight.
     i_mode_setup_radaer_local = i_radaer_mode_setup_eight
+
+    ! Tune BC turned off
+    i_ukca_tune_bc_local      = i_ukca_bc_tuned_zero
+
+    ! Dust ageing not allowed for dust only ukca
+    l_dust_mp_ageing_local    = .false.
  
   else if ( glomap_mode == glomap_mode_radaer_test ) then
     ! This was developed for aqua planet runs and may be redundant
     ! For now fix this to eight.
     i_mode_setup_radaer_local = i_radaer_mode_setup_eight
 
+    ! Tune BC turned off
+    i_ukca_tune_bc_local      = i_ukca_bc_tuned_zero
+
+    ! Dust ageing turned off
+    l_dust_mp_ageing_local    = .false.
+
   else if ( glomap_mode == glomap_mode_ukca ) then
     ! UKCA and RADAER will use the same value for i_mode_setup
     i_mode_setup_radaer_local = i_mode_setup
 
+    ! This value is set in the namelist
+    i_ukca_tune_bc_local      = i_ukca_bc_tuned
+
+    ! Dust ageing set by namelist
+    l_dust_mp_ageing_local    = l_dust_mp_ageing
+
   end if
 
-  call ukca_radaer_lfric_init( i_mode_setup_radaer_local )
+  call ukca_radaer_lfric_init( i_mode_setup_radaer_local,                      &
+                               i_ukca_tune_bc_local,                           &
+                               l_dust_mp_ageing_local )
 
 end subroutine um_radaer_init
 

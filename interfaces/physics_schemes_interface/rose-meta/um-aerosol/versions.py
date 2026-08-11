@@ -21,10 +21,12 @@ class UpgradeError(Exception):
 class vn32_t683(MacroUpgrade):
     """
     Upgrade macro for ticket #698 by Alan J Hewitt.
-    Users can now select UKCA GLOMAP setting via namelist.
 
+    Users can now select UKCA GLOMAP setting via namelist.
     Note that dust_and_clim is treated by UKCA as if setting (6)
-    but is treated by RADAER as if setting (8)
+    but is treated by RADAER as if setting (8).
+
+    Users can now set dust ageing via the namelist.
     """
 
     BEFORE_TAG = "vn3.2"
@@ -56,6 +58,10 @@ class vn32_t683(MacroUpgrade):
         # Add new settings with the specified option
         self.add_setting( config, ["namelist:aerosol","i_mode_setup"],
                           i_mode_setup )
+
+        # Default to false since this is the setting in all existing tests
+        self.add_setting( config, ["namelist:aerosol", "l_dust_mp_ageing"],
+                          ".false." )
         
         return config, self.reports
 
