@@ -18,7 +18,7 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-class vn32_t683(MacroUpgrade):
+class vn32_t698(MacroUpgrade):
     """
     Upgrade macro for ticket #698 by Alan J Hewitt.
 
@@ -45,13 +45,16 @@ class vn32_t683(MacroUpgrade):
         if glomap_mode == "'glomap_mode_dust_and_clim'":
             # Existing suites with dust_and_clim need i_mode_setup==6
             i_mode_setup = "6"
-        else if glomap_mode == "'glomap_mode_ukca'":
+        elif glomap_mode == "'glomap_mode_ukca'":
             # Existing suites with ukca need i_mode_setup==8
             i_mode_setup = "8"
-        else if glomap_mode == "'glomap_mode_radaer_test'":
+        elif glomap_mode == "'glomap_mode_radaer_test'":
             # Existing suites with ukca need i_mode_setup==8
             i_mode_setup = "8"
-        else if glomap_mode == "'glomap_mode_climatology'":
+        elif glomap_mode == "'glomap_mode_climatology'":
+            # This is trigger ignored
+            i_mode_setup = "0"
+        elif glomap_mode == "'glomap_mode_off'":
             # This is trigger ignored
             i_mode_setup = "0"
         else:
@@ -59,7 +62,8 @@ class vn32_t683(MacroUpgrade):
             i_mode_setup = "0"
 
         # Add new settings with the specified option
-        self.add_setting( config, ["namelist:aerosol","i_mode_setup"],
+        self.add_setting( config,
+                          ["namelist:aerosol","i_mode_setup"],
                           i_mode_setup )
 
         # Default to false since this is the setting in all existing tests
@@ -73,4 +77,3 @@ class vn32_t683(MacroUpgrade):
                           ".false." )
 
         return config, self.reports
-
