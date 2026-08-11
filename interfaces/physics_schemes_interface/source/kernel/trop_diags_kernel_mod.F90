@@ -22,11 +22,13 @@ private
 ! layered input fields before flat output fields for nlayers > 1
 type, public, extends(kernel_type) :: trop_diags_kernel_type
   private
-  type(arg_type) :: meta_args(8) = (/                                   &
+  type(arg_type) :: meta_args(10) = (/                                  &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! theta_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! exner_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    & ! height_wth
        arg_type(GH_SCALAR, GH_REAL, GH_READ),                            & ! g_over_r
+       arg_type(GH_SCALAR, GH_REAL, GH_READ),                            & ! p_zero
+       arg_type(GH_SCALAR, GH_REAL, GH_READ),                            & ! kappa
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_pres
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_temp
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! trop_height
@@ -98,6 +100,8 @@ contains
 !> @param[in]  exner_wth              Exner pressure in wth space
 !> @param[in]  height_wth             Height of wth levels above surface
 !> @param[in]  g_over_r               Gravity / specific dry air gas constant
+!> @param[in]  p_zero                 Reference surface pressure
+!> @param[in]  kappa                  Ratio R/cp (dry air)
 !> @param[out] trop_pres              Pressure at the tropopause
 !> @param[out] trop_temp              Temperature at the tropopause
 !> @param[out] trop_height            Height of the tropopause above surface
@@ -113,6 +117,8 @@ subroutine trop_diags_code(nlayers,                    &
                            exner_wth,                  &
                            height_wth,                 &
                            g_over_r,                   &
+                           p_zero,                     &
+                           kappa,                      &
                            trop_pres,                  &
                            trop_temp,                  &
                            trop_height,                &
@@ -120,7 +126,6 @@ subroutine trop_diags_code(nlayers,                    &
                            ndf_wth, undf_wth, map_wth, &
                            ndf_2d, undf_2d, map_2d)
 
-  use planet_config_mod,        only : p_zero, kappa
   use missing_data_mod,         only : rmdi, imdi
   use icao_heights_kernel_mod,  only : icao_heights_kernel_code
   use empty_data_mod,           only : empty_real_data
@@ -140,6 +145,8 @@ subroutine trop_diags_code(nlayers,                    &
   real(r_def), dimension(undf_wth), intent(in) :: exner_wth
   real(r_def), dimension(undf_wth), intent(in) :: height_wth
   real(r_def), intent(in)                      :: g_over_r
+  real(r_def), intent(in)                      :: p_zero
+  real(r_def), intent(in)                      :: kappa
 
   real(r_def), pointer, dimension(:), intent(inout) :: trop_pres
   real(r_def), pointer, dimension(:), intent(inout) :: trop_temp

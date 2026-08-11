@@ -13,6 +13,7 @@ module trop_diags_alg_mod
   use config_mod,                  only: config_type
   use constants_mod,               only: l_def
   use planet_constants_mod,        only: g_over_r_def
+  use planet_config_mod,           only: p_zero, kappa
   use field_mod,                   only: field_type
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
   use sci_geometric_constants_mod, only: get_height_fv
@@ -75,6 +76,7 @@ contains
 
       call invoke( trop_diags_kernel_type(                       &
         theta, exner_in_wth, height_wth, g_over_r_def,           &
+        p_zero, kappa,                                           &
         trop_pres, trop_temp, trop_height, trop_icao_height ) )
 
       if (trop_pres_flag)        call trop_pres%write_field()
