@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!----------------------------------------------------------------------------
 !> @brief Controls the setting of Jules high level variables which are either
 !>         fixed in LFRic or derived from LFRic inputs.
 
@@ -25,15 +28,16 @@ module jules_control_init_mod
 
   integer(kind=i_def), protected :: n_land_tile
   integer(kind=i_def), protected :: n_sea_ice_tile
+  integer(kind=i_def), protected :: n_ssi_tile
   integer(kind=i_def), protected :: n_surf_tile
   integer(kind=i_def), protected :: first_sea_tile
   integer(kind=i_def), protected :: first_sea_ice_tile
   integer(kind=i_def), protected :: soil_lev_tile
 
   private
-  public :: n_land_tile, n_sea_tile, n_sea_ice_tile, n_surf_tile, &
-       first_sea_tile, first_sea_ice_tile, jules_control_init,    &
-       soil_lev_tile, n_surf_interp
+  public :: n_land_tile, n_sea_tile, n_sea_ice_tile, n_ssi_tile,  &
+       n_surf_tile, first_sea_tile, first_sea_ice_tile,           &
+       jules_control_init, soil_lev_tile, n_surf_interp
 
 contains
 
@@ -147,9 +151,13 @@ contains
     n_sea_ice_tile = nice
     nice_use       = nice
 
+    ! Total number of sea and sea-ice tiles, used where a quantity is
+    ! averaged over the marine portion of the grid-box
+    n_ssi_tile = n_sea_tile + n_sea_ice_tile
+
     ! Total number of surface tiles, used to dimension LFRic
     ! multidata fields
-    n_surf_tile = n_land_tile + n_sea_tile + n_sea_ice_tile
+    n_surf_tile = n_land_tile + n_ssi_tile
 
     ! Indices of the first sea and sea-ice tiles. By convection the tile
     ! order is always land, sea, sea-ice
