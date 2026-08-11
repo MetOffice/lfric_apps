@@ -10,9 +10,10 @@
 
 module jules_imp_diags_mod
 
-  use constants_mod,               only: l_def, r_def
+  use constants_mod,               only: i_def, l_def, r_def
   use field_mod,                   only: field_type
   use jules_control_init_mod,      only: n_surf_tile, n_land_tile, &
+                                         n_sea_tile, first_sea_tile, &
                                          n_sea_ice_tile, first_sea_ice_tile
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
   use timing_mod,                  only: start_timing, stop_timing, &
@@ -43,6 +44,7 @@ module jules_imp_diags_mod
   logical( l_def ) :: latent_heat_flag
   logical( l_def ) :: grid_latent_heat_flag
   logical( l_def ) :: land_mean_latent_heat_flag
+  logical( l_def ) :: ssi_mean_latent_heat_flag
   logical( l_def ) :: snomlt_surf_htf_flag
   logical( l_def ) :: soil_evap_flag
   logical( l_def ) :: soil_surf_ht_flux_flag
@@ -144,12 +146,13 @@ contains
       latent_heat_flag = init_diag(latent_heat, 'surface__latent_heat')
       grid_latent_heat_flag = samp_diag('surface__grid_latent_heat')
       land_mean_latent_heat_flag = samp_diag('surface__land_mean_latent_heat')
-      if ((grid_latent_heat_flag .or. land_mean_latent_heat_flag) .and. &
-          .not. latent_heat_flag) then
+      ssi_mean_latent_heat_flag = samp_diag('surface__ssi_mean_latent_heat')
+      if ((grid_latent_heat_flag .or. land_mean_latent_heat_flag .or. &
+           ssi_mean_latent_heat_flag) .and. .not. latent_heat_flag) then
         ignore = init_diag(latent_heat, 'surface__latent_heat', activate=.true.)
       end if
       if (latent_heat_flag .or. grid_latent_heat_flag .or. &
-          land_mean_latent_heat_flag) &
+          land_mean_latent_heat_flag .or. ssi_mean_latent_heat_flag) &
            call invoke(setval_c(latent_heat,0.0_r_def))
 
       ! diagnostics which are needed in BL code, so allocate on 1st loop
@@ -269,13 +272,19 @@ contains
   type( field_type ) :: land_surface_temperature, grid_canopy_evap, &
        grid_surface_temperature, grid_latent_heat, grid_sublimation, &
        sea_ice_surface_temperature, land_mean_heat_flux, &
-       land_mean_latent_heat
+       land_mean_latent_heat, ssi_mean_heat_flux, ssi_mean_latent_heat
+  integer( i_def )   :: num_ssi_tiles
   integer( tik )     :: id
 
   if ( LPROF ) call start_timing( id, 'diags.jules_imp' )
 
   ! Output prognostic fields - always output these on 2nd loop
   if (loop == 2) then
+
+    ! The tile order is land, sea, sea-ice, so the sea and sea-ice tiles are
+    ! contiguous and can be averaged over together
+    num_ssi_tiles = n_sea_tile + n_sea_ice_tile
+
     call tile_heat_flux%write_field('surface__tile_heat_flux')
     call tile_moisture_flux%write_field('surface__tile_moisture_flux')
     call tile_temperature%write_field('surface__tile_temperature')
@@ -316,6 +325,16 @@ contains
       call land_mean_heat_flux%write_field()
     end if
 
+    ! As above, but over the sea and sea-ice tiles, so dividing by the marine
+    ! fraction and giving a mean over the sea and sea-ice portion of the
+    ! grid-box.
+    if(init_diag(ssi_mean_heat_flux, 'surface__ssi_mean_heat_flux')) then
+      call invoke(weighted_ave_kernel_type(ssi_mean_heat_flux,             &
+                                       tile_heat_flux, tile_fraction,      &
+                                       first_sea_tile, num_ssi_tiles))
+      call ssi_mean_heat_flux%write_field()
+    end if
+
     if (init_diag(grid_canopy_evap, 'surface__grid_canopy_evap')) then
       call invoke(weighted_ave_kernel_type(grid_canopy_evap,              &
                                        canopy_evap, tile_fraction,        &
@@ -347,6 +366,14 @@ contains
                                        latent_heat, tile_fraction,         &
                                        1, n_land_tile))
       call land_mean_latent_heat%write_field()
+    end if
+
+    ! As above, a mean over the sea and sea-ice portion of the grid-box
+    if (init_diag(ssi_mean_latent_heat, 'surface__ssi_mean_latent_heat')) then
+      call invoke(weighted_ave_kernel_type(ssi_mean_latent_heat,           &
+                                       latent_heat, tile_fraction,         &
+                                       first_sea_tile, num_ssi_tiles))
+      call ssi_mean_latent_heat%write_field()
     end if
 
   else !loop=1
