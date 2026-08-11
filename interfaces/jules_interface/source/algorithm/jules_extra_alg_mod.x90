@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Interface to the JULES surf_couple_extra scheme
 
 module jules_extra_alg_mod
@@ -304,7 +307,8 @@ contains
                                      inland_basin_flow)
 
       ! Output sea ice diagnostics
-      call output_diags_for_jules_seaice(tile_fraction, sea_ice_thickness,     &
+      call output_diags_for_jules_seaice(tile_fraction, snowice_melt,          &
+                                    sea_ice_thickness,                         &
                                     sea_ice_temperature, sea_ice_conductivity, &
                                     sea_ice_pensolar, melt_pond_fraction,      &
                                     melt_pond_depth)
