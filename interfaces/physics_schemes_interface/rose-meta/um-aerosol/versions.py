@@ -38,9 +38,9 @@ class vn32_t698(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Add settings
 
-        aerosol_setting = self.get_setting_value(config,
-                                                 ["namelist:aerosol",
-                                                  "glomap_mode"])
+        glomap_mode = self.get_setting_value(config,
+                                             ["namelist:aerosol",
+                                              "glomap_mode"])
 
         if glomap_mode == "'glomap_mode_dust_and_clim'":
             # Existing suites with dust_and_clim need i_mode_setup==6
