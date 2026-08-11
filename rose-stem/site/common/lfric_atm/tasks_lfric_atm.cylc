@@ -1270,7 +1270,7 @@
 {% endif %}
 
 {# Extensions to the Shared Global Configurations - Performance setups#}
-{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_720t") %}
+{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_op_720t") %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump"],
@@ -1281,7 +1281,7 @@
     }) %}
 {% endif %}
 
-{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_720t_opDiag") %}
+{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_op_720t_opDiag") %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","oper_diags_hres"],
@@ -1292,7 +1292,6 @@
 {% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_op") %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump"],
         "resolution": "C896_MG_op",
         "mesh_cpus": 64,
         "mesh_memory": [20, "GB"],
