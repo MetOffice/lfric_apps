@@ -42,19 +42,19 @@ class vn32_t698(MacroUpgrade):
                                              ["namelist:aerosol",
                                               "glomap_mode"])
 
-        if glomap_mode == "'glomap_mode_dust_and_clim'":
+        if glomap_mode == "'dust_and_clim'":
             # Existing suites with dust_and_clim need i_mode_setup==6
             i_mode_setup = "6"
-        elif glomap_mode == "'glomap_mode_ukca'":
+        elif glomap_mode == "'ukca'":
             # Existing suites with ukca need i_mode_setup==8
             i_mode_setup = "8"
-        elif glomap_mode == "'glomap_mode_radaer_test'":
+        elif glomap_mode == "'radaer_test'":
             # Existing suites with ukca need i_mode_setup==8
             i_mode_setup = "8"
-        elif glomap_mode == "'glomap_mode_climatology'":
+        elif glomap_mode == "'climatology'":
             # This is trigger ignored
             i_mode_setup = "0"
-        elif glomap_mode == "'glomap_mode_off'":
+        elif glomap_mode == "'off'":
             # This is trigger ignored
             i_mode_setup = "0"
         else:
