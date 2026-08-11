@@ -97,7 +97,7 @@ contains
     ! fractions divides by the marine fraction. The melt rate is zero on the
     ! sea tile, so only the sea-ice contributes to the sum. It is converted
     ! from a melt rate to an energy flux by the latent heat of fusion.
-    if(init_diag(sea_ice_topmelt, 'seaice__sea_mean_topmelt_heat_flux')) then
+    if(init_diag(sea_ice_topmelt, 'seaice__ssi_mean_topmelt_heat_flux')) then
       call invoke(weighted_ave_kernel_type(sea_ice_topmelt,                   &
                                        snowice_melt, tile_fraction,           &
                                        first_sea_tile,                        &
