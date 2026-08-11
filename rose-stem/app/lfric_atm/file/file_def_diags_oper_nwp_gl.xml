@@ -148,6 +148,7 @@
       <field field_ref="surface__grid_sublimation" name="grid_sublimation_average"/>
       <field field_ref="surface__sea_mean_heat_flux" name="sea_mean_heat_flux_average"/>
       <field field_ref="surface__sea_mean_moisture_flux" name="sea_mean_moisture_flux_average"/>
+      <field field_ref="seaice__ssi_mean_topmelt_heat_flux" name="ssi_mean_topmelt_heat_flux_average"/>
       <field field_ref="microphysics__ls_rain" name="ls_rain_average"/>
       <field field_ref="microphysics__ls_snow" name="ls_snow_average"/>
       <field field_ref="convection__conv_rain" name="conv_rain_average"/>
