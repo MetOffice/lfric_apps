@@ -17,7 +17,8 @@ module um_ukca_init_mod
                                        marine_pom_ems_scaling,                 &
                                        ukca_scale_sea_salt_ems,                &
                                        sea_salt_ems_scaling,                   &
-                                       i_mode_setup
+                                       i_mode_setup,                           &
+                                       l_dust_mp_ageing
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
                                        chem_scheme_strattrop, chem_scheme_none,&
@@ -35,7 +36,8 @@ module um_ukca_init_mod
                                        top_bdy_opt_overwrt_only_top_lev,       &
                                        top_bdy_opt_overwrt_co_no_o3_top,       &
                                        top_bdy_opt_overwrt_co_no_o3_h2o_top,   &
-                                       ! Variables related to initialisation of photolysis
+                                       ! Variables related to initialisation of
+                                       ! photolysis
                                        photol_scheme, photol_scheme_off,       &
                                        photol_scheme_fastjx,                   &
                                        photol_scheme_prescribed, fastjx_mode,  &
@@ -1032,7 +1034,7 @@ contains
            ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
            l_cv_rainout=.not.(l_ukca_plume_scav),                              &
            l_dust_mp_slinn_impc_scav=.true.,                                   &
-           l_dust_mp_ageing=.false.,                                           &
+           l_dust_mp_ageing=l_dust_mp_ageing,                                  &
            ! GLOMAP emissions configuration options
            l_ukca_primsu=.true.,                                               &
            l_ukca_primss=.true.,                                               &
