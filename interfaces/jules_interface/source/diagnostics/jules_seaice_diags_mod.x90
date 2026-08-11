@@ -56,8 +56,9 @@ contains
                                       melt_pond_depth
 
     ! Diagnostics locally computed here from other fields
-    type( field_type )             :: sea_ice_fraction, weights_one, &
-                                      sea_ice_tile, sea_ice_topmelt
+    type( field_type )             :: sea_ice_fraction, weights_one,   &
+                                      sea_ice_tile, sea_ice_topmelt,   &
+                                      ice_mean_thickness, ice_mean_temperature
     real(r_def)                    :: num_sice_tiles
     integer( tik )                 :: id
 
@@ -103,6 +104,26 @@ contains
                                        first_sea_tile, n_ssi_tile),           &
                   inc_a_times_X(latent_heat_h2o_fusion, sea_ice_topmelt))
       call sea_ice_topmelt%write_field()
+    end if
+
+    ! Aggregate the category thickness and temperature onto a single level by
+    ! averaging over the categories weighted by their fractions, which divides
+    ! by the total ice fraction and so gives a mean over the ice.  This is how
+    ! sice_htf forms the bulk temperature, and the weights cancel in the ratio
+    ! so it does not matter that the fractions here are of the grid-box while
+    ! those in JULES are of the marine portion.
+    if(init_diag(ice_mean_thickness, 'seaice__ice_mean_thickness')) then
+      call invoke(weighted_ave_kernel_type(ice_mean_thickness,                 &
+                                       sea_ice_thickness, sea_ice_fraction,    &
+                                       1, n_sea_ice_tile))
+      call ice_mean_thickness%write_field()
+    end if
+
+    if(init_diag(ice_mean_temperature, 'seaice__ice_mean_temperature')) then
+      call invoke(weighted_ave_kernel_type(ice_mean_temperature,               &
+                                       sea_ice_temperature, sea_ice_fraction,  &
+                                       1, n_sea_ice_tile))
+      call ice_mean_temperature%write_field()
     end if
 
     if ( LPROF ) call stop_timing( id, 'diags.jules_seaice' )
