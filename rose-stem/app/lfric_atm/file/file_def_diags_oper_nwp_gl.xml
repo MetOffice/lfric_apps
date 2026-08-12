@@ -156,7 +156,8 @@
       <field field_ref="microphysics__ls_rain" name="ls_rain_average"/>
       <field field_ref="microphysics__ls_snow" name="ls_snow_average"/>
       <field field_ref="convection__conv_rain" name="conv_rain_average"/>
-      <field field_ref="convection__conv_snow" name="conv_snow_average"/>   
+      <field field_ref="convection__conv_snow" name="conv_snow_average"/>
+      <field field_ref="processed__total_snow" name="total_snow_average"/>
       <field field_ref="processed__total_prec" name="total_prec_average"/>
       <field field_ref="convection__lowest_cca_2d" name="conv_lowest_cca_average"/>
       <field field_ref="convection__pres_lowest_cv_base" name="conv_pressure_lowest_base_average"/>
@@ -258,6 +259,22 @@
     <!-- Half model level diagnostics - not being interpolated to pressure levels -->
     <field_group operation="average" freq_op="1ts" prec="4"> 
        <field field_ref="turbulence__rib" name="turbulence__rib_average"/>
-    </field_group>   
-  </file>   
+    </field_group>
+  </file>
+
+  <!-- Diagnostic standard level fields - 6 Hourly -->
+  <file id="lfric_gl_std_levs_diags_6hr" name="results/lfric_gl_std_levs_diags_6hr" output_freq="6h" split_freq="6h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+    <!-- 2D fields averaged every timestep -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="processed__total_snow"/>
+    </field_group>
+  </file>
+
+  <!-- Diagnostic standard level fields - Sub-hourly (model timestep) -->
+  <file id="lfric_gl_std_levs_diags_subhr" name="results/lfric_gl_std_levs_diags_subhr" output_freq="1ts" split_freq="1h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+    <!-- 2D fields averaged every timestep -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="processed__total_snow"/>
+    </field_group>
+  </file>
 </file_definition>
