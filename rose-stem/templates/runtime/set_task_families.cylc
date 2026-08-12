@@ -18,10 +18,13 @@
     [[KGO_CHECKS]]
 
 {% for platform in requested_platforms %}
+    {% do LOG.info("***********************************") %}
+    {% do LOG.info(platform) %}
+
     [[{{platform|upper}}]]
 
     [[BUILD_{{platform|upper}}]]
-        inherit=BUILD
+        inherit=BUILD,{{platform|upper}}
 
     {# Applications which families and build families need to be generated #}
     {% set app_families = [] %}
