@@ -559,6 +559,12 @@ contains
         weights => nudging_weights_wt
       end select
 
+      ! Convert nudging levels to reals
+      taper_bottom = real(nudging_taper_bottom, r_def)
+      nudging_bottom = real(nudging_level_bottom, r_def)
+      nudging_top = real(nudging_level_top, r_def)
+      taper_top = real(nudging_taper_top, r_def)
+
       do k = 0, nl-1
         k_real = real(k, r_def) + w3_offset
 
