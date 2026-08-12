@@ -569,16 +569,13 @@ contains
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag,    &
         empty = (.not. microphysics_casim) ))
 
-    ! Copies of the liquid cloud taken immediately before the fast physics is
-    ! called. The CASIM mechanistic activation uses these to work out how much
-    ! liquid cloud the fast physics has created or removed. They are rewritten
-    ! every timestep before they are read, so need neither checkpointing nor
+    ! Copy of the liquid cloud taken immediately before the fast physics is
+    ! called. The CASIM mechanistic activation uses this to work out how much
+    ! liquid cloud the fast physics has created or removed. It is rewritten
+    ! every timestep before it is read, so doesn't need checkpointing or
     ! advecting.
     casim_mechanistic_activation = ( microphysics_casim .and.                  &
                                      casim_iopt_act /= 0_i_def )
-
-    call processor%apply(make_spec('m_cl_pre_fast', main%microphysics, Wtheta, &
-        empty = (.not. casim_mechanistic_activation) ))
     call processor%apply(make_spec('cf_liq_pre_fast', main%microphysics,       &
         Wtheta, empty = (.not. casim_mechanistic_activation) ))
 
