@@ -718,7 +718,6 @@ contains
     type(field_type), pointer :: precfrac
     type(field_type), pointer :: liquid_fraction
     type(field_type), pointer :: cf_liq_pre_fast
-    type(field_type), pointer :: m_cl_pre_fast
 #endif
 
     type(operator_type), pointer :: mm_wt
@@ -1001,12 +1000,11 @@ contains
         ! The CASIM mechanistic droplet activation works out how much liquid
         ! cloud the fast physics has created or removed, so keep a copy of the
         ! liquid cloud as it is on entry to the fast physics.
-        if (microphysics_casim .and. casim_iopt_act /= 0_i_def) then
+        if (microphysics_casim .and. casim_iopt_act /= 0_i_def .and. &
+             outer == outer_iterations) then
           call cloud_fields%get_field('liquid_fraction', liquid_fraction)
           call microphysics_fields%get_field('cf_liq_pre_fast', cf_liq_pre_fast)
-          call microphysics_fields%get_field('m_cl_pre_fast', m_cl_pre_fast)
-          call invoke( setval_X(cf_liq_pre_fast, liquid_fraction), &
-                       setval_X(m_cl_pre_fast,   mr(imr_cl))       )
+          call invoke( setval_X(cf_liq_pre_fast, liquid_fraction) )
         end if
 #endif
         !--------------------------------------------------------------------
@@ -1248,6 +1246,7 @@ contains
       if (microphysics_casim) then
         call casim_activate_alg( self%config,                            &
                                  self%state(igh_t), mr,                  &
+                                 self%mr_after_adv(imr_cl),              &
                                  derived_fields, cloud_fields,           &
                                  microphysics_fields, convection_fields, &
                                  aerosol_fields, turbulence_fields,      &

@@ -10,7 +10,7 @@
 !>
 module gungho_init_fields_mod
 
-  use mr_indices_mod,                     only : nummr, mr_names
+  use mr_indices_mod,                     only : nummr, mr_names, imr_cl
   use moist_dyn_mod,                      only : num_moist_factors, moist_dyn_names
   use field_array_mod,                    only : field_array_type
   use field_mod,                          only : field_type
@@ -956,6 +956,7 @@ subroutine create_model_data( modeldb,           &
            ( prognostic_init_choice /= init_option_checkpoint_dump ) ) then
         call casim_activate_alg( modeldb%config,                           &
                                  theta, mr_array%bundle,                   &
+                                 mr_array%bundle(imr_cl),                  &
                                  derived_fields,                           &
                                  cloud_fields,                             &
                                  microphysics_fields,                      &

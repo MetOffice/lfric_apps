@@ -41,6 +41,7 @@ contains
   !>         documentation.
   !>@param[in]     config              Application namelist configuration object
   !>@param[in]     mr                  (in) Mixing ratios, in theta space
+  !>@param[in]     m_cl_pre_fast       (in) Cloud liq after advection
   !>@param[in]     cloud_fields        (in) Fields for cloud fractions
   !>@param[in,out] microphysics_fields (in,out) Fields for mphys scheme
   !>@param[in]     convection_fields   (in) Fields for convection scheme
@@ -48,7 +49,7 @@ contains
   !>@param[in]     turbulence_fields   (in) Fields for turbulence scheme
   !>@param[in]     initialise          Flag to use routine to initialise fields
   subroutine casim_activate_alg(config,                                        &
-                                theta, mr,                                     &
+                                theta, mr, m_cl_pre_fast,                      &
                                 derived_fields,                                &
                                 cloud_fields,                                  &
                                 microphysics_fields,                           &
@@ -72,7 +73,7 @@ contains
     type( field_collection_type ), intent(inout) :: microphysics_fields
 
     type( field_type ), intent( in ), target :: mr(nummr)
-    type( field_type ), intent( in ) :: theta
+    type( field_type ), intent( in ) :: theta, m_cl_pre_fast
 
     logical, intent(in) :: initialise
 
@@ -86,7 +87,6 @@ contains
     type( field_type ), pointer :: mci_init
 
     ! Fields needed by the mechanistic activation
-    type( field_type ), pointer :: m_cl_pre_fast
     type( field_type ), pointer :: cf_liq_pre_fast
     type( field_type ), pointer :: w_in_wth
     type( field_type ), pointer :: wvar
@@ -145,7 +145,6 @@ contains
 
       call cloud_fields%get_field('liquid_fraction', cf_liq)
       call microphysics_fields%get_field('nl_mphys', nl_mphys)
-      call microphysics_fields%get_field('m_cl_pre_fast', m_cl_pre_fast)
       call microphysics_fields%get_field('cf_liq_pre_fast', cf_liq_pre_fast)
       call derived_fields%get_field('exner_in_wth', exner_wth)
       call derived_fields%get_field('rho_in_wth', rho_wth)
