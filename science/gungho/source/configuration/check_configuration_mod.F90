@@ -503,11 +503,14 @@ contains
             call log_event(                                                    &
               '3D unity transport can only be used when all variables '        &
               // 'are transported with the same splitting', LOG_LEVEL_ERROR)
-          else if ( vertical_method(i) /= split_method_ffsl                    &
-                    .or. horizontal_method(i) /= split_method_ffsl ) then
+          else if ( (vertical_method(i) == split_method_ffsl                   &
+                    .and. horizontal_method(i) /= split_method_ffsl) .or.      &
+                    (vertical_method(i) /= split_method_ffsl                   &
+                    .and. horizontal_method(i) == split_method_ffsl) ) then
             call log_event(                                                    &
-              '3D unity transport can only be used when all variables '        &
-              // 'are using FFSL for vertical and horizontal transport', LOG_LEVEL_WARNING)
+              '3D unity transport can only be used when variables using FFSL'  &
+              // 'are using FFSL for both vertical and horizontal transport',  &
+              LOG_LEVEL_ERROR)
           end if
         end if
 
