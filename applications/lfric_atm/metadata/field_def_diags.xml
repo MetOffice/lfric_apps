@@ -498,6 +498,7 @@
   <field id="orographic_drag__tauy_orog_blk" name="tauy_orog_blk" long_name="orographic_blocking_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
   <field id="orographic_drag__tauy_orog_gwd" name="tauy_orog_gwd" long_name="orographic_gravity_wave_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
   <field id="orographic_drag__tauy_orographic_drag" name="tauy_orog" long_name="orographic_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid"> orographic_drag__tauy_orog_blk + orographic_drag__tauy_orog_gwd </field>
+  <field id="orographic_drag__sd_orog" name="sd_orog" long_name="standard_deviation_of_orography" unit="m" domain_ref="face" />
   <!-- Jules surface exchange diagnostics -->
   <field id="surface__tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
   <!-- Extracts tile types for sea and sea-ice, removes pseudo-level coordinate, then calculate sea-ice fraction -->

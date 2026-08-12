@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for orographic_drag_alg
 
 module orographic_drag_diags_mod
@@ -70,7 +73,8 @@ contains
                    du_orographic_drag, dv_orographic_drag, dtemp_orographic_drag,    &
                    dtheta_orographic_drag, du_orog_blk, dv_orog_blk, dtemp_orog_blk, &
                    du_orog_gwd, dv_orog_gwd, dtemp_orog_gwd,                         &
-                   taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd)
+                   taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd,       &
+                   sd_orog)
 
     implicit none
 
@@ -78,7 +82,8 @@ contains
     type( field_type ), intent(in)    :: du_orographic_drag, dv_orographic_drag, dtemp_orographic_drag,    &
                                          dtheta_orographic_drag, du_orog_blk, dv_orog_blk, dtemp_orog_blk, &
                                          du_orog_gwd, dv_orog_gwd, dtemp_orog_gwd,                         &
-                                         taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd
+                                         taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd,       &
+                                         sd_orog
     integer( tik )  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.orog_gwd' )
@@ -94,6 +99,10 @@ contains
     call du_orog_gwd%write_field('orographic_drag__du_orog_gwd')
     call dv_orog_gwd%write_field('orographic_drag__dv_orog_gwd')
     call dtemp_orog_gwd%write_field('orographic_drag__dtemp_orog_gwd')
+
+    ! Ancillary from the orography collection.  It is time-constant, so an
+    ! output stream only needs it once.
+    call sd_orog%write_field('orographic_drag__sd_orog')
 
     ! Diagnostics computed within the kernel
     if (taux_orog_blk_flag) call taux_orog_blk%write_field()
