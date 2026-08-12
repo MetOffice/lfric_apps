@@ -100,8 +100,7 @@ contains
     call dv_orog_gwd%write_field('orographic_drag__dv_orog_gwd')
     call dtemp_orog_gwd%write_field('orographic_drag__dtemp_orog_gwd')
 
-    ! Ancillary from the orography collection.  It is time-constant, so an
-    ! output stream only needs it once.
+    ! Ancillary from the orography collection.
     call sd_orog%write_field('orographic_drag__sd_orog')
 
     ! Diagnostics computed within the kernel
