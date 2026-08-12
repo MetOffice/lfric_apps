@@ -278,8 +278,10 @@ contains
     type(mesh_type),           pointer :: nudging_mesh
     type(mesh_type),           pointer :: nudging_twod_mesh
     type(function_space_type), pointer :: w3_2d_fs, wt_fs
+#ifdef UM_PHYSICS
     type(field_type),          pointer :: exner_trop, theta_trop
     type(field_type),          target  :: exner_coarse, theta_coarse
+#endif
 
     nudging_min_tropopause_level = config%nudging%nudging_min_tropopause_level()
     nudging_level_taper_top = config%nudging%nudging_level_taper_top()
@@ -295,7 +297,6 @@ contains
 
     if (nudging_min_tropopause_level < nudging_level_taper_top) then
 #ifdef UM_PHYSICS
-
       if (coarse_nudging) then
         ! TODO: already have coarse exner from setting reference fields, and
         ! will need coarse theta for nudging. So could save a small bit of work
