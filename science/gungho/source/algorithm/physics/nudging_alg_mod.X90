@@ -12,7 +12,7 @@ module nudging_alg_mod
   use extrusion_mod,                   only: TWOD
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
-  use fs_continuity_mod,               only: W3
+  use fs_continuity_mod,               only: W3, Wtheta
   use function_space_mod,              only: function_space_type
   use function_space_collection_mod,   only: function_space_collection
   use integer_field_mod,               only: integer_field_type
@@ -267,31 +267,52 @@ contains
 
     type(config_type),        intent(in)    :: config
     type(integer_field_type), intent(inout) :: trop_level
-    type(field_type),         intent(in)    :: theta, exner
+    type(field_type), target, intent(in)    :: theta, exner
 
     ! Local variables
     integer(kind=i_def) :: nudging_min_tropopause_level
     integer(kind=i_def) :: nudging_level_taper_top
     character(str_def)  :: nudging_mesh_name
+    logical(kind=l_def) :: coarse_nudging
 
     type(mesh_type),           pointer :: nudging_mesh
     type(mesh_type),           pointer :: nudging_twod_mesh
-    type(function_space_type), pointer :: w3_2d_fs
+    type(function_space_type), pointer :: w3_2d_fs, wt_fs
+    type(field_type),          pointer :: exner_trop, theta_trop
+    type(field_type),          target  :: exner_coarse, theta_coarse
 
     nudging_min_tropopause_level = config%nudging%nudging_min_tropopause_level()
     nudging_level_taper_top = config%nudging%nudging_level_taper_top()
+    coarse_nudging = config%multires_coupling%coarse_nudging()
 
     nudging_mesh_name = trim(config%multires_coupling%nudging_mesh_name())
     nudging_mesh => mesh_collection%get_mesh(nudging_mesh_name)
     nudging_twod_mesh => mesh_collection%get_mesh(nudging_mesh, TWOD)
     w3_2d_fs => function_space_collection%get_fs(nudging_twod_mesh, 0, 0, W3)
+    wt_fs => function_space_collection%get_fs(nudging_mesh, 0, 0, Wtheta)
 
     call trop_level%initialise(w3_2d_fs)
 
     if (nudging_min_tropopause_level < nudging_level_taper_top) then
 #ifdef UM_PHYSICS
+
+      if (coarse_nudging) then
+        ! TODO: already have coarse exner from setting reference fields, and
+        ! will need coarse theta for nudging. So could save a small bit of work
+        ! by pulling these mappings out to somewhere else (but it would be messy)
+        call exner_coarse%initialise(wt_fs)
+        call theta_coarse%initialise(wt_fs)
+        call map_scalar_intermesh(exner_coarse, exner)
+        call map_scalar_intermesh(theta_coarse, theta)
+        exner_trop => exner_coarse
+        theta_trop => theta_coarse
+      else
+        exner_trop => exner
+        theta_trop => theta
+      end if
+
       call locate_tropopause_alg(                                              &
-              config, trop_level, theta, exner,                                &
+              config, trop_level, theta_trop, exner_trop,                      &
               nudging_twod_mesh, trop_diag=.false.                             &
       )
 #else
