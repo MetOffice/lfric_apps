@@ -26,7 +26,7 @@ contains
     implicit none
 
     real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran
-    real(kind=r_tran)            :: use_tol, answer(4)
+    real(kind=r_tran)            :: use_tol
 
     integer(kind=i_def), parameter :: nlayers       = 1
     integer(kind=i_def), parameter :: ndf_w2h       = 4
@@ -148,13 +148,12 @@ contains
                                        map_w2h )
 
     dofs2check = (/ 1, 10, 19, 28 /)
-    answer = (/ 1.0_r_tran, 10.0_r_tran,  1.9_r_tran,  28.0_r_tran /)
     do i = 1,4
-      @assertEqual(real(dofs2check(i), r_tran), field_x(dofs2check(i)), use_tol)
+      @assertEqual(1.0_r_tran, increment_x(dofs2check(i)), use_tol)
     end do
     ! increment_y = field_x(north-1) - field_x(centre) = +7 for all dofs
     do i = 1,4
-      @assertEqual(real(dofs2check(i), r_tran), field_y(dofs2check(i)), use_tol)
+      @assertEqual(7.0_r_tran, increment_y(dofs2check(i)), use_tol)
     end do
 
     ! -------------------------------------------------------------------------

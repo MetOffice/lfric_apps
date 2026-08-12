@@ -204,13 +204,6 @@ module compute_vertical_quintic_coef_kernel_mod
       frac_dist(:) = ABS(displacement(:) - REAL(int_disp(:), r_tran))
       sign_offset(:) = 0.5_r_tran*(1.0_r_tran + SIGN(1.0_r_tran, displacement(:)))
 
-      ! Extract departure distances and physical heights
-      displacement(:) = dep_dist_z(map_w2v(1) : map_w2v(1)+nlayers)
-      int_disp(:) = INT(displacement(:), i_def)
-      frac_dist(:) = ABS(displacement(:) - REAL(int_disp(:), r_tran))
-      sign_offset(:) = 0.5_r_tran*(1.0_r_tran + SIGN(1.0_r_tran, displacement(:)))
-      z_arr(:) = theta_height(map_wt(1) : map_wt(1)+nlayers)
-
       ! Wtheta departure heights and indices -------------------------------------
       ! Force bottom departure point to be zero
       k_dep(1) = 1

@@ -143,8 +143,8 @@ module vertical_cubic_sl_kernel_mod
     ! Indices
     integer(kind=i_def) :: k, nl, wf_idx, wc_idx, ndofs, df
 
-    ! nl = nlayers    for w3/w2h
-    !    = nlayers+1  for wtheta
+    ! nl = nlayers-1  for w3/w2h
+    !    = nlayers    for wtheta
     ! ndofs = 1 for w3/wtheta
     !       = 2 for w2
     select case( ndf_wf )
