@@ -41,6 +41,7 @@ Science settings
 - coma9 - ComorphA9 configuration
 - comatb - Modifications to Coma9 for 5km trailblazer setup
 - comorph_dev - development ComorphB configuration
+- coupled - settings for running a coupled model, e.g. 5 sea-ice categories
 - da - with IAU from data assimilation
 - eda - with IAU from ensemble data assimilation (with multi-context IO),
         including use of SST perturbations and land surface increments

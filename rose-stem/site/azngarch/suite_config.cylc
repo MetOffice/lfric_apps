@@ -15,8 +15,5 @@
 {% if "lfricinputs" in requested_applications %}
     {% include 'site/azngarch/common/suite_config_lfricinputs.cylc' %}
 {% endif %}
-{% if "lfric_coupled" in requested_applications %}
-    {% include 'site/azngarch/common/suite_config_lfric_coupled.cylc' %}
-{% endif %}
 
 {% do LOG.debug("Finished in site/azngarch/suite_config.cylc") %}
