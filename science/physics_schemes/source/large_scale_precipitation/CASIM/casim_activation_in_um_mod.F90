@@ -161,12 +161,16 @@ do k = 1, top_level
         end if ! component(jmode, icp)
       end do ! icp
 
-      mode_Bk = bk_numerator / max(volume, eps_1)
+      if (volume > zero) then
+        mode_Bk = bk_numerator / volume
+      else
+        mode_Bk = zero
+      end if
 
     end if ! mode(jmode)
 
-    if (mode_N > ccn_tidy .and. mode_M > ccn_tidy * eps_1) then
-
+    if (mode_N > ccn_tidy .and. mode_M > ccn_tidy * eps_1 .and. &
+         mode_Bk > zero) then
       aerophys(k)%n(imode)  = mode_N
       aerophys(k)%m(imode)  = mode_M
       aerophys(k)%rd(imode) = MNtoRm( mode_M, mode_N, density,                 &
