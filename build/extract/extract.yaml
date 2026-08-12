@@ -357,7 +357,9 @@ ukca:
     - src/science/radaer/spcrg3a_mod.F90
     - src/science/radaer/ukca_radaer_band_average.F90
     - src/science/radaer/ukca_radaer_compute_aod.F90
+    - src/science/radaer/ukca_radaer_lfric_saved_mod.F90
     - src/science/radaer/ukca_radaer_lfric_settings_mod.F90
+    - src/science/radaer/ukca_radaer_lfric_struct_mod.F90
     - src/science/radaer/ukca_radaer_lut_mod.F90
     - src/science/radaer/ukca_radaer_populate_lut_mod.F90
     - src/science/radaer/ukca_radaer_precalc_mod.F90
