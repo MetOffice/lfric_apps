@@ -5,21 +5,34 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/macros/macros_ex1a.cylc") %}
 
-{% set ex1a_cores_per_node = 192 %}
-{% set ex1a_socket_per_node = 2 %}
+{% set genoa_cores_per_node = 192 %}
+{% set genoa_socket_per_node = 2 %}
+{% set milan_cores_per_node = 128 %}
+{% set milan_socket_per_node = 2 %}
 {# Use these thresholds of ntasks and memory to determine queue #}
 {# If greater than these, then run on normal queue on genoa, otherwise shared queue on milan #}
 {# These thresholds are somewhat arbitrary, chosen so as to not use entire shared nodes #}
 {% set use_normal_task_threshold = 96 %}
 {% set use_normal_mem_threshold = 128 %}
 
-{% macro normal_queue(mpi_ranks,
-                        threads,
-                        xios_nodes,
-                        ocean_nodes,
-                        river_nodes,
-                        ranks_per_node,
-                        ranks_depth_pad=1) %}
+{% macro normal_queue(
+    platform,
+    mpi_ranks,
+    threads,
+    xios_nodes,
+    ocean_nodes,
+    river_nodes,
+    ranks_per_node,
+    ranks_depth_pad=1
+) %}
+
+    {% if platform == "genoa" %}
+        {% set ex1a_cores_per_node = genoa_cores_per_node %}
+        {% set ex1a_socket_per_node = genoa_socket_per_node %}
+    {% else %}
+        {% set ex1a_cores_per_node = milan_cores_per_node %}
+        {% set ex1a_socket_per_node = milan_socket_per_node %}
+    {% endif %}
 
     {# The depth setting, padded or otherwise, is tied to threads #}
     {% set depth_val =  threads|int %}
@@ -90,7 +103,7 @@
             -l select={{ lfric_nodes +
                          ocean_nodes|int +
                          river_nodes|int +
-                         xios_nodes|int }}:coretype=genoa:mem=720GB
+                         xios_nodes|int }}:coretype={{platform}}:mem=720GB
 {% endmacro %}
 
 
@@ -119,17 +132,19 @@
 {% endmacro %}
 
 
-{% macro set_task_resources(family_name,
-                            family_inherits,
-                            wallclock,
-                            mpi_ranks,
-                            memory,
-                            threads=1,
-                            xios_nodes=0,
-                            ocean_nodes=0,
-                            river_nodes=0,
-                            ranks_per_node=0,
-                            ranks_depth_pad=1) %}
+{% macro set_task_resources(
+    family_name,
+    family_inherits,
+    wallclock,
+    mpi_ranks,
+    memory,
+    threads=1,
+    xios_nodes=0,
+    ocean_nodes=0,
+    river_nodes=0,
+    ranks_per_node=0,
+    ranks_depth_pad=1
+) %}
 
     [[{{family_name|upper}}]]
         inherit = {{family_inherits|upper}}
@@ -146,7 +161,22 @@
     {% endif %}
 
     {% if use_normal %}
-        {{ normal_queue(mpi_ranks, threads, xios_nodes, ocean_nodes, river_nodes, ranks_per_node, ranks_depth_pad) }}
+        {# Running on Genoa is the normal queue default #}
+        {% if "milan" in family_name|lower %}
+            {% set platform = "milan" %}
+        {% else %}
+            {% set platform = "genoa" %}
+        {% endif %}
+        {{ normal_queue(
+            platform,
+            mpi_ranks,
+            threads,
+            xios_nodes,
+            ocean_nodes,
+            river_nodes,
+            ranks_per_node,
+            ranks_depth_pad
+        ) }}
     {% else %}
         {{ shared_queue(mpi_ranks * threads, memory) }}
     {% endif %}

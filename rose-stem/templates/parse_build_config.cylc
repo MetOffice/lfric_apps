@@ -51,6 +51,22 @@
 
 {% set build_conf = build_conf~precision_output[1] %}
 
+{# Check whether this is a genoa only build for meto EX #}
+{% if "genoa" in task_ns.extras %}
+
+    {% set build_conf = build_conf~"-genoa" %}
+    {% do build_dict.update({"genoa": true}) %}
+
+{% endif %}
+
+{# Check whether this is a milan only build for meto EX #}
+{% if "milan" in task_ns.extras %}
+
+    {% set build_conf = build_conf~"-milan" %}
+    {% do build_dict.update({"milan": true}) %}
+
+{% endif %}
+
 {% do build_dict.update({"build_conf": build_conf}) %}
 
 {% do LOG.debug("Finished in templates/parse_build_config.cylc") %}
