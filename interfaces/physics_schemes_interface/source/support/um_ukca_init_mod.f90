@@ -67,6 +67,12 @@ module um_ukca_init_mod
   use ukca_option_mod, only: i_mode_nucscav, l_ukca_plume_scav
   use ukca_scavenging_mod, only: ukca_set_conv_indices, tracer_info
 
+  ! CASIM options, to determine whether the CASIM aerosol interface needs the
+  ! UKCA tracer indexing
+  use microphysics_config_mod, only: microphysics_casim,                       &
+                                     casim_activation,                         &
+                                     casim_activation_arg
+
   ! Other UM modules used
   use dms_flux_mod_4a,      only: i_liss_merlivat
 
@@ -1086,17 +1092,21 @@ contains
     call set_ukca_field_lists()
 
     ! Set up the indexing data that locates the GLOMAP mode numbers and
-    ! component masses within the UKCA tracer array. This is needed for plume
-    ! scavenging of UKCA tracers in the GR convection scheme and by the CASIM
-    ! aerosol interface, so it is always set up.
-    n = size(tracer_names)
-    allocate(nm_spec_active(n))
-    do i = 1, n
-      nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
-    end do
-    call ukca_set_conv_indices()
-    tracer_info%i_ukca_first = 1
-    tracer_info%i_ukca_last = n
+    ! component masses within the UKCA tracer array. This is needed both for
+    ! plume scavenging of UKCA tracers in the GR convection scheme and by the
+    ! CASIM aerosol interface, which reads the same index arrays to build the
+    ! aerosol distribution seen by Abdul-Razzak and Ghan activation.
+    if ( l_ukca_plume_scav .or. ( microphysics_casim .and.                     &
+         casim_activation == casim_activation_arg ) ) then
+      n = size(tracer_names)
+      allocate(nm_spec_active(n))
+      do i = 1, n
+        nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
+      end do
+      call ukca_set_conv_indices()
+      tracer_info%i_ukca_first = 1
+      tracer_info%i_ukca_last = n
+    end if
 
     ! Register emissions required for this run
     call ukca_emiss_init()
@@ -1905,19 +1915,22 @@ contains
     ! Retrieve the lists of required fields for the configuration
     call set_ukca_field_lists()
 
-    ! Set up the indexing data that locates the GLOMAP mode numbers and
-    ! component masses within the UKCA tracer array. This is needed for plume
-    ! scavenging of UKCA tracers in the GR convection scheme and by the CASIM
-    ! aerosol interface, so it is always set up.
-    n = size(tracer_names)
-    allocate(nm_spec_active(n))
-    do i = 1, n
-      nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
-    end do
+    ! Set up indexing data needed for plume scavenging of UKCA tracers in the
+    ! GR convection scheme. The CASIM aerosol interface also reads this
+    ! indexing, but only under Abdul-Razzak and Ghan activation, which requires
+    ! the full GLOMAP aerosol and so never reaches this dust-only path.
+    if (l_ukca_plume_scav) then
+      n = size(tracer_names)
+      allocate(nm_spec_active(n))
+      do i = 1, n
+        nm_spec_active(i) = tracer_names(i)(1:nmspec_len)
+      end do
 
-    call ukca_set_conv_indices()
-    tracer_info%i_ukca_first = 1
-    tracer_info%i_ukca_last  = n
+      call ukca_set_conv_indices()
+      tracer_info%i_ukca_first = 1
+      tracer_info%i_ukca_last  = n
+
+    end if
 
     ! Switch on optional UM microphysics diagnostics required by UKCA
     if (any(env_names_fullht_real(:) == fldname_autoconv))                     &
