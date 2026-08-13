@@ -245,7 +245,7 @@ contains
     ! Create transport_controller object (advecting wind etc)
     call transport_controller%initialise(                                      &
             config, model_clock, stepper,                                      &
-            model_clock, q, wind_for_adv, wind_np1,                            &
+            q, wind_for_adv, wind_np1,                                         &
             outer=outer, cheap_update_step=cheap_update_step                   &
     )
 

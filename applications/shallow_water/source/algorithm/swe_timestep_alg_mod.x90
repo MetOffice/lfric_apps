@@ -15,7 +15,7 @@ module swe_timestep_alg_mod
 
   ! Constants
   use constants_mod,                  only: i_def, r_def
-  use dycore_constants_mod,           only: stepper_siqn
+  use dycore_constants_mod,           only: stepper_siqn, stepper_rk
   use field_indices_mod,              only: isw_u, &
                                             isw_g, &
                                             isw_b, &
