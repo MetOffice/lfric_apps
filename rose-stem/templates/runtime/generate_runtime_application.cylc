@@ -111,7 +111,16 @@
 {% if task_ns.application == "lfric2lfric" %}
             MESH_DIR                = {{mesh_dir}}
 {% else %}
+    {% if "_op" in task_values["resolution"] %}
+        {% set mesh_dir_op = mesh_dir~"/"~task_values["resolution"]~"/"~
+                             task_values["mpi_parts"]~"P_"~
+                             task_values["panel_decomp"]~"_"~
+                             task_values["xproc"]~"X_"~
+                             task_values["yproc"]~"Y" %}
+            MESH_DIR                = {{mesh_dir_op}}
+    {% else %}
             MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}
+    {% endif %}
 {% endif %}
             TASK_OUTPUT_DIR         = {{task_output_dir}}
             APP_NAME                = {{task_values["app_name"]}}

@@ -15,6 +15,9 @@
 {% endfor %}
 
 {% set partition_parts = task_values.get("mpi_parts", task_values["mesh_cpus"]) %}
+{% if "_op" in task_ns.conf_name %}
+    {% set task_ns.conf_name = task_ns.conf_name.split("_op", 1)[0] ~ "_op" %}
+{% endif %}
 {% set script_str = "rose task-run --app-key=mesh --opt-conf-key="~task_ns.conf_name %}
 
     [[{{task}}]]
@@ -24,7 +27,16 @@
         [[[environment]]]
             DESTINATION_DIRECTORY = {{destination_dir}}
             BIN_DIR               = {{bin_dir}}
-            MESH_DIR              = {{mesh_dir}}/{{task_ns.conf_name}}
+{% if "_op" in task_ns.conf_name %}
+    {% set mesh_dir_op = mesh_dir~"/"~task_ns.conf_name~"/"~
+                         task_values["mpi_parts"]~"P_"~
+                         task_values["mesh_panel_decomp"]~"_"~
+                         task_values["mesh_xproc"]~"X_"~
+                         task_values["mesh_yproc"]~"Y" %}
+            MESH_DIR              = {{mesh_dir_op}}
+{% else %}
+            MESH_DIR                = {{mesh_dir}}/{{task_ns.conf_name}}
+{% endif %}
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
             OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{task_ns.conf_name}}
             PARTITION_PARTS       = {{ partition_parts }}
