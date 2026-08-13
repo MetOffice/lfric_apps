@@ -68,6 +68,7 @@ contains
   !> @param[in]     ln_surfp_nudge  surface pressure from nudging data
   !> @param[in]     p_zero          Reference pressure for Exner calculation
   !> @param[in]     kappa           Rd/Cp, used in definition of Exner
+  !> @param[in]     nudge_levels    number of levels in reference data
   !> @param[in]     ndf_wth         number of degrees of freedom per cell
   !> @param[in]     undf_wth        num of DoFs in this partition for Wtheta
   !> @param[in]     map_wth         index of DoFs for lowest cell for Wtheta
