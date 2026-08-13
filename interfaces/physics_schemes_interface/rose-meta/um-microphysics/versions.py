@@ -31,3 +31,17 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
+class vn32_casim_activation(MacroUpgrade):
+    """Upgrade macro to add casim_activation by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_casim_activation"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-microphysics
+        self.add_setting(
+            config, ["namelist:microphysics", "casim_activation"], "'fixed'"
+        )
+        return config, self.reports

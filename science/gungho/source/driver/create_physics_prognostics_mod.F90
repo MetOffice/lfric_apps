@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief create physics prognostics
 !> @details Creates the physics prognostic fields
 module create_physics_prognostics_mod
@@ -172,6 +175,7 @@ contains
     logical(l_def) :: is_rad ! Flag for chemistry fields
                              ! that are radiatively active
     logical(l_def) :: sst_pert_flag
+    logical(l_def) :: casim_mechanistic_activation
     character(len=str_def) :: mesh_name
 #endif
 
@@ -564,6 +568,16 @@ contains
     call processor%apply(make_spec('ng_mphys', main%microphysics,              &
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag,    &
         empty = (.not. microphysics_casim) ))
+
+    ! Copy of the liquid cloud taken immediately before the fast physics is
+    ! called. The CASIM mechanistic activation uses this to work out how much
+    ! liquid cloud the fast physics has created or removed. It is rewritten
+    ! every timestep before it is read, so doesn't need checkpointing or
+    ! advecting.
+    casim_mechanistic_activation = ( microphysics_casim .and.                  &
+                                     casim_iopt_act /= 0_i_def )
+    call processor%apply(make_spec('cf_liq_pre_fast', main%microphysics,       &
+        Wtheta, empty = (.not. casim_mechanistic_activation) ))
 
     ! 2D fields, don't need checkpointing
     call processor%apply(make_spec('ls_rain', main%microphysics, W3, twod=.true.))
