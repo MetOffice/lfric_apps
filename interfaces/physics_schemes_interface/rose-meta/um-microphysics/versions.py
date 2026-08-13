@@ -33,11 +33,11 @@ class vnXX_txxx(MacroUpgrade):
 """
 
 
-class vn32_casim_activation(MacroUpgrade):
-    """Upgrade macro to add casim_activation by Ian Boutle."""
+class vn32_t709(MacroUpgrade):
+    """Upgrade macro for #709 by Ian Boutle."""
 
     BEFORE_TAG = "vn3.2"
-    AFTER_TAG = "vn3.2_casim_activation"
+    AFTER_TAG = "vn3.2_t709"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/um-microphysics
