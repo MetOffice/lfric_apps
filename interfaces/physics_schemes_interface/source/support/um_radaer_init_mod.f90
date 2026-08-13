@@ -15,8 +15,9 @@ module um_radaer_init_mod
                                            glomap_mode_radaer_test,            &
                                            glomap_mode_ukca,                   &
                                            mode_setup,                         &
-                                           i_ukca_bc_tuned,                    &
                                            l_dust_mp_ageing
+
+  use ukca_mode_setup,               only: i_ukca_bc_tuned
 
   use constants_mod,                 only: i_um
 
@@ -45,6 +46,10 @@ subroutine um_radaer_init()
   ! For example, we use prognostic dust (6) with other aerosol components (8)
   ! in operational NWP.
   integer(i_um) :: i_mode_setup_radaer_local
+
+  integer(i_um) :: i_ukca_tune_bc_local
+  
+  logical :: l_dust_mp_ageing_local
 
   integer, parameter :: i_radaer_mode_setup_eight = 8
 
@@ -88,18 +93,15 @@ subroutine um_radaer_init()
 
     ! Match rose-meta integers with those used in UKCA
     select case ( mode_setup )
-    case ( SUBCOCSSDU_7mode )
+    case ( 'SUBCOCSSDU_7mode' )
       i_mode_setup_radaer_local = i_sussbcocdu_7mode
-
-    case ( DUonly_2mode )
+    case ( 'DUonly_2mode' )
       i_mode_setup_radaer_local = i_du_2mode
-
     case default
       write( log_scratch_space, '(A,I0)' )                                     &
       'Developers should include additional mode settings here: ', mode_setup
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-
-    END SELECT
+    end select
 
     ! This value is set in the namelist
     i_ukca_tune_bc_local      = i_ukca_bc_tuned
