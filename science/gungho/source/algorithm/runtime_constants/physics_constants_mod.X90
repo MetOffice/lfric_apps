@@ -521,6 +521,10 @@ contains
     logical(kind=l_def)                    :: compute_weights
     integer(kind=tik)                      :: id
 
+    ! To avoid floating point issues when comparing integers as reals, set
+    ! a generous tolerance
+    real(kind=r_def),            parameter :: EPS_INT = 0.1_r_def
+
     mesh_id = mesh%get_id()
     nudging_level_bottom = config%nudging%nudging_level_bottom()
     nudging_level_top = config%nudging%nudging_level_top()
@@ -569,20 +573,22 @@ contains
         k_real = real(k, r_def) + w3_offset
 
         ! Below start of taper, weights = 0
-        if (k_real < taper_bottom + EPS) then
+        ! If taper_bottom == nudging_bottom, then ramp is skipped and weights=1
+        if (k_real < taper_bottom + EPS_INT                                    &
+            .and. k_real < nudging_bottom + EPS_INT) then
           weights(1 + k) = 0.0_r_def
 
         ! Ramp up from 0 to 1 between taper_bottom and nudging_bottom
-        else if (k_real < nudging_bottom + EPS) then
+        else if (k_real < nudging_bottom + EPS_INT) then
           weights(1 + k) = (k_real - taper_bottom) /                           &
                             max(1.0_r_def, nudging_bottom - taper_bottom)
 
         ! Full nudging between nudging_bottom and nudging_top
-        else if (k_real < nudging_top + EPS) then
+        else if (k_real < nudging_top + EPS_INT) then
           weights(1 + k) = 1.0_r_def
 
         ! Ramp down from 1 to 0 between nudging_top and taper_top
-        else if (k_real < taper_top + EPS) then
+        else if (k_real < taper_top + EPS_INT) then
           weights(1 + k) = 1.0_r_def - (k_real - nudging_top) /                &
                                         max(1.0_r_def, taper_top - nudging_top)
 

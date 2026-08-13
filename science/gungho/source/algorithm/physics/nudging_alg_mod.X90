@@ -316,6 +316,7 @@ contains
               config, trop_level, theta_trop, exner_trop,                      &
               nudging_twod_mesh, trop_diag=.false.                             &
       )
+      call invoke( int_inc_max_aX(nudging_min_tropopause_level, trop_level) )
 #else
       call invoke( int_setval_c(trop_level, nudging_min_tropopause_level) )
 #endif

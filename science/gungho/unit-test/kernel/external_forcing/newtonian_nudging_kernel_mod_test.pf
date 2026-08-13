@@ -26,12 +26,12 @@ contains
 
     implicit none
 
-    integer(kind=i_def), parameter :: nlayers = 8
+    integer(kind=i_def), parameter :: nlayers = 10
     integer(kind=i_def), parameter :: ndf_3d = 1
     integer(kind=i_def), parameter :: undf_3d = 10
     integer(kind=i_def), parameter :: ndf_2d = 1
     integer(kind=i_def), parameter :: undf_2d = 1
-    integer(kind=i_def), parameter :: nvert(1) = 10
+    integer(kind=i_def), parameter :: nvert(1) = nlayers
 
     ! Bottom and top levels for full-strength nudging: the tropopause level
     ! is more restrictive than max_level (and both are within the number of
@@ -40,7 +40,6 @@ contains
     integer(kind=i_def), parameter :: min_level = 2
     integer(kind=i_def), parameter :: max_level = 6
     integer(kind=i_def), parameter :: trop_level = 5
-    integer(kind=i_def), parameter :: max_level_loc = trop_level
 
     real(kind=r_def), parameter :: time_weight = 2.0_r_def
     real(kind=r_def), parameter :: tol = 10.0_r_def*epsilon(1.0_r_def)
@@ -55,7 +54,7 @@ contains
     real(kind=r_def) :: vert_weights(nvert(1))
     real(kind=r_def) :: answer(undf_3d)
 
-    integer(kind=i_def) :: k, idx_fb, idx_ft
+    integer(kind=i_def) :: k
 
     map_3d(1) = 1
     map_2d(1) = 1
@@ -64,17 +63,16 @@ contains
     do k = 1, undf_3d
       field_in(k) = 10.0_r_def + real(k, r_def)
       field_ref(k) = 50.0_r_def + 2.0_r_def*real(k, r_def)
-      vert_weights(k) = 0.1_r_def*real(k, r_def)
     end do
 
-    ! Only levels min_level to min_level+max_level_loc (i.e. array indices
-    ! 3 to 8, since map_3d(1) = 1) should be nudged; everywhere else the
-    ! increment should remain at its initial value of 0
-    idx_fb = map_3d(1) + min_level
-    idx_ft = idx_fb + max_level_loc
+    vert_weights(:) = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def, 1.0_r_def, 1.0_r_def, &
+                        1.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def /)
+
     answer(:) = 0.0_r_def
-    do k = idx_fb, idx_ft
-      answer(k) = (field_ref(k) - field_in(k)) * time_weight * vert_weights(k)
+    do k = 1, nlayers
+      if (k >= min_level .and. k <= max_level .and. k <= trop_level) then
+        answer(k) = (field_ref(k) - field_in(k)) * time_weight * vert_weights(k)
+      end if
     end do
 
     increment(:) = 0.0_r_def

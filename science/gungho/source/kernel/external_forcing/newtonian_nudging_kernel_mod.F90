@@ -107,15 +107,29 @@ subroutine newtonian_nudging_code(nlayers,                                     &
   ! Local variables
   integer(kind=i_def) :: nl
   integer(kind=i_def) :: idx_fb, idx_ft, idx_vb, idx_vt
-  integer(kind=i_def) :: max_level_loc
+  integer(kind=i_def) :: min_level_loc, max_level_loc
 
-  ! Set maximum level
   nl = nlayers - 2 + ndf_3d  ! nlayers for Wtheta, nlayers - 1 for W3
-  max_level_loc = MIN(max_level, nl, tropopause_level(map_2d(1)))
-  idx_fb = map_3d(1) + min_level
-  idx_ft = idx_fb + max_level_loc
-  idx_vb = min_level + 1
-  idx_vt = idx_vb + max_level_loc
+
+  ! Wtheta: Level 0 corresponds to the surface
+  ! At min_level, Wtheta weights will be 0 unless taper_bottom == level_bottom
+  ! At max_level, Wtheta weights will be 0 unless taper_top == level_top
+  ! The tropopause level is included in the calculation if it is below max_level
+  ! W3: (k_wt < k_w3 < k_wt + 1)
+  ! Below min_level, W3 weights are set to 0, so we can ignore these levels
+  ! Above max_level, W3 weights are set to 0, so we can ignore these levels
+  ! Tropopause level is at a Wtheta level, so include W3 levels below this
+
+  ! The following indices take the above into account:
+  min_level_loc = MAX(min_level, 0)
+  ! max_level, not above tropopause. Subtract 1 for W3
+  max_level_loc =                                                              &
+      MAX(MIN(max_level, tropopause_level(map_2d(1)) - 2 + ndf_3d, nl), 0)
+
+  idx_fb = map_3d(1) + min_level_loc
+  idx_ft = map_3d(1) + max_level_loc
+  idx_vb = 1 + min_level_loc
+  idx_vt = 1 + max_level_loc
 
   increment(idx_fb:idx_ft) = (                                                 &
     (field_ref(idx_fb:idx_ft) - field_in(idx_fb:idx_ft))                       &

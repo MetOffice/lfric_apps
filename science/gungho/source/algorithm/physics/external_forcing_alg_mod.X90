@@ -279,7 +279,7 @@ contains
 
         case(theta_forcing_nudging)
           ! Determine nudging time-weighting for theta
-          nudging_relax_time = config%nudging%nudging_relax_time_theta()
+          nudging_relax_time = 3600.0_r_def * config%nudging%nudging_relax_time_theta()
           if (nudging_relax_time > 0.0_r_def) then
             nudging_time_weight = dt * nudging_spinup_factor / nudging_relax_time
           else
@@ -440,7 +440,7 @@ contains
 
             ! Apply nudging to calculate increments for each component
             ! u ----------------------------------------------------------------
-            nudging_relax_time = config%nudging%nudging_relax_time_u()
+            nudging_relax_time = 3600.0_r_def * config%nudging%nudging_relax_time_u()
             if (nudging_relax_time > 0.0_r_def) then
               nudging_time_weight = dt * nudging_spinup_factor / nudging_relax_time
             else
@@ -456,7 +456,7 @@ contains
             end if
 
             ! v ----------------------------------------------------------------
-            nudging_relax_time = config%nudging%nudging_relax_time_v()
+            nudging_relax_time = 3600.0_r_def * config%nudging%nudging_relax_time_v()
             if (nudging_relax_time > 0.0_r_def) then
               nudging_time_weight = dt * nudging_spinup_factor / nudging_relax_time
             else
