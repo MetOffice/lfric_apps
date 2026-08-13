@@ -129,6 +129,7 @@
         "lfric_atm_nwp_gal9_ls_and_jedi-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_gal9-pert-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_casim-C12_ex1a_cce_fast-debug-32bit",
+        "lfric_atm_clim_casim_ukca-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_coma9-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_comorph_tb-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_comorph_dev-C12_ex1a_cce_fast-debug-32bit",
