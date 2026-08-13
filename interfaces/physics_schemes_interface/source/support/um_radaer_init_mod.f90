@@ -14,7 +14,7 @@ module um_radaer_init_mod
                                            glomap_mode_off,                    &
                                            glomap_mode_radaer_test,            &
                                            glomap_mode_ukca,                   &
-                                           i_mode_setup,                       &
+                                           mode_setup,                         &
                                            i_ukca_bc_tuned,                    &
                                            l_dust_mp_ageing
 
@@ -40,7 +40,7 @@ subroutine um_radaer_init()
 
   implicit none
 
-  ! Some options have a different value of i_mode_setup
+  ! Some options have a different value of mode_setup
   ! between ukca and radaer.
   ! For example, we use prognostic dust (6) with other aerosol components (8)
   ! in operational NWP.
@@ -51,7 +51,7 @@ subroutine um_radaer_init()
   integer, parameter :: i_ukca_bc_tuned_zero = 0
 
   if ( glomap_mode == glomap_mode_climatology ) then
-    ! i_mode_setup is not set in the namelist for glomap_mode_climatology
+    ! mode_setup is not set in the namelist for glomap_mode_climatology
     ! this is always fixed to eight.
     i_mode_setup_radaer_local = i_radaer_mode_setup_eight
 
@@ -62,7 +62,7 @@ subroutine um_radaer_init()
     l_dust_mp_ageing_local    = .false.
 
   else if ( glomap_mode == glomap_mode_dust_and_clim ) then
-    ! dust_and_clim runs with a diffent i_mode_setup between ukca and radaer
+    ! dust_and_clim runs with a diffent mode_setup between ukca and radaer
     ! this is always fixed to eight.
     i_mode_setup_radaer_local = i_radaer_mode_setup_eight
 
@@ -84,10 +84,10 @@ subroutine um_radaer_init()
     l_dust_mp_ageing_local    = .false.
 
   else if ( glomap_mode == glomap_mode_ukca ) then
-    ! UKCA and RADAER will use the same value for i_mode_setup
+    ! UKCA and RADAER will use the same value for mode_setup
 
     ! Match rose-meta integers with those used in UKCA
-    select case ( i_mode_setup )
+    select case ( mode_setup )
     case ( SUBCOCSSDU_7mode )
       i_mode_setup_radaer_local = i_sussbcocdu_7mode
 
@@ -96,7 +96,7 @@ subroutine um_radaer_init()
 
     case default
       write( log_scratch_space, '(A,I0)' )                                     &
-      'Developers should include additional mode settings here: ', i_mode_setup
+      'Developers should include additional mode settings here: ', mode_setup
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
 
     END SELECT

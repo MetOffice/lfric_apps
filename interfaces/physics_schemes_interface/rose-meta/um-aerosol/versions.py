@@ -43,28 +43,28 @@ class vn32_t698(MacroUpgrade):
                                               "glomap_mode"])
 
         if glomap_mode == "'dust_and_clim'":
-            # Existing suites with dust_and_clim need i_mode_setup==6
-            i_mode_setup = "6"
+            # Existing suites with dust_and_clim need mode_setup==6
+            mode_setup = 'DUonly_2mode'
         elif glomap_mode == "'ukca'":
-            # Existing suites with ukca need i_mode_setup==8
-            i_mode_setup = "8"
+            # Existing suites with ukca need mode_setup==8
+            mode_setup = 'SUBCOCSSDU_7mode'
         elif glomap_mode == "'radaer_test'":
-            # Existing suites with ukca need i_mode_setup==8
-            i_mode_setup = "8"
+            # Existing suites with ukca need mode_setup==8
+            mode_setup = 'SUBCOCSSDU_7mode'
         elif glomap_mode == "'climatology'":
             # This is trigger ignored
-            i_mode_setup = "0"
+            mode_setup = ''
         elif glomap_mode == "'off'":
             # This is trigger ignored
-            i_mode_setup = "0"
+            mode_setup = ''
         else:
             # This is trigger ignored
-            i_mode_setup = "0"
+            mode_setup = ''
 
         # Add new settings with the specified option
         self.add_setting( config,
-                          ["namelist:aerosol","i_mode_setup"],
-                          i_mode_setup )
+                          ["namelist:aerosol","mode_setup"],
+                          mode_setup )
 
         # Default to false since this is the setting in all existing tests
         self.add_setting( config,

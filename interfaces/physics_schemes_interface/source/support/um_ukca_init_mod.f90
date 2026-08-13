@@ -17,7 +17,7 @@ module um_ukca_init_mod
                                        marine_pom_ems_scaling,                 &
                                        ukca_scale_sea_salt_ems,                &
                                        sea_salt_ems_scaling,                   &
-                                       i_mode_setup,                           &
+                                       mode_setup,                             &
                                        l_dust_mp_ageing
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
@@ -657,7 +657,7 @@ module um_ukca_init_mod
 
   integer, save, public :: n_phot_flds_req ! Num of photol driving fields
 
-  ! Pass setting of i_mode_setup to UKCA
+  ! Pass setting of mode_setup to UKCA
   integer(i_um) :: i_mode_setup_local
 
 contains
@@ -926,7 +926,7 @@ contains
       l_ukca_chem_aero = .true.
       l_ukca_mode = .true.
 
-      select case( i_mode_setup )
+      select case( mode_setup )
       case ( SUBCOCSSDU_7mode )
         i_mode_setup_local = i_sussbcocdu_7mode
 
@@ -934,7 +934,7 @@ contains
         i_mode_setup_local = i_du_2mode
 
       case default
-        call log_event( 'Unknown option - i_mode_setup', LOG_LEVEL_ERROR )
+        call log_event( 'Unknown option - mode_setup', LOG_LEVEL_ERROR )
       end select
 
     end if
