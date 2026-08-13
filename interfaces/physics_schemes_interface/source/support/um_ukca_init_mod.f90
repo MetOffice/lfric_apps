@@ -926,9 +926,10 @@ contains
       l_ukca_mode = .true.
     end if
 
-    ! If the Easy Aerosol climatology is being used to set CDNC values
+    ! If the Easy Aerosol climatology or Casim is being used to set CDNC values
     ! then there is no need to calculate CDNCs via an activation scheme in UKCA
-    if (easyaerosol_cdnc) then
+    if (easyaerosol_cdnc.or. ( microphysics_casim .and.                     &
+         casim_activation == casim_activation_arg )) then
       i_tmp_ukca_activation_scheme = ukca_activation_off
     else
       i_tmp_ukca_activation_scheme = ukca_activation_arg
