@@ -535,7 +535,6 @@
         "crun": 2,
         "crun_compare": false,
         "mpi_parts": 6,
-	"log_level": "debug",
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py -encorr $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
