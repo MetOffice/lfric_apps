@@ -46,7 +46,7 @@ module tr_bdf2_timestep_alg_mod
   use moist_dyn_mod,              only: num_moist_factors, gas_law
   use mr_indices_mod,             only: nummr, imr_v, imr_cl, imr_ci,          &
                                         imr_s, imr_r, imr_g
-  use si_diagnostics_mod,         only: output_diags_for_tr_bdf2
+  use si_diagnostics_mod,         only: output_diags_for_si
   use timestepping_common_mod,    only: conditional_collection_copy,           &
                                         get_stph_values, put_stph_values
   use timestep_method_mod,        only: timestep_method_type
@@ -157,8 +157,7 @@ module tr_bdf2_timestep_alg_mod
     type(field_type), allocatable :: state_to_adv(:)   ! State to transport (both steps)
     type(field_type), allocatable :: state_aft_adv(:)  ! State after transport (both steps)
     type(field_type), allocatable :: mr_n(:)           ! Mixing ratios at time n
-    type(field_type), allocatable :: mr_aft_adv_bdf(:) ! Mixing ratios after BDF2 transport
-    type(field_type), allocatable :: mr_aft_adv_tr(:)  ! Mixing ratios after TR transport
+    type(field_type), allocatable :: mr_aft_adv(:)     ! Mixing ratios after transport (both)
     type(field_type), allocatable :: mr_dag(:)         ! Mixing ratios after slow physics
     type(field_type), allocatable :: mr_bdf(:)         ! Mixing ratios after BDF2 step
     type(field_type), allocatable :: rhs_n(:)          ! Explicit RHS (TR)
@@ -483,8 +482,7 @@ contains
     allocate(self%mr_n(nummr))
     allocate(self%mr_bdf(nummr))
     allocate(self%mr_dag(nummr))
-    allocate(self%mr_aft_adv_bdf(nummr))
-    allocate(self%mr_aft_adv_tr(nummr))
+    allocate(self%mr_aft_adv(nummr))
 
     self%use_moisture = ( moisture_formulation /= moisture_formulation_dry )
     self%output_cld_incs = (                                                   &
@@ -528,8 +526,7 @@ contains
     call clone_bundle(mr, self%mr_dag, nummr)
     call clone_bundle(mr, self%mr_bdf, nummr)
     if (self%use_moisture) then
-      call clone_bundle(mr, self%mr_aft_adv_bdf, nummr)
-      call clone_bundle(mr, self%mr_aft_adv_tr, nummr)
+      call clone_bundle(mr, self%mr_aft_adv, nummr)
     else
       call set_bundle_scalar(0.0_r_def, self%mr_n, nummr)
       call set_bundle_scalar(0.0_r_def, self%mr_dag, nummr)
@@ -1047,12 +1044,6 @@ contains
         call copy_bundle(self%state_dag, self%state_aft_adv, bundle_size)
       end if
 
-      ! Update the moisture after transport (mr_aft_adv_bdf, mr_aft_adv_tr)
-      if (self%use_moisture) then
-        call copy_bundle(mr, self%mr_aft_adv_bdf, nummr)
-        call copy_bundle(mr, self%mr_aft_adv_tr, nummr)
-      end if
-
       ! ====================================================================== !
       ! Inner dynamics loop
       ! ====================================================================== !
@@ -1156,7 +1147,7 @@ contains
     ! X^{n+1} + gamma2*dt*F[X^{n+1}] = T[(1-gamma3)*X^q + gamma3*X^m]
     ! where X^q = X_dag + X_aft_adv - X_to_adv
 
-    ! First guess of X^{n+1} is X^m
+    ! First guess of X^{n+1} is extrapolated from X^m and X^n
     call bundle_axpby(                                                         &
         (1.0_r_def - 0.5_r_def/gamma), self%state_n,                           &
         0.5_r_def/gamma, self%state_m,                                         &
@@ -1268,8 +1259,10 @@ contains
         if (self%use_moisture) call copy_bundle(self%mr_dag, mr, nummr)
       end if
 
-      ! Update the moisture after transport (mr_aft_adv_bdf)
-      if (self%use_moisture) call copy_bundle(mr, self%mr_aft_adv_bdf, nummr)
+      ! Update the moisture after transport (mr_aft_adv) for diagnostics
+      if (self%use_moisture .and. outer == outer_iterations) then
+        call copy_bundle(mr, self%mr_aft_adv, nummr)
+      end if
 
       ! ====================================================================== !
       ! FAST PHYSICS
@@ -1577,12 +1570,10 @@ contains
     end if
     if (write_diag .and. use_xios_io .and.                                     &
         mod(model_clock%get_step(), diagnostic_frequency) == 0) then
-      call output_diags_for_tr_bdf2(                                           &
+      call output_diags_for_si(                                                &
           self%state, self%state_n, self%state_dag,                            &
-          self%state_aft_adv, self%state_m, self%state_bdf,                    &
-          mr, self%mr_n, self%mr_dag, self%mr_aft_adv_tr, self%mr_bdf,         &
-          self%mr_aft_adv_bdf, derived_fields,                                 &
-          self%du, self%dtheta, self%dtheta_cld                                &
+          mr, self%mr_n, self%mr_dag, self%mr_aft_adv,                         &
+          derived_fields, self%du, self%dtheta, self%dtheta_cld                &
       )
     end if
 
@@ -1632,8 +1623,7 @@ contains
     if (allocated(self%mr_n))             deallocate(self%mr_n)
     if (allocated(self%mr_dag))           deallocate(self%mr_dag)
     if (allocated(self%mr_bdf))           deallocate(self%mr_bdf)
-    if (allocated(self%mr_aft_adv_bdf))   deallocate(self%mr_aft_adv_bdf)
-    if (allocated(self%mr_aft_adv_tr))    deallocate(self%mr_aft_adv_tr)
+    if (allocated(self%mr_aft_adv))       deallocate(self%mr_aft_adv)
 
     call self%dtheta%field_final()
     call self%du%field_final()

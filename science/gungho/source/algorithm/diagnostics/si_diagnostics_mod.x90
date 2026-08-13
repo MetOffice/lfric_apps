@@ -45,7 +45,6 @@ module si_diagnostics_mod
   logical (l_def) :: dw_solv_flag
 
   public :: output_diags_for_si
-  public :: output_diags_for_tr_bdf2
 
 contains
 
@@ -158,6 +157,11 @@ contains
         call dtheta_adv%write_field()
       end if
 
+      ! NB: these increments are the difference between the state after slow
+      ! physics and before the *last* fast physics. They include advection, but
+      ! also increments from forcing terms (Coriolis, pressure gradient) and
+      ! the evolution of the model through previous outer loops.
+      ! For TR-BDF2, all of the TR step is included in these increments
       du_adv_flag = init_diag(du_adv, 'advection__du_adv')
       dv_adv_flag = init_diag(dv_adv, 'advection__dv_adv')
       dw_adv_flag = init_diag(dw_adv, 'advection__dw_adv')
@@ -199,6 +203,8 @@ contains
 
       ! Solver increments
       ! Difference between solver value (X-dX_cld) and X_star+dX_fast_physics
+      ! NB: these increments only include the increment from the *final* call
+      ! to the solver
       if (init_diag(dtheta_solv, 'solver__dtheta_solv')) then
         call derived_fields%get_field('theta_star', theta_star)
         call invoke(X_minus_Y(dtheta_solv,state(igh_t),theta_star), &
@@ -241,282 +247,5 @@ contains
     if ( LPROF ) call stop_timing( id, 'diags.dynamics' )
 
   end subroutine output_diags_for_si
-
-  !> @brief Processes diagnostics relating to the TR-BDF2 timestep
-  !> @details TR-BDF2 performs two transport-and-solve stages (TR then BDF2)
-  !!          per timestep, whereas the "advection"/"solver" diagnostics were
-  !!          originally designed for a single stage (as in the SI stepper).
-  !!          Here, the "advection" and "solver" diagnostics are formed by
-  !!          summing the equivalent contribution from each of the two stages,
-  !!          so that they represent the same total quantity over the whole
-  !!          timestep as their SI counterparts.
-  !> @param[in] state             Final (time n+1) state
-  !> @param[in] state_n           State at time n
-  !> @param[in] state_dag         State after slow physics (before TR transport)
-  !> @param[in] state_aft_adv_tr  State after TR transport (before TR solve)
-  !> @param[in] state_m           State after TR solve (before BDF2 transport)
-  !> @param[in] state_bdf         State at the start of the BDF2 stage (before
-  !!                              BDF2 transport)
-  !> @param[in] mr                Final mixing ratios
-  !> @param[in] mr_n              Mixing ratios at time n
-  !> @param[in] mr_dag            Mixing ratios after slow physics
-  !> @param[in] mr_aft_adv_tr     Mixing ratios after TR transport
-  !> @param[in] mr_bdf            Mixing ratios at the start of the BDF2 stage
-  !> @param[in] mr_aft_adv_bdf    Mixing ratios after BDF2 transport
-  !> @param[in] derived_fields    Collection holding the BDF2-stage predictor
-  !!                              fields (theta_star, u_star, exner_in_wth,
-  !!                              exner_wth_n)
-  !> @param[in] du_fast           BDF2-stage fast physics wind increment
-  !> @param[in] dtheta_fast       BDF2-stage fast physics theta increment
-  !> @param[in] dtheta_cld        Cloud scheme theta increment
-  subroutine output_diags_for_tr_bdf2(                                         &
-          state, state_n, state_dag, state_aft_adv_tr, state_m, state_bdf,     &
-          mr, mr_n, mr_dag, mr_aft_adv_tr, mr_bdf, mr_aft_adv_bdf,             &
-          derived_fields, du_fast, dtheta_fast, dtheta_cld                     &
-  )
-
-    implicit none
-
-    type(field_type), dimension(bundle_size), intent(in) :: state, state_n
-    type(field_type), dimension(bundle_size), intent(in) :: state_dag
-    type(field_type), dimension(bundle_size), intent(in) :: state_aft_adv_tr
-    type(field_type), dimension(bundle_size), intent(in) :: state_m, state_bdf
-
-    type(field_type), dimension(nummr), intent(in) :: mr, mr_n, mr_dag
-    type(field_type), dimension(nummr), intent(in) :: mr_aft_adv_tr, mr_bdf
-    type(field_type), dimension(nummr), intent(in) :: mr_aft_adv_bdf
-
-    type(field_type), intent(in) :: du_fast, dtheta_fast, dtheta_cld
-
-    type(field_collection_type), intent(in) :: derived_fields
-
-    ! Total (processed) increment diagnostics
-    type(field_type) :: dtheta_tot, du_w2_tot, du_tot, dv_tot, dw_tot
-    type(field_type) :: dt_tot, t_tmp, dtheta_slow
-    type(field_type) :: dmv_tot, dmcl_tot, dmci_tot, dms_tot
-    ! Advection increment diagnostics
-    type(field_type) :: dtheta_adv, du_w2_adv, du_adv, dv_adv, dw_adv
-    type(field_type) :: dmv_adv, dmcl_adv, dmci_adv, dms_adv
-    ! Solver increment diagnostics
-    type(field_type) :: dtheta_solv, dt_solv, du_w2_solv, du_solv
-    type(field_type) :: dv_solv, dw_solv
-
-    type(field_type), pointer :: u_star
-    type(field_type), pointer :: theta_star
-    type(field_type), pointer :: exner_in_wth
-    type(field_type), pointer :: exner_wth_n
-
-    logical(l_def) :: ignore
-    integer(tik)   :: id
-
-    if ( LPROF ) call start_timing( id, 'diags.dynamics' )
-
-    ! Slow physics timestep theta increments
-    ! Difference between state at time step n (X_n) and X_dag
-    if (init_diag(dtheta_slow, 'processed__dtheta_slow')) then
-      call invoke( X_minus_Y(dtheta_slow, state_dag(igh_t), state_n(igh_t)) )
-      call dtheta_slow%write_field('processed__dtheta_slow')
-    end if
-
-    ! Total increments
-    ! Difference between current value (X) and X_n
-    if (init_diag(dtheta_tot, 'processed__dtheta_tot')) then
-      call invoke( X_minus_Y(dtheta_tot, state(igh_t), state_n(igh_t)) )
-      call dtheta_tot%write_field('processed__dtheta_tot')
-    end if
-
-    if (init_diag(dt_tot, 'processed__dt_tot')) then
-      call derived_fields%get_field('exner_in_wth', exner_in_wth)
-      call derived_fields%get_field('exner_wth_n', exner_wth_n)
-      call dt_tot%copy_field_properties(t_tmp)
-      call invoke(                                                             &
-          X_times_Y(dt_tot, state(igh_t), exner_in_wth),                       &
-          X_times_Y(t_tmp, state_n(igh_t), exner_wth_n),                       &
-          inc_X_minus_Y(dt_tot, t_tmp)                                         &
-      )
-      call dt_tot%write_field('processed__dt_tot')
-    end if
-
-    du_tot_flag = init_diag(du_tot, 'processed__du_tot')
-    dv_tot_flag = init_diag(dv_tot, 'processed__dv_tot')
-    dw_tot_flag = init_diag(dw_tot, 'processed__dw_tot')
-    ! If any of the three fields is required then all are needed to do the mapping
-    if (du_tot_flag .or. dv_tot_flag .or. dw_tot_flag) then
-      if (.not. du_tot_flag) ignore = init_diag(du_tot, 'processed__du_tot', activate=.true.)
-      if (.not. dv_tot_flag) ignore = init_diag(dv_tot, 'processed__dv_tot', activate=.true.)
-      if (.not. dw_tot_flag) ignore = init_diag(dw_tot, 'processed__dw_tot', activate=.true.)
-      call state(igh_u)%copy_field_properties(du_w2_tot)
-      call invoke( X_minus_Y(du_w2_tot, state(igh_u), state_n(igh_u)) )
-      call map_physics_winds(du_tot, dv_tot, dw_tot, du_w2_tot)
-    end if
-    if (du_tot_flag) call du_tot%write_field()
-    if (dv_tot_flag) call dv_tot%write_field()
-    if (dw_tot_flag) call dw_tot%write_field()
-
-    if (init_diag(dmv_tot, 'processed__dmv_tot')) then
-      call invoke( X_minus_Y(dmv_tot, mr(imr_v), mr_n(imr_v)) )
-      call dmv_tot%write_field()
-    end if
-
-    if (init_diag(dmcl_tot, 'processed__dmcl_tot')) then
-      call invoke( X_minus_Y(dmcl_tot, mr(imr_cl), mr_n(imr_cl)) )
-      call dmcl_tot%write_field()
-    end if
-
-    if (init_diag(dmci_tot, 'processed__dmci_tot')) then
-      call invoke( X_minus_Y(dmci_tot, mr(imr_ci), mr_n(imr_ci)) )
-      call dmci_tot%write_field()
-    end if
-
-    if (init_diag(dms_tot, 'processed__dms_tot')) then
-      call invoke( X_minus_Y(dms_tot, mr(imr_s), mr_n(imr_s)) )
-      call dms_tot%write_field()
-    end if
-
-    ! These diagnostics use the predictor values, hence only make sense with
-    ! physics on
-    if (use_physics .and.                                                      &
-          (blayer_placement == blayer_placement_fast .or.                      &
-          convection_placement == convection_placement_fast .or.               &
-          stochastic_physics_placement == stochastic_physics_placement_fast)   &
-      ) then
-
-      ! Advection increments: sum of the TR-stage and BDF2-stage transport
-      ! contributions.
-      ! TR part:   X_aft_adv_tr - X_dag
-      ! BDF2 part: X_star - X_bdf
-      if (init_diag(dtheta_adv, 'advection__dtheta_adv')) then
-        call derived_fields%get_field('theta_star', theta_star)
-        call invoke(                                                           &
-            X_minus_Y(dtheta_adv, state_aft_adv_tr(igh_t), state_dag(igh_t)),  &
-            inc_X_plus_Y(dtheta_adv, theta_star),                              &
-            inc_X_minus_Y(dtheta_adv, state_bdf(igh_t))                        &
-        )
-        call dtheta_adv%write_field()
-      end if
-
-      du_adv_flag = init_diag(du_adv, 'advection__du_adv')
-      dv_adv_flag = init_diag(dv_adv, 'advection__dv_adv')
-      dw_adv_flag = init_diag(dw_adv, 'advection__dw_adv')
-      ! If any of the three fields is required then all are needed to do the mapping
-      if (du_adv_flag .or. dv_adv_flag .or. dw_adv_flag) then
-        call derived_fields%get_field('u_star', u_star)
-        if (.not. du_adv_flag) ignore = init_diag(du_adv, 'advection__du_adv', activate=.true.)
-        if (.not. dv_adv_flag) ignore = init_diag(dv_adv, 'advection__dv_adv', activate=.true.)
-        if (.not. dw_adv_flag) ignore = init_diag(dw_adv, 'advection__dw_adv', activate=.true.)
-        call state(igh_u)%copy_field_properties(du_w2_adv)
-        call invoke(                                                           &
-            X_minus_Y(du_w2_adv, state_aft_adv_tr(igh_u), state_dag(igh_u)),   &
-            inc_X_plus_Y(du_w2_adv, u_star),                                   &
-            inc_X_minus_Y(du_w2_adv, state_bdf(igh_u))                        &
-        )
-        call map_physics_winds(du_adv, dv_adv, dw_adv, du_w2_adv)
-      end if
-      if (du_adv_flag) call du_adv%write_field()
-      if (dv_adv_flag) call dv_adv%write_field()
-      if (dw_adv_flag) call dw_adv%write_field()
-
-      if (moisture_formulation /= moisture_formulation_dry) then
-        if (init_diag(dmv_adv, 'advection__dmv_adv')) then
-          call invoke(                                                         &
-              X_minus_Y(dmv_adv, mr_aft_adv_tr(imr_v), mr_dag(imr_v)),         &
-              inc_X_plus_Y(dmv_adv, mr_aft_adv_bdf(imr_v)),                    &
-              inc_X_minus_Y(dmv_adv, mr_bdf(imr_v))                            &
-          )
-          call dmv_adv%write_field()
-        end if
-
-        if (init_diag(dmcl_adv, 'advection__dmcl_adv')) then
-          call invoke(                                                         &
-              X_minus_Y(dmcl_adv, mr_aft_adv_tr(imr_cl), mr_dag(imr_cl)),      &
-              inc_X_plus_Y(dmcl_adv, mr_aft_adv_bdf(imr_cl)),                  &
-              inc_X_minus_Y(dmcl_adv, mr_bdf(imr_cl))                          &
-          )
-          call dmcl_adv%write_field()
-        end if
-
-        if (init_diag(dmci_adv, 'advection__dmci_adv')) then
-          call invoke(                                                         &
-              X_minus_Y(dmci_adv, mr_aft_adv_tr(imr_ci), mr_dag(imr_ci)),      &
-              inc_X_plus_Y(dmci_adv, mr_aft_adv_bdf(imr_ci)),                  &
-              inc_X_minus_Y(dmci_adv, mr_bdf(imr_ci))                          &
-          )
-          call dmci_adv%write_field()
-        end if
-
-        if (init_diag(dms_adv, 'advection__dms_adv')) then
-          call invoke(                                                         &
-              X_minus_Y(dms_adv, mr_aft_adv_tr(imr_s), mr_dag(imr_s)),         &
-              inc_X_plus_Y(dms_adv, mr_aft_adv_bdf(imr_s)),                    &
-              inc_X_minus_Y(dms_adv, mr_bdf(imr_s))                            &
-          )
-          call dms_adv%write_field()
-        end if
-      end if
-
-      ! Solver increments: sum of the TR-stage and BDF2-stage solver
-      ! contributions.
-      ! TR part:   X_m - X_aft_adv_tr   (no fast physics/cloud term in TR)
-      ! BDF2 part: X - X_star - dX_fast_physics - dX_cld
-      if (init_diag(dtheta_solv, 'solver__dtheta_solv')) then
-        call derived_fields%get_field('theta_star', theta_star)
-        call invoke(                                                           &
-            X_minus_Y(dtheta_solv, state_m(igh_t), state_aft_adv_tr(igh_t)),   &
-            inc_X_plus_Y(dtheta_solv, state(igh_t)),                           &
-            inc_X_minus_Y(dtheta_solv, theta_star),                            &
-            inc_X_minus_Y(dtheta_solv, dtheta_fast),                           &
-            inc_X_minus_Y(dtheta_solv, dtheta_cld)                             &
-        )
-        call dtheta_solv%write_field()
-      end if
-
-      ! NOTE: the TR-stage contribution here is approximated using the
-      ! time-n wtheta-mapped exner (exner_wth_n), as no dedicated
-      ! exner-on-wtheta diagnostic field exists for the TR-stage solve
-      ! boundary. This mirrors the level of approximation already used by
-      ! the single-stage SI version of this diagnostic.
-      if (init_diag(dt_solv, 'solver__dt_solv')) then
-        call derived_fields%get_field('theta_star', theta_star)
-        call derived_fields%get_field('exner_in_wth', exner_in_wth)
-        call derived_fields%get_field('exner_wth_n', exner_wth_n)
-        call dt_solv%copy_field_properties(t_tmp)
-        call invoke(                                                           &
-            X_minus_Y(dt_solv, state(igh_t), dtheta_cld),                      &
-            inc_X_times_Y(dt_solv, exner_in_wth),                              &
-            X_plus_Y(t_tmp, theta_star, dtheta_fast),                          &
-            inc_X_times_Y(t_tmp, exner_wth_n),                                 &
-            inc_X_minus_Y(dt_solv, t_tmp),                                     &
-            X_minus_Y(t_tmp, state_m(igh_t), state_aft_adv_tr(igh_t)),         &
-            inc_X_times_Y(t_tmp, exner_wth_n),                                 &
-            inc_X_plus_Y(dt_solv, t_tmp)                                       &
-        )
-        call dt_solv%write_field('solver__dt_solv')
-      end if
-
-      du_solv_flag = init_diag(du_solv, 'solver__du_solv')
-      dv_solv_flag = init_diag(dv_solv, 'solver__dv_solv')
-      dw_solv_flag = init_diag(dw_solv, 'solver__dw_solv')
-      if (du_solv_flag .or. dv_solv_flag .or. dw_solv_flag) then
-        call derived_fields%get_field('u_star', u_star)
-        if (.not. du_solv_flag) ignore = init_diag(du_solv, 'solver__du_solv', activate=.true.)
-        if (.not. dv_solv_flag) ignore = init_diag(dv_solv, 'solver__dv_solv', activate=.true.)
-        if (.not. dw_solv_flag) ignore = init_diag(dw_solv, 'solver__dw_solv', activate=.true.)
-        call state(igh_u)%copy_field_properties(du_w2_solv)
-        call invoke(                                                           &
-            X_minus_Y(du_w2_solv, state_m(igh_u), state_aft_adv_tr(igh_u)),    &
-            inc_X_plus_Y(du_w2_solv, state(igh_u)),                            &
-            inc_X_minus_Y(du_w2_solv, u_star),                                 &
-            inc_X_minus_Y(du_w2_solv, du_fast)                                 &
-        )
-        call map_physics_winds(du_solv, dv_solv, dw_solv, du_w2_solv)
-      end if
-      if (du_solv_flag) call du_solv%write_field()
-      if (dv_solv_flag) call dv_solv%write_field()
-      if (dw_solv_flag) call dw_solv%write_field()
-    end if
-
-    if ( LPROF ) call stop_timing( id, 'diags.dynamics' )
-
-  end subroutine output_diags_for_tr_bdf2
 
 end module si_diagnostics_mod
