@@ -1,0 +1,91 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Compute and output tropopause height, temperature, pressure and
+!>        ICAO height
+
+module tropopause_diags_alg_mod
+
+  use config_mod,                  only: config_type
+  use constants_mod,               only: l_def
+  use field_mod,                   only: field_type
+  use fs_continuity_mod,           only: Wtheta
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
+  use io_config_mod,               only: use_xios_io
+  use sci_geometric_constants_mod, only: get_height_fv
+  use tropopause_diags_kernel_mod, only: tropopause_diags_kernel_type
+
+  implicit none
+  private
+
+  public :: tropopause_diags_alg
+
+contains
+
+  !> @brief   Compute and output tropopause height, temperature, pressure
+  !>          and ICAO height diagnostics.
+  !> @param[in] config       Application namelist configuration object
+  !> @param[in] theta        Potential temperature
+  !> @param[in] exner_in_wth Exner pressure on Wtheta space
+  subroutine tropopause_diags_alg(config, theta, exner_in_wth)
+
+    implicit none
+
+    type(config_type), intent(in) :: config
+    type(field_type), intent(in) :: theta, exner_in_wth
+
+    ! Local fields
+    type(field_type) :: trop_ht, trop_temp, trop_press, trop_icao_ht
+    type(field_type), pointer :: height_wth
+
+    ! Flags for the mutually dependent tropopause diagnostics: a single
+    ! kernel computes all four together, so any one being requested
+    ! triggers the shared computation.
+    logical(l_def) :: trop_ht_flag
+    logical(l_def) :: trop_temp_flag
+    logical(l_def) :: trop_press_flag
+    logical(l_def) :: trop_icao_ht_flag
+
+    logical(l_def) :: ignore
+
+    nullify(height_wth)
+
+    trop_ht_flag       = init_diag(trop_ht,       'processed__trop_ht')
+    trop_temp_flag     = init_diag(trop_temp,     'processed__trop_temp')
+    trop_press_flag    = init_diag(trop_press,    'processed__trop_press')
+    trop_icao_ht_flag  = init_diag(trop_icao_ht,  'processed__trop_icao_ht')
+
+    ! The kernel computes all four fields together, so force-activate any
+    ! member not individually requested. Writes stay inside this guard so
+    ! that a field is never written unless the kernel actually filled it.
+    if ((trop_ht_flag .or. trop_temp_flag .or. trop_press_flag .or. &
+         trop_icao_ht_flag) .and. use_xios_io) then
+
+      if (.not. trop_ht_flag) ignore = &
+        init_diag(trop_ht, 'processed__trop_ht', activate=.true.)
+      if (.not. trop_temp_flag) ignore = &
+        init_diag(trop_temp, 'processed__trop_temp', activate=.true.)
+      if (.not. trop_press_flag) ignore = &
+        init_diag(trop_press, 'processed__trop_press', activate=.true.)
+      if (.not. trop_icao_ht_flag) ignore = &
+        init_diag(trop_icao_ht, 'processed__trop_icao_ht', activate=.true.)
+
+      height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
+
+      call invoke( tropopause_diags_kernel_type(theta, exner_in_wth,       &
+                                                 height_wth,               &
+                                                 trop_ht, trop_temp,       &
+                                                 trop_press, trop_icao_ht) )
+
+      if (trop_ht_flag)      call trop_ht%write_field()
+      if (trop_temp_flag)    call trop_temp%write_field()
+      if (trop_press_flag)   call trop_press%write_field()
+      if (trop_icao_ht_flag) call trop_icao_ht%write_field()
+
+    end if
+
+  end subroutine tropopause_diags_alg
+
+end module tropopause_diags_alg_mod

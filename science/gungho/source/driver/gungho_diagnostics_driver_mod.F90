@@ -59,6 +59,7 @@ module gungho_diagnostics_driver_mod
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
+  use tropopause_diags_alg_mod,  only : tropopause_diags_alg
 #endif
 
   implicit none
@@ -336,6 +337,8 @@ contains
                               mr, moist_dyn)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
+      ! Tropopause height, temperature, pressure and ICAO height
+      call tropopause_diags_alg(modeldb%config, theta, exner_in_wth)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
