@@ -528,7 +528,7 @@
 {% elif task_ns.conf_name == "clim_casim_ukca-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","lowres_stp","casim","casim_ukca","um_dump"],
+        "opt_confs": ["climate","lowres_stp","casim_ukca","um_dump"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 144,
