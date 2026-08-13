@@ -44,22 +44,13 @@ class vn32_t698(MacroUpgrade):
 
         if glomap_mode == "'dust_and_clim'":
             # Existing suites with dust_and_clim need mode_setup==6
-            mode_setup = 'DUonly_2mode'
+            mode_setup = "'DUonly_2mode'"
         elif glomap_mode == "'ukca'":
             # Existing suites with ukca need mode_setup==8
-            mode_setup = 'SUBCOCSSDU_7mode'
-        elif glomap_mode == "'radaer_test'":
-            # Existing suites with ukca need mode_setup==8
-            mode_setup = 'SUBCOCSSDU_7mode'
-        elif glomap_mode == "'climatology'":
-            # This is trigger ignored
-            mode_setup = ''
-        elif glomap_mode == "'off'":
-            # This is trigger ignored
-            mode_setup = ''
+            mode_setup = "'SUBCOCSSDU_7mode'"
         else:
-            # This is trigger ignored
-            mode_setup = ''
+            # This is trigger ignored - default to SUBCOCSSDU_7mode
+            mode_setup = "'SUBCOCSSDU_7mode'"
 
         # Add new settings with the specified option
         self.add_setting( config,
