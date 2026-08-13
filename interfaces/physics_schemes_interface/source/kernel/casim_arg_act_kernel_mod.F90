@@ -257,7 +257,7 @@ subroutine casim_arg_act_code( nlayers,                            &
                                rho_col, t_col, p_col,                          &
                                cf_liquid, cf_liquid_pre_ap2, w_tke,            &
                                cloudnumber_col,                                &
-                               tracer_ukca(1,1,1:nlayers,:) )
+                               tracer_ukca )
 
     do k = 1, nlayers
       nl_mphys(map_wth(1) + k) = cloudnumber_col(k)

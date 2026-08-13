@@ -64,7 +64,7 @@ use parkind1,                only: jprb, jpim
 implicit none
 
 ! Subroutine arguments (all intent(in) for now).
-real(kind=real_umphys), intent(in) :: tracer_ukca(1:tdims%k_end, tr_ukca)
+real(kind=real_umphys), intent(in) :: tracer_ukca(0:tdims%k_end, tr_ukca)
 real(kind=real_umphys), intent(in) :: t_col(1:tdims%k_end)
 real(kind=real_umphys), intent(in) :: p_col(1:tdims%k_end)
 real(kind=real_umphys), intent(in) :: rho_col(1:tdims%k_end)
@@ -338,7 +338,7 @@ real(kind=real_umphys), intent(in) :: cf_liquid_pre_ap2(1:tdims%k_end)
 
 real(kind=real_umphys), intent(in) :: w_tke(1:tdims%k_end)
 
-real(kind=real_umphys), intent(in) :: tracer_ukca_col(1:tdims%k_end, tr_ukca)
+real(kind=real_umphys), intent(in) :: tracer_ukca_col(0:tdims%k_end, tr_ukca)
 
 real(kind=real_umphys), intent(in out) :: cloudnumber_col(1:tdims%k_end)
 
