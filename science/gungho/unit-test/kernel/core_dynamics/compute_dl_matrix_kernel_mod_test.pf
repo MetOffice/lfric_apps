@@ -50,12 +50,15 @@ contains
 
     implicit none
 
-    call feign_timestepping_config(                              &
-             method=method_semi_implicit,                        &
-             dt=1.0_r_second, alpha=0.5_r_def, tau_u=0.5_r_def,  &
-             tau_t=0.5_r_def, tau_r=0.5_r_def,                   &
-             outer_iterations=4_i_def, inner_iterations=1_i_def, &
-             runge_kutta_method=runge_kutta_method_ssp3,         &
+    call feign_timestepping_config(                                 &
+             method=method_semi_implicit,                           &
+             dt=1.0_r_second, alpha=0.5_r_def, tau_u=0.5_r_def,     &
+             tau_t=0.5_r_def, tau_r=0.5_r_def,                      &
+             outer_iterations=4_i_def,                              &
+             inner_iterations_tr=(/1_i_def/),                       &
+             inner_iterations_bdf2=(/1_i_def/),                     &
+             inner_iterations_si=(/1_i_def/),                       &
+             runge_kutta_method=runge_kutta_method_ssp3,            &
              spinup_period=0.0_r_second, spinup_alpha=.false.)
 
     call feign_finite_element_config(           &

@@ -12,6 +12,7 @@ module swe_transport_control_alg_mod
   use combine_w2_field_kernel_mod,       only: combine_w2_field_kernel_type
   use constants_mod,                     only: i_def, r_def, l_def, r_tran
   use derived_config_mod,                only: bundle_size
+  use dycore_constants_mod,              only: stepper_siqn
   use sci_enforce_bc_kernel_mod,         only: enforce_bc_kernel_type
   use flux_precomputations_alg_mod,      only: flux_precomputations_type
   use field_mod,                         only: field_type
@@ -438,7 +439,7 @@ contains
     if ( LPROF ) call start_timing( id_swe_tracer, 'swe_tracer_transport_alg' )
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise( config, model_clock, &
+    call transport_controller%initialise( config, model_clock, stepper_siqn, &
                                           mass_n, wind_n, wind_np1 )
 
     ! Initialise transported variables
