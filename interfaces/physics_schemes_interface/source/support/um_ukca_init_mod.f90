@@ -104,6 +104,9 @@ module um_ukca_init_mod
     photol_sw_phases, photol_max_wvl, photol_max_crossec,                      &
     photol_wvl_intervals, photol_num_tvals
 
+  use ukca_config_specification_mod, only: i_sussbcocdu_7mode,                 &
+                                           i_du_2mode
+
   implicit none
 
   private
@@ -654,6 +657,9 @@ module um_ukca_init_mod
 
   integer, save, public :: n_phot_flds_req ! Num of photol driving fields
 
+  ! Pass setting of i_mode_setup to UKCA
+  integer(i_um) :: i_mode_setup_local
+
 contains
 
   subroutine um_ukca_init(ncells_ukca, model_clock)
@@ -914,9 +920,23 @@ contains
       call log_event('No Chemical scheme chosen for UKCA', LOG_LEVEL_INFO)
       return
     end if
+
     if (aerosol == aerosol_um .and. glomap_mode == glomap_mode_ukca) then
+
       l_ukca_chem_aero = .true.
       l_ukca_mode = .true.
+
+      select case( i_mode_setup )
+      case ( SUBCOCSSDU_7mode )
+        i_mode_setup_local = i_sussbcocdu_7mode
+
+      case ( DUonly_2mode )
+        i_mode_setup_local = i_du_2mode
+
+      case default
+        call log_event( 'Unknown option - i_mode_setup', LOG_LEVEL_ERROR )
+      end select
+
     end if
 
     ! If the Easy Aerosol climatology is being used to set CDNC values
@@ -1025,7 +1045,7 @@ contains
            i_photol_scheme_fastjx = photol_fastjx,                             &
            ! General GLOMAP configuration options
            i_mode_nzts=15,                                                     &
-           i_mode_setup=i_mode_setup,                                          &
+           i_mode_setup=i_mode_setup_local,                                    &
            l_mode_bhn_on=.true.,                                               &
            l_mode_bln_on=.false.,                                              &
            i_mode_nucscav=i_mode_nucscav,                                      &
@@ -1866,8 +1886,8 @@ contains
            !
            i_mode_nzts=15,                                                     &
            ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
-           ! i_mode_setup hard coded to (6) dust only for dust_and_clim
-           i_mode_setup=6,                                                     &
+           ! i_mode_setup hard coded to i_du_2mode (6) for dust_and_clim
+           i_mode_setup=i_du_2mode,                                            &
            i_mode_nucscav=i_mode_nucscav,                                      &
            l_cv_rainout=.not.(l_ukca_plume_scav),                              &
            l_dust_mp_slinn_impc_scav=.true.,                                   &

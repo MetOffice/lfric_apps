@@ -8,20 +8,26 @@
 module um_radaer_init_mod
 
   ! LFRic namelists which have been read
-  use aerosol_config_mod,         only: glomap_mode,                           &
-                                        glomap_mode_climatology,               &
-                                        glomap_mode_dust_and_clim,             &
-                                        glomap_mode_off,                       &
-                                        glomap_mode_radaer_test,               &
-                                        glomap_mode_ukca
+  use aerosol_config_mod,            only: glomap_mode,                        &
+                                           glomap_mode_climatology,            &
+                                           glomap_mode_dust_and_clim,          &
+                                           glomap_mode_off,                    &
+                                           glomap_mode_radaer_test,            &
+                                           glomap_mode_ukca,                   &
+                                           i_mode_setup,                       &
+                                           i_ukca_bc_tuned,                    &
+                                           l_dust_mp_ageing
 
-  use constants_mod,              only: i_um
+  use constants_mod,                 only: i_um
 
-  use ukca_radaer_lfric_init_mod, only: ukca_radaer_lfric_init
+  use ukca_radaer_lfric_init_mod,    only: ukca_radaer_lfric_init
 
-  use ukca_mode_setup,            only: i_mode_setup,                          &
-                                        i_ukca_bc_tuned,                       &
-                                        l_dust_mp_ageing
+  use ukca_config_specification_mod, only: i_sussbcocdu_7mode,                 &
+                                           i_du_2mode
+
+  use log_mod,                       only: log_event,                          &
+                                           log_scratch_space,                  &
+                                           LOG_LEVEL_ERROR
 
   implicit none
 
@@ -79,7 +85,21 @@ subroutine um_radaer_init()
 
   else if ( glomap_mode == glomap_mode_ukca ) then
     ! UKCA and RADAER will use the same value for i_mode_setup
-    i_mode_setup_radaer_local = i_mode_setup
+
+    ! Match rose-meta integers with those used in UKCA
+    select case ( i_mode_setup )
+    case ( SUBCOCSSDU_7mode )
+      i_mode_setup_radaer_local = i_sussbcocdu_7mode
+
+    case ( DUonly_2mode )
+      i_mode_setup_radaer_local = i_du_2mode
+
+    case default
+      write( log_scratch_space, '(A,I0)' )                                     &
+      'Developers should include additional mode settings here: ', i_mode_setup
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+    END SELECT
 
     ! This value is set in the namelist
     i_ukca_tune_bc_local      = i_ukca_bc_tuned
