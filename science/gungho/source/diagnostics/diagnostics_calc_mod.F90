@@ -259,7 +259,7 @@ end subroutine write_vorticity_diagnostic
 subroutine write_pv_diagnostic(u_field, theta, rho, exner, &
                                derived_fields, clock)
 
-  use pres_lev_diags_alg_mod,  only: pres_lev_field_alg
+  use pres_lev_diags_alg_mod,   only: pres_lev_field_alg
   use pv_surface_diags_alg_mod, only: pv_surface_diags_alg
 
   implicit none
