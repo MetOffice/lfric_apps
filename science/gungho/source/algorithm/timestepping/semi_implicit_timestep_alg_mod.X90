@@ -153,7 +153,7 @@ module semi_implicit_timestep_alg_mod
   use cld_alg_mod,                only: cld_alg
   use aerosol_ukca_alg_mod,       only: aerosol_ukca_alg
   use casim_activate_alg_mod,     only: casim_activate_alg
-  use mphys_inputs_mod,           only: casim_iopt_act
+  use mphys_inputs_mod,           only: casim_iopt_act, fixed_number
   use lsp_precfrac_checks_kernel_mod, only: lsp_precfrac_checks_kernel_type
   use stph_main_alg_mod,          only : spt_array_names,  &
                                          spt_array_count,  &
@@ -744,7 +744,7 @@ contains
     character(str_def) :: prime_mesh_name
     integer(i_def)     :: lbc_option
     logical(l_def)     :: l_mcr_precfrac
-    logical(l_def)     :: microphysics_casim
+    logical(l_def)     :: microphysics_casim = .false.
     logical(l_def)     :: murk_lbc
     real(r_def)        :: tau_r
 
@@ -1000,7 +1000,7 @@ contains
         ! The CASIM mechanistic droplet activation works out how much liquid
         ! cloud the fast physics has created or removed, so keep a copy of the
         ! liquid cloud as it is on entry to the fast physics.
-        if (microphysics_casim .and. casim_iopt_act /= 0_i_def .and. &
+        if (microphysics_casim .and. casim_iopt_act > fixed_number .and. &
              outer == outer_iterations) then
           call cloud_fields%get_field('liquid_fraction', liquid_fraction)
           call microphysics_fields%get_field('cf_liq_pre_fast', cf_liq_pre_fast)

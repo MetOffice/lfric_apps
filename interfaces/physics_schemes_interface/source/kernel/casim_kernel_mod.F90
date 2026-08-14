@@ -417,7 +417,7 @@ subroutine casim_code( nlayers,                     &
     ! Set CDNC for radiation here as we need the start of timestep value.
     ! The mechanistic activation options always work the cloud number out from
     ! the aerosol, so the in-cloud number for radiation comes from CASIM too.
-    if (casim_iopt_act /= fixed_number .or.                                    &
+    if (casim_iopt_act > fixed_number .or.                                    &
         casim_cdnc_opt == casim_cdnc_opt_fixed) then
       do k = 0, nlayers
         if (cfl_wth(map_wth(1) + k) > 0.001_r_def) then

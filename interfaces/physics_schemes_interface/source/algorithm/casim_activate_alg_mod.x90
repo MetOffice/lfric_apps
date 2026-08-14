@@ -141,7 +141,7 @@ contains
 
     ! Mechanistic activation of any liquid cloud which the physics outside
     ! CASIM has created since the start of the fast physics
-    if (casim_iopt_act /= fixed_number .and. .not. initialise) then
+    if (casim_iopt_act > fixed_number .and. .not. initialise) then
 
       call cloud_fields%get_field('liquid_fraction', cf_liq)
       call microphysics_fields%get_field('nl_mphys', nl_mphys)
