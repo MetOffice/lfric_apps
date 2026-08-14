@@ -11,13 +11,18 @@ module um_ukca_init_mod
   use aerosol_config_mod,        only: glomap_mode,                            &
                                        glomap_mode_ukca,                       &
                                        glomap_mode_dust_and_clim,              &
-                                       emissions, emissions_GC3, emissions_GC5,&
-                                       easyaerosol_cdnc, ukca_mode_seg_size,   &
+                                       emissions,                              &
+                                       emissions_GC3,                          &
+                                       emissions_GC5,                          &
+                                       easyaerosol_cdnc,                       &
+                                       ukca_mode_seg_size,                     &
                                        ukca_scale_marine_pom_ems,              &
                                        marine_pom_ems_scaling,                 &
                                        ukca_scale_sea_salt_ems,                &
                                        sea_salt_ems_scaling,                   &
                                        mode_setup,                             &
+                                       mode_setup_SUBCOCSSDU_7mode,            &
+                                       mode_setup_DUonly_2mode,                &
                                        l_dust_mp_ageing
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
@@ -909,7 +914,7 @@ contains
          case ( top_bdy_opt_overwrt_co_no_o3_h2o_top )
            i_ukca_top_boundary_opt = i_overwrt_co_no_o3_h2o_top
          case default
-           call log_event('Unknown option - UKCA tracer top boundary handling', &
+           call log_event('Unknown option - UKCA tracer top boundary handling',&
                            LOG_LEVEL_ERROR)
        end select
 
@@ -927,14 +932,14 @@ contains
       l_ukca_mode = .true.
 
       select case( mode_setup )
-      case ( SUBCOCSSDU_7mode )
+      case ( mode_setup_SUBCOCSSDU_7mode )
         i_mode_setup_local = i_sussbcocdu_7mode
-
-      case ( DUonly_2mode )
+      case ( mode_setup_DUonly_2mode )
         i_mode_setup_local = i_du_2mode
-
       case default
-        call log_event( 'Unknown option - mode_setup', LOG_LEVEL_ERROR )
+        write( log_scratch_space, '(A,I0)' )                                   &
+        'Developers should include additional mode settings here: ', mode_setup
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end select
 
     end if
@@ -1996,16 +2001,12 @@ contains
         select case( emiss_names(i) )
         case('DMS')
           long_name = 'DMS emissions expressed as sulfur'
-
         case('Monoterp')
           long_name = 'Monoterpene surf emissions expressed as carbon'
-
         case('SO2_low')
           long_name = 'SO2 low level emissions expressed as sulfur'
-
         case('SO2_high')
           long_name = 'SO2 high level emissions expressed as sulfur'
-
         end select
 
         if (emiss_names(i) == 'SO2_high') then
