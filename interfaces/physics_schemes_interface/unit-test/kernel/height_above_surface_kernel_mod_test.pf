@@ -107,7 +107,7 @@ contains
     this%height_w3(1:nlayers)     = eta_w3(:)  + orography
     this%height_wth(1:nlayers+1)  = eta_wth(:) + orography
 
-    call height_above_surface_code( nlayers, this%height_agl,           &
+    call height_above_surface_code( nlayers, this%height_agl,          &
                                     this%height_w3, this%height_wth,   &
                                     ndf_w3, undf_w3, (/ 1_i_def /),    &
                                     ndf_wth, undf_wth,                 &
@@ -138,7 +138,7 @@ contains
     this%height_w3(1:nlayers)    = eta_w3(:)
     this%height_wth(1:nlayers+1) = eta_wth(:)
 
-    call height_above_surface_code( nlayers, this%height_agl,           &
+    call height_above_surface_code( nlayers, this%height_agl,          &
                                     this%height_w3, this%height_wth,   &
                                     ndf_w3, undf_w3, (/ 1_i_def /),    &
                                     ndf_wth, undf_wth,                 &
@@ -165,7 +165,7 @@ contains
     this%height_w3(nlayers+1:undf_w3)    = eta_w3(:)  + orography
     this%height_wth(nlayers+2:undf_wth)  = eta_wth(:) + orography
 
-    call height_above_surface_code( nlayers, this%height_agl,               &
+    call height_above_surface_code( nlayers, this%height_agl,              &
                                     this%height_w3, this%height_wth,       &
                                     ndf_w3, undf_w3,                       &
                                     (/ nlayers + 1_i_def /),               &

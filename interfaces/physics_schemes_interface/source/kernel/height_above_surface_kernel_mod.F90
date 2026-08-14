@@ -24,7 +24,7 @@ module height_above_surface_kernel_mod
   !> Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: height_above_surface_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                    &
+    type(arg_type) :: meta_args(3) = (/                 &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, W3),     & ! height_agl
          arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),     & ! height_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA)  & ! height_wth
