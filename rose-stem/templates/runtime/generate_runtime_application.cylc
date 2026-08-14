@@ -118,7 +118,7 @@
 {% if task_ns.application == "lfric2lfric" %}
             MESH_DIR                = {{mesh_dir}}
 {% else %}
-            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}
+            MESH_DIR                = {{mesh_dir}}/{{resolution}}
 {% endif %}
             TASK_OUTPUT_DIR         = {{task_output_dir}}
             APP_NAME                = {{task_values["app_name"]}}
