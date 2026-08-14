@@ -15,7 +15,8 @@ module um_radaer_init_mod
                                            glomap_mode_radaer_test,            &
                                            glomap_mode_ukca,                   &
                                            mode_setup,                         &
-                                           l_dust_mp_ageing
+                                           l_dust_mp_ageing,                   &
+                                           l_ukca_radaer_sustrat
 
   use ukca_mode_setup,               only: i_ukca_bc_tuned
 
@@ -66,6 +67,9 @@ subroutine um_radaer_init()
     ! Dust ageing turned off
     l_dust_mp_ageing_local    = .false.
 
+    ! sustrat turned off
+    l_ukca_radaer_sustrat_local = .false.
+
   else if ( glomap_mode == glomap_mode_dust_and_clim ) then
     ! dust_and_clim runs with a diffent mode_setup between ukca and radaer
     ! this is always fixed to eight.
@@ -76,6 +80,9 @@ subroutine um_radaer_init()
 
     ! Dust ageing not allowed for dust only ukca
     l_dust_mp_ageing_local    = .false.
+
+    ! sustrat turned off
+    l_ukca_radaer_sustrat_local = .false.
  
   else if ( glomap_mode == glomap_mode_radaer_test ) then
     ! This was developed for aqua planet runs and may be redundant
@@ -88,32 +95,38 @@ subroutine um_radaer_init()
     ! Dust ageing turned off
     l_dust_mp_ageing_local    = .false.
 
+    ! sustrat turned off
+    l_ukca_radaer_sustrat_local = .false.
+
   else if ( glomap_mode == glomap_mode_ukca ) then
     ! UKCA and RADAER will use the same value for mode_setup
 
     ! Match rose-meta integers with those used in UKCA
-    select case ( mode_setup )
-    case ( 'SUBCOCSSDU_7mode' )
+    if ( mode_setup == 'SUBCOCSSDU_7mode' ) then
       i_mode_setup_radaer_local = i_sussbcocdu_7mode
-    case ( 'DUonly_2mode' )
+    else if  ( mode_setup == 'DUonly_2mode' ) then
       i_mode_setup_radaer_local = i_du_2mode
-    case default
+    else
       write( log_scratch_space, '(A,I0)' )                                     &
       'Developers should include additional mode settings here: ', mode_setup
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
+    end if
 
-    ! This value is set in the namelist
+    ! UKCA currently set to i_ukca_bc_tuned
     i_ukca_tune_bc_local      = i_ukca_bc_tuned
 
     ! Dust ageing set by namelist
     l_dust_mp_ageing_local    = l_dust_mp_ageing
 
+    ! sustrat set by namelist
+    l_ukca_radaer_sustrat_local = l_ukca_radaer_sustrat
+
   end if
 
   call ukca_radaer_lfric_init( i_mode_setup_radaer_local,                      &
                                i_ukca_tune_bc_local,                           &
-                               l_dust_mp_ageing_local )
+                               l_dust_mp_ageing_local,                         &
+                               l_ukca_radaer_sustrat_local )
 
 end subroutine um_radaer_init
 
