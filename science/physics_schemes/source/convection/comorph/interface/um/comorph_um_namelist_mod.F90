@@ -134,6 +134,11 @@ real(kind=real_umphys) :: ent_coef = rmdi
 real(kind=real_umphys) :: overlap_power = rmdi
 ! Note: do not set to exactly zero as this causes a singularity!
 
+! Max and min limits on the core-mean-ratio (determines assumed in-plume
+! PDF shape used for detraiment)
+real(kind=real_umphys) :: min_cmr = rmdi
+real(kind=real_umphys) :: max_cmr = rmdi
+
 
 ! Plume  microphysics parameters
 
@@ -146,16 +151,24 @@ real(kind=real_umphys) :: q_cl_auto = rmdi
 ! Density of rimed ice (used for graupel)
 real(kind=real_umphys) :: rho_rim = rmdi
 
-! Reciprocal of fac_tdep_n
-! Temperature-dependent ice number concentration slope
-! The number concentration n(T) will be given by:
-! n(T) = n0 exp( fac_tdep_n ( T - Tmelt ) )
+! Temperature-dependent liquid-cloud number concentration slope
+! Liquid-cloud number n(T) = n0 exp( ( T - Tmelt ) / tdep_n_cl )
 ! ( but limited above Tmelt and below T_homnuc)
-real(kind=real_umphys) :: r_fac_tdep_n = rmdi
+real(kind=real_umphys) :: tdep_n_cl = rmdi
+
+! Temperature-dependent ice number concentration slope
+! Ice number n(T) = n0 exp( -( T - Tmelt ) / tdep_n_cf )
+! ( but limited above Tmelt and below T_homnuc)
+real(kind=real_umphys) :: tdep_n_cf = rmdi
 
 ! Heterogeneous nucleation temeprature / K
 ! Gradual freezing starts below this
 real(kind=real_umphys) :: hetnuc_temp = rmdi
+
+! Ice crystal non-spherical area factor.  This scales up the assumed surface
+! area of ice crystals relative to what it would be if they were spheres
+! (affects vapour deposition, fall-speed, riming...)
+real(kind=real_umphys) :: cf_area_coef = rmdi
 
 ! Asymptotic drag coefficient for a sphere at high Reynolds
 ! number limit
@@ -168,6 +181,13 @@ real(kind=real_umphys) :: vent_factor = rmdi
 ! Coefficient for reduction of collection efficiency by
 ! deflection flow around hydrometeors
 real(kind=real_umphys) :: col_eff_coef = rmdi
+
+! Number concentrations for liquid-cloud, ice-cloud, rain, snow, graupel
+real(kind=real_umphys) :: nconc_cl = rmdi
+real(kind=real_umphys) :: nconc_cf = rmdi
+real(kind=real_umphys) :: nconc_rain = rmdi
+real(kind=real_umphys) :: nconc_snow = rmdi
+real(kind=real_umphys) :: nconc_graup = rmdi
 
 !------------------------------------------------------------------------------
 ! Define namelist &Run_Comorph read in from CNTLATM control file.
@@ -184,10 +204,12 @@ par_radius_knob, par_radius_knob_max, par_radius_ppn_max, dx_ref,              &
 core_ent_fac, rain_area_min, cf_conv_fac, drag_coef_par, par_gen_rhpert,       &
 par_gen_mass_fac, wind_w_fac, wind_w_buoy_fac, par_gen_pert_fac,               &
 ass_min_radius, par_gen_core_fac, overlap_power, ent_coef,                     &
+min_cmr, max_cmr,                                                              &
 
 ! Plume  microphysics parameters
-rho_rim, r_fac_tdep_n, hetnuc_temp, drag_coef_cond,                            &
+rho_rim, tdep_n_cl, tdep_n_cf, hetnuc_temp, cf_area_coef, drag_coef_cond,      &
 vent_factor, col_eff_coef, q_cl_auto, coef_auto,                               &
+nconc_cl, nconc_cf, nconc_rain, nconc_snow, nconc_graup,                       &
 
 ! Logical switches
 l_core_ent_cmr, l_resdep_precipramp
@@ -265,6 +287,11 @@ call chk_var(overlap_power,'overlap_power','[1.0E-6:1.0]')
 
 call chk_var(ent_coef,'ent_coef','[0.1:0.4]')
 
+call chk_var(cf_area_coef,'cf_area_coef','[1.0:1000.0]')
+
+call chk_var(min_cmr,'min_cmr','[1.0:3.0]')
+call chk_var(max_cmr,'max_cmr','[3.0:10.0]')
+
 if (l_resdep_precipramp) call chk_var(dx_ref,'dx_ref','[100.0:1000000.0]')
 
 !---------------------------------------------------------------------------
@@ -324,9 +351,15 @@ write(lineBuffer,"(A,ES14.6)")' overlap_power = ',overlap_power
 call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' ent_coef = ',ent_coef
 call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' min_cmr = ',min_cmr
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' max_cmr = ',max_cmr
+call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' rho_rim = ',rho_rim
 call umPrint(lineBuffer,src=ModuleName)
-write(lineBuffer,"(A,ES14.6)")' r_fac_tdep_n = ',r_fac_tdep_n
+write(lineBuffer,"(A,ES14.6)")' tdep_n_cl = ',tdep_n_cl
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' tdep_n_cf = ',tdep_n_cf
 call umPrint(lineBuffer,src=ModuleName)
 
 write(lineBuffer,"(A,ES14.6)")' par_radius_knob = ',par_radius_knob
@@ -351,6 +384,8 @@ call umPrint(lineBuffer,src=ModuleName)
 
 write(lineBuffer,"(A,ES14.6)")' hetnuc_temp = ',hetnuc_temp
 call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' cf_area_coef = ',cf_area_coef
+call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' drag_coef_cond = ',drag_coef_cond
 call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' vent_factor = ',vent_factor
@@ -360,6 +395,16 @@ call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' q_cl_auto = ',q_cl_auto
 call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' coef_auto = ',coef_auto
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' nconc_cl = ',nconc_cl
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' nconc_cf = ',nconc_cf
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' nconc_rain = ',nconc_rain
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' nconc_snow = ',nconc_snow
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' nconc_graup = ',nconc_graup
 call umPrint(lineBuffer,src=ModuleName)
 
 
@@ -404,7 +449,7 @@ character(len=*), parameter :: RoutineName='READ_NML_RUN_COMORPH'
 ! set number of each type of variable in my_namelist type
 integer, parameter :: no_of_types = 3
 integer, parameter :: n_int = 4
-integer, parameter :: n_real = 25
+integer, parameter :: n_real = 34
 integer, parameter :: n_log = 2
 
 type :: my_namelist
@@ -430,14 +475,23 @@ type :: my_namelist
   real(kind=real_umphys) :: par_gen_core_fac
   real(kind=real_umphys) :: overlap_power
   real(kind=real_umphys) :: ent_coef
+  real(kind=real_umphys) :: min_cmr
+  real(kind=real_umphys) :: max_cmr
   real(kind=real_umphys) :: rho_rim
-  real(kind=real_umphys) :: r_fac_tdep_n
+  real(kind=real_umphys) :: tdep_n_cl
+  real(kind=real_umphys) :: tdep_n_cf
   real(kind=real_umphys) :: hetnuc_temp
+  real(kind=real_umphys) :: cf_area_coef
   real(kind=real_umphys) :: drag_coef_cond
   real(kind=real_umphys) :: vent_factor
   real(kind=real_umphys) :: col_eff_coef
   real(kind=real_umphys) :: q_cl_auto
   real(kind=real_umphys) :: coef_auto
+  real(kind=real_umphys) :: nconc_cl
+  real(kind=real_umphys) :: nconc_cf
+  real(kind=real_umphys) :: nconc_rain
+  real(kind=real_umphys) :: nconc_snow
+  real(kind=real_umphys) :: nconc_graup
   logical :: l_core_ent_cmr
   logical :: l_resdep_precipramp
 end type my_namelist
@@ -482,14 +536,23 @@ if (mype == 0) then
   my_nml % par_gen_core_fac     = par_gen_core_fac
   my_nml % overlap_power        = overlap_power
   my_nml % ent_coef             = ent_coef
+  my_nml % min_cmr              = min_cmr
+  my_nml % max_cmr              = max_cmr
   my_nml % rho_rim              = rho_rim
-  my_nml % r_fac_tdep_n         = r_fac_tdep_n
+  my_nml % tdep_n_cl            = tdep_n_cl
+  my_nml % tdep_n_cf            = tdep_n_cf
   my_nml % hetnuc_temp          = hetnuc_temp
+  my_nml % cf_area_coef         = cf_area_coef
   my_nml % drag_coef_cond       = drag_coef_cond
   my_nml % vent_factor          = vent_factor
   my_nml % col_eff_coef         = col_eff_coef
   my_nml % q_cl_auto            = q_cl_auto
   my_nml % coef_auto            = coef_auto
+  my_nml % nconc_cl             = nconc_cl
+  my_nml % nconc_cf             = nconc_cf
+  my_nml % nconc_rain           = nconc_rain
+  my_nml % nconc_snow           = nconc_snow
+  my_nml % nconc_graup          = nconc_graup
   ! end of reals
   ! logicals
   my_nml % l_core_ent_cmr       = l_core_ent_cmr
@@ -523,14 +586,23 @@ if (mype /= 0) then
   par_gen_core_fac     = my_nml % par_gen_core_fac
   overlap_power        = my_nml % overlap_power
   ent_coef             = my_nml % ent_coef
+  min_cmr              = my_nml % min_cmr
+  max_cmr              = my_nml % max_cmr
   rho_rim              = my_nml % rho_rim
-  r_fac_tdep_n         = my_nml % r_fac_tdep_n
+  tdep_n_cl            = my_nml % tdep_n_cl
+  tdep_n_cf            = my_nml % tdep_n_cf
   hetnuc_temp          = my_nml % hetnuc_temp
+  cf_area_coef         = my_nml % cf_area_coef
   drag_coef_cond       = my_nml % drag_coef_cond
   vent_factor          = my_nml % vent_factor
   col_eff_coef         = my_nml % col_eff_coef
   q_cl_auto            = my_nml % q_cl_auto
   coef_auto            = my_nml % coef_auto
+  nconc_cl             = my_nml % nconc_cl
+  nconc_cf             = my_nml % nconc_cf
+  nconc_rain           = my_nml % nconc_rain
+  nconc_snow           = my_nml % nconc_snow
+  nconc_graup          = my_nml % nconc_graup
   ! end of reals
   l_core_ent_cmr       = my_nml % l_core_ent_cmr
   l_resdep_precipramp  = my_nml % l_resdep_precipramp

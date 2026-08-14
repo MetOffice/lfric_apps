@@ -34,8 +34,8 @@ subroutine calc_cond_properties( n_points,                                     &
                                  r_cond, wf_cond,                              &
                                  kq_cond, kt_cond )
 
-use comorph_constants_mod, only: real_cvprec, cond_params_type,                &
-                     melt_temp, homnuc_temp, fac_tdep_n,                       &
+use comorph_constants_mod, only: real_cvprec, zero, cond_params_type,          &
+                     melt_temp, homnuc_temp,                                   &
                      solve_wf_tolerance
 use set_cond_radius_mod, only: set_cond_radius
 use fall_speed_mod, only: fall_speed
@@ -101,10 +101,10 @@ do ic = 1, n_points
 end do
 
 ! If this species uses temperature-dependent number concentration
-if ( cond_params % l_tdep_n ) then
+if ( abs( cond_params % fac_tdep_n ) > zero ) then
   do ic = 1, n_points
     ! Scale n by temperature-dependent factor
-    n_cond(ic) = n_cond(ic) * exp( fac_tdep_n                                  &
+    n_cond(ic) = n_cond(ic) * exp( cond_params % fac_tdep_n                    &
        * ( max(min( ref_temp(ic), melt_temp ),homnuc_temp)                     &
          - melt_temp )  )
   end do
@@ -117,8 +117,8 @@ call set_cond_radius( n_points,                                                &
 
 ! Set first-guess fall-speed
 call fall_speed( n_points,                                                     &
-                cond_params % area_coef, cond_params % rho,                    &
-                rho_wet, r_cond, wf_cond )
+                 cond_params % area_coef, cond_params % rho,                   &
+                 rho_wet, r_cond, wf_cond )
 
 
 ! Find the fall-speed that you'd get by using the current-guess
@@ -208,14 +208,12 @@ real(kind=real_cvprec), intent(in) :: q_cond(n_points)
 real(kind=real_cvprec), intent(in) :: rho_dry(n_points)
 real(kind=real_cvprec), intent(in) :: rho_wet(n_points)
 real(kind=real_cvprec), intent(in) :: dt_over_lz(n_points)
-real(kind=real_cvprec), intent(in out) :: q_loc_cond(n_points)
-real(kind=real_cvprec), intent(in out) :: n_cond(n_points)
-real(kind=real_cvprec), intent(in out) :: r_cond(n_points)
-real(kind=real_cvprec), intent(in out) :: wf_cond(n_points)
-real(kind=real_cvprec), intent(in out) :: kq_cond(n_points)
-real(kind=real_cvprec), intent(in out) :: kt_cond(n_points)
-! Outputs need intent inout so that values initialised to zero
-! are preserved at points that aren't in the compression list.
+real(kind=real_cvprec), intent(out) :: q_loc_cond(n_points)
+real(kind=real_cvprec), intent(out) :: n_cond(n_points)
+real(kind=real_cvprec), intent(out) :: r_cond(n_points)
+real(kind=real_cvprec), intent(out) :: wf_cond(n_points)
+real(kind=real_cvprec), intent(out) :: kq_cond(n_points)
+real(kind=real_cvprec), intent(out) :: kt_cond(n_points)
 
 ! Super-array to store compressed copies of the array arguments
 real(kind=real_cvprec), allocatable :: args_cmpr(:,:)
@@ -279,46 +277,61 @@ if ( real(nc,real_cvprec) > cmpr_thresh * real(n_points,real_cvprec) ) then
 
 
 else  ! ( REAL(nc,real_cvprec) <= cmpr_thresh * REAL(n_points,real_cvprec) )
-  ! If only a minority of points have non-zero mixing ratio...
+  ! If only a minority (or none) of the points have non-zero mixing ratio...
 
   ! Do a compressed call...
 
-  ! Allocate compression array
-  allocate( args_cmpr ( nc, n_args  ) )
-
-  ! Compress inputs
-  do ic2 = 1, nc
-    ic = index_ic(ic2)
-    args_cmpr(ic2,i_ref_temp)   = ref_temp(ic)
-    args_cmpr(ic2,i_q_cond)     = q_cond(ic)
-    args_cmpr(ic2,i_rho_dry)    = rho_dry(ic)
-    args_cmpr(ic2,i_rho_wet)    = rho_wet(ic)
-    args_cmpr(ic2,i_dt_over_lz) = dt_over_lz(ic)
+  ! Initialise outputs to zero
+  do ic = 1, n_points
+    q_loc_cond(ic) = zero
+    n_cond(ic)     = zero
+    r_cond(ic)     = zero
+    wf_cond(ic)    = zero
+    kq_cond(ic)    = zero
+    kt_cond(ic)    = zero
   end do
 
-  ! Call the main routine on the compressed arrays
-  call calc_cond_properties( nc,                                               &
-         cond_params,                                                          &
-         args_cmpr(:,i_ref_temp), args_cmpr(:,i_q_cond),                       &
-         args_cmpr(:,i_rho_dry), args_cmpr(:,i_rho_wet),                       &
-         args_cmpr(:,i_dt_over_lz),                                            &
-         args_cmpr(:,i_q_loc_cond), args_cmpr(:,i_n_cond),                     &
-         args_cmpr(:,i_r_cond), args_cmpr(:,i_wf_cond),                        &
-         args_cmpr(:,i_kq_cond), args_cmpr(:,i_kt_cond) )
+  if ( nc > 0 ) then
+    ! If any points have nonzero mixing-ratio (nothing else to do otherwise)
 
-  ! Decompress outputs
-  do ic2 = 1, nc
-    ic = index_ic(ic2)
-    q_loc_cond(ic) = args_cmpr(ic2,i_q_loc_cond)
-    n_cond(ic)     = args_cmpr(ic2,i_n_cond)
-    r_cond(ic)     = args_cmpr(ic2,i_r_cond)
-    wf_cond(ic)    = args_cmpr(ic2,i_wf_cond)
-    kq_cond(ic)    = args_cmpr(ic2,i_kq_cond)
-    kt_cond(ic)    = args_cmpr(ic2,i_kt_cond)
-  end do
+    ! Allocate compression array
+    allocate( args_cmpr ( nc, n_args  ) )
 
-  ! Deallocate
-  deallocate( args_cmpr )
+    ! Compress inputs
+    do ic2 = 1, nc
+      ic = index_ic(ic2)
+      args_cmpr(ic2,i_ref_temp)   = ref_temp(ic)
+      args_cmpr(ic2,i_q_cond)     = q_cond(ic)
+      args_cmpr(ic2,i_rho_dry)    = rho_dry(ic)
+      args_cmpr(ic2,i_rho_wet)    = rho_wet(ic)
+      args_cmpr(ic2,i_dt_over_lz) = dt_over_lz(ic)
+    end do
+
+    ! Call the main routine on the compressed arrays
+    call calc_cond_properties( nc,                                             &
+           cond_params,                                                        &
+           args_cmpr(:,i_ref_temp), args_cmpr(:,i_q_cond),                     &
+           args_cmpr(:,i_rho_dry), args_cmpr(:,i_rho_wet),                     &
+           args_cmpr(:,i_dt_over_lz),                                          &
+           args_cmpr(:,i_q_loc_cond), args_cmpr(:,i_n_cond),                   &
+           args_cmpr(:,i_r_cond), args_cmpr(:,i_wf_cond),                      &
+           args_cmpr(:,i_kq_cond), args_cmpr(:,i_kt_cond) )
+
+    ! Decompress outputs
+    do ic2 = 1, nc
+      ic = index_ic(ic2)
+      q_loc_cond(ic) = args_cmpr(ic2,i_q_loc_cond)
+      n_cond(ic)     = args_cmpr(ic2,i_n_cond)
+      r_cond(ic)     = args_cmpr(ic2,i_r_cond)
+      wf_cond(ic)    = args_cmpr(ic2,i_wf_cond)
+      kq_cond(ic)    = args_cmpr(ic2,i_kq_cond)
+      kt_cond(ic)    = args_cmpr(ic2,i_kt_cond)
+    end do
+
+    ! Deallocate
+    deallocate( args_cmpr )
+
+  end if  ! ( nc > 0 )
 
 end if  ! ( REAL(nc,real_cvprec) <= cmpr_thresh * REAL(n_points,real_cvprec) )
 

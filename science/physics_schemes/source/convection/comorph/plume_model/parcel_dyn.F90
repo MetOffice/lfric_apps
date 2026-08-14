@@ -66,7 +66,7 @@ use fields_type_mod, only: i_temperature, i_q_vap, i_q_cl, i_q_cf,             &
                            i_qc_first, i_qc_last,                              &
                            i_cf_liq, i_cf_bulk,                                &
                            i_wind_u, i_wind_v, i_wind_w, i_tracers,            &
-                           n_fields, field_names, field_positive
+                           n_fields, field_names, field_min, field_max
 use cmpr_type_mod, only: cmpr_type
 
 use linear_qs_mod, only: linear_qs_set_ref,                                    &
@@ -290,9 +290,6 @@ logical :: l_fall_in
 ! q_vap and q_cl when calculating a saturated reference T
 logical, parameter :: l_update_q_false = .false.
 
-! Flag passed into check_bad_values to indicate whether fields must be positive
-logical :: l_positive
-
 ! Flag for parcel mean ascent with an accompanying core
 logical :: l_mean_with_core
 
@@ -368,20 +365,20 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
                                 par_next_fields(:,i_field),                    &
                                 where_string,                                  &
                                 field_names(i_field),                          &
-                                field_positive(i_field) )
+                                field_min = field_min(i_field),                &
+                                field_max = field_max(i_field) )
   end do
   if ( present( res_source_fields ) ) then
     ! Check resolved-scale source-terms
+    ! (source terms may be positive or negative, so no limits imposed)
     where_string = "Start of parcel_dyn call for "                          // &
                    trim(adjustl(call_string))   // "; "                     // &
                    "res_source_fields"
-    l_positive = .false.  ! Source terms may be positive or negative
     do i_field = 1, n_fields_tot
       call check_bad_values_cmpr( cmpr, k,                                     &
                                   res_source_fields(:,i_field),                &
                                   where_string,                                &
-                                  field_names(i_field),                        &
-                                  l_positive )
+                                  field_names(i_field) )
     end do
   end if
 end if
@@ -777,20 +774,20 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
                                 par_next_fields(:,i_field),                    &
                                 where_string,                                  &
                                 field_names(i_field),                          &
-                                field_positive(i_field) )
+                                field_min = field_min(i_field),                &
+                                field_max = field_max(i_field) )
   end do
   if ( present( res_source_fields ) ) then
     ! Check resolved-scale source-terms
+    ! (source terms may be positive or negative, so no limits imposed)
     where_string = "End of parcel_dyn call for "                            // &
                    trim(adjustl(call_string))   // "; "                     // &
                    "res_source_fields"
-    l_positive = .false.  ! Source terms may be positive or negative
     do i_field = 1, n_fields_tot
       call check_bad_values_cmpr( cmpr, k,                                     &
                                   res_source_fields(:,i_field),                &
                                   where_string,                                &
-                                  field_names(i_field),                        &
-                                  l_positive )
+                                  field_names(i_field) )
     end do
   end if
 end if

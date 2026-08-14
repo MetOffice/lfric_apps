@@ -516,9 +516,9 @@ end subroutine res_source_combine
 subroutine res_source_check_bad_values( res_source, n_fields_tot,              &
                                         k, where_string )
 
-use comorph_constants_mod, only: name_length
+use comorph_constants_mod, only: zero, name_length
 use fields_type_mod, only: field_names
-use cloudfracs_type_mod, only: n_convcloud, convcloud_names
+use cloudfracs_type_mod, only: n_convcloud, convcloud_names, convcloud_max
 use check_bad_values_mod, only: check_bad_values_cmpr
 
 implicit none
@@ -536,44 +536,34 @@ integer, intent(in) :: k
 ! we are, for constructing error message if bad value found.
 character(len=name_length), intent(in) :: where_string
 
-! Flag for whether field is positive-only
-logical :: l_positive
-
 ! Loop counter
 integer :: i_field
 
 
 ! Check fields in the res_super array
-l_positive = .true.
 do i_field = 1, n_res
   call check_bad_values_cmpr( res_source % cmpr, k,                            &
                               res_source % res_super(:,i_field),               &
                               where_string, res_source_names(i_field),         &
-                              l_positive)
+                              field_min=zero )
 end do
 
 ! Check source terms for primary fields
-l_positive = .false.
 do i_field = 1, n_fields_tot
   call check_bad_values_cmpr( res_source % cmpr, k,                            &
                               res_source % fields_super(:,i_field),            &
-                              where_string, field_names(i_field),              &
-                              l_positive )
+                              where_string, field_names(i_field) )
 end do
 
 if ( n_convcloud > 0 ) then
   ! Check convective cloud fields...
-
-  ! These must all be positive
-  l_positive = .true.
-
   do i_field = 1, n_convcloud
     call check_bad_values_cmpr( res_source % cmpr, k,                          &
                                 res_source % convcloud_super(:,i_field),       &
                                 where_string, convcloud_names(i_field),        &
-                                l_positive )
+                                field_min=zero,                                &
+                                field_max=convcloud_max(i_field) )
   end do
-
 end if
 
 

@@ -31,8 +31,6 @@ integer, parameter :: nz = 5
 ! (used to make error messages more informative)
 character(len=name_length) :: where_string
 character(len=name_length) :: field_name
-! Flag to test for negative values.
-logical :: l_positive
 
 ! Full 3-D field to test
 real(kind=real_hmprec) :: field(nx,ny,nz)
@@ -84,7 +82,6 @@ end do
 
 ! Set other inputs to check_bad_values
 where_string = "Unit test for check_bad_values"
-l_positive = .true.
 
 
 ! Test whether routine can detect negative values
@@ -93,14 +90,14 @@ do k = 1, nz
 end do
 field_name = "field_with_negative"
 call check_bad_values_3d( lb, ub, field, where_string,                         &
-                          field_name, l_positive )
+                          field_name, field_min=0.0_real_cvprec )
 k = 1
 do ic = 1, cmpr%n_points
   field_cmpr(ic) = real(                                                       &
         field( cmpr%index_i(ic), cmpr%index_j(ic), k ), real_cvprec )
 end do
 call check_bad_values_cmpr( cmpr, k, field_cmpr, where_string,                 &
-                            field_name, l_positive )
+                            field_name, field_min=0.0_real_cvprec )
 
 ! Test whether routine can detect div-by-zero
 tmp = 0.0_real_hmprec
@@ -109,14 +106,14 @@ do k = 1, nz
 end do
 field_name = "field_with_div_by_zero"
 call check_bad_values_3d( lb, ub, field, where_string,                         &
-                          field_name, l_positive )
+                          field_name )
 k = 1
 do ic = 1, cmpr%n_points
   field_cmpr(ic) = real(                                                       &
         field( cmpr%index_i(ic), cmpr%index_j(ic), k ), real_cvprec )
 end do
 call check_bad_values_cmpr( cmpr, k, field_cmpr, where_string,                 &
-                            field_name, l_positive )
+                            field_name )
 
 
 ! Test whether routine can detect SQRT(negative)
@@ -126,14 +123,14 @@ do k = 1, nz
 end do
 field_name = "field_with_sqrt_negative"
 call check_bad_values_3d( lb, ub, field, where_string,                         &
-                          field_name, l_positive )
+                          field_name )
 k = 1
 do ic = 1, cmpr%n_points
   field_cmpr(ic) = real(                                                       &
         field( cmpr%index_i(ic), cmpr%index_j(ic), k ), real_cvprec )
 end do
 call check_bad_values_cmpr( cmpr, k, field_cmpr, where_string,                 &
-                            field_name, l_positive )
+                            field_name )
 
 
 end program test_check_bad_values

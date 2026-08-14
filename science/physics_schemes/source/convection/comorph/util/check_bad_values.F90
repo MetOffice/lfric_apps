@@ -20,8 +20,8 @@ contains
 !----------------------------------------------------------------
 ! Bad value check for full 3-D fields
 !----------------------------------------------------------------
-subroutine check_bad_values_3d( lb, ub, field, where_string,                   &
-                                field_name, l_positive, l_half, l_init )
+subroutine check_bad_values_3d( lb, ub, field, where_string, field_name,       &
+                                field_min, field_max, l_half, l_init )
 
 use comorph_constants_mod, only: real_hmprec, real_cvprec, name_length,        &
                                  nx_full, ny_full, k_bot_conv, k_top_conv,     &
@@ -44,9 +44,9 @@ character(len=name_length), intent(in) :: where_string
 ! Name of the field (for error message)
 character(len=name_length), intent(in) :: field_name
 
-! Flag for whether the field is positive-only
-! (in which case we check for negative values)
-logical, intent(in) :: l_positive
+! Optionally specify the min and max allowed values for the current field:
+real(kind=real_cvprec), optional, intent(in) :: field_min
+real(kind=real_cvprec), optional, intent(in) :: field_max
 
 ! Flag for the field being checked is on half-levels; in this case,
 ! the uppermost model-level used is k_top_conv+1, since this is the
@@ -103,8 +103,8 @@ do k = k_bot_conv, k_top
   ! Note: crucially this will catch instances where the value in field
   ! was representable in the host-model at 64-bit, but becomes garbage
   ! when converted to comorph native precision at 32-bit.
-  call check_bad_values_cmpr( cmpr, k, field_cmpr, where_string,               &
-                              field_name, l_positive,                          &
+  call check_bad_values_cmpr( cmpr, k, field_cmpr, where_string, field_name,   &
+                              field_min, field_max,                            &
                               i_check_bad=i_check_bad_values_3d )
 
 end do
@@ -120,11 +120,11 @@ end subroutine check_bad_values_3d
 !----------------------------------------------------------------
 ! Bad value check for compressed 1-D fields
 !----------------------------------------------------------------
-subroutine check_bad_values_cmpr( cmpr, k, field, where_string,                &
-                                  field_name, l_positive, i_check_bad )
+subroutine check_bad_values_cmpr( cmpr, k, field, where_string, field_name,    &
+                                  field_min, field_max, i_check_bad )
 
-use comorph_constants_mod, only: real_cvprec, zero, name_length, newline,      &
-                                 i_check_bad_values_cmpr
+use comorph_constants_mod, only: real_cvprec, max_float,                       &
+                                 name_length, newline, i_check_bad_values_cmpr
 use cmpr_type_mod, only: cmpr_type
 
 implicit none
@@ -144,9 +144,9 @@ character(len=name_length), intent(in) :: where_string
 ! Name of the field (for error message)
 character(len=name_length), intent(in) :: field_name
 
-! Flag for whether the field is positive-only
-! (in which case we check for negative values)
-logical, intent(in) :: l_positive
+! Optionally specify the min and max allowed values for the current field:
+real(kind=real_cvprec), optional, intent(in) :: field_min
+real(kind=real_cvprec), optional, intent(in) :: field_max
 
 ! Optionally override default setting for whether to do warning or fatal error
 integer, optional, intent(in) :: i_check_bad
@@ -158,8 +158,6 @@ logical :: l_bad(cmpr%n_points)
 real(kind=real_cvprec) :: min_val
 real(kind=real_cvprec) :: max_val
 
-real(kind=real_cvprec), parameter :: large_number = huge(field)
-
 ! Warning vs fatal error switch to use
 integer :: i_check_bad_use
 
@@ -167,17 +165,14 @@ integer :: i_check_bad_use
 integer :: ic
 
 
-! Set max allowed value to the max possible floating point real
-! (so really just checking for Infinities)
-max_val = large_number
-if ( l_positive ) then
-  ! If the input is supposed to be positive-only, set minimum
-  ! allowed value to zero
-  min_val = zero
-else
-  ! Otherwise set to largest possible negative to just check for -Inf
-  min_val = -large_number
-end if
+! Set default allowed bounds to the min and max possible floating-point
+! values (so just checking for NaN or Inf):
+min_val = -max_float
+max_val =  max_float
+
+! Override with more stringent limits if these are input:
+if ( present(field_min) ) min_val = field_min
+if ( present(field_max) ) max_val = field_max
 
 ! Loop over points
 do ic = 1, cmpr%n_points

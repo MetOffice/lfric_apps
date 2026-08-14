@@ -10,7 +10,7 @@
 module parcel_type_mod
 
 use cmpr_type_mod, only: cmpr_type
-use comorph_constants_mod, only: real_cvprec
+use comorph_constants_mod, only: real_cvprec, name_length
 
 implicit none
 
@@ -83,6 +83,13 @@ integer :: i_radius = 0
 ! Parcel edge virtual temperature (for constructing assumed PDF)
 integer :: i_edge_virt_temp = 0
 
+! Name of each parcel field
+character(len=name_length), allocatable :: par_names(:)
+
+! Min and max plausible values for parcel fields, used in bad-value checking
+real(kind=real_cvprec), allocatable :: par_min(:)
+real(kind=real_cvprec), allocatable :: par_max(:)
+
 
 contains
 
@@ -92,7 +99,8 @@ contains
 !----------------------------------------------------------------
 subroutine parcel_set_addresses()
 
-use comorph_constants_mod, only: l_par_core
+use comorph_constants_mod, only: real_cvprec, zero, l_par_core
+use fields_type_mod, only: field_min, field_max, i_temperature
 
 implicit none
 
@@ -109,6 +117,27 @@ n_par = 2
 if ( l_par_core ) then
   i_edge_virt_temp = n_par + 1
   n_par = n_par + 1
+end if
+
+! Set name of each field in the parcel super-array
+allocate( par_names(n_par) )
+par_names(i_massflux_d)    = "massflux_d"
+par_names(i_radius)        = "radius"
+if ( l_par_core )    par_names(i_edge_virt_temp)  = "edge_virt_temp"
+
+! Set min and max plausible values of parcel fields, used in run-time checking
+allocate( par_min(n_par) )
+allocate( par_max(n_par) )
+! Mass-flux
+par_min(i_massflux_d) = zero
+par_max(i_massflux_d) = 100.0_real_cvprec  ! 100 kg m-2 s-1
+! Updraft radius
+par_min(i_radius) = zero
+par_max(i_radius) = 5.0E4_real_cvprec  ! 50km
+! Edge virtual temperature
+if ( l_par_core ) then
+  par_min(i_edge_virt_temp) = field_min(i_temperature)
+  par_max(i_edge_virt_temp) = field_max(i_temperature)
 end if
 
 return
@@ -820,7 +849,7 @@ subroutine parcel_check_bad_values( parcel, n_fields_tot, k,                   &
                                     where_string )
 
 use comorph_constants_mod, only: name_length, l_par_core
-use fields_type_mod, only: field_names, field_positive
+use fields_type_mod, only: field_names, field_min, field_max
 use check_bad_values_mod, only: check_bad_values_cmpr
 
 implicit none
@@ -840,27 +869,19 @@ character(len=name_length), intent(in) :: where_string
 
 ! Name of individual field
 character(len=name_length) :: field_name
-! Flag for whether field is positive-only
-logical :: l_positive
 
 ! Loop counter
 integer :: i_field
 
 
-! Check mass-flux, parcel radius, turb_len and environment virtual temperature
-l_positive = .true.
-field_name = "massflux_d"
-call check_bad_values_cmpr( parcel % cmpr, k,                                  &
-                            parcel % par_super(:,i_massflux_d),                &
-                            where_string, field_name, l_positive)
-field_name = "radius"
-call check_bad_values_cmpr( parcel % cmpr, k,                                  &
-                            parcel % par_super(:,i_radius),                    &
-                            where_string, field_name, l_positive)
-field_name = "edge_virt_temp"
-call check_bad_values_cmpr( parcel % cmpr, k,                                  &
-                            parcel % par_super(:,i_edge_virt_temp),            &
-                            where_string, field_name, l_positive)
+! Check parcel super-array fields
+do i_field = 1, n_par
+  call check_bad_values_cmpr( parcel % cmpr, k,                                &
+                              parcel % par_super(:,i_field),                   &
+                              where_string, par_names(i_field),                &
+                              field_min=par_min(i_field),                      &
+                              field_max=par_max(i_field) )
+end do
 
 ! Check mean primary fields
 do i_field = 1, n_fields_tot
@@ -868,7 +889,8 @@ do i_field = 1, n_fields_tot
   call check_bad_values_cmpr( parcel % cmpr, k,                                &
                               parcel % mean_super(:,i_field),                  &
                               where_string, field_name,                        &
-                              field_positive(i_field) )
+                              field_min=field_min(i_field),                    &
+                              field_max=field_max(i_field) )
 end do
 
 ! Check parcel core fields if used
@@ -878,7 +900,8 @@ if ( l_par_core ) then
     call check_bad_values_cmpr( parcel % cmpr, k,                              &
                                 parcel % core_super(:,i_field),                &
                                 where_string, field_name,                      &
-                                field_positive(i_field) )
+                                field_min=field_min(i_field),                  &
+                                field_max=field_max(i_field) )
   end do
 end if
 
