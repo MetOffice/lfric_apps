@@ -52,6 +52,8 @@ subroutine um_radaer_init()
   
   logical :: l_dust_mp_ageing_local
 
+  logical :: l_ukca_radaer_sustrat_local
+
   integer, parameter :: i_radaer_mode_setup_eight = 8
 
   integer, parameter :: i_ukca_bc_tuned_zero = 0
