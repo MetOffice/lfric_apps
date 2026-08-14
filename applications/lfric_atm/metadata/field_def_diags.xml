@@ -969,6 +969,7 @@
   <field id="processed__temperature" name="temperature" long_name="air_temperature" standard_name="air_temperature" unit="K" grid_ref="full_level_face_grid"> theta * exner_in_wth </field>
   <field id="processed__omega" name="omega" long_name="omega" standard_name="lagrangian_tendency_of_air_pressure" unit="Pa s-1" grid_ref="full_level_face_grid"> - 9.80655 * wetrho_in_wth * w_in_wth </field>
   <field id="processed__total_rain" name="total_rain" long_name="surface_rainfall_rate" standard_name="rainfall_flux" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_rain + convection__conv_rain </field>
+  <field id="processed__rainfall_flux_land" name="rainfall_flux_land" long_name="rainfall_flux_over_land" standard_name="rainfall_flux" unit="kg m-2 s-1" domain_ref="face"> processed__total_rain * surface__land_fraction </field>
   <field id="processed__total_snow" name="total_snow" long_name="surface_snowfall_rate" standard_name="snowfall_flux" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_snow + convection__conv_snow </field>
   <field id="processed__total_prec" name="total_prec" long_name="precipitation_rate" standard_name="precipitation_flux" unit="kg m-2 s-1" domain_ref="face"> microphysics__ls_rain + microphysics__ls_snow + convection__conv_rain + convection__conv_snow </field>
   <field id="processed__total_rain_acc" name="total_rain_acc" long_name="surface_rainfall_amount" standard_name="rainfall_amount" unit="kg m-2" domain_ref="face"> $DT * processed__total_rain </field>
