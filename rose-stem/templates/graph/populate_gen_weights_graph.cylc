@@ -50,19 +50,16 @@
     export_task_weights_platform, mesh_build_weights_platform
     ]) %}
 
-{% if task_values["resolution"] is iterable and task_values["resolution"] is not string %}
-    {% set resolutions = task_values["resolution"] %}
-{% else %}
-    {% set resolutions = [task_values["resolution"]] %}
+{% if task_values["resolution"] is string %}
+    {% set res = task_values["resolution"] %}
+    {% do task_values.update({"resolution": [res]}) %}
 {% endif %}
 
-{% set previous_graph_task = mesh_build_weights_platform %}
-
-{% for res in resolutions %}
+{% for resolution in task_values["resolution"] %}
 
 {# Set mesh generate task for weights platform #}
     {% set mesh_run_weights_platform = "run_mesh_"~
-                                        res~"_"~
+                                        resolution~"_"~
                                         site_vars["scripts_platform"]~"_"~
                                         site_vars["mesh_build"][site_vars["scripts_platform"]] %}
 
@@ -70,28 +67,9 @@
         {% do tasks_to_run.update({mesh_run_weights_platform: {} }) %}
     {% endif %}
 
-{# Define the previous task (i.e. the resolution in the list before) #}
-    {% if not loop.first %}
-        {% set prev_res = resolutions[loop.index0 -1] %}
-        {% set previous_graph_task = "run_mesh_"~
-                                      prev_res~"_"~
-                                      site_vars["scripts_platform"]~"_"~
-                                      site_vars["mesh_build"][site_vars["scripts_platform"]] %}
-    {% endif %}
-
-{# Trigger the current mesh from the previous mesh (unless they are the same) #}
-    {% if mesh_run_weights_platform != previous_graph_task %}
-        {% do graph_sections.append([
-            previous_graph_task, mesh_run_weights_platform
-            ]) %}
-    {% endif %}
-
-{# Trigger the weights generation if this is the last mesh #}
-    {% if loop.last %}
-        {% do graph_sections.append([
+    {% do graph_sections.append([
             mesh_run_weights_platform, generate_weights_task
             ]) %}
-    {% endif %}
 {% endfor %}
 
 {% do graph_sections.append([

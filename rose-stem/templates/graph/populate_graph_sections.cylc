@@ -84,7 +84,7 @@
 {# These will be populated if the task is required #}
 {% set mesh_build_task = "" %}
 {% set application_build_task = "" %}
-{% set mesh_run_task = "" %}
+{% set mesh_run_tasks = [] %}
 {% set application_run_task = "" %}
 
 {# Do we need to build the mesh? #}
@@ -155,17 +155,22 @@
 {# Do we need to run the mesh? #}
 {# Any run task will need mesh unless it is a canned test #}
 {% if task.startswith("run") and task_values["app_name"] != "canned_test" %}
-    {% if task_values["resolution"] is iterable and task_values["resolution"] is not string %}
-        {% set resolutions = task_values["resolution"] %}
-    {% else %}
-        {% set resolutions = [task_values["resolution"]] %}
+    {% if task_values["resolution"] is string %}
+        {% set res = task_values["resolution"] %}
+        {% do task_values.update({"resolution": [res]}) %}
     {% endif %}
-    {% for res in resolutions %}
+    {% for resolution in task_values["resolution"] %}
 
         {% set mesh_run_task = "run_mesh_"~
-                               res~"_"~
+                               resolution~"_"~
                                task_ns.platform~"_"~
                                site_vars["mesh_build"][task_ns.platform] %}
+        {% do LOG.debug("mesh: "~mesh_run_task) %}
+
+        {% if mesh_run_task not in mesh_run_tasks %}
+          {% do mesh_run_tasks.append(mesh_run_task) %}
+        {% endif %}
+
 {# If the task is the mesh run task then use the task dictionary #}
 {# Otherwise use an empty dict to be populated later #}
         {% if mesh_run_task not in tasks_to_run %}
@@ -178,20 +183,13 @@
                 {% endif %}
                 {% do tasks_to_run.update({mesh_run_task: mesh_dict}) %}
             {% endif %}
-{# Add the mesh (for resolution res) to the graph, so all meshes are triggered by build #}
-            {% if mesh_run_task %}
-                {% do graph_sections.append([
-                    mesh_build_task,
-                    mesh_run_task]) %}
-            {% endif %}
+
+{# Add the mesh to the graph, so all meshes are triggered by build #}
+            {% do graph_sections.append([
+                mesh_build_task,
+                mesh_run_task]) %}
         {% endif %}
     {% endfor %}
-    {% if task_values["resolution"] is string %}
-        {% set mesh_run_task = "run_mesh_"~
-                                task_values["resolution"]~"_"~
-                                task_ns.platform~"_"~
-                                site_vars["mesh_build"][task_ns.platform] %}
-    {% endif %}
 {% endif %}
 
 {# Do we need to run an application? #}
@@ -226,11 +224,12 @@
         {% do graph_sections.append([
             application_build_task,
             application_run_task]) %}
-        {% if mesh_run_task %}
+
+        {% for mesh_run_task in mesh_run_tasks %}
             {% do graph_sections.append([
                 mesh_run_task,
                 application_run_task]) %}
-        {% endif %}
+        {% endfor %}
     {% endif %}
 {#Maybe emulate one of these for the perftools? We could do the whole thing this way round#}
 {#but that would require a slight rewrite of the build susystem checks#}
