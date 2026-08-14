@@ -137,7 +137,7 @@ module create_physics_prognostics_mod
                                              l_conv_prog_dq,                    &
                                              adv_conv_prog_dtheta,              &
                                              adv_conv_prog_dq
-  use mphys_inputs_mod, only: casim_iopt_act, l_mcr_precfrac
+  use mphys_inputs_mod, only: casim_iopt_act, l_mcr_precfrac, fixed_number
   use bl_option_mod, only: l_calc_tau_at_p
   use cloud_inputs_mod, only: l_pc2_homog_conv_pressure
   use io_config_mod,                  only : checkpoint_read, checkpoint_write
@@ -554,7 +554,7 @@ contains
     advection_flag = microphysics_casim
 
     call processor%apply(make_spec('nl_mphys', main%microphysics,              &
-        adv_coll=if_adv((advection_flag .and. casim_iopt_act /= 0_i_def),      &
+        adv_coll=if_adv((advection_flag .and. casim_iopt_act > fixed_number),  &
         adv%last_adv), ckp=checkpoint_flag, empty = (.not. microphysics_casim)))
     call processor%apply(make_spec('nr_mphys', main%microphysics,              &
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag,    &
@@ -575,7 +575,7 @@ contains
     ! every timestep before it is read, so doesn't need checkpointing or
     ! advecting.
     casim_mechanistic_activation = ( microphysics_casim .and.                  &
-                                     casim_iopt_act /= 0_i_def )
+                                     casim_iopt_act > fixed_number )
     call processor%apply(make_spec('cf_liq_pre_fast', main%microphysics,       &
         Wtheta, empty = (.not. casim_mechanistic_activation) ))
 
