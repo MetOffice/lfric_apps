@@ -393,6 +393,8 @@ subroutine radaer_code( nlayers,                                               &
 
   use ukca_radaer_lfric_api_mod,         only: ukca_radaer_lfric_interface
 
+  use ukca_radaer_lfric_init_mod,        only: n_ukca_mode, n_ukca_cpnt
+
   implicit none
 
   ! Arguments
@@ -513,12 +515,6 @@ subroutine radaer_code( nlayers,                                               &
   real(kind=r_def), pointer, intent(inout) :: aaod_ukca_cor_ins(:)
 
   ! Local variables for the kernel
-
-  ! Note - n_ukca_mode excludes the GLOMAP nucleation mode
-  ! Since nucleation is the first mode in GLOMAP, the subsequent modes 2-7
-  ! have been reordered in RADAER as modes 1-6
-  integer(i_um), parameter :: n_ukca_mode = 6
-  integer(i_um), parameter :: n_ukca_cpnt = 17
 
   integer(i_um) :: npd_exclude_lw
   integer(i_um) :: npd_exclude_sw

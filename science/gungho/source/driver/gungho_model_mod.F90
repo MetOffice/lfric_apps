@@ -109,6 +109,7 @@ module gungho_model_mod
   use um_domain_init_mod,          only : um_domain_init
   use um_sizes_init_mod,           only : um_sizes_init
   use um_physics_init_mod,         only : um_physics_init
+  use um_radaer_init_mod,          only : um_radaer_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
   use jules_timestep_alg_mod,      only : jules_timestep_type
@@ -482,9 +483,6 @@ contains
       ! Initialisation of UM physics variables
       call um_physics_init()
 
-      ! Read all the radaer lut namelist files
-      call um_radaer_lut_init()
-
       ! Initialisation of Jules high-level variables
       call jules_control_init()
 
@@ -495,6 +493,13 @@ contains
 
       ! Initialisation of UKCA physics variables
       call um_ukca_init(ncells_ukca, model_clock)
+      ! This is the way into the UKCA repo
+
+      ! Read all the radaer lut namelist files
+      call um_radaer_lut_init()
+
+      ! Initialisation of UKCA RADAER variables
+      call um_radaer_init()
 
     end if
 #endif

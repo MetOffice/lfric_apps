@@ -50,5 +50,5 @@ socrates-spectral:
     ref: 2026.07.1
 
 ukca:
-    source: git@github.com:MetOffice/ukca.git
-    ref: 9fc2b6da8701f4904911b561a2738e3f16c4e501
+    source: git@github.com:alanjhewitt/ukca.git
+    ref: radaer_api_ukca_side_5
