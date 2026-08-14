@@ -388,7 +388,8 @@ contains
     use cloud_config_mod, only: cld_fsd_hill
     use comorph_um_namelist_mod, only: ass_min_radius, autoc_opt,            &
          cf_conv_fac, coef_auto, col_eff_coef, core_ent_fac, drag_coef_cond, &
-         drag_coef_par, ent_coef, hetnuc_temp, l_core_ent_cmr, cf_area_coef, &
+         drag_coef_par, ent_coef, hetnuc_temp, l_core_ent_cmr,               &
+         min_cmr, max_cmr, cf_area_coef,                                     &
          nconc_cf, nconc_cl, nconc_graup, nconc_rain, nconc_snow,            &
          n_dndraft_types, overlap_power, par_gen_core_fac, par_gen_mass_fac, &
          par_gen_pert_fac, par_gen_rhpert, par_radius_evol_method,           &
