@@ -78,7 +78,7 @@ contains
     ! a kernel is passed.
 
     !keep the first
-    if (configure_segments .and. row_length .gt. 1) then
+    if (configure_segments .and. row_length > 1) then
       select case (ls_ppn_segment)
         case (:-1)
           write(log_scratch_space,'(A)') &

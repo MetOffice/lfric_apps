@@ -206,10 +206,24 @@
     {{ raise('"xios_print_file" must be a Fortran logical (".true." / ".false.") not: "' + error_msg_fragment + '"') }}
 {% endif %}
 
+{# XIOS buffers #}
+{% if "xios_min_buffer_size" not in task_dict %}
+    {# XIOS default = 8Kb #}
+    {% do task_dict.update({"xios_min_buffer_size": 8192}) %}
+{% endif %}
 
-{# If application is lfric_coupled read in default values specific to coupled runs #}
-{% if task_ns.application == "lfric_coupled" %}
-    {% include "templates/default_task_definitions_lfric_coupled.cylc" %}
+{% if "xios_buffer_size_factor" not in task_dict %}
+    {% do task_dict.update({"xios_buffer_size_factor": 1.0}) %}
+{% endif %}
+
+
+{% if "coupled" not in task_dict %}
+    {% do task_dict.update({"coupled": false}) %}
+{% endif %}
+
+{# If application is coupled read in default values specific to coupled runs #}
+{% if task_dict["coupled"] %}
+    {% include "templates/default_task_definitions_coupled.cylc" %}
 {% endif %}
 
 

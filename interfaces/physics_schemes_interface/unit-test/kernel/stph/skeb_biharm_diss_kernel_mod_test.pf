@@ -115,7 +115,7 @@ contains
 
     norm_xi => empty_real_data
     norm_div => empty_real_data
- 
+
     norm_xi_flag  = .false.
     norm_div_flag = .false.
 

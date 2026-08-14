@@ -71,7 +71,7 @@ module iau_main_alg_mod
     ! required time window. This IAU behaviour is required when the
     ! analysis increments have been produced by a 3D-Var DA
     if ( iau_mode == iau_mode_time_window ) then
-  
+
       if ( ( current_step >= iau_ts_start ) .and.                 &
            ( current_step <= calc_iau_ts_end( modeldb%clock ) ) ) then
 
@@ -119,7 +119,7 @@ module iau_main_alg_mod
 
       end if !(current_step test)
 
-    end if !(iau_mode)  
+    end if !(iau_mode)
 
     ! If used, additive inflation and bias correction are applied throughout
     ! the whole model run
@@ -139,7 +139,7 @@ module iau_main_alg_mod
       field_collection_ptr => modeldb%fields%get_field_collection("iau_tot_inc")
       call field_collection_ptr%clear()
     end if ! (test logicals)
-  
+
   end subroutine iau_main_alg
 
 end module iau_main_alg_mod

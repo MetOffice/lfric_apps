@@ -174,8 +174,14 @@ contains
     recip_epsilon =  461.51_r_def/rd
     ! With u=50m/s, theta=800K, rho=10^-5
     ! coriolis term = 2 \Omega u cos(lat) = 2 x 8e-5 x 50 x cos 45 = 5e-3
-    this%exner_data(:) = 0.0_r_def
-    this%rho_data(:) = 1.1_r_def
+    this%exner_data(:) = 1.0022380_r_def
+    ! Computed from equation of state (top level) using a moist theta.
+    ! theta_moist = theta * ( 1+ mv * recip_epsilon )
+    !             = 300 * ( 1 + (461.51/300) *0.01 )
+    !             = 304.6151
+    ! exner = ( theta_moist Rd rho / p0 ) ^ ( k / 1-k )
+    !       = (304.6151 * 300 *1.1 / 100 000 ) ^ (0.3 /0.7)
+    !       = 1.0022380
     this%theta_data(:) = 300.0_r_def
     this%coriolis_data(:) = 5.0e-3_r_def
     this%mask_w3_data(:) = 1.0_r_def
@@ -185,7 +191,6 @@ contains
     this%phi_data(:) = gravity * this%height_w3_data(:)
     call hydrostatic_coriolis_code( nlayers,                             &
                                     this%exner_data,                     &
-                                    this%rho_data,                       &
                                     this%theta_data,                     &
                                     this%coriolis_data,                  &
                                     this%moist_dyn_data(:,1),            &
@@ -194,24 +199,13 @@ contains
                                     this%phi_data,                       &
                                     this%height_w3_data,                 &
                                     this%mask_w3_data,                   &
-                                    p_zero, kappa, rd, cp,               &
+                                    cp,                                  &
                                     eos_level,                           &
                                     this%ndf_w3, this%undf_w3,           &
-                                    this%map_w3(:,cell), this%basis_w3,  &
+                                    this%map_w3(:,cell),                 &
                                     this%ndf_wt, this%undf_wt,           &
-                                    this%map_wt(:,cell), this%basis_wt   &
+                                    this%map_wt(:,cell)                  &
                                     )
-
-    ! Checks equation of state (top level) using a moist theta.
-    ! theta_moist = theta * ( 1+ mv * recip_epsilon )
-    !             = 300 * ( 1 + (461.51/300) *0.01 )
-    !             = 304.6151
-    ! exner = ( theta_moist Rd rho / p0 ) ^ ( k / 1-k )
-    !       = (304.6151 * 300 *1.1 / 100 000 ) ^ (0.3 /0.7)
-    !       = 1.0022380
-    k = 2
-    answer = 1.0022380_r_def
-    @assertEqual(answer, this%exner_data(this%map_w3(1, cell)+k), tol)
 
     ! Checks hydrostatic plus coriolis balance (bottom level)
     ! theta_moist = theta ( 1+ mv * recip_epsilon )/(1 + mv)

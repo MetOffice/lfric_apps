@@ -11,8 +11,12 @@
         "jedi_lfric_tests_nwp_gal9-C12_MG_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_runge-kutta-C12_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_runge-kutta-C12_azspice_gnu_full-debug-64bit",
-        "jedi_lfric_tests_forecast_gh-si-for-linear-C12_azspice_gnu_fast-debug-64bit",
-        "jedi_lfric_tests_forecast_gh-si-for-linear-C12_azspice_gnu_full-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9-C12_azspice_gnu_fast-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9-C12_azspice_gnu_full-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9_da-C12_azspice_gnu_fast-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9_da-C12_azspice_gnu_full-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9-C48_MG_azspice_gnu_fast-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9-C48_MG_azspice_gnu_full-debug-64bit",
         "jedi_lfric_tests_forecast_pseudo_default-C12_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_forecast_pseudo_pseudomodel-C12_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_forecast_pseudo_pseudomodel-C12_azspice_gnu_full-debug-64bit",
@@ -29,7 +33,6 @@
         "jedi_lfric_tests_tlm_tests_nwp_gal9-dry-4OMP-C12_MG_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-dry-1PE-4OMP-C12_MG_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-strict_solver-4OMP-C12_MG_azspice_gnu_fast-debug-64bit-rsolver64",
-        "jedi_lfric_tests_azspice_integration_tests",
     ],
     "jedi_lfric_tests_op_azspice_developer": [
       "jedi_lfric_tests_tlm_forecast_tl_nwp_gal9-C12_MG_op_azspice_gnu_fast-debug-64bit",
@@ -38,9 +41,6 @@
     "jedi_lfric_tests_azspice": [
         "jedi_lfric_tests_azspice_developer",
         "jedi_lfric_tests_op_azspice_developer"
-    ],
-    "jedi_lfric_tests_azspice_integration_tests": [
-        "jedi_lfric_tests_integration_tests_azspice_gnu_64bit",
     ],
     "jedi_lfric_tests_azspice_build": [
         "build_jedi_lfric_tests_azspice_gnu_fast-debug-64bit",
@@ -55,7 +55,9 @@
     "jedi_lfric_tests_ex1a_developer": [
         "jedi_lfric_tests_nwp_gal9-C12_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_runge-kutta-C12_ex1a_cce_fast-debug-64bit",
-        "jedi_lfric_tests_forecast_gh-si-for-linear-C12_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9-C12_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9_da-C12_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_forecast_nwp_gal9-C48_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_forecast_pseudo_default-C12_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_forecast_pseudo_pseudomodel-C12_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_forecast_tl_nwp_gal9-C12_MG_ex1a_cce_fast-debug-64bit",
@@ -71,7 +73,6 @@
         "jedi_lfric_tests_tlm_tests_nwp_gal9-dry-4OMP-C12_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-dry-1PE-4OMP-C12_MG_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_nwp_gal9-strict_solver-4OMP-C12_MG_ex1a_cce_fast-debug-64bit-rsolver64",
-        "jedi_lfric_tests_ex1a_integration_tests",
     ],
     "jedi_lfric_tests_op_ex1a_developer": [
         "jedi_lfric_tests_tlm_forecast_tl_nwp_gal9-C12_MG_op_ex1a_cce_fast-debug-64bit",
@@ -86,9 +87,7 @@
         "jedi_lfric_tests_ex1a_developer",
         "jedi_lfric_tests_op_ex1a_developer"
     ],
-    "jedi_lfric_tests_ex1a_integration_tests": [
-        "jedi_lfric_tests_integration_tests_ex1a_cce_fast-debug-64bit",
-    ],
+
     "jedi_lfric_tests_ex1a_build": [
         "build_jedi_lfric_tests_ex1a_cce_fast-debug-64bit",
         "build_jedi_lfric_tests_ex1a_cce_fast-debug-64bit-rsolver64",
@@ -101,7 +100,6 @@
         "scripts",
         "jedi_lfric_tests_azspice_developer",
         "jedi_lfric_tests_ex1a_developer",
-        "jedi_lfric_tests_integration_tests",
     ],
     "jedi_lfric_tests_weekly": [
         "jedi_lfric_tests_ex1a_weekly",
@@ -110,10 +108,6 @@
         "jedi_lfric_tests_developer",
         "jedi_lfric_tests_azspice",
         "jedi_lfric_tests_ex1a",
-    ],
-    "jedi_lfric_tests_integration_tests": [
-        "jedi_lfric_tests_azspice_integration_tests",
-        "jedi_lfric_tests_ex1a_integration_tests",
     ],
     "jedi_lfric_tests_build": [
         "jedi_lfric_tests_azspice_build",
@@ -124,19 +118,16 @@
 {# Platform Generic Extends #}
 {% do site_groups.developer.extend(site_groups.jedi_lfric_tests_developer) %}
 {% do site_groups.all.extend(site_groups.jedi_lfric_tests) %}
-{% do site_groups.integration_tests.extend(site_groups.jedi_lfric_tests_integration_tests) %}
 {% do site_groups.build.extend(site_groups.jedi_lfric_tests_build) %}
 
 {# Azspice Extends #}
 {% do site_groups.azspice_developer.extend(site_groups.jedi_lfric_tests_azspice_developer) %}
 {% do site_groups.azspice.extend(site_groups.jedi_lfric_tests_azspice) %}
-{% do site_groups.azspice_integration_tests.extend(site_groups.jedi_lfric_tests_azspice_integration_tests) %}
 {% do site_groups.azspice_build.extend(site_groups.jedi_lfric_tests_azspice_build) %}
 
 {# EX1A Extends #}
 {% do site_groups.ex1a_developer.extend(site_groups.jedi_lfric_tests_ex1a_developer) %}
 {% do site_groups.ex1a.extend(site_groups.jedi_lfric_tests_ex1a) %}
-{% do site_groups.ex1a_integration_tests.extend(site_groups.jedi_lfric_tests_ex1a_integration_tests) %}
 {% do site_groups.ex1a_build.extend(site_groups.jedi_lfric_tests_ex1a_build) %}
 
 {% do LOG.debug("Finished in site/meto/groups/groups_jedi_lfric_tests.cylc") %}

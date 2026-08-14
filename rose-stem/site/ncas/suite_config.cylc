@@ -14,8 +14,5 @@
 {% if "lfricinputs" in requested_applications %}
     {% include 'site/ncas/common/suite_config_lfricinputs.cylc' %}
 {% endif %}
-{% if "lfric_coupled" in requested_applications %}
-    {% include 'site/ncas/common/suite_config_lfric_coupled.cylc' %}
-{% endif %}
 
 {% do LOG.debug("Finished in site/ncas/suite_config.cylc") %}

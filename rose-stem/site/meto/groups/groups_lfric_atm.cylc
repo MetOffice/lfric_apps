@@ -177,6 +177,9 @@
         "lfric_atm_scm_hd209458b-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",
         "lfric_atm_canned_ex1a_cce_fast-debug-32bit",
     ],
+    "lfric_atm_coupled_ex1a_developer": [
+        "lfric_atm_coupled_nwp-gal9_C48_ex1a_cce_coupled-fast-debug-64bit",
+    ],
     "lfric_atm_ex1a_developer": [
         "lfric_atm_nwp_ex1a_developer",
         "lfric_atm_clim_gal9-C12_ex1a_cce_fast-debug-32bit",
@@ -185,6 +188,7 @@
         "lfric_atm_rce-BiP64x64-1500x1500_MG_ex1a_cce_fast-debug-32bit",
         "lfric_atm_scm_ex1a_developer",
         "ex1a_omp_C12_cce",
+        "lfric_atm_coupled_ex1a_developer"
     ],
     "lfric_atm_ex1a_extra": [
         "lfric_atm_nwp_ex1a_extra",
@@ -278,6 +282,7 @@
         "build_lfric_atm_ex1a_cce_fast-debug-32bit",
         "build_lfric_atm_ex1a_gnu_fast-debug-32bit",
         "build_lfric_atm_ex1a_gnu_full-debug-32bit",
+        "build_lfric_atm_ex1a_cce_coupled-fast-debug-64bit",
     ],
     }) %}
 

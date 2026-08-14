@@ -103,7 +103,7 @@ apply module-specific PSyclone transformations. This can be found at::
       └── psyclone_transmute_file_list.mk
 
 Within this makefile there are several environment variables which control the
-how files are passed to PSyclone Transmute. 
+how files are passed to PSyclone Transmute.
 These are:
 
 * ``PSYCLONE_PHYSICS_FILES``
@@ -127,7 +127,7 @@ source files.
 however this could be expanded to exclude in the future (see `issue319 <https://github.com/MetOffice/lfric_apps/issues/319>`_,).
 This variable specifies files to be passed to PSyclone without applying any transformations.
 This can be useful to remove existing clauses from a file without otherwise modifying the Fortran source.
-Any files included in ``PSYCLONE_PASS_NO_SCRIPT`` are filtered out of the ``PSYCLONE_PHYSICS_FILES`` list, 
+Any files included in ``PSYCLONE_PASS_NO_SCRIPT`` are filtered out of the ``PSYCLONE_PHYSICS_FILES`` list,
 and sent to a separate make script.
 
 ``TRANSMUTE_INCLUDE_METHOD`` can be set to either ``specify_include`` or
@@ -163,7 +163,7 @@ like in PSyKAl in LFRic Core. Where this bucket is located is a WIP, but for
 now will be here
 ``interfaces/physics_schemes_interface/build/psyclone_transmute``.
 In the longer term, most may be held in the PSyTran repository, with
-the intention to reduce code duplication 
+the intention to reduce code duplication
 here: `PSyTran <https://github.com/MetOffice/PSyTran>`_.
 
 It is recommended for developers at this time to use the following process.
@@ -177,10 +177,10 @@ It is recommended for developers at this time to use the following process.
 * Top-level calls to these functions should occur in the transmute
   optimisation folder in the application, ``lfric_atm`` and ``ngarch``.
 * Start a PSyTran issue to try and get duplicate code removed and new
-  code reviewed. 
+  code reviewed.
 * Copy down any PSyTran code used, where the duplicated code has been
   removed in the Apps ticket so we have a local copy of the code from PSyTran,
-  with a comment in the Apps ticket and PSyTran issue. 
+  with a comment in the Apps ticket and PSyTran issue.
 * Currently PSyTran is not integrated into the build system.
 * Link this ticket
   `issue320 <https://github.com/MetOffice/lfric_apps/issues/320>`_,

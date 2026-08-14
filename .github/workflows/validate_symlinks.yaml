@@ -1,3 +1,9 @@
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
+
 name: Validate Symlinks
 
 on:
@@ -7,4 +13,6 @@ on:
 
 jobs:
   validate_symlinks:
-    uses: MetOffice/growss/.github/workflows/validate_symlinks.yaml@main
+    permissions:
+      contents: read  # Required to evaluate the event trigger metadata safely
+    uses: MetOffice/growss/.github/workflows/validate_symlinks.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
