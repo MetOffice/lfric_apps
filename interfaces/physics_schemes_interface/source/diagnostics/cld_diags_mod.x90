@@ -42,6 +42,7 @@ module cld_diags_mod
                       ceil_cld_amount_maxrnd_flag,                             &
                       cld_base_altitude_flag,                                  &
                       cld_base_4p5_okta_flag,                                  &
+                      cld_base_7p9_okta_flag,                                  &
                       cld_top_altitude_flag,                                   &
                       low_cld_base_altitude_flag,                              &
                       very_low_cld_amount_flag,                                &
@@ -132,6 +133,7 @@ contains
     type( field_type ) :: ceil_cld_amount_maxrnd
     type( field_type ) :: cld_base_altitude
     type( field_type ) :: cld_base_4p5_okta
+    type( field_type ) :: cld_base_7p9_okta
     type( field_type ) :: cld_top_altitude
     type( field_type ) :: low_cld_base_altitude
     type( field_type ) :: very_low_cld_amount
@@ -166,6 +168,7 @@ contains
     ceil_cld_amount_maxrnd_flag = init_diag(ceil_cld_amount_maxrnd, 'cloud__ceilometer_cloud_amount_maxrnd')
     cld_base_altitude_flag = init_diag(cld_base_altitude, 'cloud__cloud_base_altitude')
     cld_base_4p5_okta_flag = init_diag(cld_base_4p5_okta, 'cloud__cloud_base_4p5_okta')
+    cld_base_7p9_okta_flag = init_diag(cld_base_7p9_okta, 'cloud__cloud_base_7p9_okta')
     cld_top_altitude_flag  = init_diag(cld_top_altitude,  'cloud__cloud_top_altitude')
     low_cld_base_altitude_flag = init_diag(low_cld_base_altitude, 'cloud__low_cloud_base_altitude')
     very_low_cld_amount_flag = init_diag(very_low_cld_amount, 'cloud__very_low_type_cloud_amount')
@@ -188,6 +191,7 @@ contains
         ceil_cld_amount_maxrnd_flag .or. &
         cld_base_altitude_flag      .or. &
         cld_base_4p5_okta_flag      .or. &
+        cld_base_7p9_okta_flag      .or. &
         cld_top_altitude_flag       .or. &
         low_cld_base_altitude_flag  .or. &
         very_low_cld_amount_flag    .or. &
@@ -210,6 +214,7 @@ contains
         ceil_cld_amount_maxrnd_flag .or. &
         cld_base_altitude_flag      .or. &
         cld_base_4p5_okta_flag      .or. &
+        cld_base_7p9_okta_flag      .or. &
         cld_top_altitude_flag       .or. &
         low_cld_base_altitude_flag  .or. &
         very_low_cld_amount_flag    .or. &
@@ -251,6 +256,7 @@ contains
           ceil_cld_amount_maxrnd_flag .or. &
           cld_base_altitude_flag      .or. &
           cld_base_4p5_okta_flag      .or. &
+          cld_base_7p9_okta_flag      .or. &
           cld_top_altitude_flag       .or. &
           low_cld_base_altitude_flag  .or. &
           very_low_cld_amount_flag    .or. &
@@ -275,6 +281,7 @@ contains
                                             ceil_cld_amount_maxrnd,            &
                                             cld_base_altitude,                 &
                                             cld_base_4p5_okta,                 &
+                                            cld_base_7p9_okta,                 &
                                             cld_top_altitude,                  &
                                             low_cld_base_altitude,             &
                                             very_low_cld_amount,               &
@@ -376,6 +383,7 @@ contains
     if (ceil_cld_amount_maxrnd_flag) call ceil_cld_amount_maxrnd%write_field()
     if (cld_base_altitude_flag) call cld_base_altitude%write_field()
     if (cld_base_4p5_okta_flag) call cld_base_4p5_okta%write_field()
+    if (cld_base_7p9_okta_flag) call cld_base_7p9_okta%write_field()
     if (cld_top_altitude_flag)  call cld_top_altitude%write_field()
     if (low_cld_base_altitude_flag) call low_cld_base_altitude%write_field()
     if (very_low_cld_amount_flag) call very_low_cld_amount%write_field()
