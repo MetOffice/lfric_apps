@@ -20,7 +20,8 @@ module um_radaer_init_mod
                                            l_dust_mp_ageing,                   &
                                            l_ukca_radaer_sustrat
 
-  use ukca_mode_setup,               only: i_ukca_bc_tuned
+  use ukca_mode_setup,               only: i_ukca_bc_tuned,                    &
+                                           i_ukca_tune_bc_off
 
   use constants_mod,                 only: i_um
 
@@ -56,17 +57,13 @@ subroutine um_radaer_init()
 
   logical :: l_ukca_radaer_sustrat_local
 
-  integer, parameter :: i_radaer_mode_setup_eight = 8
-
-  integer, parameter :: i_ukca_bc_tuned_zero = 0
-
   if ( glomap_mode == glomap_mode_climatology ) then
     ! mode_setup is not set in the namelist for glomap_mode_climatology
-    ! this is always fixed to eight.
-    i_mode_setup_radaer_local = i_radaer_mode_setup_eight
+    ! this is always fixed to i_sussbcocdu_7mode.
+    i_mode_setup_radaer_local = i_sussbcocdu_7mode
 
     ! Tune BC turned off
-    i_ukca_tune_bc_local      = i_ukca_bc_tuned_zero
+    i_ukca_tune_bc_local      = i_ukca_tune_bc_off
 
     ! Dust ageing turned off
     l_dust_mp_ageing_local    = .false.
@@ -76,11 +73,11 @@ subroutine um_radaer_init()
 
   else if ( glomap_mode == glomap_mode_dust_and_clim ) then
     ! dust_and_clim runs with a diffent mode_setup between ukca and radaer
-    ! this is always fixed to eight.
-    i_mode_setup_radaer_local = i_radaer_mode_setup_eight
+    ! this is always fixed to i_sussbcocdu_7mode.
+    i_mode_setup_radaer_local = i_sussbcocdu_7mode
 
     ! Tune BC turned off
-    i_ukca_tune_bc_local      = i_ukca_bc_tuned_zero
+    i_ukca_tune_bc_local      = i_ukca_tune_bc_off
 
     ! Dust ageing not allowed for dust only ukca
     l_dust_mp_ageing_local    = .false.
@@ -90,11 +87,11 @@ subroutine um_radaer_init()
  
   else if ( glomap_mode == glomap_mode_radaer_test ) then
     ! This was developed for aqua planet runs and may be redundant
-    ! For now fix this to eight.
-    i_mode_setup_radaer_local = i_radaer_mode_setup_eight
+    ! For now fix this to i_sussbcocdu_7mode.
+    i_mode_setup_radaer_local = i_sussbcocdu_7mode
 
     ! Tune BC turned off
-    i_ukca_tune_bc_local      = i_ukca_bc_tuned_zero
+    i_ukca_tune_bc_local      = i_ukca_tune_bc_off
 
     ! Dust ageing turned off
     l_dust_mp_ageing_local    = .false.
