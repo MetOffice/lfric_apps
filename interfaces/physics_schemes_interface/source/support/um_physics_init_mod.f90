@@ -388,11 +388,12 @@ contains
     use cloud_config_mod, only: cld_fsd_hill
     use comorph_um_namelist_mod, only: ass_min_radius, autoc_opt,            &
          cf_conv_fac, coef_auto, col_eff_coef, core_ent_fac, drag_coef_cond, &
-         drag_coef_par, ent_coef, hetnuc_temp, l_core_ent_cmr,               &
+         drag_coef_par, ent_coef, hetnuc_temp, l_core_ent_cmr, cf_area_coef, &
+         nconc_cf, nconc_cl, nconc_graup, nconc_rain, nconc_snow,            &
          n_dndraft_types, overlap_power, par_gen_core_fac, par_gen_mass_fac, &
          par_gen_pert_fac, par_gen_rhpert, par_radius_evol_method,           &
          par_radius_init_method, par_radius_knob, par_radius_knob_max,       &
-         par_radius_ppn_max, r_fac_tdep_n, rain_area_min, rho_rim,           &
+         par_radius_ppn_max, tdep_n_cf, tdep_n_cl, rain_area_min, rho_rim,   &
          vent_factor, wind_w_buoy_fac, wind_w_fac, check_run_comorph,        &
          l_resdep_precipramp, dx_ref
     use cv_run_mod, only: icvdiag, cvdiag_inv, cvdiag_sh_wtest,            &
@@ -878,6 +879,7 @@ contains
         ! main Comorph options
         ass_min_radius = 500.0_r_um
         autoc_opt = 2
+        cf_area_coef = 10.0_r_um
         cf_conv_fac = 2.0_r_um
         coef_auto = 0.025_r_um
         col_eff_coef = 1.0_r_um
@@ -889,6 +891,13 @@ contains
         hetnuc_temp = 263.0_r_um
         l_core_ent_cmr = .true.
         l_resdep_precipramp = resdep_precipramp
+        max_cmr = 6.0_r_um
+        min_cmr = 2.0_r_um
+        nconc_cf = 300.0_r_um
+        nconc_cl = 1.0E8_r_um
+        nconc_graup = 100.0_r_um
+        nconc_rain = 1000.0_r_um
+        nconc_snow = 300.0_r_um
         n_dndraft_types = 1
         overlap_power = 0.5_r_um
         par_gen_core_fac = 3.0_r_um
@@ -900,7 +909,8 @@ contains
         par_radius_knob = 0.45_r_um
         par_radius_knob_max = 2.0_r_um
         par_radius_ppn_max = par_radius_ppn_max_in
-        r_fac_tdep_n = 8.18_r_um
+        tdep_n_cf = 8.18_r_um
+        tdep_n_cl = 0.0_r_um
         rain_area_min = 0.05_r_um
         rho_rim = 600.0_r_um
         vent_factor = 0.25_r_um
