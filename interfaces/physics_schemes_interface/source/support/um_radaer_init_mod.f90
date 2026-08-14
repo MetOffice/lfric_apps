@@ -15,6 +15,8 @@ module um_radaer_init_mod
                                            glomap_mode_radaer_test,            &
                                            glomap_mode_ukca,                   &
                                            mode_setup,                         &
+                                           mode_setup_SUBCOCSSDU_7mode,        &
+                                           mode_setup_DUonly_2mode,            &
                                            l_dust_mp_ageing,                   &
                                            l_ukca_radaer_sustrat
 
@@ -104,15 +106,16 @@ subroutine um_radaer_init()
     ! UKCA and RADAER will use the same value for mode_setup
 
     ! Match rose-meta integers with those used in UKCA
-    if ( mode_setup == 'SUBCOCSSDU_7mode' ) then
+    select case ( mode_setup )
+    case ( mode_setup_SUBCOCSSDU_7mode )    
       i_mode_setup_radaer_local = i_sussbcocdu_7mode
-    else if  ( mode_setup == 'DUonly_2mode' ) then
+    case ( mode_setup_DUonly_2mode )
       i_mode_setup_radaer_local = i_du_2mode
-    else
+    case default
       write( log_scratch_space, '(A,I0)' )                                     &
       'Developers should include additional mode settings here: ', mode_setup
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end if
+    end select
 
     ! UKCA currently set to i_ukca_bc_tuned
     i_ukca_tune_bc_local      = i_ukca_bc_tuned
