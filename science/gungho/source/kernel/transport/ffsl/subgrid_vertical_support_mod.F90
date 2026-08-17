@@ -48,6 +48,7 @@ contains
   !----------------------------------------------------------------------------
   subroutine second_order_vertical_edge(field, dz, edge_to_do, edge_value)
 
+    !$omp declare target
     implicit none
 
     ! Arguments
@@ -107,6 +108,7 @@ contains
                                        edge_above, edge_below,                 &
                                        log_space, nlayers)
 
+    !$omp declare target
     implicit none
 
     integer(kind=i_def),       intent(in)    :: nlayers
@@ -202,6 +204,7 @@ contains
                                         dl_dz_3, dl_dz_4, dz, edge_value,      &
                                         log_space, nlayers)
 
+    !$omp declare target
     implicit none
 
     integer(kind=i_def),       intent(in)    :: nlayers
@@ -303,6 +306,7 @@ contains
                                      dlb_dz_1, dlb_dz_2, dlb_dz_3,             &
                                      dz, cell_to_do)
 
+    !$omp declare target
     implicit none
 
     real(kind=r_tran),   intent(in)    :: dz(3)
@@ -373,6 +377,7 @@ contains
   subroutine fourth_precompute_height(dl_dz_1, dl_dz_2, dl_dz_3, dl_dz_4,      &
                                       dz, edge_to_do)
 
+    !$omp declare target
     implicit none
 
     real(kind=r_tran),   intent(in)    :: dz(4)

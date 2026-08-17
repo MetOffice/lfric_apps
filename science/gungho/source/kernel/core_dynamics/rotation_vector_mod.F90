@@ -44,6 +44,7 @@ subroutine rotation_vector_fplane(ngp_h, ngp_v, omegaf, latitude, rotation_vec)
 ! Compute the rotation vector Omega = (0, 2*cos(lat), 2*sin(lat)) on quadrature points
 !-------------------------------------------------------------------------------
 
+!$omp declare target
 implicit none
 
 integer(kind=i_def), intent(in)  :: ngp_h, ngp_v
@@ -87,6 +88,7 @@ subroutine rotation_vector_sphere(ndf_chi, ngp_h, ngp_v, chi_1, chi_2, chi_3, &
 use sci_chi_transform_mod,   only: chi2llr
 use coord_transform_mod,     only: sphere2cart_vector
 
+!$omp declare target
 implicit none
 
 integer(kind=i_def), intent(in)  :: ndf_chi, ngp_h, ngp_v, panel_id
@@ -151,6 +153,7 @@ subroutine vert_vector_sphere(ndf_chi, ngp_h, ngp_v, chi_1, chi_2, chi_3, &
 use sci_chi_transform_mod,   only: chi2llr
 use coord_transform_mod,     only: sphere2cart_vector
 
+!$omp declare target
 implicit none
 
 integer(kind=i_def), intent(in)  :: ndf_chi, ngp_h, ngp_v, panel_id

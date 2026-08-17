@@ -389,6 +389,7 @@ contains
   !----------------------------------------------------------------------------
   subroutine interpolate_u_to_x(u_int, x_in, u_in, n_points, n_centre)
 
+    !$omp declare target
     implicit none
 
     real(kind=r_tran),   intent(out) :: u_int
