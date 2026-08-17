@@ -419,7 +419,7 @@ parametrisation). Let tracers be represented by the state vector
       - \Delta t\,\mathcal{P}_S(\boldsymbol{X}^n; \boldsymbol{Y}^n), \\
    \boldsymbol{Y}^T &= \mathcal{T}^{\Delta t}_{\overline{\boldsymbol{u}}_n^{n+1}}
    \left[\boldsymbol{Y}^\dagger \right] + \mathcal{P}_F(\boldsymbol{X}^{n+1}; \boldsymbol{Y}^\dagger), \\
-   \boldsymbol{Y}^{n+1} &= \boldsymbol{X}^T - \Delta t\,\mathcal{P}_E(\boldsymbol{X}^{n+1};\boldsymbol{Y}^T).
+   \boldsymbol{Y}^{n+1} &= \boldsymbol{Y}^T - \Delta t\,\mathcal{P}_E(\boldsymbol{X}^{n+1};\boldsymbol{Y}^T).
    \end{aligned}
 
 References

@@ -1148,7 +1148,7 @@ contains
             if ( ( blend_frequency == blend_frequency_inner)            &
                .or.                                                     &
                ( blend_frequency == blend_frequency_outer               &
-               .and. inner == inner_iterations_si(outer_iterations) )   &
+               .and. inner == inner_iterations_si(outer) )              &
                .or.                                                     &
                ( blend_frequency == blend_frequency_final               &
                .and. inner == inner_iterations_si(outer_iterations)     &

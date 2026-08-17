@@ -32,5 +32,5 @@ the numerical formulation of each scheme:
    :math:`\mathcal{T}^{\Delta t}_{\boldsymbol{u}}`, relating to a velocity
    :math:`\boldsymbol{u}`, over a time step :math:`\Delta t`. The transport
    operator returns a transported field (rather than a transport increment).
-   Increments from physics parametrisation schemes are represent by
+   Increments from physics parametrisation schemes are represented by
    :math:`\mathcal{P}`.
