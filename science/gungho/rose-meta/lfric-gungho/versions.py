@@ -1,4 +1,4 @@
-import sys
+714import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
@@ -31,10 +31,10 @@ class vnXX_txxx(MacroUpgrade):
 
 
 class vn32_t379(MacroUpgrade):
-    """Upgrade macro for ticket #379 by Thomas Bendall."""
+    """Upgrade macro for ticket #714 by Thomas Bendall."""
 
     BEFORE_TAG = "vn3.2"
-    AFTER_TAG = "vn3.2_t379"
+    AFTER_TAG = "vn3.2_t714"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho

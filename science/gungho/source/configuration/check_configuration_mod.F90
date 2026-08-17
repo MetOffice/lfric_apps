@@ -142,10 +142,13 @@ contains
                                            scaling_factor
     use timestepping_config_mod,     only: method,                             &
                                            method_semi_implicit,               &
+                                           method_tr_bdf2,                     &
                                            dt,                                 &
                                            alpha,                              &
                                            outer_iterations,                   &
-                                           inner_iterations_si
+                                           inner_iterations_si,                &
+                                           inner_iterations_tr,                &
+                                           inner_iterations_bdf2
     use base_mesh_config_mod,        only: geometry,                           &
                                            geometry_spherical,                 &
                                            geometry_planar,                    &
@@ -268,12 +271,56 @@ contains
           outer_iterations
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
+        if ( SIZE(inner_iterations_si) /= outer_iterations ) then
+          write( log_scratch_space, '(A,I4,A,I4)' ) 'Invalid Options: ' //     &
+            'inner_iterations_si has size ', SIZE(inner_iterations_si),        &
+            ', but must have the same size as outer_iterations:',              &
+            outer_iterations
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
         if ( minval(inner_iterations_si) < 1 ) then
-          write( log_scratch_space, '(A,I4)' ) 'Invalid Choice: inner_iterations must be at least 1:', &
-          minval(inner_iterations_si)
+          write( log_scratch_space, '(A,I4)' )                                 &
+            'Invalid Choice: inner_iterations_si must be at least 1:',         &
+            minval(inner_iterations_si)
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+
+      else if ( method == method_tr_bdf2 ) then
+        if ( outer_iterations < 1 ) then
+          write( log_scratch_space, '(A,I4)' )                                 &
+              'Invalid Choice: outer_iterations must be at least 1:',          &
+              outer_iterations
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( SIZE(inner_iterations_tr) /= outer_iterations ) then
+          write( log_scratch_space, '(A,I4,A,I4)' ) 'Invalid Options: ' //     &
+            'inner_iterations_tr has size ', SIZE(inner_iterations_tr),        &
+            ', but must have the same size as outer_iterations:',              &
+            outer_iterations
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( SIZE(inner_iterations_bdf2) /= outer_iterations ) then
+          write( log_scratch_space, '(A,I4,A,I4)' ) 'Invalid Options: ' //     &
+            'inner_iterations_bdf2 has size ', SIZE(inner_iterations_bdf2),    &
+            ', but must have the same size as outer_iterations:',              &
+            outer_iterations
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( minval(inner_iterations_tr) < 1 ) then
+          write( log_scratch_space, '(A,I4)' )                                 &
+              'Invalid Choice: inner_iterations_tr must be at least 1:',       &
+              minval(inner_iterations_tr)
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( minval(inner_iterations_bdf2) < 1 ) then
+          write( log_scratch_space, '(A,I4)' )                                 &
+              'Invalid Choice: inner_iterations_bdf2 must be at least 1:',     &
+              minval(inner_iterations_bdf2)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
       end if
+
+
 
       ! Check the transport namelist
       if ( geometry == geometry_spherical .and.  consistent_metric) then

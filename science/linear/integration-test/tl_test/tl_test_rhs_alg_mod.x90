@@ -10,6 +10,7 @@ module tl_test_rhs_alg_mod
 
 
   use constants_mod,                      only: i_def, r_def, str_def
+  use dycore_constants_mod,               only: stepper_siqn
   use driver_modeldb_mod,                 only: modeldb_type
   use field_array_mod,                    only: field_array_type
   use field_mod,                          only: field_type
@@ -174,7 +175,8 @@ module tl_test_rhs_alg_mod
     call set_bundle_scalar( 0.0_r_def, n1_rhs, bundle_size )
     call rhs_alg( n1_rhs, dt, ls_state, ls_state, ls_moist_dyn, &
                   compute_eos=.true.,  compute_rhs_t_d=.true.,  &
-                  dlayer_rhs=.true., model_clock=modeldb%clock )
+                  dlayer_rhs=.true., stepper=stepper_siqn,      &
+                  model_clock=modeldb%clock )
 
     do n=1,2
       gamma_u = gamma_u / 2.0_r_def
@@ -202,11 +204,13 @@ module tl_test_rhs_alg_mod
 
       call rhs_alg( n2_rhs, dt, state, state, n_moist_dyn, &
                     compute_eos=.true., compute_rhs_t_d=.true., &
-                    dlayer_rhs=.true., model_clock=modeldb%clock )
+                    dlayer_rhs=.true., stepper=stepper_siqn,    &
+                    model_clock=modeldb%clock )
 
       call tl_rhs_alg(p_rhs, dt, p_state, p_state, p_moist_dyn, &
                       ls_state, ls_moist_dyn,                   &
                       compute_eos=.true., dlayer_rhs=.true.,    &
+                      stepper=stepper_siqn,                     &
                       model_clock=modeldb%clock)
 
       ! diff = n2_rhs - n1_rhs
