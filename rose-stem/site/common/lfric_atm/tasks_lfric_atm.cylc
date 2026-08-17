@@ -204,7 +204,7 @@
         "threads": 4,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-C224_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","june_case"],
@@ -221,7 +221,7 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C224_MG_op" %}
+{% elif task_ns.conf_name == "nwp_gal10-C224_MG_op" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","june_case"],
@@ -1270,7 +1270,7 @@
 {% endif %}
 
 {# Extensions to the Shared Global Configurations - Performance setups#}
-{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_op_720t") %}
+{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_op_720t") %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump"],
@@ -1281,7 +1281,7 @@
     }) %}
 {% endif %}
 
-{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_op_720t_opDiag") %}
+{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_op_720t_opDiag") %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","oper_diags_hres"],
@@ -1289,7 +1289,7 @@
 
 {% endif %}
 
-{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_op") %}
+{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_op") %}
 
     {% do task_dict.update({
         "resolution": "C896_MG_op",

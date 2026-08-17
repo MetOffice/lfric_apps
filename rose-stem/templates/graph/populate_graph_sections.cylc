@@ -135,12 +135,14 @@
 {# Any run task will need mesh unless it is a canned test #}
 {% if task.startswith("run") and task_values["app_name"] != "canned_test" %}
     {% if "_op" in task_values["resolution"] %}
+        {% set mesh_op_name =  task_values["mpi_parts"]~"P-"~
+                               task_values["panel_decomp"]~"-"~
+                               task_values["xproc"]~"X-"~
+                               task_values["yproc"]~"Y" %}
+        {% do task_values.update({"mesh_op_name": mesh_op_name}) %}
         {% set mesh_run_task = "run_mesh_"~
-                               task_values["resolution"]~"_"~
-                               task_values["mpi_parts"]~"P_"~
-                               task_values["panel_decomp"]~"_"~
-                               task_values["xproc"]~"X_"~
-                               task_values["yproc"]~"Y_"~
+                               task_values["resolution"]~"-"~
+                               mesh_op_name~"_"~
                                task_ns.platform~"_"~
                                site_vars["mesh_build"][task_ns.platform] %}
     {% else %}
@@ -156,6 +158,9 @@
             {% do tasks_to_run.update({mesh_run_task: task_values}) %}
         {% else %}
             {% set mesh_dict = {} %}
+            {% if "_op" in task_values["resolution"] %}
+                {% do mesh_dict.update({"mesh_op_name": mesh_op_name}) %}
+            {% endif %}
             {% if "mpi_parts" in task_values %}
                 {% do mesh_dict.update({"mpi_parts": task_values["mpi_parts"]}) %}
             {% endif %}

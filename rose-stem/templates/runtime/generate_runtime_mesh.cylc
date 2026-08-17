@@ -29,13 +29,10 @@
             BIN_DIR               = {{bin_dir}}
 {% if "_op" in task_ns.conf_name %}
     {% set mesh_dir_op = mesh_dir~"/"~task_ns.conf_name~"/"~
-                         task_values["mpi_parts"]~"P_"~
-                         task_values["mesh_panel_decomp"]~"_"~
-                         task_values["mesh_xproc"]~"X_"~
-                         task_values["mesh_yproc"]~"Y" %}
+                         task_values["mesh_op_name"] %}
             MESH_DIR              = {{mesh_dir_op}}
 {% else %}
-            MESH_DIR                = {{mesh_dir}}/{{task_ns.conf_name}}
+            MESH_DIR              = {{mesh_dir}}/{{task_ns.conf_name}}
 {% endif %}
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
             OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{task_ns.conf_name}}
@@ -44,6 +41,6 @@
             OMP_NUM_THREADS       = {{task_values["mesh_cpus"]}}
 
         [[[directives]]]
-    {{ set_task_resources(task_values["mesh_cpus"], task_values["mesh_memory"]) }}
+{{ set_task_resources(task_values["mesh_cpus"], task_values["mesh_memory"]) }}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_mesh.cylc") %}

@@ -112,12 +112,7 @@
             MESH_DIR                = {{mesh_dir}}
 {% else %}
     {% if "_op" in task_values["resolution"] %}
-        {% set mesh_dir_op = mesh_dir~"/"~task_values["resolution"]~"/"~
-                             task_values["mpi_parts"]~"P_"~
-                             task_values["panel_decomp"]~"_"~
-                             task_values["xproc"]~"X_"~
-                             task_values["yproc"]~"Y" %}
-            MESH_DIR                = {{mesh_dir_op}}
+            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}/{{task_values["mesh_op_name"]}}
     {% else %}
             MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}
     {% endif %}
