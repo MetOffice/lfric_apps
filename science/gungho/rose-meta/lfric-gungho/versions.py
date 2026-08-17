@@ -1,4 +1,4 @@
-714import sys
+import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
