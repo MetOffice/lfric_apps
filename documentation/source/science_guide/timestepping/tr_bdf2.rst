@@ -372,7 +372,7 @@ This process is summarised by the pseudo-code below:
        Transport:
            X^p_(j) = T_{u_bar_n_m^(j)}(X_FE)
        Implicit forcing:
-           X_FI^(j,1) = X^{n+1}_(j-1) + alpha * dt * F(X^{n+1}_(j-1))
+           X_FI^(j,1) = X^{m}_(j-1) + gamma * dt * F(X^{m}_(j-1))
 
        X^m_(j,0) = X^m_(j-1)
 
@@ -424,7 +424,7 @@ This process is summarised by the pseudo-code below:
            if k > 1:
                Implicit forcing:
                    X^{n+1}_FI^(j,k) = \
-                      X^{n+1}_(j,k) + gamma2 * dt * F(X^{n+1}_(j,k-1))
+                      X^{n+1}_(j,k-1) + gamma2 * dt * F(X^{n+1}_(j,k-1))
            Form the residual:
                R_(j,k) = -( X^{n+1}_FI^(j,k) - X^q_dag_(j) - dX_F^(j) )
            Solve the linear system for the increment:
