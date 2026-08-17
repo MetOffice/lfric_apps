@@ -239,7 +239,7 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_oper-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_oper-C224_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","june_case","oper_diags"],
