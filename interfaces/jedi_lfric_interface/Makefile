@@ -95,7 +95,6 @@ unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure \
                                     $(CORE_ROOT_DIR)/components/inventory \
                                     $(CORE_ROOT_DIR)/components/lfric-xios \
                                     $(APPS_ROOT_DIR)/science/gungho
-
 unit-tests/%: export META_FILE_DIR = rose-meta/jedi_lfric_interface/HEAD
 unit-tests/%: export PROGRAMS = jedi_lfric_unit_tests
 unit-tests/%: export PROJECT = jedi_lfric
