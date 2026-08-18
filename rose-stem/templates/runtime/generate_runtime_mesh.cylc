@@ -39,6 +39,11 @@
             PARTITION_PARTS       = {{ partition_parts }}
             FINAL_RANK            = $((PARTITION_PARTS-1))
             OMP_NUM_THREADS       = {{task_values["mesh_cpus"]}}
+{% if "_op" in task_ns.conf_name %}
+            PANEL_DECOMP          = {{task_values["mesh_panel_decomp"]}}
+            XPROC                 = {{task_values["mesh_xproc"]}}
+            YPROC                 = {{task_values["mesh_yproc"]}}
+{% endif %}
 
         [[[directives]]]
 {{ set_task_resources(task_values["mesh_cpus"], task_values["mesh_memory"]) }}
