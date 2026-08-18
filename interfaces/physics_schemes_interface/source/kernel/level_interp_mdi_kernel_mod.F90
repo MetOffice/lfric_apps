@@ -124,15 +124,12 @@ contains
       ! Highest level whose coordinate value is at or below the target, leaving
       ! room for the level above. level_below = -1 flags missing data.
       level_below = -1_i_def
-      do k = 0, top_df - 1
-        if ( coord_in(base_in+k) <= target_lev ) then
-          level_below = k
-        end if
-      end do
-
-      ! Target lies above the top of the column
-      if ( target_lev > coord_in(base_in+top_df) ) then
-        level_below = -1_i_def
+      if (target_lev <= coord_in(base_in+top_df) ) then
+        do k = 0, top_df - 1
+          if ( coord_in(base_in+k) <= target_lev ) then
+            level_below = k
+          end if
+        end do
       end if
 
       if ( level_below == -1_i_def ) then
