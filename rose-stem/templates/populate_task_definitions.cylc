@@ -31,9 +31,10 @@
                                extras="") %}
     {{ split_task_name(task, task_ns) }}
 
-    {# Record applications and platforms used #}
-    {% do set_add(requested_applications, task_ns.application) %}
-    {% do set_add(requested_platforms, task_ns.platform) %}
+    {# Parse the build config (optimisation and precision) from the extras #}
+    {# value in the namespace #}
+    {% set build_dict = {} %}
+    {% include "templates/parse_build_config.cylc" %}
 
     {# Look in the common and site specific application task files #}
     {# for the task definition dictionary #}
@@ -60,19 +61,23 @@
 
     {% endif %}
 
-    {% if not task_dict %}
+    {% if task_dict %}
+
+        {# Record applications and platforms used #}
+        {% do set_add(requested_applications, task_ns.application) %}
+        {% do set_add(requested_platforms, task_ns.platform) %}
+
+        {% for item, value in build_dict.items() %}
+            {% do task_dict.update({item: value}) %}
+        {% endfor %}
+
+    {% else %}
 
         {{ raise("The task '"~task~"' does not have a task definition in "
                     "your sites '"~task_ns.application~"/tasks_"~
                     task_ns.application~".cylc' file. Please ensure there "
                 "is an entry for '"~task_ns.conf_name~"'.") }}
 
-    {% endif %}
-
-    {# Parse the build config (optimisation and precision) from the extras #}
-    {# value in the namespace #}
-    {% if task_dict %}
-        {% include "templates/parse_build_config.cylc" %}
     {% endif %}
 
     {# This variable is what rose-stem expects the task to be called based on build #}

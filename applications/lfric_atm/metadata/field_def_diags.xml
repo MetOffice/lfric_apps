@@ -406,6 +406,8 @@
   <field id="convection__pres_lowest_cv_top" name="pres_lowest_cv_top" long_name="pressure_at_lowest_convective_cloud_top" unit="Pa" domain_ref="face" />
   <field id="convection__pres_cv_base" name="pres_cv_base" long_name="pressure_at_convective_cloud_base" unit="Pa" domain_ref="face" />
   <field id="convection__pres_cv_top" name="pres_cv_top" long_name="pressure_at_convective_cloud_top" unit="Pa" domain_ref="face" />
+  <field id="convection__conv_cloud_base_icao_height" name="convection_conv_cloud_base_icao_height" long_name="height_of_convective_cloud_base" unit="kft" domain_ref="face" />
+  <field id="convection__conv_cloud_top_icao_height" name="convection_conv_cloud_top_icao_height" long_name="height_of_convective_cloud_top" unit="kft" domain_ref="face" />
   <!-- microphysics diagnostics -->
   <field id="microphysics__dtheta_mphys" name="dtheta_mphys" long_name="potential_temperature_increment_due_to_microphysics" unit="K" grid_ref="full_level_face_grid" />
   <field id="microphysics__dt_mphys" name="dt_mphys" long_name="temperature_increment_due_to_microphysics" unit="K" grid_ref="full_level_face_grid" />
@@ -557,6 +559,8 @@
   <field id="surface__vis_prob_5km" name="vis_prob_5km" long_name="probability_visibility_below_5km_at_screen_level" unit="1" domain_ref="face" />
   <field id="surface__visibility_no_precip" name="visibility_no_precip" long_name="visibility_excluding precipitation_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
   <field id="surface__visibility_with_precip" name="visibility_with_precip" long_name="visibility_including_precipitation_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
+  <field id="surface__visibility_with_dust" name="visibility_with_dust" long_name="visibility_including_dust_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
+  <field id="surface__visibility_with_precip_dust" name="visibility_with_precip_dust" long_name="visibility_including_precipitation_and_dust_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
   <field id="surface__tile_heat_flux" name="tile_heat_flux" long_name="surface_sensible_heat_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__tile_moisture_flux" name="tile_moisture_flux" long_name="surface_moisture_flux" unit="kg m-2 s-1" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__latent_heat" name="latent_heat" long_name="surface_upward_latent_heat_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
@@ -1005,6 +1009,11 @@
   <!-- Vertical integrals -->
   <field id="processed__sw_aer_optical_depth_rts" field_ref="radiation__sw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
   <field id="processed__lw_aer_optical_depth_rts" field_ref="radiation__lw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
+  <!-- Aviation diagnostics -->
+  <field id="aviation__geopot_thickness_850" name="aviation_geopot_thickness_850" standard_name="atmosphere_layer_thickness_expressed_as_geopotential_height_difference" long_name="geopotential_height_thickness_between_1000hPa_and_850hPa" unit="m" domain_ref="face"/>
+  <field id="aviation__geopot_thickness_500" name="aviation_geopot_thickness_500" standard_name="atmosphere_layer_thickness_expressed_as_geopotential_height_difference" long_name="geopotential_height_thickness_between_1000hPa_and_500hPa" unit="m" domain_ref="face"/>
+  <field id="aviation__snow_probability" name="aviation_snow_probability" long_name="surface_snow_probability" domain_ref="face"/>
+
 </field_group>
 
 <!-- Integer diagnostic group -->

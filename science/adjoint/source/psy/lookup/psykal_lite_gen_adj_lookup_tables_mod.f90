@@ -33,26 +33,26 @@ module psykal_lite_gen_lookup_tables_psy_mod
 &set_counts_poly1d_field_dummy
     integer(kind=i_def), intent(in) :: stencil_extent
     integer, intent(in) :: loop_halo_depth
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers_tracer
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers_tracer
     integer(kind=i_def), pointer, dimension(:) :: set_counts_poly1d_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_poly1d_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: set_counts_poly1d_field_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_poly1d_field_data
-    type(integer_field_proxy_type) lookup_poly1d_field_proxy, set_counts_poly1d_field_proxy, lookup_poly1d_field_dummy_proxy, &
+    type(integer_field_proxy_type) :: lookup_poly1d_field_proxy, set_counts_poly1d_field_proxy, lookup_poly1d_field_dummy_proxy, &
 &set_counts_poly1d_field_dummy_proxy
     real(kind=r_tran), pointer, dimension(:) :: reconstruction_data
     real(kind=r_tran), pointer, dimension(:) :: coeff_data
     real(kind=r_tran), pointer, dimension(:) :: tracer_data
-    type(r_tran_field_proxy_type) tracer_proxy, coeff_proxy, reconstruction_proxy
+    type(r_tran_field_proxy_type) :: tracer_proxy, coeff_proxy, reconstruction_proxy
     integer(kind=i_def), pointer :: map_adspc1_tracer(:,:), map_adspc2_coeff(:,:), &
 &map_adspc3_reconstruction(:,:), map_adspc4_lookup_poly1d_field(:,:), &
 &map_adspc5_set_counts_poly1d_field(:,:)
-    integer(kind=i_def) ndf_adspc1_tracer, undf_adspc1_tracer, ndf_adspc2_coeff, undf_adspc2_coeff, ndf_adspc3_reconstruction, &
+    integer(kind=i_def) :: ndf_adspc1_tracer, undf_adspc1_tracer, ndf_adspc2_coeff, undf_adspc2_coeff, ndf_adspc3_reconstruction, &
 &undf_adspc3_reconstruction, ndf_adspc4_lookup_poly1d_field, undf_adspc4_lookup_poly1d_field, ndf_adspc5_set_counts_poly1d_field, &
 &undf_adspc5_set_counts_poly1d_field
-    integer(kind=i_def) max_halo_depth_mesh
+    integer(kind=i_def) :: max_halo_depth_mesh
     type(mesh_type), pointer :: mesh
     integer(kind=i_def), pointer :: set_counts_poly1d_field_dummy_stencil_size(:)
     integer(kind=i_def), pointer :: set_counts_poly1d_field_dummy_stencil_dofmap(:,:,:)
@@ -194,26 +194,26 @@ module psykal_lite_gen_lookup_tables_psy_mod
 &set_counts_poly2d_field_dummy
     integer(kind=i_def), intent(in) :: stencil_extent
     integer, intent(in) :: loop_halo_depth
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers_tracer
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers_tracer
     integer(kind=i_def), pointer, dimension(:) :: set_counts_poly2d_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_poly2d_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: set_counts_poly2d_field_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_poly2d_field_data
-    type(integer_field_proxy_type) lookup_poly2d_field_proxy, set_counts_poly2d_field_proxy, lookup_poly2d_field_dummy_proxy, &
+    type(integer_field_proxy_type) :: lookup_poly2d_field_proxy, set_counts_poly2d_field_proxy, lookup_poly2d_field_dummy_proxy, &
 &set_counts_poly2d_field_dummy_proxy
     real(kind=r_tran), pointer, dimension(:) :: reconstruction_data
     real(kind=r_tran), pointer, dimension(:) :: coeff_data
     real(kind=r_tran), pointer, dimension(:) :: tracer_data
-    type(r_tran_field_proxy_type) tracer_proxy, coeff_proxy, reconstruction_proxy
+    type(r_tran_field_proxy_type) :: tracer_proxy, coeff_proxy, reconstruction_proxy
     integer(kind=i_def), pointer :: map_adspc1_tracer(:,:), map_adspc2_coeff(:,:), &
 &map_adspc3_reconstruction(:,:), map_adspc4_lookup_poly2d_field(:,:), &
 &map_adspc5_set_counts_poly2d_field(:,:)
-    integer(kind=i_def) ndf_adspc1_tracer, undf_adspc1_tracer, ndf_adspc2_coeff, undf_adspc2_coeff, ndf_adspc3_reconstruction, &
+    integer(kind=i_def) :: ndf_adspc1_tracer, undf_adspc1_tracer, ndf_adspc2_coeff, undf_adspc2_coeff, ndf_adspc3_reconstruction, &
 &undf_adspc3_reconstruction, ndf_adspc4_lookup_poly2d_field, undf_adspc4_lookup_poly2d_field, ndf_adspc5_set_counts_poly2d_field, &
 &undf_adspc5_set_counts_poly2d_field
-    integer(kind=i_def) max_halo_depth_mesh
+    integer(kind=i_def) :: max_halo_depth_mesh
     type(mesh_type), pointer :: mesh
     integer(kind=i_def), pointer :: set_counts_poly2d_field_dummy_stencil_size(:)
     integer(kind=i_def), pointer :: set_counts_poly2d_field_dummy_stencil_dofmap(:,:,:)
@@ -353,38 +353,38 @@ module psykal_lite_gen_lookup_tables_psy_mod
     type(integer_field_type), intent(in) :: lookup_field, set_counts_field, lookup_field_dummy, set_counts_field_dummy
     integer(kind=i_def), intent(in) :: stencil_extent
     integer, intent(in) :: loop_halo_depth
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers_advective
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers_advective
     integer(kind=i_def), pointer, dimension(:) :: set_counts_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: set_counts_field_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_field_data
-    type(integer_field_proxy_type) lookup_field_proxy, set_counts_field_proxy, lookup_field_dummy_proxy, &
+    type(integer_field_proxy_type) :: lookup_field_proxy, set_counts_field_proxy, lookup_field_dummy_proxy, &
 &set_counts_field_dummy_proxy
     real(kind=r_tran), pointer, dimension(:) :: wind_big_halo_data
     real(kind=r_tran), pointer, dimension(:) :: reconstruction_big_halo_data
     real(kind=r_tran), pointer, dimension(:) :: advective_data
-    type(r_tran_field_proxy_type) advective_proxy, reconstruction_big_halo_proxy, wind_big_halo_proxy
+    type(r_tran_field_proxy_type) :: advective_proxy, reconstruction_big_halo_proxy, wind_big_halo_proxy
     integer(kind=i_def), pointer :: map_adspc1_reconstruction_big_halo(:,:), map_adspc2_lookup_field(:,:), &
 &map_adspc3_set_counts_field(:,:), map_w2(:,:), map_wtheta(:,:)
-    integer(kind=i_def) ndf_wtheta, undf_wtheta, ndf_adspc1_reconstruction_big_halo, undf_adspc1_reconstruction_big_halo, &
+    integer(kind=i_def) :: ndf_wtheta, undf_wtheta, ndf_adspc1_reconstruction_big_halo, undf_adspc1_reconstruction_big_halo, &
 &ndf_w2, undf_w2, ndf_adspc2_lookup_field, undf_adspc2_lookup_field, ndf_adspc3_set_counts_field, undf_adspc3_set_counts_field
-    integer(kind=i_def) max_halo_depth_mesh
+    integer(kind=i_def) :: max_halo_depth_mesh
     type(mesh_type), pointer :: mesh
-    integer(kind=i_def) set_counts_field_dummy_max_branch_length
+    integer(kind=i_def) :: set_counts_field_dummy_max_branch_length
     integer(kind=i_def), pointer :: set_counts_field_dummy_stencil_size(:,:)
     integer(kind=i_def), pointer :: set_counts_field_dummy_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: set_counts_field_dummy_stencil_map
-    integer(kind=i_def) lookup_field_dummy_max_branch_length
+    integer(kind=i_def) :: lookup_field_dummy_max_branch_length
     integer(kind=i_def), pointer :: lookup_field_dummy_stencil_size(:,:)
     integer(kind=i_def), pointer :: lookup_field_dummy_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: lookup_field_dummy_stencil_map
-    integer(kind=i_def) wind_big_halo_max_branch_length
+    integer(kind=i_def) :: wind_big_halo_max_branch_length
     integer(kind=i_def), pointer :: wind_big_halo_stencil_size(:,:)
     integer(kind=i_def), pointer :: wind_big_halo_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: wind_big_halo_stencil_map
-    integer(kind=i_def) reconstruction_big_halo_max_branch_length
+    integer(kind=i_def) :: reconstruction_big_halo_max_branch_length
     integer(kind=i_def), pointer :: reconstruction_big_halo_stencil_size(:,:)
     integer(kind=i_def), pointer :: reconstruction_big_halo_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: reconstruction_big_halo_stencil_map
@@ -536,35 +536,35 @@ lookup_field_dummy, set_counts_field_dummy, nsets_max, nindices, stencil_extent,
     type(integer_field_type), intent(in) :: lookup_field, set_counts_field, lookup_field_dummy, set_counts_field_dummy
     integer(kind=i_def), intent(in) :: stencil_extent
     integer, intent(in) :: loop_halo_depth
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers_advective_increment
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers_advective_increment
     real(kind=r_def), pointer, dimension(:,:,:) :: m3_inv_local_stencil
-    type(operator_proxy_type) m3_inv_proxy
+    type(operator_proxy_type) :: m3_inv_proxy
     integer(kind=i_def), pointer, dimension(:) :: set_counts_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: set_counts_field_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_field_data
-    type(integer_field_proxy_type) lookup_field_proxy, set_counts_field_proxy, lookup_field_dummy_proxy, &
+    type(integer_field_proxy_type) :: lookup_field_proxy, set_counts_field_proxy, lookup_field_dummy_proxy, &
 &set_counts_field_dummy_proxy
     real(kind=r_tran), pointer, dimension(:) :: wind_data
     real(kind=r_tran), pointer, dimension(:) :: advective_increment_data
-    type(r_tran_field_proxy_type) advective_increment_proxy, wind_proxy
+    type(r_tran_field_proxy_type) :: advective_increment_proxy, wind_proxy
     integer(kind=i_def), pointer :: map_adspc1_lookup_field(:,:), map_adspc2_set_counts_field(:,:), &
 &map_any_w2(:,:), map_w3(:,:)
-    integer(kind=i_def) ndf_w3, undf_w3, ndf_any_w2, undf_any_w2, ndf_adspc1_lookup_field, undf_adspc1_lookup_field, &
+    integer(kind=i_def) :: ndf_w3, undf_w3, ndf_any_w2, undf_any_w2, ndf_adspc1_lookup_field, undf_adspc1_lookup_field, &
 &ndf_adspc2_set_counts_field, undf_adspc2_set_counts_field
-    integer(kind=i_def) max_halo_depth_mesh
+    integer(kind=i_def) :: max_halo_depth_mesh
     type(mesh_type), pointer :: mesh
-    integer(kind=i_def) set_counts_field_dummy_max_branch_length
+    integer(kind=i_def) :: set_counts_field_dummy_max_branch_length
     integer(kind=i_def), pointer :: set_counts_field_dummy_stencil_size(:,:)
     integer(kind=i_def), pointer :: set_counts_field_dummy_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: set_counts_field_dummy_stencil_map
-    integer(kind=i_def) lookup_field_dummy_max_branch_length
+    integer(kind=i_def) :: lookup_field_dummy_max_branch_length
     integer(kind=i_def), pointer :: lookup_field_dummy_stencil_size(:,:)
     integer(kind=i_def), pointer :: lookup_field_dummy_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: lookup_field_dummy_stencil_map
-    integer(kind=i_def) wind_max_branch_length
+    integer(kind=i_def) :: wind_max_branch_length
     integer(kind=i_def), pointer :: wind_stencil_size(:,:)
     integer(kind=i_def), pointer :: wind_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: wind_stencil_map
@@ -699,32 +699,32 @@ lookup_field_dummy, set_counts_field_dummy, nsets_max, nindices, stencil_extent,
     type(integer_field_type), intent(in) :: lookup_field, set_counts_field, lookup_field_dummy, set_counts_field_dummy
     integer(kind=i_def), intent(in) :: stencil_extent
     integer, intent(in) :: loop_halo_depth
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers_dummy_w3_big_halo
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers_dummy_w3_big_halo
     integer(kind=i_def), pointer, dimension(:) :: set_counts_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_field_dummy_data
     integer(kind=i_def), pointer, dimension(:) :: set_counts_field_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_field_data
-    type(integer_field_proxy_type) lookup_field_proxy, set_counts_field_proxy, lookup_field_dummy_proxy, &
+    type(integer_field_proxy_type) :: lookup_field_proxy, set_counts_field_proxy, lookup_field_dummy_proxy, &
 &set_counts_field_dummy_proxy
     real(kind=r_solver), pointer, dimension(:) :: dummy_w3_big_halo_data
-    type(r_solver_field_proxy_type) dummy_w3_big_halo_proxy
+    type(r_solver_field_proxy_type) :: dummy_w3_big_halo_proxy
     integer(kind=i_def), pointer :: map_adspc1_lookup_field(:,:), map_adspc2_set_counts_field(:,:), &
 &map_w3(:,:)
-    integer(kind=i_def) ndf_w3, undf_w3, ndf_adspc1_lookup_field, undf_adspc1_lookup_field, ndf_adspc2_set_counts_field, &
+    integer(kind=i_def) :: ndf_w3, undf_w3, ndf_adspc1_lookup_field, undf_adspc1_lookup_field, ndf_adspc2_set_counts_field, &
 &undf_adspc2_set_counts_field
-    integer(kind=i_def) max_halo_depth_mesh
+    integer(kind=i_def) :: max_halo_depth_mesh
     type(mesh_type), pointer :: mesh
-    integer(kind=i_def) set_counts_field_dummy_max_branch_length
+    integer(kind=i_def) :: set_counts_field_dummy_max_branch_length
     integer(kind=i_def), pointer :: set_counts_field_dummy_stencil_size(:,:)
     integer(kind=i_def), pointer :: set_counts_field_dummy_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: set_counts_field_dummy_stencil_map
-    integer(kind=i_def) lookup_field_dummy_max_branch_length
+    integer(kind=i_def) :: lookup_field_dummy_max_branch_length
     integer(kind=i_def), pointer :: lookup_field_dummy_stencil_size(:,:)
     integer(kind=i_def), pointer :: lookup_field_dummy_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: lookup_field_dummy_stencil_map
-    integer(kind=i_def) dummy_w3_big_halo_max_branch_length
+    integer(kind=i_def) :: dummy_w3_big_halo_max_branch_length
     integer(kind=i_def), pointer :: dummy_w3_big_halo_stencil_size(:,:)
     integer(kind=i_def), pointer :: dummy_w3_big_halo_stencil_dofmap(:,:,:,:)
     type(stencil_2D_dofmap_type), pointer :: dummy_w3_big_halo_stencil_map

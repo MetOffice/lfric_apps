@@ -31,11 +31,12 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: sample_eos_rho_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                       &
+  type(arg_type) :: meta_args(8) = (/                       &
        arg_type(GH_FIELD,  GH_REAL, GH_WRITE, W3),          &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3),          &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1), &
        arg_type(GH_FIELD,  GH_REAL, GH_READ,  ANY_SPACE_1), &
+       arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3),          &
        arg_type(GH_SCALAR, GH_REAL, GH_READ),               &
        arg_type(GH_SCALAR, GH_REAL, GH_READ),               &
        arg_type(GH_SCALAR, GH_REAL, GH_READ)                &
@@ -62,6 +63,7 @@ contains
 !! @param[in] exner Exner pressure field
 !! @param[in] theta Potential temperature field
 !! @param[in] moist_dyn_gas Moist dynamics factor
+!! @param[in] w3_mask       LBC mask or Dummy mask for w3 space
 !! @param[in] kappa Ratio of rd and cp
 !! @param[in] rd Specific heat of dry air at constant density
 !! @param[in] p_zero Reference surface pressure
@@ -75,7 +77,7 @@ contains
 !! @param[in] basis_t Basis functions evaluated at degrees of freedom for W3
 subroutine sample_eos_rho_code(nlayers, rho, exner,              &
                                theta, moist_dyn_gas,             &
-                               kappa, rd, p_zero,                &
+                               w3_mask, kappa, rd, p_zero,       &
                                ndf_w3, undf_w3, map_w3, basis_3, &
                                ndf_wt, undf_wt, map_wt, basis_t)
 
@@ -90,6 +92,7 @@ subroutine sample_eos_rho_code(nlayers, rho, exner,              &
 
   real(kind=r_def), dimension(undf_w3),  intent(inout)       :: rho
   real(kind=r_def), dimension(undf_w3),  intent(in)          :: exner
+  real(kind=r_def), dimension(undf_w3),  intent(in)          :: w3_mask
   real(kind=r_def), dimension(undf_wt),  intent(in)          :: theta
   real(kind=r_def), dimension(undf_wt),  intent(in)          :: moist_dyn_gas
   real(kind=r_def), dimension(1,ndf_w3,ndf_w3),  intent(in)  :: basis_3
@@ -104,6 +107,11 @@ subroutine sample_eos_rho_code(nlayers, rho, exner,              &
   real(kind=r_def), dimension(ndf_w3)  :: exner_e
   real(kind=r_def), dimension(ndf_wt)  :: theta_vd_e
   real(kind=r_def)                     :: exner_cell, theta_vd_cell
+
+  ! Return if the mask is 0 (with tolerance of 0.5 as mask is real, 0 or 1)
+  if ( w3_mask( map_w3(1) ) < 0.5_r_def ) then
+    return
+  end if
 
   ! Compute density from eqn of state
   do k = 0, nlayers-1

@@ -16,6 +16,7 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "ral_seuk-C32_lam_MG_4cpu" %}
@@ -30,6 +31,7 @@
         "src_name": "",
         "src_type": "",
         "mpi_parts": 4,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "oasis_ral_seuk-C32_lam_MG_1cpu" %}
@@ -43,6 +45,7 @@
         "src_mesh": "seuk_MG",
         "src_name": "dynamics",
         "src_type": "regional",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "oasis_ral_seuk-C32_lam_MG_4cpu" %}
@@ -57,6 +60,7 @@
         "src_name": "dynamics",
         "src_type": "regional",
         "mpi_parts": 4,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "ral3-seuk" %}
@@ -70,6 +74,7 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "ral3-uk" %}
@@ -83,6 +88,7 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "ral3-ukv" %}
@@ -96,6 +102,7 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "clim_gal9-C24_C12_1cpu" %}
@@ -162,6 +169,7 @@
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_4cpu" %}
@@ -176,6 +184,7 @@
         "src_name": "C12",
         "src_type": "global",
         "mpi_parts": 4,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_1cpu" %}
@@ -189,6 +198,7 @@
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_4cpu" %}
@@ -203,6 +213,7 @@
         "src_name": "C12",
         "src_type": "global",
         "mpi_parts": 4,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "canned" %}

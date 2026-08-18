@@ -61,6 +61,7 @@ contains
     type( quadrature_xyoz_type ), pointer :: qr => null()
 
     type(mesh_type), pointer :: mesh => null()
+    integer(i_def) :: nlayersm1
 
     mesh => state(igh_t)%get_mesh()
 
@@ -81,9 +82,13 @@ contains
 
     select case(eos_method)
       case(eos_method_sampled)
-        call invoke( name = "sample_eos_pressure",                                     &
-                       sample_eos_pressure_kernel_type(state(igh_p), state(igh_d),     &
-                                                       state(igh_t), moist_dyn_gas_law) )
+        nlayersm1 = mesh%get_nlayers()-1
+        call invoke( name = "sample_eos_pressure",                             &
+                       sample_eos_pressure_kernel_type(state(igh_p),           &
+                                                       state(igh_d),           &
+                                                       state(igh_t),           &
+                                                       moist_dyn_gas_law,      &
+                                                       0, nlayersm1) )
 
       case(eos_method_projected)
         m3_inv   => get_inverse_mass_matrix_fe(W3, mesh%get_id())

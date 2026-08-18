@@ -7,6 +7,7 @@
 
 {% set ex1a_cores_per_node = site_vars.node_cores %}
 {% set ex1a_socket_per_node = 2 %}
+{% set ex1a_normal_threshold = 96 %}
 
 {% macro normal_queue(mpi_ranks,
                         threads,
@@ -105,7 +106,7 @@
     {% set total_other_ranks = xios_nodes + ocean_nodes + river_nodes %}
     {% set lfric_cores = mpi_ranks * threads %}
     {# Jobs are always routed to the shared queue on Milan, so use Milan threshold #}
-    {% if lfric_cores >= 128 or total_other_ranks > 0 %}
+    {% if lfric_cores >= ex1a_normal_threshold or total_other_ranks > 0 %}
         {# This needs to be run on the normal queue #}
         {{ normal_queue(mpi_ranks, threads, xios_nodes, ocean_nodes, river_nodes, ranks_per_node, ranks_depth_pad) }}
     {% else %}

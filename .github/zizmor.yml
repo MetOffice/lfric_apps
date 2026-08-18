@@ -1,0 +1,16 @@
+# ------------------------------------------------------------------------------
+# (c) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# ------------------------------------------------------------------------------
+
+# Rules for Zizmor GitHub workflow linter. This file is used to configure which
+# rules to ignore for specific workflow files, allowing for exceptions to be
+# made where necessary while still enforcing best practices across the codebase.
+rules:
+  dangerous-triggers:
+    ignore:
+      - "cla-check.yaml"
+      - "lint-fortran.yaml"
+      - "track-review-project.yaml"
+      - "trigger-project-workflow.yaml"
