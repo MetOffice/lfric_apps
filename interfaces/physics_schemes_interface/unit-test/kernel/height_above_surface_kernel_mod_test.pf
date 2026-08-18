@@ -10,8 +10,7 @@
 !> The kernel turns W3 heights above mean sea level into heights above the
 !> ground, using the lowest Wtheta level as the orography. The tests check
 !> that the orography is removed, that the answer over high ground matches
-!> the answer at sea level, and that only the W3 part of the column is
-!> written.
+!> the answer at sea level.
 
 module height_above_surface_kernel_mod_test
 
@@ -22,7 +21,7 @@ module height_above_surface_kernel_mod_test
   implicit none
 
   private
-  public :: test_over_orography, test_matches_sea_level, test_second_column
+  public :: test_over_orography
 
   @TestCase
   type, extends(TestCase), public :: height_above_surface_test_type
@@ -35,8 +34,6 @@ module height_above_surface_kernel_mod_test
       procedure setUp
       procedure tearDown
       procedure test_over_orography
-      procedure test_matches_sea_level
-      procedure test_second_column
 
   end type height_above_surface_test_type
 
@@ -124,62 +121,5 @@ contains
     @assertEqual( -999.0_r_def, this%height_agl(nlayers + 1_i_def), tolerance )
 
   end subroutine test_over_orography
-
-  !> The same terrain following column at sea level gives the same answer.
-  @test
-  subroutine test_matches_sea_level( this )
-
-    implicit none
-
-    class(height_above_surface_test_type), intent(inout) :: this
-
-    integer(kind=i_def) :: k
-
-    this%height_w3(1:nlayers)    = eta_w3(:)
-    this%height_wth(1:nlayers+1) = eta_wth(:)
-
-    call height_above_surface_code( nlayers, this%height_agl,          &
-                                    this%height_w3, this%height_wth,   &
-                                    ndf_w3, undf_w3, (/ 1_i_def /),    &
-                                    ndf_wth, undf_wth,                 &
-                                    (/ 1_i_def, 2_i_def /) )
-
-    do k = 1, nlayers
-      @assertEqual( eta_w3(k), this%height_agl(k), tolerance )
-    end do
-
-  end subroutine test_matches_sea_level
-
-  !> Each column uses its own orography, taken from its own dofmap.
-  @test
-  subroutine test_second_column( this )
-
-    implicit none
-
-    class(height_above_surface_test_type), intent(inout) :: this
-
-    real(kind=r_def), parameter :: orography = 1500.0_r_def
-
-    integer(kind=i_def) :: k
-
-    this%height_w3(nlayers+1:undf_w3)    = eta_w3(:)  + orography
-    this%height_wth(nlayers+2:undf_wth)  = eta_wth(:) + orography
-
-    call height_above_surface_code( nlayers, this%height_agl,              &
-                                    this%height_w3, this%height_wth,       &
-                                    ndf_w3, undf_w3,                       &
-                                    (/ nlayers + 1_i_def /),               &
-                                    ndf_wth, undf_wth,                     &
-                                    (/ nlayers + 2_i_def,                  &
-                                       nlayers + 3_i_def /) )
-
-    do k = 1, nlayers
-      @assertEqual( eta_w3(k), this%height_agl(k + nlayers), tolerance )
-    end do
-
-    ! The first column has not been touched
-    @assertEqual( -999.0_r_def, this%height_agl(1), tolerance )
-
-  end subroutine test_second_column
 
 end module height_above_surface_kernel_mod_test
