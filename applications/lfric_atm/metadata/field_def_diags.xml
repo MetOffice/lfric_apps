@@ -709,8 +709,10 @@
   <field id="radiation__sw_up_tile" name="sw_up_tile" long_name="surface_upward_shortwave_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="radiation__sw_net_surf" name="sw_net_surf" long_name="surface_net_shortwave_flux" unit="W m-2" domain_ref="face" />
   <field id="radiation__lw_up_toa" name="lw_up_toa" long_name="toa_upward_longwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="radiation__lw_up_clear_toa" name="lw_up_clear_toa" long_name="toa_upward_clear_longwave_flux" unit="W m-2" domain_ref="face"> radiation__lw_up_clear_toa_rts + radiation__lw_up_toa - radiation__lw_up_toa_rts </field>
   <field id="radiation__lw_down_surf" name="lw_down_surf" long_name="surface_downward_longwave_flux" unit="W m-2" domain_ref="face" />
   <field id="radiation__lw_up_surf" name="lw_up_surf" long_name="surface_upward_longwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="radiation__lw_up_clear_surf" name="lw_up_clear_surf" long_name="surface_upward_clear_longwave_flux" unit="W m-2" domain_ref="face"> radiation__lw_up_clear_surf_rts + radiation__lw_up_toa - radiation__lw_up_toa_rts </field>
   <field id="radiation__lw_net_surf" name="lw_net_surf" long_name="surface_net_longwave_flux" unit="W m-2" domain_ref="face" />
   <field id="radiation__lw_net_skyview_incr" name="lw_net_skyview_incr" long_name="surface_net_longwave_skyview_increment" unit="W m-2" domain_ref="face" />
   <field id="radiation__slope_angle" name="slope_angle" long_name="surface_slope_elevation_angle" unit="radian" domain_ref="face" />
