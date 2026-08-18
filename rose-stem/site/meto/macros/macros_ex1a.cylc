@@ -103,7 +103,7 @@
             -l select={{ lfric_nodes +
                          ocean_nodes|int +
                          river_nodes|int +
-                         xios_nodes|int }}:coretype={{platform}}:mem=720GB
+                         xios_nodes|int }}:coretype={{platform}}
 {% endmacro %}
 
 
