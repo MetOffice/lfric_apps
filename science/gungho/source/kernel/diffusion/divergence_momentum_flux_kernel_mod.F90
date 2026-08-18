@@ -44,11 +44,11 @@ module divergence_momentum_flux_kernel_mod
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   Wtheta),                  & ! rho_in_wth
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W2H),                     & ! rho_in_w2h
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   ANY_DISCONTINUOUS_SPACE_9,&
-                                                             STENCIL(CROSS)),  & ! panel_id
+                                                               STENCIL(CROSS)),& ! panel_id
          arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ew
          arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ns
          arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ)                             & ! fullstress
-         /)
+    /)
     integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: divergence_momentum_flux_code
