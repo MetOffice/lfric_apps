@@ -102,6 +102,8 @@ contains
     integer(kind=i_def)                 :: dir
     integer(kind=i_def)                 :: k_h, k_v
     type(field_type)                    :: u_w3_n(3), u_w3_inc(3), u_w3_np1(3)
+    type(field_type)                    :: uv_w2h_n, uv_w2h_inc, uv_w2h_np1
+    type(field_type)                    :: w_wt_n, w_wt_inc, w_wt_np1
     type(field_type)                    :: u_w2_inc, u_w2b_inc, rhs_u_broken
     type(field_type),           pointer :: chi(:)
     type(field_type),           pointer :: panel_id
@@ -159,32 +161,27 @@ contains
           ! Transport the winds on their native W2 points
           wt_fs => function_space_collection%get_fs( mesh, k_h, k_v, Wtheta )
           w2h_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2h )
-          call u_w3_n(1)%initialise( w2h_fs )
-          call u_w3_inc(1)%initialise( w2h_fs )
-          call u_w3_np1(1)%initialise( w2h_fs )
-          call u_w3_n(2)%initialise( wt_fs )
-          call u_w3_inc(2)%initialise( wt_fs )
-          call u_w3_np1(2)%initialise( wt_fs )
+          call uv_w2h_n%initialise( w2h_fs )
+          call uv_w2h_inc%initialise( w2h_fs )
+          call uv_w2h_np1%initialise( w2h_fs )
+          call w_wt_n%initialise( wt_fs )
+          call w_wt_inc%initialise( wt_fs )
+          call w_wt_np1%initialise( wt_fs )
 
           face_selector_ew => get_face_selector_ew(mesh)
           face_selector_ns => get_face_selector_ns(mesh)
 
           dA => get_da_at_w2( mesh )
-          call invoke(setval_c(u_w3_n(1), 0.0_r_def) )
-          call invoke(split_w2_to_ws_kernel_type( u_w3_n(1), u_w3_n(2), &
+          call invoke(setval_c(uv_w2h_n, 0.0_r_def) )
+          call invoke(split_w2_to_ws_kernel_type( uv_w2h_n, w_wt_n,     &
                                                   wind_n, chi(3), dA,   &
                                                   face_selector_ew,     &
                                                   face_selector_ns ) )
 
-          call log_field_minmax( LOG_LEVEL_INFO, 'uv_n', u_w3_n(1) )
-          call log_field_minmax( LOG_LEVEL_INFO, 'w_n', u_w3_n(2) )
-          do dir = 1,2
-            call transport_field(                                                &
-                    u_w3_np1(dir), u_w3_n(dir), transport_controller,            &
-                    transport_metadata                                           &
-            )
-            call log_field_minmax( LOG_LEVEL_INFO, 'wind_np1', u_w3_np1(dir) )
-          end do
+          call transport_field( uv_w2h_np1, uv_w2h_n, transport_controller,   &
+                                transport_metadata )
+          call transport_field( w_wt_np1, w_wt_n, transport_controller,     &
+                                transport_metadata )
 
           w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
 
@@ -194,9 +191,10 @@ contains
           call chi2_d_w2%initialise( w2_fs )
 
           if ( geometry == geometry_spherical ) then
-          ! For the metric terms we need to transport the (horizontal)
+            ! For the metric terms we need to transport the (horizontal)
             ! spherical coordinate field to get the values at the departure points
-            ! Transport lambda & phi for lat-lon and alpha & beta for cubed sphere
+            ! Transport lambda & phi for lat-lon or alpha & beta for cubed sphere
+            ! (not currently implemented)
             w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
             call chi1_n%initialise( w3_fs )
             call chi2_n%initialise( w3_fs )
@@ -218,8 +216,10 @@ contains
             rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
             call invoke( setval_c( chi1_d_w2, 0.0_r_def ) ,                   &
                          setval_c( chi2_d_w2, 0.0_r_def ),                    &
-                         sample_field_kernel_type( chi1_d_w2, rmultiplicity_w2, chi1_d), &
-                         sample_field_kernel_type( chi2_d_w2, rmultiplicity_w2, chi2_d) )
+                         sample_field_kernel_type(                            &
+                                   chi1_d_w2, rmultiplicity_w2, chi1_d),      &
+                         sample_field_kernel_type(                            &
+                                   chi2_d_w2, rmultiplicity_w2, chi2_d) )
 
           end if
 
@@ -227,11 +227,11 @@ contains
           call u_w2_inc_with_metrics%initialise( w2_fs )
           mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
           call invoke( name="combine_ws_to_w2_winds",                           &
-                       X_minus_Y( u_w3_inc(1), u_w3_np1(1), u_w3_n(1) ),        &
-                       X_minus_Y( u_w3_inc(2), u_w3_np1(2), u_w3_n(2) ),        &
+                       X_minus_Y( uv_w2h_inc, uv_w2h_np1, uv_w2h_n ),           &
+                       X_minus_Y( w_wt_inc,   w_wt_np1,   w_wt_n ),             &
                        setval_c(u_w2_inc, 0.0_r_def),                           &
-                       combine_ws_to_w2_kernel_type(u_w2_inc, u_w3_inc(1),      &
-                                                    u_w3_inc(2),                &
+                       combine_ws_to_w2_kernel_type(u_w2_inc, uv_w2h_inc,       &
+                                                    w_wt_inc,                   &
                                                     face_selector_ew,           &
                                                     face_selector_ns),          &
                        apply_wind_metrics_kernel_type(u_w2_inc_with_metrics,    &
@@ -254,7 +254,6 @@ contains
           ! -------------------------------------------------------------------- !
           ! Split wind into components in W3
           ! -------------------------------------------------------------------- !
-
 
           do dir = 1,3
             call u_w3_n(dir)%initialise( w3_fs )
@@ -281,7 +280,6 @@ contains
           call log_field_minmax( LOG_LEVEL_TRACE, 'xdot', u_w3_n(1) )
           call log_field_minmax( LOG_LEVEL_TRACE, 'ydot', u_w3_n(2) )
           call log_field_minmax( LOG_LEVEL_TRACE, 'zdot', u_w3_n(3) )
-
 
           ! -------------------------------------------------------------------- !
           ! Transport wind components in W3

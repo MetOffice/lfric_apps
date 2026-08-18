@@ -13,14 +13,14 @@ module apply_wind_metrics_kernel_mod
                                     CELL_COLUMN,         &
                                     STENCIL, CROSS2D,    &
                                     GH_EVALUATOR
-  use constants_mod,          only: r_def, i_def
+  use constants_mod,          only: r_def, i_def, l_def
   use fs_continuity_mod,      only: W2, Wchi
   use kernel_mod,             only: kernel_type
   use base_mesh_config_mod,   only: geometry,           &
                                     geometry_spherical, &
                                     topology,           &
                                     topology_fully_periodic
-  use formulation_config_mod, only: shallow
+  !use formulation_config_mod, only: shallow
 
   implicit none
 
@@ -125,6 +125,12 @@ subroutine apply_wind_metrics_code(nlayers,                 &
   real(kind=r_def) :: uvw_lhs(3), uvw_rhs(3)
   real(kind=r_def) :: dx_z, dy_z, dz_z
 
+  ! The rotation metric contains code for shallow atmosphere geometry,
+  ! however the existing shallow switch only controls shallow
+  ! (constant with height) gravity and not shallow geometry and so this
+  ! option is disabled here until it is correctly implemented
+  logical(kind=l_def), parameter :: shallow = .false.
+
   nm1 = nlayers-1
 
   ! Compute metric term based upon geometry (effectively to turn the delta chi1 &
@@ -203,7 +209,7 @@ subroutine apply_wind_metrics_code(nlayers,                 &
             rot_mat(1,1) = (cos(chi_uvw(2))*cos(chi_d_uvw(2)) + (1.0_r_def + sin(chi_uvw(2))*sin(chi_d_uvw(2)))*cos(deltaAD))*denom
             rot_mat(1,2) = (sin(chi_uvw(2))+sin(chi_d_uvw(2)))*sin(deltaAD)*denom
             rot_mat(1,3) = 0.0_r_def
-            rot_mat(2,1) = (sin(chi_uvw(2))+sin(chi_d_uvw(2)))*sin(deltaAD)*denom
+            rot_mat(2,1) = -(sin(chi_uvw(2))+sin(chi_d_uvw(2)))*sin(deltaAD)*denom
             rot_mat(2,2) = rot_mat(1,1)
             rot_mat(2,3) = 0.0_r_def
             rot_mat(3,1) = 0.0_r_def
