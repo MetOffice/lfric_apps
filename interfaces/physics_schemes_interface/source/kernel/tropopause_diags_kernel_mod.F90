@@ -10,6 +10,7 @@ module tropopause_diags_kernel_mod
 use argument_mod,      only : arg_type,          &
                               GH_FIELD, GH_REAL, &
                               GH_READ, GH_WRITE, &
+                              GH_SCALAR,         &
                               CELL_COLUMN,       &
                               ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod, only : Wtheta
@@ -28,15 +29,16 @@ private
 type, public, extends(kernel_type) :: tropopause_diags_kernel_type
   private
   ! Args: theta, exner_in_wth, height_wth (in); trop_ht, trop_temp,
-  ! trop_press, trop_icao_ht (out)
-  type(arg_type) :: meta_args(7) = (/                                    &
+  ! trop_press, trop_icao_ht (out); g_over_r (in)
+  type(arg_type) :: meta_args(8) = (/                                    &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ)                             &
     /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -59,6 +61,9 @@ contains
 !> @param[in,out] trop_press            Pressure at the tropopause
 !> @param[in,out] trop_icao_ht          ICAO standard-atmosphere height at
 !>                                      the tropopause
+!> @param[in]     g_over_r              Gravity divided by the dry air gas
+!>                                      constant, for the pressure and ICAO
+!>                                      height calculations
 !> @param[in]     ndf_wth               No. DOFs per cell for wth space
 !> @param[in]     undf_wth              No. unique DOFs for wth space
 !> @param[in]     map_wth               Dofmap for wth space column base cell
@@ -73,10 +78,13 @@ subroutine tropopause_diags_code(nlayers,                    &
                                   trop_temp,                   &
                                   trop_press,                  &
                                   trop_icao_ht,                &
+                                  g_over_r,                    &
                                   ndf_wth, undf_wth, map_wth,   &
                                   ndf_2d, undf_2d, map_2d)
 
-  use planet_config_mod, only : p_zero, kappa, gravity, rd
+  use planet_config_mod,       only : p_zero, kappa
+  use empty_data_mod,          only : empty_real_data
+  use icao_heights_kernel_mod, only : icao_heights_kernel_code
 
   implicit none
 
@@ -91,16 +99,24 @@ subroutine tropopause_diags_code(nlayers,                    &
   real(r_def), dimension(undf_wth), intent(in) :: theta, exner_in_wth
   real(r_def), dimension(undf_wth), intent(in) :: height_wth
 
-  real(r_def), dimension(undf_2d), intent(inout) :: trop_ht, trop_temp
-  real(r_def), dimension(undf_2d), intent(inout) :: trop_press, trop_icao_ht
+  real(r_def), dimension(undf_2d), intent(inout) :: trop_ht
+
+  ! trop_temp/trop_press/trop_icao_ht may be associated with a shared
+  ! empty placeholder (empty_real_data) when not requested; each block
+  ! below is skipped in that case rather than writing into it.
+  real(r_def), pointer, dimension(:), intent(inout) :: trop_temp
+  real(r_def), pointer, dimension(:), intent(inout) :: trop_press
+  real(r_def), pointer, dimension(:), intent(inout) :: trop_icao_ht
+
+  real(r_def), intent(in) :: g_over_r
 
   ! Local variables
   integer(i_def) :: k, kk
   integer(i_def) :: lapse_rate_trop_level, cold_point_trop_level
   real(r_def) :: exner_max, exner_min
   real(r_def) :: t_wth(nlayers), lapse_rate(nlayers), lapse_rate_above, dz
-  real(r_def) :: g_over_r, lapseupr, lapselwr, delta_lapse
-  real(r_def) :: press_at_k, icao_press
+  real(r_def) :: lapseupr, lapselwr, delta_lapse
+  real(r_def) :: press_at_k
 
   ! Parameters for WMO tropopause definition
   real(r_def), parameter :: lapse_trop = 0.002_r_def   ! K/m
@@ -112,35 +128,6 @@ subroutine tropopause_diags_code(nlayers,                    &
   real(r_def), parameter :: p_max_trop = 50000.0_r_def ! Pa
 
   real(r_def), parameter :: vsmall = 1.0e-6_r_def
-
-  ! ICAO standard-atmosphere constants (pressure -> height, Pa -> kft)
-  real(r_def), parameter :: ft2m = 0.3048_r_def
-  real(r_def), parameter :: mtokft = 1.0_r_def / (ft2m * 1000.0_r_def)
-  real(r_def), parameter :: lapse_rate_l = 6.5e-03_r_def
-                                                ! For levels below 11,000 gpm
-  real(r_def), parameter :: lapse_rate_u = -1.0e-03_r_def
-                                                ! For levels above 11,000 gpm
-  real(r_def), parameter :: press_bot = 101325.0_r_def
-                                                ! ICAO std: surface pressure
-  real(r_def), parameter :: press_mid = 22632.0_r_def
-                                                !      pressure @ 11,000 gpm
-  real(r_def), parameter :: press_top = 5474.87_r_def
-                                                !      pressure @ 20,000 gpm
-  real(r_def), parameter :: temp_bot = 288.15_r_def ! Surface temperature
-  real(r_def), parameter :: temp_top = 216.65_r_def
-                                                ! Temperature of isothermal
-                                                ! layer
-  real(r_def), parameter :: gpm1 = 11000.0_r_def
-                                                ! Ht limit (gpm) for std
-                                                ! lower lapse rate
-  real(r_def), parameter :: gpm2 = 20000.0_r_def
-                                                ! Ht (gpm) of top of
-                                                ! isothermal layer
-  real(r_def) :: zp1, zp2 ! Exponents used for the ICAO calculation
-
-  g_over_r = gravity / rd
-  zp1 = lapse_rate_l / g_over_r
-  zp2 = lapse_rate_u / g_over_r
 
   exner_min = (p_min_trop / p_zero)**kappa
   exner_max = (p_max_trop / p_zero)**kappa
@@ -220,42 +207,30 @@ subroutine tropopause_diags_code(nlayers,                    &
     trop_ht(map_2d(1)) = height_wth(map_wth(1) + k + 1)
   end if
 
-  trop_temp(map_2d(1)) = t_wth(k) &
-    - lapselwr * (trop_ht(map_2d(1)) - height_wth(map_wth(1) + k))
-
-  if (abs(lapselwr) < vsmall) then
-    if (lapselwr >= 0.0_r_def) lapselwr = vsmall
-    if (lapselwr <  0.0_r_def) lapselwr = -vsmall
+  if (.not. associated(trop_temp, empty_real_data)) then
+    trop_temp(map_2d(1)) = t_wth(k) &
+      - lapselwr * (trop_ht(map_2d(1)) - height_wth(map_wth(1) + k))
   end if
 
-  ! Pressure at the tropopause is derived from the hydrostatic equation.
-  press_at_k = p_zero * exner_in_wth(map_wth(1) + k)**(1.0_r_def / kappa)
-  trop_press(map_2d(1)) = press_at_k &
-    * (trop_temp(map_2d(1)) / t_wth(k))**(g_over_r / lapselwr)
+  if (.not. associated(trop_press, empty_real_data)) then
+    if (abs(lapselwr) < vsmall) then
+      if (lapselwr >= 0.0_r_def) lapselwr = vsmall
+      if (lapselwr <  0.0_r_def) lapselwr = -vsmall
+    end if
 
-  ! Convert tropopause pressure to ICAO standard-atmosphere height (kft).
-  icao_press = trop_press(map_2d(1))
-  if (icao_press <= 1000.0_r_def .and. icao_press >= 0.0_r_def) then
-    icao_press = 1000.0_r_def
-  end if
-  if (icao_press > press_bot) then
-    icao_press = press_bot
+    ! Pressure at the tropopause is derived from the hydrostatic equation.
+    press_at_k = p_zero * exner_in_wth(map_wth(1) + k)**(1.0_r_def / kappa)
+    trop_press(map_2d(1)) = press_at_k &
+      * (trop_temp(map_2d(1)) / t_wth(k))**(g_over_r / lapselwr)
   end if
 
-  if (icao_press > press_mid) then ! Hts up to 11,000 GPM
-    icao_press = icao_press / press_bot
-    icao_press = 1.0_r_def - icao_press**zp1
-    trop_icao_ht(map_2d(1)) = icao_press * temp_bot / lapse_rate_l
-  else if (icao_press > press_top) then ! Hts between 11,000 and 20,000 GPM
-    icao_press = icao_press / press_mid
-    icao_press = -log(icao_press)
-    trop_icao_ht(map_2d(1)) = gpm1 + icao_press * temp_top / g_over_r
-  else ! Hts above 20,000 GPM
-    icao_press = icao_press / press_top
-    icao_press = 1.0_r_def - icao_press**zp2
-    trop_icao_ht(map_2d(1)) = gpm2 + icao_press * temp_top / lapse_rate_u
+  ! Reuses the shared ICAO standard-atmosphere conversion rather than
+  ! duplicating it - see the @details note on icao_heights_kernel_code for
+  ! why a kernel calling another module's procedure is acceptable here.
+  if (.not. associated(trop_icao_ht, empty_real_data)) then
+    call icao_heights_kernel_code(nlayers, trop_icao_ht, trop_press, &
+                                  g_over_r, ndf_2d, undf_2d, map_2d)
   end if
-  trop_icao_ht(map_2d(1)) = trop_icao_ht(map_2d(1)) * mtokft
 
 end subroutine tropopause_diags_code
 

@@ -13,7 +13,7 @@ module tropopause_diags_alg_mod
   use field_mod,                   only: field_type
   use fs_continuity_mod,           only: Wtheta
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
-  use io_config_mod,               only: use_xios_io
+  use planet_constants_mod,        only: g_over_r_def
   use sci_geometric_constants_mod, only: get_height_fv
   use tropopause_diags_kernel_mod, only: tropopause_diags_kernel_type
 
@@ -40,44 +40,46 @@ contains
     type(field_type) :: trop_ht, trop_temp, trop_press, trop_icao_ht
     type(field_type), pointer :: height_wth
 
-    ! Flags for the mutually dependent tropopause diagnostics: a single
-    ! kernel computes all four together, so any one being requested
-    ! triggers the shared computation.
+    ! The kernel derives trop_temp from trop_ht, trop_press from trop_temp,
+    ! and trop_icao_ht from trop_press: a one-way cascade, not a mutual
+    ! dependency. Fields are initialised downstream-to-upstream so each
+    ! field's own request flag can be folded into the activate= argument
+    ! of the field it depends on - requesting a downstream field
+    ! force-activates its upstream dependencies, never the reverse. The
+    ! kernel checks each field's activation status directly
+    ! (associated(..., empty_real_data)) to decide what to compute.
     logical(l_def) :: trop_ht_flag
     logical(l_def) :: trop_temp_flag
     logical(l_def) :: trop_press_flag
     logical(l_def) :: trop_icao_ht_flag
 
-    logical(l_def) :: ignore
-
     nullify(height_wth)
 
-    trop_ht_flag       = init_diag(trop_ht,       'processed__trop_ht')
-    trop_temp_flag     = init_diag(trop_temp,     'processed__trop_temp')
-    trop_press_flag    = init_diag(trop_press,    'processed__trop_press')
-    trop_icao_ht_flag  = init_diag(trop_icao_ht,  'processed__trop_icao_ht')
+    trop_icao_ht_flag = init_diag(trop_icao_ht, 'processed__trop_icao_ht')
 
-    ! The kernel computes all four fields together, so force-activate any
-    ! member not individually requested. Writes stay inside this guard so
-    ! that a field is never written unless the kernel actually filled it.
-    if ((trop_ht_flag .or. trop_temp_flag .or. trop_press_flag .or. &
-         trop_icao_ht_flag) .and. use_xios_io) then
+    trop_press_flag = init_diag(trop_press, 'processed__trop_press', &
+                                 activate=trop_icao_ht_flag)
 
-      if (.not. trop_ht_flag) ignore = &
-        init_diag(trop_ht, 'processed__trop_ht', activate=.true.)
-      if (.not. trop_temp_flag) ignore = &
-        init_diag(trop_temp, 'processed__trop_temp', activate=.true.)
-      if (.not. trop_press_flag) ignore = &
-        init_diag(trop_press, 'processed__trop_press', activate=.true.)
-      if (.not. trop_icao_ht_flag) ignore = &
-        init_diag(trop_icao_ht, 'processed__trop_icao_ht', activate=.true.)
+    trop_temp_flag = init_diag(trop_temp, 'processed__trop_temp', &
+                                activate=(trop_press_flag .or. &
+                                          trop_icao_ht_flag))
+
+    trop_ht_flag = init_diag(trop_ht, 'processed__trop_ht', &
+                              activate=(trop_temp_flag .or. &
+                                        trop_press_flag .or. trop_icao_ht_flag))
+
+    ! Writes stay inside this guard so that a field is never written unless
+    ! the kernel actually filled it.
+    if (trop_ht_flag .or. trop_temp_flag .or. trop_press_flag .or. &
+        trop_icao_ht_flag) then
 
       height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
 
       call invoke( tropopause_diags_kernel_type(theta, exner_in_wth,       &
                                                  height_wth,               &
                                                  trop_ht, trop_temp,       &
-                                                 trop_press, trop_icao_ht) )
+                                                 trop_press, trop_icao_ht, &
+                                                 g_over_r_def) )
 
       if (trop_ht_flag)      call trop_ht%write_field()
       if (trop_temp_flag)    call trop_temp%write_field()
