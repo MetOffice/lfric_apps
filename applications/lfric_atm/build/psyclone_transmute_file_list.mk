@@ -15,6 +15,7 @@
 # Choose which files to Pre-proccess and PSyclone from physics_schemes / other source (e.g. UKCA)
 
 export PSYCLONE_PHYSICS_FILES = \
+                                aerosol_ukca_kernel_mod \
                                 bl_lsp \
                                 bm_tau_kernel_mod \
                                 bl_exp_kernel_mod \
