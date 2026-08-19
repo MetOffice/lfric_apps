@@ -157,7 +157,7 @@ contains
     integer(i_def), allocatable :: tile_size(:,:)
     integer(i_def), allocatable :: multigrid_tile_size(:,:)
 
-    integer(i_def) :: i, n_meshes
+    integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
 
     !=======================================================================
@@ -397,10 +397,6 @@ contains
     ! FEM initialisation
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
-
-    n_meshes = mesh_collection%n_meshes()
-    call chi_inventory%initialise(name="chi",           table_len=n_meshes)
-    call panel_id_inventory%initialise(name="panel_id", table_len=n_meshes)
 
     call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
 

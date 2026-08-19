@@ -551,7 +551,7 @@ contains
     type(inventory_by_mesh_type), pointer :: panel_id_inventory => null()
 
     logical(l_def)                  :: mesh_already_exists
-    integer(i_def)                  :: i, j, mesh_ctr, n_meshes
+    integer(i_def)                  :: i, j, mesh_ctr
     integer(i_def),     allocatable :: stencil_depths(:)
     character(str_def), allocatable :: base_mesh_names(:)
     character(str_def), allocatable :: meshes_to_shift(:)
@@ -793,6 +793,7 @@ contains
       end if
     end if
 
+
     !=======================================================================
     ! 1.3 Initialise mesh objects and assign InterGrid maps
     !=======================================================================
@@ -917,10 +918,6 @@ contains
     !=======================================================================
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
-
-    n_meshes = mesh_collection%n_meshes()
-    call chi_inventory%initialise(name="chi",           table_len=n_meshes)
-    call panel_id_inventory%initialise(name="panel_id", table_len=n_meshes)
 
     call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
     if ( l_multigrid ) then
