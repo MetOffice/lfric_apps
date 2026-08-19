@@ -31,3 +31,14 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+class vn32_t725(MacroUpgrade):
+    # Upgrade macro for #725 by Ian Boutle
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t725"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        self.add_setting(config,["namelist:mixing", "leonard_inc_ice"], ".false.")
+        self.add_setting(config,["namelist:mixing", "leonard_inc_with_bl"], ".false.")
+        return config, self.reports

@@ -54,6 +54,8 @@ contains
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 1.0_r_def,         &
+                              leonard_inc_ice = .false.,         &
+                              leonard_inc_with_bl = .false.,     &
                               conservative_diffusion = .false.,  &
                               density_weighted = .false.,        &
                               max_diff_factor = 1.0_r_def )
