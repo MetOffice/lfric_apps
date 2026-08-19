@@ -1,5 +1,5 @@
 !------------------------------------------------------------------------------
-! (C) Crown copyright 2023 Met Office. All rights reserved.
+! (C) Crown copyright 2023-2026 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !------------------------------------------------------------------------------
@@ -8,15 +8,17 @@
 
 module jedi_lfric_mesh_interface_mod
 
-  use mesh_mod,             only: mesh_type
-  use local_mesh_mod,       only: local_mesh_type
-  use mesh_collection_mod,  only: mesh_collection
-  use constants_mod,        only: i_def, r_def
-  use fs_continuity_mod,    only: Wtheta, W3
-  use extrusion_config_mod, only: stretching_height
-  use coord_transform_mod,  only: xyz2llr
-  use extrusion_mod,        only: TWOD
-  use log_mod,              only: log_event, LOG_LEVEL_ERROR, log_scratch_space
+  use mesh_mod,                    only: mesh_type
+  use local_mesh_mod,              only: local_mesh_type
+  use mesh_collection_mod,         only: mesh_collection
+  use constants_mod,               only: i_def, r_def
+  use fs_continuity_mod,           only: Wtheta, W3
+  use extrusion_config_mod,        only: stretching_height
+  use coord_transform_mod,         only: xyz2llr
+  use extrusion_mod,               only: TWOD
+  use sci_geometric_constants_mod, only: get_detj_at_w3_fv
+  use field_mod,                   only: field_type
+  use log_mod,                     only: log_event, LOG_LEVEL_ERROR, log_scratch_space
 
   implicit none
 
@@ -171,5 +173,19 @@ contains
     stretching_height_out = stretching_height
 
   end function get_stretching_height
+
+  !> @brief Get the volumes of each cell in W3.
+  !>
+  !> @return  Cell volume field pointer.
+  function get_cell_volumes(mesh) result(cell_volumes)
+    implicit none
+
+    type(mesh_type), intent(in) :: mesh
+
+    type(field_type), pointer :: cell_volumes
+
+    cell_volumes => get_detj_at_w3_fv(mesh)
+
+  end function get_cell_volumes
 
 end module jedi_lfric_mesh_interface_mod
