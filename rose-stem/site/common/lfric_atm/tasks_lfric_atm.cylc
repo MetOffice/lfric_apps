@@ -91,10 +91,10 @@
                           theta",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-tr_bdf2-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10-tr_bdf2-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump", "tr_bdf2"],
+        "opt_confs": ["tr_bdf", "um_dump"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 144,
@@ -252,10 +252,10 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-tr_bdf2-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-tr_bdf2-C224_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","june_case","tr_bdf2_big"],
+        "opt_confs": ["tr_bdf2_big", "um_dump","june_case"],
         "resolution": "C224_MG",
         "DT": 1200,
         "tsteps": 72,
@@ -668,10 +668,10 @@
         "plot_str": "plot_map.py -encorr $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_chem-tr_bdf2-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_chem-tr_bdf2-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","chemistry","lowres_stp","um_dump","tr_bdf2"],
+        "opt_confs": ["climate","chemistry","tr_bdf2","lowres_stp","um_dump"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 144,

@@ -58,6 +58,11 @@ Science settings
 - ral_mixmol_opts - extra options for regional models when using the MoL
                     transport scheme and mixed solver configuration
 - ral_opts - extra options for regional models, including LBC blending weights
+- tr_bdf2 - using the TR-BDF2 timestepper
+- tr_bdf2_big - using the TR-BDF2 timestepper and a larger stencil extent
+- tr_bdf2_big_ral - using the TR-BDF2 timestepper, a larger stencil extent and
+                    an alternative radiation timestep, appropriate to a 2 min
+                    overall timestep
 - ukca - UKCA Glomap aerosol scheme
 - urban2t - 2-tile urban scheme
 - dry_atm - a dry atmosphere

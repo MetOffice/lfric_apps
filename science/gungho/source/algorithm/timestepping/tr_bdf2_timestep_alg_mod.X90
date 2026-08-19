@@ -719,7 +719,7 @@ contains
     logical(kind=l_def)         :: microphysics_casim
     logical(kind=l_def)         :: l_mcr_precfrac
     logical(kind=l_def)         :: murk_lbc
-    logical(kind=l_def)         :: fast_smagorinsky
+    logical(kind=l_def)         :: outer_smagorinsky
     logical(kind=l_def)         :: to_blend_lbc
     real(kind=r_def)            :: dt
     integer(kind=tik)           :: id
@@ -1295,11 +1295,11 @@ contains
             outer, model_clock, dt                                             &
         )
 
-        fast_smagorinsky = (                                                   &
+        outer_smagorinsky = (                                                  &
             smagorinsky .and.                                                  &
             smagorinsky_placement == smagorinsky_placement_outer               &
         )
-        if (fast_smagorinsky) then
+        if (outer_smagorinsky) then
           call smagorinsky_alg(                                                &
               self%config, self%dtheta, self%du, mr,                           &
               self%state(igh_t), self%state(igh_u), derived_fields,            &
