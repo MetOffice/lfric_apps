@@ -840,9 +840,8 @@
     {% do task_dict.update({
         "opt_confs": ["l70_40km","ral3","ral_opts","hh_solve","tr_bdf2_big_ral"],
         "resolution": "seuk_MG",
-        "DT": 120,
-        "tsteps": 60,
-        "crun": 2,
+        "DT": 150,
+        "tsteps": 48,
         "mpi_parts": 16,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
