@@ -10,7 +10,8 @@
 module gungho_driver_mod
 
   use base_mesh_config_mod,        only : prime_mesh_name
-  use constants_mod,               only : r_def, l_def, str_def, i_def
+  use constants_mod,               only : r_def, l_def, str_def, i_def, &
+                                          i_long, r_double
   use derived_config_mod,          only : l_esm_couple
   use extrusion_mod,               only : TWOD
   use field_collection_mod,        only : field_collection_type
@@ -366,9 +367,15 @@ contains
     type(mesh_type), pointer :: twod_mesh => null()
     integer(kind=i_def)      :: ts_start, rc
     integer(tik)             :: tid_first, tid_rest
+    !! System clock (time-per-timestep)
+    integer(i_long)  :: start, end, crate
+    real(r_double)   :: tstep_time_real, clock_rate
 
 #if defined(COUPLED) || defined(UM_PHYSICS)
     type( field_collection_type ), pointer :: depository => null()
+    !! System clock (time-per-timestep)
+    integer(i_long)  :: cpl_start, cpl_end
+    real(r_double)   :: cpl_time_real
 #endif
 
     type( field_collection_type ), pointer :: lbc_fields
@@ -397,6 +404,10 @@ contains
         call start_timing(tid_rest, 'gungho_driver.timestep')
       end if
     end if
+    ! Time per timestep
+    call system_clock(count_rate=crate)
+    clock_rate = real(crate, r_double)
+    call system_clock(start)
 #ifdef UM_PHYSICS
     nullify( surface_fields, ancil_fields )
 
@@ -445,6 +456,9 @@ contains
              '(A, I0)') 'Coupling timestep: ', modeldb%clock%get_step() - 1
        call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
+       ! Coupling time-per-timestep
+       call system_clock(cpl_start)
+
        depository => modeldb%fields%get_field_collection("depository")
        call save_sea_ice_frac_previous(depository)
 
@@ -453,6 +467,10 @@ contains
 
        ! Send all outgoing (ocean/seaice driving fields) to the coupler
        call cpl_snd( modeldb )
+
+       ! Time per timestep
+       call system_clock(cpl_end)
+       cpl_time_real = real((cpl_end - cpl_start)/clock_rate, r_double)
 
     endif
 #endif
@@ -536,6 +554,26 @@ contains
     call output_model_data( modeldb )
 
     nullify(mesh, twod_mesh)
+
+    ! Time per timestep
+    call system_clock(end)
+    tstep_time_real = real((end - start)/clock_rate, r_double)
+
+    write( log_scratch_space, &
+           '(A,f21.4,A)' ) &
+           '( TPT ) Time taken for gungho_driver timestep : ', tstep_time_real, '(s)'
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+#ifdef COUPLED
+    write( log_scratch_space, &
+           '(A,f21.4,A)' ) &
+           '( TPT ) Time taken for coupler :                ', cpl_time_real, '(s)'
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+#endif
+
+    ! End of timer info
+    write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     if ( LPROF ) then
       if ( modeldb%clock%get_step() == ts_start ) then
