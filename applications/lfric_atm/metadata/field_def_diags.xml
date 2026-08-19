@@ -362,6 +362,7 @@
   <field id="convection__cca_2d" name="cca_2d" long_name="convective_cloud_amount_(2d)_with_no_anvil" unit="1" domain_ref="face" />
   <field id="convection__lowest_cca_2d" name="lowest_cca_2d" long_name="lowest_convective_cloud_amount_(2d)_with_no_anvil" unit="1" domain_ref="face" />
   <field id="convection__ccw" name="ccw" long_name="convective_cloud_water" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="convection__ccw_unadjusted" name="ccw_unadjusted" long_name="convective_cloud_water_unadjusted_for_rad" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="convection__massflux_up" name="massflux_up" long_name="convection_upward_massflux" unit="Pa s-1" grid_ref="full_level_face_grid" />
   <field id="convection__massflux_up_half" name="massflux_up_half" long_name="conv_upward_massflux_half_levs" unit="Pa s-1" grid_ref="half_level_face_grid" />
   <field id="convection__massflux_up_cmpta" name="massflux_up_cmpta" long_name="conv_upward_mfx_component_a" unit="Pa s-1" grid_ref="half_level_face_grid" />
@@ -400,6 +401,7 @@
   <field id="convection__mid_in_col" name="mid_in_col" long_name="frequency_of_midlevel_convection" unit="1" domain_ref="face" />
   <field id="convection__mid_cfl_limited" name="mid_cfl_limited" long_name="midlevel_convection_cfl_limited" unit="1" domain_ref="face" />
   <field id="convection__cape_diluted" name="cape_diluted" long_name="cape_diluted" unit="J/kg" domain_ref="face" />
+  <field id="convection__cape_undilute" name="cape_undilute" long_name="cape_from_undilute_parcel_ascent" unit="J/kg" domain_ref="face" />
   <field id="convection__cape_timescale" name="cape_timescale" long_name="cape_timescale" unit="s" domain_ref="face" />
   <field id="convection__freeze_level" name="freeze_level" long_name="model_level_number_at_freezing_level" unit="1" domain_ref="face" />
   <field id="convection__pres_lowest_cv_base" name="pres_lowest_cv_base" long_name="pressure_at_lowest_convective_cloud_base" unit="Pa" domain_ref="face" />
@@ -408,6 +410,8 @@
   <field id="convection__pres_cv_top" name="pres_cv_top" long_name="pressure_at_convective_cloud_top" unit="Pa" domain_ref="face" />
   <field id="convection__conv_cloud_base_icao_height" name="convection_conv_cloud_base_icao_height" long_name="height_of_convective_cloud_base" unit="kft" domain_ref="face" />
   <field id="convection__conv_cloud_top_icao_height" name="convection_conv_cloud_top_icao_height" long_name="height_of_convective_cloud_top" unit="kft" domain_ref="face" />
+  <field id="convection__lowest_conv_cloud_base_icao_height" name="convection_lowest_conv_cloud_base_icao_height" long_name="height_of_lowest_convective_cloud_base" unit="kft" domain_ref="face" />
+  <field id="convection__lowest_conv_cloud_top_icao_height" name="convection_lowest_conv_cloud_top_icao_height" long_name="height_of_lowest_convective_cloud_top" unit="kft" domain_ref="face" />
   <!-- microphysics diagnostics -->
   <field id="microphysics__dtheta_mphys" name="dtheta_mphys" long_name="potential_temperature_increment_due_to_microphysics" unit="K" grid_ref="full_level_face_grid" />
   <field id="microphysics__dt_mphys" name="dt_mphys" long_name="temperature_increment_due_to_microphysics" unit="K" grid_ref="full_level_face_grid" />

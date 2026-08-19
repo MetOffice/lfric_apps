@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Interface to the explicit UM Boundary Layer scheme
 
 module bl_exp_alg_mod
@@ -217,7 +220,7 @@ contains
     type(mesh_type),           pointer :: mesh
     type( field_type ) :: dtl_mphys, dmt_mphys, ngstress_w2,                  &
                           fd_tau_w2, ngstress_bl, fd_taux, fd_tauy, fd_tauz,  &
-                          zht, oblen
+                          zht, oblen, cape_undilute
     type( field_type) :: rdz_wth, taux_land, tauy_land, taux_ssi, tauy_ssi
     type( field_type ) :: mr_ice
 
@@ -343,7 +346,7 @@ contains
     dz_wth           => get_dz_at_wtheta(config, mesh)
 
     ! Initialise diagnostics
-    call initialise_diags_for_bl_exp(zht, oblen)
+    call initialise_diags_for_bl_exp(zht, oblen, cape_undilute)
 
     ! Fields from microphysics
     call dtheta_mphys%copy_field_properties(dtl_mphys)
@@ -409,7 +412,8 @@ contains
                                     bl_weight_1dbl, bl_type_ind, level_ent,    &
                                     level_ent_dsc, ent_we_lim, ent_t_frac,     &
                                     ent_zrzi, ent_we_lim_dsc, ent_t_frac_dsc,  &
-                                    ent_zrzi_dsc, zht, oblen ),                &
+                                    ent_zrzi_dsc, zht, oblen,                  &
+                                    cape_undilute ),                           &
                 ! Initialise w2 fields
                 setval_c(rhokm_w2,       0.0_r_def),                           &
                 setval_c(surf_interp_w2, 0.0_r_def),                           &
@@ -478,7 +482,7 @@ contains
                                    ent_we_lim, ent_t_frac, ent_zrzi,         &
                                    ent_we_lim_dsc, ent_t_frac_dsc,           &
                                    ent_zrzi_dsc, zht, oblen,                 &
-                                   bl_weight_1dbl)
+                                   cape_undilute, bl_weight_1dbl)
 
     end if
 

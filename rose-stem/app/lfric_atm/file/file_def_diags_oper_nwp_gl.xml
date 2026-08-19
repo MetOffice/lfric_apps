@@ -148,7 +148,9 @@
       <field field_ref="aviation__geopot_thickness_500"/>
       <field field_ref="convection__conv_cloud_base_icao_height"/>
       <field field_ref="convection__conv_cloud_top_icao_height"/>
-    </field_group>     
+      <field field_ref="convection__lowest_conv_cloud_base_icao_height"/>
+      <field field_ref="convection__lowest_conv_cloud_top_icao_height"/>
+    </field_group>
     
     <field_group operation="average" freq_op="3h" prec="4">  
       <field field_ref="surface__soil_surf_ht_flux" name="soil_surf_ht_flux_average"/>

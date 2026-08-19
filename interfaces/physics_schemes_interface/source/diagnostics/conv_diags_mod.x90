@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for conv_alg
 
 module conv_diags_mod
@@ -57,10 +60,13 @@ module conv_diags_mod
                       massflux_up_half_flag,       &
                       massflux_up_cmpta_flag,      &
                       cca_unadjusted_flag,         &
+                      ccw_unadjusted_flag,         &
                       dth_conv_noshal_flag,        &
                       dmv_conv_noshal_flag,        &
                       cloud_base_icao_height_flag, &
-                      cloud_top_icao_height_flag
+                      cloud_top_icao_height_flag,  &
+                      lowest_cloud_base_icao_height_flag, &
+                      lowest_cloud_top_icao_height_flag
 
   public :: initialise_diags_for_conv
   public :: output_diags_for_conv
@@ -109,10 +115,13 @@ contains
                                        massflux_up_half,       &
                                        massflux_up_cmpta,      &
                                        cca_unadjusted,         &
+                                       ccw_unadjusted,         &
                                        dth_conv_noshal,        &
                                        dmv_conv_noshal,        &
                                        cloud_base_icao_height, &
-                                       cloud_top_icao_height)
+                                       cloud_top_icao_height,  &
+                                       lowest_cloud_base_icao_height, &
+                                       lowest_cloud_top_icao_height)
 
     implicit none
 
@@ -159,10 +168,13 @@ contains
                                          massflux_up_half,        &
                                          massflux_up_cmpta,       &
                                          cca_unadjusted,          &
+                                         ccw_unadjusted,          &
                                          dth_conv_noshal,         &
                                          dmv_conv_noshal,         &
                                          cloud_base_icao_height,  &
-                                         cloud_top_icao_height
+                                         cloud_top_icao_height,   &
+                                         lowest_cloud_base_icao_height, &
+                                         lowest_cloud_top_icao_height
 
     logical(l_def) :: ignore
     integer(tik)   :: id
@@ -223,12 +235,24 @@ contains
       activate=cloud_top_icao_height_flag)
     ! not zeroed because overwritten
 
+    lowest_cloud_base_icao_height_flag = init_diag( &
+      lowest_cloud_base_icao_height, &
+      'convection__lowest_conv_cloud_base_icao_height')
+    ! not zeroed because overwritten
+
+    lowest_cloud_top_icao_height_flag = init_diag( &
+      lowest_cloud_top_icao_height, &
+      'convection__lowest_conv_cloud_top_icao_height')
+    ! not zeroed because overwritten
+
     pres_lowest_cv_base_flag = init_diag(pres_lowest_cv_base, &
-                                         'convection__pres_lowest_cv_base')
+      'convection__pres_lowest_cv_base', &
+      activate=lowest_cloud_base_icao_height_flag)
     ! not zeroed because overwritten
 
     pres_lowest_cv_top_flag = init_diag(pres_lowest_cv_top, &
-                                        'convection__pres_lowest_cv_top')
+      'convection__pres_lowest_cv_top', &
+      activate=lowest_cloud_top_icao_height_flag)
     ! not zeroed because overwritten
 
     lowest_cca_2d_flag = init_diag(lowest_cca_2d, &
@@ -300,6 +324,9 @@ contains
 
     cca_unadjusted_flag = init_diag(cca_unadjusted, 'convection__cca_unadjusted')
     if (cca_unadjusted_flag) call invoke( setval_c(cca_unadjusted, 0.0_r_def) )
+
+    ccw_unadjusted_flag = init_diag(ccw_unadjusted, 'convection__ccw_unadjusted')
+    if (ccw_unadjusted_flag) call invoke( setval_c(ccw_unadjusted, 0.0_r_def) )
 
     dth_conv_noshal_flag = init_diag(dth_conv_noshal, 'convection__dth_conv_noshal')
 
@@ -382,10 +409,13 @@ contains
                                     massflux_up_half,       &
                                     massflux_up_cmpta,      &
                                     cca_unadjusted,         &
+                                    ccw_unadjusted,         &
                                     dth_conv_noshal,        &
                                     dmv_conv_noshal,        &
                                     cloud_base_icao_height, &
-                                    cloud_top_icao_height)
+                                    cloud_top_icao_height,  &
+                                    lowest_cloud_base_icao_height, &
+                                    lowest_cloud_top_icao_height)
 
     implicit none
 
@@ -451,10 +481,13 @@ contains
                                        massflux_up_half,       &
                                        massflux_up_cmpta,      &
                                        cca_unadjusted,         &
+                                       ccw_unadjusted,         &
                                        dth_conv_noshal,        &
                                        dmv_conv_noshal,        &
                                        cloud_base_icao_height, &
-                                       cloud_top_icao_height
+                                       cloud_top_icao_height,  &
+                                       lowest_cloud_base_icao_height, &
+                                       lowest_cloud_top_icao_height
     integer( tik )  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.conv' )
@@ -496,6 +529,18 @@ contains
       call invoke(icao_heights_kernel_type( &
         cloud_top_icao_height, pres_cv_top, g_over_r_def))
       call cloud_top_icao_height%write_field()
+    end if
+
+    if (lowest_cloud_base_icao_height_flag) then
+      call invoke(icao_heights_kernel_type( &
+        lowest_cloud_base_icao_height, pres_lowest_cv_base, g_over_r_def))
+      call lowest_cloud_base_icao_height%write_field()
+    end if
+
+    if (lowest_cloud_top_icao_height_flag) then
+      call invoke(icao_heights_kernel_type( &
+        lowest_cloud_top_icao_height, pres_lowest_cv_top, g_over_r_def))
+      call lowest_cloud_top_icao_height%write_field()
     end if
 
     ! Diagnostics computed within the kernel
@@ -540,6 +585,7 @@ contains
     if (massflux_up_half_flag) call massflux_up_half%write_field()
     if (massflux_up_cmpta_flag) call massflux_up_cmpta%write_field()
     if (cca_unadjusted_flag) call cca_unadjusted%write_field()
+    if (ccw_unadjusted_flag) call ccw_unadjusted%write_field()
     if (dth_conv_noshal_flag) call dth_conv_noshal%write_field()
     if (dmv_conv_noshal_flag) call dmv_conv_noshal%write_field()
 

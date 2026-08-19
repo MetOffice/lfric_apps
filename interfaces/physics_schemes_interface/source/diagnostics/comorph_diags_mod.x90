@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for comorph_alg
 
 module comorph_diags_mod
@@ -34,7 +37,9 @@ module comorph_diags_mod
                       detrain_down_flag,           &
                       massflux_up_half_flag,       &
                       cloud_base_icao_height_flag, &
-                      cloud_top_icao_height_flag
+                      cloud_top_icao_height_flag,  &
+                      lowest_cloud_base_icao_height_flag, &
+                      lowest_cloud_top_icao_height_flag
 
   public :: initialise_diags_for_comorph
   public :: output_diags_for_comorph
@@ -57,7 +62,9 @@ contains
                                           detrain_down,           &
                                           massflux_up_half,       &
                                           cloud_base_icao_height, &
-                                          cloud_top_icao_height)
+                                          cloud_top_icao_height,  &
+                                          lowest_cloud_base_icao_height, &
+                                          lowest_cloud_top_icao_height)
 
     implicit none
 
@@ -77,7 +84,9 @@ contains
                                          detrain_down,            &
                                          massflux_up_half,        &
                                          cloud_base_icao_height,  &
-                                         cloud_top_icao_height
+                                         cloud_top_icao_height,   &
+                                         lowest_cloud_base_icao_height, &
+                                         lowest_cloud_top_icao_height
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -98,10 +107,19 @@ contains
     pres_cv_top_flag = init_diag(pres_cv_top, 'convection__pres_cv_top', &
       activate=cloud_top_icao_height_flag)
 
+    lowest_cloud_base_icao_height_flag = init_diag( &
+      lowest_cloud_base_icao_height, &
+      'convection__lowest_conv_cloud_base_icao_height')
+    lowest_cloud_top_icao_height_flag = init_diag( &
+      lowest_cloud_top_icao_height, &
+      'convection__lowest_conv_cloud_top_icao_height')
+
     pres_lowest_cv_base_flag = init_diag(pres_lowest_cv_base, &
-                                         'convection__pres_lowest_cv_base')
+      'convection__pres_lowest_cv_base', &
+      activate=lowest_cloud_base_icao_height_flag)
     pres_lowest_cv_top_flag = init_diag(pres_lowest_cv_top, &
-                                        'convection__pres_lowest_cv_top')
+      'convection__pres_lowest_cv_top', &
+      activate=lowest_cloud_top_icao_height_flag)
 
     lowest_cca_2d_flag = init_diag(lowest_cca_2d, &
                                    'convection__lowest_cca_2d')
@@ -160,7 +178,9 @@ contains
                                     detrain_down,           &
                                     massflux_up_half,       &
                                     cloud_base_icao_height, &
-                                    cloud_top_icao_height)
+                                    cloud_top_icao_height,  &
+                                    lowest_cloud_base_icao_height, &
+                                    lowest_cloud_top_icao_height)
 
     implicit none
 
@@ -202,7 +222,9 @@ contains
                                        detrain_down,           &
                                        massflux_up_half,       &
                                        cloud_base_icao_height, &
-                                       cloud_top_icao_height
+                                       cloud_top_icao_height,  &
+                                       lowest_cloud_base_icao_height, &
+                                       lowest_cloud_top_icao_height
     integer(tik)  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
@@ -244,6 +266,18 @@ contains
       call invoke(icao_heights_kernel_type( &
         cloud_top_icao_height, pres_cv_top, g_over_r_def))
       call cloud_top_icao_height%write_field()
+    end if
+
+    if (lowest_cloud_base_icao_height_flag) then
+      call invoke(icao_heights_kernel_type( &
+        lowest_cloud_base_icao_height, pres_lowest_cv_base, g_over_r_def))
+      call lowest_cloud_base_icao_height%write_field()
+    end if
+
+    if (lowest_cloud_top_icao_height_flag) then
+      call invoke(icao_heights_kernel_type( &
+        lowest_cloud_top_icao_height, pres_lowest_cv_top, g_over_r_def))
+      call lowest_cloud_top_icao_height%write_field()
     end if
 
     ! Diagnostics computed within the kernel
