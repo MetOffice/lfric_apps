@@ -94,7 +94,7 @@
 {% elif task_ns.conf_name == "nwp_gal10-tr_bdf2-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["tr_bdf", "um_dump"],
+        "opt_confs": ["tr_bdf2", "um_dump"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 144,
