@@ -121,7 +121,7 @@ character(str_def),           allocatable :: base_mesh_names(:)
 character(str_def),           allocatable :: twod_names(:)
 
 integer(i_def), parameter :: one_layer = 1_i_def
-integer(i_def) :: i
+integer(i_def) :: i, n_meshes
 
 character(str_def) :: prime_mesh_name
 
@@ -258,6 +258,11 @@ call assign_mesh_maps( twod_names )
 call log_event('Creating function spaces and chi', LOG_LEVEL_INFO)
 chi_inventory => get_chi_inventory()
 panel_id_inventory => get_panel_id_inventory()
+
+n_meshes = mesh_collection%n_meshes()
+call chi_inventory%initialise(name="chi",           table_len=n_meshes)
+call panel_id_inventory%initialise(name="panel_id", table_len=n_meshes)
+
 call init_fem(config, chi_inventory, panel_id_inventory)
 
 ! XIOS domain initialisation

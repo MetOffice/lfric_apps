@@ -74,7 +74,13 @@ contains
     type(field_type), pointer    :: panel_id
     type(lfric_comm_type)        :: lfric_comm
 
+    integer(i_def) :: n_meshes
+
     nullify(mesh, chi, panel_id)
+
+    n_meshes = mesh_collection%n_meshes()
+    call chi_inventory%initialise(name="chi",           table_len=n_meshes)
+    call panel_id_inventory%initialise(name="panel_id", table_len=n_meshes)
 
     ! Create FEM specifics (function spaces and chi field)
     call init_fem( config, chi_inventory, panel_id_inventory )

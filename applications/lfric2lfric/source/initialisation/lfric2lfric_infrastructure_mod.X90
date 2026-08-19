@@ -12,7 +12,7 @@
 !>
 module lfric2lfric_infrastructure_mod
 
-  use add_mesh_map_mod,            only: assign_mesh_maps
+  use add_mesh_map_mod,            only: add_mesh_map
   use blend_orography_alg_mod,     only: blend_orography
   use constants_mod,               only: str_def, str_max_filename, &
                                          r_def, i_def, l_def, r_second
@@ -51,6 +51,7 @@ module lfric2lfric_infrastructure_mod
                                          log_level_debug
   use mesh_mod,                    only: mesh_type
   use mesh_collection_mod,         only: mesh_collection
+  use global_mesh_collection_mod,  only: global_mesh_collection
   use model_clock_mod,             only: model_clock_type
   use orography_config_mod,        only: orog_init_option,          &
                                          orog_init_option_analytic, &
@@ -163,8 +164,8 @@ contains
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
     ! Namelist parameters
-    character(len=str_def)              :: mesh_names(2)
-    character(len=str_def), allocatable :: twod_names(:)
+    character(len=str_def) :: mesh_names(2)
+
 
     character(len=str_max_filename) :: start_dump_filename
     character(len=str_max_filename) :: source_file_lbc
@@ -219,6 +220,10 @@ contains
     integer(i_def) :: coord_system
     real(r_def)    :: scaled_radius
 
+    character(str_def) :: stored_twod_names(2)
+    character(str_def) :: stored_mesh_names(2)
+    integer(i_def)     :: n_meshes
+
     ! -------------------------------
     ! Extract namelist variables
     ! -------------------------------
@@ -248,6 +253,9 @@ contains
     tile_size_x = 1
     tile_size_y = 1
     inner_halo_tiles = .false.
+
+    stored_mesh_names(src) = 'src_'//trim(mesh_names(src))
+    stored_mesh_names(dst) = 'dst_'//trim(mesh_names(dst))
 
     !=======================================================================
     ! Mesh
@@ -353,13 +361,22 @@ contains
                     inner_halo_tiles, tile_size, &
                     stencil_depth, regrid_method )
 
-    allocate( twod_names, source=mesh_names )
-    do i=1, size(twod_names)
-      twod_names(i) = trim(twod_names(i))//'_2d'
+    stored_twod_names(:) = stored_mesh_names(:)
+    do i=1, size(stored_twod_names)
+      stored_twod_names(i) = trim(stored_twod_names(i))//'_2d'
     end do
-    call create_mesh( mesh_names, extrusion_2d,    &
-                      inner_halo_tiles, tile_size, &
-                      alt_name=twod_names )
+
+    call create_mesh( stored_mesh_names(src), extrusion_2d, &
+                      inner_halo_tiles, tile_size(:,src),   &
+                      alt_name=stored_twod_names(src) )
+
+    call create_mesh( stored_mesh_names(dst), extrusion_2d, &
+                      inner_halo_tiles, tile_size(:,dst),   &
+                      alt_name=stored_twod_names(dst) )
+
+    if (allocated(global_mesh_collection)) then
+      deallocate(global_mesh_collection)
+    end if
 
     !=======================================================================
     ! Build the FEM function spaces and coordinate fields
@@ -370,24 +387,29 @@ contains
     ! Create FEM specifics (function spaces and chi field)
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
+
+    n_meshes = mesh_collection%n_meshes()
+    call chi_inventory%initialise(name="chi",           table_len=n_meshes)
+    call panel_id_inventory%initialise(name="panel_id", table_len=n_meshes)
+
     call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
 
     !-----------------------------------------------------------------------
     ! Assign pointers to the correct meshes
     !-----------------------------------------------------------------------
-    mesh_src      => mesh_collection%get_mesh(trim(mesh_names(src)))
-    twod_mesh_src => mesh_collection%get_mesh(trim(twod_names(src)))
-    mesh_dst      => mesh_collection%get_mesh(trim(mesh_names(dst)))
-    twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
+    mesh_src      => mesh_collection%get_mesh(trim(stored_mesh_names(src)))
+    twod_mesh_src => mesh_collection%get_mesh(trim(stored_twod_names(src)))
+    mesh_dst      => mesh_collection%get_mesh(trim(stored_mesh_names(dst)))
+    twod_mesh_dst => mesh_collection%get_mesh(trim(stored_twod_names(dst)))
 
     ! Log this change
-    call log_event('Source mesh set to: ' // mesh_names(src),         &
+    call log_event('Source mesh set to: ' // stored_mesh_names(src), &
                    log_level_debug)
-    call log_event('Source 2D mesh set to: ' // twod_names(src),      &
+    call log_event('Source 2D mesh set to: ' // stored_twod_names(src), &
                    log_level_debug)
-    call log_event('Destination mesh set to: ' // mesh_names(dst),    &
+    call log_event('Destination mesh set to: ' // stored_mesh_names(dst), &
                    log_level_debug)
-    call log_event('Destination 2D mesh set to: ' // twod_names(dst), &
+    call log_event('Destination 2D mesh set to: ' // stored_twod_names(dst), &
                    log_level_debug)
 
     !=======================================================================
@@ -401,12 +423,12 @@ contains
     files_init_ptr => init_lfric2lfric_dst_files
 
     ! Initialise the IO context with all the required info
-    call init_io( context_dst,        &
-                  mesh_names(dst),    &
-                  modeldb,            &
-                  chi_inventory,      &
-                  panel_id_inventory, &
-                  geometry, topology, &
+    call init_io( context_dst,            &
+                  stored_mesh_names(dst), &
+                  modeldb,                &
+                  chi_inventory,          &
+                  panel_id_inventory,     &
+                  geometry, topology,     &
                   populate_filelist=files_init_ptr  )
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context_dst)
@@ -441,7 +463,7 @@ contains
                                     halo_depth = twod_mesh_dst%get_halo_depth())
 
       ! Get pointers to the destination mesh:
-      orography_mesh => mesh_collection%get_mesh(mesh_names(dst))
+      orography_mesh      => mesh_collection%get_mesh(stored_mesh_names(dst))
       orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
 
       ! Set up surface altitude field - this will be used to generate orography
@@ -485,7 +507,7 @@ contains
          orog_init_option == orog_init_option_start_dump ) then
 
       ! Get pointers to the source mesh:
-      orography_mesh => mesh_collection%get_mesh(mesh_names(src))
+      orography_mesh => mesh_collection%get_mesh(stored_mesh_names(src))
       orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
 
       call surface_altitude_src%initialise(vector_space,         &
@@ -517,7 +539,10 @@ contains
     select case (regrid_method)
       case (regrid_method_map)
         if (regrid_method == regrid_method_map) then
-          call assign_mesh_maps(twod_names)
+          call add_mesh_map(mesh_src, mesh_dst)
+          call add_mesh_map(mesh_dst, mesh_src)
+          call add_mesh_map(twod_mesh_src, twod_mesh_dst)
+          call add_mesh_map(twod_mesh_dst, twod_mesh_src)
         end if
 
       case (regrid_method_lfric2lfric)
@@ -571,6 +596,7 @@ contains
       ierror=0
       coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
       local_index => coupling_ptr%get_local_index()
+
       ! send the src orog via OASIS
       coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
       local_index => coupling_ptr%get_local_index()
@@ -599,16 +625,15 @@ contains
       ! Blend the regridded src orography with the dst orography
       ! --------------------------------------------------------
       call blend_orography(surface_altitude_dst, surface_altitude_src_on_dst, &
-                           mesh_names(dst))
+                           stored_mesh_names(dst))
 
-      call setup_orography_alg( mesh_names(dst:dst),            &
+      call setup_orography_alg( stored_mesh_names(dst:dst),     &
                                 orography_mesh%get_mesh_name(), &
                                 chi_inventory,                  &
                                 panel_id_inventory,             &
                                 surface_altitude_dst )
     end if
 
-    deallocate(twod_names)
     deallocate(extrusion)
 
   end subroutine initialise_infrastructure

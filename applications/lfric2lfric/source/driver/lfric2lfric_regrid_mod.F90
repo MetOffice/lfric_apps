@@ -104,8 +104,8 @@ contains
 
 
     ! Obtain namelist parameters
-    mesh_names(dst) = modeldb%config%lfric2lfric%destination_mesh_name()
-    mesh_names(src) = modeldb%config%lfric2lfric%source_mesh_name()
+    mesh_names(dst) = 'dst_'//trim(modeldb%config%lfric2lfric%destination_mesh_name())
+    mesh_names(src) = 'src_'//trim(modeldb%config%lfric2lfric%source_mesh_name())
     element_order_h = modeldb%config%finite_element%element_order_h()
     element_order_v = modeldb%config%finite_element%element_order_v()
 
