@@ -64,10 +64,10 @@
         "lfric_atm_canned_azspice_gnu_fast-debug-32bit",
     ],
     "lfric_atm_azspice_nudging": [
-        "lfric_atm_nwp_gal9_nudging-spectral-C48_MG_azspice_gnu_fast-debug-32bit",
-        "lfric_atm_nwp_gal9_nudging-spectral-coarse-C48_MG_azspice_gnu_fast-debug-32bit",
-        "lfric_atm_nwp_gal9_nudging-newtonian-C48_MG_azspice_gnu_fast-debug-32bit",
-        "lfric_atm_nwp_gal9_nudging-newtonian-coarse-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal10_nudging-spectral-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal10_nudging-spectral-coarse-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal10_nudging-newtonian-C48_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal10_nudging-newtonian-coarse-C48_MG_azspice_gnu_fast-debug-32bit",
     ],
     "lfric_atm_azspice_developer": [
         "lfric_atm_nwp_azspice_developer",

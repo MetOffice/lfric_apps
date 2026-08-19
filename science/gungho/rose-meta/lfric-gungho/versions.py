@@ -58,7 +58,7 @@ class vn32_t670(MacroUpgrade):
             config, ["namelist:nudging", "nudging_spinup_end"], "24.0"
         )
         self.add_setting(
-            config, ["namelist:nudging", "nudging_stop_time"], "144.0"
+            config, ["namelist:nudging", "nudging_stop_time"], "10000.0"
         )
         self.add_setting(
             config, ["namelist:nudging", "nudging_level_taper_bottom"], "5"

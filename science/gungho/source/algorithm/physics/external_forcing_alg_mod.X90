@@ -208,9 +208,9 @@ contains
     ! If nudging is to be applied, obtain reference fields
     if ( theta_forcing == theta_forcing_nudging .or.                           &
          wind_forcing == wind_forcing_nudging ) then
-      call set_nudging_reference_fields(config, derived_fields, exner)
       nudging_spinup_factor = compute_nudging_spinup_factor(config, time_now)
       if (nudging_spinup_factor > 0.0_r_def) then
+        call set_nudging_reference_fields(config, derived_fields, exner)
         call set_nudging_trop_level(config, trop_level, theta, exner_in_wth)
       end if
     end if

@@ -128,6 +128,8 @@ subroutine newtonian_nudging_code(nlayers,                                     &
 
   idx_fb = map_3d(1) + min_level_loc
   idx_ft = map_3d(1) + max_level_loc
+
+  ! Index of vertical weights. These start from 1 (whether W3 or Wtheta)
   idx_vb = 1 + min_level_loc
   idx_vt = 1 + max_level_loc
 

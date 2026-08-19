@@ -278,7 +278,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_nudging-spectral-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_nudging-spectral-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["nudging-spectral","um_dump"],
@@ -291,7 +291,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_nudging-spectral-coarse-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_nudging-spectral-coarse-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["nudging-spectral-coarse","um_dump"],
@@ -304,7 +304,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_nudging-newtonian-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_nudging-newtonian-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["nudging-newtonian","um_dump"],
@@ -317,7 +317,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_nudging-newtonian-coarse-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_nudging-newtonian-coarse-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["nudging-newtonian-coarse","um_dump"],

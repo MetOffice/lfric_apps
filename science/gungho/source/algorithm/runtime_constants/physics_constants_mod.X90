@@ -569,6 +569,10 @@ contains
       nudging_top = real(nudging_level_top, r_def)
       taper_top = real(nudging_taper_top, r_def)
 
+      ! NOTE: the weights array is indexed from 1 to nl. For the Wtheta weights,
+      ! this means the weights are shifted by 1 from our usual interpretation
+      ! of model level number. This is because PSyclone can't handle arrays
+      ! with an initial index of 0.
       do k = 0, nl-1
         k_real = real(k, r_def) + w3_offset
 
