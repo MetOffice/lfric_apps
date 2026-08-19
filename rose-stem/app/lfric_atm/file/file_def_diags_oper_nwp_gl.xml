@@ -7,6 +7,7 @@
       <field field_ref="turbulence__zh"/>
       <field field_ref="surface__grid_surface_temperature"/>
       <field field_ref="surface__z0m"/>
+      <field field_ref="surface__z0m_sea"/>
       <field field_ref="surface__land_fraction"/>
       <field field_ref="surface__sea_ice_fraction"/>
       <field field_ref="orography"/>
@@ -19,6 +20,10 @@
       <field field_ref="surface__grid_sensible_heat"/>
       <field field_ref="surface__grid_moisture_flux"/>
       <field field_ref="surface__grid_latent_heat"/>
+      <field field_ref="surface__land_mean_heat_flux"/>
+      <field field_ref="surface__land_mean_latent_heat"/>
+      <field field_ref="surface__ssi_mean_heat_flux"/>
+      <field field_ref="surface__ssi_mean_latent_heat"/>
       <field field_ref="surface__t1p5m"/>
       <field field_ref="surface__q1p5m"/>
       <field field_ref="surface__rh1p5m"/>
@@ -153,6 +158,9 @@
     <field_group operation="average" freq_op="3h" prec="4">  
       <field field_ref="surface__soil_surf_ht_flux" name="soil_surf_ht_flux_average"/>
       <field field_ref="surface__grid_sublimation" name="grid_sublimation_average"/>
+      <field field_ref="surface__sea_mean_heat_flux" name="sea_mean_heat_flux_average"/>
+      <field field_ref="surface__sea_mean_moisture_flux" name="sea_mean_moisture_flux_average"/>
+      <field field_ref="seaice__ssi_mean_topmelt_heat_flux" name="ssi_mean_topmelt_heat_flux_average"/>
       <field field_ref="microphysics__ls_rain" name="ls_rain_average"/>
       <field field_ref="microphysics__ls_snow" name="ls_snow_average"/>
       <field field_ref="convection__conv_rain" name="conv_rain_average"/>

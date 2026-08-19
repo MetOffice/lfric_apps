@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Interface to the JULES surf_couple_extra scheme
 
 module jules_extra_alg_mod
@@ -285,6 +288,7 @@ contains
       call output_diags_for_jules_snow(tile_fraction, tile_snow_mass,          &
                                      snowice_melt,                             &
                                      snow_depth, tile_snow_rgrain,             &
+                                     snow_under_canopy, n_snow_layers,         &
                                      snowpack_density, snow_layer_temp,        &
                                      snow_layer_thickness, snow_layer_ice_mass,&
                                      snow_layer_liq_mass, snow_layer_rgrain,   &
@@ -299,10 +303,12 @@ contains
                                      water_table, soil_moist_wilt,             &
                                      soil_moist_crit, soil_moist_sat,          &
                                      grid_canopy_water,grid_throughfall,       &
+                                     soil_sat_frac, wetness_under_soil,        &
                                      inland_basin_flow)
 
       ! Output sea ice diagnostics
-      call output_diags_for_jules_seaice(tile_fraction, sea_ice_thickness,     &
+      call output_diags_for_jules_seaice(tile_fraction, snowice_melt,          &
+                                    sea_ice_thickness,                         &
                                     sea_ice_temperature, sea_ice_conductivity, &
                                     sea_ice_pensolar, melt_pond_fraction,      &
                                     melt_pond_depth)

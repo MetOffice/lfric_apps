@@ -3,15 +3,22 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for jules_extra_alg
 
 module jules_seaice_diags_mod
 
+  use constants_mod,             only: r_def
   use field_mod,                 only: field_type
   use timing_mod,                only: start_timing, stop_timing, tik, LPROF
-
-  use jules_control_init_mod, only: first_sea_ice_tile,            &
-                                    n_sea_ice_tile
+  use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
+  use driver_water_constants_mod,  only: latent_heat_h2o_fusion
+  use jules_control_init_mod,      only: first_sea_tile, n_ssi_tile,    &
+                                         first_sea_ice_tile,            &
+                                         n_sea_ice_tile
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
 
   implicit none
 
@@ -23,6 +30,7 @@ contains
 
   !> @brief Output diagnostics from jules_extra_alg
   !> @param[in]     tile_fraction          Fraction of surface tiles
+  !> @param[in]     snowice_melt           Total snow and ice melt on tiles
   !> @param[in]     sea_ice_thickness      Sea ice thickness
   !> @param[in]     sea_ice_temperature    Sea ice layer temperature
   !> @param[in]     sea_ice_conductivity   Sea ice conductivity
@@ -30,7 +38,8 @@ contains
   !> @param[in]     melt_pond_fraction     Melt pond fraction
   !> @param[in]     melt_pond_depth        Melt pond depth
 
-  subroutine output_diags_for_jules_seaice(tile_fraction, sea_ice_thickness,     &
+  subroutine output_diags_for_jules_seaice(tile_fraction, snowice_melt,          &
+                                      sea_ice_thickness,                         &
                                       sea_ice_temperature, sea_ice_conductivity, &
                                       sea_ice_pensolar, melt_pond_fraction,      &
                                       melt_pond_depth)
@@ -40,13 +49,17 @@ contains
     implicit none
 
     ! Prognostic fields to output
-    type( field_type ), intent(in) :: tile_fraction, sea_ice_thickness,          &
+    type( field_type ), intent(in) :: tile_fraction, snowice_melt,               &
+                                      sea_ice_thickness,                         &
                                       sea_ice_temperature, sea_ice_conductivity, &
                                       sea_ice_pensolar, melt_pond_fraction,      &
                                       melt_pond_depth
 
     ! Diagnostics locally computed here from other fields
-    type( field_type )             :: sea_ice_fraction
+    type( field_type )             :: sea_ice_fraction, weights_one,   &
+                                      sea_ice_tile, sea_ice_topmelt,   &
+                                      ice_mean_thickness, ice_mean_temperature
+    real(r_def)                    :: num_sice_tiles
     integer( tik )                 :: id
 
     if ( LPROF ) call start_timing( id, 'diags.jules_seaice' )
@@ -64,6 +77,54 @@ contains
     call invoke(multi_extract_kernel_type(sea_ice_fraction, tile_fraction,     &
                                             first_sea_ice_tile, n_sea_ice_tile))
     call sea_ice_fraction%write_field('seaice__sea_ice_fraction')
+
+    ! Output sea-ice as a fraction of total grid-box
+    ! kernel calculates the avearge, so multiply after by number of tiles
+    ! to get the sum
+    if(init_diag(sea_ice_tile, 'surface__sea_ice_tile')) then
+      call tile_fraction%copy_field_properties(weights_one)
+      num_sice_tiles = real(n_sea_ice_tile, r_def)
+      call invoke(setval_c(weights_one, 1.0_r_def),                           &
+                  weighted_ave_kernel_type(sea_ice_tile,                      &
+                                       tile_fraction, weights_one,            &
+                                       first_sea_ice_tile, n_sea_ice_tile),   &
+                  inc_a_times_X(num_sice_tiles, sea_ice_tile))
+      call sea_ice_tile%write_field()
+    end if
+
+    ! Output the heat flux used in melting the top of the sea-ice, as a mean
+    ! over the marine portion of the grid-box. The tile order is land, sea,
+    ! sea-ice, so averaging over the sea and sea-ice tiles weighted by their
+    ! fractions divides by the marine fraction. The melt rate is zero on the
+    ! sea tile, so only the sea-ice contributes to the sum. It is converted
+    ! from a melt rate to an energy flux by the latent heat of fusion.
+    if(init_diag(sea_ice_topmelt, 'seaice__ssi_mean_topmelt_heat_flux')) then
+      call invoke(weighted_ave_kernel_type(sea_ice_topmelt,                   &
+                                       snowice_melt, tile_fraction,           &
+                                       first_sea_tile, n_ssi_tile),           &
+                  inc_a_times_X(latent_heat_h2o_fusion, sea_ice_topmelt))
+      call sea_ice_topmelt%write_field()
+    end if
+
+    ! Aggregate the category thickness and temperature onto a single level by
+    ! averaging over the categories weighted by their fractions, which divides
+    ! by the total ice fraction and so gives a mean over the ice.  This is how
+    ! sice_htf forms the bulk temperature, and the weights cancel in the ratio
+    ! so it does not matter that the fractions here are of the grid-box while
+    ! those in JULES are of the marine portion.
+    if(init_diag(ice_mean_thickness, 'seaice__ice_mean_thickness')) then
+      call invoke(weighted_ave_kernel_type(ice_mean_thickness,                 &
+                                       sea_ice_thickness, sea_ice_fraction,    &
+                                       1, n_sea_ice_tile))
+      call ice_mean_thickness%write_field()
+    end if
+
+    if(init_diag(ice_mean_temperature, 'seaice__ice_mean_temperature')) then
+      call invoke(weighted_ave_kernel_type(ice_mean_temperature,               &
+                                       sea_ice_temperature, sea_ice_fraction,  &
+                                       1, n_sea_ice_tile))
+      call ice_mean_temperature%write_field()
+    end if
 
     if ( LPROF ) call stop_timing( id, 'diags.jules_seaice' )
 
