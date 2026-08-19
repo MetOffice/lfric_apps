@@ -30,7 +30,7 @@ module create_physics_prognostics_mod
                                              LOG_LEVEL_WARNING,                 &
                                              LOG_LEVEL_ERROR
   use mesh_mod,                       only : mesh_type
-  use mixing_config_mod,              only : smagorinsky
+  use mixing_config_mod,              only : smagorinsky, leonard_term
   use physics_config_mod,             only : stochastic_physics_placement,      &
                                              stochastic_physics_placement_fast
   use pure_abstract_field_mod,        only : pure_abstract_field_type
@@ -674,8 +674,12 @@ contains
     call processor%apply(make_spec('rhokm_bl', main%turbulence, Wtheta))
     call processor%apply(make_spec('dtrdz_tq_bl', main%turbulence, Wtheta))
     call processor%apply(make_spec('dw_bl', main%turbulence, Wtheta))
-    call processor%apply(make_spec('thetal_inc_leonard', main%turbulence, Wtheta))
-    call processor%apply(make_spec('mt_inc_leonard', main%turbulence, Wtheta))
+    call processor%apply(make_spec('thetal_inc_leonard', main%turbulence, &
+                         Wtheta, empty=(.not. leonard_term)))
+    call processor%apply(make_spec('mt_inc_leonard', main%turbulence, Wtheta, &
+                         empty=(.not. leonard_term)))
+    call processor%apply(make_spec('u_inc_leonard', main%turbulence, W2, &
+                         empty=(.not. leonard_term)))
 
     ! 3D fields on W3 (rho) levels
     call processor%apply(make_spec('moist_flux_bl', main%turbulence, W3))
