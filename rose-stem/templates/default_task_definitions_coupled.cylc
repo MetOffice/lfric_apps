@@ -40,7 +40,7 @@
 {% endif %}
 
 {% if "nemo_iproc" not in task_dict %}
-    {% do task_dict.update({"nemo_iproc": 22}) %}
+    {% do task_dict.update({"nemo_iproc": 21}) %}
 {% endif %}
 
 {% if "nemo_jproc" not in task_dict %}

@@ -27,7 +27,6 @@ from psyclone.psyir.nodes import (
     Schedule,
 )
 from psyclone.psyir.symbols import (
-    DataSymbol,
     ContainerSymbol,
     RoutineSymbol,
     ImportInterface,
@@ -623,7 +622,7 @@ def loop_replacement_of(routine_itr,
                 tmp = loop.detach()  # noqa: F841 #pylint: disable=W0612
 
 
-def add_omp_parallel_region( #pylint: disable=R0913
+def add_omp_parallel_region(  # pylint: disable=R0913
     start_node,
     end_node,
     *,
@@ -730,3 +729,71 @@ def get_ancestors(
     if depth is not None:
         ancestors = [a for a in ancestors if a.depth == depth]
     return ancestors
+
+
+def get_children(node, node_type=Node, exclude=()):
+    """
+    Lifted from PSyTran.
+    Get all immediate descendents of a Node with a given type, i.e., those at
+    the next depth level.
+
+    :arg node: the Node to search for descendents of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+
+    :returns: list of children according to specifications.
+    :rtype: :py:class:`list`
+    """
+    # safety checks
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    if not isinstance(node_type, tuple):
+        issubclass(node_type, Node)
+        node_type = (node_type,)
+    # create the child list
+    children = [
+        grandchild
+        for child in node.children
+        for grandchild in child.children
+        if isinstance(grandchild, node_type)
+        and not isinstance(grandchild, exclude)
+    ]
+    return children
+
+
+def get_all_children(node, node_type=Node):
+    """
+    A version of get_children, which instead recurses all the way down.
+    Get all immediate descendents of a Node with a given type, i.e., those at
+    the next depth level.
+
+    :arg node: the Node to search for descendents of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+
+    :returns: list of children according to specifications.
+    :rtype: :py:class:`list`
+    """
+    # safety checks
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    if not isinstance(node_type, tuple):
+        issubclass(node_type, Node)
+        node_type = (node_type,)
+
+    # create the local children list to be passed back up the stack
+    local_children = []
+    for child in node.children:
+        # work through the current children, do they match the node_type?
+        if isinstance(child, node_type):
+            local_children.append(child)
+        # if the child has grandchildren, recurse
+        if child.children:
+            returned_children = get_all_children(child, node_type=node_type)
+            for child in returned_children:
+                local_children.append(child)
+    return local_children
