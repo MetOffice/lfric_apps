@@ -7,7 +7,7 @@
 
 module sw_inc_kernel_mod
 
-use argument_mod,      only : arg_type, &
+use argument_mod,        only : arg_type, &
                               GH_FIELD, GH_SCALAR, &
                               GH_REAL, GH_INTEGER, GH_LOGICAL, &
                               GH_READ, GH_READWRITE, &
@@ -15,9 +15,10 @@ use argument_mod,      only : arg_type, &
                               ANY_DISCONTINUOUS_SPACE_1, &
                               ANY_DISCONTINUOUS_SPACE_2, &
                               ANY_DISCONTINUOUS_SPACE_7
-use fs_continuity_mod, only : Wtheta
-use constants_mod,     only : r_def, i_def, l_def
-use kernel_mod,        only : kernel_type
+use fs_continuity_mod,   only : Wtheta
+use constants_mod,       only : r_def, i_def, l_def
+use kernel_mod,          only : kernel_type
+use tuning_segments_mod, only : sw_seg_limit_size
 
 implicit none
 
@@ -269,6 +270,8 @@ subroutine sw_inc_code(nlayers, n_profile,                                     &
     tio_mix_ratio_now, tio_well_mixed, &
     vo_mix_ratio_now, vo_well_mixed
 
+  !$ use omp_lib, only: omp_get_max_threads
+
   implicit none
 
   ! Arguments
@@ -327,7 +330,7 @@ subroutine sw_inc_code(nlayers, n_profile,                                     &
   logical(l_def), intent(in) :: rad_this_tstep
 
   ! Local variables for the kernel
-  integer(i_def) :: n_profile_list
+  integer(i_def) :: n_profile_list, n_profile_list_seg
   integer(i_def), allocatable :: unlit_list(:)
   integer(i_def), allocatable :: profile_list(:)
   integer(i_def) :: j, jj, k, kk, l, ll
@@ -337,6 +340,12 @@ subroutine sw_inc_code(nlayers, n_profile,                                     &
   integer(i_def) :: twod_1, twod_last
   type(StrDiag) :: swinc_diag
 
+  ! Segmentation variables for threading call to Socrates
+  integer(i_def) :: max_threads, soc_sw_inc_block, seg_start, seg_end, &
+                    ncols_per_thread, nblocks
+  ! Note, changes to variables in this file may require corresponding changes in
+  ! applications/lfric_atm/optimisation/meto-ex1a/transmute/kernel/
+  ! sw_inc_kernel_mod.py
 
   ! Set indexing
   wth_0 = map_wth(1,1)
@@ -397,135 +406,162 @@ subroutine sw_inc_code(nlayers, n_profile,                                     &
   swinc_diag%flux_up_toa(unlit_list) = 0.0_r_def
   swinc_diag%flux_direct_toa(unlit_list) = 0.0_r_def
 
+  max_threads = 1
+  !$ max_threads = omp_get_max_threads()
+
   do k=0, nlayers
     profile_list = pack( [(l, l=1, n_profile)], &
                          lit_fraction_rts(twod_1:twod_last) > 0.0_r_def &
                          .and. n_cloud_layer(twod_1:twod_last) == k )
     n_profile_list = size(profile_list)
     if (n_profile_list > 0) then
-      ! Calculate the SW increment fluxes
-      call runes(n_profile_list, nlayers, swinc_diag,                          &
-        spectrum_name          = 'swinc',                                      &
-        i_source               = ip_source_illuminate,                         &
-        profile_list           = profile_list,                                 &
-        n_layer_stride         = nlayers+1,                                    &
-        n_cloud_layer          = k,                                            &
-        p_layer_1d             = pressure_in_wth(wth_1:wth_last),              &
-        t_layer_1d             = temperature_in_wth(wth_1:wth_last),           &
-        mass_1d                = d_mass(wth_1:wth_last),                       &
-        density_1d             = rho_in_wth(wth_1:wth_last),                   &
-        ch4_1d                 = ch4(wth_1:wth_last),                          &
-        co_1d                  = co(wth_1:wth_last),                           &
-        co2_1d                 = co2(wth_1:wth_last),                          &
-        cs_1d                  = cs(wth_1:wth_last),                           &
-        h2_1d                  = h2(wth_1:wth_last),                           &
-        h2o_1d                 = h2o(wth_1:wth_last),                          &
-        hcn_1d                 = hcn(wth_1:wth_last),                          &
-        he_1d                  = he(wth_1:wth_last),                           &
-        k_1d                   = potassium(wth_1:wth_last),                    &
-        li_1d                  = li(wth_1:wth_last),                           &
-        n2_1d                  = n2(wth_1:wth_last),                           &
-        n2o_1d                 = n2o(wth_1:wth_last),                          &
-        na_1d                  = na(wth_1:wth_last),                           &
-        nh3_1d                 = nh3(wth_1:wth_last),                          &
-        o2_1d                  = o2(wth_1:wth_last),                           &
-        o3_1d                  = o3(wth_1:wth_last),                           &
-        rb_1d                  = rb(wth_1:wth_last),                           &
-        so2_1d                 = so2(wth_1:wth_last),                          &
-        tio_1d                 = tio(wth_1:wth_last),                          &
-        vo_1d                  = vo(wth_1:wth_last),                           &
-        cfc11_mix_ratio        = cfc11_mix_ratio_now,                          &
-        cfc113_mix_ratio       = cfc113_mix_ratio_now,                         &
-        cfc12_mix_ratio        = cfc12_mix_ratio_now,                          &
-        ch4_mix_ratio          = ch4_mix_ratio_now,                            &
-        co_mix_ratio           = co_mix_ratio_now,                             &
-        co2_mix_ratio          = co2_mix_ratio_now,                            &
-        cs_mix_ratio           = cs_mix_ratio_now,                             &
-        h2_mix_ratio           = h2_mix_ratio_now,                             &
-        h2o_mix_ratio          = h2o_mix_ratio_now,                            &
-        hcfc22_mix_ratio       = hcfc22_mix_ratio_now,                         &
-        hcn_mix_ratio          = hcn_mix_ratio_now,                            &
-        he_mix_ratio           = he_mix_ratio_now,                             &
-        hfc134a_mix_ratio      = hfc134a_mix_ratio_now,                        &
-        k_mix_ratio            = k_mix_ratio_now,                              &
-        li_mix_ratio           = li_mix_ratio_now,                             &
-        n2_mix_ratio           = n2_mix_ratio_now,                             &
-        n2o_mix_ratio          = n2o_mix_ratio_now,                            &
-        na_mix_ratio           = na_mix_ratio_now,                             &
-        nh3_mix_ratio          = nh3_mix_ratio_now,                            &
-        o2_mix_ratio           = o2_mix_ratio_now,                             &
-        o3_mix_ratio           = o3_mix_ratio_now,                             &
-        rb_mix_ratio           = rb_mix_ratio_now,                             &
-        so2_mix_ratio          = so2_mix_ratio_now,                            &
-        tio_mix_ratio          = tio_mix_ratio_now,                            &
-        vo_mix_ratio           = vo_mix_ratio_now,                             &
-        l_ch4_well_mixed       = ch4_well_mixed,                               &
-        l_co_well_mixed        = co_well_mixed,                                &
-        l_co2_well_mixed       = co2_well_mixed,                               &
-        l_cs_well_mixed        = cs_well_mixed,                                &
-        l_h2_well_mixed        = h2_well_mixed,                                &
-        l_h2o_well_mixed       = h2o_well_mixed,                               &
-        l_hcn_well_mixed       = hcn_well_mixed,                               &
-        l_he_well_mixed        = he_well_mixed,                                &
-        l_k_well_mixed         = k_well_mixed,                                 &
-        l_li_well_mixed        = li_well_mixed,                                &
-        l_n2_well_mixed        = n2_well_mixed,                                &
-        l_n2o_well_mixed       = n2o_well_mixed,                               &
-        l_na_well_mixed        = na_well_mixed,                                &
-        l_nh3_well_mixed       = nh3_well_mixed,                               &
-        l_o2_well_mixed        = o2_well_mixed,                                &
-        l_o3_well_mixed        = o3_well_mixed,                                &
-        l_rb_well_mixed        = rb_well_mixed,                                &
-        l_so2_well_mixed       = so2_well_mixed,                               &
-        l_tio_well_mixed       = tio_well_mixed,                               &
-        l_vo_well_mixed        = vo_well_mixed,                                &
-        cos_zenith_angle       = cos_zenith_angle_rts(twod_1:twod_last),       &
-        solar_irrad            = stellar_irradiance_rts(twod_1:twod_last),     &
-        l_orog                 = l_orog,                                       &
-        orog_corr              = orographic_correction_rts(twod_1:twod_last),  &
-        n_tile                 = n_surf_tile,                                  &
-        frac_tile_1d           = tile_fraction(tile_1:tile_last),              &
-        albedo_diff_tile_1d    = tile_swinc_diffuse_albedo(itile_1:itile_last),&
-        albedo_dir_tile_1d     = tile_swinc_direct_albedo(itile_1:itile_last), &
-        cloud_frac_1d          = radiative_cloud_fraction(wth_1:wth_last),     &
-        liq_frac_1d            = liquid_fraction(wth_1:wth_last),              &
-        ice_frac_1d            = frozen_fraction(wth_1:wth_last),              &
-        liq_mmr_1d             = mcl(wth_1:wth_last),                          &
-        ice_mmr_1d             = mcf(wth_1:wth_last),                          &
-        ice_nc_1d              = n_ice(wth_1:wth_last),                        &
-        ice_conv_nc_1d         = conv_frozen_number(wth_1:wth_last),           &
-        liq_dim_constant       = constant_droplet_effective_radius,            &
-        liq_nc_1d              = cloud_drop_no_conc(wth_1:wth_last),           &
-        conv_frac_1d           = radiative_conv_fraction(wth_1:wth_last),      &
-        liq_conv_frac_1d       = conv_liquid_fraction(wth_1:wth_last),         &
-        ice_conv_frac_1d       = conv_frozen_fraction(wth_1:wth_last),         &
-        liq_conv_mmr_1d        = conv_liquid_mmr(wth_1:wth_last),              &
-        ice_conv_mmr_1d        = conv_frozen_mmr(wth_1:wth_last),              &
-        liq_conv_dim_constant  = constant_droplet_effective_radius,            &
-        liq_conv_nc_1d         = cloud_drop_no_conc(wth_1:wth_last),           &
-        liq_rsd_1d             = sigma_ml(wth_1:wth_last),                     &
-        ice_rsd_1d             = sigma_mi(wth_1:wth_last),                     &
-        cloud_vertical_decorr  = cloud_vertical_decorr,                        &
-        conv_vertical_decorr   = cloud_vertical_decorr,                        &
-        liq_dim_aparam         = liu_aparam,                                   &
-        liq_dim_bparam         = liu_bparam,                                   &
-        rand_seed              = rand_seed(twod_1:twod_last),                  &
-        layer_heat_capacity_1d = layer_heat_capacity(wth_1:wth_last),          &
-        l_rayleigh             = l_rayleigh_sw,                                &
-        l_mixing_ratio         = .true.,                                       &
-        i_cloud_representation = i_cloud_representation,                       &
-        i_overlap              = i_overlap,                                    &
-        i_inhom                = i_inhom_inc,                                  &
-        i_cloud_entrapment     = i_cloud_entrapment,                           &
-        i_drop_re              = i_drop_re,                                    &
-        i_st_water             = i_cloud_liq_type_swinc,                       &
-        i_st_ice               = i_cloud_ice_type_swinc,                       &
-        i_cnv_water            = i_cloud_liq_type_swinc,                       &
-        i_cnv_ice              = i_cloud_ice_type_swinc,                       &
-        l_sulphuric            = sulphuric_strat_climatology,                  &
-        sulphuric_1d           = sulphuric(wth_1:wth_last),                    &
-        l_invert               = .true.,                                       &
-        l_profile_last         = .true.)
+      ! Compute the number of columns per SW segment for each thread.
+      ! The maximum segment size is limited by sw_seg_limit_size to prevent
+      ! overly large blocks. This ensures better load balancing across threads.
+      ncols_per_thread = ceiling(real(n_profile_list) / real(max_threads))
+      nblocks = ceiling(real(ncols_per_thread) / real(sw_seg_limit_size)) &
+                * max_threads
+      soc_sw_inc_block = ceiling(real(n_profile_list) / real(nblocks))
+
+      !$OMP PARALLEL DEFAULT(SHARED)                                           &
+      !$OMP PRIVATE(ll, seg_start, seg_end, n_profile_list_seg)
+      !$OMP do SCHEDULE(STATIC)
+      do ll=1, n_profile_list, soc_sw_inc_block
+        seg_start = ll
+
+        if ((seg_start + soc_sw_inc_block) -1 >= n_profile_list) then
+          seg_end = n_profile_list
+          n_profile_list_seg = (seg_end - seg_start) + 1
+        else
+          seg_end = (seg_start + soc_sw_inc_block) - 1
+          n_profile_list_seg = soc_sw_inc_block
+        end if
+        ! Calculate the SW increment fluxes
+        call runes(n_profile_list_seg, nlayers, swinc_diag,                      &
+          spectrum_name          = 'swinc',                                      &
+          i_source               = ip_source_illuminate,                         &
+          profile_list           = profile_list(seg_start:seg_end),              &
+          n_layer_stride         = nlayers+1,                                    &
+          n_cloud_layer          = k,                                            &
+          p_layer_1d             = pressure_in_wth(wth_1:wth_last),              &
+          t_layer_1d             = temperature_in_wth(wth_1:wth_last),           &
+          mass_1d                = d_mass(wth_1:wth_last),                       &
+          density_1d             = rho_in_wth(wth_1:wth_last),                   &
+          ch4_1d                 = ch4(wth_1:wth_last),                          &
+          co_1d                  = co(wth_1:wth_last),                           &
+          co2_1d                 = co2(wth_1:wth_last),                          &
+          cs_1d                  = cs(wth_1:wth_last),                           &
+          h2_1d                  = h2(wth_1:wth_last),                           &
+          h2o_1d                 = h2o(wth_1:wth_last),                          &
+          hcn_1d                 = hcn(wth_1:wth_last),                          &
+          he_1d                  = he(wth_1:wth_last),                           &
+          k_1d                   = potassium(wth_1:wth_last),                    &
+          li_1d                  = li(wth_1:wth_last),                           &
+          n2_1d                  = n2(wth_1:wth_last),                           &
+          n2o_1d                 = n2o(wth_1:wth_last),                          &
+          na_1d                  = na(wth_1:wth_last),                           &
+          nh3_1d                 = nh3(wth_1:wth_last),                          &
+          o2_1d                  = o2(wth_1:wth_last),                           &
+          o3_1d                  = o3(wth_1:wth_last),                           &
+          rb_1d                  = rb(wth_1:wth_last),                           &
+          so2_1d                 = so2(wth_1:wth_last),                          &
+          tio_1d                 = tio(wth_1:wth_last),                          &
+          vo_1d                  = vo(wth_1:wth_last),                           &
+          cfc11_mix_ratio        = cfc11_mix_ratio_now,                          &
+          cfc113_mix_ratio       = cfc113_mix_ratio_now,                         &
+          cfc12_mix_ratio        = cfc12_mix_ratio_now,                          &
+          ch4_mix_ratio          = ch4_mix_ratio_now,                            &
+          co_mix_ratio           = co_mix_ratio_now,                             &
+          co2_mix_ratio          = co2_mix_ratio_now,                            &
+          cs_mix_ratio           = cs_mix_ratio_now,                             &
+          h2_mix_ratio           = h2_mix_ratio_now,                             &
+          h2o_mix_ratio          = h2o_mix_ratio_now,                            &
+          hcfc22_mix_ratio       = hcfc22_mix_ratio_now,                         &
+          hcn_mix_ratio          = hcn_mix_ratio_now,                            &
+          he_mix_ratio           = he_mix_ratio_now,                             &
+          hfc134a_mix_ratio      = hfc134a_mix_ratio_now,                        &
+          k_mix_ratio            = k_mix_ratio_now,                              &
+          li_mix_ratio           = li_mix_ratio_now,                             &
+          n2_mix_ratio           = n2_mix_ratio_now,                             &
+          n2o_mix_ratio          = n2o_mix_ratio_now,                            &
+          na_mix_ratio           = na_mix_ratio_now,                             &
+          nh3_mix_ratio          = nh3_mix_ratio_now,                            &
+          o2_mix_ratio           = o2_mix_ratio_now,                             &
+          o3_mix_ratio           = o3_mix_ratio_now,                             &
+          rb_mix_ratio           = rb_mix_ratio_now,                             &
+          so2_mix_ratio          = so2_mix_ratio_now,                            &
+          tio_mix_ratio          = tio_mix_ratio_now,                            &
+          vo_mix_ratio           = vo_mix_ratio_now,                             &
+          l_ch4_well_mixed       = ch4_well_mixed,                               &
+          l_co_well_mixed        = co_well_mixed,                                &
+          l_co2_well_mixed       = co2_well_mixed,                               &
+          l_cs_well_mixed        = cs_well_mixed,                                &
+          l_h2_well_mixed        = h2_well_mixed,                                &
+          l_h2o_well_mixed       = h2o_well_mixed,                               &
+          l_hcn_well_mixed       = hcn_well_mixed,                               &
+          l_he_well_mixed        = he_well_mixed,                                &
+          l_k_well_mixed         = k_well_mixed,                                 &
+          l_li_well_mixed        = li_well_mixed,                                &
+          l_n2_well_mixed        = n2_well_mixed,                                &
+          l_n2o_well_mixed       = n2o_well_mixed,                               &
+          l_na_well_mixed        = na_well_mixed,                                &
+          l_nh3_well_mixed       = nh3_well_mixed,                               &
+          l_o2_well_mixed        = o2_well_mixed,                                &
+          l_o3_well_mixed        = o3_well_mixed,                                &
+          l_rb_well_mixed        = rb_well_mixed,                                &
+          l_so2_well_mixed       = so2_well_mixed,                               &
+          l_tio_well_mixed       = tio_well_mixed,                               &
+          l_vo_well_mixed        = vo_well_mixed,                                &
+          cos_zenith_angle       = cos_zenith_angle_rts(twod_1:twod_last),       &
+          solar_irrad            = stellar_irradiance_rts(twod_1:twod_last),     &
+          l_orog                 = l_orog,                                       &
+          orog_corr              = orographic_correction_rts(twod_1:twod_last),  &
+          n_tile                 = n_surf_tile,                                  &
+          frac_tile_1d           = tile_fraction(tile_1:tile_last),              &
+          albedo_diff_tile_1d    = tile_swinc_diffuse_albedo(itile_1:itile_last),&
+          albedo_dir_tile_1d     = tile_swinc_direct_albedo(itile_1:itile_last), &
+          cloud_frac_1d          = radiative_cloud_fraction(wth_1:wth_last),     &
+          liq_frac_1d            = liquid_fraction(wth_1:wth_last),              &
+          ice_frac_1d            = frozen_fraction(wth_1:wth_last),              &
+          liq_mmr_1d             = mcl(wth_1:wth_last),                          &
+          ice_mmr_1d             = mcf(wth_1:wth_last),                          &
+          ice_nc_1d              = n_ice(wth_1:wth_last),                        &
+          ice_conv_nc_1d         = conv_frozen_number(wth_1:wth_last),           &
+          liq_dim_constant       = constant_droplet_effective_radius,            &
+          liq_nc_1d              = cloud_drop_no_conc(wth_1:wth_last),           &
+          conv_frac_1d           = radiative_conv_fraction(wth_1:wth_last),      &
+          liq_conv_frac_1d       = conv_liquid_fraction(wth_1:wth_last),         &
+          ice_conv_frac_1d       = conv_frozen_fraction(wth_1:wth_last),         &
+          liq_conv_mmr_1d        = conv_liquid_mmr(wth_1:wth_last),              &
+          ice_conv_mmr_1d        = conv_frozen_mmr(wth_1:wth_last),              &
+          liq_conv_dim_constant  = constant_droplet_effective_radius,            &
+          liq_conv_nc_1d         = cloud_drop_no_conc(wth_1:wth_last),           &
+          liq_rsd_1d             = sigma_ml(wth_1:wth_last),                     &
+          ice_rsd_1d             = sigma_mi(wth_1:wth_last),                     &
+          cloud_vertical_decorr  = cloud_vertical_decorr,                        &
+          conv_vertical_decorr   = cloud_vertical_decorr,                        &
+          liq_dim_aparam         = liu_aparam,                                   &
+          liq_dim_bparam         = liu_bparam,                                   &
+          rand_seed              = rand_seed(twod_1:twod_last),                  &
+          layer_heat_capacity_1d = layer_heat_capacity(wth_1:wth_last),          &
+          l_rayleigh             = l_rayleigh_sw,                                &
+          l_mixing_ratio         = .true.,                                       &
+          i_cloud_representation = i_cloud_representation,                       &
+          i_overlap              = i_overlap,                                    &
+          i_inhom                = i_inhom_inc,                                  &
+          i_cloud_entrapment     = i_cloud_entrapment,                           &
+          i_drop_re              = i_drop_re,                                    &
+          i_st_water             = i_cloud_liq_type_swinc,                       &
+          i_st_ice               = i_cloud_ice_type_swinc,                       &
+          i_cnv_water            = i_cloud_liq_type_swinc,                       &
+          i_cnv_ice              = i_cloud_ice_type_swinc,                       &
+          l_sulphuric            = sulphuric_strat_climatology,                  &
+          sulphuric_1d           = sulphuric(wth_1:wth_last),                    &
+          l_invert               = .true.,                                       &
+          l_profile_last         = .true.)
+      end do
+    !$OMP end do
+    !$OMP end PARALLEL
     end if
   end do
 
