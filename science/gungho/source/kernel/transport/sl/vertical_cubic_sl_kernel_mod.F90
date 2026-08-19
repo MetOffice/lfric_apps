@@ -21,7 +21,7 @@ module vertical_cubic_sl_kernel_mod
                                     ANY_DISCONTINUOUS_SPACE_2
   use constants_mod,         only : r_tran, i_def, l_def, EPS_R_TRAN
   use kernel_mod,            only : kernel_type
-  use transport_enumerated_types_mod, &
+  use transport_enumerated_types_mod,                                 &
                              only : monotone_none,                    &
                                     vertical_monotone_order_constant, &
                                     vertical_monotone_order_linear,   &

@@ -1,7 +1,14 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
 !-----------------------------------------------------------------------------!
 !> @brief Kernel to split W2 wind components onto native horizontal/vertical spaces.
-!> @details Splits W2 winds into W2h and Wtheta components and applies slope
-!!          correction terms for the vertical component.
+!> @details Splits W2 winds into W2h and Wtheta components, removes the area factor
+!!          (dA) from the dof values and applies slope correction terms for the
+!!          vertical component.
 !-----------------------------------------------------------------------------!
 module split_w2_to_ws_kernel_mod
 

@@ -1,3 +1,9 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
 !-----------------------------------------------------------------------------!
 !> @brief Kernel for applying metric terms to transported wind components.
 !> @details Applies geometric and slope-related corrections to winds on W2,

@@ -1,3 +1,9 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
 !-----------------------------------------------------------------------------!
 !> @brief Kernel to combine native wind components into a single W2 field.
 !> @details Merges horizontal W2h and vertical Wtheta winds into a consistent

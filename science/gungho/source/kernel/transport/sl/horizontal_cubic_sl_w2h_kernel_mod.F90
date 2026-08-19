@@ -1,5 +1,5 @@
 !-------------------------------------------------------------------------------
-! (c) Crown copyright 2023 Met Office. All rights reserved.
+! (c) Crown copyright 2026 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
@@ -11,7 +11,7 @@
 !!          so the x increment works on the field previously advected in the
 !!          y-direction(and vice versa).
 !!
-!> @note This kernel only works when field is a W3/Wtheta field at lowest order.
+!> @note This kernel only works when field is a W2h field at lowest order.
 
 module horizontal_cubic_sl_w2h_kernel_mod
 

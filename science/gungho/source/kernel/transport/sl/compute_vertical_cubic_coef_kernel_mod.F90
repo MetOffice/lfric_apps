@@ -178,19 +178,26 @@ module compute_vertical_cubic_coef_kernel_mod
 
       ! Extract departure distances and physical heights
       if ( ndofs == 4 ) then
-        ! Average dep_dist to u or v point
+        ! Average dep_dist to edge midpoint corresponding to a u or v point
+        ! but still on the wtheta layers, i.e. in 2d wt is wtheta point,
+        ! u is w2 point and d is new dep_dist point
+        ! d --- wt --- d --- wt --- d
+        ! |            |            |
+        ! u            u            u
+        ! |            |            |
+        ! d --- wt --- d --- wt --- d
         d = min(2,d_stencil_sizes(df))
-        displacement(:) = 0.5_r_tran * (           &
-                          dep_dist_z(d_stencil_map(1,1,1)  : d_stencil_map(1,1,1)+nlayers) &
-                        + dep_dist_z(d_stencil_map(1,d,df) : d_stencil_map(1,d,df)+nlayers))
-        z_arr(:) = 0.5_r_tran* ( theta_height(t_stencil_map(1,1,1)  : t_stencil_map(1,1,1) +nlayers) &
-                               + theta_height(t_stencil_map(1,d,df) : t_stencil_map(1,d,df)+nlayers) )
+        displacement(:) = 0.5_r_tran * (                                      &
+            dep_dist_z(d_stencil_map(1,1,1)  : d_stencil_map(1,1,1)+nlayers)  &
+          + dep_dist_z(d_stencil_map(1,d,df) : d_stencil_map(1,d,df)+nlayers))
+        z_arr(:) = 0.5_r_tran* (                                                &
+            theta_height(t_stencil_map(1,1,1)  : t_stencil_map(1,1,1) +nlayers) &
+          + theta_height(t_stencil_map(1,d,df) : t_stencil_map(1,d,df)+nlayers) )
       else
         ! Transporting coordinates in W3 or Wtheta
         displacement(:) = dep_dist_z(map_w2v(1) : map_w2v(1)+nlayers)
         z_arr(:) = theta_height(map_wt(1) : map_wt(1)+nlayers)
       end if
-
 
       int_disp(:) = INT(displacement(:), i_def)
       frac_dist(:) = ABS(displacement(:) - REAL(int_disp(:), r_tran))
