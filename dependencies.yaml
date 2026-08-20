@@ -33,7 +33,6 @@ lfric_core:
     source: git@github.com:mo-rickywong/lfric_core.git
     ref: lfric2lfric_in_and_out
 
-
 moci:
     source: git@github.com:MetOffice/moci.git
     ref: 2026.07.1
