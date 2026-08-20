@@ -29,8 +29,8 @@ private
 type, public, extends(kernel_type) :: tropopause_diags_kernel_type
   private
   ! Args: theta, exner_in_wth, height_wth (in); trop_ht, trop_temp,
-  ! trop_press, trop_icao_ht (out); g_over_r (in)
-  type(arg_type) :: meta_args(8) = (/                                    &
+  ! trop_press, trop_icao_ht (out); p_zero, kappa, g_over_r (in)
+  type(arg_type) :: meta_args(10) = (/                                   &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  Wtheta),                    &
@@ -38,6 +38,8 @@ type, public, extends(kernel_type) :: tropopause_diags_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ),                            &
+       arg_type(GH_SCALAR, GH_REAL, GH_READ),                            &
        arg_type(GH_SCALAR, GH_REAL, GH_READ)                             &
     /)
   integer :: operates_on = CELL_COLUMN
@@ -61,6 +63,8 @@ contains
 !> @param[in,out] trop_press            Pressure at the tropopause
 !> @param[in,out] trop_icao_ht          ICAO standard-atmosphere height at
 !>                                      the tropopause
+!> @param[in]     p_zero                Reference surface pressure
+!> @param[in]     kappa                 R/cp for dry air
 !> @param[in]     g_over_r              Gravity divided by the dry air gas
 !>                                      constant, for the pressure and ICAO
 !>                                      height calculations
@@ -78,11 +82,10 @@ subroutine tropopause_diags_code(nlayers,                    &
                                   trop_temp,                   &
                                   trop_press,                  &
                                   trop_icao_ht,                &
-                                  g_over_r,                    &
+                                  p_zero, kappa, g_over_r,     &
                                   ndf_wth, undf_wth, map_wth,   &
                                   ndf_2d, undf_2d, map_2d)
 
-  use planet_config_mod,       only : p_zero, kappa
   use empty_data_mod,          only : empty_real_data
   use icao_heights_kernel_mod, only : icao_heights_kernel_code
 
@@ -108,7 +111,7 @@ subroutine tropopause_diags_code(nlayers,                    &
   real(r_def), pointer, dimension(:), intent(inout) :: trop_press
   real(r_def), pointer, dimension(:), intent(inout) :: trop_icao_ht
 
-  real(r_def), intent(in) :: g_over_r
+  real(r_def), intent(in) :: p_zero, kappa, g_over_r
 
   ! Local variables
   integer(i_def) :: k, kk

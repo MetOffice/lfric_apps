@@ -13,6 +13,7 @@ module tropopause_diags_alg_mod
   use field_mod,                   only: field_type
   use fs_continuity_mod,           only: Wtheta
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
+  use planet_config_mod,           only: p_zero, kappa
   use planet_constants_mod,        only: g_over_r_def
   use sci_geometric_constants_mod, only: get_height_fv
   use tropopause_diags_kernel_mod, only: tropopause_diags_kernel_type
@@ -79,6 +80,7 @@ contains
                                                  height_wth,               &
                                                  trop_ht, trop_temp,       &
                                                  trop_press, trop_icao_ht, &
+                                                 p_zero, kappa,            &
                                                  g_over_r_def) )
 
       if (trop_ht_flag)      call trop_ht%write_field()
