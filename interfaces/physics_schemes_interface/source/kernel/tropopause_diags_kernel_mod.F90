@@ -124,7 +124,13 @@ subroutine tropopause_diags_code(nlayers,                    &
 
   ! Parameters to limit tropopause to given pressure range
   ! (could be set in planet namelist for different planets in future)
-  real(r_def), parameter :: p_min_trop = 5000.0_r_def  ! Pa
+  ! p_min_trop is the ISA-equivalent pressure of 32 km, matching UM's
+  ! heightcut_top (pws_diags_mod.F90), raised from 22000 m to 32000 m
+  ! (commit e1703a93e, "Trop max height update") after cases where the WMO
+  ! tropopause criteria were not met below the old, lower bound. The former
+  ! 5000 Pa here corresponded to only ~20 km, tighter even than UM's old
+  ! bound, so is liable to the same issue.
+  real(r_def), parameter :: p_min_trop = 868.0_r_def   ! Pa
   real(r_def), parameter :: p_max_trop = 50000.0_r_def ! Pa
 
   real(r_def), parameter :: vsmall = 1.0e-6_r_def
