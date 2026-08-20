@@ -43,15 +43,18 @@ module diffusion_momentum_flux_kernel_mod
                                             ANY_DISCONTINUOUS_SPACE_9
   use constants_mod,                 only : r_def, i_def, l_def
   use fs_continuity_mod,             only : W3, W2, W1, Wtheta, W2H
+  use reference_element_mod,         only : WB, SB, EB, NB, SW, SE, NE, NW,    &
+                                            W, S, E, N, B, T
   use kernel_mod,                    only : kernel_type
   use sci_face_selector_support_mod, only : face_from_face_selector
+  use panel_edge_support_mod,        only : rotated_panel_neighbour
 
   implicit none
   private
 
   type, public, extends(kernel_type) :: diffusion_momentum_flux_kernel_type
     private
-    type(arg_type) :: meta_args(20) = (/                                       &
+    type(arg_type) :: meta_args(21) = (/                                       &
          arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                       & ! uflux_w3
          arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                       & ! vflux_w3
          arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W1),                       & ! uflux_w1
@@ -68,10 +71,10 @@ module diffusion_momentum_flux_kernel_mod
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),                       & ! rho_in_w3
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_1),              & ! rho_in_sh_w2h
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2H, STENCIL(CROSS)),      & ! rho_in_w2h
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9, &
-                                                              STENCIL(CROSS)), & ! panel_id
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9),& ! panel_id
          arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ew
          arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ns
+         arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ),                            & ! is_cubed_sphere
          arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ)                             & ! fullstress
     /)
     integer :: operates_on = CELL_COLUMN
@@ -112,10 +115,9 @@ contains
 !> @param[in]     smap_rho_size    Size of the stencil map for rho_in_w2h
 !> @param[in]     smap_rho         Stencil map for rho_in_w2h
 !> @param[in]     panel_id         The ID number of the current panel
-!> @param[in]     smap_pid_size    Size of the stencil map for panel_id
-!> @param[in]     smap_pid         Stencil map for panel_id
 !> @param[in]     face_selector_ew 2D field indicating which W/E faces to loop
 !> @param[in]     face_selector_ns 2D field indicating which N/S faces to loop
+!> @param[in]     is_cubed_sphere  Switch for handling of cubed-sphere mesh
 !> @param[in]     fullstress       Switch for tensorial diffusion option
 !> @param[in]     ndf_w3           Number of DOFs for W3 space
 !> @param[in]     undf_w3          Number of unique DOFs for W3 space
@@ -164,9 +166,9 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
                                          rho_in_w2h,                           &
                                          smap_rho_size, smap_rho,              &
                                          panel_id,                             &
-                                         smap_pid_size, smap_pid,              &
                                          face_selector_ew,                     &
                                          face_selector_ns,                     &
+                                         is_cubed_sphere,                      &
                                          fullstress,                           &
                                          ndf_w3, undf_w3, map_w3,              &
                                          ndf_w1, undf_w1, map_w1,              &
@@ -208,8 +210,6 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   integer(kind=i_def), intent(in) :: smap_w2h(ndf_w2h,smap_w2h_size)
   integer(kind=i_def), intent(in) :: smap_rho_size
   integer(kind=i_def), intent(in) :: smap_rho(ndf_w2h,smap_rho_size)
-  integer(kind=i_def), intent(in) :: smap_pid_size
-  integer(kind=i_def), intent(in) :: smap_pid(ndf_pid,smap_pid_size)
 
   real(kind=r_def), dimension(undf_w3),     intent(inout) :: uflux_w3,         &
                                                              vflux_w3
@@ -230,13 +230,14 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   real(kind=r_def), dimension(undf_pid),    intent(in)    :: panel_id
   integer(kind=i_def), dimension(undf_w3_2d), intent(in)  :: face_selector_ew, &
                                                              face_selector_ns
-  logical(kind=l_def),                      intent(in)    :: fullstress
+  logical(kind=l_def),                      intent(in)    :: is_cubed_sphere,  &
+                                                             fullstress
 
   ! Internal variables
   integer(kind=i_def) :: k, df, j
   integer(kind=i_def) :: st_df_xu, st_df_yv
-  integer(kind=i_def) :: df_xu, df_yv
-  integer(kind=i_def) :: grad_sign_x, grad_sign_y
+  integer(kind=i_def) :: df_xu, df_yv, df_w2
+  integer(kind=i_def) :: grad_sign_x, grad_sign_y, grad_sign
   real(kind=r_def)    :: dx_at_w1, dy_at_w1
   real(kind=r_def)    :: dudx_w3, dvdy_w3
   real(kind=r_def)    :: dudy_w1, dvdx_w1
@@ -251,11 +252,14 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   integer(kind=i_def) :: smap_w2_true(ndf_w2,smap_w2_size)
   integer(kind=i_def) :: smap_w2h_true(ndf_w2h,smap_w2h_size)
   integer(kind=i_def) :: stencil_cell
-  integer(kind=i_def) :: cell_panel, stencil_panel, panel_edge
+  integer(kind=i_def) :: cell_panel, rotation_flag
   integer(kind=i_def) :: vec_dir(ndf_w2,smap_w2_size)
+  integer(kind=i_def) :: wind_sign
 
-  integer(kind=i_def), parameter :: grad_sign(4) = (/-1, -1,  1, 1 /)
-  integer(kind=i_def), parameter :: wind_sign(4) = (/1, -1,  1, -1 /)
+  integer(kind=i_def), parameter :: stencil_directions(2:5) = (/W, S, E, N/)
+  integer(kind=i_def), parameter :: vertical_edges(4) = (/SW, SE, NE, NW/)
+  integer(kind=i_def), parameter :: bottom_ew_edges(2) = (/WB, EB/)
+  integer(kind=i_def), parameter :: bottom_ns_edges(2) = (/SB, NB/)
 
   ! Assumed direction for derivatives in this kernel is:
   !  y
@@ -267,14 +271,14 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   ! dimensions of map are (ndf, ncell)
   ! Horizontally:
   !
-  !   -- 4 --
+  !   -- N --
   !   |     |
-  !   1     3
+  !   W     E
   !   |     |
-  !   -- 2 --
+  !   -- S --
   !
-  ! df = 5 is in the centre on the bottom face
-  ! df = 6 is in the centre on the top face
+  ! df = B is in the centre on the bottom face
+  ! df = T is in the centre on the top face
 
   ! The layout of the cells in the stencil is:
   !
@@ -295,59 +299,61 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
     return
   end if
 
-  ! The W2H DoF values change in orientation when we cross over a panel
-  ! Vector directions parallel to the boundary (i.e. the winds on faces
-  ! perpendicular to the boundary) also flip sign
-  ! We need to take this into account by adjusting the stencil map used for
-  ! the wind field. Do this by looking at whether the panel changes
-  ! for other cells in the stencil
-  cell_panel = int(panel_id(map_pid(1)), i_def)
-
   do stencil_cell = 1, smap_w2_size
-    stencil_panel = int(panel_id(smap_pid(1, stencil_cell)), i_def)
-    ! Create panel_edge to check whether a panel is changing
-    panel_edge = 10*cell_panel + stencil_panel
+    if (is_cubed_sphere .and. stencil_cell /= 1) then
+      ! The W2H DoF values change in orientation when we cross over a panel
+      ! Vector directions parallel to the boundary (i.e. the winds on faces
+      ! perpendicular to the boundary) also flip sign
+      ! We need to take this into account by adjusting the stencil map used for
+      ! the wind field. Do this by looking at whether the panel changes
+      ! for other cells in the stencil
+      cell_panel = int(panel_id(map_pid(1)), i_def)
+      rotation_flag = rotated_panel_neighbour(cell_panel, &
+                                              stencil_directions(stencil_cell))
+    else
+      rotation_flag = 0
+    end if
 
-    select case (panel_edge)
-    case (41, 32, 16, 25, 64, 53)
+    select case (rotation_flag)
+    case (1)
       ! Clockwise rotation of panel
-      smap_w2_true(1, stencil_cell) = smap_w2(2, stencil_cell)
-      smap_w2_true(2, stencil_cell) = smap_w2(3, stencil_cell)
-      smap_w2_true(3, stencil_cell) = smap_w2(4, stencil_cell)
-      smap_w2_true(4, stencil_cell) = smap_w2(1, stencil_cell)
+      smap_w2_true(W, stencil_cell) = smap_w2(S, stencil_cell)
+      smap_w2_true(S, stencil_cell) = smap_w2(E, stencil_cell)
+      smap_w2_true(E, stencil_cell) = smap_w2(N, stencil_cell)
+      smap_w2_true(N, stencil_cell) = smap_w2(W, stencil_cell)
       ! Vertical dofs unchanged
-      smap_w2_true(5, stencil_cell) = smap_w2(5, stencil_cell)
-      smap_w2_true(6, stencil_cell) = smap_w2(6, stencil_cell)
+      smap_w2_true(B, stencil_cell) = smap_w2(B, stencil_cell)
+      smap_w2_true(T, stencil_cell) = smap_w2(T, stencil_cell)
       ! Clockwise rotation of panel
-      smap_w2h_true(1, stencil_cell) = smap_w2h(2, stencil_cell)
-      smap_w2h_true(2, stencil_cell) = smap_w2h(3, stencil_cell)
-      smap_w2h_true(3, stencil_cell) = smap_w2h(4, stencil_cell)
-      smap_w2h_true(4, stencil_cell) = smap_w2h(1, stencil_cell)
+      smap_w2h_true(W, stencil_cell) = smap_w2h(S, stencil_cell)
+      smap_w2h_true(S, stencil_cell) = smap_w2h(E, stencil_cell)
+      smap_w2h_true(E, stencil_cell) = smap_w2h(N, stencil_cell)
+      smap_w2h_true(N, stencil_cell) = smap_w2h(W, stencil_cell)
       ! Flip direction of vectors if necessary
-      vec_dir(1,stencil_cell) = -1_i_def
-      vec_dir(2,stencil_cell) = 1_i_def
-      vec_dir(3,stencil_cell) = -1_i_def
-      vec_dir(4,stencil_cell) = 1_i_def
-    case (14, 23, 61, 52, 46, 35)
+      vec_dir(W,stencil_cell) = -1_i_def
+      vec_dir(S,stencil_cell) = 1_i_def
+      vec_dir(E,stencil_cell) = -1_i_def
+      vec_dir(N,stencil_cell) = 1_i_def
+    case (-1)
       ! Anti-clockwise rotation of panel
-      smap_w2_true(1, stencil_cell) = smap_w2(4, stencil_cell)
-      smap_w2_true(2, stencil_cell) = smap_w2(1, stencil_cell)
-      smap_w2_true(3, stencil_cell) = smap_w2(2, stencil_cell)
-      smap_w2_true(4, stencil_cell) = smap_w2(3, stencil_cell)
+      smap_w2_true(W, stencil_cell) = smap_w2(N, stencil_cell)
+      smap_w2_true(S, stencil_cell) = smap_w2(W, stencil_cell)
+      smap_w2_true(E, stencil_cell) = smap_w2(S, stencil_cell)
+      smap_w2_true(N, stencil_cell) = smap_w2(E, stencil_cell)
       ! Vertical dofs unchanged
-      smap_w2_true(5, stencil_cell) = smap_w2(5, stencil_cell)
-      smap_w2_true(6, stencil_cell) = smap_w2(6, stencil_cell)
+      smap_w2_true(B, stencil_cell) = smap_w2(B, stencil_cell)
+      smap_w2_true(T, stencil_cell) = smap_w2(T, stencil_cell)
       ! Anti-clockwise rotation of panel
-      smap_w2h_true(1, stencil_cell) = smap_w2h(4, stencil_cell)
-      smap_w2h_true(2, stencil_cell) = smap_w2h(1, stencil_cell)
-      smap_w2h_true(3, stencil_cell) = smap_w2h(2, stencil_cell)
-      smap_w2h_true(4, stencil_cell) = smap_w2h(3, stencil_cell)
+      smap_w2h_true(W, stencil_cell) = smap_w2h(N, stencil_cell)
+      smap_w2h_true(S, stencil_cell) = smap_w2h(W, stencil_cell)
+      smap_w2h_true(E, stencil_cell) = smap_w2h(S, stencil_cell)
+      smap_w2h_true(N, stencil_cell) = smap_w2h(E, stencil_cell)
       ! Flip direction of vectors if necessary
-      vec_dir(1,stencil_cell) = 1_i_def
-      vec_dir(2,stencil_cell) = -1_i_def
-      vec_dir(3,stencil_cell) = 1_i_def
-      vec_dir(4,stencil_cell) = -1_i_def
-    case default
+      vec_dir(W,stencil_cell) = 1_i_def
+      vec_dir(S,stencil_cell) = -1_i_def
+      vec_dir(E,stencil_cell) = 1_i_def
+      vec_dir(N,stencil_cell) = -1_i_def
+    case (0)
       ! Same panel or crossing panel with no rotation, so stencil map is unchanged
       smap_w2_true(:, stencil_cell) = smap_w2(:, stencil_cell)
       smap_w2h_true(:, stencil_cell) = smap_w2h(:, stencil_cell)
@@ -359,18 +365,18 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   ! Compute horizontal flux on W3 point.
   ! --------------------------------------------------------------------
   do k = 0, nlayers - 1
-    dudx_w3 = ( u_physics(map_w2(3)+k) - u_physics(map_w2(1)+k) ) &
-              * 2.0_r_def / (dx_at_w2(map_w2(3)+k) + dx_at_w2(map_w2(1)+k))
-    dAx_at_w3 = 0.5_r_def * (dA_at_w2(map_w2(3)+k) + dA_at_w2(map_w2(1)+k))
+    dudx_w3 = ( u_physics(map_w2(E)+k) - u_physics(map_w2(W)+k) ) &
+              * 2.0_r_def / (dx_at_w2(map_w2(E)+k) + dx_at_w2(map_w2(W)+k))
+    dAx_at_w3 = 0.5_r_def * (dA_at_w2(map_w2(E)+k) + dA_at_w2(map_w2(W)+k))
     ! X direction flux of U
     uflux_w3(map_w3(1)+k) = -rho_in_w3(map_w3(1)+k) * &
                              visc_m_w3(map_w3(1)+k) * dudx_w3 * dAx_at_w3
 
-    dvdy_w3 = ( u_physics(map_w2(4)+k) - u_physics(map_w2(2)+k) ) &
-              * 2.0_r_def / (dx_at_w2(map_w2(4)+k) + dx_at_w2(map_w2(2)+k))
+    dvdy_w3 = ( u_physics(map_w2(N)+k) - u_physics(map_w2(S)+k) ) &
+              * 2.0_r_def / (dx_at_w2(map_w2(N)+k) + dx_at_w2(map_w2(S)+k))
     ! Note u_physics at 2nd and 4th dof indicate from north to south wind.
     dvdy_w3 = -1 * dvdy_w3
-    dAy_at_w3 = 0.5_r_def * (dA_at_w2(map_w2(4)+k) + dA_at_w2(map_w2(2)+k))
+    dAy_at_w3 = 0.5_r_def * (dA_at_w2(map_w2(N)+k) + dA_at_w2(map_w2(S)+k))
     ! Y direction flux of V
     vflux_w3(map_w3(1)+k) = -rho_in_w3(map_w3(1)+k) * &
                              visc_m_w3(map_w3(1)+k) * dvdy_w3 * dAy_at_w3
@@ -387,48 +393,49 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   ! Compute horizontal flux on W1 point.
   ! --------------------------------------------------------------------
   !
-  !              u(1,5)              u(3,5)
+  !              u(W,5)              u(E,5)
   !                 |                   |
-  !  v(4,2) --- flux(8)--- v(4) --- flux(7)--- v(4,4)
+  !  v(N,2) --- flux(NW)-- v(N) -- flux(NE) --- v(N,4)
   !                 |                   |
-  !               u(1)                u(3)
+  !               u(W)                u(E)
   !                 |                   |
-  !  v(2,2) --- flux(5)--- v(2) --- flux(6)--- v(2,4)
+  !  v(S,2) --- flux(SW)-- v(S) -- flux(SE) --- v(S,4)
   !                 |                   |
-  !              u(1,3)              u(3,3)
+  !              u(W,3)              u(E,3)
   !
-  do df = 1, 4
+  do j = 1, 4
+    df = vertical_edges(j)
     ! Only calculate this dof if it hasn't already been done
-    if (uflux_w1(map_w1(df+4)) == 0.0_r_def) then
+    if (uflux_w1(map_w1(df)) == 0.0_r_def) then
       select case (df)
-      case (1)
+      case (SW)
         grad_sign_x = -1
         grad_sign_y = -1
         st_df_xu = 3
         st_df_yv = 2
-        df_xu = 1
-        df_yv = 2
-      case (2)
+        df_xu = W
+        df_yv = S
+      case (SE)
         grad_sign_x = 1
         grad_sign_y = -1
         st_df_xu = 3
         st_df_yv = 4
-        df_xu = 3
-        df_yv = 2
-      case (3)
+        df_xu = E
+        df_yv = S
+      case (NE)
         grad_sign_x = 1
         grad_sign_y = 1
         st_df_xu = 5
         st_df_yv = 4
-        df_xu = 3
-        df_yv = 4
-      case (4)
+        df_xu = E
+        df_yv = N
+      case (NW)
         grad_sign_x = -1
         grad_sign_y = 1
         st_df_xu = 5
         st_df_yv = 2
-        df_xu = 1
-        df_yv = 4
+        df_xu = W
+        df_yv = N
       end select
 
       do k = 0, nlayers - 1
@@ -452,8 +459,8 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
                   u_physics(smap_w2_true(df_xu,st_df_xu)+k) - &
                   u_physics(smap_w2_true(df_xu,1)+k) ) / dy_at_w1
         ! Y direction flux of U
-        uflux_w1(map_w1(df+4)+k) = -rho_in_w1 * &
-                                    visc_m_w1 * dudy_w1
+        uflux_w1(map_w1(df)+k) = -rho_in_w1 * &
+                                  visc_m_w1 * dudy_w1
 
         dx_at_w1 = 0.5_r_def * &
           (dx_at_w2(smap_w2_true(df_xu,1)+k) + &
@@ -462,18 +469,18 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
                 ( vec_dir(df_yv,st_df_yv) * &
                   u_physics(smap_w2_true(df_yv,st_df_yv)+k) - &
                   u_physics(smap_w2_true(df_yv,1)+k) ) / dx_at_w1
-        ! Note u_physics at 2nd and 4th dof indicate from north to south wind.
+        ! Note u_physics at N and S dof indicate from north to south wind.
         dvdx_w1 = -1 * dvdx_w1
         ! X direction flux of V
-        vflux_w1(map_w1(df+4)+k) = -rho_in_w1 * &
-                                    visc_m_w1 * dvdx_w1
+        vflux_w1(map_w1(df)+k) = -rho_in_w1 * &
+                                  visc_m_w1 * dvdx_w1
       end do
 
       if (fullstress) then
         do k = 0, nlayers - 1
-          uflux_w1(map_w1(df+4)+k) = uflux_w1(map_w1(df+4)+k) + &
-                                     vflux_w1(map_w1(df+4)+k)
-          vflux_w1(map_w1(df+4)+k) = uflux_w1(map_w1(df+4)+k)
+          uflux_w1(map_w1(df)+k) = uflux_w1(map_w1(df)+k) + &
+                                   vflux_w1(map_w1(df)+k)
+          vflux_w1(map_w1(df)+k) = uflux_w1(map_w1(df)+k)
         end do
       end if
 
@@ -482,13 +489,13 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
           (dA_at_w2(smap_w2_true(df_yv,1)+k) + &
            dA_at_w2(smap_w2_true(df_yv,st_df_yv)+k))
         ! Y direction flux of U * Area
-        uflux_w1(map_w1(df+4)+k) = uflux_w1(map_w1(df+4)+k) * dAy_at_w1
+        uflux_w1(map_w1(df)+k) = uflux_w1(map_w1(df)+k) * dAy_at_w1
 
         dAx_at_w1 = 0.5_r_def * &
           (dA_at_w2(smap_w2_true(df_xu,1)+k) + &
            dA_at_w2(smap_w2_true(df_xu,st_df_xu)+k))
         ! X direction flux of V * Area
-        vflux_w1(map_w1(df+4)+k) = vflux_w1(map_w1(df+4)+k) * dAx_at_w1
+        vflux_w1(map_w1(df)+k) = vflux_w1(map_w1(df)+k) * dAx_at_w1
       end do
 
     end if
@@ -499,10 +506,29 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   ! --------------------------------------------------------------------
   do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
     df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
+    select case (df)
+    case (W)
+      stencil_cell = 2
+      grad_sign = -1
+      wind_sign = 1
+    case (S)
+      stencil_cell = 3
+      grad_sign = -1
+      wind_sign = -1
+    case (E)
+      stencil_cell = 4
+      grad_sign = 1
+      wind_sign = 1
+    case (N)
+      stencil_cell = 5
+      grad_sign = 1
+      wind_sign = -1
+    end select
+
     do k = 1, nlayers-1
-      dwdx_sh_w2 = grad_sign(df) * &
-                   ( u_physics(smap_w2_true(5,df+1)+k) - &
-                     u_physics(smap_w2_true(5,1)+k) ) / &
+      dwdx_sh_w2 = grad_sign * &
+                   ( u_physics(smap_w2_true(B,stencil_cell)+k) - &
+                     u_physics(smap_w2_true(B,1)+k) ) / &
                      dx_at_sh_w2(map_sh_w2(df)+k)
       ! X/Y direction flux of W * Area
       wflux_sh_w2h(map_sh_w2h(df)+k) = -rho_in_sh_w2h(map_sh_w2h(df)+k) * &
@@ -514,11 +540,12 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
     if (fullstress) then
       do k = 1, nlayers-1
         dz_at_sh_w2 = 0.5_r_def * &
-          ( dx_at_w2(smap_w2_true(5,df+1)+k) + dx_at_w2(smap_w2_true(5,1)+k) )
+          ( dx_at_w2(smap_w2_true(B,stencil_cell)+k) + &
+            dx_at_w2(smap_w2_true(B,1)+k) )
         dudz_sh_w2 = ( u_physics(map_w2(df)+k) - &
                        u_physics(map_w2(df)+k-1) ) / dz_at_sh_w2
-        ! Note u_physics at 2nd and 4th dof indicate from north to south wind.
-        dudz_sh_w2 = wind_sign(df) * dudz_sh_w2
+        ! Note u_physics at N and S dof indicate from north to south wind.
+        dudz_sh_w2 = wind_sign * dudz_sh_w2
         ! X/Y direction flux of W * Area
         wflux_sh_w2h(map_sh_w2h(df)+k) = wflux_sh_w2h(map_sh_w2h(df)+k) - &
                                          rho_in_sh_w2h(map_sh_w2h(df)+k) * &
@@ -534,37 +561,63 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   ! Compute vertical flux on shifted W2 point.
   ! --------------------------------------------------------------------
   if (fullstress) then
-    do df = 1,3,2
+    do j = 1, 2
+      df = bottom_ew_edges(j)
       ! Only calculate this dof if it hasn't already been done
       if (uflux_w1(map_w1(df)+1) == 0.0_r_def) then
+        select case (df)
+        case (WB)
+          df_w2 = W
+          stencil_cell = 2
+          grad_sign = -1
+        case (EB)
+          df_w2 = E
+          stencil_cell = 4
+          grad_sign = 1
+        end select
+
         do k = 1, nlayers - 1
           dAz_at_sh_w2 = 0.5_r_def * &
-            ( dA_at_w2(smap_w2_true(5,1)+k) + &
-              dA_at_w2(smap_w2_true(5,df+1)+k) )
-          dwdx_sh_w2 = grad_sign(df) * ( u_physics(smap_w2_true(5,df+1)+k) - &
-                                         u_physics(smap_w2_true(5,1)+k) ) / &
-                                         dx_at_sh_w2(map_sh_w2(df)+k)
+            ( dA_at_w2(smap_w2_true(B,1)+k) + &
+              dA_at_w2(smap_w2_true(B,stencil_cell)+k) )
+          dwdx_sh_w2 = grad_sign * &
+            ( u_physics(smap_w2_true(B,stencil_cell)+k) - &
+              u_physics(smap_w2_true(B,1)+k) ) / &
+              dx_at_sh_w2(map_sh_w2(df_w2)+k)
           ! Z direction flux of U * Area
-          uflux_w1(map_w1(df)+k) = -rho_in_sh_w2h(map_sh_w2h(df)+k) * &
-                                    visc_m_sh_w2h(map_sh_w2h(df)+k) * &
+          uflux_w1(map_w1(df)+k) = -rho_in_sh_w2h(map_sh_w2h(df_w2)+k) * &
+                                    visc_m_sh_w2h(map_sh_w2h(df_w2)+k) * &
                                     dwdx_sh_w2 * dAz_at_sh_w2
         end do
       end if
     end do
 
-    do df = 2,4,2
+    do j = 1, 2
+      df = bottom_ns_edges(j)
       ! Only calculate this dof if it hasn't already been done
       if (vflux_w1(map_w1(df)+1) == 0.0_r_def) then
+        select case (df)
+        case (SB)
+          df_w2 = S
+          stencil_cell = 3
+          grad_sign = -1
+        case (NB)
+          df_w2 = N
+          stencil_cell = 5
+          grad_sign = 1
+        end select
+
         do k = 1, nlayers - 1
           dAz_at_sh_w2 = 0.5_r_def * &
-            ( dA_at_w2(smap_w2_true(5,1)+k) + &
-              dA_at_w2(smap_w2_true(5,df+1)+k) )
-          dwdy_sh_w2 = grad_sign(df) * ( u_physics(smap_w2_true(5,df+1)+k) - &
-                                         u_physics(smap_w2_true(5,1)+k) ) / &
-                                         dx_at_sh_w2(map_sh_w2(df)+k)
+            ( dA_at_w2(smap_w2_true(B,1)+k) + &
+              dA_at_w2(smap_w2_true(B,stencil_cell)+k) )
+          dwdy_sh_w2 = grad_sign * &
+            ( u_physics(smap_w2_true(B,stencil_cell)+k) - &
+              u_physics(smap_w2_true(B,1)+k) ) / &
+              dx_at_sh_w2(map_sh_w2(df_w2)+k)
           ! Z direction flux of V * Area
-          vflux_w1(map_w1(df)+k) = -rho_in_sh_w2h(map_sh_w2h(df)+k) * &
-                                    visc_m_sh_w2h(map_sh_w2h(df)+k) * &
+          vflux_w1(map_w1(df)+k) = -rho_in_sh_w2h(map_sh_w2h(df_w2)+k) * &
+                                    visc_m_sh_w2h(map_sh_w2h(df_w2)+k) * &
                                     dwdy_sh_w2 * dAz_at_sh_w2
         end do
       end if

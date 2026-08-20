@@ -9,6 +9,7 @@
 module diffusion_momentum_flux_kernel_mod_test
 
   use constants_mod,                       only : i_def, r_def, l_def
+  use reference_element_mod,               only : E, N, B, NE
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size,  &
                                                   get_w1_m3x3_q3x3x3_size,  &
                                                   get_w2h_m3x3_q3x3x3_size, &
@@ -49,7 +50,7 @@ contains
     class(diffusion_momentum_flux_kernel_test_type), intent(inout) :: this
 
     integer(kind=i_def), parameter :: nlayers = 3
-    integer(kind=i_def), parameter :: stemcil_map_size = 5
+    integer(kind=i_def), parameter :: stencil_map_size = 5
     integer(kind=i_def) :: ncells
     integer(kind=i_def) :: ndf_w3
     integer(kind=i_def) :: ndf_w1
@@ -79,7 +80,6 @@ contains
     integer(kind=i_def), allocatable :: map_w3_2d(:,:)
     integer(kind=i_def), allocatable :: smap_w2(:,:,:)
     integer(kind=i_def), allocatable :: smap_w2h(:,:,:)
-    integer(kind=i_def), allocatable :: smap_pid(:,:,:)
     real(kind=r_def), allocatable :: uflux_w3(:)
     real(kind=r_def), allocatable :: vflux_w3(:)
     real(kind=r_def), allocatable :: uflux_w1(:)
@@ -112,6 +112,7 @@ contains
 
     integer(kind=i_def) :: icell, i, j, k, df
     integer(kind=i_def) :: cell
+    logical(kind=l_def), parameter :: is_cubed_sphere = .false.
     logical(kind=l_def), parameter :: fullstress = .true.
 
     cell = 5
@@ -183,7 +184,6 @@ contains
 
     call get_m3x3_stencil_dofmap_cross(smap_w2, map_w2)
     call get_m3x3_stencil_dofmap_cross(smap_w2h, map_w2h)
-    call get_m3x3_stencil_dofmap_cross(smap_pid, map_pid)
 
     ! Create the data
     allocate(uflux_w3(undf_w3))
@@ -208,8 +208,8 @@ contains
 
     u_physics(:) = 1.0_r_def
     ! Create non-uniform wind to generate some diffusion
-    u_physics(map_w2(3,cell)) = u_physics(map_w2(3,cell)) + du
-    u_physics(map_w2(4,cell)) = u_physics(map_w2(4,cell)) - dv
+    u_physics(map_w2(E,cell)) = u_physics(map_w2(E,cell)) + du
+    u_physics(map_w2(N,cell)) = u_physics(map_w2(N,cell)) - dv
 
     icell = 1
     do j = 1,3
@@ -225,12 +225,12 @@ contains
           end do
         end do
         do k = 0,nlayers
-          dx_at_w2(map_w2(5,icell)+k) = dz
-          dA_at_w2(map_w2(5,icell)+k) = dAv
+          dx_at_w2(map_w2(B,icell)+k) = dz
+          dA_at_w2(map_w2(B,icell)+k) = dAv
         end do
         do k = 0,nlayers
-          dx_at_sh_w2(map_sh_w2(5,icell)+k) = dz
-          dA_at_sh_w2(map_sh_w2(5,icell)+k) = dAv
+          dx_at_sh_w2(map_sh_w2(B,icell)+k) = dz
+          dA_at_sh_w2(map_sh_w2(B,icell)+k) = dAv
         end do
         icell = icell + 1
       end do
@@ -256,17 +256,17 @@ contains
     call diffusion_momentum_flux_code(                                         &
            nlayers,                                                            &
            uflux_w3, vflux_w3, uflux_w1, vflux_w1, wflux_sh_w2h,               &
-           u_physics, stemcil_map_size, smap_w2(:,:,cell),                     &
-           dx_at_w2, stemcil_map_size, smap_w2(:,:,cell),                      &
-           dA_at_w2, stemcil_map_size, smap_w2(:,:,cell),                      &
+           u_physics, stencil_map_size, smap_w2(:,:,cell),                     &
+           dx_at_w2, stencil_map_size, smap_w2(:,:,cell),                      &
+           dA_at_w2, stencil_map_size, smap_w2(:,:,cell),                      &
            dx_at_sh_w2, dA_at_sh_w2,                                           &
-           visc_m_w2h, stemcil_map_size, smap_w2h(:,:,cell),                   &
+           visc_m_w2h, stencil_map_size, smap_w2h(:,:,cell),                   &
            visc_m_sh_w2h, visc_m_w3,                                           &
            rho_in_w3, rho_in_sh_w2h,                                           &
-           rho_in_w2h, stemcil_map_size, smap_w2h(:,:,cell),                   &
-           panel_id, stemcil_map_size, smap_pid(:,:,cell),                     &
+           rho_in_w2h, stencil_map_size, smap_w2h(:,:,cell),                   &
+           panel_id,                                                           &
            face_selector_ew, face_selector_ns,                                 &
-           fullstress,                                                         &
+           is_cubed_sphere, fullstress,                                        &
            ndf_w3, undf_w3, map_w3(:,cell),                                    &
            ndf_w1, undf_w1, map_w1(:,cell),                                    &
            ndf_sh_w2h, undf_sh_w2h, map_sh_w2h(:,cell),                        &
@@ -289,14 +289,14 @@ contains
     else
       answer = -rho*visc*(-du)/dh * dAh
     end if
-    @assertEqual(answer, uflux_w1(map_w1(7,cell)), tol)
+    @assertEqual(answer, uflux_w1(map_w1(NE,cell)), tol)
 
     if (fullstress) then
       answer = -rho*visc*(-du)/dz * dAh
     else
       answer = 0.0_r_def
     end if
-    @assertEqual(answer, wflux_sh_w2h(map_sh_w2h(3,cell)+1), tol)
+    @assertEqual(answer, wflux_sh_w2h(map_sh_w2h(E,cell)+1), tol)
 
   end subroutine test_all
 

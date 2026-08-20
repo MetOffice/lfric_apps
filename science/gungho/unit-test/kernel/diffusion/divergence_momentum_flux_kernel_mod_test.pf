@@ -9,6 +9,7 @@
 module divergence_momentum_flux_kernel_mod_test
 
   use constants_mod,                       only : i_def, r_def, l_def
+  use reference_element_mod,               only : E, NE, SE
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size,  &
                                                   get_w3_m3x3_q3x3x3_size,  &
                                                   get_w1_m3x3_q3x3x3_size,  &
@@ -51,7 +52,7 @@ contains
     class(divergence_momentum_flux_kernel_test_type), intent(inout) :: this
 
     integer(kind=i_def), parameter :: nlayers = 3
-    integer(kind=i_def), parameter :: stemcil_map_size = 5
+    integer(kind=i_def), parameter :: stencil_map_size = 5
     integer(kind=i_def) :: ncells
     integer(kind=i_def) :: ndf_w2
     integer(kind=i_def) :: ndf_w3
@@ -80,7 +81,6 @@ contains
     integer(kind=i_def), allocatable :: map_pid(:,:)
     integer(kind=i_def), allocatable :: map_w3_2d(:,:)
     integer(kind=i_def), allocatable :: smap_w3(:,:,:)
-    integer(kind=i_def), allocatable :: smap_pid(:,:,:)
     real(kind=r_def), allocatable :: u_inc(:)
     real(kind=r_def), allocatable :: uflux_w3(:)
     real(kind=r_def), allocatable :: vflux_w3(:)
@@ -96,6 +96,7 @@ contains
     real(kind=r_def), parameter :: tol = 1.0e-6_r_def
     real(kind=r_def), parameter :: volume = 2.0_r_def, &
                                    rho = 1.0_r_def
+    logical(kind=l_def), parameter :: is_cubed_sphere = .false.
     logical(kind=l_def), parameter :: fullstress = .true.
     real(r_def) :: answer
 
@@ -169,7 +170,6 @@ contains
     call get_w3_m3x3_dofmap(map_w3_2d, 1)
 
     call get_m3x3_stencil_dofmap_cross(smap_w3, map_w3)
-    call get_m3x3_stencil_dofmap_cross(smap_pid, map_pid)
 
     ! Create the data
     allocate(u_inc(undf_w2))
@@ -204,8 +204,8 @@ contains
     uflux_w3(map_w3(1,cell)) = 0.5_r_def
     uflux_w3(smap_w3(1,4,cell)) = 1.0_r_def
     uflux_w1(:) = 0.0_r_def
-    uflux_w1(map_w1(6,cell)) = 4.0_r_def
-    uflux_w1(map_w1(7,cell)) = 2.0_r_def
+    uflux_w1(map_w1(SE,cell)) = 4.0_r_def
+    uflux_w1(map_w1(NE,cell)) = 2.0_r_def
     vflux_w3(:) = 0.0_r_def
     vflux_w1(:) = 0.0_r_def
     wflux_sh_w2h(:) = 0.0_r_def
@@ -216,13 +216,13 @@ contains
     call divergence_momentum_flux_code(                                        &
            nlayers,                                                            &
            u_inc,                                                              &
-           uflux_w3, stemcil_map_size, smap_w3(:,:,cell),                      &
-           vflux_w3, stemcil_map_size, smap_w3(:,:,cell),                      &
+           uflux_w3, stencil_map_size, smap_w3(:,:,cell),                      &
+           vflux_w3, stencil_map_size, smap_w3(:,:,cell),                      &
            uflux_w1, vflux_w1, wflux_sh_w2h,                                   &
            detj_at_w2, rho_in_wth, rho_in_w2h,                                 &
-           panel_id, stemcil_map_size, smap_pid(:,:,cell),                     &
+           panel_id,                                                           &
            face_selector_ew, face_selector_ns,                                 &
-           fullstress,                                                         &
+           is_cubed_sphere, fullstress,                                        &
            ndf_w2, undf_w2, map_w2(:,cell),                                    &
            ndf_w3, undf_w3, map_w3(:,cell),                                    &
            ndf_w1, undf_w1, map_w1(:,cell),                                    &
@@ -234,7 +234,7 @@ contains
          )
 
     answer = 0.75_r_def
-    @assertEqual(answer, u_inc(map_w2(3,cell)), tol)
+    @assertEqual(answer, u_inc(map_w2(E,cell)), tol)
 
   end subroutine test_all
 
