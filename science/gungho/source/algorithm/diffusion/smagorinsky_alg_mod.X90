@@ -78,8 +78,6 @@ module smagorinsky_alg_mod
   use physics_config_mod,        only: smagorinsky_placement,                  &
                                        smagorinsky_placement_outer,            &
                                        smagorinsky_placement_end
-  use base_mesh_config_mod,      only: geometry_spherical,                     &
-                                       topology_fully_periodic
 
   implicit none
 
@@ -538,7 +536,6 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     type(field_type) :: vflux_w1
     type(field_type) :: wflux_sh_w2h
     type(integer_field_type),  pointer :: face_selector_ew, face_selector_ns
-    logical( kind=l_def ) :: is_cubed_sphere
     logical( kind=l_def ) :: fullstress
 
     ! Stencil depth for the Smagorinsky diffusion kernel
@@ -565,10 +562,6 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
       dA_at_sh_w2 => get_dA_at_w2( shifted_mesh )
       detj_at_sh_w2 => get_detj_at_w3_fv( shifted_mesh )
 
-      is_cubed_sphere = ( &
-        config%base_mesh%geometry() == geometry_spherical .and. &
-        config%base_mesh%topology() == topology_fully_periodic &
-      )
       fullstress = config%mixing%fullstress()
 
       call u % copy_field_properties( u_physics )
@@ -627,9 +620,9 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
             visc_m_w2h, smag_stencil_depth,                                    &
             visc_m_sh_w2h, visc_m_w3, rho_in_w3, rho_in_sh_w2h,                &
             rho_in_w2h, smag_stencil_depth,                                    &
-            panel_id,                                                          &
+            panel_id, smag_stencil_depth,                                      &
             face_selector_ew, face_selector_ns,                                &
-            is_cubed_sphere, fullstress                                        &
+            fullstress                                                         &
           ),                                                                   &
           divergence_momentum_flux_kernel_type(                                &
             du,                                                                &
@@ -638,9 +631,9 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
             uflux_w1, vflux_w1, wflux_sh_w2h,                                  &
             detj_at_w2,                                                        &
             rho_in_wth, rho_in_w2h,                                            &
-            panel_id,                                                          &
+            panel_id, smag_stencil_depth,                                      &
             face_selector_ew, face_selector_ns,                                &
-            is_cubed_sphere, fullstress                                        &
+            fullstress                                                         &
           ),                                                                   &
           inc_X_times_Y(du, dA_at_w2)                                          &
       )

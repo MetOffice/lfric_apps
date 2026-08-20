@@ -81,6 +81,7 @@ contains
     integer(kind=i_def), allocatable :: map_pid(:,:)
     integer(kind=i_def), allocatable :: map_w3_2d(:,:)
     integer(kind=i_def), allocatable :: smap_w3(:,:,:)
+    integer(kind=i_def), allocatable :: smap_pid(:,:,:)
     real(kind=r_def), allocatable :: u_inc(:)
     real(kind=r_def), allocatable :: uflux_w3(:)
     real(kind=r_def), allocatable :: vflux_w3(:)
@@ -96,7 +97,6 @@ contains
     real(kind=r_def), parameter :: tol = 1.0e-6_r_def
     real(kind=r_def), parameter :: volume = 2.0_r_def, &
                                    rho = 1.0_r_def
-    logical(kind=l_def), parameter :: is_cubed_sphere = .false.
     logical(kind=l_def), parameter :: fullstress = .true.
     real(r_def) :: answer
 
@@ -170,6 +170,7 @@ contains
     call get_w3_m3x3_dofmap(map_w3_2d, 1)
 
     call get_m3x3_stencil_dofmap_cross(smap_w3, map_w3)
+    call get_m3x3_stencil_dofmap_cross(smap_pid, map_pid)
 
     ! Create the data
     allocate(u_inc(undf_w2))
@@ -220,9 +221,9 @@ contains
            vflux_w3, stencil_map_size, smap_w3(:,:,cell),                      &
            uflux_w1, vflux_w1, wflux_sh_w2h,                                   &
            detj_at_w2, rho_in_wth, rho_in_w2h,                                 &
-           panel_id,                                                           &
+           panel_id, stencil_map_size, smap_pid(:,:,cell),                     &
            face_selector_ew, face_selector_ns,                                 &
-           is_cubed_sphere, fullstress,                                        &
+           fullstress,                                                         &
            ndf_w2, undf_w2, map_w2(:,cell),                                    &
            ndf_w3, undf_w3, map_w3(:,cell),                                    &
            ndf_w1, undf_w1, map_w1(:,cell),                                    &

@@ -36,7 +36,7 @@ module divergence_momentum_flux_kernel_mod
 
   type, public, extends(kernel_type) :: divergence_momentum_flux_kernel_type
     private
-    type(arg_type) :: meta_args(14) = (/                                       &
+    type(arg_type) :: meta_args(13) = (/                                       &
          arg_type(GH_FIELD,   GH_REAL,    GH_WRITE,  W2),                      & ! u_inc
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W3, STENCIL(CROSS)),      & ! uflux_w3
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W3, STENCIL(CROSS)),      & ! vflux_w3
@@ -46,10 +46,10 @@ module divergence_momentum_flux_kernel_mod
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W2),                      & ! detj_at_w2
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   Wtheta),                  & ! rho_in_wth
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,   W2H),                     & ! rho_in_w2h
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9),& ! panel_id
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,   ANY_DISCONTINUOUS_SPACE_9,&
+                                                               STENCIL(CROSS)),& ! panel_id
          arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ew
          arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ns
-         arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ),                            & ! is_cubed_sphere
          arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ)                             & ! fullstress
     /)
     integer :: operates_on = CELL_COLUMN
@@ -77,9 +77,10 @@ contains
 !> @param[in]     rho_in_wth       Density field in Wtheta space
 !> @param[in]     rho_in_w2h       Density field in W2H space
 !> @param[in]     panel_id         The ID number of the current panel
+!> @param[in]     smap_pid_size    Size of the stencil map for panel_id
+!> @param[in]     smap_pid         Stencil map for panel_id
 !> @param[in]     face_selector_ew 2D field indicating which W/E faces to loop
 !> @param[in]     face_selector_ns 2D field indicating which N/S faces to loop
-!> @param[in]     is_cubed_sphere  Switch for handling of cubed-sphere mesh
 !> @param[in]     fullstress       Switch for tensorial diffusion option
 !> @param[in]     ndf_w2           Number of DOFs for W2 space
 !> @param[in]     undf_w2          Number of unique DOFs for W2 space
@@ -118,9 +119,9 @@ subroutine divergence_momentum_flux_code( nlayers,                             &
                                           rho_in_wth,                          &
                                           rho_in_w2h,                          &
                                           panel_id,                            &
+                                          smap_pid_size, smap_pid,             &
                                           face_selector_ew,                    &
                                           face_selector_ns,                    &
-                                          is_cubed_sphere,                     &
                                           fullstress,                          &
                                           ndf_w2, undf_w2, map_w2,             &
                                           ndf_w3, undf_w3, map_w3,             &
@@ -156,6 +157,8 @@ subroutine divergence_momentum_flux_code( nlayers,                             &
   integer(kind=i_def), intent(in) :: smap_w3(ndf_w3,smap_w3_size)
   integer(kind=i_def), intent(in) :: smap_w3v_size
   integer(kind=i_def), intent(in) :: smap_w3v(ndf_w3,smap_w3v_size)
+  integer(kind=i_def), intent(in) :: smap_pid_size
+  integer(kind=i_def), intent(in) :: smap_pid(ndf_pid,smap_pid_size)
 
   real(kind=r_def), dimension(undf_w2),     intent(inout) :: u_inc
   real(kind=r_def), dimension(undf_w3),     intent(in)    :: uflux_w3,         &
@@ -169,8 +172,7 @@ subroutine divergence_momentum_flux_code( nlayers,                             &
   real(kind=r_def), dimension(undf_pid),    intent(in)    :: panel_id
   integer(kind=i_def), dimension(undf_w3_2d), intent(in)  :: face_selector_ew, &
                                                              face_selector_ns
-  logical(kind=l_def),                      intent(in)    :: is_cubed_sphere,  &
-                                                             fullstress
+  logical(kind=l_def),                      intent(in)    :: fullstress
 
   ! Internal variables
   integer(kind=i_def) :: k, df, j
@@ -178,7 +180,7 @@ subroutine divergence_momentum_flux_code( nlayers,                             &
   real(kind=r_def), dimension(0:nlayers-1) :: r_volume
 
   integer(kind=i_def) :: df_w1_p, df_w1_m, df_w1_b
-  integer(kind=i_def) :: stencil_cell
+  integer(kind=i_def) :: stencil_cell, stencil_panel
   integer(kind=i_def) :: cell_panel, rotation_flag
   integer(kind=i_def) :: grad_sign
   integer(kind=i_def) :: vec_dir_x, vec_dir_y
@@ -190,6 +192,8 @@ subroutine divergence_momentum_flux_code( nlayers,                             &
   if (smap_w3_size < 5_i_def) then
     return
   end if
+
+  cell_panel = int(panel_id(map_pid(1)), i_def)
 
   do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
     df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
@@ -220,8 +224,8 @@ subroutine divergence_momentum_flux_code( nlayers,                             &
       grad_sign = 1
     end select
 
-    if (is_cubed_sphere) then
-      cell_panel = int(panel_id(map_pid(1)), i_def)
+    stencil_panel = int(panel_id(smap_pid(1, stencil_cell)), i_def)
+    if ( cell_panel /= stencil_panel ) then
       rotation_flag = rotated_panel_neighbour(cell_panel, &
                                               stencil_directions(stencil_cell))
       select case (rotation_flag)

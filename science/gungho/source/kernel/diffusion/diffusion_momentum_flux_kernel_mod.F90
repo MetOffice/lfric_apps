@@ -54,7 +54,7 @@ module diffusion_momentum_flux_kernel_mod
 
   type, public, extends(kernel_type) :: diffusion_momentum_flux_kernel_type
     private
-    type(arg_type) :: meta_args(21) = (/                                       &
+    type(arg_type) :: meta_args(20) = (/                                       &
          arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                       & ! uflux_w3
          arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),                       & ! vflux_w3
          arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W1),                       & ! uflux_w1
@@ -71,10 +71,10 @@ module diffusion_momentum_flux_kernel_mod
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),                       & ! rho_in_w3
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_SPACE_1),              & ! rho_in_sh_w2h
          arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2H, STENCIL(CROSS)),      & ! rho_in_w2h
-         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9),& ! panel_id
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9, &
+                                                              STENCIL(CROSS)), & ! panel_id
          arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ew
          arg_type(GH_FIELD,   GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),& ! face_selector_ns
-         arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ),                            & ! is_cubed_sphere
          arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ)                             & ! fullstress
     /)
     integer :: operates_on = CELL_COLUMN
@@ -115,9 +115,10 @@ contains
 !> @param[in]     smap_rho_size    Size of the stencil map for rho_in_w2h
 !> @param[in]     smap_rho         Stencil map for rho_in_w2h
 !> @param[in]     panel_id         The ID number of the current panel
+!> @param[in]     smap_pid_size    Size of the stencil map for panel_id
+!> @param[in]     smap_pid         Stencil map for panel_id
 !> @param[in]     face_selector_ew 2D field indicating which W/E faces to loop
 !> @param[in]     face_selector_ns 2D field indicating which N/S faces to loop
-!> @param[in]     is_cubed_sphere  Switch for handling of cubed-sphere mesh
 !> @param[in]     fullstress       Switch for tensorial diffusion option
 !> @param[in]     ndf_w3           Number of DOFs for W3 space
 !> @param[in]     undf_w3          Number of unique DOFs for W3 space
@@ -166,9 +167,9 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
                                          rho_in_w2h,                           &
                                          smap_rho_size, smap_rho,              &
                                          panel_id,                             &
+                                         smap_pid_size, smap_pid,              &
                                          face_selector_ew,                     &
                                          face_selector_ns,                     &
-                                         is_cubed_sphere,                      &
                                          fullstress,                           &
                                          ndf_w3, undf_w3, map_w3,              &
                                          ndf_w1, undf_w1, map_w1,              &
@@ -210,6 +211,8 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   integer(kind=i_def), intent(in) :: smap_w2h(ndf_w2h,smap_w2h_size)
   integer(kind=i_def), intent(in) :: smap_rho_size
   integer(kind=i_def), intent(in) :: smap_rho(ndf_w2h,smap_rho_size)
+  integer(kind=i_def), intent(in) :: smap_pid_size
+  integer(kind=i_def), intent(in) :: smap_pid(ndf_pid,smap_pid_size)
 
   real(kind=r_def), dimension(undf_w3),     intent(inout) :: uflux_w3,         &
                                                              vflux_w3
@@ -230,8 +233,7 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   real(kind=r_def), dimension(undf_pid),    intent(in)    :: panel_id
   integer(kind=i_def), dimension(undf_w3_2d), intent(in)  :: face_selector_ew, &
                                                              face_selector_ns
-  logical(kind=l_def),                      intent(in)    :: is_cubed_sphere,  &
-                                                             fullstress
+  logical(kind=l_def),                      intent(in)    :: fullstress
 
   ! Internal variables
   integer(kind=i_def) :: k, df, j
@@ -252,7 +254,7 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
   integer(kind=i_def) :: smap_w2_true(ndf_w2,smap_w2_size)
   integer(kind=i_def) :: smap_w2h_true(ndf_w2h,smap_w2h_size)
   integer(kind=i_def) :: stencil_cell
-  integer(kind=i_def) :: cell_panel, rotation_flag
+  integer(kind=i_def) :: cell_panel, stencil_panel, rotation_flag
   integer(kind=i_def) :: vec_dir(ndf_w2,smap_w2_size)
   integer(kind=i_def) :: wind_sign
 
@@ -299,15 +301,17 @@ subroutine diffusion_momentum_flux_code( nlayers,                              &
     return
   end if
 
+  ! The W2H DoF values change in orientation when we cross over a panel
+  ! Vector directions parallel to the boundary (i.e. the winds on faces
+  ! perpendicular to the boundary) also flip sign
+  ! We need to take this into account by adjusting the stencil map used for
+  ! the wind field. Do this by looking at whether the panel changes
+  ! for other cells in the stencil
+  cell_panel = int(panel_id(map_pid(1)), i_def)
+
   do stencil_cell = 1, smap_w2_size
-    if (is_cubed_sphere .and. stencil_cell /= 1) then
-      ! The W2H DoF values change in orientation when we cross over a panel
-      ! Vector directions parallel to the boundary (i.e. the winds on faces
-      ! perpendicular to the boundary) also flip sign
-      ! We need to take this into account by adjusting the stencil map used for
-      ! the wind field. Do this by looking at whether the panel changes
-      ! for other cells in the stencil
-      cell_panel = int(panel_id(map_pid(1)), i_def)
+    stencil_panel = int(panel_id(smap_pid(1, stencil_cell)), i_def)
+    if ( cell_panel /= stencil_panel ) then
       rotation_flag = rotated_panel_neighbour(cell_panel, &
                                               stencil_directions(stencil_cell))
     else
