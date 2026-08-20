@@ -35,7 +35,7 @@ module planet_constants_mod
   ! added to the public statement above.
 
   ! Disabled variables:
-  !   sclht, omega, two_omega, recip_p_zero,
+  !   sclht, omega, two_omega, recip_p_zero
 
 
 !----------------------------------------------------------------------

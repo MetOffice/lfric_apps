@@ -27,7 +27,7 @@ module tropopause_diags_kernel_mod_test
   type, extends(TestCase), public :: tropopause_diags_test_type
     private
     real(kind=r_def), allocatable :: theta(:), exner_in_wth(:), height_wth(:)
-    real(kind=r_def), allocatable, target :: trop_ht(:)
+    real(kind=r_def), allocatable :: trop_ht(:)
   contains
     procedure setUp
     procedure tearDown

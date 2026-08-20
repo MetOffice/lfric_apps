@@ -54,6 +54,10 @@ public :: tropopause_diags_code
 
 contains
 
+!> @brief   Compute tropopause height, temperature, pressure and ICAO height.
+!> @details The caller guarantees that whenever trop_press is not empty,
+!>          trop_temp is also not empty, and whenever trop_icao_ht is not
+!>          empty, trop_press is also not empty.
 !> @param[in]     nlayers               Number of layers
 !> @param[in]     theta                 Potential temperature
 !> @param[in]     exner_in_wth          Exner pressure in wth space
