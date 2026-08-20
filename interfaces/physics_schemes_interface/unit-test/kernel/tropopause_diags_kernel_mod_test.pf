@@ -1,0 +1,274 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test tropopause_diags_kernel
+!>
+
+module tropopause_diags_kernel_mod_test
+
+  use funit
+  use constants_mod,               only: i_def, r_def
+  use empty_data_mod,              only: empty_real_data
+  use icao_heights_kernel_mod,     only: icao_heights_kernel_code
+  use tropopause_diags_kernel_mod, only: tropopause_diags_code
+
+  implicit none
+
+  private
+  public :: test_baseline_all_active, &
+            test_trop_ht_always_computed, &
+            test_trop_temp_only, &
+            test_trop_press_without_icao, &
+            test_fallback_cold_point_and_boundary
+
+  @TestCase
+  type, extends(TestCase), public :: tropopause_diags_test_type
+    private
+    real(kind=r_def), allocatable :: theta(:), exner_in_wth(:), height_wth(:)
+    real(kind=r_def), allocatable, target :: trop_ht(:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_baseline_all_active
+    procedure test_trop_ht_always_computed
+    procedure test_trop_temp_only
+    procedure test_trop_press_without_icao
+    procedure test_fallback_cold_point_and_boundary
+  end type tropopause_diags_test_type
+
+  ! nlayers=10, 2 km level spacing; map_wth/map_2d only ever have their
+  ! first element read by the kernel, so a single-entry dofmap starting at
+  ! offset 0 is sufficient.
+  integer(kind=i_def), parameter :: nlayers    = 10_i_def
+  integer(kind=i_def), parameter :: ndf_wth    = 1_i_def
+  integer(kind=i_def), parameter :: undf_wth   = nlayers
+  integer(kind=i_def), parameter :: map_wth(1) = (/ 0_i_def /)
+  integer(kind=i_def), parameter :: ndf_2d     = 1_i_def
+  integer(kind=i_def), parameter :: undf_2d    = 1_i_def
+  integer(kind=i_def), parameter :: map_2d(1)  = (/ 1_i_def /)
+
+  real(kind=r_def), parameter :: p_zero   = 100000.0_r_def
+  real(kind=r_def), parameter :: kappa    = 0.3_r_def
+  real(kind=r_def), parameter :: g_over_r = 0.034163195_r_def
+
+  ! Tolerances scaled to each quantity, not one blanket value.
+  real(kind=r_def), parameter :: tol_height = 1.0e-2_r_def ! m
+  real(kind=r_def), parameter :: tol_temp   = 1.0e-3_r_def ! K
+  real(kind=r_def), parameter :: tol_press  = 1.0e-2_r_def ! Pa
+  real(kind=r_def), parameter :: tol_icao   = 1.0e-3_r_def ! kft
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine setUp( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+
+    allocate( this%theta(undf_wth), this%exner_in_wth(undf_wth), &
+              this%height_wth(undf_wth), this%trop_ht(undf_2d) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tearDown( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+
+    deallocate( this%theta, this%exner_in_wth, this%height_wth, this%trop_ht )
+
+  end subroutine tearDown
+
+  ! Steep tropospheric lapse (levels 1-5) transitioning to a shallow,
+  ! sub-threshold lapse at level 6, giving a WMO tropopause crossing at k=6
+  ! with a genuine (non-clamped) interior interpolated height between
+  ! levels 6 and 7. theta/exner_in_wth give t_wth = theta*exner_in_wth
+  ! close to 290, 277, 264, 251, 238, 235, 234, 235, 235, 235 K.
+  subroutine set_baseline_profile( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+    integer(kind=i_def) :: k
+
+    this%height_wth = (/ (2000.0_r_def * real(k, r_def), k = 1, nlayers) /)
+    this%exner_in_wth = (/ 0.9_r_def,  0.8_r_def,  0.7_r_def,  0.6_r_def, &
+                            0.5_r_def,  0.4_r_def,  0.32_r_def, 0.28_r_def, &
+                            0.24_r_def, 0.20_r_def /)
+    this%theta = (/ 322.22_r_def, 346.25_r_def, 377.14_r_def, 418.33_r_def, &
+                     476.0_r_def,  587.5_r_def,  731.25_r_def, 839.29_r_def, &
+                     979.17_r_def, 1175.0_r_def /)
+
+  end subroutine set_baseline_profile
+
+  ! A monotonically decreasing profile (lapse rate always above the WMO
+  ! threshold): no level in the search range satisfies the sustained
+  ! lapse-rate criterion, so the cold-point fallback is used, landing at
+  ! k = nlayers - 2 (=8) - the tightest level the search loop permits,
+  ! exercising the k+2 = nlayers boundary. theta/exner give t_wth close to
+  ! 300, 287, 274, 261, 248, 235, 222, 209, 190, 170 K (the last interval
+  ! steeper, so lapselwr/lapseupr stay well apart at the fallback level).
+  subroutine set_fallback_profile( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+    integer(kind=i_def) :: k
+
+    this%height_wth = (/ (2000.0_r_def * real(k, r_def), k = 1, nlayers) /)
+    this%exner_in_wth = (/ 0.9_r_def,  0.82_r_def, 0.74_r_def, 0.66_r_def, &
+                            0.58_r_def, 0.5_r_def,  0.42_r_def, 0.34_r_def, &
+                            0.26_r_def, 0.20_r_def /)
+    this%theta = (/ 333.33_r_def, 350.0_r_def,  370.27_r_def, 395.45_r_def, &
+                     427.59_r_def, 470.0_r_def,  528.57_r_def, 614.71_r_def, &
+                     730.77_r_def, 850.0_r_def /)
+
+  end subroutine set_fallback_profile
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! All four fields active: checks trop_ht/trop_temp/trop_press against
+  ! hand-derived values, and trop_icao_ht against icao_heights_kernel_code
+  ! called directly on the same pressure/g_over_r - a delegation check,
+  ! not a re-derivation of the ICAO maths.
+  @test
+  subroutine test_baseline_all_active( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+
+    real(kind=r_def), allocatable, target :: temp_data(:), press_data(:), &
+                                              icao_data(:)
+    real(kind=r_def), pointer :: trop_temp(:), trop_press(:), trop_icao_ht(:)
+    real(kind=r_def) :: expect_icao(1)
+
+    call set_baseline_profile( this )
+    allocate( temp_data(undf_2d), press_data(undf_2d), icao_data(undf_2d) )
+    trop_temp    => temp_data
+    trop_press   => press_data
+    trop_icao_ht => icao_data
+
+    call tropopause_diags_code( nlayers, this%theta, this%exner_in_wth, &
+         this%height_wth, this%trop_ht, trop_temp, trop_press, &
+         trop_icao_ht, p_zero, kappa, g_over_r, &
+         ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( 13000.3_r_def, this%trop_ht(1), tol_height )
+    @assertEqual( 233.4996_r_def, trop_temp(1), tol_temp )
+    @assertEqual( 4075.456_r_def, trop_press(1), tol_press )
+
+    call icao_heights_kernel_code( nlayers, expect_icao, trop_press, &
+         g_over_r, ndf_2d, undf_2d, map_2d )
+    @assertEqual( expect_icao(1), trop_icao_ht(1), tol_icao )
+
+    deallocate( temp_data, press_data, icao_data )
+
+  end subroutine test_baseline_all_active
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! trop_temp/trop_press/trop_icao_ht all point at the shared empty
+  ! placeholder (nothing requested downstream) - trop_ht must still be
+  ! computed unconditionally.
+  @test
+  subroutine test_trop_ht_always_computed( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+    real(kind=r_def), pointer :: trop_temp(:), trop_press(:), trop_icao_ht(:)
+
+    call set_baseline_profile( this )
+    trop_temp    => empty_real_data
+    trop_press   => empty_real_data
+    trop_icao_ht => empty_real_data
+
+    call tropopause_diags_code( nlayers, this%theta, this%exner_in_wth, &
+         this%height_wth, this%trop_ht, trop_temp, trop_press, &
+         trop_icao_ht, p_zero, kappa, g_over_r, &
+         ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( 13000.3_r_def, this%trop_ht(1), tol_height )
+
+  end subroutine test_trop_ht_always_computed
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Only trop_temp active: confirms its guard is independent of
+  ! trop_press/trop_icao_ht's activation state.
+  @test
+  subroutine test_trop_temp_only( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+    real(kind=r_def), allocatable, target :: temp_data(:)
+    real(kind=r_def), pointer :: trop_temp(:), trop_press(:), trop_icao_ht(:)
+
+    call set_baseline_profile( this )
+    allocate( temp_data(undf_2d) )
+    trop_temp    => temp_data
+    trop_press   => empty_real_data
+    trop_icao_ht => empty_real_data
+
+    call tropopause_diags_code( nlayers, this%theta, this%exner_in_wth, &
+         this%height_wth, this%trop_ht, trop_temp, trop_press, &
+         trop_icao_ht, p_zero, kappa, g_over_r, &
+         ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( 13000.3_r_def, this%trop_ht(1), tol_height )
+    @assertEqual( 233.4996_r_def, trop_temp(1), tol_temp )
+
+    deallocate( temp_data )
+
+  end subroutine test_trop_temp_only
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! trop_press active (needs trop_temp active as its own input) but
+  ! trop_icao_ht inactive: confirms the icao delegation is skipped without
+  ! affecting trop_press itself.
+  @test
+  subroutine test_trop_press_without_icao( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+    real(kind=r_def), allocatable, target :: temp_data(:), press_data(:)
+    real(kind=r_def), pointer :: trop_temp(:), trop_press(:), trop_icao_ht(:)
+
+    call set_baseline_profile( this )
+    allocate( temp_data(undf_2d), press_data(undf_2d) )
+    trop_temp    => temp_data
+    trop_press   => press_data
+    trop_icao_ht => empty_real_data
+
+    call tropopause_diags_code( nlayers, this%theta, this%exner_in_wth, &
+         this%height_wth, this%trop_ht, trop_temp, trop_press, &
+         trop_icao_ht, p_zero, kappa, g_over_r, &
+         ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( 4075.456_r_def, trop_press(1), tol_press )
+
+    deallocate( temp_data, press_data )
+
+  end subroutine test_trop_press_without_icao
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! No level satisfies the WMO criterion: the cold-point fallback at
+  ! k = nlayers - 2 is used, exercising both the fallback path and the
+  ! tightest safe boundary for the k+2 interpolation access.
+  @test
+  subroutine test_fallback_cold_point_and_boundary( this )
+    implicit none
+    class(tropopause_diags_test_type), intent(inout) :: this
+    real(kind=r_def), allocatable, target :: temp_data(:), press_data(:)
+    real(kind=r_def), pointer :: trop_temp(:), trop_press(:), trop_icao_ht(:)
+
+    call set_fallback_profile( this )
+    allocate( temp_data(undf_2d), press_data(undf_2d) )
+    trop_temp    => temp_data
+    trop_press   => press_data
+    trop_icao_ht => empty_real_data
+
+    call tropopause_diags_code( nlayers, this%theta, this%exner_in_wth, &
+         this%height_wth, this%trop_ht, trop_temp, trop_press, &
+         trop_icao_ht, p_zero, kappa, g_over_r, &
+         ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( 16285.34_r_def, this%trop_ht(1), tol_height )
+    @assertEqual( 207.147_r_def, trop_temp(1), tol_temp )
+
+    deallocate( temp_data, press_data )
+
+  end subroutine test_fallback_cold_point_and_boundary
+
+end module tropopause_diags_kernel_mod_test
