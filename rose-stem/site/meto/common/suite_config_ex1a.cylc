@@ -59,8 +59,8 @@
         [[[environment]]]
             TRANSMUTE_INCLUDE_METHOD = specify_include
         [[[environment]]]
-            USE_LEGACY_TIMER=true
             USE_TIMING_WRAPPER=true
+            USE_VERNIER=true
         [[[directives]]]
             -l tmpsize=12GB
 
