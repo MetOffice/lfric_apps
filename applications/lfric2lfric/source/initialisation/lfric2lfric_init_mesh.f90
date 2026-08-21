@@ -26,7 +26,8 @@ module lfric2lfric_init_mesh_mod
 
   use add_mesh_map_mod,            only: add_mesh_map
   use config_mod,                  only: config_type
-  use constants_mod,               only: i_def, l_def, str_def, str_max_filename
+  use constants_mod,               only: i_def, l_def, str_def, &
+                                         str_max_filename
   use check_local_mesh_mod,        only: check_local_mesh
   use create_mesh_mod,             only: create_mesh
   use extrusion_mod,               only: extrusion_type
@@ -38,7 +39,8 @@ module lfric2lfric_init_mesh_mod
                                          log_level_info,    &
                                          log_level_error,   &
                                          log_level_debug
-  use panel_decomposition_mod,     only: panel_decomposition_type, calc_mapping_factor
+  use panel_decomposition_mod,     only: panel_decomposition_type, &
+                                         calc_mapping_factor
   use partition_mod,               only: partitioner_interface
 
   use runtime_partition_mod,       only: mesh_cubedsphere,       &
@@ -145,8 +147,8 @@ subroutine init_mesh( config,                  &
 
   character(str_def) :: stored_mesh_names(2)
 
-  procedure(partitioner_interface), pointer :: partitioner_src => null()
-  procedure(partitioner_interface), pointer :: partitioner_dst => null()
+  procedure(partitioner_interface), pointer :: partitioner_src
+  procedure(partitioner_interface), pointer :: partitioner_dst
 
   class(panel_decomposition_type), allocatable :: decomposition_src, &
                                                   decomposition_dst
@@ -163,8 +165,8 @@ subroutine init_mesh( config,                  &
   logical(l_def) :: enforce_constraints
   integer(i_def) :: mapping_factors(2)
 
-  nullify( src_global_mesh, src_mesh)
-  nullify( dst_global_mesh, dst_mesh)
+  nullify( src_global_mesh, src_mesh, partitioner_src)
+  nullify( dst_global_mesh, dst_mesh, partitioner_dst)
 
   stored_mesh_names(src) = 'src_'//trim(mesh_names(src))
   stored_mesh_names(dst) = 'dst_'//trim(mesh_names(dst))
@@ -355,12 +357,10 @@ subroutine init_mesh( config,                  &
 
     ! Read in all global meshes from input file
     !===========================================================
-    call load_global_mesh( trim(mesh_file(src)),  &
-                           trim(mesh_names(src)), &
+    call load_global_mesh( trim(mesh_file(src)), trim(mesh_names(src)), &
                            rename_to=trim(stored_mesh_names(src)) )
 
-    call load_global_mesh( trim(mesh_file(dst)),  &
-                           trim(mesh_names(dst)), &
+    call load_global_mesh( trim(mesh_file(dst)), trim(mesh_names(dst)), &
                            rename_to=trim(stored_mesh_names(dst)) )
 
 
@@ -373,8 +373,10 @@ subroutine init_mesh( config,                  &
 
     mapping_factors = 1
     if (regrid_method == regrid_method_map) then
-      mapping_factors(src) = calc_mapping_factor( src_global_mesh, dst_global_mesh )
-      mapping_factors(dst) = calc_mapping_factor( dst_global_mesh, src_global_mesh )
+      mapping_factors(src) = calc_mapping_factor( src_global_mesh, &
+                                                  dst_global_mesh )
+      mapping_factors(dst) = calc_mapping_factor( dst_global_mesh, &
+                                                  src_global_mesh )
     end if
 
     call create_local_mesh( stored_mesh_names(dst:dst), &
