@@ -12,6 +12,7 @@ module adjoint_test_driver_mod
   use adj_solver_lookup_cache_mod, only : adj_solver_lookup_cache_type
   use adj_trans_lookup_cache_mod,  only : adj_trans_lookup_cache_type
   use base_mesh_config_mod,        only : prime_mesh_name
+  use constants_mod,               only : i_def
   use extrusion_mod,               only : TWOD
   use fs_continuity_mod,           only : Wtheta, W3
   use field_mod,                   only : field_type
@@ -51,6 +52,12 @@ contains
 
     ! ./inter_function_space
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
+
+    !./transport/ffsl
+    use adjt_subgrid_common_support_mod,            only : adjt_subgrid_quadratic_recon
+    use adjt_subgrid_vertical_support_mod,          only : adjt_third_order_vertical_edge
+    use atlt_ffsl_flux_z_constant_alg_mod,          only : atlt_ffsl_flux_z_constant_alg
+    use atlt_ffsl_flux_z_nirvana_alg_mod,           only : atlt_ffsl_flux_z_nirvana_alg
 
     ! ./transport/mol
     use atlt_poly_adv_update_alg_mod,               only : atlt_poly_adv_update_alg
@@ -149,10 +156,22 @@ contains
     call adj_solver_lookup_cache%initialise(mesh)
     call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
 
+    call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
+    ! ./
+    call adjt_convert_cart2sphere_vector_alg( mesh )
+
+    ! ./transport/ffsl
+    call adjt_subgrid_quadratic_recon( mesh%get_nlayers() )
+    call adjt_third_order_vertical_edge( mesh%get_nlayers() )
+
     call log_event( "TESTING generated adjoint kernels", LOG_LEVEL_INFO )
     call run_gen_adj_kernel_tests( mesh, chi, panel_id )
 
     call log_event( "TESTING adjoint kernels", LOG_LEVEL_INFO )
+
+    ! ./transport/ffsl
+    call atlt_ffsl_flux_z_constant_alg( modeldb%config, mesh )
+    call atlt_ffsl_flux_z_nirvana_alg( modeldb%config, mesh )
 
     ! ./transport/mol
     call atlt_poly_adv_update_alg( mesh )
@@ -187,10 +206,6 @@ contains
     call adjt_dg_matrix_vector_alg( mesh )
     call adjt_dg_inc_matrix_vector_alg( mesh )
     call adjt_transpose_matrix_vector_alg( mesh )
-
-    call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
-    ! ./
-    call adjt_convert_cart2sphere_vector_alg( mesh )
 
     call log_event( "TESTING adjoint algorithms", LOG_LEVEL_INFO )
     ! ./interpolation

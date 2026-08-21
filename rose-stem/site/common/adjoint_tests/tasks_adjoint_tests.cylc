@@ -13,6 +13,7 @@
         "DT": 1800,
         "tsteps": 12,
         "log_level": "debug",
+        "memory": [7, "GB"],
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C12_MG-varying_LS" %}
@@ -23,6 +24,7 @@
         "DT": 1800,
         "tsteps": 12,
         "log_level": "debug",
+        "memory": [7, "GB"],
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C12_MG-mpi_6" %}
@@ -33,6 +35,7 @@
         "DT": 1800,
         "tsteps": 12,
         "log_level": "debug",
+        "memory": [7, "GB"],
         "mpi_parts": 6,
         "threads": 1,
     }) %}
@@ -45,6 +48,7 @@
         "DT": 1800,
         "tsteps": 12,
         "log_level": "debug",
+        "memory": [7, "GB"],
         "threads": 4,
     }) %}
 
@@ -56,6 +60,7 @@
         "DT": 1800,
         "tsteps": 12,
         "log_level": "debug",
+        "memory": [7, "GB"],
         "mpi_parts": 6,
         "threads": 2,
     }) %}
