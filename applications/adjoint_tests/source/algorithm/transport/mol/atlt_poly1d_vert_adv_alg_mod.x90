@@ -1,0 +1,233 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_poly1d_vert_adv_kernel
+module atlt_poly1d_vert_adv_alg_mod
+
+  use config_mod,                    only : config_type
+  use field_mod,                     only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use fs_continuity_mod,             only : W2v, W3, Wtheta
+  use constants_mod,                 only : i_def, l_def, r_def, EPS
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_DEBUG
+
+  implicit none
+
+  private :: run_atlt_poly1d_vert_adv_alg
+  public  :: atlt_poly1d_vert_adv_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for atl_poly1d_vert_adv.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
+  !> @param[in]  mesh         Mesh object
+  subroutine atlt_poly1d_vert_adv_alg(config, mesh)
+
+    implicit none
+
+    ! Arguments
+    type(config_type),              intent(in) :: config
+    type(mesh_type), pointer,       intent(in) :: mesh
+
+    ! Passive arguments for tl and adj calls
+    type(field_type)    :: ls_wind
+    type(field_type)    :: ls_tracer
+    type(field_type)    :: coeff
+    integer(kind=i_def) :: ndata
+    integer(kind=i_def) :: global_order
+    logical(kind=l_def) :: logspace
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2v_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
+    vector_space_w2v_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2v)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta)
+    call ls_wind%initialise(vector_space=vector_space_w2v_ptr, name='ls_wind')
+    call ls_tracer%initialise(vector_space=vector_space_wtheta_ptr, name='ls_tracer')
+    call coeff%initialise(vector_space=vector_space_w3_ptr, name='coeff')
+
+    call invoke( setval_random(ls_wind), setval_random(ls_tracer), setval_random(coeff) )
+
+    ndata = 0_i_def
+    global_order = 1_i_def
+    logspace = .false._l_def
+    call run_atlt_poly1d_vert_adv_alg(vector_space_w2v_ptr,    &
+                                      vector_space_wtheta_ptr, &
+                                      ls_wind,                 &
+                                      ls_tracer,               &
+                                      coeff,                   &
+                                      ndata,                   &
+                                      global_order,            &
+                                      logspace)
+
+    logspace = .true._l_def
+    call run_atlt_poly1d_vert_adv_alg(vector_space_w2v_ptr,    &
+                                      vector_space_wtheta_ptr, &
+                                      ls_wind,                 &
+                                      ls_tracer,               &
+                                      coeff,                   &
+                                      ndata,                   &
+                                      global_order,            &
+                                      logspace)
+
+  end subroutine atlt_poly1d_vert_adv_alg
+
+  !=============================================================================
+  !> @brief Runs the adjoint test for atl_poly1d_vert_adv_kernel for a given set of parameters
+  !> @param[in]  vector_space_w2v_ptr     W2v function space pointer
+  !> @param[in]  vector_space_wtheta_ptr  Wtheta function space pointer
+  !> @param[in]  ls_wind                  Lin state for wind field
+  !> @param[in]  ls_tracer                Lin state for tracer field to advect
+  !> @param[in]  coeff                    Array of polynomial coefficients for interpolation
+  !> @param[in]  ndata                    No. data points per dof location
+  !> @param[in]  global_order             Desired order of polynomial reconstruction
+  !> @param[in]  logspace                 Boolean to control whether or not to perform
+  !!                                      interpolation in log space
+  subroutine run_atlt_poly1d_vert_adv_alg(vector_space_w2v_ptr,    &
+                                          vector_space_wtheta_ptr, &
+                                          ls_wind,                 &
+                                          ls_tracer,               &
+                                          coeff,                   &
+                                          ndata,                   &
+                                          global_order,            &
+                                          logspace)
+
+    use tl_poly1d_vert_adv_kernel_mod,  only : tl_poly1d_vert_adv_kernel_type
+    use atl_poly1d_vert_adv_kernel_mod, only : atl_poly1d_vert_adv_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(function_space_type), pointer, intent(in) :: vector_space_w2v_ptr
+    type(function_space_type), pointer, intent(in) :: vector_space_wtheta_ptr
+    type(field_type),                   intent(in) :: ls_wind
+    type(field_type),                   intent(in) :: ls_tracer
+    type(field_type),                   intent(in) :: coeff
+    integer(kind=i_def),                intent(in) :: ndata
+    integer(kind=i_def),                intent(in) :: global_order
+    logical(kind=l_def),                intent(in) :: logspace
+
+    ! Active arguments for tl and adj calls
+    type(field_type) :: advective
+    type(field_type) :: wind
+    type(field_type) :: tracer
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: advective_input
+    type(field_type) :: wind_input
+    type(field_type) :: tracer_input
+
+    ! Inner products
+    real(kind=r_def) :: advective_inner_prod
+    real(kind=r_def) :: wind_inner_prod
+    real(kind=r_def) :: tracer_inner_prod
+    real(kind=r_def) :: advective_sf
+    real(kind=r_def) :: wind_sf
+    real(kind=r_def) :: tracer_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: advective_advective_input_inner_prod
+    real(kind=r_def) :: wind_wind_input_inner_prod
+    real(kind=r_def) :: tracer_tracer_input_inner_prod
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    call advective%initialise(vector_space=vector_space_wtheta_ptr, name='advective')
+    call wind%initialise(vector_space=vector_space_w2v_ptr, name='wind')
+    call tracer%initialise(vector_space=vector_space_wtheta_ptr, name='tracer')
+
+    call advective%copy_field_properties(advective_input)
+    call wind%copy_field_properties(wind_input)
+    call tracer%copy_field_properties(tracer_input)
+
+    advective_inner_prod = 0.0_r_def
+    wind_inner_prod = 0.0_r_def
+    tracer_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(advective), setval_x(advective_input, advective),         &
+                 setval_random(wind), setval_x(wind_input, wind),                        &
+                 setval_random(tracer), setval_x(tracer_input, tracer),                  &
+                 tl_poly1d_vert_adv_kernel_type(advective, wind, tracer,                 &
+                                                ls_wind, ls_tracer, coeff,               &
+                                                ndata, global_order, logspace),          &
+                 x_innerproduct_x(advective_inner_prod, advective),                      &
+                 x_innerproduct_x(wind_inner_prod, wind),                                &
+                 x_innerproduct_x(tracer_inner_prod, tracer) )
+
+    write( log_scratch_space, * ) "atlt_poly1d_vert_adv inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "advective inner product = ", advective_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "wind inner product = ", wind_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "tracer inner product = ", tracer_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    advective_sf = 1.0_r_def / (advective_inner_prod + EPS)
+    wind_sf = 1.0_r_def / (wind_inner_prod + EPS)
+    tracer_sf = 1.0_r_def / (tracer_inner_prod + EPS)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + advective_inner_prod * advective_sf
+    inner1 = inner1 + wind_inner_prod * wind_sf
+    inner1 = inner1 + tracer_inner_prod * tracer_sf
+
+
+    advective_advective_input_inner_prod = 0.0_r_def
+    wind_wind_input_inner_prod = 0.0_r_def
+    tracer_tracer_input_inner_prod = 0.0_r_def
+    call invoke( inc_a_times_X( advective_sf, advective ),                       &
+                 inc_a_times_X( wind_sf, wind ),                                 &
+                 inc_a_times_X( tracer_sf, tracer ),                             &
+                 atl_poly1d_vert_adv_kernel_type(advective, wind, tracer,        &
+                                                 ls_wind, ls_tracer, coeff,      &
+                                                 ndata, global_order, logspace), &
+                 x_innerproduct_y(advective_advective_input_inner_prod,          &
+                                  advective, advective_input),                   &
+                 x_innerproduct_y(wind_wind_input_inner_prod,                    &
+                                  wind, wind_input),                             &
+                 x_innerproduct_y(tracer_tracer_input_inner_prod,                &
+                                  tracer, tracer_input) )
+    inner2 = 0.0_r_def
+    inner2 = inner2 + advective_advective_input_inner_prod
+    inner2 = inner2 + wind_wind_input_inner_prod
+    inner2 = inner2 + tracer_tracer_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_poly1d_vert_adv_kernel_type (logspace = ", &
+                                  logspace, "):", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED tl_poly1d_vert_adv_kernel_type (logspace = ", &
+                                  logspace, "):", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine run_atlt_poly1d_vert_adv_alg
+
+end module atlt_poly1d_vert_adv_alg_mod

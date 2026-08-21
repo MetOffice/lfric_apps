@@ -46,6 +46,14 @@ output-format = "grouped"                #group results by file
 "adj_sci_psykal_builtin_light_mod.f90" = ["C082"]
 "invoke_adj_sci_convert_hdiv_field_kernel_mod.F90" = ["C082"]
 "invoke_adj_apply_helmholtz_op_lookup_mod.f90" = ["C031"]
+"atl_vorticity_advection_kernel_mod.F90" = ["C031"]
+"adj_horizontal_mass_flux_kernel_mod.F90" = ["C031"]
+"adj_vertical_mass_flux_kernel_mod.F90" = ["C031"]
+"adj_w3v_advective_update_kernel_mod.F90" = ["C031"]
+"atl_horizontal_mass_flux_kernel_mod.F90" = ["C031"]
+"atl_poly1d_vert_adv_kernel_mod.F90" = ["C031"]
+"atl_vertical_mass_flux_kernel_mod.F90" = ["C031"]
+"atl_w3v_advective_update_kernel_mod.F90" = ["C031"]
 
 
 
