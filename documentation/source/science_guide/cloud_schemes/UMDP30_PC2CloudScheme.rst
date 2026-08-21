@@ -4,6 +4,25 @@
     under which the code may be used.
    -----------------------------------------------------------------------------
 
+.. raw:: html
+
+   <style>
+      .blue { color: #0000ff; }
+      .green { color: #00b000; }
+      .purple { color: #ff00ff; }
+   </style>
+
+.. role:: blue
+.. role:: green
+.. role:: purple
+
+.. role:: blue-lbl(strong)
+   :class: blue
+.. role:: green-lbl(strong)
+   :class: green
+.. role:: purple-lbl(strong)
+   :class: purple
+
 .. attention::
 
    This documentation has been transfered directly from the UM to LFRic;
@@ -5248,13 +5267,6 @@ performed at the end of the timestep.
 
 Code Structure
 --------------
-
-.. role:: blue
-.. role:: purple
-.. role:: green
-.. role:: blue-lbl
-.. role:: green-lbl
-.. role:: purple-lbl
 
 A detailed description of the UM's timestep structure, showing where in
 the model all the PC2 cloud scheme subroutine calls are made, is given

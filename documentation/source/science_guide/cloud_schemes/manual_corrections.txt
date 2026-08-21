@@ -42,23 +42,35 @@ index 9f1988eb..d0664430 100644
  
  where the subscript :math:`_{diag}` denotes the liquid cloud water
  content and fraction predicted by the diagnostic cloud scheme (either
-index 09c10d54..5f83815a 100644
+index 5f83815a..85816087 100644
 --- a/documentation/source/science_guide/cloud_schemes/UMDP30_PC2CloudScheme.rst
 +++ b/documentation/source/science_guide/cloud_schemes/UMDP30_PC2CloudScheme.rst
-@@ -5249,6 +5249,13 @@ performed at the end of the timestep.
- Code Structure
- --------------
+@@ -4,6 +4,25 @@
+     under which the code may be used.
+    -----------------------------------------------------------------------------
  
-+.. role:: blue
-+.. role:: purple
-+.. role:: green
-+.. role:: blue-lbl
-+.. role:: green-lbl
-+.. role:: purple-lbl
++.. raw:: html
 +
- A detailed description of the UM's timestep structure, showing where in
- the model all the PC2 cloud scheme subroutine calls are made, is given
- in the subsections below.
++   <style>
++      .blue { color: #0000ff; }
++      .green { color: #00b000; }
++      .purple { color: #ff00ff; }
++   </style>
++
++.. role:: blue
++.. role:: green
++.. role:: purple
++
++.. role:: blue-lbl(strong)
++   :class: blue
++.. role:: green-lbl(strong)
++   :class: green
++.. role:: purple-lbl(strong)
++   :class: purple
++
+ .. attention::
+ 
+    This documentation has been transfered directly from the UM to LFRic;
 @@ -5303,465 +5310,495 @@ called *l_pc2_reset*. Turning this on (not recommended!) does 2 things:
  The location of the various cloud scheme routine calls within the UM is
  summarised in the list below.

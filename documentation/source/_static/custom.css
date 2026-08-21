@@ -24,11 +24,3 @@ html[data-theme="dark"] {
         color: var(--pst-color-link-hover);
     }
 }
-
-/* Set colours in text colour roles */
-.blue { color: #0000ff; }
-.green { color: #00b000; }
-.purple { color: #ff00ff; }
-.blue-lbl { color: #0000ff; font-weight: bold; }
-.green-lbl { color: #00b000; font-weight: bold; }
-.purple-lbl { color: #ff00ff; font-weight: bold; }
