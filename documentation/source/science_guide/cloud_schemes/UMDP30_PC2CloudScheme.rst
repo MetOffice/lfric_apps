@@ -5249,6 +5249,13 @@ performed at the end of the timestep.
 Code Structure
 --------------
 
+.. role:: blue
+.. role:: purple
+.. role:: green
+.. role:: blue-lbl
+.. role:: green-lbl
+.. role:: purple-lbl
+
 A detailed description of the UM's timestep structure, showing where in
 the model all the PC2 cloud scheme subroutine calls are made, is given
 in the subsections below.
@@ -5303,464 +5310,494 @@ called *l_pc2_reset*. Turning this on (not recommended!) does 2 things:
 The location of the various cloud scheme routine calls within the UM is
 summarised in the list below.
 
-Subroutines only called for the Smith scheme are highlighted in blue,
-those only called for PC2 are in green, and those only called for the
-bimodal scheme are in purple.
+Subroutines only called for the :blue:`Smith` scheme are highlighted in
+:blue:`blue`,
+those only called for :green:`PC2` are in :green:`green`,
+and those only called for the :purple:`bimodal` scheme are in :purple:`purple`.
 
 Main Tree from atm_step_4a
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. container:: itemize
 
    | **atm_step_4a**
-   | \* (performs one timestep of the Unified Model...)
+   | (performs one timestep of the Unified Model...)
 
-   .. container:: itemize
+       | **atm_step_alloc_4a**
+       | (does miscellaneous initialisations in atm_step)
 
-      .. container:: tcolorbox
+           | :green-lbl:`pc2_rhtl`
+           | (calculate start-of-timestep Relative Humidity, used by
+              PC2 initiation)
 
-         | **atm_step_alloc_4a**
-         | \* (does miscellaneous initialisations in atm_step)
+   |
 
-         - | pc2_rhtl
-           | \* (calculate start-of-timestep Relative Humidity, used by
-             PC2 initiation)
+       | **atmos_physics1**
+       | (calls explicit "slow" physics routines...)
 
-      .. container:: tcolorbox
+           | **microphys_ctl**
+           | (interface to microphysics scheme)
 
-         | **atmos_physics1**
-         | \* (calls explicit "slow" physics routines...)
+               | :green-lbl:`pc2_turbulence_ctl`
+               | (Perform optional erosion of liquid-cloud; done
+                  here if NOT doing erosion after convection, e.g. if
+                  no convection scheme is used).
 
-         .. container:: itemize
+                   | :green-lbl:`pc2_hom_conv`
+                   | (called here just to do erosion)
 
-            .. container:: tcolorbox
+           |
 
-               | **microphys_ctl**
-               | \* (interface to microphysics scheme)
+               | :blue-lbl:`ls_cld`
+               | (Smith scheme without area cloud fraction
+                  calculation, to set initial cloud fields passed into
+                  microphysics)
 
-               - | pc2_turbulence_ctl
-                 | \* (Perform optional erosion of liquid-cloud; done
-                   here if NOT doing erosion after convection, e.g. if
-                   no convection scheme is used).
+           |
 
-                 - | pc2_hom_conv
-                   | \* (called here just to do erosion)
+               | **ls_ppn**
+               | (microphysics scheme)
 
-               - | ls_cld
-                 | \* (Smith scheme without area cloud fraction
-                   calculation, to set initial cloud fields passed into
-                   microphysics)
+           |
 
-               - | **ls_ppn**
-                 | \* (microphysics scheme)
+               | **mphys_turb_gen_mixed_phase**
+               | (turbulent production of liquid cloud)
 
-               - | **mphys_turb_gen_mixed_phase**
-                 | \* (turbulent production of liquid cloud)
+           |
 
-               - | pc2_turbulence_ctl
-                 | \* (optionally use the PC2 pdf-width-change code to
-                   calculate the cloud-fraction change from the above
-                   turbulent production of liquid cloud)
+               | :green-lbl:`pc2_turbulence_ctl`
+               | (optionally use the PC2 pdf-width-change code to
+                  calculate the cloud-fraction change from the above
+                  turbulent production of liquid cloud)
 
-                 - | pc2_hom_conv
-                   | \* (called here just to calculate the cloud
-                     fraction increment consistent with the turbulent
-                     qcl increment)
+                   | :green-lbl:`pc2_hom_conv`
+                   | (called here just to calculate the cloud
+                      fraction increment consistent with the turbulent
+                      qcl increment)
 
-            .. container:: tcolorbox
+       |
 
-               | **rad_ctl**
-               | \* (interface to radiation scheme)
+           | **rad_ctl**
+           | (interface to radiation scheme)
 
-               - | **sw_rad**
-                 | \* (short-wave radiation scheme)
+               | **sw_rad**
+               | (short-wave radiation scheme)
 
-               - | pc2_homog_plus_turb
-                 | \* (PC2 homogeneous forcing of liquid-cloud by SW
-                   radiation heating)
+           |
 
-               - | **lw_rad**
-                 | \* (long-wave radiation scheme)
+               | :green-lbl:`pc2_homog_plus_turb`
+               | (PC2 homogeneous forcing of liquid-cloud by SW
+                  radiation heating)
 
-               - | pc2_homog_plus_turb
-                 | \* (PC2 homogeneous forcing of liquid-cloud by LW
-                   radiation tendency)
+           |
 
-            .. container:: tcolorbox
+               | **lw_rad**
+               | (long-wave radiation scheme)
 
-               **atmos_physics1_alloc_pc2** (wrapper for PC2
-               self-consistency checks at end of atmos_physics1)
+           |
 
-               - Add increments from microphysics + radiation onto
-                 start-of-timestep fields to form updated fields.
+               | :green-lbl:`pc2_homog_plus_turb`
+               | (PC2 homogeneous forcing of liquid-cloud by LW
+                  radiation tendency)
 
-               - | pc2_checks
-                 | \* (self-consistency checks on cloud fractions and
-                   water contents)
+       |
 
-               - Convert corrected updated fields back to increments.
+           | **atmos_physics1_alloc_pc2**
+           | (wrapper for PC2
+              self-consistency checks at end of atmos_physics1)
 
-      Begin loop over solver outer cycles
+           | Add increments from microphysics + radiation onto
+             start-of-timestep fields to form updated fields.
 
-      .. container:: itemize
+               | :green-lbl:`pc2_checks`
+               | (self-consistency checks on cloud fractions and
+                  water contents)
 
-         .. container:: tcolorbox
+           | Convert corrected updated fields back to increments.
 
-            | **atm_step_phys_reset**
-            | \* (for PC2, on subsequent solver outer cycles, reset
-              cloud-fractions to saved values after atmos_physics1)
+   | Begin loop over solver outer cycles
 
-         .. container:: tcolorbox
 
-            | **eg_sl_moisture**
-            | \* (large-scale advection of cloud water contents and
-              fractions)
+       | **atm_step_phys_reset**
+       | (for PC2, on subsequent solver outer cycles, reset
+          cloud-fractions to saved values after atmos_physics1)
 
-         .. container:: tcolorbox
+   |
 
-            | pc2_pressure_forcing_only
-            | \* (Optionally calculate homogeneous forcing of liquid
-              cloud by the pressure change along the trajectory from
-              departure point to arrival point).
+         | **eg_sl_moisture**
+         | (large-scale advection of cloud water contents and fractions)
 
-            - | pc2_homog_plus_turb
-              | \* (generic homogeneous forcing routine used here).
+   |
 
-         .. container:: tcolorbox
+         | :green-lbl:`pc2_pressure_forcing_only`
+         | (Optionally calculate homogeneous forcing of liquid
+            cloud by the pressure change along the trajectory from
+            departure point to arrival point).
 
-            | **atmos_physics2**
-            | \* (calls "fast" physics routines...)
+              | :green-lbl:`pc2_homog_plus_turb`
+              | (generic homogeneous forcing routine used here).
 
-            .. container:: itemize
+   |
 
-               .. container:: tcolorbox
+       | **atmos_physics2**
+       | (calls "fast" physics routines...)
 
-                  | **ni_bl_ctl**
-                  | \* (interface to explicit boundary-layer and surface
-                    scheme calls, including calculation of TKE and
-                    TKE-based :math:`RH_{crit}`)
+           | **ni_bl_ctl**
+           | (interface to explicit boundary-layer and surface
+              scheme calls, including calculation of TKE and
+              TKE-based :math:`RH_{crit}`)
 
-               .. container:: tcolorbox
+       |
 
-                  | bm_calc_tau
-                  | \* (calculates turbulence properties used in the
-                    bimodal cloud scheme, based on the boundary-layer
-                    scheme TKE and mixing-length)
+           | :purple-lbl:`bm_calc_tau`
+           | (calculates turbulence properties used in the
+              bimodal cloud scheme, based on the boundary-layer
+              scheme TKE and mixing-length)
 
-               .. container:: tcolorbox
+       |
 
-                  | **cloud_call_b4_conv**
-                  | \* (routine for optional cloud-scheme calls before
-                    convection)
+           | **cloud_call_b4_conv**
+           | (routine for optional cloud-scheme calls before convection)
 
-                  - | ls_arcld
-                    | \* (Smith scheme with area cloud fraction; see
-                      :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a drill-down
-                      inside this routine)
+               | :blue-lbl:`ls_arcld`
+               | (Smith scheme with area cloud fraction; see
+                  :ref:`Smith scheme with area cloud fraction
+                  <subsubsec_smith_acf>` for a drill-down inside this routine)
 
-                  - | bm_ctl
-                    | \* (bimodal scheme)
+           |
 
-                  - Set area cloud fraction equal to bulk cloud fraction
+               | :purple-lbl:`bm_ctl`
+               | (bimodal scheme)
 
-                  - | pc2_initiation_ctl
-                    | \* (interface to PC2 initiation and
-                      consistency-checks; see
-                      :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a
-                      drill-down inside this routine)
+           | Set area cloud fraction equal to bulk cloud fraction
 
-               .. container:: tcolorbox
+               | :green-lbl:`pc2_initiation_ctl`
+               | (interface to PC2 initiation and consistency-checks; see
+                  :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a
+                  drill-down inside this routine)
 
-                  | **ni_conv_ctl** or **other_conv_ctl**
-                  | \* (interface routines to various convection
-                    schemes...)
+       |
 
-                  - | **glue_conv_5a/6a**
-                    | \* (calls deep, shallow and mid-level convection
-                      schemes)
+           | **ni_conv_ctl** or **other_conv_ctl**
+           | (interface routines to various convection schemes...)
 
-                    - | **deep/shallow/mid_conv**
-                      | \* (convection scheme main routines)
+               | **glue_conv_5a/6a**
+               | (calls deep, shallow and mid-level convection schemes)
 
-                      - **convec2** (completes lifting of the convective
-                        parcel by one model-level)
+                   | **deep/shallow/mid_conv**
+                   | (convection scheme main routines)
 
-                        - **parcel** (calculates new parcel properties
-                          at next level)
+                       | **convec2**
+                       | (completes lifting of the convective
+                          parcel by one model-level)
 
-                        - **environ** (calculates grid-mean increments
-                          to primary fields; includes PC2 partitioning
-                          of detrained condensate mass between liquid
-                          and ice phases)
+                           | **parcel**
+                           | (calculates new parcel properties at next level)
 
-                        - pc2_environ (calculates increments to PC2
-                          cloud fractions due to convective detrainment
-                          and subsidence)
+                       |
 
-                  - | pc2_from_conv_ctl
-                    | \* (PC2 calculations after convection)
+                           | **environ**
+                           | (calculates grid-mean increments
+                              to primary fields; includes PC2 partitioning
+                              of detrained condensate mass between liquid
+                              and ice phases)
 
-                    - | pc2_hom_conv
-                      | \* (homogeneous forcing by convection, and
-                        erosion of liquid-cloud)
+                       |
 
-               .. container:: tcolorbox
+                           | :green-lbl:`pc2_environ`
+                           | (calculates increments to PC2
+                              cloud fractions due to convective detrainment
+                              and subsidence)
 
-                  | **ni_imp_ctl**
-                  | \* (interface to boundary-layer implicit solver)
+           |
 
-                  - | **imp_solver**
-                    | \* (implicitly solves vertical diffusion to find
-                      :math:`T_l` and :math:`q_T` updated by turbulent
-                      fluxes).
+               | :green-lbl:`pc2_from_conv_ctl`
+               | (PC2 calculations after convection)
 
-                  - | pc2_bl_inhom_ice
-                    | \* (inhomogeneous forcing of ice-cloud)
+                   | :green-lbl:`pc2_hom_conv`
+                   | (homogeneous forcing by convection, and
+                      erosion of liquid-cloud)
 
-                  - | pc2_delta_hom_turb
-                    | \* (homogeneous forcing of liquid cloud by the
-                      turbulent fluxes)
+       |
 
-                  - | pc2_bl_forced_cu
-                    | \* (adds diagnosed "forced cumulus" cloud fraction
-                      and water content onto the PC2 prognostics)
+           | **ni_imp_ctl**
+           | (interface to boundary-layer implicit solver)
 
-                  - Calculate area cloud fraction:
+               | **imp_solver**
+               | (implicitly solves vertical diffusion to find
+                  :math:`T_l` and :math:`q_T` updated by turbulent fluxes).
 
-                    | ls_acf_brooks
-                    | \* (for the Brooks epirical method)
+           |
 
-                    | pc2_hom_arcld
-                    | \* (for the Cusack vertical interpolation method)
+               | :green-lbl:`pc2_bl_inhom_ice`
+               | (inhomogeneous forcing of ice-cloud)
 
-                    - | pc2_homog_plus_turb
-                      | \* (generic homogeneous forcing routine used to
-                        interpolate)
+           |
 
-                  - | ls_arcld
-                    | \* (interface to diagnostic Smith scheme and area
-                      cloud fraction; see
-                      :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a drill-down
-                      inside this routine)
+               | :green-lbl:`pc2_delta_hom_turb`
+               | (homogeneous forcing of liquid cloud by the turbulent fluxes)
 
-                  - | bm_ctl
-                    | \* (bimodal cloud scheme)
+           |
 
-                  - Set area cloud fraction equal to bulk cloud fraction
+               | :green-lbl:`pc2_bl_forced_cu`
+               | (adds diagnosed "forced cumulus" cloud fraction
+                  and water content onto the PC2 prognostics)
 
-                  - | **diagnostics_bl**
-                    | \* (outputs boundary-layer diagnostics to STASH)
+           | Calculate area cloud fraction:
 
-                    - | **ls_cld**
-                      | \* (Smith scheme used here to calculate various
-                        diagnostics of near-surface temperature and
-                        humidity, by extrapolating pressure, :math:`T_l`
-                        and :math:`q_t` down to the desired height and
-                        then re-diagnosing :math:`q_{cl}`.
+               | :green-lbl:`ls_acf_brooks`
+               | (for the Brooks epirical method)
 
-         .. container:: tcolorbox
+           |
 
-            | **atm_step_ac_assim**
-            | \* (interface to Data Assimilation analysis increments...)
+               | :green-lbl:`pc2_hom_arcld`
+               | (for the Cusack vertical interpolation method)
 
-            - **ac_ctl** (control routine for Data Assimilation analysis
-              increments...)
+                   | :green-lbl:`pc2_homog_plus_turb`
+                   | (generic homogeneous forcing routine used to interpolate)
 
-              - **ac** (main analysis increment routine)
+           |
 
-              - | pc2_assim
-                | \* (PC2 reponse to the analysis increments; see
-                  :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>` for a drill-down
-                  inside this routine)
+               | :blue-lbl:`ls_arcld`
+               | (interface to diagnostic Smith scheme and area
+                  cloud fraction; see
+                  :ref:`Smith scheme with area cloud fraction
+                  <subsubsec_smith_acf>` for a drill-down inside this routine)
 
-              - ls_acf_brooks (calculate area cloud fraction using
-                Brooks empirical method if active)
+           |
 
-              - ls_arcld (call diagnostic Smith scheme with area cloud
-                fraction again to account for the analysis increments;
-                see :ref:`Smith scheme with area cloud fraction
-                <subsubsec_smith_acf>` for a drill-down
-                inside this routine)
+               | :purple-lbl:`bm_ctl`
+               | (bimodal cloud scheme)
 
-         .. container:: tcolorbox
+           | Set area cloud fraction equal to bulk cloud fraction
 
-            | **eg_sl_helmholtz**
-            | \* (dynamics pressure solver; updates pressure, and the
-              winds used to perform advection on the next solver outer
-              cycle)
+               | **diagnostics_bl**
+               | (outputs boundary-layer diagnostics to STASH)
 
-      End loop over solver outer cycles
+                   | **ls_cld**
+                   | (Smith scheme used here to calculate various
+                      diagnostics of near-surface temperature and
+                      humidity, by extrapolating pressure, :math:`T_l`
+                      and :math:`q_t` down to the desired height and
+                      then re-diagnosing :math:`q_{cl}`.
 
-      .. container:: tcolorbox
+   |
 
-         | pc2_pressure_forcing
-         | \* (interface to miscellaneous PC2 calculations at
-           end-of-timestep)
+       | **atm_step_ac_assim**
+       | (interface to Data Assimilation analysis increments...)
 
-         - | pc2_homog_plus_turb
-           | \* (homogeneous forcing of liquid-cloud by the dynamics
-             pressure change; optionally either uses total pressure
-             change including the Lagrangian component following the
-             winds, or only the Eulerian component from the dynamics
-             solver)
+          | **ac_ctl**
+          | (control routine for Data Assimilation analysis increments...)
 
-         - | pc2_initiation_ctl
-           | \* (interface to PC2 initiation and consistency-checks; see
-             :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a drill-down
-             inside this routine)
+              | **ac**
+              | (main analysis increment routine)
 
-      .. container:: tcolorbox
+          |
 
-         | **qt_bal_cld**
-         | \* (calculates end-of-timestep cloud state consistent with
-           final pressure...)
+              | :green-lbl:`pc2_assim`
+              | (PC2 reponse to the analysis increments; see
+                 :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>`
+                 for a drill-down inside this routine)
 
-         - | ls_arcld
-           | \* (interface to diagnostic Smith scheme and area cloud
-             fraction; see :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a
-             drill-down inside this routine)
+          |
 
-         - | bm_ctl
-           | \* (bimodal cloud scheme)
+              | :green-lbl:`ls_acf_brooks`
+              | (calculate area cloud fraction using
+                 Brooks empirical method if active)
 
-         - Set area cloud fraction equal to bulk cloud fraction
+          |
 
-      .. container:: tcolorbox
+              | :blue-lbl:`ls_arcld`
+              | (call diagnostic Smith scheme with area cloud
+                 fraction again to account for the analysis increments;
+                 see :ref:`Smith scheme with area cloud fraction
+                 <subsubsec_smith_acf>` for a drill-down inside this routine)
 
-         | **iau**
-         | \* (incremental analysis update; part of data assimilation)
+   |
 
-         - | pc2_assim
-           | \* (PC2 reponse to the analysis increments; see
-             :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>` for a drill-down inside
-             this routine)
+       | **eg_sl_helmholtz**
+       | (dynamics pressure solver; updates pressure, and the
+          winds used to perform advection on the next solver outer cycle)
 
-         - | initial_pc2_check
-           | \* (wrapper for optional self-consistency checks on
+   |  End loop over solver outer cycles
+
+       | :green-lbl:`pc2_pressure_forcing`
+       | (interface to miscellaneous PC2 calculations at end-of-timestep)
+
+           | :green-lbl:`pc2_homog_plus_turb`
+           | (homogeneous forcing of liquid-cloud by the dynamics
+              pressure change; optionally either uses total pressure
+              change including the Lagrangian component following the
+              winds, or only the Eulerian component from the dynamics
+              solver)
+
+       |
+
+           | :green-lbl:`pc2_initiation_ctl`
+           | (interface to PC2 initiation and consistency-checks; see
+              :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a drill-down
+              inside this routine)
+
+   |
+
+       | **qt_bal_cld**
+       | (calculates end-of-timestep cloud state consistent with
+          final pressure...)
+
+           | :blue-lbl:`ls_arcld`
+           | (interface to diagnostic Smith scheme and area cloud
+              fraction; see :ref:`Smith scheme with area cloud fraction
+              <subsubsec_smith_acf>` for a drill-down inside this routine)
+
+       |
+
+           | :purple-lbl:`bm_ctl`
+           | (bimodal cloud scheme)
+
+       | Set area cloud fraction equal to bulk cloud fraction
+
+   |
+
+       | **iau**
+       | (incremental analysis update; part of data assimilation)
+
+           | :green-lbl:`pc2_assim`
+           | (PC2 reponse to the analysis increments; see
+              :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>`
+              for a drill-down inside this routine)
+
+       |
+
+          | :green-lbl:`initial_pc2_check`
+          | (wrapper for optional self-consistency checks on
              prognostic cloud variables if not doing PC2 response to
              analysis increments)
 
-           - | pc2_checks
-             | \* (self-consistency checks on cloud fractions and water
-               contents)
+              | :green-lbl:`pc2_checks`
+              | (self-consistency checks on cloud fractions and water
+                 contents)
 
 Drill-downs within some routines in the call tree are listed separately
 below, to avoid duplication (since these routines are called in multiple
 different places in the tree)...
+
 
 .. _subsubsec_smith_acf:
 
 Smith scheme with area cloud fraction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. container:: itemize
+   | :blue-lbl:`ls_arcld`
+   | (interface to diagnostic Smith scheme and area cloud fraction)
 
-   .. container:: tcolorbox
+   | If no area cloud fraction scheme:
 
-      | ls_arcld
-      | \* (interface to diagnostic Smith scheme and area cloud
-        fraction)
+       | :blue-lbl:`ls_cld`
+       | (just directly call Smith scheme)
 
-      - If no area cloud fraction scheme:
+   | Set area cloud fraction equal to bulk cloud fraction.
 
-        | ls_cld
-        | \* (just directly call Smith scheme)
+   | If using Cusack vertical interpolation method:
 
-        Set area cloud fraction equal to bulk cloud fraction.
+   | Interpolate fields onto finer vertical grid
 
-      - If using Cusack vertical interpolation method:
+       | :blue-lbl:`ls_cld`
+       | (call Smith scheme using higher vertical resolution fields)
 
-        Interpolate fields onto finer vertical grid
+   | Coarse-grain cloud fields back to model grid, but set area cloud
+     fraction to max of bulk cloud fraction over corresponding
+     fine-grid levels.
 
-        | ls_cld
-        | \* (call Smith scheme using higher vertical resolution fields)
+   | If using Brooks empirical area cloud fraction method:
 
-        Coarse-grain cloud fields back to model grid, but set area cloud
-        fraction to max of bulk cloud fraction over corresponding
-        fine-grid levels.
+       | :blue-lbl:`ls_cld`
+       | (just directly call Smith scheme)
 
-      - If using Brooks empirical area cloud fraction method:
+   |
 
-        | ls_cld
-        | \* (just directly call Smith scheme)
+       | :blue-lbl:`ls_acf_brooks`
+       | (estimate area cloud fraction)
 
-        | ls_acf_brooks
-        | \* (estimate area cloud fraction)
 
 .. _subsubsec_pc2_initiation:
 
 PC2 initiation
 ^^^^^^^^^^^^^^
 
-.. container:: itemize
+   | :green-lbl:`pc2_initiation_ctl`
+   | (interface to PC2 initiation and consistency-checks)
 
-   .. container:: tcolorbox
-
-      | pc2_initiation_ctl
-      | \* (interface to PC2 initiation and consistency-checks)
-
-      - | pc2_checks
-        | \* (self-consistency checks on cloud fractions and water
+       | :green-lbl:`pc2_checks`
+       | (self-consistency checks on cloud fractions and water
           contents)
 
-      - PC2 initiation of liquid-cloud:
+   | PC2 initiation of liquid-cloud:
 
-        | pc2_bm_initiate
-        | \* (using the bimodal cloud scheme)
+       | :green-lbl:`pc2_bm_initiate`
+       | (using the bimodal cloud scheme)
 
-        | pc2_arcld
-        | \* (using the Smith scheme with the Cusack vertical
+   |
+
+       | :green-lbl:`pc2_arcld`
+       | (using the Smith scheme with the Cusack vertical
           interpolation method)
 
-        - | pc2_initiate
-          | \* (initiation using the Smith scheme, called here on a
-            finer vertical grid as per the Cusack method)
+           | :green-lbl:`pc2_initiate`
+           | (initiation using the Smith scheme, called here on a
+              finer vertical grid as per the Cusack method)
 
-        | pc2_initiate
-        | \* (using the Smith scheme with no area cloud representation)
+   |
 
-      - | pc2_checks2
-        | \* (further self-consistency checks on cloud-fractions)
+       | :green-lbl:`pc2_initiate`
+       | (using the Smith scheme with no area cloud representation)
 
-      - | pc2_checks
-        | \* (repeat the first lot of self-consistency checks again,
+   |
+
+       | :green-lbl:`pc2_checks2`
+       | (further self-consistency checks on cloud-fractions)
+
+   |
+
+       | :green-lbl:`pc2_checks`
+       | (repeat the first lot of self-consistency checks again,
           just in case we broke something in the mean-time!)
 
-      - | pc2_hom_arcld
-        | \* (finds area cloud fraction using a version of the Cusack
+   |
+
+       | :green-lbl:`pc2_hom_arcld`
+       | (finds area cloud fraction using a version of the Cusack
           method, where the cloud fraction on the finer vertical grid is
           estimated by applying homogeneous forcing relative to the
           original grid fields)
 
-        - | pc2_homog_plus_turb
-          | \* (generic homogeneous forcing routine used to interpolate)
+           | :green-lbl:`pc2_homog_plus_turb`
+           | (generic homogeneous forcing routine used to interpolate)
+
 
 .. _subsubsec_pc2_assim:
 
 PC2 Data Assimilation
 ^^^^^^^^^^^^^^^^^^^^^
 
-.. container:: itemize
+   | :green-lbl:`pc2_assim`
+   | (PC2 reponse to the analysis increments)
 
-   .. container:: tcolorbox
-
-      | pc2_assim
-      | \* (PC2 reponse to the analysis increments)
-
-      - | pc2_homog_plus_turb
-        | \* (generic PC2 homogeneous forcing routine used here for
+       | :green-lbl:`pc2_homog_plus_turb`
+       | (generic PC2 homogeneous forcing routine used here for
           liquid-cloud)
 
-      - Estimate change in ice-cloud fraction from the assimilation
+   | Estimate change in ice-cloud fraction from the assimilation
         increment to ice-cloud mass.
 
-      - | pc2_total_cf
-        | \* (update bulk cloud fraction due to change in ice cloud
+       | :green-lbl:`pc2_total_cf`
+       | (update bulk cloud fraction due to change in ice cloud
           fraction)
 
-      - | pc2_checks
-        | \* (self-consistency checks on prognostic cloud fractions and
+   |
+
+       | :green-lbl:`pc2_checks`
+       | (self-consistency checks on prognostic cloud fractions and
           water contents)
+
 
 .. _sec_diags:
 
