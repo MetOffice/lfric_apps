@@ -207,6 +207,24 @@
         "memory_plot_ex": true,
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal10-C224_MG_op" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","june_case"],
+        "resolution": "C224_MG_op",
+        "DT": 720,
+        "tsteps": 120,
+        "mpi_parts": 588,
+        "mesh_cpus": 4,
+        "xios_nodes": 1,
+        "mpi_parts_xios" : 64,
+        "log_level": "info",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+        "memory_plot_ex": true,
+    }) %}
+
 {% elif task_ns.conf_name == "nwp_gal10_oper-C224_MG" %}
 
     {% do task_dict.update({
@@ -493,6 +511,7 @@
         "xios_min_buffer_size": 10485760,
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
+
 
 {# ###################################################################### #}
 {# Global Climate jobs #}
@@ -1237,7 +1256,7 @@
 {% endif %}
 
 {# Extensions to the Shared Global Configurations - Performance setups#}
-{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_720t") %}
+{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_op_720t") %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump"],
@@ -1248,10 +1267,20 @@
     }) %}
 {% endif %}
 
-{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_720t_opDiag") %}
+{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_op_720t_opDiag") %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","oper_diags_hres"],
+    }) %}
+
+{% endif %}
+
+{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_op") %}
+
+    {% do task_dict.update({
+        "resolution": "C896_MG_op",
+        "mesh_cpus": 64,
+        "mesh_memory": [20, "GB"],
     }) %}
 
 {% endif %}

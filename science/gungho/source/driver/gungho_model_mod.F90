@@ -83,6 +83,8 @@ module gungho_model_mod
                                          final_runtime_constants
   use timestep_method_mod,        only : timestep_method_type, &
                                          get_timestep_method_from_collection
+  use timing_mod,                 only : start_timing, stop_timing, &
+                                         tik, LPROF
   use rk_alg_timestep_mod,        only : rk_timestep_type
   use semi_implicit_timestep_alg_mod, &
                                   only : semi_implicit_timestep_type
@@ -602,6 +604,8 @@ contains
     integer(i_def) :: random_seed_size, proc_rank, big_int, perturb_seed_in
     integer(i_def), allocatable :: ranseed(:)
 
+    integer(tik)   :: id_mesh
+
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
@@ -652,6 +656,8 @@ contains
     !=======================================================================
     ! 1.1 Determine the required meshes
     !=======================================================================
+
+    if ( LPROF ) call start_timing(id_mesh, 'gungho_driver.mesh_init')
 
     ! 1.1a Meshes that require a prime/2d extrusion
     ! ---------------------------------------------------------
@@ -912,6 +918,7 @@ contains
       end if
     end if
 
+    if ( LPROF ) call stop_timing(id_mesh, 'gungho_driver.mesh_init')
 
     !=======================================================================
     ! 2.0 Initialise FEM / Coordinates

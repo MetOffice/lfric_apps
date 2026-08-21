@@ -14,6 +14,10 @@
     {% set inherit.str = inherit.str~","~family|upper %}
 {% endfor %}
 
+{% set partition_parts = task_values.get("mpi_parts", task_values["mesh_cpus"]) %}
+{% if "_op" in task_ns.conf_name %}
+    {% set task_ns.conf_name = task_ns.conf_name.split("_op", 1)[0] ~ "_op" %}
+{% endif %}
 {% set script_str = "rose task-run --app-key=mesh --opt-conf-key="~task_ns.conf_name %}
 
     [[{{task}}]]
@@ -23,11 +27,23 @@
         [[[environment]]]
             DESTINATION_DIRECTORY = {{destination_dir}}
             BIN_DIR               = {{bin_dir}}
+{% if "_op" in task_ns.conf_name %}
+    {% set mesh_dir_op = mesh_dir~"/"~task_ns.conf_name~"/"~
+                         task_values["mesh_op_name"] %}
+            MESH_DIR              = {{mesh_dir_op}}
+{% else %}
             MESH_DIR              = {{mesh_dir}}/{{task_ns.conf_name}}
+{% endif %}
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
             OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{task_ns.conf_name}}
-            TOTAL_RANKS           = {{ task_values["mesh_cpus"]|default("1",true) }}
-            FINAL_RANK            = $((TOTAL_RANKS-1))
+            PARTITION_PARTS       = {{ partition_parts }}
+            FINAL_RANK            = $((PARTITION_PARTS-1))
+            OMP_NUM_THREADS       = {{task_values["mesh_cpus"]}}
+{% if "_op" in task_ns.conf_name %}
+            PANEL_DECOMP          = {{task_values["mesh_panel_decomp"]}}
+            XPROC                 = {{task_values["mesh_xproc"]}}
+            YPROC                 = {{task_values["mesh_yproc"]}}
+{% endif %}
 
         [[[directives]]]
 {{ set_task_resources(task_values["mesh_cpus"], task_values["mesh_memory"]) }}
