@@ -62,4 +62,7 @@
   <axis id="surface_tiles_C3grass_zoom" axis_ref="surface_tiles">
     <zoom_axis id="surface_tiles_c3_grass_zoom_axis"/>
   </axis>
+  <axis id="uv_band_zoom" axis_ref="sw_bands_radiation_levels">
+    <zoom_axis id="uv_band_zoom_axis"/>
+  </axis>
 </axis_definition>

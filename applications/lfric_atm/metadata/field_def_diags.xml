@@ -579,9 +579,16 @@
   <field id="surface__surf_ht_flux" name="surf_ht_flux" long_name="downward_heat_flux_at_ground_level" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__soil_surf_ht_flux" name="soil_surf_ht_flux" long_name="downward_heat_flux_at_ground_level_in_soil" unit="W m-2" domain_ref="face" />
   <field id="surface__surf_sw_net" name="surf_sw_net" long_name="surface_net_downward_shortwave_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="zoomed__sea_sw_net" field_ref="surface__surf_sw_net" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
+  <field id="surface__sea_tile_sw_net" name="sea_tile_sw_net" long_name="surface_net_downward_shortwave_flux_of_sea_tile" unit="W m-2" domain_ref="face"> zoomed__sea_sw_net </field>
+  <field id="surface__sea_mean_sw_net" name="sea_mean_sw_net" long_name="surface_net_downward_shortwave_flux_sea_area_mean" unit="W m-2" domain_ref="face"> surface__sea_tile_sw_net * (1.0 - surface__sea_ice_fraction) </field>
   <field id="surface__surf_radnet" name="surf_radnet" long_name="surface_net_downward_radiative_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__surf_lw_up" name="surf_lw_up" long_name="surface_upward_longwave_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__surf_lw_down" name="surf_lw_down" long_name="surface_downward_longwave_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="surface__surf_lw_net" name="surf_lw_net" long_name="surface_net_downward_longwave_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles"> surface__surf_lw_down - surface__surf_lw_up </field>
+  <field id="zoomed__sea_lw_net" field_ref="surface__surf_lw_net" domain_ref="face" axis_ref="surface_tiles_sea_zoom" />
+  <field id="surface__sea_tile_lw_net" name="sea_tile_lw_net" long_name="surface_net_downward_longwave_flux_of_sea_tile" unit="W m-2" domain_ref="face"> zoomed__sea_lw_net </field>
+  <field id="surface__sea_mean_lw_net" name="sea_mean_lw_net" long_name="surface_net_downward_longwave_flux_sea_area_mean" unit="W m-2" domain_ref="face"> surface__sea_tile_lw_net * (1.0 - surface__sea_ice_fraction) </field>
   <field id="surface__gross_prim_prod" name="gross_prim_prod" long_name="gross_primary_productivity" unit="kgC m-2 s-1" domain_ref="face" />
   <field id="surface__net_prim_prod" name="net_prim_prod" long_name="net_primary_productivity" unit="kgC m-2 s-1" domain_ref="face" />
   <field id="surface__gc_tile" name="gc_tile" long_name="stomatal_conductance_on_tiles" unit="m s-1" domain_ref="face" axis_ref="surface_tiles" />
@@ -763,8 +770,11 @@
   <field id="radiation__sw_down_clear_rts" name="sw_down_clear_rts" long_name="downward_clear_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="radiation_levels" />
   <field id="radiation__sw_up_clear_rts" name="sw_up_clear_rts" long_name="upward_clear_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="radiation_levels" />
   <field id="radiation__sw_direct_band_rts" name="sw_direct_band_rts" long_name="direct_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
+  <field id="radiation__direct_uv_flux_rts" field_ref="radiation__sw_direct_band_rts" name="direct_uv_flux_rts" long_name="direct_0-320nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="uv_band_zoom" />
   <field id="radiation__sw_down_band_rts" name="sw_down_band_rts" long_name="downward_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
+  <field id="radiation__down_uv_flux_rts" field_ref="radiation__sw_down_band_rts" name="down_uv_flux_rts" long_name="downward_0-320nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="uv_band_zoom" />
   <field id="radiation__sw_up_band_rts" name="sw_up_band_rts" long_name="upward_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
+  <field id="radiation__up_uv_flux_rts" field_ref="radiation__sw_up_band_rts" name="up_uv_flux_rts" long_name="upward_0-320nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="uv_band_zoom" />
   <field id="radiation__sw_direct_clear_band_rts" name="sw_direct_clear_band_rts" long_name="direct_clear_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
   <field id="radiation__sw_down_clear_band_rts" name="sw_down_clear_band_rts" long_name="downward_clear_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
   <field id="radiation__sw_up_clear_band_rts" name="sw_up_clear_band_rts" long_name="upward_clear_shortwave_band_flux_radiative_timestep" unit="W m-2" domain_ref="face" axis_ref="sw_bands_radiation_levels" />
