@@ -96,6 +96,9 @@ real(kind=real_cvprec), parameter :: min_delta = epsilon(zero)
 ! Square-root of the above
 real(kind=real_cvprec), parameter :: sqrt_min_delta = sqrt(min_delta)
 
+! Largest possible floating point number
+real(kind=real_cvprec), parameter :: max_float = huge(zero)
+
 
 !---------------------------------------------------------------
 ! Things set at run-time by the host-model
@@ -233,7 +236,7 @@ real(kind=real_cvprec) :: rho_ice = 916.7_real_cvprec
 ! GENERAL CONTROL OPTIONS...
 
 ! Number of updraft types for cloud spectrum model option
-integer, parameter :: n_updraft_types = 1
+integer :: n_updraft_types = 1
 
 ! Number of independent downdraft types
 ! (distinct from "fall-back downdrafts", which are each tied
@@ -451,11 +454,13 @@ type :: cond_params_type
   ! Number concentration of hydrometeor per unit dry-mass / kg-1
   real(kind=real_cvprec) :: n
 
-  ! Flag for temperature-dependent number concentration.
-  ! If true, n above is taken to be the number concentration
-  ! at the melting point, with a parameterised increase
-  ! at colder temperatures.
-  logical :: l_tdep_n
+  ! Temperature-dependence of the number concentration.
+  ! If non-zero, n above is taken to be the number concentration
+  ! at the melting point, with a parameterised increase or decrease
+  ! at colder temperatures.  The number concentration n(T) will be given by:
+  ! n(T) = n0 exp( fac_tdep_n ( T - Tmelt ) )
+  ! (but limited above Tmelt and below T_homnuc)
+  real(kind=real_cvprec) :: fac_tdep_n
 
   ! Effective area coefficient for hydrometeors; ratio of actual
   ! area to the area you get by assuming a sphere
@@ -499,7 +504,7 @@ type(cond_params_type), target :: params_cl = cond_params_type(                &
   cond_name = "cl",                                                            &
   l_ice     = .false.,                                                         &
   n         = 1.0E8_real_cvprec,     &  ! Liq cloud number conc.
-  l_tdep_n  = .false.,               &  ! Use T-dependent number
+  fac_tdep_n= zero,                  &  ! Not using T-dependent number
   area_coef = 1.0_real_cvprec,       &  ! 1.0 for spheres
   r_min     = 1.0e-6_real_cvprec,    &  ! 1 micron CCN size
   i_sg      = i_sg_frac_liq,         &  ! Lives in the liquid cloud fraction
@@ -510,7 +515,7 @@ type(cond_params_type), target :: params_rain = cond_params_type(              &
   cond_name = "rain",                                                          &
   l_ice     = .false.,                                                         &
   n         = 1000.0_real_cvprec,    &  ! Rain number conc. ~ 1 per l
-  l_tdep_n  = .false.,               &  ! Use T-dependent number
+  fac_tdep_n= zero,                  &  ! Not using T-dependent number
   area_coef = 1.0_real_cvprec,       &  ! 1.0 for spheres
   r_min     = 0.0_real_cvprec,       &  ! No CCN for rain
   i_sg      = i_sg_frac_prec,        &  ! Lives in the precip fraction
@@ -521,7 +526,7 @@ type(cond_params_type), target :: params_cf = cond_params_type(                &
   cond_name = "cf",                                                            &
   l_ice     = .true.,                                                          &
   n         = 300.0_real_cvprec,     &  ! Ice cloud number at 0oC
-  l_tdep_n  = .true.,                &  ! Use T-dependent number
+  fac_tdep_n= -one/8.18_real_cvprec, &  ! Use T-dependent number
   area_coef = 10.0_real_cvprec,      &  ! 10.0 for crystals
   r_min     = 5.0e-6_real_cvprec,    &  ! 5 micron CCN size
   i_sg      = i_sg_frac_ice,         &  ! Lives in the ice cloud fraction
@@ -532,7 +537,7 @@ type(cond_params_type), target :: params_snow = cond_params_type(              &
   cond_name = "snow",                                                          &
   l_ice     = .true.,                                                          &
   n         = 300.0_real_cvprec,     &  ! Snow number conc. ~0.3 per l
-  l_tdep_n  = .false.,               &  ! T-depentent number conc. off.
+  fac_tdep_n= zero,                  &  ! T-dependent number conc. off.
   area_coef = 10.0_real_cvprec,      &  ! 10.0 for aggregates
   r_min     = 0.0_real_cvprec,       &  ! No CCN for snow
   i_sg      = i_sg_frac_ice,         &  ! Lives in the ice cloud fraction
@@ -543,7 +548,7 @@ type(cond_params_type), target :: params_graup =cond_params_type(              &
   cond_name = "graup",                                                         &
   l_ice     = .true.,                                                          &
   n         = 100.0_real_cvprec,     &  ! Graupel number conc. ~0.1 per l
-  l_tdep_n  = .false.,               &  ! T-depentent number conc. off.
+  fac_tdep_n= zero,                  &  ! T-dependent number conc. off.
   area_coef = 1.0_real_cvprec,       &  ! 1.0 for spheres
   r_min     = 0.0_real_cvprec,       &  ! No CCN for graupel
   i_sg      = i_sg_homog,            &  ! Assumed homogeneous across grid-box
@@ -551,13 +556,6 @@ type(cond_params_type), target :: params_graup =cond_params_type(              &
 
 ! Density of rimed ice (used for graupel)
 real(kind=real_cvprec) :: rho_rim = 600.0_real_cvprec
-
-! Temperature-dependent ice number concentration slope
-! The number concentration n(T) will be given by:
-! n(T) = n0 exp( fac_tdep_n ( T - Tmelt ) )
-! ( but limited above Tmelt and below T_homnuc)
-real(kind=real_cvprec) :: fac_tdep_n = -one/8.18_real_cvprec
-! set to 1/8.18 K-1, consistent with the Wilson-Ballard microphysics.
 
 ! Ice nucleation
 ! Homogeneous freezing temperature / K
@@ -745,8 +743,10 @@ real(kind=real_cvprec) :: par_gen_core_fac = 3.0_real_cvprec
 ! Minimum and maximum allowed values of the core/mean ratio of parcel
 ! buoyancies, which sets the power of the assumed power-law PDF of
 ! in-parcel buoyancy used for detrainment
-real(kind=real_cvprec), parameter :: min_cmr = 2.0_real_cvprec
-real(kind=real_cvprec), parameter :: max_cmr = 6.0_real_cvprec
+! (settable from the Run_Comorph namelist; defaults reproduce the
+!  previously hard-wired values)
+real(kind=real_cvprec) :: min_cmr = 2.0_real_cvprec
+real(kind=real_cvprec) :: max_cmr = 6.0_real_cvprec
 
 ! Maximum allowed convective area fraction
 real(kind=real_cvprec), parameter :: max_sigma = 0.5_real_cvprec

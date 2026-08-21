@@ -59,10 +59,10 @@ use comorph_constants_mod, only: real_cvprec, name_length, zero,               &
 
 use grid_type_mod, only: n_grid, i_pressure
 use parcel_type_mod, only: parcel_type, i_massflux_d, i_radius,                &
-                           parcel_check_bad_values
+                           par_min, par_max, parcel_check_bad_values
 use fields_type_mod, only: n_fields, i_wind_u, i_temperature,                  &
                            i_q_vap, i_qc_first, i_qc_last, i_q_cl,             &
-                           field_names, field_positive
+                           field_names, field_min, field_max
 use turb_type_mod, only: n_turb
 use cloudfracs_type_mod, only: n_cloudfracs
 use cmpr_type_mod, only: cmpr_type, cmpr_alloc, cmpr_dealloc
@@ -265,7 +265,6 @@ integer :: index_ic_dn(n_points)
 ! Character string for error messages
 character(len=name_length) :: call_string
 type(cmpr_type) :: cmpr_check
-logical, parameter :: l_positive = .true.
 character(len=name_length) :: field_name
 
 ! Loop counters
@@ -281,15 +280,18 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
     call_string = "Start of init_mass_moist_frac, fields_km1"
     call check_bad_values_cmpr( cmpr_init, k, fields_km1(:,i_field),           &
                                 call_string, field_names(i_field),             &
-                                field_positive(i_field) )
+                                field_min=field_min(i_field),                  &
+                                field_max=field_max(i_field) )
     call_string = "Start of init_mass_moist_frac, fields_k"
     call check_bad_values_cmpr( cmpr_init, k, fields_k(:,i_field),             &
                                 call_string, field_names(i_field),             &
-                                field_positive(i_field) )
+                                field_min=field_min(i_field),                  &
+                                field_max=field_max(i_field) )
     call_string = "Start of init_mass_moist_frac, fields_kp1"
     call check_bad_values_cmpr( cmpr_init, k, fields_kp1(:,i_field),           &
                                 call_string, field_names(i_field),             &
-                                field_positive(i_field) )
+                                field_min=field_min(i_field),                  &
+                                field_max=field_max(i_field) )
   end do
 end if
 
@@ -572,12 +574,15 @@ do i_region = 1, n_regions
         do i_type = 1, n_updraft_types
           write(field_name,"(A,I3)") "massflux_d type", i_type
           call check_bad_values_cmpr( cmpr_check, k, init_mass_up_t(:,i_type), &
-                                      call_string, field_name, l_positive )
+                                      call_string, field_name,                 &
+                                      field_min=par_min(i_massflux_d),         &
+                                      field_max=par_max(i_massflux_d) )
         end do
         do i_field = i_temperature, n_fields
           call check_bad_values_cmpr( cmpr_check, k, fields_par_up(:,i_field), &
                                       call_string, field_names(i_field),       &
-                                      field_positive(i_field) )
+                                      field_min=field_min(i_field),            &
+                                      field_max=field_max(i_field) )
         end do
         do i_type = 1, n_updraft_types
           do ic2 = 1, nc_up
@@ -588,10 +593,14 @@ do i_region = 1, n_regions
           end do
           write(field_name,"(A,I3)") "temperature + tl_pert conv type ", i_type
           call check_bad_values_cmpr( cmpr_check, k, work1,                    &
-                                      call_string, field_name, l_positive )
+                                      call_string, field_name,                 &
+                                      field_min=field_min(i_temperature),      &
+                                      field_max=field_max(i_temperature) )
           write(field_name,"(A,I3)") "q_vap + qt_pert conv type ", i_type
           call check_bad_values_cmpr( cmpr_check, k, work2,                    &
-                                      call_string, field_name, l_positive )
+                                      call_string, field_name,                 &
+                                      field_min=field_min(i_q_vap),            &
+                                      field_max=field_max(i_q_vap) )
         end do
         call cmpr_dealloc( cmpr_check )
       end if  ! ( nc_up > 0 )
@@ -609,12 +618,15 @@ do i_region = 1, n_regions
         do i_type = 1, n_dndraft_types
           write(field_name,"(A,I3)") "massflux_d type", i_type
           call check_bad_values_cmpr( cmpr_check, k, init_mass_dn_t(:,i_type), &
-                                      call_string, field_name, l_positive )
+                                      call_string, field_name,                 &
+                                      field_min=par_min(i_massflux_d),         &
+                                      field_max=par_max(i_massflux_d) )
         end do
         do i_field = i_temperature, n_fields
           call check_bad_values_cmpr( cmpr_check, k, fields_par_dn(:,i_field), &
                                       call_string, field_names(i_field),       &
-                                      field_positive(i_field) )
+                                      field_min=field_min(i_field),            &
+                                      field_max=field_max(i_field) )
         end do
         do i_type = 1, n_dndraft_types
           do ic2 = 1, nc_dn
@@ -625,10 +637,14 @@ do i_region = 1, n_regions
           end do
           write(field_name,"(A,I3)") "temperature + tl_pert conv type ", i_type
           call check_bad_values_cmpr( cmpr_check, k, work1,                    &
-                                      call_string, field_name, l_positive )
+                                      call_string, field_name,                 &
+                                      field_min=field_min(i_temperature),      &
+                                      field_max=field_max(i_temperature) )
           write(field_name,"(A,I3)") "q_vap + qt_pert conv type ", i_type
           call check_bad_values_cmpr( cmpr_check, k, work2,                    &
-                                      call_string, field_name, l_positive )
+                                      call_string, field_name,                 &
+                                      field_min=field_min(i_q_vap),            &
+                                      field_max=field_max(i_q_vap) )
         end do
         call cmpr_dealloc( cmpr_check )
       end if  ! ( nc_dn > 0 )

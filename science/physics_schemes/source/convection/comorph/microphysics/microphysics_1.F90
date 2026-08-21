@@ -253,32 +253,21 @@ if ( maxval(nc) > 0 ) then
 
   ! Loop over all condensed water species
   do i_cond = 1, n_cond_species
+    ! Note we still need to call calc_cond_properties_cmpr even if
+    ! no points have nonzero mass of this species, just to set the
+    ! required fields to zero.
 
-    ! Initialise outputs to zero
-    do ic = 1, n_points
-      q_loc_cond(ic,i_cond) = zero
-      n_cond(ic,i_cond)     = zero
-      r_cond(ic,i_cond)     = zero
-      wf_cond(ic,i_cond)    = zero
-      kq_cond(ic,i_cond)    = zero
-      kt_cond(ic,i_cond)    = zero
-    end do
+    ! Routine implicitly solves the fall-speed / fall-out
+    ! and number concentration / particle radius relationship,
+    ! and calculates moisture and heat exchange coefficients
+    call calc_cond_properties_cmpr(                                            &
+           n_points, nc(i_cond), index_ic(:,i_cond),                           &
+           cond_params(i_cond)%pt, ref_temp, q_cond(:,i_cond),                 &
+           rho_dry, rho_wet, dt_over_lz,                                       &
+           q_loc_cond(:,i_cond), n_cond(:,i_cond),                             &
+           r_cond(:,i_cond), wf_cond(:,i_cond),                                &
+           kq_cond(:,i_cond), kt_cond(:,i_cond) )
 
-    ! If any points
-    if ( nc(i_cond) > 0 ) then
-
-      ! Routine implicitly solves the fall-speed / fall-out
-      ! and number concentration / particle radius relationship,
-      ! and calculates moisture and heat exchange coefficients
-      call calc_cond_properties_cmpr(                                          &
-             n_points, nc(i_cond), index_ic(:,i_cond),                         &
-             cond_params(i_cond)%pt, ref_temp, q_cond(:,i_cond),               &
-             rho_dry, rho_wet, dt_over_lz,                                     &
-             q_loc_cond(:,i_cond), n_cond(:,i_cond),                           &
-             r_cond(:,i_cond), wf_cond(:,i_cond),                              &
-             kq_cond(:,i_cond), kt_cond(:,i_cond) )
-
-    end if
   end do
 
 

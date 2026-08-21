@@ -36,12 +36,13 @@ use comorph_constants_mod, only: real_cvprec, zero, one, two, half,            &
 
 use cmpr_type_mod, only: cmpr_type
 use fields_type_mod, only: field_positive, field_names, i_wind_w,              &
+                           field_min_cons, field_max_cons,                     &
                            i_qc_first, i_qc_last
 use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
                        j_height, j_mean_buoy, j_core_buoy, j_delta_tv,         &
                        j_massflux_d, j_env_tv, j_env_w,                        &
                        j_mean_wex, j_core_wex
-use parcel_type_mod, only: n_par, i_massflux_d
+use parcel_type_mod, only: n_par, i_massflux_d, par_min, par_max
 
 use solve_detrainment_mod, only: solve_detrainment
 use wind_w_eqn_mod, only: wind_w_eqn
@@ -186,8 +187,6 @@ integer :: index_ic(n_points)
 character(len=name_length) :: where_string
 ! Field name for error messages
 character(len=name_length) :: field_name
-! Flag for checking positivity (input to bad value checker)
-logical :: l_positive
 
 ! Numerical tolerance used in safety-check to avoid negative values
 real(kind=real_cvprec) :: tolerance
@@ -211,7 +210,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, par_next_mean_fields(:,i_field),      &
                                 where_string, field_names(i_field),            &
-                                field_positive(i_field) )
+                                field_min = field_min_cons(i_field),           &
+                                field_max = field_max_cons(i_field) )
   end do
 end if
 
@@ -259,17 +259,17 @@ if ( l_par_core ) then
     do i_field = 1, n_fields_tot
       call check_bad_values_cmpr( cmpr, k, par_next_core_fields(:,i_field),    &
                                   where_string, field_names(i_field),          &
-                                  field_positive(i_field) )
+                                  field_min = field_min_cons(i_field),         &
+                                  field_max = field_max_cons(i_field) )
     end do
 
     where_string = "On input to set_det call for "            //               &
                    trim(adjustl(draft_string))
 
     field_name = "core_mean_ratio"
-    l_positive = .true.
     call check_bad_values_cmpr( cmpr, k, core_mean_ratio,                      &
                                 where_string,                                  &
-                                field_name, l_positive )
+                                field_name, field_min = zero )
 
   end if
 
@@ -480,14 +480,12 @@ if ( l_par_core ) then
                    trim(adjustl(draft_string))
 
     field_name = "x_edge"
-    l_positive = .true.
     call check_bad_values_cmpr( cmpr, k, x_edge, where_string,                 &
-                                field_name, l_positive )
+                                field_name, field_min = zero, field_max = one )
 
     field_name = "frac (non-detrained fraction)"
-    l_positive = .true.
     call check_bad_values_cmpr( cmpr, k, frac, where_string,                   &
-                                field_name, l_positive )
+                                field_name, field_min = zero, field_max = one )
 
   end if
 
@@ -899,7 +897,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, par_next_mean_fields(:,i_field),      &
                                 where_string, field_names(i_field),            &
-                                field_positive(i_field) )
+                                field_min = field_min_cons(i_field),           &
+                                field_max = field_max_cons(i_field) )
   end do
 
   ! Check detrained properties
@@ -909,20 +908,23 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, det_fields(:,i_field),                &
                                 where_string, field_names(i_field),            &
-                                field_positive(i_field) )
+                                field_min = field_min_cons(i_field),           &
+                                field_max = field_max_cons(i_field) )
   end do
 
   ! Check detrained mass
   field_name = "det_mass_d"
-  l_positive = .true.
   call check_bad_values_cmpr( cmpr, k, det_mass_d, where_string,               &
-                              field_name, l_positive )
+                              field_name,                                      &
+                              field_min = par_min(i_massflux_d),               &
+                              field_max = par_max(i_massflux_d) )
   ! Check mass-flux
   field_name = "next_massflux_d"
-  l_positive = .true.
   call check_bad_values_cmpr( cmpr, k, par_conv_super(:,i_massflux_d),         &
                               where_string,                                    &
-                              field_name, l_positive )
+                              field_name,                                      &
+                              field_min = par_min(i_massflux_d),               &
+                              field_max = par_max(i_massflux_d) )
 
 end if
 

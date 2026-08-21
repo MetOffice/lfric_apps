@@ -82,12 +82,6 @@ integer, parameter :: i_f_wind_v = 5
 character(len=name_length), parameter :: turb_names(n_turb)                    &
               = [ "w_var   ", "f_templ ", "f_q_tot ", "f_wind_u", "f_wind_v" ]
 
-! Flag for whether each turbulence field should only be positive
-logical, parameter :: turb_positive(n_turb)                                    &
-              = [ .true., .false., .false., .false., .false. ]
-! TKE and diffusivities must be positive,
-! but fluxes could go either way.
-
 ! Max allowed ratio of heat-flux over sqrt(TKE) / K
 real(kind=real_hmprec), parameter :: max_templ = 20.0
 ! Max allowed ratio of moisture-flux over sqrt(TKE) / kg kg-1
@@ -276,7 +270,7 @@ end subroutine turb_list_clear
 !----------------------------------------------------------------
 subroutine turb_check_bad_values( turb, where_string )
 
-use comorph_constants_mod, only: name_length
+use comorph_constants_mod, only: name_length, zero
 use check_bad_values_mod, only: check_bad_values_3d
 
 implicit none
@@ -293,9 +287,6 @@ character(len=name_length) :: field_name
 ! Lower and upper bounds of array
 integer :: lb(3), ub(3)
 
-! Flag passed into check_bad_values;
-logical, parameter :: l_positive_true = .true.
-
 ! Loop counter
 integer :: i_turb
 
@@ -305,7 +296,6 @@ do i_turb = 1, n_turb
   ub = ubound( turb % list(i_turb)%pt )
   call check_bad_values_3d( lb, ub, turb%list(i_turb)%pt,                      &
                             where_string, turb_names(i_turb),                  &
-                            turb_positive(i_turb),                             &
                             l_half=.true., l_init=.true. )
 end do
 
@@ -316,7 +306,7 @@ lb = lbound( turb % lengthscale )
 ub = ubound( turb % lengthscale )
 call check_bad_values_3d( lb, ub, turb % lengthscale,                          &
                           where_string, field_name,                            &
-                          l_positive_true, l_init=.true. )
+                          field_min=zero, l_init=.true. )
 
 
 return

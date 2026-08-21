@@ -35,7 +35,7 @@ use comorph_constants_mod, only: real_cvprec, zero, one, l_turb_par_gen,       &
 use grid_type_mod, only: n_grid, i_height
 use fields_type_mod, only: i_wind_u, i_wind_w, i_tracers,                      &
                            i_temperature, i_q_vap, i_qc_first, i_qc_last,      &
-                           field_positive, field_names
+                           field_min, field_max, field_names
 use subregion_mod, only: n_regions
 use parcel_type_mod, only: n_par, i_radius, i_edge_virt_temp
 use cmpr_type_mod, only: cmpr_type
@@ -232,12 +232,14 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
     field_name = "par_gen_mean_" // trim(adjustl(field_names(i_field)))
     call check_bad_values_cmpr( cmpr_init, k, par_gen_mean(:,i_field),         &
                                 call_string, field_name,                       &
-                                field_positive(i_field) )
+                                field_min=field_min(i_field),                  &
+                                field_max=field_max(i_field) )
     if ( l_par_core ) then
       field_name = "par_gen_core_" // trim(adjustl(field_names(i_field)))
       call check_bad_values_cmpr( cmpr_init, k, par_gen_core(:,i_field),       &
                                   call_string, field_name,                     &
-                                  field_positive(i_field) )
+                                  field_min=field_min(i_field),                &
+                                  field_max=field_max(i_field) )
     end if
   end do
   if ( l_tracer .and. n_tracers > 0 ) then
@@ -245,12 +247,14 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
       field_name = "par_gen_mean_" // trim(adjustl(field_names(i_field)))
       call check_bad_values_cmpr( cmpr_init, k, par_gen_mean(:,i_field),       &
                                   call_string, field_name,                     &
-                                  field_positive(i_field) )
+                                  field_min=field_min(i_field),                &
+                                  field_max=field_max(i_field) )
       if ( l_par_core ) then
         field_name = "par_gen_core_" // trim(adjustl(field_names(i_field)))
         call check_bad_values_cmpr( cmpr_init, k, par_gen_core(:,i_field),     &
                                     call_string, field_name,                   &
-                                    field_positive(i_field) )
+                                    field_min=field_min(i_field),              &
+                                    field_max=field_max(i_field) )
       end if
     end do
   end if

@@ -157,7 +157,7 @@ end subroutine grid_compress
 !----------------------------------------------------------------
 subroutine grid_check_bad_values( grid, where_string )
 
-use comorph_constants_mod, only: name_length
+use comorph_constants_mod, only: name_length, zero
 use check_bad_values_mod, only: check_bad_values_3d
 
 implicit none
@@ -167,42 +167,41 @@ character(len=name_length), intent(in) :: where_string
 
 character(len=name_length) :: field_name
 integer :: lb(3), ub(3)
-logical, parameter :: l_positive = .true.
 
 field_name = "height_full"
 lb = lbound( grid % height_full )
 ub = ubound( grid % height_full )
 call check_bad_values_3d( lb, ub, grid % height_full,                          &
                           where_string, field_name,                            &
-                          l_positive )
+                          field_min=zero )
 
 field_name = "height_half"
 lb = lbound( grid % height_half )
 ub = ubound( grid % height_half )
 call check_bad_values_3d( lb, ub, grid % height_half,                          &
                           where_string, field_name,                            &
-                          l_positive, l_half=.true. )
+                          field_min=zero, l_half=.true. )
 
 field_name = "pressure_full"
 lb = lbound( grid % pressure_full )
 ub = ubound( grid % pressure_full )
 call check_bad_values_3d( lb, ub, grid % pressure_full,                        &
                           where_string, field_name,                            &
-                          l_positive )
+                          field_min=zero )
 
 field_name = "pressure_half"
 lb = lbound( grid % pressure_half )
 ub = ubound( grid % pressure_half )
 call check_bad_values_3d( lb, ub, grid % pressure_half,                        &
                           where_string, field_name,                            &
-                          l_positive, l_half=.true. )
+                          field_min=zero, l_half=.true. )
 
 field_name = "rho_dry"
 lb = lbound( grid % rho_dry )
 ub = ubound( grid % rho_dry )
 call check_bad_values_3d( lb, ub, grid % rho_dry,                              &
                           where_string, field_name,                            &
-                          l_positive )
+                          field_min=zero )
 
 ! Note: no check on grid % r_surf yet; need to make a 2-D
 ! version of check_bad_values.

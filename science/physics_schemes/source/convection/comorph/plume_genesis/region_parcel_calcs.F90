@@ -43,7 +43,9 @@ use comorph_constants_mod, only: real_cvprec, zero, one,                       &
 use cmpr_type_mod, only: cmpr_type, cmpr_alloc, cmpr_dealloc
 use fields_type_mod, only: n_fields, i_wind_u, i_wind_w,                       &
                            i_temperature, i_q_vap, i_q_cl,                     &
-                           i_qc_first, i_qc_last, field_names, field_positive
+                           i_qc_first, i_qc_last, field_names,                 &
+                           field_min, field_max
+use parcel_type_mod, only: par_min, par_max, i_massflux_d
 use grid_type_mod, only: n_grid, i_height, i_pressure
 use subregion_mod, only: n_regions, region_names
 use cloudfracs_type_mod, only: n_cloudfracs, i_frac_liq, i_frac_ice
@@ -221,7 +223,6 @@ logical :: l_init(nc)
 ! Structure storing i,j indices of points currently being worked
 ! on (for error reporting)
 type(cmpr_type) :: cmpr
-logical :: l_positive
 character(len=name_length) :: field_name
 
 ! Strings used for error reporting
@@ -525,25 +526,26 @@ if ( nc2 > 0 ) then
     call_string = "On output from region_parcel_calcs, region: " //            &
                    trim(adjustl(region_names(i_region))) // " " //             &
                    trim(adjustl(draft_string))
-    l_positive = .true.
     do i_type = 1, n_conv_types
       write(field_name,"(A,I3)") "massflux_d conv type ", i_type
       call check_bad_values_cmpr( cmpr, k, init_mass_t(:,i_type),              &
-                                  call_string, field_name, l_positive )
+                                  call_string, field_name,                     &
+                                  field_min=par_min(i_massflux_d),             &
+                                  field_max=par_max(i_massflux_d) )
     end do
     do i_field = i_temperature, n_fields
       call check_bad_values_cmpr( cmpr, k, fields_par(:,i_field),              &
                                   call_string, field_names(i_field),           &
-                                  field_positive(i_field) )
+                                  field_min=field_min(i_field),                &
+                                  field_max=field_max(i_field) )
     end do
-    l_positive = .false.
     do i_type = 1, n_conv_types
       write(field_name,"(A,I3)") "pert_tl conv type ", i_type
       call check_bad_values_cmpr( cmpr, k, pert_tl_t(:,i_type),                &
-                                  call_string, field_name, l_positive )
+                                  call_string, field_name )
       write(field_name,"(A,I3)") "pert_qt conv type ", i_type
       call check_bad_values_cmpr( cmpr, k, pert_qt_t(:,i_type),                &
-                                  call_string, field_name, l_positive )
+                                  call_string, field_name )
     end do
 
   end if  ! ( i_check_bad_values_cmpr > i_check_bad_none )

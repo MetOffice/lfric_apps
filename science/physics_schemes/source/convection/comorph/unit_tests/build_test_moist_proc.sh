@@ -41,6 +41,9 @@ gfortran -O0 -g -Wall -ffpe-trap=invalid,zero -fbounds-check -Warray-bounds \
       "$comorph/moist_thermo/sat_adjust.F90" \
       "$comorph/moist_thermo/linear_qs_mod.F90" \
       \
+      "$comorph/control/grid_type_mod.F90" \
+      "$comorph/control/fields_type_mod.F90" \
+      \
       "$comorph/moist_proc/moist_proc_diags_type_mod.F90" \
       "$comorph/moist_proc/phase_change_coefs_mod.F90" \
       "$comorph/moist_proc/calc_phase_change_coefs.F90" \

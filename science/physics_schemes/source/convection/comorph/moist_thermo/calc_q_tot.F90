@@ -76,16 +76,18 @@ end subroutine calc_q_tot
 
 
 !----------------------------------------------------------------
-! Version for full 3-D arrays
+! Version for full 2-D arrays
 !----------------------------------------------------------------
-subroutine calc_q_tot_3d( lb_v, ub_v, q_vap,  lb_l, ub_l, q_cl,                &
+! Note this routine is always used one model-level at a time,
+! so it only needs to work on horizontal 2-D fields.
+subroutine calc_q_tot_2d( lb_v, ub_v, q_vap,  lb_l, ub_l, q_cl,                &
                           lb_r, ub_r, q_rain, lb_f, ub_f, q_cf,                &
                           lb_s, ub_s, q_snow, lb_g, ub_g, q_graup,             &
                           q_tot )
 
 use comorph_constants_mod, only: real_hmprec,                                  &
-                     l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,                &
-                     nx_full, ny_full, k_bot_conv, k_top_conv
+                                 l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,    &
+                                 nx_full, ny_full
 
 implicit none
 
@@ -96,49 +98,47 @@ implicit none
 ! indices of the arrays regardless of whether or not they
 ! have halos.  The lower and upper bounds are passed in through the
 ! argument list in the lb_* and ub_* integer arrays.  Those storing the
-! bounds for 3D arrays must have 3 elements; one for each dimension
+! bounds for 2D arrays must have 2 elements; one for each dimension
 ! of the array.
 
 ! Water vapour mixing ratio
-integer, intent(in) :: lb_v(3), ub_v(3)
+integer, intent(in) :: lb_v(2), ub_v(2)
 real(kind=real_hmprec), intent(in) :: q_vap                                    &
-                         ( lb_v(1):ub_v(1), lb_v(2):ub_v(2), lb_v(3):ub_v(3) )
+                                      ( lb_v(1):ub_v(1), lb_v(2):ub_v(2) )
 
 ! Condensed water species mixing ratios
-integer, intent(in) :: lb_l(3), ub_l(3)
+integer, intent(in) :: lb_l(2), ub_l(2)
 real(kind=real_hmprec), intent(in) :: q_cl                                     &
-                         ( lb_l(1):ub_l(1), lb_l(2):ub_l(2), lb_l(3):ub_l(3) )
-integer, intent(in) :: lb_r(3), ub_r(3)
+                                      ( lb_l(1):ub_l(1), lb_l(2):ub_l(2) )
+integer, intent(in) :: lb_r(2), ub_r(2)
 real(kind=real_hmprec), intent(in) :: q_rain                                   &
-                         ( lb_r(1):ub_r(1), lb_r(2):ub_r(2), lb_r(3):ub_r(3) )
-integer, intent(in) :: lb_f(3), ub_f(3)
+                                      ( lb_r(1):ub_r(1), lb_r(2):ub_r(2) )
+integer, intent(in) :: lb_f(2), ub_f(2)
 real(kind=real_hmprec), intent(in) :: q_cf                                     &
-                         ( lb_f(1):ub_f(1), lb_f(2):ub_f(2), lb_f(3):ub_f(3) )
-integer, intent(in) :: lb_s(3), ub_s(3)
+                                      ( lb_f(1):ub_f(1), lb_f(2):ub_f(2) )
+integer, intent(in) :: lb_s(2), ub_s(2)
 real(kind=real_hmprec), intent(in) :: q_snow                                   &
-                         ( lb_s(1):ub_s(1), lb_s(2):ub_s(2), lb_s(3):ub_s(3) )
-integer, intent(in) :: lb_g(3), ub_g(3)
+                                      ( lb_s(1):ub_s(1), lb_s(2):ub_s(2) )
+integer, intent(in) :: lb_g(2), ub_g(2)
 real(kind=real_hmprec), intent(in) :: q_graup                                  &
-                         ( lb_g(1):ub_g(1), lb_g(2):ub_g(2), lb_g(3):ub_g(3) )
+                                      ( lb_g(1):ub_g(1), lb_g(2):ub_g(2) )
 
 ! Output dry-mass to wet-mass conversion factor
 real(kind=real_hmprec), intent(out) :: q_tot                                   &
-                     ( nx_full, ny_full, k_bot_conv:k_top_conv )
+                                       ( nx_full, ny_full )
 
 ! Loop counters
-integer :: i, j, k
+integer :: i, j
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k )                                &
-!$OMP SHARED( nx_full, ny_full, l_cv_snow, k_bot_conv, k_top_conv,             &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j )                                   &
+!$OMP SHARED( nx_full, ny_full, l_cv_snow,                                     &
 !$OMP         q_tot, q_cl, q_rain, q_cf, q_snow, q_graup, q_vap )
 
 ! Initialise using liquid cloud
 !$OMP DO SCHEDULE(STATIC)
-do k = k_bot_conv, k_top_conv
-  do j = 1, ny_full
-    do i = 1, nx_full
-      q_tot(i,j,k) = q_cl(i,j,k)
-    end do
+do j = 1, ny_full
+  do i = 1, nx_full
+    q_tot(i,j) = q_cl(i,j)
   end do
 end do
 !$OMP END DO
@@ -147,11 +147,9 @@ end do
 
 if ( l_cv_rain ) then
 !$OMP DO SCHEDULE(STATIC)
-  do k = k_bot_conv, k_top_conv
-    do j = 1, ny_full
-      do i = 1, nx_full
-        q_tot(i,j,k) = q_tot(i,j,k) + q_rain(i,j,k)
-      end do
+  do j = 1, ny_full
+    do i = 1, nx_full
+      q_tot(i,j) = q_tot(i,j) + q_rain(i,j)
     end do
   end do
 !$OMP END DO
@@ -159,11 +157,9 @@ end if
 
 if ( l_cv_cf ) then
 !$OMP DO SCHEDULE(STATIC)
-  do k = k_bot_conv, k_top_conv
-    do j = 1, ny_full
-      do i = 1, nx_full
-        q_tot(i,j,k) = q_tot(i,j,k) + q_cf(i,j,k)
-      end do
+  do j = 1, ny_full
+    do i = 1, nx_full
+      q_tot(i,j) = q_tot(i,j) + q_cf(i,j)
     end do
   end do
 !$OMP END DO
@@ -171,11 +167,9 @@ end if
 
 if ( l_cv_snow ) then
 !$OMP DO SCHEDULE(STATIC)
-  do k = k_bot_conv, k_top_conv
-    do j = 1, ny_full
-      do i = 1, nx_full
-        q_tot(i,j,k) = q_tot(i,j,k) + q_snow(i,j,k)
-      end do
+  do j = 1, ny_full
+    do i = 1, nx_full
+      q_tot(i,j) = q_tot(i,j) + q_snow(i,j)
     end do
   end do
 !$OMP END DO
@@ -183,11 +177,9 @@ end if
 
 if ( l_cv_graup ) then
 !$OMP DO SCHEDULE(STATIC)
-  do k = k_bot_conv, k_top_conv
-    do j = 1, ny_full
-      do i = 1, nx_full
-        q_tot(i,j,k) = q_tot(i,j,k) + q_graup(i,j,k)
-      end do
+  do j = 1, ny_full
+    do i = 1, nx_full
+      q_tot(i,j) = q_tot(i,j) + q_graup(i,j)
     end do
   end do
 !$OMP END DO
@@ -195,11 +187,9 @@ end if
 
 ! Add on water-vapour
 !$OMP DO SCHEDULE(STATIC)
-do k = k_bot_conv, k_top_conv
-  do j = 1, ny_full
-    do i = 1, nx_full
-      q_tot(i,j,k) = q_tot(i,j,k) + q_vap(i,j,k)
-    end do
+do j = 1, ny_full
+  do i = 1, nx_full
+    q_tot(i,j) = q_tot(i,j) + q_vap(i,j)
   end do
 end do
 !$OMP END DO
@@ -207,7 +197,7 @@ end do
 !$OMP END PARALLEL
 
 return
-end subroutine calc_q_tot_3d
+end subroutine calc_q_tot_2d
 
 
 end module calc_q_tot_mod
