@@ -1173,7 +1173,10 @@ contains
 
     do_moist_correction = (solver_moisture_conservation .and. self%use_moisture)
     if (do_moist_correction) then
-      call invoke( inc_a_times_X(gamma3, dry_flux_solver) )
+      call invoke(                                                             &
+          inc_a_times_X(gamma3, dry_flux_solver),                              &
+          inc_X_plus_Y(self%total_dry_flux, dry_flux_solver)                   &
+      )
       call solver_moist_correction_alg(                                        &
           self%config, mr, self%state_bdf(igh_d), self%state_aft_adv(igh_d),   &
           dry_flux_solver                                                      &

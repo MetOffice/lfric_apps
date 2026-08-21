@@ -24,27 +24,23 @@ off-centering parameter.
 
 A TR-BDF2 timestepper may have several advantages over the SIQN scheme:
 
-* **Numerical stability**: the SIQN scheme does not damp wave modes unless it
-  uses an implicit off-centering. The solution can then become polluted by
-  high-frequency waves (typically acoustic modes) triggered by small-scale
-  features such as those from physics parametrizations or orography. The
-  growth of these waves can cause numerical instabilities. In contrast, the
+* **Numerical stability and accuracy**: the SIQN scheme does not damp wave modes
+  unless it uses an implicit off-centering. The solution can then become
+  polluted by high-frequency waves (typically acoustic modes) triggered by
+  small-scale features such as those from physics parametrizations or orography.
+  The growth of these waves can cause numerical instabilities. In contrast, the
   TR-BDF2 scheme is inherently damping of high-frequency waves, and in fact
   is more damping of the highest frequencies than an off-centred SIQN scheme.
-* **Accuracy**: the SIQN scheme requires implicit off-centering for
-  stability, but this off-centering reduces the formal order of accuracy of
-  the scheme to first order in time. The TR-BDF2 scheme has no off-centering
-  parameter, and damps high-frequency waves while keeping second-order
-  accuracy.
-* **Computational efficiency**: the TR-BDF2 scheme is a three-level time
-  discretisation, compared with the two-level discretisation of the SIQN
-  scheme. A single timestep with the TR-BDF2 scheme involves approximately
-  twice as much computational work as a SIQN timestep, so it is natural to
-  take twice the timestep length with TR-BDF2. The TR-BDF2 formulation also
-  provides the mathematical basis for calling some schemes (physics
-  parametrizations, or the transport of some variables) less frequently,
-  reducing the computational cost. Further, the improved stability of the
-  scheme may allow it to run stably with fewer Quasi-Newton iterations,
+  However, the TR-BDF2 scheme maintains second-order accuracy in time, which is
+  lost when off-centering is used in the SIQN scheme.
+* **Computational efficiency**: the TR-BDF2 scheme consists of two stages, and
+  involves calculating a "midpoint" value. A single timestep with the TR-BDF2
+  scheme involves approximately twice as much computational work as a SIQN
+  timestep, so it is natural to take twice the timestep length with TR-BDF2.
+  The TR-BDF2 formulation also provides the mathematical basis for calling some
+  schemes (physics parametrizations, or the transport of some variables) less
+  frequently, reducing the computational cost. Further, the improved stability
+  of the scheme may allow it to run stably with fewer Quasi-Newton iterations,
   again improving the computational efficiency.
 
 The inspiration for much of this formulation comes from [Tumolo2015]_,

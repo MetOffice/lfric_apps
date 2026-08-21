@@ -73,8 +73,8 @@ implicit (:math:`n+1`) contribution and :math:`(1-\alpha)` on the explicit
 A value of :math:`\alpha=0.5` corresponds to a centred Crank-Nicolson scheme,
 which is formally second-order accurate in time but does not damp any waves.
 If orography is present, it can generate spurious small-scale waves which,
-without any damping, may persist and pollute the solution, leading to
-instability; centred SISL schemes can also suffer from orographic resonance.
+without any damping, may persist and pollute the solution, potentially leading
+to instability; centred SISL schemes can also suffer from orographic resonance.
 For these reasons the scheme is run slightly off-centred
 (:math:`\alpha > 0.5`), which introduces damping of high-frequency (typically
 acoustic) modes at the cost of reducing the formal accuracy to first order.
@@ -148,13 +148,13 @@ to split the Quasi-Newton iteration into two nested loops:
 Like ENDGame, GungHo uses a default of :math:`n_o=2` outer iterations and
 :math:`n_i=2` inner iterations, for a total of 4 linear solves per timestep.
 
-Because the transport terms are only updated in the outer loop, using more
-than one inner iteration (:math:`n_i > 1`), the density and potential
-temperature fields do not get updated between inner iterations. To keep the
-discretisation consistent, when :math:`n_i > 1` the density and
-potential temperature contributions to the residual are set to zero. This is why
-it is recommended to set the density and potential-temperature relaxation
-parameters to 1 when more than one inner iteration is used.
+The density and potential temperature fields do not receive updates from the
+forcings evaluated in the inner loop, and are only updated in the outer loop.
+Thus, when using more than one inner iteration, the density and potential
+temperature contributions to the residual are set to zero for any inner
+iteration after the first. This is why it is recommended to set the density and
+potential-temperature relaxation parameters to 1 when more than one inner
+iteration is used.
 
 Linear solver
 ~~~~~~~~~~~~~

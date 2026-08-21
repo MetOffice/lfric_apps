@@ -71,7 +71,9 @@ These options are only relevant when ``method='semi_implicit'``.
   range ``0.0`` to ``1.0``. A value of ``0.5`` corresponds to a
   Crank-Nicolson scheme, while a value of ``1.0`` corresponds to a fully
   implicit scheme. A value of ``0.5`` can be appropriate for dynamics-only
-  runs, but is generally unstable when orography and physics are included.
+  runs, but can lead to noisy solutions when orography and physics are included.
+  For this reason, the model is typically run with a value slightly above
+  ``0.5``.
 * ``spinup_alpha``: if ``.true.``, the off-centering parameter is set to
   ``1`` (fully implicit) during the spin-up period, to improve stability.
 
