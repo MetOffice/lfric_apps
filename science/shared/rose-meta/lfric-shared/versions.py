@@ -36,8 +36,8 @@ class vnXX_txxx(MacroUpgrade):
 class vn31_t400(MacroUpgrade):
     """Upgrade macro for ticket #400 by Dan Copsey."""
 
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t400"
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t400"
 
     def upgrade(self, config, meta_config=None):
 
@@ -51,7 +51,7 @@ class vn31_t400(MacroUpgrade):
             self.add_setting(config, ["namelist:jules_sea_seaice", "meltpond_alb_vn"], "'malinka'")
         else:
             self.add_setting(config, ["namelist:jules_sea_seaice", "meltpond_alb_vn"], "'none'")
-        self.add_setting(config, ["namelist:jules_sea_seaice", "snow_grain_size_max"], "100.0")
+        self.add_setting(config, ["namelist:jules_sea_seaice", "snow_grain_size_max"], "140.0")
         self.add_setting(config, ["namelist:jules_sea_seaice", "snow_grain_size_min"], "70.0")
         self.add_setting(config, ["namelist:jules_sea_seaice", "snowpatch"], "0.02")
 
