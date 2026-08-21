@@ -58,3 +58,4 @@
 | cameronbateman-mo   | Cameron Bateman     | Met Office                       | 2026-05-28   |
 | davelee2804         | David Lee           | Bureau of Meteorology, Australia | 2026-06-02   |
 | bblay-mo            | Byron Blay          | Met Office                       | 2026-01-07   |
+| mn416               | Matthew Naylor      | University of Cambridge          | 2026-07-24   |

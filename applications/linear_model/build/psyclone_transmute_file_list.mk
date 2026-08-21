@@ -40,7 +40,6 @@ export PSYCLONE_PHYSICS_FILES = \
                                 ukca_aero_ctl \
                                 ukca_abdulrazzak_ghan \
                                 ukca_chemistry_ctl_full_mod \
-                                ukca_main1-ukca_main1 \
                                 sw_rad_tile_kernel_mod \
                                 jules_imp_kernel_mod \
                                 jules_exp_kernel_mod \
