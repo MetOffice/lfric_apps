@@ -9,7 +9,7 @@
 {# Global NWP jobs #}
 {# ###################################################################### #}
 
-{% if task_ns.conf_name == "nwp_gal9-C12" %}
+{% if task_ns.conf_name == "nwp_gal10-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump"],
@@ -24,7 +24,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","test_diags"],
@@ -37,7 +37,7 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_ragged-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_ragged-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","test_diags","physics_segmentation"],
@@ -51,7 +51,7 @@
         "panel_decomp": "auto_nonuniform",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_deep-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_deep-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","deep","test_diags","physics_segmentation"],
@@ -63,19 +63,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_nomg-C48" %}
-
-    {% do task_dict.update({
-        "opt_confs": ["nwp_gal9_nomg"],
-        "resolution": "C48",
-        "DT": 1800,
-        "tsteps": 36,
-        "mpi_parts": 24,
-        "kgo_checks": ["checksum"],
-        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9-pert-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10-pert-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","test_diags1", "perturb"],
@@ -91,7 +79,7 @@
                           theta",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_1T-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_1T-C12" %}
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
@@ -106,7 +94,7 @@
         {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "nwp_gal9_2T-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_2T-C12" %}
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
@@ -121,7 +109,7 @@
         {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "nwp_gal9_1T-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_1T-C48_MG" %}
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","um_dump","no_diags"],
         "resolution": "C48_MG",
@@ -137,7 +125,7 @@
         {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "nwp_gal9_2T-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_2T-C48_MG" %}
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","um_dump","no_diags"],
         "resolution": "C48_MG",
@@ -153,7 +141,7 @@
         {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "nwp_gal9_4T-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_4T-C48_MG" %}
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","um_dump","no_diags"],
         "resolution": "C48_MG",
@@ -169,7 +157,7 @@
         {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "nwp_gal9_3n_1T-C192_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_3n_1T-C192_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","um_dump","no_diags"],
@@ -180,7 +168,7 @@
         "threads": 1,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_3n_2T-C192_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_3n_2T-C192_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","um_dump","no_diags"],
@@ -188,11 +176,10 @@
         "DT": 720,
         "tsteps": 120,
         "mpi_parts": 192,
-        "task_ranks_per_node": 64,
         "threads": 2,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_3n_4T-C192_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_3n_4T-C192_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","um_dump","no_diags"],
@@ -200,11 +187,10 @@
         "DT": 720,
         "tsteps": 120,
         "mpi_parts": 96,
-        "task_ranks_per_node": 32,
         "threads": 4,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-C224_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","june_case"],
@@ -221,7 +207,7 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_oper-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_oper-C224_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","june_case","oper_diags"],
@@ -237,7 +223,7 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_debug-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_debug-C224_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","june_case","no_diags"],
@@ -251,7 +237,7 @@
         "xios_info_level": 50,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_ls_and_jedi-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_ls_and_jedi-C224_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","ls_and_jedi","june_case"],
@@ -266,7 +252,7 @@
         "xios_print_file": ".true.",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_coarse_aero-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["coarse_aero","um_dump"],
@@ -278,7 +264,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_nudging-era-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_nudging-era-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["nudging-era","um_dump"],
@@ -291,7 +277,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_nudging-era-coarse-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_nudging-era-coarse-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["nudging-era-coarse","um_dump"],
@@ -304,7 +290,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_coarse_aero_threaded-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_coarse_aero_threaded-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["no_dust","coarse_aero","um_dump","physics_segmentation"],
@@ -316,7 +302,7 @@
         "kgo_checks": ["checksum"],
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_da-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_da-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["da"],
@@ -331,7 +317,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_eda-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_eda-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["eda"],
@@ -345,7 +331,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_eda_jada-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_eda_jada-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["eda_jada"],
@@ -359,7 +345,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_ls_and_jedi-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_ls_and_jedi-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","ls_and_jedi"],
@@ -369,7 +355,7 @@
         "mpi_parts": 6,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_mol-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_mol-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["mol","um_dump"],
@@ -439,7 +425,7 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_debug-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_debug-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags","cons_diag"],
@@ -451,7 +437,7 @@
         "kgo_checks": ["checksum"],
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_debug-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_debug-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -463,7 +449,7 @@
         "kgo_checks": ["checksum"],
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_short-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_short-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -474,7 +460,7 @@
         "mpi_parts": 6,
         "kgo_checks": ["checksum"],
     }) %}
-{% elif task_ns.conf_name == "clim_gal9_short-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_short-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","lowres_stp","um_dump","no_diags"],
@@ -487,7 +473,7 @@
     }) %}
 
 {# Share Global Configurations - extended by Performance setups#}
-{% elif task_ns.conf_name.startswith("nwp_gal9-C896_MG") %}
+{% elif task_ns.conf_name.startswith("nwp_gal10-C896_MG") %}
 
     {% do task_dict.update({
         "CXI_MATCH_hybrid": true,
@@ -512,7 +498,7 @@
 {# Global Climate jobs #}
 {# ###################################################################### #}
 
-{% elif task_ns.conf_name == "clim_gal9-C12" %}
+{% elif task_ns.conf_name == "clim_gal10-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","lowres_stp","um_dump"],
@@ -526,7 +512,7 @@
         "plot_str": "plot_map.py -encorr $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9-C48_MG" %}
+{% elif task_ns.conf_name == "clim_gal10-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","um_dump"],
@@ -541,7 +527,7 @@
         "plot_str": "plot_map.py -encorr $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_1T-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_1T-C12" %}
     {% do task_dict.update({
         "opt_confs": ["climate", "physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
@@ -557,7 +543,7 @@
        {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "clim_gal9_2T-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_2T-C12" %}
     {% do task_dict.update({
         "opt_confs": ["climate","physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
@@ -573,7 +559,7 @@
        {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "clim_gal9_1T-C48_MG" %}
+{% elif task_ns.conf_name == "clim_gal10_1T-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","physics_segmentation","um_dump","no_diags"],
@@ -590,7 +576,7 @@
        {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "clim_gal9_2T-C48_MG" %}
+{% elif task_ns.conf_name == "clim_gal10_2T-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","physics_segmentation","um_dump","no_diags"],
@@ -607,7 +593,7 @@
        {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "clim_gal9_4T-C48_MG" %}
+{% elif task_ns.conf_name == "clim_gal10_4T-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","physics_segmentation","um_dump","no_diags"],
@@ -624,7 +610,7 @@
        {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "clim_gal9_chem-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_chem-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","chemistry","lowres_stp","um_dump"],
@@ -638,7 +624,7 @@
         "plot_str": "plot_map.py -encorr $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_chem_1T-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_chem_1T-C12" %}
     {% do task_dict.update({
         "opt_confs": ["climate","chemistry", "lowres_stp","physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
@@ -654,7 +640,7 @@
        {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "clim_gal9_chem_2T-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_chem_2T-C12" %}
     {% do task_dict.update({
         "opt_confs": ["climate","chemistry","lowres_stp","physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
@@ -905,7 +891,7 @@
 {# Single column jobs #}
 {# ###################################################################### #}
 
-{% elif task_ns.conf_name == "scm_gal9_bomex-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_bomex-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l85_85km","no_aerosol","bomex"],
@@ -941,7 +927,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_cbl-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_cbl-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","cbl"],
@@ -952,7 +938,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_cbl_dry-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_cbl_dry-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","cbl_dry"],
@@ -964,7 +950,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_comp_tran_ref-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_comp_tran_ref-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","comp_tran_ref"],
@@ -976,7 +962,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_constrain-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_constrain-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","constrain"],
@@ -987,7 +973,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_dice2-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_dice2-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","dice2"],
@@ -999,7 +985,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_gabls4-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_gabls4-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","gabls4"],
@@ -1011,7 +997,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_sahara-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_sahara-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","sahara"],
@@ -1023,7 +1009,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_seaice-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_seaice-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","seaice"],
@@ -1035,7 +1021,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_snow-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_snow-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","dice2","snow_init"],
@@ -1047,7 +1033,7 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "scm_gal9_toga-BiP2x2-50000x50000" %}
+{% elif task_ns.conf_name == "scm_gal10_toga-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": ["l85_85km","no_aerosol","toga"],
@@ -1207,11 +1193,11 @@
         "kgo_checks": ["checksum"],
     }) %}
 
-{% elif task_ns.conf_name == "coupled_nwp-gal9_C48" %}
+{% elif task_ns.conf_name == "nwp_gc6-C48_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["nwp_gal9"],
-        "resolution": "C48",
+        "opt_confs": ["coupled","no_dust","um_dump"],
+        "resolution": "C48_MG",
         "DT": 1800,
         "tsteps": 24,
         "mpi_parts": 24,
@@ -1220,8 +1206,8 @@
         "xios_nodes": 1,
         "mpi_parts_xios": 6,
         "coupled": true,
-        "wallclock": 25,
-        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+        "wallclock": 10,
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
         "app_name": "lfric_atm_coupled"
     }) %}
 
@@ -1251,7 +1237,7 @@
 {% endif %}
 
 {# Extensions to the Shared Global Configurations - Performance setups#}
-{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_720t") %}
+{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_720t") %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump"],
@@ -1262,7 +1248,7 @@
     }) %}
 {% endif %}
 
-{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_720t_opDiag") %}
+{% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_720t_opDiag") %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","oper_diags_hres"],
