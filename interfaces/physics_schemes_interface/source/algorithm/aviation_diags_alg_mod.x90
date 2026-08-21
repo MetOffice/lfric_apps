@@ -17,6 +17,8 @@ module aviation_diags_alg_mod
 
   use aviation_thickness_snow_kernel_mod,                                   &
                                   only: aviation_thickness_snow_kernel_type
+  use trop_diags_alg_mod,         only: trop_diags_alg
+  use config_mod,                 only: config_type
 
   implicit none
 
@@ -26,16 +28,26 @@ public :: aviation_diags_alg
 contains
 
   !> @brief Calculate aviation diagnostics.
-  !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
-  !>                                   including cloud base and top pressures.
-  subroutine aviation_diags_alg(plev_geopot)
+  !> @param[in]  config        Application namelist configuration object
+  !> @param[in]  plev_geopot   Geopotential height at pressure levels in m.
+  !>                           including cloud base and top pressures.
+  !> @param[in]  theta         Potential temperature
+  !> @param[in]  exner_in_wth  Exner pressure in wth space
+  subroutine aviation_diags_alg(config, plev_geopot, theta, exner_in_wth)
     implicit none
 
     ! Arguments
-    type(field_type), intent(in)               :: plev_geopot
+    type(field_type),  intent(in) :: plev_geopot
+    type(config_type), intent(in) :: config
+    type(field_type),  intent(in) :: theta
+    type(field_type),  intent(in) :: exner_in_wth
 
     ! Calculate geopotential thickness and snow probbability.
     call from_plev_geopot(plev_geopot)
+
+    ! Tropopause aviation diagnostics (pressure, temperature and height)
+    call trop_diags_alg(config, theta, exner_in_wth)
+
 
   end subroutine aviation_diags_alg
 

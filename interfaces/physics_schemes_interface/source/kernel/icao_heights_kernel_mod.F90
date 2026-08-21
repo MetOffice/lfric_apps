@@ -38,6 +38,9 @@ module icao_heights_kernel_mod
       procedure, nopass :: code => icao_heights_kernel_code
     end type icao_heights_kernel_type
 
+! called from other kernels
+public :: icao_heights_kernel_code
+
 contains
 
   !> @brief Calculate icao height from the pressure field.

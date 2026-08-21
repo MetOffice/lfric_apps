@@ -1,0 +1,92 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Code to calculate and output the tropopause aviation diagnostics
+!> @details Computes and outputs the tropopause pressure, temperature and
+!!          height (and ICAO height) as single-level aviation diagnostics.
+!!          Only the diagnostics requested via XIOS are computed and written.
+
+module trop_diags_alg_mod
+
+  use config_mod,                  only: config_type
+  use constants_mod,               only: l_def
+  use planet_constants_mod,        only: g_over_r_def
+  use planet_config_mod,           only: p_zero, kappa
+  use field_mod,                   only: field_type
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
+  use sci_geometric_constants_mod, only: get_height_fv
+  use fs_continuity_mod,           only: Wtheta
+
+  implicit none
+
+  private
+
+  public :: trop_diags_alg
+
+contains
+
+  !> @details Output tropopause aviation diagnostics
+  !> @param[in]  config        Application namelist configuration object
+  !> @param[in]  theta         Potential temperature
+  !> @param[in]  exner_in_wth  Exner pressure in wth space
+  subroutine trop_diags_alg(config, theta, exner_in_wth)
+
+    use trop_diags_kernel_mod, only: trop_diags_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(config_type), intent(in) :: config
+
+    type( field_type ), intent(in) :: theta
+    type( field_type ), intent(in) :: exner_in_wth
+
+    ! Local fields
+    type( field_type ) :: trop_pres, trop_temp, trop_height, trop_icao_height
+    type( field_type ), pointer :: height_wth => null()
+
+    ! Flags indicating whether each diagnostic has been requested
+    logical( l_def ) :: trop_pres_flag, trop_temp_flag
+    logical( l_def ) :: trop_height_flag, trop_icao_height_flag
+
+
+    ! Which diagnostics are requested for this timestep?
+    trop_icao_height_flag =                                           &
+      init_diag(trop_icao_height, 'aviation__trop_icao_height')
+
+    trop_pres_flag =                                                 &
+      init_diag(trop_pres, 'aviation__trop_pressure',          &
+        activate=trop_icao_height_flag)
+
+    trop_temp_flag =                                                  &
+      init_diag(trop_temp, 'aviation__trop_temperature',        &
+        activate=trop_pres_flag .or. trop_icao_height_flag)
+
+    trop_height_flag =                                                &
+      init_diag(trop_height, 'aviation__trop_height',           &
+        activate=trop_temp_flag .or. trop_pres_flag .or. trop_icao_height_flag)
+
+
+    if ( trop_pres_flag .or. trop_temp_flag .or. &
+         trop_height_flag .or. trop_icao_height_flag ) then
+
+      height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
+
+      call invoke( trop_diags_kernel_type(                       &
+        theta, exner_in_wth, height_wth, g_over_r_def,           &
+        p_zero, kappa,                                           &
+        trop_pres, trop_temp, trop_height, trop_icao_height ) )
+
+      if (trop_pres_flag)        call trop_pres%write_field()
+      if (trop_temp_flag)        call trop_temp%write_field()
+      if (trop_height_flag)      call trop_height%write_field()
+      if (trop_icao_height_flag) call trop_icao_height%write_field()
+
+    end if
+
+  end subroutine trop_diags_alg
+
+end module trop_diags_alg_mod
+

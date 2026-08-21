@@ -1,0 +1,252 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the trop_diags kernel.
+!>
+module trop_diags_kernel_mod_test
+
+  use constants_mod, only : r_def, i_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_height, test_temperature, &
+            test_pressure, test_no_tropopause
+
+  @TestCase
+  type, extends(TestCase), public :: trop_diags_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_height
+    procedure test_temperature
+    procedure test_pressure
+    procedure test_no_tropopause
+  end type trop_diags_test_type
+
+  integer(i_def), parameter :: nlayers  = 20_i_def
+  integer(i_def), parameter :: ndf      = 1_i_def
+  integer(i_def), parameter :: map(ndf) = 1_i_def
+  integer(i_def), parameter :: undf_wth = nlayers + 1_i_def
+  integer(i_def), parameter :: undf_2d  = 1_i_def
+
+  ! Constants are passed in.
+  real(r_def), parameter :: gravity  = 9.80665_r_def
+  real(r_def), parameter :: rdry     = 287.05_r_def
+  real(r_def), parameter :: g_over_r = gravity / rdry
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: kappa    = 0.2857_r_def
+
+  ! Synthetic column.
+  ! theta_trop has a tropopause at index 11 (kernel level 10, 10000 m):
+  !   levels 0-10 : 6.5 K/km lapse (troposphere)
+  !   levels 10+  : 0.5 K/km lapse (stratosphere, below the WMO threshold)
+  real(r_def), parameter :: height_col(undf_wth) = (/ &
+         0.0_r_def,  1000.0_r_def,  2000.0_r_def,  3000.0_r_def,  4000.0_r_def, &
+      5000.0_r_def,  6000.0_r_def,  7000.0_r_def,  8000.0_r_def,  9000.0_r_def, &
+     10000.0_r_def, 11000.0_r_def, 12000.0_r_def, 13000.0_r_def, 14000.0_r_def, &
+     15000.0_r_def, 16000.0_r_def, 17000.0_r_def, 18000.0_r_def, 19000.0_r_def, &
+     20000.0_r_def /)
+
+  real(r_def), parameter :: theta_trop(undf_wth) = (/ &
+     290.0_r_def, 283.5_r_def, 277.0_r_def, 270.5_r_def, 264.0_r_def, &
+     257.5_r_def, 251.0_r_def, 244.5_r_def, 238.0_r_def, 231.5_r_def, &
+     225.0_r_def, 224.5_r_def, 224.0_r_def, 223.5_r_def, 223.0_r_def, &
+     222.5_r_def, 222.0_r_def, 221.5_r_def, 221.0_r_def, 220.5_r_def, &
+     220.0_r_def /)
+
+  ! Constant 6.5 K/km lapse rate everywhere: the WMO criterion is never met.
+  real(r_def), parameter :: theta_flat(undf_wth) = (/ &
+     290.0_r_def, 283.5_r_def, 277.0_r_def, 270.5_r_def, 264.0_r_def, &
+     257.5_r_def, 251.0_r_def, 244.5_r_def, 238.0_r_def, 231.5_r_def, &
+     225.0_r_def, 218.5_r_def, 212.0_r_def, 205.5_r_def, 199.0_r_def, &
+     192.5_r_def, 186.0_r_def, 179.5_r_def, 173.0_r_def, 166.5_r_def, &
+     160.0_r_def /)
+
+  ! Exner set to 1 to keep things simple.
+  real(r_def), parameter :: exner_col(undf_wth) = 1.0_r_def
+
+  ! Expected results at the selected level (kernel level 10 / theta 11)
+  real(r_def), parameter :: expected_height = 10000.0_r_def
+  real(r_def), parameter :: expected_temp   = 218.5_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(trop_diags_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(trop_diags_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Height at the tropopause.
+  @test
+  subroutine test_height( this )
+
+    use trop_diags_kernel_mod, only : trop_diags_code
+    use empty_data_mod,        only : empty_real_data
+
+    implicit none
+
+    class(trop_diags_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-4_r_def
+
+    real(r_def), allocatable, target :: height_data(:)
+    real(r_def), pointer             :: trop_pres(:), trop_temp(:), &
+                                        trop_height(:), trop_icao_height(:)
+
+    allocate( height_data(undf_2d) )
+    trop_height      => height_data
+    trop_pres        => empty_real_data
+    trop_temp        => empty_real_data
+    trop_icao_height => empty_real_data
+
+    call trop_diags_code( nlayers, theta_trop, exner_col, height_col,          &
+                          g_over_r, p_zero, kappa,                             &
+                          trop_pres, trop_temp, trop_height, trop_icao_height, &
+                          ndf, undf_wth, map, ndf, undf_2d, map )
+
+    @assertEqual( expected_height, trop_height(map(1)), tol )
+
+    deallocate( height_data )
+
+  end subroutine test_height
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Temperature at the tropopause.
+  @test
+  subroutine test_temperature( this )
+
+    use trop_diags_kernel_mod, only : trop_diags_code
+    use empty_data_mod,        only : empty_real_data
+
+    implicit none
+
+    class(trop_diags_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+
+    real(r_def), allocatable, target :: height_data(:), temp_data(:)
+    real(r_def), pointer             :: trop_pres(:), trop_temp(:), &
+                                        trop_height(:), trop_icao_height(:)
+
+    allocate( height_data(undf_2d), temp_data(undf_2d) )
+    trop_height      => height_data
+    trop_temp        => temp_data
+    trop_pres        => empty_real_data
+    trop_icao_height => empty_real_data
+
+    call trop_diags_code( nlayers, theta_trop, exner_col, height_col,          &
+                          g_over_r, p_zero, kappa,                             &
+                          trop_pres, trop_temp, trop_height, trop_icao_height, &
+                          ndf, undf_wth, map, ndf, undf_2d, map )
+
+    @assertEqual( expected_temp, trop_temp(map(1)), tol )
+
+    deallocate( height_data, temp_data )
+
+  end subroutine test_temperature
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Pressure at the tropopause.
+  @test
+  subroutine test_pressure( this )
+
+    use trop_diags_kernel_mod, only : trop_diags_code
+    use empty_data_mod,        only : empty_real_data
+
+    implicit none
+
+    class(trop_diags_test_type), intent(inout) :: this
+
+    real(r_def), parameter           :: tol = 1.0e-2_r_def
+
+    real(r_def), allocatable, target :: height_data(:), temp_data(:), pres_data(:)
+    real(r_def), pointer             :: trop_pres(:), trop_temp(:), &
+                                        trop_height(:), trop_icao_height(:)
+    real(r_def)                      :: expected_pres
+
+    ! Values at k; model level 10 / theta index 11.
+    real(r_def), parameter :: k_temp = theta_trop(11)
+
+    ! lapse_below is the lapse rate over the interval below k.
+    ! It must match the value the kernel computes there,
+    ! so derive it from the profile (exner = 1, so t_wth = theta_trop).
+    real(r_def), parameter :: lapse_below = (theta_trop(10) - theta_trop(11)) &
+                                          / (height_col(11) - height_col(10))
+
+    allocate( height_data(undf_2d), temp_data(undf_2d), pres_data(undf_2d) )
+    trop_height      => height_data
+    trop_temp        => temp_data
+    trop_pres        => pres_data
+    trop_icao_height => empty_real_data
+
+    call trop_diags_code( nlayers, theta_trop, exner_col, height_col,          &
+                          g_over_r, p_zero, kappa,                             &
+                          trop_pres, trop_temp, trop_height, trop_icao_height, &
+                          ndf, undf_wth, map, ndf, undf_2d, map )
+
+    expected_pres = p_zero * (expected_temp / k_temp) ** (g_over_r / lapse_below)
+    @assertEqual( expected_pres, trop_pres(map(1)), tol )
+
+    deallocate( height_data, temp_data, pres_data )
+
+  end subroutine test_pressure
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> With a constant lapse rate the WMO criterion is never met.
+  @test
+  subroutine test_no_tropopause( this )
+
+    use trop_diags_kernel_mod, only : trop_diags_code
+    use empty_data_mod,        only : empty_real_data
+    use missing_data_mod,      only : rmdi
+
+    implicit none
+
+    class(trop_diags_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-4_r_def
+
+    real(r_def), allocatable, target :: height_data(:)
+    real(r_def), pointer :: trop_pres(:), trop_temp(:), &
+                            trop_height(:), trop_icao_height(:)
+
+    allocate( height_data(undf_2d) )
+    trop_height      => height_data
+    trop_pres        => empty_real_data
+    trop_temp        => empty_real_data
+    trop_icao_height => empty_real_data
+
+    call trop_diags_code( nlayers, theta_flat, exner_col, height_col,          &
+                          g_over_r, p_zero, kappa,                             &
+                          trop_pres, trop_temp, trop_height, trop_icao_height, &
+                          ndf, undf_wth, map, ndf, undf_2d, map )
+
+    ! No tropopause found: output left as missing data.
+    @assertEqual( rmdi, trop_height(map(1)), tol )
+
+    deallocate( height_data )
+
+  end subroutine test_no_tropopause
+
+end module trop_diags_kernel_mod_test
+

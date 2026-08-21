@@ -239,7 +239,7 @@ subroutine set_planet_constants()
   lsrcp_def = real(lsrcp, r_def)
   recip_kappa_def = real(recip_kappa, r_def)
   g_over_r_def = real(g_over_r, r_def)
-  
+
 end subroutine set_planet_constants
 
 end module planet_constants_mod
