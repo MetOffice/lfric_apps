@@ -39,12 +39,18 @@ module setop_average_two_fields_kernel_mod
 
 contains
   !> @brief  Assigns r_single operator as average of two fields.
-  !> @param[in] cell             Index of cell to be randomised.
-  !> @param[in] nlayers          No. of layers.
-  !> @param[in] ncell_3d         Total no. of cells.
-  !> @param[inout] operator_data Collection array of the 2D operator data at each cell.
-  !> @param[in] ndf_aspc1        No. degrees of freedom for 2D operator data, 1st index.
-  !> @param[in] ndf_aspc2        No. degrees of freedom for 2D operator data, 2nd index.
+  !> @param[in] cell              Index of cell to be randomised.
+  !> @param[in] nlayers           No. of layers.
+  !> @param[in] ncell_3d          Total no. of cells.
+  !> @param[inout] operator_data  Collection array of the 2D operator data at each cell.
+  !> @param[in] field_aspc1       Field on 1st index functionspace.
+  !> @param[in] field_aspc2       Field on 2nd index functionspace.
+  !> @param[in] ndf_aspc1         No. degrees of freedom for 2D operator data, 1st index.
+  !> @param[in] undf_aspc1        Unique no. degrees of freedom for 2D operator data, 1st index.
+  !> @param[in] map_aspc1         Map for 2D operator data, 1st index.
+  !> @param[in] ndf_aspc2         No. degrees of freedom for 2D operator data, 2nd index.
+  !> @param[in] undf_aspc2        Unique no. degrees of freedom for 2D operator data, 2nd index.
+  !> @param[in] map_aspc2         Map for 2D operator data, 2nd index.
   subroutine setop_average_two_fields_kernel_code_r_single( cell,          &
                                                             nlayers,       &
                                                             ncell_3d,      &
@@ -88,13 +94,19 @@ contains
 
   end subroutine setop_average_two_fields_kernel_code_r_single
 
-  !> @brief  Assigns r_doube operator as average of two fields.
-  !> @param[in] cell             Index of cell to be randomised.
-  !> @param[in] nlayers          No. of layers.
-  !> @param[in] ncell_3d         Total no. of cells.
-  !> @param[inout] operator_data Collection array of the 2D operator data at each cell.
-  !> @param[in] ndf_aspc1        No. degrees of freedom for 2D operator data, 1st index.
-  !> @param[in] ndf_aspc2        No. degrees of freedom for 2D operator data, 2nd index.
+  !> @brief  Assigns r_double operator as average of two fields.
+  !> @param[in] cell              Index of cell to be randomised.
+  !> @param[in] nlayers           No. of layers.
+  !> @param[in] ncell_3d          Total no. of cells.
+  !> @param[inout] operator_data  Collection array of the 2D operator data at each cell.
+  !> @param[in] field_aspc1       Field on 1st index functionspace.
+  !> @param[in] field_aspc2       Field on 2nd index functionspace.
+  !> @param[in] ndf_aspc1         No. degrees of freedom for 2D operator data, 1st index.
+  !> @param[in] undf_aspc1        Unique no. degrees of freedom for 2D operator data, 1st index.
+  !> @param[in] map_aspc1         Map for 2D operator data, 1st index.
+  !> @param[in] ndf_aspc2         No. degrees of freedom for 2D operator data, 2nd index.
+  !> @param[in] undf_aspc2        Unique no. degrees of freedom for 2D operator data, 2nd index.
+  !> @param[in] map_aspc2         Map for 2D operator data, 2nd index.
   subroutine setop_average_two_fields_kernel_code_r_double( cell,          &
                                                             nlayers,       &
                                                             ncell_3d,      &
