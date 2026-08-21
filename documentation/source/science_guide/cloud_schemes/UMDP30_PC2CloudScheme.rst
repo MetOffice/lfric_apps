@@ -4,6 +4,25 @@
     under which the code may be used.
    -----------------------------------------------------------------------------
 
+.. raw:: html
+
+   <style>
+      .blue { color: #0000ff; }
+      .green { color: #00b000; }
+      .purple { color: #ff00ff; }
+   </style>
+
+.. role:: blue
+.. role:: green
+.. role:: purple
+
+.. role:: blue-lbl(strong)
+   :class: blue
+.. role:: green-lbl(strong)
+   :class: green
+.. role:: purple-lbl(strong)
+   :class: purple
+
 .. attention::
 
    This documentation has been transferred directly from the UM to LFRic;
@@ -14,8 +33,12 @@
 The PC2 Cloud Scheme
 ====================
 
-:Author: D. Wilson, A. Bushell, C. Morcrette, V. Varma\ :math:`^{1}`,
+:Author: D. Wilson, A. Bushell, C. Morcrette, V. Varma\ [#affil1]_,
          M. Whitall
+
+
+.. [#affil1] National Institute of Water and Atmospheric Research, Wellington,
+   New Zealand
 
 .. role:: raw-latex(raw)
    :format: latex
@@ -89,7 +112,7 @@ valid structures to use in this respect.*
 
 - One may diagnose cloud fractions and condensate contents from
   knowledge of gridbox mean variables. This forms the basis of the
-  `Smith (1990)`_ scheme, which is described in .
+  `Smith (1990)`_ scheme, which is described in ``:umdp:029``.
 
 - A mixed scheme, such as `Sundqvist (1978)`_ uses a
   prediction of condensate contents, but a diagnostic cloud fraction.
@@ -306,8 +329,8 @@ three-dimensional distribution in terms of three separate variables
 :math:`q_T`, :math:`T_L` and :math:`p`. This is the method used by
 `Smith (1990)`_, where a symmetric triangular distribution
 function is used. For further information on the
-`Smith (1990)`_ scheme, please refer to . Physics and
-dynamics schemes hence only need to provide increments to
+`Smith (1990)`_ scheme, please refer to ``:umdp:029``. Physics
+and dynamics schemes hence only need to provide increments to
 :math:`\overline{q_T}` and :math:`\overline{T_L}`, provided that a
 diagnostic scheme (such as `Smith (1990)`_) is called at
 some point in the timestep to partition :math:`\overline{q_T}` into
@@ -332,46 +355,39 @@ distinct aspects of clouds, which may or may not overlap :numref:`Figure %s
 The equations for the five prognostic cloud variables can be written
 schematically:
 
-.. math::
+.. math:: :label: eq:dqcldt_and_dcdt
 
+   \begin{aligned}
    \frac{\partial \overline{q_{cl}}}{\partial t} =
    \frac{\partial \overline{q_{cl}}}{\partial t} |_{advection} +
    \frac{\partial \overline{q_{cl}}}{\partial t} |_{convection} +
    \frac{\partial \overline{q_{cl}}}{\partial t} |_{boundary \, layer} +
    \frac{\partial \overline{q_{cl}}}{\partial t} |_{precipitation} + ...
-
-.. math::
-
+   \\
    \frac{\partial \overline{q_{cf}}}{\partial t} =
    \frac{\partial \overline{q_{cf}}}{\partial t} |_{advection} +
    \frac{\partial \overline{q_{cf}}}{\partial t} |_{convection} +
    \frac{\partial \overline{q_{cf}}}{\partial t} |_{boundary \, layer} +
    \frac{\partial \overline{q_{cf}}}{\partial t} |_{precipitation} + ...
-
-.. math::
-
+   \\
    \frac{\partial C_l}{\partial t} =
    \frac{\partial C_l}{\partial t} |_{advection} +
    \frac{\partial C_l}{\partial t} |_{convection} +
    \frac{\partial C_l}{\partial t} |_{boundary \, layer} +
    \frac{\partial C_l}{\partial t} |_{precipitation} + ...
-
-.. math::
-
+   \\
    \frac{\partial C_i}{\partial t} =
    \frac{\partial C_i}{\partial t} |_{advection} +
    \frac{\partial C_i}{\partial t} |_{convection} +
    \frac{\partial C_i}{\partial t} |_{boundary \, layer} +
    \frac{\partial C_i}{\partial t} |_{precipitation} + ...
-
-.. math:: :label: eq:dqcldt_and_dcdt
-
+   \\
    \frac{\partial C_t}{\partial t} =
    \frac{\partial C_t}{\partial t} |_{advection} +
    \frac{\partial C_t}{\partial t} |_{convection} +
    \frac{\partial C_t}{\partial t} |_{boundary \, layer} +
    \frac{\partial C_t}{\partial t} |_{precipitation} + ... ,
-
+   \end{aligned}
 
 where :math:`\overline{q_{cf}}` is the ice water specific humidity,
 :math:`C_l` is the liquid cloud *volume* fraction, :math:`C_i` is the
@@ -387,9 +403,9 @@ The idea is to parametrize each of the terms in the above equations.
 This approach removes the diagnostic method, hence it will be critical
 that we can write expressions for
 :math:`\frac{\partial \overline{q_{cl}}}{\partial t}` and
-:math:`\frac{\partial C_l}{\partial t}` for *each process that alters
-:math:`\overline{T}`, :math:`\overline{p}`, :math:`\overline{q}`, or
-:math:`\overline{q_{cl}}` in the model* (and similarly for the ice
+:math:`\frac{\partial C_l}{\partial t}` for *each process that alters*
+:math:`\overline{T}` *,* :math:`\overline{p}` *,* :math:`\overline{q}` *, or*
+:math:`\overline{q_{cl}}` *in the model* (and similarly for the ice
 terms). In doing so, we will not lose sight of underlying PDF approach
 given by :eq:`eq:int_gs_ds` and
 :eq:`eq:qclbar=int` since we will still use the
@@ -549,7 +565,7 @@ power law near :math:`s=b_s`.
 
    G(s) ~ \propto ~ {(-s + b_s)}^n
 
-provided :math:`s<b_s`, where :math:`b_s` represents the ‘width’ of the
+provided :math:`s<b_s`, where :math:`b_s` represents the 'width' of the
 distribution (so :math:`G(-Q_c)` = 0 at :math:`-Q_c` = :math:`b_s`) and
 n is a power. From :eq:`eqn19` it can be shown (see appendix
 B of `Wilson and Gregory (2003)`_) that
@@ -642,7 +658,7 @@ result in a huge tendency in cloud-fraction in equation
 huge.
 
 Note that for a homogeneous forcing acting to dry the layer / reduce the
-cloud, a huge negative tendency is the “right” answer; if there is only
+cloud, a huge negative tendency is the "right" answer; if there is only
 an infinitessimally small amount of liquid water content left within the
 cloud, then the cloud fraction should indeed vanish extremely rapidly
 under a negative forcing. However, for a positive homogeneous forcing,
@@ -672,7 +688,7 @@ large-scale cloud namelist.
 
 `Morcrette (2020)`_ proposed an alternative choice of
 weights applied to :math:`G_1(-Q_c)` :eq:`eqn20` and
-:math:`G_2(-Q_c)` :eq:`eqn21`, so-as to make each one’s
+:math:`G_2(-Q_c)` :eq:`eqn21`, so-as to make each one's
 weight go to zero in the limit that it goes to infinity, reliably
 yielding a sensible, finite solution for :math:`G(-Q_c)`.
 
@@ -765,8 +781,8 @@ choose the dry-bulb temperature :math:`\overline{T}`, and not the
 liquid-temperature (:math:`\overline{T_L}`), since :math:`q_{sat}`
 locally is defined by the local dry-bulb temperature (:math:`T`) and we
 need to consider *changes* in the condensate. This has been confirmed
-using simulations using a single gridbox model. contains a longer
-discussion of this issue, but we note here that the
+using simulations using a single gridbox model. ``:umdp:029`` contains a
+longer discussion of this issue, but we note here that the
 `Smith (1990)`_ scheme performs best when it does not use
 :math:`T` to calculate :math:`\alpha` but the gradient of the chord
 between :math:`(\overline{T_L}, q_{sat}(\overline{T_L}))` and
@@ -826,8 +842,8 @@ that are generated, which is discussed in section
 :ref:`Bounds checking <sec_checks>`. However, the checking routine (Q-Pos)
 involves a
 lot of communication between processors and can significantly increase
-the run-time of the model. The option to “Ensure consistent sinks of qcl
-and CFL” performs a check at the end of the homogeneous forcing routines
+the run-time of the model. The option to "Ensure consistent sinks of qcl
+and CFL" performs a check at the end of the homogeneous forcing routines
 to ensure that we are not trying to remove more condensate than was
 there to start with.
 
@@ -853,7 +869,7 @@ is altered. This is, perhaps, the simplest method of representing a
 process that changes the shape of the PDF, and we will, in PC2, apply it
 to represent mixing of air within a gridbox, although this is a
 significant approximation of the process. Its application fulfils the
-role of the “cloud erosion” term in the `Tiedtke (1993)`_ scheme.
+role of the "cloud erosion" term in the `Tiedtke (1993)`_ scheme.
 By linking the term to the PDF shape we can place this term on a
 stronger mathematical footing than the simple reduction term
 parametrized by `Tiedtke (1993)`_. Equivalent arguments enabled
@@ -953,7 +969,7 @@ of the process that is occuring. Note we don't need to calculate
 :math:`b_s` separately, just its *fractional* rate of change. Options
 for the parameterisation of
 :math:`\frac{1}{b_s}\frac{\partial b_s}{\partial t}` due to turbulent
-“erosion” are described in section :ref:`PC2 erosion <sec_turb>`, along with the
+"erosion" are described in section :ref:`PC2 erosion <sec_turb>`, along with the
 numerical methods used to integrate the equations.
 
 .. _sec_init:
@@ -981,7 +997,7 @@ a choice of 2 different diagnostic cloud schemes that can be used for
 this; either a version of the Smith scheme (see UMDP 029), or the
 bimodal scheme (see UMDP 039). These two options are described below...
 
-Initiation using a “Smith-like” method
+Initiation using a "Smith-like" method
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
@@ -1008,8 +1024,8 @@ discussion of an
 equivalent width in the deposition / sublimation relationship for ice
 cloud). We still choose to define :math:`b_s` in terms of a critical
 relative humidity parameter, :math:`RH_{crit}`. Like the
-`Smith (1990)`_ scheme (see ), we define the value of
-:math:`b_s` as
+`Smith (1990)`_ scheme (see ``:umdp:029``), we define the
+value of :math:`b_s` as
 
 .. math:: :label: eq:bs
 
@@ -1094,8 +1110,9 @@ value :math:`(2-RH_t)` (which is equivalent to the replacing of
 respectively.
 
 We then solve for the initiated cloud fraction :math:`C_l'`, using the
-similar methods as described in , except that we allow the solution to
-vary with the PDF shape :math:`n`. We first write :math:`Q_N` as
+similar methods as described in ``:umdp:029``, except that we allow the
+solution to vary with the PDF shape :math:`n`. We first write
+:math:`Q_N` as
 
 .. math:: :label: eq:qn_def
 
@@ -1204,7 +1221,7 @@ width of the moisture PDF at each point.
 The positions of the upper and lower truncated bounds of the moisture
 PDF relative to the saturation threshold are expressed in terms of a
 normalised :math:`Q_N` = :math:`Q_c` over PDF-width (see equation
-:eq:`eq:qn_def`. In entrainment zones, the sum of the two
+:eq:`eq:qn_def`). In entrainment zones, the sum of the two
 Gaussian modes can lead to a highly skewed distribution; hence
 :math:`Q_N` can have different values for the upper and lower bounds,
 each normalised by the different widths on either side of the PDF. The
@@ -1702,7 +1719,7 @@ Smith scheme with a specified value of :math:`RH_{crit}` while the large
 :math:`RH` variability associated with these clouds implies much lower
 values than are typically used.
 
-A profile of “forced cloud fraction”, :math:`C_{forced}`, is
+A profile of "forced cloud fraction", :math:`C_{forced}`, is
 parametrized as linearly varying with height between a cloud-base value,
 at the lifting condensation level (LCL) from the convection diagnosis
 parcel ascent, and a cloud-top value of 0.1 at the top of the capping
@@ -1713,7 +1730,7 @@ varies linearly between 0.1 and 0.3 for cloud depths between 100 m and
 layer depth, :math:`z_h` plus the inversion thickness,
 :math:`\Delta z_i` parametrized following `Beare (2008)`_ as:
 
-.. math:: :label: dz_param
+.. math:: :label: dz_param_inv
 
    \Delta z_i  = 6.3 \, w_m^2 /  \int_{z_h}^{z_h+\Delta z_i} b \, dz
 
@@ -1721,7 +1738,7 @@ where :math:`w_m` is the boundary layer velocity scale
 (:math:`w_m^3 = u_*^3 + 0.25 w_*^3`) and :math:`b` is the parcel
 buoyancy that is integrated over the depth of the inversion assuming a
 piece-wise linear variation between grid-levels. Note that the constant
-in :eq:`dz_param` is the same as in
+in :eq:`dz_param_inv` is the same as in
 `Beare (2008)`_ because :math:`6.3 = 2.5 * 4^{2/3}` and
 :math:`w_m^3` differs by a factor of 4.
 
@@ -1743,8 +1760,8 @@ the inversion thickness above.
 
 Also, there is an option to treat the calculated forced cumulus cloud
 fraction and water content as diagnostic quantities passed directly to
-the radiation scheme as part of the “convective” cloud, instead of using
-them to modify the prognostic “large-scale” cloud variables :math:`C`
+the radiation scheme as part of the "convective" cloud, instead of using
+them to modify the prognostic "large-scale" cloud variables :math:`C`
 and :math:`\overline{q_{cl}}`. If this option is used, the convective
 cloud fraction :math:`CCA` and water content :math:`CCW` output by the
 convection scheme are updated, by taking the forced cumulus profiles as
@@ -1814,13 +1831,13 @@ ice supersaturation :math:`S_i=e_v/e_{sat\;ice}-1`:
 
 .. math:: :label: eqn:squires_eqn
 
-    \frac{D S_i}{D t} = -b_i B_0 {\cal M}_1 S_i
+    \frac{D S_i}{D t} = -b_i B_0 {\mathcal{M}}_1 S_i
       -\left(\frac{\varepsilon}{L^2}\right)^{1/3}(S_i-S_E) + a_i w,
 
-where :math:`{\cal M}_1` is the first moment of ice particle size
+where :math:`{\mathcal{M}}_1` is the first moment of ice particle size
 distribution (PSD), :math:`\varepsilon` is the turbulent dissipation
 rate, :math:`L` is a prescribed mixing length for the turbulence,
-:math:`S_{\rm E}` is the ice supersaturation of the environment
+:math:`S_{\mathrm{E}}` is the ice supersaturation of the environment
 surrounding the cloud and :math:`b_i,B_0` and :math:`a_i` are function
 of :math:`p` and :math:`T` given by
 
@@ -1837,9 +1854,8 @@ of :math:`p` and :math:`T` given by
 
    a_i = \frac{g}{R T}\left( \frac{\epsilon L_s}{c_p T} - 1 \right),
 
-
 The first term on the right hand side of
-Eq. :eq:`eqn:squires_eqn` is the sink of vapor due to
+Eq. :eq:`eqn:squires_eqn` is the sink of vapor due to
 depositional growth of ice crystals, the second term models entrainment
 (mixing) of environmental air into the cloudy volume and the third term
 is a source term due to vertical air motions.
@@ -1847,18 +1863,18 @@ is a source term due to vertical air motions.
 `Field et al. (2014)`_ modeled vertical velocity as a white-noise
 process with autocorrelation function:
 
-.. math:: \overline{w(t)w(s)} = \sigma_w^2 \tau_{\rm d} \delta(t-s),
+.. math:: \overline{w(t)w(s)} = \sigma_w^2 \tau_{\mathrm{d}} \delta(t-s),
 
 where :math:`\delta` is the Dirac distribution and the intensity of the
 noise, :math:`\sigma_w^2`, will be called the standard derivation of the
 vertical velocity fluctuations (due to the white nature of noise, a true
 expectation value :math:`\overline{w^2}` is not defined) and
-:math:`\tau_{\rm d}` a Lagrangian decorrelation time define here by the
+:math:`\tau_{\mathrm{d}}` a Lagrangian decorrelation time define here by the
 relation used by `Rodean (1997)`_:
 
 .. math:: :label: eqn:taud
 
-   \tau_{\rm d} = \frac{2\sigma_w^2}{\varepsilon C_0},
+   \tau_{\mathrm{d}} = \frac{2\sigma_w^2}{\varepsilon C_0},
 
 where :math:`C_0` is a known constant.
 
@@ -1872,15 +1888,14 @@ solution PDF is Gaussian with mean and variance given by:
 .. math:: :label: eqn:si_avg
 
    \overline{S_i} =
-    S_{\rm E}\frac{ \left(\varepsilon/L^2\right)^{1/3}  }{ b_i B_0 {\cal M}_1
-    + \left(\varepsilon/L^2\right)^{1/3} }.
+    S_{\mathrm{E}}\frac{ \left(\varepsilon/L^2\right)^{1/3}  }{ b_i B_0
+    {\mathcal{M}}_1  + \left(\varepsilon/L^2\right)^{1/3} }.
 
 .. math:: :label: eqn:si_var
 
    \overline{S_i^2} =
-    \frac{a^2_{\rm i} \sigma^2_w \tau_{\rm d}}{ 2\left(b_i B_0 {\cal M}_1  +
-    \left(\varepsilon/L^2\right)^{1/3}\right)},
-
+    \frac{a^2_{\mathrm{i}} \sigma^2_w \tau_{\mathrm{d}}}{ 2\left(b_i B_0
+    {\mathcal{M}}_1  + \left(\varepsilon/L^2\right)^{1/3}\right)},
 
 Equation :eq:`eqn:si_avg` and
 :eq:`eqn:si_var` completely specify the PDF,
@@ -1895,12 +1910,11 @@ given by
 .. math:: :label: eqn:cloud_liquid
 
    q_{cl}^{sgt} =  q_{sat\;ice}\int_{S_{i,wat}}^\infty d S_i (S_i -S_{i,wat})
-   F(S_i) ,
-
+   F(S_i),
 
 where :math:`S_{i,wat} = e_{sat\;wat}/e_{sat\;ice}-1` is the value of
 ice supersaturation at water saturation. We use the superscription
-‘:math:`sgt`’(=‘*s*\ ub\ *g*\ rid *t*\ urbulence’) to indicate that
+':math:`sgt`'(='*s*\ ub\ *g*\ rid *t*\ urbulence') to indicate that
 :math:`C_l^{sgt}` and :math:`q_{cl}^{sgt}` are values of cloud fraction
 and water content diagnosed from a parametrization of small-scale
 turbulent processes.
@@ -1913,7 +1927,7 @@ Model implementation and closure relations
 To implement the model of Section :ref:`Model description
 <sec_sgt_model_describe>` in
 the Unified Model, closure relations are needed for the quantities
-:math:`\sigma_w^2`, :math:`\varepsilon`, :math:`L`, :math:`\tau_{\rm d}`
+:math:`\sigma_w^2`, :math:`\varepsilon`, :math:`L`, :math:`\tau_{\mathrm{d}}`
 and :math:`S_E`, subject to the constraining relationship given by Eq.
 :eq:`eqn:taud`. In each model grid box, these parameters
 specify the subgrid PDF, :math:`F(S_i)`, and from this the liquid cloud
@@ -1953,29 +1967,30 @@ can define (see Section :ref:`Other user options <sec_sgt_options>` below),
 however it
 should be of order one.
 
-To obtain :math:`\tau_{\rm d}` we impose an eddy size constraint:
+To obtain :math:`\tau_{\mathrm{d}}` we impose an eddy size constraint:
 
 .. math:: :label: eqn:eddy_size
 
-   \tau_{\rm d} = \frac{L}{\sigma_w} = \beta_{mix} \frac{\Delta z}{\sigma_w}
+   \tau_{\mathrm{d}} = \frac{L}{\sigma_w} = \beta_{mix} \frac{\Delta
+   z}{\sigma_w}
 
-Eq. :eq:`eqn:taud` then determines the dissipation rate,
+Eq. :eq:`eqn:taud` then determines the dissipation rate,
 :math:`\varepsilon`, that is consistent with the other parameters. The
 constant :math:`C_0=10` by default, but can be adjusted by the user.
 
 The scheme is limited to act only in grid boxes where
-:math:`\tau_{\rm d}` is less than a prescribed value,
+:math:`\tau_{\mathrm{d}}` is less than a prescribed value,
 :math:`\tau_{d}^{max}`. The default is
-:math:`\tau_d^{max}=1200\;{\rm sec}`, which typically coincides with a
+:math:`\tau_d^{max}=1200\;{\mathrm{sec}}`, which typically coincides with a
 couple of model timesteps. The motivation for this is that a motion that
 takes longer than a few timestep to decorrelate will be partially
-resolved by the dynamics and therefore cannot be considered as ‘subgrid’
+resolved by the dynamics and therefore cannot be considered as 'subgrid'
 turbulence.
 
 Finally, where :math:`T`, :math:`p` and :math:`q` appear in the
 expressions for :math:`C_l^{sgt}` and :math:`q_{cl}^{sgt}`, these are
 taken to be the grid box mean values. The first moment of the ice PSD,
-:math:`{\cal M}_1`, is found from the parametrization, due to
+:math:`{\mathcal{M}}_1`, is found from the parametrization, due to
 `Field et al. (2005)`_, described in Section 4.1 of UMDP26.
 
 .. _sec_sgt_increments:
@@ -1998,7 +2013,7 @@ Given :math:`C_l^{sgt}` and :math:`q_{cl}^{sgt}`, two options are
 available for relating these to changes in the model prognostics:
 
 Option one: direct increments
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+"""""""""""""""""""""""""""""
 
 The values of :math:`C_l^{sgt}` and :math:`q_{cl}^{sgt}` can be added as
 increments to the model prognostic fields, :math:`C_l` and
@@ -2025,7 +2040,6 @@ increments to the model prognostic fields, :math:`C_l` and
 
    \left( \Delta C \right)_{sgt} =  C_l^{sgt}
 
-
 where the left hand sides denote the increments to :math:`C_l`,
 :math:`q_{cl}`, :math:`T` and the total cloud fraction, :math:`C`, due
 to the subgrid scheme. Some bounds-checking is then applied to ensure
@@ -2034,7 +2048,7 @@ scheme does not condense out more liquid than there is available
 moisture.
 
 Option two: PC2 Erosion method
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""""""""
 
 Option one gives a simple method for incrementing the model prognostics,
 but it gives rise to a potential inconsistency with the PC2 cloud
@@ -2058,7 +2072,6 @@ using PC2 Erosion. In this case:
    \left( \Delta T \right)_{sgt} = \frac{L_v}{c_p} \left( \Delta q_{cl}
    \right)_{sgt},
 
-
 where :math:`q_{cl}` is the liquid cloud amount prior to calling to the
 turbulent production scheme. The cloud fraction increments are
 calculated by calling PC2 Erosion with
@@ -2080,7 +2093,7 @@ The following variables and logical switches are optional inputs:
 #. Setting the logical ``l_mixed_phase_t_limit`` to *TRUE* allows the
    user to use the variable ``mp_t_limit`` to define a temperature
    limit, :math:`T_{max}`, above which the scheme is not applied. The
-   default is :math:`T_{max}=0^\circ\;{\rm C}`, so the scheme is only
+   default is :math:`T_{max}=0^\circ\;{\mathrm{C}}`, so the scheme is only
    applied to cold clouds.
 
 #. The input variable ``mp_tau_d_lim`` defines the upper limit,
@@ -2153,7 +2166,8 @@ Large-scale precipitation
 Precipitation processes have a large effect on cloud fractions. Here we
 present the simple physical models that are applied to the transfer
 terms included in the large-scale precipitation scheme. They are also
-presented within the large-scale precipitation documentation ().
+presented within the large-scale precipitation documentation
+(``:umdp:026``).
 
 The basis of the physical model is that microphysical transfer processes
 can be calculated separately in different partitions of the model cloud
@@ -2163,10 +2177,10 @@ consider here separately each process that is modelled in the
 large-scale precipitation scheme. The changes in
 :math:`\overline{q_{cl}}`, :math:`\overline{q_{cf}}` and
 :math:`\overline{q}` remain mathematically the same as in the non-PC2
-version of the code (), we only need to introduce calculations for the
-changes in cloud fractions. We will see that many of these changes can
-be well modelled by assuming no change to the cloud fractions, and the
-others by using simple assumptions.
+version of the code (``:umdp:026``), we only need to introduce
+calculations for the changes in cloud fractions. We will see that many
+of these changes can be well modelled by assuming no change to the cloud
+fractions, and the others by using simple assumptions.
 
 Although the model may use two ice prognostic ice categories, only a
 single ice cloud fraction is stored, the assumption being that the two
@@ -2237,9 +2251,9 @@ where :math:`A_{clear}` is the proportion of the gridbox that has
 neither ice nor liquid cloud present.
 
 **An inconsistency has been found in the way that the fall-of-ice term
-is linked to the globally constant “wind-shear value” when calculting
+is linked to the globally constant "wind-shear value" when calculting
 the ice cloud fraction overhang. Consequently, the option not to use the
-“wind shear value” when calculating the overhang is available in the
+"wind shear value" when calculating the overhang is available in the
 UMUI (from version 7.6 onwards).**
 
 .. _sec_lsp_homo:
@@ -2251,18 +2265,15 @@ This will freeze all supercooled liquid water when a temperature
 threshold is exceeded. Hence we turn all existing liquid and mixed phase
 cloud to ice cloud. The cloud fraction changes are:
 
-.. math::
-
-   C_l \leftarrow 0
-
-.. math::
-
-   C_i \leftarrow C_t
-
 .. math:: :label: eq:lsp_homo
 
+   \begin{aligned}
+   C_l \leftarrow 0
+   \\
+   C_i \leftarrow C_t
+   \\
    \Delta C_t = 0.
-
+   \end{aligned}
 
 Heterogeneous nucleation
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2272,18 +2283,15 @@ regardless of the previous presence of ice cloud. This will mean that
 previously existing 'liquid-only' cloud is converted to mixed phase
 cloud. These give the following changes:
 
-.. math::
-
-   \Delta C_l = 0
-
-.. math::
-
-   C_i \leftarrow C_t
-
 .. math:: :label: eq:lsp_het
 
+   \begin{aligned}
+   \Delta C_l = 0
+   \\
+   C_i \leftarrow C_t
+   \\
    \Delta C_t = 0.
-
+   \end{aligned}
 
 .. _sec_mp_depsub:
 
@@ -2300,17 +2308,19 @@ framework (section :ref:`The 's' distribution <sec_s_dist>`). However, since
 the same instantaneous condensation framework. It would be useful to
 investigate in the future whether the two descriptions of the moisture
 variability could be brought together. Because of its importance, we
-describe the method below, although we note it is also described in .
+describe the method below, although we note it is also described in
+``:umdp:026``.
 
 We can calculate the local rate of change of :math:`q_{cf}`, given local
 :math:`T` and :math:`q` etc. using the standard microphysical growth
-equations (see ). However, it is critical to know the way in which the
-moisture is correlated with the ice in the gridbox. We will assume there
-exists a distribution of vapour in the gridbox. We know that the regions
-where liquid cloud exists must be saturated with respect to liquid
-water, hence we need only consider the part of the gridbox that does not
-have liquid water present. The average value, :math:`q_a`, of :math:`q`
-within the liquid-free part of the gridbox is thus
+equations (see ``:umdp:026``). However, it is critical to know the way in
+which the moisture is correlated with the ice in the gridbox. We will
+assume there exists a distribution of vapour in the gridbox. We know
+that the regions where liquid cloud exists must be saturated with
+respect to liquid water, hence we need only consider the part of the
+gridbox that does not have liquid water present. The average value,
+:math:`q_a`, of :math:`q` within the liquid-free part of the gridbox is
+thus
 
 .. math:: :label: eq:qa
 
@@ -2350,7 +2360,7 @@ cloud formulation, which considers an underlying PDF across the whole
 gridbox and does not have, in general, its width prescribed. Remember
 that we do not calculate on-line the whole of the liquid - vapour PDF,
 we only parametrize the single point :math:`G(-Qc)`, using equation
-:eq:`eqn22`.
+:eq:`eqn22`).
 
 The width is then limited further to be no greater than
 :math:`\overline{q}`, to make sure that there are no negative values of
@@ -2372,7 +2382,6 @@ same assumption). Some algebra retrieves the expressions:
 
    q_{ice} = \frac {\overline{q} - C_l q_{sat~liq} - A_{clear} q_{clear} }
    {A_{ice}},
-
 
 where :math:`A_{ice}` is the proportion of the gridbox with ice cloud
 but not liquid cloud and :math:`A_{clear}` is the proportion of the
@@ -2560,7 +2569,7 @@ use the values at the start of the microphysics (this includes the
 values of :math:`C_i` used in the calculation of 'in-cloud' water
 contents above. However, we do update the cloud fractions themselves
 sequentially. We also recalculate after each process the overlaps
-between the rain fraction (see ) and the cloud fractions.
+between the rain fraction (see ``:umdp:026``) and the cloud fractions.
 
 There is also a final set of checks that :math:`C_l` and :math:`C_i` lie
 between 0 and 1 and that :math:`C_t` is bounded between
@@ -2624,7 +2633,7 @@ is close to :math:`1 \times 10^{-4} s^{-1}`.
 
 Note: the source-code for this erosion method (**pc2_hom_conv**,
 **pc2_homog_plus_turb**, **pc2_delta_hom_turb**) includes an additional
-term “dbsdtbs1” which scales with the rate of homogeneous forcing
+term "dbsdtbs1" which scales with the rate of homogeneous forcing
 :math:`\frac{\partial Q_c}{\partial t}`. However this term is always set
 to zero on input to these routines so is never used.
 
@@ -2665,7 +2674,7 @@ discretize eq
 Similarly to :eq:`eq:c_l^n+1`, we then limit the cloud
 fraction to 0 and 1 and then apply a mid-point value of :math:`C_l` to
 calculate the change in :math:`\overline{q_{cl}}` (discretizing eq
-:eq:`eq:dqcldt_width`:
+:eq:`eq:dqcldt_width`):
 
 .. math:: :label: eq:dqcl_turb_final
 
@@ -2678,7 +2687,7 @@ that no more :math:`\overline{q_{cl}}` is removed than the model has
 available. This was chosen to ensure that the erosion process itself
 contains this physical limit, not a numerical tidying-up process.
 
-The option “l_fixbug_pc2_qcl_incr” ensures that qcl is set to zero if
+The option "l_fixbug_pc2_qcl_incr" ensures that qcl is set to zero if
 the CFL has reached zero.
 
 Cloud-surface-area hybrid erosion method
@@ -2688,7 +2697,7 @@ Cloud-surface-area hybrid erosion method
 
 `Morcrette and Petch (2010)`_ showed that changes to the erosion
 parameter (:math:`\Upsilon` in Eqn.
-:eq:`eq:dbsbydtbs_turb` did not have as
+:eq:`eq:dbsbydtbs_turb`) did not have as
 significant an impact on the global work done by the erosion process as
 might be expected. This was due to a feedback process whereby, reducing
 the erosion parameter leads to more cloud water, more autoconversion of
@@ -2797,7 +2806,7 @@ Where the change in liquid water content
 
 This combination of a Tiedkte sink term for :math:`q_{cl}`, a PC2 term
 for :math:`C_l` and the introduction of some surface area dependence
-leads to this formulation being referred to as a “hybrid”
+leads to this formulation being referred to as a "hybrid"
 cloud-surface-area erosion method.
 
 .. _sec_erosion_numerics:
@@ -2827,7 +2836,7 @@ simulations), this discretization can suffer severe numerical overshoot.
 i.e. the increment based on :math:`C_l^n` is large enough to reduce
 :math:`q_{cl}` (and hence also :math:`C_l`) to less than zero within a
 single timestep. If the continuous equation were solved analytically
-this wouldn’t happen; as :math:`C_l` declines due to the erosion, so
+this wouldn't happen; as :math:`C_l` declines due to the erosion, so
 will :math:`A(C_l)` and hence the erosion rate, so that :math:`q_{cl}`
 and :math:`C_l` smoothly decline towards zero.
 
@@ -2838,11 +2847,12 @@ yield much less timestep sensitivity for detrained cloud in shallow
 cumulus regimes.
 
 #. **Retain the explicit discretization, but limit the resulting erosion
-   increments to ensure :math:`q_{cl}` and :math:`C_l` don’t go
+   increments to ensure** :math:`\boldsymbol{q_{cl}}` **and**
+   :math:`\boldsymbol{C_l}` **don't go
    negative. (i_pc2_erosion_numerics=1)** Also, to ensure that some
    cloud remains at end-of-timestep where shallow cumulus is detraining
    into dry environments, the erosion calculation is fed copies of the
-   fields with the current timestep’s convection increments subtracted
+   fields with the current timestep's convection increments subtracted
    off. This means any cloud detrained by convection during the current
    timestep cannot be eroded until the following timestep, and so is
    still present at end-of-timestep. As discussed in section
@@ -2869,7 +2879,8 @@ cumulus regimes.
    erosion, to give some improvement in accuracy.
 
 #. **Use an approximate implicit discretisation, which intrinsically
-   yields a positive solution for :math:`q_{cl}` and :math:`C_l`.
+   yields a positive solution for** :math:`\boldsymbol{q_{cl}}` **and**
+   :math:`\boldsymbol{C_l}` **.
    (i_pc2_erosion_numerics=2)** The copies of the fields passed to the
    erosion calculation are fully updated with the convection increments.
    We then write equation :eq:`eq:dqcldt_hybrid` in
@@ -2946,7 +2957,7 @@ cumulus regimes.
    :eq:`eq:dcdt_hybrid_discr`, except that the
    term :math:`\frac{1}{2} \Delta \overline{{q_{cl}}_{ero}}` is omitted
    (interpolating to the mid-point value of :math:`\overline{q_{cl}}` in
-   the denominator would be “double-counting” if we are already making
+   the denominator would be "double-counting" if we are already making
    an implicit correction to the full increment).
 
    In the case where the homogeneous forcing increments have already
@@ -3005,7 +3016,7 @@ cumulus regimes.
    each case. In the code, we first test the value of :math:`Q_c` and
    compute the erosion increments as follows:
 
-   #. **Grid-mean subsaturation (:math:`Q_c < 0`):**
+   #. **Grid-mean subsaturation (** :math:`\boldsymbol{Q_c < 0}` **):**
 
       The relation between the erosion tendencies in
       liquid-cloud-fraction and liquid water content
@@ -3025,9 +3036,9 @@ cumulus regimes.
       defined the PDF height at the saturation boundary when near the
       cloudy end of the PDF as
       :math:`G(-Q_c) = \frac{n+1}{n+2} \frac{C_l^2}{q_{cl}}` (eq
-      :eq:`eqn20`. In fact, :math:`G(-Q_c)` is set to some
+      :eq:`eqn20`). In fact, :math:`G(-Q_c)` is set to some
       blend between this and the value near the clear end of the PDF (eq
-      :eq:`eqn21`. But we will assume that when eroding cloud
+      :eq:`eqn21`). But we will assume that when eroding cloud
       under grid-mean subsaturated conditions (:math:`Q_c < 0`),
       :math:`G(-Q_c)` follows this scaling with
       :math:`\frac{C_l^2}{q_{cl}}` even if its value differs somewhat
@@ -3082,8 +3093,8 @@ cumulus regimes.
       where :math:`SD` is the saturation defecit, and :math:`a_L` is the
       dimensionless factor defined in eq :eq:`eq:a_L`.
       Following the derivation in section
-      :ref:`“Smooth” initiation logic <sec_smooth_initiation>` (eq
-      :eq:`eq:qc_plus_sd`, we can write this in terms
+      :ref:`"Smooth" initiation logic <sec_smooth_initiation>` (eq
+      :eq:`eq:qc_plus_sd`), we can write this in terms
       of the liquid-water content: :math:`SD = q_{cl} - Q_c` (where
       :math:`Q_c` was defined in eq
       :eq:`eq:qc_eq_qt-qs`, and corresponds to the
@@ -3146,11 +3157,11 @@ cumulus regimes.
       find the solution with the explicitly-treated terms (the exponent
       :math:`b_1 = \frac{ c_1 }{ 1 - \frac{q_{cl}}{C_l Q_c} }` and the
       terms :math:`(1 - C_l)` and :math:`(q_{cl}-Q_c)` in eq
-      :eq:`eq:qcl_int_hybrid` adjusted to values
+      :eq:`eq:qcl_int_hybrid`) adjusted to values
       linearly-interpolated to half-way between the start and end of the
       erosion timestep.
 
-   #. **Grid-mean supersaturation (:math:`Q_c > 0`):**
+   #. **Grid-mean supersaturation (** :math:`\boldsymbol{Q_c > 0}` **):**
 
       In this case, erosion does not act to reduce :math:`C_l` and
       :math:`q_{cl}` towards zero. Instead, the narrow PDF limit it
@@ -3219,14 +3230,14 @@ cumulus regimes.
       iterations are then performed to find the solution with the
       explicitly-treated terms (the exponent
       :math:`b_2 = \frac{ c_2 }{ 1 + \frac{SD}{(1-C_l) Q_c} }` and the
-      term :math:`C_l` in eq :eq:`eq:sd_int_hybrid`
+      term :math:`C_l` in eq :eq:`eq:sd_int_hybrid`)
       adjusted to values linearly-interpolated to half-way between the
       start and end of the erosion timestep. Then the final values of
       :math:`SD` and :math:`1-C_l` are used to increment
       :math:`q_{cl} = Q_c + SD` and :math:`C_l`, as prognosed by the
       rest of the model.
 
-   #. **grid-mean saturation (:math:`Q_c` near-zero):**
+   #. **grid-mean saturation (** :math:`\boldsymbol{Q_c}` **near-zero):**
 
       In this case, the PDF is centred on the saturation boundary, so
       that narrowing it does not change the cloud-fraction. In the limit
@@ -3322,7 +3333,7 @@ denominator is small, we will, to avoid numerical problems, set
 that we do not use the multiple phases injection source expressions
 (section :ref:`Multiple phases in the injection source <sec_multiple>` and
 equation
-:eq:`eq:cff_ts`. This is because the liquid water changes
+:eq:`eq:cff_ts`). This is because the liquid water changes
 are not associated with the plume model.
 
 Equation :eq:`eq:qcf_ci` assumes that the change to the ice
@@ -3436,47 +3447,50 @@ processes (e.g. total water content). In this case,
 
 .. math:: :label: eq:chibasic
 
-   {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} =
+   {\frac{\partial \, {\chi}_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv}} =
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-     {\chi}_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
+     {\chi}_{\mathrm{ }}^{\mathrm{E'}}}}{\partial \, z}
 
 To parametrize :eq:`eq:chibasic`, the current UM
 convection scheme takes a mass flux approximation
 
 .. math:: :label: eq:massflux
 
-   \left({\overline{\rho w^{'} {\chi}_{\rm{ }}^{\rm{E'}}}} \right)_{\rm{conv}}
-   = M^{\rm{P}} \,
-   \left({ {\chi}_{\rm{ }}^{\rm{P}} - {\chi}_{\rm{ }}^{\rm{E}} } \right)
+   \left({\overline{\rho w^{'} {\chi}_{\mathrm{ }}^{\mathrm{E'}}}}
+   \right)_{\mathrm{conv}} = M^{\mathrm{P}} \,
+   \left({ {\chi}_{\mathrm{ }}^{\mathrm{P}} - {\chi}_{\mathrm{ }}^{\mathrm{E}}
+   } \right)
 
 which can be differentiated to give
 
 .. math:: :label: eq:eddyflux
 
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-     {\chi}_{\rm{ }}^{\rm{E'}}}}{\partial \, z} =
-   \frac{\partial \, {\chi}_{\rm{ }}^{\rm{P}} \, M^{\rm{P}}}{\partial \, p} -
-   {\chi}_{\rm{ }}^{\rm{E}} \,  \frac{\partial \, M^{\rm{P}}}{\partial \, p} -
-
-   M^{\rm{P}} \, \frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, p}
+     {\chi}_{\mathrm{ }}^{\mathrm{E'}}}}{\partial \, z} =
+   \frac{\partial \, {\chi}_{\mathrm{ }}^{\mathrm{P}} \,
+   M^{\mathrm{P}}}{\partial \, p} -
+   {\chi}_{\mathrm{ }}^{\mathrm{E}} \,  \frac{\partial \,
+   M^{\mathrm{P}}}{\partial \, p} -
+   M^{\mathrm{P}} \, \frac{\partial \, {\chi}_{\mathrm{
+   }}^{\mathrm{E}}}{\partial \, p}
 
 The bulk cloud model plume equations for mass and :math:`{\chi}` are:
 
 .. math:: :label: eq:dbydpmassflux
 
-   - \frac{\partial \, M^{\rm{P}}}{\partial \, p}  =
-   \left({ \varepsilon \, M^{\rm{P}} - \mu \, M^{\rm{P}} - \delta \, M^{\rm{P}}
-   } \right)
+   - \frac{\partial \, M^{\mathrm{P}}}{\partial \, p}  =
+   \left({ \varepsilon \, M^{\mathrm{P}} - \mu \, M^{\mathrm{P}} - \delta \,
+   M^{\mathrm{P}} } \right)
 
 .. math:: :label: eq:dbydpmfchi
 
-   - \frac{\partial \, {\chi}_{\rm{ }}^{\rm{P}} \, M^{\rm{P}}}{\partial \, p}
-     =  \left({
-   \varepsilon \, M^{\rm{P}} \, {\chi}_{\rm{ }}^{\rm{E}}
-   - \mu \, M^{\rm{P}} \, {\chi}_{\rm{ }}^{\rm{R}} - \delta \, M^{\rm{P}} \,
-     {\chi}_{\rm{ }}^{\rm{P}}
+   - \frac{\partial \, {\chi}_{\mathrm{ }}^{\mathrm{P}} \,
+     M^{\mathrm{P}}}{\partial \, p}  =  \left({
+   \varepsilon \, M^{\mathrm{P}} \, {\chi}_{\mathrm{ }}^{\mathrm{E}}
+   - \mu \, M^{\mathrm{P}} \, {\chi}_{\mathrm{ }}^{\mathrm{R}} - \delta \,
+     M^{\mathrm{P}} \, {\chi}_{\mathrm{ }}^{\mathrm{P}}
    } \right)
-
 
 Equations :eq:`eq:eddyflux`,
 :eq:`eq:dbydpmassflux` and
@@ -3485,22 +3499,25 @@ Equations :eq:`eq:eddyflux`,
 
 .. math:: :label: eq:chimassflux
 
-   {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} =
-   - M^{\rm{P}} \, \frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, p}
-   + \mu \, M^{\rm{P}} \, \left({ {\chi}_{\rm{ }}^{\rm{R}} - {\chi}_{\rm{ }}^{\rm{E}} } \right)
-   + \delta \, M^{\rm{P}} \, \left({ {\chi}_{\rm{ }}^{\rm{P}} - {\chi}_{\rm{ }}^{\rm{E}} } \right)
+   {\frac{\partial \, {\chi}_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv}} =
+   - M^{\mathrm{P}} \, \frac{\partial \, {\chi}_{\mathrm{
+     }}^{\mathrm{E}}}{\partial \, p}
+   + \mu \, M^{\mathrm{P}} \, \left({ {\chi}_{\mathrm{ }}^{\mathrm{R}} - {\chi}_{\mathrm{ }}^{\mathrm{E}} } \right)
+   + \delta \, M^{\mathrm{P}} \, \left({ {\chi}_{\mathrm{ }}^{\mathrm{P}} - {\chi}_{\mathrm{ }}^{\mathrm{E}} } \right)
 
-while :math:`{\chi}_{\rm{}}^{\rm{P}}` is obtained from the vertical
+while :math:`{\chi}_{\mathrm{}}^{\mathrm{P}}` is obtained from the vertical
 gradient derived by combining :eq:`eq:dbydpmassflux`
 and :eq:`eq:dbydpmfchi` :
 
 .. math:: :label: eq:gradchipar
 
-   M^{\rm{P}} \, \frac{\partial \, {\chi}_{\rm{ }}^{\rm{P}}}{\partial \, p} =
-   \varepsilon \, M^{\rm{P}} \, \left({ {\chi}_{\rm{ }}^{\rm{P}} - {\chi}_{\rm{
-   }}^{\rm{E}} } \right)-
-   \mu         \, M^{\rm{P}} \, \left({ {\chi}_{\rm{ }}^{\rm{P}} - {\chi}_{\rm{
-   }}^{\rm{R}} } \right)
+   M^{\mathrm{P}} \, \frac{\partial \, {\chi}_{\mathrm{
+   }}^{\mathrm{P}}}{\partial \, p} =
+   \varepsilon \, M^{\mathrm{P}} \, \left({ {\chi}_{\mathrm{ }}^{\mathrm{P}} -
+   {\chi}_{\mathrm{ }}^{\mathrm{E}} } \right)-
+   \mu         \, M^{\mathrm{P}} \, \left({ {\chi}_{\mathrm{ }}^{\mathrm{P}} -
+   {\chi}_{\mathrm{ }}^{\mathrm{R}} } \right)
 
 Within the model, eqn :eq:`eq:chimassflux` would take
 a discretized form which actually depends upon whether the model level,
@@ -3512,28 +3529,29 @@ discretized form of :eq:`eq:chimassflux`, setting
 
 .. math:: :label: eq:chidisck
 
-   {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv, \,
-   k}}  =  m_{\rm{k+1/2}} \,
-   \frac{ \left({{\chi}_{\rm{k+1}}^{\rm{E}} - {\chi}_{\rm{k}}^{\rm{E}}} \right)}
-   {{\Delta z}_{\rm{k \, \rightarrow \, k+1}}}
-   + {\delta}_{\rm{k}} \, m_{\rm{k}} \, \left({ {\chi}_{\rm{k}}^{\rm{P}} - {\chi}_{\rm{k}}^{\rm{E}} } \right)
-   \qquad \ldots \; \mbox{for k $>$ cb}
+   {\frac{\partial \, {\chi}_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv, \, k}}  =  m_{\mathrm{k+1/2}} \,
+   \frac{ \left({{\chi}_{\mathrm{k+1}}^{\mathrm{E}} -
+   {\chi}_{\mathrm{k}}^{\mathrm{E}}} \right)}
+   {{\Delta z}_{\mathrm{k \, \rightarrow \, k+1}}}
+   + {\delta}_{\mathrm{k}} \, m_{\mathrm{k}} \, \left({ {\chi}_{\mathrm{k}}^{\mathrm{P}} - {\chi}_{\mathrm{k}}^{\mathrm{E}} } \right)
+   \qquad \ldots \; \mathrm{for k $>$ cb}
 
 .. math:: :label: eq:chidisccb
 
-   {\frac{\partial \, {\chi}_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv, \,
-   cb}}  =  m_{\rm{cb+1/2}} \,
-   \frac{ \left({{\chi}_{\rm{cb+1}}^{\rm{E}} - {\chi}_{\rm{cb}}^{\rm{E}}}
-   \right)}
-   {{\Delta z}_{\rm{cb \, \rightarrow \, cb+1}}}
-   - m_{\rm{cb}} \,
-   \left({ {\chi}_{\rm{i,cb}}^{\rm{P}} - {\chi}_{\rm{cb}}^{\rm{E}} } \right)
+   {\frac{\partial \, {\chi}_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv, \, cb}}  =  m_{\mathrm{cb+1/2}} \,
+   \frac{ \left({{\chi}_{\mathrm{cb+1}}^{\mathrm{E}} -
+   {\chi}_{\mathrm{cb}}^{\mathrm{E}}} \right)}
+   {{\Delta z}_{\mathrm{cb \, \rightarrow \, cb+1}}}
+   - m_{\mathrm{cb}} \,
+   \left({ {\chi}_{\mathrm{i,cb}}^{\mathrm{P}} -
+   {\chi}_{\mathrm{cb}}^{\mathrm{E}} } \right)
 
-
-where the initial parcel value :math:`{\chi}_{\rm{i,cb}}^{\rm{P}}` may
+where the initial parcel value :math:`{\chi}_{\mathrm{i,cb}}^{\mathrm{P}}` may
 be chosen to produce a fixed increment or place a closure condition on
-the cloud base flux. In fact, the convection equations (see ) differ
-from :eq:`eq:chidisck` and
+the cloud base flux. In fact, the convection equations (see ``:umdp:027``)
+differ from :eq:`eq:chidisck` and
 :eq:`eq:chidisccb` because a different discretization is
 used, but the principle is unaltered.
 
@@ -3541,27 +3559,26 @@ The model convection variables are NOT conserved under moist adiabatic
 processes because precipitation processes deplete the column moisture
 and condensation processes affect the temperature, specific humidity and
 cloud condensate variables. Surprisingly, however, the form of
-eqn :eq:`eq:chimassflux` is retained even though the
+eqn :eq:`eq:chimassflux` is retained even though the
 basic equation :eq:`eq:chibasic` acquires additional
 terms for temperature and specific humidity:
 
 .. math:: :label: eq:defineq1
 
-   {\frac{\partial \, T_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} = Q1
-   \equiv
-   \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{par}}
+   {\frac{\partial \, T_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv}} = Q1  \equiv
+   \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\mathrm{par}}
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-     T_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
+     T_{\mathrm{ }}^{\mathrm{E'}}}}{\partial \, z}
 
 .. math:: :label: eq:defineq2
 
-   {\frac{\partial \, q_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}} = Q2
-   \equiv  - {\overline{Q}}_{\rm{par}}
+   {\frac{\partial \, q_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv}} = Q2  \equiv  - {\overline{Q}}_{\mathrm{par}}
    - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-     q_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
+     q_{\mathrm{ }}^{\mathrm{E'}}}}{\partial \, z}
 
-
-where :math:`{\overline{Q}}_{\rm{par}}` is the rate of condensation
+where :math:`{\overline{Q}}_{\mathrm{par}}` is the rate of condensation
 which occurs in the ascending plumes.
 
 The reason that :eq:`eq:defineq1` and
@@ -3574,63 +3591,66 @@ gradient equations based upon :eq:`eq:gradchipar`
 
 .. math:: :label: eq:gradtpar
 
-   M^{\rm{P}} \, \frac{\partial \, T_{\rm{ }}^{\rm{P}}}{\partial \, p}  =
-   \varepsilon \, M^{\rm{P}} \, \left({ T_{\rm{ }}^{\rm{P}} - T_{\rm{
-   }}^{\rm{E}} } \right)-
-   \mu         \, M^{\rm{P}} \, \left({ T_{\rm{ }}^{\rm{P}} - T_{\rm{
-   }}^{\rm{R}} } \right)-
-   \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{par}}
+   M^{\mathrm{P}} \, \frac{\partial \, T_{\mathrm{ }}^{\mathrm{P}}}{\partial \,
+   p}  =
+   \varepsilon \, M^{\mathrm{P}} \, \left({ T_{\mathrm{ }}^{\mathrm{P}} -
+   T_{\mathrm{ }}^{\mathrm{E}} } \right)-
+   \mu         \, M^{\mathrm{P}} \, \left({ T_{\mathrm{ }}^{\mathrm{P}} -
+   T_{\mathrm{ }}^{\mathrm{R}} } \right)-
+   \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\mathrm{par}}
 
 .. math:: :label: eq:gradqpar
 
-   M^{\rm{P}} \, \frac{\partial \, q_{\rm{ }}^{\rm{P}}}{\partial \, p}  =
-   \varepsilon \, M^{\rm{P}} \, \left({ q_{\rm{ }}^{\rm{P}} - q_{\rm{
-   }}^{\rm{E}} } \right)-
-   \mu         \, M^{\rm{P}} \, \left({ q_{\rm{ }}^{\rm{P}} - q_{\rm{
-   }}^{\rm{R}} } \right)+
-   {\overline{Q}}_{\rm{par}}
+   M^{\mathrm{P}} \, \frac{\partial \, q_{\mathrm{ }}^{\mathrm{P}}}{\partial \,
+   p}  =
+   \varepsilon \, M^{\mathrm{P}} \, \left({ q_{\mathrm{ }}^{\mathrm{P}} -
+   q_{\mathrm{ }}^{\mathrm{E}} } \right)-
+   \mu         \, M^{\mathrm{P}} \, \left({ q_{\mathrm{ }}^{\mathrm{P}} -
+   q_{\mathrm{ }}^{\mathrm{R}} } \right)+
+   {\overline{Q}}_{\mathrm{par}}
 
 .. math:: :label: eq:gradlpar
 
-   M^{\rm{P}} \, \frac{\partial \, l_{\rm{ }}^{\rm{P}}}{\partial \, p}  =
-   \varepsilon \, M^{\rm{P}} \, \left({ l_{\rm{ }}^{\rm{P}} - l_{\rm{
-   }}^{\rm{E}} } \right)
-   - {\overline{Q}}_{\rm{par}} + PPN
+   M^{\mathrm{P}} \, \frac{\partial \, l_{\mathrm{ }}^{\mathrm{P}}}{\partial \,
+   p}  =
+   \varepsilon \, M^{\mathrm{P}} \, \left({ l_{\mathrm{ }}^{\mathrm{P}} -
+   l_{\mathrm{ }}^{\mathrm{E}} } \right)
+   - {\overline{Q}}_{\mathrm{par}} + PPN
 
-
-The final calculation of rates in the current condensation scheme (,
-section 10) assumes a further condensation term,
-:math:`{\overline{Q}}_{\rm{reset}}`, which acts to make the net rate of
+The final calculation of rates in the current condensation scheme
+(``:umdp:027``, section 10) assumes a further condensation term,
+:math:`{\overline{Q}}_{\mathrm{reset}}`, which acts to make the net rate of
 change of condensate equal zero, and a final assumption is made that the
 environment values of condensate remain zero (and also that
-:math:`l_{\rm{ }}^{\rm{R}}` = :math:`l_{\rm{ }}^{\rm{P}}`). The result
+:math:`l_{\mathrm{ }}^{\mathrm{R}}` = :math:`l_{\mathrm{ }}^{\mathrm{P}}`). The
+result
 is basic equations
 
 .. math:: :label: eq:basictold
 
-   {\frac{\partial \, T_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}}  =  Q1 -
-   \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\rm{reset}}
+   {\frac{\partial \, T_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv}}  =  Q1 -
+   \left({ \frac{L}{c_{P}} } \right)\, {\overline{Q}}_{\mathrm{reset}}
 
 .. math:: :label: eq:basicqold
 
-   {\frac{\partial \, q_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}}  =  Q2 +
-   {\overline{Q}}_{\rm{reset}}
-
-.. math::
-
-   0 \equiv {\frac{\partial \, l_{\rm{ }}^{\rm{E}}}{\partial \, t}}_{\rm{conv}}
-    =  {\overline{Q}}_{\rm{par}} -
-   {\overline{Q}}_{\rm{reset}} - PPN
-   - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-     l_{\rm{ }}^{\rm{E'}}}}{\partial \, z}
+   {\frac{\partial \, q_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv}}  =  Q2 + {\overline{Q}}_{\mathrm{reset}}
 
 .. math:: :label: eq:basiclold
 
-    =
-   \mu \, M^{\rm{P}} \, l_{\rm{ }}^{\rm{P}} + \delta \, M^{\rm{P}} \, l_{\rm{
-   }}^{\rm{P}} -
-   {\overline{Q}}_{\rm{reset}}
-
+   \begin{aligned}
+   0 \equiv {\frac{\partial \, l_{\mathrm{ }}^{\mathrm{E}}}{\partial \,
+   t}}_{\mathrm{conv}} & = & {\overline{Q}}_{\mathrm{par}} -
+   {\overline{Q}}_{\mathrm{reset}} - PPN
+   - \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
+     l_{\mathrm{ }}^{\mathrm{E'}}}}{\partial \, z}
+   \\
+   & = &
+   \mu \, M^{\mathrm{P}} \, l_{\mathrm{ }}^{\mathrm{P}} + \delta \,
+   M^{\mathrm{P}} \, l_{\mathrm{ }}^{\mathrm{P}} -
+   {\overline{Q}}_{\mathrm{reset}}
+   \end{aligned}
 
 By analogy with equations :eq:`eq:defineq1` and
 :eq:`eq:defineq2`, we can define a :math:`Q4` from
@@ -3652,30 +3672,31 @@ Define
 
 .. math:: :label: eq:defineq4l
 
-   \left({ \frac{\partial \, l_{\rm{l}}^{\rm{ }}}{\partial \, t} }
-   \right)_{\rm{conv}} = Q4_{\rm{l}}  \equiv
-   {\overline{Q}}_{\rm{l, par}} - {\overline{Q}}_{\rm{l, reset}} - RAIN -
+   \left({ \frac{\partial \, l_{\mathrm{l}}^{\mathrm{ }}}{\partial \, t} }
+   \right)_{\mathrm{conv}} = Q4_{\mathrm{l}}  \equiv
+   {\overline{Q}}_{\mathrm{l, par}} - {\overline{Q}}_{\mathrm{l, reset}} - RAIN
+   -
    \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-   l_{\rm{l}}^{\rm{'}}}}{\partial \, z}
+   l_{\mathrm{l}}^{\mathrm{'}}}}{\partial \, z}
 
 .. math:: :label: eq:defineq4f
 
-   \left({ \frac{\partial \, l_{\rm{f}}^{\rm{ }}}{\partial \, t} }
-   \right)_{\rm{conv}} = Q4_{\rm{f}}  \equiv
-   {\overline{Q}}_{\rm{f, par}} - {\overline{Q}}_{\rm{f, reset}} - SNOW -
+   \left({ \frac{\partial \, l_{\mathrm{f}}^{\mathrm{ }}}{\partial \, t} }
+   \right)_{\mathrm{conv}} = Q4_{\mathrm{f}}  \equiv
+   {\overline{Q}}_{\mathrm{f, par}} - {\overline{Q}}_{\mathrm{f, reset}} - SNOW
+   -
    \frac{1}{\overline{\rho}} \, \frac{\partial \, \overline{\rho w^{'}
-   l_{\rm{f}}^{\rm{'}}}}{\partial \, z}
-
+   l_{\mathrm{f}}^{\mathrm{'}}}}{\partial \, z}
 
 where the PC2 assumption thus far has been that
-:math:`{\overline{Q}}_{\rm{l, reset}} = 0
-= {\overline{Q}}_{\rm{f, reset}}`.
+:math:`{\overline{Q}}_{\mathrm{l, reset}} = 0
+= {\overline{Q}}_{\mathrm{f, reset}}`.
 
 - The current convection scheme assumes that parcel condensate is single
   phase (ie. either all liquid or all frozen) and this is seriously
   hard-wired into the code. Thus we can treat the precipitation and
-  parcel condensation processes in :math:`Q4_{\rm{l}}` and
-  :math:`Q4_{\rm{f}}` separately without worrying about cross-transfer
+  parcel condensation processes in :math:`Q4_{\mathrm{l}}` and
+  :math:`Q4_{\mathrm{f}}` separately without worrying about cross-transfer
   between the two because at most only one set will ever be active in a
   given grid box at one time. However, even for the inactive (zero
   parcel condensate) phase, convection mixes environmental air into the
@@ -3689,70 +3710,73 @@ condensate is calculated as
 
 .. math:: :label: eq:vertparl
 
-   \frac{\partial \, l_{\rm{l}}^{\rm{P}}}{\partial \, p}  =  \varepsilon \,
-   \left({ l_{\rm{l}}^{\rm{P}} - l_{\rm{l}}^{\rm{E}} } \right)-
-   \frac{{\overline{Q}}_{\rm{l, par}}}{M^{\rm{P}}} -
-   \frac{RAIN}{M^{\rm{P}}}
+   \frac{\partial \, l_{\mathrm{l}}^{\mathrm{P}}}{\partial \, p}  =
+   \varepsilon \,
+   \left({ l_{\mathrm{l}}^{\mathrm{P}} - l_{\mathrm{l}}^{\mathrm{E}} } \right)-
+   \frac{{\overline{Q}}_{\mathrm{l, par}}}{M^{\mathrm{P}}} -
+   \frac{RAIN}{M^{\mathrm{P}}}
 
 .. math:: :label: eq:vertparf
 
-   \frac{\partial \, l_{\rm{f}}^{\rm{P}}}{\partial \, p}  =  \varepsilon \,
-   \left({ l_{\rm{f}}^{\rm{P}} - l_{\rm{f}}^{\rm{E}} } \right)-
-   \frac{{\overline{Q}}_{\rm{f, par}}}{M^{\rm{P}}} -
-   \frac{SNOW}{M^{\rm{P}}}
+   \frac{\partial \, l_{\mathrm{f}}^{\mathrm{P}}}{\partial \, p}  =
+   \varepsilon \,
+   \left({ l_{\mathrm{f}}^{\mathrm{P}} - l_{\mathrm{f}}^{\mathrm{E}} } \right)-
+   \frac{{\overline{Q}}_{\mathrm{f, par}}}{M^{\mathrm{P}}} -
+   \frac{SNOW}{M^{\mathrm{P}}}
 
-
-Following , equations :eq:`eq:dbydpmassflux`,
+Following ``:umdp:027``, equations
+:eq:`eq:dbydpmassflux`,
 :eq:`eq:vertparl` and :eq:`eq:vertparf`
 are discretized:
 
 .. math:: :label: eq:discdmfbydp
 
-   M_{\rm{k} + 1}  =  M_{\rm{k}} \,
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)\,
-   \left({ 1 - \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)\,
-   EPSS_{\rm{k}}
-
-.. math::
-
-   l_{\rm{l \, k + 1}}^{\rm{P}}  =  \left({
-   l_{\rm{l \, k}}^{\rm{P}} +
-   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, l_{\rm{l \,
-   k}}^{\rm{E}} +
-   \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
-   \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}}
-   \right]\,
-   l_{\rm{l \, k + 1}}^{\rm{E}}
-   } \right)\, / \, \left({EPSS_{\rm{k}}} \right)
+   M_{\mathrm{k} + 1}  =  M_{\mathrm{k}} \,
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)\,
+   \left({ 1 - \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)\,
+   EPSS_{\mathrm{k}}
 
 .. math:: :label: eq:discvparl
 
-   { }  { }  + \left({ {\overline{Q}}_{\rm{l} \, \rm{k} + 1} \, / \, M_{\rm{k}
-   + 1}} \right)
-   - \left({ RAIN_{\rm{k} + 1} \, / \, M_{\rm{k} + 1} } \right)
-
-.. math::
-
-   l_{\rm{f \, k + 1}}^{\rm{P}}  =  \left({
-   l_{\rm{f \, k}}^{\rm{P}} +
-   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, l_{\rm{f \,
-   k}}^{\rm{E}} +
-   \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
-   \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}}
-   \right]\,
-   l_{\rm{f \, k + 1}}^{\rm{E}}
-   } \right)\, / \, \left({EPSS_{\rm{k}}} \right)
+   \begin{aligned}
+   l_{\mathrm{l \, k + 1}}^{\mathrm{P}} & = & \left({
+   l_{\mathrm{l \, k}}^{\mathrm{P}} +
+   \varepsilon_{\mathrm{k} + 1/4} \, \Delta p_{\mathrm{k} + 1/4} \,
+   l_{\mathrm{l \, k}}^{\mathrm{E}} +
+   \varepsilon_{\mathrm{k} + 3/4} \, \Delta p_{\mathrm{k} + 3/4} \,
+   \left[{1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 /
+   4}} \right]\,
+   l_{\mathrm{l \, k + 1}}^{\mathrm{E}}
+   } \right)\, / \, \left({EPSS_{\mathrm{k}}} \right)
+   \\
+   { } & { } & + \left({ {\overline{Q}}_{\mathrm{l} \, \mathrm{k} + 1} \, / \,
+   M_{\mathrm{k} + 1}} \right)
+   - \left({ RAIN_{\mathrm{k} + 1} \, / \, M_{\mathrm{k} + 1} } \right)
+   \end{aligned}
 
 .. math:: :label: eq:discvparf
 
-   { }  { }  + \left({ {\overline{Q}}_{\rm{f} \, \rm{k} + 1} \, / \, M_{\rm{k}
-   + 1}} \right)
-   - \left({ SNOW_{\rm{k} + 1} \, / \, M_{\rm{k} + 1} } \right)
+   \begin{aligned}
+   l_{\mathrm{f \, k + 1}}^{\mathrm{P}} & = & \left({
+   l_{\mathrm{f \, k}}^{\mathrm{P}} +
+   \varepsilon_{\mathrm{k} + 1/4} \, \Delta p_{\mathrm{k} + 1/4} \,
+   l_{\mathrm{f \, k}}^{\mathrm{E}} +
+   \varepsilon_{\mathrm{k} + 3/4} \, \Delta p_{\mathrm{k} + 3/4} \,
+   \left[{1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 /
+   4}} \right]\,
+   l_{\mathrm{f \, k + 1}}^{\mathrm{E}}
+   } \right)\, / \, \left({EPSS_{\mathrm{k}}} \right)
+   \\
+   { } & { } & + \left({ {\overline{Q}}_{\mathrm{f} \, \mathrm{k} + 1} \, / \,
+   M_{\mathrm{k} + 1}} \right)
+   - \left({ SNOW_{\mathrm{k} + 1} \, / \, M_{\mathrm{k} + 1} } \right)
+   \end{aligned}
 
-
-where :math:`EPSS_{\rm{k}} =
-\left({1 + \varepsilon_{\rm{k} + 3 / 4} \, \Delta p_{\rm{k} + 3 / 4}} \right)\,
-\left({1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}} \right)`.
+where :math:`EPSS_{\mathrm{k}} =
+\left({1 + \varepsilon_{\mathrm{k} + 3 / 4} \, \Delta p_{\mathrm{k} + 3 / 4}}
+\right)\,
+\left({1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 / 4}}
+\right)`.
 
 The condensation and precipitation terms in equations
 :eq:`eq:discdmfbydp`,
@@ -3763,50 +3787,51 @@ precipitation terms are suppressed:
 
 .. math:: :label: eq:discvparldry
 
-   l_{\rm{l \, k + 1}}^{\rm{P}}  =  \frac{\left({
-   l_{\rm{l \, k}}^{\rm{P}} +
-   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, l_{\rm{l \,
-   k}}^{\rm{E}} +
-   \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
-   \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}}
-   \right]\,
-   l_{\rm{l \, k + 1}}^{\rm{E}}
-   } \right)}{EPSS_{\rm{k}}}
+   l_{\mathrm{l \, k + 1}}^{\mathrm{P}}  =  \frac{\left({
+   l_{\mathrm{l \, k}}^{\mathrm{P}} +
+   \varepsilon_{\mathrm{k} + 1/4} \, \Delta p_{\mathrm{k} + 1/4} \,
+   l_{\mathrm{l \, k}}^{\mathrm{E}} +
+   \varepsilon_{\mathrm{k} + 3/4} \, \Delta p_{\mathrm{k} + 3/4} \,
+   \left[{1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 /
+   4}} \right]\,
+   l_{\mathrm{l \, k + 1}}^{\mathrm{E}}
+   } \right)}{EPSS_{\mathrm{k}}}
 
 .. math:: :label: eq:discvparfdry
 
-   l_{\rm{f \, k + 1}}^{\rm{P}}  =  \frac{\left({
-   l_{\rm{f \, k}}^{\rm{P}} +
-   \varepsilon_{\rm{k} + 1/4} \, \Delta p_{\rm{k} + 1/4} \, l_{\rm{f \,
-   k}}^{\rm{E}} +
-   \varepsilon_{\rm{k} + 3/4} \, \Delta p_{\rm{k} + 3/4} \,
-   \left[{1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4}}
-   \right]\,
-   l_{\rm{f \, k + 1}}^{\rm{E}}
-   } \right)}{EPSS_{\rm{k}}}
-
+   l_{\mathrm{f \, k + 1}}^{\mathrm{P}}  =  \frac{\left({
+   l_{\mathrm{f \, k}}^{\mathrm{P}} +
+   \varepsilon_{\mathrm{k} + 1/4} \, \Delta p_{\mathrm{k} + 1/4} \,
+   l_{\mathrm{f \, k}}^{\mathrm{E}} +
+   \varepsilon_{\mathrm{k} + 3/4} \, \Delta p_{\mathrm{k} + 3/4} \,
+   \left[{1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 /
+   4}} \right]\,
+   l_{\mathrm{f \, k + 1}}^{\mathrm{E}}
+   } \right)}{EPSS_{\mathrm{k}}}
 
 At the base of the convective plume (ie. the level immediately above
-cloud base), :math:`l_{\rm{l \, k}}^{\rm{P}}` is initialized to
-:math:`l_{\rm{l \, i}}^{\rm{P}}` and :math:`l_{\rm{f \, k}}^{\rm{P}}` to
-:math:`l_{\rm{f \, i}}^{\rm{P}}`, where the initial values are chosen
+cloud base), :math:`l_{\mathrm{l \, k}}^{\mathrm{P}}` is initialized to
+:math:`l_{\mathrm{l \, i}}^{\mathrm{P}}` and :math:`l_{\mathrm{f \,
+k}}^{\mathrm{P}}` to
+:math:`l_{\mathrm{f \, i}}^{\mathrm{P}}`, where the initial values are chosen
 such that the modified form of :eq:`eq:chidisccb`
 produces zero fluxes at cloud base:
 
 .. math:: :label: eq:q4lcbi
 
-   Q4_{\rm{l}}(cb) = 0  =  M_{\rm{cb+1/2}}^{\rm{P}} \,
-   \frac{\partial \, l_{\rm{l}}^{\rm{E}}}{\partial \, p}  -
-   M_{\rm{cb}}^{\rm{P}}\,
-   \left({ l_{\rm{l}}^{\rm{P \, i}} - l_{\rm{l}}^{\rm{E}}(\rm{cb}) } \right)
+   Q4_{\mathrm{l}}(cb) = 0  =  M_{\mathrm{cb+1/2}}^{\mathrm{P}} \,
+   \frac{\partial \, l_{\mathrm{l}}^{\mathrm{E}}}{\partial \, p}  -
+   M_{\mathrm{cb}}^{\mathrm{P}}\,
+   \left({ l_{\mathrm{l}}^{\mathrm{P \, i}} -
+   l_{\mathrm{l}}^{\mathrm{E}}(\mathrm{cb}) } \right)
 
 .. math:: :label: eq:q4fcbi
 
-   Q4_{\rm{f}}(cb) = 0  =  M_{\rm{cb+1/2}}^{\rm{P}} \,
-   \frac{\partial \, l_{\rm{f}}^{\rm{E}}}{\partial \, p}  -
-   M_{\rm{cb}}^{\rm{P}}\,
-   \left({ l_{\rm{f}}^{\rm{P \, i}} - l_{\rm{f}}^{\rm{E}}(\rm{cb}) } \right)
-
+   Q4_{\mathrm{f}}(cb) = 0  =  M_{\mathrm{cb+1/2}}^{\mathrm{P}} \,
+   \frac{\partial \, l_{\mathrm{f}}^{\mathrm{E}}}{\partial \, p}  -
+   M_{\mathrm{cb}}^{\mathrm{P}}\,
+   \left({ l_{\mathrm{f}}^{\mathrm{P \, i}} -
+   l_{\mathrm{f}}^{\mathrm{E}}(\mathrm{cb}) } \right)
 
 As the convection scheme makes the single phase assumption for parcel
 condensate, it may be necessary to melt or freeze entrained condensate
@@ -3814,26 +3839,26 @@ at this point and adjust the temperature accordingly.
 
 .. math:: :label: eqn:meltlf
 
-   \theta_{\rm{k + 1}}^{\rm{P}} = \theta_{\rm{k + 1}}^{\rm{P}} -
-   \left(\frac{L_{\rm{F}}}{C_{p} \, \Pi_{\rm{k + 1}}} \right)\, l_{\rm{f \, k +
-   1}}^{\rm{P}}
-    \; \ldots \;  \mbox{ if l_{\rm{f \, k + 1}}^{\rm{P}} is melted }
+   \theta_{\mathrm{k + 1}}^{\mathrm{P}} = \theta_{\mathrm{k + 1}}^{\mathrm{P}} -
+   \left(\frac{L_{\mathrm{F}}}{C_{p} \, \Pi_{\mathrm{k + 1}}} \right)\,
+   l_{\mathrm{f \, k + 1}}^{\mathrm{P}}
+    \; \ldots \;  \mbox{ if l_{\mathrm{f \, k + 1}}^{\mathrm{P}} is melted }
 
 .. math:: :label: eqn:freezell
 
-   \theta_{\rm{k + 1}}^{\rm{P}} = \theta_{\rm{k + 1}}^{\rm{P}} +
-   \left(\frac{L_{\rm{F}}}{C_{p} \, \Pi_{\rm{k + 1}}} \right)\, l_{\rm{l \, k +
-   1}}^{\rm{P}}
-    \; \ldots \;  \mbox{ if l_{\rm{l \, k + 1}}^{\rm{P}} is frozen }
-
+   \theta_{\mathrm{k + 1}}^{\mathrm{P}} = \theta_{\mathrm{k + 1}}^{\mathrm{P}} +
+   \left(\frac{L_{\mathrm{F}}}{C_{p} \, \Pi_{\mathrm{k + 1}}} \right)\,
+   l_{\mathrm{l \, k + 1}}^{\mathrm{P}}
+    \; \ldots \;  \mbox{ if l_{\mathrm{l \, k + 1}}^{\mathrm{P}} is frozen }
 
 Once a final value for the condensation term
-:math:`{\overline{Q}}_{\rm{x} \, \rm{k} + 1} \, / \, M_{\rm{k} + 1}` has
+:math:`{\overline{Q}}_{\mathrm{x} \, \mathrm{k} + 1} \, / \, M_{\mathrm{k} +
+1}` has
 been calculated from the parcel specific humidity equations, it can then
 be added to the parcel condensate to give a final pre-precipitation
 value.
 
-- In practice, the rates :math:`{\overline{Q}}_{\rm{x} \, \rm{k} + 1}`
+- In practice, the rates :math:`{\overline{Q}}_{\mathrm{x} \, \mathrm{k} + 1}`
   and :math:`PPN` are not calculated explicitly in the code. Instead,
   their effect is applied directly as increments to the temperature and
   moisture fields.
@@ -3842,13 +3867,13 @@ The precipitation calculation is unaltered.
 
 .. math:: :label: eq:precip
 
-   P_{\rm{k} + 1} = \left({ l_{\rm{k + 1}}^{\rm{P}} - l_{\rm{MIN}}^{\rm{P}} }
-   \right)\,
-   M_{\rm{k} + 1} \, / \, g
+   P_{\mathrm{k} + 1} = \left({ l_{\mathrm{k + 1}}^{\mathrm{P}} -
+   l_{\mathrm{MIN}}^{\mathrm{P}} } \right)\,
+   M_{\mathrm{k} + 1} \, / \, g
 
-where :math:`l_{\rm{k + 1}}^{\rm{P}}` =
-:math:`l_{\rm{l \, k + 1}}^{\rm{P}}` +
-:math:`l_{\rm{f \, k + 1}}^{\rm{P}}`.
+where :math:`l_{\mathrm{k + 1}}^{\mathrm{P}}` =
+:math:`l_{\mathrm{l \, k + 1}}^{\mathrm{P}}` +
+:math:`l_{\mathrm{f \, k + 1}}^{\mathrm{P}}`.
 
 - Actually, given that the precipitation calculation appears to be based
   upon the hydrostatic equation, it is debatable whether it is even
@@ -3859,159 +3884,157 @@ This reduces the parcel condensate to :
 
 .. math:: :label: eq:vparlfinal
 
-   l_{\rm{l \, k + 1}}^{\rm{P}}  =  \left({
-   \frac{l_{\rm{l \, k + 1}}^{\rm{P}}}{l_{\rm{k + 1}}^{\rm{P}}}
-   } \right)\, l_{\rm{MIN}}^{\rm{P}}
+   l_{\mathrm{l \, k + 1}}^{\mathrm{P}}  =  \left({
+   \frac{l_{\mathrm{l \, k + 1}}^{\mathrm{P}}}{l_{\mathrm{k + 1}}^{\mathrm{P}}}
+   } \right)\, l_{\mathrm{MIN}}^{\mathrm{P}}
 
 .. math:: :label: eq:vparffinal
 
-   l_{\rm{f \, k + 1}}^{\rm{P}}  =  \left({
-   \frac{l_{\rm{f \, k + 1}}^{\rm{P}}}{l_{\rm{k + 1}}^{\rm{P}}}
-   } \right)\, l_{\rm{MIN}}^{\rm{P}}
-
+   l_{\mathrm{f \, k + 1}}^{\mathrm{P}}  =  \left({
+   \frac{l_{\mathrm{f \, k + 1}}^{\mathrm{P}}}{l_{\mathrm{k + 1}}^{\mathrm{P}}}
+   } \right)\, l_{\mathrm{MIN}}^{\mathrm{P}}
 
 The final parcel condensate values are then used in the rate calculation
-based upon eqn :eq:`eq:basiclold`:
+based upon eqn :eq:`eq:basiclold`:
 
 .. math:: :label: eq:q4lmassf
 
-   Q4_{\rm{l}}(k)  =   M_{\rm{k+1/2}}^{\rm{P}} \, \frac{\partial \,
-   l_{\rm{l}}^{\rm{E}}}{\partial \, p}   +
-   \left({ {\mu}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} +
-   {\delta}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} } \right)\,
-   \left({ l_{\rm{l}}^{\rm{P}}(\rm{k}) - l_{\rm{l}}^{\rm{E}}(\rm{k}) } \right)-
-   {\overline{Q}}_{\rm{l, reset}}
+   Q4_{\mathrm{l}}(k)  =   M_{\mathrm{k+1/2}}^{\mathrm{P}} \, \frac{\partial \,
+   l_{\mathrm{l}}^{\mathrm{E}}}{\partial \, p}   +
+   \left({ {\mu}_{\mathrm{k}} \, M_{\mathrm{k}}^{\mathrm{P}} +
+   {\delta}_{\mathrm{k}} \, M_{\mathrm{k}}^{\mathrm{P}} } \right)\,
+   \left({ l_{\mathrm{l}}^{\mathrm{P}}(\mathrm{k}) -
+   l_{\mathrm{l}}^{\mathrm{E}}(\mathrm{k}) } \right)-
+   {\overline{Q}}_{\mathrm{l, reset}}
 
 .. math:: :label: eq:q4fmassf
 
-   Q4_{\rm{f}}(k)  =   M_{\rm{k+1/2}}^{\rm{P}} \, \frac{\partial \,
-   l_{\rm{f}}^{\rm{E}}}{\partial \, p}  +
-   \left({ {\mu}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} +
-   {\delta}_{\rm{k}} \, M_{\rm{k}}^{\rm{P}} } \right)\,
-   \left({ l_{\rm{f}}^{\rm{P}}(\rm{k}) - l_{\rm{f}}^{\rm{E}}(\rm{k}) } \right)-
-   {\overline{Q}}_{\rm{f, reset}}
+   Q4_{\mathrm{f}}(k)  =   M_{\mathrm{k+1/2}}^{\mathrm{P}} \, \frac{\partial \,
+   l_{\mathrm{f}}^{\mathrm{E}}}{\partial \, p}  +
+   \left({ {\mu}_{\mathrm{k}} \, M_{\mathrm{k}}^{\mathrm{P}} +
+   {\delta}_{\mathrm{k}} \, M_{\mathrm{k}}^{\mathrm{P}} } \right)\,
+   \left({ l_{\mathrm{f}}^{\mathrm{P}}(\mathrm{k}) -
+   l_{\mathrm{f}}^{\mathrm{E}}(\mathrm{k}) } \right)-
+   {\overline{Q}}_{\mathrm{f, reset}}
 
-
-Note that, as a side-effect, the environment equations for potential
-temperature and specific humidity are also altered because the
+Note that, as a side-effect, the ``:umdp:027`` environment equations for
+potential temperature and specific humidity are also altered because the
 condensate is no longer re-evaporated at the end
-(:math:`{\overline{Q}}_{\rm{l, reset}} = 0
-= {\overline{Q}}_{\rm{f, reset}}`):
-
-.. math::
-
-   \frac{\Delta \, \theta_{\rm{k}}^{\rm{E}}}{\Delta \, t} =
-   \left(\frac{ M_{\rm{k}} }{ \Delta \, p_{\rm{k}} } \right)
-   \left[{
-   \left({ 1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4} }
-   \right)
-   \left({ 1 - \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \theta_{\rm{k + 1}}^{\rm{E}} - \theta_{\rm{k}}^{\rm{E}} } \right)
-   } \right .  +
-
-.. math::
-
-   \left({ \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \theta_{\rm{k}}^{\rm{R}} - \theta_{\rm{k}}^{\rm{E}} } \right)
-    +
+(:math:`{\overline{Q}}_{\mathrm{l, reset}} = 0
+= {\overline{Q}}_{\mathrm{f, reset}}`):
 
 .. math:: :label: eq:enviroth
 
+   \begin{aligned}
+   \frac{\Delta \, \theta_{\mathrm{k}}^{\mathrm{E}}}{\Delta \, t} =
+   \left(\frac{ M_{\mathrm{k}} }{ \Delta \, p_{\mathrm{k}} } \right)
+   \left[{
+   \left({ 1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 /
+   4} } \right)
+   \left({ 1 - \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ \theta_{\mathrm{k + 1}}^{\mathrm{E}} -
+   \theta_{\mathrm{k}}^{\mathrm{E}} } \right)
+   } \right . & + &
+   \\
+   \left({ \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ \theta_{\mathrm{k}}^{\mathrm{R}} - \theta_{\mathrm{k}}^{\mathrm{E}}
+   } \right)
+   & + &
+   \\
    \left . {
-   \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ \theta_{\rm{k}}^{\rm{P}} - \theta_{\rm{k}}^{\rm{E}} } \right)
-   } \right] { }
-
+   \left({ \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ \theta_{\mathrm{k}}^{\mathrm{P}} - \theta_{\mathrm{k}}^{\mathrm{E}}
+   } \right)
+   } \right]& { } &
+   \end{aligned}
 
 and
 
-.. math::
-
-   \frac{\Delta \, q_{\rm{k}}^{\rm{E}}}{\Delta \, t} =
-   \left(\frac{ M_{\rm{k}} }{ \Delta \, p_{\rm{k}} } \right)
-   \left[{
-   \left({ 1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4} }
-   \right)
-   \left({ 1 - \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ q_{\rm{k + 1}}^{\rm{E}} - q_{\rm{k}}^{\rm{E}} } \right)
-   } \right .  +
-
-.. math::
-
-   \left({ \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ q_{\rm{k}}^{\rm{R}} - q_{\rm{k}}^{\rm{E}} } \right)
-    +
-
 .. math:: :label: eq:enviroq
 
+   \begin{aligned}
+   \frac{\Delta \, q_{\mathrm{k}}^{\mathrm{E}}}{\Delta \, t} =
+   \left(\frac{ M_{\mathrm{k}} }{ \Delta \, p_{\mathrm{k}} } \right)
+   \left[{
+   \left({ 1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 /
+   4} } \right)
+   \left({ 1 - \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ q_{\mathrm{k + 1}}^{\mathrm{E}} - q_{\mathrm{k}}^{\mathrm{E}} }
+   \right)
+   } \right . & + &
+   \\
+   \left({ \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ q_{\mathrm{k}}^{\mathrm{R}} - q_{\mathrm{k}}^{\mathrm{E}} } \right)
+   & + &
+   \\
    \left . {
-   \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ q_{\rm{k}}^{\rm{P}} - q_{\rm{k}}^{\rm{E}} } \right)
-   } \right] { }
-
+   \left({ \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ q_{\mathrm{k}}^{\mathrm{P}} - q_{\mathrm{k}}^{\mathrm{E}} } \right)
+   } \right]& { } &
+   \end{aligned}
 
 Similarly, eqns :eq:`eq:q4lmassf` and
 :eq:`eq:q4fmassf` have a discretized form as follows:
 
-.. math::
-
-   \frac{\Delta \, l_{\rm{l \, k}}^{\rm{E}}}{\Delta \, t} =
-   \left(\frac{ M_{\rm{k}} }{ \Delta \, p_{\rm{k}} } \right)
-   \left[{
-   \left({ 1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4} }
-   \right)
-   \left({ 1 - \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ l_{\rm{l \, k + 1}}^{\rm{E}} - l_{\rm{l \, k}}^{\rm{E}} } \right)
-   } \right .  +
-
-.. math::
-
-   \left({ \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ l_{\rm{l \, k}}^{\rm{P}} - l_{\rm{l \, k}}^{\rm{E}} } \right)
-    +
-
 .. math:: :label: eq:enviroll
 
+   \begin{aligned}
+   \frac{\Delta \, l_{\mathrm{l \, k}}^{\mathrm{E}}}{\Delta \, t} =
+   \left(\frac{ M_{\mathrm{k}} }{ \Delta \, p_{\mathrm{k}} } \right)
+   \left[{
+   \left({ 1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 /
+   4} } \right)
+   \left({ 1 - \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ l_{\mathrm{l \, k + 1}}^{\mathrm{E}} - l_{\mathrm{l \,
+   k}}^{\mathrm{E}} } \right)
+   } \right . & + &
+   \\
+   \left({ \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ l_{\mathrm{l \, k}}^{\mathrm{P}} - l_{\mathrm{l \, k}}^{\mathrm{E}}
+   } \right)
+   & + &
+   \\
    \left . {
-   \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ l_{\rm{l \, k}}^{\rm{P}} - l_{\rm{l \, k}}^{\rm{E}} } \right)
-   } \right] { }
-
+   \left({ \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ l_{\mathrm{l \, k}}^{\mathrm{P}} - l_{\mathrm{l \, k}}^{\mathrm{E}}
+   } \right)
+   } \right]& { } &
+   \end{aligned}
 
 and
 
-.. math::
-
-   \frac{\Delta \, l_{\rm{f \, k}}^{\rm{E}}}{\Delta \, t} =
-   \left(\frac{ M_{\rm{k}} }{ \Delta \, p_{\rm{k}} } \right)
-   \left[{
-   \left({ 1 + \varepsilon_{\rm{k} + 1 / 4} \, \Delta p_{\rm{k} + 1 / 4} }
-   \right)
-   \left({ 1 - \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ l_{\rm{f \, k + 1}}^{\rm{E}} - l_{\rm{f \, k}}^{\rm{E}} } \right)
-   } \right .  +
-
-.. math::
-
-   \left({ \delta_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ 1 - \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ l_{\rm{f \, k}}^{\rm{P}} - l_{\rm{f \, k}}^{\rm{E}} } \right)
-    +
-
 .. math:: :label: eq:envirolf
 
+   \begin{aligned}
+   \frac{\Delta \, l_{\mathrm{f \, k}}^{\mathrm{E}}}{\Delta \, t} =
+   \left(\frac{ M_{\mathrm{k}} }{ \Delta \, p_{\mathrm{k}} } \right)
+   \left[{
+   \left({ 1 + \varepsilon_{\mathrm{k} + 1 / 4} \, \Delta p_{\mathrm{k} + 1 /
+   4} } \right)
+   \left({ 1 - \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ l_{\mathrm{f \, k + 1}}^{\mathrm{E}} - l_{\mathrm{f \,
+   k}}^{\mathrm{E}} } \right)
+   } \right . & + &
+   \\
+   \left({ \delta_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ 1 - \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ l_{\mathrm{f \, k}}^{\mathrm{P}} - l_{\mathrm{f \, k}}^{\mathrm{E}}
+   } \right)
+   & + &
+   \\
    \left . {
-   \left({ \mu_{\rm{k}} \, \Delta p_{\rm{k} + 1 / 2} } \right)
-   \left({ l_{\rm{f \, k }}^{\rm{P}} - l_{\rm{f \, k}}^{\rm{E}} } \right)
-   } \right] { }
-
+   \left({ \mu_{\mathrm{k}} \, \Delta p_{\mathrm{k} + 1 / 2} } \right)
+   \left({ l_{\mathrm{f \, k }}^{\mathrm{P}} - l_{\mathrm{f \, k}}^{\mathrm{E}}
+   } \right)
+   } \right]& { } &
+   \end{aligned}
 
 .. _sec_conv_homog:
 
@@ -4067,7 +4090,7 @@ Now we recognise that
    \Delta \overline{q} = Q2~ \Delta t
 
 where :math:`Q2` is the rate of moistening of the whole gridbox due to
-convection. Remember that, at this stage, we haven’t done any
+convection. Remember that, at this stage, we haven't done any
 condensation outside of the plume. Hence to calculate the condensation
 we should apply the background change in :math:`\overline{q}` as a
 uniform forcing for the background air. Hence
@@ -4203,7 +4226,7 @@ Homogeneous forcing of the environment by convective-subsidence pressure change
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To this end, the code includes an option to perform the homogeneous
-forcing of liquid cloud by convection using the “pressure forcing” from
+forcing of liquid cloud by convection using the "pressure forcing" from
 the convective subsidence, consistent with the pressure forcing by
 large-scale advection (see sections :ref:`Advection <sec_advec>` and
 :ref:`Response to pressure changes <sec_pres>`). This approach replaces the
@@ -4382,18 +4405,19 @@ A prognostic dust approach is implemented in the micro-physics scheme
 under large-sale-precipitation where by the heterogeneous nucleation
 temperature can be defined to vary three dimensionally globally as an
 arc-tangent function of the mineral dust distribution in the model
-(documented in ). By default, both liquid and ice are detrained
-simultaneously at the same height, and the fraction of condensate that
-is ice linearly ramps as a function of temperature. i.e. condensate is
-assumed to be all-liquid when T is greater than one tuneable threshold;
-all-ice when T is less than another tuneable threshold, and vary
-linearly in-between (the threshold values are given by starticeTkelvin
-and alliceTdegC in the UM cloud-scheme namelist. The new heterogeneous
-nucleation temperatures calculated in the large-scale-precipitation are
-passed to the convection scheme and are used as the above detrainment
-temperature thresholds by maintaining a similar linear ramp. For e.g.,
-condensate is assumed to be all-liquid for T :math:`\geq` :math:`tnuc_n`
-and all-ice for T :math:`\leq` :math:`tnuc_n` - 10.0
+(documented in ``:umdp:026``). By default, both liquid and ice are
+detrained simultaneously at the same height, and the fraction of
+condensate that is ice linearly ramps as a function of temperature. i.e.
+condensate is assumed to be all-liquid when T is greater than one
+tuneable threshold; all-ice when T is less than another tuneable
+threshold, and vary linearly in-between (the threshold values are given
+by starticeTkelvin and alliceTdegC in the UM cloud-scheme namelist. The
+new heterogeneous nucleation temperatures calculated in the
+large-scale-precipitation are passed to the convection scheme and are
+used as the above detrainment temperature thresholds by maintaining a
+similar linear ramp. For e.g., condensate is assumed to be all-liquid
+for T :math:`\geq` :math:`tnuc_n` and all-ice for T :math:`\leq`
+:math:`tnuc_n` - 10.0
 
 .. _sec_conv_input_profs:
 
@@ -4404,13 +4428,13 @@ The convection scheme itself is highly sensitive to the input
 environment temperature and moisture profiles *before* the convection
 increments (or PC2 response) are calculated. In particular, the parcel
 buoyancy (and hence the CAPE and mass-flux scaling) maybe radically
-different depending on whether a “large-scale” condensation /
+different depending on whether a "large-scale" condensation /
 evaporation adjustment is performed before the convection call.
 
 Where there is large-scale ascent, the profiles after Semi-Lagrangian
 advection may have become supersaturated and unrealistically unstable,
 until the expected condensation adjustment is performed. If the
-convection scheme “sees” these unrealistic intermediate profiles, it is
+convection scheme "sees" these unrealistic intermediate profiles, it is
 likely to predict an excessive, unrealistic mass-flux.
 
 To address this problem, there are two namelist switches that enable
@@ -4572,11 +4596,11 @@ There are currently 3 options for the conditions under-which initiation
 may occur. For all of these options, if using the bimodal cloud scheme
 to do initiation within PC2, then the tests on :math:`RH_T` relative to
 :math:`RH_{crit}` are replaced by equivalent tests for whether the
-saturation boundary lies within the bounds of the bimodal scheme’s
+saturation boundary lies within the bounds of the bimodal scheme's
 assumed PDF, as described in section :ref:`Initiation using the bimodal scheme
 <sec_bimodal_init>`.
 
-“Original” initiation logic
+"Original" initiation logic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
@@ -4615,7 +4639,7 @@ Equivalently, :math:`C_l` is initiated away from 1 if
 
 - :math:`RH_T^{[n+1]} < RH_T^{[n]}` .
 
-“Simplified” initiation logic
+"Simplified" initiation logic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
@@ -4646,7 +4670,7 @@ standard value is 0.005. Note this threshold is also used to remove
 small cloud-fractions after initiation; see section
 :ref:`Additional checks after PC2 initiation <sec_checks2>`.
 
-This is very similar to the “Original” initiation logic described above,
+This is very similar to the "Original" initiation logic described above,
 but with the following differences:
 
 - The condition that the boundary-layer hasn't diagnosed cumulus
@@ -4662,7 +4686,7 @@ but with the following differences:
 
 .. _sec_smooth_initiation:
 
-“Smooth” initiation logic
+"Smooth" initiation logic
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is selected by setting the UM namelist switch
@@ -4754,7 +4778,7 @@ completely uninitiated state will have zero saturation deficit
 :math:`SD`, rather than zero :math:`q_{cl}`. Therefore, in this case the
 increment to :math:`C_l` is calculated based on the fractional increase
 in :math:`SD` from initiation (equation
-:eq:`eq:dcl_init2`, instead of the fractional increase
+:eq:`eq:dcl_init2`), instead of the fractional increase
 in :math:`q_{cl}`.
 
 Whether to increment :math:`C_l` based on the increase in :math:`q_{cl}`
@@ -4839,22 +4863,17 @@ The thresholds :math:`C_{high}`, :math:`C_{high 2}`, :math:`C_{low}` and
 :math:`C_{low 2}` are set using the parameters :math:`C_{tol}` and
 :math:`C_{tol 2}`, according to:
 
-.. math::
-
-   C_{high} = 1 - C_{tol},
-
-.. math::
-
-   C_{high 2} = 1 - C_{tol 2},
-
-.. math::
-
-   C_{low} = C_{tol},
-
 .. math:: :label: eq:chigh-chigh2
 
+   \begin{aligned}
+   C_{high} = 1 - C_{tol},
+   \\
+   C_{high 2} = 1 - C_{tol 2},
+   \\
+   C_{low} = C_{tol},
+   \\
    C_{low 2} =  C_{tol 2},
-
+   \end{aligned}
 
 where the parameters :math:`C_{tol}` and :math:`C_{tol 2}` can be set
 via the UM namelist variables **cloud_pc2_tol** and **cloud_pc2_tol_2**.
@@ -4932,18 +4951,15 @@ condition is violated, we condense water vapour to adjust to grid-mean
 saturation. :math:`-SD` corresponds to the amount of vapour that must be
 condensed to achieve this, so we have:
 
-.. math::
-
-   \overline{q} \leftarrow \overline{q} + SD
-
-.. math::
-
-   \overline{q_{cl}} \leftarrow \overline{q_{cl}} - SD
-
 .. math:: :label: eq:qsdcheck1
 
+   \begin{aligned}
+   \overline{q} \leftarrow \overline{q} + SD
+   \\
+   \overline{q_{cl}} \leftarrow \overline{q_{cl}} - SD
+   \\
    \overline{T} \leftarrow \overline{T} - \frac{L_c}{c_p} SD
-
+   \end{aligned}
 
 The original version of this check on :math:`SD` (which may increase
 :math:`\overline{q_{cl}}`), made no accompanying changes to liquid cloud
@@ -5010,26 +5026,19 @@ behaviour is currently controlled by a temporary logical in the
   evaporate all the remaining liquid water, and reset :math:`C_l` to
   zero:
 
-  .. math::
-
-     \overline{q} \leftarrow \overline{q} + \overline{q_{cl}}
-
-  .. math::
-
-     \overline{T} \leftarrow \overline{T} - \frac{L_c}{c_p} \overline{q_{cl}}
-
-  .. math::
-
-     \overline{q_{cl}} \leftarrow 0
-
-  .. math::
-
-     C_l \leftarrow 0
-
   .. math:: :label: eq:qsdcheck2
 
+     \begin{aligned}
+     \overline{q} \leftarrow \overline{q} + \overline{q_{cl}}
+     \\
+     \overline{T} \leftarrow \overline{T} - \frac{L_c}{c_p} \overline{q_{cl}}
+     \\
+     \overline{q_{cl}} \leftarrow 0
+     \\
+     C_l \leftarrow 0
+     \\
      C_t \leftarrow C_i
-
+     \end{aligned}
 
 .. _section-3:
 
@@ -5040,18 +5049,15 @@ If :math:`\overline{q_{cl}} < q_{c0}` or :math:`C_l = 0` then we
 evaporate the small amount of :math:`\overline{q_{cl}}` that remains in
 the gridbox:
 
-.. math::
-
-   \overline{q} \leftarrow \overline{q} + \overline{q_{cl}}
-
-.. math::
-
-   \overline{q_{cl}} \leftarrow 0
-
 .. math:: :label: eq:qclcheck
 
+   \begin{aligned}
+   \overline{q} \leftarrow \overline{q} + \overline{q_{cl}}
+   \\
+   \overline{q_{cl}} \leftarrow 0
+   \\
    \overline{T} \leftarrow \overline{T} - \frac{L_c}{c_p} \overline{q_{cl}}
-
+   \end{aligned}
 
 .. _section-4:
 
@@ -5087,14 +5093,13 @@ ensure that it takes on a value that is physically possible, given the
 values of :math:`C_l` and :math:`C_i`. We have, firstly, the maximum
 overlap situation and then the minimum overlap situation.
 
-.. math::
-
-   C_t \leftarrow \text{Max}( C_t, C_i, C_l )
-
 .. math:: :label: eq:ctchecks
 
+   \begin{aligned}
+   C_t \leftarrow \text{Max}( C_t, C_i, C_l )
+   \\
    C_t \leftarrow \text{Min}( C_t , C_l + C_i, 1)
-
+   \end{aligned}
 
 .. _section-8:
 
@@ -5106,26 +5111,19 @@ liquid cloud created by the initiation is allowed to persist in this
 phase if the temperature is cold enough. Hence, if
 :math:`\overline{T} < T_{homo}` then
 
-.. math::
-
-   \overline{q_{cf}} \leftarrow \overline{q_{cf}} + \overline{q_{cl}}
-
-.. math::
-
-   \overline{q_{cl}} \leftarrow 0
-
-.. math::
-
-   \overline{T} \leftarrow \overline{T} + \frac{L_f}{c_p} \overline{q_{cl}}
-
-.. math::
-
-   C_i \leftarrow C_t
-
 .. math:: :label: eq:homochecks
 
+   \begin{aligned}
+   \overline{q_{cf}} \leftarrow \overline{q_{cf}} + \overline{q_{cl}}
+   \\
+   \overline{q_{cl}} \leftarrow 0
+   \\
+   \overline{T} \leftarrow \overline{T} + \frac{L_f}{c_p} \overline{q_{cl}}
+   \\
+   C_i \leftarrow C_t
+   \\
    C_l \leftarrow 0.
-
+   \end{aligned}
 
 .. _sec_qpos:
 
@@ -5142,8 +5140,8 @@ During trialling prior to operational implementation, it was found that
 relying on Q-Pos to deal with negative condensate values was very
 expensive, as the Q-Pos routine does a lot of communications between
 different processors. It may be preferable to deal with the cause of
-negative condensate amounts at their source. The option to “Ensure
-consistent sinks of qcl and CFL” prevents the QCL increment from trying
+negative condensate amounts at their source. The option to "Ensure
+consistent sinks of qcl and CFL" prevents the QCL increment from trying
 to remove too much liquid condensate and hence reduces the models
 reliance on Q-Pos to deal with the inconsistencies.
 
@@ -5248,10 +5246,10 @@ Area cloud fraction
 
 Two area cloud fraction parametrizations are available for use with PC2.
 
-The area cloud fraction of Cusack (documented in ) has been adapted by
-`Boutle and Morcrette (2010)`_ so it can be used with PC2 (and
-is available from the UMUI as the “Cusack” option from version 7.6
-onwards). This method aims to reproduce some of the detail of the
+The area cloud fraction of Cusack (documented in ``:umdp:029``) has been
+adapted by `Boutle and Morcrette (2010)`_ so it can be used with
+PC2 (and is available from the UMUI as the "Cusack" option from version
+7.6 onwards). This method aims to reproduce some of the detail of the
 thermodynamic profile lost due to the coarseness of the grid. The
 interpolation/extrapolation technique is used prior to PC2 initiation
 (which is then called with three times as many levels) and it is used,
@@ -5324,464 +5322,494 @@ called *l_pc2_reset*. Turning this on (not recommended!) does 2 things:
 The location of the various cloud scheme routine calls within the UM is
 summarised in the list below.
 
-Subroutines only called for the Smith scheme are highlighted in blue,
-those only called for PC2 are in green, and those only called for the
-bimodal scheme are in purple.
+Subroutines only called for the :blue:`Smith` scheme are highlighted in
+:blue:`blue`,
+those only called for :green:`PC2` are in :green:`green`,
+and those only called for the :purple:`bimodal` scheme are in :purple:`purple`.
 
 Main Tree from atm_step_4a
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. container:: itemize
 
    | **atm_step_4a**
-   | \* (performs one timestep of the Unified Model...)
+   | (performs one timestep of the Unified Model...)
 
-   .. container:: itemize
+       | **atm_step_alloc_4a**
+       | (does miscellaneous initialisations in atm_step)
 
-      .. container:: tcolorbox
+           | :green-lbl:`pc2_rhtl`
+           | (calculate start-of-timestep Relative Humidity, used by
+              PC2 initiation)
 
-         | **atm_step_alloc_4a**
-         | \* (does miscellaneous initialisations in atm_step)
+   |
 
-         - | pc2_rhtl
-           | \* (calculate start-of-timestep Relative Humidity, used by
-             PC2 initiation)
+       | **atmos_physics1**
+       | (calls explicit "slow" physics routines...)
 
-      .. container:: tcolorbox
+           | **microphys_ctl**
+           | (interface to microphysics scheme)
 
-         | **atmos_physics1**
-         | \* (calls explicit “slow” physics routines...)
+               | :green-lbl:`pc2_turbulence_ctl`
+               | (Perform optional erosion of liquid-cloud; done
+                  here if NOT doing erosion after convection, e.g. if
+                  no convection scheme is used).
 
-         .. container:: itemize
+                   | :green-lbl:`pc2_hom_conv`
+                   | (called here just to do erosion)
 
-            .. container:: tcolorbox
+           |
 
-               | **microphys_ctl**
-               | \* (interface to microphysics scheme)
+               | :blue-lbl:`ls_cld`
+               | (Smith scheme without area cloud fraction
+                  calculation, to set initial cloud fields passed into
+                  microphysics)
 
-               - | pc2_turbulence_ctl
-                 | \* (Perform optional erosion of liquid-cloud; done
-                   here if NOT doing erosion after convection, e.g. if
-                   no convection scheme is used).
+           |
 
-                 - | pc2_hom_conv
-                   | \* (called here just to do erosion)
+               | **ls_ppn**
+               | (microphysics scheme)
 
-               - | ls_cld
-                 | \* (Smith scheme without area cloud fraction
-                   calculation, to set initial cloud fields passed into
-                   microphysics)
+           |
 
-               - | **ls_ppn**
-                 | \* (microphysics scheme)
+               | **mphys_turb_gen_mixed_phase**
+               | (turbulent production of liquid cloud)
 
-               - | **mphys_turb_gen_mixed_phase**
-                 | \* (turbulent production of liquid cloud)
+           |
 
-               - | pc2_turbulence_ctl
-                 | \* (optionally use the PC2 pdf-width-change code to
-                   calculate the cloud-fraction change from the above
-                   turbulent production of liquid cloud)
+               | :green-lbl:`pc2_turbulence_ctl`
+               | (optionally use the PC2 pdf-width-change code to
+                  calculate the cloud-fraction change from the above
+                  turbulent production of liquid cloud)
 
-                 - | pc2_hom_conv
-                   | \* (called here just to calculate the cloud
-                     fraction increment consistent with the turbulent
-                     qcl increment)
+                   | :green-lbl:`pc2_hom_conv`
+                   | (called here just to calculate the cloud
+                      fraction increment consistent with the turbulent
+                      qcl increment)
 
-            .. container:: tcolorbox
+       |
 
-               | **rad_ctl**
-               | \* (interface to radiation scheme)
+           | **rad_ctl**
+           | (interface to radiation scheme)
 
-               - | **sw_rad**
-                 | \* (short-wave radiation scheme)
+               | **sw_rad**
+               | (short-wave radiation scheme)
 
-               - | pc2_homog_plus_turb
-                 | \* (PC2 homogeneous forcing of liquid-cloud by SW
-                   radiation heating)
+           |
 
-               - | **lw_rad**
-                 | \* (long-wave radiation scheme)
+               | :green-lbl:`pc2_homog_plus_turb`
+               | (PC2 homogeneous forcing of liquid-cloud by SW
+                  radiation heating)
 
-               - | pc2_homog_plus_turb
-                 | \* (PC2 homogeneous forcing of liquid-cloud by LW
-                   radiation tendency)
+           |
 
-            .. container:: tcolorbox
+               | **lw_rad**
+               | (long-wave radiation scheme)
 
-               **atmos_physics1_alloc_pc2** (wrapper for PC2
-               self-consistency checks at end of atmos_physics1)
+           |
 
-               - Add increments from microphysics + radiation onto
-                 start-of-timestep fields to form updated fields.
+               | :green-lbl:`pc2_homog_plus_turb`
+               | (PC2 homogeneous forcing of liquid-cloud by LW
+                  radiation tendency)
 
-               - | pc2_checks
-                 | \* (self-consistency checks on cloud fractions and
-                   water contents)
+       |
 
-               - Convert corrected updated fields back to increments.
+           | **atmos_physics1_alloc_pc2**
+           | (wrapper for PC2
+              self-consistency checks at end of atmos_physics1)
 
-      Begin loop over solver outer cycles
+           | Add increments from microphysics + radiation onto
+             start-of-timestep fields to form updated fields.
 
-      .. container:: itemize
+               | :green-lbl:`pc2_checks`
+               | (self-consistency checks on cloud fractions and
+                  water contents)
 
-         .. container:: tcolorbox
+           | Convert corrected updated fields back to increments.
 
-            | **atm_step_phys_reset**
-            | \* (for PC2, on subsequent solver outer cycles, reset
-              cloud-fractions to saved values after atmos_physics1)
+   | Begin loop over solver outer cycles
 
-         .. container:: tcolorbox
 
-            | **eg_sl_moisture**
-            | \* (large-scale advection of cloud water contents and
-              fractions)
+       | **atm_step_phys_reset**
+       | (for PC2, on subsequent solver outer cycles, reset
+          cloud-fractions to saved values after atmos_physics1)
 
-         .. container:: tcolorbox
+   |
 
-            | pc2_pressure_forcing_only
-            | \* (Optionally calculate homogeneous forcing of liquid
-              cloud by the pressure change along the trajectory from
-              departure point to arrival point).
+         | **eg_sl_moisture**
+         | (large-scale advection of cloud water contents and fractions)
 
-            - | pc2_homog_plus_turb
-              | \* (generic homogeneous forcing routine used here).
+   |
 
-         .. container:: tcolorbox
+         | :green-lbl:`pc2_pressure_forcing_only`
+         | (Optionally calculate homogeneous forcing of liquid
+            cloud by the pressure change along the trajectory from
+            departure point to arrival point).
 
-            | **atmos_physics2**
-            | \* (calls “fast” physics routines...)
+              | :green-lbl:`pc2_homog_plus_turb`
+              | (generic homogeneous forcing routine used here).
 
-            .. container:: itemize
+   |
 
-               .. container:: tcolorbox
+       | **atmos_physics2**
+       | (calls "fast" physics routines...)
 
-                  | **ni_bl_ctl**
-                  | \* (interface to explicit boundary-layer and surface
-                    scheme calls, including calculation of TKE and
-                    TKE-based :math:`RH_{crit}`)
+           | **ni_bl_ctl**
+           | (interface to explicit boundary-layer and surface
+              scheme calls, including calculation of TKE and
+              TKE-based :math:`RH_{crit}`)
 
-               .. container:: tcolorbox
+       |
 
-                  | bm_calc_tau
-                  | \* (calculates turbulence properties used in the
-                    bimodal cloud scheme, based on the boundary-layer
-                    scheme TKE and mixing-length)
+           | :purple-lbl:`bm_calc_tau`
+           | (calculates turbulence properties used in the
+              bimodal cloud scheme, based on the boundary-layer
+              scheme TKE and mixing-length)
 
-               .. container:: tcolorbox
+       |
 
-                  | **cloud_call_b4_conv**
-                  | \* (routine for optional cloud-scheme calls before
-                    convection)
+           | **cloud_call_b4_conv**
+           | (routine for optional cloud-scheme calls before convection)
 
-                  - | ls_arcld
-                    | \* (Smith scheme with area cloud fraction; see
-                      :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a drill-down
-                      inside this routine)
+               | :blue-lbl:`ls_arcld`
+               | (Smith scheme with area cloud fraction; see
+                  :ref:`Smith scheme with area cloud fraction
+                  <subsubsec_smith_acf>` for a drill-down inside this routine)
 
-                  - | bm_ctl
-                    | \* (bimodal scheme)
+           |
 
-                  - Set area cloud fraction equal to bulk cloud fraction
+               | :purple-lbl:`bm_ctl`
+               | (bimodal scheme)
 
-                  - | pc2_initiation_ctl
-                    | \* (interface to PC2 initiation and
-                      consistency-checks; see
-                      :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a
-                      drill-down inside this routine)
+           | Set area cloud fraction equal to bulk cloud fraction
 
-               .. container:: tcolorbox
+               | :green-lbl:`pc2_initiation_ctl`
+               | (interface to PC2 initiation and consistency-checks; see
+                  :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a
+                  drill-down inside this routine)
 
-                  | **ni_conv_ctl** or **other_conv_ctl**
-                  | \* (interface routines to various convection
-                    schemes...)
+       |
 
-                  - | **glue_conv_5a/6a**
-                    | \* (calls deep, shallow and mid-level convection
-                      schemes)
+           | **ni_conv_ctl** or **other_conv_ctl**
+           | (interface routines to various convection schemes...)
 
-                    - | **deep/shallow/mid_conv**
-                      | \* (convection scheme main routines)
+               | **glue_conv_5a/6a**
+               | (calls deep, shallow and mid-level convection schemes)
 
-                      - **convec2** (completes lifting of the convective
-                        parcel by one model-level)
+                   | **deep/shallow/mid_conv**
+                   | (convection scheme main routines)
 
-                        - **parcel** (calculates new parcel properties
-                          at next level)
+                       | **convec2**
+                       | (completes lifting of the convective
+                          parcel by one model-level)
 
-                        - **environ** (calculates grid-mean increments
-                          to primary fields; includes PC2 partitioning
-                          of detrained condensate mass between liquid
-                          and ice phases)
+                           | **parcel**
+                           | (calculates new parcel properties at next level)
 
-                        - pc2_environ (calculates increments to PC2
-                          cloud fractions due to convective detrainment
-                          and subsidence)
+                       |
 
-                  - | pc2_from_conv_ctl
-                    | \* (PC2 calculations after convection)
+                           | **environ**
+                           | (calculates grid-mean increments
+                              to primary fields; includes PC2 partitioning
+                              of detrained condensate mass between liquid
+                              and ice phases)
 
-                    - | pc2_hom_conv
-                      | \* (homogeneous forcing by convection, and
-                        erosion of liquid-cloud)
+                       |
 
-               .. container:: tcolorbox
+                           | :green-lbl:`pc2_environ`
+                           | (calculates increments to PC2
+                              cloud fractions due to convective detrainment
+                              and subsidence)
 
-                  | **ni_imp_ctl**
-                  | \* (interface to boundary-layer implicit solver)
+           |
 
-                  - | **imp_solver**
-                    | \* (implicitly solves vertical diffusion to find
-                      :math:`T_l` and :math:`q_T` updated by turbulent
-                      fluxes).
+               | :green-lbl:`pc2_from_conv_ctl`
+               | (PC2 calculations after convection)
 
-                  - | pc2_bl_inhom_ice
-                    | \* (inhomogeneous forcing of ice-cloud)
+                   | :green-lbl:`pc2_hom_conv`
+                   | (homogeneous forcing by convection, and
+                      erosion of liquid-cloud)
 
-                  - | pc2_delta_hom_turb
-                    | \* (homogeneous forcing of liquid cloud by the
-                      turbulent fluxes)
+       |
 
-                  - | pc2_bl_forced_cu
-                    | \* (adds diagnosed “forced cumulus” cloud fraction
-                      and water content onto the PC2 prognostics)
+           | **ni_imp_ctl**
+           | (interface to boundary-layer implicit solver)
 
-                  - Calculate area cloud fraction:
+               | **imp_solver**
+               | (implicitly solves vertical diffusion to find
+                  :math:`T_l` and :math:`q_T` updated by turbulent fluxes).
 
-                    | ls_acf_brooks
-                    | \* (for the Brooks epirical method)
+           |
 
-                    | pc2_hom_arcld
-                    | \* (for the Cusack vertical interpolation method)
+               | :green-lbl:`pc2_bl_inhom_ice`
+               | (inhomogeneous forcing of ice-cloud)
 
-                    - | pc2_homog_plus_turb
-                      | \* (generic homogeneous forcing routine used to
-                        interpolate)
+           |
 
-                  - | ls_arcld
-                    | \* (interface to diagnostic Smith scheme and area
-                      cloud fraction; see
-                      :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a drill-down
-                      inside this routine)
+               | :green-lbl:`pc2_delta_hom_turb`
+               | (homogeneous forcing of liquid cloud by the turbulent fluxes)
 
-                  - | bm_ctl
-                    | \* (bimodal cloud scheme)
+           |
 
-                  - Set area cloud fraction equal to bulk cloud fraction
+               | :green-lbl:`pc2_bl_forced_cu`
+               | (adds diagnosed "forced cumulus" cloud fraction
+                  and water content onto the PC2 prognostics)
 
-                  - | **diagnostics_bl**
-                    | \* (outputs boundary-layer diagnostics to STASH)
+           | Calculate area cloud fraction:
 
-                    - | **ls_cld**
-                      | \* (Smith scheme used here to calculate various
-                        diagnostics of near-surface temperature and
-                        humidity, by extrapolating pressure, :math:`T_l`
-                        and :math:`q_t` down to the desired height and
-                        then re-diagnosing :math:`q_{cl}`.
+               | :green-lbl:`ls_acf_brooks`
+               | (for the Brooks epirical method)
 
-         .. container:: tcolorbox
+           |
 
-            | **atm_step_ac_assim**
-            | \* (interface to Data Assimilation analysis increments...)
+               | :green-lbl:`pc2_hom_arcld`
+               | (for the Cusack vertical interpolation method)
 
-            - **ac_ctl** (control routine for Data Assimilation analysis
-              increments...)
+                   | :green-lbl:`pc2_homog_plus_turb`
+                   | (generic homogeneous forcing routine used to interpolate)
 
-              - **ac** (main analysis increment routine)
+           |
 
-              - | pc2_assim
-                | \* (PC2 reponse to the analysis increments; see
-                  :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>` for a drill-down
-                  inside this routine)
+               | :blue-lbl:`ls_arcld`
+               | (interface to diagnostic Smith scheme and area
+                  cloud fraction; see
+                  :ref:`Smith scheme with area cloud fraction
+                  <subsubsec_smith_acf>` for a drill-down inside this routine)
 
-              - ls_acf_brooks (calculate area cloud fraction using
-                Brooks empirical method if active)
+           |
 
-              - ls_arcld (call diagnostic Smith scheme with area cloud
-                fraction again to account for the analysis increments;
-                see :ref:`Smith scheme with area cloud fraction
-                <subsubsec_smith_acf>` for a drill-down
-                inside this routine)
+               | :purple-lbl:`bm_ctl`
+               | (bimodal cloud scheme)
 
-         .. container:: tcolorbox
+           | Set area cloud fraction equal to bulk cloud fraction
 
-            | **eg_sl_helmholtz**
-            | \* (dynamics pressure solver; updates pressure, and the
-              winds used to perform advection on the next solver outer
-              cycle)
+               | **diagnostics_bl**
+               | (outputs boundary-layer diagnostics to STASH)
 
-      End loop over solver outer cycles
+                   | **ls_cld**
+                   | (Smith scheme used here to calculate various
+                      diagnostics of near-surface temperature and
+                      humidity, by extrapolating pressure, :math:`T_l`
+                      and :math:`q_t` down to the desired height and
+                      then re-diagnosing :math:`q_{cl}`.
 
-      .. container:: tcolorbox
+   |
 
-         | pc2_pressure_forcing
-         | \* (interface to miscellaneous PC2 calculations at
-           end-of-timestep)
+       | **atm_step_ac_assim**
+       | (interface to Data Assimilation analysis increments...)
 
-         - | pc2_homog_plus_turb
-           | \* (homogeneous forcing of liquid-cloud by the dynamics
-             pressure change; optionally either uses total pressure
-             change including the Lagrangian component following the
-             winds, or only the Eulerian component from the dynamics
-             solver)
+          | **ac_ctl**
+          | (control routine for Data Assimilation analysis increments...)
 
-         - | pc2_initiation_ctl
-           | \* (interface to PC2 initiation and consistency-checks; see
-             :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a drill-down
-             inside this routine)
+              | **ac**
+              | (main analysis increment routine)
 
-      .. container:: tcolorbox
+          |
 
-         | **qt_bal_cld**
-         | \* (calculates end-of-timestep cloud state consistent with
-           final pressure...)
+              | :green-lbl:`pc2_assim`
+              | (PC2 reponse to the analysis increments; see
+                 :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>`
+                 for a drill-down inside this routine)
 
-         - | ls_arcld
-           | \* (interface to diagnostic Smith scheme and area cloud
-             fraction; see :ref:`Smith scheme with area cloud fraction <subsubsec_smith_acf>` for a
-             drill-down inside this routine)
+          |
 
-         - | bm_ctl
-           | \* (bimodal cloud scheme)
+              | :green-lbl:`ls_acf_brooks`
+              | (calculate area cloud fraction using
+                 Brooks empirical method if active)
 
-         - Set area cloud fraction equal to bulk cloud fraction
+          |
 
-      .. container:: tcolorbox
+              | :blue-lbl:`ls_arcld`
+              | (call diagnostic Smith scheme with area cloud
+                 fraction again to account for the analysis increments;
+                 see :ref:`Smith scheme with area cloud fraction
+                 <subsubsec_smith_acf>` for a drill-down inside this routine)
 
-         | **iau**
-         | \* (incremental analysis update; part of data assimilation)
+   |
 
-         - | pc2_assim
-           | \* (PC2 reponse to the analysis increments; see
-             :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>` for a drill-down inside
-             this routine)
+       | **eg_sl_helmholtz**
+       | (dynamics pressure solver; updates pressure, and the
+          winds used to perform advection on the next solver outer cycle)
 
-         - | initial_pc2_check
-           | \* (wrapper for optional self-consistency checks on
+   |  End loop over solver outer cycles
+
+       | :green-lbl:`pc2_pressure_forcing`
+       | (interface to miscellaneous PC2 calculations at end-of-timestep)
+
+           | :green-lbl:`pc2_homog_plus_turb`
+           | (homogeneous forcing of liquid-cloud by the dynamics
+              pressure change; optionally either uses total pressure
+              change including the Lagrangian component following the
+              winds, or only the Eulerian component from the dynamics
+              solver)
+
+       |
+
+           | :green-lbl:`pc2_initiation_ctl`
+           | (interface to PC2 initiation and consistency-checks; see
+              :ref:`PC2 initiation <subsubsec_pc2_initiation>` for a drill-down
+              inside this routine)
+
+   |
+
+       | **qt_bal_cld**
+       | (calculates end-of-timestep cloud state consistent with
+          final pressure...)
+
+           | :blue-lbl:`ls_arcld`
+           | (interface to diagnostic Smith scheme and area cloud
+              fraction; see :ref:`Smith scheme with area cloud fraction
+              <subsubsec_smith_acf>` for a drill-down inside this routine)
+
+       |
+
+           | :purple-lbl:`bm_ctl`
+           | (bimodal cloud scheme)
+
+       | Set area cloud fraction equal to bulk cloud fraction
+
+   |
+
+       | **iau**
+       | (incremental analysis update; part of data assimilation)
+
+           | :green-lbl:`pc2_assim`
+           | (PC2 reponse to the analysis increments; see
+              :ref:`PC2 Data Assimilation <subsubsec_pc2_assim>`
+              for a drill-down inside this routine)
+
+       |
+
+          | :green-lbl:`initial_pc2_check`
+          | (wrapper for optional self-consistency checks on
              prognostic cloud variables if not doing PC2 response to
              analysis increments)
 
-           - | pc2_checks
-             | \* (self-consistency checks on cloud fractions and water
-               contents)
+              | :green-lbl:`pc2_checks`
+              | (self-consistency checks on cloud fractions and water
+                 contents)
 
 Drill-downs within some routines in the call tree are listed separately
 below, to avoid duplication (since these routines are called in multiple
 different places in the tree)...
+
 
 .. _subsubsec_smith_acf:
 
 Smith scheme with area cloud fraction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. container:: itemize
+   | :blue-lbl:`ls_arcld`
+   | (interface to diagnostic Smith scheme and area cloud fraction)
 
-   .. container:: tcolorbox
+   | If no area cloud fraction scheme:
 
-      | ls_arcld
-      | \* (interface to diagnostic Smith scheme and area cloud
-        fraction)
+       | :blue-lbl:`ls_cld`
+       | (just directly call Smith scheme)
 
-      - If no area cloud fraction scheme:
+   | Set area cloud fraction equal to bulk cloud fraction.
 
-        | ls_cld
-        | \* (just directly call Smith scheme)
+   | If using Cusack vertical interpolation method:
 
-        Set area cloud fraction equal to bulk cloud fraction.
+   | Interpolate fields onto finer vertical grid
 
-      - If using Cusack vertical interpolation method:
+       | :blue-lbl:`ls_cld`
+       | (call Smith scheme using higher vertical resolution fields)
 
-        Interpolate fields onto finer vertical grid
+   | Coarse-grain cloud fields back to model grid, but set area cloud
+     fraction to max of bulk cloud fraction over corresponding
+     fine-grid levels.
 
-        | ls_cld
-        | \* (call Smith scheme using higher vertical resolution fields)
+   | If using Brooks empirical area cloud fraction method:
 
-        Coarse-grain cloud fields back to model grid, but set area cloud
-        fraction to max of bulk cloud fraction over corresponding
-        fine-grid levels.
+       | :blue-lbl:`ls_cld`
+       | (just directly call Smith scheme)
 
-      - If using Brooks empirical area cloud fraction method:
+   |
 
-        | ls_cld
-        | \* (just directly call Smith scheme)
+       | :blue-lbl:`ls_acf_brooks`
+       | (estimate area cloud fraction)
 
-        | ls_acf_brooks
-        | \* (estimate area cloud fraction)
 
 .. _subsubsec_pc2_initiation:
 
 PC2 initiation
 ^^^^^^^^^^^^^^
 
-.. container:: itemize
+   | :green-lbl:`pc2_initiation_ctl`
+   | (interface to PC2 initiation and consistency-checks)
 
-   .. container:: tcolorbox
-
-      | pc2_initiation_ctl
-      | \* (interface to PC2 initiation and consistency-checks)
-
-      - | pc2_checks
-        | \* (self-consistency checks on cloud fractions and water
+       | :green-lbl:`pc2_checks`
+       | (self-consistency checks on cloud fractions and water
           contents)
 
-      - PC2 initiation of liquid-cloud:
+   | PC2 initiation of liquid-cloud:
 
-        | pc2_bm_initiate
-        | \* (using the bimodal cloud scheme)
+       | :green-lbl:`pc2_bm_initiate`
+       | (using the bimodal cloud scheme)
 
-        | pc2_arcld
-        | \* (using the Smith scheme with the Cusack vertical
+   |
+
+       | :green-lbl:`pc2_arcld`
+       | (using the Smith scheme with the Cusack vertical
           interpolation method)
 
-        - | pc2_initiate
-          | \* (initiation using the Smith scheme, called here on a
-            finer vertical grid as per the Cusack method)
+           | :green-lbl:`pc2_initiate`
+           | (initiation using the Smith scheme, called here on a
+              finer vertical grid as per the Cusack method)
 
-        | pc2_initiate
-        | \* (using the Smith scheme with no area cloud representation)
+   |
 
-      - | pc2_checks2
-        | \* (further self-consistency checks on cloud-fractions)
+       | :green-lbl:`pc2_initiate`
+       | (using the Smith scheme with no area cloud representation)
 
-      - | pc2_checks
-        | \* (repeat the first lot of self-consistency checks again,
+   |
+
+       | :green-lbl:`pc2_checks2`
+       | (further self-consistency checks on cloud-fractions)
+
+   |
+
+       | :green-lbl:`pc2_checks`
+       | (repeat the first lot of self-consistency checks again,
           just in case we broke something in the mean-time!)
 
-      - | pc2_hom_arcld
-        | \* (finds area cloud fraction using a version of the Cusack
+   |
+
+       | :green-lbl:`pc2_hom_arcld`
+       | (finds area cloud fraction using a version of the Cusack
           method, where the cloud fraction on the finer vertical grid is
           estimated by applying homogeneous forcing relative to the
           original grid fields)
 
-        - | pc2_homog_plus_turb
-          | \* (generic homogeneous forcing routine used to interpolate)
+           | :green-lbl:`pc2_homog_plus_turb`
+           | (generic homogeneous forcing routine used to interpolate)
+
 
 .. _subsubsec_pc2_assim:
 
 PC2 Data Assimilation
 ^^^^^^^^^^^^^^^^^^^^^
 
-.. container:: itemize
+   | :green-lbl:`pc2_assim`
+   | (PC2 reponse to the analysis increments)
 
-   .. container:: tcolorbox
-
-      | pc2_assim
-      | \* (PC2 reponse to the analysis increments)
-
-      - | pc2_homog_plus_turb
-        | \* (generic PC2 homogeneous forcing routine used here for
+       | :green-lbl:`pc2_homog_plus_turb`
+       | (generic PC2 homogeneous forcing routine used here for
           liquid-cloud)
 
-      - Estimate change in ice-cloud fraction from the assimilation
+   | Estimate change in ice-cloud fraction from the assimilation
         increment to ice-cloud mass.
 
-      - | pc2_total_cf
-        | \* (update bulk cloud fraction due to change in ice cloud
+       | :green-lbl:`pc2_total_cf`
+       | (update bulk cloud fraction due to change in ice cloud
           fraction)
 
-      - | pc2_checks
-        | \* (self-consistency checks on prognostic cloud fractions and
+   |
+
+       | :green-lbl:`pc2_checks`
+       | (self-consistency checks on prognostic cloud fractions and
           water contents)
+
 
 .. _sec_diags:
 
@@ -6378,13 +6406,12 @@ similar way to above gives
 
 .. math::
 
+   \begin{aligned}
    SD = \int_{-b_s}^{-Q_c} G(s) (-Q_c + b_s) ds + \int_{-b_s}^{-Q_c}
    G(s) (-s - b_s) ds
-
-.. math::
-
+   \\
    = (-Q_c + b_s) (1 - C_l) - I1 ,
-
+   \end{aligned}
 
 and hence :math:`I1` in terms of :math:`SD`. Using this value of
 :math:`I1` in :eq:`eqn:deltaqclmax` and cancelling
@@ -6466,7 +6493,7 @@ We have (equivalent to B.6 from `Wilson and Gregory (2003)`_)
 
 .. math:: \frac{ (1-C_l)^2 }{SD} = G(-Q_c) \frac{n+2}{n+1}.
 
-If n=0 (i.e. a ‘top-hat’ function) then
+If n=0 (i.e. a 'top-hat' function) then
 :math:`G(-Q_c) = \frac{1}{2 b_s}` and we can write
 
 .. math:: C_l = 1 - \sqrt{ \frac{SD}{b_s} } .
@@ -6599,7 +6626,7 @@ increment terms.
 
 If your scheme is currently using the homogeneous forcing then there is
 no need to update the cloud part of the scheme, *provided that you do
-not alter values of :math:`T` and :math:`q` after the homogeneous
+not alter values of* :math:`T` *and* :math:`q` *after the homogeneous
 forcing section is called* and that the physical interpretation of your
 :math:`q` and :math:`T` increments does not change. You need to be
 careful if you are moving code from one subroutine to another that you
@@ -6611,7 +6638,7 @@ which necessitates that condensate increments are already calculated by
 the scheme, then there is also no need to update the cloud part of the
 scheme. This currently applies to the boundary layer, where
 :math:`q_{cf}` is altered by tracer mixing. Like for the homogeneous
-schemes, this is provided that you *do not alter :math:`T`, :math:`q` or
+schemes, this is provided that you *do not alter* :math:`T` *,* :math:`q` *or
 condensate values after the injection forcing subroutine is called* and
 that the physical interpretation of your :math:`q` and :math:`T`
 increments does not change.
@@ -7109,7 +7136,7 @@ References
 .. _Mellor (1977):
 
    Mellor, G. (1977).
-   *The {Gaussian} cloud model relations*.
+   *The Gaussian cloud model relations*.
    J. Atmos. Sci., 34, 356-358.
 
 .. _Sommeria and Deardorff (1977):
@@ -7169,14 +7196,14 @@ References
 .. _Field et al. (2014):
 
    Field, P.R. and Hill, A.A. and Furtado K. and Korolev, A. (2014).
-   *Mixed-phase clouds in a turbulent environment. {II: A}nalytic treatment*.
+   *Mixed-phase clouds in a turbulent environment. II: Analytic treatment*.
    Q. J. Roy. Meteor. Soc., 140, 870-880.
 
 .. _Jakob et al. (1999):
 
    Jakob, C. and Gregory, D. and Teixeria, J. (1999).
    *A package of cloud and convection changes for CY21R3*.
-   Research Department Memorandum, {ECMWF}, Shinfield Park, Reading {RG2 9AX},
+   Research Department Memorandum, ECMWF, Shinfield Park, Reading RG2 9AX,
    United Kingdom.
 
 .. _Morcrette and Petch (2010):
