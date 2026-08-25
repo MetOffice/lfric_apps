@@ -66,8 +66,9 @@ function get_weights(stashcode) result (weights)
 ! Intrinsic modules
 use, intrinsic :: iso_fortran_env, only : int64
 ! lfricinputs modules
-use lfricinp_stashmaster_mod, only: get_stashmaster_item, p_points, &
-                                    u_points, v_points, ozone_points, grid
+use lfricinp_stashmaster_mod, only: get_stashmaster_item, grid, &
+                                    land_compressed, ozone_points, p_points, &
+                                    p_points_values_over_sea, u_points, v_points
 use lfricinp_regrid_options_mod, only: interp_method
 
 ! LFRic modules
@@ -98,7 +99,7 @@ case( u_points )
   weights => mesh_face_centre_to_grid_u_bilinear
 case( v_points )
   weights => mesh_face_centre_to_grid_v_bilinear
-case( p_points, ozone_points )
+case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
    weights => mesh_face_centre_to_grid_p_bilinear
 case DEFAULT
   write(log_scratch_space, '(2(A,I0))')                                        &

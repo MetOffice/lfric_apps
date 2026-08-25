@@ -17,7 +17,7 @@ use lfricinp_grid_type_mod, only: lfricinp_grid_type
 
 ! lfric modules
 use log_mod,  only : log_event, log_scratch_space,         &
-                     LOG_LEVEL_ERROR
+                     LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
 
 implicit none
 
@@ -147,6 +147,7 @@ integer(kind=int64), intent(in) :: stashcode
 ! Result
 integer(kind=int64) :: num_pseudo_levels
 
+
 num_pseudo_levels = lfricinp_get_last_pseudo_level_num(um_grid, stashcode) - &
              lfricinp_get_first_pseudo_level_num(stashcode) + 1
 
@@ -207,14 +208,23 @@ character(len=*), parameter :: routinename = &
      'lfricinp_get_last_pseudo_level_num'
 
 last_pseudo_level_code =  get_stashmaster_item(stashcode, pseudl)
+write(log_scratch_space, '(A,I0)') &
+     "Last pseudo level code is ", last_pseudo_level_code
+call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
 select case(last_pseudo_level_code)
 case (7,9) ! ntypes == ntiles (lfricinputs doesn't support aggregate tile)
   last_pseudo_level_num = um_grid % num_surface_types
+  if (last_pseudo_level_num == -32768) then
+    call log_event("Number of surface types is not set", LOG_LEVEL_ERROR)
+  end if
 case (10)
   last_pseudo_level_num = um_grid%num_ice_cats
 case (11)
   last_pseudo_level_num = um_grid%num_snow_layers * um_grid%num_surface_types
+  if ( um_grid%num_snow_layers == -32768 .or. um_grid%num_surface_types == -32768 ) then
+    call log_event("Either the number of surface types or the number of snow layers is not set", LOG_LEVEL_ERROR)
+  end if
 case DEFAULT
   write(log_scratch_space, '(A,I0,A,I0)') &
        "Last pseudo_level code ", last_pseudo_level_code, &
@@ -223,6 +233,5 @@ case DEFAULT
 end select
 
 end function lfricinp_get_last_pseudo_level_num
-
 
 end module lfricinp_um_level_codes_mod

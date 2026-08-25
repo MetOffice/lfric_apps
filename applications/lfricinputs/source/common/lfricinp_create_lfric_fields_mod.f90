@@ -147,7 +147,7 @@ do i=1, size(stash_list)
           ndata_64 = lfricinp_get_num_pseudo_levels(um_grid, stashcode)
           write(log_scratch_space, '(A,I0,A)')                                   &
              "This field has ", ndata_64, " pseudo levels"
-          call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+          call log_event(log_scratch_space, LOG_LEVEL_INFO)
         end if
         ndata_first = .false.
 
@@ -160,7 +160,7 @@ do i=1, size(stash_list)
         ndata_64 = lfricinp_get_num_levels(um_file, stashcode)
         write(log_scratch_space, '(A,I0,A)')                                   &
             "This field has ", ndata_64, " levels"
-        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
         ndata_first = .true.
 
       case DEFAULT
