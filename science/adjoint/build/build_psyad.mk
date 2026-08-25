@@ -42,7 +42,7 @@ $(WORKING_DIR)/driver/gen_adj_kernel_tests_mod.f90: | $(WORKING_DIR)/driver
 
 %.f90.adjoint: %.f90 | $(PSYAD_WDIR)
 	$(call MESSAGE,PSyAd,$<)
-	$(ADJOINT_BUILD)/psyad_wrapper $(if $(BUILD_ADJ_TESTS),--algorithm-dir=$(WORKING_DIR)/algorithm) \
+	$(ADJOINT_BUILD)/psyad_wrapper $(if $(BUILD_ADJ_TESTS),--algorithm-dir=$(PSYAD_WDIR)) \
                                    $(PSYAD_CONFIG_FILE) \
                                    $< \
                                    $(PATCH_DIR) \

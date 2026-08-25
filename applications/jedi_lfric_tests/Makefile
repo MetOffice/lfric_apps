@@ -37,7 +37,8 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
 							   $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface \
                                $(APPS_ROOT_DIR)/science/gungho \
                                $(APPS_ROOT_DIR)/science/linear \
-                               $(APPS_ROOT_DIR)/science/adjoint
+                               $(APPS_ROOT_DIR)/science/adjoint \
+                               $(APPS_ROOT_DIR)/interfaces/coupled_interface
 
 META_VN             ?= HEAD
 export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
@@ -131,17 +132,8 @@ build: ALWAYS
 	$(call MESSAGE,Importing internal dependencies...)
 	$(call MESSAGE,========================================)
 	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
-	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; done
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting coupled_interface component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting Gungho dynamical core)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source
+	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; \
+    done
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting UM physics)
 	$(call MESSAGE,========================================)

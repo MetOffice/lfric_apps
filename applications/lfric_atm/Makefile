@@ -107,7 +107,8 @@ build: ALWAYS
 	$(call MESSAGE,Importing internal dependencies...)
 	$(call MESSAGE,========================================)
 	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
-	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; done
+	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; \
+	done
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting coupled_interface component)
 	$(call MESSAGE,========================================)
