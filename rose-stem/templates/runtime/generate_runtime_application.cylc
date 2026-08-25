@@ -111,13 +111,17 @@
 {% if task_ns.application == "lfric2lfric" %}
             MESH_DIR                = {{mesh_dir}}
 {% else %}
+    {% if "_op" in task_values["resolution"] %}
+            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}/{{task_values["mesh_op_name"]}}
+    {% else %}
             MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}
+    {% endif %}
 {% endif %}
             TASK_OUTPUT_DIR         = {{task_output_dir}}
             APP_NAME                = {{task_values["app_name"]}}
             APPLICATION             = {{task_ns.application}}
             LOG_LEVEL               = {{task_values["log_level"]}}
-            RESOLUTION              = {{task_values["resolution"]|replace("_MG","")}}
+            RESOLUTION              = {{task_values["resolution"]|replace("_MG","")|replace("_op","")}}
             ancil_resolution        = {{task_values["ancil_resolution"]|default('NONE')}}
             DT                      = {{task_values["DT"]}}
             USE_XIOS_IO             = {{task_values["use_xios_io"]}}

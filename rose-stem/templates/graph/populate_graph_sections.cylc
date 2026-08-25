@@ -134,10 +134,23 @@
 {# Do we need to run the mesh? #}
 {# Any run task will need mesh unless it is a canned test #}
 {% if task.startswith("run") and task_values["app_name"] != "canned_test" %}
-    {% set mesh_run_task = "run_mesh_"~
-                           task_values["resolution"]~"_"~
-                           task_ns.platform~"_"~
-                           site_vars["mesh_build"][task_ns.platform] %}
+    {% if "_op" in task_values["resolution"] %}
+        {% set mesh_op_name =  task_values["mpi_parts"]~"P-"~
+                               task_values["panel_decomp"]~"-"~
+                               task_values["xproc"]~"X-"~
+                               task_values["yproc"]~"Y" %}
+        {% do task_values.update({"mesh_op_name": mesh_op_name}) %}
+        {% set mesh_run_task = "run_mesh_"~
+                               task_values["resolution"]~"-"~
+                               mesh_op_name~"_"~
+                               task_ns.platform~"_"~
+                               site_vars["mesh_build"][task_ns.platform] %}
+    {% else %}
+        {% set mesh_run_task = "run_mesh_"~
+                               task_values["resolution"]~"_"~
+                               task_ns.platform~"_"~
+                               site_vars["mesh_build"][task_ns.platform] %}
+    {% endif %}
 {# If the task is the mesh run task then use the task dictionary #}
 {# Otherwise use an empty dict to be populated later #}
     {% if mesh_run_task not in tasks_to_run %}
@@ -145,8 +158,26 @@
             {% do tasks_to_run.update({mesh_run_task: task_values}) %}
         {% else %}
             {% set mesh_dict = {} %}
+            {% if "_op" in task_values["resolution"] %}
+                {% do mesh_dict.update({"mesh_op_name": mesh_op_name}) %}
+            {% endif %}
             {% if "mpi_parts" in task_values %}
                 {% do mesh_dict.update({"mpi_parts": task_values["mpi_parts"]}) %}
+            {% endif %}
+            {% if "mesh_cpus" in task_values %}
+                {% do mesh_dict.update({"mesh_cpus": task_values["mesh_cpus"]}) %}
+            {% endif %}
+            {% if "mesh_memory" in task_values %}
+                {% do mesh_dict.update({"mesh_memory": task_values["mesh_memory"]}) %}
+            {% endif %}
+            {% if "panel_decomp" in task_values %}
+                {% do mesh_dict.update({"mesh_panel_decomp": task_values["panel_decomp"]}) %}
+            {% endif %}
+            {% if "xproc" in task_values %}
+                {% do mesh_dict.update({"mesh_xproc": task_values["xproc"]}) %}
+            {% endif %}
+            {% if "yproc" in task_values %}
+                {% do mesh_dict.update({"mesh_yproc": task_values["yproc"]}) %}
             {% endif %}
             {% do tasks_to_run.update({mesh_run_task: mesh_dict}) %}
         {% endif %}
