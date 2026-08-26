@@ -25,6 +25,9 @@
                             'module load lfric-cray/15.0.0/3.3 || true ; '~
                             'module load xios/3.0.7.2' %}
 
+{% set ex1a_oasis_cce = 'module load xios/3.0.4.0-oasis || true ; ' ~
+                        'module load oasis || true' %}
+
 {% set ex1a_coupled_cce = 'module unload xios || true ; ' ~
                           'module load cray-hdf5-parallel ; ' ~
                           'module load cray-netcdf-hdf5parallel ; ' ~
