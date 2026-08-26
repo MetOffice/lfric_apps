@@ -153,6 +153,7 @@ contains
 !> @param[inout] weighted_cloud_albedo       COSP diagnostic
 !> @param[inout] weighted_ctp                COSP diagnostic
 !> @param[inout] tot_cloud_area              COSP diagnostic
+!> @param[inout] cloudsat_gbxmean_ze_40      COSP diagnostic
 !> @param[inout] calipso_gbxmean_atb_40      COSP diagnostic
 !> @param[inout] calipso_mol_atb_40          COSP diagnostic
 !> @param[inout] calipso_cloudsat_40_cl      COSP diagnostic
