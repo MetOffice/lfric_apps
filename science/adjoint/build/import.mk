@@ -4,7 +4,7 @@
 # under which the code may be used.
 ##############################################################################
 PROJECT_SOURCE     = $(APPS_ROOT_DIR)/science/adjoint/source
-PSYAD_CONFIG_FILE ?= $(CORE_ROOT_DIR)/etc/psyclone.cfg
+export PSYAD_CONFIG_FILE ?= $(CORE_ROOT_DIR)/etc/psyclone.cfg
 
 .PHONY: import-adjoint
 import-adjoint: export ADJOINT_BUILD   := $(APPS_ROOT_DIR)/science/adjoint/build

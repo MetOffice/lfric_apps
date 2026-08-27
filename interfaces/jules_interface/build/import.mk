@@ -18,4 +18,7 @@ import-jules_interface:
 
     # Extract the interface code
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-			  SOURCE_DIR=$(PROJECT_SOURCE)
+	          SOURCE_DIR=$(PROJECT_SOURCE)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	          SOURCE_DIR=$(PROJECT_SOURCE) \
+	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)

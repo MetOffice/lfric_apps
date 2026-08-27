@@ -29,12 +29,12 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/science \
                                $(CORE_ROOT_DIR)/components/inventory \
-                               $(APPS_ROOT_DIR)/interfaces/jedi_lfric_interface \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
-							   $(APPS_ROOT_DIR)/science/shared \
-							   $(APPS_ROOT_DIR)/interfaces/socrates_interface \
-							   $(APPS_ROOT_DIR)/interfaces/jules_interface \
-							   $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface \
+                               $(APPS_ROOT_DIR)/interfaces/jedi_lfric_interface \
+                               $(APPS_ROOT_DIR)/science/shared \
+                               $(APPS_ROOT_DIR)/interfaces/socrates_interface \
+                               $(APPS_ROOT_DIR)/interfaces/jules_interface \
+                               $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface \
                                $(APPS_ROOT_DIR)/science/gungho \
                                $(APPS_ROOT_DIR)/science/linear \
                                $(APPS_ROOT_DIR)/science/adjoint \
@@ -135,10 +135,6 @@ build: ALWAYS
 	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; \
     done
 	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting UM physics)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_physics.mk
-	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
@@ -159,15 +155,6 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/jules_interface/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/socrates_interface/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/physics_schemes_interface/source \
 	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning Gungho dynamical core)
@@ -224,14 +211,7 @@ build: ALWAYS
 #
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export FFLAGS += -DUNIT_TEST
-unit-tests/%: export IMPORT_PARTS  = $(CORE_ROOT_DIR)/infrastructure \
-                                     $(CORE_ROOT_DIR)/components/driver \
-                                     $(CORE_ROOT_DIR)/components/science \
-                                     $(CORE_ROOT_DIR)/components/lfric-xios \
-                                     $(CORE_ROOT_DIR)/components/inventory \
-                                     $(APPS_ROOT_DIR)/interfaces/jedi_lfric_interface \
-                                     $(APPS_ROOT_DIR)/science/gungho \
-                                     $(APPS_ROOT_DIR)/science/linear
+unit-tests/%: export IMPORT_PARTS  = $(INTERNAL_DEPENDENCIES)
 unit-tests/%: export META_FILE_DIR = rose-meta/jedi_lfric_tests/HEAD
 unit-tests/%: export PROGRAMS = $(PROJECT_NAME)_unit_tests
 unit-tests/%: export PROJECT = $(PROJECT_NAME)
