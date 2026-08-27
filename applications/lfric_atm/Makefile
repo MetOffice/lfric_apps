@@ -67,6 +67,10 @@ ifneq ("$(PSYCLONE_TRANSFORMATION)","none")
   endif
 endif
 
+# Ensure all nested PSyclone calls (including core component imports)
+# can resolve lfric_apps transformation helpers.
+export PYTHONPATH := $(APPS_ROOT_DIR)/interfaces/build/psyclone_transformations_library:$(PYTHONPATH)
+
 .PHONY: default
 default: build
 	$(Q)echo > /dev/null
@@ -140,23 +144,23 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning interface components)
 	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/psyclone_transformations_library/psyclone_psykal.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/psyclone_transformations_library/psyclone_psykal.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/jules_interface/source
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/psyclone_transformations_library/psyclone_psykal.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/socrates_interface/source
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/psyclone_transformations_library/psyclone_psykal.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/physics_schemes_interface/source
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning Gungho dynamical core)
 	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/psyclone_transformations_library/psyclone_psykal.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/psyclone_transformations_library/psyclone_psykal.mk \
 	          SOURCE_DIR=source
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Preprocess and PSyclone Transmute)

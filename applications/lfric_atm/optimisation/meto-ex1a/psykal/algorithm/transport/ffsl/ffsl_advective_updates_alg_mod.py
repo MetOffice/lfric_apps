@@ -47,7 +47,7 @@ from __future__ import absolute_import, print_function
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import TransformationError
-from psyclone_tools import (redundant_computation_setval, colour_loops,
+from psyclone_tools_apps import (redundant_computation_setval, colour_loops,
                             view_transformed_schedule)
 
 

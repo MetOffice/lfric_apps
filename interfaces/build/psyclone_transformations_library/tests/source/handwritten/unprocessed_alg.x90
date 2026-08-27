@@ -1,0 +1,16 @@
+module unprocessed_alg_mod
+  USE constants_mod, ONLY: r_def
+
+  implicit none
+
+  use field_mod, only : field_type
+
+contains
+
+  subroutine unprocessed_alg( one )
+    implicit none
+    type(field_type), intent(inout) :: one
+    call invoke(setval_c(one, 1.0_r_def))
+  end subroutine unprocessed_alg
+
+end module unprocessed_alg_mod

@@ -1,0 +1,20 @@
+module preprocessed_alg_mod
+  USE constants_mod, ONLY: r_def
+
+  implicit none
+
+  use field_mod, only : field_type
+
+contains
+
+  subroutine preprocessed_alg( one )
+    implicit none
+    type(field_type), intent(inout) :: one
+    call invoke(setval_c(one, 1.0_r_def))
+  end subroutine preprocessed_alg
+
+#ifdef NOT_SET
+! Nothing happening here.
+#endif
+
+end module preprocessed_alg_mod
