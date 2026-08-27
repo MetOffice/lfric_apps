@@ -4,15 +4,15 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Compute the LHS of the semi-implicit system for the horizontal velocity:
-!!        lhs_uv  = norm_u*(Mu*u - P2t*t - grad*p),
-!!        with t = -Mt^(-1) * Pt2*u
-module apply_mixed_u_operator_kernel_mod
+!> @brief Compute the adjoint of LHS of the semi-implicit system
+!!        for the horizontal velocity.
+module adj_apply_mixed_u_operator_kernel_mod
 
 use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ,               &
                               GH_READWRITE,          &
+                              GH_INC,                &
                               GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_solver, i_def
 use kernel_mod,        only : kernel_type
@@ -25,36 +25,36 @@ private
 ! Public types
 !-------------------------------------------------------------------------------
 
-type, public, extends(kernel_type) :: apply_mixed_u_operator_kernel_type
+type, public, extends(kernel_type) :: adj_apply_mixed_u_operator_kernel_type
   private
   type(arg_type) :: meta_args(7) = (/                           &
        arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W2broken),  & ! lhs_uv
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2h),       & ! uv'
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2v),       & ! w'
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W3),        & ! exner'
+       arg_type(GH_FIELD,    GH_REAL, GH_INC,       W2h),       & ! uv'
+       arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W2v),       & ! w'
+       arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W3),        & ! exner'
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W2),    & ! Mu^{c,d}
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W3),    & ! grad
        arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2)         & ! norm_u
        /)
   integer :: operates_on = CELL_COLUMN
   contains
-  procedure, nopass :: apply_mixed_u_operator_code
+  procedure, nopass :: adj_apply_mixed_u_operator_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public :: apply_mixed_u_operator_code
+public :: adj_apply_mixed_u_operator_code
 
 contains
 
-!> @brief Compute the LHS of the semi-implicit system
+!> @brief Compute the adjoint of the LHS of the semi-implicit system
 !> @param[in]     cell          Horizontal cell index
 !> @param[in]     nlayers       Number of layers
 !> @param[in,out] lhs_uv        Mixed operator applied to the horizontal momentum equation
-!> @param[in]     wind_uv       Horizontal wind field
-!> @param[in]     wind_w        Vertical wind field
-!> @param[in]     exner         Exner pressure field
+!> @param[in,out] wind_uv       Horizontal wind field
+!> @param[in,out] wind_w        Vertical wind field
+!> @param[in,out] exner         Exner pressure field
 !> @param[in]     ncell1        Total number of cells for the mu_cd operator
 !> @param[in]     mu_cd         Generalised mass matrix for the momentum equation
 !> @param[in]     ncell2        Total number of cells for the grad operator
@@ -76,18 +76,18 @@ contains
 !> @param[in]     undf_w2       Unique number of degrees of freedom for the 3d wind space
 !> @param[in]     map_w2        Dofmap for the cell at the base of the column for the 3d wind space
 
-subroutine apply_mixed_u_operator_code(cell,                          &
-                                       nlayers,                       &
-                                       lhs_uv,                        &
-                                       wind_uv, wind_w, exner,        &
-                                       ncell1, mu_cd,                 &
-                                       ncell2, grad,                  &
-                                       norm_u,                        &
-                                       ndf_w2hb, undf_w2hb, map_w2hb, &
-                                       ndf_w2h, undf_w2h, map_w2h,    &
-                                       ndf_w2v, undf_w2v, map_w2v,    &
-                                       ndf_w3, undf_w3, map_w3,       &
-                                       ndf_w2, undf_w2, map_w2)
+subroutine adj_apply_mixed_u_operator_code(cell,                          &
+                                           nlayers,                       &
+                                           lhs_uv,                        &
+                                           wind_uv, wind_w, exner,        &
+                                           ncell1, mu_cd,                 &
+                                           ncell2, grad,                  &
+                                           norm_u,                        &
+                                           ndf_w2hb, undf_w2hb, map_w2hb, &
+                                           ndf_w2h, undf_w2h, map_w2h,    &
+                                           ndf_w2v, undf_w2v, map_w2v,    &
+                                           ndf_w3, undf_w3, map_w3,       &
+                                           ndf_w2, undf_w2, map_w2)
 
   implicit none
 
@@ -107,10 +107,10 @@ subroutine apply_mixed_u_operator_code(cell,                          &
 
   ! Fields
   real(kind=r_solver), dimension(undf_w2hb), intent(inout) :: lhs_uv
-  real(kind=r_solver), dimension(undf_w2h),  intent(in)    :: wind_uv
-  real(kind=r_solver), dimension(undf_w2v),  intent(in)    :: wind_w
+  real(kind=r_solver), dimension(undf_w2h),  intent(inout) :: wind_uv
+  real(kind=r_solver), dimension(undf_w2v),  intent(inout) :: wind_w
   real(kind=r_solver), dimension(undf_w2),   intent(in)    :: norm_u
-  real(kind=r_solver), dimension(undf_w3),   intent(in)    :: exner
+  real(kind=r_solver), dimension(undf_w3),   intent(inout) :: exner
 
   ! Operators
   real(kind=r_solver), dimension(ncell1, ndf_w2, ndf_w2), intent(in) :: mu_cd
@@ -119,39 +119,45 @@ subroutine apply_mixed_u_operator_code(cell,                          &
   ! Internal variables
   integer(kind=i_def) :: df, df2, ij, &
                          nm1, iw3,    &
-                         iw2, iw2h
+                         iw2, iw2hb,  &
+                         iw2h2, iw2v2
 
   ! Set up some useful shorthands for indices
   ij = (cell-1)*nlayers + 1
   nm1 = nlayers-1
   iw3 = map_w3(1)
 
-  ! LHS UV
-  do df = 1, ndf_w2h
-    iw2h = map_w2hb(df)
-    iw2  = map_w2(df)
-    lhs_uv(iw2h:iw2h+nm1) = - norm_u(iw2:iw2+nm1)   &
-                             *grad(ij:ij+nm1, df, 1)*exner(iw3:iw3+nm1)
-  end do
-  do df2 = 1, ndf_w2h
-    do df = 1, ndf_w2h
-      iw2h = map_w2hb(df)
-      iw2  = map_w2(df)
-      lhs_uv(iw2h:iw2h+nm1) = lhs_uv(iw2h:iw2h+nm1) &
-                            + norm_u(iw2:iw2+nm1)*  &
-                              mu_cd(ij:ij+nm1, df, df2)*wind_uv(map_w2h(df2):map_w2h(df2)+nm1)
-    end do
-  end do
-  do df2 = 1, ndf_w2v
-    do df = 1, ndf_w2h
-      iw2h = map_w2hb(df)
-      iw2  = map_w2(df)
-      lhs_uv(iw2h:iw2h+nm1) = lhs_uv(iw2h:iw2h+nm1) &
-                            + norm_u(iw2:iw2+nm1)*  &
-                              mu_cd(ij:ij+nm1, df, ndf_w2h+df2)*wind_w(map_w2v(df2):map_w2v(df2)+nm1)
+  do df2 = ndf_w2v, 1, -1
+    do df = ndf_w2h, 1, -1
+      iw2hb = map_w2hb(df)
+      iw2   = map_w2(df)
+      iw2v2 = map_w2v(df2)
+      wind_w(iw2v2:iw2v2+nm1) = wind_w(iw2v2:iw2v2+nm1) &
+                              + norm_u(iw2:iw2+nm1)*  &
+                                mu_cd(ij:ij+nm1, df, ndf_w2h+df2)*lhs_uv(iw2hb:iw2hb+nm1)
     end do
   end do
 
-end subroutine apply_mixed_u_operator_code
+  do df2 = ndf_w2h, 1, -1
+    do df = ndf_w2h, 1, -1
+      iw2hb = map_w2hb(df)
+      iw2   = map_w2(df)
+      iw2h2 = map_w2h(df2)
+      wind_uv(iw2h2:iw2h2+nm1) = wind_uv(iw2h2:iw2h2+nm1) &
+                               + norm_u(iw2:iw2+nm1)*  &
+                                 mu_cd(ij:ij+nm1, df, df2)*lhs_uv(iw2hb:iw2hb+nm1)
+    end do
+  end do
 
-end module apply_mixed_u_operator_kernel_mod
+  do df = ndf_w2h, 1, -1
+    iw2hb = map_w2hb(df)
+    iw2   = map_w2(df)
+    exner(iw3:iw3+nm1) = exner(iw3:iw3+nm1) &
+                       - norm_u(iw2:iw2+nm1)   &
+                         *grad(ij:ij+nm1, df, 1)*lhs_uv(iw2hb:iw2hb+nm1)
+    lhs_uv(iw2hb:iw2hb+nm1) = 0.0_r_solver
+  end do
+
+end subroutine adj_apply_mixed_u_operator_code
+
+end module adj_apply_mixed_u_operator_kernel_mod
