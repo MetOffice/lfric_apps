@@ -7,12 +7,12 @@
 !>
 module bl_imp_kernel_mod
 
-  use argument_mod,           only : arg_type,                  &
-                                     GH_FIELD, GH_SCALAR,       &
-                                     GH_INTEGER, GH_REAL,       &
-                                     GH_READ, GH_READWRITE,     &
-                                     GH_WRITE, DOMAIN,          &
-                                     ANY_DISCONTINUOUS_SPACE_1, &
+  use argument_mod,           only : arg_type,                                 &
+                                     GH_FIELD, GH_SCALAR,                      &
+                                     GH_INTEGER, GH_REAL,                      &
+                                     GH_READ, GH_READWRITE,                    &
+                                     GH_WRITE, DOMAIN,                         &
+                                     ANY_DISCONTINUOUS_SPACE_1,                &
                                      ANY_DISCONTINUOUS_SPACE_2
   use constants_mod,             only : i_def, i_um, r_def, r_um, r_bl
   use fs_continuity_mod,         only : W3, Wtheta
@@ -116,45 +116,45 @@ contains
   !> @param[in]     ndf_bl               Number of DOFs per cell for BL types
   !> @param[in]     undf_bl              Number of total DOFs for BL types
   !> @param[in]     map_bl               Dofmap for cell for BL types
-  subroutine bl_imp_code(nlayers, seg_len,                   &
-                         loop,                               &
-                         theta_in_wth,                       &
-                         exner_in_wth,                       &
-                         m_v_n,                              &
-                         m_cl_n,                             &
-                         m_cf_n,                             &
-                         theta_latest,                       &
-                         height_w3,                          &
-                         height_wth,                         &
-                         m_v,                                &
-                         m_cl,                               &
-                         m_cf,                               &
-                         dtrdz_tq_bl,                        &
-                         rdz_tq_bl,                          &
-                         blend_height_tq,                    &
-                         bl_type_ind,                        &
-                         rhokh_bl,                           &
-                         moist_flux_bl,                      &
-                         heat_flux_bl,                       &
-                         dqw_wth, dtl_wth, dqw_nt_wth,       &
-                         dtl_nt_wth, qw_wth, tl_wth,         &
-                         ct_ctq_wth, dqw1_2d, dtl1_2d,       &
-                         ct_ctq1_2d,                         &
-                         ndf_wth,                            &
-                         undf_wth,                           &
-                         map_wth,                            &
-                         ndf_w3,                             &
-                         undf_w3,                            &
-                         map_w3,                             &
-                         ndf_2d,                             &
-                         undf_2d,                            &
-                         map_2d,                             &
+  subroutine bl_imp_code(nlayers, seg_len,                                     &
+                         loop,                                                 &
+                         theta_in_wth,                                         &
+                         exner_in_wth,                                         &
+                         m_v_n,                                                &
+                         m_cl_n,                                               &
+                         m_cf_n,                                               &
+                         theta_latest,                                         &
+                         height_w3,                                            &
+                         height_wth,                                           &
+                         m_v,                                                  &
+                         m_cl,                                                 &
+                         m_cf,                                                 &
+                         dtrdz_tq_bl,                                          &
+                         rdz_tq_bl,                                            &
+                         blend_height_tq,                                      &
+                         bl_type_ind,                                          &
+                         rhokh_bl,                                             &
+                         moist_flux_bl,                                        &
+                         heat_flux_bl,                                         &
+                         dqw_wth, dtl_wth, dqw_nt_wth,                         &
+                         dtl_nt_wth, qw_wth, tl_wth,                           &
+                         ct_ctq_wth, dqw1_2d, dtl1_2d,                         &
+                         ct_ctq1_2d,                                           &
+                         ndf_wth,                                              &
+                         undf_wth,                                             &
+                         map_wth,                                              &
+                         ndf_w3,                                               &
+                         undf_w3,                                              &
+                         map_w3,                                               &
+                         ndf_2d,                                               &
+                         undf_2d,                                              &
+                         map_2d,                                               &
                          ndf_bl, undf_bl, map_bl)
 
     !---------------------------------------
     ! UM modules containing switches or global constants
     !---------------------------------------
-    use bl_option_mod, only: l_noice_in_turb, alpha_cd, puns, pstb, &
+    use bl_option_mod, only: l_noice_in_turb, alpha_cd, puns, pstb,            &
          flux_bc_opt, specified_fluxes_only
     use nlsizes_namelist_mod, only: bl_levels
     use planet_constants_mod, only: planet_radius
@@ -211,23 +211,23 @@ contains
     logical :: l_correct
 
     ! profile fields from level 1 upwards
-    real(r_bl), dimension(seg_len,1,nlayers) ::  t_latest, q_latest, &
+    real(r_bl), dimension(seg_len,nlayers) ::  t_latest, q_latest,             &
          qcl_latest, qcf_latest, t, r_rho_levels
 
     ! profile field on boundary layer levels
-    real(r_bl), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh,       &
-         dtrdz_charney_grid, rdz_charney_grid, qw, tl, dqw, dtl, ct_ctq, &
+    real(r_bl), dimension(seg_len,bl_levels) :: fqw, ftl, rhokh,               &
+         dtrdz_charney_grid, rdz_charney_grid, qw, tl, dqw, dtl, ct_ctq,       &
          dqw_nt, dtl_nt
 
     ! profile fields from level 0 upwards
-    real(r_bl), dimension(seg_len,1,0:nlayers) :: q, qcl, qcf, r_theta_levels
+    real(r_bl), dimension(seg_len,0:nlayers) :: q, qcl, qcf, r_theta_levels
 
     ! single level real fields
-    real(r_bl), dimension(seg_len,1) :: gamma1, gamma2, ctctq1_1, &
+    real(r_bl), dimension(seg_len) :: gamma1, gamma2, ctctq1_1,                &
          dqw1_1, dtl1_1
 
     ! single level integer fields
-    integer(i_um), dimension(seg_len,1) :: k_blend_tq
+    integer(i_um), dimension(seg_len) :: k_blend_tq
 
     ! parameters for new BL solver
     real(r_bl) :: pnonl,p1,p2
@@ -243,34 +243,34 @@ contains
     do i = 1, seg_len
       do k = 1, nlayers
         ! Temperature
-        t(i,1,k) = theta_in_wth(map_wth(1,i) + k) * &
+        t(i,k) = theta_in_wth(map_wth(1,i) + k) *                              &
                    exner_in_wth(map_wth(1,i) + k)
         ! height of rho levels from centre of planet
-        r_rho_levels(i,1,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
+        r_rho_levels(i,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
         ! water vapour mixing ratio
-        q(i,1,k) = m_v_n(map_wth(1,i) + k)
+        q(i,k) = m_v_n(map_wth(1,i) + k)
         ! cloud liquid mixing ratio
-        qcl(i,1,k) = m_cl_n(map_wth(1,i) + k)
+        qcl(i,k) = m_cl_n(map_wth(1,i) + k)
       end do
     end do
     if (l_noice_in_turb) then
       do k = 1, nlayers
         do i = 1, seg_len
-          qcf(i,1,k) = 0.0_r_bl
+          qcf(i,k) = 0.0_r_bl
         end do
       end do
     else
       do i = 1, seg_len
         do k = 1, nlayers
           ! cloud ice mixing ratio
-          qcf(i,1,k) = m_cf_n(map_wth(1,i) + k)
+          qcf(i,k) = m_cf_n(map_wth(1,i) + k)
         end do
       end do
     end if
 
     ! surface height
     do i = 1, seg_len
-      r_theta_levels(i,1,0) = height_wth(map_wth(1,i) + 0) + planet_radius
+      r_theta_levels(i,0) = height_wth(map_wth(1,i) + 0) + planet_radius
     end do
 
     !-----------------------------------------------------------------------
@@ -278,26 +278,26 @@ contains
     !-----------------------------------------------------------------------
     do i = 1, seg_len
       do k = 1, bl_levels
-        rhokh(i,1,k) = rhokh_bl(map_w3(1,i) + k-1)
-        fqw(i,1,k) = moist_flux_bl(map_w3(1,i) + k-1)
-        ftl(i,1,k) = heat_flux_bl(map_w3(1,i) + k-1)
-        dtrdz_charney_grid(i,1,k) = dtrdz_tq_bl(map_wth(1,i) + k)
-        rdz_charney_grid(i,1,k) = rdz_tq_bl(map_w3(1,i) + k-1)
+        rhokh(i,k) = rhokh_bl(map_w3(1,i) + k-1)
+        fqw(i,k) = moist_flux_bl(map_w3(1,i) + k-1)
+        ftl(i,k) = heat_flux_bl(map_w3(1,i) + k-1)
+        dtrdz_charney_grid(i,k) = dtrdz_tq_bl(map_wth(1,i) + k)
+        rdz_charney_grid(i,k) = rdz_tq_bl(map_w3(1,i) + k-1)
       end do
-      k_blend_tq(i,1) = blend_height_tq(map_2d(1,i))
+      k_blend_tq(i) = blend_height_tq(map_2d(1,i))
     end do
     if (loop == 2) then
       do i = 1, seg_len
         do k = 1, bl_levels
-          dqw(i,1,k) = dqw_wth(map_wth(1,i) + k)
-          dtl(i,1,k) = dtl_wth(map_wth(1,i) + k)
+          dqw(i,k) = dqw_wth(map_wth(1,i) + k)
+          dtl(i,k) = dtl_wth(map_wth(1,i) + k)
         end do
       end do
     else
       do i = 1, seg_len
-        dqw(i,1,1) = 0.0_r_bl
-        dtl(i,1,1) = 0.0_r_bl
-        ct_ctq(i,1,1) = 0.0_r_bl
+        dqw(i,1) = 0.0_r_bl
+        dtl(i,1) = 0.0_r_bl
+        ct_ctq(i,1) = 0.0_r_bl
       end do
     end if
 
@@ -306,92 +306,92 @@ contains
     !-----------------------------------------------------------------------
     do i = 1, seg_len
       do k = 1, nlayers
-        t_latest(i,1,k) = theta_latest(map_wth(1,i) + k) * &
+        t_latest(i,k) = theta_latest(map_wth(1,i) + k) *                       &
                           exner_in_wth(map_wth(1,i) + k)
-        q_latest(i,1,k)   = m_v(map_wth(1,i) + k)
-        qcl_latest(i,1,k) = m_cl(map_wth(1,i) + k)
+        q_latest(i,k)   = m_v(map_wth(1,i) + k)
+        qcl_latest(i,k) = m_cl(map_wth(1,i) + k)
       end do
     end do
     if (l_noice_in_turb) then
       do k = 1, nlayers
         do i = 1, seg_len
-          qcf_latest(i,1,k) = 0.0_r_bl
+          qcf_latest(i,k) = 0.0_r_bl
         end do
       end do
     else
       do i = 1, seg_len
         do k = 1, nlayers
-          qcf_latest(i,1,k) = m_cf(map_wth(1,i) + k)
+          qcf_latest(i,k) = m_cf(map_wth(1,i) + k)
         end do
       end do
     end if
 
     do i = 1, seg_len
-      p1=bl_type_ind(map_bl(1,i)+0)*pstb + &
+      p1=bl_type_ind(map_bl(1,i)+0)*pstb +                                     &
            (1.0_r_bl-bl_type_ind(map_bl(1,i)+0))*puns
-      p2=bl_type_ind(map_bl(1,i)+1)*pstb + &
+      p2=bl_type_ind(map_bl(1,i)+1)*pstb +                                     &
            (1.0_r_bl-bl_type_ind(map_bl(1,i)+1))*puns
       pnonl=max(p1,p2)
       i1(i) = (1.0_r_bl+1.0_r_bl/sqrt2)*(1.0_r_bl+pnonl)
-      e1(i) = (1.0_r_bl+1.0_r_bl/sqrt2)*( pnonl + (1.0_r_bl/sqrt2) + &
+      e1(i) = (1.0_r_bl+1.0_r_bl/sqrt2)*( pnonl + (1.0_r_bl/sqrt2) +           &
               sqrt(pnonl*(sqrt2-1.0_r_bl)+0.5_r_bl) )
-      e2(i) = (1.0_r_bl+1.0_r_bl/sqrt2)*( pnonl+(1.0_r_bl/sqrt2) - &
+      e2(i) = (1.0_r_bl+1.0_r_bl/sqrt2)*( pnonl+(1.0_r_bl/sqrt2) -             &
               sqrt(pnonl*(sqrt2-1.0_r_bl)+0.5_r_bl))
-      gamma1(i,1) = i1(i)
+      gamma1(i) = i1(i)
     end do
 
     if (loop == 1) then
       do i = 1, seg_len
-        gamma2(i,1) = i1(i) - e1(i)
+        gamma2(i) = i1(i) - e1(i)
       end do
       l_correct = .false.
     else
       do i = 1, seg_len
-        gamma2(i,1) = i1(i) - e2(i)
+        gamma2(i) = i1(i) - e2(i)
       end do
       l_correct = .true.
     end if
 
-    call bdy_impl3 (                                                         &
+    call bdy_impl3 (                                                           &
          ! IN levels/switches
-         bl_levels, l_correct,                                               &
+         bl_levels, l_correct,                                                 &
          ! IN fields
-         q, qcl, qcf, q_latest, qcl_latest, qcf_latest, t, t_latest,         &
-         dtrdz_charney_grid, rhokh,                                          &
-         rdz_charney_grid, gamma1, gamma2, real(alpha_cd,r_bl),              &
-         r_theta_levels, r_rho_levels, k_blend_tq,                           &
+         q, qcl, qcf, q_latest, qcl_latest, qcf_latest, t, t_latest,           &
+         dtrdz_charney_grid, rhokh,                                            &
+         rdz_charney_grid, gamma1, gamma2, real(alpha_cd,r_bl),                &
+         r_theta_levels, r_rho_levels, k_blend_tq,                             &
          ! INOUT fields
-         fqw, ftl, dqw, dtl,                                                 &
+         fqw, ftl, dqw, dtl,                                                   &
          ! OUT fields
-         dqw_nt, dtl_nt, qw, tl, ct_ctq, dqw1_1, dtl1_1, ctctq1_1            &
+         dqw_nt, dtl_nt, qw, tl, ct_ctq, dqw1_1, dtl1_1, ctctq1_1              &
          )
 
     do k = 1, bl_levels
       do i = 1, seg_len
-        dqw_wth(map_wth(1,i) + k) = dqw(i,1,k)
-        dtl_wth(map_wth(1,i) + k) = dtl(i,1,k)
-        dqw_nt_wth(map_wth(1,i) + k) = dqw_nt(i,1,k)
-        dtl_nt_wth(map_wth(1,i) + k) = dtl_nt(i,1,k)
-        ct_ctq_wth(map_wth(1,i) + k) = ct_ctq(i,1,k)
+        dqw_wth(map_wth(1,i) + k) = dqw(i,k)
+        dtl_wth(map_wth(1,i) + k) = dtl(i,k)
+        dqw_nt_wth(map_wth(1,i) + k) = dqw_nt(i,k)
+        dtl_nt_wth(map_wth(1,i) + k) = dtl_nt(i,k)
+        ct_ctq_wth(map_wth(1,i) + k) = ct_ctq(i,k)
       end do
     end do
     if (loop == 1) then
       do k = 1, bl_levels
         do i = 1, seg_len
-          qw_wth(map_wth(1,i) + k) = qw(i,1,k)
-          tl_wth(map_wth(1,i) + k) = tl(i,1,k)
+          qw_wth(map_wth(1,i) + k) = qw(i,k)
+          tl_wth(map_wth(1,i) + k) = tl(i,k)
         end do
       end do
       do i = 1, seg_len
-        dqw1_2d(map_2d(1,i)) = dqw1_1(i,1)
-        dtl1_2d(map_2d(1,i)) = dtl1_1(i,1)
-        ct_ctq1_2d(map_2d(1,i)) = ctctq1_1(i,1)
+        dqw1_2d(map_2d(1,i)) = dqw1_1(i)
+        dtl1_2d(map_2d(1,i)) = dtl1_1(i)
+        ct_ctq1_2d(map_2d(1,i)) = ctctq1_1(i)
       end do
     else !loop = 2
       do k = 0, bl_levels-1
         do i = 1, seg_len
-          heat_flux_bl(map_w3(1,i)+k) = ftl(i,1,k+1)
-          moist_flux_bl(map_w3(1,i)+k) = fqw(i,1,k+1)
+          heat_flux_bl(map_w3(1,i)+k) = ftl(i,k+1)
+          moist_flux_bl(map_w3(1,i)+k) = fqw(i,k+1)
         end do
       end do
       ! With specified fluxes only, we need to update the surface temperature
@@ -399,7 +399,7 @@ contains
       ! carry this to jules_imp as it's normally only used on the 1st loop
       if (flux_bc_opt == specified_fluxes_only) then
         do i = 1, seg_len
-          dtl1_2d(map_2d(1,i)) = dtl(i,1,1)
+          dtl1_2d(map_2d(1,i)) = dtl(i,1)
         end do
       end if
     end if
