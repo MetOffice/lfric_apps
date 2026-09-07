@@ -159,8 +159,12 @@ subroutine tropopause_diags_code(nlayers,                    &
     if (height_wth(map_wth(1) + k) > heightcut_bot .and. &
         height_wth(map_wth(1) + k) < heightcut_top .and. &
         t_wth(k) < tempcut) then
-      if (lapse_rate(k)   < lapse_trop .and. &
-          lapse_rate(k - 1) > 0.0_r_def) then
+      ! lapse_rate(k + 1) is the (k ~ k+1) interval and lapse_rate(k) is the
+      ! (k-1 ~ k) interval below it - UM's "lapse"/"lapse_below" pair tested
+      ! at level k, not lapse_rate(k)/lapse_rate(k - 1) (which tests one
+      ! level too high and left lapse_rate_trop_level pointing at k_UM + 1).
+      if (lapse_rate(k + 1) < lapse_trop .and. &
+          lapse_rate(k)     > 0.0_r_def) then
         ! Lapse rate has dropped below the threshold. If this is maintained
         ! for 2km above then the WMO criteria for the tropopause has been
         ! met. Ported verbatim from UM's k2km loop in pws_tropoht_mod.F90:

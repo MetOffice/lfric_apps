@@ -87,10 +87,11 @@ contains
   end subroutine tearDown
 
   ! Steep tropospheric lapse (levels 1-5) transitioning to a shallow,
-  ! sub-threshold lapse at level 6, giving a WMO tropopause crossing at k=6
-  ! with a genuine (non-clamped) interior interpolated height between
-  ! levels 6 and 7. theta/exner_in_wth give t_wth = theta*exner_in_wth
-  ! close to 290, 277, 264, 251, 238, 235, 234, 235, 235, 235 K.
+  ! sub-threshold lapse at level 6, giving a WMO tropopause crossing at k=5
+  ! (interval 5~6 sub-threshold, interval 4~5 still positive) with a genuine
+  ! (non-clamped) interior interpolated height between levels 5 and 6.
+  ! theta/exner_in_wth give t_wth = theta*exner_in_wth close to 290, 277,
+  ! 264, 251, 238, 235, 234, 235, 235, 235 K.
   subroutine set_baseline_profile( this )
     implicit none
     class(tropopause_diags_test_type), intent(inout) :: this
@@ -212,9 +213,9 @@ contains
          trop_icao_ht, p_zero, kappa, g_over_r, &
          ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
 
-    @assertEqual( 13000.3_r_def, this%trop_ht(1), tol_height )
-    @assertEqual( 233.4996_r_def, trop_temp(1), tol_temp )
-    @assertEqual( 4075.456_r_def, trop_press(1), tol_press )
+    @assertEqual( 10333.3889_r_def, this%trop_ht(1), tol_height )
+    @assertEqual( 235.833306_r_def, trop_temp(1), tol_temp )
+    @assertEqual( 9455.578_r_def, trop_press(1), tol_press )
 
     call icao_heights_kernel_code( nlayers, expect_icao, trop_press, &
          g_over_r, ndf_2d, undf_2d, map_2d )
@@ -244,7 +245,7 @@ contains
          trop_icao_ht, p_zero, kappa, g_over_r, &
          ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
 
-    @assertEqual( 13000.3_r_def, this%trop_ht(1), tol_height )
+    @assertEqual( 10333.3889_r_def, this%trop_ht(1), tol_height )
 
   end subroutine test_trop_ht_always_computed
 
@@ -269,8 +270,8 @@ contains
          trop_icao_ht, p_zero, kappa, g_over_r, &
          ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
 
-    @assertEqual( 13000.3_r_def, this%trop_ht(1), tol_height )
-    @assertEqual( 233.4996_r_def, trop_temp(1), tol_temp )
+    @assertEqual( 10333.3889_r_def, this%trop_ht(1), tol_height )
+    @assertEqual( 235.833306_r_def, trop_temp(1), tol_temp )
 
     deallocate( temp_data )
 
@@ -298,7 +299,7 @@ contains
          trop_icao_ht, p_zero, kappa, g_over_r, &
          ndf_wth, undf_wth, map_wth, ndf_2d, undf_2d, map_2d )
 
-    @assertEqual( 4075.456_r_def, trop_press(1), tol_press )
+    @assertEqual( 9455.578_r_def, trop_press(1), tol_press )
 
     deallocate( temp_data, press_data )
 
