@@ -20,13 +20,10 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -50,7 +47,6 @@ class vn32_t634(MacroUpgrade):
         self.add_setting(config, [nml, "init_eos_height"], eos_height)
         self.add_setting(config, [nml, "init_exner_method"], "'hydrostatic'")
         self.add_setting(config, [nml, "init_sort_theta"], ".true.")
-
         return config, self.reports
 
 
@@ -63,5 +59,16 @@ class vn32_t479(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
         self.add_setting(config, ["namelist:mixing", "fullstress"], ".false.")
+        return config, self.reports
 
+
+class vn32_t655(MacroUpgrade):
+    """Upgrade macro for ticket #655 by Christine Johnson."""
+
+    BEFORE_TAG = "vn3.2_t479"
+    AFTER_TAG = "vn3.2_t655"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric2lfric
+        # Blank Upgrade Macro
         return config, self.reports
