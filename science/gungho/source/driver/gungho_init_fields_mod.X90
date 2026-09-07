@@ -35,9 +35,7 @@ module gungho_init_fields_mod
                                                  LOG_LEVEL_ERROR, &
                                                  LOG_LEVEL_DEBUG, &
                                                  log_scratch_space
-  use sci_mesh_enums_mod,                 only : geometry_spherical
-  use base_mesh_config_mod,               only : geometry
-  use mesh_mod,                           only : mesh_type
+  use mesh_mod,                           only : mesh_type, geometry_spherical
   use files_config_mod,                   only : checkpoint_stem_name
   use formulation_config_mod,             only : use_physics
   use section_choice_config_mod,          only : iau,                         &
@@ -919,7 +917,7 @@ subroutine create_model_data( modeldb,           &
       call prognostic_fields%get_field('rho',rho)
 
       if ( encorr_usage /= encorr_usage_none ) then
-        if ( geometry /= geometry_spherical ) then
+        if ( mesh%geometry() /= geometry_spherical ) then
           write(log_scratch_space, '(a)') &
           'Energy correction valid for spherical geometry only.'
           call log_event(log_scratch_space, log_level_error)

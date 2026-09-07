@@ -34,11 +34,9 @@ module limited_area_constants_mod
                                                LOG_LEVEL_ERROR, &
                                                LOG_LEVEL_DEBUG
   use mesh_collection_mod,               only: mesh_collection
-  use mesh_mod,                          only: mesh_type
+  use mesh_mod,                          only: mesh_type, geometry_spherical
   use timing_mod,                        only: start_timing, stop_timing, &
                                                tik, LPROF
-
-  use sci_mesh_enums_mod, only: geometry_spherical
 
   ! Configuration
   use base_mesh_config_mod,              only: geometry

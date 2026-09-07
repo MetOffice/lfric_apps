@@ -31,8 +31,8 @@ contains
     use feign_config_mod,     only : feign_base_mesh_config, &
                                      feign_planet_config,    &
                                      feign_transport_config
-    use sci_mesh_enums_mod,   only : geometry_planar,    &
-                                     topology_fully_periodic
+    use mesh_mod,             only : geometry_planar, &
+                                     topology_periodic
     use transport_config_mod, only : runge_kutta_method_ssp2,       &
                                      operators_fv,                  &
                                      slice_order_cubic,             &
@@ -109,7 +109,7 @@ contains
                                  prime_mesh_name='unit_test',         &
                                  geometry=geometry_planar,            &
                                  prepartitioned=.false.,              &
-                                 topology=topology_fully_periodic,    &
+                                 topology=topology_periodic,          &
                                  fplane=.false., f_lat_deg=0.0_r_def )
   end subroutine setUp
 

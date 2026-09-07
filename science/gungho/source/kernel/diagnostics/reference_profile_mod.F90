@@ -27,7 +27,7 @@ use idealised_config_mod,           only : test_cold_bubble_x,    &
                                            test_yz_cosine_hill
 use initial_pressure_config_mod,    only : surface_pressure
 use initial_temperature_config_mod, only : bvf_square, theta_surf
-use sci_mesh_enums_mod, only: geometry_spherical
+use mesh_mod,                       only : geometry_spherical
 
 use planet_config_mod,              only : scaled_radius, gravity, Cp, Rd, &
                                            kappa, p_zero

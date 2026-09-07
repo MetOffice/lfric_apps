@@ -31,8 +31,7 @@ use sci_coordinate_jacobian_mod, only: coordinate_jacobian
 use rotation_vector_mod,     only: rotation_vector_fplane,  &
                                    rotation_vector_sphere
 use cross_product_mod,       only: cross_product
-
-use sci_mesh_enums_mod,      only: geometry_spherical
+use mesh_mod,                only: geometry_spherical
 
 use base_mesh_config_mod,      only: geometry, topology
 use finite_element_config_mod, only: coord_system

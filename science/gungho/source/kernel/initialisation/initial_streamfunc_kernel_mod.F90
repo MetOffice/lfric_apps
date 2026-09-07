@@ -19,7 +19,7 @@ use constants_mod,             only : r_def, i_def, PI
 use fs_continuity_mod,         only : W1
 use kernel_mod,                only : kernel_type
 
-use sci_mesh_enums_mod, only: geometry_spherical, geometry_planar
+use mesh_mod, only: geometry_spherical, geometry_planar
 
 ! Configuration modules
 use base_mesh_config_mod,      only: geometry, topology

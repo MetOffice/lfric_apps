@@ -18,7 +18,8 @@ module initial_swe_streamfunc_kernel_mod
   use constants_mod,           only : r_def, i_def, PI
   use fs_continuity_mod,       only : W1
   use kernel_mod,              only : kernel_type
-  use sci_mesh_enums_mod,      only : geometry_spherical
+
+  use mesh_mod, only: geometry_spherical
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology

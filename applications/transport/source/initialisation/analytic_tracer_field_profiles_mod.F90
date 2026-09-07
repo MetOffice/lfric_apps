@@ -34,7 +34,7 @@ use idealised_config_mod,       only : test_gaussian_hill,        &
 use initial_tracer_field_config_mod, &
                                 only : r1, x1, y1, z1, r2, x2, y2, z2, &
                                        field_max, field_background
-use sci_mesh_enums_mod,      only : geometry_spherical
+use mesh_mod, only: geometry_spherical
 
 use base_mesh_config_mod,       only : geometry
 use planet_config_mod,          only : p_zero, Rd, kappa, scaled_radius

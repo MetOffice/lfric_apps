@@ -27,12 +27,12 @@ module calc_dep_pts_alg_mod
   use log_mod,                           only: log_event,               &
                                                LOG_LEVEL_DEBUG,         &
                                                LOG_LEVEL_ERROR
-  use mesh_mod,                          only: mesh_type
+  use mesh_mod,                          only: mesh_type, &
+                                               geometry_spherical, &
+                                               topology_periodic
   use r_tran_field_mod,                  only: r_tran_field_type
   use timing_mod,                        only: start_timing, stop_timing, &
                                                tik, LPROF
-
-  use sci_mesh_enums_mod, only: geometry_spherical, topology_fully_periodic
 
   ! Configs
   use base_mesh_config_mod,              only: geometry, topology
@@ -368,7 +368,7 @@ contains
     cap_dep_points = (horizontal_limit == horizontal_limit_cap)
 
     is_cubed_sphere = (                                                        &
-      geometry == geometry_spherical .and. topology == topology_fully_periodic &
+      geometry == geometry_spherical .and. topology == topology_periodic       &
     )
 
     if (is_cubed_sphere) then

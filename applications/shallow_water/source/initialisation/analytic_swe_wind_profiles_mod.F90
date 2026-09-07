@@ -15,7 +15,7 @@ module analytic_swe_wind_profiles_mod
   use log_mod,                only: log_event,         &
                                     log_scratch_space, &
                                     LOG_LEVEL_ERROR
-  use sci_mesh_enums_mod, only: geometry_spherical
+  use mesh_mod, only: geometry_spherical
 
   ! Configuration
   use base_mesh_config_mod,   only: geometry

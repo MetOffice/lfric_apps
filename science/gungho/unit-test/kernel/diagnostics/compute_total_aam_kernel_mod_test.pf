@@ -40,8 +40,8 @@ contains
   @before
   subroutine set_up()
 
-    use sci_mesh_enums_mod,        only : geometry_spherical, &
-                                          topology_fully_periodic
+    use mesh_mod,                  only : geometry_spherical, &
+                                          topology_periodic
     use extrusion_config_mod,      only : method_uniform, &
                                           stretching_method_linear
     use sci_chi_transform_mod,     only : init_chi_transforms
@@ -57,7 +57,7 @@ contains
                                  prime_mesh_name='unit_test',      &
                                  geometry=geometry_spherical,      &
                                  prepartitioned=.false.,           &
-                                 topology=topology_fully_periodic, &
+                                 topology=topology_periodic,       &
                                  fplane=.false., f_lat_deg=0.0_r_def )
 
     call feign_extrusion_config( planet_radius=planet_radius,                &
@@ -84,7 +84,7 @@ contains
                               p_zero=100000.0_r_def,           &
                               scaling_factor=1.0_r_def )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
+    call init_chi_transforms(geometry_spherical, topology_periodic)
 
   end subroutine set_up
 

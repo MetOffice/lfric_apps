@@ -14,6 +14,8 @@ module analytic_orography_field_spherical_mod_test
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
 
+  use mesh_mod, only: mesh_type, geometry_spherical, topology_periodic
+
   use funit
 
   implicit none
@@ -58,8 +60,6 @@ contains
   subroutine setUp(this)
 
     use agnesi_orography_spherical_mod, only : agnesi_spherical_type
-    use sci_mesh_enums_mod,             only : geometry_spherical, &
-                                               topology_fully_periodic
     use extrusion_config_mod,           only : method_uniform, &
                                                stretching_method_linear
     use finite_element_config_mod,      only : cellshape_quadrilateral, &
@@ -87,7 +87,7 @@ contains
                          prime_mesh_name = mesh_name,               &
                          geometry        = geometry_spherical,      &
                          prepartitioned  = .false.,                 &
-                         topology        = topology_fully_periodic, &
+                         topology        = topology_periodic,       &
                          fplane          = .false.,                 &
                          f_lat_deg       = 0.0_r_def )
 
@@ -141,7 +141,7 @@ contains
                                               lambda_focus,         &
                                               phi_focus ) )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
+    call init_chi_transforms(geometry_spherical, topology_periodic)
 
   end subroutine setUp
 
@@ -167,7 +167,6 @@ contains
 
     use, intrinsic :: iso_fortran_env,  only : real64
     use local_mesh_mod,                 only : local_mesh_type
-    use mesh_mod,                       only : mesh_type
     use panel_decomposition_mod,        only : custom_decomposition_type
     use partition_mod,                  only : partition_type,        &
                                                partitioner_interface, &

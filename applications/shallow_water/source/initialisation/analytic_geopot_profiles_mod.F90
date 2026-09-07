@@ -20,7 +20,7 @@ module analytic_geopot_profiles_mod
   use coord_transform_mod,    only: xyz2ll
   use galewsky_test_case_mod, only: galewsky_profile
 
-  use sci_mesh_enums_mod, only: geometry_spherical
+  use mesh_mod, only: geometry_spherical
 
   ! Configurations
   use base_mesh_config_mod,   only: geometry

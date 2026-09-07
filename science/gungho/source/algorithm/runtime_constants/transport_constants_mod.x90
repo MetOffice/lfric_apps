@@ -36,7 +36,10 @@ module transport_constants_mod
                                                 LOG_LEVEL_ERROR,               &
                                                 LOG_LEVEL_WARNING
   use mesh_collection_mod,                only: mesh_collection
-  use mesh_mod,                           only: mesh_type
+  use mesh_mod,                           only: mesh_type,          &
+                                                geometry_spherical, &
+                                                geometry_planar,    &
+                                                topology_periodic
   use operator_mod,                       only: operator_type, &
                                                 r_tran_operator_type
   use quadrature_edge_mod,                only: quadrature_edge_type
@@ -54,10 +57,6 @@ module transport_constants_mod
   use sci_operator_algebra_kernel_mod,    only: operator_setval_x_kernel_type
   use sci_operator_x_times_y_kernel_mod,  only: operator_x_times_y_kernel_type
   use panel_edge_support_mod,             only: FAR_AWAY
-
-  use sci_mesh_enums_mod, only: geometry_spherical,     &
-                                geometry_planar,        &
-                                topology_fully_periodic
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology
@@ -287,7 +286,7 @@ contains
         panel_edge_dist, fs, 4, local_mesh, halo_depth=field_depth             &
     )
 
-    if (geometry == geometry_spherical .and. topology == topology_fully_periodic) then
+    if (geometry == geometry_spherical .and. topology == topology_periodic) then
       ! Check if the mesh is too coarse for this stencil
       ! If the stencil is too long for the mesh, it could overlap with
       ! two panel edges, and will not give a sensible answer

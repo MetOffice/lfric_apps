@@ -23,6 +23,7 @@ module assign_orography_field_mod
                                              orog_init_option_none,     &
                                              orog_init_option_start_dump
   use mesh_collection_mod,            only : mesh_collection
+  use mesh_mod,                       only : mesh_type, geometry_spherical
   use coord_transform_mod,            only : xyz2llr, llr2xyz
   use sci_chi_transform_mod,          only : chi2llr
   use orography_helper_functions_mod, only : z2eta_linear, &
@@ -37,9 +38,6 @@ module assign_orography_field_mod
                                              LOG_LEVEL_ERROR
   use fs_continuity_mod,              only : W0, Wchi
   use function_space_mod,             only : BASIS
-
-  use sci_mesh_enums_mod, only: geometry_spherical, &
-                                topology_fully_periodic
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology
@@ -150,7 +148,6 @@ contains
 
     use inventory_by_mesh_mod,          only : inventory_by_mesh_type
     use field_mod,                      only : field_type, field_proxy_type
-    use mesh_mod,                       only : mesh_type
     use domain_mod,                     only : domain_type
     use orography_helper_functions_mod, only : set_horizontal_domain_size
     use orography_config_mod,           only : orog_init_option,               &
@@ -223,7 +220,7 @@ contains
          "Assigning analytic orography.", LOG_LEVEL_INFO )
 
       ! Point to appropriate procedure to assign orography
-      if (geometry == geometry_spherical) then
+      if (mesh%geometry() == geometry_spherical) then
         if (coord_system == coord_system_xyz) then
           analytic_orography => analytic_orography_spherical_xyz
         else
@@ -274,7 +271,7 @@ contains
          "Assigning orography from surface_altitude field.", LOG_LEVEL_INFO )
 
       ! Point to appropriate procedure to assign orography
-      if (geometry == geometry_spherical) then
+      if (mesh%geometry() == geometry_spherical) then
         if (coord_system == coord_system_xyz) then
           ancil_orography => ancil_orography_spherical_xyz
         else

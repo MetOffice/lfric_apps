@@ -28,7 +28,7 @@ module swe_rhs_alg_mod
   use mesh_mod,                       only: mesh_type
   use operator_mod,                   only: operator_type
   use sci_field_vector_mod,           only: field_vector_type
-  use sci_mesh_enums_mod,             only: geometry_spherical
+  use mesh_mod,                       only: geometry_spherical
 
   ! Quadrature and Psykal Lite
   use quadrature_face_mod,            only: quadrature_face_type

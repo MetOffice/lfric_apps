@@ -24,10 +24,6 @@
 
 module flux_precomputations_alg_mod
 
-  use sci_mesh_enums_mod,             only: topology_non_periodic,   &
-                                            topology_fully_periodic, &
-                                            geometry_spherical
-
   use base_mesh_config_mod,           only: topology, geometry
   use boundaries_config_mod,          only: limited_area,                      &
                                             transport_boundary_depth,          &
@@ -59,7 +55,9 @@ module flux_precomputations_alg_mod
                                             LOG_LEVEL_INFO,                    &
                                             LOG_LEVEL_WARNING,                 &
                                             log_at_level
-  use mesh_mod,                       only: mesh_type
+  use mesh_mod,                       only: mesh_type, &
+                                            topology_non_periodic, &
+                                            geometry_spherical
   use mesh_collection_mod,            only: mesh_collection
   use psykal_lite_transport_mod,      only: invoke_deep_shift_mass,            &
                                             invoke_deep_X_divideby_Y,          &

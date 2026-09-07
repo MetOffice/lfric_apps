@@ -29,7 +29,7 @@ use argument_mod,            only: arg_type, func_type,       &
                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
 use fs_continuity_mod,       only: W2, Wtheta
 use sci_coordinate_jacobian_mod, only: coordinate_jacobian
-use sci_mesh_enums_mod,      only: geometry_spherical
+use mesh_mod,                only: geometry_spherical
 use rotation_vector_mod,     only: rotation_vector_fplane,  &
                                    rotation_vector_sphere,  &
                                    vert_vector_sphere

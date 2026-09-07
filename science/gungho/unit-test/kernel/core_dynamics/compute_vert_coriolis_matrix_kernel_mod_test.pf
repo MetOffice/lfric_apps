@@ -43,7 +43,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use sci_mesh_enums_mod,        only : geometry_spherical,                  &
+    use mesh_mod,                  only : geometry_spherical,                  &
                                           topology_non_periodic
     use extrusion_config_mod,      only : method_uniform,                      &
                                           stretching_method_linear

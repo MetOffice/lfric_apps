@@ -15,7 +15,7 @@
 module orography_control_mod
 
   use constants_mod,          only : i_def, str_short
-  use sci_mesh_enums_mod,     only : geometry_spherical, &
+  use mesh_mod,               only : geometry_spherical, &
                                      geometry_planar
   use base_mesh_config_mod,   only : geometry
   use orography_config_mod,   only : profile,        &

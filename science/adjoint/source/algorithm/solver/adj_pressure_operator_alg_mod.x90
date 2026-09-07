@@ -16,9 +16,7 @@ module adj_pressure_operator_alg_mod
                                                              LOG_LEVEL_ERROR,   &
                                                              LOG_LEVEL_DEBUG
   use boundaries_config_mod,                           only: limited_area
-  use sci_mesh_enums_mod,                              only: topology_non_periodic
-  use base_mesh_config_mod,                            only: topology
-
+  use mesh_mod,                                        only: mesh_type, topology_non_periodic
   use invoke_adj_a_h_o_lookup_kernel_mod,              only: invoke_adj_a_h_o_lookup_kernel
   use adj_solver_lookup_cache_mod,                     only: adj_solver_lookup_cache_type
   use adj_lookup_table_mod,                            only: adj_lookup_table_type
@@ -107,8 +105,9 @@ contains
 
     real(kind=r_solver), parameter :: one = 1.0_r_solver
     integer(kind=i_def), parameter :: stencil_extent = 1_i_def
-    integer(kind=i_def)            :: mesh_id
     logical(kind=l_def)            :: lam_mesh
+
+    type(mesh_type), pointer :: mesh
 
     ! Lookup table
     type(adj_lookup_table_type), pointer :: lookup
@@ -124,7 +123,7 @@ contains
 
     select type (x)
     type is (r_solver_field_vector_type)
-      mesh_id = x%vector(1)%get_mesh_id()
+      mesh => x%vector(1)%get_mesh()
 
       select type (y)
       type is (r_solver_field_vector_type)
@@ -140,7 +139,9 @@ contains
         if (element_order_h == 0 .and. element_order_v == 0) then
           Helmholtz_operator => get_helmholtz_operator(self%level)
           lam_mesh = .false.
-          if (limited_area .and. topology==topology_non_periodic) lam_mesh=.true.
+          if (limited_area .and. mesh%topology()==topology_non_periodic) then
+            lam_mesh=.true.
+          end if
 
           call invoke( name="adj_apply_h_zeroing", &
                        setval_c( y_vec, 0.0_r_solver ) )

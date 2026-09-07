@@ -16,7 +16,7 @@ module analytic_swe_streamfunction_profiles_mod
                                     log_scratch_space, &
                                     LOG_LEVEL_ERROR
 
-  use sci_mesh_enums_mod, only: geometry_spherical
+  use mesh_mod, only: geometry_spherical
 
   ! Configuration
   use base_mesh_config_mod,   only: geometry

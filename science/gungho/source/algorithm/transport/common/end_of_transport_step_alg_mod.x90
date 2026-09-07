@@ -8,7 +8,6 @@
 
 module end_of_transport_step_alg_mod
 
-  use sci_mesh_enums_mod,             only: topology_non_periodic
   use base_mesh_config_mod,           only: topology
   use boundaries_config_mod,          only: limited_area,                      &
                                             transport_boundary_depth,          &
@@ -51,8 +50,8 @@ module end_of_transport_step_alg_mod
                                             LOG_LEVEL_INFO,     &
                                             LOG_LEVEL_ERROR
 
-  use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
+  use mesh_mod,                       only: mesh_type, topology_non_periodic
   use operator_mod,                   only: operator_type
   use r_tran_field_mod,               only: r_tran_field_type
   use r_tran_operator_mod,            only: r_tran_operator_type

@@ -52,8 +52,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp(this)
 
-    use sci_mesh_enums_mod,            only : geometry_spherical, &
-                                              topology_fully_periodic
+    use mesh_mod,                      only : geometry_spherical, &
+                                              topology_periodic
     use extrusion_config_mod,          only : method_uniform, &
                                               stretching_method_linear
     use feign_config_mod,              only :                         &
@@ -77,7 +77,7 @@ contains
                          prime_mesh_name = mesh_name,               &
                          geometry        = geometry_spherical,      &
                          prepartitioned  = .false.,                 &
-                         topology        = topology_fully_periodic, &
+                         topology        = topology_periodic,       &
                          fplane          = .false.,                 &
                          f_lat_deg       = 0.0_r_def )
 

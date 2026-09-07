@@ -10,7 +10,7 @@ module mol_advective_alg_mod
   ! Infrastructure
   use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, r_tran
-  use mesh_mod,                       only: mesh_type
+  use mesh_mod,                       only: mesh_type, topology_non_periodic
   use r_tran_field_mod,               only: r_tran_field_type
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
@@ -25,8 +25,6 @@ module mol_advective_alg_mod
   use transport_counter_mod,          only: transport_counter_type
   use transport_metadata_mod,         only: transport_metadata_type
   use wind_precomputations_alg_mod,   only: wind_precomputations_type
-
-  use sci_mesh_enums_mod, only: topology_non_periodic
 
   ! Configuration
   use base_mesh_config_mod,           only: topology
