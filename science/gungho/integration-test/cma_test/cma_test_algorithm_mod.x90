@@ -87,8 +87,6 @@ module cma_test_algorithm_mod
   use sci_columnwise_op_asm_m2v_lumped_inv_krnl_mod, &
                               only : columnwise_op_asm_m2v_lumped_inv_krnl_type
 
-  use sci_mesh_enums_mod, only: get_mesh_enums
-
   implicit none
 
   private
@@ -206,7 +204,8 @@ contains
 
     mesh => mesh_in
 
-    call get_mesh_enums(mesh, geometry, topology)
+    geometry = mesh%geometry()
+    topology = mesh%topology()
 
     coord_order   = config%finite_element%coord_order()
     coord_system  = config%finite_element%coord_system()

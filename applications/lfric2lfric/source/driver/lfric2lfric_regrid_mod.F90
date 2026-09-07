@@ -26,7 +26,6 @@ module lfric2lfric_regrid_mod
   use mesh_mod,                 only: mesh_type
   use model_clock_mod,          only: model_clock_type
   use namelist_mod,             only: namelist_type
-  use sci_mesh_enums_mod,       only: get_mesh_enums
 
   !------------------------------------
   ! lfric2lfric modules
@@ -122,7 +121,8 @@ contains
 
     ! Get the geometry and topology of the destination mesh
     mesh_dst => mesh_collection%get_mesh(trim(mesh_names(dst)))
-    call get_mesh_enums(mesh_dst, geometry, topology)
+    geometry = mesh_dst%geometry()
+    topology = mesh_dst%topology()
 
     ! Main loop over fields to be processed
     call iter%initialise(source_fields)
