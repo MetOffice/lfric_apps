@@ -46,6 +46,8 @@ module jules_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_exp_kernel_type
     private
+    ! its looking for 113 arguments
+    ! missing u_w3_stencil / v_w3_stencil / tile_stencil / sea_u_w3_stencil / sea_v_w3_stencil
     type(arg_type) :: meta_args(108) = (/                                      &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! exner_in_wth
@@ -320,9 +322,11 @@ contains
                            theta_in_wth,                          &
                            exner_in_wth,                          &
                            u_in_w3,                               &
-                           u_w3_stencil_size, u_w3_stencil,       &
+                           u_w3_stencil_size, &
+                           u_w3_stencil,       &
                            v_in_w3,                               &
-                           v_w3_stencil_size, v_w3_stencil,       &
+                           v_w3_stencil_size, &
+                           v_w3_stencil,       &
                            m_v_n,                                 &
                            m_cl_n,                                &
                            m_cf_n,                                &
@@ -332,7 +336,8 @@ contains
                            z0msea_2d,                             &
                            z0m_2d,                                &
                            tile_fraction,                         &
-                           tile_stencil_size, tile_stencil,       &
+                           tile_stencil_size, &
+                           tile_stencil,       &
                            leaf_area_index,                       &
                            canopy_height,                         &
                            peak_to_trough_orog,                   &
@@ -347,9 +352,11 @@ contains
                            clapp_horn_b,                          &
                            soil_respiration,                      &
                            thermal_cond_wet_soil,                 &
-                           sea_u_current, sea_u_w3_stencil_size,  &
+                           sea_u_current, &
+                           sea_u_w3_stencil_size,  &
                            sea_u_w3_stencil,                      &
-                           sea_v_current, sea_v_w3_stencil_size,  &
+                           sea_v_current, &
+                           sea_v_w3_stencil_size,  &
                            sea_v_w3_stencil,                      &
                            sea_ice_temperature,                   &
                            sea_ice_conductivity,                  &
@@ -429,7 +436,7 @@ contains
                            q1_sd_2d,                              &
                            gross_prim_prod,                       &
                            z0h_eff,                               &
-                           ocn_cpl_point,                         &
+                           ocn_cpl_point,                         &!!!!!!!!!
                            ndf_wth, undf_wth, map_wth,            &
                            ndf_w3, undf_w3, map_w3,               &
                            ndf_2d, undf_2d, map_2d,               &
@@ -575,6 +582,7 @@ contains
     integer(kind=i_def), intent(in) :: ndf_dust, undf_dust
     integer(kind=i_def), intent(in) :: map_dust(ndf_dust,seg_len)
 
+    ! should these be called map_u_w3_stencil_size and map_v_w3_stencil_size ???
     integer(kind=i_def), intent(in) :: u_w3_stencil_size(seg_len), v_w3_stencil_size(seg_len)
     integer(kind=i_def), dimension(ndf_w3,maxval(u_w3_stencil_size),seg_len_halo), intent(in) :: u_w3_stencil
     integer(kind=i_def), dimension(ndf_w3,maxval(v_w3_stencil_size),seg_len_halo), intent(in) :: v_w3_stencil

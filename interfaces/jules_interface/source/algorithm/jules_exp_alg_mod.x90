@@ -408,52 +408,115 @@ contains
     ! It will let you put kernel and algorithm editors side by side
     ! so you can easily see if the argument lists match each other
 
-    call invoke( jules_exp_kernel_type( theta, exner_in_wth,                   &
-                               u_in_w3, v_in_w3,                               &
-                               mr_n(imr_v), mr_n(imr_cl), mr_ice,              &
-                               height_w3, height_wth, zh, z0msea, z0m,         &
-                               tile_fraction, leaf_area_index,                 &
-                               canopy_height, peak_to_trough_orog,             &
-                               silhouette_area_orog, soil_albedo,              &
-                               soil_roughness, soil_moist_wilt,                &
-                               soil_moist_crit, soil_moist_sat,                &
-                               soil_thermal_cond, soil_suction_sat,            &
-                               clapp_horn_b, soil_respiration,                 &
+    call invoke( jules_exp_kernel_type(&
+                               theta, &
+                               exner_in_wth,                   &
+                               u_in_w3, &
+			       v_in_w3,                               &
+                               mr_n(imr_v), &
+			       mr_n(imr_cl), &
+			       mr_ice,              &
+                               height_w3, &
+			       height_wth, &
+			       zh, &
+			       z0msea, &
+			       z0m,         &
+                               tile_fraction, &
+			       leaf_area_index,                 &
+                               canopy_height, &
+			       peak_to_trough_orog,             &
+                               silhouette_area_orog, &
+			       soil_albedo,              &
+                               soil_roughness, &
+			       soil_moist_wilt,                &
+                               soil_moist_crit, &
+			       soil_moist_sat,                &
+                               soil_thermal_cond, &
+			       soil_suction_sat,            &
+                               clapp_horn_b, &
+			       soil_respiration,                 &
                                thermal_cond_wet_soil,                          &
-                               sea_u_current_ptr,sea_v_current_ptr,            &
+                               sea_u_current_ptr,&
+			       sea_v_current_ptr,            &
                                sea_ice_temperature,                            &
-                               sea_ice_conductivity, sea_ice_pensolar,         &
+                               sea_ice_conductivity, &
+			       sea_ice_pensolar,         &
                                sea_ice_pensolar_frac_direct,                   &
                                sea_ice_pensolar_frac_diffuse,                  &
                                tile_temperature,                               &
-                               tile_snow_mass, n_snow_layers, snow_depth,      &
-                               snow_layer_thickness, snow_layer_ice_mass,      &
-                               snow_layer_liq_mass, snow_layer_temp,           &
-                               surface_conductance, canopy_water,              &
-                               soil_temperature, soil_moisture,                &
-                               unfrozen_soil_moisture, frozen_soil_moisture,   &
-                               tile_heat_flux, tile_moisture_flux,             &
-                               net_prim_prod, cos_zenith_angle, skyview,       &
-                               sw_up_tile, tile_lw_grey_albedo,                &
-                               sw_down_surf, lw_down_surf,                     &
-                               sw_down_blue_surf, sw_direct_blue_surf,         &
-                               dd_mf_cb, ozone, cf_bulk,                       &
-                               cf_liquid, rhokm_bl, surf_interp, rhokh_bl,     &
-                               moist_flux_bl, heat_flux_bl, gradrinr,          &
-                               alpha1_tile, ashtf_prime_tile, dtstar_tile,     &
-                               fracaero_t_tile, fracaero_s_tile,               &
-                               z0h_tile, z0m_tile, rhokh_tile,                 &
-                               chr1p5m_tile, resfs_tile, gc_tile, canhc_tile,  &
-                               tile_water_extract, blend_height_tq, z0m_eff,   &
-                               ustar, soil_moist_avail, snow_unload_rate,      &
-                               albedo_obs_scaling, soil_clay, soil_sand,       &
-                               dust_mrel, dust_flux,                           &
-                               day_of_year, second_of_day,                     &
-                               flux_e, flux_h, urbwrr,                         &
-                               urbhwr, urbhgt, urbztm, urbdisp,                &
-                               rhostar, recip_l_mo_sea,                        &
-                               t1_sd_2d, q1_sd_2d,                             &
-                               gross_prim_prod, z0h_eff, ocn_cpl_point ) )
+                               tile_snow_mass, &
+			       n_snow_layers, &
+			       snow_depth,      &
+                               snow_layer_thickness, &
+			       snow_layer_ice_mass,      &
+                               snow_layer_liq_mass, &
+			       snow_layer_temp,           &
+                               surface_conductance, &
+			       canopy_water,              &
+                               soil_temperature, &
+			       soil_moisture,                &
+                               unfrozen_soil_moisture, &
+			       frozen_soil_moisture,   &
+                               tile_heat_flux, &
+			       tile_moisture_flux,             &
+                               net_prim_prod, &
+			       cos_zenith_angle, &
+			       skyview,       &
+                               sw_up_tile, &
+			       tile_lw_grey_albedo,                &
+                               sw_down_surf, &
+			       lw_down_surf,                     &
+                               sw_down_blue_surf, &
+			       sw_direct_blue_surf,         &
+                               dd_mf_cb, &
+			       ozone, &
+			       cf_bulk,                       &
+                               cf_liquid, &
+			       rhokm_bl, &
+			       surf_interp, &
+			       rhokh_bl,     &
+                               moist_flux_bl, &
+			       heat_flux_bl, &
+			       gradrinr,          &
+                               alpha1_tile, &
+			       ashtf_prime_tile, &
+			       dtstar_tile,     &
+                               fracaero_t_tile, &
+			       fracaero_s_tile,               &
+                               z0h_tile, &
+			       z0m_tile, &
+			       rhokh_tile,                 &
+                               chr1p5m_tile, &
+			       resfs_tile, &
+			       gc_tile, &
+			       canhc_tile,  &
+                               tile_water_extract, &
+			       blend_height_tq, &
+			       z0m_eff,   &
+                               ustar, &
+			       soil_moist_avail, &
+			       snow_unload_rate,      &
+                               albedo_obs_scaling, &
+			       soil_clay, &
+			       soil_sand,       &
+                               dust_mrel, &
+			       dust_flux,                           &
+                               day_of_year, &
+			       second_of_day,                     &
+                               flux_e, &
+			       flux_h, &
+			       urbwrr,                         &
+                               urbhwr, &
+			       urbhgt, &
+			       urbztm, &
+			       urbdisp,                &
+                               rhostar, &
+			       recip_l_mo_sea,                        &
+                               t1_sd_2d, &
+			       q1_sd_2d,                             &
+                               gross_prim_prod, &
+			       z0h_eff, &
+			       ocn_cpl_point ) )
 
     ! Switch UM back to columns
     call um_sizes_init(1_i_def)
