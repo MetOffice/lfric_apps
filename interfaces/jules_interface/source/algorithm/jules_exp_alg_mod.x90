@@ -74,7 +74,7 @@ contains
                            snow_fields, aerosol_fields, recip_l_mo_sea,      &
                            rhostar, t1_sd_2d, q1_sd_2d)
 
-    use psykal_lite_phys_mod, only: invoke_jules_exp_kernel_type
+    use jules_exp_kernel_mod, only: jules_exp_kernel_type
     use xios, only: xios_date, xios_get_current_date,                        &
                     xios_date_get_day_of_year, xios_date_get_second_of_day
 
