@@ -26,6 +26,7 @@ module external_forcing_alg_mod
                                              wind_forcing_diffusion,             &
                                              wind_forcing_profile,               &
                                              wind_forcing_nudging,               &
+                                             wind_relaxation,                    &
                                              vertadvect_forcing,                 &
                                              geostrophic_forcing,                &
                                              filtering_order,                    &
@@ -78,6 +79,7 @@ module external_forcing_alg_mod
   use geostrophic_forcing_alg_mod,     only: geostrophic_forcing_alg
   use vapour_forcing_profile_alg_mod,  only: vapour_forcing_profile_alg
   use wind_forcing_profile_alg_mod,    only: wind_forcing_profile_alg
+  use wind_relax_alg_mod,              only: wind_relax_alg
 
   use timing_mod,                      only: start_timing, stop_timing, &
                                              tik, LPROF
@@ -389,6 +391,19 @@ contains
 
       nullify( w2_rmultiplicity, u_physics, dA )
 
+    end if
+
+    if ( wind_relaxation ) then
+
+      if ( .not.wind_forcing_done) then
+        call du_forcing%initialise( vector_space = u%get_function_space() )
+        call invoke(setval_c(du_forcing, 0.0_r_def))
+      end if
+
+      nlayers = mesh%get_nlayers()
+      call wind_relax_alg( du_forcing, u, exner,    &
+                            twod_mesh, time_now, nlayers )
+      wind_forcing_done = .true.
     end if
 
     if ( geostrophic_forcing ) then
