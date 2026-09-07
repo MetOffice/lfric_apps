@@ -13,6 +13,8 @@ module analytic_orography_field_cartesian_mod_test
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
 
+  use mesh_mod,  only: mesh_type, geometry_planar, topology_periodic
+
   use funit
 
   implicit none
@@ -60,8 +62,6 @@ contains
   subroutine setUp(this)
 
     use schar_orography_cartesian_mod, only : schar_cartesian_type
-    use base_mesh_config_mod,          only : geometry_planar,    &
-                                              topology_fully_periodic
     use finite_element_config_mod,     only : cellshape_quadrilateral, &
                                               coord_system_xyz, coord_space_wchi
     use feign_config_mod,              only : feign_finite_element_config,   &
@@ -85,7 +85,7 @@ contains
                          prime_mesh_name = mesh_name,               &
                          geometry        = geometry_planar,         &
                          prepartitioned  = .false.,                 &
-                         topology        = topology_fully_periodic, &
+                         topology        = topology_periodic,       &
                          fplane          = .false.,                 &
                          f_lat_deg       = 0.0_r_def )
 
@@ -159,7 +159,6 @@ contains
 
     use domain_mod,                            only : domain_type
     use local_mesh_mod,                        only : local_mesh_type
-    use mesh_mod,                              only : mesh_type
     use panel_decomposition_mod,               only : custom_decomposition_type
     use partition_mod,                         only : partition_type,        &
                                                       partitioner_interface, &

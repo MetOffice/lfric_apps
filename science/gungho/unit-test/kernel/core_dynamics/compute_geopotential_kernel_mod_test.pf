@@ -10,8 +10,9 @@ module compute_geopotential_kernel_mod_test
   use constants_mod, only : i_def, r_def, l_def
   use funit
 
+  use mesh_mod, only: geometry_spherical
+
   ! Configuration modules
-  use base_mesh_config_mod,      only: GEOMETRY_SPHERICAL
   use finite_element_config_mod, only: COORD_SYSTEM_XYZ
 
   implicit none
@@ -38,7 +39,7 @@ module compute_geopotential_kernel_mod_test
   real(r_def), parameter :: radius   = 6000000.0_r_def
 
   integer(i_def), parameter :: coord_system = COORD_SYSTEM_XYZ
-  integer(i_def), parameter :: geometry     = GEOMETRY_SPHERICAL
+  integer(i_def), parameter :: geometry     = geometry_spherical
 
 contains
 

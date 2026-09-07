@@ -26,8 +26,13 @@
 {% if task_values["app_name"] == "canned_test" %}
     {% set script_str.name = script_str.name~" --command-key=$RUN_METHOD" %}
 {% else %}
-    {% if task_ns.application != "lfricinputs" %}
-        {% set script_str.name = script_str.name~" --opt-conf-key="~task_values["resolution"] %}
+    {# Use the first resolution is multiple supplied #}
+    {% set resolution = task_values["resolution"] %}
+    {% if resolution is not string %}
+        {% set resolution = resolution[0] %}
+    {% endif %}
+    {% if task_ns.application != "lfricinputs" and task_ns.application != "lfric2lfric" %}
+        {% set script_str.name = script_str.name~" --opt-conf-key="~resolution %}
     {% endif %}
     {% for opt_conf in task_values["opt_confs"] %}
         {% if opt_conf.strip() %}
@@ -111,17 +116,17 @@
 {% if task_ns.application == "lfric2lfric" %}
             MESH_DIR                = {{mesh_dir}}
 {% else %}
-    {% if "_op" in task_values["resolution"] %}
-            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}/{{task_values["mesh_op_name"]}}
+    {% if "_op" in task_values["resolution"][0] %}
+            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"][0]}}/{{task_values["mesh_op_name"]}}
     {% else %}
-            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}
+            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"][0]}}
     {% endif %}
 {% endif %}
             TASK_OUTPUT_DIR         = {{task_output_dir}}
             APP_NAME                = {{task_values["app_name"]}}
             APPLICATION             = {{task_ns.application}}
             LOG_LEVEL               = {{task_values["log_level"]}}
-            RESOLUTION              = {{task_values["resolution"]|replace("_MG","")|replace("_op","")}}
+            RESOLUTION              = {{task_values["resolution"][0]|replace("_MG","")|replace("_op","")}}
             ancil_resolution        = {{task_values["ancil_resolution"]|default('NONE')}}
             DT                      = {{task_values["DT"]}}
             USE_XIOS_IO             = {{task_values["use_xios_io"]}}

@@ -19,10 +19,10 @@ use constants_mod,             only : r_def, i_def, PI
 use fs_continuity_mod,         only : W1
 use kernel_mod,                only : kernel_type
 
+use mesh_mod, only: geometry_spherical, geometry_planar
+
 ! Configuration modules
-use base_mesh_config_mod,      only: geometry, topology, &
-                                     geometry_planar,    &
-                                     geometry_spherical
+use base_mesh_config_mod,      only: geometry, topology
 use finite_element_config_mod, only: coord_system
 use initial_wind_config_mod,   only: profile
 use planet_config_mod,         only: scaled_radius

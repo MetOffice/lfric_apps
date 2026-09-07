@@ -46,7 +46,6 @@ module gw_pressure_operator_alg_mod
                                                 b_space_w3, &
                                                 b_space_wtheta
   use multigrid_mod,                      only: multigrid_function_space_chain
-  use sci_mesh_enums_mod,                 only: get_mesh_enums
 
   implicit none
 
@@ -171,7 +170,8 @@ contains
       mesh => mesh_collection%get_mesh( chain_mesh_tags(level) )
     end if
 
-    call get_mesh_enums(mesh, geometry, topology)
+    geometry = mesh%geometry()
+    topology = mesh%topology()
 
     rehabilitate  = config%finite_element%rehabilitate()
     order_h       = config%finite_element%element_order_h()
