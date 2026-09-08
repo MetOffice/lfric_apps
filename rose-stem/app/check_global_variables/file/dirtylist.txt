@@ -53,6 +53,7 @@ interfaces/physics_schemes_interface/source/legacy/modules/s_scmop_mod.F90
 interfaces/physics_schemes_interface/source/legacy/glomap_clim_interface/glomap_clim_option_mod.F90
 interfaces/physics_schemes_interface/source/legacy/qxreconf/calc_fit_fsat.F90
 interfaces/physics_schemes_interface/source/legacy/grids/nlsizes_namelist_mod.F90
+interfaces/physics_schemes_interface/source/support/ukca_diag_setup_mod.f90
 interfaces/physics_schemes_interface/source/support/um_physics_init_mod.f90
 interfaces/physics_schemes_interface/source/support/um_read_radaer_lut_mod.f90
 interfaces/physics_schemes_interface/source/support/um_ukca_init_mod.f90

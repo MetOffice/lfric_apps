@@ -1,0 +1,144 @@
+! *****************************COPYRIGHT*******************************
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! -----------------------------------------------------------------------
+!> @brief Module providing an interface with the UKCA diagnostics handling
+!         system.
+!
+! Method:
+!
+!   The following public subroutines are provided.
+!
+!   initialise_ukca_diagnostics - Passes to UKCA the information on diagnostic
+!                                 requests active in the current call.
+!   output_ukca_diagnostics     - Output the chemistry diagnostics active in
+!                                 current call.
+!
+! ----------------------------------------------------------------------
+
+module ukca_diags_interface_mod
+
+use ukca_diag_setup_mod, only : n_ukca_diags_3d, idiag_status_3d,              &
+                                nm_rxnflux_oh_ch4_trop, nm_o3_column_du,       &
+                                diagnames_map
+
+use ukca_api_mod, only :   ukca_maxlen_diagname, ukca_maxlen_message,          &
+                           ukca_update_diagnostic_requests,                    &
+                           ukca_diag_status_inactive,                          &
+                           ukca_diag_status_requested
+
+use initialise_diagnostics_mod,     only: init_diag => init_diagnostic_field
+
+use constants_mod, only : i_def, r_def, l_def, str_def, i_um
+use field_mod,            only: field_type
+use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR,    & 
+                          LOG_LEVEL_DEBUG
+
+implicit none
+
+private
+
+public :: initialise_ukca_diagnostics, output_ukca_diagnostics
+
+contains
+
+! ----------------------------------------------------------------------
+subroutine initialise_ukca_diagnostics(                                        &
+                                        rxnflux_oh_ch4_trop,                   &
+                                        o3_column_du                           &
+                                      )
+! ----------------------------------------------------------------------
+! Description:
+!   Set up the list of active diagnostics to be passed to UKCA
+!   Requirement of diagnostic is determined by call to init_diag which
+!   in turn queries XIOS to check if field is to be sampled this timestep
+! ----------------------------------------------------------------------
+implicit none
+
+type(field_type), intent(out) :: rxnflux_oh_ch4_trop
+type(field_type), intent(out) :: o3_column_du
+
+! Local variables
+integer(i_def) :: i
+logical :: l_diag_requested
+
+character(len=ukca_maxlen_diagname) :: diagname
+
+! Error handling variables
+integer(i_um) :: errcode
+character(len=ukca_maxlen_message) :: ukca_errmsg
+
+! End of header
+
+errcode = 0_i_um
+
+do i = 1, n_ukca_diags_3d
+  l_diag_requested = .false.  
+  select case (trim(diagnames_map(i, 1)))
+    case (trim(nm_rxnflux_oh_ch4_trop))
+      l_diag_requested = init_diag(rxnflux_oh_ch4_trop, 'chemistry__rxnflux_oh_ch4_trop')
+      if (l_diag_requested) then
+        idiag_status_3d(i) = ukca_diag_status_requested
+        call invoke ( setval_c(rxnflux_oh_ch4_trop, 0.0_r_def) )
+      end if 
+    case (trim(nm_o3_column_du))      
+      l_diag_requested = init_diag(o3_column_du, 'chemistry__o3_column_du')
+      if (l_diag_requested) then
+        idiag_status_3d(i) = ukca_diag_status_requested
+        call invoke ( setval_c(o3_column_du, 0.0_r_def) )
+      end if 
+  end select
+  if (l_diag_requested) then
+    write(log_scratch_space, '(A,A)')'UKCA ACTIVE diagnostic : ', &
+      TRIM(diagnames_map(i, 2))
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  else
+    idiag_status_3d(i) = ukca_diag_status_inactive
+  end if  
+end do
+
+! Update the diagnostic request information in UKCA via API call
+CALL ukca_update_diagnostic_requests(                                          &
+       errcode,                                                                &
+       dreq_status_fullht_real=idiag_status_3d,                                &
+       error_message=ukca_errmsg )
+if (errcode > 0_i_um)  then
+  write(log_scratch_space, '(A,I0,A,A)')'Error in UKCA_UPDATE_DIAG_REQUESTS: ',&
+     errcode, ': ', TRIM(ukca_errmsg)
+  call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+end if
+
+end subroutine initialise_ukca_diagnostics
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+subroutine output_ukca_diagnostics(                                            &
+                                    rxnflux_oh_ch4_trop,                       &
+                                    o3_column_du                               &
+                                  )
+               
+implicit none
+
+type(field_type), intent(in) :: rxnflux_oh_ch4_trop
+type(field_type), intent(in) :: o3_column_du
+
+integer(i_def) :: i
+
+do i = 1, n_ukca_diags_3d
+  select case (trim(diagnames_map(i,1)))
+    case (trim(nm_rxnflux_oh_ch4_trop))
+      if (idiag_status_3d(i) == ukca_diag_status_requested)  then
+        call rxnflux_oh_ch4_trop % write_field
+      end if  
+    case (trim(nm_o3_column_du))
+      if (idiag_status_3d(i) == ukca_diag_status_requested) then 
+        call o3_column_du % write_field
+      end if  
+  end select
+end do
+
+end subroutine output_ukca_diagnostics
+! ----------------------------------------------------------------------
+
+end module ukca_diags_interface_mod

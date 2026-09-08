@@ -31,7 +31,7 @@ implicit none
 
 type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
   private
-  type(arg_type) :: meta_args(280) = (/                     &
+  type(arg_type) :: meta_args(282) = (/                     &
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o3p
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o1d
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o3
@@ -178,6 +178,8 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! pvol_om_ait_ins
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! pvol_du_acc_ins
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! pvol_du_cor_ins
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! rxnflux_oh_ch4_trop
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o3_column_du       
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! timestep_number
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_year
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_month
@@ -482,6 +484,8 @@ contains
 !> @param[in,out] pvol_om_ait_ins     Partial vol. of organic matter in aitken insoluble mode (m3)
 !> @param[in,out] pvol_du_acc_ins     Partial vol. of dust in accum insoluble mode (m3)
 !> @param[in,out] pvol_du_cor_ins     Partial vol. of dust in coarse insoluble mode (m3)
+!> @param[in,out] rxnflux_oh_ch4_trop Reaction flux of OH + CH4 in troposphere (mol s-1)
+!> @param[in,out] o3_column_du        Ozone column in Dobson units
 !> @param[in]     timestep_number     Time step number
 !> @param[in]     current_time_year   Current model year
 !> @param[in]     current_time_month  Current model month
@@ -792,6 +796,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               pvol_om_ait_ins,                                 &
                               pvol_du_acc_ins,                                 &
                               pvol_du_cor_ins,                                 &
+                              ! Diagnostics
+                              rxnflux_oh_ch4_trop,                             &
+                              o3_column_du,                                    &                              
+                              ! End diagnostics
                               timestep_number,                                 &
                               current_time_year,                               &
                               current_time_month,                              &
@@ -1225,6 +1233,9 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               fldname_photol_rates,                            &
                               nlev_ent_tr_mix,                                 &
                               n_phot_spc
+  use ukca_diag_setup_mod, only : n_ukca_diags_3d, idiag_status_3d,            &
+                                  diagnames_map,                               &
+                                  nm_rxnflux_oh_ch4_trop, nm_o3_column_du
 
   use log_mod,              only: log_event, log_scratch_space, LOG_LEVEL_ERROR
   use chemistry_config_mod, only: chem_scheme, chem_scheme_strattrop
@@ -1253,7 +1264,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   ! UKCA API module
   use ukca_api_mod,         only: ukca_step_control, ukca_maxlen_message, &
-                                  ukca_maxlen_procname
+                                  ukca_maxlen_procname,                   &
+                                  ukca_diag_status_inactive
 
   implicit none
 
@@ -1436,6 +1448,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in out), dimension(undf_wth) :: pvol_du_acc_ins
   real(kind=r_def), intent(in out), dimension(undf_wth) :: pvol_du_cor_ins
 
+  ! Diagnostics
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: rxnflux_oh_ch4_trop
+  real(kind=r_def), intent(in out), dimension(undf_wth) :: o3_column_du
+  
   integer(kind=i_timestep), intent(in) :: timestep_number
   integer(kind=i_def), intent(in) :: current_time_year
   integer(kind=i_def), intent(in) :: current_time_month
@@ -1653,6 +1669,9 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   ! Dimensions: X,Y,Z,JPPJ (Num photolysis species), M
   real(r_um), allocatable :: environ_fullhtphot_real(:,:,:,:,:)
+
+  ! Dimensions : X,Y,Z,N_UKCA_DIAG_3D
+  real(r_um), allocatable :: diag_fullht_real(:,:,:,:)
 
   ! Working variables
 
@@ -4272,6 +4291,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   end if     ! chem_scheme_strattrop / photol_rates reqd
 
+  ! Diagnostics - ONLY aLLOCATE the super-array, no fields to be passed in
+  allocate(diag_fullht_real( seg_len, 1, nlayers, n_ukca_diags_3d ))
+  diag_fullht_real(:,:,:,:) = 0.0_r_um
+
   ! Clear working fields used in environmental driver setup
   deallocate(z0h_bare_surft)
   deallocate(catch_surft)
@@ -4336,7 +4359,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                           envgroup_entlev_real=environ_entlev_real,            &
                           emissions_fullht=emissions_fullht,                   &
                           envgroup_fullhtphot_real=environ_fullhtphot_real,    &
-                          ! 5d
+                          ! Diagnostics
+                          diag_data_fullht_real=diag_fullht_real,              &
                           !
                           ! Optional in out arguments
                           !
@@ -5781,6 +5805,29 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   deallocate( ntp )
   deallocate( tracer )
+
+  ! Extract diagnostic fields from UKCA super array
+  ! Currently only 3-D
+  do m = 1, n_ukca_diags_3d
+    if ( idiag_status_3d(m) == ukca_diag_status_inactive ) cycle
+    select case( trim(diagnames_map(m, 1)) )
+      case (trim(nm_rxnflux_oh_ch4_trop))        
+        do i = 1, seg_len
+          do k = 1, nlayers
+            rxnflux_oh_ch4_trop( map_wth(1,i) + k ) = real( diag_fullht_real( i, 1, k, m ), r_def )
+          end do
+          rxnflux_oh_ch4_trop( map_wth(1,i) + 0 ) = rxnflux_oh_ch4_trop( map_wth(1,i) + 1 )
+        end do        
+      case (trim(nm_o3_column_du))        
+        do i = 1, seg_len
+          do k = 1, nlayers
+            o3_column_du ( map_wth(1,i) + k ) = real( diag_fullht_real( i, 1, k, m ), r_def )
+          end do
+        end do
+        o3_column_du( map_wth(1,i) + 0 ) = o3_column_du( map_wth(1,i) + 1 )
+    end select
+  end do
+ deallocate( diag_fullht_real )
 
 end subroutine aerosol_ukca_code
 

@@ -171,6 +171,8 @@
   <field id="chemistry__vo" name="vo" long_name="mass_fraction_of_vanadium_oxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />  
   <field id="chemistry__photol_rate_jo1d" name="photol_rate_jo1d" long_name="photolysis_rate_of_ozone_to_1d_oxygen_atom" unit="s-1" grid_ref="full_level_face_grid" />
   <field id="chemistry__photol_rate_jno2" name="photol_rate_jno2" long_name="photolysis_rate_of_nitrogen_dioxide" unit="s-1" grid_ref="full_level_face_grid" />
+  <field id="chemistry__rxnflux_oh_ch4_trop" name="rxnflux_oh_ch4_trop" long_name="minus_tendency_of_troposphere_moles_of_methane_due_to_reaction_with_hydroxyl_radical" unit="mol s-1" grid_ref="full_level_face_grid" />
+  <field id="chemistry__o3_column_du" name="o3_column_du" long_name="equivalent_thickness_at_stp_of_atmosphere_ozone_content" unit="DU" grid_ref="full_level_face_grid" />
   <!-- aerosol diagnostics -->
   <field id="aerosol__murk" name="murk" long_name="simple_single_species_aerosol_murk" unit="microg kg-1" grid_ref="full_level_face_grid" />
   <field id="aerosol__dust_flux" name="dust_flux" long_name="dust_emissions_flux_in_size_bins" unit="kg m-2 s-1" domain_ref="face" axis_ref="dust_divisions" />

@@ -126,6 +126,8 @@ contains
     use photol_kernel_mod,             only: photol_kernel_type
     use msat_kernel_mod,               only: msat_kernel_type
     use photol_diags_kernel_mod,       only: photol_diags_kernel_type
+    use ukca_diags_interface_mod,      only: initialise_ukca_diagnostics,      &
+                                             output_ukca_diagnostics
 
     implicit none
 
@@ -444,6 +446,9 @@ contains
     type( field_type ), pointer :: wetrho_in_w3 ! Wet density in W3
     type( field_type ), pointer :: wetrho_in_wth ! Wet density in WTHETA
 
+    ! Diagnostic fuelds
+    type(field_type) :: rxnflux_oh_ch4_trop
+    type(field_type) :: o3_column_du
 
     ! Time variables
     ! Note: Time at previous step is not required by UKCA on the first time
@@ -1018,6 +1023,13 @@ contains
     call photol_rates%initialise(vector_space)
     call invoke( setval_c(photol_rates,    0.0_r_def) )
 
+    ! Initialise diagnostics
+
+    call initialise_ukca_diagnostics(                                          &
+                                      rxnflux_oh_ch4_trop,                     &
+                                      o3_column_du                             &
+                                    )
+  
     if ( chem_scheme == chem_scheme_strattrop .and.                            &
          photol_scheme /= photol_scheme_off ) then
       ! Photolysis currently linked to Strattrop
@@ -1309,6 +1321,10 @@ contains
                                           pvol_om_ait_ins,                     &
                                           pvol_du_acc_ins,                     &
                                           pvol_du_cor_ins,                     &
+                                          ! diagnostics
+                                          rxnflux_oh_ch4_trop,                 &
+                                          o3_column_du,                        &
+                                          ! End diagnostics
                                           model_clock%get_step(),              &
                                           current_time_year,                   &
                                           current_time_month,                  &
@@ -1574,6 +1590,9 @@ contains
         end if
       end if    ! chem_scheme_strattrop
 
+      call output_ukca_diagnostics( rxnflux_oh_ch4_trop,                     &
+                                    o3_column_du )
+    
       call dms%write_field('chemistry__dms')
       call so2%write_field('chemistry__so2')
       call h2so4%write_field('chemistry__h2so4')
