@@ -8,6 +8,7 @@
 
 module update_iau_inc_alg_mod
 
+  use config_mod,                       only : config_type
   use constants_mod,                    only : r_def, i_def, r_second, l_def
   use dry_rho_alg_mod,                  only : dry_rho
   use field_array_mod,                  only : field_array_type
@@ -74,6 +75,7 @@ module update_iau_inc_alg_mod
   !> @ are valid for the time zero only, the 4DVar case, we proceed by adding
   !> @ these increments to the appropriate prognostic_fields.
   !> @ Transformations from mixing ratios to specific humidity and inversely are used
+  !> @param[in]      config             Application namelist configuration object
   !> @param[in,out]  iau_tot_inc        The collection of aggregated iau fields
   !> @param[in]      moist_dyn          Moist_dynamics factors (for 1+sum(m_x))
   !> @param[in]      twod_mesh          Two dimensional mesh, used to calculate tropopause level
@@ -84,12 +86,14 @@ module update_iau_inc_alg_mod
   !> @param[in,out]  soil_fields        The collection of soil fields
   !> @param[in,out]  snow_fields        The collection of snow fields
   !> @param[in]      model_clock        The model clock, used to determine the IAU weight
-  subroutine add_iau_inc( iau_tot_inc, moist_dyn, twod_mesh, prognostic_fields, &
+  subroutine add_iau_inc( config,                                               &
+                          iau_tot_inc, moist_dyn, twod_mesh, prognostic_fields, &
                           derived_fields, cloud_fields, surface_fields,         &
                           soil_fields, snow_fields, model_clock )
 
     implicit none
 
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(inout)       :: iau_tot_inc
     type( mesh_type ),             intent(in), pointer :: twod_mesh
@@ -224,7 +228,7 @@ module update_iau_inc_alg_mod
 
     ! Exner
     call invoke( inc_X_plus_Y( exner,  exner_tot_inc ) )
-    call map_physics_scalars( exner_wth, exner )
+    call map_physics_scalars( config, exner_wth, exner )
 
     call log_event( '- After exner -', log_level_debug )
     call print_meanrms_field( exner, log_level_debug )
@@ -233,7 +237,7 @@ module update_iau_inc_alg_mod
     call u % copy_field_properties( u_inc )
     call theta_tot_inc % copy_field_properties( upward_wind_tmp )
     call invoke( setval_c( upward_wind_tmp, 0.0_r_def ) )
-    call set_wind( u_inc, u_in_w3_tot_inc, v_in_w3_tot_inc, upward_wind_tmp )
+    call set_wind( config, u_inc, u_in_w3_tot_inc, v_in_w3_tot_inc, upward_wind_tmp )
     ! Set wind assumes input winds are truly horizontal and truly vertical.
     ! Over sloping surfaces, this creates unphysical flow into the surface
     ! and large divergences which can cause model failures.
@@ -264,7 +268,7 @@ module update_iau_inc_alg_mod
     ! PC2 cloud and humidity adjustments
     if ( iau_pc2 ) then
 
-      call iau_pc2_assimilation( exner_wth, exner_earlier_wth,     &
+      call iau_pc2_assimilation( exner, exner_wth, exner_earlier_wth,          &
                                  theta, theta_earlier,             &
                                  m_v, mv_earlier ,                 &
                                  m_cl, mcl_earlier,                &
@@ -302,7 +306,8 @@ module update_iau_inc_alg_mod
     end if
 
     ! Calculate tropopause level
-    call locate_tropopause_alg( trop_level, theta, exner_wth, twod_mesh )
+    call locate_tropopause_alg( config, trop_level, theta, exner_wth, &
+                                twod_mesh, trop_diag = .false. )
     call log_event('- After locate tropopause  -', log_level_debug)
     call log_field_minmax( log_level_debug, 'theta', theta )
     call log_field_minmax( log_level_debug, 'exner_wth', exner_wth )
@@ -322,7 +327,7 @@ module update_iau_inc_alg_mod
 
     ! Air density
     if ( iau_wet_density ) then
-      call dry_rho( rho, rho_r2_tot_inc, one_minus_qs)
+      call dry_rho( config, rho, rho_r2_tot_inc, one_minus_qs )
     else
       call invoke( inc_X_plus_Y( rho, rho_tot_inc ) )
     end if
@@ -670,7 +675,7 @@ module update_iau_inc_alg_mod
     if ( iau_ainc_active ) then
       call log_event( '- Minmax and mean/rms IAU increment fields -', log_level_info )
       call print_minmax_iau( iau_fields, log_level_info )
-      call print_meanrms_iau( iau_fields, log_level_info )
+      call print_meanrms_iau( modeldb%config, iau_fields, log_level_info )
     end if
 
     ! Calculate total weighted increment to be added this timestep then use it
@@ -681,13 +686,14 @@ module update_iau_inc_alg_mod
                              iau_bcorr_active,  &
                              iau_pertinc_active )
 
-    call add_iau_inc( iau_tot_inc, moist_dyn, twod_mesh, prognostic_fields, &
-                      derived_fields, cloud_fields,                         &
+    call add_iau_inc( modeldb%config, iau_tot_inc, moist_dyn, twod_mesh, &
+                      prognostic_fields, derived_fields, cloud_fields,   &
                       surface_fields, soil_fields, snow_fields, model_clock )
 
     ! Ensures that all prognostic fields are consistent
     call moist_dyn_factors_alg( moist_dyn, mr )
-    call map_physics_fields_alg( u, exner, rho, theta, moist_dyn, derived_fields )
+    call map_physics_fields_alg( modeldb%config, u, exner, rho, theta, &
+                                 moist_dyn, derived_fields )
 
     call log_event( '- Minmax and mean/rms prognostic fields after IAU -', log_level_debug )
     call print_minmax_prog( prognostic_fields, log_level_debug )

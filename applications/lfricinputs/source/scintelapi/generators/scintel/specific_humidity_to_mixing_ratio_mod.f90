@@ -8,7 +8,6 @@ module specific_humidity_to_mixing_ratio_mod
 ! This module contains a generator to convert specific humidities and a total
 ! density into the equivalent mixing ratios and dry density.
 !
-
 use dependency_graph_mod, only: dependency_graph
 
 implicit none
@@ -21,9 +20,11 @@ subroutine specific_humidity_to_mixing_ratio(dep_graph)
 ! value and save the result in the output field of the dependency graph.
 !
 
-use gen_io_check_mod,       only: gen_io_check
-use field_mod,              only: field_type
-use map_um_lbc_inputs_alg_mod, only: map_um_lbc_inputs
+use gen_io_check_mod, only: gen_io_check
+use field_mod,        only: field_type
+
+! scintelapi modules
+use scintel_map_um_lbc_inputs_alg_mod, only: scintel_map_um_lbc_inputs
 
 implicit none
 
@@ -75,9 +76,10 @@ field_qcf => dep_graph % input_field(3) % field_ptr
 field_qrain => dep_graph % input_field(4) % field_ptr
 field_rho_r2 => dep_graph % input_field(5) % field_ptr
 
-call map_um_lbc_inputs (field_q, field_qcl, field_qcf, field_qrain, &
-                        field_rho_r2, field_m_v, field_m_cl, &
-                        field_m_s, field_m_r, field_rho)
+call scintel_map_um_lbc_inputs(field_q, field_qcl, field_qcf,    &
+                               field_qrain, field_rho_r2,        &
+                               field_m_v, field_m_cl, field_m_s, &
+                               field_m_r, field_rho)
 
 ! Nullify field pointers
 nullify(field_q, field_qcl, field_qcf, field_qrain, field_rho_r2, field_m_v, &

@@ -1,0 +1,38 @@
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
+
+# Build and deploy Sphinx documentation to GitHub Pages
+
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'documentation/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    uses: MetOffice/growss/.github/workflows/sphinx-docs.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
+    with:
+      python-version: "3.12.12"
+      timeout-minutes: 5
+      docs-dir: documentation
+      source-dir: documentation/source
+      use-pyproject: false
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

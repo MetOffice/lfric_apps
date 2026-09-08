@@ -706,3 +706,24 @@ class TestLaunchExeEnv():
         sr = subprocess.run(self.launch_exe,
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
+
+    def test_run_lfric_atm_ral3_mixmol_uk_MG_ex1a_cce_fast_debug_64bit_crun1(self, monkeypatch):
+        monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
+        monkeypatch.setenv("RUN_METHOD", "mpiexec")
+        monkeypatch.setenv("HYPERTHREADS", "1")
+        monkeypatch.setenv("CORES_PER_NODE", "128")
+        monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
+        monkeypatch.setenv("OMP_NUM_THREADS", "1")
+        monkeypatch.setenv("TOTAL_RANKS", "729")
+        monkeypatch.setenv("XIOS_SERVER_MODE", "True")
+        monkeypatch.setenv("XIOS_SERVER_RANKS", "81")
+        monkeypatch.setenv("xios_nodes", "2")
+        monkeypatch.setenv("mpi_parts_xios", "81")
+        monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
+        monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-32bit")
+        monkeypatch.setenv("EXEC_NAME", "lfric_atm")
+        monkeypatch.setenv("PAT_EXE_EXTEN", "")
+        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC", "mpiexec --cpu-bind=depth --np 729 --depth 1 --ppn 128 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-32bit/lfric_atm configuration.nml  : --cpu-bind=depth --np 81 --depth 2 --ppn 41 xios_server.exe")
+        sr = subprocess.run(self.launch_exe,
+                            capture_output=True)
+        assert sr.returncode == 0, sr.stderr.decode("UTF-8")

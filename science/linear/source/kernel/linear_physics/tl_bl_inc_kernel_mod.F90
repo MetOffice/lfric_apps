@@ -6,16 +6,16 @@
 !> @brief Computes u_inc, the change in TLM velocity due to TLM boundary layer processes.
 module tl_bl_inc_kernel_mod
 
-  use argument_mod,           only : arg_type,              &
-                                     GH_FIELD, GH_OPERATOR, &
-                                     GH_SCALAR, GH_INTEGER, &
-                                     GH_READ, GH_INC,       &
-                                     GH_REAL, CELL_COLUMN,  &
-                                     ANY_DISCONTINUOUS_SPACE_1
-  use constants_mod,          only : r_def, i_def, r_um
-  use fs_continuity_mod,      only : W1, W2, W3
-  use kernel_mod,             only : kernel_type
-  use reference_element_mod,  only : N
+  use argument_mod,                  only : arg_type,              &
+                                            GH_FIELD, GH_OPERATOR, &
+                                            GH_SCALAR, GH_INTEGER, &
+                                            GH_READ, GH_INC,       &
+                                            GH_REAL, CELL_COLUMN,  &
+                                            ANY_DISCONTINUOUS_SPACE_1
+  use constants_mod,                 only : r_def, i_def, r_um
+  use fs_continuity_mod,             only : W1, W2, W3
+  use kernel_mod,                    only : kernel_type
+  use sci_face_selector_support_mod, only : face_from_face_selector
 
   implicit none
 
@@ -106,10 +106,8 @@ subroutine tl_bl_inc_code( nlayers,                 &
   ! Loop over horizontal W2 DoFs whilst minimising double counting.
   ! (Looping over all dofs would mean that faces are visited twice – for the cells on both sides.
   ! So here the loop is only for a specific selection of dofs.)
-  do j = 1, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))
-
-    df = j
-    if (j == 3 .and. face_selector_ns(map_w3_2d(1)) == 2 .and. face_selector_ew(map_w3_2d(1)) == 1) df = N
+  do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+    df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
 
     a0 = 0.0_r_def
     a1 = 0.0_r_def

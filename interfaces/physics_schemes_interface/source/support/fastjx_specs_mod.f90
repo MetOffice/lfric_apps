@@ -31,9 +31,9 @@ module fastjx_specs_mod
           sw_band_aer => photol_sw_band_aer, sw_phases => photol_sw_phases,   &
           wx_ => photol_max_wvl, x_ => photol_max_crossec,                    &
           jpwav => photol_wvl_intervals
-    
+
     use chemistry_config_mod, only: fastjx_numwavel
-    
+
     use log_mod, only : log_event,                                            &
                         log_scratch_space,                                    &
                         LOG_LEVEL_ERROR, LOG_LEVEL_INFO,                      &
@@ -52,7 +52,7 @@ module fastjx_specs_mod
     public fastjx_rd_mie, fastjx_rd_xxx, fastjx_rd_sol
 
     contains
-    
+
     ! ######################################################################
     !-----------------------------------------------------------------------
     !-------aerosols/cloud scattering data set for fast-JX (ver 5.3+)
@@ -157,7 +157,7 @@ module fastjx_specs_mod
     real(kind=r_um), intent(out) :: wl(wx_)       ! effective wavelengths
 
     character(len=photol_jlabel_len), intent(in) :: jlabel(jppj)
-    real(kind=r_um), intent(in) :: jfacta(jppj)   ! Quantum yields  
+    real(kind=r_um), intent(in) :: jfacta(jppj)   ! Quantum yields
     integer(kind=i_um), intent(out) :: jind(jppj)  ! Index of species from file
 
     character (len=errormessagelength)        :: cmessage
@@ -254,7 +254,7 @@ module fastjx_specs_mod
     !  Read in solar cycle data
     !-----------------------------------------------------------------------
     subroutine fastjx_rd_sol( nj1, namfil, n_solcyc_ts, solcyc_av,            &
-                             solcyc_quanta, solcyc_ts, solcyc_spec )   
+                             solcyc_quanta, solcyc_ts, solcyc_spec )
 
     implicit none
 
@@ -267,7 +267,7 @@ module fastjx_specs_mod
     real(kind=r_um), intent(out) :: solcyc_ts(n_solcyc_ts)  ! Observed tseries
     real(kind=r_um), intent(out) :: solcyc_spec(wx_)       ! Spectral component
 
-    integer(kind=i_um)           :: n_solcyc_ts_file    
+    integer(kind=i_um)           :: n_solcyc_ts_file
 
     ! Pointer to pass to read routine
     real(kind=r_um), pointer :: solcyc_ts_ptr(:)
@@ -282,7 +282,7 @@ module fastjx_specs_mod
           '. Check chemistry namelist value fjx_solcyc_months '
         call log_event( log_scratch_space, LOG_LEVEL_WARNING )
       end if
-      ! Copy data to array, to enable broadcast      
+      ! Copy data to array, to enable broadcast
       solcyc_ts(:) = solcyc_ts_ptr(:)
     end if
 

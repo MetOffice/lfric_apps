@@ -7,6 +7,7 @@
 
 module atl_advective_and_flux_alg_mod
 
+  use config_mod,                          only: config_type
   use constants_mod,                       only: i_def, l_def, r_def
   use field_mod,                           only: field_type
   use log_mod,                             only: log_event, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
@@ -53,6 +54,7 @@ contains
   !============================================================================!
   !> @brief Computes the tangent linear flux F and advective increment
   !> @details Compute the tangent linear mass flux and advective increment
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] mass_flux_1             ACTIVE: mass flux to compute from
   !!                                        linear wind and perturbation field
   !> @param[in,out] mass_flux_2             ACTIVE: mass flux to compute from
@@ -69,7 +71,8 @@ contains
   !> @param[in]     do_flux                 Flag to compute mass_flux = wind*density
   !> @param[in]     do_advective            Flag to compute adv_inc = wind.grad(density)
   !> @param[in]     adj_lookup_table_cache  Lookup table cache
-  subroutine atl_advective_and_flux_alg( mass_flux_1, mass_flux_2, adv_inc,  &
+  subroutine atl_advective_and_flux_alg( config,                             &
+                                         mass_flux_1, mass_flux_2, adv_inc,  &
                                          density, wind, ls_density, ls_wind, &
                                          direction, transport_metadata,      &
                                          final_rk_stage, dt,                 &
@@ -77,6 +80,8 @@ contains
                                          adj_lookup_table_cache )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),                  intent(inout) :: mass_flux_1, mass_flux_2
     type(field_type),                  intent(inout) :: density, wind
@@ -167,7 +172,7 @@ contains
         call invoke( setval_c( reconstruction_field, 0.0_r_def ) )
 
         ! Reconstruct W3 variables in multidata fields
-        call reconstruct_w3_field_alg( ls_reconstruction_field, ls_density,  &
+        call reconstruct_w3_field_alg( config, ls_reconstruction_field, ls_density,  &
                                        direction, transport_metadata, final_rk_stage )
 
         ! Compute the advective update m3_inv * u.grad(density)
@@ -246,7 +251,8 @@ contains
 
         end if
 
-        call atl_reconstruct_w3_field_alg( reconstruction_field, density, ls_density,     &
+        call atl_reconstruct_w3_field_alg( config,                                        &
+                                           reconstruction_field, density, ls_density,     &
                                            direction, transport_metadata, final_rk_stage, &
                                            adj_lookup_table_cache )
 
@@ -256,7 +262,8 @@ contains
         end if
 
         if ( do_advective ) then
-          call atl_wt_advective_update_alg( adv_inc, density, wind, ls_density, ls_wind,       &
+          call atl_wt_advective_update_alg( config,                                            &
+                                            adv_inc, density, wind, ls_density, ls_wind,       &
                                             dt, direction, transport_metadata, final_rk_stage, &
                                             adj_lookup_table_cache )
         end if

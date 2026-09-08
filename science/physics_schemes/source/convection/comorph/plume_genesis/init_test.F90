@@ -30,7 +30,7 @@ use comorph_constants_mod, only: real_hmprec,                                  &
                      l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup
 use grid_type_mod, only: grid_type
 use fields_type_mod, only: fields_type
-use dry_adiabat_mod, only: dry_adiabat_2d
+use test_unstable_mod, only: test_unstable
 
 
 implicit none
@@ -41,7 +41,7 @@ type(grid_type), intent(in) :: grid
 ! Structure containing pointers to primary fields
 type(fields_type), intent(in) :: fields
 
-! Virtual temperature
+! Virtual temperature profile
 real(kind=real_hmprec), intent(in) :: virt_temp                                &
                      ( nx_full, ny_full, k_bot_conv:k_top_conv )
 
@@ -50,11 +50,8 @@ real(kind=real_hmprec), intent(in) :: virt_temp                                &
 logical, intent(out) :: l_init_poss                                            &
                      ( nx_full, ny_full, k_bot_conv:k_top_init )
 
-! Work variable stores exner ratio for lifting from level k
-! to next level
-real(kind=real_hmprec) :: exner_ratio(nx_full,ny_full)
-
-! Lower and upper bounds on the pressure array
+! Lower and upper bounds on the height and pressure arrays
+integer :: lb_z(3), ub_z(3)
 integer :: lb_p(3), ub_p(3)
 
 ! Lower and upper bounds of mixing ratio arrays
@@ -70,44 +67,30 @@ integer :: i, j, k
 
 
 ! Find bounds of required 3-D arrays
+lb_z = lbound(grid % height_full)
+ub_z = ubound(grid % height_full)
 lb_p = lbound(grid % pressure_full)
 ub_p = ubound(grid % pressure_full)
-lb_r = [1,1,1]
-ub_r = [1,1,1]
-lb_f = [1,1,1]
-ub_f = [1,1,1]
-lb_s = [1,1,1]
-ub_s = [1,1,1]
-lb_g = [1,1,1]
-ub_g = [1,1,1]
 lb_v = lbound(fields % q_vap)
 ub_v = ubound(fields % q_vap)
 lb_l = lbound(fields % q_cl)
 ub_l = ubound(fields % q_cl)
-if ( l_cv_rain ) then
-  lb_r = lbound(fields % q_rain)
-  ub_r = ubound(fields % q_rain)
-end if
-if ( l_cv_cf ) then
-  lb_f = lbound(fields % q_cf)
-  ub_f = ubound(fields % q_cf)
-end if
-if ( l_cv_snow ) then
-  lb_s = lbound(fields % q_snow)
-  ub_s = ubound(fields % q_snow)
-end if
-if ( l_cv_graup ) then
-  lb_g = lbound(fields % q_graup)
-  ub_g = ubound(fields % q_graup)
-end if
+lb_r = lbound(fields % q_rain)
+ub_r = ubound(fields % q_rain)
+lb_f = lbound(fields % q_cf)
+ub_f = ubound(fields % q_cf)
+lb_s = lbound(fields % q_snow)
+ub_s = ubound(fields % q_snow)
+lb_g = lbound(fields % q_graup)
+ub_g = ubound(fields % q_graup)
 
 ! Loop over levels
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC)                               &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, k_top_init,            &
-!$OMP         grid, fields, virt_temp, l_init_poss,                            &
-!$OMP         lb_p, ub_p, lb_v, ub_v, lb_l, ub_l, lb_r, ub_r, lb_f, ub_f,      &
-!$OMP         lb_s, ub_s, lb_g, ub_g )                                         &
-!$OMP private( i, j, k, exner_ratio )
+!$OMP         grid, fields, virt_temp, l_init_poss, l_cv_snow,                 &
+!$OMP         lb_z, ub_z, lb_p, ub_p, lb_v, ub_v, lb_l, ub_l, lb_r, ub_r,      &
+!$OMP         lb_f, ub_f, lb_s, ub_s, lb_g, ub_g )                             &
+!$OMP PRIVATE( i, j, k )
 do k = k_bot_conv, k_top_init
 
   ! Initialise mask of points to false
@@ -117,51 +100,43 @@ do k = k_bot_conv, k_top_init
     end do
   end do
 
+  ! Flag points as possible initiation sources if they are statically unstable,
+  ! based on a dry-adiabat up or down vs the start-of-timestep Tv profile
+  ! (calculations done inside test_unstable)...
+
   ! If not at the model-top, try lifting up one level
   if ( k < k_top_conv ) then
 
-    call dry_adiabat_2d( lb_p(1:2), ub_p(1:2), grid % pressure_full(:,:,k),    &
-                         lb_p(1:2), ub_p(1:2), grid % pressure_full(:,:,k+1),  &
-                         lb_v(1:2), ub_v(1:2), fields % q_vap(:,:,k),          &
-                         lb_l(1:2), ub_l(1:2), fields % q_cl(:,:,k),           &
-                         lb_r(1:2), ub_r(1:2), fields % q_rain(:,:,k),         &
-                         lb_f(1:2), ub_f(1:2), fields % q_cf(:,:,k),           &
-                         lb_s(1:2), ub_s(1:2), fields % q_snow(:,:,k),         &
-                         lb_g(1:2), ub_g(1:2), fields % q_graup(:,:,k),        &
-                         exner_ratio )
-
-    ! Set flag true where lifted air becomes buoyant
-    do j = 1, ny_full
-      do i = 1, nx_full
-        l_init_poss(i,j,k) = l_init_poss(i,j,k) .or.                           &
-                             virt_temp(i,j,k) * exner_ratio(i,j)               &
-                           > virt_temp(i,j,k+1)
-      end do
-    end do
+    call test_unstable( virt_temp(:,:,k), virt_temp(:,:,k+1),                  &
+                        lb_z(1:2), ub_z(1:2), grid % height_full(:,:,k),       &
+                                              grid % height_full(:,:,k+1),     &
+                        lb_p(1:2), ub_p(1:2), grid % pressure_full(:,:,k),     &
+                                              grid % pressure_full(:,:,k+1),   &
+                        lb_v(1:2), ub_v(1:2), fields % q_vap(:,:,k),           &
+                        lb_l(1:2), ub_l(1:2), fields % q_cl(:,:,k),            &
+                        lb_r(1:2), ub_r(1:2), fields % q_rain(:,:,k),          &
+                        lb_f(1:2), ub_f(1:2), fields % q_cf(:,:,k),            &
+                        lb_s(1:2), ub_s(1:2), fields % q_snow(:,:,k),          &
+                        lb_g(1:2), ub_g(1:2), fields % q_graup(:,:,k),         &
+                        l_init_poss(:,:,k) )
 
   end if  ! ( k < k_top_conv )
 
   ! If not at the model-bottom, try subsiding down one level
   if ( k > k_bot_conv ) then
 
-    call dry_adiabat_2d( lb_p(1:2), ub_p(1:2), grid % pressure_full(:,:,k),    &
-                         lb_p(1:2), ub_p(1:2), grid % pressure_full(:,:,k-1),  &
-                         lb_v(1:2), ub_v(1:2), fields % q_vap(:,:,k),          &
-                         lb_l(1:2), ub_l(1:2), fields % q_cl(:,:,k),           &
-                         lb_r(1:2), ub_r(1:2), fields % q_rain(:,:,k),         &
-                         lb_f(1:2), ub_f(1:2), fields % q_cf(:,:,k),           &
-                         lb_s(1:2), ub_s(1:2), fields % q_snow(:,:,k),         &
-                         lb_g(1:2), ub_g(1:2), fields % q_graup(:,:,k),        &
-                         exner_ratio )
-
-    ! Set flag true where subsided air becomes negatively buoyant
-    do j = 1, ny_full
-      do i = 1, nx_full
-        l_init_poss(i,j,k) = l_init_poss(i,j,k) .or.                           &
-                             virt_temp(i,j,k) * exner_ratio(i,j)               &
-                           < virt_temp(i,j,k-1)
-      end do
-    end do
+    call test_unstable( virt_temp(:,:,k), virt_temp(:,:,k-1),                  &
+                        lb_z(1:2), ub_z(1:2), grid % height_full(:,:,k),       &
+                                              grid % height_full(:,:,k-1),     &
+                        lb_p(1:2), ub_p(1:2), grid % pressure_full(:,:,k),     &
+                                              grid % pressure_full(:,:,k-1),   &
+                        lb_v(1:2), ub_v(1:2), fields % q_vap(:,:,k),           &
+                        lb_l(1:2), ub_l(1:2), fields % q_cl(:,:,k),            &
+                        lb_r(1:2), ub_r(1:2), fields % q_rain(:,:,k),          &
+                        lb_f(1:2), ub_f(1:2), fields % q_cf(:,:,k),            &
+                        lb_s(1:2), ub_s(1:2), fields % q_snow(:,:,k),          &
+                        lb_g(1:2), ub_g(1:2), fields % q_graup(:,:,k),         &
+                        l_init_poss(:,:,k) )
 
   end if  ! ( k > k_bot_conv )
 
@@ -187,7 +162,7 @@ do k = k_bot_conv, k_top_init
   end if
 
 end do  ! k = k_bot_conv, k_top_init
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 
 return
@@ -207,7 +182,7 @@ use comorph_constants_mod, only: real_hmprec, nx_full, ny_full
 
 implicit none
 
-! Array lower points
+! Array lower and upper bounds
 integer, intent(in) :: lb(2), ub(2)
 ! 2-D array slice of condensed water
 real(kind=real_hmprec), intent(in) :: qc( lb(1):ub(1), lb(2):ub(2) )

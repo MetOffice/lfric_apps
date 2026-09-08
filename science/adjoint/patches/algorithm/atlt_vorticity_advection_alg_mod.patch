@@ -63,7 +63,7 @@
 -    call chi_3(2_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
 -    call chi_3(3_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
 -    call panel_id_1%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
-     qr_xyoz = quadrature_xyoz_type(element_order_h + 3,element_order_h + 3,element_order_v + 3,quadrature_rule)
+     qr_xyoz = quadrature_xyoz_type(element_order_h + 3, element_order_h + 3, element_order_v + 3, quadrature_rule)
      call r_u_input%initialise(vector_space=vector_space_w2_ptr, name='r_u_input')
      call wind_input%initialise(vector_space=vector_space_w2_ptr, name='wind_input')
      call vorticity_input%initialise(vector_space=vector_space_w1_ptr, name='vorticity_input')

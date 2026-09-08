@@ -8,10 +8,12 @@
 
 module adj_flux_precomputations_mod
 
+  use config_mod,                   only : config_type
   use constants_mod,                only : r_tran, i_def
   use r_tran_field_mod,             only : r_tran_field_type
   use integer_field_mod,            only : integer_field_type
   use mesh_mod,                     only : mesh_type
+  use mesh_collection_mod,          only : mesh_collection
   use flux_precomputations_alg_mod, only : flux_precomputations_type
   use fs_continuity_mod,            only : W3
   use log_mod,                      only : log_event,                         &
@@ -65,6 +67,8 @@ module adj_flux_precomputations_mod
     type(r_tran_field_type),                          pointer :: detj_w3
     type(r_tran_field_type)                                   :: tmp_field
 
+    type(config_type) :: config
+
     if (use_shifted_mesh()) then
       call log_event("adj_flux_pc_init: shifted mesh computations not yet implemented.", LOG_LEVEL_ERROR)
 
@@ -80,10 +84,17 @@ module adj_flux_precomputations_mod
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       call log_event("adj_flux_pc_init: adjoint of extended mesh computations not yet implemented.", LOG_LEVEL_ERROR)
     else
+
       mesh_id = flux_pc%get_mesh_id_from_idx( 1_i_def )
+
+      config = flux_pc%get_config()
+      mesh => mesh_collection%get_mesh(mesh_id)
+
       fpc_ref_field => flux_pc%get_ref_field( mesh_id, 1_i_def )
       fpc_ref_mass => flux_pc%get_ref_mass( mesh_id, 1_i_def )
-      detj_w3 => get_detj_at_w3_r_tran( mesh_id )
+
+      detj_w3 => get_detj_at_w3_r_tran( config, mesh )
+
       call fpc_ref_mass%copy_field_properties( tmp_field )
       call invoke( X_times_Y( tmp_field, detj_w3, fpc_ref_mass ), &
                    inc_X_plus_Y( fpc_ref_field, tmp_field ),      &

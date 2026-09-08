@@ -27,23 +27,23 @@ module invoke_adj_poly1d_recon_lookup_mod
     integer(kind=i_def), intent(in) :: nsets, nindices, stencil_extent
     type(r_tran_field_type), intent(in) :: reconstruction, tracer, coeff
     type(integer_field_type), intent(in) :: lookup_poly1d_field, num_sets_poly1d_field
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop1_start, loop1_stop
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers_reconstruction
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop1_start, loop1_stop
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers_reconstruction
     integer(kind=i_def), pointer, dimension(:) :: num_sets_poly1d_field_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_poly1d_field_data
-    type(integer_field_proxy_type) lookup_poly1d_field_proxy, num_sets_poly1d_field_proxy
+    type(integer_field_proxy_type) :: lookup_poly1d_field_proxy, num_sets_poly1d_field_proxy
     real(kind=r_tran), pointer, dimension(:) :: coeff_data
     real(kind=r_tran), pointer, dimension(:) :: tracer_data
     real(kind=r_tran), pointer, dimension(:) :: reconstruction_data
-    type(r_tran_field_proxy_type) reconstruction_proxy, tracer_proxy, coeff_proxy
+    type(r_tran_field_proxy_type) :: reconstruction_proxy, tracer_proxy, coeff_proxy
     integer(kind=i_def), pointer :: map_adspc1_reconstruction(:,:), map_adspc2_tracer(:,:), &
 &map_adspc3_lookup_poly1d_field(:,:), map_adspc4_num_sets_poly1d_field(:,:), map_adspc5_coeff(:,:)
-    integer(kind=i_def) ndf_adspc1_reconstruction, undf_adspc1_reconstruction, ndf_adspc2_tracer, undf_adspc2_tracer, &
+    integer(kind=i_def) :: ndf_adspc1_reconstruction, undf_adspc1_reconstruction, ndf_adspc2_tracer, undf_adspc2_tracer, &
 &ndf_adspc3_lookup_poly1d_field, undf_adspc3_lookup_poly1d_field, ndf_adspc4_num_sets_poly1d_field, &
 &undf_adspc4_num_sets_poly1d_field, ndf_adspc5_coeff, undf_adspc5_coeff
-    integer(kind=i_def) max_halo_depth_mesh
+    integer(kind=i_def) :: max_halo_depth_mesh
     type(mesh_type), pointer :: mesh
 
     nullify( num_sets_poly1d_field_data, lookup_poly1d_field_data, &

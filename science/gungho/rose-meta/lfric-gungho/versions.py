@@ -1,9 +1,8 @@
-import re
 import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version30_31 import *
+from .version31_32 import *
 
 
 class UpgradeError(Exception):
@@ -31,104 +30,34 @@ class vnXX_txxx(MacroUpgrade):
 """
 
 
-class vn31_t118(MacroUpgrade):
-    """Upgrade macro for ticket TTTT by Unknown."""
+class vn32_t634(MacroUpgrade):
+    """Upgrade macro for ticket #634 by Ian Boutle."""
 
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t118"
-
-    def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/lfric-gungho
-        # Blank Upgrade Macro
-        return config, self.reports
-
-
-class vn31_t363(MacroUpgrade):
-    """Upgrade macro for ticket #363 by Jaffery Irudayasamy."""
-
-    BEFORE_TAG = "vn3.1_t118"
-    AFTER_TAG = "vn3.1_t363"
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t634"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
-        """Set segmentation size limit for short and long wave radiation kernels"""
-        self.add_setting(config, ["namelist:physics", "sw_segment_limit"], "32")
-        self.add_setting(config, ["namelist:physics", "lw_segment_limit"], "32")
+        nml = "namelist:boundaries"
+        self.add_setting(config, [nml, "lbc_bal_meth"], "'keep_rho'")
+        self.add_setting(config, [nml, "lbc_sort_theta"], ".true.")
+        nml = "namelist:initialization"
+        eos_height = self.get_setting_value(config, [nml, "model_eos_height"])
+        self.remove_setting(config, [nml, "model_eos_height"])
+        self.add_setting(config, [nml, "init_eos_height"], eos_height)
+        self.add_setting(config, [nml, "init_exner_method"], "'hydrostatic'")
+        self.add_setting(config, [nml, "init_sort_theta"], ".true.")
         return config, self.reports
 
 
-class vn31_t348(MacroUpgrade):
-    """Upgrade macro for ticket #348 by Ian Boutle."""
+class vn32_t479(MacroUpgrade):
+    """Upgrade macro for ticket #479 by Shusuke Nishimoto."""
 
-    BEFORE_TAG = "vn3.1_t363"
-    AFTER_TAG = "vn3.1_t348"
+    BEFORE_TAG = "vn3.2_t634"
+    AFTER_TAG = "vn3.2_t479"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
-        # Use PMSL halo calculations by default
-        self.add_setting(
-            config, ["namelist:physics", "pmsl_halo_calcs"], ".true."
-        )
-        return config, self.reports
-
-
-class vn31_t368(MacroUpgrade):
-    """Upgrade macro for ticket #368 by Ian Boutle."""
-
-    BEFORE_TAG = "vn3.1_t348"
-    AFTER_TAG = "vn3.1_t368"
-
-    def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/um-convection
-        self.add_setting(
-            config, ["namelist:convection", "llcs_first_outer"], ".false."
-        )
-        return config, self.reports
-
-
-class vn31_t238(MacroUpgrade):
-    """Upgrade macro for ticket #238 by Thomas Bendall."""
-
-    BEFORE_TAG = "vn3.1_t368"
-    AFTER_TAG = "vn3.1_t238"
-
-    def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/lfric-driver
-        self.add_setting(
-            config, ["namelist:finite_element", "coord_space"], "'Wchi'"
-        )
-        coord_order = self.get_setting_value(
-            config, ["namelist:finite_element", "coord_order"]
-        )
-        self.add_setting(
-            config,
-            ["namelist:finite_element", "coord_order_nonprime"],
-            coord_order,
-        )
-        return config, self.reports
-
-
-class vn31_t443(MacroUpgrade):
-    """Upgrade macro for ticket #443 by Samantha Pullen."""
-
-    BEFORE_TAG = "vn3.1_t238"
-    AFTER_TAG = "vn3.1_t443"
-
-    def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/lfric-gungho
-        # Add name entry to iau_addinf_io namelist
-        self.add_setting(
-            config, ["namelist:iau_addinf_io(addinf1)", "name"], "''"
-        )
-        self.add_setting(
-            config, ["namelist:iau_addinf_io(addinf2)", "name"], "''"
-        )
-        # Add name entry to iau_ainc_io namelist
-        self.add_setting(config, ["namelist:iau_ainc_io(ainc1)", "name"], "''")
-        self.add_setting(config, ["namelist:iau_ainc_io(ainc2)", "name"], "''")
-        # Add name entry to iau_bcorr_io namelist
-        self.add_setting(
-            config, ["namelist:iau_bcorr_io(bcorr1)", "name"], "''"
-        )
+        self.add_setting(config, ["namelist:mixing", "fullstress"], ".false.")
 
         return config, self.reports

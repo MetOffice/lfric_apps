@@ -27,18 +27,16 @@ from psyclone.psyir.nodes import (
     Schedule,
 )
 from psyclone.psyir.symbols import (
-    DataSymbol,
     ContainerSymbol,
     RoutineSymbol,
     ImportInterface,
     UnsupportedFortranType,
-    INTEGER_TYPE,
-    CHARACTER_TYPE,
+    ScalarType
 )
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import (
     OMPLoopTrans,
     TransformationError,
-    OMPParallelTrans,
     OMPParallelLoopTrans,
 )
 
@@ -284,50 +282,6 @@ def omp_do_for_heavy_loops(
             logging.warning("Failed OMP on %s-loop: %s", loop_var, err)
 
 
-def mark_explicit_privates(node, names):
-    """
-    Add symbols named in `names` to `node.explicitly_private_symbols`.
-
-    Generic version of the original helper. Works with any PSyIR node that:
-      - has a `scope.symbol_table`, and
-      - provides an `explicitly_private_symbols` set-like attribute.
-
-    Warns if a requested symbol cannot be found or is not a DataSymbol.
-    """
-    # Be forgiving so this helper can be used beyond Loop nodes
-    scope = getattr(node, "scope", None)
-    symtab = getattr(scope, "symbol_table", None)
-    if symtab is None:
-        logging.warning(
-            "[warn] cannot set explicit privates:"
-            "node has no scope.symbol_table."
-        )
-        return
-
-    if not hasattr(node, "explicitly_private_symbols"):
-        logging.warning(
-            "[warn] cannot set explicit privates:"
-            " node has no 'explicitly_private_symbols'."
-        )
-        return
-
-    for name in names:
-        try:
-            sym = symtab.lookup(name)
-            if isinstance(sym, DataSymbol):
-                node.explicitly_private_symbols.add(sym)
-            else:
-                logging.warning(
-                    " [warn] private symbol '%s' is not a DataSymbol.",
-                    name,
-                )
-        except KeyError:
-            logging.warning(
-                "[warn] private symbol '%s' not found in symbol table.",
-                name,
-            )
-
-
 def get_compiler():
     """
     Best-effort compiler family from env.
@@ -437,9 +391,6 @@ def add_parallel_do_over_meta_segments(
     # Ensure scalars that may be emitted as FIRSTPRIVATE have a value
     first_priv_red_init(target, init_scalars)
 
-    # Explicit privates per policy
-    mark_explicit_privates(target, privates)
-
     # Apply the dynamic-scheduled directive (forced)
     try:
         if in_parallel_region:
@@ -448,7 +399,8 @@ def add_parallel_do_over_meta_segments(
                 "applying OMP DO (forced, dynamic).",
                 target.position,
             )
-            OMP_DO_LOOP_TRANS_DYNAMIC.apply(target, options={"force": True})
+            OMP_DO_LOOP_TRANS_DYNAMIC.apply(
+                target, force=True, force_private=privates)
         else:
             logging.info(
                 "Found target loop at %s:"
@@ -456,7 +408,7 @@ def add_parallel_do_over_meta_segments(
                 target.position,
             )
             OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC.apply(
-                target, options={"force": True}
+                target, force_private=privates, force=True
             )
 
         logging.info("Member-count PARALLEL DO inserted (dynamic).")
@@ -515,7 +467,7 @@ def first_priv_red_init(node_target, init_scalars, insert_at_start=False):
             # rather than UnsupportedFortranType
             if isinstance(sym.datatype, UnsupportedFortranType):
                 init = Assignment.create(
-                    Reference(sym), Literal("", CHARACTER_TYPE)
+                    Reference(sym), Literal("", ScalarType.character_type())
                 )
             else:
                 init = Assignment.create(
@@ -649,7 +601,7 @@ def loop_replacement_of(routine_itr,
                 parent = routine_itr
                 assign = Assignment.create(
                     Reference(loop.variable),
-                    Literal("1", INTEGER_TYPE))
+                    Literal("1", ScalarType.integer_type()))
                 parent.children.insert(0, assign)
                 do_once = True
 
@@ -670,7 +622,7 @@ def loop_replacement_of(routine_itr,
                 tmp = loop.detach()  # noqa: F841 #pylint: disable=W0612
 
 
-def add_omp_parallel_region( #pylint: disable=R0913
+def add_omp_parallel_region(  # pylint: disable=R0913
     start_node,
     end_node,
     *,
@@ -777,3 +729,99 @@ def get_ancestors(
     if depth is not None:
         ancestors = [a for a in ancestors if a.depth == depth]
     return ancestors
+
+
+def get_children(node, node_type=Node, exclude=()):
+    """
+    Lifted from PSyTran.
+    Get all immediate descendents of a Node with a given type, i.e., those at
+    the next depth level.
+
+    :arg node: the Node to search for descendents of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+
+    :returns: list of children according to specifications.
+    :rtype: :py:class:`list`
+    """
+    # safety checks
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    if not isinstance(node_type, tuple):
+        issubclass(node_type, Node)
+        node_type = (node_type,)
+    # create the child list
+    children = [
+        grandchild
+        for child in node.children
+        for grandchild in child.children
+        if isinstance(grandchild, node_type)
+        and not isinstance(grandchild, exclude)
+    ]
+    return children
+
+
+def get_all_children(node, node_type=Node, exclude=()):
+    """
+    A version of get_children, which instead recurses all the way down.
+    Get all immediate descendents of a Node with a given type, i.e., those at
+    the next depth level.
+
+    :arg node: the Node to search for descendents of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+
+    :returns: list of children according to specifications.
+    :rtype: :py:class:`list`
+    """
+    # safety checks
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    if not isinstance(node_type, tuple):
+        issubclass(node_type, Node)
+        node_type = (node_type,)
+
+    # create the local children list to be passed back up the stack
+    local_children = []
+    for child in node.children:
+        # work through the current children, do they match the node_type?
+        if isinstance(child, node_type):
+            local_children.append(child)
+        # if the child has grandchildren, recurse
+        if child.children:
+            returned_children = get_all_children(child, node_type=node_type)
+            for child in returned_children:
+                local_children.append(child)
+    return local_children
+
+
+def are_variables_present(node, check_list=[]):
+    """
+    Call get_all_children with an Assignment, and work through them,
+    checking whether the lhs of the returned list in present in our
+    check list. If it is, return true.
+
+    :arg node: the node to search for descendants of.
+    :type node: :py:class:`Node`
+    :arg check_list: list of items to check against the descendants
+    :type list: :py:class:`list`
+
+    :returns: skip_over bool
+    :rtype: :py:class:`list`
+    """
+    skip_over = False
+    all_children = get_all_children(node, node_type=Assignment)
+    skip_over = False
+    for child in all_children:
+        child_lhs_str = str(child.lhs).split("\n")
+        for item in check_list:
+            if str(item) in child_lhs_str[0]:
+                skip_over = True
+                break
+        if skip_over:
+            break
+    return skip_over

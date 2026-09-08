@@ -23,6 +23,7 @@
 
 module wind_precomputations_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def, str_def, imdi,       &
                                             r_tran, EPS_R_TRAN
   use extrusion_mod,                  only: SHIFTED, TWOD
@@ -59,7 +60,6 @@ module wind_precomputations_alg_mod
   use transport_constants_mod,        only: get_element_order_h_transport,     &
                                             get_element_order_v_transport
 
-
   implicit none
 
   private
@@ -68,6 +68,8 @@ module wind_precomputations_alg_mod
   type, public :: wind_precomputations_type
 
     private
+
+    type(config_type), pointer :: config
 
     integer(kind=i_def)                   :: local_mesh_id
     integer(kind=i_def),      allocatable :: mesh_ids(:)
@@ -78,16 +80,19 @@ module wind_precomputations_alg_mod
     real(kind=r_tran),        allocatable :: max_courant_3d(:)
     logical(kind=l_def),      allocatable :: courant_computed(:)
     type(r_tran_field_type),  allocatable :: dep_courant_vert(:)
+
     ! Wind fields
     type(r_tran_field_type),  allocatable :: wind_n(:)
     type(r_tran_field_type),  allocatable :: wind_np1(:)
     type(r_tran_field_type),  allocatable :: wind_3d(:)
     type(r_tran_field_type),  allocatable :: horizontal_wind(:)
     type(r_tran_field_type),  allocatable :: vertical_wind(:)
+
     ! MoL quantities
     integer(kind=i_def),      allocatable :: num_mol_hori_substeps(:,:)
     integer(kind=i_def),      allocatable :: num_mol_vert_substeps(:,:)
     integer(kind=i_def),      allocatable :: num_mol_3d_substeps(:)
+
     ! SL coefficients and indices
     type(r_tran_field_type),  allocatable :: vert_w3_cubic_coeff(:,:,:)
     type(r_tran_field_type),  allocatable :: vert_wt_cubic_coeff(:,:,:)
@@ -103,10 +108,12 @@ module wind_precomputations_alg_mod
     type(integer_field_type), allocatable :: vert_wt_quintic_index(:,:,:)
     type(r_tran_field_type),  allocatable :: vert_w3_linear_coeff(:,:,:)
     type(r_tran_field_type),  allocatable :: vert_wt_linear_coeff(:,:,:)
+
     ! Departure distances (for non-3D-unity FFSL)
     type(r_tran_field_type),  allocatable :: dep_dist_xy(:,:)
     type(r_tran_field_type),  allocatable :: dep_dist_z(:,:)
     integer(kind=i_def),      allocatable :: dep_stencil_extent(:,:)
+
     ! Flux pre-computations for non-3D-unity FFSL and departure points
     type(flux_precomputations_type), allocatable :: split_ffsl_precomputations(:)
 
@@ -155,6 +162,7 @@ contains
   !> @brief Constructs the wind_precomputations object from a 3D transporting
   !!        wind field. Splits this wind field into horizontal and vertical
   !!        components.
+  !> @param[in] config             Application namelist configuration object
   !> @param[in] prime_mesh         The prime extrusion mesh
   !> @param[in] dt_substep         Time interval for a transport substep
   !> @param[in] transporting_wind  The 3D transporting wind field
@@ -163,16 +171,18 @@ contains
   !> @param[in] wind_np1           Optional, latest estimate of wind field at
   !!                               end of current time step, used for computing
   !!                               departure points
-  subroutine wind_precomputations_initialiser(self, prime_mesh, dt_substep,    &
-                                              transporting_wind,               &
+  subroutine wind_precomputations_initialiser(self, config, prime_mesh,      &
+                                              dt_substep, transporting_wind, &
                                               wind_n, wind_np1 )
 
-    use map_w2_to_sh_w2_alg_mod,   only: map_w2_to_sh_w2_alg
+    use map_w2_to_sh_w2_alg_mod,   only: map_w2_to_sh_w2_alg_rtran
     use split_transport_utils_mod, only: get_max_num_fractions, use_shifted_mesh
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in), target :: config
+
     class(wind_precomputations_type),  intent(inout) :: self
     type(mesh_type),                   intent(in)    :: prime_mesh
     real(kind=r_tran),                 intent(in)    :: dt_substep
@@ -207,9 +217,11 @@ contains
     ! ------------------------------------------------------------------------ !
     ! Set mesh IDs and indices
     ! ------------------------------------------------------------------------ !
+
     local_mesh => prime_mesh%get_local_mesh()
     self%local_mesh_id = local_mesh%get_id()
     self%dt_substep = dt_substep
+    self%config => config
 
     if (use_shifted_mesh()) then
       num_meshes = 2
@@ -217,7 +229,6 @@ contains
       allocate(self%mesh_ids(num_meshes))
       self%mesh_ids(1) = prime_mesh%get_id()
       self%mesh_ids(2) = shifted_mesh%get_id()
-
     else
       num_meshes = 1
       allocate(self%mesh_ids(num_meshes))
@@ -285,7 +296,7 @@ contains
           shifted_mesh, k_h, k_v, W2                                           &
       )
       call self%wind_3d(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_3d(2), self%wind_3d(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_3d(2), self%wind_3d(1))
     end if
 
     ! Split the wind into horizontal and vertical components
@@ -297,8 +308,8 @@ contains
       w2v_fs => function_space_collection%get_fs(                              &
           mesh, k_h, k_v, W2V                                                  &
       )
-      face_selector_ew => get_face_selector_ew(mesh%get_id())
-      face_selector_ns => get_face_selector_ns(mesh%get_id())
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
 
       call self%horizontal_wind(i)%initialise(w2h_fs)
       call self%vertical_wind(i)%initialise(w2v_fs)
@@ -325,7 +336,7 @@ contains
     if (num_meshes == 2) then
       ! Compute the transporting wind on the shifted mesh
       call self%wind_n(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_n(2), self%wind_n(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_n(2), self%wind_n(1))
     end if
 
     ! Store end-of-time step wind (if provided, otherwise use 3D wind)
@@ -341,7 +352,7 @@ contains
     if (num_meshes == 2) then
       ! Compute the transporting wind on the shifted mesh
       call self%wind_np1(2)%initialise( w2_fs )
-      call map_w2_to_sh_w2_alg(self%wind_np1(2), self%wind_np1(1))
+      call map_w2_to_sh_w2_alg_rtran(self%wind_np1(2), self%wind_np1(1))
     end if
 
     ! Set logicals for "computed" variables to be false
@@ -856,6 +867,7 @@ contains
         call dummy_highest_k%initialise(depk_fs)
 
         call calc_hori_dep_pts(                                                &
+                self%config,                                                   &
                 self%dep_dist_xy(mesh_idx, frac_idx), dummy_frac_wind,         &
                 dummy_lowest_k, dummy_highest_k,                               &
                 self%wind_n(mesh_idx), self%wind_np1(mesh_idx), dt_split_step  &
@@ -932,6 +944,7 @@ contains
         call dummy_cfl%initialise(w2v_fs)
 
         call calc_vert_dep_pts(                                                &
+                self%config,                                                   &
                 self%dep_dist_z(mesh_idx, frac_idx), dummy_frac_wind,          &
                 dummy_cfl, self%wind_n(mesh_idx), self%wind_np1(mesh_idx),     &
                 dt_split_step, compute_dep_cfl                                 &
@@ -1284,6 +1297,7 @@ contains
 
       compute_cfl_dep = .true.
       call calc_vert_dep_pts(                                                  &
+              self%config,                                                     &
               dep_dist_z, frac_vert_wind, self%dep_courant_vert(mesh_idx),     &
               self%wind_n(mesh_idx), self%wind_np1(mesh_idx), self%dt_substep, &
               compute_cfl_dep                                                  &
@@ -1337,7 +1351,7 @@ contains
 
       ! Initialise with HV splitting, so time step is dt for each direction
       call self%split_ffsl_precomputations(frac_idx)%initialise(               &
-              mesh, splitting=splitting_hv, num_substeps=1,                    &
+              self%config, mesh, splitting=splitting_hv, num_substeps=1,       &
               wind=self%wind_3d(mesh_idx), dt=dt_precomp,                      &
               flux=wind_flux, reset_unity=.true.,                              &
               max_courant_num=dep_pt_stencil_extent                            &
@@ -1404,8 +1418,8 @@ contains
     w2v_fs => function_space_collection%get_fs(                                &
         mesh, k_h, k_v, W2V                                                    &
     )
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
     wind_3d => self%get_wind(mesh_id, direction_3d)
 
     if ( LPROF ) call start_timing( id, 'transport.wind_precomp' )
@@ -1422,7 +1436,8 @@ contains
     call detj_at_w2_transport%initialise(w2_fs)
 
     ! First calculate pointwise directional Courant number ---------------------
-    call select_detj_at_w2(self%wind_3d(mesh_idx), detj_at_w2_transport)
+    call select_detj_at_w2(self%config, self%wind_3d(mesh_idx), &
+                           detj_at_w2_transport)
 
     call invoke( X_divideby_Y(courant_3d, wind_3d, detj_at_w2_transport),      &
                  inc_a_times_X(self%dt_substep, courant_3d),                   &
@@ -1634,7 +1649,8 @@ contains
     end do
 
     ! Compute coefficients -----------------------------------------------------
-    call compute_sl_coefficients_alg(coeffs, sl_indices, dep_dist_z, order)
+    call compute_sl_coefficients_alg(self%config, coeffs, sl_indices, &
+                                     dep_dist_z, order)
 
     if ( LPROF ) call stop_timing( id, 'transport.wind_precomp' )
 

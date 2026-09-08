@@ -8,6 +8,7 @@
 module adj_trans_lookup_cache_mod
 
   use adj_lookup_table_mod,            only: adj_lookup_table_type
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, l_def
   use fs_continuity_mod,               only: W3, Wtheta, &
                                              W2, W2H
@@ -62,8 +63,9 @@ module adj_trans_lookup_cache_mod
   !=============================================================================
   !> @brief Initialise the lookup table cache.
   !> @param [in,out] self           Lookup table cache
+  !> @param [in]     config         Application namelist configuration object
   !> @param [in]     mesh           Pointer to mesh
-  subroutine adj_trans_lookup_cache_init(self, mesh)
+  subroutine adj_trans_lookup_cache_init(self, config, mesh)
 
     use adj_lookup_table_generators_alg_mod, only: create_lookup_poly1d,       &
                                                    create_lookup_poly2d,       &
@@ -86,7 +88,9 @@ module adj_trans_lookup_cache_mod
 
     ! Arguments
     class(adj_trans_lookup_cache_type), intent(inout) :: self
-    type(mesh_type),              pointer, intent(in) :: mesh
+
+    type(config_type),        intent(in) :: config
+    type(mesh_type), pointer, intent(in) :: mesh
 
     ! Internal variables
     ! Shared
@@ -138,7 +142,7 @@ module adj_trans_lookup_cache_mod
     ! =========================================================================
     stencil_size = fv_horizontal_order + 1
     ndata = 4*stencil_size
-    coeff => get_hori_wt_mol_coeffs(mesh_id)
+    coeff => get_hori_wt_mol_coeffs(config, mesh)
     stencil_extent = fv_horizontal_order/2_i_def
     order = fv_horizontal_order
     vector_space_wt_md_ptr => function_space_collection%get_fs(              &

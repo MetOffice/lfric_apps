@@ -2,7 +2,7 @@ import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version30_31 import *
+from .version31_32 import *
 
 
 class UpgradeError(Exception):

@@ -120,6 +120,10 @@ integer, parameter :: ntml_level_corrn    = 2
 ! free_trop_layers (=3) => as "ntml_level_corrn" but also diagnose
 ! FA turbulent layer depths
 integer, parameter :: free_trop_layers    = 3
+! smooth_to_bdys (=4) => as "free_trop_layers" but smoothly interpolate
+! between sub- and super-critical model-levels to find depth of turbulent
+! layers, and taper the mixing-length down near top and bottom of each layer.
+integer, parameter :: smooth_to_bdys = 4
 
 ! 10 Switch to keep local mixing in free atmosphere
 integer :: Keep_Ri_FA = imdi
@@ -303,6 +307,9 @@ logical :: l_use_var_fixes = .false.
 ! Use fixes (separate rhokm_ent variables instead of rhokm array,
 ! don't create DSC layers when no top-driven turbulence and
 ! set zh to max(zh, zsml_top), not just ntml to keep consistent
+
+! 17a Improvements to the TKE diagnostic, for consistency with rhok
+logical :: improved_tke_diag = .false.
 
 ! 18 Switch to ignore cloud ice (qcf) in the BL scheme
 logical :: l_noice_in_turb = .false.
@@ -622,6 +629,8 @@ call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_converge_ga = ',l_converge_ga
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_use_var_fixes = ',l_use_var_fixes
+call umprint(linebuffer,src='bl_option_mod')
+write(linebuffer,'(A,L1)') 'improved_tke_diag = ',improved_tke_diag
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,ES12.4)') 'tke_diag_fac = ',tke_diag_fac
 call umprint(linebuffer,src='bl_option_mod')

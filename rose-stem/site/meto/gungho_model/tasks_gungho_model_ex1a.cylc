@@ -53,6 +53,12 @@
         "wallclock": 45,
     }) %}
 
+{% elif task_ns.conf_name == "exo-dhj-C24_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
 {% endif %}
 
 {% do LOG.debug("Finised in site/meto/gungho_model/tasks_gungho_model_ex1a.cylc") %}

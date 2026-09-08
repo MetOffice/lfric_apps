@@ -7,7 +7,7 @@
 
 module jules_soil_diags_mod
 
-  use constants_mod,               only: l_def
+  use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
   use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
@@ -93,6 +93,7 @@ contains
   !> @param[in]     soil_moist_sat         Soil moisture at saturation
   !> @param[in,out] grid_canopy_water      Grid canopy water
   !> @param[in,out] grid_throughfall       Grid throughfall
+  !> @param[in]     inland_basin_flow      Inland basin flow from rivers to soil
 
   subroutine output_diags_for_jules_soil(tile_fraction, soil_moisture_content, &
                                      canopy_water, soil_moisture,              &
@@ -101,7 +102,8 @@ contains
                                      surface_runoff, sub_surface_runoff,       &
                                      water_table, soil_moist_wilt,             &
                                      soil_moist_crit, soil_moist_sat,          &
-                                     grid_canopy_water,grid_throughfall)
+                                     grid_canopy_water,grid_throughfall,       &
+                                     inland_basin_flow)
 
     use jules_control_init_mod, only : n_land_tile
 
@@ -116,7 +118,8 @@ contains
                                          water_table,                          &
                                          soil_moist_wilt,                      &
                                          soil_moist_crit,                      &
-                                         soil_moist_sat
+                                         soil_moist_sat,                       &
+                                         inland_basin_flow
 
     ! Diagnostics computed within the kernel
     type( field_type ), intent(in)    :: throughfall
@@ -157,9 +160,10 @@ contains
     if (throughfall_flag) call throughfall%write_field()
     if (soil_moisture_content_flag) call soil_moisture_content%write_field()
 
-    ! More prognostic fields
+    ! Prognostic fields needed for coupling to rivers
     call surface_runoff%write_field('soil__surface_runoff')
     call sub_surface_runoff%write_field('soil__sub_surface_runoff')
+    call inland_basin_flow%write_field('soil__inland_basin_flow')
 
     if ( LPROF ) call stop_timing( id, 'diags.jules_soil' )
 

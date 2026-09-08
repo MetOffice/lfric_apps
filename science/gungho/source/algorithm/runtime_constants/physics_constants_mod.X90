@@ -14,6 +14,7 @@
 module physics_constants_mod
 
   ! Infrastructure
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
                                                 r_second, EPS
   use extrusion_mod,                      only: TWOD, PRIME_EXTRUSION
@@ -82,8 +83,9 @@ contains
   ! ========================================================================== !
 
   !> @brief Create geometric fields used in physics schemes
+  !> @param[in] config Application namelist configuration object
   !> @param[in] mesh   The mesh to compute the operators for
-  subroutine create_mixing_geometries(mesh)
+  subroutine create_mixing_geometries(config, mesh)
 
     use sci_geometric_constants_mod,   only: get_height_fv, get_delta_at_wtheta
     use sci_calc_dz_centre_kernel_mod, only: calc_dz_centre_kernel_type
@@ -91,8 +93,11 @@ contains
     use extrusion_config_mod,          only: planet_radius
     use field_parent_mod,              only: write_interface
     use lfric_xios_write_mod,          only: write_field_generic
+    use mixing_config_mod,             only: max_diff_factor
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(mesh_type), pointer, intent(in) :: mesh
     integer(kind=i_def)                  :: mesh_id
@@ -124,11 +129,11 @@ contains
 
     mesh_id = mesh%get_id()
 
-    height_w1 => get_height_fv(W1, mesh_id)
-    height_w2 => get_height_fv(W2, mesh_id)
-    height_w3 => get_height_fv(W3, mesh_id)
-    height_wth => get_height_fv(Wtheta, mesh_id)
-    delta_at_wtheta => get_delta_at_wtheta(mesh_id)
+    height_w1 => get_height_fv(config, mesh, W1)
+    height_w2 => get_height_fv(config, mesh, W2)
+    height_w3 => get_height_fv(config, mesh, W3)
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    delta_at_wtheta => get_delta_at_wtheta(mesh)
 
     if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )
 
@@ -155,7 +160,7 @@ contains
 
     ! Calculate maximum diffusion coefficient allowed in this run for
     ! stability based on UMDP 28 equation 32: max_diff = dx^2/(8*dt)
-    diffusion_const = 0.125_r_def / dt_stored
+    diffusion_const = 0.125_r_def * max_diff_factor / dt_stored
 
     call r_squared_w2%initialise( vector_space = w2_k0_fs )
     call r_squared_wth%initialise( vector_space = wtheta_k0_fs )
@@ -217,13 +222,15 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
-  !> @param[in] mesh_id  The ID of the mesh to get the object for
+  !> @param[in] config       Application namelist configuration object
+  !> @param[in] mesh_id      The ID of the mesh to get the object for
   !> @param[in] model_clock  The model clock object
   !> @return The dtrdz_fd2 field
-  function get_dtrdz_fd2(mesh_id, model_clock) result(dtrdz)
+  function get_dtrdz_fd2(config, mesh_id, model_clock) result(dtrdz)
 
     implicit none
 
+    type(config_type),       intent(in) :: config
     integer(kind=i_def),     intent(in) :: mesh_id
     class(model_clock_type), intent(in) :: model_clock
     type(mesh_type),            pointer :: mesh
@@ -250,19 +257,22 @@ contains
     mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = dtrdz_fd2_inventory%paired_object_exists(mesh_id)
 
-    if (.not. constant_exists) call create_mixing_geometries(mesh)
+    if (.not. constant_exists) call create_mixing_geometries(config, mesh)
 
     call dtrdz_fd2_inventory%get_field(mesh, dtrdz)
 
   end function get_dtrdz_fd2
 
   !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
-  !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @param[in] model_clock  The model clock object
+  !> @param[in] config      Application namelist configuration object
+  !> @param[in] mesh_id     The ID of the mesh to get the object for
+  !> @param[in] model_clock The model clock object
   !> @return The dtrdz_wth field
-  function get_dtrdz_wth(mesh_id, model_clock) result(dtrdz)
+  function get_dtrdz_wth(config, mesh_id, model_clock) result(dtrdz)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     integer(kind=i_def),     intent(in) :: mesh_id
     class(model_clock_type), intent(in) :: model_clock
@@ -290,19 +300,21 @@ contains
     mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = dtrdz_wth_inventory%paired_object_exists(mesh_id)
 
-    if (.not. constant_exists) call create_mixing_geometries(mesh)
+    if (.not. constant_exists) call create_mixing_geometries(config, mesh)
 
     call dtrdz_wth_inventory%get_field(mesh, dtrdz)
 
   end function get_dtrdz_wth
 
   !> @brief Returns the 1/dz values at lowest-order W1 DoF locations
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The rdz_fd1 field
-  function get_rdz_fd1(mesh_id) result(rdz)
+  function get_rdz_fd1(config, mesh_id) result(rdz)
 
     implicit none
 
+    type(config_type),   intent(in) :: config
     integer(kind=i_def), intent(in) :: mesh_id
     type(mesh_type),        pointer :: mesh
     type(field_type),       pointer :: rdz
@@ -316,19 +328,21 @@ contains
     mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = rdz_fd1_inventory%paired_object_exists(mesh_id)
 
-    if (.not. constant_exists) call create_mixing_geometries(mesh)
+    if (.not. constant_exists) call create_mixing_geometries(config, mesh)
 
     call rdz_fd1_inventory%get_field(mesh, rdz)
 
   end function get_rdz_fd1
 
   !> @brief Returns the 1/dz values at lowest-order W1 DoF locations
+  !> @param[in] config  Application namelist configuration object
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The rdz_w3 field
-  function get_rdz_w3(mesh_id) result(rdz)
+  function get_rdz_w3(config, mesh_id) result(rdz)
 
     implicit none
 
+    type(config_type),   intent(in) :: config
     integer(kind=i_def), intent(in) :: mesh_id
     type(mesh_type),        pointer :: mesh
     type(field_type),       pointer :: rdz
@@ -342,20 +356,22 @@ contains
     mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = rdz_w3_inventory%paired_object_exists(mesh_id)
 
-    if (.not. constant_exists) call create_mixing_geometries(mesh)
+    if (.not. constant_exists) call create_mixing_geometries(config, mesh)
 
     call rdz_w3_inventory%get_field(mesh, rdz)
 
   end function get_rdz_w3
 
   !> @brief Returns the max Smagorinsky diffusion allowed in this run at Wtheta
-  !> @param[in] mesh_id The ID of the mesh to get the object for
-  !> @param[in] model_clock  The model clock object
+  !> @param[in] config      Application namelist configuration object
+  !> @param[in] mesh_id     The ID of the mesh to get the object for
+  !> @param[in] model_clock The model clock object
   !> @return The max_diff_wtheta field
-  function get_max_diff(mesh_id, model_clock) result(max_diff_smag)
+  function get_max_diff(config, mesh_id, model_clock) result(max_diff_smag)
 
     implicit none
 
+    type(config_type),       intent(in) :: config
     integer(kind=i_def),     intent(in) :: mesh_id
     class(model_clock_type), intent(in) :: model_clock
     type(mesh_type),            pointer :: mesh
@@ -382,7 +398,7 @@ contains
     mesh => mesh_collection%get_mesh(mesh_id)
     constant_exists = max_diff_wtheta_inventory%paired_object_exists(mesh_id)
 
-    if (.not. constant_exists) call create_mixing_geometries(mesh)
+    if (.not. constant_exists) call create_mixing_geometries(config, mesh)
 
     call max_diff_wtheta_inventory%get_field(mesh, max_diff_smag)
 
@@ -390,9 +406,10 @@ contains
 
 #ifdef UM_PHYSICS
   !> @brief Returns the Legendre Polynomials times the SH amplitude
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config   Application namelist configuration object
+  !> @param[in] mesh_id  The ID of the mesh to get the object for
   !> @return The Pnm_max field
-  function get_Pnm_star(mesh_id) result(Pnm_star)
+  function get_Pnm_star(config, mesh) result(Pnm_star)
 
     use sci_geometric_constants_mod,   only: get_latitude_fv
     use get_Pnm_star_kernel_mod,       only: get_Pnm_star_kernel_type
@@ -400,11 +417,12 @@ contains
 
     implicit none
 
-    integer(kind=i_def),    intent(in) :: mesh_id
+    type(config_type), intent(in)          :: config
+    type(mesh_type),   intent(in), pointer :: mesh
+
     integer(kind=i_def)                :: local_mesh_id
     type(field_type),          pointer :: Pnm_star
     type(field_type),          pointer :: latitude
-    type(mesh_type),           pointer :: mesh
     type(local_mesh_type),     pointer :: local_mesh
     type(mesh_type),           pointer :: twod_mesh
     type(function_space_type), pointer :: fs
@@ -416,7 +434,6 @@ contains
       call Pnm_star_inventory%initialise(name='Pnm_star')
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
     local_mesh => mesh%get_local_mesh()
     local_mesh_id = local_mesh%get_id()
     constant_exists = Pnm_star_inventory%paired_object_exists(local_mesh_id)
@@ -424,7 +441,7 @@ contains
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
       twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
-      latitude => get_latitude_fv(W3, mesh_id)
+      latitude => get_latitude_fv(config, mesh, W3)
       fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3, stph_spectral_dim)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )

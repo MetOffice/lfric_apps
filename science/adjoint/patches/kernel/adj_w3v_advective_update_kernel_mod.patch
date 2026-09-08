@@ -15,11 +15,11 @@
      do k = nlayers - 1, 0, -1
        w = 0.5 * wind(k + map_w2(df)) + 0.5 * wind(k + map_w2(df) + 1)
        ik = cell * nlayers + k - nlayers + 1
--      dtdz = dtdz + advective_increment(map_w3(1) + k) * w * REAL(m3_inv(ik,1,1), r_tran)
+-      dtdz = dtdz + advective_increment(map_w3(1) + k) * w * REAL(m3_inv(ik,1,1), kind=r_tran)
 -      t_d = t_d + (-dtdz)
 -      t_u = t_u + dtdz
 -      dtdz = 0.0
-+      dtdz = advective_increment(map_w3(1) + k) * w * REAL(m3_inv(ik,1,1), r_tran)
++      dtdz = advective_increment(map_w3(1) + k) * w * REAL(m3_inv(ik,1,1), kind=r_tran)
        if (w <= 0.0_r_tran .AND. k < nlayers - 1) then
 -        tracer(map_md(1) + offset + k + 1) = tracer(map_md(1) + offset + k + 1) + t_u
 -        t_u = 0.0

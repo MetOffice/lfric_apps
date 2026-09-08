@@ -8,23 +8,24 @@
 
 module stph_fp_main_alg_mod
 
-    use constants_mod,       only: r_def, i_def, str_def, pi
-    use extrusion_mod,       only: TWOD
-    use field_mod,           only: field_type
-    use fs_continuity_mod,   only: W3
-    use mesh_mod,            only: mesh_type
-    use mesh_collection_mod, only: mesh_collection
-    use timing_mod,          only: start_timing, stop_timing, tik, LPROF
-    use level_heights_mod,    only: eta_theta_levels
-    use extrusion_config_mod, only: domain_height
+  use config_mod,           only: config_type
+  use constants_mod,        only: r_def, i_def, str_def, pi
+  use extrusion_mod,        only: TWOD
+  use field_mod,            only: field_type
+  use fs_continuity_mod,    only: W3
+  use mesh_mod,             only: mesh_type
+  use mesh_collection_mod,  only: mesh_collection
+  use timing_mod,           only: start_timing, stop_timing, tik, LPROF
+  use level_heights_mod,    only: eta_theta_levels
+  use extrusion_config_mod, only: domain_height
 
-    implicit none
+  implicit none
 
-    private
+  private
 
-    public stph_fp_main_alg
+  public stph_fp_main_alg
 
- contains
+contains
   !>@brief Run the Stochastic Forcing pattern code
   !>@details This code creates the forcing pattern for stochastic physics schemes.
   !>         The forcing pattern comes from the spherical harmonic spectral transformation
@@ -44,6 +45,7 @@ module stph_fp_main_alg_mod
   !>               spectral_2_cs_kernel_mod to perform the the spectral
   !>               to cubed-sphere transformation.
 
+  !>@param[in]         config                  Application namelist configuration object
   !>@param[in]         level_bottom            Bottom level of the stochastic scheme
   !>@param[in]         level_top               Top level of the stochastic scheme
   !>@param[in]         level_offset            Level offset. This routine can be
@@ -61,7 +63,8 @@ module stph_fp_main_alg_mod
   !>@param[in,out]     spectral_coeffs         Imaginary Spectral coefficients
   !>@param[i,out]      fp                      Forcing pattern
 
-  subroutine stph_fp_main_alg(level_bottom, level_top, level_offset, &
+  subroutine stph_fp_main_alg(config,                                &
+                              level_bottom, level_top, level_offset, &
                               wavenumber_min, wavenumber_max,        &
                               spectral_dim, alpha, power_law,        &
                               spectral_coeffc, spectral_coeffs,      &
@@ -83,6 +86,9 @@ module stph_fp_main_alg_mod
   implicit none
 
   !!!! Arguments
+
+  type(config_type), intent(in) :: config
+
   ! Scalars with scheme levels, wavenumbers and spectral dimensions
   integer(kind=i_def), intent(in) :: level_bottom, level_top, level_offset,    &
                                      wavenumber_min, wavenumber_max,           &
@@ -182,15 +188,15 @@ module stph_fp_main_alg_mod
   !!  2)  Apply the spect_2_cubedsphere transformation !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
- ! Create 2D mesh from the FP field
+  ! Create 2D mesh from the FP field
   mesh => fp%get_mesh()
   twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
   ! Get longitude
-  longitude => get_longitude_fv(W3, twod_mesh%get_id())
+  longitude => get_longitude_fv(config, twod_mesh, W3)
 
   ! Get Matrix of Legendre Polynomials (scaled) Pnm_star
-  Pnm_star => get_Pnm_star(twod_mesh%get_id())
+  Pnm_star => get_Pnm_star(config, twod_mesh)
 
   ! TO DO after PSyclone ticket 1312
   ! at https://github.com/stfc/PSyclone/issues/1312

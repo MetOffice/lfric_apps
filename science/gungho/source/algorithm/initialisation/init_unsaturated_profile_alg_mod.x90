@@ -8,6 +8,7 @@
 
 module init_unsaturated_profile_alg_mod
 
+use config_mod,                      only: config_type
 use constants_mod,                   only: r_def, i_def
 use sci_field_bundle_builtins_mod,   only: set_bundle_scalar, clone_bundle
 use field_mod,                       only: field_type
@@ -50,16 +51,19 @@ contains
 !>          pressure is used to calculate the vapour saturation field. We use
 !>          an iterative procedure to arrive at appropriate values.
 !>
-!> @param[in] theta           potential temperature field
+!> @param[in]     config      Application namelist configuration object
+!> @param[in]     theta       potential temperature field
 !> @param[in,out] mr          array of moisture mixing ratio fields
 !> @param[in,out] exner       Exner pressure field
 !> @param[in,out] rho         dry density field
 !> @param[in,out] moist_dyn   array of fields with moist dynamics factors
-subroutine init_unsaturated_profile_alg( theta, mr, exner, rho, moist_dyn )
+subroutine init_unsaturated_profile_alg( config, theta, mr, exner, rho, moist_dyn )
 
   implicit none
 
   ! Arguments
+  type(config_type), intent(in) :: config
+
   type(field_type), intent(in)    :: theta
   type(field_type), intent(inout) :: mr(nummr)
   type(field_type), intent(inout) :: exner
@@ -129,19 +133,19 @@ subroutine init_unsaturated_profile_alg( theta, mr, exner, rho, moist_dyn )
 
   ! Give first guess for Exner
   call moist_dyn_factors_alg( moist_dyn, mr )
-  call init_exner_field( exner, theta, moist_dyn, initial_time )
+  call init_exner_field( config, exner, theta, moist_dyn, initial_time )
 
   ! Outer loop -- compute exner from hydrostatic balance
   do outer_count = 1, max_outer_iterations
 
     ! Find exner and update best guess
     call moist_dyn_factors_alg( moist_dyn, mr )
-    call init_exner_field( latest_exner, theta, moist_dyn, initial_time )
+    call init_exner_field( config, latest_exner, theta, moist_dyn, initial_time )
     call invoke( inc_aX_plus_bY( one_minus_delta, exner, &
                                  delta, latest_exner ) )
 
     ! Convert exner to Wtheta
-    call map_physics_scalars( exner_at_wt, exner )
+    call map_physics_scalars( config, exner_at_wt, exner )
 
 
     ! Compute best guess of relative humidity
@@ -193,14 +197,14 @@ subroutine init_unsaturated_profile_alg( theta, mr, exner, rho, moist_dyn )
 
   ! Update moist dynamics factors and readjust to get hydrostatic balance again
   call moist_dyn_factors_alg( moist_dyn, mr )
-  call init_exner_field( exner, theta, moist_dyn, initial_time )
+  call init_exner_field( config, exner, theta, moist_dyn, initial_time )
 
   !----------------------------------------------------------------------------!
   ! Apply perturbation to water vapour
   !----------------------------------------------------------------------------!
 
   ! Now apply perturbation to water vapour field
-  call init_mr_fields( mr, theta, exner, rho, moist_dyn )
+  call init_mr_fields( config, mr, theta, exner, rho, moist_dyn )
 
   ! Adjust the dry density field so that the pressure is kept the same
   call init_rho_field( rho, theta, exner, moist_dyn, initial_time )

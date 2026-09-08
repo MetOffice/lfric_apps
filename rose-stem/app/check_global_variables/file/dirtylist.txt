@@ -145,6 +145,11 @@ science/physics_schemes/source/convection/comorph/control/comorph_constants_mod.
 science/physics_schemes/source/convection/comorph/control/fields_type_mod.F90
 science/physics_schemes/source/convection/comorph/control/cloudfracs_type_mod.F90
 science/physics_schemes/source/convection/comorph/control/fields_2d_mod.F90
+science/physics_schemes/source/convection/comorph/control/parcel_type_mod.F90
+science/physics_schemes/source/convection/comorph/control/res_source_type_mod.F90
+science/physics_schemes/source/convection/comorph/plume_model/sublevs_mod.F90
+science/physics_schemes/source/convection/comorph/interface/standalone/qsat_data.F90
+science/physics_schemes/source/convection/comorph/interface/um/comorph_diags_scm_mod.F90
 science/physics_schemes/source/convection/cv_dependent_switch_mod.F90
 science/physics_schemes/source/convection/cv_run_mod.F90
 science/physics_schemes/source/convection/wtrac_conv.F90

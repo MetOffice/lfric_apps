@@ -1,0 +1,984 @@
+import re
+import sys
+
+from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
+
+from .version30_31 import *
+
+
+class UpgradeError(Exception):
+    """Exception created when an upgrade fails."""
+
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __repr__(self):
+        sys.tracebacklimit = 0
+        return self.msg
+
+    __str__ = __repr__
+
+
+"""
+Copy this template and complete to add your macro
+class vnXX_txxx(MacroUpgrade):
+    # Upgrade macro for <TICKET> by <Author>
+    BEFORE_TAG = "vnX.X"
+    AFTER_TAG = "vnX.X_txxx"
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        return config, self.reports
+"""
+
+
+class vn31_t322(MacroUpgrade):
+    """Upgrade macro for ticket #322 by Terence Vockerodt."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_t322"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-adjoint
+        # Adds new namelist entry alphabetically
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        if "namelist:adjoint" not in source:
+            # Insert adjoint to configuration
+            for line in source.split("\n"):
+                namelist = line.strip("()")
+                namelist = namelist.strip()
+                if "namelist:adjoint" < namelist:
+                    source = re.sub(
+                        line,
+                        rf" namelist:adjoint\n{line}",
+                        source,
+                    )
+                    break
+            self.change_setting_value(
+                config, ["file:configuration.nml", "source"], source
+            )
+        # Default value
+        self.add_setting(
+            config, ["namelist:adjoint", "l_compute_annexed_dofs"], ".true."
+        )
+        return config, self.reports
+
+
+class vn31_t118(MacroUpgrade):
+    """Upgrade macro for ticket None by None."""
+
+    BEFORE_TAG = "vn3.1_t322"
+    AFTER_TAG = "vn3.1_t118"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Blank Upgrade Macro
+        return config, self.reports
+
+
+class vn31_t363(MacroUpgrade):
+    """Upgrade macro for ticket #363 by Jaffery Irudayasamy."""
+
+    BEFORE_TAG = "vn3.1_t118"
+    AFTER_TAG = "vn3.1_t363"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Set segmentation size limit for short and long wave radiation kernels"""
+        self.add_setting(config, ["namelist:physics", "sw_segment_limit"], "32")
+        self.add_setting(config, ["namelist:physics", "lw_segment_limit"], "32")
+        return config, self.reports
+
+
+class vn31_t348(MacroUpgrade):
+    """Upgrade macro for ticket #348 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t363"
+    AFTER_TAG = "vn3.1_t348"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Use PMSL halo calculations by default
+        self.add_setting(
+            config, ["namelist:physics", "pmsl_halo_calcs"], ".true."
+        )
+        return config, self.reports
+
+
+class vn31_t368(MacroUpgrade):
+    """Upgrade macro for ticket #368 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t348"
+    AFTER_TAG = "vn3.1_t368"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-convection
+        self.add_setting(
+            config, ["namelist:convection", "llcs_first_outer"], ".false."
+        )
+        return config, self.reports
+
+
+class vn31_t238(MacroUpgrade):
+    """Upgrade macro for ticket #238 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t368"
+    AFTER_TAG = "vn3.1_t238"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-driver
+        self.add_setting(
+            config, ["namelist:finite_element", "coord_space"], "'Wchi'"
+        )
+        coord_order = self.get_setting_value(
+            config, ["namelist:finite_element", "coord_order"]
+        )
+        self.add_setting(
+            config,
+            ["namelist:finite_element", "coord_order_nonprime"],
+            coord_order,
+        )
+        return config, self.reports
+
+
+class vn31_t443(MacroUpgrade):
+    """Upgrade macro for ticket #443 by Samantha Pullen."""
+
+    BEFORE_TAG = "vn3.1_t238"
+    AFTER_TAG = "vn3.1_t443"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add name entry to iau_addinf_io namelist
+        self.add_setting(
+            config, ["namelist:iau_addinf_io(addinf1)", "name"], "''"
+        )
+        self.add_setting(
+            config, ["namelist:iau_addinf_io(addinf2)", "name"], "''"
+        )
+        # Add name entry to iau_ainc_io namelist
+        self.add_setting(config, ["namelist:iau_ainc_io(ainc1)", "name"], "''")
+        self.add_setting(config, ["namelist:iau_ainc_io(ainc2)", "name"], "''")
+        # Add name entry to iau_bcorr_io namelist
+        self.add_setting(
+            config, ["namelist:iau_bcorr_io(bcorr1)", "name"], "''"
+        )
+        return config, self.reports
+
+
+class vn31_t464(MacroUpgrade):
+    """Upgrade macro for ticket #464 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t443"
+    AFTER_TAG = "vn3.1_t464"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        self.add_setting(
+            config, ["namelist:cloud", "pc2_turb_horiz"], ".false."
+        )
+        return config, self.reports
+
+
+class vn31_t382(MacroUpgrade):
+    """Upgrade macro for ticket #382 by Benjamin Went."""
+
+    BEFORE_TAG = "vn3.1_t464"
+    AFTER_TAG = "vn3.1_t382"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric_atm
+        """Set segmentation size for the Boundary Layer"""
+        self.change_setting_value(
+            config, ["namelist:physics", "bl_segment"], "16"
+        )
+        return config, self.reports
+
+
+class vn31_t243(MacroUpgrade):
+    """Upgrade macro for ticket #243 by Mike Whitall."""
+
+    BEFORE_TAG = "vn3.1_t382"
+    AFTER_TAG = "vn3.1_t243"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-microphysics
+        nml = "namelist:microphysics"
+        self.add_setting(config, [nml, "l_improve_precfrac_checks"], ".false.")
+        # Commands From: rose-meta/um-cloud
+        nml = "namelist:cloud"
+        self.add_setting(config, [nml, "l_ensure_max_in_cloud_pc2"], ".false.")
+        return config, self.reports
+
+
+class vn31_t249(MacroUpgrade):
+    """Upgrade macro for ticket #249 by Mike Whitall."""
+
+    BEFORE_TAG = "vn3.1_t243"
+    AFTER_TAG = "vn3.1_t249"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        # Blank macro needed just to update meta-data version
+        # (apps using the new option 'smooth_fix' under the existing
+        #  multi-option switch 'pc2_init_logic' fail checks against
+        #  the existing meta-data).
+        return config, self.reports
+
+
+class vn31_t77(MacroUpgrade):
+    """Upgrade macro for ticket #77 by Mike Hobson."""
+
+    BEFORE_TAG = "vn3.1_t249"
+    AFTER_TAG = "vn3.1_t77"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:io", "write_initial"], ".true.")
+        return config, self.reports
+
+
+class vn31_t463(MacroUpgrade):
+    """Upgrade macro for ticket #463 by James Bruten."""
+
+    BEFORE_TAG = "vn3.1_t77"
+    AFTER_TAG = "vn3.1_t463"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        # Blank Upgrade Macro
+        return config, self.reports
+
+
+class vn31_t205(MacroUpgrade):
+    """Upgrade macro for ticket #205 by Maggie Hendry."""
+
+    BEFORE_TAG = "vn3.1_t463"
+    AFTER_TAG = "vn3.1_t205"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        RMDI = str(-(2**30))
+        npft = int(
+            self.get_setting_value(
+                config, ["namelist:jules_surface_types", "npft"]
+            )
+        )
+        # Allow multiple instances of jules_pftparm
+        configuration = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        if "namelist:jules_pftparm(:)" not in configuration:
+            configuration = configuration.replace(
+                "namelist:jules_pftparm", "namelist:jules_pftparm(:)"
+            )
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], configuration
+        )
+        jules_pftparm = {}
+        # Read existing jules_pftparm items into dicitonary to refactor into
+        # multiple instances
+        jules_pftparm["albsnc_max_io"] = ""
+        jules_pftparm["alnir_io"] = ""
+        jules_pftparm["alpar_io"] = ""
+        jules_pftparm["catch0_io"] = ""
+        jules_pftparm["dcatch_dlai_io"] = ""
+        jules_pftparm["fsmc_p0_io"] = ""
+        jules_pftparm["kext_io"] = ""
+        jules_pftparm["knl_io"] = ""
+        jules_pftparm["omega_io"] = ""
+        jules_pftparm["omnir_io"] = ""
+        jules_pftparm["z0hm_pft_io"] = ""
+        jules_pftparm["z0v_io"] = ""
+        for item, values in jules_pftparm.items():
+            config_value = self.get_setting_value(
+                config, ["namelist:jules_pftparm", item]
+            )
+            jules_pftparm[item] = config_value.split(",")
+            self.remove_setting(config, ["namelist:jules_pftparm", item])
+        self.remove_setting(config, ["namelist:jules_pftparm"])
+        # Add jules_pftparm items hard-wired in jules_physics_init
+        jules_pftparm["c3_io"] = ["'yes'", "'yes'", "'yes'", "'no'", "'yes'"]
+        jules_pftparm["orient_io"] = ["'spherical'"] * npft
+        jules_pftparm["fsmc_mod_io"] = ["'weight'"] * npft
+        jules_pftparm["a_wl_io"] = ["0.65", "0.65", "0.005", "0.005", "0.10"]
+        jules_pftparm["a_ws_io"] = ["10.0", "10.0", "1.0", "1.0", "10.0"]
+        jules_pftparm["albsnc_min_io"] = [
+            "3.0e-1",
+            "3.0e-1",
+            "8.0e-1",
+            "8.0e-1",
+            "8.0e-1",
+        ]
+        jules_pftparm["albsnf_maxl_io"] = [
+            "0.095",
+            "0.059",
+            "0.128",
+            "0.106",
+            "0.077",
+        ]
+        jules_pftparm["albsnf_maxu_io"] = [
+            "0.215",
+            "0.132",
+            "0.288",
+            "0.239",
+            "0.173",
+        ]
+        jules_pftparm["alnirl_io"] = ["0.30", "0.23", "0.39", "0.39", "0.39"]
+        jules_pftparm["alniru_io"] = ["0.75", "0.65", "0.95", "0.95", "0.87"]
+        jules_pftparm["alparl_io"] = ["0.06", "0.04", "0.06", "0.06", "0.06"]
+        jules_pftparm["alparu_io"] = ["0.15", "0.11", "0.25", "0.25", "0.25"]
+        jules_pftparm["alpha_io"] = ["0.08", "0.08", "0.08", "0.04", "0.08"]
+        jules_pftparm["b_wl_io"] = ["1.667", "1.667", "1.667", "1.667", "1.667"]
+        jules_pftparm["can_struct_a_io"] = ["1.0", "1.0", "1.0", "1.0", "1.0"]
+        jules_pftparm["dgl_dm_io"] = ["0.0", "0.0", "0.0", "0.0", "0.0"]
+        jules_pftparm["dgl_dt_io"] = ["9.0", "9.0", "0.0", "0.0", "9.0"]
+        jules_pftparm["dqcrit_io"] = [
+            "0.090",
+            "0.060",
+            "0.100",
+            "0.075",
+            "0.100",
+        ]
+        jules_pftparm["dust_veg_scj_io"] = ["0.0", "0.0", "1.0", "1.0", "0.5"]
+        jules_pftparm["dz0v_dh_io"] = [
+            "5.0e-2",
+            "5.0e-2",
+            "1.0e-1",
+            "1.0e-1",
+            "1.0e-1",
+        ]
+        jules_pftparm["emis_pft_io"] = ["0.98", "0.99", "0.98", "0.98", "0.98"]
+        jules_pftparm["eta_sl_io"] = ["0.01", "0.01", "0.01", "0.01", "0.01"]
+        jules_pftparm["f0_io"] = ["0.875", "0.875", "0.900", "0.800", "0.900"]
+        jules_pftparm["fd_io"] = ["0.015", "0.015", "0.015", "0.025", "0.015"]
+        jules_pftparm["fsmc_of_io"] = ["0.0", "0.0", "0.0", "0.0", "0.0"]
+        jules_pftparm["g_leaf_0_io"] = ["0.25", "0.25", "0.25", "0.25", "0.25"]
+        jules_pftparm["glmin_io"] = [
+            "1.0e-6",
+            "1.0e-6",
+            "1.0e-6",
+            "1.0e-6",
+            "1.0e-6",
+        ]
+        jules_pftparm["gsoil_f_io"] = ["1.0", "1.0", "1.0", "1.0", "1.0"]
+        jules_pftparm["hw_sw_io"] = ["0.5", "0.5", "0.5", "0.5", "0.5"]
+        jules_pftparm["infil_f_io"] = ["4.0", "4.0", "2.0", "2.0", "2.0"]
+        jules_pftparm["kn_io"] = ["0.78", "0.78", "0.78", "0.78", "0.78"]
+        jules_pftparm["kpar_io"] = ["0.5", "0.5", "0.5", "0.5", "0.5"]
+        jules_pftparm["lai_alb_lim_io"] = [
+            "0.005",
+            "0.005",
+            "0.005",
+            "0.005",
+            "0.005",
+        ]
+        jules_pftparm["lma_io"] = [
+            "0.0824",
+            "0.2263",
+            "0.0498",
+            "0.1370",
+            "0.0695",
+        ]
+        jules_pftparm["neff_io"] = [
+            "0.8e-3",
+            "0.8e-3",
+            "0.8e-3",
+            "0.4e-3",
+            "0.8e-3",
+        ]
+        jules_pftparm["nl0_io"] = ["0.040", "0.030", "0.060", "0.030", "0.030"]
+        jules_pftparm["nmass_io"] = [
+            "0.0210",
+            "0.0115",
+            "0.0219",
+            "0.0131",
+            "0.0219",
+        ]
+        jules_pftparm["nr_io"] = [
+            "0.01726",
+            "0.00784",
+            "0.0162",
+            "0.0084",
+            "0.01726",
+        ]
+        jules_pftparm["nr_nl_io"] = ["1.0", "1.0", "1.0", "1.0", "1.0"]
+        jules_pftparm["ns_nl_io"] = ["0.1", "0.1", "1.0", "1.0", "0.1"]
+        jules_pftparm["nsw_io"] = [
+            "0.0072",
+            "0.0083",
+            "0.01604",
+            "0.0202",
+            "0.0072",
+        ]
+        jules_pftparm["omegal_io"] = ["0.10", "0.10", "0.10", "0.12", "0.10"]
+        jules_pftparm["omegau_io"] = ["0.23", "0.23", "0.35", "0.35", "0.35"]
+        jules_pftparm["omnirl_io"] = ["0.50", "0.30", "0.53", "0.53", "0.53"]
+        jules_pftparm["omniru_io"] = ["0.90", "0.65", "0.98", "0.98", "0.98"]
+        jules_pftparm["q10_leaf_io"] = ["2.0", "2.0", "2.0", "2.0", "2.0"]
+        jules_pftparm["r_grow_io"] = ["0.25", "0.25", "0.25", "0.25", "0.25"]
+        jules_pftparm["rootd_ft_io"] = ["3.0", "1.0", "0.5", "0.5", "0.5"]
+        jules_pftparm["sigl_io"] = [
+            "0.0375",
+            "0.1000",
+            "0.0250",
+            "0.0500",
+            "0.0500",
+        ]
+        jules_pftparm["tleaf_of_io"] = [
+            "273.15",
+            "243.15",
+            "258.15",
+            "258.15",
+            "243.15",
+        ]
+        jules_pftparm["tlow_io"] = ["0.0", "-5.0", "0.0", "13.0", "0.0"]
+        jules_pftparm["tupp_io"] = ["36.0", "31.0", "36.0", "45.0", "36.0"]
+        jules_pftparm["vint_io"] = ["5.73", "6.32", "6.42", "0.00", "14.71"]
+        jules_pftparm["vsl_io"] = ["29.81", "18.15", "40.96", "10.24", "23.15"]
+        # Add new switch and related parameters for photosynthesis model
+        # (from JULES vn5.5_t864)
+        jules_pftparm["act_jmax_io"] = ["50.0e3"] * npft
+        jules_pftparm["act_vcmax_io"] = ["72.0e3"] * npft
+        jules_pftparm["alpha_elec_io"] = ["0.4"] * npft
+        jules_pftparm["deact_jmax_io"] = ["200.0e3"] * npft
+        jules_pftparm["deact_vcmax_io"] = ["200.0e3"] * npft
+        jules_pftparm["ds_jmax_io"] = ["646.0"] * npft
+        jules_pftparm["ds_vcmax_io"] = ["649.0"] * npft
+        jules_pftparm["jv25_ratio_io"] = ["1.97"] * npft
+        # Parameters related to l_bvoc_emis (from UM vn10.1_t605)
+        jules_pftparm["ief_io"] = ["25.0", "8.00", "16.00", "24.00", "20.00"]
+        jules_pftparm["tef_io"] = ["1.2", "2.4", "0.8", "1.2", "0.8"]
+        jules_pftparm["mef_io"] = ["0.9", "1.8", "0.6", "0.9", "0.57"]
+        jules_pftparm["aef_io"] = ["0.43", "0.87", "0.29", "0.43", "0.20"]
+        jules_pftparm["ci_st_io"] = [
+            "33.46",
+            "33.46",
+            "34.26",
+            "29.98",
+            "34.26",
+        ]
+        jules_pftparm["gpp_st_io"] = [
+            "1.29E-07",
+            "2.58E-08",
+            "2.07E-07",
+            "3.42E-07",
+            "1.68E-007",
+        ]
+        # Parameters related to l_inferno (from JULES vn4.4_t136)
+        jules_pftparm["fef_co2_io"] = ["1631", "1576", "1576", "1654", "1576"]
+        jules_pftparm["fef_co_io"] = ["100", "106", "106", "64", "106"]
+        jules_pftparm["fef_ch4_io"] = ["6.8", "4.8", "4.8", "2.4", "4.8"]
+        jules_pftparm["fef_nox_io"] = ["2.55", "3.24", "3.24", "2.49", "3.24"]
+        jules_pftparm["fef_so2_io"] = ["0.40", "0.40", "0.40", "0.48", "0.40"]
+        jules_pftparm["fef_oc_io"] = ["4.3", "9.1", "9.1", "3.2", "9.1"]
+        jules_pftparm["fef_bc_io"] = ["0.56", "0.56", "0.56", "0.47", "0.56"]
+        jules_pftparm["ccleaf_min_io"] = ["0.8", "0.8", "0.8", "0.8", "0.8"]
+        jules_pftparm["ccleaf_max_io"] = ["1.0", "1.0", "1.0", "1.0", "1.0"]
+        jules_pftparm["ccwood_min_io"] = ["0.0", "0.0", "0.0", "0.0", "0.0"]
+        jules_pftparm["ccwood_max_io"] = ["0.4", "0.4", "0.4", "0.4", "0.4"]
+        jules_pftparm["avg_ba_io"] = [
+            "0.6E6",
+            "0.6E6",
+            "1.4E6",
+            "1.4E6",
+            "1.2E6",
+        ]
+        # Parameters related to l_inferno (from JULES vn7.8_t1579)
+        jules_pftparm["fef_c2h4_io"] = [
+            "1.11E+00",
+            "1.54E+00",
+            "8.30E-01",
+            "1.99E+00",
+            "8.30E-01",
+        ]
+        jules_pftparm["fef_c2h6_io"] = [
+            "8.80E-01",
+            "9.70E-01",
+            "4.20E-01",
+            "1.01E+00",
+            "4.20E-01",
+        ]
+        jules_pftparm["fef_c3h8_io"] = [
+            "5.30E-01",
+            "2.90E-01",
+            "1.30E-01",
+            "3.12E-01",
+            "1.30E-01",
+        ]
+        jules_pftparm["fef_hcho_io"] = [
+            "2.40E+00",
+            "1.75E+00",
+            "1.23E+00",
+            "2.95E+00",
+            "1.23E+00",
+        ]
+        jules_pftparm["fef_mecho_io"] = [
+            "2.26E+00",
+            "8.10E-01",
+            "8.40E-01",
+            "2.02E+00",
+            "8.40E-01",
+        ]
+        jules_pftparm["fef_nh3_io"] = [
+            "1.33E+00",
+            "2.50E+00",
+            "8.90E-01",
+            "2.14E+00",
+            "8.90E-01",
+        ]
+        jules_pftparm["fef_dms_io"] = [
+            "2.00E-03",
+            "2.00E-03",
+            "8.00E-03",
+            "1.92E-02",
+            "8.00E-03",
+        ]
+        # Parameters related to l_o3_damage (value from JULES configurations)
+        jules_pftparm["dfp_dcuo_io"] = ["0.04", "0.02", "0.25", "0.13", "0.03"]
+        jules_pftparm["fl_o3_ct_io"] = ["1.6", "1.6", "5.0", "5.0", "1.6"]
+        # Parameters related to l_trif_fire (from JULES vn5.3_t872)
+        jules_pftparm["fire_mort_io"] = ["1.0"] * npft
+        # Parameters related to Medlyn stomata model (from JULES vn5.3_t766)
+        jules_pftparm["g1_stomata_io"] = ["2.0"] * npft
+        # Parameters related to SOX stomata model (from JULES vn7.4_t1491)
+        jules_pftparm["sox_a_io"] = ["0.0"] * npft
+        jules_pftparm["sox_p50_io"] = ["0.0"] * npft
+        jules_pftparm["sox_rp_min_io"] = ["0.0"] * npft
+        # Parameters related to l_use_pft_psi (from JULES vn4.8_t541)
+        jules_pftparm["psi_close_io"] = ["-1.5E6"] * npft
+        jules_pftparm["psi_open_io"] = ["-0.033E6"] * npft
+        # Parameters related to l_sugar (from JULES vn7.3_t1344)
+        jules_pftparm["sug_grec_io"] = ["1.0"] * npft
+        jules_pftparm["sug_g0_io"] = ["1.0"] * npft
+        jules_pftparm["sug_yg_io"] = ["1.0"] * npft
+        # Remaining parameters added with missing data as no other information
+        jules_pftparm["albsnf_max_io"] = [RMDI] * npft
+        # Add unique descriptor used to identify instances of duplicate namelist
+        jules_pftparm["pft_name_io"] = [
+            "'brd_leaf'",
+            "'ndl_leaf'",
+            "'c3_grass'",
+            "'c4_grass'",
+            "'shrub'",
+        ]
+        for i in range(npft):
+            pft_name = jules_pftparm["pft_name_io"]
+            nml = "namelist:jules_pftparm({})".format(pft_name[i].strip("'"))
+            for item, value in sorted(jules_pftparm.items()):
+                self.add_setting(config, [nml, item], value[i])
+        # Add jules_radiation switches related to added pftparms
+        self.add_setting(
+            config, ["namelist:jules_radiation", "l_spec_albedo"], ".true."
+        )
+        # Add jules_vegetation switches related to added pftparms
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "photo_model"], "'collatz'"
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "stomata_model"], "'jacobs'"
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_bvoc_emis"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_inferno"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_o3_damage"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_sugar"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_trif_fire"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:jules_vegetation", "l_use_pft_psi"], ".false."
+        )
+        return config, self.reports
+
+
+class vn31_t378(MacroUpgrade):
+    """Upgrade macro for ticket #378 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t205"
+    AFTER_TAG = "vn3.1_t378"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "conservative_diffusion"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "density_weighted"], ".true."
+        )
+        self.add_setting(config, ["namelist:mixing", "max_diff_factor"], "1.0")
+        return config, self.reports
+
+
+class vn31_t504(MacroUpgrade):
+    """Upgrade macro for ticket #504 by Adrian Lock."""
+
+    BEFORE_TAG = "vn3.1_t378"
+    AFTER_TAG = "vn3.1_t504"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:initial_temperature", "theta_pert_start"],
+            "5000.0",
+        )
+        self.add_setting(
+            config, ["namelist:initial_temperature", "theta_pert_end"], "7000.0"
+        )
+        self.add_setting(
+            config, ["namelist:initial_temperature", "theta_pert_size"], "0.5"
+        )
+        return config, self.reports
+
+
+class vn31_t496(MacroUpgrade):
+    """Upgrade macro for ticket #496 by Samantha Pullen."""
+
+    BEFORE_TAG = "vn3.1_t504"
+    AFTER_TAG = "vn3.1_t496"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-iau
+        # Add new setting to iau namelist
+        self.add_setting(config, ["namelist:iau", "iau_outerloop"], ".false.")
+        return config, self.reports
+
+
+class vn31_t487(MacroUpgrade):
+    """Upgrade macro for ticket #487 by Adrian Lock."""
+
+    BEFORE_TAG = "vn3.1_t496"
+    AFTER_TAG = "vn3.1_t487"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-boundary_layer
+        self.add_setting(
+            config, ["namelist:blayer", "improved_tke_diag"], ".false."
+        )
+        return config, self.reports
+
+
+class vn31_t180(MacroUpgrade):
+    """Upgrade macro for ticket #180 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t487"
+    AFTER_TAG = "vn3.1_t180"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Get values
+        n_orog_smooth = self.get_setting_value(
+            config, ["namelist:initialization", "n_orog_smooth"]
+        )
+        w0_mapping = self.get_setting_value(
+            config, ["namelist:initialization", "w0_orography_mapping"]
+        )
+        coord_order = self.get_setting_value(
+            config, ["namelist:finite_element", "coord_order"]
+        )
+        # Add new settings
+        self.add_setting(
+            config, ["namelist:orography", "n_orog_smooth"], n_orog_smooth
+        )
+        self.add_setting(
+            config, ["namelist:orography", "w0_multigrid_mapping"], w0_mapping
+        )
+        self.add_setting(
+            config, ["namelist:orography", "orography_order"], coord_order
+        )
+        # Remove old settings
+        self.remove_setting(
+            config, ["namelist:initialization", "n_orog_smooth"]
+        )
+        self.remove_setting(
+            config, ["namelist:initialization", "w0_orography_mapping"]
+        )
+        return config, self.reports
+
+
+class vn31_t360(MacroUpgrade):
+    """Upgrade macro for ticket #360 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.1_t180"
+    AFTER_TAG = "vn3.1_t360"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-stochastic_physics
+        self.add_setting(
+            config,
+            ["namelist:stochastic_physics", "rp_mp_ci"],
+            "1.0,1.0,1.0",
+        )
+        # Commands From: rose-meta/um-microphysics
+        self.add_setting(config, ["namelist:microphysics", "aut_qc"], "2.47")
+        self.add_setting(config, ["namelist:microphysics", "ai"], "2.57e-2")
+        upd_precfrac_opt = self.get_setting_value(
+            config, ["namelist:microphysics", "i_update_precfrac"]
+        )
+        self.remove_setting(
+            config, ["namelist:microphysics", "i_update_precfrac"]
+        )
+        self.add_setting(
+            config,
+            ["namelist:microphysics", "update_precfrac_opt"],
+            upd_precfrac_opt,
+        )
+        # Commands From: rose-meta/um-convection
+        # 0.66 and 1.2 are tuned GC6 values (0.5 and 0.8 originally)
+        self.add_setting(config, ["namelist:convection", "r_det"], "0.5")
+        self.add_setting(
+            config, ["namelist:convection", "cca_md_scaling"], "0.8"
+        )
+        # These settings are unchanged
+        self.add_setting(
+            config, ["namelist:convection", "prog_ent_grad"], "-1.1"
+        )
+        self.add_setting(
+            config, ["namelist:convection", "prog_ent_int"], "-2.9"
+        )
+        self.add_setting(config, ["namelist:convection", "prog_ent_max"], "2.5")
+        self.add_setting(config, ["namelist:convection", "cpress_term"], "0.3")
+        self.add_setting(config, ["namelist:convection", "ent_fac_sh"], "1.0")
+        self.add_setting(config, ["namelist:convection", "mparwtr"], "1.0e-3")
+        self.add_setting(config, ["namelist:convection", "thpixs_mid"], "0.5")
+        self.add_setting(config, ["namelist:convection", "c_mass_sh"], "0.03")
+        cv_scheme = self.get_setting_value(
+            config, ["namelist:convection", "cv_scheme"]
+        )
+        if cv_scheme == "'comorph'":
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dtheta"], ".false."
+            )
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dq"], ".false."
+            )
+        else:
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dtheta"], ".true."
+            )
+            self.add_setting(
+                config, ["namelist:convection", "l_conv_prog_dq"], ".true."
+            )
+        # Commands From: rose-meta/um-aerosol
+        self.add_setting(
+            config, ["namelist:aerosol", "ukca_scale_marine_pom_ems"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "marine_pom_ems_scaling"], "1.0"
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "ukca_scale_sea_salt_ems"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:aerosol", "sea_salt_ems_scaling"], "1.0"
+        )
+        return config, self.reports
+
+
+class vn31_t247(MacroUpgrade):
+    """Upgrade macro for ticket #247 by Mike Whitall."""
+
+    BEFORE_TAG = "vn3.1_t360"
+    AFTER_TAG = "vn3.1_t247"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-cloud
+        # Add new switch controlling PC2 homogeneous forcing option.
+        # Previously, this was hardwired in um_physics_init to use one
+        # option if using the comorph convection scheme and another if not.
+        # So need to implement the same logic here:
+        # Load "cv_scheme" from the convection namelist
+        nml = "namelist:convection"
+        cv_scheme = self.get_setting_value(config, [nml, "cv_scheme"])
+        if cv_scheme == "'comorph'":
+            # Use the "weight by PDF width" option if using comorph
+            pc2_homog_g = "'width'"
+        else:
+            # Use the "weight as a function of cloud-fraction" option otherwise
+            pc2_homog_g = "'cf'"
+        # Add new settings with the specified option
+        nml = "namelist:cloud"
+        self.add_setting(config, [nml, "pc2_homog_g_method"], pc2_homog_g)
+        # Rename some other cloud-scheme namelist inputs for clarity...
+        nml = "namelist:cloud"
+        bm_ez_opt = self.get_setting_value(config, [nml, "i_bm_ez_opt"])
+        pc2_erosion_num = self.get_setting_value(
+            config, [nml, "i_pc2_erosion_numerics"]
+        )
+        pc2_init_method = self.get_setting_value(config, [nml, "pc2ini"])
+        self.remove_setting(config, [nml, "i_bm_ez_opt"])
+        self.remove_setting(config, [nml, "i_pc2_erosion_numerics"])
+        self.remove_setting(config, [nml, "pc2ini"])
+        self.add_setting(config, [nml, "bm_ez_opt"], bm_ez_opt)
+        self.add_setting(config, [nml, "pc2_erosion_numerics"], pc2_erosion_num)
+        self.add_setting(config, [nml, "pc2_init_method"], pc2_init_method)
+        return config, self.reports
+
+
+class vn31_t394(MacroUpgrade):
+    """Upgrade macro for ticket #394 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1_t247"
+    AFTER_TAG = "vn3.1_t394"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:formulation", "solver_moisture_conservation"],
+            ".false.",
+        )
+        return config, self.reports
+
+
+class vn31_t401(MacroUpgrade):
+    """Upgrade macro for ticket #401 by Dan Copsey."""
+
+    BEFORE_TAG = "vn3.1_t394"
+    AFTER_TAG = "vn3.1_t401"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        self.add_setting(
+            config, ["namelist:jules_hydrology", "l_inland"], ".false."
+        )
+        return config, self.reports
+
+
+class vn31_t474(MacroUpgrade):
+    """Upgrade macro for ticket #474 by Mohit Dalvi."""
+
+    BEFORE_TAG = "vn3.1_t401"
+    AFTER_TAG = "vn3.1_t474"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:files", "nudging_directory"], "''")
+        self.add_setting(config, ["namelist:files", "nudging_filename"], "''")
+        self.add_setting(
+            config,
+            ["namelist:multires_coupling", "coarse_nudging"],
+            ".false.",
+        )
+        self.add_setting(
+            config, ["namelist:multires_coupling", "nudging_mesh_name"], "''"
+        )
+        # Add new nudging namelist -with sensible default values
+        # Append after 'multires_coupling' in configuration.nml
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        source = re.sub(
+            r"(namelist:multires_coupling)",
+            r"namelist:multires_coupling)" + "\n" + " (namelist:nudging",
+            source,
+        )
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
+        self.add_setting(config, ["namelist:nudging"])
+        self.add_setting(
+            config, ["namelist:nudging", "nudge_data_levels"], "137"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_bottom"], "5"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_top"], "52"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_source"], "'era'"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_width_bottom"], "1"
+        )
+        self.add_setting(config, ["namelist:nudging", "nudging_width_top"], "0")
+        return config, self.reports
+
+
+class vn31_t324(MacroUpgrade):
+    """Upgrade macro for ticket #324 by Ricky Wong."""
+
+    BEFORE_TAG = "vn3.1_t474"
+    AFTER_TAG = "vn3.1_t324"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-driver
+        # Only add in new configuration settings if the namelists
+        # are already present
+        #
+        if config.get(["namelist:partitioning"]) is not None:
+            self.add_setting(
+                config, ["namelist:partitioning", "inner_halo_tiles"], ".false."
+            )
+            self.add_setting(
+                config, ["namelist:partitioning", "tile_size_x"], "1"
+            )
+            self.add_setting(
+                config, ["namelist:partitioning", "tile_size_y"], "1"
+            )
+        if config.get(["namelist:multigrid"]) is not None:
+            self.add_setting(
+                config,
+                ["namelist:multigrid", "coarsen_multigrid_tiles"],
+                ".false.",
+            )
+            self.add_setting(
+                config, ["namelist:multigrid", "max_tiled_multigrid_level"], "1"
+            )
+        return config, self.reports
+
+
+class vn31_t611(MacroUpgrade):
+    """Upgrade macro for ticket TTTT by Unknown."""
+
+    BEFORE_TAG = "vn3.1_t324"
+    AFTER_TAG = "vn3.2"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-stochastic_physics
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-spectral_gwd
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-orographic_drag
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-microphysics
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-iau
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-convection
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-cloud
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-chemistry
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-boundary_layer
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/um-aerosol
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/socrates-radiation
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/jules-lsm
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/lfric-driver
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/lfric-gungho
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/lfric-linear
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/lfric-adjoint
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/jedi_common
+        # Blank Upgrade Macro
+        # Commands From: rose-meta/jedi_forecast
+        # Blank Upgrade Macro
+        return config, self.reports
