@@ -18,6 +18,7 @@ module set_exner_kernel_mod
   use fs_continuity_mod,    only : W3
   use kernel_mod,           only : kernel_type
 
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system
   use idealised_config_mod,      only: test
@@ -166,7 +167,9 @@ subroutine set_exner_code(nlayers,                                    &
 
           ! Get (X,Y,Z) coordinates
           call chi2xyz(coords(1), coords(2), coords(3), &
-                       ipanel, xyz(1), xyz(2), xyz(3))
+                       ipanel, geometry, topology,      &
+                       coord_system, scaled_radius,     &
+                       xyz(1), xyz(2), xyz(3) )
 
           exner_ref = analytic_pressure(xyz, test, time)
 

@@ -12,8 +12,9 @@ module transport_driver_mod
   use sci_checksum_alg_mod,             only: checksum_alg
   use check_configuration_mod,          only: get_required_stencil_depth
   use config_loader_mod,                only: final_configuration
-  use constants_mod,                    only: i_def, l_def, &
-                                              r_def, r_second, str_def
+  use config_mod,                       only: config_type
+  use constants_mod,                    only: i_def, l_def, r_def, r_second, &
+                                              str_def, imdi
   use create_mesh_mod,                  only: create_mesh, create_extrusion
   use driver_fem_mod,                   only: init_fem
   use driver_io_mod,                    only: init_io, final_io
@@ -29,6 +30,7 @@ module transport_driver_mod
                                               double_level_extrusion_type, &
                                               PRIME_EXTRUSION, TWOD,       &
                                               SHIFTED, DOUBLE_LEVEL
+  use multigrid_mod,                    only: get_multigrid_tile_size
   use field_mod,                        only: field_type
   use fs_continuity_mod,                only: W3, Wtheta
   use sci_geometric_constants_mod,      only: get_chi_inventory,      &
@@ -61,8 +63,13 @@ module transport_driver_mod
   !-------------------------------------------
   ! Configuration modules
   !-------------------------------------------
-  use base_mesh_config_mod, only: GEOMETRY_PLANAR, &
-                                  GEOMETRY_SPHERICAL
+  use base_mesh_config_mod,      only: geometry,        &
+                                       geometry_planar, &
+                                       geometry_spherical
+  use finite_element_config_mod, only: coord_system,    &
+                                       element_order_h, &
+                                       element_order_v
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -127,20 +134,28 @@ contains
     character(len=str_def)              :: prime_mesh_name
     integer(kind=i_def),    allocatable :: stencil_depths(:)
 
-    logical(kind=l_def) :: use_multires_coupling
-    logical(kind=l_def) :: l_multigrid
-    logical(kind=l_def) :: prepartitioned
-    logical(kind=l_def) :: apply_partition_check
+    logical :: use_multires_coupling
+    logical :: l_multigrid
+    logical :: prepartitioned
+    logical :: inner_halo_tiles
+    logical :: check_partitions
 
     integer(kind=i_def) :: geometry
+    integer(kind=i_def) :: topology
     real(kind=r_def)    :: domain_bottom
     real(kind=r_def)    :: domain_height
     real(kind=r_def)    :: scaled_radius
     integer(kind=i_def) :: method
     integer(kind=i_def) :: number_of_layers
-    logical(kind=l_def) :: nodal_output_on_w3
-    logical(kind=l_def) :: write_diag
-    logical(kind=l_def) :: use_xios_io
+    integer(i_def)      :: tile_size_x
+    integer(i_def)      :: tile_size_y
+
+    logical :: nodal_output_on_w3
+    logical :: write_diag
+    logical :: use_xios_io
+
+    integer(i_def), allocatable :: tile_size(:,:)
+    integer(i_def), allocatable :: multigrid_tile_size(:,:)
 
     integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
@@ -161,6 +176,7 @@ contains
 
     prime_mesh_name    = modeldb%config%base_mesh%prime_mesh_name()
     geometry           = modeldb%config%base_mesh%geometry()
+    topology           = modeldb%config%base_mesh%topology()
     prepartitioned     = modeldb%config%base_mesh%prepartitioned()
     method             = modeldb%config%extrusion%method()
     domain_height      = modeldb%config%extrusion%domain_height()
@@ -169,6 +185,16 @@ contains
     nodal_output_on_w3 = modeldb%config%io%nodal_output_on_w3()
     write_diag         = modeldb%config%io%write_diag()
     use_xios_io        = modeldb%config%io%use_xios_io()
+
+    if (prepartitioned) then
+      tile_size_x = 1
+      tile_size_y = 1
+      inner_halo_tiles = .false.
+    else
+      tile_size_x = maxval([1,modeldb%config%partitioning%tile_size_x()])
+      tile_size_y = maxval([1,modeldb%config%partitioning%tile_size_y()])
+      inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
+    end if
 
     !-----------------------------------------------------------------------
     ! Initialise infrastructure
@@ -263,20 +289,43 @@ contains
                                      base_mesh_names, &
                                      modeldb%config )
 
-    apply_partition_check = .false.
+    check_partitions = .false.
     if ( .not. prepartitioned .and. &
          ( l_multigrid .or. use_multires_coupling ) ) then
-      apply_partition_check = .true.
+      check_partitions = .true.
     end if
 
-    call init_mesh( modeldb%config,               &
-                    modeldb%mpi%get_comm_rank(),  &
-                    modeldb%mpi%get_comm_size(),  &
-                    base_mesh_names,              &
-                    extrusion, stencil_depths,    &
-                    apply_partition_check )
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (l_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
 
+    call init_mesh( modeldb%config,              &
+                    modeldb%mpi%get_comm_rank(), &
+                    modeldb%mpi%get_comm_size(), &
+                    base_mesh_names, extrusion,  &
+                    inner_halo_tiles, tile_size, &
+                    stencil_depths, check_partitions )
+
+
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (l_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion_2d )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
     call create_mesh( base_mesh_names, extrusion_2d, &
+                      inner_halo_tiles, tile_size,   &
                       alt_name=twod_names )
     call assign_mesh_maps(twod_names)
 
@@ -289,8 +338,22 @@ contains
         do i=1, size(shifted_names)
           shifted_names(i) = trim(shifted_names(i))//'_shifted'
         end do
+
+        if (allocated(tile_size)) deallocate(tile_size)
+        allocate(tile_size(2, size(meshes_to_shift)))
+        tile_size(1,:) = tile_size_x
+        tile_size(2,:) = tile_size_y
+        if (l_multigrid) then
+          multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                         meshes_to_shift, &
+                                                         extrusion_shifted )
+          where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+        end if
+
         call create_mesh( meshes_to_shift,   &
                           extrusion_shifted, &
+                          inner_halo_tiles,  &
+                          tile_size,         &
                           alt_name=shifted_names )
         call assign_mesh_maps(shifted_names)
 
@@ -306,8 +369,22 @@ contains
         do i=1, size(double_names)
           double_names(i) = trim(double_names(i))//'_double'
         end do
+
+        if (allocated(tile_size)) deallocate(tile_size)
+        allocate(tile_size(2, size(meshes_to_shift)))
+        tile_size(1,:) = tile_size_x
+        tile_size(2,:) = tile_size_y
+        if (l_multigrid) then
+          multigrid_tile_size = get_multigrid_tile_size( modeldb%config,   &
+                                                         meshes_to_double, &
+                                                         extrusion_double )
+          where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+        end if
+
         call create_mesh( meshes_to_double, &
                           extrusion_double, &
+                          inner_halo_tiles, &
+                          tile_size,        &
                           alt_name=double_names )
         call assign_mesh_maps(double_names)
 
@@ -321,7 +398,7 @@ contains
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
-    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+    call init_fem( modeldb%config, chi_inventory, panel_id_inventory )
 
     call create_runtime_constants()
 
@@ -339,7 +416,8 @@ contains
     call transport_prerun_setup( num_base_meshes )
 
     ! Initialise prognostic variables
-    call transport_init_fields_alg( mesh, wind, density, theta, &
+    call transport_init_fields_alg( modeldb%config,             &
+                                    mesh, wind, density, theta, &
                                     tracer_con, tracer_adv,     &
                                     constant, mr, w2_vector,    &
                                     aerosol_mesh, aerosol_wind, &
@@ -361,13 +439,15 @@ contains
                     modeldb,            &
                     chi_inventory,      &
                     panel_id_inventory, &
+                    geometry, topology, &
                     alt_mesh_names=extra_io_mesh_names )
     else
       call init_io( xios_ctx,           &
                     prime_mesh_name,    &
                     modeldb,            &
                     chi_inventory,      &
-                    panel_id_inventory )
+                    panel_id_inventory, &
+                    geometry, topology )
     end if
 
     ! Call clock initial step before initial conditions output
@@ -400,9 +480,12 @@ contains
         call write_vector_diagnostic( 'w2_vector', w2_vector, modeldb%clock, &
                                       mesh, nodal_output_on_w3 )
       end if
+
       if (use_aerosols) then
-        height_w3 => get_height_fe(W3, aerosol_mesh%get_id())
-        height_wth => get_height_fe(Wtheta, aerosol_mesh%get_id())
+
+        height_w3  => get_height_fe(modeldb%config, aerosol_mesh, W3)
+        height_wth => get_height_fe(modeldb%config, aerosol_mesh, Wtheta)
+
         call write_scalar_diagnostic( 'aerosol_height_w3', height_w3, modeldb%clock, &
                                       aerosol_mesh, nodal_output_on_w3 )
         call write_scalar_diagnostic( 'aerosol_height_wth', height_wth, modeldb%clock, &
@@ -416,8 +499,9 @@ contains
                                       aerosol_mesh, nodal_output_on_w3 )
       end if
 
-      height_w3 => get_height_fe(W3, mesh%get_id())
-      height_wth => get_height_fe(Wtheta, mesh%get_id())
+      height_w3  => get_height_fe(modeldb%config, mesh, W3)
+      height_wth => get_height_fe(modeldb%config, mesh, Wtheta)
+
       call write_scalar_diagnostic( 'height_w3', height_w3, modeldb%clock, &
                                     mesh, nodal_output_on_w3 )
       call write_scalar_diagnostic( 'height_wth', height_wth, modeldb%clock, &
@@ -446,7 +530,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Performs a time step.
   !>
-  subroutine step_transport( model_clock )
+  subroutine step_transport( config, model_clock )
 
     use base_mesh_config_mod,   only: prime_mesh_name
     use formulation_config_mod, only: use_multires_coupling
@@ -458,6 +542,7 @@ contains
 
     implicit none
 
+    type(config_type),       intent(in) :: config
     class(model_clock_type), intent(in) :: model_clock
 
     type(mesh_type), pointer :: mesh
@@ -470,7 +555,7 @@ contains
     write(log_scratch_space, '(I1)') kind(1_i_def)
     call log_event( '        i_def kind = '//log_scratch_space , LOG_LEVEL_INFO )
 
-    call mass_conservation( model_clock%get_step(), density, mr, &
+    call mass_conservation( config, model_clock%get_step(), density, mr, &
                             w3_aerosol, wt_aerosol, use_aerosols )
     call log_field_minmax( LOG_LEVEL_INFO, 'rho', density )
     call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )
@@ -494,7 +579,7 @@ contains
 
     if ( LPROF ) call start_timing( id, 'transport_step' )
 
-    call transport_step( model_clock,                          &
+    call transport_step( config, model_clock,                  &
                          wind, density, theta, tracer_con,     &
                          tracer_adv, constant, mr, w2_vector,  &
                          w3_aerosol, wt_aerosol, aerosol_wind, &
@@ -503,7 +588,7 @@ contains
     if ( LPROF ) call stop_timing( id, 'transport_step' )
 
     ! Write out conservation diagnostics
-    call mass_conservation( model_clock%get_step(), density, mr, &
+    call mass_conservation( config, model_clock%get_step(), density, mr, &
                             w3_aerosol, wt_aerosol, use_aerosols )
     call log_field_minmax( LOG_LEVEL_INFO, 'rho', density )
     call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )

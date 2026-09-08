@@ -268,8 +268,8 @@ contains
     case ( equation_form_conservative )
       call mass_flux%initialise( vector_space = w2_fs )
       call mass_flux_h%initialise( vector_space = w2h_fs )
-      face_selector_ew => get_face_selector_ew(mesh%get_id())
-      face_selector_ns => get_face_selector_ns(mesh%get_id())
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
       call invoke( setval_X(mass_flux_h, flux), &
                    combine_w2_field_kernel_type(mass_flux, mass_flux_h,        &
                                                 flux_z, face_selector_ew,      &

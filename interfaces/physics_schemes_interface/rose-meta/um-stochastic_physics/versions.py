@@ -1,9 +1,8 @@
-import re
 import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version30_31 import *
+from .version31_32 import *
 
 
 class UpgradeError(Exception):
@@ -19,18 +18,16 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-class vn31_t360(MacroUpgrade):
-    """Upgrade macro for ticket #360 by Ian Boutle."""
+"""
+Copy this template and complete to add your macro
 
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t360"
+class vnXX_txxx(MacroUpgrade):
+    # Upgrade macro for <TICKET> by <Author>
+
+    BEFORE_TAG = "vnX.X"
+    AFTER_TAG = "vnX.X_txxx"
 
     def upgrade(self, config, meta_config=None):
-        # Commands From: rose-meta/um-stochastic_physics
-        self.add_setting(
-            config,
-            ["namelist:stochastic_physics", "rp_mp_ci"],
-            "1.0,1.0,1.0",
-        )
-
+        # Add settings
         return config, self.reports
+"""

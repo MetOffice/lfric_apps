@@ -64,6 +64,9 @@
 {% if task_ns.application == "lfricinputs" %}
             PROGRAMS                = {{task_values["app_name"]}}
 {% endif %}
+{% if task_values["coupled"] %}
+            COUPLED                 = "True"
+{% endif %}
 
         [[[directives]]]
 {{ set_task_resources(task_values["build_cpus"], task_values["build_memory"]) }}

@@ -7,6 +7,7 @@
 
 module tl_advective_and_flux_alg_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, l_def, r_def
   use field_mod,                          only: field_type
   use log_mod,                            only: log_event, LOG_LEVEL_ERROR
@@ -45,6 +46,7 @@ contains
   !============================================================================!
   !> @brief Computes the tangent linear flux F and advective increment
   !> @details Compute the tangent linear mass flux and advective increment
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in,out] mass_flux_1         ACTIVE: mass flux to compute from
   !!                                    linear wind and perturbation field
   !> @param[in,out] mass_flux_2         ACTIVE: mass flux to compute from
@@ -60,13 +62,15 @@ contains
   !> @param[in]     dt                  Advection time step
   !> @param[in]     do_flux             Flag to compute mass_flux = wind*density
   !> @param[in]     do_advective        Flag to compute adv_inc = wind.grad(density)
-  subroutine tl_advective_and_flux_alg(mass_flux_1, mass_flux_2, adv_inc,      &
-                                       density, wind, ls_density, ls_wind,     &
-                                       direction, transport_metadata,          &
+  subroutine tl_advective_and_flux_alg(config, mass_flux_1, mass_flux_2,       &
+                                       adv_inc, density, wind, ls_density,     &
+                                       ls_wind, direction, transport_metadata, &
                                        final_rk_stage, dt,                     &
                                        do_flux, do_advective)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),              intent(inout) :: mass_flux_1, mass_flux_2
     type(field_type),              intent(in)    :: density, wind
@@ -129,10 +133,12 @@ contains
         call ls_reconstruction_field%initialise( vector_space=recon_fs )
 
         ! Reconstruct W3 variables in multidata fields
-        call reconstruct_w3_field_alg(ls_reconstruction_field, ls_density,  &
-                                      direction, transport_metadata, final_rk_stage)
-        call tl_reconstruct_w3_field_alg(reconstruction_field, density, ls_density, &
-                                         direction, transport_metadata, final_rk_stage)
+        call reconstruct_w3_field_alg(config, ls_reconstruction_field, &
+                                      ls_density, direction,           &
+                                      transport_metadata, final_rk_stage)
+        call tl_reconstruct_w3_field_alg(config, reconstruction_field,   &
+                                         density, ls_density, direction, &
+                                         transport_metadata, final_rk_stage)
 
         if ( do_flux ) then
           ! Obtain mass flux F = rho * u_ls + rho_ls * u
@@ -191,8 +197,10 @@ contains
 
       case ( Wtheta )
         if ( do_advective ) then
-          call tl_wt_advective_update_alg(adv_inc, density, wind, ls_density, ls_wind, &
-                                          dt, direction, transport_metadata, final_rk_stage)
+          call tl_wt_advective_update_alg(config, adv_inc, density, wind, &
+                                          ls_density, ls_wind, dt,        &
+                                          direction, transport_metadata,  &
+                                          final_rk_stage)
         end if
         if ( do_flux ) then
           call log_event('Wtheta flux is undefined', LOG_LEVEL_ERROR)

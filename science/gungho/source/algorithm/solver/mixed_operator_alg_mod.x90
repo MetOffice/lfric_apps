@@ -192,8 +192,8 @@ contains
     end if
 
     if (split_w) then
-      face_selector_ew => get_face_selector_ew( mesh%get_id() )
-      face_selector_ns => get_face_selector_ns( mesh%get_id() )
+      face_selector_ew => get_face_selector_ew(mesh)
+      face_selector_ns => get_face_selector_ns(mesh)
     end if
 
     ! Obtain operators from runtime constants

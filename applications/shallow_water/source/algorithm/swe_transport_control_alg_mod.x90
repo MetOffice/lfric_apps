@@ -8,6 +8,7 @@
 
 module swe_transport_control_alg_mod
 
+  use config_mod,                        only: config_type
   use combine_w2_field_kernel_mod,       only: combine_w2_field_kernel_type
   use constants_mod,                     only: i_def, r_def, l_def, r_tran
   use derived_config_mod,                only: bundle_size
@@ -22,7 +23,7 @@ module swe_transport_control_alg_mod
   use fs_continuity_mod,                 only: W1, W3, W2v
   use function_space_mod,                only: function_space_type
   use function_space_collection_mod,     only: function_space_collection
-  use sci_geometric_constants_mod,       only: get_coordinates,      &
+  use sci_geometric_constants_mod,       only: get_coordinates, &
                                                get_panel_id
   use integer_field_mod,                 only: integer_field_type
   use log_mod,                           only: log_event,       &
@@ -90,34 +91,35 @@ contains
 
     type(mesh_type), pointer, intent(in) :: mesh
 
-    integer(kind=i_def)           :: config
+    integer(kind=i_def) :: i
+
     type(transport_metadata_type) :: transport_metadata
 
     ! Set up metadata field collection
     transport_metadata_collection = transport_metadata_collection_type()
 
-    ! Set up configs using namelist entries
-    do config = 1, profile_size
+    ! Set up profiles using namelist entries
+    do i = 1, profile_size
 
-      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(config)),' transport metadata'
+      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(i)),' transport metadata'
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-      transport_metadata = transport_metadata_type( field_names(config),             &
-                                                    equation_form(config),           &
-                                                    splitting(config),               &
-                                                    scheme(config),                  &
-                                                    horizontal_method(config),       &
-                                                    vertical_method(config),         &
-                                                    horizontal_monotone(config),     &
-                                                    vertical_monotone(config),       &
-                                                    vertical_monotone_order(config), &
-                                                    special_edges_monotone(config),  &
-                                                    enforce_min_value(config),       &
-                                                    min_value(config),               &
-                                                    log_space(config),               &
-                                                    reversible(config),              &
-                                                    ffsl_splitting(config),          &
-                                                    ffsl_vertical_order(config) )
+      transport_metadata = transport_metadata_type( field_names(i),             &
+                                                    equation_form(i),           &
+                                                    splitting(i),               &
+                                                    scheme(i),                  &
+                                                    horizontal_method(i),       &
+                                                    vertical_method(i),         &
+                                                    horizontal_monotone(i),     &
+                                                    vertical_monotone(i),       &
+                                                    vertical_monotone_order(i), &
+                                                    special_edges_monotone(i),  &
+                                                    enforce_min_value(i),       &
+                                                    min_value(i),               &
+                                                    log_space(i),               &
+                                                    reversible(i),              &
+                                                    ffsl_splitting(i),          &
+                                                    ffsl_vertical_order(i) )
 
       call transport_metadata_collection%set_transport_metadata(transport_metadata)
 
@@ -130,6 +132,7 @@ contains
   !> @brief Advection of prognostic variables for the shallow water miniapp.
   !> @param[in,out] advection_inc   Advection increment of the shallow water
   !!                                prognostics [u, geopot, buoyancy, q]
+  !> @param[in]     config          Application namelist configuration object
   !> @param[in]     advected_fields Fields to advect: [u, geopot, buoyancy, q]
   !> @param[in]     state_n         Fields at time n
   !> @param[in]     state_np1       Estimate of fields at time n+1
@@ -137,7 +140,8 @@ contains
   !> @param[in]     outer           Outer (advection) iteration number
   !> @param[in]     wind_prev       (Optional) Estimate of end of timestep wind
   !!                                from previous outer iteration
-  subroutine swe_transport_control_alg_step( advection_inc,   &
+  subroutine swe_transport_control_alg_step( config,          &
+                                             advection_inc,   &
                                              advected_fields, &
                                              state_n,         &
                                              state_np1,       &
@@ -153,6 +157,8 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(field_vector_type),         intent(inout) :: advection_inc
     type(field_vector_type), target, intent(in)    :: advected_fields
     type(field_vector_type), target, intent(in)    :: state_np1
@@ -233,7 +239,7 @@ contains
     prev_inc = advection_inc
 
     ! Create transport_controller object (advecting wind etc)
-    call transport_controller%initialise(                                      &
+    call transport_controller%initialise(config,                               &
             model_clock, q, wind_for_adv, wind_np1,                            &
             outer=outer, cheap_update_step=cheap_update_step                   &
     )
@@ -306,8 +312,8 @@ contains
       w2v_fs   => function_space_collection%get_fs( geopot%get_mesh(), &
                                                     element_order_h,   &
                                                     element_order_v, W2v )
-      chi      => get_coordinates(geopot%get_mesh_id())
-      panel_id => get_panel_id(geopot%get_mesh_id())
+      chi      => get_coordinates(geopot%get_mesh())
+      panel_id => get_panel_id(geopot%get_mesh())
       qr = quadrature_xyoz_type(nqp_h_exact, nqp_h_exact, nqp_v_exact, &
                                 quadrature_rule)
 
@@ -373,6 +379,7 @@ contains
 
   !=============================================================================
   !> @brief Advection of tracer variables for the shallow water miniapp.
+  !> @param[in]     config          Application namelist configuration object
   !> @param[in,out] tracer_const    Constant tracer to be transported
   !> @param[in,out] tracer_pv       PV tracer to be transported
   !> @param[in,out] tracer_step     Step function tracer to be transported
@@ -382,7 +389,8 @@ contains
   !> @param[in]     wind_np1        Wind field at time n+1
   !> @param[in]     model_clock     Time within the model
 
-  subroutine swe_tracer_transport_alg( tracer_const, &
+  subroutine swe_tracer_transport_alg( config,       &
+                                       tracer_const, &
                                        tracer_pv,    &
                                        tracer_step,  &
                                        mass_n,       &
@@ -399,6 +407,8 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(field_type),        intent(inout) :: tracer_const
     type(field_type),        intent(inout) :: tracer_pv
     type(field_type),        intent(inout) :: tracer_step
@@ -424,7 +434,8 @@ contains
     if ( LPROF ) call start_timing( id_swe_tracer, 'swe_tracer_transport_alg' )
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise(model_clock, mass_n, wind_n, wind_np1)
+    call transport_controller%initialise( config, model_clock, &
+                                          mass_n, wind_n, wind_np1 )
 
     ! Initialise transported variables
     call tracer_np1%initialise(vector_space = tracer_const%get_function_space())

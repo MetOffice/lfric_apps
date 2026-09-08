@@ -9,7 +9,7 @@
 module iau_firstfile_io_mod
 
   use calendar_mod,              only: calendar_type
-  use constants_mod,             only: str_def, l_def
+  use constants_mod,             only: str_def, l_def, i_def, r_def
   use driver_modeldb_mod,        only: modeldb_type
   use field_collection_mod,      only: field_collection_type
   use field_mod,                 only: field_type
@@ -67,6 +67,11 @@ contains
     character(:), allocatable :: split_filename(:)
     character(str_def)        :: short_filename
 
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
     logical(l_def) :: use_xios_io
 
     chi_inventory => get_chi_inventory()
@@ -76,6 +81,11 @@ contains
     time_start      = modeldb%config%time%calendar_start()
     prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     use_xios_io     = modeldb%config%io%use_xios_io()
+
+    geometry      = modeldb%config%base_mesh%geometry()
+    topology      = modeldb%config%base_mesh%topology()
+    coord_system  = modeldb%config%finite_element%coord_system()
+    scaled_radius = modeldb%config%planet%scaled_radius()
 
     split_filename = split_string( trim(iau_incs_path), '/' )
     short_filename = trim(split_filename(size(split_filename)))
@@ -113,9 +123,13 @@ contains
 
     allocate(tmp_calendar, source=step_calendar_type(time_origin, time_start))
 
-    call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
-                                             chi, panel_id,               &
-                                             modeldb%clock, tmp_calendar, &
+    call io_context%initialise_xios_context( modeldb%mpi%get_comm(), &
+                                             chi, panel_id,          &
+                                             modeldb%clock,          &
+                                             tmp_calendar,           &
+                                             geometry, topology,     &
+                                             coord_system,           &
+                                             scaled_radius,          &
                                              start_at_zero=.true. )
     call io_context%close_context_definition()
 

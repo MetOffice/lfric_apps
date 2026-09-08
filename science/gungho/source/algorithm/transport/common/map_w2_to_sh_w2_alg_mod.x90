@@ -9,7 +9,7 @@ module map_w2_to_sh_w2_alg_mod
 
   use sci_consist_w2_to_sh_w2_kernel_mod, &
                                only: consist_w2_to_sh_w2_kernel_type
-  use constants_mod,           only: i_def, r_def, r_tran
+  use constants_mod,           only: r_def, r_tran
   use extrusion_mod,           only: SHIFTED
   use field_mod,               only: field_type
   use fs_continuity_mod,       only: Wtheta
@@ -42,16 +42,14 @@ contains
     type(field_type), intent(in)    :: w2_field_rdef
 
     ! Internal arguments
-    integer(kind=i_def)               :: primary_mesh_id
     type(mesh_type),          pointer :: primary_mesh
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
     ! Get mesh information
     primary_mesh => w2_field_rdef%get_mesh()
-    primary_mesh_id = primary_mesh%get_id()
-    face_selector_ew => get_face_selector_ew(primary_mesh_id)
-    face_selector_ns => get_face_selector_ns(primary_mesh_id)
+    face_selector_ew => get_face_selector_ew(primary_mesh)
+    face_selector_ns => get_face_selector_ns(primary_mesh)
 
     ! Map field to shifted mesh
     call invoke(                                                               &
@@ -73,16 +71,14 @@ contains
     type(r_tran_field_type), intent(in)    :: w2_field_rtran
 
     ! Internal arguments
-    integer(kind=i_def)               :: primary_mesh_id
     type(mesh_type),          pointer :: primary_mesh
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
     ! Get mesh information
     primary_mesh => w2_field_rtran%get_mesh()
-    primary_mesh_id = primary_mesh%get_id()
-    face_selector_ew => get_face_selector_ew(primary_mesh_id)
-    face_selector_ns => get_face_selector_ns(primary_mesh_id)
+    face_selector_ew => get_face_selector_ew(primary_mesh)
+    face_selector_ns => get_face_selector_ns(primary_mesh)
 
     ! Map field to shifted mesh
     call invoke(                                                               &

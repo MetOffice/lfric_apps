@@ -129,8 +129,8 @@ contains
 
         mesh => wind_n%get_mesh()
         w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
-        chi => get_coordinates(mesh%get_id())
-        panel_id => get_panel_id(mesh%get_id())
+        chi => get_coordinates(mesh)
+        panel_id => get_panel_id(mesh)
 
         ! -------------------------------------------------------------------- !
         ! Split wind into components in W3
@@ -183,9 +183,9 @@ contains
 
         if ( LPROF ) call start_timing( id_from, 'transport.wind_from_comps' )
 
-        project_xdot_to_w2 => get_project_xdot_to_w2(mesh%get_id())
-        project_ydot_to_w2 => get_project_ydot_to_w2(mesh%get_id())
-        project_zdot_to_w2 => get_project_zdot_to_w2(mesh%get_id())
+        project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
+        project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
+        project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
 
         ! Either Galerkin project in W2broken
         if (broken_w2_projection) then

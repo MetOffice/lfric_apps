@@ -11,24 +11,29 @@
 {# Populate the build_conf variable and store it in the task dictionary #}
 {# build_conf is a combination of the compiler, optimisation and precision #}
 
-{% set build_conf = task_ns.compiler %}
+{% set build_conf = task_ns.compiler~"_" %}
+
+{% if "coupled" in task_ns.extras %}
+{% set build_conf = build_conf~"coupled-" %}
+    {% do build_dict.update({"coupled": true}) %}
+{% endif %}
 
 {# Get the optimisation from the task name #}
 {# Append to build_conf and populate the task dict #}
 {% if "fast-debug" in task_ns.extras %}
 
-    {% set build_conf = build_conf~"_fast-debug" %}
-    {% do task_dict.update({"optlevel": "fast-debug"}) %}
+    {% set build_conf = build_conf~"fast-debug-" %}
+    {% do build_dict.update({"optlevel": "fast-debug"}) %}
 
 {% elif "full-debug" in task_ns.extras %}
 
-    {% set build_conf = build_conf~"_full-debug" %}
-    {% do task_dict.update({"optlevel": "full-debug"}) %}
+    {% set build_conf = build_conf~"full-debug-" %}
+    {% do build_dict.update({"optlevel": "full-debug"}) %}
 
 {% elif "production" in task_ns.extras %}
 
-    {% set build_conf = build_conf~"_production" %}
-    {% do task_dict.update({"optlevel": "production"}) %}
+    {% set build_conf = build_conf~"production-" %}
+    {% do build_dict.update({"optlevel": "production"}) %}
 
 {% elif "unit_tests" not in task
         and "integration_tests" not in task %}
@@ -42,18 +47,10 @@
 {# Append to build_conf #}
 
 {% set precision_output = task_ns.extras|get_precision() %}
-{% do task_dict.update({"precision": precision_output[0]}) %}
+{% do build_dict.update({"precision": precision_output[0]}) %}
 
-{# If the build setting is just the compiler need to append the precision #}
-{# with an underscore to ensure future split_task macro calls succeed. #}
-{# Otherwise join with a dash #}
-{% if build_conf != task_ns.compiler %}
-    {% set joiner = "-" %}
-{% else %}
-    {% set joiner = "_" %}
-{% endif %}
-{% set build_conf = build_conf~joiner~precision_output[1] %}
+{% set build_conf = build_conf~precision_output[1] %}
 
-{% do task_dict.update({"build_conf": build_conf}) %}
+{% do build_dict.update({"build_conf": build_conf}) %}
 
 {% do LOG.debug("Finished in templates/parse_build_config.cylc") %}

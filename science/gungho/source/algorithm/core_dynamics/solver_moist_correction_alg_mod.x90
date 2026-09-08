@@ -9,6 +9,7 @@
 module solver_moist_correction_alg_mod
 
   ! Infrastructure
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def
   use extrusion_mod,                 only: SHIFTED
   use field_mod,                     only: field_type
@@ -32,8 +33,8 @@ module solver_moist_correction_alg_mod
   use upwind_tracer_flux_kernel_mod, only: upwind_tracer_flux_kernel_type
 
   ! Config
-  use io_config_mod,                 only: subroutine_timers,                  &
-                                           write_conservation_diag
+  use io_config_mod, only: subroutine_timers, &
+                           write_conservation_diag
 
   implicit none
 
@@ -44,15 +45,18 @@ contains
 
 !> @brief Corrects moisture mixing ratios to ensure local mass conservation
 !!        after the linear solver
+!> @param[in]     config    Application configuration object
 !> @param[in,out] mr        Array of moisture mixing ratios
 !> @param[in]     rho_np1   Density of dry air, after solver
 !> @param[in]     rho_star  Density of dry air, after transport
 !> @param[in]     dry_flux  Dry mass flux associated with solver increment
-subroutine solver_moist_correction_alg(mr, rho_np1, rho_star, dry_flux)
+subroutine solver_moist_correction_alg(config, mr, rho_np1, rho_star, dry_flux)
 
   implicit none
 
   ! Arguments
+  type(config_type), intent(in)   :: config
+
   type(field_type), intent(inout) :: mr(nummr)
   type(field_type), intent(in)    :: rho_np1
   type(field_type), intent(in)    :: rho_star
@@ -61,7 +65,7 @@ subroutine solver_moist_correction_alg(mr, rho_np1, rho_star, dry_flux)
   ! Local variables
   type(mesh_type),           pointer :: mesh
   type(mesh_type),           pointer :: shifted_mesh
-  integer(kind=i_def)                :: i, shifted_mesh_id
+  integer(kind=i_def)                :: i
   type(function_space_type), pointer :: w2_sh_fs
   type(function_space_type), pointer :: w3_sh_fs
   type(field_type),          pointer :: volume_shifted
@@ -78,11 +82,10 @@ subroutine solver_moist_correction_alg(mr, rho_np1, rho_star, dry_flux)
   ! Calculate rho and dry flux at shifted W2
   mesh => rho_np1%get_mesh()
   shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
-  shifted_mesh_id = shifted_mesh%get_id()
 
   w2_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2)
   w3_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W3)
-  volume_shifted => get_detj_at_w3_fv(shifted_mesh_id)
+  volume_shifted => get_detj_at_w3_fv(shifted_mesh)
 
   ! Initialise fields
   call rho_star_shifted%initialise(w3_sh_fs)
@@ -94,8 +97,8 @@ subroutine solver_moist_correction_alg(mr, rho_np1, rho_star, dry_flux)
   call tracer_flux%initialise(w2_sh_fs)
 
   ! Map densities and dry flux to shifted mesh
-  call obtain_shifted_rho(rho_star_shifted, rho_star)
-  call obtain_shifted_rho(rho_np1_shifted, rho_np1)
+  call obtain_shifted_rho(config, rho_star_shifted, rho_star)
+  call obtain_shifted_rho(config, rho_np1_shifted, rho_np1)
   call map_w2_to_sh_w2_alg_rdef(dry_flux_shifted, dry_flux)
 
   ! For each species, increment the mixing ratio conservatively
@@ -120,7 +123,8 @@ subroutine solver_moist_correction_alg(mr, rho_np1, rho_star, dry_flux)
   end do
 
   if (write_conservation_diag) then
-    call moisture_conservation_alg(rho_np1, mr, 'After solver_correction' )
+    call moisture_conservation_alg(config, rho_np1, mr, &
+                                   'After solver_correction' )
   end if
 
   if ( subroutine_timers ) call timer('dynamics.solver_moist_correct')

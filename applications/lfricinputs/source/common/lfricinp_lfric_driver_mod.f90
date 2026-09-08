@@ -84,11 +84,12 @@ type(lfric_xios_context_type), target :: io_context
 
 contains
 
-subroutine lfricinp_initialise_lfric(program_name_arg,                         &
-                                     required_lfric_namelists,                 &
-                                     start_date, time_origin,                  &
-                                     first_step, last_step,                    &
-                                     spinup_period, seconds_per_step)
+function lfricinp_initialise_lfric(program_name_arg,                         &
+                                   required_lfric_namelists,                 &
+                                   start_date, time_origin,                  &
+                                   first_step, last_step,                    &
+                                   spinup_period, seconds_per_step)          &
+                            result(config)
 
 ! Description:
 !  Initialises LFRic infrastructure, MPI, XIOS and halos.
@@ -102,6 +103,8 @@ integer(kind=i_def), intent(in) :: first_step, last_step
 real(r_second),      intent(in) :: spinup_period
 real(r_second),      intent(in) :: seconds_per_step
 
+type(config_type) :: config
+
 type(step_calendar_type), allocatable :: model_calendar
 type(linked_list_type),   pointer     :: file_list => null()
 
@@ -111,8 +114,6 @@ type(inventory_by_mesh_type), pointer :: chi_inventory => null()
 type(inventory_by_mesh_type), pointer :: panel_id_inventory => null()
 class(event_actor_type), pointer :: event_actor_ptr
 procedure(event_action), pointer :: context_advance
-
-type(config_type),              save :: config
 
 class(extrusion_type),        allocatable :: extrusion
 type(uniform_extrusion_type), allocatable :: extrusion_2d
@@ -126,13 +127,20 @@ character(str_def) :: prime_mesh_name
 
 integer(i_def) :: stencil_depth(1)
 integer(i_def) :: geometry
+integer(i_def) :: topology
+integer(i_def) :: coord_system
 real(r_def)    :: domain_bottom
 real(r_def)    :: scaled_radius
 logical(l_def) :: check_partitions
-integer        :: extrusion_method
+logical(l_def) :: inner_halo_tiles
+integer(i_def) :: extrusion_method
 integer(i_def) :: number_of_layers
 real(r_def)    :: domain_height
 
+integer(i_def) :: tile_size_x
+integer(i_def) :: tile_size_y
+
+integer(i_def), allocatable :: tile_size(:,:)
 !=====================================================================
 
 ! Set module variables
@@ -160,7 +168,7 @@ call config%initialise( program_name_arg )
 call load_configuration( lfric_nl_fname, required_lfric_namelists, config )
 
 ! Initialise logging system
-call init_logger( comm, program_name )
+call init_logger( config, comm, program_name )
 
 call init_collections()
 
@@ -178,10 +186,16 @@ call log_event('Initialising mesh', LOG_LEVEL_INFO)
 ! -------------------------------
 prime_mesh_name  = config%base_mesh%prime_mesh_name()
 geometry         = config%base_mesh%geometry()
+topology         = config%base_mesh%topology()
 scaled_radius    = config%planet%scaled_radius()
 extrusion_method = config%extrusion%method()
 number_of_layers = config%extrusion%number_of_layers()
 domain_height    = config%extrusion%domain_height()
+coord_system     = config%finite_element%coord_system()
+
+tile_size_x = 1
+tile_size_y = 1
+inner_halo_tiles = .false.
 
 !-------------------------------------------------------------------------
 ! 1.0 Create the meshes
@@ -223,12 +237,18 @@ end do
 stencil_depth = 2_i_def
 check_partitions = .false.
 
-call init_mesh( config,                     &
-                local_rank, total_ranks,    &
-                base_mesh_names, extrusion, &
+if (allocated(tile_size)) deallocate(tile_size)
+allocate(tile_size(2, size(base_mesh_names)))
+tile_size(1,:) = tile_size_x
+tile_size(2,:) = tile_size_y
+call init_mesh( config,                      &
+                local_rank, total_ranks,     &
+                base_mesh_names, extrusion,  &
+                inner_halo_tiles, tile_size, &
                 stencil_depth, check_partitions )
 
 call create_mesh( base_mesh_names, extrusion_2d, &
+                  inner_halo_tiles, tile_size,   &
                   alt_name=twod_names )
 call assign_mesh_maps( twod_names )
 
@@ -238,7 +258,7 @@ call assign_mesh_maps( twod_names )
 call log_event('Creating function spaces and chi', LOG_LEVEL_INFO)
 chi_inventory => get_chi_inventory()
 panel_id_inventory => get_panel_id_inventory()
-call init_fem(mesh_collection, chi_inventory, panel_id_inventory)
+call init_fem(config, chi_inventory, panel_id_inventory)
 
 ! XIOS domain initialisation
 mesh => mesh_collection%get_mesh(prime_mesh_name)
@@ -253,7 +273,10 @@ file_list => io_context%get_filelist()
 call io_config%init_lfricinp_files(file_list)
 call io_context%initialise( xios_ctx )
 call io_context%initialise_xios_context( comm, chi, panel_id, &
-                                         model_clock, model_calendar )
+                                         model_clock, model_calendar, &
+                                         geometry, topology, &
+                                         coord_system, scaled_radius )
+
 ! Attach context advancement to the model's clock
 context_advance => advance
 event_actor_ptr => io_context
@@ -263,7 +286,7 @@ call advance(io_context, model_clock)
 
 nullify(chi, panel_id, chi_inventory, panel_id_inventory)
 
-end subroutine lfricinp_initialise_lfric
+end function lfricinp_initialise_lfric
 
 !------------------------------------------------------------------
 

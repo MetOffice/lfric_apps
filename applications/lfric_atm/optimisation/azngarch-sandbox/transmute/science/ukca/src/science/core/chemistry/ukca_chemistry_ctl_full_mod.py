@@ -134,6 +134,7 @@ from psyclone.psyir.symbols import (
     DataSymbol,
     ImportInterface,
     RoutineSymbol,
+    ScalarType,
     Symbol,
 )
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
@@ -244,7 +245,7 @@ def trans(psyir):
         desired_chunk_size_var = routine.symbol_table.find_or_create_tag(
             "desired_chunk_size",
             symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
 
         if desired_chunk_size is None:
             assign_desired_chunk_size = Assignment.create(
@@ -253,7 +254,7 @@ def trans(psyir):
         else:
             assign_desired_chunk_size = Assignment.create(
                 Reference(desired_chunk_size_var),
-                Literal(str(desired_chunk_size), INTEGER_TYPE))
+                Literal(str(desired_chunk_size), ScalarType.integer_type()))
 
         # Introduce full-domain array for each ASAD array
         # -----------------------------------------------
@@ -266,18 +267,18 @@ def trans(psyir):
                 bounds.append(IntrinsicCall.create(
                     IntrinsicCall.Intrinsic.SIZE,
                     [Reference(Symbol(var_name)),
-                     ("dim", Literal(str(i), INTEGER_TYPE))]))
+                     ("dim", Literal(str(i), ScalarType.integer_type()))]))
             # Create variables
             new_var = routine.symbol_table.find_or_create_tag(
                 "full_" + var_name,
                 symbol_type=DataSymbol,
-                datatype=ArrayType(REAL_TYPE, bounds))
+                datatype=ArrayType(ScalarType.real_type(), bounds))
             full_vars[var_name] = (bounds, new_var)
             # Add initialiser
             if var_name in refs_before:
                 initialiser = Assignment.create(
                     ArrayReference.create(new_var, [":" for b in bounds]),
-                    Literal("0.0", REAL_TYPE))
+                    Literal("0.0", ScalarType.real_type()))
                 routine.addchild(initialiser, index=0)
 
         # Replace each use of ASAD array with full-domain counterpart
@@ -311,15 +312,15 @@ def trans(psyir):
         chunk_begin_var = routine.symbol_table.find_or_create_tag(
             "chunk_begin",
             symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
         chunk_end_var = routine.symbol_table.find_or_create_tag(
             "chunk_end",
             symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
         chunk_size_var = routine.symbol_table.find_or_create_tag(
             "chunk_size",
             symbol_type=DataSymbol,
-            datatype=INTEGER_TYPE)
+            datatype=ScalarType.integer_type())
 
         # Create assignment for chunk_end
         minop = IntrinsicCall.create(
@@ -331,7 +332,7 @@ def trans(psyir):
                  BinaryOperation.create(
                      BinaryOperation.Operator.SUB,
                      Reference(desired_chunk_size_var),
-                     Literal("1", INTEGER_TYPE)))])
+                     Literal("1", ScalarType.integer_type())))])
         assign_chunk_end = Assignment.create(Reference(chunk_end_var), minop)
 
         # Create assignment for chunk_size
@@ -339,7 +340,7 @@ def trans(psyir):
             BinaryOperation.Operator.SUB,
             BinaryOperation.create(
                 BinaryOperation.Operator.ADD,
-                Literal("1", INTEGER_TYPE),
+                Literal("1", ScalarType.integer_type()),
                 Reference(chunk_end_var)),
             Reference(chunk_begin_var))
         assign_chunk_size = Assignment.create(Reference(chunk_size_var),
@@ -348,7 +349,7 @@ def trans(psyir):
         # Create chunking loop
         loop = Loop(variable=chunk_begin_var)
         asad_call.replace_with(loop)
-        loop.children = [Literal("1", INTEGER_TYPE),
+        loop.children = [Literal("1", ScalarType.integer_type()),
                          Reference(array_size_var),
                          Reference(desired_chunk_size_var),
                          Schedule(parent=loop, children=[asad_call])]
@@ -357,7 +358,7 @@ def trans(psyir):
         for var_name in refs_before:
             (bounds, full_var) = full_vars[var_name]
             var_sym = DataSymbol(
-                var_name, datatype=ArrayType(REAL_TYPE, bounds))
+                var_name, datatype=ArrayType(ScalarType.real_type(), bounds))
             assign_full_var = Assignment.create(
                 ArrayReference.create(var_sym, [":" for b in bounds]),
                 ArrayReference.create(full_var, [":" for b in bounds]))
@@ -367,7 +368,7 @@ def trans(psyir):
         for var_name in refs_after:
             (bounds, full_var) = full_vars[var_name]
             var_sym = DataSymbol(
-                var_name, datatype=ArrayType(REAL_TYPE, bounds))
+                var_name, datatype=ArrayType(ScalarType.real_type(), bounds))
             assign_full_var = Assignment.create(
                 ArrayReference.create(full_var, [":" for b in bounds]),
                 ArrayReference.create(var_sym, [":" for b in bounds]))
@@ -381,7 +382,7 @@ def trans(psyir):
         # Update references to arrays
         for ref in loop.loop_body.walk(ArrayReference):
             if ref.name in asad_vars.keys():
-                ref.indices[0].start = Literal("1", INTEGER_TYPE)
+                ref.indices[0].start = Literal("1", ScalarType.integer_type())
                 ref.indices[0].stop = Reference(chunk_size_var)
             else:
                 ref.indices[0].start = Reference(chunk_begin_var)
@@ -396,7 +397,7 @@ def trans(psyir):
 
         print_call = Call()
         print_call.addchild(Reference(RoutineSymbol("umPrint")))
-        print_call.addchild(Literal(message_text, CHARACTER_TYPE))
+        print_call.addchild(Literal(message_text, ScalarType.character_type()))
         loop.parent.addchild(print_call, index=loop.position)
 
         # Assign desired chunk size

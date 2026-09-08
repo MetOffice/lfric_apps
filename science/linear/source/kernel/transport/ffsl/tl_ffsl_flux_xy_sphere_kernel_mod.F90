@@ -604,7 +604,7 @@ contains
     integer(kind=i_def) :: local_dofs(2)
 
     ! Local scalars
-    integer(kind=i_def) :: dof_iterator
+    integer(kind=i_def) :: df_idx, df
     integer(kind=i_def) :: col_idx, rel_idx_k
     integer(kind=i_def) :: dof_offset
     integer(kind=i_def) :: k, j, w2h_idx, idx_dep
@@ -652,14 +652,15 @@ contains
     end if
 
     ! Loop over the direction dofs to compute flux at each dof -----------------
-    do dof_iterator = 1, face_selector(map_w3_2d(1))
+    do df_idx = 1, ABS(face_selector(map_w3_2d(1)))
+      df = local_dofs(df_idx - MIN(0, face_selector(map_w3_2d(1))))
 
       ! Pull out index to avoid multiple indirections
-      w2h_idx = map_w2h(local_dofs(dof_iterator))
-      idx_dep = map_depk(local_dofs(dof_iterator)) + ndep_half
+      w2h_idx = map_w2h(df)
+      idx_dep = map_depk(df) + ndep_half
 
       ! Set a local offset, dependent on the face we are looping over
-      select case (local_dofs(dof_iterator))
+      select case (df)
       case ( W, S )
         dof_offset = 0
       case ( E, N )
@@ -825,7 +826,7 @@ contains
       flux_ls(w2h_idx : w2h_idx+nlayers-1) = inv_dt * (                        &
         recon_ls_field(:) * frac_wind_pert(w2h_idx : w2h_idx+nlayers-1)        &
       )
-    end do ! dof_iterator
+    end do ! df_idx
 
   end subroutine tl_ffsl_flux_xy_sphere_1d
 

@@ -8,6 +8,7 @@
 module tl_mol_conservative_alg_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def
   use field_mod,                      only: field_type
   use log_mod,                        only: log_event,         &
@@ -40,14 +41,14 @@ module tl_mol_conservative_alg_mod
   use dg_inc_matrix_vector_kernel_mod,      &
                                       only: dg_inc_matrix_vector_kernel_type
 
-  ! Configuration
-  use boundaries_config_mod,          only: limited_area
-  use base_mesh_config_mod,           only: topology, topology_non_periodic
-  use linear_config_mod,              only: transport_efficiency
-  use transport_config_mod,           only: runge_kutta_method, &
-                                            dry_field_name,     &
-                                            operators,          &
-                                            operators_fem
+  ! Configuration modules
+  use boundaries_config_mod, only: limited_area
+  use base_mesh_config_mod,  only: topology, topology_non_periodic
+  use linear_config_mod,     only: transport_efficiency
+  use transport_config_mod,  only: runge_kutta_method, &
+                                   dry_field_name,     &
+                                   operators,          &
+                                   operators_fem
 
   implicit none
 
@@ -64,7 +65,7 @@ module tl_mol_conservative_alg_mod
   !> @param[in]     ls_field    PASSIVE Field at the start of the transport step
   !> @param[in,out] tl_transport_controller
   !!                            Object controlling transport
-  subroutine tl_mol_conservative_alg( field_np1, field, ls_field,              &
+  subroutine tl_mol_conservative_alg( field_np1, field, ls_field, &
                                       tl_transport_controller )
 
     implicit none
@@ -122,15 +123,19 @@ module tl_mol_conservative_alg_mod
     type(flux_precomputations_type), pointer :: pert_wind_flux_precomp
     integer(tik)                             :: id
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'tl_transport.mol_conservative' )
 
     ! ------------------------------------------------------------------------ !
     ! Extract transport objects and initialise temporary fields
     ! ------------------------------------------------------------------------ !
-    mesh => field%get_mesh()
-    mesh_id = field%get_mesh_id()
-    transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
-    ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
+    config  => tl_transport_controller%get_config()
+    mesh    => field%get_mesh()
+    mesh_id =  field%get_mesh_id()
+
+    transport_controller      => tl_transport_controller%get_ls_wind_ls_rho_controller()
+    ls_transport_controller   => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
 
     transport_metadata => pert_transport_controller%get_transport_metadata()
@@ -273,7 +278,8 @@ module tl_mol_conservative_alg_mod
 
         end if
 
-        call advective_and_flux_alg(flux_step, adv_inc, rhs_field, ls_field_n, &
+        call advective_and_flux_alg(config,                                    &
+                                    flux_step, adv_inc, rhs_field, ls_field_n, &
                                     ls_advecting_wind, direction,              &
                                     ls_transport_metadata, final_rk_stage,     &
                                     dt_mol_substep, do_flux, do_advective)
@@ -390,7 +396,7 @@ module tl_mol_conservative_alg_mod
           do_advective = .false.
 
         end if
-        call tl_advective_and_flux_alg(                                        &
+        call tl_advective_and_flux_alg(config,                                 &
                 flux_step_ls_wind, flux_step_pert_wind, adv_inc,               &
                 rhs_field, advecting_wind,                                     &
                 stored_ls_field(ls_substep,ls_stage), ls_advecting_wind,       &
