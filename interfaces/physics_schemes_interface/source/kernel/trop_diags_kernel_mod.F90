@@ -171,7 +171,7 @@ subroutine trop_diags_code(nlayers,                    &
   ! cut off limits to be used in tropopause calculations.
   ! todo: put this in a constants module? in the um it was in pws_diags_mod
   ! arbritary limits for high and low trop levels for search
-  real(r_def), parameter :: heightcut_top = 22000.0_r_def
+  real(r_def), parameter :: heightcut_top = 32000.0_r_def
   real(r_def), parameter :: heightcut_bot = 4500.0_r_def
   ! max temp allowed for tropopause
   real(r_def), parameter :: tempcut = 243.0_r_def
@@ -225,8 +225,8 @@ subroutine trop_diags_code(nlayers,                    &
             ! if 2km interval also < 2 then we have the tropopause level
             if (lapse_2km < lapse_trop) then
               trop_level = k
-              exit
             end if
+            exit
           end if
 
         end do  ! looking upwards for 2km
@@ -274,7 +274,7 @@ subroutine trop_diags_code(nlayers,                    &
     ! temperature at tropopause
     if (do_temp) then
       trop_temp(map_2d(1)) = t_wth(k) -                                     &
-        lapse_below * (trop_height(map_2d(1)) - height_wth(map_wth(1)+k-1))
+        lapse_below * (trop_height(map_2d(1)) - height_wth(map_wth(1)+k))
     end if
 
     ! pressure at tropopause is derived from the hydrostatic equation
