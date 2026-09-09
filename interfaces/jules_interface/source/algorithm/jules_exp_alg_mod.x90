@@ -408,11 +408,16 @@ contains
     ! It will let you put kernel and algorithm editors side by side
     ! so you can easily see if the argument lists match each other
 
+    ! According to notes, each stencil field need to be followed by extent
+! https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#stencil-extent
+
     call invoke( jules_exp_kernel_type(&
                                theta, &
                                exner_in_wth,                   &
                                u_in_w3, &
+			       stencil_depth, & ! this is extent
 			       v_in_w3,                               &
+			       stencil_depth, & ! this is extent
                                mr_n(imr_v), &
 			       mr_n(imr_cl), &
 			       mr_ice,              &
@@ -422,6 +427,7 @@ contains
 			       z0msea, &
 			       z0m,         &
                                tile_fraction, &
+			       stencil_depth, & ! this is extent
 			       leaf_area_index,                 &
                                canopy_height, &
 			       peak_to_trough_orog,             &
@@ -437,7 +443,9 @@ contains
 			       soil_respiration,                 &
                                thermal_cond_wet_soil,                          &
                                sea_u_current_ptr,&
+			       stencil_depth, & ! this is extent
 			       sea_v_current_ptr,            &
+			       stencil_depth, & ! this is extent
                                sea_ice_temperature,                            &
                                sea_ice_conductivity, &
 			       sea_ice_pensolar,         &
