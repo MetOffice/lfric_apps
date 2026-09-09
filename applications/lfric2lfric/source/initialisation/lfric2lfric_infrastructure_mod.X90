@@ -95,13 +95,17 @@ module lfric2lfric_infrastructure_mod
                                         method_um_L120_99t_21s_40km,  &
                                         method_um_L140_122t_18s_40km, &
                                         method_um_L70_50t_20s_80km
-  use lfric2lfric_config_mod,     only: mode_ics, mode_lbc,        &
-                                        regrid_method_lfric2lfric, &
-                                        regrid_method_map,         &
-                                        regrid_method_oasis,       &
-                                        source_topology_fully_periodic, &
-                                        source_topology_non_periodic,   &
-                                        source_geometry_planar,    &
+  use lfric2lfric_config_mod,     only: destination_topology_fully_periodic, &
+                                        destination_topology_non_periodic,   &
+                                        destination_geometry_planar,         &
+                                        destination_geometry_spherical,      &
+                                        mode_ics, mode_lbc,                  &
+                                        regrid_method_lfric2lfric,           &
+                                        regrid_method_map,                   &
+                                        regrid_method_oasis,                 &
+                                        source_topology_fully_periodic,      &
+                                        source_topology_non_periodic,        &
+                                        source_geometry_planar,              &
                                         source_geometry_spherical
 
 
@@ -137,8 +141,6 @@ contains
                             intent(inout) :: oasis_clock
 
     ! Coordinate field
-    type(field_type),             pointer :: chi(:)
-    type(field_type),             pointer :: panel_id
     type(field_type)                      :: surface_altitude_dst
     type(field_type)                      :: surface_altitude_src
     type(field_type)                      :: surface_altitude_src_on_dst
@@ -171,6 +173,8 @@ contains
 
     ! lfric2lfric namelist parameters
     integer(kind=i_def)     :: stencil_depth(1)
+    integer(kind=i_def)     :: destination_geometry
+    integer(kind=i_def)     :: destination_topology
     integer(kind=i_def)     :: source_geometry
     integer(kind=i_def)     :: source_topology
     integer(i_def)          :: mode
@@ -209,10 +213,8 @@ contains
     procedure(filelist_populator), pointer :: files_init_ptr
 
     ! Source context pointer and temporary context for setup
-    type(lfric_xios_context_type)          :: tmp_io_context_src
     type(lfric_xios_context_type), pointer :: io_context_src
     type(lfric_xios_context_type), pointer :: io_context_dst
-    type(linked_list_type),        pointer :: file_list
 
     integer(i_def) :: geometry
     integer(i_def) :: topology
@@ -232,6 +234,8 @@ contains
     number_of_layers    = modeldb%config%extrusion%number_of_layers()
     domain_height       = modeldb%config%extrusion%domain_height()
 
+    destination_geometry= modeldb%config%lfric2lfric%destination_geometry()
+    destination_topology= modeldb%config%lfric2lfric%destination_topology()
     mode                = modeldb%config%lfric2lfric%mode()
     regrid_method       = modeldb%config%lfric2lfric%regrid_method()
     mesh_names(dst)     = modeldb%config%lfric2lfric%destination_mesh_name()
@@ -255,34 +259,6 @@ contains
     !-----------------------------------------------------------------------
     ! Create the required extrusions
     !-----------------------------------------------------------------------
-    select case (source_geometry)
-
-      case (source_geometry_planar)
-        domain_bottom = 0.0_r_def
-        geometry = geometry_planar
-
-      case (source_geometry_spherical)
-        domain_bottom = scaled_radius
-        geometry = geometry_spherical
-
-      case default
-        call log_event("Invalid geometry for mesh initialisation", &
-                       log_level_error)
-    end select
-
-    select case (source_topology)
-
-      case (source_topology_fully_periodic)
-        topology = topology_fully_periodic
-
-      case (source_topology_non_periodic)
-        topology = topology_non_periodic
-
-      case default
-        call log_event("Invalid topology for mesh initialisation", &
-                       log_level_error)
-    end select
-
     select case (extrusion_method)
       case (method_uniform, method_quadratic, method_geometric)
         allocate( extrusion, source=create_extrusion(                    &
@@ -401,12 +377,40 @@ contains
     files_init_ptr => init_lfric2lfric_dst_files
 
     ! Initialise the IO context with all the required info
-    call init_io( context_dst,        &
-                  mesh_names(dst),    &
-                  modeldb,            &
-                  chi_inventory,      &
-                  panel_id_inventory, &
-                  geometry, topology, &
+    select case (destination_geometry)
+
+      case (destination_geometry_planar)
+        domain_bottom = 0.0_r_def
+        geometry = geometry_planar
+
+      case (destination_geometry_spherical)
+        domain_bottom = scaled_radius
+        geometry = geometry_spherical
+
+      case default
+        call log_event("Invalid geometry for mesh initialisation", &
+                       log_level_error)
+    end select
+
+    select case (destination_topology)
+
+      case (destination_topology_fully_periodic)
+        topology = topology_fully_periodic
+
+      case (destination_topology_non_periodic)
+        topology = topology_non_periodic
+
+      case default
+        call log_event("Invalid topology for mesh initialisation", &
+                       log_level_error)
+    end select
+
+    call init_io( context_dst,                      &
+                  mesh_names(dst),                  &
+                  modeldb,                          &
+                  chi_inventory,                    &
+                  panel_id_inventory,               &
+                  geometry, topology,               &
                   populate_filelist=files_init_ptr  )
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context_dst)
@@ -451,31 +455,48 @@ contains
     !-----------------------------------------------------------------------
     ! Create the IO context for source files
     !-----------------------------------------------------------------------
-    ! Because the source files are not the same as the 'prime mesh', we have
-    ! to initialise the source context manually with the desired mesh
+    ! Set a pointer to the method for setting files in the source
+    ! IO context
+    files_init_ptr => init_lfric2lfric_src_files
 
-    ! Add the source context to modeldb and return a pointer to it
-    call tmp_io_context_src%initialise(context_src)
-    call modeldb%io_contexts%add_context(tmp_io_context_src)
+    ! Initialise the IO context with all the required info
+    select case (source_geometry)
+
+      case (source_geometry_planar)
+        domain_bottom = 0.0_r_def
+        geometry = geometry_planar
+
+      case (source_geometry_spherical)
+        domain_bottom = scaled_radius
+        geometry = geometry_spherical
+
+      case default
+        call log_event("Invalid geometry for mesh initialisation", &
+                       log_level_error)
+    end select
+
+    select case (source_topology)
+
+      case (source_topology_fully_periodic)
+        topology = topology_fully_periodic
+
+      case (source_topology_non_periodic)
+        topology = topology_non_periodic
+
+      case default
+        call log_event("Invalid topology for mesh initialisation", &
+                       log_level_error)
+    end select
+
+    call init_io( context_src,                      &
+                  mesh_names(src),                  &
+                  modeldb,                          &
+                  chi_inventory,                    &
+                  panel_id_inventory,               &
+                  geometry, topology,               &
+                  populate_filelist=files_init_ptr  )
+
     call modeldb%io_contexts%get_io_context(context_src, io_context_src)
-
-    ! Get the file list of context and populate
-    file_list => io_context_src%get_filelist()
-    call init_lfric2lfric_src_files( file_list, modeldb )
-
-    ! Get panel_id and chi from correct mesh
-    call chi_inventory%get_field_array(mesh_src, chi)
-    call panel_id_inventory%get_field(mesh_src, panel_id)
-
-    ! Using correct chi and panel_id, initialise xios context for source mesh
-    call io_context_src%initialise_xios_context( modeldb%mpi%get_comm(), &
-                                                 chi, panel_id,          &
-                                                 modeldb%clock,          &
-                                                 modeldb%calendar,       &
-                                                 geometry, topology,     &
-                                                 coord_system, scaled_radius )
-
-    call io_context_src%close_context_definition()
 
     !=======================================================================
     ! Initialise source orography
