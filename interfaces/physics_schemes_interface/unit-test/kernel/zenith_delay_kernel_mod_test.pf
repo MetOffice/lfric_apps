@@ -1,0 +1,181 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test zenith_delay_kernel
+!>
+module zenith_delay_kernel_mod_test
+
+  use funit
+  use constants_mod,           only: i_def, r_def
+  use zenith_delay_kernel_mod, only: zenith_delay_code
+
+  implicit none
+
+  private
+  public :: test_moist_column, &
+            test_dry_column, &
+            test_single_layer
+
+  @TestCase
+  type, extends(TestCase), public :: zenith_delay_test_type
+    private
+    real(kind=r_def), allocatable :: exner_w3(:), exner_wth(:)
+    real(kind=r_def), allocatable :: mr_v(:), total_mass(:)
+    real(kind=r_def), allocatable :: height_w3(:), height_wth(:)
+    real(kind=r_def), allocatable :: zenith_total_delay(:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_moist_column
+    procedure test_dry_column
+    procedure test_single_layer
+  end type zenith_delay_test_type
+
+  ! nlayers=5. The kernel reads Wtheta DOF map_wth(1)+k and W3 DOF
+  ! map_w3(1)+k-1 for k=1..nlayers, so with map_wth(1)=0 and map_w3(1)=1
+  ! both are simply index k of a 1-based array of length nlayers.
+  integer(kind=i_def), parameter :: nlayers    = 5_i_def
+  integer(kind=i_def), parameter :: ndf_w3     = 1_i_def
+  integer(kind=i_def), parameter :: undf_w3    = nlayers
+  integer(kind=i_def), parameter :: map_w3(1)  = (/ 1_i_def /)
+  integer(kind=i_def), parameter :: ndf_wth    = 1_i_def
+  integer(kind=i_def), parameter :: undf_wth   = nlayers
+  integer(kind=i_def), parameter :: map_wth(1) = (/ 0_i_def /)
+  integer(kind=i_def), parameter :: ndf_2d     = 1_i_def
+  integer(kind=i_def), parameter :: undf_2d    = 1_i_def
+  integer(kind=i_def), parameter :: map_2d(1)  = (/ 1_i_def /)
+
+  ! Planet constants (values only need to be self-consistent with the
+  ! expected answers below, which were generated from a transcription of
+  ! UM zenith_delay.F90 using these same values)
+  real(kind=r_def), parameter :: p_zero      = 100000.0_r_def
+  real(kind=r_def), parameter :: recip_kappa = 3.5_r_def
+  real(kind=r_def), parameter :: r           = 287.05_r_def
+  real(kind=r_def), parameter :: g           = 9.80665_r_def
+  real(kind=r_def), parameter :: grcp        = g / 1005.0_r_def
+  real(kind=r_def), parameter :: repsilon    = 0.62198_r_def
+  real(kind=r_def), parameter :: c_virtual   = 1.0_r_def / repsilon - 1.0_r_def
+
+  real(kind=r_def), parameter :: tol = 1.0e-8_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine setUp( this )
+    implicit none
+    class(zenith_delay_test_type), intent(inout) :: this
+
+    allocate( this%exner_w3(undf_w3), this%exner_wth(undf_wth),          &
+              this%mr_v(undf_wth), this%total_mass(undf_wth),            &
+              this%height_w3(undf_w3), this%height_wth(undf_wth),        &
+              this%zenith_total_delay(undf_2d) )
+
+    ! Rho levels lie below their theta level: rho k < theta k < rho k+1.
+    ! Exner is (p/p_zero)**kappa for an isothermal p = p_zero*exp(-z/8000),
+    ! rounded to 6 decimals.
+    this%height_w3  = (/ 50.0_r_def, 300.0_r_def, 800.0_r_def,           &
+                         2000.0_r_def, 5000.0_r_def /)
+    this%height_wth = (/ 150.0_r_def, 500.0_r_def, 1200.0_r_def,         &
+                         3000.0_r_def, 8000.0_r_def /)
+    this%exner_w3   = (/ 0.998216_r_def, 0.989343_r_def, 0.971833_r_def, &
+                         0.931063_r_def, 0.836464_r_def /)
+    this%exner_wth  = (/ 0.994657_r_def, 0.982301_r_def, 0.958048_r_def, &
+                         0.898397_r_def, 0.751477_r_def /)
+    this%mr_v       = (/ 0.012_r_def, 0.009_r_def, 0.006_r_def,          &
+                         0.003_r_def, 0.0005_r_def /)
+    this%total_mass = 1.0_r_def + this%mr_v
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tearDown( this )
+    implicit none
+    class(zenith_delay_test_type), intent(inout) :: this
+
+    deallocate( this%exner_w3, this%exner_wth, this%mr_v,                &
+                this%total_mass, this%height_w3, this%height_wth,        &
+                this%zenith_total_delay )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Moist column: dry + wet refractivity terms and the above-top correction
+  @test
+  subroutine test_moist_column( this )
+    implicit none
+    class(zenith_delay_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: expected = 2.3914887985311646_r_def
+
+    call zenith_delay_code( nlayers, this%exner_w3, this%exner_wth,        &
+                            this%mr_v, this%total_mass,                    &
+                            this%height_w3, this%height_wth,               &
+                            p_zero, recip_kappa, r, g, grcp,               &
+                            c_virtual, repsilon,                           &
+                            this%zenith_total_delay,                       &
+                            ndf_w3, undf_w3, map_w3,                       &
+                            ndf_wth, undf_wth, map_wth,                    &
+                            ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( expected, this%zenith_total_delay(1), tol )
+
+  end subroutine test_moist_column
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Dry column: the wet term vanishes, leaving the hydrostatic dry delay
+  @test
+  subroutine test_dry_column( this )
+    implicit none
+    class(zenith_delay_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: expected = 2.234922792809501_r_def
+
+    this%mr_v       = 0.0_r_def
+    this%total_mass = 1.0_r_def
+
+    call zenith_delay_code( nlayers, this%exner_w3, this%exner_wth,        &
+                            this%mr_v, this%total_mass,                    &
+                            this%height_w3, this%height_wth,               &
+                            p_zero, recip_kappa, r, g, grcp,               &
+                            c_virtual, repsilon,                           &
+                            this%zenith_total_delay,                       &
+                            ndf_w3, undf_w3, map_w3,                       &
+                            ndf_wth, undf_wth, map_wth,                    &
+                            ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( expected, this%zenith_total_delay(1), tol )
+
+  end subroutine test_dry_column
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Single layer: the UM loop only seeds the refractivity at k=model_levels
+  !> and cycles, so the result is the above-model-top correction alone,
+  !> 1e-6 * nalpha / 100 * r * p_top / g.
+  @test
+  subroutine test_single_layer( this )
+    implicit none
+    class(zenith_delay_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: one_layer = 1_i_def
+    real(kind=r_def),    parameter :: expected  = 2.229232154378003_r_def
+
+    call zenith_delay_code( one_layer,                                     &
+                            this%exner_w3(1:1), this%exner_wth(1:1),       &
+                            this%mr_v(1:1), this%total_mass(1:1),          &
+                            this%height_w3(1:1), this%height_wth(1:1),     &
+                            p_zero, recip_kappa, r, g, grcp,               &
+                            c_virtual, repsilon,                           &
+                            this%zenith_total_delay,                       &
+                            ndf_w3, one_layer, map_w3,                     &
+                            ndf_wth, one_layer, map_wth,                   &
+                            ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( expected, this%zenith_total_delay(1), tol )
+
+  end subroutine test_single_layer
+
+end module zenith_delay_kernel_mod_test
