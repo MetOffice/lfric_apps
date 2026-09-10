@@ -20,24 +20,24 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
 
+
 class vn32_t744(MacroUpgrade):
-    # Upgrade macro for #744 by Maggie Hendry
+    """Upgrade macro for ticket #744 by Maggie Hendry."""
 
     BEFORE_TAG = "vn3.2"
     AFTER_TAG = "vn3.2_t744"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
         # Bump tag to pick up metadata changes
+
         return config, self.reports
