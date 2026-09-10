@@ -28,6 +28,15 @@ stretching_height       = 17507.0,
 stretching_method       = 'smooth',
 /
 
+&extrusion_dst
+domain_height           = 80000.0,
+method                  = 'um_L70_50t_20s_80km',
+number_of_layers        = 70,
+planet_radius           = 6371229.0,
+stretching_height       = 17507.0,
+stretching_method       = 'smooth',
+/
+
 &files
 diag_stem_name          = 'lfric2lfric_diag',
 start_dump_filename     = 'mesh_C12_MG_dump',
@@ -96,4 +105,8 @@ coord_space             = 'Wchi',
 
 &planet
   scaling_factor        = 125.0,
+/
+
+&orography
+  orog_init_option      = 'none'
 /
