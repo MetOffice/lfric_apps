@@ -242,9 +242,9 @@
 
     <!-- Radiation timestep radiation diagnostics -->
     <field_group operation="instant" freq_op="3h" freq_offset="0ts" prec="4">
-      <field field_ref="radiation__direct_uv_flux_rts"/>
-      <field field_ref="radiation__up_uv_flux_rts"/>
-      <field field_ref="radiation__down_uv_flux_rts"/>
+      <field field_ref="radiation__sw_direct_uv_surf_rts"/>
+      <field field_ref="radiation__sw_up_uv_surf_rts"/>
+      <field field_ref="radiation__sw_down_uv_surf_rts"/>
     </field_group>
 
     <!-- Full model level diagnostics - not being interpolated to pressure levels -->
