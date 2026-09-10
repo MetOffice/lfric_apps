@@ -93,7 +93,7 @@ contains
     real(r_def), allocatable :: w(:)
     real(r_def), allocatable :: dtrdz(:)
     real(r_def), allocatable :: rho(:)
-    real(r_def), allocatable :: kl(:)
+    real(r_def), allocatable :: klh(:)
     real(r_def), allocatable :: height_w3(:)
 
     real(r_def), parameter :: planet_radius = 105_r_def
@@ -140,14 +140,14 @@ contains
     allocate(w(undf_wt))
     allocate(dtrdz(undf_wt))
     allocate(rho(undf_w3))
-    allocate(kl(undf_w3))
+    allocate(klh(undf_w3))
 
     theta_inc(:) = 0.0_r_def
     theta(:) = 300.0_r_def
     w(:) = 1.0_r_def
     dtrdz(:) = 0.001_r_def
     rho(:) = 1.0_r_def
-    kl(:) = 1.0_r_def
+    klh(:) = 1.0_r_def
 
     cell = 5
     k = 1
@@ -162,7 +162,7 @@ contains
                                w,                                     &
                                5, stencil_map_wt(:,:,cell),           &
                                dtrdz,                                 &
-                               kl,                                    &
+                               klh,                                   &
                                rho,                                   &
                                height_w3,                             &
                                planet_radius, nlayers,                &
@@ -182,7 +182,7 @@ contains
      deallocate(w)
      deallocate(dtrdz)
      deallocate(rho)
-     deallocate(kl)
+     deallocate(klh)
 
   end subroutine test_all
 

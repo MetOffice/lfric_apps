@@ -70,6 +70,12 @@
         "memory": [24, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "3dte-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
 {% elif task_ns.conf_name == "comp_tran_ref_3d_l120-BiP64x64-1500x1500_MG" %}
 
     {% do task_dict.update({

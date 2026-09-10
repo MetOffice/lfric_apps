@@ -153,7 +153,7 @@ contains
 
     if (transport_ageofair) then
       call proc%apply(make_spec('ageofair', main%none, &
-        W3, adv_coll=adv%last_con, order_h=ord_h, order_v=ord_v, ckp=.true., &
+        W3, adv_coll=adv%last_pos, order_h=ord_h, order_v=ord_v, ckp=.true., &
         legacy=legacy))
     end if
   end subroutine process_gungho_prognostics

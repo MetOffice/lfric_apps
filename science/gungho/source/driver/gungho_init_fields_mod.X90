@@ -370,10 +370,10 @@ subroutine create_model_data( modeldb,           &
     type(field_collection_type), pointer :: ancil_fields
     type(field_collection_type), pointer :: electric_fields
     type(field_collection_type), pointer :: orography_fields
-    type(field_collection_type), pointer :: adv_tracer_all_outer
-    type(field_collection_type), pointer :: adv_tracer_last_outer
-    type(field_collection_type), pointer :: con_tracer_all_outer
-    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: gen_tracer_all_outer
+    type(field_collection_type), pointer :: gen_tracer_last_outer
+    type(field_collection_type), pointer :: pos_tracer_all_outer
+    type(field_collection_type), pointer :: pos_tracer_last_outer
     type(field_collection_type), pointer :: microphysics_fields
     type(field_collection_type), pointer :: derived_fields
     type(field_collection_type), pointer :: cloud_fields
@@ -467,14 +467,14 @@ subroutine create_model_data( modeldb,           &
     electric_fields => modeldb%fields%get_field_collection("electric_fields")
     call modeldb%fields%add_empty_field_collection("orography_fields", table_len = 100)
     orography_fields => modeldb%fields%get_field_collection("orography_fields")
-    call modeldb%fields%add_empty_field_collection("adv_tracer_all_outer", table_len = 100)
-    adv_tracer_all_outer => modeldb%fields%get_field_collection("adv_tracer_all_outer")
-    call modeldb%fields%add_empty_field_collection("adv_tracer_last_outer", table_len = 100)
-    adv_tracer_last_outer => modeldb%fields%get_field_collection("adv_tracer_last_outer")
-    call modeldb%fields%add_empty_field_collection("con_tracer_all_outer", table_len = 100)
-    con_tracer_all_outer => modeldb%fields%get_field_collection("con_tracer_all_outer")
-    call modeldb%fields%add_empty_field_collection("con_tracer_last_outer", table_len = 100)
-    con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
+    call modeldb%fields%add_empty_field_collection("gen_tracer_all_outer", table_len = 100)
+    gen_tracer_all_outer => modeldb%fields%get_field_collection("gen_tracer_all_outer")
+    call modeldb%fields%add_empty_field_collection("gen_tracer_last_outer", table_len = 100)
+    gen_tracer_last_outer => modeldb%fields%get_field_collection("gen_tracer_last_outer")
+    call modeldb%fields%add_empty_field_collection("pos_tracer_all_outer", table_len = 100)
+    pos_tracer_all_outer => modeldb%fields%get_field_collection("pos_tracer_all_outer")
+    call modeldb%fields%add_empty_field_collection("pos_tracer_last_outer", table_len = 100)
+    pos_tracer_last_outer => modeldb%fields%get_field_collection("pos_tracer_last_outer")
     call modeldb%fields%add_empty_field_collection("microphysics_fields", table_len = 100)
     microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
     call modeldb%fields%add_empty_field_collection("derived_fields", table_len = 100)
@@ -489,10 +489,10 @@ subroutine create_model_data( modeldb,           &
     call field_mapper%init( depository,                               &
                             moisture_fields,                          &
                             prognostic_fields,                        &
-                            adv_tracer_all_outer,                     &
-                            adv_tracer_last_outer,                    &
-                            con_tracer_all_outer,                     &
-                            con_tracer_last_outer,                    &
+                            gen_tracer_all_outer,                     &
+                            gen_tracer_last_outer,                    &
+                            pos_tracer_all_outer,                     &
+                            pos_tracer_last_outer,                    &
                             derived_fields,                           &
                             radiation_fields,                         &
                             microphysics_fields,                      &
@@ -660,7 +660,7 @@ subroutine create_model_data( modeldb,           &
     type(field_collection_type), pointer :: ancil_fields
     type(field_collection_type), pointer :: electric_fields
     type(field_collection_type), pointer :: orography_fields
-    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: pos_tracer_last_outer
     type(field_collection_type), pointer :: microphysics_fields
     type(field_collection_type), pointer :: derived_fields
     type(field_collection_type), pointer :: cloud_fields
@@ -708,7 +708,7 @@ subroutine create_model_data( modeldb,           &
     stph_fields => modeldb%fields%get_field_collection("stph_fields")
     ancil_fields => modeldb%fields%get_field_collection("ancil_fields")
     orography_fields => modeldb%fields%get_field_collection("orography_fields")
-    con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
+    pos_tracer_last_outer => modeldb%fields%get_field_collection("pos_tracer_last_outer")
     microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
     cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
@@ -752,7 +752,7 @@ subroutine create_model_data( modeldb,           &
     if ( transport_ageofair ) then
       ! Age-of-air needs initialising to zero in case this is a new run
       ! If picking up from a checkpoint, this will be overwritten
-      call con_tracer_last_outer%get_field('ageofair', ageofair)
+      call pos_tracer_last_outer%get_field('ageofair', ageofair)
       call init_ageofair( ageofair )
     end if
 
@@ -1308,10 +1308,10 @@ subroutine create_model_data( modeldb,           &
 #endif
       type(field_collection_type), pointer :: electric_fields
       type(field_collection_type), pointer :: orography_fields
-      type(field_collection_type), pointer :: adv_tracer_all_outer
-      type(field_collection_type), pointer :: adv_tracer_last_outer
-      type(field_collection_type), pointer :: con_tracer_all_outer
-      type(field_collection_type), pointer :: con_tracer_last_outer
+      type(field_collection_type), pointer :: gen_tracer_all_outer
+      type(field_collection_type), pointer :: gen_tracer_last_outer
+      type(field_collection_type), pointer :: pos_tracer_all_outer
+      type(field_collection_type), pointer :: pos_tracer_last_outer
       type(field_collection_type), pointer :: microphysics_fields
       type(field_collection_type), pointer :: derived_fields
       type(field_collection_type), pointer :: cloud_fields
@@ -1333,10 +1333,10 @@ subroutine create_model_data( modeldb,           &
       stph_fields => modeldb%fields%get_field_collection("stph_fields")
       electric_fields => modeldb%fields%get_field_collection("electric_fields")
       orography_fields => modeldb%fields%get_field_collection("orography_fields")
-      adv_tracer_last_outer => modeldb%fields%get_field_collection("adv_tracer_last_outer")
-      adv_tracer_all_outer => modeldb%fields%get_field_collection("adv_tracer_all_outer")
-      con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
-      con_tracer_all_outer => modeldb%fields%get_field_collection("con_tracer_all_outer")
+      gen_tracer_last_outer => modeldb%fields%get_field_collection("gen_tracer_last_outer")
+      gen_tracer_all_outer => modeldb%fields%get_field_collection("gen_tracer_all_outer")
+      pos_tracer_last_outer => modeldb%fields%get_field_collection("pos_tracer_last_outer")
+      pos_tracer_all_outer => modeldb%fields%get_field_collection("pos_tracer_all_outer")
       microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
       derived_fields => modeldb%fields%get_field_collection("derived_fields")
       cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
@@ -1349,10 +1349,10 @@ subroutine create_model_data( modeldb,           &
       call depository%clear()
       call prognostic_fields%clear()
       call diagnostic_fields%clear()
-      call adv_tracer_last_outer%clear()
-      call adv_tracer_all_outer%clear()
-      call con_tracer_last_outer%clear()
-      call con_tracer_all_outer%clear()
+      call gen_tracer_last_outer%clear()
+      call gen_tracer_all_outer%clear()
+      call pos_tracer_last_outer%clear()
+      call pos_tracer_all_outer%clear()
       call derived_fields%clear()
       call radiation_fields%clear()
       call microphysics_fields%clear()

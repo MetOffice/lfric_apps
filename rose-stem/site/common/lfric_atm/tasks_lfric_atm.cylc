@@ -820,6 +820,19 @@
         "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
+{% elif task_ns.conf_name == "3dte-seuk_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["l70_40km","3dte","ral_opts","hh_solve"],
+        "resolution": "seuk_MG",
+        "DT": 60,
+        "tsteps": 120,
+        "crun": 2,
+        "mpi_parts": 16,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
 {# ###################################################################### #}
 {# Idealised jobs #}
 {# ###################################################################### #}

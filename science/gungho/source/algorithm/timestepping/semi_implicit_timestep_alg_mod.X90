@@ -280,10 +280,10 @@ contains
     type( field_array_type ),      pointer :: moist_dyn_array
     type( field_type ),            pointer :: moist_dyn(:)
 
-    type( field_collection_type ), pointer :: adv_tracer_all_outer
-    type( field_collection_type ), pointer :: adv_tracer_last_outer
-    type( field_collection_type ), pointer :: con_tracer_all_outer
-    type( field_collection_type ), pointer :: con_tracer_last_outer
+    type( field_collection_type ), pointer :: gen_tracer_all_outer
+    type( field_collection_type ), pointer :: gen_tracer_last_outer
+    type( field_collection_type ), pointer :: pos_tracer_all_outer
+    type( field_collection_type ), pointer :: pos_tracer_last_outer
     type( field_collection_type ), pointer :: derived_fields
     type( field_collection_type ), pointer :: radiation_fields
     type( field_collection_type ), pointer :: microphysics_fields
@@ -337,10 +337,10 @@ contains
     mesh => theta%get_mesh()
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
-    adv_tracer_all_outer => modeldb%fields%get_field_collection("adv_tracer_all_outer")
-    adv_tracer_last_outer => modeldb%fields%get_field_collection("adv_tracer_last_outer")
-    con_tracer_all_outer => modeldb%fields%get_field_collection("con_tracer_all_outer")
-    con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
+    gen_tracer_all_outer => modeldb%fields%get_field_collection("gen_tracer_all_outer")
+    gen_tracer_last_outer => modeldb%fields%get_field_collection("gen_tracer_last_outer")
+    pos_tracer_all_outer => modeldb%fields%get_field_collection("pos_tracer_all_outer")
+    pos_tracer_last_outer => modeldb%fields%get_field_collection("pos_tracer_last_outer")
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
     microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
     turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
@@ -375,8 +375,8 @@ contains
     ! Run the timestep
     call run_step(self, modeldb,                              &
                   u, rho, theta, exner, mr, moist_dyn,        &
-                  adv_tracer_all_outer,adv_tracer_last_outer, &
-                  con_tracer_all_outer,con_tracer_last_outer, &
+                  gen_tracer_all_outer,gen_tracer_last_outer, &
+                  pos_tracer_all_outer,pos_tracer_last_outer, &
                   prognostic_fields, moisture_fields,         &
                   derived_fields, radiation_fields,           &
                   microphysics_fields, electric_fields,       &
@@ -409,8 +409,8 @@ contains
     nullify(      model_clock, mesh,                          &
                   prognostic_fields, moisture_fields,         &
                   u, rho, theta, exner, mr, moist_dyn,        &
-                  adv_tracer_all_outer,adv_tracer_last_outer, &
-                  con_tracer_all_outer,con_tracer_last_outer, &
+                  gen_tracer_all_outer,gen_tracer_last_outer, &
+                  pos_tracer_all_outer,pos_tracer_last_outer, &
                   derived_fields, radiation_fields,           &
                   microphysics_fields, electric_fields,       &
                   orography_fields,                           &
@@ -589,10 +589,10 @@ contains
   !> @param[in,out] exner                  Exner pressure
   !> @param[in,out] mr                     Mixing ratios
   !> @param[in,out] moist_dyn              Factors for moist dynamics
-  !> @param[in,out] adv_tracer_all_outer   Group of fields to be advected
-  !> @param[in,out] adv_tracer_last_outer  Group of fields to be advected
-  !> @param[in,out] con_tracer_all_outer   Second group of fields to be advected
-  !> @param[in,out] con_tracer_last_outer  Second group of fields to be advected
+  !> @param[in,out] gen_tracer_all_outer   Group of fields to be advected
+  !> @param[in,out] gen_tracer_last_outer  Group of fields to be advected
+  !> @param[in,out] pos_tracer_all_outer   Second group of fields to be advected
+  !> @param[in,out] pos_tracer_last_outer  Second group of fields to be advected
   !> @param[in,out] prognostic_fields      Prognostic field collection
   !> @param[in,out] moisture_fields        Moisture field collection
   !> @param[in,out] derived_fields         Group of derived fields
@@ -623,8 +623,8 @@ contains
   !> @param[in]     twod_mesh              The current 2d mesh
   subroutine run_step(self, modeldb,                              &
                       u, rho, theta, exner, mr, moist_dyn,        &
-                      adv_tracer_all_outer,adv_tracer_last_outer, &
-                      con_tracer_all_outer,con_tracer_last_outer, &
+                      gen_tracer_all_outer,gen_tracer_last_outer, &
+                      pos_tracer_all_outer,pos_tracer_last_outer, &
                       prognostic_fields, moisture_fields,         &
                       derived_fields, radiation_fields,           &
                       microphysics_fields, electric_fields,       &
@@ -651,10 +651,10 @@ contains
     type( field_type ), intent( inout ) :: mr(nummr)
     type( field_type ), intent( inout ) :: moist_dyn(num_moist_factors)
     ! field groups
-    type( field_collection_type ), intent( inout ) :: adv_tracer_all_outer
-    type( field_collection_type ), intent( inout ) :: adv_tracer_last_outer
-    type( field_collection_type ), intent( inout ) :: con_tracer_all_outer
-    type( field_collection_type ), intent( inout ) :: con_tracer_last_outer
+    type( field_collection_type ), intent( inout ) :: gen_tracer_all_outer
+    type( field_collection_type ), intent( inout ) :: gen_tracer_last_outer
+    type( field_collection_type ), intent( inout ) :: pos_tracer_all_outer
+    type( field_collection_type ), intent( inout ) :: pos_tracer_last_outer
     type( field_collection_type ), intent( inout ) :: prognostic_fields
     type( field_collection_type ), intent( inout ) :: moisture_fields
     type( field_collection_type ), intent( inout ) :: derived_fields
@@ -726,10 +726,10 @@ contains
     logical(kind=l_def) :: write_moisture_diag, do_moist_correction
 
     ! Fields after slow physics to be advected (i.e. field_n + slow phys inc)
-    type( field_collection_type ) :: adv_tracer_all_outer_after_slow
-    type( field_collection_type ) :: adv_tracer_last_outer_after_slow
-    type( field_collection_type ) :: con_tracer_all_outer_after_slow
-    type( field_collection_type ) :: con_tracer_last_outer_after_slow
+    type( field_collection_type ) :: gen_tracer_all_outer_after_slow
+    type( field_collection_type ) :: gen_tracer_last_outer_after_slow
+    type( field_collection_type ) :: pos_tracer_all_outer_after_slow
+    type( field_collection_type ) :: pos_tracer_last_outer_after_slow
 
     ! Reference fields are checkpointed
     logical(kind=l_def) :: checkpoint_reference_fields
@@ -902,18 +902,18 @@ contains
     !==========================================================================
     ! Start the Outer (advection) loop
     !==========================================================================
-    call conditional_collection_copy(adv_tracer_all_outer_after_slow,  &
-              generic_fields_to_copy=adv_tracer_all_outer,             &
-              field_list=adv_tracer_all_outer)
-    call conditional_collection_copy(adv_tracer_last_outer_after_slow, &
-              generic_fields_to_copy=adv_tracer_last_outer,            &
-              field_list=adv_tracer_last_outer)
-    call conditional_collection_copy(con_tracer_all_outer_after_slow,  &
-              generic_fields_to_copy=con_tracer_all_outer,             &
-              field_list=con_tracer_all_outer)
-    call conditional_collection_copy(con_tracer_last_outer_after_slow, &
-              generic_fields_to_copy=con_tracer_last_outer,            &
-              field_list=con_tracer_last_outer)
+    call conditional_collection_copy(gen_tracer_all_outer_after_slow,  &
+              generic_fields_to_copy=gen_tracer_all_outer,             &
+              field_list=gen_tracer_all_outer)
+    call conditional_collection_copy(gen_tracer_last_outer_after_slow, &
+              generic_fields_to_copy=gen_tracer_last_outer,            &
+              field_list=gen_tracer_last_outer)
+    call conditional_collection_copy(pos_tracer_all_outer_after_slow,  &
+              generic_fields_to_copy=pos_tracer_all_outer,             &
+              field_list=pos_tracer_all_outer)
+    call conditional_collection_copy(pos_tracer_last_outer_after_slow, &
+              generic_fields_to_copy=pos_tracer_last_outer,            &
+              field_list=pos_tracer_last_outer)
     call invoke( setval_X(self%wind_prev, self%state(igh_u)) )
 
     outer_dynamics_loop: do outer = 1,outer_iterations
@@ -926,10 +926,10 @@ contains
                 self%state_n(igh_u), mr, mr_to_adv, model_clock,               &
                 outer, cheap_update, self%adv_inc_prev, self%wind_prev,        &
                 self%state_after_slow(igh_d), self%total_dry_flux,             &
-                adv_tracer_all_outer, adv_tracer_all_outer_after_slow,         &
-                adv_tracer_last_outer, adv_tracer_last_outer_after_slow,       &
-                con_tracer_all_outer, con_tracer_all_outer_after_slow,         &
-                con_tracer_last_outer, con_tracer_last_outer_after_slow        &
+                gen_tracer_all_outer, gen_tracer_all_outer_after_slow,         &
+                gen_tracer_last_outer, gen_tracer_last_outer_after_slow,       &
+                pos_tracer_all_outer, pos_tracer_all_outer_after_slow,         &
+                pos_tracer_last_outer, pos_tracer_last_outer_after_slow        &
         )
 
         if ( cheap_update .AND. (outer < outer_iterations) ) then
@@ -942,14 +942,14 @@ contains
           call invoke( inc_X_plus_Y(self%advected_state(igh_d), self%rhs_adv(igh_d) ), &
                        inc_X_plus_Y(self%advected_state(igh_t), self%rhs_adv(igh_t) ), &
                        inc_X_plus_Y(self%advected_state(igh_u), self%du ) )
-          call adv_tracer_all_outer_after_slow%clear()
-          call con_tracer_all_outer_after_slow%clear()
-          call conditional_collection_copy(adv_tracer_all_outer_after_slow, &
-                      generic_fields_to_copy=adv_tracer_all_outer,          &
-                      field_list=adv_tracer_all_outer)
-          call conditional_collection_copy(con_tracer_all_outer_after_slow, &
-                      generic_fields_to_copy=con_tracer_all_outer,          &
-                      field_list=con_tracer_all_outer)
+          call gen_tracer_all_outer_after_slow%clear()
+          call pos_tracer_all_outer_after_slow%clear()
+          call conditional_collection_copy(gen_tracer_all_outer_after_slow, &
+                      generic_fields_to_copy=gen_tracer_all_outer,          &
+                      field_list=gen_tracer_all_outer)
+          call conditional_collection_copy(pos_tracer_all_outer_after_slow, &
+                      generic_fields_to_copy=pos_tracer_all_outer,          &
+                      field_list=pos_tracer_all_outer)
           if (self%use_moisture) then
             ! Update the moisture to be transported in the next outer iteration
             ! by setting mr_to_adv to point to the moisture after the previous
@@ -1181,13 +1181,13 @@ contains
     !--------------------------------------------------------------------
     ! End of Outer (advection) loop
     !--------------------------------------------------------------------
-    call adv_tracer_all_outer_after_slow%clear()
-    call adv_tracer_last_outer_after_slow%clear()
-    call con_tracer_all_outer_after_slow%clear()
-    call con_tracer_last_outer_after_slow%clear()
+    call gen_tracer_all_outer_after_slow%clear()
+    call gen_tracer_last_outer_after_slow%clear()
+    call pos_tracer_all_outer_after_slow%clear()
+    call pos_tracer_last_outer_after_slow%clear()
 
     if (transport_ageofair) then
-      call con_tracer_last_outer%get_field('ageofair', ageofair)
+      call pos_tracer_last_outer%get_field('ageofair', ageofair)
       call ageofair_update(ageofair, model_clock)
     end if
 

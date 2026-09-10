@@ -157,21 +157,21 @@ contains
   !!                                without the predictor factor
   !> @param[in]     total_dry_flux  (Optional) the mass flux used to transport
   !!                                the dry density
-  !> @param[in,out] adv_tracer_all_outer
+  !> @param[in,out] gen_tracer_all_outer
   !!                                (Optional) Tracers after transport on every iteration
-  !> @param[in]     adv_tracer_all_outer_after_slow
+  !> @param[in]     gen_tracer_all_outer_after_slow
   !!                                (Optional) Tracers to transport every iteration
-  !> @param[in,out] adv_tracer_last_outer
+  !> @param[in,out] gen_tracer_last_outer
   !!                                (Optional) Tracers after transport on final iteration only
-  !> @param[in]     adv_tracer_last_outer_after_slow
+  !> @param[in]     gen_tracer_last_outer_after_slow
   !!                                (Optional) Tracers to transport on final iteration only
-  !> @param[in,out] con_tracer_all_outer
+  !> @param[in,out] pos_tracer_all_outer
   !!                                (Optional) Second group of tracers after transport on every iteration
-  !> @param[in]     con_tracer_all_outer_after_slow
+  !> @param[in]     pos_tracer_all_outer_after_slow
   !!                                (Optional) Second group of tracers to transport every iteration
-  !> @param[in,out] con_tracer_last_outer
+  !> @param[in,out] pos_tracer_last_outer
   !!                                (Optional) Second group of tracers after transport on final iteration only
-  !> @param[in]     con_tracer_last_outer_after_slow
+  !> @param[in]     pos_tracer_last_outer_after_slow
   !!                                (Optional) Second group of tracers to transport on final iteration only
 
   subroutine gungho_transport_control_alg(config,                              &
@@ -181,14 +181,14 @@ contains
                                           cheap_update, prev_inc, wind_prev,   &
                                           rho_d_n,                             &
                                           total_dry_flux,                      &
-                                          adv_tracer_all_outer,                &
-                                          adv_tracer_all_outer_after_slow,     &
-                                          adv_tracer_last_outer,               &
-                                          adv_tracer_last_outer_after_slow,    &
-                                          con_tracer_all_outer,                &
-                                          con_tracer_all_outer_after_slow,     &
-                                          con_tracer_last_outer,               &
-                                          con_tracer_last_outer_after_slow     &
+                                          gen_tracer_all_outer,                &
+                                          gen_tracer_all_outer_after_slow,     &
+                                          gen_tracer_last_outer,               &
+                                          gen_tracer_last_outer_after_slow,    &
+                                          pos_tracer_all_outer,                &
+                                          pos_tracer_all_outer_after_slow,     &
+                                          pos_tracer_last_outer,               &
+                                          pos_tracer_last_outer_after_slow     &
                                           )
 
     use derived_config_mod,              only: bundle_size
@@ -232,14 +232,14 @@ contains
     type(field_type),            intent(in),    optional :: wind_prev
     type(field_type),    target, intent(in),    optional :: rho_d_n
     type(r_tran_field_type),     intent(in),    optional :: total_dry_flux
-    type(field_collection_type), intent(inout), optional :: adv_tracer_all_outer
-    type(field_collection_type), intent(in),    optional :: adv_tracer_all_outer_after_slow
-    type(field_collection_type), intent(inout), optional :: adv_tracer_last_outer
-    type(field_collection_type), intent(in),    optional :: adv_tracer_last_outer_after_slow
-    type(field_collection_type), intent(inout), optional :: con_tracer_all_outer
-    type(field_collection_type), intent(in),    optional :: con_tracer_all_outer_after_slow
-    type(field_collection_type), intent(inout), optional :: con_tracer_last_outer
-    type(field_collection_type), intent(in),    optional :: con_tracer_last_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: gen_tracer_all_outer
+    type(field_collection_type), intent(in),    optional :: gen_tracer_all_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: gen_tracer_last_outer
+    type(field_collection_type), intent(in),    optional :: gen_tracer_last_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: pos_tracer_all_outer
+    type(field_collection_type), intent(in),    optional :: pos_tracer_all_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: pos_tracer_last_outer
+    type(field_collection_type), intent(in),    optional :: pos_tracer_last_outer_after_slow
 
     ! Internal variables
     logical(kind=l_def)                    :: do_moisture_diagnostics
@@ -388,29 +388,29 @@ contains
       ! ---------------------------------------------------------------------- !
       ! Transport tracers which are active in fast physics, and therefore need
       ! transporting on every outer iteration
-      if (present(adv_tracer_all_outer)                                        &
-          .and. check_transport_name('adv_tracer') ) then
+      if (present(gen_tracer_all_outer)                                        &
+          .and. check_transport_name('gen_tracer') ) then
         call log_event(                                                        &
-                 "Transporting advective tracers (all)...", LOG_LEVEL_DEBUG    &
+                 "Transporting general tracers (all)...", LOG_LEVEL_DEBUG      &
         )
         transport_metadata =>                                                  &
-            transport_metadata_collection%get_transport_metadata('adv_tracer')
+            transport_metadata_collection%get_transport_metadata('gen_tracer')
 
         call tracer_collection_transport_alg(                                  &
-                adv_tracer_all_outer, adv_tracer_all_outer_after_slow,         &
+                gen_tracer_all_outer, gen_tracer_all_outer_after_slow,         &
                 transport_controller, transport_metadata                       &
         )
       end if
-      if (present(con_tracer_all_outer)                                        &
-          .and. check_transport_name('con_tracer') ) then
+      if (present(pos_tracer_all_outer)                                        &
+          .and. check_transport_name('pos_tracer') ) then
         call log_event(                                                        &
-                "Transporting conservative tracers (all)...", LOG_LEVEL_DEBUG  &
+                "Transporting positive tracers (all)...", LOG_LEVEL_DEBUG      &
         )
         transport_metadata =>                                                  &
-            transport_metadata_collection%get_transport_metadata('con_tracer')
+            transport_metadata_collection%get_transport_metadata('pos_tracer')
 
         call tracer_collection_transport_alg(                                  &
-                con_tracer_all_outer, con_tracer_all_outer_after_slow,         &
+                pos_tracer_all_outer, pos_tracer_all_outer_after_slow,         &
                 transport_controller, transport_metadata                       &
         )
       end if
@@ -480,43 +480,43 @@ contains
       end if
 
       ! ---------------------------------------------------------------------- !
-      ! Advective tracers
-      if (present(adv_tracer_last_outer)                                       &
-          .and. check_transport_name('adv_tracer') ) then
+      ! General tracers
+      if (present(gen_tracer_last_outer)                                       &
+          .and. check_transport_name('gen_tracer') ) then
         call log_event(                                                        &
-                "Transporting advective tracers (last)...", LOG_LEVEL_DEBUG    &
+                "Transporting general tracers (last)...", LOG_LEVEL_DEBUG      &
         )
 
-        ! Get the transport metadata for last outer advective tracers
+        ! Get the transport metadata for last outer general tracers
         transport_metadata =>                                                  &
-            transport_metadata_collection%get_transport_metadata('adv_tracer')
+            transport_metadata_collection%get_transport_metadata('gen_tracer')
 
         call tracer_collection_transport_alg(                                  &
-                adv_tracer_last_outer, adv_tracer_last_outer_after_slow,       &
+                gen_tracer_last_outer, gen_tracer_last_outer_after_slow,       &
                 transport_controller, transport_metadata                       &
         )
       end if
 
       ! ---------------------------------------------------------------------- !
-      ! Conservative tracers
-      if (present(con_tracer_last_outer)                                       &
-          .and. check_transport_name('con_tracer') ) then
+      ! Positive tracers
+      if (present(pos_tracer_last_outer)                                       &
+          .and. check_transport_name('pos_tracer') ) then
         call log_event(                                                        &
-                "Transporting conservative tracers (last)...", LOG_LEVEL_DEBUG &
+                "Transporting positive tracers (last)...", LOG_LEVEL_DEBUG     &
         )
 
-        ! Get the transport metadata for last outer conservative tracers
+        ! Get the transport metadata for last outer positive tracers
         transport_metadata =>                                                  &
-            transport_metadata_collection%get_transport_metadata('con_tracer')
+            transport_metadata_collection%get_transport_metadata('pos_tracer')
 
         if (use_multires_coupling .and. coarse_aerosol_transport) then
           call coarse_collection_transport_alg(                                &
-                  con_tracer_last_outer, con_tracer_last_outer_after_slow,     &
+                  pos_tracer_last_outer, pos_tracer_last_outer_after_slow,     &
                   aerosol_transport_controller, transport_metadata             &
           )
         else
           call tracer_collection_transport_alg(                                &
-                  con_tracer_last_outer, con_tracer_last_outer_after_slow,     &
+                  pos_tracer_last_outer, pos_tracer_last_outer_after_slow,     &
                   transport_controller, transport_metadata                     &
           )
         end if

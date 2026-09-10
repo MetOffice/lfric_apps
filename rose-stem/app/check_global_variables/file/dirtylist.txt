@@ -10,6 +10,7 @@ interfaces/physics_schemes_interface/source/algorithm/spt_main_alg_mod.x90
 interfaces/physics_schemes_interface/source/algorithm/um_domain_init_mod.x90
 interfaces/physics_schemes_interface/source/constants/planet_constants_mod.F90
 interfaces/physics_schemes_interface/source/diagnostics/bl_exp_diags_mod.f90
+interfaces/physics_schemes_interface/source/diagnostics/bl_hoc_exp_diags_mod.f90
 interfaces/physics_schemes_interface/source/diagnostics/bl_imp_diags_mod.x90
 interfaces/physics_schemes_interface/source/diagnostics/casim_diagnostics_mod.x90
 interfaces/physics_schemes_interface/source/diagnostics/cld_diags_mod.x90
@@ -165,4 +166,9 @@ science/physics_schemes/source/diffusion_and_filtering/leonard_incs_mod.F90
 science/physics_schemes/source/diffusion_and_filtering/turb_diff_mod.F90
 science/physics_schemes/source/gravity_wave_drag/gw_ussp_prec_mod.F90
 science/physics_schemes/source/gravity_wave_drag/g_wave_input_mod.F90
+science/physics_schemes/source/boundary_layer/mym_ctl.F90
+science/physics_schemes/source/boundary_layer/ddf_ctl.F90
+science/physics_schemes/source/boundary_layer/mym_errfunc.F90
+science/physics_schemes/source/boundary_layer/mym_const_mod.F90
+science/physics_schemes/source/boundary_layer/mym_option_mod.F90
 

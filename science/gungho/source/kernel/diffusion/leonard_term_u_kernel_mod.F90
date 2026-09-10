@@ -10,13 +10,15 @@
 module leonard_term_u_kernel_mod
 
   use argument_mod,                  only : arg_type,                          &
-                                            GH_FIELD, GH_SCALAR, GH_REAL,      &
-                                            GH_READ, GH_WRITE, GH_WRITE,       &
-                                            CELL_COLUMN, STENCIL, REGION,      &
+                                            GH_FIELD, GH_SCALAR,               &
+                                            GH_INTEGER, GH_REAL,               &
+                                            GH_READ, GH_WRITE,                 &
+                                            CELL_COLUMN, STENCIL,              &
+                                            REGION, CROSS,                     &
                                             ANY_DISCONTINUOUS_SPACE_9,         &
                                             ANY_DISCONTINUOUS_SPACE_3,         &
                                             ANY_DISCONTINUOUS_SPACE_2,         &
-                                            GH_INTEGER
+                                            ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,                 only : r_def, i_def
   use fs_continuity_mod,             only : Wtheta, W2, W1
   use kernel_mod,                    only : kernel_type
@@ -40,6 +42,7 @@ module leonard_term_u_kernel_mod
                                                       STENCIL(REGION)),        &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  Wtheta, STENCIL(REGION)),    &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  Wtheta),                     &
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1),  &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W1),                         &
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &
@@ -48,7 +51,6 @@ module leonard_term_u_kernel_mod
                                                       STENCIL(REGION)),        &
         arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),  &
         arg_type(GH_FIELD,  GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),  &
-        arg_type(GH_SCALAR, GH_REAL,    GH_READ),                              &
         arg_type(GH_SCALAR, GH_REAL,    GH_READ),                              &
         arg_type(GH_SCALAR, GH_REAL,    GH_READ),                              &
         arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                               &
@@ -80,6 +82,7 @@ contains
 !> @param[in] map_wt_stencil  Array holding the dofmap for the stencil at the
 !>                            base of the column for Wtheta
 !> @param[in] vel_w2v_inc  Leonard term increment of velocity_w2v
+!> @param[in] klm_sh_w2h  Leonard term coefficient for momentum
 !> @param[in] dtrdz_fd2  Array of dt/(r*dz) at FD2 points
 !> @param[in] height_w1  Height of w1 space levels above the surface
 !> @param[in] height_w2  Height of w2 space levels above the surface
@@ -92,7 +95,6 @@ contains
 !> @param[in] face_selector_ns 2D field indicating which N/S faces to loop over
 !!                             in this column
 !> @param[in] planet_radius  The planet radius
-!> @param[in] leonard_kl  The user-specified Leonard term parameter
 !> @param[in] dt  The model timestep length
 !> @param[in] bl_levels   The number of boundary-layer levels
 !> @param[in] ndf_w2  Number of degrees of freedom per cell for w2 space
@@ -101,6 +103,9 @@ contains
 !> @param[in] ndf_wt  Number of degrees of freedom per cell for theta space
 !> @param[in] undf_wt  Number of unique degrees of freedom for theta space
 !> @param[in] map_wt  Cell dofmap for theta space
+!> @param[in] ndf_sh_w2h  Number of dof per cell for shifted W2H space
+!> @param[in] undf_sh_w2h  Number of unique dof for shifted W2H space
+!> @param[in] map_sh_w2h  Cell dofmap for shifted W2H space
 !> @param[in] ndf_w1  Number of degrees of freedom per cell for w1 space
 !> @param[in] undf_w1  Number of unique degrees of freedom for w1 space
 !> @param[in] map_w1  Cell dofmap for w1 space
@@ -117,6 +122,7 @@ subroutine leonard_term_u_code( nlayers,                                &
                                  velocity_w2v,                          &
                                  map_wt_stencil_size, map_wt_stencil,   &
                                  vel_w2v_inc,                           &
+                                 klm_sh_w2h,                            &
                                  dtrdz_fd2,                             &
                                  height_w1,                             &
                                  height_w2,                             &
@@ -125,10 +131,10 @@ subroutine leonard_term_u_code( nlayers,                                &
                                  map_pid_stencil_size, map_pid_stencil, &
                                  face_selector_ew, face_selector_ns,    &
                                  planet_radius,                         &
-                                 leonard_kl,                            &
                                  dt, bl_levels,                         &
                                  ndf_w2, undf_w2, map_w2,               &
                                  ndf_wt, undf_wt, map_wt,               &
+                                 ndf_sh_w2h, undf_sh_w2h, map_sh_w2h,   &
                                  ndf_w1, undf_w1, map_w1,               &
                                  ndf_pid, undf_pid, map_pid,            &
                                  ndf_w3_2d, undf_w3_2d, map_w3_2d       &
@@ -141,6 +147,7 @@ subroutine leonard_term_u_code( nlayers,                                &
   integer(kind=i_def), intent(in) :: ndf_w1, undf_w1
   integer(kind=i_def), intent(in) :: ndf_w2, undf_w2
   integer(kind=i_def), intent(in) :: ndf_wt, undf_wt
+  integer(kind=i_def), intent(in) :: ndf_sh_w2h, undf_sh_w2h
   integer(kind=i_def), intent(in) :: ndf_pid, undf_pid
   integer(kind=i_def), intent(in) :: ndf_w3_2d, undf_w3_2d
   integer(kind=i_def), intent(in) :: map_w2_stencil_size
@@ -152,6 +159,7 @@ subroutine leonard_term_u_code( nlayers,                                &
   integer(kind=i_def), dimension(ndf_w1),    intent(in) :: map_w1
   integer(kind=i_def), dimension(ndf_w2),    intent(in) :: map_w2
   integer(kind=i_def), dimension(ndf_wt),    intent(in) :: map_wt
+  integer(kind=i_def), dimension(ndf_sh_w2h), intent(in)  :: map_sh_w2h
   integer(kind=i_def), dimension(ndf_pid),   intent(in) :: map_pid
   integer(kind=i_def), dimension(ndf_w3_2d), intent(in) :: map_w3_2d
 
@@ -159,13 +167,13 @@ subroutine leonard_term_u_code( nlayers,                                &
   real(kind=r_def), dimension(undf_w2),   intent(in)    :: u_n
   real(kind=r_def), dimension(undf_wt),   intent(in)    :: velocity_w2v
   real(kind=r_def), dimension(undf_wt),   intent(in)    :: vel_w2v_inc
+  real(kind=r_def), dimension(undf_sh_w2h), intent(in)  :: klm_sh_w2h
   real(kind=r_def), dimension(undf_w2),   intent(in)    :: dtrdz_fd2
   real(kind=r_def), dimension(undf_w1),   intent(in)    :: height_w1
   real(kind=r_def), dimension(undf_w2),   intent(in)    :: height_w2
   real(kind=r_def), dimension(undf_w2),   intent(in)    :: wetrho_in_w2
   real(kind=r_def), dimension(undf_pid),  intent(in)    :: panel_id
   real(kind=r_def),                       intent(in)    :: planet_radius
-  real(kind=r_def),                       intent(in)    :: leonard_kl
   real(kind=r_def),                       intent(in)    :: dt
 
   integer(kind=i_def), dimension(undf_w3_2d), intent(in) :: face_selector_ew
@@ -180,7 +188,7 @@ subroutine leonard_term_u_code( nlayers,                                &
   ! density at FD1 points
   real(kind=r_def)    :: rho_fd1
   ! Leonard term parameter at FD1 points
-  real(kind=r_def), dimension(1:bl_levels,4) :: kl_fd1
+  real(kind=r_def), dimension(1:bl_levels) :: kl_fd1
   ! Leonard term vertical flux at FD1 points
   real(kind=r_def), dimension(0:bl_levels,4) :: flux
   ! density * r^2 at FD1
@@ -348,7 +356,7 @@ subroutine leonard_term_u_code( nlayers,                                &
     ! Calculate kl at FD1 points,
     ! accounting for stability limit
     do k = 1, bl_levels
-      kl_fd1(k,df) = MIN( leonard_kl,                                &
+      kl_fd1(k) = MIN( klm_sh_w2h(map_sh_w2h(df) + k),               &
                   6.0_r_def * ( height_w2(map_w2(df) + k) -          &
                                 height_w2(map_w2(df) + k-1) )        &
                   / (dt * MAX(                                       &
@@ -367,7 +375,7 @@ subroutine leonard_term_u_code( nlayers,                                &
                        velocity_w2v(true_wt_stencil(1,1) + k) ),      &
                   ABS( velocity_w2v(true_wt_stencil(1,df2p1) + k) -   &
                        velocity_w2v(true_wt_stencil(1,df2) + k) ),    &
-                  EPSILON( leonard_kl )                              &
+                  EPSILON( klm_sh_w2h(map_sh_w2h(df) + k) )           &
                   ) ) )
     end do
 
@@ -408,7 +416,7 @@ subroutine leonard_term_u_code( nlayers,                                &
 
     do k = 1, bl_levels
       km = k - 1
-      flux(k,df) = ( kl_fd1(k,df) / 12.0_r_def )                    &
+      flux(k,df) = ( kl_fd1(k) / 12.0_r_def )                       &
             ! 8 terms contribute to each direction, so scale by 1/8
             * ( 1.0_r_def / 8.0_r_def ) * (                         &
             ! Terms from gradient normal to face...

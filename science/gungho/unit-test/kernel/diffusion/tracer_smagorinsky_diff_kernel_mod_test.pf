@@ -37,7 +37,7 @@ contains
     use sci_chi_transform_mod,     only : init_chi_transforms
     use feign_config_mod,          only : feign_finite_element_config,   &
                                           feign_mixing_config
-    use mixing_config_mod,         only : method_3d_smag, smag_l_calc,   &
+    use mixing_config_mod,         only : smag_l_calc,             &
                                           smag_l_calc_UseDx
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz, coord_space_wchi
@@ -50,7 +50,7 @@ contains
                               viscosity_mu  = 0.0_r_def,         &
                               smagorinsky   = .false.,           &
                               mix_factor    = 0.2_r_def,         &
-                              method        = method_3d_smag,    &
+                              leonard_tke   = .false.,           &
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 1.0_r_def,         &

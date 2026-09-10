@@ -269,7 +269,12 @@
   <field id="ng_mphys" name="ng_mphys" long_name="number_concentration_of_graupel_after_microphysics" unit="kg-1" grid_ref="full_level_face_grid" />
   <!-- turbulence fields -->
   <field id="zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" />
+  <field id="zhpar_shcu" name="zhpar_shcu" long_name="height_for_non-gradient_buoyancy_flux" unit="m" domain_ref="face" />
   <field id="wvar" name="wvar" long_name="vertical_velocity_variance" unit="m2 s-2" grid_ref="full_level_face_grid" />
+  <field id="tke_bl" name="tke_bl" long_name="turbulent_kinetic_energy" unit="m2 s-2" grid_ref="full_level_face_grid" />
+  <field id="tsq_bl" name="tsq_bl" long_name="second_moment_of_liquid_water_potential_temperature" unit="K2" grid_ref="full_level_face_grid" />
+  <field id="qsq_bl" name="qsq_bl" long_name="second_moment_of_total_water_mass_ratio" unit="kg2 kg-2" grid_ref="full_level_face_grid" />
+  <field id="cov_bl" name="cov_bl" long_name="covariance_of_liquid_water_potential_temperature_and_total_water_mass_ratio" unit="K kg kg-1" grid_ref="full_level_face_grid" />
   <!-- surface fields -->
   <field id="z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" />
   <field id="surface_conductance" name="surface_conductance" long_name="surface_conductance" unit="m s-1" domain_ref="face" />

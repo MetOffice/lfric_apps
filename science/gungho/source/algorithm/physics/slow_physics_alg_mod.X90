@@ -118,6 +118,7 @@ module slow_physics_alg_mod
   use orographic_drag_alg_mod,   only: orographic_drag_alg
   use map_drag_incs_alg_mod,     only: map_drag_incs_alg
   use bl_exp_alg_mod,            only: bl_exp_alg
+  use bl_hoc_exp_alg_mod,        only: bl_hoc_exp_alg
   use bl_imp_alg_mod,            only: bl_imp_alg
   use bl_extra_diags_mod,        only: output_diags_for_bl_extra
   use conv_ll_alg_mod,           only: conv_ll_alg
@@ -129,6 +130,7 @@ module slow_physics_alg_mod
   use pc2_conv_coupling_alg_mod, only: pc2_conv_coupling_alg
   use pc2_checks_alg_mod,        only: pc2_checks_alg
   use methox_alg_mod,            only: methox_alg
+  use blayer_config_mod,         only: bl_scheme, bl_scheme_Kprof, bl_scheme_HoC
   use microphysics_config_mod,   only: microphysics_casim
   use aerosol_config_mod,        only: activation_scheme,         &
                                        activation_scheme_jones,   &
@@ -279,6 +281,7 @@ contains
     ! ...for JULES & Boundary Layer
     type( field_type ) :: recip_l_mo_sea, rhostar
     type( field_type ) :: t1_sd_2d, q1_sd_2d
+    type( field_type ) :: leonard_klm_tke, leonard_klh_tke
     ! ...for spectral GWD
     type( field_type ) :: du_spectral_gwd, dv_spectral_gwd
     ! ...for orog GWD
@@ -877,15 +880,25 @@ contains
                          surface_fields, soil_fields, snow_fields,           &
                          aerosol_fields, recip_l_mo_sea, rhostar,            &
                          t1_sd_2d, q1_sd_2d)
-
-      call bl_exp_alg(modeldb%config,                                     &
-                      theta, rho, exner, mr_n,                            &
-                      derived_fields, radiation_fields,                   &
-                      microphysics_fields, dmr_mphys, orography_fields,   &
-                      turbulence_fields, convection_fields, cloud_fields, &
-                      surface_fields,                                     &
-                      recip_l_mo_sea, rhostar,                            &
-                      t1_sd_2d, q1_sd_2d, clock)
+      if (bl_scheme == bl_scheme_Kprof) then
+        call bl_exp_alg(modeldb%config,                                     &
+                        theta, rho, exner, mr_n,                            &
+                        derived_fields, radiation_fields,                   &
+                        microphysics_fields, dmr_mphys, orography_fields,   &
+                        turbulence_fields, convection_fields, cloud_fields, &
+                        surface_fields,                                     &
+                        recip_l_mo_sea, rhostar,                            &
+                        t1_sd_2d, q1_sd_2d, clock)
+      else if (bl_scheme == bl_scheme_HoC) then
+        call bl_hoc_exp_alg(modeldb%config,                                    &
+                            theta, rho, exner, mr_n,                           &
+                            derived_fields,                                    &
+                            microphysics_fields, orography_fields,             &
+                            turbulence_fields, convection_fields, cloud_fields,&
+                            surface_fields,                                    &
+                            leonard_klm_tke, leonard_klh_tke,                  &
+                            clock)
+      end if
     end if
 
     !--------------------------------------------------------------------
@@ -932,6 +945,7 @@ contains
       call leonard_term_alg(modeldb%config,                     &
                             mt_inc_leonard, thetal_inc_leonard, &
                             u_inc_leonard, mr_n, theta, u, rho, &
+                            leonard_klm_tke, leonard_klh_tke,   &
                             turbulence_fields, derived_fields,  &
                             dt, clock)
       leonard_term_done = .true. ! Collect this increment later on

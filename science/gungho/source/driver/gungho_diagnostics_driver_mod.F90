@@ -89,7 +89,7 @@ contains
     logical,             intent(in)             :: nodal_output_on_w3
 
     type(field_collection_type), pointer :: prognostic_fields
-    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: pos_tracer_last_outer
     type(field_collection_type), pointer :: lbc_fields
     type(field_collection_type), pointer :: moisture_fields
     type(field_type),            pointer :: mr(:)
@@ -155,7 +155,7 @@ contains
     moist_dyn => moist_dyn_array%bundle
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
     panel_id => get_panel_id(mesh)
-    con_tracer_last_outer =>  modeldb%fields%get_field_collection("con_tracer_last_outer")
+    pos_tracer_last_outer =>  modeldb%fields%get_field_collection("pos_tracer_last_outer")
 
     ! Can't just iterate through the prognostic/diagnostic collections as
     ! some fields are scalars and some fields are vectors, so explicitly
@@ -199,7 +199,7 @@ contains
     deallocate(fs_ids)
 
     if (transport_ageofair) then
-      call con_tracer_last_outer%get_field('ageofair',ageofair)
+      call pos_tracer_last_outer%get_field('ageofair',ageofair)
       call write_scalar_diagnostic('ageofair', ageofair, &
                                    modeldb%clock, mesh, nodal_output_on_w3)
     end if

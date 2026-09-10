@@ -16,9 +16,9 @@
 !---------------------------------------------------------------------
 module mym_option_mod
 
-use  missing_data_mod, only: rmdi, imdi
+use missing_data_mod, only: rmdi, imdi
 use control_max_sizes, only: max_bl_levels
-use um_types, only: real_umphys
+use um_types, only: r_bl
 
 implicit none
 
@@ -31,7 +31,9 @@ implicit none
 integer :: bdy_tke = imdi ! suggested mymodel3
 integer, parameter ::                                                          &
 ! the first order scheme
-     deardorff = 1,                                                            &
+     deardorff = 0,                                                            &
+! the improved Mellor-Yamada level 2 model
+     mymodel2  = 1,                                                            &
 ! the improved Mellor-Yamada level 2.5 model
      mymodel25 = 2,                                                            &
 ! the improved Mellor-Yamada level 3 model
@@ -62,7 +64,7 @@ logical :: l_my_ini_zero = .false.
 
 ! 07 The lower limit for dbdz in the initialization to avoid to diagnose huge
 ! initial values.
-real(kind=real_umphys) :: my_ini_dbdz_min = rmdi ! suggested 1.0e-5
+real(kind=r_bl) :: my_ini_dbdz_min = rmdi ! suggested 1.0e-5
 
 ! 08 A switch to turn on advection of the prognostic variables in the TKE
 ! scheme (E_TRB, TSQ, QSQ, COV).
@@ -83,7 +85,7 @@ logical :: l_shcu_buoy = .false. ! suggested true
 integer :: shcu_levels = imdi ! suggested -1 to set to TKE levels
 
 ! 12 The maximum limit for the non-gradient buoyancy flux
-real(kind=real_umphys) :: wb_ng_max = rmdi  ! suggested 0.05
+real(kind=r_bl) :: wb_ng_max = rmdi  ! suggested 0.05
 
 ! 13 Switch related to production terms at the lowest levels
 integer :: my_lowest_pd_surf = imdi ! suggested bh1991
@@ -100,16 +102,16 @@ integer, parameter ::                                                          &
 logical :: l_my_prod_adj = .false. ! suggested true
 
 ! 15 if Z_TQ > MY_z_limit_elb, elb is limited less than vertical grid spacing.
-real(kind=real_umphys) :: my_z_limit_elb = rmdi ! suggested 1.0e10 to not use
+real(kind=r_bl) :: my_z_limit_elb = rmdi ! suggested 1.0e10 to not use
 
 ! 16 If true, the maximum values of the prognostic variables are printed.
 logical :: l_print_max_tke = .false.
 
 ! 17 A proportional coef CM below the top of mixed layer K = CM * sqrt(E) * L
-real(kind=real_umphys) :: tke_cm_mx = rmdi ! suggested 0.1
+real(kind=r_bl) :: tke_cm_mx = rmdi ! suggested 0.1
 
 ! 18 A proportional coef CM above the top of mixed layer K = CM * sqrt(E) * L
-real(kind=real_umphys) :: tke_cm_fa = rmdi ! suggested 0.1
+real(kind=r_bl) :: tke_cm_fa = rmdi ! suggested 0.1
 
 ! 19 Switch to choose mixing length in the first order model
 integer :: tke_dlen = imdi ! suggested my_length
@@ -120,6 +122,20 @@ integer, parameter ::                                                          &
      ddf_length = 2,                                                           &
 ! with correction based on Sun and Chang (1986)
      non_local_like_length = 3
+
+! 20 If TRUE, use coefficient calculated in mym_turbulence for Leonard term.
+logical :: l_leonard_tke = .false.
+
+! 21 If TRUE, use squared form of length-scale blending.
+logical :: l_use_l_sq = .false.
+
+! Switch to choose solver of simultaneous equations
+integer :: simeq_solver = 1
+integer, parameter ::                                                          &
+! use bi-conjugate gradient stabilized method (BCGSTAB)
+     bicgstab = 0,                                                             &
+! use forward elimination backward substitution method
+     gauss = 1
 
 !=======================================================================
 ! TKE options not in a namelist, ordered by type
@@ -136,14 +152,14 @@ integer, parameter :: monotone_scheme_adv_turb = 1
 ! if L_MY_EXTRA_LEVEL == .true., the extra level is assigned at
 ! Z_TQ(:,:,1) * MY_Z_EXTRA_FACT above the surface.
 ! not a parameter as set in mym_initialise
-real(kind=real_umphys) :: my_z_extra_fact = 0.5
+real(kind=r_bl) :: my_z_extra_fact = 0.5
 
 ! Factor in production term adjustment related to diffusion.
 ! A smaller factor makes the adjustment activate more often,
 ! but too strong adjustment might adversely affect the accuracy of
 ! forecasts. With the value 0.225, sufficient computational stability
 ! is secured in the UKV.
-real(kind=real_umphys), parameter :: my_prod_adj_fact(1:max_bl_levels) = 0.225
+real(kind=r_bl), parameter :: my_prod_adj_fact(1:max_bl_levels) = 0.225
 
 ! Use the correction to the mixing length by Blackadar (valid only in the
 ! first order model)

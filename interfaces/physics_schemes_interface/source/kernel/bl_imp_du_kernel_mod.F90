@@ -20,7 +20,9 @@ module bl_imp_du_kernel_mod
   use kernel_mod,                    only: kernel_type
   use nlsizes_namelist_mod,          only: bl_levels
   use timestepping_config_mod,       only: outer_iterations
-  use blayer_config_mod,             only: fric_heating, bl_mix_w
+  use blayer_config_mod,             only: fric_heating, bl_mix_w, bl_scheme,  &
+                                           bl_scheme_Kprof, bl_scheme_HoC
+  use mixing_config_mod,             only: smagorinsky
   use sci_face_selector_support_mod, only: face_from_face_selector
 
   implicit none
@@ -408,7 +410,8 @@ contains
 
     end do ! loop over df
 
-    if (bl_mix_w) then
+    if ((bl_scheme == bl_scheme_Kprof .and. bl_mix_w) .or. &
+        (bl_scheme == bl_scheme_HoC .and. smagorinsky)) then
       ! Copy dw_bl increment into du_bl
       do k = 1, bl_levels
         du_bl(map_w2(5)+k) = dw_bl(map_wth(1)+k)

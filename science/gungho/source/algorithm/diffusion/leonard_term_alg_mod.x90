@@ -9,22 +9,28 @@ module leonard_term_alg_mod
 
   use config_mod,                 only: config_type
   use constants_mod,              only: i_def, r_def
+  use extrusion_mod,              only: SHIFTED
   use field_mod,                  only: field_type
   use field_collection_mod,       only: field_collection_type
   use integer_field_mod,          only: integer_field_type
   use mesh_mod,                   only: mesh_type
+  use mesh_collection_mod,        only: mesh_collection
   use mr_indices_mod,             only: nummr, imr_v, imr_cl
 
   use formulation_config_mod,     only: moisture_formulation,    &
                                         moisture_formulation_dry
-  use fs_continuity_mod,          only: W1, W2, W3, Wtheta
+  use fs_continuity_mod,          only: W1, W2, W2H, W3, Wtheta
+  use sci_w3_to_w2_average_kernel_mod,  &
+                                  only: w3_to_w2_average_kernel_type
+  use sci_fem_constants_mod,      only: get_rmultiplicity_fv
   use sci_geometric_constants_mod,      &
                                   only: get_height_fv, get_panel_id, &
                                         get_face_selector_ew,        &
                                         get_face_selector_ns
   use physics_constants_mod,      only: get_dtrdz_fd2
-
-  use mixing_config_mod,          only: leonard_kl
+  use function_space_mod,         only: function_space_type
+  use function_space_collection_mod,    &
+                                  only: function_space_collection
 
   use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
   use log_mod,                    only: log_event, LOG_LEVEL_INFO
@@ -49,6 +55,8 @@ contains
   !> @param[in]     theta               Potential temperature in wth space
   !> @param[in]     u                   3D wind field
   !> @param[in]     rho                 Dry density in w3 space
+  !> @param[in]     leonard_klm_tke     Momentum coefficient based on BL scheme
+  !> @param[in]     leonard_klh_tke     Heat coefficient based on BL scheme
   !> @param[in,out] turbulence_fields   Fields for turbulence scheme
   !> @param[in]     derived_fields      Group of derived fields
   !> @param[in]     dt                  The model timestep length
@@ -56,6 +64,7 @@ contains
 subroutine leonard_term_alg(config,                             &
                             mt_inc_leonard, thetal_inc_leonard, &
                             u_inc_leonard, mr, theta, u, rho,   &
+                            leonard_klm_tke, leonard_klh_tke,   &
                             turbulence_fields, derived_fields,  &
                             dt, model_clock )
 
@@ -77,6 +86,8 @@ subroutine leonard_term_alg(config,                             &
     type( field_type ), intent(in) :: theta
     type( field_type ), intent(in) :: u
     type( field_type ), intent(in) :: rho
+    type( field_type ), intent(in) :: leonard_klm_tke
+    type( field_type ), intent(in) :: leonard_klh_tke
 
     type( field_collection_type ), intent(in)    :: derived_fields
     type( field_collection_type ), intent(inout) :: turbulence_fields
@@ -86,41 +97,56 @@ subroutine leonard_term_alg(config,                             &
     class( model_clock_type ), intent(in) :: model_clock
 
     ! Temporary fields unpacked from collections
-    type( field_type ), pointer :: exner_in_wth       => null()
-    type( field_type ), pointer :: wetrho_in_w2       => null()
-    type( field_type ), pointer :: wetrho_in_w3       => null()
-    type( field_type ), pointer :: w_physics          => null()
-    type( field_type ), pointer :: velocity_w2v       => null()
-    type( field_type ), pointer :: dtrdz_tq_bl        => null()
-    type( field_type ), pointer :: dtrdz_fd2          => null()
-    type( field_type ), pointer :: height_w1          => null()
-    type( field_type ), pointer :: height_w2          => null()
-    type( field_type ), pointer :: height_w3          => null()
-    type( field_type ), pointer :: height_wth         => null()
-    type( field_type ), pointer :: panel_id           => null()
+    type( field_type ), pointer :: exner_in_wth
+    type( field_type ), pointer :: wetrho_in_w2
+    type( field_type ), pointer :: wetrho_in_w3
+    type( field_type ), pointer :: w_physics
+    type( field_type ), pointer :: velocity_w2v
+    type( field_type ), pointer :: dtrdz_tq_bl
+    type( field_type ), pointer :: dtrdz_fd2
+    type( field_type ), pointer :: height_w1
+    type( field_type ), pointer :: height_w2
+    type( field_type ), pointer :: height_w3
+    type( field_type ), pointer :: height_wth
+    type( field_type ), pointer :: panel_id
+    type( field_type ), pointer :: rmult
 
     type( integer_field_type ), pointer :: face_selector_ew
     type( integer_field_type ), pointer :: face_selector_ns
 
     ! local variables
     type(mesh_type), pointer :: mesh
+    type(mesh_type), pointer :: shifted_mesh
+    type(function_space_type), pointer :: w2h_sh_fs
     integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: shifted_mesh_id
     integer(kind=i_def), parameter :: stencil_depth = 1
     integer(tik)       :: id
 
     ! Leonard term parameter
-    type( field_type ) :: kl
+    type( field_type ) :: klh
+    type( field_type ) :: klm_sh_w2h
     ! liquid + ice water potential temperature
     type( field_type ) :: thetal
     ! total water content
     type( field_type ) :: mt
     ! w increment
     type( field_type ) :: vel_w2v_inc_leonard
+    real( kind=r_def ) :: leonard_kl
 
     if ( LPROF ) call start_timing( id, 'leonard_term' )
 
+    nullify( exner_in_wth, wetrho_in_w2, wetrho_in_w3,                  &
+             w_physics, velocity_w2v, dtrdz_tq_bl, dtrdz_fd2,           &
+             height_w1, height_w2, height_w3, height_wth,               &
+             panel_id, rmult, face_selector_ew, face_selector_ns,       &
+             mesh, shifted_mesh, w2h_sh_fs )
+
     mesh    => theta%get_mesh()
     mesh_id =  theta%get_mesh_id()
+    shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+    shifted_mesh_id = shifted_mesh%get_id()
+    w2h_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2H)
 
     ! Unpack derived fields
     call derived_fields%get_field('exner_in_wth', exner_in_wth)
@@ -142,20 +168,34 @@ subroutine leonard_term_alg(config,                             &
     face_selector_ew => get_face_selector_ew(mesh)
     face_selector_ns => get_face_selector_ns(mesh)
 
+    leonard_kl = config%mixing%leonard_kl()
+
     ! Set-up arrays for local fields
-    call rho%copy_field_properties(kl)
     call theta%copy_field_properties(thetal)
     call theta%copy_field_properties(mt)
     call theta%copy_field_properties(vel_w2v_inc_leonard)
+    call rho%copy_field_properties(klh)
+    call klm_sh_w2h%initialise(w2h_sh_fs)
 
+    if (config%mixing%leonard_tke()) then
+      rmult => get_rmultiplicity_fv(W2H, shifted_mesh_id)
+      call invoke( setval_c(klm_sh_w2h, 0.0_r_def),                     &
+                   w3_to_w2_average_kernel_type( klm_sh_w2h,            &
+                                                 leonard_klm_tke,       &
+                                                 rmult ),               &
+                   inc_a_times_X(leonard_kl, klm_sh_w2h),               &
+                   a_times_X(klh, leonard_kl, leonard_klh_tke) )
+    else
+      call invoke( setval_c(klm_sh_w2h, leonard_kl),                    &
+                   setval_c(klh, leonard_kl) )
+    end if
     !--------------------------------------------------------------------
     ! Apply stability-limit to leonard_kl:
     !--------------------------------------------------------------------
-    call invoke( leonard_term_kl_kernel_type( kl,                       &
+    call invoke( leonard_term_kl_kernel_type( klh,                      &
                                               velocity_w2v,             &
                                               stencil_depth,            &
                                               height_wth,               &
-                                              leonard_kl,               &
                                               dt, bl_levels),           &
 
     !--------------------------------------------------------------------
@@ -168,7 +208,7 @@ subroutine leonard_term_alg(config,                             &
                                               w_physics,                &
                                               stencil_depth,            &
                                               dtrdz_tq_bl,              &
-                                              kl,                       &
+                                              klh,                      &
                                               wetrho_in_w3,             &
                                               height_w3,                &
                                               planet_radius,            &
@@ -185,6 +225,7 @@ subroutine leonard_term_alg(config,                             &
                                               velocity_w2v,             &
                                               stencil_depth,            &
                                               vel_w2v_inc_leonard,      &
+                                              klm_sh_w2h,               &
                                               dtrdz_fd2,                &
                                               height_w1,                &
                                               height_w2,                &
@@ -194,7 +235,6 @@ subroutine leonard_term_alg(config,                             &
                                               face_selector_ew,         &
                                               face_selector_ns,         &
                                               planet_radius,            &
-                                              leonard_kl,               &
                                               dt, bl_levels ),          &
 
     !--------------------------------------------------------------------
@@ -212,7 +252,7 @@ subroutine leonard_term_alg(config,                             &
                                               velocity_w2v,             &
                                               stencil_depth,            &
                                               dtrdz_tq_bl,              &
-                                              kl,                       &
+                                              klh,                      &
                                               rho,                      &
                                               height_w3,                &
                                               planet_radius,            &
@@ -231,7 +271,7 @@ subroutine leonard_term_alg(config,                             &
                                                 velocity_w2v,           &
                                                 stencil_depth,          &
                                                 dtrdz_tq_bl,            &
-                                                kl,                     &
+                                                klh,                    &
                                                 rho,                    &
                                                 height_w3,              &
                                                 planet_radius,          &

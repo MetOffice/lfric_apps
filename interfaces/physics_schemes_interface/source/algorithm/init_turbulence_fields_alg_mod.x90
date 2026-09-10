@@ -27,45 +27,59 @@ contains
   !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
   subroutine init_turbulence_fields_alg(turbulence_fields)
 
+    use blayer_config_mod, only: bl_scheme, bl_scheme_Kprof, bl_scheme_HoC, &
+                                 bdy_tke, bdy_tke_deardorff, shcu_buoy
+
     implicit none
 
     ! Arguments
     type(field_collection_type), intent(in) :: turbulence_fields
 
     ! Prognostic fields
-    type( field_type ), pointer :: zh             => null()
-    type( field_type ), pointer :: z_lcl          => null()
-    type( integer_field_type ), pointer :: ntml    => null()
-    type( integer_field_type ), pointer :: cumulus => null()
-    type( field_type ), pointer :: wvar           => null()
-    type( field_type ), pointer :: heat_flux_bl   => null()
-    type( field_type ), pointer :: moist_flux_bl  => null()
-    type( field_type ), pointer :: tke_bl         => null()
-    type( field_type ), pointer :: rhokh_bl       => null()
-    type( field_type ), pointer :: dtrdz_tq_bl    => null()
-    type( field_type ), pointer :: zhsc           => null()
-    type( integer_field_type ), pointer :: level_ent => null()
-    type( integer_field_type ), pointer :: level_ent_dsc => null()
-    type( field_type ), pointer :: ent_we_lim     => null()
-    type( field_type ), pointer :: ent_t_frac     => null()
-    type( field_type ), pointer :: ent_zrzi       => null()
-    type( field_type ), pointer :: ent_we_lim_dsc => null()
-    type( field_type ), pointer :: ent_t_frac_dsc => null()
-    type( field_type ), pointer :: ent_zrzi_dsc   => null()
+    type( field_type ), pointer :: zh
+    type( field_type ), pointer :: z_lcl
+    type( integer_field_type ), pointer :: ntml
+    type( integer_field_type ), pointer :: cumulus
+    type( field_type ), pointer :: wvar
+    type( field_type ), pointer :: heat_flux_bl
+    type( field_type ), pointer :: moist_flux_bl
+    type( field_type ), pointer :: tke_bl
+    type( field_type ), pointer :: tsq_bl
+    type( field_type ), pointer :: qsq_bl
+    type( field_type ), pointer :: cov_bl
+    type( field_type ), pointer :: zhpar_shcu
+    type( field_type ), pointer :: rhokm_bl
+    type( field_type ), pointer :: rhokh_bl
+    type( field_type ), pointer :: dtrdz_tq_bl
+    type( field_type ), pointer :: zhsc
+    type( integer_field_type ), pointer :: level_ent
+    type( integer_field_type ), pointer :: level_ent_dsc
+    type( field_type ), pointer :: ent_we_lim
+    type( field_type ), pointer :: ent_t_frac
+    type( field_type ), pointer :: ent_zrzi
+    type( field_type ), pointer :: ent_we_lim_dsc
+    type( field_type ), pointer :: ent_t_frac_dsc
+    type( field_type ), pointer :: ent_zrzi_dsc
     type( field_type ), pointer :: dsldzm
     type( field_type ), pointer :: mix_len_bm
     type( field_type ), pointer :: gradrinr
+
+    nullify( zh, z_lcl, ntml, cumulus, wvar, heat_flux_bl, moist_flux_bl,      &
+             tke_bl, tsq_bl, qsq_bl, cov_bl, zhpar_shcu, rhokm_bl, rhokh_bl,   &
+             dtrdz_tq_bl, zhsc, level_ent, level_ent_dsc, ent_we_lim,          &
+             ent_t_frac, ent_zrzi, ent_we_lim_dsc, ent_t_frac_dsc,             &
+             ent_zrzi_dsc, dsldzm, mix_len_bm, gradrinr )
 
     call turbulence_fields%get_field('zh', zh)
     call turbulence_fields%get_field('z_lcl', z_lcl)
     call turbulence_fields%get_field('ntml', ntml)
     call turbulence_fields%get_field('cumulus', cumulus)
-    call turbulence_fields%get_field('wvar', wvar)
     call turbulence_fields%get_field('heat_flux_bl', heat_flux_bl)
     call turbulence_fields%get_field('moist_flux_bl', moist_flux_bl)
     call turbulence_fields%get_field('tke_bl', tke_bl)
     call turbulence_fields%get_field('rhokh_bl', rhokh_bl)
     call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
+    call turbulence_fields%get_field('gradrinr', gradrinr)
     call turbulence_fields%get_field('zhsc', zhsc)
     call turbulence_fields%get_field('level_ent', level_ent)
     call turbulence_fields%get_field('level_ent_dsc', level_ent_dsc)
@@ -75,9 +89,22 @@ contains
     call turbulence_fields%get_field('ent_we_lim_dsc', ent_we_lim_dsc)
     call turbulence_fields%get_field('ent_t_frac_dsc', ent_t_frac_dsc)
     call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
-    call turbulence_fields%get_field('dsldzm', dsldzm)
-    call turbulence_fields%get_field('mix_len_bm', mix_len_bm)
-    call turbulence_fields%get_field('gradrinr', gradrinr)
+
+    if (bl_scheme == bl_scheme_Kprof) then
+      call turbulence_fields%get_field('wvar', wvar)
+      call turbulence_fields%get_field('dsldzm', dsldzm)
+      call turbulence_fields%get_field('mix_len_bm', mix_len_bm)
+    else if (bl_scheme == bl_scheme_HoC) then
+      call turbulence_fields%get_field('rhokm_bl', rhokm_bl)
+      if (bdy_tke /= bdy_tke_deardorff) then
+        call turbulence_fields%get_field('tsq_bl', tsq_bl)
+        call turbulence_fields%get_field('qsq_bl', qsq_bl)
+        call turbulence_fields%get_field('cov_bl', cov_bl)
+      end if
+      if (shcu_buoy) then
+        call turbulence_fields%get_field('zhpar_shcu', zhpar_shcu)
+      end if
+    end if
 
     ! Set turbulence fields to fixed values for use in SCM testing
     ! or when no values is provided by the um2lfric dump
@@ -85,7 +112,6 @@ contains
                  setval_c(z_lcl,          0.0_r_def), &
                  int_setval_c(ntml,       1_i_def),   &
                  int_setval_c(cumulus,    0_i_def),   &
-                 setval_c(wvar,           0.0_r_def), &
                  setval_c(heat_flux_bl,   0.0_r_def), &
                  setval_c(moist_flux_bl,  0.0_r_def), &
                  setval_c(tke_bl,         0.0_r_def), &
@@ -100,9 +126,23 @@ contains
                  setval_c(ent_we_lim_dsc, 0.0_r_def), &
                  setval_c(ent_t_frac_dsc, 0.0_r_def), &
                  setval_c(ent_zrzi_dsc,   0.0_r_def), &
-                 setval_c(dsldzm,         0.0_r_def), &
-                 setval_c(mix_len_bm,     0.0_r_def), &
                  setval_c(gradrinr,       0.0_r_def) )
+ 
+    if (bl_scheme == bl_scheme_Kprof) then
+      call invoke( setval_c(wvar,           0.0_r_def), &
+                   setval_c(dsldzm,         0.0_r_def), &
+                   setval_c(mix_len_bm,     0.0_r_def) )
+    else if (bl_scheme == bl_scheme_HoC) then
+      call invoke( setval_c(rhokm_bl,       0.0_r_def) )
+      if (bdy_tke /= bdy_tke_deardorff) then
+        call invoke( setval_c(tsq_bl,       0.0_r_def), &
+                     setval_c(qsq_bl,       0.0_r_def), &
+                     setval_c(cov_bl,       0.0_r_def) )
+      end if
+      if (shcu_buoy) then
+        call invoke( setval_c(zhpar_shcu,   0.0_r_def) )
+      end if
+    end if
 
   end subroutine init_turbulence_fields_alg
 

@@ -41,8 +41,7 @@ contains
   subroutine test_all( this )
 
     use feign_config_mod,                   only : feign_mixing_config
-    use mixing_config_mod,                  only : method_3d_smag, &
-                                                   smag_l_calc_UseDx
+    use mixing_config_mod,                  only : smag_l_calc_UseDx
     use diffusion_momentum_flux_kernel_mod, only : diffusion_momentum_flux_code
 
     implicit none
@@ -122,7 +121,7 @@ contains
                               smagorinsky   = .true.,            &
                               fullstress    = fullstress,        &
                               mix_factor    = 0.2_r_def,         &
-                              method        = method_3d_smag,    &
+                              leonard_tke   = .false.,           &
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 4.0_r_def,         &

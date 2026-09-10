@@ -38,8 +38,7 @@ contains
                                            feign_mixing_config
     use finite_element_config_mod,  only : cellshape_quadrilateral,       &
                                            coord_system_xyz, coord_space_wchi
-    use mixing_config_mod,          only : method_3d_smag,                &
-                                           smag_l_calc, smag_l_calc_UseDx
+    use mixing_config_mod,          only : smag_l_calc, smag_l_calc_UseDx
 
     implicit none
 
@@ -49,7 +48,7 @@ contains
                               viscosity_mu  = 0.0_r_def,         &
                               smagorinsky   = .false.,           &
                               mix_factor    = 0.2_r_def,         &
-                              method        = method_3d_smag,    &
+                              leonard_tke   = .false.,           &
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 4.0_r_def,         &
@@ -153,7 +152,7 @@ contains
     allocate(w(undf_wt))
     allocate(kl(undf_w3))
     w(:) = 1.0_r_def
-    kl(:) = 0.0_r_def
+    kl(:) = leonard_kl
 
     w(stencil_map_wt(1,1,cell-1)+k) = 3.0_r_def
 
@@ -163,7 +162,6 @@ contains
                                w,                                     &
                                5, stencil_map_wt(:,:,cell),           &
                                height_wth,                            &
-                               leonard_kl,                            &
                                dt, nlayers,                           &
                                ndf_w3, undf_w3, map_w3(:,cell),       &
                                ndf_wt, undf_wt, map_wt(:,cell)        &

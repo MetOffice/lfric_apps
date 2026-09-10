@@ -672,7 +672,6 @@
   <field id="turbulence__zhsc" name="zhsc" long_name="height_at_top_of_decoupled_stratocumulus_layer" unit="m" domain_ref="face" />
   <field id="turbulence__oblen" name="oblen" long_name="obukhov_length" unit="m" domain_ref="face" />
   <field id="turbulence__bl_weight_1dbl" name="bl_weight_1dbl" long_name="Blending_weight_in_boundary_layer" unit="1" domain_ref="face" />
-  <field id="turbulence__tke" name="tke_bl" long_name="turbulent_kinetic_energy" unit="m2 s-2" grid_ref="full_level_face_grid" />
   <field id="turbulence__wvar" name="wvar" long_name="vertical_velocity_variance" unit="m2 s-2" grid_ref="full_level_face_grid" />
   <field id="turbulence__thermal_speed" name="thermal_speed" long_name="bl_updraft_thermal_speed" unit="m s-1" domain_ref="face" />
   <field id="turbulence__dsldzm" name="dsldzm" long_name="liquid_temperature_gradient" unit="kg m-1" grid_ref="full_level_face_grid" />
@@ -682,6 +681,7 @@
   <field id="zoomed__rib" field_ref="turbulence__gradrinr" grid_ref="full_level_0_face_zoom" />
   <field id="turbulence__rib" name="rib" long_name="lowest_layer_bulk_richardson_number" unit="1" domain_ref="face"> zoomed__rib </field>
   <field id="turbulence__rhokh" name="rhokh_bl" long_name="scalar_eddy_diffusivity_times_density" unit="kg m-1 s-1" grid_ref="half_level_face_grid" />
+  <field id="turbulence__rhokm" name="rhokm_bl" long_name="momentum_eddy_diffusivity_times_density" unit="kg m-1 s-1" grid_ref="full_level_face_grid" />
   <field id="turbulence__heat_flux_bl" name="heat_flux_bl" long_name="upward_heat_flux_in_air" unit="W m-2" grid_ref="half_level_face_grid" />
   <field id="turbulence__moist_flux_bl" name="moist_flux_bl" long_name="upward_moisture_flux_in_air" unit="kg m-2 s-1" grid_ref="half_level_face_grid" />
   <field id="turbulence__taux" name="taux" long_name="eastward_wind_stress" unit="N m-2" grid_ref="half_level_face_grid" />
@@ -694,6 +694,23 @@
   <field id="turbulence__ent_t_frac_dsc" name="ent_t_frac_dsc" long_name="fraction_of_time_decoupled_stratocumulus_inversion_is_above_level" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
   <field id="turbulence__ent_zrzi" name="ent_zrzi" long_name="level_height_as_fraction_of_sml_inversion_height_above_mixed_layer_base" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
   <field id="turbulence__ent_zrzi_dsc" name="ent_zrzi_dsc" long_name="level_height_as_fraction_of_dsc_inversion_height_above_mixed_layer_base" unit="1" domain_ref="face" axis_ref="entrainment_levels" />
+  <field id="turbulence__tke" name="tke_bl" long_name="turbulent_kinetic_energy" unit="m2 s-2" grid_ref="full_level_face_grid" />
+  <field id="turbulence__tsq" name="tsq_bl" long_name="second_moment_of_liquid_water_potential_temperature" unit="K2" grid_ref="full_level_face_grid" />
+  <field id="turbulence__qsq" name="qsq_bl" long_name="second_moment_of_total_water_mass_ratio" unit="kg2 kg-2" grid_ref="full_level_face_grid" />
+  <field id="turbulence__cov" name="cov_bl" long_name="covariance_of_liquid_water_potential_temperature_and_total_water_mass_ratio" unit="K kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="turbulence__zhpar_shcu" name="zhpar_shcu" long_name="height_for_non-gradient_buoyancy_flux_from_HoC" unit="m" domain_ref="face" />
+  <field id="turbulence__master_length" name="master_length" long_name="turbulent_length_scale_from_HoC" unit="m" grid_ref="full_level_face_grid" />
+  <field id="turbulence__rhogamu" name="rhogamu_bl" long_name="non-local_eastward_wind_stress_from_HoC" unit="N m-2" grid_ref="full_level_face_grid" />
+  <field id="turbulence__rhogamv" name="rhogamv_bl" long_name="non-local_northward_wind_stress_from_HoC" unit="N m-2" grid_ref="full_level_face_grid" />
+  <field id="turbulence__rhogamt" name="rhogamt_bl" long_name="non-local_sensible_heat_flux_from_HoC" unit="W m-2" grid_ref="half_level_face_grid" />
+  <field id="turbulence__rhogamq" name="rhogamq_bl" long_name="non-local_latent_heat_flux_from_HoC" unit="W m-2" grid_ref="half_level_face_grid" />
+  <field id="turbulence__tke_shr_prod" name="tke_shr_prod" long_name="production_rate_of_TKE_by_shear" unit="m2 s-3" grid_ref="full_level_face_grid" />
+  <field id="turbulence__tke_boy_prod" name="tke_boy_prod" long_name="production_rate_of_TKE_by_buoyancy" unit="m2 s-3" grid_ref="full_level_face_grid" />
+  <field id="turbulence__tke_dissp" name="tke_dissp" long_name="dissipation_rate_of_TKE" unit="m2 s-3" grid_ref="full_level_face_grid" />
+  <field id="turbulence__sm25" name="sm25" long_name="stability_function_for_momentum_from_HoC" unit="1" grid_ref="full_level_face_grid" />
+  <field id="turbulence__sh25" name="sh25" long_name="stability_function_for_scalar_from_HoC" unit="1" grid_ref="full_level_face_grid" />
+  <field id="turbulence__dbdz" name="dbdz" long_name="vertical_gradient_of_buoyancy" unit="m2 s-2" grid_ref="full_level_face_grid" />
+  <field id="turbulence__dvdzm" name="dvdzm" long_name="modulus_of_wind_shear" unit="s-1" grid_ref="full_level_face_grid" />
   <!-- diffusion diagnostics -->
   <field id="diffusion__dtheta_smag" name="dtheta_smag" long_name="theta_increment_from_smagorinsky_mixing" unit="K" grid_ref="full_level_face_grid" />
   <field id="diffusion__dmv_smag" name="dmv_smag" long_name="vapour_increment_from_smagorinsky_mixing" unit="kg kg-1" grid_ref="full_level_face_grid" />
