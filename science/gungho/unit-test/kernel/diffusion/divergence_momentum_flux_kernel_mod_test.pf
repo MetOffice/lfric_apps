@@ -115,7 +115,9 @@ contains
                               leonard_kl    = 4.0_r_def,         &
                               conservative_diffusion = .true.,   &
                               density_weighted = .true.,         &
-                              max_diff_factor=1.0_r_def )
+                              max_diff_factor  = 1.0_r_def,      &
+                              cap_blended_ml   = .false.,        &
+                              shallow_cu_maxtop= 0.0_r_def )
 
     ! Variables for testing momentum_smagorinsky
     ! Get sizes of everything

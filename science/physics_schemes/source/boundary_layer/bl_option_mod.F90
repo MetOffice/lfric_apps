@@ -282,7 +282,10 @@ integer, parameter :: blend_gridindep_fa =3
 ! as minimum, and use cloud-top as blending length-scale only for shallow cu
 integer, parameter :: blend_cth_shcu_only =4
 
-! 11a max permitted cloud top height in metres for shallow cu, used for
+! 11a switch to cap the blended mixing length by the 1D
+LOGICAL :: cap_blended_ml = .FALSE.
+
+! 11b max permitted cloud top height in metres for shallow cu, used for
 !     blending_option=blend_cth_shcu_only
 real(kind=r_bl) :: shallow_cu_maxtop = rmdi
 
@@ -639,6 +642,8 @@ call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_noice_in_turb = ',l_noice_in_turb
 call umprint(linebuffer,src='bl_option_mod')
 write(lineBuffer,'(A,ES12.4)') 'shallow_cu_maxtop = ',shallow_cu_maxtop
+call umprint(linebuffer,src='bl_option_mod')
+write(lineBuffer,'(A,L1)') ' cap_blended_ml = ',cap_blended_ml
 call umprint(linebuffer,src='bl_option_mod')
 write(lineBuffer,'(2(A,F0.5))') 'alpha_cd_in = ',                              &
                                     alpha_cd_in(1),' ',alpha_cd_in(2)

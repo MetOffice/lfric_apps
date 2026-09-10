@@ -27,7 +27,7 @@ subroutine ex_coef (                                                           &
  bl_levels, k_log_layr, BL_diag,                                               &
 ! in fields
  sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m,zhnl,zhpar,zhsc,zdsc_base,   &
- ntpar,ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,delta_smag,        &
+ ntpar,ntml_nl,ntdsc,nbdsc,cumulus_cth,rmlmax2,rneutml_sq,delta_smag,          &
 ! in/out fields
  cumulus,weight_1dbl,                                                          &
 ! out fields
@@ -48,7 +48,7 @@ use bl_option_mod, only:  WeightLouisToLong, Variable_RiC, cbl_op,             &
    lambda_fac, beta_bl, beta_fa, rlinfac, linear0, smooth_to_bdys,             &
    to_sharp_across_1km, ntml_level_corrn, free_trop_layers, two_thirds,        &
    blending_option, blend_except_cu, blend_gridindep_fa, blend_cth_shcu_only,  &
-   extended_tail, zero, one, one_half
+   shallow_cu_maxtop, extended_tail, zero, one, one_half, cap_blended_ml
 use conversions_mod, only: pi => pi_bl
 use gen_phys_inputs_mod, only: l_mr_physics
 
@@ -119,12 +119,10 @@ real(kind=r_bl), intent(in) ::                                                 &
                  ! IN Land fraction on all tiles.
  rneutml_sq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),    &
                  ! IN Square of the neutral mixing length for Smagorinsky
- delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
+ delta_smag(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),              &
                  ! IN delta_x used by Smagorinsky
-
-logical, intent(in) ::                                                         &
-  l_shallow_cth(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
-                 ! IN Flag to indicate shallow convection based on cl-top
+ cumulus_cth(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
+                 ! IN cloud-top height for identifying shallow cu in blending
 
 ! Declaration of new BL diagnostics.
 type (strnewbldiag), intent(in out) :: BL_diag
@@ -192,6 +190,7 @@ character(len=*), parameter ::  RoutineName = 'EX_COEF'
 real(kind=r_bl) :: eh,em,g0,dh,dm,r_c_tke
 real(kind=r_bl) :: subbmin,subbmax,subcmin,subcmax
 real(kind=r_bl) :: a_ri,b_ri
+real(kind=r_bl) :: elm_1d, elh_1d
 
 parameter (                                                                    &
  eh=25.0_r_bl,                                                                 &
@@ -793,12 +792,13 @@ end if
 
 do k = 2, bl_levels
 !$OMP  PARALLEL DEFAULT(none)                                                  &
-!$OMP  PRIVATE(z_scale,i,lambdam,lambdah,vkz,f_log,zz,zht,zfa,beta)            &
+!$OMP  PRIVATE(z_scale,i,lambdam,lambdah,vkz,f_log,zz,zht,zfa,beta,elm_1d,     &
+!$OMP          elh_1d)                                                         &
 !$OMP  SHARED(k,pdims,ri,ricrit,flandg,ntml_local,ntml_nl,z_tq,                &
 !$OMP  l_rp2,lambda_min,par_mezcla_rp,zh_local,turb_length,k_log_layr,         &
-!$OMP  z_uv,z0m,elm,elh,elh_rho,blending_option,cumulus,l_shallow_cth,zhpar,   &
+!$OMP  z_uv,z0m,elm,elh,elh_rho,blending_option,cumulus,cumulus_cth,zhpar,     &
 !$OMP  ntdsc,weight_1dbl,weight_bltop,delta_smag,rneutml_sq,BL_diag,local_fa,  &
-!$OMP  lambda_min_use)
+!$OMP  lambda_min_use,shallow_cu_maxtop,cap_blended_ml)
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     !------------------------------------------------------------------------
@@ -890,10 +890,13 @@ do k = 2, bl_levels
       ! zht = interface between BL and FA
       zht = max( z_uv(i,j,ntml_nl(i,j)+1) , zh_local(i,j) )
       ! Relevant scale in cumulus layers can be cloud top height, zhpar
-      if ( cumulus(i,j) .and. ( blending_option /= blend_cth_shcu_only .or.  &
-                                l_shallow_cth(i,j) ) ) then
+      if ( cumulus(i,j) .and. blending_option /= blend_cth_shcu_only ) then
         z_scale = max( z_scale, zhpar(i,j) )
         zht     = max( zht, zhpar(i,j) )
+      else if ( cumulus(i,j) .and. blending_option == blend_cth_shcu_only    &
+                .and. cumulus_cth(i,j) < shallow_cu_maxtop ) THEN
+        z_scale = max( z_scale, cumulus_cth(i,j) )
+        zht     = max( zht, cumulus_cth(i,j) )
       end if
 
       ! BL top includes decoupled stratocu layer, if it exists
@@ -949,7 +952,6 @@ do k = 2, bl_levels
                one - tanh( beta_bl*z_scale/delta_smag(i,j)) *                  &
                 max( zero,                                                     &
                  min( one, (linear0-delta_smag(i,j)/z_scale)*rlinfac) )
-
             end if
           end if ! test on zz < zht
         else
@@ -968,10 +970,17 @@ do k = 2, bl_levels
         end if
       end if
 
+      elm_1d = elm(i,j,k)
+      elh_1d = elh(i,j,k)
       elm(i,j,k) = elm(i,j,k)*weight_1dbl(i,j,k) +                             &
                    sqrt(rneutml_sq(i,j,k-1))*(one-weight_1dbl(i,j,k))
       elh(i,j,k) = elh(i,j,k)*weight_1dbl(i,j,k) +                             &
                    sqrt(rneutml_sq(i,j,k-1))*(one-weight_1dbl(i,j,k))
+      if (cap_blended_ml) then
+        ! restrict blended lengthscale to be at most the 1d
+        elm(i,j,k) = MIN( elm_1d, elm(i,j,k) )
+        elh(i,j,k) = MIN( elh_1d, elh(i,j,k) )
+      end if
     end do
 !$OMP end do
   end if  ! test on blending_option
