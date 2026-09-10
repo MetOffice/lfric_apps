@@ -89,6 +89,7 @@ contains
     integer(kind=i_def)                :: fs_id
     type(function_space_type), pointer :: fs_w3_src, fs_w3_dst
     type(function_space_type), pointer :: fs_wth_src, fs_wth_dst
+    type(function_space_type), pointer :: fs_type
     type(mesh_type),           pointer :: mesh_dst
 
     character(len=str_def)   :: mesh_names(2)
@@ -101,7 +102,7 @@ contains
 
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
-
+    integer(kind=i_def) :: ndata_src, ndata_dst
 
     ! Obtain namelist parameters
     mesh_names(dst) = modeldb%config%lfric2lfric%destination_mesh_name()
@@ -150,6 +151,16 @@ contains
       write(log_scratch_space, '(A,A)') "Processing lfric field ", &
                                            trim(field_name)
       call log_event(log_scratch_space, log_level_info)
+
+      ! Is this a multidata field and is ndata the same?
+      fs_type => field_src%get_function_space()
+      ndata_src = fs_type%get_ndata()
+      fs_type => field_dst%get_function_space()
+      ndata_dst = fs_type%get_ndata()
+      if (ndata_dst /= ndata_src) then
+        write(log_scratch_space, '(A)') "ndata not equal "
+        call log_event(log_scratch_space, log_level_info)
+      end if
 
       ! Convert W2 fields to a set of W3 and Wtheta fields
       fs_id = field_src%which_function_space()

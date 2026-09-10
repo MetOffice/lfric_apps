@@ -32,8 +32,12 @@ module lfric2lfric_driver_mod
   use lfric2lfric_infrastructure_mod, only: initialise_infrastructure, &
                                             context_dst, context_src,  &
                                             source_collection_name,    &
-                                            target_collection_name
+                                            target_collection_name,    &
+                                            interm_collection_name
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
+  use lfric2lfric_vert_mod,           only: lfric2lfric_vert
+  use lfric2lfric_tiles_mod,          only: lfric2lfric_tiles
+  
 
   implicit none
 
@@ -98,8 +102,14 @@ contains
 
     type(field_collection_type),   pointer :: source_fields
     type(field_collection_type),   pointer :: target_fields
+    type(field_collection_type),   pointer :: interm_fields
 
     type(lfric_xios_context_type), pointer :: io_context
+
+    logical(kind=l_def), pointer :: vertical_change
+    logical(kind=l_def), pointer :: horizontal_change
+    logical(kind=l_def), pointer :: tile_change
+    logical(kind=l_def) :: vertical_or_tile_change
 
     ! Extract configuration variables
     start_dump_filename  = modeldb%config%files%start_dump_filename()
@@ -112,12 +122,40 @@ contains
     source_fields => modeldb%fields%get_field_collection(source_collection_name)
     target_fields => modeldb%fields%get_field_collection(target_collection_name)
 
+    call modeldb%values%get_value("vertical_change", vertical_change)
+    call modeldb%values%get_value("horizontal_change", horizontal_change)
+    call modeldb%values%get_value("tile_change", tile_change)
+
+    if (vertical_change .or. tile_change) then
+       vertical_or_tile_change = .true.
+    end if
+    if (horizontal_change .and. vertical_or_tile_change) then
+       interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
+
+    else if (horizontal_change .and. .not. vertical_or_tile_change) then
+       interm_fields =>  modeldb%fields%get_field_collection(target_collection_name)
+
+    else if (vertical_or_tile_change .and. .not. horizontal_change) then
+       interm_fields =>  modeldb%fields%get_field_collection(source_collection_name)
+
+    else
+       interm_fields => null()
+    end if
+
     ! Read fields and perform the regridding
     if (mode == mode_ics) then
       call read_state(source_fields, prefix='restart_')
 
-      call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
-                              target_fields, regrid_method)
+      if (horizontal_change) then
+        call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
+                                interm_fields, regrid_method)
+      end if
+      if (vertical_change) then
+        call lfric2lfric_vert(modeldb, interm_fields, target_fields)
+      end if
+      if (tile_change) then
+        call lfric2lfric_tiles(modeldb, interm_fields, target_fields)
+      end if
 
       ! Write output
       call modeldb%io_contexts%get_io_context(context_dst, io_context)
@@ -139,8 +177,13 @@ contains
 
         call read_state(source_fields)
 
-        call lfric2lfric_regrid(modeldb, oasis_clock, source_fields, &
-                                target_fields, regrid_method)
+        if (horizontal_change) then
+          call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
+                                  interm_fields, regrid_method)
+        end if
+        if (vertical_change) then
+          call lfric2lfric_vert(modeldb, interm_fields, target_fields)
+        end if
 
         is_running = modeldb%clock%tick()
 

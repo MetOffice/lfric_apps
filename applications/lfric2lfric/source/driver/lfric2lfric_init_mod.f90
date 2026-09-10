@@ -11,7 +11,7 @@
 
 module lfric2lfric_init_mod
 
-  use constants_mod,              only: i_def, r_def, str_def
+  use constants_mod,              only: i_def, r_def, str_def, l_def
   use driver_modeldb_mod,         only: modeldb_type
   use field_collection_mod,       only: field_collection_type
   use lfric_xios_context_mod,     only: lfric_xios_context_type
@@ -19,10 +19,16 @@ module lfric2lfric_init_mod
                                         log_level_info
   use mesh_mod,                   only: mesh_type
   use netcdf,                     only: nf90_max_name
+  use orography_config_mod,       only: orog_init_option,          &
+                                        orog_init_option_analytic, &
+                                        orog_init_option_ancil,    &
+                                        orog_init_option_start_dump
 
   ! lfric2lfric mods
   use lfric2lfric_config_mod,     only: mode_ics, mode_lbc
   use lfric2lfric_field_init_mod, only: get_field_list, field_maker
+  use lfric2lfric_query_multilayer_mod, &
+                                  only: query_multilayer
 
   implicit none
   private
@@ -43,14 +49,19 @@ module lfric2lfric_init_mod
   !> @param [in]       origin_collection_name Holds the origin fields
   !> @param [in]       origin_mesh            Mesh to initialise 3D fields
   !> @param [in]       origin_twod_mesh       Mesh to initialise 2D fields
+  !> @param [in]       interm_collection_name Holds the intermediate fields
+  !> @param [in]       interm_mesh            Mesh for intermediate 3D fields
+  !> @param [in]       interm_twod_mesh       Mesh for intermediate 2D fields
   !> @param [in]       target_collection_name Holds target fields
   !> @param [in]       target_mesh            Mesh for target 3D fields
   !> @param [in]       target_twod_mesh       Mesh for target 2D fields
-  subroutine init_lfric2lfric( modeldb, context_src, context_dst, &
-                               start_dump_filename, mode,         &
-                               origin_collection_name,            &
-                               origin_mesh, origin_twod_mesh,     &
-                               target_collection_name,            &
+  subroutine init_lfric2lfric( modeldb, context_src, context_dst,  &
+                               start_dump_filename, mode,          &
+                               origin_collection_name,             &
+                               origin_mesh, origin_twod_mesh,      &
+                               interm_collection_name,             &
+                               interm_mesh, interm_twod_mesh,      &
+                               target_collection_name,             &
                                target_mesh, target_twod_mesh  )
 
     implicit none
@@ -63,13 +74,22 @@ module lfric2lfric_init_mod
     character(len=*),   intent(in)          :: origin_collection_name
     type(mesh_type),    intent(in), pointer :: origin_mesh
     type(mesh_type),    intent(in), pointer :: origin_twod_mesh
-    ! Optionals
+    character(len=*),   intent(in)          :: interm_collection_name
+    type(mesh_type),    intent(in), pointer :: interm_mesh
+    type(mesh_type),    intent(in), pointer :: interm_twod_mesh
     character(len=*),   intent(in)          :: target_collection_name
     type(mesh_type),    intent(in), pointer :: target_mesh
     type(mesh_type),    intent(in), pointer :: target_twod_mesh
 
+    logical(l_def), pointer :: horizontal_change
+    logical(l_def), pointer :: vertical_change
+    logical(l_def), pointer :: tile_change
+    logical(l_def), parameter :: no_xios = .true.
+
     ! For field creation and storage
-    type(field_collection_type), pointer :: field_collection
+    type(field_collection_type), pointer :: target_fields
+    type(field_collection_type), pointer :: source_fields
+    type(field_collection_type), pointer :: interm_fields
 
     ! For get_field_list returns
     integer(kind=i_def)                 :: num_fields
@@ -83,6 +103,9 @@ module lfric2lfric_init_mod
     integer(kind=i_def) :: i
 
     call log_event( 'lfric2lfric: Initialising miniapp ...', log_level_info )
+
+    call modeldb%values%get_value("vertical_change", vertical_change)
+    call modeldb%values%get_value("horizontal_change", horizontal_change)
 
     if (mode == mode_ics) then
       prefix = 'restart_'
@@ -98,11 +121,11 @@ module lfric2lfric_init_mod
     !--------------------------------------------------------------------------
     ! Initialise our field collection
     call modeldb%fields%add_empty_field_collection(origin_collection_name)
-    field_collection => modeldb%fields%get_field_collection(origin_collection_name)
+    source_fields => modeldb%fields%get_field_collection(origin_collection_name)
 
     ! Now need to loop over length of config_list make field for each
     do i = 1, num_fields
-      call field_maker( field_collection, &
+      call field_maker( source_fields,    &
                         config_list(i),   &
                         origin_mesh,      &
                         origin_twod_mesh, &
@@ -113,8 +136,7 @@ module lfric2lfric_init_mod
     ! Initialise Target Fields
     !--------------------------------------------------------------------------
     call modeldb%fields%add_empty_field_collection(target_collection_name)
-    field_collection => &
-                    modeldb%fields%get_field_collection(target_collection_name)
+    target_fields => modeldb%fields%get_field_collection(target_collection_name)
 
     call modeldb%io_contexts%get_io_context(context_dst, io_context)
     call io_context%set_current()
@@ -126,15 +148,53 @@ module lfric2lfric_init_mod
     end if
 
     do i = 1, num_fields
-      call field_maker( field_collection, &
+      call field_maker( target_fields,    &
                         config_list(i),   &
                         target_mesh,      &
                         target_twod_mesh, &
                         prefix )
     end do
 
+    if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil .or.    &
+         orog_init_option == orog_init_option_start_dump ) then
+       if ( mode == mode_ics ) then
+
+        call field_maker(target_fields, trim('surface_altitude'), &
+             target_mesh, target_twod_mesh, prefix)
+
+     end if
+    end if
+
+    call query_multilayer( modeldb, source_fields, target_fields )
+    call modeldb%values%get_value("tile_change", tile_change)
+    
+    !--------------------------------------------------------------------------
+    ! Initialise Intermediate Fields
+    !--------------------------------------------------------------------------
     call modeldb%io_contexts%get_io_context(context_src, io_context)
     call io_context%set_current()
+    
+    if ( (horizontal_change .and. vertical_change) .or. &
+         (horizontal_change .and. tile_change)) then
+      call modeldb%fields%add_empty_field_collection(interm_collection_name)
+      interm_fields => modeldb%fields%get_field_collection(interm_collection_name)
+
+      if (mode == mode_ics) then
+        prefix = 'restart_'
+      else if (mode == mode_lbc) then
+        prefix = ''
+      end if
+
+      do i = 1, num_fields
+        call field_maker( interm_fields,    &
+                          config_list(i),   &
+                          interm_mesh,      &
+                          interm_twod_mesh, &
+                          prefix,           &
+                          no_xios )
+      end do
+    end if
 
     ! Now finished with config_list, deallocate
     deallocate(config_list)

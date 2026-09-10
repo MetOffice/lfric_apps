@@ -7,7 +7,7 @@
 !>        routine for field creation.
 module lfric2lfric_field_init_mod
 
-  use constants_mod,                      only: i_def, str_def
+  use constants_mod,                      only: i_def, str_def, l_def
   use field_collection_mod,               only: field_collection_type
   use field_mod,                          only: field_type
   use field_parent_mod,                   only: read_interface,            &
@@ -135,14 +135,18 @@ contains
   !!                                    initalised on
   !> @param [in]      twod_mesh         The 2D mesh the field could be
   !!                                    intialised on
-  subroutine field_maker(field_collection, field_name, mesh, twod_mesh, prefix)
+  !> @param [in, optional] input_no_xios Don't apply xios associated parts
+  subroutine field_maker(field_collection, field_name, mesh, twod_mesh, prefix, input_no_xios)
 
     type(field_collection_type), pointer, intent(inout) :: field_collection
     character(len=*),                     intent(in)    :: field_name
     type(mesh_type),             pointer, intent(in)    :: mesh
     type(mesh_type),             pointer, intent(in)    :: twod_mesh
     character(len=nf90_max_name),         intent(in)    :: prefix
-
+    logical(l_def), optional,             intent(in)    :: input_no_xios
+    
+    logical(l_def)    :: no_xios
+    
     ! Field object to initialise
     type(field_type) :: field
 
@@ -153,6 +157,13 @@ contains
     procedure(checkpoint_write_interface), pointer :: cp_write_behaviour
     procedure(checkpoint_read_interface),  pointer :: cp_read_behaviour
 
+    no_xios = .false.
+    if (present(input_no_xios)) then
+       if (input_no_xios) then
+          no_xios = .true.
+       end if
+    endif
+    
     ! Set write behaviour to generic
     write_behaviour    => write_field_generic
     read_behaviour     => read_field_generic
@@ -170,11 +181,13 @@ contains
                             name=field_name)
 
       ! Set the generic write behaviours
-      call field%set_read_behaviour(read_behaviour)
-      call field%set_write_behaviour(write_behaviour)
-      call field%set_checkpoint_read_behaviour(cp_read_behaviour)
-      call field%set_checkpoint_write_behaviour(cp_write_behaviour)
-
+      if ( .NOT. no_xios ) then
+        call field%set_read_behaviour(read_behaviour)
+        call field%set_write_behaviour(write_behaviour)
+        call field%set_checkpoint_read_behaviour(cp_read_behaviour)
+        call field%set_checkpoint_write_behaviour(cp_write_behaviour)
+     end if
+     
       call log_event("Adding " // trim(field_name) // &
                      " to field collection " //       &
                     field_collection%get_name(),      &

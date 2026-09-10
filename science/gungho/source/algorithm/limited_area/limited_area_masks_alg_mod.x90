@@ -21,6 +21,7 @@ module limited_area_masks_alg_mod
                                                 log_scratch_space, &
                                                 LOG_LEVEL_ERROR,   &
                                                 LOG_LEVEL_INFO,    &
+                                                LOG_LEVEL_DEBUG,   &
                                                 LOG_LEVEL_WARNING
   use function_space_mod,                 only: function_space_type
   use function_space_collection_mod,      only: function_space_collection
@@ -532,6 +533,8 @@ contains
 
     if ( lbc_method == lbc_method_onion_layer )then
 
+      call log_event('Creating blend mask using onion layers', LOG_LEVEL_DEBUG)
+
       fs_enum = mask%which_function_space()
 
       select case(fs_enum)
@@ -554,6 +557,8 @@ contains
       end select
 
     else
+
+      call log_event('Creating blend mask using coordinates', LOG_LEVEL_DEBUG)
 
       !     |<-------------rim_width------------>|
       !     |            |           |           |
