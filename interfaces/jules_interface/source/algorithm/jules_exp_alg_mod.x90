@@ -411,7 +411,7 @@ contains
     ! According to notes, each stencil field need to be followed by extent
 ! https://psyclone.readthedocs.io/en/latest/user_guide/lfric.html#stencil-extent
 
-    call invoke( jules_exp_kernel_type(&
+    call invoke( jules_exp_kernel_type( &
                                theta, &
                                exner_in_wth,                   &
                                u_in_w3, &
@@ -511,6 +511,7 @@ contains
 			       dust_flux,                           &
                                day_of_year, &
 			       second_of_day,                     &
+			       ncells_halo, & ! here
                                flux_e, &
 			       flux_h, &
 			       urbwrr,                         &

@@ -48,7 +48,7 @@ module jules_exp_kernel_mod
     private
     ! its looking for 113 arguments
     ! missing u_w3_stencil / v_w3_stencil / tile_stencil / sea_u_w3_stencil / sea_v_w3_stencil
-    type(arg_type) :: meta_args(108) = (/                                      &
+    type(arg_type) :: meta_args(109) = (/                                      &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! exner_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3, STENCIL(REGION)),      &! u_in_w3
@@ -143,6 +143,7 @@ module jules_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_10),&! dust_div_flux
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ), &! day_of_year
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ), &! second_of_day
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ), &! seg_len_halo
          arg_type(GH_SCALAR, GH_REAL,    GH_READ                             ), &! flux_e
          arg_type(GH_SCALAR, GH_REAL,    GH_READ                             ), &! flux_h
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbwrr
@@ -265,6 +266,7 @@ contains
   !> @param[in,out] dust_div_flux          Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1)
   !> @param[in]     day_of_year            The day of the year
   !> @param[in]     second_of_day          The second of the day
+  !> @param[in]     seg_len_halo           seg_len_halo
   !> @param[in]     flux_e                 Latent heat flux
   !> @param[in]     flux_h                 Sensible heat flux
   !> @param[in]     urbwrr                 Urban repeating width ratio
@@ -318,7 +320,7 @@ contains
   ! AJH pro tip
   ! put each argument on a separate line so that its easy to
   ! compare the kernel and algorithm with side by side editors
-  subroutine jules_exp_code(nlayers, seg_len, seg_len_halo,       &
+  subroutine jules_exp_code(nlayers, seg_len,                     &
                            theta_in_wth,                          &
                            exner_in_wth,                          &
                            u_in_w3,                               &
@@ -423,6 +425,7 @@ contains
                            dust_div_flux,                         &
                            day_of_year,                           &
                            second_of_day,                         &
+                           seg_len_halo, & ! here
                            flux_e,                                &
                            flux_h,                                &
                            urbwrr,                                &
