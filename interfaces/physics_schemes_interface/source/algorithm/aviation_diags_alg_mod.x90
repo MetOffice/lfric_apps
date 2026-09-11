@@ -86,7 +86,8 @@ contains
     ! Locals
     type(field_type)                         :: wind_h, wind_v
     type(field_type)                         :: div_ml, div_pl
-    type(r_tran_operator_type), pointer      :: div_op
+    type(r_tran_operator_type), pointer      :: div_op_r_tran
+    type(operator_type)                      :: div_op
 
     type(integer_field_type), pointer        :: face_selector_ew => null()
     type(integer_field_type), pointer        :: face_selector_ns => null()
@@ -94,9 +95,6 @@ contains
     integer(i_def)                           :: nplev
     real(r_def), allocatable                 :: plevs(:)
     logical(l_def)                           :: div_flag
-
-    type(r_tran_operator_type), pointer      :: div_op_r_tran
-    type(operator_type)                      :: div_op
 
 
     ! requested this time step?
