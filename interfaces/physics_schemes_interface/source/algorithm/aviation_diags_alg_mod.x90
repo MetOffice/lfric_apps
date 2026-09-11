@@ -71,6 +71,10 @@ contains
     use lfric_xios_diag_mod,            only: get_axis_dimension, &
                                               get_axis_values
 
+    use sci_operator_algebra_kernel_mod, only: operator_setval_x_kernel_type
+    use operator_mod,                    only: operator_type
+
+
     implicit none
 
     ! Arguments
@@ -91,13 +95,21 @@ contains
     real(r_def), allocatable                 :: plevs(:)
     logical(l_def)                           :: div_flag
 
+    type(r_tran_operator_type), pointer      :: div_op_r_tran
+    type(operator_type)                      :: div_op
+
 
     ! requested this time step?
     div_flag = init_diag(div_pl, 'aviation__uv_wind_divergence')
     if (.not. div_flag) return
 
     ! Get the horizontal div operator matrix for this mesh.
-    div_op => get_directional_im3_div_r_tran(wind%get_mesh_id(), direction_h)
+    ! We get transport precision because there's no r_def version.
+    div_op_r_tran => get_directional_im3_div_r_tran(wind%get_mesh_id(), direction_h)
+
+    ! Convert the operator to r_def precision.
+    call div_op%initialise( div_op_r_tran%get_fs_to(), div_op_r_tran%get_fs_from() )
+    call invoke( operator_setval_x_kernel_type( div_op, div_op_r_tran ) )
 
     ! Split the 3d wind into horizontal and vertical components.
     face_selector_ew => get_face_selector_ew(wind%get_mesh())
@@ -117,7 +129,8 @@ contains
         main_mesh, element_order_h, element_order_v, W3 ))
     call invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
 
-    ! Multiply by 1.0e6.
+    ! Units are s**-1, for convenience scaled by 1.0E6
+    ! (see UM's STASHmaster-meta.conf, code 20005).
     call invoke(inc_a_times_X(1.0e6_r_def, div_ml))
 
 
