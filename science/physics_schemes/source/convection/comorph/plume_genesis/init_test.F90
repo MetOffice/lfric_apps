@@ -61,6 +61,7 @@ integer :: lb_r(3), ub_r(3)
 integer :: lb_f(3), ub_f(3)
 integer :: lb_s(3), ub_s(3)
 integer :: lb_g(3), ub_g(3)
+integer :: lb_t(3), ub_t(3)
 
 ! Loop counters
 integer :: i, j, k
@@ -83,13 +84,15 @@ lb_s = lbound(fields % q_snow)
 ub_s = ubound(fields % q_snow)
 lb_g = lbound(fields % q_graup)
 ub_g = ubound(fields % q_graup)
+lb_t = lbound(fields % temperature)
+ub_t = ubound(fields % temperature)
 
 ! Loop over levels
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC)                               &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, k_top_init,            &
 !$OMP         grid, fields, virt_temp, l_init_poss, l_cv_snow,                 &
 !$OMP         lb_z, ub_z, lb_p, ub_p, lb_v, ub_v, lb_l, ub_l, lb_r, ub_r,      &
-!$OMP         lb_f, ub_f, lb_s, ub_s, lb_g, ub_g )                             &
+!$OMP         lb_f, ub_f, lb_s, ub_s, lb_g, ub_g, lb_t, ub_t )                 &
 !$OMP PRIVATE( i, j, k )
 do k = k_bot_conv, k_top_init
 
@@ -118,6 +121,7 @@ do k = k_bot_conv, k_top_init
                         lb_f(1:2), ub_f(1:2), fields % q_cf(:,:,k),            &
                         lb_s(1:2), ub_s(1:2), fields % q_snow(:,:,k),          &
                         lb_g(1:2), ub_g(1:2), fields % q_graup(:,:,k),         &
+                        lb_t(1:2), ub_t(1:2), fields % temperature(:,:,k),     &
                         l_init_poss(:,:,k) )
 
   end if  ! ( k < k_top_conv )
@@ -136,6 +140,7 @@ do k = k_bot_conv, k_top_init
                         lb_f(1:2), ub_f(1:2), fields % q_cf(:,:,k),            &
                         lb_s(1:2), ub_s(1:2), fields % q_snow(:,:,k),          &
                         lb_g(1:2), ub_g(1:2), fields % q_graup(:,:,k),         &
+                        lb_t(1:2), ub_t(1:2), fields % temperature(:,:,k),     &
                         l_init_poss(:,:,k) )
 
   end if  ! ( k > k_bot_conv )

@@ -15,15 +15,14 @@ contains
 
 ! Subroutine to pre-estimate the subsidence warming per unit mass-flux,
 ! for use in the implicit detrainment calculations.
-subroutine calc_delta_tv( l_kpdk, l_last_level,                                &
+subroutine calc_delta_tv( l_kpdk,                                              &
                           cmpr, k, k_next, dk, ij_first, ij_last,              &
                           virt_temp, layer_mass, grid, fields,                 &
                           delta_tv )
 
 use comorph_constants_mod, only: real_cvprec, real_hmprec,                     &
                                  zero, one,                                    &
-                                 nx_full, ny_full, k_bot_conv, k_top_conv,     &
-                                 comorph_timestep, alpha_detrain
+                                 nx_full, ny_full, k_bot_conv, k_top_conv
 use cmpr_type_mod, only: cmpr_type
 use grid_type_mod, only: grid_type, n_grid, i_height, i_pressure,              &
                          grid_compress
@@ -37,8 +36,6 @@ implicit none
 
 ! Flag for 2nd call when estimating subsidence increment at next
 logical, intent(in) :: l_kpdk
-! Flag for last model-level (in-which case k+dk doesn't exist)
-logical, intent(in) :: l_last_level
 
 ! Compression indices for points where this needs to be calculated
 type(cmpr_type), intent(in) :: cmpr
@@ -86,9 +83,6 @@ real(kind=real_cvprec) :: fields_k(cmpr%n_points,i_temperature:i_qc_last)
 
 ! Fraction of level-step contained on current half-level
 real(kind=real_cvprec) :: frac_level_step(cmpr%n_points)
-
-! Exner ratio for subsidence of Tv over half-level step
-real(kind=real_cvprec) :: exner_ratio(cmpr%n_points)
 
 ! Compressed subsidence warming per unit mass-flux
 real(kind=real_cvprec) :: delta_tv_cmpr(cmpr%n_points)
@@ -151,26 +145,18 @@ if ( l_kpdk ) then
   ub = [nx_full,ny_full,k_top_conv]
   call compress( cmpr, lb(1:2), ub(1:2), virt_temp(:,:,k),                     &
                  virt_temp_1 )
-  if ( l_last_level ) then
-    ! Can't interpolate at last level as fields don't exist at k+dk,
-    ! so just assume constant Tv
-    do ic = 1, cmpr%n_points
-      virt_temp_2(ic) = virt_temp_1(ic)
-    end do
-  else
-    call compress( cmpr, lb(1:2), ub(1:2), virt_temp(:,:,k+dk),                &
-                   virt_temp_2 )
-    lb = lbound(grid%height_full)
-    ub = ubound(grid%height_full)
-    call compress( cmpr, lb(1:2), ub(1:2), grid%height_full(:,:,k+dk),         &
-                   height_work )
-    do ic = 1, cmpr%n_points
-      interp = ( grid_2(ic,i_height) - grid_1(ic,i_height) )                   &
-             / ( height_work(ic)     - grid_1(ic,i_height) )
-      virt_temp_2(ic) = (one-interp) * virt_temp_1(ic)                         &
-                      +      interp  * virt_temp_2(ic)
-    end do
-  end if
+  call compress( cmpr, lb(1:2), ub(1:2), virt_temp(:,:,k+dk),                  &
+                 virt_temp_2 )
+  lb = lbound(grid%height_full)
+  ub = ubound(grid%height_full)
+  call compress( cmpr, lb(1:2), ub(1:2), grid%height_full(:,:,k+dk),           &
+                 height_work )
+  do ic = 1, cmpr%n_points
+    interp = ( grid_2(ic,i_height) - grid_1(ic,i_height) )                     &
+           / ( height_work(ic)     - grid_1(ic,i_height) )
+    virt_temp_2(ic) = (one-interp) * virt_temp_1(ic)                           &
+                    +      interp  * virt_temp_2(ic)
+  end do
 
 else
   ! 1st half-level step from prev to k...
@@ -194,33 +180,24 @@ else
   ub = [nx_full,ny_full,k_top_conv]
   call compress( cmpr, lb(1:2), ub(1:2), virt_temp(:,:,k),                     &
                  virt_temp_2 )
-  if ( l_last_level ) then
-    ! Setting Tv(prev) = Tv(k) at last level to preserve KGO,
-    ! but this is wrong; we should just interpolate from k and k-dk as usual.
-    do ic = 1, cmpr%n_points
-      virt_temp_1(ic) = virt_temp_2(ic)
-    end do
-  else
-    call compress( cmpr, lb(1:2), ub(1:2), virt_temp(:,:,k-dk),                &
-                   virt_temp_1 )
-    lb = lbound(grid%height_full)
-    ub = ubound(grid%height_full)
-    call compress( cmpr, lb(1:2), ub(1:2), grid%height_full(:,:,k-dk),         &
-                   height_work )
-    do ic = 1, cmpr%n_points
-      interp = ( grid_1(ic,i_height) - grid_2(ic,i_height) )                   &
-             / ( height_work(ic)     - grid_2(ic,i_height) )
-      virt_temp_1(ic) = (one-interp) * virt_temp_2(ic)                         &
-                      +      interp  * virt_temp_1(ic)
-    end do
-  end if
+  call compress( cmpr, lb(1:2), ub(1:2), virt_temp(:,:,k-dk),                  &
+                 virt_temp_1 )
+  lb = lbound(grid%height_full)
+  ub = ubound(grid%height_full)
+  call compress( cmpr, lb(1:2), ub(1:2), grid%height_full(:,:,k-dk),           &
+                 height_work )
+  do ic = 1, cmpr%n_points
+    interp = ( grid_1(ic,i_height) - grid_2(ic,i_height) )                     &
+           / ( height_work(ic)     - grid_2(ic,i_height) )
+    virt_temp_1(ic) = (one-interp) * virt_temp_2(ic)                           &
+                    +      interp  * virt_temp_1(ic)
+  end do
 
 end if
 
 ! Compute mass on the current half-level step
 do ic = 1, cmpr%n_points
   layer_mass_k(ic) = layer_mass_k(ic) * frac_level_step(ic)
-  exner_ratio(ic) = one
 end do
 
 !------------------------------------------------------------------------------
@@ -232,12 +209,11 @@ call dry_adiabat( cmpr%n_points, cmpr%n_points,                                &
                   grid_2(:,i_pressure), grid_1(:,i_pressure),                  &
                   fields_k(:,i_q_vap),                                         &
                   fields_k(:,i_qc_first:i_qc_last),                            &
-                  exner_ratio )
+                  virt_temp_2 )
 
 ! Compute Tv difference over layer-mass ( 1/rho dTv/dz )
 do ic = 1, cmpr%n_points
-  delta_tv_cmpr(ic) = ( virt_temp_2(ic) * exner_ratio(ic) - virt_temp_1(ic) )  &
-                    * comorph_timestep * alpha_detrain                         &
+  delta_tv_cmpr(ic) = ( virt_temp_2(ic) - virt_temp_1(ic) )                    &
                     / layer_mass_k(ic)
 end do
 

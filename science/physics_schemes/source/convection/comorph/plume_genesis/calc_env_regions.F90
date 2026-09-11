@@ -56,7 +56,7 @@ use cloudfracs_type_mod, only: n_cloudfracs,                                   &
                                i_frac_bulk, i_frac_precip
 use cmpr_type_mod, only: cmpr_type
 use check_bad_values_mod, only: check_bad_values_cmpr
-use fields_type_mod, only: field_names, n_fields,                              &
+use fields_type_mod, only: field_names, field_min, field_max, n_fields,        &
                            i_temperature, i_q_vap, i_qc_first
 use genesis_diags_type_mod, only: genesis_diags_type
 
@@ -155,6 +155,10 @@ real(kind=real_cvprec) :: tmp
 ! Fields super-array only used for copying diagnostics if requested
 real(kind=real_cvprec), allocatable :: fields_reg(:,:)
 
+! Compressed Tv and pressure for input to fields diagnostics routine
+real(kind=real_cvprec) :: virt_temp_cmpr(n_points)
+real(kind=real_cvprec) :: pressure_cmpr(n_points)
+
 ! Flag passed into fields_diags_copy (always false  here)
 logical, parameter :: l_conserved_form_false = .false.
 
@@ -165,10 +169,9 @@ integer :: index_ic(n_points)
 ! Description of where we are in the code, for error messages
 character(len=name_length) :: where_string
 character(len=name_length) :: field_name
-logical :: field_positive
 
 ! Loop counter
-integer :: ic, ic2, i_cond, i_region, i_field, i_super
+integer :: ic, ic2, i_cond, i_region, i_req, i_super
 
 
 !------------------------------------------------------------------------------
@@ -319,15 +322,12 @@ do i_region = 1, n_regions
 end do
 
 ! Assume the 4 sub-regions are neutrally buoyant (equal virtual temperature)
-! TEMPORARY COMPILER DIRECTIVE TO FORCE CCE-FAST-DEBUG TO PRESERVE KGO:
-!DIR$ INLINE
 call calc_env_region_tq_nb( n_points, n_points_super,                          &
                             temperature, q_vap, cloudfracs,                    &
                             qc_tot, q_cond_loc,                                &
                             qsat_liq, dqsatdt_liq, qsat_ice, dqsatdt_ice,      &
                             dtv_dt, dtv_dqv, dtv_dqc,                          &
                             frac_r, temperature_r, q_vap_r )
-!DIR$ RESETINLINE
 
 
 !------------------------------------------------------------------------------
@@ -394,46 +394,42 @@ do i_region = 1, n_regions
       ! If any field diagnostics requested for this region
       if ( genesis_diags % subregion_diags(i_region)%fields%n_diags > 0 ) then
 
-        ! Initialise a fields super-array to compute fields diags
-        if ( .not. allocated(fields_reg) ) then
-          allocate( fields_reg(n_points,n_fields) )
-        end if
-        do i_field = 1, n_fields
-          do ic = 1, n_points
-            fields_reg(ic,i_field) = zero
-          end do
-        end do
-
         ! Copy fields from the current region into a fields super-array
+        allocate( fields_reg(nc,n_fields) )
         do ic2 = 1, nc
           ic = index_ic(ic2)
           fields_reg(ic2,i_temperature) = temperature_r(ic,i_region)
           fields_reg(ic2,i_q_vap)       = q_vap_r(ic,i_region)
+          virt_temp_cmpr(ic2)           = virt_temp(ic)
+          pressure_cmpr(ic2)            = pressure(ic)
         end do
         ! Set local condensed water species mixing ratios and
         ! cloud-fractions based on current region index:
         call set_region_cond_fields( n_points, nc, index_ic,                   &
-                                     n_points, i_region,                       &
+                                     nc, i_region,                             &
                                      q_cond_loc, cloudfracs(:,i_frac_ice),     &
                                      frac_r, fields_reg )
-        ! Expand fields onto full list for input to fields_diags_copy
-        do ic2 = nc, 1, -1
-          ic = index_ic(ic2)
-          if ( ic > ic2 ) then
-            do i_field = 1, n_fields
-              fields_reg(ic,i_field) = fields_reg(ic2,i_field)
-              fields_reg(ic2,i_field) = zero
-            end do
-          end if
-        end do
         ! Copy to diagnostics super-array
         call fields_diags_copy(                                                &
-               n_points, n_points, n_points_super,                             &
+               nc, nc, n_points_super,                                         &
                genesis_diags % n_diags, n_fields,                              &
                l_conserved_form_false,                                         &
                genesis_diags % subregion_diags(i_region) % fields,             &
-               fields_reg, virt_temp, pressure,                                &
+               fields_reg, virt_temp_cmpr, pressure_cmpr,                      &
                diags_super )
+        ! Expand diagnostics back to full list
+        do i_req = 1, genesis_diags % subregion_diags(i_region)%fields%n_diags
+          i_super = genesis_diags % subregion_diags(i_region)%fields           &
+                    % list(i_req)%pt % i_super
+          do ic2 = nc, 1, -1
+            ic = index_ic(ic2)
+            if ( ic > ic2 ) then
+              diags_super(ic,i_super) = diags_super(ic2,i_super)
+              diags_super(ic2,i_super) = zero
+            end if
+          end do
+        end do
+        deallocate( fields_reg )
 
       end if ! ( genesis_diags % subregion_diags(i_region)%fields%n_diags > 0 )
 
@@ -446,36 +442,34 @@ end do  ! i_region = 1, n_regions
 if ( i_check_bad_values_cmpr > i_check_bad_none ) then
 
   where_string = "calc_env_regions call for " // trim(adjustl(call_string))
-  field_positive = .true.
 
   do i_region = 1, n_regions
     ! Check area fractions
     field_name = trim(adjustl(region_names(i_region))) // "_frac"
-    call check_bad_values_cmpr( cmpr, k,                                       &
-                                frac_r(:,i_region),                            &
+    call check_bad_values_cmpr( cmpr, k, frac_r(:,i_region),                   &
                                 where_string, field_name,                      &
-                                field_positive )
+                                field_min=zero, field_max=one )
     ! Check temperatures
     field_name = trim(adjustl(region_names(i_region))) // "_temperature"
-    call check_bad_values_cmpr( cmpr, k,                                       &
-                                temperature_r(:,i_region),                     &
+    call check_bad_values_cmpr( cmpr, k, temperature_r(:,i_region),            &
                                 where_string, field_name,                      &
-                                field_positive )
+                                field_min=field_min(i_temperature),            &
+                                field_max=field_max(i_temperature) )
     ! Check water-vapour mixing-ratio
     field_name = trim(adjustl(region_names(i_region))) // "_q_vap"
-    call check_bad_values_cmpr( cmpr, k,                                       &
-                                q_vap_r(:,i_region),                           &
+    call check_bad_values_cmpr( cmpr, k, q_vap_r(:,i_region),                  &
                                 where_string, field_name,                      &
-                                field_positive )
+                                field_min=field_min(i_q_vap),                  &
+                                field_max=field_max(i_q_vap) )
   end do
 
   ! Check condensed water species
   do i_cond = 1, n_cond_species
     field_name = "loc_" // trim(adjustl(field_names(i_qc_first-1+i_cond)))
-    call check_bad_values_cmpr( cmpr, k,                                       &
-                                q_cond_loc(:,i_cond),                          &
+    call check_bad_values_cmpr( cmpr, k, q_cond_loc(:,i_cond),                 &
                                 where_string, field_name,                      &
-                                field_positive )
+                                field_min=field_min(i_qc_first-1+i_cond),      &
+                                field_max=field_max(i_qc_first-1+i_cond) )
   end do
 
 end if  ! ( i_check_bad_values_cmpr > i_check_bad_none )

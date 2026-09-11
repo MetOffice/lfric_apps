@@ -65,7 +65,6 @@ use entrain_fields_mod, only: entrain_fields
 use entdet_res_source_mod, only: entdet_res_source
 use init_sublevs_mod, only: init_sublevs
 use parcel_dyn_mod, only: parcel_dyn, i_call_mean, i_call_core, i_call_det
-use set_par_cloudfrac_mod, only: set_par_cloudfrac
 use calc_rho_dry_mod, only: calc_rho_dry
 use update_edge_virt_temp_mod, only: update_edge_virt_temp
 use update_par_radius_mod, only: update_par_radius
@@ -222,10 +221,6 @@ real(kind=real_cvprec) :: core_mean_ratio(n_points)
 
 ! Environment dry static stability
 real(kind=real_cvprec) :: Nsq_dry(n_points)
-
-! Exner ratio to use when adjusting entrained air temperature
-! due to pressure change
-real(kind=real_cvprec) :: exner_ratio(n_points)
 
 ! Super-arrays storing mean primary field properties of
 ! entrained and detrained air
@@ -393,44 +388,18 @@ end select  ! i_impl_det
 !    into the parcel
 !----------------------------------------------------------------
 
-! Set entrained air properties the same as the mean environment at level k
-do i_field = 1, n_fields_tot
-  do ic = 1, n_points
-    ent_fields(ic,i_field) = env_k_fields(ic,i_field)
-  end do
-end do
-
-if ( l_to_full_level ) then
-  ! If this is the first of the two half-level-steps
-  ! (from previous half-level to level k),
-  ! then the environment fields to entrain are at level k, but the
-  ! parcel is at a different pressure, at the previous half-level.
-  ! Adjust the environment temperature to what it would be at the
-  ! start of the level-step, so that we entrain it into the parcel
-  ! consistently...
-  do ic = 1, n_points
-    exner_ratio(ic) = one
-  end do
-  call dry_adiabat( n_points, n_points,                                        &
-                  grid_next_super(:,i_pressure), grid_prev_super(:,i_pressure),&
-                    ent_fields(:,i_q_vap),                                     &
-                    ent_fields(:,i_qc_first:i_qc_last),                        &
-                    exner_ratio )
-  do ic = 1, n_points
-    ent_fields(ic,i_temperature) = ent_fields(ic,i_temperature)                &
-                                 * exner_ratio(ic)
-  end do
-end if
-
-! Set amount of entrained dry-mass over the current half-level-step
+! Set amount of entrained dry-mass over the current half-level-step,
+! and properties of the entrained air.
 call set_ent( n_points, n_fields_tot, max_points,                              &
-              max_ent_frac,                                                    &
-              par_conv_mean_fields, ent_fields,                                &
+              n_points_diag, n_diags_super,                                    &
+              l_to_full_level, max_ent_frac,                                   &
+              par_conv_mean_fields, env_k_fields,                              &
               grid_prev_super, grid_next_super,                                &
               par_conv_super,                                                  &
               l_within_bl, core_mean_ratio,                                    &
               layer_mass_step, sum_massflux,                                   &
-              ent_mass_d, core_ent_ratio )
+              ent_fields, ent_mass_d, core_ent_ratio,                          &
+              plume_model_diags, diags_super )
 
 ! Add the entrained mass onto the mass-flux
 do ic = 1, n_points
@@ -511,10 +480,11 @@ call fields_k_conserved_vars( n_points, max_points,                            &
 
 if ( l_to_full_level ) then
   ! Set entrained temperature back to level k pressure
-  do ic = 1, n_points
-    ent_fields(ic,i_temperature) = ent_fields(ic,i_temperature)                &
-                                 / exner_ratio(ic)
-  end do
+  call dry_adiabat( n_points, n_points,                                        &
+                  grid_prev_super(:,i_pressure), grid_next_super(:,i_pressure),&
+                    ent_fields(:,i_q_vap),                                     &
+                    ent_fields(:,i_qc_first:i_qc_last),                        &
+                    ent_fields(:,i_temperature) )
 end if
 
 ! Add contribution from entrainment to the resolved-scale source terms
@@ -523,14 +493,6 @@ call entdet_res_source( n_points, n_points,                                    &
                         n_points_res, n_fields_tot, l_ent,                     &
                         ent_mass_d, ent_fields,                                &
                         res_source_super, res_source_fields )
-
-! Core environment entrainment ratio diagnostic
-if ( plume_model_diags % core_ent_ratio % flag ) then
-  i_diag = plume_model_diags % core_ent_ratio % i_super
-  do ic = 1, n_points
-    diags_super(ic,i_diag) = core_ent_ratio(ic)
-  end do
-end if
 
 ! Save diagnostics of entrained mass and air properties
 ! (in conserved variable form ready for finding mean over types)

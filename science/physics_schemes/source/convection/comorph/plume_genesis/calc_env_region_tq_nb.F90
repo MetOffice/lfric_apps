@@ -108,8 +108,10 @@ real(kind=real_cvprec) :: dtv_dqsat_ice(n_points)
 
 ! Local total condensed water within each region
 real(kind=real_cvprec) :: qc_tot_loc(n_points,n_regions)
-! Local total condensed water outside the liquid-cloud
-real(kind=real_cvprec) :: qc_tot_noliq
+! Condensate water-loading excess of each region relative to the grid-mean
+real(kind=real_cvprec) :: qc_excess(n_points,n_regions)
+! Local total condensed water excess outside the liquid-cloud
+real(kind=real_cvprec) :: qc_excess_noliq
 
 ! Local total ice mixing-ratio within the mph,icr regions
 real(kind=real_cvprec) :: q_ice_loc(n_points)
@@ -188,6 +190,13 @@ do i_cond = 1, n_cond_species
   end select
 end do  ! i_cond = 1, n_cond_species
 
+! Set water-loading excess of each region used in buoyancy calculations
+do i_region = 1, n_regions
+  do ic = 1, n_points
+    qc_excess(ic,i_region) = qc_tot_loc(ic,i_region) - qc_tot(ic)
+  end do
+end do
+
 ! Set frequently used ratio dTv/dT / dqsat/dT
 do ic = 1, n_points
   dtv_dqsat_liq(ic) = dtv_dt(ic) / dqsatdt_liq(ic)
@@ -252,7 +261,7 @@ if ( nc > 0 ) then
     q_vap_r(ic,i_liq) =                                                        &
          ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)                 &
          + q_vap(ic) * dtv_dqv(ic)                                             &
-         - ( qc_tot_loc(ic,i_liq) - qc_tot(ic) ) * dtv_dqc(ic) )               &
+         - qc_excess(ic,i_liq) * dtv_dqc(ic) )                                 &
        / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
   end do
 
@@ -282,7 +291,7 @@ if ( nc > 0 ) then
     q_vap_r(ic,i_mph) =                                                        &
          ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)                 &
          + q_vap(ic) * dtv_dqv(ic)                                             &
-         - ( qc_tot_loc(ic,i_mph) - qc_tot(ic) ) * dtv_dqc(ic) )               &
+         - qc_excess(ic,i_mph) * dtv_dqc(ic) )                                 &
        / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
   end do
 
@@ -366,15 +375,14 @@ if ( nc > 0 ) then
   ! same virtual temperature as the grid-mean
   do ic2 = 1, nc
     ic = index_ic(ic2)
-    ! Find local total-condensed-water in the no-liquid cloud region
-    qc_tot_noliq = qc_tot(ic)                                                  &
-          - ( frac_r(ic,i_liq) * ( qc_tot_loc(ic,i_liq) - qc_tot(ic) )         &
-            + frac_r(ic,i_mph) * ( qc_tot_loc(ic,i_mph) - qc_tot(ic) ) )       &
-          / ( one - cloudfracs(ic,i_frac_liq) )
+    ! Find local total-condensed-water excess in the no-liquid cloud region
+    qc_excess_noliq = - ( frac_r(ic,i_liq) * qc_excess(ic,i_liq)               &
+                        + frac_r(ic,i_mph) * qc_excess(ic,i_mph) )             &
+                    / ( one - cloudfracs(ic,i_frac_liq) )
     ! Set T for specified Tv
     temperature_noliq(ic) = temperature(ic)                                    &
      - ( ( q_vap_noliq(ic) - q_vap(ic) ) * dtv_dqv(ic)                         &
-       + ( qc_tot_noliq - qc_tot(ic) ) * dtv_dqc(ic) ) / dtv_dt(ic)
+       + qc_excess_noliq * dtv_dqc(ic) ) / dtv_dt(ic)
   end do
 
 end if  ! ( nc > 0 )
@@ -408,7 +416,7 @@ do ic = 1, n_points
     q_vap_r(ic,i_icr) =                                                        &
          ( qsat_liq(ic) * dtv_dqsat_liq(ic)                                    &
          + q_vap(ic) * dtv_dqv(ic)                                             &
-         - ( qc_tot_loc(ic,i_icr) - qc_tot(ic) ) * dtv_dqc(ic) )               &
+         - qc_excess(ic,i_icr) * dtv_dqc(ic) )                                 &
        / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
 
     ! If below freezing and ice is present:
@@ -426,7 +434,7 @@ do ic = 1, n_points
                         +      ice_frac_icr  * (                               &
            ( qsat_ice(ic) * dtv_dqsat_ice(ic)                                  &
            + q_vap(ic) * dtv_dqv(ic)                                           &
-           - ( qc_tot_loc(ic,i_icr) - qc_tot(ic) ) * dtv_dqc(ic) )             &
+           - qc_excess(ic,i_icr) * dtv_dqc(ic) )                               &
          / ( dtv_dqsat_ice(ic) + dtv_dqv(ic) )   )
     end if
 
@@ -481,14 +489,14 @@ do ic = 1, n_points
     ! Upper bound is liquid saturation
     q_lim = ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)              &
             + q_vap(ic) * dtv_dqv(ic)                                          &
-            - ( qc_tot_loc(ic,i_icr) - qc_tot(ic) ) * dtv_dqc(ic) )            &
+            - qc_excess(ic,i_icr) * dtv_dqc(ic) )                              &
           / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
     q_vap_r(ic,i_icr) = min( q_vap_r(ic,i_icr), q_lim )
 
     ! Upper bound for dry region is also liquid saturation
     q_lim = ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)              &
             + q_vap(ic) * dtv_dqv(ic)                                          &
-            - ( qc_tot_loc(ic,i_dry) - qc_tot(ic) ) * dtv_dqc(ic) )            &
+            - qc_excess(ic,i_dry) * dtv_dqc(ic) )                              &
           / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
     ! This translates into a lower bound for the icr region:
     ! f_dry qv_dry + f_icr qv_icr = (f_dry + f_icr) qv_noliq
@@ -569,7 +577,7 @@ do i_region = 1, n_regions
       ! Calculate T so-as to yield the correct buoyancy
       temperature_r(ic,i_region) = temperature(ic)                             &
       - ( ( q_vap_r(ic,i_region) - q_vap(ic) ) * dtv_dqv(ic)                   &
-        + ( qc_tot_loc(ic,i_region) - qc_tot(ic) ) * dtv_dqc(ic) ) / dtv_dt(ic)
+        + qc_excess(ic,i_region) * dtv_dqc(ic) ) / dtv_dt(ic)
 
     end do
   end if

@@ -25,10 +25,10 @@ subroutine collision_rate( n_points,                                           &
                            area_coef_1, area_coef_2,                           &
                            dq_col )
 
-use comorph_constants_mod, only: pi, coef_wf_spread, col_eff_coef,             &
-                     kin_visc, drag_coef_cond,                                 &
-                     real_cvprec, six, half, four_thirds, min_float,           &
-                     sqrt_min_float
+use comorph_constants_mod, only: real_cvprec, min_float, sqrt_min_float,       &
+                                 six, half, four_thirds, pi,                   &
+                                 coef_wf_spread, col_eff_coef,                 &
+                                 kin_visc, drag_coef_cond
 
 implicit none
 

@@ -18,9 +18,10 @@ contains
 ! onto the current compression list of convecting points
 subroutine conv_sweep_compress(                                                &
                  k, k_next, dk, max_points, ij_first, ij_last, n_fields_tot,   &
-                 l_to_full_level, l_last_level,                                &
+                 l_to_full_level,                                              &
                  cmpr, grid, turb, fields,                                     &
-                 virt_temp, layer_mass, sum_massflux, delta_tv,                &
+                 virt_temp, virt_temp_half,                                    &
+                 layer_mass, sum_massflux, delta_tv,                           &
                  l_within_bl,  grid_k_super, grid_half_super,                  &
                  env_k_fields, env_k_super, env_half_super,                    &
                  layer_mass_step, frac_level_step,                             &
@@ -61,8 +62,6 @@ integer, intent(in) :: n_fields_tot
 
 ! Flag for first half of the level-step, from prev to level k
 logical, intent(in) :: l_to_full_level
-! Flag for reached the final model-level
-logical, intent(in) :: l_last_level
 
 ! Structure storing compression indices
 type(cmpr_type), intent(in) :: cmpr
@@ -84,6 +83,9 @@ type(fields_type), intent(in) :: fields
 ! Full 3-D array of environment virtual temperature
 real(kind=real_hmprec), intent(in) :: virt_temp                                &
        ( nx_full, ny_full, k_bot_conv:k_top_conv )
+! Latest virtual temperature interpolated to half-levels
+real(kind=real_hmprec), intent(in) :: virt_temp_half                           &
+       ( nx_full, ny_full, k_bot_conv:k_top_conv+1 )
 
 ! Full 3-D array of dry-mass per unit surface area
 ! contained in each grid-cell
@@ -215,11 +217,11 @@ end do
 
 ! Compress / interpolate required environment fields onto the model-level
 ! interface (k+1/2 or k-1/2, depending on whether going up or down)
-call env_half_interp( l_last_level, k_full, max_points, cmpr,                  &
+call env_half_interp( k_full, k_half, max_points, cmpr,                        &
                       grid % height_full,                                      &
                       grid_k_super(:,i_height), grid_half_super(:,i_height),   &
-                      fields % wind_w, virt_temp,                              &
-                      env_k_super(:,i_wind_w_half), env_k_super(:,i_virt_temp),&
+                      fields % wind_w, virt_temp_half,                         &
+                      env_k_super(:,i_wind_w_half),                            &
                       env_half_super )
 
 ! Compress layer-mass on level k

@@ -30,7 +30,8 @@ use comorph_um_namelist_mod, only:                                             &
                       rain_dependence, qfacrain_dependence, w_dependence,      &
                       linear_qfacrain_dep,                                     &
                       par_radius_knob, par_radius_knob_max, par_radius_ppn_max,&
-                      l_resdep_precipramp, dx_ref
+                      l_resdep_precipramp, dx_ref,                             &
+                      turb_len_fac, min_radius_fac, ass_min_radius
 use cv_param_mod, only: refqsat
 
 implicit none
@@ -147,6 +148,7 @@ integer :: i, j, k
 !$OMP         mv_bl_mean, m_v, z_rho, zh_eff, ktop, ls_rain, ls_snow,          &
 !$OMP         par_radius_knob_max, par_radius_knob, par_radius_ppn_max,        &
 !$OMP         w_max, z_theta, w, w_cape_limit,                                 &
+!$OMP         turb_len_fac, min_radius_fac, ass_min_radius,                    &
 !$OMP         l_resdep_precipramp, dx_ref, delta_x, delta_y, dxfac,            &
 !$OMP         par_radius_amp_um )
 
@@ -170,6 +172,38 @@ do j = pdims%j_start, pdims%j_end
   end do
 end do
 !$OMP END DO
+
+! Ideally we would just use the turbulence-based length-scale here;
+! however, the BL scheme often predicts entirely non-turbulent
+! conditions (and hence zero length-scale) even when there
+! is liquid cloud present in a moist unstable environment.
+! I think this is because it calculates a grid-mean Nsq
+! (weighting dry and moist values by cloud-fraction), and then
+! uses that to calculate a single Ri and stability function for
+! the whole grid-box.  This usually comes out stable unless
+! either the cloud fraction is near 1 or the profile is near
+! dry-statically unstable.  The correct way would be to
+! calculate separate Ri and stability function values in the
+! cloudy and non-cloudy regions, and only do the grid-box
+! averaging after calculating the stability functions.
+! Anyhow, for now we need to make up some minimum
+! length-scale to be applied wherever the atmosphere is
+! moist unstable (and hence triggers convection), but the
+! BL scheme hasn't given us any turbulence to trigger from.
+!$OMP DO SCHEDULE(STATIC)
+do k = 1, bl_levels
+  do j = pdims%j_start, pdims%j_end
+    do i = pdims%i_start, pdims%i_end
+
+      ! Scale turb_len by the appropriate tuning constants first.
+      turb_len(i,j,k) = max( turb_len_fac * turb_len(i,j,k),                   &
+      ! Impose arbitrary linear ramp from the surface as a min limit.
+                             min( min_radius_fac * z_theta(i,j,k),             &
+                                  ass_min_radius ) )
+    end do
+  end do
+end do
+!$OMP END DO NOWAIT
 
 ! If using one of the precip-rate dependent parcel radius scaling options...
 if ( par_radius_init_method == rain_dependence .or.                            &
@@ -295,7 +329,7 @@ if ( par_radius_init_method == rain_dependence .or.                            &
 !$OMP DO SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
-      par_radius_amp_um(i,j) = max( w_fac(i,j), rainfac(i,j) )
+      par_radius_amp_um(i,j) = par_radius_knob*max( w_fac(i,j), rainfac(i,j) )
     end do
   end do
 !$OMP END DO NOWAIT

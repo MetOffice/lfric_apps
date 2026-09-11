@@ -19,13 +19,12 @@ contains
 subroutine calc_sat_height(                                                    &
              n_points, n_points_sublevs, l_mean_with_core, l_down, j_buoy,     &
              prev_ss, next_ss, prev_tvl, next_tvl,                             &
-             par_prev_q_cl, par_next_q_cl,                                     &
              i_next, i_sat, sublevs,                                           &
              i_core_sat )
 
 use comorph_constants_mod, only: real_cvprec, zero, one
 use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
-                       j_height, j_env_tv, j_mean_buoy, j_core_buoy, j_delta_tv
+                       j_height, j_env_tv, j_mean_buoy, j_core_buoy
 
 implicit none
 
@@ -49,10 +48,6 @@ real(kind=real_cvprec), intent(in) :: prev_ss(n_points)
 real(kind=real_cvprec), intent(in) :: next_ss(n_points)
 real(kind=real_cvprec), intent(in) :: prev_tvl(n_points)
 real(kind=real_cvprec), intent(in) :: next_tvl(n_points)
-
-! Parcel liquid-cloud content at prev and next
-real(kind=real_cvprec), intent(in) :: par_prev_q_cl(n_points)
-real(kind=real_cvprec), intent(in) :: par_next_q_cl(n_points)
 
 ! Address of next model-level interface in sublevs
 integer, intent(in out) :: i_next(n_points)
@@ -104,7 +99,7 @@ integer :: ic, ic2, i_field, i_lev
 ! saturated, or vice-versa
 n_sat = 0
 do ic = 1, n_points
-  if ( par_prev_q_cl(ic) > zero .neqv. par_next_q_cl(ic) > zero ) then
+  if ( prev_ss(ic) > zero .neqv. next_ss(ic) > zero ) then
     n_sat = n_sat + 1
     index_ic_sat(n_sat) = ic
   end if
@@ -118,11 +113,7 @@ if ( n_sat > 0 ) then
     ic = index_ic_sat(ic2)
 
     ! Fraction of the way through the level where SS is zero
-    if ( prev_ss(ic) * next_ss(ic) >= zero ) then
-      interp = zero
-    else
-      interp = -prev_ss(ic) / ( next_ss(ic) - prev_ss(ic) )
-    end if
+    interp = -prev_ss(ic) / ( next_ss(ic) - prev_ss(ic) )
 
     ! Interpolate height
     sat_height(ic) = (one-interp) * sublevs(ic,j_height,i_prev)                &
@@ -132,22 +123,6 @@ if ( n_sat > 0 ) then
     ! saturation height
     sat_par_virt_temp(ic) = (one-interp) * prev_tvl(ic)                        &
                           +      interp  * next_tvl(ic)
-  end do
-
-  do ic2 = 1, n_sat
-    ic = index_ic_sat(ic2)
-    ! Overwrite with just prev or next value in case where
-    ! SS doesn't change sign between prev and next
-    ! (should only happen occasionally due to rounding errors)
-    if ( prev_ss(ic) * next_ss(ic) >= zero ) then
-      if ( abs(next_ss(ic)) < abs(prev_ss(ic)) ) then
-        sat_height(ic)        = sublevs(ic,j_height,i_next(ic))
-        sat_par_virt_temp(ic) = next_tvl(ic)
-      else
-        sat_height(ic)        = sublevs(ic,j_height,i_prev)
-        sat_par_virt_temp(ic) = prev_tvl(ic)
-      end if
-    end if
   end do
 
   ! Rounding errors can very occasionally cause sat_height to fall a tiny bit
@@ -305,11 +280,6 @@ if ( n_sat > 0 ) then
         +      interp  * sublevs(ic,i_field,i_next(ic))
     end do
 
-    ! TEMPORARY CODE TO PRESERVE KGO; TO BE REMOVED SOON:
-    ! delta_tv is assumed constant over whole model-level;
-    ! remove bit-level changes due to interpolation
-    sublevs(ic,j_delta_tv,i_sat(ic)) = sublevs(ic,j_delta_tv,i_prev)
-
     ! Store the found saturation height
     sublevs(ic,j_height,i_sat(ic)) = sat_height(ic)
 
@@ -326,18 +296,8 @@ if ( n_sat > 0 ) then
   ! Set buoyancy at saturation height using interpolated env Tv
   do ic2 = 1, n_sat
     ic = index_ic_sat(ic2)
-    !sublevs(ic,j_buoy,i_sat(ic)) = sat_par_virt_temp(ic)                      &
-    !                             - sublevs(ic,j_env_tv,i_sat(ic))
-    ! TEMPORARY CODE TO PRESERVE KGO
-    ! (re-do interpolation of env Tv to sat height; using the already
-    !  calculated value changes answers for CCE high optimisation)
-    interp = ( sublevs(ic,j_height,i_sat(ic))                                  &
-             - sublevs(ic,j_height,i_prev) )                                   &
-           / ( sublevs(ic,j_height,i_next(ic))                                 &
-             - sublevs(ic,j_height,i_prev) )
     sublevs(ic,j_buoy,i_sat(ic)) = sat_par_virt_temp(ic)                       &
-      - ( (one-interp) * sublevs(ic,j_env_tv,i_prev)                           &
-        +      interp  * sublevs(ic,j_env_tv,i_next(ic)) )
+                                 - sublevs(ic,j_env_tv,i_sat(ic))
   end do
 
 end if  ! ( n_sat > 0 )

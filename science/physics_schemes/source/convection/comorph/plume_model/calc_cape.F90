@@ -124,9 +124,8 @@ if ( .not. all( l_within_bl ) ) then
                              + sublevs(ic,j_massflux_d,i_prev+1) )
 
       ! Contribution M^2 dz
-      mm_dz(ic) = half * dz                                                    &
-       *( sublevs(ic,j_massflux_d,i_prev) * sublevs(ic,j_massflux_d,i_prev)    &
-        + sublevs(ic,j_massflux_d,i_prev+1)*sublevs(ic,j_massflux_d,i_prev+1) )
+      mm_dz(ic) = half * dz * ( sublevs(ic,j_massflux_d,i_prev)**2             &
+                              + sublevs(ic,j_massflux_d,i_prev+1)**2 )
 
     end do
 
@@ -183,15 +182,8 @@ if ( .not. all( l_within_bl ) ) then
         b_dz(ic) = zero
         do i_lev = i_prev, i_next(ic)
           if ( sublevs(ic,j_massflux_d,i_lev) > zero ) then
-            dz = zero
-            if ( i_lev > i_prev ) then
-              dz = dz + half * ( sublevs(ic,j_height,i_lev)                    &
-                               - sublevs(ic,j_height,i_lev-1) )
-            end if
-            if ( i_lev < i_next(ic) ) then
-              dz = dz + half * ( sublevs(ic,j_height,i_lev+1)                  &
-                               - sublevs(ic,j_height,i_lev) )
-            end if
+            dz = half * ( sublevs(ic,j_height,min(i_lev+1,i_next(ic)))         &
+                        - sublevs(ic,j_height,max(i_lev-1,i_prev)) )
             b_dz(ic) = b_dz(ic) + ( sublevs(ic,j_mean_buoy,i_lev)              &
                                   / sublevs(ic,j_env_tv,i_lev) )               &
                                 * gravity * dz
@@ -207,15 +199,8 @@ if ( .not. all( l_within_bl ) ) then
         mm_dz(ic) = zero
         do i_lev = i_prev, i_next(ic)
 
-          dz = zero
-          if ( i_lev > i_prev ) then
-            dz = dz + half * ( sublevs(ic,j_height,i_lev)                      &
-                             - sublevs(ic,j_height,i_lev-1) )
-          end if
-          if ( i_lev < i_next(ic) ) then
-            dz = dz + half * ( sublevs(ic,j_height,i_lev+1)                    &
-                             - sublevs(ic,j_height,i_lev) )
-          end if
+          dz = half * ( sublevs(ic,j_height,min(i_lev+1,i_next(ic)))           &
+                      - sublevs(ic,j_height,max(i_lev-1,i_prev)) )
 
           ! Calculate contribution g/Tv Tv' M dz
           mb_dz(ic) = mb_dz(ic) + gravity * dz                                 &
@@ -226,8 +211,7 @@ if ( .not. all( l_within_bl ) ) then
           m_dz(ic) = m_dz(ic) + dz * sublevs(ic,j_massflux_d,i_lev)
 
           ! Contribution M^2 dz
-          mm_dz(ic) = mm_dz(ic) + dz                                           &
-           * sublevs(ic,j_massflux_d,i_lev) * sublevs(ic,j_massflux_d,i_lev)
+          mm_dz(ic) = mm_dz(ic) + dz * sublevs(ic,j_massflux_d,i_lev)**2
 
         end do  ! i_lev = i_prev, i_next(ic)
 
