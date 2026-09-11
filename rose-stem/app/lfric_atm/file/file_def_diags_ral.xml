@@ -2,7 +2,7 @@
 
   <!-- Main diagnostic output file for regional runs -->
   <file id="lfric_diagnostics" name="results/lfric_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
-    <field_group id="diags_ts_profile" operation="instant" freq_op="1h" prec="4">
+    <field_group id="diags_ts_profile" operation="instant" freq_op="1h">
       <field field_ref="theta" />                        <!-- s00i004 -->
       <field field_ref="m_v" />                          <!-- s00i391 -->
       <field field_ref="m_cl" />                         <!-- s00i254 -->
@@ -16,7 +16,7 @@
       <field field_ref="cloud__combined_cloud_amount" /> <!-- s09i231 -->
       <field field_ref="turbulence__heat_flux_bl" />     <!-- s03i216 -->
     </field_group>
-    <field_group operation="instant" freq_op="1h" prec="4">
+    <field_group operation="instant" freq_op="1h">
       <field field_ref="cloud__cloud_amount_maxrnd" />            <!-- s09i207 -->
       <field field_ref="cloud__ceilometer_cloud_amount_maxrnd" /> <!-- s09i233 -->
       <field field_ref="cloud__cloud_base_2p5_okta" />            <!-- s09i210 -->
@@ -66,7 +66,7 @@
       <field field_ref="processed__tot_col_m_cl" />               <!-- s30i405 -->
       <field field_ref="processed__pmsl" />                       <!-- s16i222 -->
     </field_group>
-    <field_group id="diag_rts_fields" freq_op="1h" freq_offset="0ts" prec="4" comment="fields only valid on radiation timesteps - ENSURE NOT MODEL TIMESTEP DEPENDENT">
+    <field_group id="diag_rts_fields" freq_op="1h" freq_offset="0ts" comment="fields only valid on radiation timesteps - ENSURE NOT MODEL TIMESTEP DEPENDENT">
       <field field_ref="radiation__sw_net_surf_rts"/>             <!-- s01i201 -->
       <field field_ref="radiation__lw_net_surf_rts"/>             <!-- s02i201 -->
       <field field_ref="radiation__sw_up_toa_rts"/>               <!-- s01i208 -->

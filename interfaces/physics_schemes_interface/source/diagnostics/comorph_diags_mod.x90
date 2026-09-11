@@ -250,8 +250,8 @@ contains
     ! 2D
     if (lowest_cv_base_flag) call lowest_cv_base%write_field()
     if (lowest_cv_top_flag) call lowest_cv_top%write_field()
-    call cv_base%write_field()
-    call cv_top%write_field()
+    call cv_base%write_field('convection__cv_base')
+    call cv_top%write_field('convection__cv_top')
     if (pres_cv_base_flag) call pres_cv_base%write_field()
     if (pres_cv_top_flag) call pres_cv_top%write_field()
     if (pres_lowest_cv_base_flag) call pres_lowest_cv_base%write_field()

@@ -1,6 +1,6 @@
 <field_definition>
 <!-- Main diagnostic group -->
-<field_group id="diagnostic_fields" prec="8" operation="instant" enabled=".TRUE." >
+<field_group id="diagnostic_fields" prec="4" operation="instant" enabled=".TRUE." >
   <!-- gungho prognostic fields, included via lfric_dictionary and available as diagnostics -->
   <!-- field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" /-->
   <!-- field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" /-->
@@ -15,7 +15,6 @@
   <field id="m_cf" name="m_cf" long_name="m_cf" unit="kg kg-1" grid_ref="full_level_face_grid">m_ci+m_s</field>
   <!-- field id="m_g" name="m_g" long_name="m_g" unit="kg kg-1" grid_ref="full_level_face_grid" /-->
   <!-- field id="ageofair" name="ageofair" long_name="ageofair" unit="s" grid_ref="half_level_face_grid" /-->
-  <!-- field id="temp_correction_field" name="temp_correction_field" long_name="temperature_rate_for_energy_correction" unit="K s-1" domain_ref="face" /-->
   <field id="theta_in_w3" name="theta_in_w3" long_name="air_potential_temperature_at_cell_centres" unit="K" grid_ref="half_level_face_grid" />
   <field id="rho_in_wth" name="rho_in_wth" long_name="dry_air_density_at_cell_interfaces" unit="kg m-3" grid_ref="full_level_face_grid" />
   <field id="wetrho_in_w3" name="wetrho_in_w3" long_name="wet_air_density_at_cell_centres" unit="kg m-3" grid_ref="half_level_face_grid" />
@@ -405,6 +404,8 @@
   <field id="convection__cape_diluted" name="cape_diluted" long_name="cape_diluted" unit="J/kg" domain_ref="face" />
   <field id="convection__cape_timescale" name="cape_timescale" long_name="cape_timescale" unit="s" domain_ref="face" />
   <field id="convection__freeze_level" name="freeze_level" long_name="model_level_number_at_freezing_level" unit="1" domain_ref="face" />
+  <field id="convection__cv_base" name="cv_base" long_name="model_level_number_at_conv_cloud_base" unit="1" domain_ref="face" />
+  <field id="convection__cv_top" name="cv_top" long_name="model_level_number_at_conv_cloud_top" unit="1" domain_ref="face" />
   <field id="convection__pres_lowest_cv_base" name="pres_lowest_cv_base" long_name="pressure_at_lowest_convective_cloud_base" unit="Pa" domain_ref="face" />
   <field id="convection__pres_lowest_cv_top" name="pres_lowest_cv_top" long_name="pressure_at_lowest_convective_cloud_top" unit="Pa" domain_ref="face" />
   <field id="convection__pres_cv_base" name="pres_cv_base" long_name="pressure_at_convective_cloud_base" unit="Pa" domain_ref="face" />

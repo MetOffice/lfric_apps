@@ -2,7 +2,7 @@
 
   <!-- Diagnostic output file for idealised runs -->
   <file id="lfric_diagnostics" name="results/lfric_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
-    <field_group operation="instant" freq_op="1ts" prec="4">
+    <field_group operation="instant" freq_op="1ts">
       <field field_ref="theta" />
       <field field_ref="processed__temperature" />
       <field field_ref="processed__virtual_theta" />

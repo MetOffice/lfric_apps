@@ -321,3 +321,10 @@ Simplified call tree for setting up I/O in LFRic_atm
 
 (For brevity, the paths are shortened. Some prefix directories and the "source"
 directory have been omitted.)
+
+Precision
+---------
+
+Checkpoint-restart files will be written at the native ``rdef`` precision of the model. This is specified by the XIOS interface routine ``lfric_xios_metafile_mod.F90‎``. However, this default precision can be overridden if necessary for individual fields, by specifying their precision in the ``lfric_dictionary.xml``, using ``prec=``. This is particularly useful for the handling of integer fields in the checkpoint files.
+
+It is worth noting here that the precision specified in the ``field_definition`` section of ``lfric_dictionary.xml`` does not impact the checkpoint files, but is used to determine the precision of any diagnostics which are written from fields defined here.
