@@ -56,7 +56,8 @@ contains
                               leonard_kl    = 1.0_r_def,         &
                               conservative_diffusion = .false.,  &
                               density_weighted = .false.,        &
-                              max_diff_factor = 1.0_r_def )
+                              max_diff_factor = 1.0_r_def,       &
+                              fullstress    = .false. )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &

@@ -96,6 +96,11 @@ contains
     type(field_type),            pointer :: moist_dyn(:)
     type(field_collection_type), pointer :: derived_fields
 
+    ! For aviation diagnostics
+#ifdef UM_PHYSICS
+    type( field_type ) :: plev_geopot  ! Set by pres_lev_diags_alg().
+#endif
+
     type(field_type), pointer :: theta
     type(field_type), pointer :: u
     type(field_type), pointer :: h_u
@@ -340,12 +345,11 @@ contains
       call pmsl_alg(modeldb%config, exner, derived_fields, theta, twod_mesh)
       ! Pressure level diagnostics
       call pres_lev_diags_alg(modeldb%config, derived_fields, theta, exner, &
-                              mr, moist_dyn)
+                              mr, moist_dyn, plev_geopot)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
-
       ! Aviation diagnostics
-      call aviation_diags_alg( &
+      call aviation_diags_alg(plev_geopot &
         u, exner, mesh, element_order_h, element_order_v)
 #endif
 

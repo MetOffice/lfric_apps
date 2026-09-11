@@ -17,7 +17,7 @@
         "target_grid_res": "N48",
         "target_grid_levs": "38",
         "target_grid_type": "global",
-        "source_dump": "$UMDIR/standard_jobs/lfricinputs/inputs/lfric2um_startdump_aquaplanet_N48L38_C48L38.nc",
+        "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/lfric2um_startdump_aquaplanet_N48L38_C48L38.nc",
         "namelist_src": "um_grid.nml",
     }) %}
 
@@ -33,7 +33,7 @@
         "target_grid_res": "N512",
         "target_grid_levs": "70",
         "target_grid_type": "global",
-        "source_dump": "$BIG_DATA_DIR/start_dumps/nwp-gal9/apps1.1/nwp-gal9_N320L70_C224L70.nc",
+        "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/nwp-gal9_N320L70_C224L70.nc",
         "namelist_src": "um_grid.nml",
         "memory_plot_ex": true,
         "kgo_checks": "",
@@ -50,7 +50,7 @@
         "target_grid_res": "N512",
         "target_grid_levs": "70",
         "target_grid_type": "global",
-        "source_dump": "$UMDIR/standard_jobs/lfricinputs/inputs/lfric2um_startdump_um-lam_C48L70.nc",
+        "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/lfric2um_startdump_um-lam_C48L70.nc",
         "namelist_src": "um_grid.nml",
     }) %}
 
