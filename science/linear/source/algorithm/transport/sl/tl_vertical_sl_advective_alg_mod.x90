@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2026 Met Office. All rights reserved.
+! (c) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -8,6 +8,8 @@
 !!          transport of a field for the linear model. It computes the perturbation field
 !!          at the departure point using linear or cubic interpolation, and the
 !!          derivative of the ls field interpolation at the departure point.
+
+module tl_vertical_sl_advective_alg_mod
 
   ! Constants and types
   use constants_mod,                    only: r_tran, i_def, l_def
@@ -56,14 +58,6 @@ contains
   !!                             Object controlling the transport
   subroutine tl_vertical_sl_advective_alg( field_np1, field_n, ls_field_n,     &
                                            tl_transport_controller )
-
-    implicit none
-
-    ! Arguments
-    type(r_tran_field_type),            intent(inout) :: field_np1
-    type(r_tran_field_type),            intent(in)    :: field_n
-    type(r_tran_field_type),            intent(in)    :: ls_field_n
-    type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
 
     implicit none
 

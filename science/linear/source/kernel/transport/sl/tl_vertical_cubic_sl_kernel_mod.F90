@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2026 Met Office. All rights reserved.
+! (c) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -77,6 +77,9 @@ module tl_vertical_cubic_sl_kernel_mod
   !> @param[in]     ndf_wf          Num Dofs per cell for the field
   !> @param[in]     undf_wf         Num Dofs in this partition for the field
   !> @param[in]     map_wf          Dofmap for the field
+  !> @param[in]     ndf_w2          Num Dofs per cell for dep_dist_pert
+  !> @param[in]     undf_w2         Num Dofs in this partition for dep_dist_pert
+  !> @param[in]     map_w2          Dofmap for dep_dist_pert
   !> @param[in]     ndf_wc          Num Dofs per cell for the coefficients
   !> @param[in]     undf_wc         Num Dofs per cell in this partition
   !!                                for the coefficients
@@ -160,7 +163,7 @@ module tl_vertical_cubic_sl_kernel_mod
         + cubic_coef_4(wc_idx : wc_idx+nl-1)*field_local(:,4)                  &
     )
 
-    ! Compute gradient of ls_field in departure cell 
+    ! Compute gradient of ls_field in departure cell
     grad_ls_field(:) = ls_field_local(:,2)-ls_field_local(:,1)
 
     ! Compute pert dist based on whether this is W3 or W3theta field
