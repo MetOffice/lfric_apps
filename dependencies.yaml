@@ -22,8 +22,8 @@ casim:
     ref: 2026.07.1
 
 jules:
-    source: cazldf00009S.spice.sc.metoffice.gov.uk:/home/users/margaret.hendry/jules_fork/jules
-    ref: 7170d515223c8366ee0467d631dc117a30beb797
+    source: git@github.com:maggiehendry/jules.git
+    ref: 115-convert-jules_pftparm-to-a-duplicate-namelist
 
 lfric_apps:
     source:

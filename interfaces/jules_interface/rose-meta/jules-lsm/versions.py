@@ -31,3 +31,13 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn32_t775(MacroUpgrade):
+    # Upgrade macro for 775 by Maggie Hendry
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t775"
+
+    def upgrade(self, config, meta_config=None):
+        # Bump tag to pick up metadata changes
+        return config, self.reports
