@@ -272,7 +272,7 @@ contains
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
-    qr => get_qr_fe()
+    qr => get_qr_fe(config)
     mesh => theta%get_mesh()
     reference_element => mesh%get_reference_element()
     qrf = quadrature_face_type(element_order_h+2, element_order_v+2, &
@@ -327,7 +327,7 @@ contains
 
       ! Compute new rhs
       if ( rotating ) then
-        coriolis => get_coriolis(mesh_id)
+        coriolis => get_coriolis(config, mesh)
         call invoke( matrix_vector_kernel_type( rhs_prediction(igh_u,stage),   &
                                                 ls_state_stage(igh_u,stage), coriolis ) )
       end if
@@ -422,7 +422,7 @@ contains
 
       ! Compute new rhs
       if ( rotating ) then
-        coriolis => get_coriolis(mesh_id)
+        coriolis => get_coriolis(config, mesh)
         call invoke( matrix_vector_kernel_type( rhs_prediction(igh_u,stage),   &
                                                 state(igh_u), coriolis ) )
       end if
@@ -507,7 +507,7 @@ contains
     ! Apply viscosity
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
-      dx_at_w2 => get_dx_at_w2(u%get_mesh())
+      dx_at_w2 => get_dx_at_w2(config, u%get_mesh())
       call invoke(setval_c(inc(igh_u), 0.0_r_def),                             &
                   tracer_viscosity_kernel_type(   inc(igh_t), state(igh_t), 1, &
                                                   dx_at_w2, viscosity_mu ),    &

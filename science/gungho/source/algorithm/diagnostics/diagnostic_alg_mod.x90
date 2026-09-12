@@ -194,7 +194,7 @@ contains
 
     if (element_order_h > 0 .or. element_order_v > 0) then
       ! Use finite element quadrature
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
     else
       ! Use finite volume quadrature
       qr => get_qr_fv()
@@ -311,13 +311,14 @@ contains
   end subroutine scalar_nodal_diagnostic_alg
 
   !> @details Generic diagnostic processing for a vector field to nodal format
+  !> @param[in,out] config            Application configuration object
   !> @param[in,out] output_field      The output field
   !> @param[in,out] output_dim        Dimension of the output field
   !> @param[in,out] nodal_coordinates Coordinates of the output field
   !> @param[in,out] level             Levels of the output field
   !> @param[in] field_name            Name of the field to be output
   !> @param[in] field                 The input field
-  subroutine vector_nodal_diagnostic_alg(output_field, output_dim, &
+  subroutine vector_nodal_diagnostic_alg(config, output_field, output_dim, &
                                          nodal_coordinates, level, &
                                          field_name, field)
 
@@ -332,7 +333,9 @@ contains
 
     implicit none
 
-    integer(i_def), intent(inout)   :: output_dim
+    type(config_type), intent(in) :: config
+
+    integer(i_def),   intent(inout) :: output_dim
     type(field_type), intent(inout) :: nodal_coordinates(3)
     type(field_type), intent(inout) :: output_field(3)
     type(field_type), intent(inout) :: level
@@ -374,7 +377,9 @@ contains
     ! Apply Piola transform to get collocated components
 
     if ( output_fs == W1 ) then
-      call invoke( convert_hcurl_field_kernel_type(output_field, field, chi, panel_id) )
+      call invoke( convert_hcurl_field_kernel_type(output_field, field, chi, panel_id, &
+                                                   geometry, topology, coord_system,   &
+                                                   scaled_radius) )
       output_dim = 3
     else if ( output_fs == W2 ) then
       optimised_conversion = (                                                 &
@@ -383,9 +388,13 @@ contains
         .and. field%get_element_order_v() == 0                                 &
       )
       if (optimised_conversion) then
-        call invoke( convert_hdiv_native_kernel_type(output_field, field, chi, panel_id) )
+        call invoke( convert_hdiv_native_kernel_type(output_field, field, chi, panel_id, &
+                                                     geometry, topology, coord_system,   &
+                                                     scaled_radius) )
       else
-        call invoke( convert_hdiv_field_kernel_type(output_field, field, chi, panel_id) )
+        call invoke( convert_hdiv_field_kernel_type(output_field, field, chi, panel_id, &
+                                                    geometry, topology, coord_system,   &
+                                                    scaled_radius) )
       end if
       output_dim = 3
     else
@@ -404,9 +413,9 @@ contains
     if ( output_fs == W1 .or. output_fs == W2 ) then
       if ( field%get_element_order_h() > 0 .or. &
            field%get_element_order_v() > 0 ) then
-        rmultiplicity => get_rmultiplicity_fe( output_fs, mesh%get_id() )
+        rmultiplicity => get_rmultiplicity_fe( config, mesh, output_fs )
       else
-        rmultiplicity => get_rmultiplicity_fv( output_fs, mesh%get_id() )
+        rmultiplicity => get_rmultiplicity_fv( output_fs, mesh%get_id())
       end if
 
       do i = 1,output_dim

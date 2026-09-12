@@ -110,7 +110,6 @@ module gungho_model_mod
   use um_clock_init_mod,           only : um_clock_init
   use um_control_init_mod,         only : um_control_init
   use um_domain_init_mod,          only : um_domain_init
-  use um_domain_init_mod,          only : um_domain_init
   use um_sizes_init_mod,           only : um_sizes_init
   use um_physics_init_mod,         only : um_physics_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
@@ -1073,7 +1072,7 @@ contains
                              dt)
       end if
       ! Initialisation of UM variables related to the mesh
-      call um_domain_init(mesh)
+      call um_domain_init(modeldb%config, mesh)
     end if
 #endif
 

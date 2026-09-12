@@ -70,7 +70,7 @@ contains
     m3_inv   => get_inverse_mass_matrix_fe(config, mesh, W3)
     chi      => get_coordinates( mesh )
     panel_id => get_panel_id( mesh )
-    qr       => get_qr_fe()
+    qr       => get_qr_fe( config )
     nlayersm1 = mesh%get_nlayers()-1
 
     select case(eos_method)

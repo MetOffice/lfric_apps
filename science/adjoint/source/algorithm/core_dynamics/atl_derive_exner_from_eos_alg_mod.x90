@@ -82,7 +82,7 @@ contains
     chi      => get_coordinates(state(igh_p)%get_mesh())
     panel_id => get_panel_id(state(igh_p)%get_mesh())
     m3_inv  => get_inverse_mass_matrix_fe(config, mesh, W3)
-    qr => get_qr_fe()
+    qr => get_qr_fe(config)
 
     select case(eos_method)
     case(eos_method_sampled)

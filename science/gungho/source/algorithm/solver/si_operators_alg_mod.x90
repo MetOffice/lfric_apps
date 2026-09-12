@@ -582,7 +582,7 @@ contains
        else
           ! for non MG, at higher order, need computed rmultiplicity
           call ones%initialise( vector_space = w2_fs )
-          w2_rmultiplicity => get_rmultiplicity_fe( W2, mesh%get_id() )
+          w2_rmultiplicity => get_rmultiplicity_fe(config, mesh, W2)
           call rsol_w2_rmultiplicity%initialise( w2_fs )
           call invoke( real_to_real_x(rsol_w2_rmultiplicity, w2_rmultiplicity), &
                        setval_c(ones,            1.0_r_solver),                 &
@@ -647,7 +647,7 @@ contains
          ! Add on contribution to q32 from eliminating theta
          select case(eos_method)
          case(eos_method_sampled)
-           detj_at_w3 => get_detj_at_w3_r_solver( mesh%get_id() )
+           detj_at_w3 => get_detj_at_w3_r_solver(config, mesh)
            call invoke( sample_eliminated_theta_q32_kernel_type(eliminated_q32(level), theta, detj_at_w3 , &
                                                                 const2) )
          case(eos_method_projected)

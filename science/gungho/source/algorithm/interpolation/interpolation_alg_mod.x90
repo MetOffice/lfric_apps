@@ -88,7 +88,7 @@ module interpolation_alg_mod
     element_order_h = u_in_w2%get_element_order_h()
     element_order_v = u_in_w2%get_element_order_v()
     if (element_order_h > 0 .or. element_order_v > 0) then
-      w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
+      w2_rmultiplicity => get_rmultiplicity_fe(config, mesh, W2)
     else
       w2_rmultiplicity => get_rmultiplicity_fv(W2, mesh%get_id())
     end if
@@ -106,7 +106,9 @@ module interpolation_alg_mod
     call invoke( setval_c(physical_wind_w3(1), 0.0_r_def), &
                  setval_c(physical_wind_w3(2), 0.0_r_def), &
                  setval_c(physical_wind_w3(3), 0.0_r_def), &
-                 convert_hdiv_field_kernel_type(physical_wind_w3, u_in_w2, chi, panel_id), &
+                 convert_hdiv_field_kernel_type(physical_wind_w3, u_in_w2, chi,   &
+                                                panel_id, geometry, topology,     &
+                                                coord_system, scaled_radius),     &
                  nodal_xyz_coordinates_kernel_type( physical_chi_w3, chi,         &
                                                     panel_id, geometry, topology, &
                                                     coord_system, scaled_radius ) )
@@ -119,7 +121,10 @@ module interpolation_alg_mod
                  setval_c(physical_wind_w2(1), 0.0_r_def), &
                  setval_c(physical_wind_w2(2), 0.0_r_def), &
                  setval_c(physical_wind_w2(3), 0.0_r_def), &
-                 convert_hdiv_field_kernel_type(physical_wind_w2, u_in_w2, chi, panel_id), &
+                 convert_hdiv_field_kernel_type(     &
+                     physical_wind_w2, u_in_w2, chi, &
+                     panel_id, geometry, topology,   &
+                     coord_system, scaled_radius),   &
                  inc_X_times_Y(physical_wind_w2(1), w2_rmultiplicity), &
                  inc_X_times_Y(physical_wind_w2(2), w2_rmultiplicity), &
                  inc_X_times_Y(physical_wind_w2(3), w2_rmultiplicity), &
@@ -181,7 +186,7 @@ module interpolation_alg_mod
     wtheta_fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                   element_order_v, Wtheta)
     if (element_order_h > 0 .or. element_order_v > 0) then
-      w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
+      w2_rmultiplicity => get_rmultiplicity_fe(config, mesh, W2)
     else
       w2_rmultiplicity => get_rmultiplicity_fv(W2, mesh%get_id())
     end if

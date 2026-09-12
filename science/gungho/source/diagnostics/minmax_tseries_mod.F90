@@ -88,7 +88,7 @@ contains
 
    if ( fs == W1 .or. fs == W2) then
      ! Vector field
-     call vector_nodal_diagnostic_alg(nodal_output, output_dim, &
+     call vector_nodal_diagnostic_alg(config, nodal_output, output_dim, &
                                       nodal_coordinates, level, &
                                       field_name, field)
 

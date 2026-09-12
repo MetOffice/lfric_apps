@@ -46,7 +46,6 @@ module physics_mappings_alg_mod
   use sci_field_minmax_alg_mod,         only: log_field_minmax
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system, &
                                        coord_system_native
   use planet_config_mod,         only: scaled_radius
@@ -160,7 +159,13 @@ contains
     type( mesh_type ), pointer            :: mesh
     logical( kind=l_def )                 :: optimised_conversion
 
-    mesh =>  source_field%get_mesh()
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    mesh => source_field%get_mesh()
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
 
     ! get chi field
     chi      => get_coordinates(mesh)
@@ -182,18 +187,27 @@ contains
         .and. u1_field%get_element_order_v() == 0                              &
       )
       if (optimised_conversion) then
-        call invoke( dg_convert_hdiv_native_kernel_type(wind_map, source_field, chi, panel_id) )
+        call invoke( dg_convert_hdiv_native_kernel_type(        &
+                         wind_map, source_field, chi, panel_id, &
+                         mesh%geometry(), mesh%topology(),      &
+                         coord_system, scaled_radius) )
       else
-        call invoke( dg_convert_hdiv_field_kernel_type(wind_map, source_field, chi, panel_id) )
+        call invoke( dg_convert_hdiv_field_kernel_type(         &
+                         wind_map, source_field, chi, panel_id, &
+                         mesh%geometry(), mesh%topology(),      &
+                         coord_system, scaled_radius) )
       end if
 
-      if ( geometry == geometry_spherical ) then
+      if ( mesh%geometry() == geometry_spherical ) then
         call u1_field%copy_field_properties(physical_chi(1))
         call u1_field%copy_field_properties(physical_chi(2))
         call u1_field%copy_field_properties(physical_chi(3))
-        call invoke( nodal_xyz_coordinates_kernel_type( physical_chi, chi,            &
-                                                        panel_id, geometry, topology, &
-                                                        coord_system, scaled_radius ) )
+        call invoke( nodal_xyz_coordinates_kernel_type( physical_chi, chi, &
+                                                        panel_id,          &
+                                                        mesh%geometry(),   &
+                                                        mesh%topology(),   &
+                                                        coord_system,      &
+                                                        scaled_radius ) )
         call invoke( convert_cart2sphere_vector_kernel_type(wind_map, physical_chi) )
       end if
 
@@ -270,7 +284,8 @@ contains
     ! Convert coordinate field to physical space
 
     call invoke( nodal_xyz_coordinates_kernel_type( physical_chi, chi, panel_id, &
-                                                    geometry, topology,          &
+                                                    mesh%geometry(), &
+                                                    mesh%topology(), &
                                                     coord_system, scaled_radius) )
 
     ! Convert 3D wind field to 3 components using the Piola transform
@@ -281,9 +296,15 @@ contains
       .and. wind%get_element_order_v() == 0                                    &
     )
     if (optimised_conversion) then
-      call invoke( convert_hdiv_native_kernel_type(physical_wind, wind, chi, panel_id) )
+      call invoke( convert_hdiv_native_kernel_type(        &
+                       physical_wind, wind, chi, panel_id, &
+                       mesh%geometry(), mesh%topology(),   &
+                       coord_system, scaled_radius) )
     else
-      call invoke( convert_hdiv_field_kernel_type(physical_wind, wind, chi, panel_id) )
+      call invoke( convert_hdiv_field_kernel_type(         &
+                       physical_wind, wind, chi, panel_id, &
+                       mesh%geometry(), mesh%topology(),   &
+                       coord_system, scaled_radius) )
     end if
 
     ! Scale fields by the reciprocal of multiplicity
@@ -293,7 +314,7 @@ contains
 
     ! Convert to standard SI units (m/s) in orthogonal directions
 
-    if ( geometry == geometry_spherical ) then
+    if ( mesh%geometry() == geometry_spherical ) then
         call invoke( convert_cart2sphere_vector_kernel_type(physical_wind, physical_chi) )
     end if
 

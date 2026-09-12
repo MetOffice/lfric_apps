@@ -59,8 +59,7 @@ module transport_constants_mod
   use panel_edge_support_mod,             only: FAR_AWAY
 
   ! Configuration modules
-  use finite_element_config_mod, only: coord_system,           &
-                                       coord_system_xyz
+  use finite_element_config_mod, only: coord_system_xyz
 
   implicit none
 
@@ -266,13 +265,7 @@ contains
     integer(kind=i_def),        parameter :: MINUS_FAR_AWAY = -FAR_AWAY
     integer(tik)                          :: id
 
-    integer(i_def) :: geometry
-    integer(i_def) :: topology
-
     if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
-
-    geometry = mesh%geometry()
-    topology = mesh%topology()
 
     ! Initialise inventories if they haven't already been
     if (.not. panel_edge_dist_inventory%is_initialised()) then
@@ -291,7 +284,8 @@ contains
         panel_edge_dist, fs, 4, local_mesh, halo_depth=field_depth             &
     )
 
-    if (geometry == geometry_spherical .and. topology == topology_periodic) then
+    if ( mesh%geometry() == geometry_spherical .and. &
+         mesh%topology() == topology_periodic ) then
       ! Check if the mesh is too coarse for this stencil
       ! If the stencil is too long for the mesh, it could overlap with
       ! two panel edges, and will not give a sensible answer
@@ -639,6 +633,12 @@ contains
     type(function_space_type),    pointer :: w3_fs
     integer(tik)                          :: id
 
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     ! Check inventory is initialised
     if (.not. detj_at_w3_r_tran_inventory%is_initialised()) then
       ! Initialise all inventories together
@@ -677,8 +677,12 @@ contains
                                                  halo_depth=halo_depth)
 
       if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
-      call invoke( calc_detj_at_w3_kernel_type(detj_r_tran, chi, panel_id,     &
-                                               halo_depth) )
+      call invoke( calc_detj_at_w3_kernel_type(detj_r_tran, chi, &
+                                               panel_id,         &
+                                               mesh%geometry(),  &
+                                               mesh%topology(),  &
+                                               coord_system,     &
+                                               scaled_radius, halo_depth) )
       else
         call invoke( real_to_real_x(detj_r_tran, detj_r_def) )
       end if
@@ -717,6 +721,12 @@ contains
                                              element_order_v
     integer(tik)                          :: id
 
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     ! Check inventory is initialised
     if (.not. detj_at_w2_above_inventory%is_initialised()) then
       call detj_at_w2_above_inventory%initialise(name='detj_at_w2_above')
@@ -733,7 +743,7 @@ contains
       panel_id => get_panel_id(mesh)
       if (element_order_h == 0 .and. element_order_v == 0) then
         ! Get the finite volume det(J) field
-        detj_at_w2 => get_detj_at_w2_fv(mesh)
+        detj_at_w2 => get_detj_at_w2_fv(config, mesh)
       else
         ! Get the finite element det(J) field
         detj_at_w2 => get_detj_at_w2_fe(config, mesh)
@@ -753,6 +763,10 @@ contains
       call invoke( setval_X(detj_above, detj_at_w2),                           &
                    calc_directional_detj_at_w2_kernel_type(detj_above,         &
                                                            chi, panel_id,      &
+                                                           mesh%geometry(),    &
+                                                           mesh%topology(),    &
+                                                           coord_system ,      &
+                                                           scaled_radius,      &
                                                            detj_direction) )
       if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
@@ -789,6 +803,12 @@ contains
                                              element_order_v
     integer(tik)                          :: id
 
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     ! Check inventory is initialised
     if (.not. detj_at_w2_below_inventory%is_initialised()) then
       call detj_at_w2_below_inventory%initialise(name='detj_at_w2_above')
@@ -804,7 +824,7 @@ contains
       panel_id => get_panel_id(mesh)
       if (element_order_h == 0 .and. element_order_v == 0) then
         ! Get the finite volume det(J) field
-        detj_at_w2 => get_detj_at_w2_fv(mesh)
+        detj_at_w2 => get_detj_at_w2_fv(config, mesh)
       else
         ! Get the finite element det(J) field
         detj_at_w2 => get_detj_at_w2_fe(config, mesh)
@@ -823,6 +843,10 @@ contains
       call invoke( setval_X(detj_below, detj_at_w2),                           &
                    calc_directional_detj_at_w2_kernel_type(detj_below,         &
                                                            chi, panel_id,      &
+                                                           mesh%geometry(),    &
+                                                           mesh%topology(),    &
+                                                           coord_system ,      &
+                                                           scaled_radius,      &
                                                            detj_direction) )
       if ( LPROF ) call stop_timing( id, 'runtime_constants.transport' )
     end if
@@ -1183,14 +1207,9 @@ contains
                                              element_order_v
     integer(tik)                          :: id
 
-    integer(i_def) :: geometry
-    integer(i_def) :: topology
     integer(i_def) :: coord_system
     real(r_def)    :: scaled_radius
     logical(l_def) :: rehabilitate
-
-    geometry = mesh%geometry()
-    topology = mesh%topology()
 
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
@@ -1241,7 +1260,7 @@ contains
         qr => get_qr_fv()
         mm_w3_inv => get_inverse_mass_matrix_fv(config, mesh, W3)
       else
-        qr => get_qr_fe()
+        qr => get_qr_fe(config)
         mm_w3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
       end if
 
@@ -1255,7 +1274,8 @@ contains
         call im3_div%initialise( w3_fs, w2_fs )
         call inventory%add_operator(im3_div_r_tran, w3_fs, w2_fs, mesh)
         call invoke( compute_div_operator_kernel_type(div, chi, panel_id, &
-                                                      geometry, topology, &
+                                                      mesh%geometry(),    &
+                                                      mesh%topology(),    &
                                                       coord_system,       &
                                                       scaled_radius,      &
                                                       rehabilitate, qr),  &
@@ -1703,11 +1723,8 @@ contains
 
     class(reference_element_type), pointer :: reference_element
 
-    integer(i_def) :: geometry, topology, coord_system
+    integer(i_def) :: coord_system
     real(r_def)    :: scaled_radius
-
-    geometry = mesh%geometry()
-    topology = mesh%topology()
 
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
@@ -1772,7 +1789,8 @@ contains
         domain_size_y = domain%maximum_xy(axis=2) - domain%minimum_xy(axis=2)
       end if
 
-      if ( coord_system == coord_system_xyz .or. geometry == geometry_planar ) then
+      if ( coord_system == coord_system_xyz .or. &
+           mesh%geometry() == geometry_planar ) then
         transform_radius = 0.0_r_def
       else
         ! Compute the smallest surface height of chi(3)
@@ -1814,8 +1832,8 @@ contains
                                                               chi,             &
                                                               panel_id,        &
                                                               extended_mesh,   &
-                                                              geometry,        &
-                                                              topology,        &
+                                                              mesh%geometry(), &
+                                                              mesh%topology(), &
                                                               coord_system,    &
                                                               scaled_radius,   &
                                                               qr_fem),         &
@@ -2065,11 +2083,8 @@ contains
     class(reference_element_type),   pointer :: reference_element
     integer(tik)                             :: id
 
-    integer(i_def) :: geometry, topology, coord_system
+    integer(i_def) :: coord_system
     real(r_def)    :: scaled_radius
-
-    geometry = mesh%geometry()
-    topology = mesh%topology()
 
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
@@ -2133,7 +2148,8 @@ contains
         domain_size_y = domain%maximum_xy(axis=2) - domain%minimum_xy(axis=2)
       end if
 
-      if ( coord_system == coord_system_xyz .or. geometry == geometry_planar ) then
+      if ( coord_system == coord_system_xyz .or. &
+           mesh%geometry() == geometry_planar ) then
         transform_radius = 0.0_r_def
       else
         ! Compute the smallest surface height of chi(3)
@@ -2174,8 +2190,8 @@ contains
                                                               chi,             &
                                                               panel_id,        &
                                                               extended_mesh,   &
-                                                              geometry,        &
-                                                              topology,        &
+                                                              mesh%geometry(), &
+                                                              mesh%topology(), &
                                                               coord_system,    &
                                                               scaled_radius,   &
                                                               qr_fem),         &

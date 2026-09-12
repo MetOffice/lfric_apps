@@ -347,7 +347,7 @@ contains
     integer(tik)        :: id
 
     if ( LPROF ) call start_timing( id, 'rk_alg' )
-    qr => get_qr_fe()
+    qr => get_qr_fe(self%config)
     mesh => theta%get_mesh()
     reference_element => mesh%get_reference_element()
     outer = 1_i_def
@@ -392,7 +392,7 @@ contains
                                          mr, mr, model_clock, outer, cheap_update )
       ! Compute new rhs
       if ( rotating ) then
-        coriolis => get_coriolis(mesh_id)
+        coriolis => get_coriolis(self%config, u%get_mesh())
         call invoke( matrix_vector_kernel_type( self%rhs_prediction(igh_u,stage),   &
                                                 self%state(igh_u), coriolis ) )
       end if
@@ -460,7 +460,7 @@ contains
     ! Apply viscosity
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
-      dx_at_w2 => get_dx_at_w2(u%get_mesh())
+      dx_at_w2 => get_dx_at_w2(self%config, u%get_mesh())
       face_selector_ew => get_face_selector_ew(mesh)
       face_selector_ns => get_face_selector_ns(mesh)
 

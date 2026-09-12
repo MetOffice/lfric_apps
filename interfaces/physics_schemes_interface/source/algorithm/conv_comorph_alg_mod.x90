@@ -282,7 +282,7 @@ contains
     call log_event( 'Running Comorph convection scheme', LOG_LEVEL_DEBUG )
 
     mesh  => rho%get_mesh()
-    delta => get_delta_at_wtheta(mesh)
+    delta => get_delta_at_wtheta(config, mesh)
 
     ! Unpack derived fields
     call derived_fields%get_field('exner_in_wth', exner_in_wth)

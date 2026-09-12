@@ -415,7 +415,7 @@ contains
 
     call log_event( "Tangent linear: semi implicit timestep", LOG_LEVEL_INFO )
 
-    qr => get_qr_fe()
+    qr => get_qr_fe(modeldb%config)
 
     mm_wt  => get_mass_matrix_fe(modeldb%config, mesh, Wtheta)
     mm_vel => get_mass_matrix_fe(modeldb%config, mesh, W2)

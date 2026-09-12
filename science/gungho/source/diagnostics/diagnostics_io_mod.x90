@@ -242,7 +242,7 @@ subroutine write_vector_diagnostic( config, mesh, field_name, field, &
                         timestep,             &
                         ".m"))
 
-    call vector_nodal_diagnostic_alg( output_field, output_dim, &
+    call vector_nodal_diagnostic_alg( config, output_field, output_dim, &
                                       nodal_coordinates, level, &
                                       field_name, temp_field )
 

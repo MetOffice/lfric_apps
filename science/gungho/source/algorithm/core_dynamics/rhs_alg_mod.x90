@@ -209,7 +209,7 @@ contains
 
     ! Compute rhs_u
     if ( rotating ) then
-      coriolis => get_coriolis(mesh%get_id())
+      coriolis => get_coriolis(config, mesh)
       call invoke( matrix_vector_kernel_type( rhs_u, u, coriolis ) )
     end if
     call theta_v%initialise( theta%get_function_space(), halo_depth = req_halo_depth )
@@ -399,7 +399,7 @@ contains
     end if
 
     if ( rotating ) then
-      coriolis => get_coriolis(mesh%get_id())
+      coriolis => get_coriolis(config, mesh)
       call invoke( matrix_vector_kernel_type( rhs_tmp, u, coriolis ) )
     end if
 

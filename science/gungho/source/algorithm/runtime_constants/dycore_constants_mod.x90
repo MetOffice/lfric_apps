@@ -83,9 +83,10 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns the Coriolis operator
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh to get the object for
   !> @return The Coriolis operator
-  function get_coriolis(mesh_id) result(coriolis)
+  function get_coriolis(config, mesh) result(coriolis)
 
     use base_mesh_config_mod,    only: f_lat
     use compute_coriolis_matrix_kernel_mod, &
@@ -94,8 +95,9 @@ contains
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
     logical(kind=l_def)                   :: constant_exists
     type(operator_type),          pointer :: coriolis
     type(field_type),             pointer :: chi(:)
@@ -109,8 +111,7 @@ contains
       call coriolis_inventory%initialise(name="coriolis")
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = coriolis_inventory%paired_object_exists(mesh_id)
+    constant_exists = coriolis_inventory%paired_object_exists(mesh%get_id())
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
@@ -118,7 +119,7 @@ contains
                                                 element_order_v, W2)
       chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
 
@@ -137,9 +138,10 @@ contains
   end function get_coriolis
 
   !> @brief Returns the vertical Coriolis operator
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh_id Mesh to get the object for
   !> @return The Coriolis operator
-  function get_vert_coriolis(mesh_id) result(vert_coriolis)
+  function get_vert_coriolis(config, mesh) result(vert_coriolis)
 
     use base_mesh_config_mod,    only: f_lat
     use compute_vert_coriolis_matrix_kernel_mod, &
@@ -148,8 +150,9 @@ contains
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
     logical(kind=l_def)                   :: constant_exists
     type(operator_type),          pointer :: vert_coriolis
     type(field_type),             pointer :: chi(:)
@@ -164,8 +167,7 @@ contains
       call vert_coriolis_inventory%initialise(name="vert_coriolis")
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = vert_coriolis_inventory%paired_object_exists(mesh_id)
+    constant_exists = vert_coriolis_inventory%paired_object_exists(mesh%get_id())
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
@@ -174,7 +176,7 @@ contains
       wt_fs => function_space_collection%get_fs(mesh, 0, 0, Wtheta)
       chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
 
@@ -375,7 +377,7 @@ contains
         if (dlayer_on) then
           chi => get_coordinates(mesh)
           panel_id => get_panel_id(mesh)
-          qr => get_qr_fe()
+          qr => get_qr_fe(config)
 
           if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
           call invoke( name = "compute_damping_layer_mass_matrix",             &
@@ -445,7 +447,7 @@ contains
         else
           const = 0.0_r_def
         end if
-        coriolis => get_coriolis(mesh%get_id())
+        coriolis => get_coriolis(config, mesh)
 
         ! Compute the si W2 mass matrix: mm_w2_si = mm_w2 + damping_layer +
         ! coriolis

@@ -127,6 +127,8 @@ module skeb_ndisp_alg_mod
 
   ! Integers
   integer(kind=i_def) :: i
+  integer(kind=i_def) :: coord_system
+  real(kind=r_def)    :: scaled_radius
   integer(tik)        :: id_skeb, id_stoch, id_diags
 
   !!!!!!!!!! END OF VARIABLE DEFINITION, START OF CODE !!!!!!!!!!
@@ -147,6 +149,9 @@ module skeb_ndisp_alg_mod
   ! other variables from operators
   chi      => get_coordinates( mesh )
   panel_id => get_panel_id( mesh )
+
+  coord_system = config%finite_element%coord_system()
+  scaled_radius= config%planet%scaled_radius()
 
   ! Initialise fields
   call u_h%initialise( vector_space = w2h_fs )
@@ -226,14 +231,18 @@ module skeb_ndisp_alg_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  4)  Do Norm of gradients of vorticity and divergence  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  call invoke( setval_c(norm_gu, 0.0_r_def),                                      &
-               setval_c(norm_xi, 0.0_r_def),                                      &
-               dg_convert_hdiv_field_kernel_type(physical_grad_xi,                &
-                                                 grad_perp_xi, chi, panel_id),    &
-               dg_convert_hdiv_field_kernel_type(physical_grad_div,               &
-                                                 grad_div_u, chi, panel_id),      &
-               dot_product_of_components_kernel_type(norm_gu, physical_grad_div), &
-               dot_product_of_components_kernel_type(norm_xi, physical_grad_xi),  &
+  call invoke( setval_c(norm_gu, 0.0_r_def),                                       &
+               setval_c(norm_xi, 0.0_r_def),                                       &
+               dg_convert_hdiv_field_kernel_type(physical_grad_xi,                 &
+                                                 grad_perp_xi, chi, panel_id,      &
+                                                 mesh%geometry(), mesh%topology(), &
+                                                 coord_system, scaled_radius),     &
+               dg_convert_hdiv_field_kernel_type(physical_grad_div,                &
+                                                 grad_div_u, chi, panel_id,        &
+                                                 mesh%geometry(), mesh%topology(), &
+                                                 coord_system, scaled_radius),     &
+               dot_product_of_components_kernel_type(norm_gu, physical_grad_div),  &
+               dot_product_of_components_kernel_type(norm_xi, physical_grad_xi),   &
   !!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  5)  Scale by k_amp  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -255,7 +255,7 @@ subroutine tl_rhs_alg( config, rhs, alpha_dt, base_state, state,       &
     end if
 
     if ( rotating ) then
-      coriolis => get_coriolis(mesh%get_id())
+      coriolis => get_coriolis(config, mesh)
       call invoke( matrix_vector_kernel_type( rhs_tmp, u, coriolis ) )
     end if
 

@@ -137,7 +137,7 @@ contains
     end if
 
     if (element_order_h > 0 .or. element_order_v > 0) then
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
     else
       qr => get_qr_fv()
     end if
@@ -157,7 +157,7 @@ contains
       if ( profile == profile_pw_linear ) then
         call sample_init_u_alg(config, u)
       else
-        dA_at_w2 => get_dA_at_w2(mesh)
+        dA_at_w2 => get_dA_at_w2(config, mesh)
         call invoke( name = "get_u_from_sampling", &
                      setval_c( u, 0.0_r_def ),     &
                      sample_initial_u_kernel_type( u, dA_at_w2, u0, v0 ) )
@@ -293,7 +293,7 @@ contains
 
       height_w3  => get_height_fe(config, mesh, W3)
       height_wth => get_height_fe(config, mesh, Wtheta)
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
 
     else
 
@@ -367,7 +367,7 @@ contains
     panel_id => get_panel_id(mesh)
     if (element_order_h > 0 .or. element_order_v > 0) then
       m3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
     else
       m3_inv => get_inverse_mass_matrix_fv(config, mesh, W3)
       qr => get_qr_fv()

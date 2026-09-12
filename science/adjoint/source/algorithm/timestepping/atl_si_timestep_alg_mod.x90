@@ -348,7 +348,7 @@ contains
 
     cast_dt = real( modeldb%clock%get_seconds_per_step(), r_def )
 
-    qr => get_qr_fe()
+    qr => get_qr_fe(modeldb%config)
 
     ! Get mesh
     prime_mesh_name = self%config%base_mesh%prime_mesh_name()

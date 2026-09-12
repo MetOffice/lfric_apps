@@ -107,6 +107,9 @@ contains
 
     type(config_type), pointer :: config
 
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
     k_h = get_element_order_h_transport()
     k_v = get_element_order_v_transport()
 
@@ -133,9 +136,8 @@ contains
         ! Cartesian coordinates and then map back to computational form
 
         mesh => wind_n%get_mesh()
-        geometry = mesh%get_geometry()
-        topology = mesh%get_topology()
-        coord_sys = config%finite_element%config_sys()
+
+        coord_system  = config%finite_element%coord_system()
         scaled_radius = config%planet%scaled_radius()
 
         w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
@@ -162,11 +164,14 @@ contains
         )
         if (optimised_conversion) then
           call invoke( dg_convert_hdiv_native_kernel_type(                     &
-                  u_w3_n, wind_n, chi, panel_id                                &
+                  u_w3_n, wind_n, chi, panel_id,                               &
+                  mesh%geometry(), mesh%topology(),                            &
+                  coord_system, scaled_radius                                  &
           ) )
         else
           call invoke( dg_convert_hdiv_field_kernel_type(                      &
-                  u_w3_n, wind_n, chi, panel_id                                &
+                  u_w3_n, wind_n, chi, panel_id, mesh%geometry(),              &
+                  mesh%topology(), coord_system, scaled_radius                 &
           ) )
         end if
 
@@ -193,9 +198,9 @@ contains
 
         if ( LPROF ) call start_timing( id_from, 'transport.wind_from_comps' )
 
-        project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
-        project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
-        project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
+        project_xdot_to_w2 => get_project_xdot_to_w2(config, mesh)
+        project_ydot_to_w2 => get_project_ydot_to_w2(config, mesh)
+        project_zdot_to_w2 => get_project_zdot_to_w2(config, mesh)
 
         ! Either Galerkin project in W2broken
         if (broken_w2_projection) then
@@ -209,7 +214,7 @@ contains
           else
             mm_w2 => get_mass_matrix_fe(config, mesh, W2)
             mm_w2b_inv => get_inverse_mass_matrix_fe(config, mesh, W2broken)
-            rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
+            rmultiplicity_w2 => get_rmultiplicity_fe(config, mesh, W2)
           end if
 
           call rhs_u_broken%initialise( w2b_fs )

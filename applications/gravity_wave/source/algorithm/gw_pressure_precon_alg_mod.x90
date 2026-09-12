@@ -216,7 +216,7 @@ contains
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
 
-    qr => get_qr_fe()
+    qr => get_qr_fe(config)
     w3_fs  => function_space_collection%get_fs( mesh, order_h, order_v, W3 )
     w2v_fs => function_space_collection%get_fs( mesh, order_h, order_v, W2V )
     w2h_fs => function_space_collection%get_fs( mesh, order_h, order_v, W2H )

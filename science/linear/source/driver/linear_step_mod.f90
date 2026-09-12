@@ -124,7 +124,7 @@ module linear_step_mod
     call ls_fields%get_field('ls_u', ls_u)
     call ls_fields%get_field('ls_rho', ls_rho)
     call ls_fields%get_field('ls_exner', ls_exner)
-    dA => get_da_at_w2(mesh)
+    dA => get_da_at_w2(modeldb%config, mesh)
 
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit

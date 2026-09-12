@@ -91,16 +91,18 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns the Det(J) values at W3 dof locations
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh to get the object for
   !> @return The Det(J) field
-  function get_detj_at_w3_r_solver(mesh_id) result(detj_r_solver)
+  function get_detj_at_w3_r_solver(config, mesh) result(detj_r_solver)
 
     use sci_calc_detj_at_w3_kernel_mod, only: calc_detj_at_w3_kernel_type
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
     logical(kind=l_def)                   :: constant_exists
     integer(kind=i_def)                   :: halo_depth
     type(r_solver_field_type),    pointer :: detj_r_solver
@@ -109,14 +111,29 @@ contains
     type(function_space_type),    pointer :: w3_fs
     integer(tik)                          :: id
 
+    integer(i_def) :: order_h
+    integer(i_def) :: order_v
+
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    geometry = mesh%geometry()
+    topology = mesh%topology()
+
+    order_h       = config%finite_element%element_order_h()
+    order_v       = config%finite_element%element_order_v()
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     ! Check inventory is initialised
     if (.not. detj_at_w3_r_solver_inventory%is_initialised()) then
       ! Initialise all inventories together
       call detj_at_w3_r_solver_inventory%initialise(name='detj_at_w3_r_solver')
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = detj_at_w3_r_solver_inventory%paired_object_exists(mesh_id)
+    constant_exists = detj_at_w3_r_solver_inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       chi => get_coordinates(mesh)
@@ -125,13 +142,13 @@ contains
       ! Create the object as it doesn't exist yet
       if ( LPROF ) call start_timing( id, 'runtime_constants.solver' )
 
-      w3_fs => function_space_collection%get_fs(mesh, element_order_h, &
-                                                element_order_v, W3)
+      w3_fs => function_space_collection%get_fs(mesh, order_h, order_v, W3)
       call detj_at_w3_r_solver_inventory%add_field(detj_r_solver, w3_fs, mesh)
 
       halo_depth = 0  ! No need to calculate into halos
-      call invoke( calc_detj_at_w3_kernel_type(detj_r_solver, chi, panel_id,   &
-                                               halo_depth) )
+      call invoke( calc_detj_at_w3_kernel_type(detj_r_solver, chi, panel_id,     &
+                                               geometry, topology, coord_system, &
+                                               scaled_radius, halo_depth) )
       if ( LPROF ) call stop_timing( id, 'runtime_constants.solver' )
     end if
 
@@ -368,7 +385,7 @@ contains
     if (.not. constant_exists) then
       chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
       div => get_div(config, mesh)
       mm_w3_inv_r_solver => get_inverse_mass_matrix_r_solver(config, mesh, W3)
 

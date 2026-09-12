@@ -167,7 +167,7 @@ contains
     if ( read_w2h_wind )then
       ! We read in the horizontal (normal to face) winds on the w2h points
       mesh => u%get_mesh()
-      dA => get_da_at_w2(mesh)
+      dA => get_da_at_w2(config, mesh)
       face_selector_ew => get_face_selector_ew(mesh)
       face_selector_ns => get_face_selector_ns(mesh)
 
@@ -434,7 +434,7 @@ contains
 
     chi           => get_coordinates(mesh)
     panel_id      => get_panel_id(mesh)
-    vert_coriolis => get_vert_coriolis( mesh%get_id() )
+    vert_coriolis => get_vert_coriolis(config, mesh)
 
     ! Create intermediate fields.
     call theta%copy_field_properties(c_vert_term)

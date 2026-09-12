@@ -206,7 +206,7 @@ module gungho_step_mod
                                         'After timestep' )
 
         if ( use_physics .and. cloud == cloud_um ) then
-          dA => get_dA_at_w2(mesh)
+          dA => get_dA_at_w2(modeldb%config, mesh)
           call moisture_fluxes_alg( microphysics_fields, &
                                     convection_fields,   &
                                     turbulence_fields,   &
