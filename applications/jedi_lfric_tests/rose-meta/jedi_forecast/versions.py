@@ -74,3 +74,16 @@ class vn32_t479(MacroUpgrade):
         self.add_setting(config, ["namelist:mixing", "fullstress"], ".false.")
 
         return config, self.reports
+
+
+class vn32_t744(MacroUpgrade):
+    """Upgrade macro for ticket #744 by Maggie Hendry."""
+
+    BEFORE_TAG = "vn3.2_t479"
+    AFTER_TAG = "vn3.2_t744"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        # Bump tag to pick up metadata changes
+
+        return config, self.reports
