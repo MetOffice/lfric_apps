@@ -14,10 +14,35 @@
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
-{% set inherit.str = task_family|upper %}
 {% for family in task_values["run_families"] %}
-    {% set inherit.str = inherit.str~","~family|upper %}
+    {% set inherit.str = inherit.str~family|upper~"," %}
 {% endfor %}
+
+{# Generate a resource family for the task #}
+{% set resource_family = task~"_resources" %}
+{% if task_values["coupled"] %}
+    {{ set_task_resources(resource_family,
+                          inherit.str,
+                          task_values["wallclock"],
+                          task_values["mpi_parts"],
+                          task_values["memory"],
+                          threads=task_values["threads"],
+                          xios_nodes=task_values["xios_nodes"],
+                          ocean_nodes=task_values["ocean_nodes"],
+                          river_nodes=task_values["river_nodes"],
+                          ranks_per_node=task_values["task_ranks_per_node"],
+                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
+{% else %}
+    {{ set_task_resources(resource_family,
+                          inherit.str,
+                          task_values["wallclock"],
+                          task_values["mpi_parts"],
+                          task_values["memory"],
+                          threads=task_values["threads"],
+                          xios_nodes=task_values["xios_nodes"],
+                          ranks_per_node=task_values["task_ranks_per_node"],
+                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
+{% endif %}
 
 {# Generate the script command #}
 {% set script_str = namespace(name="") %}
@@ -74,15 +99,15 @@
     'mkdir -p $TASK_OUTPUT_DIR/results/',
     'RELATIVE_LOG_ROOT=$(echo $CYLC_TASK_LOG_ROOT | sed "s|$HOME/||")',
     'echo $RELATIVE_LOG_ROOT > $TASK_OUTPUT_DIR/run.log.path',
-    'find . -regex ".*PET0+\..+\.Log" -exec cp {} $ROSE_TASK_LOG_DIR \;',
+    'find . -regex ".*PET0+\..+\.Log" -exec cp {} $CYLC_TASK_LOG_DIR \;',
     'find . -regex ".*PET0+\..+\.Log" -exec cp {} $TASK_OUTPUT_DIR \;',
-    'ls -sh $TASK_OUTPUT_DIR/results > $ROSE_TASK_LOG_DIR/results_file_sizes.log',
+    'ls -sh $TASK_OUTPUT_DIR/results > $CYLC_TASK_LOG_DIR/results_file_sizes.log',
     '# Ensure that timing log information is performantly collated and located into the persistent task_log_dir.',
-    'find . -name timer.txt -exec cp {} $ROSE_TASK_LOG_DIR \;',
-    'find . -name "xios_client_*.out"  -exec cat {} + > $ROSE_TASK_LOG_DIR/xios_client_collated.out ',
-    'if [ ! -s $ROSE_TASK_LOG_DIR/xios_client_collated.out ]; then rm -f $ROSE_TASK_LOG_DIR/xios_client_collated.out ; fi',
-    'find . -name "xios_server_*.out"  -exec cat {} + > $ROSE_TASK_LOG_DIR/xios_server_collated.out ',
-    'if [ ! -s $ROSE_TASK_LOG_DIR/xios_server_collated.out ]; then rm -f $ROSE_TASK_LOG_DIR/xios_server_collated.out ; fi',
+    'find . -name timer.txt -exec cp {} $CYLC_TASK_LOG_DIR \;',
+    'find . -name "xios_client_*.out"  -exec cat {} + > $CYLC_TASK_LOG_DIR/xios_client_collated.out ',
+    'if [ ! -s $CYLC_TASK_LOG_DIR/xios_client_collated.out ]; then rm -f $CYLC_TASK_LOG_DIR/xios_client_collated.out ; fi',
+    'find . -name "xios_server_*.out"  -exec cat {} + > $CYLC_TASK_LOG_DIR/xios_server_collated.out ',
+    'if [ ! -s $CYLC_TASK_LOG_DIR/xios_server_collated.out ]; then rm -f $CYLC_TASK_LOG_DIR/xios_server_collated.out ; fi',
     'test -f *-checksums.txt && cp *-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',
     'touch $CYLC_TASK_WORK_DIR/tmp.m',
     'mv $CYLC_TASK_WORK_DIR/*.m $TASK_OUTPUT_DIR/results',
@@ -100,10 +125,9 @@
 
 {# Define the task runtime section #}
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit = {{task_family|upper}}, {{resource_family|upper}}
         script = {{script_str.name}}
         {{ generate_script("post-script", post_script_commands) }}
-        execution time limit = PT{{task_values["wallclock"]}}M
         [[[environment]]]
             DESTINATION_DIRECTORY   = {{destination_dir}}
             APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps
@@ -173,27 +197,6 @@
 
 {% if task_values["coupled"] %}
     {% include "templates/runtime/coupled_task_environment.cylc" %}
-{% endif %}
-
-{# Set any directives using macros imported in generate_runtime for this platform #}
-        [[[directives]]]
-
-{% if task_values["coupled"] %}
-    {{ set_task_resources(task_values["mpi_parts"],
-                          task_values["memory"],
-                          threads=task_values["threads"],
-                          xios_nodes=task_values["xios_nodes"],
-                          ocean_nodes=task_values["ocean_nodes"],
-                          river_nodes=task_values["river_nodes"],
-                          ranks_per_node=task_values["task_ranks_per_node"],
-                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
-{% else %}
-    {{ set_task_resources(task_values["mpi_parts"],
-                          task_values["memory"],
-                          threads=task_values["threads"],
-                          xios_nodes=task_values["xios_nodes"],
-                          ranks_per_node=task_values["task_ranks_per_node"],
-                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
 {% endif %}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_application.cylc") %}
