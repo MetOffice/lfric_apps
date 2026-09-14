@@ -106,7 +106,8 @@ subroutine regrav_geopot_code( nlayers,       &
   end do
 
   ! Interpolate temperature from newly computed grid back onto model grid
-  call interp( nlayers+1, height_phys, temp, nlayers+1, height_wth, temperature )
+  call interp( nlayers+1, height_phys, temp, &
+               nlayers+1, height_wth(map_wt(1)), temperature(map_wt(1)) )
 
 end subroutine regrav_geopot_code
 
