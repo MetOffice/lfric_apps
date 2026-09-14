@@ -19,7 +19,9 @@ module map_fd_to_prognostics_alg_mod
   use field_mod,                       only: field_type
   use integer_field_mod,               only: integer_field_type
   use field_collection_mod,            only: field_collection_type
-  use mesh_mod,                        only: mesh_type
+  use mesh_mod,                        only: mesh_type, &
+                                             geometry_spherical, &
+                                             topology_periodic
   use operator_mod,                    only: operator_type
   use function_space_mod,              only: function_space_type
   use function_space_collection_mod,   only: function_space_collection
@@ -57,10 +59,7 @@ module map_fd_to_prognostics_alg_mod
   use config_mod, only: config_type
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry,           &
-                                       geometry_spherical, &
-                                       topology,           &
-                                       topology_fully_periodic
+  use base_mesh_config_mod,      only: geometry, topology
   use formulation_config_mod,    only: rotating, shallow
   use finite_element_config_mod, only: coord_system, coord_system_native
   use physics_config_mod,        only: sample_physics_winds, &
@@ -168,7 +167,7 @@ contains
     if ( read_w2h_wind )then
       ! We read in the horizontal (normal to face) winds on the w2h points
       mesh => u%get_mesh()
-      dA => get_da_at_w2(mesh)
+      dA => get_da_at_w2(config, mesh)
       face_selector_ew => get_face_selector_ew(mesh)
       face_selector_ns => get_face_selector_ns(mesh)
 
@@ -296,7 +295,7 @@ contains
 
       if (sample_physics_winds_correction                                      &
           .and. geometry == geometry_spherical                                 &
-          .and. topology == topology_fully_periodic) then
+          .and. topology == topology_periodic) then
 
         w2_fs => u%get_function_space()
         call u_lon_w2%initialise( w2_fs )
@@ -349,7 +348,7 @@ contains
                    matrix_vector_kernel_type(r_u, u_lat, u_lat_map), &
                    matrix_vector_kernel_type(r_u, u_up, u_up_map),   &
                    enforce_bc_kernel_type( r_u ) )
-      call mass_matrix_solver_alg(u, r_u)
+      call mass_matrix_solver_alg(config, u, r_u)
     end if
 
     if ( LPROF ) call stop_timing( id, 'mappings.set_wind' )
@@ -435,7 +434,7 @@ contains
 
     chi           => get_coordinates(mesh)
     panel_id      => get_panel_id(mesh)
-    vert_coriolis => get_vert_coriolis( mesh%get_id() )
+    vert_coriolis => get_vert_coriolis(config, mesh)
 
     ! Create intermediate fields.
     call theta%copy_field_properties(c_vert_term)
@@ -450,7 +449,7 @@ contains
       call invoke( setval_c(r_c, 0.0_r_def),                                   &
                    dg_inc_matrix_vector_kernel_type(r_c, u, vert_coriolis),    &
                    enforce_bc_kernel_type(r_c) )
-      call mass_matrix_solver_alg(c_vert_term, r_c, bc_flag=.true.)
+      call mass_matrix_solver_alg(config, c_vert_term, r_c, bc_flag=.true.)
       ! Enforce that result is zero at domain bottom and top
       call invoke( enforce_bc_kernel_type(c_vert_term) )
     end if ! associated(vert_coriolis)

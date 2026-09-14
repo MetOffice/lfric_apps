@@ -9,6 +9,7 @@
 module skeb_ndisp_alg_mod
 
     ! Use intrinsic data types and spaces
+    use config_mod,           only: config_type
     use constants_mod,        only: r_def, i_def
     use fs_continuity_mod,    only: W1, W2H, W2, W3
     ! use types
@@ -24,8 +25,6 @@ module skeb_ndisp_alg_mod
     use io_config_mod,             only: write_diag, use_xios_io
     use timing_mod,                only: start_timing, stop_timing, tik, LPROF
     ! configs and loging
-    use base_mesh_config_mod,      only: geometry, &
-                                         geometry_spherical
     use initialise_diagnostics_mod, only: diagnostic_to_be_sampled
 
     implicit none
@@ -47,10 +46,11 @@ module skeb_ndisp_alg_mod
   !>         3)  Calculate gradients of vorticity and divergence
   !>         4)  Do Norm of gradients of vorticity and divergence
   !>         5)  Scale by k_amp
-  !>@param[in]         u            Wind on W2
-  !>@param[in,out]     ndisp        Numerical dissipation
+  !>@param[in]     config       Application configuration object
+  !>@param[in]     u            Wind on W2
+  !>@param[in,out] ndisp        Numerical dissipation
 
-  subroutine skeb_ndisp_alg(u, ndisp)
+  subroutine skeb_ndisp_alg(config, u, ndisp)
 
   ! timestep and constant
   use timestepping_config_mod,   only: dt
@@ -84,6 +84,9 @@ module skeb_ndisp_alg_mod
 
 
   implicit none
+
+  type(config_type), intent(in) :: config
+
   !!!! Arguments
   ! Fields
   type( field_type ), intent(in)    :: u
@@ -124,6 +127,8 @@ module skeb_ndisp_alg_mod
 
   ! Integers
   integer(kind=i_def) :: i
+  integer(kind=i_def) :: coord_system
+  real(kind=r_def)    :: scaled_radius
   integer(tik)        :: id_skeb, id_stoch, id_diags
 
   !!!!!!!!!! END OF VARIABLE DEFINITION, START OF CODE !!!!!!!!!!
@@ -145,6 +150,9 @@ module skeb_ndisp_alg_mod
   chi      => get_coordinates( mesh )
   panel_id => get_panel_id( mesh )
 
+  coord_system = config%finite_element%coord_system()
+  scaled_radius= config%planet%scaled_radius()
+
   ! Initialise fields
   call u_h%initialise( vector_space = w2h_fs )
   call r_div_u%initialise( vector_space = w3_fs )
@@ -164,9 +172,9 @@ module skeb_ndisp_alg_mod
   end do
 
   ! Initialise Operators
-  div_h            => get_div_h(mesh%get_id())
-  m3_inv           => get_inverse_mass_matrix_fv(W3, mesh%get_id())
-  curl             => get_curl_fv(mesh%get_id())
+  div_h            => get_div_h(config, mesh)
+  m3_inv           => get_inverse_mass_matrix_fv(config, mesh, W3)
+  curl             => get_curl_fv(config, mesh)
   face_selector_ew => get_face_selector_ew(mesh)
   face_selector_ns => get_face_selector_ns(mesh)
 
@@ -194,7 +202,7 @@ module skeb_ndisp_alg_mod
                setval_c(xi, 0.0_r_def) )
 
   ! Integrate quadrature points
-  call mass_matrix_solver_alg(xi, r_xi)
+  call mass_matrix_solver_alg(config, xi, r_xi)
   ! Set horizontal components to be zero to mimic W1V
   call invoke( set_w1h_dofs_kernel_type(xi, 0.0_r_def) )
 
@@ -218,19 +226,23 @@ module skeb_ndisp_alg_mod
                setval_c(grad_div_u, 0.0_r_def) )
 
   ! Integrate quadrature
-  call mass_matrix_solver_alg(grad_div_u, r_u)
+  call mass_matrix_solver_alg(config, grad_div_u, r_u)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  4)  Do Norm of gradients of vorticity and divergence  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  call invoke( setval_c(norm_gu, 0.0_r_def),                                      &
-               setval_c(norm_xi, 0.0_r_def),                                      &
-               dg_convert_hdiv_field_kernel_type(physical_grad_xi,                &
-                                                 grad_perp_xi, chi, panel_id),    &
-               dg_convert_hdiv_field_kernel_type(physical_grad_div,               &
-                                                 grad_div_u, chi, panel_id),      &
-               dot_product_of_components_kernel_type(norm_gu, physical_grad_div), &
-               dot_product_of_components_kernel_type(norm_xi, physical_grad_xi),  &
+  call invoke( setval_c(norm_gu, 0.0_r_def),                                       &
+               setval_c(norm_xi, 0.0_r_def),                                       &
+               dg_convert_hdiv_field_kernel_type(physical_grad_xi,                 &
+                                                 grad_perp_xi, chi, panel_id,      &
+                                                 mesh%geometry(), mesh%topology(), &
+                                                 coord_system, scaled_radius),     &
+               dg_convert_hdiv_field_kernel_type(physical_grad_div,                &
+                                                 grad_div_u, chi, panel_id,        &
+                                                 mesh%geometry(), mesh%topology(), &
+                                                 coord_system, scaled_radius),     &
+               dot_product_of_components_kernel_type(norm_gu, physical_grad_div),  &
+               dot_product_of_components_kernel_type(norm_xi, physical_grad_xi),   &
   !!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  5)  Scale by k_amp  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!

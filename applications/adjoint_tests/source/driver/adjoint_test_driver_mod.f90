@@ -161,13 +161,14 @@ contains
     ! ./transport/mol
     call atlt_poly_adv_update_alg( mesh )
     call atlt_poly1d_vert_w3_recon_alg( modeldb%config, mesh )
-    call atlt_w3h_advective_update_alg( mesh )
+    call atlt_w3h_advective_update_alg( modeldb%config, mesh )
+
     ! -- Lookup table solutions.
     call adjt_poly1d_recon_lookup_alg( modeldb%config, mesh, adj_trans_lookup_cache )
     call adjt_poly2d_recon_lookup_alg( modeldb%config, mesh, Wtheta, adj_trans_lookup_cache )
     call adjt_poly2d_recon_lookup_alg( modeldb%config, mesh, W3, adj_trans_lookup_cache )
     call adjt_poly_adv_upd_lookup_alg( mesh, adj_trans_lookup_cache )
-    call adjt_w3h_adv_upd_lookup_alg( mesh, adj_trans_lookup_cache )
+    call adjt_w3h_adv_upd_lookup_alg( modeldb%config, mesh, adj_trans_lookup_cache )
 
     ! ./core_dynamics
     call atlt_hydrostatic_alg( mesh )
@@ -185,7 +186,7 @@ contains
     call atlt_bl_inc_alg( mesh )
 
     ! ./inter_function_space
-    call adjt_sci_convert_hdiv_field_alg( mesh, chi, panel_id )
+    call adjt_sci_convert_hdiv_field_alg( modeldb%config, mesh, chi, panel_id )
 
     ! ./algebra
     call adjt_matrix_vector_alg( mesh )
@@ -204,8 +205,8 @@ contains
 
     call log_event( "TESTING adjoint algorithms", LOG_LEVEL_INFO )
     ! ./interpolation
-    call adjt_interp_w3wth_to_w2_alg( mesh )
-    call adjt_interp_w2_to_w3wth_alg( mesh )
+    call adjt_interp_w3wth_to_w2_alg( modeldb%config, mesh )
+    call adjt_interp_w2_to_w3wth_alg( modeldb%config, mesh )
 
     ! ./transport/common
     call adjt_initialise_step_alg( modeldb%config, mesh, modeldb%clock )
@@ -238,9 +239,9 @@ contains
     call atlt_transport_control_alg( modeldb%config, mesh, modeldb%clock, adj_trans_lookup_cache )
 
     ! ./core_dynamics
-    call atlt_rhs_alg( mesh, modeldb%clock )
-    call adjt_compute_vorticity_alg( mesh )
-    call atlt_derive_exner_from_eos_alg( mesh )
+    call atlt_rhs_alg( modeldb%config, mesh, modeldb%clock )
+    call adjt_compute_vorticity_alg(modeldb%config, mesh)
+    call atlt_derive_exner_from_eos_alg( modeldb%config, mesh )
     call atlt_moist_dyn_factors_alg( mesh )
 
     ! ./linear_physics
