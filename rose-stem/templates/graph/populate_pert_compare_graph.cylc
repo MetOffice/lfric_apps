@@ -22,11 +22,12 @@
     application_build_task,
     pert_off_task
     ]) %}
-{% do graph_sections.append([
-    mesh_run_task,
-    pert_off_task
-    ]) %}
-
+{% for mesh_run_task in mesh_run_tasks %}
+    {% do graph_sections.append([
+        mesh_run_task,
+        pert_off_task
+        ]) %}
+{% endfor %}
 
 {# Setup Perturbation Comparison Test #}
 {% set pert_compare_task = "pert_compare_"~task_values["task_family"] %}
