@@ -16,7 +16,8 @@ module invoke_adj_cvt_hdiv_field_kernel_mod
 
   contains
 
-  subroutine invoke_adj_convert_hdiv_field_kernel(physical_field3, computational_field, chi, panel_id)
+  subroutine invoke_adj_convert_hdiv_field_kernel(physical_field3, computational_field, chi, panel_id,&
+                                                  geometry, topology, coord_system, scaled_radius)
       use adj_sci_convert_hdiv_field_kernel_mod, only: adj_convert_hdiv_field_code
       use function_space_mod,                    only: BASIS, DIFF_BASIS
       use mesh_mod,                              only: mesh_type
@@ -25,6 +26,11 @@ module invoke_adj_cvt_hdiv_field_kernel_mod
       type(field_type), intent(in) :: computational_field
       type(field_type), intent(in) :: chi(3)
       type(field_type), intent(in) :: panel_id
+
+      integer(kind=i_def), intent(in) :: geometry
+      integer(kind=i_def), intent(in) :: topology
+      integer(kind=i_def), intent(in) :: coord_system
+      real(kind=r_def),    intent(in) :: scaled_radius
 
       integer(kind=i_def)           :: cell
       integer(kind=i_def)           :: colour
@@ -219,6 +225,10 @@ module invoke_adj_cvt_hdiv_field_kernel_mod
                                          chi_2_data,                                               &
                                          chi_3_data,                                               &
                                          panel_id_data,                                            &
+                                         geometry,                                                 &
+                                         topology,                                                 &
+                                         coord_system,                                             &
+                                         scaled_radius,                                            &
                                          ndf_aspc1_physical_field3,                                &
                                          undf_aspc1_physical_field3,                               &
                                          map_aspc1_physical_field3(:,cmap(colour,cell)),           &

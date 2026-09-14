@@ -35,7 +35,6 @@ module diagnostic_alg_mod
   use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system, coord_system_native
   use planet_config_mod,         only: scaled_radius, cp
 
@@ -295,12 +294,12 @@ contains
 
     ! Convert field to physical nodal output & sample chi on nodal points
     call invoke( nodal_xyz_coordinates_kernel_type( nodal_coordinates, chi, panel_id, &
-                                                    geometry, topology, coord_system, &
-                                                    scaled_radius ) )
+                                                    mesh%geometry(), mesh%topology(), &
+                                                    coord_system, scaled_radius ) )
 
     ! If in spherical geometry,
     ! convert the coordinate field to (longitude, latitude, radius)
-    if ( geometry == geometry_spherical ) then
+    if ( mesh%geometry() == geometry_spherical ) then
       call invoke( pointwise_convert_xyz2llr_kernel_type(nodal_coordinates) )
     end if
 
@@ -369,8 +368,8 @@ contains
 
     ! Convert field to physical nodal output & sample chi on nodal points
     call invoke( nodal_xyz_coordinates_kernel_type( nodal_coordinates, chi, panel_id, &
-                                                    geometry, topology, coord_system, &
-                                                    scaled_radius ) )
+                                                    mesh%geometry(), mesh%topology(), &
+                                                    coord_system, scaled_radius ) )
 
     output_fs = field%which_function_space()
 
@@ -378,8 +377,8 @@ contains
 
     if ( output_fs == W1 ) then
       call invoke( convert_hcurl_field_kernel_type(output_field, field, chi, panel_id, &
-                                                   geometry, topology, coord_system,   &
-                                                   scaled_radius) )
+                                                   mesh%geometry(), mesh%topology(), &
+                                                   coord_system, scaled_radius) )
       output_dim = 3
     else if ( output_fs == W2 ) then
       optimised_conversion = (                                                 &
@@ -389,12 +388,12 @@ contains
       )
       if (optimised_conversion) then
         call invoke( convert_hdiv_native_kernel_type(output_field, field, chi, panel_id, &
-                                                     geometry, topology, coord_system,   &
-                                                     scaled_radius) )
+                                                     mesh%geometry(), mesh%topology(), &
+                                                     coord_system, scaled_radius) )
       else
         call invoke( convert_hdiv_field_kernel_type(output_field, field, chi, panel_id, &
-                                                    geometry, topology, coord_system,   &
-                                                    scaled_radius) )
+                                                    mesh%geometry(), mesh%topology(), &
+                                                    coord_system, scaled_radius) )
       end if
       output_dim = 3
     else
@@ -426,7 +425,7 @@ contains
     ! Convert the vector spaces to standard SI units
     ! (m/s) in orthogonal directions and, if in spherical geometry,
     !  convert the coordinate field to (longitude, latitude, radius)
-    if ( geometry == geometry_spherical ) then
+    if ( mesh%geometry() == geometry_spherical ) then
       if ( output_fs == W1 .or. output_fs == W2) then
         call invoke( convert_cart2sphere_vector_kernel_type(output_field, nodal_coordinates) )
       end if

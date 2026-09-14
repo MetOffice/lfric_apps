@@ -108,7 +108,7 @@ contains
 
     config => tl_transport_controller%get_config()
 
-    coord_system  = config%finite_element%coord_radius()
+    coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
 
     ! ------------------------------------------------------------------------ !
@@ -140,9 +140,9 @@ contains
         mm_w2 => get_mass_matrix_fe(config, mesh, W2)
         mm_w2b_inv => get_inverse_mass_matrix_fe(config, mesh, W2broken)
         rmultiplicity_w2 => get_rmultiplicity_fe(config, mesh, W2)
-        project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
-        project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
-        project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
+        project_xdot_to_w2 => get_project_xdot_to_w2(config, mesh)
+        project_ydot_to_w2 => get_project_ydot_to_w2(config, mesh)
+        project_zdot_to_w2 => get_project_zdot_to_w2(config, mesh)
 
         ! -------------------------------------------------------------------- !
         ! Split wind into components in W3
@@ -222,7 +222,7 @@ contains
         call invoke_adj_convert_hdiv_field_kernel(u_w3_n, wind_n, chi, panel_id, &
                                                   mesh%geometry(), &
                                                   mesh%topology(), &
-                                                  coord_system, scaled_radius) )
+                                                  coord_system, scaled_radius)
 
       ! ---------------------------------------------------------------------- !
       ! Default form of transport equation

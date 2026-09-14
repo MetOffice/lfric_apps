@@ -186,7 +186,7 @@ contains
     call atlt_bl_inc_alg( mesh )
 
     ! ./inter_function_space
-    call adjt_sci_convert_hdiv_field_alg( mesh, chi, panel_id )
+    call adjt_sci_convert_hdiv_field_alg( modeldb%config, mesh, chi, panel_id )
 
     ! ./algebra
     call adjt_matrix_vector_alg( mesh )
@@ -205,8 +205,8 @@ contains
 
     call log_event( "TESTING adjoint algorithms", LOG_LEVEL_INFO )
     ! ./interpolation
-    call adjt_interp_w3wth_to_w2_alg( mesh )
-    call adjt_interp_w2_to_w3wth_alg( mesh )
+    call adjt_interp_w3wth_to_w2_alg( modeldb%config, mesh )
+    call adjt_interp_w2_to_w3wth_alg( modeldb%config, mesh )
 
     ! ./transport/common
     call adjt_initialise_step_alg( modeldb%config, mesh, modeldb%clock )

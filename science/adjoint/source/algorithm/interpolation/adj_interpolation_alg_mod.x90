@@ -8,6 +8,7 @@
 !>        wind field and a set of three scalar W3/Wtheta wind fields.
 module adj_interpolation_alg_mod
 
+  use config_mod, only: config_type
   use adj_convert_cart2sphere_vector_kernel_mod, &
                                                  only: adj_convert_cart2sphere_vector_kernel_type
   use adj_sci_extract_w_kernel_mod,              only: adj_extract_w_kernel_type
@@ -71,7 +72,13 @@ module adj_interpolation_alg_mod
     type(field_type)          :: physical_wind_w2(3)
     type(field_type)          :: physical_chi_w2(3)
 
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
     nullify(chi, panel_id, w2_rmultiplicity, mesh)
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
 
     ! Get geometry data
     mesh => u_in_w2%get_mesh()
@@ -112,7 +119,10 @@ module adj_interpolation_alg_mod
     call invoke( inc_X_times_Y(physical_wind_w2(3), w2_rmultiplicity), &
                  inc_X_times_Y(physical_wind_w2(2), w2_rmultiplicity), &
                  inc_X_times_Y(physical_wind_w2(1), w2_rmultiplicity) )
-    call invoke_adj_convert_hdiv_field_kernel(physical_wind_w2, u_in_w2, chi, panel_id)
+    call invoke_adj_convert_hdiv_field_kernel(physical_wind_w2, u_in_w2, chi, &
+                                              panel_id, mesh%geometry(), &
+                                              mesh%topology(), coord_system, &
+                                              scaled_radius)
     call invoke( setval_c(physical_wind_w2(3), 0.0_r_def), &
                  setval_c(physical_wind_w2(2), 0.0_r_def), &
                  setval_c(physical_wind_w2(1), 0.0_r_def), &
@@ -123,7 +133,9 @@ module adj_interpolation_alg_mod
                  setval_c(v_in_w3, 0.0_r_def), &
                  setval_c(u_in_w3, 0.0_r_def) )
     call invoke( adj_convert_cart2sphere_vector_kernel_type(physical_wind_w3, physical_chi_w3) )
-    call invoke_adj_convert_hdiv_field_kernel(physical_wind_w3, u_in_w2, chi, panel_id)
+    call invoke_adj_convert_hdiv_field_kernel(physical_wind_w3, u_in_w2, chi, panel_id, &
+                                              mesh%geometry(), mesh% topology(), &
+                                              coord_system, scaled_radius)
 
   end subroutine adj_interp_w2_to_w3wth_alg
 
@@ -162,7 +174,13 @@ module adj_interpolation_alg_mod
     type(operator_type)                :: v_map
     type(operator_type)                :: w_map
 
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
     nullify(w2b_fs, w3_fs, wtheta_fs, chi, mesh, w2_rmultiplicity)
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
 
     ! Get geometry data
     mesh => u_in_w2%get_mesh()
