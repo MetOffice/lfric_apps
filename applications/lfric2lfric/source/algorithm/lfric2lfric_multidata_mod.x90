@@ -54,12 +54,14 @@ contains
     type(field_type),          pointer :: field_src
     type(field_type),          pointer :: field_dst
     type(field_type),          pointer :: field_src_n_snow_layers
+    type(field_type),          pointer :: field_dst_n_snow_layers
     type(field_type),          pointer :: field_src_snow_layer
     type(field_type),          pointer :: field_dst_snow_layer
     type(mesh_type),           pointer :: mesh
     type(function_space_type), pointer :: fs_type
 
     integer(kind=i_def)    :: ndata_dst, ndata_src
+    integer(kind=i_def)    :: n_surface_tiles_dst
     integer(kind=i_def)    :: n_snow_layers_src, n_snow_layers_dst
     integer(kind=i_def)    :: n_land_tiles_src, n_land_tiles_dst
     real(kind=r_def)       :: number_snow_layers, dummy
@@ -89,6 +91,12 @@ contains
 
     n_snow_layers_dst = n_snow_layers_src
 
+    ! Determine the number of surface tiles
+    
+    call source_fields%get_field( 'n_snow_layers', field_dst_n_snow_layers )
+    fs_type => field_dst_n_snow_layers%get_function_space()
+    n_surface_tiles_dst = fs_type%get_ndata()
+    
     ! Determine n_land_tiles_src
     ! Derive effective number of land tiles in source field from snow fields
 
@@ -114,10 +122,10 @@ contains
     write( log_scratch_space, '(*(g0,1x))' ) "multidata ", multidata_map
     call log_event( log_scratch_space, log_level_debug )
           
-    if ( size( multidata_map ) /= n_land_tiles_dst ) then
+    if ( size( multidata_map ) /= n_surface_tiles_dst ) then
       write( log_scratch_space, '(A,I5,A,I5)' ) &
         "size of multidata map = ", size( multidata_map ), &
-        " not equal to n_land_tiles_dst = ", n_land_tiles_dst
+        " not equal to n_surface_tiles_dst = ", n_surface_tiles_dst
       call log_event( log_scratch_space, log_level_error )
     end if
     
@@ -173,8 +181,7 @@ contains
                 'snow_under_canopy' )
 
             call lfric2lfric_retile_surface_tiles( &
-                 modeldb, field_dst, field_src, ndata_dst, ndata_src, &
-                 n_land_tiles_dst, n_land_tiles_src )
+                 modeldb, field_dst, field_src, ndata_dst, ndata_src )
 
           ! Snow Layers and Tiles - based on rcf_ml_snowpack
           case ('snow_layer_temp'      , &
@@ -222,11 +229,8 @@ contains
   !> @param field_src Source multidata field
   !> @param n_data_dst Number of multidata levels in destination field
   !> @param n_data_src Number of multidata levels in source field
-  !> @param n_land_tiles_dst Number of land tiles in destination field
-  !> @param n_land_tiles_src Number of land tiles in source field
   subroutine lfric2lfric_retile_surface_tiles( modeldb, field_dst, field_src, &
-                                               n_data_dst, n_data_src,        &
-                                               n_land_tiles_dst, n_land_tiles_src )
+                                               n_data_dst, n_data_src )
 
     implicit none
 
@@ -235,32 +239,16 @@ contains
     type(field_type),    intent(in)    :: field_src
     integer(kind=i_def), intent(in)    :: n_data_dst
     integer(kind=i_def), intent(in)    :: n_data_src
-    integer(kind=i_def), intent(in)    :: n_land_tiles_dst
-    integer(kind=i_def), intent(in)    :: n_land_tiles_src
 
     write( log_scratch_space, '(A)' ) "Starting lfric2lfric_retile_surface_tiles"
     call log_event( log_scratch_space, log_level_debug )
 
-    if ( ( n_land_tiles_src == n_land_tiles_dst ) .and. &
-         ( ndata_src /= ndata_dst ) ) then
-       write( log_scratch_space, '(A)' ) &
-             "The number of land tiles has not changed but the multidata axis size is different "
-       call log_event( log_scratch_space, log_level_error )
-    end if
-
-    if ( ndata_dst < n_land_tiles_dst ) then
-       write( log_scratch_space, '(A)' ) &
-             "The number of surface tiles is smaller than the number of land tiles "
-       call log_event( log_scratch_space, log_level_error )
-    end if
-       
-    if ( n_land_tiles_src /= n_land_tiles_dst ) then
+    if ( n_data_src /= n_data_dst ) then
        ! Retile using the multidata map
-       call invoke( lfric2lfric_multidata_map_surface_type( field_dst,        &
-                                                            n_land_tiles_dst, &
-                                                            field_src,        &
-                                                            n_land_tiles_src ) )
-       
+       call invoke( lfric2lfric_multidata_map_surface_type( field_dst,  &
+                                                            n_data_dst, &
+                                                            field_src,  &
+                                                            n_data_src ) )
     else
         ! Copy
         call invoke( setval_X( field_dst, field_src ) )
@@ -321,7 +309,7 @@ contains
       call log_event( log_scratch_space, log_level_error )
     end if
 
-    if ( ( n_land_tiles_src /= n_land_tiles_dst ) ) then
+    if ( ( n_tiles_src /= n_tiles_dst ) ) then
       ! Retile
       call invoke( lfric2lfric_multidata_snow_type( field_dst, &
                                                     field_src, &

@@ -19,9 +19,9 @@ module lfric2lfric_vert_mod
   use sci_geometric_constants_mod, &
                                 only: get_height_fv
   use mesh_mod,                 only: mesh_type
-  use log_mod,                  only: log_event, &
-                                      log_level_info, &
-                                      log_level_debug
+  use log_mod,                  only: log_event,       &
+                                      log_level_info,  &
+                                      log_level_debug, &
                                       log_scratch_space
 
   implicit none
