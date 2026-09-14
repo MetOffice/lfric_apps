@@ -2,7 +2,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <simulation>
 
-  <!-- File definition for LFRic checkpoint read  -->
+  <!-- File definition for READ  -->
   <context id = "lfric2lfric_source">
 
     <!-- Include axis definitions -->
@@ -15,17 +15,21 @@
     <!-- Local file definitions -->
     <file_definition type="one_file" par_access="collective" time_counter="none">
 
-      <!-- File definition for LFRic checkpoint read -->
+      <!-- File definition for READ -->
+      <!-- Reads restart_lfric_atm_nwp_gal10-C12_azspice_gnu_fast-debug-64bit_tstep_0000000072.nc from ~umtest/cylc-run/lfric_apps_heads_nightly_2026-09-09/run1/share/data and copied to example/mesh_C12_MG_dump.nc -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
        <field_group id="lfric_checkpoint_read_field_group" >
-        <!-- Atmosphere fields -->
+        <!-- 3D fields -->
         <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" operation="once" />
         <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" operation="once" />
 
-        <!-- Turbulence fields -->
+        <!-- 2D fields -->
 	<field id="restart_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
-	<!-- uses restart_lfric_atm_nwp_gal9-C12_azspice_gnu_fast-debug-64bit_tstep_0000000072.nc from ~umtest/cylc-run/lfric_apps_heads_nightly_2026-07-30/run1/share/data copied to example/mesh_C12_MG_dump.nc -->
         <field id="restart_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_rgrain" unit="" domain_ref="face" operation="once" axis_ref="surface_tiles"/>
+	<field id="restart_n_snow_layers" name="n_snow_layers" long_name="n_snow_layers" unit="" domain_ref="face" operation="once" axis_ref="surface_tiles"/>
+	<field id="restart_tile_fraction" name="tile_fraction" long_name="tile_fraction" unit="" domain_ref="face" operation="once" axis_ref="surface_tiles"/>
+	<field id="restart_snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness" unit="" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+        <field id="restart_snow_layer_temp" name="snow_layer_temp" long_name="snow_layer_temp" unit="" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
        </field_group>
       </file>
     </file_definition>
@@ -44,12 +48,12 @@
 
   </context>
 
-  <!-- File definition for LFRic checkpoint write -->
+  <!-- File definition for WRITE -->
   <context id = "lfric2lfric_destination">
 
     <!-- Include axis definitions -->
     <axis_definition src="./axis_def_main.xml"/>
-    <axis_definition src="./axis_def_urban1t.xml"/>
+    <axis_definition src="./axis_def_urban2t.xml"/>
 
     <!-- Include grid definitions -->
     <grid_definition src="./grid_def_main.xml"/>
@@ -57,17 +61,20 @@
     <!-- Local file definitions -->
     <file_definition type="one_file" par_access="collective" time_counter="none">
 
-      <!-- File definition for LFRic checkpoint read -->
+      <!-- File definition for WRITE -->
       <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" mode="write" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
 
-        <!-- Atmosphere fields -->
+        <!-- 3D fields -->
         <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
         <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" prec="8" domain_ref="checkpoint_W3" operation="once" />
 
-        <!-- Turbulence fields -->
+        <!-- 2D fields -->
 	<field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
-	<field id="checkpoint_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_rgrain" unit="" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-
+	<field id="checkpoint_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_rgrain" unit="" domain_ref="face" operation="once" axis_ref="land_tiles_urban2t"/>
+	<field id="checkpoint_n_snow_layers" name="n_snow_layers" long_name="n_snow_layers" unit="" domain_ref="face" operation="once" axis_ref="land_tiles_urban2t"/>
+        <field id="checkpoint_tile_fraction" name="tile_fraction" long_name="tile_fraction" unit="" domain_ref="face" operation="once" axis_ref="land_tiles_urban2t"/>
+	<field id="checkpoint_snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness" unit="" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles_urban2t"/>
+	<field id="checkpoint_snow_layer_temp" name="snow_layer_temp" long_name="snow_layer_temp" unit="" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles_urban2t"/>
       </file>
     </file_definition>
 

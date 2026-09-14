@@ -36,8 +36,7 @@ module lfric2lfric_driver_mod
                                             interm_collection_name
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
   use lfric2lfric_vert_mod,           only: lfric2lfric_vert
-  use lfric2lfric_tiles_mod,          only: lfric2lfric_tiles
-  
+  use lfric2lfric_multidata_mod,      only: lfric2lfric_multidata  
 
   implicit none
 
@@ -154,7 +153,7 @@ contains
         call lfric2lfric_vert(modeldb, interm_fields, target_fields)
       end if
       if (tile_change) then
-        call lfric2lfric_tiles(modeldb, interm_fields, target_fields)
+        call lfric2lfric_multidata(modeldb, interm_fields, target_fields)
       end if
 
       ! Write output
