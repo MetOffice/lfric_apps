@@ -321,8 +321,10 @@ contains
                             id_as_name=.true.)
           end do
         end if
-
-        if(l_esm_couple) then
+#endif
+      end if
+#ifdef UM_PHYSICS
+      if(l_esm_couple) then
           call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
           call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
@@ -353,9 +355,8 @@ contains
                           id_as_name=.true.)
           call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
-        end if
-#endif
       end if
+#endif
     end if
     if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
       if ( encorr_usage /= encorr_usage_none ) then
