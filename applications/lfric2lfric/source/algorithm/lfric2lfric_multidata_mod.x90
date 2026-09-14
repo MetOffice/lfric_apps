@@ -29,8 +29,8 @@ module lfric2lfric_multidata_mod
 
   implicit none
 
-  private
-  public :: lfric2lfric_multidata, lfric2lfric_retile_surface_tiles
+  private :: lfric2lfric_retile_surface_tiles, lfric2lfric_retile_snow
+  public :: lfric2lfric_multidata
 
 contains
 
@@ -68,84 +68,94 @@ contains
 
     logical(kind=l_def), pointer :: tile_change
    
-    write(log_scratch_space, '(A)') "Starting lfric2lfric_multidata"
-    call log_event(log_scratch_space, log_level_debug)
+    write( log_scratch_space, '(A)') "Starting lfric2lfric_multidata"
+    call log_event( log_scratch_space, log_level_debug )
 
-    !---- Precalculations
+    !---- Precalculations and checks
 
-    call modeldb%values%get_value("tile_change", tile_change)
+    ! Determine whether retiling is required for any fields
 
-    !-- Find the number of snow layers in the source data
-    call source_fields%get_field('n_snow_layers', field_src_n_snow_layers)
-    call get_field_minmax(field_src_n_snow_layers, dummy, number_snow_layers)
+    call modeldb%values%get_value( "tile_change", tile_change )
+
+    ! Determine the number of snow layers in the source data
+    
+    call source_fields%get_field( 'n_snow_layers', field_src_n_snow_layers )
+    call get_field_minmax( field_src_n_snow_layers, dummy, number_snow_layers )
     n_snow_layers_src = nint(number_snow_layers)
 
-    !-- Determine the number of snow layers in the target data
+    ! Determine the number of snow layers in the target data
     ! Assume for now that it is the same as the source data
-    ! Otherwise this could be added to a rose namelist
+    ! Otherwise this could be added to a rose namelist or be derived from jules
+
     n_snow_layers_dst = n_snow_layers_src
 
-    !-- Determine n_land_tiles_src
+    ! Determine n_land_tiles_src
     ! Derive effective number of land tiles in source field from snow fields
-    call source_fields%get_field('snow_layer_temp', field_src_snow_layer)
+
+    call source_fields%get_field( 'snow_layer_temp', field_src_snow_layer )
+
     fs_type => field_src_snow_layer%get_function_space()
     ndata_src = fs_type%get_ndata()
     n_land_tiles_src = ndata_src / n_snow_layers_src
 
-    !-- Determine n_land_tiles_dst
+    ! Determine n_land_tiles_dst
     ! Derive effective number of land tiles in destination field from snow fields
-    call target_fields%get_field('snow_layer_temp', field_dst_snow_layer)
+
+    call target_fields%get_field( 'snow_layer_temp', field_dst_snow_layer )
+
     fs_type => field_dst_snow_layer%get_function_space()
     ndata_dst = fs_type%get_ndata()
     n_land_tiles_dst = ndata_dst / n_snow_layers_dst
 
-    !-- Check multidata map
+    ! Check multidata map
+
     multidata_map = modeldb%config%dst_jules_surface_types%multidata_map()
            
-    write(log_scratch_space, '(*(g0,1x))') "multidata ", multidata_map
-    call log_event(log_scratch_space, log_level_debug)
+    write( log_scratch_space, '(*(g0,1x))' ) "multidata ", multidata_map
+    call log_event( log_scratch_space, log_level_debug )
           
-    if ( size(multidata_map) /= n_land_tiles_dst ) then
-      write(log_scratch_space, '(A,I5,A,I5)') &
-        "size of multidata map = ", size(multidata_map), &
+    if ( size( multidata_map ) /= n_land_tiles_dst ) then
+      write( log_scratch_space, '(A,I5,A,I5)' ) &
+        "size of multidata map = ", size( multidata_map ), &
         " not equal to n_land_tiles_dst = ", n_land_tiles_dst
-      call log_event(log_scratch_space, log_level_error)
+      call log_event( log_scratch_space, log_level_error )
     end if
     
     !------ Main loop over fields to be processed
-    call iter%initialise(source_fields)
+    call iter%initialise( source_fields )
     do
       ! Locate the field to be processed in the field collections
       if ( .not. iter%has_next() ) exit
       field => iter%next()
       field_name = field%get_name()
 
-      call source_fields%get_field(field_name, field_src)
-      call target_fields%get_field(field_name, field_dst)
+      call source_fields%get_field( field_name, field_src )
+      call target_fields%get_field( field_name, field_dst )
 
       mesh => field_src%get_mesh()
 
-      ! Find the size of the multidata field
-      fs_type => field_src%get_function_space()
-      ndata_src = fs_type%get_ndata()
-      fs_type => field_dst%get_function_space()
-      ndata_dst = fs_type%get_ndata()
+      ! Only consider 2D fields
+      if ( mesh%get_extrusion_id() == TWOD ) then
 
-      ! If it is a 2D
-      if (mesh%get_extrusion_id() == TWOD) then
-
-        ! If multidata field and multidata regridding (tile_change) is on
-        if ( ((ndata_src >1) .or. (ndata_dst >1)) .and. &
+        ! Find the size of the multidata field
+        fs_type => field_src%get_function_space()
+        ndata_src = fs_type%get_ndata()
+        fs_type => field_dst%get_function_space()
+        ndata_dst = fs_type%get_ndata()
+         
+        ! If multidata field and multidata regridding (tile_change) is true
+        ! apply field-specific multidata mapping (retiling).
+        if ( ( ( ndata_src >1 ) .or. ( ndata_dst >1 ) ) .and. &
            tile_change ) then
 
-          write(log_scratch_space, '(A,A)') "Multidata Mapping lfric field", &
-                                            trim(field_name)
-          call log_event(log_scratch_space, log_level_debug)
+          write( log_scratch_space, '(A,A)' ) "Multidata Mapping lfric field", &
+                                            trim( field_name )
+          call log_event( log_scratch_space, log_level_debug )
 
-          write(log_scratch_space, '(A,I5)') "ndata_dst ", ndata_dst
-          call log_event(log_scratch_space, log_level_debug)
-          write(log_scratch_space, '(A,I5)') "ndata_src ", ndata_src
-          call log_event(log_scratch_space, log_level_debug)
+          write( log_scratch_space, '(A,I5)' ) "ndata_dst ", ndata_dst
+          call log_event( log_scratch_space, log_level_debug )
+          write( log_scratch_space, '(A,I5)') "ndata_src ", ndata_src
+          call log_event( log_scratch_space, log_level_debug )
        
           select case (field_name)
 
@@ -162,14 +172,9 @@ contains
                 'snowpack_density'   , &
                 'snow_under_canopy' )
 
-            if (n_land_tiles_src /= n_land_tiles_dst) then
-              ! As the fields might use surface_tiles, only loop over land_tiles
-              call lfric2lfric_retile_surface_tiles( &
-                 modeldb, field_dst, field_src, n_land_tiles_dst, n_land_tiles_src )
-            else
-              ! Copy field_src to field_dst - but careful if one is n_land tiles and one is n_surface
-              !...
-            end if
+            call lfric2lfric_retile_surface_tiles( &
+                 modeldb, field_dst, field_src, ndata_dst, ndata_src, &
+                 n_land_tiles_dst, n_land_tiles_src )
 
           ! Snow Layers and Tiles - based on rcf_ml_snowpack
           case ('snow_layer_temp'      , &
@@ -178,41 +183,30 @@ contains
                 'snow_layer_liq_mass'  , &
                 'snow_layer_rgrain')
            
-            if ( (n_land_tiles_src /= n_land_tiles_dst) ) then
-              ! Assume size land_tiles & n_snow - need to check
-              ! Assume snow layers same - need to check
-              call lfric2lfric_retile_snow( &
-                modeldb, field_dst, field_src, n_snow_layers_dst, n_land_tiles_dst, n_snow_layers_src, n_land_tiles_src )
-            else
-              ! Copy 
-            end if
+            call lfric2lfric_retile_snow( &
+                 modeldb, field_dst, field_src, ndata_dst, ndata_src, &
+                 n_snow_layers_dst, n_snow_layers_src,                &
+                 n_land_tiles_dst, n_land_tiles_src ) 
          
-          ! Sea Ice Categories - sea_ice_temperature based on rcf_derv_sea_ice_temp
-          case ('sea_ice_temperature')
-            ! Need to check, add error message or copy
-
-            ! Sea Ice Categories - sea_ice_thickness based on rcf_derv_ice_cat_thick
-          case ('sea_ice_thickness')
-            ! Need to check, add error message or copy
-
-            ! Soil Levels - based on rcf_init_soil_temp
-          case ('soil_temperature')
-            ! Need to check, add error message or copy
-             
           case default
-            write(log_scratch_space, '(A,A)') &
-               trim(field_name), " needs to have code added"
-            call log_event(log_scratch_space, log_level_error)
+            write( log_scratch_space, '(A,A)' ) &
+               trim( field_name ), " needs retiling code to be added"
+            call log_event( log_scratch_space, log_level_error )
 
+            ! Other possible fields and categories are:
+            ! Sea Ice Categories - sea_ice_temperature based on rcf_derv_sea_ice_temp
+            ! Sea Ice Categories - sea_ice_thickness based on rcf_derv_ice_cat_thick
+            ! Soil Levels - based on rcf_init_soil_temp
           end select
          
         else
-          ! copy 2D from src to dst
+          ! If not a multidata field or multidata mapping is not required then
+          ! copy from src to dst
           write(log_scratch_space, '(A,A)') "Copying lfric field ", &
                                             trim(field_name)
-          call log_event(log_scratch_space, log_level_debug)
+          call log_event( log_scratch_space, log_level_debug)
            
-          call invoke(setval_X(field_dst, field_src))
+          call invoke( setval_X( field_dst, field_src ) )
            
         end if
       end if
@@ -226,24 +220,53 @@ contains
   !> @param modeldb   Model state object
   !> @param field_dst Destination multidata field 
   !> @param field_src Source multidata field
-  !> @param nland_tiles_dst Number of land tiles in destination field
-  !> @param nland_tiles_src Number of land tiles in source field
-  subroutine lfric2lfric_retile_surface_tiles( modeldb, field_dst, field_src, n_land_tiles_dst, n_land_tiles_src )
+  !> @param n_data_dst Number of multidata levels in destination field
+  !> @param n_data_src Number of multidata levels in source field
+  !> @param n_land_tiles_dst Number of land tiles in destination field
+  !> @param n_land_tiles_src Number of land tiles in source field
+  subroutine lfric2lfric_retile_surface_tiles( modeldb, field_dst, field_src, &
+                                               n_data_dst, n_data_src,        &
+                                               n_land_tiles_dst, n_land_tiles_src )
 
     implicit none
 
     type(modeldb_type),  intent(inout) :: modeldb
     type(field_type),    intent(inout) :: field_dst
     type(field_type),    intent(in)    :: field_src
+    integer(kind=i_def), intent(in)    :: n_data_dst
+    integer(kind=i_def), intent(in)    :: n_data_src
     integer(kind=i_def), intent(in)    :: n_land_tiles_dst
     integer(kind=i_def), intent(in)    :: n_land_tiles_src
 
-    write(log_scratch_space, '(A)') "Starting lfric2lfric_retile_surface_tiles"
-    call log_event(log_scratch_space, log_level_debug)
+    write( log_scratch_space, '(A)' ) "Starting lfric2lfric_retile_surface_tiles"
+    call log_event( log_scratch_space, log_level_debug )
 
-    call invoke( lfric2lfric_multidata_map_surface_type( field_dst, n_land_tiles_dst, &
-                                                         field_src, n_land_tiles_src))
+    if ( ( n_land_tiles_src == n_land_tiles_dst ) .and. &
+         ( ndata_src /= ndata_dst ) ) then
+       write( log_scratch_space, '(A)' ) &
+             "The number of land tiles has not changed but the multidata axis size is different "
+       call log_event( log_scratch_space, log_level_error )
+    end if
 
+    if ( ndata_dst < n_land_tiles_dst ) then
+       write( log_scratch_space, '(A)' ) &
+             "The number of surface tiles is smaller than the number of land tiles "
+       call log_event( log_scratch_space, log_level_error )
+    end if
+       
+    if ( n_land_tiles_src /= n_land_tiles_dst ) then
+       ! Retile using the multidata map
+       call invoke( lfric2lfric_multidata_map_surface_type( field_dst,        &
+                                                            n_land_tiles_dst, &
+                                                            field_src,        &
+                                                            n_land_tiles_src ) )
+       
+    else
+        ! Copy
+        call invoke( setval_X( field_dst, field_src ) )
+             
+    end if
+    
   end subroutine lfric2lfric_retile_surface_tiles
 
   !> @brief Retile a field with snow_layers_and_tiles
@@ -251,12 +274,16 @@ contains
   !> @param modeldb   Model state object
   !> @param field_dst Destination multidata field 
   !> @param field_src Source multidata field
+  !> @param n_data_dst Number of multidata levels in destination field
+  !> @param n_data_src Number of multidata levels in source field
   !> @param n_snow_layers_dst Source number of snow layers in destination
-  !> @param n_tiles_dst Source number of land tiles in destination
   !> @param n_snow_layers_src Source number of snow layers in source
+  !> @param n_tiles_dst Source number of land tiles in destination
   !> @param n_tiles_src Source number of land tiles in source
-  subroutine lfric2lfric_retile_snow( modeldb, field_dst, field_src, &
-       n_snow_layers_dst, n_tiles_dst, n_snow_layers_src, n_tiles_src )
+  subroutine lfric2lfric_retile_snow( modeldb, field_dst, field_src,        &
+                                      ndata_dst, ndata_src,                 &
+                                      n_snow_layers_dst, n_snow_layers_src, &
+                                      n_tiles_dst, n_tiles_src )
 
     implicit none
 
@@ -264,22 +291,49 @@ contains
     type(field_type),    intent(inout) :: field_dst
     type(field_type),    intent(in)    :: field_src
     integer(kind=i_def), intent(in)    :: n_snow_layers_dst
-    integer(kind=i_def), intent(in)    :: n_tiles_dst
     integer(kind=i_def), intent(in)    :: n_snow_layers_src
+    integer(kind=i_def), intent(in)    :: n_tiles_dst
     integer(kind=i_def), intent(in)    :: n_tiles_src
+    integer(kind=i_def), intent(in)    :: ndata_dst
+    integer(kind=i_def), intent(in)    :: ndata_src
 
     logical(l_def), parameter   :: ndata_first = .false.
 
-    write(log_scratch_space, '(A)') "Starting lfric2lfric_retile_snow"
-    call log_event(log_scratch_space, log_level_debug)
+    write( log_scratch_space, '(A)' ) "Starting lfric2lfric_retile_snow"
+    call log_event( log_scratch_space, log_level_debug )
 
-    call invoke( lfric2lfric_multidata_snow_type( field_dst, &
-                                                  field_src, &
-                                                  n_snow_layers_dst, &
-                                                  n_tiles_dst, &
-                                                  n_snow_layers_src, &
-                                                  n_tiles_src, &
-                                                  ndata_first ))
+    ! Assume size land_tiles * n_snow = number snow layers and tiles
+    if ( n_snow_layers_dst * n_tiles_dst /= ndata_dst ) then
+      write( log_scratch_space, '(A)' ) &
+      "The number of snow layers x number of tiles is not equal to the number of snow_layers_tiles in the destination "
+      call log_event( log_scratch_space, log_level_error )
+    end if
+    if ( n_snow_layers_src * n_tiles_src /= ndata_src ) then
+      write( log_scratch_space, '(A)' ) &
+      "The number of snow layers x number of tiles is not equal to the number of snow_layers_tiles in the source "
+      call log_event( log_scratch_space, log_level_error )
+    end if
+   
+    ! Assume snow layers same in source and destination
+    if ( n_snow_layers_src /= n_snow_layers_dst ) then
+       write( log_scratch_space, '(A)' ) &
+      "The number of snow layers in the destination is not the same as the source "
+      call log_event( log_scratch_space, log_level_error )
+    end if
+
+    if ( ( n_land_tiles_src /= n_land_tiles_dst ) ) then
+      ! Retile
+      call invoke( lfric2lfric_multidata_snow_type( field_dst, &
+                                                    field_src, &
+                                                    n_snow_layers_dst, &
+                                                    n_tiles_dst, &
+                                                    n_snow_layers_src, &
+                                                    n_tiles_src, &
+                                                    ndata_first ) )
+    else
+      ! Copy
+      call invoke( setval_X( field_dst, field_src ) )
+    end if
 
   end subroutine lfric2lfric_retile_snow
 

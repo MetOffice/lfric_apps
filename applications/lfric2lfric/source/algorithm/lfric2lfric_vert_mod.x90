@@ -21,6 +21,7 @@ module lfric2lfric_vert_mod
   use mesh_mod,                 only: mesh_type
   use log_mod,                  only: log_event, &
                                       log_level_info, &
+                                      log_level_debug
                                       log_scratch_space
 
   implicit none
@@ -75,21 +76,21 @@ contains
 
       mesh_src => field_src%get_mesh()
 
-      ! Vertical regridding is only for 3D fields
+      ! Only consider 3D fields
       if (mesh_src%get_extrusion_id() /= TWOD) then
 
         if (vertical_change) then
 
-          ! All 3D fields are regridded in vertical
+          ! All 3D fields are regridded in vertical if vertical_change is true
            
           write(log_scratch_space, '(A,A)') "Vertical regridding lfric field ", &
                                             trim(field_name)
-          call log_event(log_scratch_space, log_level_info)
+          call log_event(log_scratch_space, log_level_debug)
 
           mesh_src => field_src%get_mesh()
           mesh_dst => field_dst%get_mesh()
           fs_src = field_src%which_function_space()
-         fs_dst = field_dst%which_function_space()
+          fs_dst = field_dst%which_function_space()
 
           ! Get the associated heights, ready for vertical interpolation kernels
           height_src => get_height_fv(modeldb%config, mesh_src, fs_src)
@@ -103,10 +104,10 @@ contains
           call invoke(setval_X(field_dst, height_dst))
         else
 
-          ! All 3D fields are copied from src to dst
+          ! All 3D fields are copied from src to dst if vertical change is false
           write(log_scratch_space, '(A,A)') "Copying lfric field ", &
                                             trim(field_name)
-          call log_event(log_scratch_space, log_level_info)
+          call log_event(log_scratch_space, log_level_debug)
            
           call invoke(setval_X(field_dst, field_src)) 
         end if
