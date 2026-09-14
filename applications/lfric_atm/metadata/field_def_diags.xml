@@ -952,10 +952,6 @@
   <field id="processed__rh_water" name="rh_water" long_name="relative_humidity_over_water" standard_name="relative_humidity" unit="%" grid_ref="full_level_face_grid" />
   <field id="processed__rh_ice" name="rh_ice" long_name="relative_humidity_over_ice_below_freezing" standard_name="relative_humidity" unit="%" grid_ref="full_level_face_grid" />
   <field id="processed__freeze_lev" name="freeze_lev" long_name="wet_bulb_freezing_level" unit="m" domain_ref="face" />
-  <field id="processed__trop_ht" name="trop_ht" long_name="height_at_tropopause" unit="m" domain_ref="face" />
-  <field id="processed__trop_temp" name="trop_temp" long_name="temperature_at_tropopause" unit="K" domain_ref="face" />
-  <field id="processed__trop_press" name="trop_press" long_name="pressure_at_tropopause" unit="Pa" domain_ref="face" />
-  <field id="processed__trop_icao_ht" name="trop_icao_ht" long_name="icao_height_at_tropopause" unit="kft" domain_ref="face" />
   <field id="processed__wbig" name="wbig" long_name="wbig_eq_1_where_wphysics_gt_1" unit="1" grid_ref="full_level_face_grid" />
   <field id="processed__pressure_in_w3" name="pressure_in_w3" long_name="pressure_at_cell_centres" standard_name="air_pressure" unit="Pa" grid_ref="half_level_face_grid" />
   <field id="processed__pressure_in_wth" name="pressure_in_wth" long_name="pressure_at_cell_interfaces" standard_name="air_pressure" unit="Pa" grid_ref="full_level_face_grid" />
@@ -1009,6 +1005,11 @@
   <!-- Vertical integrals -->
   <field id="processed__sw_aer_optical_depth_rts" field_ref="radiation__sw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
   <field id="processed__lw_aer_optical_depth_rts" field_ref="radiation__lw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
+  <!-- Aviation diagnostics -->
+  <field id="aviation__trop_pressure" name="aviation_trop_pressure" standard_name="tropopause_air_pressure" long_name="tropopause_pressure" unit="Pa" domain_ref="face" />
+  <field id="aviation__trop_temperature" name="aviation_trop_temperature" standard_name="tropopause_air_temperature" long_name="tropopause_temperature" unit="K" domain_ref="face" />
+  <field id="aviation__trop_height" name="aviation_trop_height" standard_name="tropopause_altitude" long_name="tropopause_height" unit="m" domain_ref="face" />
+  <field id="aviation__trop_icao_height" name="aviation_trop_icao_height" standard_name="tropopause_altitude" long_name="icao_tropopause_height" unit="kft" domain_ref="face" />
 </field_group>
 
 <!-- Integer diagnostic group -->

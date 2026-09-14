@@ -56,16 +56,16 @@ contains
 
     nullify(height_wth)
 
-    trop_icao_ht_flag = init_diag(trop_icao_ht, 'processed__trop_icao_ht')
+    trop_icao_ht_flag = init_diag(trop_icao_ht, 'aviation__trop_icao_height')
 
-    trop_press_flag = init_diag(trop_press, 'processed__trop_press', &
+    trop_press_flag = init_diag(trop_press, 'aviation__trop_pressure', &
                                  activate=trop_icao_ht_flag)
 
-    trop_temp_flag = init_diag(trop_temp, 'processed__trop_temp', &
+    trop_temp_flag = init_diag(trop_temp, 'aviation__trop_temperature', &
                                 activate=(trop_press_flag .or. &
                                           trop_icao_ht_flag))
 
-    trop_ht_flag = init_diag(trop_ht, 'processed__trop_ht', &
+    trop_ht_flag = init_diag(trop_ht, 'aviation__trop_height', &
                               activate=(trop_temp_flag .or. &
                                         trop_press_flag .or. trop_icao_ht_flag))
 
