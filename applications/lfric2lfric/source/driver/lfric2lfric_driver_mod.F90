@@ -36,6 +36,7 @@ module lfric2lfric_driver_mod
                                             interm_collection_name
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
   use lfric2lfric_vert_mod,           only: lfric2lfric_vert
+  use lfric2lfric_copy_mod,           only: lfric2lfric_copy
   use lfric2lfric_multidata_mod,      only: lfric2lfric_multidata  
 
   implicit none
@@ -149,10 +150,10 @@ contains
         call lfric2lfric_regrid(modeldb, oasis_clock, source_fields,   &
                                 interm_fields, regrid_method)
       end if
-      if (vertical_change) then
+      if (vertical_or_tile_change) then
+        ! 3D fields
         call lfric2lfric_vert(modeldb, interm_fields, target_fields)
-      end if
-      if (tile_change) then
+        ! 2D fields
         call lfric2lfric_multidata(modeldb, interm_fields, target_fields)
       end if
 
