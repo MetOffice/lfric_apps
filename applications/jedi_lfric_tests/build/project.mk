@@ -4,7 +4,12 @@
 # under which the code may be used.
 ##############################################################################
 
-# This file is for any project specific build settings to be applied
-# via the Makefile.
+$(info UM physics project specials)
 
-$(info JEDI-LFRic test miniapp)
+export PRE_PROCESS_INCLUDE_DIRS = \
+        $(WORKING_DIR)/atmosphere_service/include \
+        $(WORKING_DIR)/boundary_layer/include \
+        $(WORKING_DIR)/large_scale_precipitation/include \
+        $(WORKING_DIR)/free_tracers/include
+
+export PRE_PROCESS_MACROS += UM_PHYSICS LFRIC USSPPREC_32B LSPREC_32B UM_JULES
