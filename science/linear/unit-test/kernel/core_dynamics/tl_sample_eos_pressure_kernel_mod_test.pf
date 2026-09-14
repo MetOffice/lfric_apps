@@ -50,7 +50,6 @@ contains
                                           feign_planet_config
     use initial_temperature_config_mod, &
                                    only : perturb_none
-    use sci_chi_transform_mod,     only : init_chi_transforms
 
     implicit none
 
@@ -96,8 +95,6 @@ contains
                               p_zero=100000.0_r_def, &
                               scaling_factor=1.0_r_def )
 
-    call init_chi_transforms(geometry_planar, topology_fully_periodic)
-
   end subroutine set_up
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -105,12 +102,10 @@ contains
   subroutine tear_down()
 
     use config_loader_mod,     only: final_configuration
-    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 
     call final_configuration()
-    call final_chi_transforms()
 
   end subroutine tear_down
 

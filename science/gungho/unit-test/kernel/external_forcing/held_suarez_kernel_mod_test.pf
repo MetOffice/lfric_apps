@@ -8,7 +8,7 @@
 !>
 module held_suarez_kernel_mod_test
 
-  use constants_mod,       only: i_def, r_def, r_second, PI, imdi
+  use constants_mod,       only: i_def, r_def, r_second, PI
   use coord_transform_mod, only: llr2xyz
   use funit
 
@@ -38,7 +38,6 @@ contains
                                            feign_timestepping_config
     use finite_element_config_mod,  only : cellshape_quadrilateral, &
                                            coord_system_xyz, coord_space_wchi
-    use sci_chi_transform_mod,      only : init_chi_transforms
     use timestepping_config_mod,    only : method_semi_implicit, &
                                            runge_kutta_method_ssp3
 
@@ -74,22 +73,18 @@ contains
                                    runge_kutta_method=runge_kutta_method_ssp3,        &
                                    spinup_period=0.0_r_second, spinup_alpha=.false.)
 
-    call init_chi_transforms(imdi, imdi)
-
   end subroutine set_up
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @after
   subroutine tear_down()
 
-    use sci_chi_transform_mod, only: final_chi_transforms
-    use config_loader_mod,     only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 
     ! Finalise namelists
     call final_configuration()
-    call final_chi_transforms()
 
   end subroutine tear_down
 
