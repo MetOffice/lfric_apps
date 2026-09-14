@@ -19,6 +19,7 @@ module gungho_setup_io_mod
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
                                        OPERATION_TIMESERIES, &
                                        CONVENTION_CF
+  use lfric_xios_constants_mod,  only: lx_day
   use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
   use log_mod,                   only: log_event, log_level_error, &
@@ -119,6 +120,7 @@ module gungho_setup_io_mod
                                        ls_option_file,            &
                                        sst_source,                &
                                        sst_source_start_dump,     &
+                                       sst_source_surf,           &
                                        sea_ice_source,            &
                                        sea_ice_source_start_dump, &
                                        coarse_aerosol_ancil,      &
@@ -394,8 +396,10 @@ module gungho_setup_io_mod
                                                            xios_id="sst_ancil", &
                                                            io_mode=FILE_MODE_READ, &
                                                            operation=OPERATION_TIMESERIES, &
+                                                           update_freq=merge(0, 1*lx_day, sst_source == sst_source_surf), & ! Double check this!!
                                                            fields_in_file=sst_ancil_fields, &
-                                                           freq=1 ) )
+                                                           ! freq=1 - Don't set this in the model 
+                                                           ) )
           else
             call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
                                                            xios_id="sst_ancil", &
@@ -496,6 +500,7 @@ module gungho_setup_io_mod
                                                            xios_id="aerosols_ancil", &
                                                            io_mode=FILE_MODE_READ, &
                                                            operation=OPERATION_TIMESERIES, &
+                                                           update_freq=1*lx_day, &
                                                            fields_in_file=aerosol_ancil_fields, &
                                                            freq=1 ) )
           else
