@@ -42,6 +42,17 @@ contains
 
   !> @brief Calculate icao height from the pressure field.
   !> @details Assumes lowest order W3 data, where ndf is always 1.
+  !>          This procedure is intended to be reusable: besides being
+  !>          invoked in its own right as icao_heights_kernel_type, it may
+  !>          also be called directly, as a plain Fortran subroutine call,
+  !>          from other kernels that already have a pressure field in
+  !>          scope and need an ICAO height derived from it (see
+  !>          tropopause_diags_kernel_mod). That is a deliberate exception
+  !>          to the general LFRic rule against a kernel calling another
+  !>          module's procedure - the exception exists specifically to
+  !>          avoid duplicating this conversion - but it carries the same
+  !>          caveat the rule warns about: it can cause problems for
+  !>          PSyclone when generating GPU code.
   !> @param[in]     nlayers         The number of layers in a column.
   !> @param[out]    icao_height     Output icao height in kft.
   !> @param[in]     pressure_field  Pressure in pa.
