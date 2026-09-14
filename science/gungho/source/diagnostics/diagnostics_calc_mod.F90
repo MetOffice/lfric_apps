@@ -12,6 +12,7 @@
 !-------------------------------------------------------------------------------
 module diagnostics_calc_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, str_max_filename, l_def
   use diagnostic_alg_mod,            only: divergence_diagnostic_alg,   &
                                            hydbal_diagnostic_alg,       &
@@ -104,29 +105,32 @@ end subroutine write_divergence_diagnostic
 !-------------------------------------------------------------------------------
 !>  @brief    Handles hydrostatic balance diagnostic processing
 !!
-!!  @details  Handles hydrostatic balance diagnostic processing
+!>  @details  Handles hydrostatic balance diagnostic processing
 !!
-!!> @param[in] theta_field   The theta field
-!!> @param[in] exner_field   The exner field
-!!> @param[in] mesh          Mesh
+!> @param[in] config           Configuration object
+!> @param[in] theta_field      The theta field
+!> @param[in] moist_dyn_field  The moist dynamics factors
+!> @param[in] exner_field      The exner field
+!> @param[in] mesh             Mesh
 !-------------------------------------------------------------------------------
 
-subroutine write_hydbal_diagnostic( theta_field, moist_dyn_field, exner_field,  &
-                                    mesh )
+subroutine write_hydbal_diagnostic( config, theta_field, moist_dyn_field, &
+                                    exner_field, mesh )
 
   use logging_config_mod, only: run_log_level, run_log_level_debug
 
   implicit none
 
-  type(field_type), intent(in)    :: theta_field
-  type(field_type), intent(in)    :: moist_dyn_field(num_moist_factors)
-  type(field_type), intent(in)    :: exner_field
-  type(mesh_type),  intent(in), pointer :: mesh
+  type(config_type), intent(in)    :: config
+  type(field_type),  intent(in)    :: theta_field
+  type(field_type),  intent(in)    :: moist_dyn_field(num_moist_factors)
+  type(field_type),  intent(in)    :: exner_field
+  type(mesh_type),   intent(in), pointer :: mesh
 
   real(r_def)                     :: l2_norm = 0.0_r_def
 
   if (run_log_level == run_log_level_debug) then
-    call hydbal_diagnostic_alg(l2_norm, theta_field, moist_dyn_field,          &
+    call hydbal_diagnostic_alg(config, l2_norm, theta_field, moist_dyn_field,  &
                                exner_field, mesh)
 
     write( log_scratch_space, '(A,E16.8)' )  &
