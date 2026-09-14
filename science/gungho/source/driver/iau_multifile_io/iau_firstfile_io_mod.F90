@@ -82,8 +82,6 @@ contains
     prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     use_xios_io     = modeldb%config%io%use_xios_io()
 
-    geometry      = modeldb%config%base_mesh%geometry()
-    topology      = modeldb%config%base_mesh%topology()
     coord_system  = modeldb%config%finite_element%coord_system()
     scaled_radius = modeldb%config%planet%scaled_radius()
 
@@ -118,6 +116,9 @@ contains
 
     ! Initialise XIOS context
     mesh => mesh_collection%get_mesh(prime_mesh_name)
+    geometry = mesh%geometry()
+    topology = mesh%topology()
+
     call chi_inventory%get_field_array(mesh, chi)
     call panel_id_inventory%get_field(mesh, panel_id)
 
