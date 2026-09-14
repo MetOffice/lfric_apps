@@ -28,9 +28,9 @@
         "lfric_atm_nwp_gadi_extra",
     ],
     "lfric_atm_ral_gadi_developer": [
-        "lfric_atm_ral3-seuk_MG_gadi_intel_production-64bit",
-        "lfric_atm_ral3_ens-seuk_MG_gadi_intel_production-64bit",
-        "lfric_atm_ral3_mixmol-seuk_MG_gadi_intel_production-64bit",
+        "lfric_atm_ral4-seuk_MG_gadi_intel_production-64bit",
+        "lfric_atm_ral4_ens-seuk_MG_gadi_intel_production-64bit",
+        "lfric_atm_ral4_mixmol-seuk_MG_gadi_intel_production-64bit",
     ],
     "lfric_atm_scm_gadi_developer": [
         "lfric_atm_scm_gal10_bomex-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
@@ -44,9 +44,9 @@
         "lfric_atm_scm_gal10_toga-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
         "lfric_atm_scm_llcs-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
         "lfric_atm_scm_rad_gas-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
-        "lfric_atm_scm_ral3_constrain-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
-        "lfric_atm_scm_ral3_moruses-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
-        "lfric_atm_scm_ral3_urban2t-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral4_constrain-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral4_moruses-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral4_urban2t-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
         "lfric_atm_scm_ukca_land-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
         "lfric_atm_scm_ukca_sea-BiP2x2-50000x50000_gadi_intel_production-64bit",
         "lfric_atm_canned_gadi_intel_fast-debug-64bit",
@@ -81,8 +81,8 @@
         "lfric_atm_scm_gadi_developer",
         "lfric_atm_scm_gal10_cbl-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
         "lfric_atm_scm_gal10_constrain-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
-        "lfric_atm_scm_ral3_comp_tran_ref-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
-        "lfric_atm_scm_ral3_dice2-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral4_comp_tran_ref-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral4_dice2-BiP2x2-50000x50000_gadi_intel_fast-debug-64bit",
     ],
     }) %}
 
