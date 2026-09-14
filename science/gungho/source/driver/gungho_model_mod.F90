@@ -70,7 +70,9 @@ module gungho_model_mod
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
-  use mesh_mod,                   only : mesh_type
+  use mesh_mod,                   only : mesh_type, &
+                                         geometry_planar, &
+                                         geometry_spherical
   use mesh_collection_mod,        only : mesh_collection
   use clock_mod,                  only : clock_type
   use model_clock_mod,            only : model_clock_type
@@ -508,9 +510,6 @@ contains
   !> @param [in,out] modeldb   The full model database for the model run
   !>
   subroutine initialise_infrastructure( io_context_name, modeldb )
-
-    use base_mesh_config_mod, only: geometry_planar, &
-                                    geometry_spherical
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics

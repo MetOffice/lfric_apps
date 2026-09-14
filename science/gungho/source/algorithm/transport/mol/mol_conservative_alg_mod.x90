@@ -12,7 +12,7 @@ module mol_conservative_alg_mod
   use constants_mod,                  only: r_def, i_def, l_def, str_def, r_tran
   use log_mod,                        only: log_scratch_space, log_event, &
                                             LOG_LEVEL_INFO
-  use mesh_mod,                       only: mesh_type
+  use mesh_mod,                       only: mesh_type, topology_non_periodic
   use operator_mod,                   only: operator_type
   use r_tran_field_mod,               only: r_tran_field_type
   use r_tran_operator_mod,            only: r_tran_operator_type
@@ -39,7 +39,7 @@ module mol_conservative_alg_mod
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
 
   ! Configuration modules
-  use base_mesh_config_mod,  only: topology, topology_non_periodic
+  use base_mesh_config_mod,  only: topology
   use boundaries_config_mod, only: limited_area, transport_boundary_depth
   use transport_config_mod,  only: runge_kutta_method, &
                                    dry_field_name,     &
