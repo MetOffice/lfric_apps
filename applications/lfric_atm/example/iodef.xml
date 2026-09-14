@@ -10,7 +10,7 @@
     <!-- Pressure level axes definitions -->
     <axis_definition>
       <axis id="pressure_levels" name="pressure_levels" n_glo="29" value="(0,28)[100000 95000 92500 90000 85000 70000 60000 50000 40000 30000 25000 20000 15000 10000 7000 5000 3000 2000 1000 700 500 300 200 100 70 50 30 20 10]"/>
-      <axis id="pressure_levels_xi3" name="pressure_levels_xi3" n_glo="1" value="(0,0)[85000]"/>
+      <axis id="pressure_levels_xi3" name="pressure_levels_xi3" n_glo="4" value="(0,3)[92500 85000 70000 20000]"/>
     </axis_definition>
 
     <domain_definition src="../metadata/domain_def_main.xml"/>
