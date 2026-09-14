@@ -454,6 +454,8 @@ subroutine create_model_data( modeldb,           &
     call modeldb%fields%add_empty_field_collection("convection_fields", table_len = 100)
     call modeldb%fields%add_empty_field_collection("stph_fields", table_len = 100)
     call modeldb%fields%add_empty_field_collection("ancil_fields", table_len = 100)
+      call modeldb%fields%add_empty_field_collection("sst_ancil_fields", table_len = 10)
+      call modeldb%fields%add_empty_field_collection("aerosol_ancil_fields", table_len = 40)
 
     turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
     soil_fields => modeldb%fields%get_field_collection("soil_fields")
@@ -570,12 +572,16 @@ subroutine create_model_data( modeldb,           &
     type(field_collection_type), pointer :: depository
     type(field_collection_type), pointer :: fd_fields
     type(field_collection_type), pointer :: ancil_fields
+      type(field_collection_type), pointer :: sst_ancil_fields
+      type(field_collection_type), pointer :: aerosol_ancil_fields
     type(gungho_time_axes_type), pointer :: model_axes
 
     model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
     depository => modeldb%fields%get_field_collection("depository")
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
     ancil_fields => modeldb%fields%get_field_collection("ancil_fields")
+      sst_ancil_fields => modeldb%fields%get_field_collection("sst_ancil_fields")
+      aerosol_ancil_fields => modeldb%fields%get_field_collection("aerosol_ancil_fields")
 
 #ifdef UM_PHYSICS
     if (use_physics) then
@@ -592,6 +598,8 @@ subroutine create_model_data( modeldb,           &
         case ( ancil_option_fixed, ancil_option_updating )
           call create_fd_ancils( depository,                      &
                                  ancil_fields,                    &
+                                  sst_ancil_fields,                &
+                                  aerosol_ancil_fields,            &
                                  mesh, twod_mesh ,                &
                                  aerosol_mesh,                    &
                                  aerosol_twod_mesh,               &
