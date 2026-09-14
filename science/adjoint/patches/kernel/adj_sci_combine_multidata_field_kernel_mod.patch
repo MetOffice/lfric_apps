@@ -1,15 +1,16 @@
-@@ -1,19 +1,19 @@
+@@ -1,20 +1,20 @@
 -module adj_combine_multidata_field_kernel_mod
 +module adj_sci_combine_multidata_field_kernel_mod
+   use, intrinsic :: iso_fortran_env, only : real32, real64
    use argument_mod, only : any_space_1, any_space_2, any_space_3, arg_type, cell_column, gh_field, gh_integer, gh_logical, &
 -&gh_read, gh_real, gh_scalar, gh_write
 +&gh_read, gh_real, gh_scalar, gh_readinc, gh_inc
-   use constants_mod, only : i_def, l_def, r_double, r_single
+   use constants_mod, only : i_def, l_def
    use kernel_mod, only : kernel_type
    implicit none
 -  interface combine_multidata_field_code
 +  interface adj_combine_multidata_field_code
-     module procedure :: adj_combine_multidata_field_code_r_single, adj_combine_multidata_field_code_r_double
+     module procedure :: adj_combine_multidata_field_code_real32, adj_combine_multidata_field_code_real64
 -  end interface combine_multidata_field_code
 +  end interface adj_combine_multidata_field_code
    type, public, extends(kernel_type) :: adj_combine_multidata_field_kernel_type
@@ -25,7 +26,7 @@
      arg_type(gh_scalar, gh_integer, gh_read), &
      arg_type(gh_scalar, gh_logical, gh_read)/)
    INTEGER :: OPERATES_ON = cell_column
-@@ -21,7 +21,7 @@
+@@ -22,7 +22,7 @@
  
    private
  
@@ -33,8 +34,8 @@
 +  public :: adj_combine_multidata_field_code
  
    contains
-   subroutine adj_combine_multidata_field_code_r_single(nlayers, field_out, n, field1_in, n1, field2_in, n2, ndata_first, ndf, &
-@@ -49,15 +49,15 @@
+   subroutine adj_combine_multidata_field_code_real32(nlayers, field_out, n, field1_in, n1, field2_in, n2, ndata_first, ndf, &
+@@ -50,15 +50,15 @@
  
      if (ndata_first) then
        do k = nlayers - 1, 0, -1
@@ -43,22 +44,22 @@
          do df = n2 - 1, 0, -1
            field2_in(map_2(1) + k * n2 + df) = field2_in(map_2(1) + k * n2 + df) + field_out(ij + df)
 -          field_out(ij + df) = 0.0
-+          field_out(ij + df) = 0.0_r_single
++          field_out(ij + df) = 0.0_real32
          enddo
 +        ij = k * n + map(1)
          do df = n1 - 1, 0, -1
            field1_in(map_1(1) + k * n1 + df) = field1_in(map_1(1) + k * n1 + df) + field_out(ij + df)
 -          field_out(ij + df) = 0.0
-+          field_out(ij + df) = 0.0_r_single
++          field_out(ij + df) = 0.0_real32
          enddo
        enddo
      else
-@@ -65,14 +65,14 @@
+@@ -66,14 +66,14 @@
          ij = df * nlayers + n1 * nlayers - nlayers + map(1)
          do k = nlayers - 1, 0, -1
            field2_in(map_2(1) + (df - 1) * nlayers + k) = field2_in(map_2(1) + (df - 1) * nlayers + k) + field_out(ij + k)
 -          field_out(ij + k) = 0.0
-+          field_out(ij + k) = 0.0_r_single
++          field_out(ij + k) = 0.0_real32
          enddo
        enddo
        do df = n1, 1, -1
@@ -66,11 +67,11 @@
          do k = nlayers - 1, 0, -1
            field1_in(map_1(1) + (df - 1) * nlayers + k) = field1_in(map_1(1) + (df - 1) * nlayers + k) + field_out(ij + k)
 -          field_out(ij + k) = 0.0
-+          field_out(ij + k) = 0.0_r_single
++          field_out(ij + k) = 0.0_real32
          enddo
        enddo
      end if
-@@ -103,15 +103,15 @@
+@@ -104,15 +104,15 @@
  
      if (ndata_first) then
        do k = nlayers - 1, 0, -1
@@ -79,22 +80,22 @@
          do df = n2 - 1, 0, -1
            field2_in(map_2(1) + k * n2 + df) = field2_in(map_2(1) + k * n2 + df) + field_out(ij + df)
 -          field_out(ij + df) = 0.0
-+          field_out(ij + df) = 0.0_r_double
++          field_out(ij + df) = 0.0_real64
          enddo
 +        ij = k * n + map(1)
          do df = n1 - 1, 0, -1
            field1_in(map_1(1) + k * n1 + df) = field1_in(map_1(1) + k * n1 + df) + field_out(ij + df)
 -          field_out(ij + df) = 0.0
-+          field_out(ij + df) = 0.0_r_double
++          field_out(ij + df) = 0.0_real64
          enddo
        enddo
      else
-@@ -119,18 +119,18 @@
+@@ -120,18 +120,18 @@
          ij = df * nlayers + n1 * nlayers - nlayers + map(1)
          do k = nlayers - 1, 0, -1
            field2_in(map_2(1) + (df - 1) * nlayers + k) = field2_in(map_2(1) + (df - 1) * nlayers + k) + field_out(ij + k)
 -          field_out(ij + k) = 0.0
-+          field_out(ij + k) = 0.0_r_double
++          field_out(ij + k) = 0.0_real64
          enddo
        enddo
        do df = n1, 1, -1
@@ -102,12 +103,12 @@
          do k = nlayers - 1, 0, -1
            field1_in(map_1(1) + (df - 1) * nlayers + k) = field1_in(map_1(1) + (df - 1) * nlayers + k) + field_out(ij + k)
 -          field_out(ij + k) = 0.0
-+          field_out(ij + k) = 0.0_r_double
++          field_out(ij + k) = 0.0_real64
          enddo
        enddo
      end if
  
-   end subroutine adj_combine_multidata_field_code_r_double
+   end subroutine adj_combine_multidata_field_code_real64
  
 -end module adj_combine_multidata_field_kernel_mod
 +end module adj_sci_combine_multidata_field_kernel_mod
