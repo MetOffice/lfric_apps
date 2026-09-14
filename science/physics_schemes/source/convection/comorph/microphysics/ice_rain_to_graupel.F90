@@ -124,7 +124,7 @@ end do
 if ( l_added_where_none ) then
   nc_graup = 0
   do ic = 1, n_points
-    if ( q_graup(ic) > 0 ) then
+    if ( q_graup(ic) > zero ) then
       nc_graup = nc_graup + 1
       index_ic_graup(nc_graup) = ic
     end if

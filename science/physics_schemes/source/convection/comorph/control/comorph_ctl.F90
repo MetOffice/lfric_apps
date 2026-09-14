@@ -31,7 +31,7 @@ use comorph_constants_mod, only: real_hmprec, l_init_constants, name_length,   &
 use fields_type_mod, only: fields_type, l_init_fields_type_mod,                &
                            fields_set_addresses,                               &
                            fields_list_make, fields_list_clear,                &
-                           field_names, field_positive, n_fields
+                           field_names, field_min, field_max, n_fields
 use grid_type_mod, only: grid_type, grid_check_bad_values
 use turb_type_mod, only: turb_type,                                            &
                          turb_list_make, turb_list_clear,                      &
@@ -242,7 +242,8 @@ if ( i_check_bad_values_3d > i_check_bad_none ) then
     ub_1 = ubound( fields_n % list(i_field)%pt )
     call check_bad_values_3d( lb_1, ub_1, fields_n%list(i_field)%pt,           &
                               where_string, field_names(i_field),              &
-                              field_positive(i_field) )
+                              field_min=field_min(i_field),                    &
+                              field_max=field_max(i_field) )
   end do
   ! Check latest fields:
   where_string = "On input to CoMorph: latest fields:"
@@ -251,7 +252,8 @@ if ( i_check_bad_values_3d > i_check_bad_none ) then
     ub_1 = ubound( fields_np1 % list(i_field)%pt )
     call check_bad_values_3d( lb_1, ub_1, fields_np1%list(i_field)%pt,         &
                               where_string, field_names(i_field),              &
-                              field_positive(i_field) )
+                              field_min=field_min(i_field),                    &
+                              field_max=field_max(i_field) )
   end do
 
   ! Check input grid fields
@@ -514,7 +516,8 @@ if ( i_check_bad_values_3d > i_check_bad_none ) then
     ub_1 = ubound( fields_np1 % list(i_field)%pt )
     call check_bad_values_3d( lb_1, ub_1, fields_np1%list(i_field)%pt,         &
                               where_string, field_names(i_field),              &
-                              field_positive(i_field) )
+                              field_min=field_min(i_field),                    &
+                              field_max=field_max(i_field) )
   end do
 
   ! Check cloud and rain fractions (the convective cloud fields
