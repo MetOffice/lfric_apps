@@ -103,8 +103,6 @@ module um_ukca_init_mod
   ! callback routine for ozone column diagnostic
     photol_calc_ozonecol
 
-  ! UKCA diagnostic setup module
-  USE ukca_diag_setup_mod, only: ukca_diag_setup
 
   implicit none
 
@@ -1285,9 +1283,6 @@ contains
     ! Switch on optional UM boundary layer diagnostics required by UKCA
     if (any(env_names_bllev_real(:) == fldname_bl_tke))                        &
       bl_diag%l_request_tke = .true.
-
-    ! Setup UKCA diagnostics by passing requested list to the API
-    call ukca_diag_setup()
     
   end subroutine ukca_init
   subroutine ukca_emiss_init()

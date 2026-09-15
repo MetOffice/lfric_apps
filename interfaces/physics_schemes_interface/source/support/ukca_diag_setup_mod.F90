@@ -15,15 +15,16 @@ use ukca_api_mod, only :                                                       &
     ukca_diagname_rxnflux_oh_ch4_trop,                                         &
     ukca_diagname_o3_column_du    
 
-use constants_mod, only : imdi, i_def, l_def, str_def, i_um
-use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR,    & 
-                          LOG_LEVEL_DEBUG
+use lfric_xios_diag_mod,  only: field_is_active
+use constants_mod,        only: imdi, i_def, l_def, str_def, i_um
+use log_mod,              only: log_scratch_space, log_event, LOG_LEVEL_ERROR, & 
+                                LOG_LEVEL_DEBUG
   
 implicit none
 
 private
 
-public :: ukca_diag_setup
+public :: ukca_diag_setup, get_xios_diagname
 
 integer(i_def), parameter, public :: n_diag_group = 2_i_def  ! Number of UKCA
                                                      ! diagnostic groups used
@@ -33,9 +34,9 @@ integer(i_def), parameter, public :: i_dgroup_2d = 1_i_def   ! Index used for
 integer(i_def), parameter, public :: i_dgroup_3d = 2_i_def   ! Index used for 
                                                      ! 3D group requests
 
-integer(i_def), parameter :: max_ukca_diags = 2_i_def  ! Maximum number of UKCA 
-                                                       ! diagnostics currently
-                                                       ! supported for output
+integer(i_def), parameter, public :: max_ukca_diags = 2_i_def  ! Maximum number
+                                                       ! of UKCA diagnostics
+                                                       ! currently supported
 
 integer(i_def), parameter :: n_req_max(n_diag_group) = [2_i_def, max_ukca_diags]
                              ! Max. no. of fields currently supported, by group
@@ -75,8 +76,6 @@ subroutine ukca_diag_setup( )
 implicit none
 
 ! Local variables
-integer(i_def) :: n(n_diag_group)
-integer(i_def) :: i_dgroup  
 integer(i_def) :: i
 logical :: l_diag_requested
 character(len=ukca_maxlen_diagname) :: diagname
@@ -98,17 +97,22 @@ tmp_diag_status_3d(:) = 0_i_um
 ! Counter for active requests
 n_ukca_diags_3d = 0_i_def
 
+! Check if field is requested via XIOS configuration, irrespective of whether
+! it is active on this timestep
 do i = 1, n_req_max(i_dgroup_3d)
-  n_ukca_diags_3d = n_ukca_diags_3d + 1
-  tmp_diagnames_fullht_real(i) = diagnames_map(i, 2)
-  tmp_diag_status_3d(i) = ukca_diag_status_requested
+  if ( field_is_active('chemistry__'//diagnames_map(i, 1),                     &
+                        at_current_timestep=.false.) ) then
+    n_ukca_diags_3d = n_ukca_diags_3d + 1
+    tmp_diagnames_fullht_real(n_ukca_diags_3d) = diagnames_map(i, 2)
+    tmp_diag_status_3d(n_ukca_diags_3d) = ukca_diag_status_requested
+  end if  
 end do
 
 ! Populate the allocatable arrays with the requested diagnostics
 allocate(diagnames_fullht_real(n_ukca_diags_3d))
 allocate(idiag_status_3d(n_ukca_diags_3d))
-diagnames_fullht_real = tmp_diagnames_fullht_real(1:n_ukca_diags_3d)
-idiag_status_3d = tmp_diag_status_3d(1:n_ukca_diags_3d)
+diagnames_fullht_real(:) = tmp_diagnames_fullht_real(1:n_ukca_diags_3d)
+idiag_status_3d(:) = tmp_diag_status_3d(1:n_ukca_diags_3d)
 
 ! Pass on active diagnostic information to UKCA via API - if any requested
 if ( n_ukca_diags_3d > 0_i_def ) then
@@ -127,4 +131,28 @@ end if
 end subroutine ukca_diag_setup
 ! ----------------------------------------------------------------------
 
+! Function to obtain XIOS / short diagname corresponding to full/ CF-like
+! name, using the diagnames_map
+function get_xios_diagname(cfname_in) result(xios_id)
+
+implicit none
+
+character(len=*), intent(in) :: cfname_in
+character(str_def) :: xios_id
+
+integer(i_def) :: n
+
+do n = 1, max_ukca_diags
+  if ( trim(cfname_in) == trim(diagnames_map(n,2)) ) then
+     xios_id = trim(diagnames_map(n,1))
+     return
+  end if
+end do
+
+! If we are here, no matching name found
+call log_event('GET_XIOS_DIAGNAME: Unable to find '//trim(cfname_in),          &
+                LOG_LEVEL_ERROR)
+
+end function get_xios_diagname
+! ------------------------------------------------------------------
 end module ukca_diag_setup_mod

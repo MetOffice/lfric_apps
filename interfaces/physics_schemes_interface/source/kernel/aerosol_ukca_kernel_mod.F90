@@ -1234,8 +1234,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               nlev_ent_tr_mix,                                 &
                               n_phot_spc
   use ukca_diag_setup_mod, only : n_ukca_diags_3d, idiag_status_3d,            &
-                                  diagnames_map,                               &
-                                  nm_rxnflux_oh_ch4_trop, nm_o3_column_du
+                                  diagnames_fullht_real
 
   use log_mod,              only: log_event, log_scratch_space, LOG_LEVEL_ERROR
   use chemistry_config_mod, only: chem_scheme, chem_scheme_strattrop
@@ -1265,7 +1264,9 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! UKCA API module
   use ukca_api_mod,         only: ukca_step_control, ukca_maxlen_message, &
                                   ukca_maxlen_procname,                   &
-                                  ukca_diag_status_inactive
+                                  ukca_diag_status_requested,             &
+                                  ukca_diagname_rxnflux_oh_ch4_trop,      &
+                                  ukca_diagname_o3_column_du
 
   implicit none
 
@@ -4293,7 +4294,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   ! Diagnostics - ONLY aLLOCATE the super-array, no fields to be passed in
   allocate(diag_fullht_real( seg_len, 1, nlayers, n_ukca_diags_3d ))
-  diag_fullht_real(:,:,:,:) = 0.0_r_um
 
   ! Clear working fields used in environmental driver setup
   deallocate(z0h_bare_surft)
@@ -5809,22 +5809,22 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Extract diagnostic fields from UKCA super array
   ! Currently only 3-D
   do m = 1, n_ukca_diags_3d
-    if ( idiag_status_3d(m) == ukca_diag_status_inactive ) cycle
-    select case( trim(diagnames_map(m, 1)) )
-      case (trim(nm_rxnflux_oh_ch4_trop))        
+    if ( idiag_status_3d(m) /= ukca_diag_status_requested ) cycle
+    select case( trim(diagnames_fullht_real(m)) )
+      case (trim(ukca_diagname_rxnflux_oh_ch4_trop))
         do i = 1, seg_len
           do k = 1, nlayers
             rxnflux_oh_ch4_trop( map_wth(1,i) + k ) = real( diag_fullht_real( i, 1, k, m ), r_def )
           end do
           rxnflux_oh_ch4_trop( map_wth(1,i) + 0 ) = rxnflux_oh_ch4_trop( map_wth(1,i) + 1 )
-        end do        
-      case (trim(nm_o3_column_du))        
+        end do
+      case (trim(ukca_diagname_o3_column_du))
         do i = 1, seg_len
           do k = 1, nlayers
             o3_column_du ( map_wth(1,i) + k ) = real( diag_fullht_real( i, 1, k, m ), r_def )
           end do
+          o3_column_du( map_wth(1,i) + 0 ) = o3_column_du( map_wth(1,i) + 1 )
         end do
-        o3_column_du( map_wth(1,i) + 0 ) = o3_column_du( map_wth(1,i) + 1 )
     end select
   end do
  deallocate( diag_fullht_real )

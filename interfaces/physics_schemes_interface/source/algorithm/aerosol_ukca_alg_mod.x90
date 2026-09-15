@@ -471,6 +471,7 @@ contains
 
     integer( kind=i_def ) :: ncells
     integer( kind=i_def)  :: jp1, jp2  ! Indices for photolysis fields
+    logical(l_def) :: l_chem_timestep  ! TRUE if this is a chemical step
 
     type( field_type ) :: mr_ice
     integer( tik ) :: id, id_photo, id_chem, id_diags
@@ -1009,6 +1010,10 @@ contains
       call invoke(inc_X_plus_Y(mr_ice, mr(imr_ci)))
     end if
 
+    ! Determine if this call is on a chemistry timestep
+    l_chem_timestep = (mod( model_clock%get_step(),                            &
+            chem_timestep/int(model_clock%get_seconds_per_step()) ) == 0)
+
     ! Fields needed by UKCA and Photolysis
     call zh%copy_field_properties(conv_cloud_lwp)
     call zh%copy_field_properties(surf_albedo)
@@ -1023,13 +1028,6 @@ contains
     call photol_rates%initialise(vector_space)
     call invoke( setval_c(photol_rates,    0.0_r_def) )
 
-    ! Initialise diagnostics
-
-    call initialise_ukca_diagnostics(                                          &
-                                      rxnflux_oh_ch4_trop,                     &
-                                      o3_column_du                             &
-                                    )
-  
     if ( chem_scheme == chem_scheme_strattrop .and.                            &
          photol_scheme /= photol_scheme_off ) then
       ! Photolysis currently linked to Strattrop      
@@ -1043,8 +1041,7 @@ contains
       
       ! Only call photolysis if this is a chemistry timestep as photol rates
       ! are only used by chemistry
-      if (mod( model_clock%get_step(),                                         &
-            chem_timestep/int(model_clock%get_seconds_per_step()) ) == 0) then
+      if ( l_chem_timestep ) then
 
         if ( LPROF ) call start_timing( id_photo, 'ukca.photolysis_alg' )
         ! FastJX scheme
@@ -1172,6 +1169,16 @@ contains
     
     end if  ! Chem/ photolysis schemes
 
+    if ( chem_scheme == chem_scheme_strattrop ) then 
+      ! Initialise UKCA diagnostics - currently only strattrop ones coded
+
+      call initialise_ukca_diagnostics(                                        &
+                                      l_chem_timestep,                         &
+                                      rxnflux_oh_ch4_trop,                     &
+                                      o3_column_du                             &
+                                     )
+    end if
+ 
     ! Do UKCA time step
 
     if ( LPROF ) call start_timing( id_chem, 'ukca.chemistry_alg' )
@@ -1588,11 +1595,13 @@ contains
           call photol_rate_jo1d%write_field('chemistry__photol_rate_jo1d')
           call photol_rate_jno2%write_field('chemistry__photol_rate_jno2')
         end if
+        call output_ukca_diagnostics(                                          &
+                                     rxnflux_oh_ch4_trop,                      &
+                                     o3_column_du                              &
+                                    )
+    
       end if    ! chem_scheme_strattrop
 
-      call output_ukca_diagnostics( rxnflux_oh_ch4_trop,                     &
-                                    o3_column_du )
-    
       call dms%write_field('chemistry__dms')
       call so2%write_field('chemistry__so2')
       call h2so4%write_field('chemistry__h2so4')

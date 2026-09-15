@@ -20,8 +20,9 @@
 module ukca_diags_interface_mod
 
 use ukca_diag_setup_mod, only : n_ukca_diags_3d, idiag_status_3d,              &
+                                max_ukca_diags, diagnames_fullht_real,         &
                                 nm_rxnflux_oh_ch4_trop, nm_o3_column_du,       &
-                                diagnames_map
+                                diagnames_map, get_xios_diagname
 
 use ukca_api_mod, only :   ukca_maxlen_diagname, ukca_maxlen_message,          &
                            ukca_update_diagnostic_requests,                    &
@@ -45,6 +46,7 @@ contains
 
 ! ----------------------------------------------------------------------
 subroutine initialise_ukca_diagnostics(                                        &
+                                        l_chem_timestep,                       &
                                         rxnflux_oh_ch4_trop,                   &
                                         o3_column_du                           &
                                       )
@@ -56,11 +58,12 @@ subroutine initialise_ukca_diagnostics(                                        &
 ! ----------------------------------------------------------------------
 implicit none
 
+logical(l_def),   intent(in)  :: l_chem_timestep
 type(field_type), intent(out) :: rxnflux_oh_ch4_trop
 type(field_type), intent(out) :: o3_column_du
 
 ! Local variables
-integer(i_def) :: i
+integer(i_def) :: n
 logical :: l_diag_requested
 
 character(len=ukca_maxlen_diagname) :: diagname
@@ -73,28 +76,29 @@ character(len=ukca_maxlen_message) :: ukca_errmsg
 
 errcode = 0_i_um
 
-do i = 1, n_ukca_diags_3d
-  l_diag_requested = .false.  
-  select case (trim(diagnames_map(i, 1)))
+! Determine if any UKCA diagnostics are active for this call.
+! Need to check all from max_ukca_diags since fields are passed to kernel
+! regardless so init_diag can initialise others with empty data
+!
+! Some diagnostics will not be calculated on non-chemistry steps,
+! so deactivate automatically after init_diag (where it will be initialised)
+idiag_status_3d(:) = ukca_diag_status_inactive
+do n = 1, max_ukca_diags
+  l_diag_requested = .false.
+  select case (trim(diagnames_map(n, 1)))
     case (trim(nm_rxnflux_oh_ch4_trop))
-      l_diag_requested = init_diag(rxnflux_oh_ch4_trop, 'chemistry__rxnflux_oh_ch4_trop')
-      if (l_diag_requested) then
-        idiag_status_3d(i) = ukca_diag_status_requested
-        call invoke ( setval_c(rxnflux_oh_ch4_trop, 0.0_r_def) )
-      end if 
+      l_diag_requested = init_diag(rxnflux_oh_ch4_trop,           &
+                            'chemistry__rxnflux_oh_ch4_trop')  
+      if ( .not. l_chem_timestep ) l_diag_requested = .false.
     case (trim(nm_o3_column_du))      
       l_diag_requested = init_diag(o3_column_du, 'chemistry__o3_column_du')
-      if (l_diag_requested) then
-        idiag_status_3d(i) = ukca_diag_status_requested
-        call invoke ( setval_c(o3_column_du, 0.0_r_def) )
-      end if 
   end select
   if (l_diag_requested) then
+    idiag_status_3d(get_idx(trim(diagnames_map(n, 2)))) =          &
+      ukca_diag_status_requested
     write(log_scratch_space, '(A,A)')'UKCA ACTIVE diagnostic : ', &
-      TRIM(diagnames_map(i, 2))
+          trim(diagnames_map(n, 2))
     call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-  else
-    idiag_status_3d(i) = ukca_diag_status_inactive
   end if  
 end do
 
@@ -124,9 +128,11 @@ type(field_type), intent(in) :: rxnflux_oh_ch4_trop
 type(field_type), intent(in) :: o3_column_du
 
 integer(i_def) :: i
+character(str_def) :: xios_name
 
 do i = 1, n_ukca_diags_3d
-  select case (trim(diagnames_map(i,1)))
+  xios_name = get_xios_diagname(diagnames_fullht_real(i))
+  select case (trim(xios_name))
     case (trim(nm_rxnflux_oh_ch4_trop))
       if (idiag_status_3d(i) == ukca_diag_status_requested)  then
         call rxnflux_oh_ch4_trop % write_field
@@ -141,4 +147,22 @@ end do
 end subroutine output_ukca_diagnostics
 ! ----------------------------------------------------------------------
 
+! Function to find index of field in 'requested' diagnostics list using name
+! ---------------------------------------------------------------------
+function get_idx(diagname) result(idx)
+
+implicit none
+
+character(len=*), intent(in) :: diagname
+integer(i_def) :: idx
+
+do idx = 1, n_ukca_diags_3d
+  if ( trim(diagnames_fullht_real(idx)) == trim(diagname) ) return
+end do
+! If we are here, no matching name in list
+call log_event('GET_IDX: '//trim(diagname)//' not in diagnames_fullht_real', &
+                LOG_LEVEL_ERROR)
+
+end function get_idx
+! ---------------------------------------------------------------------
 end module ukca_diags_interface_mod

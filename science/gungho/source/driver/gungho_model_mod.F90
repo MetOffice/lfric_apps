@@ -111,6 +111,7 @@ module gungho_model_mod
   use um_physics_init_mod,         only : um_physics_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
+  use ukca_diag_setup_mod,         only: ukca_diag_setup
   use jules_timestep_alg_mod,      only : jules_timestep_type
   use stochastic_physics_config_mod, only : use_spt, &
                                             use_skeb
@@ -1068,6 +1069,8 @@ contains
       end if
       ! Initialisation of UM variables related to the mesh
       call um_domain_init(mesh)
+      ! Setup UKCA diagnostics list based on requested diags
+      call ukca_diag_setup()
     end if
 #endif
 
