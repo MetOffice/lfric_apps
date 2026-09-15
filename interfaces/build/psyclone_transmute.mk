@@ -3,6 +3,8 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
+# Some of the content of this file has been produced with the assistance of
+# Met Office Github Copilot Enterprise."
 
 # Default for file selection method for transformation files is for CPU OMP currently
 # This should be overwritten in:
@@ -16,6 +18,19 @@ DSL := transmute
 # Set default PSyclone transmute command additional options
 PSYCLONE_TRANSMUTE_EXTRAS ?= -l all
 #
+# The command used to invoke PSyclone. By default this is the persistent
+# server client (psyclone_client.py) which keeps a single PSyclone instance
+# resident and dispatches jobs to a pool of pre-forked workers, avoiding the
+# repeated cost of loading the Python libraries from disk. It is a drop-in
+# replacement for the "psyclone" binary and falls back to it automatically if
+# the server is unavailable. Override PSYCLONE=psyclone to bypass the server.
+#
+# The server's lifetime is pinned to the owning make process: lfric.mk exports
+# PSYCLONE_OWNER_PID (the pid of the top-level make) and the server exits as
+# soon as that process does, so no server survives the build that started it.
+# Should that variable be unset the client determines the owner itself, by
+# finding the outermost make process in its own ancestry.
+PSYCLONE ?= $(LFRIC_BUILD)/psyclone/psyclone_client.py
 
 # Find the specific files we wish to pre-processed and PSyclone from physics source
 # Set our target dependency to the version of the file we are to generate after
@@ -57,7 +72,7 @@ psyclone: $(SOURCE_F_FILES)
 #
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
 	echo PSyclone with file override script $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py on $<
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/build):$$PYTHONPATH psyclone \
+	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/build):$$PYTHONPATH $(PSYCLONE) \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py \
 			-o $(SOURCE_DIR)/$*.f90 \
 			$(PSYCLONE_TRANSMUTE_EXTRAS) \
@@ -68,7 +83,7 @@ $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
 .SECONDEXPANSION:
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $$(dir $$(OPTIMISATION_PATH_PSY)/$$(DSL)/$$*)local.py
 	echo PSyclone with local script $(dir $(OPTIMISATION_PATH_PSY)/$(DSL)/$*)local.py on $<
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/build):$$PYTHONPATH psyclone \
+	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/build):$$PYTHONPATH $(PSYCLONE) \
 			-s $(dir $(OPTIMISATION_PATH_PSY)/$(DSL)/$*)local.py \
 			-o $(SOURCE_DIR)/$*.f90 \
 			$(PSYCLONE_TRANSMUTE_EXTRAS) \
@@ -78,7 +93,7 @@ $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $$(dir $$(OPTIMISATION_PATH_PSY)/$$(DS
 #
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/global.py
 	echo PSyclone with global script $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py on $<
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/build):$$PYTHONPATH psyclone \
+	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/build):$$PYTHONPATH $(PSYCLONE) \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py \
 			-o $(SOURCE_DIR)/$*.f90 \
 			$(PSYCLONE_TRANSMUTE_EXTRAS) \
