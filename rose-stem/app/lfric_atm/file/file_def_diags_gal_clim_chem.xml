@@ -83,6 +83,11 @@
       <field field_ref="aerosol__acc_ins_du" />
       <field field_ref="aerosol__cor_ins_du" />
       <field field_ref="aerosol__cloud_drop_no_conc" />
+      <field field_ref="aerosol__mconc_du_acc_ins" />
+      <field field_ref="aerosol__mconc_du_cor_ins" />
+      <field field_ref="aerosol__cn_number_conc" />
+      <field field_ref="aerosol__ccn_number_conc_30nm" />
+      <field field_ref="aerosol__ccn_number_conc_50nm" />
     </field_group>
 
     <!-- 2D fields averaged every timestep -->

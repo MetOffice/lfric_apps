@@ -1,5 +1,3 @@
-# Contributors
-
 | GitHub user         | Real Name           | Affiliation                      | Date         |
 | ------------------- | ------------------- | -------------------------------- | ------------ |
 | jedbakerMO          | Jed Baker           | Met Office                       | 2025-12-29   |
@@ -59,3 +57,4 @@
 | bblay-mo            | Byron Blay          | Met Office                       | 2026-07-01   |
 | ickc                | Kolen Cheung        | University of Exeter             | 2026-07-22   |
 | mo-snishimoto       | Shusuke Nishimoto   | Met Office                       | 2026-07-21   |
+| zmaalick            | Zubair Maalick      | Met Office                       | 2026-08-28   |
